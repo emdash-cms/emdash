@@ -19,6 +19,7 @@ import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
+import { getI18nConfig } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { SchemaRegistry } from "../schema/registry.js";
 import { FTSManager } from "../search/fts-manager.js";
@@ -219,17 +220,30 @@ export async function applySeed(
 
 	// 4-5. Taxonomies
 	if (seed.taxonomies) {
+		// seed-local id -> resolved info, used to wire `translationOf` refs.
+		const defSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
+		const termSeedIdMap = new Map<string, string>();
+		const fallbackLocale = getI18nConfig()?.defaultLocale ?? "en";
+
 		for (const taxonomy of seed.taxonomies) {
-			// Check if taxonomy definition exists
+			const defLocale = taxonomy.locale ?? fallbackLocale;
+
+			// (name, locale) is the UNIQUE key after migration 036.
 			const existingDef = await db
 				.selectFrom("_emdash_taxonomy_defs")
 				.selectAll()
 				.where("name", "=", taxonomy.name)
+				.where("locale", "=", defLocale)
 				.executeTakeFirst();
 
+			let defId: string;
+			let defTranslationGroup: string;
+
 			if (existingDef) {
+				defId = existingDef.id;
+				defTranslationGroup = existingDef.translation_group ?? existingDef.id;
 				if (onConflict === "error") {
-					throw new Error(`Conflict: taxonomy "${taxonomy.name}" already exists`);
+					throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
 				}
 				if (onConflict === "update") {
 					await db
@@ -242,40 +256,59 @@ export async function applySeed(
 						})
 						.where("id", "=", existingDef.id)
 						.execute();
-					// Taxonomy defs don't track an "updated" counter -- just the definition is updated
 				}
-				// skip: do nothing for the definition
 			} else {
-				// Create taxonomy definition
+				defId = ulid();
+				defTranslationGroup = defId;
+				if (taxonomy.translationOf) {
+					const source = defSeedIdMap.get(taxonomy.translationOf);
+					if (source) defTranslationGroup = source.translationGroup;
+					else
+						console.warn(
+							`taxonomy "${taxonomy.name}" (${defLocale}): translationOf "${taxonomy.translationOf}" not found yet; minting a fresh group.`,
+						);
+				}
 				await db
 					.insertInto("_emdash_taxonomy_defs")
 					.values({
-						id: ulid(),
+						id: defId,
 						name: taxonomy.name,
 						label: taxonomy.label,
 						label_singular: taxonomy.labelSingular ?? null,
 						hierarchical: taxonomy.hierarchical ? 1 : 0,
 						collections: JSON.stringify(taxonomy.collections),
+						locale: defLocale,
+						translation_group: defTranslationGroup,
 					})
 					.execute();
 				result.taxonomies.created++;
 			}
 
+			if (taxonomy.id)
+				defSeedIdMap.set(taxonomy.id, { id: defId, translationGroup: defTranslationGroup });
+
 			// Create terms (if provided)
 			if (taxonomy.terms && taxonomy.terms.length > 0) {
 				const termRepo = new TaxonomyRepository(db);
 
-				// For hierarchical taxonomies, we need to create parents before children
 				if (taxonomy.hierarchical) {
-					await applyHierarchicalTerms(termRepo, taxonomy.name, taxonomy.terms, result, onConflict);
+					await applyHierarchicalTerms(
+						termRepo,
+						taxonomy.name,
+						defLocale,
+						taxonomy.terms,
+						termSeedIdMap,
+						result,
+						onConflict,
+					);
 				} else {
-					// Flat taxonomy - create all terms
 					for (const term of taxonomy.terms) {
-						const existing = await termRepo.findBySlug(taxonomy.name, term.slug);
+						const termLocale = term.locale ?? defLocale;
+						const existing = await termRepo.findBySlug(taxonomy.name, term.slug, termLocale);
 						if (existing) {
 							if (onConflict === "error") {
 								throw new Error(
-									`Conflict: taxonomy term "${term.slug}" in "${taxonomy.name}" already exists`,
+									`Conflict: taxonomy term "${term.slug}" in "${taxonomy.name}" (${termLocale}) already exists`,
 								);
 							}
 							if (onConflict === "update") {
@@ -285,14 +318,20 @@ export async function applySeed(
 								});
 								result.taxonomies.terms++;
 							}
-							// skip: do nothing
+							if (term.id) termSeedIdMap.set(term.id, existing.id);
 						} else {
-							await termRepo.create({
+							const translationOf = term.translationOf
+								? termSeedIdMap.get(term.translationOf)
+								: undefined;
+							const created = await termRepo.create({
 								name: taxonomy.name,
 								slug: term.slug,
 								label: term.label,
 								data: term.description ? { description: term.description } : undefined,
+								locale: termLocale,
+								translationOf,
 							});
+							if (term.id) termSeedIdMap.set(term.id, created.id);
 							result.taxonomies.terms++;
 						}
 					}
@@ -471,23 +510,39 @@ export async function applySeed(
 
 	// 8. Menus and Menu Items (after content so refs can resolve)
 	if (seed.menus) {
+		// seed-local id -> resolved info, used to wire `translationOf` refs.
+		const menuSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
+		const fallbackLocale = getI18nConfig()?.defaultLocale ?? "en";
+
 		for (const menu of seed.menus) {
-			// Check if menu exists
-			const existingMenu = await db
+			const locale = menu.locale ?? fallbackLocale;
+			let lookup = db
 				.selectFrom("_emdash_menus")
 				.selectAll()
 				.where("name", "=", menu.name)
-				.executeTakeFirst();
+				.where("locale", "=", locale);
+			const existingMenu = await lookup.executeTakeFirst();
 
 			let menuId: string;
+			let translationGroup: string;
 
 			if (existingMenu) {
 				menuId = existingMenu.id;
+				translationGroup = existingMenu.translation_group ?? existingMenu.id;
 				// Clear existing items (menus are recreated)
 				await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
 			} else {
-				// Create menu
 				menuId = ulid();
+				// Resolve translationOf to the source menu's translation_group.
+				translationGroup = menuId;
+				if (menu.translationOf) {
+					const source = menuSeedIdMap.get(menu.translationOf);
+					if (source) translationGroup = source.translationGroup;
+					else
+						console.warn(
+							`menu "${menu.name}" (${locale}): translationOf "${menu.translationOf}" not found yet; minting a fresh group.`,
+						);
+				}
 				await db
 					.insertInto("_emdash_menus")
 					.values({
@@ -496,15 +551,20 @@ export async function applySeed(
 						label: menu.label,
 						created_at: new Date().toISOString(),
 						updated_at: new Date().toISOString(),
+						locale,
+						translation_group: translationGroup,
 					})
 					.execute();
 				result.menus.created++;
 			}
 
+			if (menu.id) menuSeedIdMap.set(menu.id, { id: menuId, translationGroup });
+
 			// Create menu items
 			const itemCount = await applyMenuItems(
 				db,
 				menuId,
+				locale,
 				menu.items,
 				null, // parent_id
 				0, // sort_order
@@ -692,64 +752,75 @@ export async function applySeed(
 async function applyHierarchicalTerms(
 	termRepo: TaxonomyRepository,
 	taxonomyName: string,
+	defLocale: string,
 	terms: SeedTaxonomyTerm[],
+	termSeedIdMap: Map<string, string>,
 	result: SeedApplyResult,
 	onConflict: "skip" | "update" | "error" = "skip",
 ): Promise<void> {
-	// Map slugs to IDs
+	// "locale::slug" -> id, so the same slug can resolve per locale.
 	const slugToId = new Map<string, string>();
 
-	// Multiple passes to handle deep nesting
+	// Multiple passes — handles deep nesting and translationOf forward refs.
 	let remaining = [...terms];
-	let maxPasses = 10; // Prevent infinite loop
+	let maxPasses = 10;
 
 	while (remaining.length > 0 && maxPasses > 0) {
 		const processedThisPass: string[] = [];
 
 		for (const term of remaining) {
-			// Check if parent exists (or no parent)
-			if (!term.parent || slugToId.has(term.parent)) {
-				const parentId = term.parent ? slugToId.get(term.parent) : undefined;
+			const termLocale = term.locale ?? defLocale;
+			const parentReady = !term.parent || slugToId.has(`${termLocale}::${term.parent}`);
+			const translationReady = !term.translationOf || termSeedIdMap.has(term.translationOf);
 
-				const existing = await termRepo.findBySlug(taxonomyName, term.slug);
-				if (existing) {
-					if (onConflict === "error") {
-						throw new Error(
-							`Conflict: taxonomy term "${term.slug}" in "${taxonomyName}" already exists`,
-						);
-					}
-					if (onConflict === "update") {
-						await termRepo.update(existing.id, {
-							label: term.label,
-							parentId,
-							data: term.description ? { description: term.description } : {},
-						});
-						result.taxonomies.terms++;
-					}
-					slugToId.set(term.slug, existing.id);
-				} else {
-					const created = await termRepo.create({
-						name: taxonomyName,
-						slug: term.slug,
+			if (!parentReady || !translationReady) continue;
+
+			const parentId = term.parent ? slugToId.get(`${termLocale}::${term.parent}`) : undefined;
+			const translationOf = term.translationOf ? termSeedIdMap.get(term.translationOf) : undefined;
+
+			const existing = await termRepo.findBySlug(taxonomyName, term.slug, termLocale);
+			if (existing) {
+				if (onConflict === "error") {
+					throw new Error(
+						`Conflict: taxonomy term "${term.slug}" in "${taxonomyName}" (${termLocale}) already exists`,
+					);
+				}
+				if (onConflict === "update") {
+					await termRepo.update(existing.id, {
 						label: term.label,
 						parentId,
-						data: term.description ? { description: term.description } : undefined,
+						data: term.description ? { description: term.description } : {},
 					});
-					slugToId.set(term.slug, created.id);
 					result.taxonomies.terms++;
 				}
-
-				processedThisPass.push(term.slug);
+				slugToId.set(`${termLocale}::${term.slug}`, existing.id);
+				if (term.id) termSeedIdMap.set(term.id, existing.id);
+			} else {
+				const created = await termRepo.create({
+					name: taxonomyName,
+					slug: term.slug,
+					label: term.label,
+					parentId,
+					data: term.description ? { description: term.description } : undefined,
+					locale: termLocale,
+					translationOf,
+				});
+				slugToId.set(`${termLocale}::${term.slug}`, created.id);
+				if (term.id) termSeedIdMap.set(term.id, created.id);
+				result.taxonomies.terms++;
 			}
+
+			processedThisPass.push(term.slug + "::" + termLocale);
 		}
 
-		// Remove processed terms
-		remaining = remaining.filter((t) => !processedThisPass.includes(t.slug));
+		remaining = remaining.filter(
+			(t) => !processedThisPass.includes(t.slug + "::" + (t.locale ?? defLocale)),
+		);
 		maxPasses--;
 	}
 
 	if (remaining.length > 0) {
-		console.warn(`Could not process ${remaining.length} terms due to missing parents`);
+		console.warn(`Could not process ${remaining.length} terms due to missing parents/translations`);
 	}
 }
 
@@ -847,11 +918,18 @@ async function applyContentTaxonomies(
 }
 
 /**
- * Apply menu items recursively
+ * Apply menu items recursively.
+ *
+ * Each item gets a fresh `translation_group` (= its own id). The seed format's
+ * `SeedMenuItem` has no `id`/`translationOf` fields, so we can't express the
+ * cross-locale "same nav entry" link here — items diverge across locales on
+ * re-apply. Runtime navigation still resolves correctly because `reference_id`
+ * already holds the content's translation_group.
  */
 async function applyMenuItems(
 	db: Kysely<Database>,
 	menuId: string,
+	locale: string,
 	items: SeedMenuItem[],
 	parentId: string | null,
 	startOrder: number,
@@ -877,7 +955,6 @@ async function applyMenuItems(
 			// If not in map, the content might not exist yet (will be broken link)
 		}
 
-		// Insert menu item
 		await db
 			.insertInto("_emdash_menu_items")
 			.values({
@@ -894,15 +971,24 @@ async function applyMenuItems(
 				target: item.target ?? null,
 				css_classes: item.cssClasses ?? null,
 				created_at: new Date().toISOString(),
+				locale,
+				translation_group: itemId,
 			})
 			.execute();
 
 		count++;
 		order++;
 
-		// Process children
 		if (item.children && item.children.length > 0) {
-			const childCount = await applyMenuItems(db, menuId, item.children, itemId, 0, seedIdMap);
+			const childCount = await applyMenuItems(
+				db,
+				menuId,
+				locale,
+				item.children,
+				itemId,
+				0,
+				seedIdMap,
+			);
 			count += childCount;
 		}
 	}

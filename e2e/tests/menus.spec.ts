@@ -55,8 +55,8 @@ test.describe("Menus", () => {
 			// Create menu
 			await admin.createMenu(menuName, menuLabel);
 
-			// Should redirect to menu editor
-			await expect(page).toHaveURL(new RegExp(`/menus/${menuName}$`));
+			// Should redirect to menu editor (URL may include ?locale=... in i18n mode)
+			await expect(page).toHaveURL(new RegExp(`/menus/${menuName}(\\?|$)`));
 
 			// Should show the menu label
 			await expect(page.locator("h1")).toContainText(menuLabel);

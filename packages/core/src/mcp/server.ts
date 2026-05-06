@@ -1667,16 +1667,19 @@ export function createMcpServer(): McpServer {
 			description:
 				"List all taxonomy definitions (e.g. categories, tags). Taxonomies are " +
 				"classification systems applied to content. Each has a name, label, and " +
-				"can be hierarchical (categories) or flat (tags).",
-			inputSchema: z.object({}),
+				"can be hierarchical (categories) or flat (tags). Optionally filter by " +
+				"locale.",
+			inputSchema: z.object({
+				locale: z.string().optional().describe("Filter by locale (omit for all)"),
+			}),
 			annotations: { readOnlyHint: true },
 		},
-		async (_args, extra) => {
+		async (args, extra) => {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
 				const { handleTaxonomyList } = await import("../api/handlers/taxonomies.js");
-				return unwrap(await handleTaxonomyList(ec.db));
+				return unwrap(await handleTaxonomyList(ec.db, { locale: args.locale }));
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_LIST_ERROR");
 			}
@@ -1695,6 +1698,7 @@ export function createMcpServer(): McpServer {
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
 				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
+				locale: z.string().optional().describe("Filter by locale (omit for all)"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1702,9 +1706,8 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
-				// Verify taxonomy exists via handler layer
 				const { handleTaxonomyList } = await import("../api/handlers/taxonomies.js");
-				const listResult = await handleTaxonomyList(ec.db);
+				const listResult = await handleTaxonomyList(ec.db, { locale: args.locale });
 				if (!listResult.success) return unwrap(listResult);
 
 				const taxonomies = (listResult.data as { taxonomies: Array<{ name: string; id?: string }> })
@@ -1712,13 +1715,12 @@ export function createMcpServer(): McpServer {
 				const taxonomy = taxonomies.find((t: { name: string }) => t.name === args.taxonomy);
 				if (!taxonomy) return respondError("NOT_FOUND", `Taxonomy '${args.taxonomy}' not found`);
 
-				// Paginated term query via repository (avoids N+1 of handleTermList)
 				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
 				const { decodeCursor, encodeCursor, InvalidCursorError } =
 					await import("../database/repositories/types.js");
 				const repo = new TaxonomyRepository(ec.db);
 				const limit = Math.min(args.limit ?? 50, 100);
-				const terms = await repo.findByName(args.taxonomy);
+				const terms = await repo.findByName(args.taxonomy, { locale: args.locale });
 
 				// Manual keyset pagination over the sorted-by-label results.
 				// Using a base64-encoded `(label, id)` cursor matches the
@@ -1760,6 +1762,8 @@ export function createMcpServer(): McpServer {
 						label: t.label,
 						parentId: t.parentId,
 						description: typeof t.data?.description === "string" ? t.data.description : undefined,
+						locale: t.locale,
+						translationGroup: t.translationGroup,
 					})),
 					nextCursor,
 				});
@@ -1785,6 +1789,11 @@ export function createMcpServer(): McpServer {
 				label: z.string().describe("Display name"),
 				parentId: z.string().optional().describe("Parent term ID for hierarchical taxonomies"),
 				description: z.string().optional().describe("Description of the term"),
+				locale: z.string().optional().describe("Locale for the new term (e.g. 'es')"),
+				translationOf: z
+					.string()
+					.optional()
+					.describe("Term id to join as a translation (same translation_group)"),
 			}),
 		},
 		async (args, extra) => {
@@ -1799,6 +1808,8 @@ export function createMcpServer(): McpServer {
 						label: args.label,
 						parentId: args.parentId,
 						description: args.description,
+						locale: args.locale,
+						translationOf: args.translationOf,
 					}),
 				);
 			} catch (error) {
@@ -1875,6 +1886,29 @@ export function createMcpServer(): McpServer {
 		},
 	);
 
+	server.registerTool(
+		"taxonomy_term_translations",
+		{
+			title: "List Term Translations",
+			description:
+				"Return every locale variant of a taxonomy term, identified via its shared translation_group.",
+			inputSchema: z.object({
+				id: z.string().describe("Term id (or translation_group)"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { handleTermTranslations } = await import("../api/handlers/taxonomies.js");
+				return unwrap(await handleTermTranslations(ec.db, args.id));
+			} catch (error) {
+				return respondHandlerError(error, "TERM_TRANSLATIONS_ERROR");
+			}
+		},
+	);
+
 	// =====================================================================
 	// Menu tools
 	// =====================================================================
@@ -1884,18 +1918,20 @@ export function createMcpServer(): McpServer {
 		{
 			title: "List Menus",
 			description:
-				"List all navigation menus defined in the CMS. Menus are named " +
-				"navigation structures (e.g. 'main', 'footer') containing ordered " +
-				"items with labels, URLs, and optional nesting.",
-			inputSchema: z.object({}),
+				"List navigation menus. Menus are per-locale: filter by `locale` to " +
+				"get just one locale's worth, or omit to list every row (one per " +
+				"locale per menu name).",
+			inputSchema: z.object({
+				locale: z.string().optional().describe("Filter by locale (omit for all)"),
+			}),
 			annotations: { readOnlyHint: true },
 		},
-		async (_args, extra) => {
+		async (args, extra) => {
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuList } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuList(ec.db));
+				return unwrap(await handleMenuList(ec.db, { locale: args.locale }));
 			} catch (error) {
 				return respondHandlerError(error, "MENU_LIST_ERROR");
 			}
@@ -1907,11 +1943,11 @@ export function createMcpServer(): McpServer {
 		{
 			title: "Get Menu with Items",
 			description:
-				"Get a menu by name including all its items in order. Items have a " +
-				"label, URL, type (custom/content/collection), and optional parent " +
-				"for nesting.",
+				"Get a menu by name, including its items. When multiple locales exist, " +
+				"pass `locale` to pick the right one.",
 			inputSchema: z.object({
 				name: z.string().describe("Menu name (e.g. 'main', 'footer')"),
+				locale: z.string().optional().describe("Locale to resolve the menu for"),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -1920,9 +1956,32 @@ export function createMcpServer(): McpServer {
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuGet } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuGet(ec.db, args.name));
+				return unwrap(await handleMenuGet(ec.db, args.name, { locale: args.locale }));
 			} catch (error) {
 				return respondHandlerError(error, "MENU_GET_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"menu_translations",
+		{
+			title: "List Menu Translations",
+			description:
+				"Return every locale variant of a menu, identified via the shared translation_group.",
+			inputSchema: z.object({
+				id: z.string().describe("Menu id (or translation_group)"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { handleMenuTranslations } = await import("../api/handlers/menus.js");
+				return unwrap(await handleMenuTranslations(ec.db, args.id));
+			} catch (error) {
+				return respondHandlerError(error, "MENU_TRANSLATIONS_ERROR");
 			}
 		},
 	);

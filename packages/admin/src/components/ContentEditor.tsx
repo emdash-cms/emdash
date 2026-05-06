@@ -17,13 +17,14 @@ import {
 	Eye,
 	Image as ImageIcon,
 	MagnifyingGlass,
+	Paperclip,
 	X,
 	Trash,
 	ArrowsInSimple,
 	ArrowsOutSimple,
 	ArrowSquareOut,
 } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -37,8 +38,9 @@ import type {
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
+import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
-import { contentUrl } from "../lib/url.js";
+import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
@@ -75,6 +77,7 @@ import { SaveButton } from "./SaveButton";
 import { SeoImageField } from "./SeoImageField";
 import { SeoPanel } from "./SeoPanel";
 import { TaxonomySidebar } from "./TaxonomySidebar";
+import { TranslationsPanel } from "./TranslationsPanel.js";
 
 // Editor role level (40) from @emdash-cms/auth
 const ROLE_EDITOR = 40;
@@ -224,6 +227,7 @@ export function ContentEditor({
 	manifest,
 }: ContentEditorProps) {
 	const { t } = useLingui();
+	const navigate = useNavigate();
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
@@ -986,55 +990,19 @@ export function ContentEditor({
 							{/* Translations sidebar - shown when i18n is enabled */}
 							{i18n && item && !isNew && (
 								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">{t`Translations`}</h3>
-									<div className="space-y-2">
-										{i18n.locales.map((locale) => {
-											const translation = translations?.find((tr) => tr.locale === locale);
-											const isCurrent = locale === item.locale;
-											return (
-												<div
-													key={locale}
-													className={cn(
-														"flex items-center justify-between rounded-md px-3 py-2 text-sm",
-														isCurrent
-															? "bg-kumo-brand/10 font-medium"
-															: translation
-																? "hover:bg-kumo-tint/50"
-																: "text-kumo-subtle",
-													)}
-												>
-													<div className="flex items-center gap-2">
-														<span className="text-xs font-semibold uppercase">{locale}</span>
-														{locale === i18n.defaultLocale && (
-															<span className="text-[10px] text-kumo-subtle">{t` (default)`}</span>
-														)}
-														{isCurrent && (
-															<span className="text-[10px] text-kumo-brand">{t`current`}</span>
-														)}
-													</div>
-													{translation && !isCurrent ? (
-														<Link
-															to="/content/$collection/$id"
-															params={{ collection, id: translation.id }}
-															className="text-xs text-kumo-brand hover:underline"
-														>
-															{t`Edit`}
-														</Link>
-													) : !translation && onTranslate ? (
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															className="h-auto px-2 py-1 text-xs"
-															onClick={() => onTranslate(locale)}
-														>
-															{t`Translate`}
-														</Button>
-													) : null}
-												</div>
-											);
-										})}
-									</div>
+									<TranslationsPanel
+										locales={i18n.locales}
+										defaultLocale={i18n.defaultLocale}
+										currentLocale={item.locale ?? undefined}
+										translations={translations ?? []}
+										onOpen={(tr) =>
+											navigate({
+												to: "/content/$collection/$id",
+												params: { collection, id: tr.id },
+											})
+										}
+										onCreate={onTranslate}
+									/>
 								</div>
 							)}
 
@@ -1336,6 +1304,24 @@ function FieldRenderer({
 							: undefined
 					}
 					value={imageValue}
+					onChange={handleChange}
+					required={field.required}
+				/>
+			);
+		}
+
+		case "file": {
+			// value is either a FileFieldValue object or undefined.
+			// The file field type was unusable before this PR (rendered as a text input
+			// that produced raw strings nobody could meaningfully save), so there is no
+			// "legacy string" data to preserve here.
+			const fileValue =
+				value != null && typeof value === "object" ? (value as FileFieldValue) : undefined;
+			return (
+				<FileFieldRenderer
+					id={id}
+					label={label}
+					value={fileValue}
 					onChange={handleChange}
 					required={field.required}
 				/>
@@ -1660,6 +1646,168 @@ function ImageFieldRenderer({
 			/>
 			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
 			{required && !displayUrl && (
+				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
+			)}
+		</div>
+	);
+}
+
+/**
+ * File field value — matches the "file" shape validated by the Zod generator:
+ * { id, provider?, src?, filename?, mimeType?, size?, meta? }
+ */
+interface FileFieldValue {
+	id: string;
+	/** Provider ID (e.g., "local", "s3") */
+	provider?: string;
+	/** Direct URL for non-local media */
+	src?: string;
+	filename?: string;
+	mimeType?: string;
+	size?: number;
+	/** Provider-specific metadata */
+	meta?: Record<string, unknown>;
+}
+
+interface FileFieldRendererProps {
+	id?: string;
+	label: string;
+	value: FileFieldValue | undefined;
+	onChange: (value: FileFieldValue | null) => void;
+	required?: boolean;
+}
+
+/**
+ * File field with media picker
+ *
+ * Like ImageFieldRenderer but for arbitrary file types. Shows a mime-type-appropriate
+ * icon, filename, and size instead of an image preview.
+ */
+function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRendererProps) {
+	const { t } = useLingui();
+	const [pickerOpen, setPickerOpen] = React.useState(false);
+
+	// Normalize value to derive display info.
+	// For local files, prefer meta.storageKey; fall back to value.src when it's an
+	// internal media path; finally fall back to value.id so local files remain
+	// clickable even when metadata is sparse. For external providers, use value.src
+	// but only when it's an http(s) URL — a hostile provider plugin could otherwise
+	// return a data: or javascript: URL that gets rendered as a clickable link.
+	const normalized = React.useMemo(() => {
+		if (!value) return null;
+		const isLocal = !value.provider || value.provider === "local";
+		const storageKey =
+			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
+		const localSrc =
+			typeof value.src === "string" && value.src.startsWith("/_emdash/") ? value.src : undefined;
+		// Storage keys come from server-controlled paths today, but the Zod schema
+		// now lets clients write arbitrary `meta.storageKey` strings via the content
+		// API. Encode before interpolating so attacker-shaped values can't escape
+		// the path with `?` or `#`.
+		const localUrl = isLocal
+			? storageKey
+				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`
+				: (localSrc ?? `/_emdash/api/media/file/${encodeURIComponent(value.id)}`)
+			: undefined;
+		const externalUrl = !isLocal && value.src && isSafeUrl(value.src) ? value.src : undefined;
+		return {
+			displayUrl: localUrl ?? externalUrl,
+			filename: value.filename || t`Untitled file`,
+			mimeType: value.mimeType || "",
+			size: value.size,
+		};
+	}, [value, t]);
+
+	const handleSelect = (item: MediaItem) => {
+		const isLocalProvider = !item.provider || item.provider === "local";
+		onChange({
+			id: item.id,
+			provider: item.provider || "local",
+			src: isLocalProvider ? undefined : item.url,
+			filename: item.filename,
+			mimeType: item.mimeType,
+			size: item.size,
+			meta: isLocalProvider ? { ...item.meta, storageKey: item.storageKey } : item.meta,
+		});
+	};
+
+	const handleRemove = () => {
+		onChange(null);
+	};
+
+	const hasMime = !!normalized?.mimeType;
+	const size = typeof normalized?.size === "number" ? normalized.size : undefined;
+	const hasSize = size !== undefined;
+
+	return (
+		<div id={id}>
+			<Label>{label}</Label>
+			{normalized ? (
+				<div className="mt-2 flex items-center gap-3 rounded-lg border p-3">
+					<span className="text-3xl" aria-hidden="true">
+						{getFileIcon(normalized.mimeType)}
+					</span>
+					<div className="flex-1 min-w-0">
+						{normalized.displayUrl ? (
+							<a
+								href={normalized.displayUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-sm font-medium truncate block hover:underline"
+							>
+								{normalized.filename}
+							</a>
+						) : (
+							<p className="text-sm font-medium truncate">{normalized.filename}</p>
+						)}
+						{(hasMime || hasSize) && (
+							<p className="text-xs text-kumo-subtle">
+								{hasMime ? normalized.mimeType : null}
+								{hasMime && hasSize ? " • " : null}
+								{hasSize ? formatFileSize(size) : null}
+							</p>
+						)}
+					</div>
+					<div className="flex gap-1">
+						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
+							{t`Change`}
+						</Button>
+						<Button
+							type="button"
+							shape="square"
+							variant="destructive"
+							className="h-8 w-8"
+							onClick={handleRemove}
+							aria-label={t`Remove ${label}`}
+						>
+							<X className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+			) : (
+				<Button
+					type="button"
+					variant="outline"
+					className="mt-2 w-full h-32 border-dashed"
+					onClick={() => setPickerOpen(true)}
+					aria-label={t`Select ${label}`}
+				>
+					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
+						<Paperclip className="h-8 w-8" />
+						<span>{t`Select file`}</span>
+					</div>
+				</Button>
+			)}
+			<MediaPickerModal
+				open={pickerOpen}
+				onOpenChange={setPickerOpen}
+				onSelect={handleSelect}
+				mimeTypeFilter=""
+				hideUrlInput
+				mediaKind="file"
+				title={t`Select ${label}`}
+			/>
+			{required && !normalized && (
 				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
 			)}
 		</div>

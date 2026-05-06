@@ -8,7 +8,6 @@
     "build": "astro build",
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
-    "seed": "emdash seed",
     "typecheck": "astro check"
   },
   "dependencies": {

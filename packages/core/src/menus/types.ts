@@ -24,6 +24,8 @@ export interface Menu {
 	name: string;
 	label: string;
 	items: MenuItem[];
+	locale: string;
+	translationGroup: string | null;
 }
 
 /**
@@ -36,13 +38,15 @@ export interface MenuItemRow {
 	sort_order: number;
 	type: MenuItemType;
 	reference_collection: string | null;
-	reference_id: string | null;
+	reference_id: string | null; // translation_group of referenced content/term
 	custom_url: string | null;
 	label: string;
 	title_attr: string | null;
 	target: string | null;
 	css_classes: string | null;
 	created_at: string;
+	locale: string;
+	translation_group: string | null;
 }
 
 /**
@@ -54,6 +58,8 @@ export interface MenuRow {
 	label: string;
 	created_at: string;
 	updated_at: string;
+	locale: string;
+	translation_group: string | null;
 }
 
 /**
@@ -62,6 +68,11 @@ export interface MenuRow {
 export interface CreateMenuItemInput {
 	type: MenuItemType;
 	label: string;
+	/**
+	 * Identifier of the referenced entity. For `reference_collection` items it is
+	 * the content's translation_group (locale-agnostic); for `taxonomy` items it
+	 * is the term's translation_group.
+	 */
 	referenceCollection?: string;
 	referenceId?: string;
 	customUrl?: string;
@@ -91,6 +102,9 @@ export interface UpdateMenuItemInput {
 export interface CreateMenuInput {
 	name: string;
 	label: string;
+	locale?: string;
+	/** When set, links the new menu into an existing translation_group. */
+	translationOf?: string;
 }
 
 /**

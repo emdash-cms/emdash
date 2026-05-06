@@ -13,8 +13,10 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchMenus, createMenu, deleteMenu } from "../lib/api";
+import { fetchManifest } from "../lib/api/client.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
 
 export function MenuList() {
 	const { t } = useLingui();
@@ -25,9 +27,19 @@ export function MenuList() {
 	const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null);
 	const [createError, setCreateError] = React.useState<string | null>(null);
 
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+	const i18n = useI18nConfig(manifest);
+	const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined);
+	React.useEffect(() => {
+		if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale);
+	}, [i18n, activeLocale]);
+
 	const { data: menus, isLoading } = useQuery({
-		queryKey: ["menus"],
-		queryFn: fetchMenus,
+		queryKey: ["menus", activeLocale],
+		queryFn: () => fetchMenus({ locale: activeLocale }),
 	});
 
 	const createMutation = useMutation({
@@ -39,7 +51,11 @@ export function MenuList() {
 				title: t`Menu created`,
 				description: t`Menu "${menu.label}" has been created.`,
 			});
-			void navigate({ to: "/menus/$name", params: { name: menu.name } });
+			void navigate({
+				to: "/menus/$name",
+				params: { name: menu.name },
+				search: { locale: menu.locale },
+			});
 		},
 		onError: (error: Error) => {
 			setCreateError(error.message);
@@ -47,7 +63,7 @@ export function MenuList() {
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: deleteMenu,
+		mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menus"] });
 			setDeleteMenuName(null);
@@ -66,7 +82,7 @@ export function MenuList() {
 		const name = typeof nameVal === "string" ? nameVal : "";
 		const labelVal = formData.get("label");
 		const label = typeof labelVal === "string" ? labelVal : "";
-		createMutation.mutate({ name, label });
+		createMutation.mutate({ name, label, locale: activeLocale });
 	};
 
 	if (isLoading) {
@@ -79,10 +95,20 @@ export function MenuList() {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between">
+			<div className="flex items-center justify-between gap-4 flex-wrap">
 				<div>
 					<h1 className="text-3xl font-bold">{t`Menus`}</h1>
 					<p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p>
+				</div>
+				<div className="flex items-center gap-2">
+					{i18n && activeLocale ? (
+						<LocaleSwitcher
+							locales={i18n.locales}
+							defaultLocale={i18n.defaultLocale}
+							value={activeLocale}
+							onChange={setActiveLocale}
+						/>
+					) : null}
 				</div>
 				<Dialog.Root
 					open={isCreateOpen}
@@ -167,9 +193,21 @@ export function MenuList() {
 							key={menu.id}
 							className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors"
 						>
-							<Link to="/menus/$name" params={{ name: menu.name }} className="flex-1">
+							<Link
+								to="/menus/$name"
+								params={{ name: menu.name }}
+								search={{ locale: menu.locale }}
+								className="flex-1"
+							>
 								<div>
-									<h3 className="font-semibold text-lg">{menu.label}</h3>
+									<h3 className="font-semibold text-lg">
+										{menu.label}
+										{i18n ? (
+											<span className="ms-2 text-xs font-mono uppercase text-kumo-subtle">
+												{menu.locale}
+											</span>
+										) : null}
+									</h3>
 									<p className="text-sm text-kumo-subtle">
 										{menu.name} • {menu.itemCount || 0} items
 									</p>
@@ -179,6 +217,7 @@ export function MenuList() {
 								<Link
 									to="/menus/$name"
 									params={{ name: menu.name }}
+									search={{ locale: menu.locale }}
 									className={buttonVariants({ variant: "outline", size: "sm" })}
 								>
 									<Pencil className="h-4 w-4 me-2" />

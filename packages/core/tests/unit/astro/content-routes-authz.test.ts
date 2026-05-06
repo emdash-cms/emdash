@@ -20,6 +20,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import { GET as getItem } from "../../../src/astro/routes/api/content/[collection]/[id].js";
 import { GET as getCompare } from "../../../src/astro/routes/api/content/[collection]/[id]/compare.js";
+import { DELETE as deletePermanent } from "../../../src/astro/routes/api/content/[collection]/[id]/permanent.js";
 import { POST as postPreviewUrl } from "../../../src/astro/routes/api/content/[collection]/[id]/preview-url.js";
 import { GET as getRevisions } from "../../../src/astro/routes/api/content/[collection]/[id]/revisions.js";
 import { GET as getTranslations } from "../../../src/astro/routes/api/content/[collection]/[id]/translations.js";
@@ -37,7 +38,9 @@ interface StubUser {
 
 const subscriber: StubUser = { id: "u-sub", role: Role.SUBSCRIBER };
 const contributor: StubUser = { id: "u-con", role: Role.CONTRIBUTOR };
+const author: StubUser = { id: "u-auth", role: Role.AUTHOR };
 const editor: StubUser = { id: "u-edit", role: Role.EDITOR };
+const admin: StubUser = { id: "u-admin", role: Role.ADMIN };
 
 interface StubItem {
 	id: string;
@@ -128,6 +131,11 @@ function buildEmdash(
 		data: opts.compare ?? { hasChanges: false, live: null, draft: null },
 	}));
 
+	const handleContentPermanentDelete = vi.fn(async () => ({
+		success: true as const,
+		data: { deleted: true as const },
+	}));
+
 	return {
 		handleContentList,
 		handleContentGet,
@@ -135,6 +143,7 @@ function buildEmdash(
 		handleContentListTrashed,
 		handleRevisionList,
 		handleContentCompare,
+		handleContentPermanentDelete,
 	};
 }
 
@@ -154,6 +163,7 @@ function ctx(opts: {
 			user: opts.user,
 			emdash: opts.emdash,
 		},
+		cache: { enabled: false, invalidate: vi.fn() },
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub for tests
 	} as unknown as APIContext;
 }
@@ -359,5 +369,62 @@ describe("GET /content/:collection/:id/translations", () => {
 			data: { translations: Array<{ id: string; status: string }> };
 		};
 		expect(body.data.translations).toHaveLength(3);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /content/:collection/:id/permanent — must be ADMIN-only and gated on
+// the content domain. Permanent deletion is irreversible and bypasses the
+// trash safety net, so it sits at the same authorization tier as other
+// destructive system actions (schema:manage, comments:delete, users:manage).
+// Lower roles soft-delete via DELETE /:id (delete_own / delete_any); only
+// ADMIN can empty the trash.
+// ---------------------------------------------------------------------------
+
+describe("DELETE /content/:collection/:id/permanent", () => {
+	function permanentCtx(user: StubUser | null, emdash: ReturnType<typeof buildEmdash>) {
+		const url = "http://localhost/";
+		return ctx({
+			user,
+			emdash,
+			params: { collection: "post", id: "p1" },
+			url,
+			request: new Request(url, { method: "DELETE" }),
+		});
+	}
+
+	it("allows ADMIN to permanently delete (passes through to handler)", async () => {
+		const emdash = buildEmdash();
+		const res = await deletePermanent(permanentCtx(admin, emdash));
+		expect(res.status).toBe(200);
+		expect(emdash.handleContentPermanentDelete).toHaveBeenCalledWith("post", "p1");
+	});
+
+	it("denies EDITOR (handler must not be called)", async () => {
+		const emdash = buildEmdash();
+		const res = await deletePermanent(permanentCtx(editor, emdash));
+		expect(res.status).toBe(403);
+		expect(emdash.handleContentPermanentDelete).not.toHaveBeenCalled();
+	});
+
+	it("denies AUTHOR (handler must not be called)", async () => {
+		const emdash = buildEmdash();
+		const res = await deletePermanent(permanentCtx(author, emdash));
+		expect(res.status).toBe(403);
+		expect(emdash.handleContentPermanentDelete).not.toHaveBeenCalled();
+	});
+
+	it("denies CONTRIBUTOR (handler must not be called)", async () => {
+		const emdash = buildEmdash();
+		const res = await deletePermanent(permanentCtx(contributor, emdash));
+		expect(res.status).toBe(403);
+		expect(emdash.handleContentPermanentDelete).not.toHaveBeenCalled();
+	});
+
+	it("denies SUBSCRIBER (handler must not be called)", async () => {
+		const emdash = buildEmdash();
+		const res = await deletePermanent(permanentCtx(subscriber, emdash));
+		expect(res.status).toBe(403);
+		expect(emdash.handleContentPermanentDelete).not.toHaveBeenCalled();
 	});
 });

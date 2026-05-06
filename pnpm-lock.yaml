@@ -90,6 +90,18 @@ catalogs:
     '@tiptap/extension-placeholder':
       specifier: ^3.20.0
       version: 3.20.0
+    '@tiptap/extension-table':
+      specifier: ^3.20.0
+      version: 3.20.0
+    '@tiptap/extension-table-cell':
+      specifier: ^3.20.0
+      version: 3.20.0
+    '@tiptap/extension-table-header':
+      specifier: ^3.20.0
+      version: 3.20.0
+    '@tiptap/extension-table-row':
+      specifier: ^3.20.0
+      version: 3.20.0
     '@tiptap/extension-text-align':
       specifier: ^3.20.0
       version: 3.20.0
@@ -725,6 +737,18 @@ importers:
       '@tiptap/extension-placeholder':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/extensions@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))
+      '@tiptap/extension-table':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+      '@tiptap/extension-table-cell':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/extension-table@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))
+      '@tiptap/extension-table-header':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/extension-table@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))
+      '@tiptap/extension-table-row':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/extension-table@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))
       '@tiptap/extension-text-align':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))
@@ -893,7 +917,7 @@ importers:
         specifier: '>=5'
         version: 6.1.3(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       emdash:
-        specifier: workspace:>=0.9.0
+        specifier: workspace:>=0.10.0
         version: link:../core
       kysely:
         specifier: ^0.27.6
@@ -1090,7 +1114,7 @@ importers:
         specifier: workspace:*
         version: link:../auth
       '@emdash-cms/auth-atproto':
-        specifier: workspace:>=0.2.1
+        specifier: workspace:>=0.2.2
         version: link:../auth-atproto
       '@emdash-cms/gutenberg-to-portable-text':
         specifier: workspace:*
@@ -1381,7 +1405,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.9.0
+        specifier: workspace:>=0.10.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1390,7 +1414,7 @@ importers:
   packages/plugins/atproto:
     dependencies:
       emdash:
-        specifier: workspace:>=0.8.0
+        specifier: workspace:>=0.10.0
         version: link:../../core
     devDependencies:
       tsdown:
@@ -1403,7 +1427,7 @@ importers:
   packages/plugins/audit-log:
     dependencies:
       emdash:
-        specifier: workspace:>=0.9.0
+        specifier: workspace:>=0.10.0
         version: link:../../core
     devDependencies:
       tsdown:
@@ -1438,7 +1462,7 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0(astro@6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2))
       emdash:
-        specifier: workspace:>=0.9.0
+        specifier: workspace:>=0.10.0
         version: link:../../core
 
   packages/plugins/field-kit:
@@ -1490,7 +1514,7 @@ importers:
         specifier: '>=6.0.0-beta.0'
         version: 6.0.0-beta.20(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
       emdash:
-        specifier: workspace:>=0.9.0
+        specifier: workspace:>=0.10.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -1528,7 +1552,7 @@ importers:
   packages/plugins/webhook-notifier:
     dependencies:
       emdash:
-        specifier: workspace:>=0.2.0
+        specifier: workspace:>=0.10.0
         version: link:../../core
     devDependencies:
       tsdown:
@@ -5184,6 +5208,27 @@ packages:
     resolution: {integrity: sha512-0vcTZRRAiDfon3VM1mHBr9EFmTkkUXMhm0Xtdtn0bGe+sIqufyi+hUYTEw93EQOD9XNsPkrud6jzQNYpX2H3AQ==}
     peerDependencies:
       '@tiptap/core': ^3.20.0
+
+  '@tiptap/extension-table-cell@3.20.0':
+    resolution: {integrity: sha512-9Dg4zda3UWwtpBwSG7b9BeQy5oT27a/yEIBeARuxe19bloMLZgqpPRtnSrOK0OAITtVnjA+NZdKPcVLRMS2E8A==}
+    peerDependencies:
+      '@tiptap/extension-table': ^3.20.0
+
+  '@tiptap/extension-table-header@3.20.0':
+    resolution: {integrity: sha512-2tVHHlihpeHO/gh2uU46gAX3NTGdKR+yDmfLlO2l0QAvx2TXNfNzX2pOM4MmyostW5Ko9TCWV4x0D9h3IQDhPw==}
+    peerDependencies:
+      '@tiptap/extension-table': ^3.20.0
+
+  '@tiptap/extension-table-row@3.20.0':
+    resolution: {integrity: sha512-clkfQahkYW/U48QBh1rPZv3AWWSC9AqGKp2DLTH/SGIorM/NwI0jpPtBETMlvowyQu0ivlH9B896smEph+Do2A==}
+    peerDependencies:
+      '@tiptap/extension-table': ^3.20.0
+
+  '@tiptap/extension-table@3.20.0':
+    resolution: {integrity: sha512-vaaMtQ2KnSSr8WVwgWf7NYNzPwrHx/6T0ekA5CxV8qNUEpXIaLXa5+tE7tJHWEdNR2KY3gUJ46D3lfOkxyFrBQ==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.0
+      '@tiptap/pm': ^3.20.0
 
   '@tiptap/extension-text-align@3.20.0':
     resolution: {integrity: sha512-4s0r+bovtH6yeGDUD+Ui8j5WOV5koB5P6AuzOMqoLwaFGRSkKf64ly6DXjjmjIgnYCLZN/XO6llaQKVVdvad2g==}
@@ -13073,6 +13118,23 @@ snapshots:
   '@tiptap/extension-strike@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))':
     dependencies:
       '@tiptap/core': 3.20.0(@tiptap/pm@3.20.0)
+
+  '@tiptap/extension-table-cell@3.20.0(@tiptap/extension-table@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))':
+    dependencies:
+      '@tiptap/extension-table': 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+
+  '@tiptap/extension-table-header@3.20.0(@tiptap/extension-table@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))':
+    dependencies:
+      '@tiptap/extension-table': 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+
+  '@tiptap/extension-table-row@3.20.0(@tiptap/extension-table@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))':
+    dependencies:
+      '@tiptap/extension-table': 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+
+  '@tiptap/extension-table@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)':
+    dependencies:
+      '@tiptap/core': 3.20.0(@tiptap/pm@3.20.0)
+      '@tiptap/pm': 3.20.0
 
   '@tiptap/extension-text-align@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))':
     dependencies:

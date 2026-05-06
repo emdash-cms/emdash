@@ -622,4 +622,55 @@ describe("Navigation Menus", () => {
 			expect(items[0]?.menu_id).toBe(otherMenuId);
 		});
 	});
+
+	describe("handleMenuCreate (translationOf)", () => {
+		it("clones items inheriting the source's translation_group", async () => {
+			const { handleMenuCreate } = await import("../../../src/api/handlers/menus.js");
+
+			const sourceId = ulid();
+			await db
+				.insertInto("_emdash_menus")
+				.values({
+					id: sourceId,
+					name: "primary",
+					label: "Primary",
+					locale: "en",
+					translation_group: sourceId,
+				})
+				.execute();
+			const sourceItemId = ulid();
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({
+					id: sourceItemId,
+					menu_id: sourceId,
+					sort_order: 0,
+					type: "custom",
+					custom_url: "/",
+					label: "Home",
+					locale: "en",
+					translation_group: sourceItemId,
+				})
+				.execute();
+
+			const result = await handleMenuCreate(db, {
+				name: "primary",
+				label: "Principal",
+				locale: "es",
+				translationOf: sourceId,
+			});
+			expect(result.success).toBe(true);
+
+			const cloned = await db
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.where("locale", "=", "es")
+				.executeTakeFirstOrThrow();
+
+			// Cloned item inherits source's translation_group so EN/ES rows
+			// identify as the same logical nav entry across translations.
+			expect(cloned.id).not.toBe(sourceItemId);
+			expect(cloned.translation_group).toBe(sourceItemId);
+		});
+	});
 });

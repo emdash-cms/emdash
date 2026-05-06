@@ -15,15 +15,19 @@ import { fetchManifest } from "../lib/api/client.js";
 import type { TaxonomyTerm, TaxonomyDef, CreateTaxonomyInput } from "../lib/api/taxonomies.js";
 import {
 	fetchTaxonomyDef,
+	fetchTermTranslations,
 	fetchTerms,
 	createTaxonomy,
 	createTerm,
+	createTermTranslation,
 	updateTerm,
 	deleteTerm,
 } from "../lib/api/taxonomies.js";
 import { slugify } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
+import { TranslationsPanel } from "./TranslationsPanel.js";
 
 interface TaxonomyManagerProps {
 	taxonomyName: string;
@@ -49,11 +53,15 @@ function TermRow({
 	level = 0,
 	onEdit,
 	onDelete,
+	onTranslate,
+	canTranslate,
 }: {
 	term: TaxonomyTerm;
 	level?: number;
 	onEdit: (term: TaxonomyTerm) => void;
 	onDelete: (term: TaxonomyTerm) => void;
+	onTranslate?: (term: TaxonomyTerm) => void;
+	canTranslate: boolean;
 }) {
 	const { t } = useLingui();
 	return (
@@ -65,6 +73,16 @@ function TermRow({
 				</div>
 				<div className="text-sm text-kumo-subtle">{term.count || 0}</div>
 				<div className="flex gap-2">
+					{canTranslate && onTranslate ? (
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-label={t`Translate ${term.label}`}
+							onClick={() => onTranslate(term)}
+						>
+							{t`Translate`}
+						</Button>
+					) : null}
 					<Button
 						variant="ghost"
 						size="sm"
@@ -90,9 +108,94 @@ function TermRow({
 					level={level + 1}
 					onEdit={onEdit}
 					onDelete={onDelete}
+					onTranslate={onTranslate}
+					canTranslate={canTranslate}
 				/>
 			))}
 		</>
+	);
+}
+
+/**
+ * Dialog to pick a target locale for creating a term translation.
+ */
+function TranslateTermDialog({
+	term,
+	taxonomyName,
+	locales,
+	activeLocale,
+	isPending,
+	error,
+	onClose,
+	onSubmit,
+}: {
+	term: TaxonomyTerm;
+	taxonomyName: string;
+	locales: string[];
+	activeLocale: string | undefined;
+	isPending: boolean;
+	error: Error | null;
+	onClose: () => void;
+	onSubmit: (locale: string) => void;
+}) {
+	const { t } = useLingui();
+	const otherLocales = locales.filter((l) => l !== activeLocale);
+	const [selected, setSelected] = React.useState<string>(otherLocales[0] ?? "");
+
+	return (
+		<Dialog.Root
+			open
+			onOpenChange={(isOpen: boolean) => {
+				if (!isOpen) onClose();
+			}}
+		>
+			<Dialog className="p-6" size="sm">
+				<div className="flex items-start justify-between gap-4 mb-4">
+					<div>
+						<Dialog.Title className="text-lg font-semibold">
+							{t`Translate "${term.label}"`}
+						</Dialog.Title>
+						<Dialog.Description className="text-sm text-kumo-subtle">
+							{t`Taxonomy: ${taxonomyName}`}
+						</Dialog.Description>
+					</div>
+					<Dialog.Close
+						render={(props) => (
+							<Button {...props} variant="ghost" shape="square" aria-label={t`Close`}>
+								<X className="h-4 w-4" />
+							</Button>
+						)}
+					/>
+				</div>
+				<div className="space-y-4 py-2">
+					<Select
+						label={t`Target locale`}
+						value={selected}
+						onValueChange={(v) => setSelected(v ?? "")}
+						items={Object.fromEntries(otherLocales.map((l) => [l, l.toUpperCase()]))}
+					>
+						{otherLocales.map((l) => (
+							<Select.Option key={l} value={l}>
+								{l.toUpperCase()}
+							</Select.Option>
+						))}
+					</Select>
+					<DialogError message={error ? error.message : null} />
+				</div>
+				<div className="flex justify-end gap-2">
+					<Button variant="outline" type="button" onClick={onClose}>
+						{t`Cancel`}
+					</Button>
+					<Button
+						type="button"
+						disabled={!selected || isPending}
+						onClick={() => onSubmit(selected)}
+					>
+						{isPending ? t`Translating...` : t`Translate`}
+					</Button>
+				</div>
+			</Dialog>
+		</Dialog.Root>
 	);
 }
 
@@ -106,6 +209,9 @@ function TermFormDialog({
 	taxonomyDef,
 	term,
 	allTerms,
+	locale,
+	i18n,
+	onOpenTranslation,
 }: {
 	open: boolean;
 	onClose: () => void;
@@ -113,6 +219,9 @@ function TermFormDialog({
 	taxonomyDef: TaxonomyDef;
 	term?: TaxonomyTerm;
 	allTerms: TaxonomyTerm[];
+	locale?: string;
+	i18n: { defaultLocale: string; locales: string[] } | null;
+	onOpenTranslation?: (translatedTerm: { slug: string; locale: string }) => void;
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
@@ -147,6 +256,7 @@ function TermFormDialog({
 				label,
 				parentId: parentId || undefined,
 				description: description || undefined,
+				locale,
 			}),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
@@ -162,18 +272,54 @@ function TermFormDialog({
 	const updateMutation = useMutation({
 		mutationFn: () => {
 			if (!term) throw new Error("No term to update");
-			return updateTerm(taxonomyName, term.slug, {
-				slug,
-				label,
-				parentId: parentId || undefined,
-				description: description || undefined,
-			});
+			return updateTerm(
+				taxonomyName,
+				term.slug,
+				{
+					slug,
+					label,
+					parentId: parentId || undefined,
+					description: description || undefined,
+				},
+				{ locale: term.locale ?? locale },
+			);
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
 				queryKey: ["taxonomy-terms", taxonomyName],
 			});
 			onClose();
+		},
+		onError: (err: Error) => {
+			setError(err.message);
+		},
+	});
+
+	// Translations list (only when editing an existing term and i18n is on).
+	const { data: translationsData } = useQuery({
+		queryKey: ["term-translations", taxonomyName, term?.id ?? null],
+		queryFn: () => {
+			if (!term) throw new Error("No term");
+			return fetchTermTranslations(taxonomyName, term.slug, { locale: term.locale ?? locale });
+		},
+		enabled: !!term && !!i18n && i18n.locales.length > 1,
+	});
+
+	const translateMutation = useMutation({
+		mutationFn: (targetLocale: string) => {
+			if (!term) throw new Error("No term");
+			return createTermTranslation(
+				taxonomyName,
+				term.slug,
+				{ locale: targetLocale, label: term.label, slug: term.slug },
+				{ locale: term.locale ?? locale },
+			);
+		},
+		onSuccess: (translated) => {
+			void queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", taxonomyName] });
+			void queryClient.invalidateQueries({ queryKey: ["term-translations", taxonomyName] });
+			onClose();
+			onOpenTranslation?.({ slug: translated.slug, locale: translated.locale });
 		},
 		onError: (err: Error) => {
 			setError(err.message);
@@ -294,9 +440,29 @@ function TermFormDialog({
 							message={
 								error ||
 								getMutationError(createMutation.error) ||
-								getMutationError(updateMutation.error)
+								getMutationError(updateMutation.error) ||
+								getMutationError(translateMutation.error)
 							}
 						/>
+
+						{term && i18n && i18n.locales.length > 1 ? (
+							<div className="pt-4 border-t">
+								<TranslationsPanel
+									locales={i18n.locales}
+									defaultLocale={i18n.defaultLocale}
+									currentLocale={term.locale}
+									translations={translationsData?.translations ?? []}
+									onOpen={(tr) => {
+										onClose();
+										onOpenTranslation?.({ slug: term.slug, locale: tr.locale });
+									}}
+									onCreate={(target) => translateMutation.mutate(target)}
+									pendingLocale={
+										translateMutation.isPending ? (translateMutation.variables ?? null) : null
+									}
+								/>
+							</div>
+						) : null}
 					</div>
 
 					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
@@ -543,25 +709,58 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 	const [editingTerm, setEditingTerm] = React.useState<TaxonomyTerm | undefined>();
 	const [deleteTarget, setDeleteTarget] = React.useState<TaxonomyTerm | null>(null);
 	const [createTaxonomyOpen, setCreateTaxonomyOpen] = React.useState(false);
+	const [translateTarget, setTranslateTarget] = React.useState<TaxonomyTerm | null>(null);
 
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+	const i18n = useI18nConfig(manifest);
+	const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined);
+	React.useEffect(() => {
+		if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale);
+	}, [i18n, activeLocale]);
+
+	// The taxonomy definition is looked up without filtering by locale — the
+	// def is primarily structural ("does this taxonomy exist, is it
+	// hierarchical, which collections use it"). Label translations exist per
+	// locale but are not required for the page to render.
 	const { data: taxonomyDef, isLoading: defLoading } = useQuery({
 		queryKey: ["taxonomy-def", taxonomyName],
 		queryFn: () => fetchTaxonomyDef(taxonomyName),
 	});
 
 	const { data: terms = [], isLoading: termsLoading } = useQuery({
-		queryKey: ["taxonomy-terms", taxonomyName],
-		queryFn: () => fetchTerms(taxonomyName),
+		queryKey: ["taxonomy-terms", taxonomyName, activeLocale],
+		queryFn: () => fetchTerms(taxonomyName, { locale: activeLocale }),
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: (term: TaxonomyTerm) => deleteTerm(taxonomyName, term.slug),
+		mutationFn: (term: TaxonomyTerm) =>
+			deleteTerm(taxonomyName, term.slug, { locale: activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["taxonomy-terms", taxonomyName],
-			});
+			void queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", taxonomyName] });
 			setDeleteTarget(null);
 			toastManager.add({ title: t`Term deleted` });
+		},
+	});
+
+	const translateMutation = useMutation({
+		mutationFn: ({ term, locale }: { term: TaxonomyTerm; locale: string }) =>
+			createTermTranslation(
+				taxonomyName,
+				term.slug,
+				{ locale, label: term.label, slug: term.slug },
+				{ locale: activeLocale },
+			),
+		onSuccess: (term) => {
+			void queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", taxonomyName] });
+			setTranslateTarget(null);
+			setActiveLocale(term.locale);
+			toastManager.add({
+				title: t`Translation created`,
+				description: t`Term "${term.label}" created in ${term.locale.toUpperCase()}.`,
+			});
 		},
 	});
 
@@ -595,14 +794,22 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between">
+			<div className="flex items-center justify-between gap-4 flex-wrap">
 				<div>
 					<h1 className="text-3xl font-bold">{taxonomyDef.label}</h1>
 					<p className="text-kumo-subtle mt-1">
 						{t`Manage ${taxonomyDef.label.toLowerCase()} for ${taxonomyDef.collections.join(", ")}`}
 					</p>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex gap-2 items-center">
+					{i18n && activeLocale ? (
+						<LocaleSwitcher
+							locales={i18n.locales}
+							defaultLocale={i18n.defaultLocale}
+							value={activeLocale}
+							onChange={setActiveLocale}
+						/>
+					) : null}
 					<Button variant="outline" icon={<Plus />} onClick={() => setCreateTaxonomyOpen(true)}>
 						{t`New Taxonomy`}
 					</Button>
@@ -628,7 +835,14 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				) : (
 					<div>
 						{terms.map((term) => (
-							<TermRow key={term.id} term={term} onEdit={handleEdit} onDelete={handleDelete} />
+							<TermRow
+								key={term.id}
+								term={term}
+								onEdit={handleEdit}
+								onDelete={handleDelete}
+								onTranslate={setTranslateTarget}
+								canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
+							/>
 						))}
 					</div>
 				)}
@@ -641,7 +855,26 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				taxonomyDef={taxonomyDef}
 				term={editingTerm}
 				allTerms={flatTerms}
+				locale={activeLocale}
+				i18n={i18n}
+				onOpenTranslation={(tr) => setActiveLocale(tr.locale)}
 			/>
+
+			{i18n && translateTarget ? (
+				<TranslateTermDialog
+					term={translateTarget}
+					taxonomyName={taxonomyName}
+					locales={i18n.locales}
+					activeLocale={activeLocale}
+					isPending={translateMutation.isPending}
+					error={translateMutation.error}
+					onClose={() => {
+						setTranslateTarget(null);
+						translateMutation.reset();
+					}}
+					onSubmit={(locale) => translateMutation.mutate({ term: translateTarget, locale })}
+				/>
+			) : null}
 
 			<ConfirmDialog
 				open={!!deleteTarget}
