@@ -24,6 +24,7 @@ import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
@@ -832,6 +833,9 @@ export async function handleContentDelete(
 			};
 		}
 
+		// Trashed entries are excluded from public counts (#581).
+		invalidateTermCache();
+
 		return {
 			success: true,
 			data: { deleted: true },
@@ -872,6 +876,9 @@ export async function handleContentRestore(
 				},
 			};
 		}
+
+		// Restored entry may now appear in public counts again (#581).
+		invalidateTermCache();
 
 		return {
 			success: true,
@@ -931,6 +938,10 @@ export async function handleContentPermanentDelete(
 				},
 			};
 		}
+
+		// Row is gone (and so are its content_taxonomies via FK), drop
+		// any cached counts that may have included it (#581).
+		invalidateTermCache();
 
 		return {
 			success: true,
@@ -1133,6 +1144,10 @@ export async function handleContentPublish(
 			return repo.publish(collection, resolvedId, options.publishedAt);
 		});
 
+		// Drop the worker-lifetime term-counts cache so taxonomy widgets
+		// reflect the new published entry on the next read (#581).
+		invalidateTermCache();
+
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeo(db, collection, item, hasSeo);
 
@@ -1178,6 +1193,10 @@ export async function handleContentUnpublish(
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
 			return repo.unpublish(collection, resolvedId);
 		});
+
+		// Drop the worker-lifetime term-counts cache so taxonomy widgets
+		// stop counting the entry on the next read (#581).
+		invalidateTermCache();
 
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeo(db, collection, item, hasSeo);
