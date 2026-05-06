@@ -2,7 +2,7 @@
 
 CLI for the experimental EmDash plugin registry.
 
-> EXPERIMENTAL: there is no aggregator deployed yet, so `search` / `info` / discoverable `publish` don't have a server to talk to. `bundle`, `login`, `whoami`, and putting records in your own atproto repo all work today. NSIDs and shapes will change while RFC 0001 is in flight. Pin to an exact version.
+> EXPERIMENTAL: `bundle`, `login`, `whoami`, `switch`, and `publish` all work today against any atproto PDS — `publish` writes profile + release records to the publisher's own repo. The discovery commands (`search`, `info`) need an aggregator; none is deployed yet, so those won't return useful results until one is. NSIDs and shapes will change while RFC 0001 is in flight; pin to an exact version.
 
 ## Installation
 
@@ -23,6 +23,7 @@ emdash-registry bundle
 emdash-registry login <handle-or-did>          Interactive atproto OAuth login
 emdash-registry logout [--did <did>]           Revoke the active session
 emdash-registry whoami                         Show stored sessions
+emdash-registry switch <handle-or-did>         Switch the active publisher session
 emdash-registry search <query>                 Free-text search
 emdash-registry info <handle-or-did> <slug>    Show package details
 emdash-registry bundle                         Bundle a plugin source dir into a tarball

@@ -4,9 +4,21 @@
  * Persists publisher sessions to `~/.emdash/credentials.json` with restrictive
  * file mode (0600) so other local users on a shared box can't read them.
  *
- * The file format is intentionally a flat versioned envelope -- `{ version,
- * currentDid, sessions }` -- so we can add fields without breaking older CLI
- * builds. Unknown fields are preserved on round-trip.
+ * The file format is a flat versioned envelope -- `{ version, currentDid,
+ * sessions }`. Only the three known top-level fields are read or written;
+ * extra top-level fields in an existing file are NOT preserved on
+ * round-trip. If the format ever evolves, bump `FILE_VERSION` and add a
+ * migration branch in `#read`.
+ *
+ * Forward compatibility: a file with `version > FILE_VERSION` is rejected
+ * (rather than silently downgraded). An older CLI shouldn't blindly
+ * overwrite a newer-shaped file with the older shape -- that would lose
+ * fields a future CLI added.
+ *
+ * Session validation: every entry in `sessions` is structurally validated
+ * (handle, did, pds, plus the OAuth fields the registry client requires).
+ * A partially-corrupt file is rejected up-front rather than producing
+ * runtime errors deep in publish.
  *
  * Atomicity: writes go to a temp file (`credentials.json.tmp`) first and then
  * `rename()` over the target. `rename` is atomic on POSIX, so a torn write
@@ -116,9 +128,19 @@ export class FileCredentialStore implements CredentialStore {
 			);
 		}
 
-		// Future: branch on parsed.version for migrations. For v1 we accept it as-is.
+		// Reject forward-version files. We don't know what fields a future
+		// CLI added, so blindly returning {version: FILE_VERSION, ...} would
+		// silently drop them on the next write. The user should upgrade
+		// their CLI or remove the file manually.
+		if (parsed.version > FILE_VERSION) {
+			throw new Error(
+				`credential store at ${this.path} is version ${parsed.version}; this CLI only understands version ${FILE_VERSION}. Upgrade emdash-registry or remove the file manually.`,
+			);
+		}
+		// Future: branch on parsed.version < FILE_VERSION for migrations.
+		// For now there's only one version, so this is the identity case.
 		return {
-			version: FILE_VERSION,
+			version: parsed.version,
 			currentDid: parsed.currentDid,
 			sessions: { ...parsed.sessions },
 		};
@@ -176,12 +198,40 @@ function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
 }
 
 function isFileEnvelope(input: unknown): input is FileEnvelope {
-	if (!input || typeof input !== "object") return false;
-	if (!("version" in input) || typeof input.version !== "number") return false;
-	if (!("currentDid" in input)) return false;
+	if (!isRecord(input)) return false;
+	if (typeof input.version !== "number") return false;
 	if (input.currentDid !== null && typeof input.currentDid !== "string") return false;
-	if (!("sessions" in input) || !input.sessions || typeof input.sessions !== "object") {
+	if (!isRecord(input.sessions)) return false;
+	// Validate each entry. A partially-corrupt sessions map shouldn't pass
+	// the envelope check and then explode at use-site (e.g. publish reading
+	// `session.pds` and getting undefined).
+	for (const [key, session] of Object.entries(input.sessions)) {
+		if (!isPublisherSession(session)) return false;
+		// Map key MUST equal session.did. The store keys by DID for
+		// multi-identity support, and a mismatch means downstream lookups
+		// (`envelope.sessions[did]`) silently miss.
+		if (session.did !== key) return false;
+	}
+	// `currentDid`, if present, must point at a session that exists. A
+	// dangling pointer would surface as `current()` returning null on a
+	// non-empty store, which is a confusing UX.
+	if (input.currentDid !== null && !(input.currentDid in input.sessions)) return false;
+	return true;
+}
+
+/** Plain-object guard. Distinguishes objects from null/arrays. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Structural check for a PublisherSession. */
+function isPublisherSession(value: unknown): value is PublisherSession {
+	if (!isRecord(value)) return false;
+	if (typeof value.did !== "string" || value.did.length === 0) return false;
+	if (value.handle !== null && (typeof value.handle !== "string" || value.handle.length === 0)) {
 		return false;
 	}
+	if (typeof value.pds !== "string" || value.pds.length === 0) return false;
+	if (typeof value.updatedAt !== "number" || !Number.isFinite(value.updatedAt)) return false;
 	return true;
 }

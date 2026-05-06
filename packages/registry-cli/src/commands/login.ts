@@ -12,7 +12,7 @@
  */
 
 import { isHandle } from "@atcute/lexicons/syntax";
-import { FileCredentialStore, type Handle } from "@emdash-cms/registry-client";
+import { FileCredentialStore } from "@emdash-cms/registry-client";
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import pc from "picocolors";
@@ -54,12 +54,11 @@ export const loginCommand = defineCommand({
 
 		const { displayName, handle, pds } = await resolveAtprotoProfile(result.session);
 
-		// `resolveAtprotoProfile` falls back to the DID when handle resolution
-		// fails. The credentials store types `handle` as a `Handle` template
-		// literal; for DID fallback we synthesise a placeholder so the type
-		// fits without lying about the data. Tests for the credentials store
-		// already validate that storing falls cleanly through to the user.
-		const handleForStorage: Handle = isHandle(handle) ? handle : ("unknown.invalid" as Handle);
+		// `resolveAtprotoProfile` falls back to the DID when handle
+		// resolution fails. We persist `null` rather than a placeholder so
+		// downstream display code can render the DID directly instead of a
+		// fake "unknown.invalid"-style handle that misleads users.
+		const handleForStorage: string | null = isHandle(handle) ? handle : null;
 		const credentials = new FileCredentialStore();
 		await credentials.put({
 			did: result.did,

@@ -41,7 +41,7 @@ export const whoamiCommand = defineCommand({
 			return;
 		}
 
-		consola.info(`Active publisher: ${pc.bold(current.handle)}`);
+		consola.info(`Active publisher: ${pc.bold(current.handle ?? current.did)}`);
 		consola.info(`DID:              ${pc.dim(current.did)}`);
 		if (current.pds) consola.info(`PDS:              ${pc.dim(current.pds)}`);
 
@@ -50,7 +50,7 @@ export const whoamiCommand = defineCommand({
 			console.log();
 			consola.info(`Other stored sessions (${others.length}):`);
 			for (const s of others) {
-				console.log(`  ${pc.dim(s.handle)} (${pc.dim(s.did)})`);
+				console.log(`  ${pc.dim(s.handle ?? s.did)} (${pc.dim(s.did)})`);
 			}
 			console.log();
 			consola.info(`Switch with: ${pc.cyan("emdash-registry switch <did>")}`);

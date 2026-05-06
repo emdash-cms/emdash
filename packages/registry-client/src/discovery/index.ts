@@ -141,8 +141,10 @@ export class DiscoveryClient {
 	}
 
 	/**
-	 * List releases for a package, paginated and reverse-chronological by
-	 * default.
+	 * List releases for a package, paginated and ordered by descending
+	 * semver version (newest version first), not by time. Yanked releases
+	 * are interleaved by version. Use `getLatestRelease` for the
+	 * convention "give me the highest non-yanked version".
 	 */
 	async listReleases(
 		params: AggregatorListReleases.$params,

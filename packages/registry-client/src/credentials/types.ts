@@ -32,11 +32,18 @@ export interface PublisherSession {
 	did: Did;
 
 	/**
-	 * Publisher's handle at the time of the last successful resume. Best-effort:
-	 * handles are mutable, so this may go stale. The CLI should treat it as a
-	 * display-only convenience and re-resolve before showing it as authoritative.
+	 * Publisher's handle at the time of the last successful resume.
+	 * Best-effort and display-only:
+	 *   - handles are mutable, so this may go stale; the CLI re-resolves
+	 *     before showing it as authoritative.
+	 *   - if handle resolution fails at login, this is `null` and the CLI
+	 *     renders the DID instead of a fabricated placeholder.
+	 *
+	 * Typed as a plain string (not the branded `Handle`) so we don't have
+	 * to lie about a placeholder value passing handle validation. Callers
+	 * doing handle-shaped operations should re-validate via `isHandle`.
 	 */
-	handle: Handle;
+	handle: string | null;
 
 	/**
 	 * Atmosphere PDS endpoint. Populated from the OAuth resolution; needed to

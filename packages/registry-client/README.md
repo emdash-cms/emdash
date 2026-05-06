@@ -20,13 +20,13 @@ Persists a publisher's atproto session between CLI invocations. Three implementa
 
 ### Publishing (`@emdash-cms/registry-client/publishing`)
 
-Repo operations against the publisher's own PDS: `putRecord`, `uploadBlob`, `getRecord`, `listRecords`. Used by the CLI's `emdash plugin publish` flow.
+Repo operations against the publisher's own PDS: `putRecord`, `uploadBlob`, `getRecord`, `listRecords`. Used by the CLI's `emdash-registry publish` flow.
 
 The interactive OAuth flow lives in the CLI, not here. This module accepts a pre-built atproto fetch handler (typically from `@atcute/oauth-node-client`) and wraps it with operations scoped to atproto repo NSIDs.
 
 ### Discovery (`@emdash-cms/registry-client/discovery`)
 
-Read-only XRPC client over an aggregator. No authentication. Used by the CLI (`emdash plugin search`, `emdash plugin info`) and the EmDash admin UI's install flow.
+Read-only XRPC client over an aggregator. No authentication. Used by the CLI (`emdash-registry search`, `emdash-registry info`) and the EmDash admin UI's install flow.
 
 The `acceptLabelers` option threads the `atproto-accept-labelers` request header through every call so callers can configure which labellers' hard-takedown labels the aggregator should apply.
 

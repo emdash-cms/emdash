@@ -12,7 +12,8 @@ export default defineConfig([
 		target: "node22",
 		shims: false,
 	},
-	// Programmatic API entry. Ships .js + .d.ts so consumers get types.
+	// Programmatic API entry. With tsdown's ESM defaults this emits
+	// `.mjs` + `.d.mts` (matching the `exports` field in package.json).
 	{
 		entry: ["src/api.ts"],
 		format: ["esm"],

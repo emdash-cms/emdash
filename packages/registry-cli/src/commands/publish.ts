@@ -180,7 +180,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 			"NOT_LOGGED_IN",
 		);
 	}
-	consola.info(`Publishing as ${pc.bold(session.handle)} (${pc.dim(session.did)})`);
+	consola.info(`Publishing as ${pc.bold(session.handle ?? session.did)} (${pc.dim(session.did)})`);
 
 	const oauthSession = await resumeSession(session.did);
 	const publisher = PublishingClient.fromHandler({
@@ -246,7 +246,9 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	consola.info(
 		`The aggregator will pick this up from the firehose. To verify discovery once it's indexed:`,
 	);
-	console.log(`  ${pc.cyan(`emdash-registry info ${session.handle} ${result.slug}`)}`);
+	console.log(
+		`  ${pc.cyan(`emdash-registry info ${session.handle ?? session.did} ${result.slug}`)}`,
+	);
 }
 
 /**

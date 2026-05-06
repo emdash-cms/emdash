@@ -44,6 +44,8 @@ export const switchCommand = defineCommand({
 		}
 
 		await credentials.setCurrent(args.did);
-		consola.success(`Active publisher is now ${pc.bold(target.handle)} (${pc.dim(target.did)})`);
+		consola.success(
+			`Active publisher is now ${pc.bold(target.handle ?? target.did)} (${pc.dim(target.did)})`,
+		);
 	},
 });
