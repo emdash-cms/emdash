@@ -633,18 +633,19 @@ describe("TaxonomyRepository", () => {
 		});
 
 		describe("countEntriesWithTerm", () => {
-			it("should count entries with a term", async () => {
+			it("should count published entries with a term by default", async () => {
 				const tag = await repo.create({
 					name: "tags",
 					slug: "js",
 					label: "JavaScript",
 				});
 
-				// Create more posts
+				// Create published posts
 				const post2 = await contentRepo.create({
 					type: "post",
 					slug: "post-2",
 					data: { title: "Post 2" },
+					status: "published",
 				});
 				await contentRepo.create({
 					type: "post",
@@ -656,8 +657,84 @@ describe("TaxonomyRepository", () => {
 				await repo.attachToEntry("post", post2.id, tag.id);
 				// post3 doesn't have the tag
 
+				// Default: only published entries
 				const count = await repo.countEntriesWithTerm(tag.id);
-				expect(count).toBe(2);
+				expect(count).toBe(1); // only post2 is published; contentId (the base fixture) is draft
+			});
+
+			it("should exclude draft entries by default", async () => {
+				const tag = await repo.create({
+					name: "tags",
+					slug: "draft-only",
+					label: "Draft Only",
+				});
+
+				// Create only draft entries
+				const draftPost = await contentRepo.create({
+					type: "post",
+					slug: "draft-post",
+					data: { title: "Draft Post" },
+				});
+
+				await repo.attachToEntry("post", draftPost.id, tag.id);
+
+				const count = await repo.countEntriesWithTerm(tag.id);
+				expect(count).toBe(0); // drafts excluded by default
+			});
+
+			it("should count all entries when status is 'all'", async () => {
+				const tag = await repo.create({
+					name: "tags",
+					slug: "all-status",
+					label: "All Status",
+				});
+
+				const publishedPost = await contentRepo.create({
+					type: "post",
+					slug: "published-post",
+					data: { title: "Published Post" },
+					status: "published",
+				});
+				const draftPost = await contentRepo.create({
+					type: "post",
+					slug: "draft-post-all",
+					data: { title: "Draft Post" },
+				});
+
+				await repo.attachToEntry("post", publishedPost.id, tag.id);
+				await repo.attachToEntry("post", draftPost.id, tag.id);
+
+				const count = await repo.countEntriesWithTerm(tag.id, "all");
+				expect(count).toBe(2); // both published and draft
+			});
+
+			it("should count entries with specific status", async () => {
+				const tag = await repo.create({
+					name: "tags",
+					slug: "specific-status",
+					label: "Specific Status",
+				});
+
+				const publishedPost = await contentRepo.create({
+					type: "post",
+					slug: "pub-post",
+					data: { title: "Published" },
+					status: "published",
+				});
+				const draftPost = await contentRepo.create({
+					type: "post",
+					slug: "draft-post-specific",
+					data: { title: "Draft" },
+				});
+
+				await repo.attachToEntry("post", publishedPost.id, tag.id);
+				await repo.attachToEntry("post", draftPost.id, tag.id);
+
+				const draftCount = await repo.countEntriesWithTerm(tag.id, "draft");
+				expect(draftCount).toBe(1);
+
+				const publishedCount = await repo.countEntriesWithTerm(tag.id, "published");
+				expect(publishedCount).toBe(1);
 			});
 
 			it("should return 0 for unused term", async () => {
