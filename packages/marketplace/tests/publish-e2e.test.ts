@@ -12,7 +12,7 @@
 import { execSync } from "node:child_process";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 
 import Database from "better-sqlite3";
@@ -140,6 +140,7 @@ const SEED_TOKEN = "test-seed-token-for-e2e";
 const REPO_ROOT = resolve(import.meta.dirname, "../../..");
 
 let auditLogTarball: Buffer;
+let auditLogVersion: string;
 
 beforeAll(async () => {
 	// Build the audit-log plugin tarball
@@ -148,11 +149,14 @@ beforeAll(async () => {
 		stdio: "pipe",
 	});
 
+	const auditLogPkg = JSON.parse(
+		readFileSync(join(REPO_ROOT, "packages/plugins/audit-log/package.json"), "utf-8"),
+	) as { version: string };
+	auditLogVersion = auditLogPkg.version;
+
 	const distDir = join(REPO_ROOT, "packages/plugins/audit-log/dist");
-	const files = await readdir(distDir);
-	const tarball = files.find((f) => f.endsWith(".tar.gz"));
-	if (!tarball) throw new Error("No tarball found after bundle");
-	auditLogTarball = await readFile(join(distDir, tarball));
+	const tarballName = `audit-log-${auditLogVersion}.tar.gz`;
+	auditLogTarball = await readFile(join(distDir, tarballName));
 }, 30000);
 
 // ── Tests ──────────────────────────────────────────────────────
@@ -176,7 +180,7 @@ describe("marketplace publish e2e", () => {
 		formData.append(
 			"bundle",
 			new Blob([auditLogTarball], { type: "application/gzip" }),
-			"audit-log-0.1.0.tar.gz",
+			`audit-log-${auditLogVersion}.tar.gz`,
 		);
 
 		const publishRes = await app.request(
@@ -191,7 +195,7 @@ describe("marketplace publish e2e", () => {
 
 		expect(publishRes.status).toBe(201);
 		const publishBody = (await publishRes.json()) as Record<string, unknown>;
-		expect(publishBody.version).toBe("0.1.0");
+		expect(publishBody.version).toBe(auditLogVersion);
 		expect(publishBody.status).toBe("published");
 		expect(publishBody.checksum).toBeTruthy();
 
@@ -215,7 +219,7 @@ describe("marketplace publish e2e", () => {
 			items: { version: string; status: string }[];
 		};
 		expect(versionBody.items).toHaveLength(1);
-		expect(versionBody.items[0]!.version).toBe("0.1.0");
+		expect(versionBody.items[0]!.version).toBe(auditLogVersion);
 		expect(versionBody.items[0]!.status).toBe("published");
 	});
 
@@ -225,7 +229,7 @@ describe("marketplace publish e2e", () => {
 			fd.append(
 				"bundle",
 				new Blob([auditLogTarball], { type: "application/gzip" }),
-				"audit-log-0.1.0.tar.gz",
+				`audit-log-${auditLogVersion}.tar.gz`,
 			);
 			return fd;
 		};
@@ -265,7 +269,7 @@ describe("marketplace publish e2e", () => {
 		formData.append(
 			"bundle",
 			new Blob([auditLogTarball], { type: "application/gzip" }),
-			"audit-log-0.1.0.tar.gz",
+			`audit-log-${auditLogVersion}.tar.gz`,
 		);
 
 		const res = await app.request(
@@ -303,7 +307,7 @@ describe("marketplace publish e2e", () => {
 		formData.append(
 			"bundle",
 			new Blob([auditLogTarball], { type: "application/gzip" }),
-			"audit-log-0.1.0.tar.gz",
+			`audit-log-${auditLogVersion}.tar.gz`,
 		);
 
 		const res = await app.request(

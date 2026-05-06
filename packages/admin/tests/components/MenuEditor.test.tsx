@@ -24,6 +24,7 @@ vi.mock("@tanstack/react-router", async () => {
 			</a>
 		),
 		useParams: () => ({ name: "main-menu" }),
+		useSearch: () => ({}),
 		useNavigate: () => vi.fn(),
 	};
 });

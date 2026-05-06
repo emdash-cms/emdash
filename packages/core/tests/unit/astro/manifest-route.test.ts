@@ -27,19 +27,18 @@ interface ManifestEnvelope {
 	};
 }
 
-function makeContext(adminBranding?: {
-	logo?: string;
-	siteName?: string;
-	favicon?: string;
-}): Parameters<typeof getManifest>[0] {
+function makeContext(
+	adminBranding?: { logo?: string; siteName?: string; favicon?: string },
+	manifest?: unknown,
+): Parameters<typeof getManifest>[0] {
 	const locals = {
 		emdash: adminBranding
 			? {
 					// db is intentionally undefined so the signup-enabled query is skipped.
 					config: { admin: adminBranding },
+					getManifest: async () => manifest ?? null,
 				}
 			: undefined,
-		emdashManifest: undefined,
 	};
 
 	return { locals } as unknown as APIContext;
@@ -66,17 +65,15 @@ describe("manifest route admin branding", () => {
 		expect(body.data.admin).toBeUndefined();
 	});
 
-	it("returns admin branding even when emdashManifest is preset on locals", async () => {
+	it("returns admin branding even when getManifest() resolves to a built manifest", async () => {
 		const branding = { logo: "/brand.svg", siteName: "Brandname" };
-		const ctx = makeContext(branding);
-		// Preset a manifest as the integration normally would for a configured site.
-		(ctx.locals as { emdashManifest: unknown }).emdashManifest = {
+		const ctx = makeContext(branding, {
 			version: "test",
 			hash: "test",
 			collections: {},
 			plugins: {},
 			taxonomies: [],
-		};
+		});
 
 		const response = await getManifest(ctx);
 		const body = (await response.json()) as ManifestEnvelope;

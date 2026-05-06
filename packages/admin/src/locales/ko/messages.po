@@ -13,17 +13,17 @@ msgstr ""
 "Last-Translator: \n"
 "Language-Team: \n"
 
-#: packages/admin/src/components/ContentEditor.tsx:958
 #: packages/admin/src/components/LocaleSwitcher.tsx:72
+#: packages/admin/src/components/TranslationsPanel.tsx:76
 msgid " (default)"
 msgstr " (기본)"
 
-#: packages/admin/src/components/MenuEditor.tsx:344
+#: packages/admin/src/components/MenuEditor.tsx:427
 msgid " (opens in new window)"
 msgstr " (새 창에서 열립니다)"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:634
-#: packages/admin/src/components/MediaPickerModal.tsx:716
+#: packages/admin/src/components/MediaPickerModal.tsx:658
+#: packages/admin/src/components/MediaPickerModal.tsx:740
 msgid " (selected)"
 msgstr " (선택됨)"
 
@@ -38,7 +38,7 @@ msgid ": use"
 msgstr ": 다음 사용"
 
 #. placeholder {0}: providers?.find((p) => p.id === selectedItem.providerId)?.name
-#: packages/admin/src/components/MediaPickerModal.tsx:574
+#: packages/admin/src/components/MediaPickerModal.tsx:598
 msgid "(from {0})"
 msgstr "({0} 제공)"
 
@@ -54,7 +54,7 @@ msgstr "(개발 포트 포함)."
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
 #: packages/admin/src/components/ContentTypeList.tsx:69
-#: packages/admin/src/components/RepeaterField.tsx:146
+#: packages/admin/src/components/RepeaterField.tsx:147
 msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(#개 항목)} other {(#개 항목)}}"
 
@@ -84,7 +84,7 @@ msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matchi
 msgstr "{0, plural, one {\"{searchQuery}\"와 일치하는 항목 #개} other {\"{searchQuery}\"와 일치하는 항목 #개}}"
 
 #. placeholder {0}: items.length
-#: packages/admin/src/components/MediaPickerModal.tsx:449
+#: packages/admin/src/components/MediaPickerModal.tsx:473
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {#개 항목} other {#개 항목}}"
 
@@ -210,8 +210,8 @@ msgstr "{0}이(가) v{1}로 업데이트되었습니다."
 
 #. placeholder {0}: item.filename
 #. placeholder {1}: selected ? t` (selected)` : ""
-#: packages/admin/src/components/MediaPickerModal.tsx:634
-#: packages/admin/src/components/MediaPickerModal.tsx:716
+#: packages/admin/src/components/MediaPickerModal.tsx:658
+#: packages/admin/src/components/MediaPickerModal.tsx:740
 msgid "{0}{1}"
 msgstr "{0}{1}"
 
@@ -398,7 +398,7 @@ msgstr "7일"
 msgid "90 days"
 msgstr "90일"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:159
+#: packages/admin/src/components/settings/GeneralSettings.tsx:176
 msgid "A short description of your site"
 msgstr "사이트에 대한 간단한 설명"
 
@@ -427,7 +427,7 @@ msgstr "계정 정보"
 #: packages/admin/src/components/ContentList.tsx:349
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:419
-#: packages/admin/src/components/TaxonomyManager.tsx:619
+#: packages/admin/src/components/TaxonomyManager.tsx:826
 msgid "Actions"
 msgstr "기능"
 
@@ -435,10 +435,10 @@ msgstr "기능"
 msgid "Active"
 msgstr "활성"
 
-#: packages/admin/src/components/ContentEditor.tsx:1715
-#: packages/admin/src/components/MenuEditor.tsx:297
-#: packages/admin/src/components/TaxonomyManager.tsx:214
-#: packages/admin/src/components/TaxonomyManager.tsx:610
+#: packages/admin/src/components/ContentEditor.tsx:1915
+#: packages/admin/src/components/MenuEditor.tsx:354
+#: packages/admin/src/components/TaxonomyManager.tsx:360
+#: packages/admin/src/components/TaxonomyManager.tsx:817
 #: packages/admin/src/components/TaxonomySidebar.tsx:436
 msgid "Add"
 msgstr "추가"
@@ -464,14 +464,14 @@ msgstr "허용된 도메인 추가"
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "반복 필드 구조를 정의하려면 하위 필드를 하나 이상 추가하세요."
 
-#: packages/admin/src/components/MenuEditor.tsx:234
-#: packages/admin/src/components/MenuEditor.tsx:323
+#: packages/admin/src/components/MenuEditor.tsx:291
+#: packages/admin/src/components/MenuEditor.tsx:406
 msgid "Add Content"
 msgstr "콘텐츠 추가"
 
-#: packages/admin/src/components/MenuEditor.tsx:246
-#: packages/admin/src/components/MenuEditor.tsx:253
-#: packages/admin/src/components/MenuEditor.tsx:326
+#: packages/admin/src/components/MenuEditor.tsx:303
+#: packages/admin/src/components/MenuEditor.tsx:310
+#: packages/admin/src/components/MenuEditor.tsx:409
 msgid "Add Custom Link"
 msgstr "맞춤 링크 추가"
 
@@ -489,7 +489,7 @@ msgstr "필드 추가"
 msgid "Add fields"
 msgstr "필드 추가"
 
-#: packages/admin/src/components/RepeaterField.tsx:168
+#: packages/admin/src/components/RepeaterField.tsx:169
 msgid "Add First Item"
 msgstr "첫 번째 항목 추가"
 
@@ -497,11 +497,11 @@ msgstr "첫 번째 항목 추가"
 msgid "Add item"
 msgstr ""
 
-#: packages/admin/src/components/RepeaterField.tsx:152
+#: packages/admin/src/components/RepeaterField.tsx:153
 msgid "Add Item"
 msgstr "항목 추가"
 
-#: packages/admin/src/components/MenuEditor.tsx:316
+#: packages/admin/src/components/MenuEditor.tsx:399
 msgid "Add links to build your navigation menu"
 msgstr "탐색 메뉴에 링크를 추가하여 구성하세요."
 
@@ -534,11 +534,11 @@ msgstr "하위 필드 추가"
 msgid "Add tags..."
 msgstr "태그 추가..."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:125
+#: packages/admin/src/components/settings/SocialSettings.tsx:139
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "소셜 미디어 프로필을 추가하세요. 사이트 테마에서 사용하여 헤더, 푸터 또는 작성자 소개에 표시할 수 있습니다."
 
-#: packages/admin/src/components/MenuEditor.tsx:297
+#: packages/admin/src/components/MenuEditor.tsx:354
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:349
 msgid "Adding..."
 msgstr "추가 중..."
@@ -638,7 +638,7 @@ msgstr "또는 WordPress(도구 → 내보내기)에서 내보내고 파일을 �
 #: packages/admin/src/components/PluginManager.tsx:109
 #: packages/admin/src/components/TaxonomySidebar.tsx:318
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
-#: packages/admin/src/router.tsx:1531
+#: packages/admin/src/router.tsx:1536
 msgid "An error occurred"
 msgstr "오류가 발생했습니다"
 
@@ -686,7 +686,7 @@ msgstr "보관된"
 msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
 msgstr "정말로 \"{0}\"을(를) 삭제하시겠습니까? 이 컬렉션의 모든 콘텐츠도 삭제됩니다."
 
-#: packages/admin/src/components/MenuList.tsx:208
+#: packages/admin/src/components/MenuList.tsx:247
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
 msgstr "이 메뉴를 삭제하시겠습니까? 그러면 모든 메뉴 항목도 삭제됩니다. 이 작업은 취소할 수 없습니다."
 
@@ -752,11 +752,11 @@ msgstr "자동"
 msgid "Auto (slug change)"
 msgstr "자동(슬러그 변경)"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:260
+#: packages/admin/src/components/TaxonomyManager.tsx:406
 msgid "Auto-generated from name (you can edit)"
 msgstr "이름에서 자동 생성됨(수정 가능)"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:513
+#: packages/admin/src/components/MediaPickerModal.tsx:537
 msgid "Available media"
 msgstr "사용 가능한 미디어"
 
@@ -764,15 +764,19 @@ msgstr "사용 가능한 미디어"
 msgid "Available Providers"
 msgstr "이용 가능한 제공업체"
 
-#: packages/admin/src/components/MenuEditor.tsx:218
+#: packages/admin/src/components/MenuEditor.tsx:275
 #: packages/admin/src/components/WordPressImport.tsx:1340
 #: packages/admin/src/components/WordPressImport.tsx:2360
 msgid "Back"
 msgstr "뒤로"
 
-#: packages/admin/src/components/ContentEditor.tsx:539
+#: packages/admin/src/components/ContentEditor.tsx:584
 msgid "Back to {collectionLabel} list"
 msgstr "{collectionLabel} 목록으로 돌아가기"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:329
+msgid "Back to Content Types"
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
@@ -786,8 +790,8 @@ msgstr "로그인으로 돌아가기"
 msgid "Back to marketplace"
 msgstr "마켓플레이스로 돌아가기"
 
-#: packages/admin/src/components/SectionEditor.tsx:69
-#: packages/admin/src/components/SectionEditor.tsx:154
+#: packages/admin/src/components/SectionEditor.tsx:71
+#: packages/admin/src/components/SectionEditor.tsx:172
 msgid "Back to sections"
 msgstr "섹션으로 돌아가기"
 
@@ -795,13 +799,13 @@ msgstr "섹션으로 돌아가기"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:183
 #: packages/admin/src/components/settings/EmailSettings.tsx:86
 #: packages/admin/src/components/settings/EmailSettings.tsx:105
-#: packages/admin/src/components/settings/GeneralSettings.tsx:101
-#: packages/admin/src/components/settings/GeneralSettings.tsx:119
+#: packages/admin/src/components/settings/GeneralSettings.tsx:102
+#: packages/admin/src/components/settings/GeneralSettings.tsx:124
 #: packages/admin/src/components/settings/SecuritySettings.tsx:105
-#: packages/admin/src/components/settings/SeoSettings.tsx:78
-#: packages/admin/src/components/settings/SeoSettings.tsx:96
-#: packages/admin/src/components/settings/SocialSettings.tsx:78
-#: packages/admin/src/components/settings/SocialSettings.tsx:96
+#: packages/admin/src/components/settings/SeoSettings.tsx:79
+#: packages/admin/src/components/settings/SeoSettings.tsx:98
+#: packages/admin/src/components/settings/SocialSettings.tsx:79
+#: packages/admin/src/components/settings/SocialSettings.tsx:98
 msgid "Back to settings"
 msgstr "설정으로 돌아가기"
 
@@ -814,7 +818,7 @@ msgstr "테마로 돌아가기"
 msgid "Before send:"
 msgstr "보내기 전:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:141
+#: packages/admin/src/components/settings/SeoSettings.tsx:155
 msgid "Bing Verification"
 msgstr "빙 확인"
 
@@ -849,7 +853,7 @@ msgstr "테마를 찾아보고 자신만의 콘텐츠로 미리 보세요."
 msgid "Bullet List"
 msgstr "글머리 기호 목록"
 
-#: packages/admin/src/components/ContentEditor.tsx:924
+#: packages/admin/src/components/ContentEditor.tsx:979
 #: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
 msgstr "작성자 정보"
@@ -872,21 +876,21 @@ msgstr "콘텐츠 조회 가능"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentEditor.tsx:632
-#: packages/admin/src/components/ContentEditor.tsx:838
-#: packages/admin/src/components/ContentEditor.tsx:890
-#: packages/admin/src/components/ContentEditor.tsx:1818
-#: packages/admin/src/components/ContentEditor.tsx:1871
+#: packages/admin/src/components/ContentEditor.tsx:677
+#: packages/admin/src/components/ContentEditor.tsx:893
+#: packages/admin/src/components/ContentEditor.tsx:945
+#: packages/admin/src/components/ContentEditor.tsx:2018
+#: packages/admin/src/components/ContentEditor.tsx:2071
 #: packages/admin/src/components/ContentList.tsx:560
 #: packages/admin/src/components/ContentList.tsx:631
 #: packages/admin/src/components/ContentPickerModal.tsx:253
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/FieldEditor.tsx:645
 #: packages/admin/src/components/MediaDetailPanel.tsx:234
-#: packages/admin/src/components/MediaPickerModal.tsx:581
-#: packages/admin/src/components/MenuEditor.tsx:294
-#: packages/admin/src/components/MenuEditor.tsx:439
-#: packages/admin/src/components/MenuList.tsx:143
+#: packages/admin/src/components/MediaPickerModal.tsx:605
+#: packages/admin/src/components/MenuEditor.tsx:351
+#: packages/admin/src/components/MenuEditor.tsx:522
+#: packages/admin/src/components/MenuList.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:575
 #: packages/admin/src/components/Redirects.tsx:176
 #: packages/admin/src/components/SectionPickerModal.tsx:130
@@ -896,8 +900,9 @@ msgstr "콘텐츠 조회 가능"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:330
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:458
 #: packages/admin/src/components/settings/SecuritySettings.tsx:211
-#: packages/admin/src/components/TaxonomyManager.tsx:304
-#: packages/admin/src/components/TaxonomyManager.tsx:523
+#: packages/admin/src/components/TaxonomyManager.tsx:187
+#: packages/admin/src/components/TaxonomyManager.tsx:470
+#: packages/admin/src/components/TaxonomyManager.tsx:689
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/WordPressImport.tsx:1778
 msgid "Cancel"
@@ -943,21 +948,22 @@ msgid "Categories will be imported"
 msgstr "카테고리를 가져옵니다."
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:68
-#: packages/admin/src/components/ContentEditor.tsx:1575
+#: packages/admin/src/components/ContentEditor.tsx:1613
+#: packages/admin/src/components/ContentEditor.tsx:1773
 #: packages/admin/src/components/FieldEditor.tsx:391
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
 msgstr "변경"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:231
+#: packages/admin/src/components/settings/GeneralSettings.tsx:248
 msgid "Change Favicon"
 msgstr "파비콘 변경"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:187
+#: packages/admin/src/components/settings/GeneralSettings.tsx:204
 msgid "Change Logo"
 msgstr "로고 변경"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:132
+#: packages/admin/src/components/settings/SeoSettings.tsx:146
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "페이지 제목과 사이트 이름 사이의 문자(예: \"내 게시물 | 내 사이트\")"
 
@@ -1013,18 +1019,18 @@ msgstr "이메일에 있는 링크를 클릭하여 로그인하세요."
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:438
 #: packages/admin/src/components/MediaDetailPanel.tsx:131
 #: packages/admin/src/components/MediaDetailPanel.tsx:133
-#: packages/admin/src/components/MediaPickerModal.tsx:349
-#: packages/admin/src/components/MediaPickerModal.tsx:355
-#: packages/admin/src/components/MediaPickerModal.tsx:359
-#: packages/admin/src/components/MenuEditor.tsx:256
-#: packages/admin/src/components/MenuEditor.tsx:262
-#: packages/admin/src/components/MenuEditor.tsx:266
-#: packages/admin/src/components/MenuEditor.tsx:398
-#: packages/admin/src/components/MenuEditor.tsx:404
-#: packages/admin/src/components/MenuEditor.tsx:408
-#: packages/admin/src/components/MenuList.tsx:107
-#: packages/admin/src/components/MenuList.tsx:113
-#: packages/admin/src/components/MenuList.tsx:117
+#: packages/admin/src/components/MediaPickerModal.tsx:369
+#: packages/admin/src/components/MediaPickerModal.tsx:375
+#: packages/admin/src/components/MediaPickerModal.tsx:379
+#: packages/admin/src/components/MenuEditor.tsx:313
+#: packages/admin/src/components/MenuEditor.tsx:319
+#: packages/admin/src/components/MenuEditor.tsx:323
+#: packages/admin/src/components/MenuEditor.tsx:481
+#: packages/admin/src/components/MenuEditor.tsx:487
+#: packages/admin/src/components/MenuEditor.tsx:491
+#: packages/admin/src/components/MenuList.tsx:133
+#: packages/admin/src/components/MenuList.tsx:139
+#: packages/admin/src/components/MenuList.tsx:143
 #: packages/admin/src/components/Redirects.tsx:111
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/SectionPickerModal.tsx:60
@@ -1036,12 +1042,13 @@ msgstr "이메일에 있는 링크를 클릭하여 로그인하세요."
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:376
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:382
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:386
-#: packages/admin/src/components/TaxonomyManager.tsx:223
-#: packages/admin/src/components/TaxonomyManager.tsx:229
-#: packages/admin/src/components/TaxonomyManager.tsx:233
-#: packages/admin/src/components/TaxonomyManager.tsx:437
-#: packages/admin/src/components/TaxonomyManager.tsx:443
-#: packages/admin/src/components/TaxonomyManager.tsx:447
+#: packages/admin/src/components/TaxonomyManager.tsx:164
+#: packages/admin/src/components/TaxonomyManager.tsx:369
+#: packages/admin/src/components/TaxonomyManager.tsx:375
+#: packages/admin/src/components/TaxonomyManager.tsx:379
+#: packages/admin/src/components/TaxonomyManager.tsx:603
+#: packages/admin/src/components/TaxonomyManager.tsx:609
+#: packages/admin/src/components/TaxonomyManager.tsx:613
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:302
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
 #: packages/admin/src/components/users/InviteUserModal.tsx:94
@@ -1080,7 +1087,7 @@ msgstr "colleague@example.com"
 msgid "Collection:"
 msgstr "컬렉션:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:488
+#: packages/admin/src/components/TaxonomyManager.tsx:654
 msgid "Collections"
 msgstr "컬렉션"
 
@@ -1088,7 +1095,7 @@ msgstr "컬렉션"
 msgid "Collections created:"
 msgstr "생성된 컬렉션:"
 
-#: packages/admin/src/components/SectionEditor.tsx:226
+#: packages/admin/src/components/SectionEditor.tsx:263
 msgid "Comma-separated keywords for search."
 msgstr "쉼표로 구분된 검색 키워드"
 
@@ -1140,8 +1147,8 @@ msgstr "연결됨 {0}"
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
-#: packages/admin/src/components/PortableTextEditor.tsx:1811
-#: packages/admin/src/components/SectionEditor.tsx:174
+#: packages/admin/src/components/PortableTextEditor.tsx:1813
+#: packages/admin/src/components/SectionEditor.tsx:191
 #: packages/admin/src/components/Sidebar.tsx:412
 msgid "Content"
 msgstr "콘텐츠"
@@ -1245,7 +1252,7 @@ msgstr "토큰 복사"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "자동으로 복사할 수 없습니다. 위의 URL을 선택하고 수동으로 복사하세요."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:308
+#: packages/admin/src/components/MediaPickerModal.tsx:328
 msgid "Could not load image from URL"
 msgstr "URL에서 이미지를 로드할 수 없습니다."
 
@@ -1253,15 +1260,15 @@ msgstr "URL에서 이미지를 로드할 수 없습니다."
 msgid "Couldn't detect WordPress"
 msgstr "WordPress를 감지할 수 없습니다."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:618
+#: packages/admin/src/components/TaxonomyManager.tsx:825
 msgid "Count"
 msgstr "수"
 
-#: packages/admin/src/components/ContentEditor.tsx:1842
-#: packages/admin/src/components/MenuList.tsx:146
+#: packages/admin/src/components/ContentEditor.tsx:2042
+#: packages/admin/src/components/MenuList.tsx:172
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/Sections.tsx:210
-#: packages/admin/src/components/TaxonomyManager.tsx:311
+#: packages/admin/src/components/TaxonomyManager.tsx:477
 msgid "Create"
 msgstr "생성"
 
@@ -1270,7 +1277,7 @@ msgid "Create a bullet list"
 msgstr "글머리 기호 목록 만들기"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:219
+#: packages/admin/src/components/TaxonomyManager.tsx:365
 msgid "Create a new {0}"
 msgstr "새 {0} 만들기"
 
@@ -1286,16 +1293,16 @@ msgstr "계정 만들기"
 msgid "Create an account"
 msgstr "계정 만들기"
 
-#: packages/admin/src/components/ContentEditor.tsx:1790
+#: packages/admin/src/components/ContentEditor.tsx:1990
 msgid "Create byline"
 msgstr "바이라인 추가"
 
-#: packages/admin/src/components/MenuList.tsx:97
-#: packages/admin/src/components/MenuList.tsx:160
+#: packages/admin/src/components/MenuList.tsx:123
+#: packages/admin/src/components/MenuList.tsx:186
 msgid "Create Menu"
 msgstr "메뉴 만들기"
 
-#: packages/admin/src/components/MenuList.tsx:104
+#: packages/admin/src/components/MenuList.tsx:130
 msgid "Create New Menu"
 msgstr "새 메뉴 만들기"
 
@@ -1342,8 +1349,8 @@ msgstr "섹션 만들기"
 msgid "Create sections in the Sections library to use them here"
 msgstr "여기에서 사용하려면 섹션 라이브러리에 섹션을 만드세요."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:430
-#: packages/admin/src/components/TaxonomyManager.tsx:526
+#: packages/admin/src/components/TaxonomyManager.tsx:596
+#: packages/admin/src/components/TaxonomyManager.tsx:692
 msgid "Create Taxonomy"
 msgstr "분류 만들기"
 
@@ -1356,7 +1363,7 @@ msgstr "토큰 만들기"
 msgid "Create your account"
 msgstr "계정 만들기"
 
-#: packages/admin/src/components/MenuList.tsx:158
+#: packages/admin/src/components/MenuList.tsx:184
 msgid "Create your first navigation menu to get started"
 msgstr "시작하려면 첫 번째 탐색 메뉴를 만드세요."
 
@@ -1396,12 +1403,12 @@ msgstr "생성됨"
 msgid "Created {0}"
 msgstr "{0} 생성됨"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:114
+#: packages/admin/src/components/ContentTypeEditor.tsx:116
 msgid "Created At"
 msgstr "생성 날짜"
 
 #. placeholder {0}: new Date(item.createdAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:858
+#: packages/admin/src/components/ContentEditor.tsx:913
 msgid "Created: {0}"
 msgstr "생성됨: {0}"
 
@@ -1409,16 +1416,16 @@ msgstr "생성됨: {0}"
 msgid "Creating collections and fields..."
 msgstr "컬렉션 및 필드 생성 중..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1842
-#: packages/admin/src/components/MenuList.tsx:146
+#: packages/admin/src/components/ContentEditor.tsx:2042
+#: packages/admin/src/components/MenuList.tsx:172
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:455
-#: packages/admin/src/components/TaxonomyManager.tsx:526
+#: packages/admin/src/components/TaxonomyManager.tsx:692
 msgid "Creating..."
 msgstr "생성 중..."
 
-#: packages/admin/src/components/ContentEditor.tsx:961
+#: packages/admin/src/components/TranslationsPanel.tsx:78
 msgid "current"
 msgstr "현재"
 
@@ -1430,11 +1437,11 @@ msgstr "현재"
 msgid "Custom"
 msgstr "커스텀"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:151
+#: packages/admin/src/components/settings/SeoSettings.tsx:165
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "robots.txt 내용을 직접 입력하세요. 비워 두면 기본값이 사용됩니다."
 
-#: packages/admin/src/components/SectionEditor.tsx:161
+#: packages/admin/src/components/SectionEditor.tsx:181
 msgid "Custom Section"
 msgstr "커스텀 섹션"
 
@@ -1468,7 +1475,7 @@ msgstr "날짜 및 시간"
 msgid "Date and time picker"
 msgstr "날짜 및 시간 선택기"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:273
+#: packages/admin/src/components/settings/GeneralSettings.tsx:290
 msgid "Date Format"
 msgstr "날짜 형식"
 
@@ -1485,7 +1492,7 @@ msgstr "기본 역할"
 msgid "Default role:"
 msgstr "기본 역할:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:433
+#: packages/admin/src/components/TaxonomyManager.tsx:599
 msgid "Define a new taxonomy for classifying content"
 msgstr "콘텐츠 분류에 사용할 새 분류를 정의합니다"
 
@@ -1493,17 +1500,21 @@ msgstr "콘텐츠 분류에 사용할 새 분류를 정의합니다"
 msgid "Define the structure of your content"
 msgstr "콘텐츠 구조 정의"
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:354
+msgid "Defined in code"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentInbox.tsx:267
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/MediaDetailPanel.tsx:230
 #: packages/admin/src/components/MediaDetailPanel.tsx:255
-#: packages/admin/src/components/MenuEditor.tsx:372
-#: packages/admin/src/components/MenuList.tsx:209
+#: packages/admin/src/components/MenuEditor.tsx:455
+#: packages/admin/src/components/MenuList.tsx:248
 #: packages/admin/src/components/Redirects.tsx:559
 #: packages/admin/src/components/Sections.tsx:306
 #: packages/admin/src/components/Sections.tsx:405
-#: packages/admin/src/components/TaxonomyManager.tsx:656
+#: packages/admin/src/components/TaxonomyManager.tsx:889
 msgid "Delete"
 msgstr "삭제"
 
@@ -1518,17 +1529,17 @@ msgstr "\"{0}\"을(를) 삭제하시겠습니까? 이 작업은 취소할 수 �
 #: packages/admin/src/components/ContentTypeList.tsx:229
 #: packages/admin/src/components/Sections.tsx:406
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:290
-#: packages/admin/src/components/TaxonomyManager.tsx:79
+#: packages/admin/src/components/TaxonomyManager.tsx:97
 msgid "Delete {0}"
 msgstr "{0} 삭제"
 
 #. placeholder {0}: menu.name
-#: packages/admin/src/components/MenuList.tsx:191
+#: packages/admin/src/components/MenuList.tsx:230
 msgid "Delete {0} menu"
 msgstr "{0} 메뉴 삭제"
 
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
-#: packages/admin/src/components/TaxonomyManager.tsx:652
+#: packages/admin/src/components/TaxonomyManager.tsx:885
 msgid "Delete {0}?"
 msgstr "{0}을(를) 삭제하시겠습니까?"
 
@@ -1544,7 +1555,7 @@ msgstr "콘텐츠 유형을 삭제하시겠습니까?"
 msgid "Delete Media?"
 msgstr "미디어를 삭제하시겠습니까?"
 
-#: packages/admin/src/components/MenuList.tsx:207
+#: packages/admin/src/components/MenuList.tsx:246
 msgid "Delete Menu"
 msgstr "메뉴 삭제"
 
@@ -1586,10 +1597,10 @@ msgstr "삭제됨"
 #: packages/admin/src/components/ContentTypeList.tsx:149
 #: packages/admin/src/components/MediaDetailPanel.tsx:230
 #: packages/admin/src/components/MediaDetailPanel.tsx:256
-#: packages/admin/src/components/MenuList.tsx:210
+#: packages/admin/src/components/MenuList.tsx:249
 #: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/Sections.tsx:307
-#: packages/admin/src/components/TaxonomyManager.tsx:657
+#: packages/admin/src/components/TaxonomyManager.tsx:890
 msgid "Deleting..."
 msgstr "삭제 중..."
 
@@ -1608,16 +1619,16 @@ msgstr "거부"
 msgid "Describe this image for accessibility"
 msgstr "접근성을 위해 이 이미지를 설명하세요."
 
-#: packages/admin/src/components/SectionEditor.tsx:215
+#: packages/admin/src/components/SectionEditor.tsx:252
 msgid "Describe what this section is for..."
 msgstr "이 섹션의 용도를 설명하세요."
 
-#: packages/admin/src/components/SectionEditor.tsx:212
+#: packages/admin/src/components/SectionEditor.tsx:249
 #: packages/admin/src/components/Sections.tsx:198
 msgid "Description"
 msgstr "설명"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:286
+#: packages/admin/src/components/TaxonomyManager.tsx:432
 msgid "Description (optional)"
 msgstr "설명(선택사항)"
 
@@ -1679,12 +1690,12 @@ msgstr "비활성"
 msgid "Disabled:"
 msgstr "비활성:"
 
-#: packages/admin/src/components/ContentEditor.tsx:617
-#: packages/admin/src/components/ContentEditor.tsx:639
+#: packages/admin/src/components/ContentEditor.tsx:662
+#: packages/admin/src/components/ContentEditor.tsx:684
 msgid "Discard changes"
 msgstr "변경사항 버리기"
 
-#: packages/admin/src/components/ContentEditor.tsx:623
+#: packages/admin/src/components/ContentEditor.tsx:668
 msgid "Discard draft changes?"
 msgstr "초안 변경사항을 버리시겠습니까?"
 
@@ -1697,12 +1708,12 @@ msgstr "무시"
 msgid "Display a navigation menu"
 msgstr "탐색 메뉴 표시"
 
-#: packages/admin/src/components/ContentEditor.tsx:1793
-#: packages/admin/src/components/ContentEditor.tsx:1855
+#: packages/admin/src/components/ContentEditor.tsx:1993
+#: packages/admin/src/components/ContentEditor.tsx:2055
 msgid "Display name"
 msgstr "표시 이름"
 
-#: packages/admin/src/components/MenuList.tsx:138
+#: packages/admin/src/components/MenuList.tsx:164
 msgid "Display name for admin interface"
 msgstr "관리 인터페이스의 표시 이름"
 
@@ -1716,7 +1727,7 @@ msgstr "디스플레이 크기"
 msgid "Displayed below the image as a visible caption."
 msgstr "이미지 아래에 보이는 캡션으로 표시됩니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:593
+#: packages/admin/src/components/ContentEditor.tsx:638
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "집중 모드 (⌘⇧\\)"
 
@@ -1749,7 +1760,7 @@ msgstr "계정이 없으신가요? <0>회원가입</0>"
 msgid "Done"
 msgstr "완료"
 
-#: packages/admin/src/components/ContentEditor.tsx:1736
+#: packages/admin/src/components/ContentEditor.tsx:1936
 msgid "Down"
 msgstr "아래로"
 
@@ -1761,16 +1772,16 @@ msgstr "다운로드 중"
 msgid "draft"
 msgstr "초안"
 
-#: packages/admin/src/components/ContentEditor.tsx:789
+#: packages/admin/src/components/ContentEditor.tsx:844
 #: packages/admin/src/components/ContentPickerModal.tsx:217
 msgid "Draft"
 msgstr "초안"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:110
+#: packages/admin/src/components/ContentTypeEditor.tsx:112
 msgid "draft, published, or archived"
 msgstr "초안, 게시 또는 보관"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:62
+#: packages/admin/src/components/ContentTypeEditor.tsx:64
 #: packages/admin/src/components/Dashboard.tsx:188
 msgid "Drafts"
 msgstr "초안"
@@ -1799,12 +1810,12 @@ msgstr "예: CI/CD 파이프라인"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "예: 맥북 프로, 아이폰"
 
-#: packages/admin/src/components/ContentEditor.tsx:970
-#: packages/admin/src/components/ContentEditor.tsx:1745
-#: packages/admin/src/components/MenuEditor.tsx:367
-#: packages/admin/src/components/MenuList.tsx:185
+#: packages/admin/src/components/ContentEditor.tsx:1945
+#: packages/admin/src/components/MenuEditor.tsx:450
+#: packages/admin/src/components/MenuList.tsx:224
 #: packages/admin/src/components/Sections.tsx:390
-#: packages/admin/src/components/TaxonomyManager.tsx:214
+#: packages/admin/src/components/TaxonomyManager.tsx:360
+#: packages/admin/src/components/TranslationsPanel.tsx:88
 msgid "Edit"
 msgstr "편집"
 
@@ -1813,11 +1824,11 @@ msgstr "편집"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/ContentTypeList.tsx:220
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:281
-#: packages/admin/src/components/TaxonomyManager.tsx:71
+#: packages/admin/src/components/TaxonomyManager.tsx:89
 msgid "Edit {0}"
 msgstr "{0} 수정"
 
-#: packages/admin/src/components/ContentEditor.tsx:556
+#: packages/admin/src/components/ContentEditor.tsx:601
 msgid "Edit {collectionLabel}"
 msgstr "{collectionLabel} 수정"
 
@@ -1825,7 +1836,7 @@ msgstr "{collectionLabel} 수정"
 msgid "Edit {title}"
 msgstr "{title} 편집"
 
-#: packages/admin/src/components/ContentEditor.tsx:1852
+#: packages/admin/src/components/ContentEditor.tsx:2052
 msgid "Edit byline"
 msgstr "작성자 편집"
 
@@ -1837,11 +1848,11 @@ msgstr "도메인 편집"
 msgid "Edit Field"
 msgstr "필드 편집"
 
-#: packages/admin/src/components/MenuEditor.tsx:395
+#: packages/admin/src/components/MenuEditor.tsx:478
 msgid "Edit Menu Item"
 msgstr "메뉴 항목 편집"
 
-#: packages/admin/src/components/MenuEditor.tsx:225
+#: packages/admin/src/components/MenuEditor.tsx:282
 msgid "Edit menu items"
 msgstr "메뉴 항목 편집"
 
@@ -1910,11 +1921,11 @@ msgid "Email verified!"
 msgstr "이메일이 확인되었습니다!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:1824
+#: packages/admin/src/components/PortableTextEditor.tsx:1826
 msgid "Embed a {0}"
 msgstr "{0} 삽입"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1827
+#: packages/admin/src/components/PortableTextEditor.tsx:1829
 msgid "Embeds"
 msgstr "삽입"
 
@@ -1930,7 +1941,7 @@ msgstr "EmDash Exporter 플러그인이 감지되었습니다! 직접 가져올 
 msgid "Enable"
 msgstr "활성화"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:78
+#: packages/admin/src/components/ContentTypeEditor.tsx:80
 msgid "Enable full-text search on this collection"
 msgstr "이 컬렉션의 전체 텍스트 검색을 활성화합니다"
 
@@ -1948,16 +1959,16 @@ msgid "Enabled"
 msgstr "활성화됨"
 
 #. placeholder {0}: label.toLowerCase()
-#: packages/admin/src/components/ContentEditor.tsx:1184
+#: packages/admin/src/components/ContentEditor.tsx:1204
 msgid "Enter {0}..."
 msgstr "{0}을(를) 입력하세요..."
 
-#: packages/admin/src/components/MenuEditor.tsx:279
-#: packages/admin/src/components/MenuEditor.tsx:423
+#: packages/admin/src/components/MenuEditor.tsx:336
+#: packages/admin/src/components/MenuEditor.tsx:506
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "URL(https://…) 또는 상대 경로(/…)를 입력하세요."
 
-#: packages/admin/src/components/ContentEditor.tsx:1402
+#: packages/admin/src/components/ContentEditor.tsx:1440
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "유효한 URL을 입력하세요 (예: https://example.com)"
 
@@ -1965,7 +1976,7 @@ msgstr "유효한 URL을 입력하세요 (예: https://example.com)"
 msgid "Enter credentials manually"
 msgstr "자격 증명을 수동으로 입력하세요."
 
-#: packages/admin/src/components/ContentEditor.tsx:592
+#: packages/admin/src/components/ContentEditor.tsx:637
 msgid "Enter distraction-free mode"
 msgstr "집중 모드로 전환"
 
@@ -1973,7 +1984,7 @@ msgstr "집중 모드로 전환"
 msgid "Enter email"
 msgstr "이메일을 입력하세요"
 
-#: packages/admin/src/components/ContentEditor.tsx:1206
+#: packages/admin/src/components/ContentEditor.tsx:1226
 msgid "Enter markdown content..."
 msgstr "마크다운 콘텐츠를 입력하세요..."
 
@@ -1997,13 +2008,14 @@ msgstr "콘텐츠를 직접 가져오려면 WordPress 자격 증명을 입력하
 msgid "Enter your WordPress site URL"
 msgstr "WordPress 사이트 URL을 입력하세요."
 
-#: packages/admin/src/components/MenuEditor.tsx:83
-#: packages/admin/src/components/MenuEditor.tsx:122
+#: packages/admin/src/components/MenuEditor.tsx:101
+#: packages/admin/src/components/MenuEditor.tsx:139
+#: packages/admin/src/components/MenuEditor.tsx:179
 #: packages/admin/src/components/SetupWizard.tsx:552
 msgid "Error"
 msgstr "오류"
 
-#: packages/admin/src/components/SectionEditor.tsx:49
+#: packages/admin/src/components/SectionEditor.tsx:51
 msgid "Error saving section"
 msgstr "섹션을 저장하는 중에 오류가 발생했습니다."
 
@@ -2011,7 +2023,7 @@ msgstr "섹션을 저장하는 중에 오류가 발생했습니다."
 msgid "Exists"
 msgstr "존재"
 
-#: packages/admin/src/components/ContentEditor.tsx:550
+#: packages/admin/src/components/ContentEditor.tsx:595
 msgid "Exit distraction-free mode"
 msgstr "집중 모드 종료"
 
@@ -2040,7 +2052,7 @@ msgstr "WordPress에서 수동으로 내보내기"
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "초안을 포함한 모든 것을 가져오려면 WordPress에서 콘텐츠를 내보내세요."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:141
+#: packages/admin/src/components/settings/SocialSettings.tsx:155
 msgid "Facebook"
 msgstr "페이스북"
 
@@ -2060,7 +2072,7 @@ msgstr "보안 감사 실패"
 msgid "Failed to add domain"
 msgstr "도메인을 추가하지 못했습니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:1836
+#: packages/admin/src/components/ContentEditor.tsx:2036
 msgid "Failed to create byline"
 msgstr "바이라인을 추가하지 못했습니다."
 
@@ -2134,13 +2146,13 @@ msgstr "패스키를 제거하지 못했습니다."
 msgid "Failed to rename passkey"
 msgstr "패스키 이름을 바꾸지 못했습니다."
 
-#: packages/admin/src/router.tsx:1530
+#: packages/admin/src/router.tsx:1535
 msgid "Failed to save"
 msgstr "저장하지 못했습니다."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:58
-#: packages/admin/src/components/settings/SeoSettings.tsx:53
-#: packages/admin/src/components/settings/SocialSettings.tsx:53
+#: packages/admin/src/components/settings/GeneralSettings.tsx:59
+#: packages/admin/src/components/settings/SeoSettings.tsx:54
+#: packages/admin/src/components/settings/SocialSettings.tsx:54
 msgid "Failed to save settings"
 msgstr "설정을 저장하지 못했습니다."
 
@@ -2158,7 +2170,7 @@ msgstr "테스트 이메일을 보내지 못했습니다."
 msgid "Failed to update {0}"
 msgstr "{0}을(를) 업데이트하지 못했습니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:1886
+#: packages/admin/src/components/ContentEditor.tsx:2086
 msgid "Failed to update byline"
 msgstr "바이라인을 업데이트하지 못했습니다."
 
@@ -2166,8 +2178,8 @@ msgstr "바이라인을 업데이트하지 못했습니다."
 msgid "Failed to update domain"
 msgstr "도메인을 업데이트하지 못했습니다."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:215
-#: packages/admin/src/components/settings/GeneralSettings.tsx:220
+#: packages/admin/src/components/settings/GeneralSettings.tsx:232
+#: packages/admin/src/components/settings/GeneralSettings.tsx:237
 msgid "Favicon"
 msgstr "파비콘"
 
@@ -2253,8 +2265,8 @@ msgstr "관리자 전체 권한"
 msgid "General"
 msgstr "일반"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:105
-#: packages/admin/src/components/settings/GeneralSettings.tsx:123
+#: packages/admin/src/components/settings/GeneralSettings.tsx:106
+#: packages/admin/src/components/settings/GeneralSettings.tsx:140
 msgid "General Settings"
 msgstr "일반 설정"
 
@@ -2262,7 +2274,7 @@ msgstr "일반 설정"
 msgid "Get Started"
 msgstr "시작하기"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:135
+#: packages/admin/src/components/settings/SocialSettings.tsx:149
 msgid "GitHub"
 msgstr "GitHub"
 
@@ -2274,7 +2286,7 @@ msgstr "나중에 식별할 수 있도록 이 패스키에 이름을 지정하�
 msgid "Go to Dashboard"
 msgstr "대시보드로 이동"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:135
+#: packages/admin/src/components/settings/SeoSettings.tsx:149
 msgid "Google Verification"
 msgstr "Google 인증"
 
@@ -2314,7 +2326,7 @@ msgstr "검색에서 숨기기"
 msgid "Hide token"
 msgstr "토큰 숨기기"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:481
+#: packages/admin/src/components/TaxonomyManager.tsx:647
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "계층형(카테고리처럼 상위/하위 관계 지원)"
 
@@ -2323,7 +2335,7 @@ msgstr "계층형(카테고리처럼 상위/하위 관계 지원)"
 msgid "Hits"
 msgstr "조회수"
 
-#: packages/admin/src/components/MenuEditor.tsx:272
+#: packages/admin/src/components/MenuEditor.tsx:329
 msgid "Home"
 msgstr "홈"
 
@@ -2339,7 +2351,7 @@ msgstr "훅"
 msgid "How to create an Application Password"
 msgstr "애플리케이션 비밀번호를 생성하는 방법"
 
-#: packages/admin/src/components/MenuEditor.tsx:280
+#: packages/admin/src/components/MenuEditor.tsx:337
 msgid "https://example.com or /about"
 msgstr "https://example.com 또는 /about"
 
@@ -2348,7 +2360,7 @@ msgstr "https://example.com 또는 /about"
 msgid "Icon blurred due to image audit"
 msgstr "이미지 검수로 인해 아이콘이 흐리게 표시됨"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:96
+#: packages/admin/src/components/ContentTypeEditor.tsx:98
 msgid "ID"
 msgstr "ID"
 
@@ -2357,7 +2369,7 @@ msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "<0>{email}</0>에 대한 계정이 존재하는 경우 로그인 링크가 전송되었습니다."
 
 #: packages/admin/src/components/FieldEditor.tsx:200
-#: packages/admin/src/components/PortableTextEditor.tsx:1793
+#: packages/admin/src/components/PortableTextEditor.tsx:1795
 msgid "Image"
 msgstr "이미지"
 
@@ -2374,7 +2386,7 @@ msgstr "이미지 설정"
 msgid "Image shown when this page is shared on social media"
 msgstr "이 페이지가 소셜 미디어에 공유되면 표시되는 이미지"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:374
+#: packages/admin/src/components/MediaPickerModal.tsx:396
 msgid "Image URL"
 msgstr "이미지 URL"
 
@@ -2480,8 +2492,8 @@ msgstr "샘플 콘텐츠 포함(새 사이트에 권장)"
 msgid "Incompatible"
 msgstr "호환되지 않음"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:385
-#: packages/admin/src/components/MediaPickerModal.tsx:584
+#: packages/admin/src/components/MediaPickerModal.tsx:407
+#: packages/admin/src/components/MediaPickerModal.tsx:608
 msgid "Insert"
 msgstr "삽입"
 
@@ -2497,15 +2509,15 @@ msgstr "코드 블록 삽입"
 msgid "Insert a horizontal rule"
 msgstr "수평선 삽입"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1808
+#: packages/admin/src/components/PortableTextEditor.tsx:1810
 msgid "Insert a reusable section"
 msgstr "재사용 가능한 섹션 삽입"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1794
+#: packages/admin/src/components/PortableTextEditor.tsx:1796
 msgid "Insert an image"
 msgstr "이미지 삽입"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:367
+#: packages/admin/src/components/MediaPickerModal.tsx:389
 msgid "Insert from URL"
 msgstr "URL에서 삽입"
 
@@ -2513,7 +2525,7 @@ msgstr "URL에서 삽입"
 msgid "Insert Section"
 msgstr "섹션 삽입"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:147
+#: packages/admin/src/components/settings/SocialSettings.tsx:161
 msgid "Instagram"
 msgstr "인스타그램"
 
@@ -2552,7 +2564,7 @@ msgstr "설치 중..."
 msgid "Integer"
 msgstr "정수"
 
-#: packages/admin/src/components/ContentEditor.tsx:1471
+#: packages/admin/src/components/ContentEditor.tsx:1509
 msgid "Invalid JSON"
 msgstr "잘못된 JSON"
 
@@ -2570,19 +2582,19 @@ msgstr "사용자 초대"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/PortableTextEditor.tsx:1483
-#: packages/admin/src/components/RepeaterField.tsx:233
+#: packages/admin/src/components/RepeaterField.tsx:234
 msgid "Item {0}"
 msgstr "항목 {0}"
 
-#: packages/admin/src/components/MenuEditor.tsx:65
+#: packages/admin/src/components/MenuEditor.tsx:121
 msgid "Item added"
 msgstr "항목이 추가됨"
 
-#: packages/admin/src/components/MenuEditor.tsx:77
+#: packages/admin/src/components/MenuEditor.tsx:133
 msgid "Item deleted"
 msgstr "항목이 삭제되었습니다."
 
-#: packages/admin/src/components/MenuEditor.tsx:102
+#: packages/admin/src/components/MenuEditor.tsx:158
 msgid "Item updated"
 msgstr "항목이 업데이트되었습니다."
 
@@ -2596,17 +2608,17 @@ msgid "JSON"
 msgstr "JSON"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:295
-#: packages/admin/src/components/SectionEditor.tsx:221
+#: packages/admin/src/components/SectionEditor.tsx:258
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:193
 msgid "Keywords"
 msgstr "키워드"
 
 #: packages/admin/src/components/FieldEditor.tsx:400
 #: packages/admin/src/components/FieldEditor.tsx:554
-#: packages/admin/src/components/MenuEditor.tsx:272
-#: packages/admin/src/components/MenuEditor.tsx:415
-#: packages/admin/src/components/MenuList.tsx:137
-#: packages/admin/src/components/TaxonomyManager.tsx:455
+#: packages/admin/src/components/MenuEditor.tsx:329
+#: packages/admin/src/components/MenuEditor.tsx:498
+#: packages/admin/src/components/MenuList.tsx:163
+#: packages/admin/src/components/TaxonomyManager.tsx:621
 msgid "Label"
 msgstr "라벨"
 
@@ -2684,7 +2696,7 @@ msgstr "다른 콘텐츠 항목에 대한 링크"
 msgid "Linked Accounts ({0})"
 msgstr "연결된 계정({0})"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:153
+#: packages/admin/src/components/settings/SocialSettings.tsx:167
 msgid "LinkedIn"
 msgstr "링크드인"
 
@@ -2696,7 +2708,7 @@ msgstr "링크"
 msgid "List view"
 msgstr "목록 보기"
 
-#: packages/admin/src/components/ContentEditor.tsx:672
+#: packages/admin/src/components/ContentEditor.tsx:717
 msgid "Live View"
 msgstr "실시간 미리보기"
 
@@ -2723,11 +2735,11 @@ msgstr "댓글 로드 중..."
 msgid "Loading content..."
 msgstr "콘텐츠 로드 중..."
 
-#: packages/admin/src/components/MenuEditor.tsx:198
+#: packages/admin/src/components/MenuEditor.tsx:255
 msgid "Loading menu..."
 msgstr "메뉴 로드 중..."
 
-#: packages/admin/src/components/MenuList.tsx:75
+#: packages/admin/src/components/MenuList.tsx:91
 msgid "Loading menus..."
 msgstr "메뉴 로드 중..."
 
@@ -2744,9 +2756,9 @@ msgstr "리디렉션 로드 중..."
 msgid "Loading sections..."
 msgstr "섹션 로드 중..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:108
-#: packages/admin/src/components/settings/SeoSettings.tsx:85
-#: packages/admin/src/components/settings/SocialSettings.tsx:85
+#: packages/admin/src/components/settings/GeneralSettings.tsx:109
+#: packages/admin/src/components/settings/SeoSettings.tsx:86
+#: packages/admin/src/components/settings/SocialSettings.tsx:86
 msgid "Loading settings..."
 msgstr "설정 로드 중..."
 
@@ -2754,7 +2766,7 @@ msgstr "설정 로드 중..."
 msgid "Loading setup..."
 msgstr "설정 로드 중..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:623
+#: packages/admin/src/components/TaxonomyManager.tsx:830
 msgid "Loading terms..."
 msgstr "항목 불러오는 중..."
 
@@ -2766,7 +2778,7 @@ msgstr "항목 불러오는 중..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:199
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:181
 #: packages/admin/src/components/settings/SecuritySettings.tsx:118
-#: packages/admin/src/components/TaxonomyManager.tsx:583
+#: packages/admin/src/components/TaxonomyManager.tsx:782
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:168
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:250
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -2790,8 +2802,8 @@ msgstr "가로 세로 비율 잠금"
 msgid "Log out"
 msgstr "로그아웃"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:171
-#: packages/admin/src/components/settings/GeneralSettings.tsx:176
+#: packages/admin/src/components/settings/GeneralSettings.tsx:188
+#: packages/admin/src/components/settings/GeneralSettings.tsx:193
 msgid "Logo"
 msgstr "로고"
 
@@ -2808,7 +2820,7 @@ msgstr "긴 텍스트"
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "소문자, 숫자, 하이픈만 가능"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:473
+#: packages/admin/src/components/TaxonomyManager.tsx:639
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "문자로 시작하는 소문자, 숫자, 밑줄만 가능"
 
@@ -2818,7 +2830,7 @@ msgstr "관리"
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:602
+#: packages/admin/src/components/TaxonomyManager.tsx:801
 msgid "Manage {0} for {1}"
 msgstr "{1}에 대한 {0} 관리"
 
@@ -2826,7 +2838,7 @@ msgstr "{1}에 대한 {0} 관리"
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "설치된 플러그인을 관리합니다. 기능을 제어하려면 플러그인을 활성화하거나 비활성화하세요."
 
-#: packages/admin/src/components/MenuList.tsx:85
+#: packages/admin/src/components/MenuList.tsx:101
 msgid "Manage navigation menus for your site"
 msgstr "사이트의 탐색 메뉴를 관리합니다"
 
@@ -2873,7 +2885,7 @@ msgstr "최대 길이"
 msgid "Max Value"
 msgstr "최대값"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1797
+#: packages/admin/src/components/PortableTextEditor.tsx:1799
 #: packages/admin/src/components/Sidebar.tsx:185
 #: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Media"
@@ -2921,41 +2933,47 @@ msgstr "중간 섹션 제목"
 msgid "Menu"
 msgstr "메뉴"
 
+#. placeholder {0}: translated.label
+#. placeholder {1}: translated.locale.toUpperCase()
+#: packages/admin/src/components/MenuEditor.tsx:90
+msgid "Menu \"{0}\" ({1}) created."
+msgstr ""
+
 #. placeholder {0}: menu.label
-#: packages/admin/src/components/MenuList.tsx:40
+#: packages/admin/src/components/MenuList.tsx:52
 msgid "Menu \"{0}\" has been created."
 msgstr "메뉴 \"{0}\"이(가) 생성되었습니다."
 
-#: packages/admin/src/components/MenuList.tsx:39
+#: packages/admin/src/components/MenuList.tsx:51
 msgid "Menu created"
 msgstr "메뉴가 생성되었습니다."
 
-#: packages/admin/src/components/MenuList.tsx:55
+#: packages/admin/src/components/MenuList.tsx:71
 msgid "Menu deleted"
 msgstr "메뉴가 삭제되었습니다."
 
-#: packages/admin/src/components/MenuEditor.tsx:65
+#: packages/admin/src/components/MenuEditor.tsx:121
 msgid "Menu item has been added."
 msgstr "메뉴 항목이 추가되었습니다."
 
-#: packages/admin/src/components/MenuEditor.tsx:78
+#: packages/admin/src/components/MenuEditor.tsx:134
 msgid "Menu item has been deleted."
 msgstr "메뉴 항목이 삭제되었습니다."
 
-#: packages/admin/src/components/MenuEditor.tsx:103
+#: packages/admin/src/components/MenuEditor.tsx:159
 msgid "Menu item has been updated."
 msgstr "메뉴 항목이 업데이트되었습니다."
 
-#: packages/admin/src/components/MenuEditor.tsx:206
+#: packages/admin/src/components/MenuEditor.tsx:263
 msgid "Menu not found"
 msgstr "메뉴를 찾을 수 없습니다"
 
-#: packages/admin/src/components/MenuEditor.tsx:117
+#: packages/admin/src/components/MenuEditor.tsx:174
 msgid "Menu order has been updated."
 msgstr "메뉴 순서가 업데이트되었습니다."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
-#: packages/admin/src/components/MenuList.tsx:84
+#: packages/admin/src/components/MenuList.tsx:100
 #: packages/admin/src/components/Sidebar.tsx:195
 msgid "Menus"
 msgstr "메뉴"
@@ -2973,11 +2991,11 @@ msgstr "메뉴 관리"
 msgid "Meta Description"
 msgstr "메타 설명"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:144
+#: packages/admin/src/components/settings/SeoSettings.tsx:158
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Bing 웹마스터 도구 확인을 위한 메타태그 콘텐츠"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:138
+#: packages/admin/src/components/settings/SeoSettings.tsx:152
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Google Search Console 확인을 위한 메타태그 콘텐츠"
 
@@ -3017,22 +3035,22 @@ msgstr "\"{title}\"을(를) 휴지통으로 이동하시겠습니까? 나중에 
 msgid "Move {title} to trash"
 msgstr "{title}을(를) 휴지통으로 이동"
 
-#: packages/admin/src/components/MenuEditor.tsx:360
+#: packages/admin/src/components/MenuEditor.tsx:443
 msgid "Move down"
 msgstr "아래로 이동"
 
-#: packages/admin/src/components/ContentEditor.tsx:875
-#: packages/admin/src/components/ContentEditor.tsx:897
+#: packages/admin/src/components/ContentEditor.tsx:930
+#: packages/admin/src/components/ContentEditor.tsx:952
 #: packages/admin/src/components/ContentList.tsx:567
 msgid "Move to Trash"
 msgstr "휴지통으로 이동"
 
-#: packages/admin/src/components/ContentEditor.tsx:881
+#: packages/admin/src/components/ContentEditor.tsx:936
 #: packages/admin/src/components/ContentList.tsx:552
 msgid "Move to Trash?"
 msgstr "휴지통으로 이동하시겠습니까?"
 
-#: packages/admin/src/components/MenuEditor.tsx:351
+#: packages/admin/src/components/MenuEditor.tsx:434
 msgid "Move up"
 msgstr "위로 이동"
 
@@ -3053,19 +3071,19 @@ msgid "My Awesome Blog"
 msgstr "내 멋진 블로그"
 
 #: packages/admin/src/components/ContentTypeList.tsx:94
-#: packages/admin/src/components/MenuList.tsx:125
-#: packages/admin/src/components/TaxonomyManager.tsx:241
-#: packages/admin/src/components/TaxonomyManager.tsx:464
-#: packages/admin/src/components/TaxonomyManager.tsx:617
+#: packages/admin/src/components/MenuList.tsx:151
+#: packages/admin/src/components/TaxonomyManager.tsx:387
+#: packages/admin/src/components/TaxonomyManager.tsx:630
+#: packages/admin/src/components/TaxonomyManager.tsx:824
 #: packages/admin/src/components/users/UserDetail.tsx:148
 msgid "Name"
 msgstr "이름"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:390
+#: packages/admin/src/components/TaxonomyManager.tsx:556
 msgid "Name and label are required"
 msgstr "이름과 라벨은 필수 항목입니다."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:396
+#: packages/admin/src/components/TaxonomyManager.tsx:562
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "이름은 문자로 시작해야 하며 소문자, 숫자, 밑줄만 포함할 수 있습니다."
 
@@ -3086,7 +3104,7 @@ msgstr "NEW"
 msgid "New {0}"
 msgstr "새 {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:556
+#: packages/admin/src/components/ContentEditor.tsx:601
 msgid "New {collectionLabel}"
 msgstr "새 {collectionLabel}"
 
@@ -3094,6 +3112,7 @@ msgstr "새 {collectionLabel}"
 msgid "New collection"
 msgstr "새 컬렉션"
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:348
 #: packages/admin/src/components/ContentTypeList.tsx:44
 msgid "New Content Type"
 msgstr "새 콘텐츠 유형"
@@ -3111,14 +3130,14 @@ msgstr "새 섹션"
 msgid "new tab"
 msgstr "새 탭"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:607
+#: packages/admin/src/components/TaxonomyManager.tsx:814
 msgid "New Taxonomy"
 msgstr "새 분류"
 
-#: packages/admin/src/components/MenuEditor.tsx:286
-#: packages/admin/src/components/MenuEditor.tsx:289
-#: packages/admin/src/components/MenuEditor.tsx:431
-#: packages/admin/src/components/MenuEditor.tsx:434
+#: packages/admin/src/components/MenuEditor.tsx:343
+#: packages/admin/src/components/MenuEditor.tsx:346
+#: packages/admin/src/components/MenuEditor.tsx:514
+#: packages/admin/src/components/MenuEditor.tsx:517
 msgid "New window"
 msgstr "새 창"
 
@@ -3150,7 +3169,7 @@ msgid "No {0} yet."
 msgstr "아직 {0}이 없습니다."
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:626
+#: packages/admin/src/components/TaxonomyManager.tsx:833
 msgid "No {0} yet. Create one to get started."
 msgstr "아직 {0}이(가) 없습니다. 하나를 생성하여 시작하세요."
 
@@ -3171,7 +3190,7 @@ msgstr "아직 API 토큰이 없습니다. 하나를 생성하여 시작하세�
 msgid "No approved comments yet."
 msgstr "아직 승인된 댓글이 없습니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:1777
+#: packages/admin/src/components/ContentEditor.tsx:1977
 msgid "No bylines selected."
 msgstr "선택된 작성자가 없습니다."
 
@@ -3232,7 +3251,7 @@ msgid "No headings in document"
 msgstr "문서에 제목이 없습니다."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1406
-#: packages/admin/src/components/RepeaterField.tsx:159
+#: packages/admin/src/components/RepeaterField.tsx:160
 msgid "No items yet"
 msgstr "아직 항목이 없습니다"
 
@@ -3250,12 +3269,12 @@ msgid "No maximum"
 msgstr "최대값 없음"
 
 #: packages/admin/src/components/MediaLibrary.tsx:369
-#: packages/admin/src/components/MediaPickerModal.tsx:497
+#: packages/admin/src/components/MediaPickerModal.tsx:521
 msgid "No media available from this provider"
 msgstr "이 제공업체에서 제공하는 미디어가 없습니다."
 
 #: packages/admin/src/components/MediaLibrary.tsx:363
-#: packages/admin/src/components/MediaPickerModal.tsx:491
+#: packages/admin/src/components/MediaPickerModal.tsx:515
 msgid "No media found"
 msgstr "미디어를 찾을 수 없습니다."
 
@@ -3263,11 +3282,11 @@ msgstr "미디어를 찾을 수 없습니다."
 msgid "No media yet"
 msgstr "아직 미디어가 없습니다."
 
-#: packages/admin/src/components/MenuEditor.tsx:315
+#: packages/admin/src/components/MenuEditor.tsx:398
 msgid "No menu items yet"
 msgstr "아직 메뉴 항목이 없습니다."
 
-#: packages/admin/src/components/MenuList.tsx:157
+#: packages/admin/src/components/MenuList.tsx:183
 msgid "No menus yet"
 msgstr "아직 메뉴가 없습니다"
 
@@ -3346,8 +3365,8 @@ msgstr "스팸 댓글이 없습니다."
 msgid "No themes found"
 msgstr "테마를 찾을 수 없습니다."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:270
-#: packages/admin/src/components/TaxonomyManager.tsx:276
+#: packages/admin/src/components/TaxonomyManager.tsx:416
+#: packages/admin/src/components/TaxonomyManager.tsx:422
 msgid "None (top level)"
 msgstr "없음(최상위 수준)"
 
@@ -3356,7 +3375,7 @@ msgstr "없음(최상위 수준)"
 msgid "Number"
 msgstr "숫자"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:270
+#: packages/admin/src/components/settings/GeneralSettings.tsx:287
 msgid "Number of posts to show per page on list views"
 msgstr "목록 보기에서 페이지당 표시할 게시물 수"
 
@@ -3382,7 +3401,7 @@ msgstr "본인이 인식하는 코드만 승인하세요."
 msgid "Only email addresses from allowed domains can sign up."
 msgstr "허용된 도메인의 이메일 주소만 가입할 수 있습니다."
 
-#: packages/admin/src/components/MenuList.tsx:130
+#: packages/admin/src/components/MenuList.tsx:156
 msgid "Only lowercase letters, numbers, and hyphens"
 msgstr "소문자, 숫자, 하이픈만 가능"
 
@@ -3410,7 +3429,7 @@ msgstr "이미지 하단에 표시되는 캡션(선택 사항)"
 msgid "Optional caption for display"
 msgstr "표시할 캡션(선택 사항)"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:289
+#: packages/admin/src/components/TaxonomyManager.tsx:435
 msgid "Optional description"
 msgstr "설명(선택 사항)"
 
@@ -3423,7 +3442,7 @@ msgstr "마우스를 올리면 표시되는 툴팁(선택 사항)"
 msgid "Options (one per line)"
 msgstr "옵션(한 줄에 하나씩)"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:397
+#: packages/admin/src/components/MediaPickerModal.tsx:419
 msgid "or choose from library"
 msgstr "또는 라이브러리에서 선택"
 
@@ -3443,7 +3462,7 @@ msgstr "또는 내보내기 파일을 업로드하세요."
 msgid "or upload directly"
 msgstr "또는 직접 업로드"
 
-#: packages/admin/src/components/MenuEditor.tsx:116
+#: packages/admin/src/components/MenuEditor.tsx:173
 msgid "Order saved"
 msgstr "순서 저장됨"
 
@@ -3460,7 +3479,7 @@ msgstr "개요"
 msgid "Overrides the page title in search engine results"
 msgstr "검색 결과에 표시되는 페이지 제목을 재정의합니다"
 
-#: packages/admin/src/components/ContentEditor.tsx:912
+#: packages/admin/src/components/ContentEditor.tsx:967
 msgid "Ownership"
 msgstr "소유권"
 
@@ -3477,7 +3496,7 @@ msgstr "페이지"
 msgid "Paragraph"
 msgstr "단락"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:266
+#: packages/admin/src/components/TaxonomyManager.tsx:412
 msgid "Parent"
 msgstr "상위 항목"
 
@@ -3562,7 +3581,7 @@ msgstr "보류 중"
 msgid "Pending"
 msgstr "보류 중"
 
-#: packages/admin/src/components/ContentEditor.tsx:787
+#: packages/admin/src/components/ContentEditor.tsx:842
 msgid "Pending changes"
 msgstr "보류 중인 변경사항"
 
@@ -3595,7 +3614,7 @@ msgstr "유효한 이메일을 입력해주세요"
 msgid "Please enter a valid email address"
 msgstr "유효한 이메일 주소를 입력하세요."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:284
+#: packages/admin/src/components/MediaPickerModal.tsx:304
 msgid "Please enter a valid URL"
 msgstr "유효한 URL을 입력하세요."
 
@@ -3648,7 +3667,7 @@ msgstr "다른 URL과 중복된 페이지인 경우, 검색 엔진에 원본 페
 msgid "Posts"
 msgstr "게시물"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:264
+#: packages/admin/src/components/settings/GeneralSettings.tsx:281
 msgid "Posts Per Page"
 msgstr "페이지당 게시물 수"
 
@@ -3665,17 +3684,17 @@ msgstr "WordPress에서 파일 다운로드 준비 중..."
 msgid "Preparing..."
 msgstr "준비 중..."
 
-#: packages/admin/src/components/ContentEditor.tsx:606
-#: packages/admin/src/components/ContentTypeEditor.tsx:72
+#: packages/admin/src/components/ContentEditor.tsx:651
+#: packages/admin/src/components/ContentTypeEditor.tsx:74
 #: packages/admin/src/components/MediaLibrary.tsx:415
 msgid "Preview"
 msgstr "미리보기"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:73
+#: packages/admin/src/components/ContentTypeEditor.tsx:75
 msgid "Preview content before publishing"
 msgstr "게시하기 전에 콘텐츠 미리보기"
 
-#: packages/admin/src/components/ContentEditor.tsx:606
+#: packages/admin/src/components/ContentEditor.tsx:651
 msgid "Preview draft"
 msgstr "초안 미리보기"
 
@@ -3692,7 +3711,7 @@ msgstr "이전 페이지"
 msgid "Previous screenshot"
 msgstr "이전 스크린샷"
 
-#: packages/admin/src/components/MenuList.tsx:137
+#: packages/admin/src/components/MenuList.tsx:163
 msgid "Primary Navigation"
 msgstr "기본 탐색"
 
@@ -3700,12 +3719,12 @@ msgstr "기본 탐색"
 msgid "Provider:"
 msgstr "공급자:"
 
-#: packages/admin/src/components/ContentEditor.tsx:661
-#: packages/admin/src/components/ContentEditor.tsx:768
+#: packages/admin/src/components/ContentEditor.tsx:706
+#: packages/admin/src/components/ContentEditor.tsx:823
 msgid "Publish"
 msgstr "게시"
 
-#: packages/admin/src/components/ContentEditor.tsx:651
+#: packages/admin/src/components/ContentEditor.tsx:696
 msgid "Publish changes"
 msgstr "변경사항 게시"
 
@@ -3713,7 +3732,7 @@ msgstr "변경사항 게시"
 msgid "published"
 msgstr "게시됨"
 
-#: packages/admin/src/components/ContentEditor.tsx:783
+#: packages/admin/src/components/ContentEditor.tsx:838
 #: packages/admin/src/components/ContentPickerModal.tsx:214
 #: packages/admin/src/components/Dashboard.tsx:187
 msgid "Published"
@@ -3724,11 +3743,11 @@ msgstr "게시됨"
 msgid "Published {0}"
 msgstr "게시됨 {0}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:126
+#: packages/admin/src/components/ContentTypeEditor.tsx:128
 msgid "Published At"
 msgstr "게시 날짜"
 
-#: packages/admin/src/components/ContentEditor.tsx:1785
+#: packages/admin/src/components/ContentEditor.tsx:1985
 msgid "Quick create byline"
 msgstr "바이라인 빠르게 추가"
 
@@ -3753,7 +3772,7 @@ msgstr "미디어 파일 읽기"
 msgid "Read site settings"
 msgstr "사이트 설정 읽기"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:261
+#: packages/admin/src/components/settings/GeneralSettings.tsx:278
 msgid "Reading"
 msgstr "읽기 설정"
 
@@ -3810,10 +3829,10 @@ msgid "Registration was cancelled or timed out. Please try again."
 msgstr "등록이 취소되었거나 시간이 초과되었습니다. 다시 시도해 주세요."
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
-#: packages/admin/src/components/ContentEditor.tsx:1754
+#: packages/admin/src/components/ContentEditor.tsx:1954
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
-#: packages/admin/src/components/settings/GeneralSettings.tsx:196
-#: packages/admin/src/components/settings/GeneralSettings.tsx:240
+#: packages/admin/src/components/settings/GeneralSettings.tsx:213
+#: packages/admin/src/components/settings/GeneralSettings.tsx:257
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
 #: packages/admin/src/components/settings/PasskeyItem.tsx:209
 msgid "Remove"
@@ -3826,6 +3845,10 @@ msgstr "제거"
 msgid "Remove {0}"
 msgstr "{0} 삭제"
 
+#: packages/admin/src/components/ContentEditor.tsx:1781
+msgid "Remove {label}"
+msgstr ""
+
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:435
 msgid "Remove Domain"
 msgstr "도메인 제거"
@@ -3834,7 +3857,7 @@ msgstr "도메인 제거"
 msgid "Remove Domain?"
 msgstr "도메인을 제거하시겠습니까?"
 
-#: packages/admin/src/components/ContentEditor.tsx:1583
+#: packages/admin/src/components/ContentEditor.tsx:1621
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr "이미지 삭제"
@@ -3850,7 +3873,7 @@ msgstr "이미지를 삭제하시겠습니까?"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/PortableTextEditor.tsx:1522
-#: packages/admin/src/components/RepeaterField.tsx:269
+#: packages/admin/src/components/RepeaterField.tsx:270
 msgid "Remove item {0}"
 msgstr "항목 {0} 삭제"
 
@@ -3993,7 +4016,7 @@ msgstr "새로운 권한 검토"
 msgid "Revision restored"
 msgstr "버전이 복원되었습니다."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:67
+#: packages/admin/src/components/ContentTypeEditor.tsx:69
 #: packages/admin/src/components/RevisionHistory.tsx:161
 msgid "Revisions"
 msgstr "버전 기록"
@@ -4037,22 +4060,22 @@ msgstr "역할"
 msgid "Role {role}"
 msgstr "역할 {role}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1759
+#: packages/admin/src/components/ContentEditor.tsx:1959
 msgid "Role label"
 msgstr "역할명"
 
-#: packages/admin/src/components/MenuEditor.tsx:286
-#: packages/admin/src/components/MenuEditor.tsx:288
-#: packages/admin/src/components/MenuEditor.tsx:431
-#: packages/admin/src/components/MenuEditor.tsx:433
+#: packages/admin/src/components/MenuEditor.tsx:343
+#: packages/admin/src/components/MenuEditor.tsx:345
+#: packages/admin/src/components/MenuEditor.tsx:514
+#: packages/admin/src/components/MenuEditor.tsx:516
 msgid "Same window"
 msgstr "현재 창"
 
-#: packages/admin/src/components/ContentEditor.tsx:1892
+#: packages/admin/src/components/ContentEditor.tsx:2092
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
-#: packages/admin/src/components/MenuEditor.tsx:442
+#: packages/admin/src/components/MenuEditor.tsx:525
 #: packages/admin/src/components/Redirects.tsx:184
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Save"
@@ -4062,7 +4085,7 @@ msgstr "저장"
 msgid "Save Changes"
 msgstr "변경 사항 저장"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:63
+#: packages/admin/src/components/ContentTypeEditor.tsx:65
 msgid "Save content as draft before publishing"
 msgstr "게시하기 전에 콘텐츠를 초안으로 저장"
 
@@ -4070,47 +4093,53 @@ msgstr "게시하기 전에 콘텐츠를 초안으로 저장"
 msgid "Save name"
 msgstr "이름 저장"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:159
+#: packages/admin/src/components/settings/SeoSettings.tsx:110
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Save SEO Settings"
 msgstr "SEO 설정 저장"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:136
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Save Settings"
 msgstr "설정 저장"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:170
+#: packages/admin/src/components/settings/SocialSettings.tsx:110
+#: packages/admin/src/components/settings/SocialSettings.tsx:184
 msgid "Save Social Links"
 msgstr "소셜 링크 저장"
 
-#: packages/admin/src/components/ContentEditor.tsx:581
+#: packages/admin/src/components/ContentEditor.tsx:626
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Saved"
 msgstr "저장됨"
 
-#: packages/admin/src/components/ContentEditor.tsx:576
-#: packages/admin/src/components/ContentEditor.tsx:1892
+#: packages/admin/src/components/ContentEditor.tsx:621
+#: packages/admin/src/components/ContentEditor.tsx:2092
 #: packages/admin/src/components/FieldEditor.tsx:656
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
-#: packages/admin/src/components/MenuEditor.tsx:442
+#: packages/admin/src/components/MenuEditor.tsx:525
 #: packages/admin/src/components/Redirects.tsx:181
 #: packages/admin/src/components/SaveButton.tsx:42
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
-#: packages/admin/src/components/settings/SeoSettings.tsx:159
-#: packages/admin/src/components/settings/SocialSettings.tsx:170
-#: packages/admin/src/components/TaxonomyManager.tsx:308
+#: packages/admin/src/components/settings/GeneralSettings.tsx:136
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
+#: packages/admin/src/components/settings/SeoSettings.tsx:110
+#: packages/admin/src/components/settings/SeoSettings.tsx:173
+#: packages/admin/src/components/settings/SocialSettings.tsx:110
+#: packages/admin/src/components/settings/SocialSettings.tsx:184
+#: packages/admin/src/components/TaxonomyManager.tsx:474
 #: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Saving..."
 msgstr "저장 중..."
 
-#: packages/admin/src/components/ContentEditor.tsx:827
+#: packages/admin/src/components/ContentEditor.tsx:882
 msgid "Schedule"
 msgstr "예약"
 
-#: packages/admin/src/components/ContentEditor.tsx:813
+#: packages/admin/src/components/ContentEditor.tsx:868
 msgid "Schedule for"
 msgstr "예약 일시"
 
-#: packages/admin/src/components/ContentEditor.tsx:850
+#: packages/admin/src/components/ContentEditor.tsx:905
 msgid "Schedule for later"
 msgstr "나중에 게시 예약"
 
@@ -4118,12 +4147,12 @@ msgstr "나중에 게시 예약"
 msgid "scheduled"
 msgstr "예약됨"
 
-#: packages/admin/src/components/ContentEditor.tsx:790
+#: packages/admin/src/components/ContentEditor.tsx:845
 msgid "Scheduled"
 msgstr "예약됨"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentEditor.tsx:800
+#: packages/admin/src/components/ContentEditor.tsx:855
 msgid "Scheduled for: {0}"
 msgstr "게시 예약: {0}"
 
@@ -4179,7 +4208,7 @@ msgstr "스크린샷 뷰어"
 msgid "Screenshots"
 msgstr "스크린샷"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:77
+#: packages/admin/src/components/ContentTypeEditor.tsx:79
 msgid "Search"
 msgstr "검색"
 
@@ -4205,7 +4234,7 @@ msgstr "댓글 검색..."
 msgid "Search content..."
 msgstr "콘텐츠 검색..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:125
+#: packages/admin/src/components/settings/SeoSettings.tsx:139
 msgid "Search Engine Optimization"
 msgstr "검색 엔진 최적화"
 
@@ -4213,7 +4242,7 @@ msgstr "검색 엔진 최적화"
 msgid "Search engine optimization and verification"
 msgstr "검색 엔진 최적화 및 소유권 인증"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:441
+#: packages/admin/src/components/MediaPickerModal.tsx:465
 msgid "Search media"
 msgstr "미디어 검색"
 
@@ -4239,7 +4268,7 @@ msgid "Search themes..."
 msgstr "테마 검색..."
 
 #: packages/admin/src/components/MediaLibrary.tsx:336
-#: packages/admin/src/components/MediaPickerModal.tsx:440
+#: packages/admin/src/components/MediaPickerModal.tsx:464
 msgid "Search..."
 msgstr "검색..."
 
@@ -4247,11 +4276,11 @@ msgstr "검색..."
 msgid "Searchable"
 msgstr "검색 가능"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1807
+#: packages/admin/src/components/PortableTextEditor.tsx:1809
 msgid "Section"
 msgstr "섹션"
 
-#: packages/admin/src/components/SectionEditor.tsx:77
+#: packages/admin/src/components/SectionEditor.tsx:79
 msgid "Section \"{slug}\" could not be found."
 msgstr "\"{slug}\" 섹션을 찾을 수 없습니다."
 
@@ -4263,19 +4292,19 @@ msgstr "섹션이 생성되었습니다."
 msgid "Section deleted"
 msgstr "섹션이 삭제되었습니다."
 
-#: packages/admin/src/components/SectionEditor.tsx:186
+#: packages/admin/src/components/SectionEditor.tsx:223
 msgid "Section Details"
 msgstr "섹션 세부정보"
 
-#: packages/admin/src/components/SectionEditor.tsx:73
+#: packages/admin/src/components/SectionEditor.tsx:75
 msgid "Section Not Found"
 msgstr "섹션을 찾을 수 없음"
 
-#: packages/admin/src/components/SectionEditor.tsx:41
+#: packages/admin/src/components/SectionEditor.tsx:43
 msgid "Section saved"
 msgstr "섹션이 저장되었습니다."
 
-#: packages/admin/src/components/SectionEditor.tsx:192
+#: packages/admin/src/components/SectionEditor.tsx:229
 msgid "Section title"
 msgstr "섹션 제목"
 
@@ -4339,7 +4368,9 @@ msgid "Select"
 msgstr "선택"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:100
-#: packages/admin/src/components/ContentEditor.tsx:1607
+#: packages/admin/src/components/ContentEditor.tsx:1645
+#: packages/admin/src/components/ContentEditor.tsx:1793
+#: packages/admin/src/components/ContentEditor.tsx:1808
 msgid "Select {label}"
 msgstr "{label} 선택"
 
@@ -4347,7 +4378,7 @@ msgstr "{label} 선택"
 msgid "Select all"
 msgstr "모두 선택"
 
-#: packages/admin/src/components/ContentEditor.tsx:1698
+#: packages/admin/src/components/ContentEditor.tsx:1898
 msgid "Select byline..."
 msgstr "작성자 선택..."
 
@@ -4360,21 +4391,29 @@ msgstr "{0}의 댓글 선택"
 msgid "Select Content"
 msgstr "콘텐츠 선택"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:252
-#: packages/admin/src/components/settings/GeneralSettings.tsx:308
+#: packages/admin/src/components/settings/GeneralSettings.tsx:269
+#: packages/admin/src/components/settings/GeneralSettings.tsx:325
 msgid "Select Favicon"
 msgstr "파비콘 선택"
 
-#: packages/admin/src/components/ContentEditor.tsx:1598
+#: packages/admin/src/components/ContentEditor.tsx:1797
+msgid "Select file"
+msgstr ""
+
+#: packages/admin/src/components/MediaPickerModal.tsx:86
+msgid "Select File"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:1636
 msgid "Select image"
 msgstr "이미지 선택"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:71
+#: packages/admin/src/components/MediaPickerModal.tsx:86
 msgid "Select Image"
 msgstr "이미지 선택"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:208
-#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:225
+#: packages/admin/src/components/settings/GeneralSettings.tsx:318
 msgid "Select Logo"
 msgstr "로고 선택"
 
@@ -4394,11 +4433,11 @@ msgstr "OG 이미지 선택"
 msgid "Select which content types to import."
 msgstr "가져올 콘텐츠 유형을 선택하세요."
 
-#: packages/admin/src/components/RepeaterField.tsx:366
+#: packages/admin/src/components/RepeaterField.tsx:367
 msgid "Select..."
 msgstr "선택..."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:571
+#: packages/admin/src/components/MediaPickerModal.tsx:595
 msgid "Selected:"
 msgstr "선택된:"
 
@@ -4444,13 +4483,13 @@ msgstr "테스트 이메일 보내기"
 msgid "Sending..."
 msgstr "보내는 중..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1002
+#: packages/admin/src/components/ContentEditor.tsx:1021
 #: packages/admin/src/components/Settings.tsx:81
 msgid "SEO"
 msgstr "SEO"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:82
-#: packages/admin/src/components/settings/SeoSettings.tsx:100
+#: packages/admin/src/components/settings/SeoSettings.tsx:83
+#: packages/admin/src/components/settings/SeoSettings.tsx:114
 msgid "SEO Settings"
 msgstr "SEO 설정"
 
@@ -4458,7 +4497,7 @@ msgstr "SEO 설정"
 msgid "SEO settings (Yoast)"
 msgstr "SEO 설정 (Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:48
+#: packages/admin/src/components/settings/SeoSettings.tsx:49
 msgid "SEO settings saved"
 msgstr "SEO 설정이 저장되었습니다"
 
@@ -4497,7 +4536,7 @@ msgstr "설정 관리"
 msgid "Settings Read"
 msgstr "설정 읽기"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:53
+#: packages/admin/src/components/settings/GeneralSettings.tsx:54
 msgid "Settings saved successfully"
 msgstr "설정이 성공적으로 저장되었습니다."
 
@@ -4572,7 +4611,7 @@ msgstr "한 줄 텍스트 입력"
 msgid "Site"
 msgstr "사이트"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:147
+#: packages/admin/src/components/settings/GeneralSettings.tsx:164
 msgid "Site Identity"
 msgstr "사이트 기본 정보"
 
@@ -4584,7 +4623,7 @@ msgstr "사이트 기본 정보, 로고, 파비콘, 읽기 설정"
 msgid "Site Settings"
 msgstr "사이트 설정"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:150
+#: packages/admin/src/components/settings/GeneralSettings.tsx:167
 #: packages/admin/src/components/SetupWizard.tsx:145
 msgid "Site Title"
 msgstr "사이트 제목"
@@ -4597,7 +4636,7 @@ msgstr "사이트 제목 및 태그라인"
 msgid "Site title is required"
 msgstr "사이트 제목이 필요합니다"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/settings/GeneralSettings.tsx:179
 msgid "Site URL"
 msgstr "사이트 URL"
 
@@ -4617,16 +4656,16 @@ msgstr "미디어 가져오기 건너뛰기"
 msgid "Skipped"
 msgstr "건너뜀"
 
-#: packages/admin/src/components/ContentEditor.tsx:771
-#: packages/admin/src/components/ContentEditor.tsx:1801
-#: packages/admin/src/components/ContentEditor.tsx:1863
-#: packages/admin/src/components/ContentTypeEditor.tsx:102
+#: packages/admin/src/components/ContentEditor.tsx:826
+#: packages/admin/src/components/ContentEditor.tsx:2001
+#: packages/admin/src/components/ContentEditor.tsx:2063
+#: packages/admin/src/components/ContentTypeEditor.tsx:104
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
 #: packages/admin/src/components/FieldEditor.tsx:407
-#: packages/admin/src/components/SectionEditor.tsx:197
+#: packages/admin/src/components/SectionEditor.tsx:234
 #: packages/admin/src/components/Sections.tsx:182
-#: packages/admin/src/components/TaxonomyManager.tsx:250
+#: packages/admin/src/components/TaxonomyManager.tsx:396
 msgid "Slug"
 msgstr "슬러그"
 
@@ -4639,12 +4678,12 @@ msgid "Small section heading"
 msgstr "소제목"
 
 #: packages/admin/src/components/Settings.tsx:75
-#: packages/admin/src/components/settings/SocialSettings.tsx:82
-#: packages/admin/src/components/settings/SocialSettings.tsx:100
+#: packages/admin/src/components/settings/SocialSettings.tsx:83
+#: packages/admin/src/components/settings/SocialSettings.tsx:114
 msgid "Social Links"
 msgstr "소셜 링크"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:48
+#: packages/admin/src/components/settings/SocialSettings.tsx:49
 msgid "Social links saved"
 msgstr "소셜 링크가 저장되었습니다."
 
@@ -4652,7 +4691,7 @@ msgstr "소셜 링크가 저장되었습니다."
 msgid "Social media profile links"
 msgstr "소셜 미디어 프로필 링크"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:123
+#: packages/admin/src/components/settings/SocialSettings.tsx:137
 msgid "Social Profiles"
 msgstr "소셜 프로필"
 
@@ -4678,7 +4717,7 @@ msgstr "테마 정렬"
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:216
 #: packages/admin/src/components/PluginManager.tsx:434
 #: packages/admin/src/components/Redirects.tsx:447
-#: packages/admin/src/components/SectionEditor.tsx:232
+#: packages/admin/src/components/SectionEditor.tsx:269
 msgid "Source"
 msgstr "소스"
 
@@ -4700,9 +4739,9 @@ msgstr "스팸"
 msgid "Start Import"
 msgstr "가져오기 시작"
 
-#: packages/admin/src/components/ContentEditor.tsx:777
+#: packages/admin/src/components/ContentEditor.tsx:832
 #: packages/admin/src/components/ContentList.tsx:218
-#: packages/admin/src/components/ContentTypeEditor.tsx:108
+#: packages/admin/src/components/ContentTypeEditor.tsx:110
 #: packages/admin/src/components/Redirects.tsx:452
 msgid "Status"
 msgstr "상태"
@@ -4736,7 +4775,7 @@ msgstr "동기화된 패스키"
 msgid "System ({resolvedLabel})"
 msgstr "시스템({resolvedLabel})"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:156
+#: packages/admin/src/components/settings/GeneralSettings.tsx:173
 #: packages/admin/src/components/SetupWizard.tsx:156
 msgid "Tagline"
 msgstr "사이트 설명"
@@ -4754,10 +4793,14 @@ msgstr "태그({0})"
 msgid "Tags will be imported"
 msgstr "태그를 가져옵니다."
 
-#: packages/admin/src/components/MenuEditor.tsx:283
-#: packages/admin/src/components/MenuEditor.tsx:428
+#: packages/admin/src/components/MenuEditor.tsx:340
+#: packages/admin/src/components/MenuEditor.tsx:511
 msgid "Target"
 msgstr "열기 방식"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:172
+msgid "Target locale"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:492
 msgid "Taxonomies"
@@ -4767,24 +4810,34 @@ msgstr "분류"
 msgid "Taxonomies Manage"
 msgstr "분류 관리"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:668
+#: packages/admin/src/components/TaxonomyManager.tsx:901
 msgid "Taxonomy created"
 msgstr "분류가 생성되었습니다."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:589
+#: packages/admin/src/components/TaxonomyManager.tsx:788
 msgid "Taxonomy not found:"
 msgstr "분류를 찾을 수 없습니다:"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:159
+msgid "Taxonomy: {taxonomyName}"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:184
 msgid "Template:"
 msgstr "템플릿:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:214
-#: packages/admin/src/components/TaxonomyManager.tsx:610
+#: packages/admin/src/components/TaxonomyManager.tsx:360
+#: packages/admin/src/components/TaxonomyManager.tsx:817
 msgid "Term"
 msgstr "항목"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:564
+#. placeholder {0}: term.label
+#. placeholder {1}: term.locale.toUpperCase()
+#: packages/admin/src/components/TaxonomyManager.tsx:762
+msgid "Term \"{0}\" created in {1}."
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:744
 msgid "Term deleted"
 msgstr "항목이 삭제되었습니다."
 
@@ -4817,15 +4870,15 @@ msgstr "링크는 15분 후에 만료됩니다."
 msgid "The marketplace is empty. Check back later for new plugins."
 msgstr "마켓플레이스가 비어 있습니다. 나중에 새 플러그인이 등록될 예정입니다."
 
-#: packages/admin/src/components/MenuList.tsx:56
+#: packages/admin/src/components/MenuList.tsx:72
 msgid "The menu has been deleted."
 msgstr "메뉴가 삭제되었습니다."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:153
+#: packages/admin/src/components/settings/GeneralSettings.tsx:170
 msgid "The name of your site, used in the header and metadata"
 msgstr "헤더 및 메타데이터에 사용되는 사이트 이름"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:166
+#: packages/admin/src/components/settings/GeneralSettings.tsx:183
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "사이트의 공개 URL(표준 링크 및 사이트맵에 사용됨)"
 
@@ -4838,7 +4891,7 @@ msgid "Theme"
 msgstr "테마"
 
 #. placeholder {0}: section.themeId
-#: packages/admin/src/components/SectionEditor.tsx:245
+#: packages/admin/src/components/SectionEditor.tsx:282
 msgid "Theme ID: {0}"
 msgstr "테마 ID: {0}"
 
@@ -4846,7 +4899,7 @@ msgstr "테마 ID: {0}"
 msgid "Theme not found"
 msgstr "테마를 찾을 수 없습니다"
 
-#: packages/admin/src/components/SectionEditor.tsx:161
+#: packages/admin/src/components/SectionEditor.tsx:181
 msgid "Theme Section"
 msgstr "테마 섹션"
 
@@ -4863,11 +4916,12 @@ msgstr "테마: {label}"
 msgid "Themes"
 msgstr "테마 마켓플레이스"
 
-#: packages/admin/src/components/ContentEditor.tsx:1611
+#: packages/admin/src/components/ContentEditor.tsx:1649
+#: packages/admin/src/components/ContentEditor.tsx:1811
 msgid "This field is required"
 msgstr "필수 항목입니다"
 
-#: packages/admin/src/components/SectionEditor.tsx:239
+#: packages/admin/src/components/SectionEditor.tsx:276
 msgid "This is a custom section."
 msgstr "커스텀 섹션입니다."
 
@@ -4895,11 +4949,11 @@ msgstr "이 플러그인에는 특별한 권한이 필요하지 않습니다."
 msgid "This redirect rule will be permanently removed."
 msgstr "이 리디렉션 규칙은 영구적으로 삭제됩니다."
 
-#: packages/admin/src/components/SectionEditor.tsx:236
+#: packages/admin/src/components/SectionEditor.tsx:273
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
 msgstr "이 섹션은 테마에서 제공됩니다. 편집하면 테마 버전보다 우선 적용되는 커스텀 사본이 생성됩니다."
 
-#: packages/admin/src/components/SectionEditor.tsx:241
+#: packages/admin/src/components/SectionEditor.tsx:278
 msgid "This section was imported from another system."
 msgstr "다른 시스템에서 가져온 섹션입니다."
 
@@ -4907,12 +4961,12 @@ msgstr "다른 시스템에서 가져온 섹션입니다."
 msgid "This will grant CLI access with your permissions."
 msgstr "현재 권한으로 CLI 접근이 허용됩니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:884
+#: packages/admin/src/components/ContentEditor.tsx:939
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "항목이 휴지통으로 이동됩니다. 나중에 휴지통에서 복원할 수 있습니다."
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:654
+#: packages/admin/src/components/TaxonomyManager.tsx:887
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "이렇게 하면 \"{0}\"이(가) 영구적으로 삭제되고 모든 콘텐츠에서 제거됩니다."
 
@@ -4929,7 +4983,7 @@ msgstr "이 댓글이 영구적으로 삭제됩니다. 이 작업은 취소할 �
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "그러면 사이트에서 플러그인과 해당 번들이 제거됩니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:626
+#: packages/admin/src/components/ContentEditor.tsx:671
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "게시된 버전으로 되돌아갑니다. 초안 변경사항이 손실됩니다."
 
@@ -4937,17 +4991,17 @@ msgstr "게시된 버전으로 되돌아갑니다. 초안 변경사항이 손실
 msgid "Thoughts, tutorials, and more"
 msgstr "생각, 튜토리얼 등"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:279
+#: packages/admin/src/components/settings/GeneralSettings.tsx:296
 msgid "Timezone"
 msgstr "시간대"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:282
+#: packages/admin/src/components/settings/GeneralSettings.tsx:299
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "날짜 표시를 위한 시간대(예: America/New_York)"
 
 #: packages/admin/src/components/ContentList.tsx:212
 #: packages/admin/src/components/ContentList.tsx:343
-#: packages/admin/src/components/SectionEditor.tsx:189
+#: packages/admin/src/components/SectionEditor.tsx:226
 #: packages/admin/src/components/Sections.tsx:168
 msgid "Title"
 msgstr "제목"
@@ -4957,7 +5011,7 @@ msgstr "제목"
 msgid "Title (Tooltip)"
 msgstr "제목(도구 설명)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:129
+#: packages/admin/src/components/settings/SeoSettings.tsx:143
 msgid "Title Separator"
 msgstr "제목 구분 기호"
 
@@ -4991,15 +5045,37 @@ msgstr "토큰 이름"
 msgid "Tools → Export"
 msgstr "도구 → 내보내기"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:68
+#: packages/admin/src/components/ContentTypeEditor.tsx:70
 msgid "Track content history"
 msgstr "콘텐츠 수정 기록 관리"
 
-#: packages/admin/src/components/ContentEditor.tsx:980
+#: packages/admin/src/components/TaxonomyManager.tsx:83
+#: packages/admin/src/components/TaxonomyManager.tsx:194
+#: packages/admin/src/components/TranslationsPanel.tsx:99
 msgid "Translate"
 msgstr "번역"
 
-#: packages/admin/src/components/ContentEditor.tsx:938
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:156
+msgid "Translate \"{0}\""
+msgstr ""
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:80
+msgid "Translate {0}"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:194
+#: packages/admin/src/components/TranslationsPanel.tsx:99
+msgid "Translating..."
+msgstr ""
+
+#: packages/admin/src/components/MenuEditor.tsx:89
+#: packages/admin/src/components/TaxonomyManager.tsx:761
+msgid "Translation created"
+msgstr ""
+
+#: packages/admin/src/components/TranslationsPanel.tsx:56
 msgid "Translations"
 msgstr "번역"
 
@@ -5028,7 +5104,7 @@ msgid "True/false toggle"
 msgstr "참/거짓 토글"
 
 #: packages/admin/src/components/MediaLibrary.tsx:366
-#: packages/admin/src/components/MediaPickerModal.tsx:494
+#: packages/admin/src/components/MediaPickerModal.tsx:518
 msgid "Try a different search term"
 msgstr "다른 검색어를 사용해 보세요."
 
@@ -5059,7 +5135,7 @@ msgstr "다른 URL을 시도해 보세요"
 msgid "Try with my data"
 msgstr "내 콘텐츠로 미리보기"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:129
+#: packages/admin/src/components/settings/SocialSettings.tsx:143
 msgid "Twitter"
 msgstr "Twitter"
 
@@ -5078,8 +5154,8 @@ msgstr "유형 불일치({0})"
 msgid "Unable to reach marketplace"
 msgstr "마켓플레이스에 접속할 수 없습니다"
 
-#: packages/admin/src/components/ContentEditor.tsx:1906
-#: packages/admin/src/components/ContentEditor.tsx:1921
+#: packages/admin/src/components/ContentEditor.tsx:2106
+#: packages/admin/src/components/ContentEditor.tsx:2121
 msgid "Unassigned"
 msgstr "할당되지 않음"
 
@@ -5105,7 +5181,7 @@ msgstr "제거 중..."
 msgid "Unique"
 msgstr "고유값"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:98
+#: packages/admin/src/components/ContentTypeEditor.tsx:100
 msgid "Unique identifier (ULID)"
 msgstr "고유 식별자(ULID)"
 
@@ -5129,7 +5205,7 @@ msgstr "종횡비 잠금 해제"
 msgid "Unnamed passkey"
 msgstr "이름이 없는 패스키"
 
-#: packages/admin/src/components/ContentEditor.tsx:655
+#: packages/admin/src/components/ContentEditor.tsx:700
 msgid "Unpublish"
 msgstr "게시 취소(비공개)"
 
@@ -5137,7 +5213,7 @@ msgstr "게시 취소(비공개)"
 msgid "Unregistered Content Tables Found"
 msgstr "등록되지 않은 콘텐츠 테이블이 발견되었습니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:802
+#: packages/admin/src/components/ContentEditor.tsx:857
 msgid "Unschedule"
 msgstr "예약 취소"
 
@@ -5145,11 +5221,15 @@ msgstr "예약 취소"
 msgid "Untitled"
 msgstr "제목 없음"
 
-#: packages/admin/src/components/ContentEditor.tsx:1733
+#: packages/admin/src/components/ContentEditor.tsx:1715
+msgid "Untitled file"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:1933
 msgid "Up"
 msgstr "위로"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:310
+#: packages/admin/src/components/TaxonomyManager.tsx:476
 msgid "Update"
 msgstr "업데이트"
 
@@ -5167,7 +5247,7 @@ msgid "Update site settings"
 msgstr "사이트 설정 업데이트"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:218
+#: packages/admin/src/components/TaxonomyManager.tsx:364
 msgid "Update the {0} details"
 msgstr "{0} 세부정보 업데이트"
 
@@ -5180,12 +5260,12 @@ msgstr "이 리디렉션 규칙을 업데이트하세요."
 msgid "Update to v{0}"
 msgstr "v{0}로 업데이트"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:120
+#: packages/admin/src/components/ContentTypeEditor.tsx:122
 msgid "Updated At"
 msgstr "업데이트 날짜"
 
 #. placeholder {0}: new Date(item.updatedAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:859
+#: packages/admin/src/components/ContentEditor.tsx:914
 msgid "Updated: {0}"
 msgstr "업데이트됨: {0}"
 
@@ -5198,15 +5278,19 @@ msgstr "콘텐츠 URL 업데이트 중..."
 msgid "Updating..."
 msgstr "업데이트 중..."
 
-#: packages/admin/src/components/MediaPickerModal.tsx:462
+#: packages/admin/src/components/MediaPickerModal.tsx:486
 msgid "Upload"
 msgstr "업로드"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:88
+msgid "Upload a file to get started"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1221
 msgid "Upload an export file"
 msgstr "내보내기 파일 업로드"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:496
+#: packages/admin/src/components/MediaPickerModal.tsx:89
 msgid "Upload an image to get started"
 msgstr "시작하려면 이미지를 업로드하세요."
 
@@ -5219,9 +5303,13 @@ msgstr "미디어 업로드 및 삭제"
 msgid "Upload Export File"
 msgstr "내보내기 파일 업로드"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:478
+#: packages/admin/src/components/MediaPickerModal.tsx:502
 msgid "Upload failed: {uploadError}"
 msgstr "업로드 실패: {uploadError}"
+
+#: packages/admin/src/components/MediaPickerModal.tsx:90
+msgid "Upload File"
+msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:323
 msgid "Upload files"
@@ -5231,7 +5319,7 @@ msgstr "파일 업로드"
 msgid "Upload Files"
 msgstr "파일 업로드"
 
-#: packages/admin/src/components/MediaPickerModal.tsx:505
+#: packages/admin/src/components/MediaPickerModal.tsx:90
 msgid "Upload Image"
 msgstr "이미지 업로드"
 
@@ -5271,23 +5359,23 @@ msgid "Uploading {0}/{1}..."
 msgstr "{0}/{1} 업로드 중..."
 
 #: packages/admin/src/components/MediaLibrary.tsx:290
-#: packages/admin/src/components/MediaPickerModal.tsx:462
+#: packages/admin/src/components/MediaPickerModal.tsx:486
 msgid "Uploading..."
 msgstr "업로드 중..."
 
 #: packages/admin/src/components/FieldEditor.tsx:230
 #: packages/admin/src/components/FieldEditor.tsx:588
-#: packages/admin/src/components/MenuEditor.tsx:274
-#: packages/admin/src/components/MenuEditor.tsx:418
+#: packages/admin/src/components/MenuEditor.tsx:331
+#: packages/admin/src/components/MenuEditor.tsx:501
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:104
+#: packages/admin/src/components/ContentTypeEditor.tsx:106
 #: packages/admin/src/components/FieldEditor.tsx:225
 msgid "URL-friendly identifier"
 msgstr "URL용 식별자"
 
-#: packages/admin/src/components/MenuList.tsx:133
+#: packages/admin/src/components/MenuList.tsx:159
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
 msgstr "URL용 식별자 (예: \"primary\", \"footer\")"
 
@@ -5303,11 +5391,11 @@ msgstr "기기의 생체 인증, 보안 키 또는 PIN을 사용하여 로그인
 msgid "Use your registered passkey to sign in securely."
 msgstr "등록된 패스키를 사용하여 안전하게 로그인하세요."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:476
+#: packages/admin/src/components/TaxonomyManager.tsx:642
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "식별자로 사용됩니다. 소문자, 숫자, 밑줄만 가능합니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:1283
+#: packages/admin/src/components/ContentEditor.tsx:1303
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "목록 페이지와 게시물 상단에서 이 게시물의 기본 시각적 요소로 사용됩니다."
 
@@ -5315,7 +5403,7 @@ msgstr "목록 페이지와 게시물 상단에서 이 게시물의 기본 시�
 msgid "Used by screen readers and when image fails to load"
 msgstr "스크린 리더에서 사용되며 이미지가 로드되지 않는 경우"
 
-#: packages/admin/src/components/SectionEditor.tsx:207
+#: packages/admin/src/components/SectionEditor.tsx:244
 #: packages/admin/src/components/Sections.tsx:194
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "이 섹션을 식별하는 데 사용됩니다. 소문자, 숫자, 하이픈만 가능합니다."
@@ -5454,19 +5542,19 @@ msgstr "가져오면 어떻게 되나요?"
 msgid "What will happen when you import"
 msgstr "가져오면 어떻게 되나요?"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:116
+#: packages/admin/src/components/ContentTypeEditor.tsx:118
 msgid "When the entry was created"
 msgstr "항목이 생성된 시기"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:122
+#: packages/admin/src/components/ContentTypeEditor.tsx:124
 msgid "When the entry was last modified"
 msgstr "항목이 마지막으로 수정된 날짜"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:128
+#: packages/admin/src/components/ContentTypeEditor.tsx:130
 msgid "When the entry was published"
 msgstr "항목이 게시되었을 때"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:490
+#: packages/admin/src/components/TaxonomyManager.tsx:656
 msgid "Which content types can use this taxonomy"
 msgstr "이 분류를 사용할 수 있는 콘텐츠 유형"
 
@@ -5585,19 +5673,19 @@ msgstr "기기가 필수 보안 기능을 지원하지 않습니다."
 msgid "Your Email"
 msgstr "이메일"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:144
+#: packages/admin/src/components/settings/SocialSettings.tsx:158
 msgid "Your Facebook page or profile username"
 msgstr "Facebook 페이지 또는 프로필 사용자 이름"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:138
+#: packages/admin/src/components/settings/SocialSettings.tsx:152
 msgid "Your GitHub username"
 msgstr "GitHub 사용자 이름"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:150
+#: packages/admin/src/components/settings/SocialSettings.tsx:164
 msgid "Your Instagram username"
 msgstr "Instagram 사용자 이름"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:156
+#: packages/admin/src/components/settings/SocialSettings.tsx:170
 msgid "Your LinkedIn profile username"
 msgstr "LinkedIn 프로필 사용자 이름"
 
@@ -5613,7 +5701,7 @@ msgstr "이름(선택 사항)"
 msgid "Your Role"
 msgstr "내 권한"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:132
+#: packages/admin/src/components/settings/SocialSettings.tsx:146
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Twitter/X 핸들 (예: @username)"
 
@@ -5622,10 +5710,10 @@ msgstr "Twitter/X 핸들 (예: @username)"
 msgid "Your WordPress export contains {0} media files."
 msgstr "WordPress 내보내기에는 {0}개의 미디어 파일이 포함되어 있습니다."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:162
+#: packages/admin/src/components/settings/SocialSettings.tsx:176
 msgid "Your YouTube channel ID or handle"
 msgstr "YouTube 채널 ID 또는 핸들"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:159
+#: packages/admin/src/components/settings/SocialSettings.tsx:173
 msgid "YouTube"
 msgstr "YouTube"

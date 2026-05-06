@@ -100,6 +100,7 @@
 		"**/*.d.ts",
 		"skills/**/scaffold/**",
 		".agents/skills/**/scaffold/**",
-		".claude/skills/**/scaffold/**"
+		".claude/skills/**/scaffold/**",
+		"scripts/query-dumps/**"
 	]
 }

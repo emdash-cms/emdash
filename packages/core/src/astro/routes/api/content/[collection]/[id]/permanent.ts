@@ -16,7 +16,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 	const collection = params.collection!;
 	const id = params.id!;
 
-	const denied = requirePerm(user, "import:execute");
+	const denied = requirePerm(user, "content:delete_permanent");
 	if (denied) return denied;
 
 	if (!emdash?.handleContentPermanentDelete) {

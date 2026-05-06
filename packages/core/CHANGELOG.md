@@ -1,5 +1,171 @@
 # emdash
 
+## 0.9.0
+
+### Minor Changes
+
+- [#884](https://github.com/emdash-cms/emdash/pull/884) [`e2b3c6c`](https://github.com/emdash-cms/emdash/commit/e2b3c6cd930d5fa6fc607a0b26fd796f5b0f98b2) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes the worker-isolate manifest cache and stops loading the manifest on public requests.
+
+  The admin manifest (collection schemas, plugins, taxonomies) is built fresh from the live database on every admin request via constant-shape queries (`SchemaRegistry.listCollectionsWithFields()` — one collection query plus one batched field query, chunked at the D1 bound-parameter limit; two queries in practice for typical sites), deduplicated within a single request by `requestCached`. Logged-out / public requests no longer touch it at all — the global middleware no longer pre-loads `locals.emdashManifest`. Admin routes that need it call `await emdash.getManifest()`.
+
+  This closes the cross-isolate staleness bug class behind #776, #873, #876, and #877 by elimination: there is no cache to invalidate, so there is nothing to fan out across warm sibling isolates on Cloudflare Workers, and there is nothing to leave stale after a fire-and-forget delete is cancelled at response-time.
+
+  **Breaking changes**
+  - `locals.emdash.invalidateManifest` is removed. The shim that survived earlier was a misnomer once the manifest cache itself was gone. Plugin code that called this after schema changes should switch to `locals.emdash.invalidateUrlPatternCache` (the only side effect that survived) — or drop the call entirely if the mutation didn't affect collection URL patterns (field/taxonomy/plugin mutations don't).
+  - `locals.emdashManifest` is removed. Read it via `await locals.emdash.getManifest()` instead. The only in-tree consumers were the admin manifest endpoint and the WordPress importer routes, both updated.
+  - `EmDashRuntime.invalidateManifest()` is removed. `EmDashRuntime.getManifest()` is preserved with the same signature; its body now skips the cache layer.
+
+  **Performance**
+
+  The admin manifest build is now O(1) query shapes (one for collections, one batched query for the fields of every returned collection, chunked at the D1 bound-parameter limit) instead of N+1. This is the cost the cache was hiding; the rebuild is cheap enough to run per request.
+
+- [#731](https://github.com/emdash-cms/emdash/pull/731) [`9dfc65c`](https://github.com/emdash-cms/emdash/commit/9dfc65c42c04c41088e0c8f5a8ca4347643e2fea) Thanks [@drudge](https://github.com/drudge)! - Adds a `media_picker` Block Kit element: a thumbnail preview with a modal library picker and mime-type filter. Usable in plugin block forms and in Block Kit field widgets. The stored value is the selected asset's URL string, so it is value-compatible with a plain `text_input` — existing content continues to work after swapping. The `mime_type_filter` is restricted to image MIME types (`image/` or `image/<subtype>`); wildcards and non-image types are rejected.
+
+- [#809](https://github.com/emdash-cms/emdash/pull/809) [`e7df21f`](https://github.com/emdash-cms/emdash/commit/e7df21f0adca795cdb233d6e64cd543ead7e2347) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds an optional `category` field to `PortableTextBlockConfig` for plugin-contributed block types. Plugins can now choose how their blocks are grouped in the admin slash menu (e.g. "Sections", "Marketing", "Media", "Layout") instead of always falling under "Embeds". Existing plugins that omit the field continue to render under "Embeds" exactly as before.
+
+- [#890](https://github.com/emdash-cms/emdash/pull/890) [`8ae227c`](https://github.com/emdash-cms/emdash/commit/8ae227cceade5c9852897c7b56f89e7422ee82a1) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `publishedAt` to `content_publish` (MCP and REST) and exposes `seo`, `bylines`, and `publishedAt` on the MCP `content_update` tool.
+
+  `content_publish` now accepts an optional ISO 8601 `publishedAt` to backdate a publish, which is useful when migrating content from another CMS or correcting a historical publish date. The override requires the `content:publish_any` permission. Without it, the existing `published_at` is preserved on re-publish (idempotent) and falls back to the current time on first publish.
+
+  The MCP `content_update` tool previously dropped `seo`, `bylines`, and `publishedAt` even though the underlying handler accepted them. Callers had to fall back to raw SQL against `_emdash_seo` and `_emdash_content_bylines` to set these fields. They now flow through the MCP tool and are persisted in the same transaction as field updates. Setting `publishedAt` requires `content:publish_any`, mirroring the REST PUT route. Closes #621 and #622.
+
+- [#800](https://github.com/emdash-cms/emdash/pull/800) [`e2d5d16`](https://github.com/emdash-cms/emdash/commit/e2d5d160acea4444945b1ea79c80ca9ce138965b) Thanks [@csfalcao](https://github.com/csfalcao)! - Adds support for accepting passkey assertions from multiple origins that share an `rpId`, for deployments reachable under several hostnames (apex + preview/staging) under one registrable parent. Declare additional origins via `EmDashConfig.allowedOrigins` (in `astro.config.mjs`) or the `EMDASH_ALLOWED_ORIGINS` env var (comma-separated); the two sources merge at runtime. EmDash validates the merged set against `siteUrl` and rejects dead config (non-subdomain entries, IP-literal `siteUrl`, trailing dots, empty labels) with source-attributed errors. `PasskeyConfig.origin: string` is replaced by `PasskeyConfig.origins: string[]`.
+
+- [#837](https://github.com/emdash-cms/emdash/pull/837) [`e81aa0f`](https://github.com/emdash-cms/emdash/commit/e81aa0f717be11bacdff30ed9bbc454824268555) Thanks [@netogregorio](https://github.com/netogregorio)! - Make the preview URL pattern locale-aware. `getPreviewUrl()` now accepts a `{locale}` placeholder and a `locale` option (empty string collapses adjacent slashes so default-locale entries on `prefixDefaultLocale: false` sites stay unprefixed). The `POST /_emdash/api/content/{collection}/{id}/preview-url` route resolves the locale automatically from the entry and the site's i18n config, and reads a project-wide default pattern from the new `EMDASH_PREVIEW_PATH_PATTERN` env var so the admin's "View on site" link can match locale-prefixed routes (e.g. `/{locale}/{id}`).
+
+- [#811](https://github.com/emdash-cms/emdash/pull/811) [`cee403d`](https://github.com/emdash-cms/emdash/commit/cee403d5c008feb9ca60bb7201e151b828737743) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a centralized secrets module and `emdash secrets` CLI command group.
+  The preview HMAC secret and commenter-IP hash salt are now generated and
+  persisted in the options table on first need, with `EMDASH_PREVIEW_SECRET`
+  and `EMDASH_IP_SALT` as optional env overrides. This replaces the previous
+  empty-string preview fallback (which silently disabled token verification)
+  and the hardcoded `"emdash-ip-salt"` constant (which was correlatable
+  across installs).
+
+  Adds:
+  - `emdash secrets generate [--write <file> [--force]]` — emits a fresh
+    `EMDASH_ENCRYPTION_KEY` (versioned `emdash_enc_v1_<43 chars>` format),
+    optionally writes it to `.dev.vars` or `.env` idempotently.
+  - `emdash secrets fingerprint <key>` — prints the kid (8-char fingerprint)
+    for a key without exposing its value.
+
+  Lays groundwork for plugin-secret encryption-at-rest in a follow-up.
+
+  Deprecates:
+  - `emdash auth secret` — kept as a working alias that prints a stderr
+    deprecation note. Will be removed in a future minor. `EMDASH_AUTH_SECRET`
+    itself is now legacy: it's only consulted as a fallback IP-salt source
+    for upgrade compatibility (so existing installs keep stable
+    commenter-IP hashes). New installs don't need to set it.
+
+  API changes:
+  - `fingerprintKey()` (exported from `emdash`'s config module) now
+    validates its input and throws `EmDashSecretsError` for malformed or
+    non-canonical keys, where it previously silently hashed any string.
+    Callers that want the previous "fingerprint anything" behavior should
+    hash the input themselves with `crypto.subtle.digest`.
+
+  User-visible side effects on upgrade:
+  - Installs that hadn't set `EMDASH_PREVIEW_SECRET` get a fresh random
+    preview secret on first start, which invalidates any outstanding
+    preview URLs (typically short-lived).
+  - Installs that hadn't set `EMDASH_AUTH_SECRET` get a fresh random IP
+    salt, resetting active comment rate-limit windows once.
+  - Installs that did set `EMDASH_AUTH_SECRET` keep the same IP salt via a
+    legacy fallback, so existing rate-limit data carries over.
+  - If you sign preview URLs from a separate process without access to the
+    EmDash database (e.g. a remote preview Worker), you must continue to
+    set `EMDASH_PREVIEW_SECRET` in **both** processes. Processes that share
+    the database converge on the same auto-generated value automatically;
+    the env override is only needed when the verifying process can't read
+    the options table.
+
+- [#816](https://github.com/emdash-cms/emdash/pull/816) [`d4be24f`](https://github.com/emdash-cms/emdash/commit/d4be24f478a0c8d0a7bba3c299e11105bba3ed94) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Unifies plugin capability names under a single `<resource>[.<sub-resource>]:<verb>[:<qualifier>]` formula so capabilities read like RBAC permissions, separates hook-registration permissions from data-access ones for clearer audits, and replaces the overloaded `:any` qualifier with the more conspicuous `:unrestricted`. Old names are still accepted with `@deprecated` warnings; `emdash plugin bundle` and `emdash plugin validate` warn for each deprecated name and `emdash plugin publish` refuses manifests that still use them.
+
+  The Cloudflare sandbox bridge and HTTP fetch helper now enforce canonical names (`content:read`, `content:write`, `media:read`, `media:write`, `users:read`, `network:request`, `network:request:unrestricted`). Manifests that still declare legacy names continue to work — the runner normalizes capabilities before passing them into the bridge, so installed plugins with `read:content` resolve to `content:read` and reach the same code path.
+
+  | Old                 | New                              |
+  | ------------------- | -------------------------------- |
+  | `read:content`      | `content:read`                   |
+  | `write:content`     | `content:write`                  |
+  | `read:media`        | `media:read`                     |
+  | `write:media`       | `media:write`                    |
+  | `read:users`        | `users:read`                     |
+  | `network:fetch`     | `network:request`                |
+  | `network:fetch:any` | `network:request:unrestricted`   |
+  | `email:provide`     | `hooks.email-transport:register` |
+  | `email:intercept`   | `hooks.email-events:register`    |
+  | `page:inject`       | `hooks.page-fragments:register`  |
+
+  Existing installs keep working — manifests are normalized at every external boundary and `diffCapabilities` normalizes both sides so version upgrades that only rename do not trigger a "capability changed" prompt. Deprecated names will be removed in the next minor.
+
+### Patch Changes
+
+- [#858](https://github.com/emdash-cms/emdash/pull/858) [`e0dc6fb`](https://github.com/emdash-cms/emdash/commit/e0dc6fb8adadc0e048f3f314d62bfa98d9bb48d4) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Adds CSS custom-property hooks to portable-text block defaults in `Image`, `Embed`, `Gallery`, and `Break` so host sites can theme figcaptions and horizontal rules without overriding component CSS. Resolution order is `--emdash-caption-color` → `--color-muted` → `#666` for captions, `--emdash-break-color` → `--color-border` → `#e0e0e0` for the break line, and `--emdash-break-dots-color` → `--color-muted` → `#999` for break dots. Backward compatible: sites that don't define any of these variables get the previous hex defaults; sites that already expose the conventional `--color-muted` / `--color-border` tokens (e.g. the blog template) now get correct dark-mode theming automatically.
+
+- [#838](https://github.com/emdash-cms/emdash/pull/838) [`c22fb3a`](https://github.com/emdash-cms/emdash/commit/c22fb3a10d445f12cca91620c9258d50695afa44) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes a redundant `SELECT id, author_id` lookup that fired after every collection-list and entry fetch when computing the byline-fallback for entries without explicit credits. The column is already on the row data, so it is now read directly. Saves up to one round-trip per list query and two on post-detail routes (~30 fewer queries across the perf-fixture suite).
+
+- [#805](https://github.com/emdash-cms/emdash/pull/805) [`6a4e9b8`](https://github.com/emdash-cms/emdash/commit/6a4e9b8b0fa6064989224a42b14de435f487a76f) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes data loss in the visual-editing inline editor for plugin-contributed Portable Text block types. Previously, custom blocks like `marketing.hero` lost every field except `id` when the page was opened in edit mode, and the next save persisted the loss. Blocks now round-trip losslessly and render as a read-only placeholder labelled with the block type.
+
+- [#702](https://github.com/emdash-cms/emdash/pull/702) [`0ee372a`](https://github.com/emdash-cms/emdash/commit/0ee372a7f33eecce7d90e12624923d2d9c132adf) Thanks [@ilicfilip](https://github.com/ilicfilip)! - Adds `@emdash-cms/plugin-field-kit` — composable field widgets for `json` fields. Four widgets (`object-form`, `list`, `grid`, `tags`) are configured entirely through seed `options` so site builders don't need to write React to get a usable editing UI. Widgets store clean JSON (no nesting, no mutation of shape), so removing the plugin leaves valid data in the database. See discussion #571 for background.
+
+  Widens `FieldDescriptor.options` to `Array<{ value: string; label: string }> | Record<string, unknown>` so plugin widgets can accept arbitrary widget config (not only enum choices). The array shape for `select` / `multiSelect` continues to work unchanged.
+
+- [#861](https://github.com/emdash-cms/emdash/pull/861) [`22a16ee`](https://github.com/emdash-cms/emdash/commit/22a16eed607a4e81391ecb6c45fe2e59aaca92fe) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes "Cannot find module 'kysely'" at runtime after `astro build` followed by `astro preview` or `node dist/server/entry.mjs` on Node deployments using SQLite or libSQL (#741). The SQLite and libSQL dialect runtime modules used CJS `require("kysely")` and `require("better-sqlite3")`, ostensibly to defer loading at config time — though in practice these modules are only ever loaded at runtime via `virtual:emdash/dialect`, so the deferral served no purpose. Vite preserved those literal `require()` calls in the bundled SSR chunks; under pnpm's strict `node_modules` layout, Node's CJS resolver could not find `kysely` (a transitive dep of `emdash`) from the user's `dist/server/chunks/` directory. The dialect modules now use static imports — matching the existing `db/postgres.ts` adapter — so Vite resolves the deps correctly at build time.
+
+- [#847](https://github.com/emdash-cms/emdash/pull/847) [`1e2b024`](https://github.com/emdash-cms/emdash/commit/1e2b02486ee0407e4f50b8342ba1a9e7d060e405) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes site favicon injection so user-configured favicons render on the public site, including SVG favicons in Chromium browsers (#831). `EmDashHead` now emits a `<link rel="icon">` tag with the correct `type` attribute (e.g. `image/svg+xml`) sourced from the stored media's MIME type. The bundled templates and demos have been updated to drop their per-template favicon link in favour of the centralized injection; existing user sites that still emit their own `<link rel="icon">` continue to work because browsers tolerate the duplicate.
+
+  `MediaReference` now carries `url`, `contentType`, `width`, and `height` when resolved via `resolveMediaReference`, so callers can emit correct head tags without a second round-trip to the media table.
+
+- [#851](https://github.com/emdash-cms/emdash/pull/851) [`81662e9`](https://github.com/emdash-cms/emdash/commit/81662e98fcf1ad0ee880d4f1af96271c527d7423) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes admin branding (logo, siteName, favicon) configured via the integration's `admin` option not being delivered to the React admin SPA. The `/_emdash/api/manifest` route now reads admin branding from the per-request config plumbed through middleware (the same source `admin.astro` already used), instead of a build-time global that was never assigned.
+
+- [#857](https://github.com/emdash-cms/emdash/pull/857) [`2f22f57`](https://github.com/emdash-cms/emdash/commit/2f22f57abadf305cf6d3ce07ee78290178e032d1) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes a migration race on D1 where two concurrent Workers isolates could both try to apply the same migration, causing one to fail with `UNIQUE constraint failed: _emdash_migrations.name`. The losing isolate would throw before reaching auto-seed, leaving the manifest cache empty and the admin UI reporting collections as not found while the API reported them correctly. `runMigrations` now treats this specific error as benign, waits for the concurrent migrator to finish, and verifies the schema is fully migrated before returning success. Closes #762.
+
+- [#856](https://github.com/emdash-cms/emdash/pull/856) [`ef3f076`](https://github.com/emdash-cms/emdash/commit/ef3f076c8112e9dffc2a87c019e5521e823f5e86) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes `npm install` peer dependency conflicts (#819) by removing `@tanstack/react-query` and `@tanstack/react-router` from `peerDependencies`. These libraries are internal implementation details of the bundled admin UI (`@emdash-cms/admin`) and consuming Astro apps don't import them directly. Listing them as peers of `emdash` was forcing every npm-based install to install and resolve them at the top level, which produced ERESOLVE errors and bloat. The admin package continues to declare them as its own runtime dependencies.
+
+- [#817](https://github.com/emdash-cms/emdash/pull/817) [`a9c29ea`](https://github.com/emdash-cms/emdash/commit/a9c29ea584300f6cf67206bedcb1d39f05ea1c26) Thanks [@all3f0r1](https://github.com/all3f0r1)! - Fixes redirect middleware so 301/302 rules from `_emdash_redirects` actually fire for unauthenticated visitors. Previously, the lookup was silently skipped on the public-visitor branch because `locals.emdash.db` is intentionally omitted there — only logged-in admins, edit-mode sessions and preview tokens ever saw redirects (so WordPress migration 301s, manual rewrites and `Auto: slug change` rows did nothing for real traffic, and `hits` / `_emdash_404_log` stayed at zero). The middleware now falls back to `getDb()` (ALS-aware) when `locals.emdash.db` is absent. Resolves #808.
+
+- [#874](https://github.com/emdash-cms/emdash/pull/874) [`d5f7c48`](https://github.com/emdash-cms/emdash/commit/d5f7c481a507868f470361cfd715a5828640d45a) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes `EmDashRuntime.invalidateManifest()` leaving the persisted manifest cache row stale on Cloudflare Workers. The D1 row delete was a fire-and-forget promise — on Workers, unawaited work is cancelled when the isolate is torn down post-response, so `options.emdash:manifest_cache` was almost never actually wiped after a schema mutation. Cold-starting isolates downstream then adopted the pre-mutation snapshot and served `Collection '<slug>' not found` until something else cleared the row. The delete now goes through `after()`, which hands it to `ctx.waitUntil` under workerd. (#873)
+
+- [#839](https://github.com/emdash-cms/emdash/pull/839) [`0d98c62`](https://github.com/emdash-cms/emdash/commit/0d98c620a5f407648f3b7f3cbd30b642c74be607) Thanks [@ascorbic](https://github.com/ascorbic)! - Caches the `site:*` settings prefix-scan across requests within a worker isolate. Site settings change rarely; reading them once per route was wasted work. Writes via `setSiteSettings()` invalidate the cache so other isolates pick up changes within their lifetime.
+
+- [#840](https://github.com/emdash-cms/emdash/pull/840) [`64bf5b9`](https://github.com/emdash-cms/emdash/commit/64bf5b98125ca18ec26f7e0e65a71fcbe71fd44f) Thanks [@ascorbic](https://github.com/ascorbic)! - Reduces duplicate queries on pages that render multiple taxonomy or "recent posts" widgets. `getTaxonomyDef(name)` now reuses the full taxonomy-defs list when it has already been loaded in the same request, and `getEmDashCollection` buckets small limits so a post-detail page asking for 4 posts in the body and 5 in a sidebar widget shares one fetch instead of two. Cuts ~6 queries from the perf-fixture post-detail render.
+
+- [#803](https://github.com/emdash-cms/emdash/pull/803) [`0041d76`](https://github.com/emdash-cms/emdash/commit/0041d7699b32b77b4cd2ecd77b97340f0dd3abce) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fixes migrations 034 and 035 so they can safely re-run when a previous attempt left the schema partially applied without recording it in `_emdash_migrations`. Resolves the "index already exists" error reported on upgrade from 0.1.1 to 0.6.0+.
+
+- [#869](https://github.com/emdash-cms/emdash/pull/869) [`a8bac5d`](https://github.com/emdash-cms/emdash/commit/a8bac5d7216e185b1bd9a2aaaeaa9a0306ab066e) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes autosave validation errors on content seeded from the blog,
+  portfolio, and starter templates (issue #867).
+
+  Two related issues:
+  - `_key` was strictly required on Portable Text blocks by the
+    generated Zod schema, but the rest of the block schema is
+    `.passthrough()` and the editor regenerates `_key` on every change,
+    so requiring it on input rejected legitimate seed/import data
+    without protecting any real invariant. `_key` is now optional in the
+    validator.
+  - The portfolio template shipped `featured_image` as bare URL strings.
+    `image` fields validate as `{ id, ... }` objects, so any user who
+    edited a different field on a portfolio entry hit
+    `featured_image: expected object, received string`. The portfolio
+    seeds now use `$media` references in the same shape as the blog
+    template, and every shipped template seed has stable `_key`s on its
+    Portable Text nodes.
+
+  A regression test runs every shipped template seed through the same
+  validator the autosave endpoint uses, so future template changes that
+  break this invariant fail before release.
+
+- [#882](https://github.com/emdash-cms/emdash/pull/882) [`5b6f059`](https://github.com/emdash-cms/emdash/commit/5b6f059d06175ae0cb740d1ba32867d1ec6b2249) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the seed virtual module to also look at the conventional `seed/seed.json` path when no `.emdash/seed.json` or `package.json#emdash.seed` pointer is configured. Without this fallback, a site that only had `seed/seed.json` would silently fall through to the built-in default seed -- the setup wizard would not offer demo content, and the wrong schema would be applied. The loader now warns when it falls through to the default seed so misconfiguration is loud during dev.
+
+- [#855](https://github.com/emdash-cms/emdash/pull/855) [`a86ff80`](https://github.com/emdash-cms/emdash/commit/a86ff80836fed175508ff06f744c7ad6b805627c) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes Astro session lookups firing on every anonymous public SSR request (#733). The middleware now skips `context.session.get("user")` when no `astro-session` cookie is present, which on Cloudflare Workers (where the Astro session backend is KV) was turning normal anonymous traffic into a flood of KV read misses. Logged-in editors, admin routes, edit/preview flows, and any request that actually carries the session cookie continue to read the session as before.
+
+- [#853](https://github.com/emdash-cms/emdash/pull/853) [`eb6dbd0`](https://github.com/emdash-cms/emdash/commit/eb6dbd056717fd076a8b5fa807d91516a00f5f2f) Thanks [@drudge](https://github.com/drudge)! - Fixes content saves on collections with boolean fields. Boolean fields map to `INTEGER` columns and the repository writes booleans as `0/1`, but never converts them back on read, so a GET → edit → POST round-trip surfaced numbers where the per-collection zod schema expected booleans, and every save was rejected. The boolean field schema now coerces the `0/1` shape to real booleans at the validation boundary; other numbers and strings still fail validation as before.
+
+- Updated dependencies [[`9dfc65c`](https://github.com/emdash-cms/emdash/commit/9dfc65c42c04c41088e0c8f5a8ca4347643e2fea), [`d6754ae`](https://github.com/emdash-cms/emdash/commit/d6754ae7746b0f9035d2c5e390ece7199762b094), [`0ee372a`](https://github.com/emdash-cms/emdash/commit/0ee372a7f33eecce7d90e12624923d2d9c132adf), [`ef3f076`](https://github.com/emdash-cms/emdash/commit/ef3f076c8112e9dffc2a87c019e5521e823f5e86), [`8d0feb3`](https://github.com/emdash-cms/emdash/commit/8d0feb3eece62b01075260bbb79188984a8631b8), [`8354088`](https://github.com/emdash-cms/emdash/commit/83540887936a87a6c99230b21d2afe3fe424218c), [`254a443`](https://github.com/emdash-cms/emdash/commit/254a443684ec3bddfc2706b349d6ccce901987af), [`25128b2`](https://github.com/emdash-cms/emdash/commit/25128b2444853e3301af7ff09d21a3f5883a599f), [`e7df21f`](https://github.com/emdash-cms/emdash/commit/e7df21f0adca795cdb233d6e64cd543ead7e2347), [`ab45916`](https://github.com/emdash-cms/emdash/commit/ab45916e8561678ccddf7d6184a7d56729ea03cc), [`0913a39`](https://github.com/emdash-cms/emdash/commit/0913a39a23538c96bfa62fe7da37bf332d18bb46), [`e2d5d16`](https://github.com/emdash-cms/emdash/commit/e2d5d160acea4444945b1ea79c80ca9ce138965b), [`a838000`](https://github.com/emdash-cms/emdash/commit/a83800068678daf6391e02bba8acf27ff4db0e19), [`ddbf808`](https://github.com/emdash-cms/emdash/commit/ddbf8088e1bcfa07d6347a953bb1995295e8f8fd), [`1c958fb`](https://github.com/emdash-cms/emdash/commit/1c958fb484387cd8cce7fab53ff4eddfe0dbb7f6), [`491aeec`](https://github.com/emdash-cms/emdash/commit/491aeec5a66e2f764eb9d8ed8425e9d402ada4a7), [`d4be24f`](https://github.com/emdash-cms/emdash/commit/d4be24f478a0c8d0a7bba3c299e11105bba3ed94)]:
+  - @emdash-cms/admin@0.9.0
+  - @emdash-cms/auth@0.9.0
+  - @emdash-cms/auth-atproto@0.2.1
+  - @emdash-cms/gutenberg-to-portable-text@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes

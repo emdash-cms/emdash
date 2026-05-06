@@ -23,7 +23,8 @@ uploads/
 .dev.vars.*
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 .idea/
 *.swp
 *.swo

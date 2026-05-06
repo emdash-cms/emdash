@@ -35,7 +35,7 @@ const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
 /** Get the HTTP client from plugin context, or throw a helpful error. */
 export function requireHttp(ctx: PluginContext) {
 	if (!ctx.http) {
-		throw new Error("AT Protocol plugin requires the network:fetch capability");
+		throw new Error("AT Protocol plugin requires the network:request capability");
 	}
 	return ctx.http;
 }

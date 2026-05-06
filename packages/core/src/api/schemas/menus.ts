@@ -20,6 +20,10 @@ export const createMenuBody = z
 	.object({
 		name: z.string().min(1),
 		label: z.string().min(1),
+		locale: z.string().min(1).optional(),
+		/** When set, clones the items from the source menu. The new menu joins
+		 * the source's translation_group. */
+		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateMenuBody" });
 
@@ -87,6 +91,8 @@ export const menuSchema = z
 		label: z.string(),
 		created_at: z.string(),
 		updated_at: z.string(),
+		locale: z.string(),
+		translation_group: z.string().nullable(),
 	})
 	.meta({ id: "Menu" });
 
@@ -105,8 +111,25 @@ export const menuItemSchema = z
 		target: z.string().nullable(),
 		css_classes: z.string().nullable(),
 		created_at: z.string(),
+		locale: z.string(),
+		translation_group: z.string().nullable(),
 	})
 	.meta({ id: "MenuItem" });
+
+export const menuTranslationsSchema = z
+	.object({
+		translationGroup: z.string().nullable(),
+		translations: z.array(
+			z.object({
+				id: z.string(),
+				name: z.string(),
+				label: z.string(),
+				locale: z.string(),
+				updatedAt: z.string(),
+			}),
+		),
+	})
+	.meta({ id: "MenuTranslations" });
 
 export const menuListItemSchema = menuSchema
 	.extend({

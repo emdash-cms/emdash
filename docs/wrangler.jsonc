@@ -10,11 +10,18 @@
 	],
 	"compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
 	"name": "docs",
-	"main": "@astrojs/cloudflare/entrypoints/server",
+	"main": "./src/worker.ts",
 	"assets": {
 		"directory": "./dist",
 		"binding": "ASSETS",
 	},
+	"ai_search": [
+		{
+			"remote": true,
+			"binding": "AI_SEARCH",
+			"instance_name": "emdash-docs",
+		},
+	],
 	"observability": {
 		"enabled": true,
 	},

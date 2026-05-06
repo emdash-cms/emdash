@@ -360,6 +360,7 @@ const publishDate =
 		margin: var(--spacing-16) var(--spacing-6);
 		border-radius: var(--radius-lg);
 		overflow: hidden;
+		background: var(--color-surface);
 	}
 
 	.article-hero img {
@@ -769,8 +770,8 @@ const publishDate =
 
 	.sidebar-widgets :global(.widget-tags__link) {
 		display: inline-block;
-		padding: var(--spacing-1) var(--spacing-3);
-		font-size: var(--font-size-sm);
+		padding: var(--tag-padding-y) var(--spacing-2);
+		font-size: var(--font-size-xs);
 		color: var(--color-text-secondary);
 		background: var(--color-surface);
 		border-radius: var(--radius);
@@ -922,7 +923,6 @@ const publishDate =
 	.more-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		grid-template-rows: repeat(5, auto);
 		gap: var(--spacing-8);
 	}
 

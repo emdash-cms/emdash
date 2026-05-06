@@ -1326,6 +1326,11 @@ const menuEditorRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/menus/$name",
 	component: MenuEditor,
+	validateSearch: (search: Record<string, unknown>) => {
+		return {
+			locale: typeof search.locale === "string" ? search.locale : undefined,
+		};
+	},
 });
 
 // Taxonomy manager route

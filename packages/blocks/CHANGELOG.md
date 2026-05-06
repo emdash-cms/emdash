@@ -1,5 +1,15 @@
 # @emdash-cms/blocks
 
+## 0.9.0
+
+### Minor Changes
+
+- [#790](https://github.com/emdash-cms/emdash/pull/790) [`7b8d496`](https://github.com/emdash-cms/emdash/commit/7b8d4964c619821937d1a738cbd6f81e98095a91) Thanks [@all3f0r1](https://github.com/all3f0r1)! - Adds an `accordion` Block Kit block: a collapsible container that wraps nested blocks under a labeled trigger. Open/closed state is local to the rendered component (with optional `default_open`), so plugin admin pages can hide advanced settings, FAQs, or auxiliary panels without paginating or round-tripping through `block_action`.
+
+- [#731](https://github.com/emdash-cms/emdash/pull/731) [`9dfc65c`](https://github.com/emdash-cms/emdash/commit/9dfc65c42c04c41088e0c8f5a8ca4347643e2fea) Thanks [@drudge](https://github.com/drudge)! - Adds a `media_picker` Block Kit element: a thumbnail preview with a modal library picker and mime-type filter. Usable in plugin block forms and in Block Kit field widgets. The stored value is the selected asset's URL string, so it is value-compatible with a plain `text_input` — existing content continues to work after swapping. The `mime_type_filter` is restricted to image MIME types (`image/` or `image/<subtype>`); wildcards and non-image types are rejected.
+
+- [#814](https://github.com/emdash-cms/emdash/pull/814) [`a838000`](https://github.com/emdash-cms/emdash/commit/a83800068678daf6391e02bba8acf27ff4db0e19) Thanks [@arashackdev](https://github.com/arashackdev)! - rtl srtyle improvements and LTR/RTL compatible arrow/caret icons
+
 ## 0.8.0
 
 ### Minor Changes

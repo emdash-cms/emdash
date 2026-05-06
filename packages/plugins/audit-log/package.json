@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-audit-log",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Audit logging plugin for EmDash CMS - tracks content changes",
 	"type": "module",
 	"main": "dist/index.mjs",
@@ -25,7 +25,7 @@
 	"author": "Matt Kane",
 	"license": "MIT",
 	"peerDependencies": {
-		"emdash": "workspace:>=0.1.0"
+		"emdash": "workspace:>=0.9.0"
 	},
 	"devDependencies": {
 		"tsdown": "catalog:",

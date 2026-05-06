@@ -337,6 +337,17 @@ export interface CodeBlock extends BlockBase {
 	language?: "ts" | "tsx" | "jsonc" | "bash" | "css";
 }
 
+export interface TabPanel {
+	label: string;
+	blocks: Block[];
+}
+
+export interface TabBlock extends BlockBase {
+	type: "tab";
+	panels: TabPanel[];
+	default_tab?: number;
+}
+
 export interface EmptyBlock extends BlockBase {
 	type: "empty";
 	title: string;
@@ -369,6 +380,7 @@ export type Block =
 	| BannerBlock
 	| MeterBlock
 	| CodeBlock
+	| TabBlock
 	| EmptyBlock
 	| AccordionBlock;
 

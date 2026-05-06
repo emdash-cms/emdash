@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/gutenberg-to-portable-text",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Convert WordPress Gutenberg blocks to Portable Text",
   "type": "module",
   "main": "dist/index.mjs",

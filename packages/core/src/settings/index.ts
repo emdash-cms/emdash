@@ -73,13 +73,18 @@ function isMediaReference(value: unknown): value is MediaReference {
 }
 
 /**
- * Resolve a media reference to include the full URL
+ * Resolve a media reference to include the full URL plus content metadata.
+ *
+ * Pulls `mimeType` and intrinsic dimensions from the media row so callers
+ * can emit correct head tags (e.g. `<link rel="icon" type="image/svg+xml">`,
+ * which Chromium requires when the URL has no `.svg` extension) without
+ * a second round-trip to the media table.
  */
 async function resolveMediaReference(
 	mediaRef: MediaReference | undefined,
 	db: Kysely<Database>,
 	_storage: Storage | null,
-): Promise<(MediaReference & { url?: string }) | undefined> {
+): Promise<MediaReference | undefined> {
 	if (!mediaRef?.mediaId) {
 		return mediaRef;
 	}
@@ -93,6 +98,9 @@ async function resolveMediaReference(
 			return {
 				...mediaRef,
 				url: `/_emdash/api/media/file/${media.storageKey}`,
+				contentType: media.mimeType,
+				...(media.width !== null ? { width: media.width } : {}),
+				...(media.height !== null ? { height: media.height } : {}),
 			};
 		}
 	} catch {

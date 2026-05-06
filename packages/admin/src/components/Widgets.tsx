@@ -366,7 +366,7 @@ export function Widgets() {
 									name="name"
 									required
 									placeholder="sidebar"
-									pattern="[a-z0-9-]+"
+									pattern="[a-z0-9\-]+"
 								/>
 								<Input label="Label" name="label" required placeholder="Main Sidebar" />
 								<Input
@@ -783,7 +783,7 @@ function WidgetEditor({
 
 	const { data: menus = [] } = useQuery({
 		queryKey: ["menus"],
-		queryFn: fetchMenus,
+		queryFn: () => fetchMenus(),
 		enabled: widget.type === "menu",
 	});
 

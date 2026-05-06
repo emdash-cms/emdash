@@ -36,6 +36,8 @@ import type {
 	TableColumn,
 	TextInputElement,
 	ToggleElement,
+	TabBlock,
+	TabPanel,
 } from "./types.js";
 
 // ── Block Builders ───────────────────────────────────────────────────────────
@@ -444,6 +446,21 @@ function codeBlock(opts: {
 	};
 }
 
+function tabBlock(
+	panels: TabPanel[],
+	opts?: {
+		defaultTab?: number;
+		blockId?: string;
+	},
+): TabBlock {
+	return {
+		type: "tab",
+		panels,
+		...(opts?.defaultTab !== undefined && { default_tab: opts.defaultTab }),
+		...(opts?.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
 function empty(opts: {
 	blockId?: string;
 	title: string;
@@ -497,6 +514,7 @@ export const blocks = {
 	banner: bannerBlock,
 	meter,
 	code: codeBlock,
+	tab: tabBlock,
 	empty,
 	accordion,
 };

@@ -21,6 +21,10 @@ export const Permissions = {
 	"content:edit_any": Role.EDITOR,
 	"content:delete_own": Role.AUTHOR,
 	"content:delete_any": Role.EDITOR,
+	// Permanent deletion (empty trash) is irreversible and bypasses the
+	// soft-delete safety net, so it sits at the same authorization tier as
+	// other destructive system actions (schema:manage, comments:delete).
+	"content:delete_permanent": Role.ADMIN,
 	"content:publish_own": Role.AUTHOR,
 	"content:publish_any": Role.EDITOR,
 
