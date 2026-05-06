@@ -14,7 +14,8 @@
     CircleHelp,
     Headset,
     ExternalLink,
-    Images
+    Images,
+    Plus
   } from 'lucide-svelte';
 
   let { children } = $props();
@@ -57,12 +58,12 @@
     return hit?.label ?? 'Dashboard';
   });
   const newLabel = $derived.by(() => {
-    if (currentPath === '/admin/posts') return '+ New Post';
-    if (currentPath === '/admin/promotions') return '+ New Promotion';
-    if (currentPath === '/admin/menu') return '+ New Item';
-    if (currentPath === '/admin/pages') return '+ New Page';
-    if (currentPath === '/admin/hours') return '+ New Day';
-    return '+ New';
+    if (currentPath === '/admin/posts') return 'New Post';
+    if (currentPath === '/admin/promotions') return 'New Promotion';
+    if (currentPath === '/admin/menu') return 'New Item';
+    if (currentPath === '/admin/pages') return 'New Page';
+    if (currentPath === '/admin/hours') return 'New Day';
+    return 'New';
   });
 </script>
 
@@ -97,8 +98,13 @@
     <section class="admin-panel m-3 flex min-w-0 flex-col overflow-hidden p-0">
       <header class="flex items-center justify-between border-b px-5 py-3" style={`border-color: var(--admin-panel-border);`}>
 
-        <h2 class="m-0 text-4xl font-semibold text-[var(--admin-text-strong)]">{routeTitle}</h2>
-
+        <h2 class="m-0 text-3xl font-semibold text-[var(--admin-text-strong)]">{routeTitle}</h2>
+        <div class="flex items-center gap-2">
+            <button class="admin-pill-ghost"><CircleHelp class="mr-2 inline-block h-4 w-4" />View Guide</button>
+            {#if currentPath !== '/admin'}
+              <button class="admin-pill"><Plus class="mr-2 inline-block h-4 w-4" />{newLabel}</button>
+            {/if}
+          </div>
       </header>
 
       <div class="min-h-0 flex-1 overflow-auto px-5 py-4">
@@ -108,10 +114,7 @@
            Update your business information
             </p>
           </div>
-          <div class="flex items-center gap-2">
-            <button class="admin-pill-ghost">View Guide</button>
-            <button class="admin-pill">{newLabel}</button>
-          </div>
+
         </header>
 
         {@render children()}
