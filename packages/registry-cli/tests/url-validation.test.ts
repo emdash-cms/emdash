@@ -84,6 +84,12 @@ describe("validatePublishUrl", () => {
 		expect(validate("https://[2002:a00:1::1]/x")).not.toBeNull();
 	});
 
+	it("rejects RFC 8215 local-use NAT64 prefix with embedded private v4", () => {
+		// `64:ff9b:1::/48` is the local-use NAT64 prefix; embedded v4 is in
+		// the last 32 bits. `64:ff9b:1:0:0:0:a9fe:a9fe` -> 169.254.169.254.
+		expect(validate("https://[64:ff9b:1:0:0:0:a9fe:a9fe]/x")).not.toBeNull();
+	});
+
 	it("rejects http://", () => {
 		expect(validate("http://example.com/x")).not.toBeNull();
 	});

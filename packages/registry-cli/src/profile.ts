@@ -2,24 +2,28 @@
  * Resolves the publisher's atproto profile (display name, handle, PDS URL)
  * from a freshly-authenticated `OAuthSession`.
  *
- * The OAuth session itself only carries the DID. To show the publisher who
- * they're logged in as -- and to pin a stable PDS URL into the credentials
- * store -- we make two best-effort calls:
+ * Sources, in order of authority:
  *
- *   1. `com.atproto.server.getSession` for the authoritative current handle.
- *   2. `app.bsky.actor.profile` (rkey `self`) for the optional displayName.
+ *   1. PDS URL: `session.getTokenInfo().aud`. The OAuth `aud` claim is the
+ *      resource server URL the session is bound to -- exactly the PDS the
+ *      session can actually talk to. Always populated for authenticated
+ *      sessions; never empty.
+ *   2. Handle: `com.atproto.server.getSession`. Best-effort; falls back
+ *      to the DID on failure. The DID is then surfaced as a placeholder
+ *      handle that the caller is expected to detect (`isHandle()`) and
+ *      treat as null for storage.
+ *   3. Display name: `app.bsky.actor.profile` (rkey `self`). Optional;
+ *      absent profile records are not an error.
  *
- * Either call may fail (network, optional profile record absent). We treat
- * both as best-effort and fall back to the DID for handle and `null` for
- * displayName, so login still completes for accounts that haven't created a
- * Bluesky-style profile.
+ * The PDS URL is no longer best-effort: a session without a usable PDS
+ * is unrecoverable, so we throw rather than persist an empty string and
+ * lock the user out of subsequent commands.
  */
 
 import type { OAuthSession } from "@atcute/oauth-node-client";
 
 interface GetSessionResponse {
 	handle?: string;
-	pdsUrl?: string;
 }
 
 export interface AtprotoProfile {
@@ -31,16 +35,31 @@ export interface AtprotoProfile {
 export async function resolveAtprotoProfile(session: OAuthSession): Promise<AtprotoProfile> {
 	const did = session.sub;
 
+	// PDS URL: read directly from the OAuth token's `aud` claim. This is
+	// the URL atcute itself uses for every authenticated request from the
+	// session, so it's guaranteed populated. The previous implementation
+	// tried `getSession.pdsUrl`, which doesn't exist in the Bluesky lexicon
+	// -- the field is always undefined, leaving `pds` empty and corrupting
+	// the credentials store on the next read.
+	const tokenInfo = await session.getTokenInfo();
+	const pds = tokenInfo.aud;
+	if (typeof pds !== "string" || pds.length === 0) {
+		// Defensive: should be impossible per atcute's session model, but if
+		// it ever isn't, fail loudly here rather than persisting "" and
+		// locking the user out.
+		throw new Error(
+			"OAuth session has no `aud` (PDS URL); cannot resolve publisher profile. This is a bug -- please report it.",
+		);
+	}
+
 	let handle: string = did;
 	let displayName: string | null = null;
-	let pds = "";
 
 	try {
 		const res = await session.handle("/xrpc/com.atproto.server.getSession");
 		if (res.ok) {
 			const data = pickGetSession(await res.json());
 			if (data.handle) handle = data.handle;
-			if (data.pdsUrl) pds = data.pdsUrl;
 		}
 	} catch {
 		// best-effort; fall through to DID as handle
@@ -64,7 +83,6 @@ function pickGetSession(input: unknown): GetSessionResponse {
 	if (!input || typeof input !== "object") return {};
 	const out: GetSessionResponse = {};
 	if ("handle" in input && typeof input.handle === "string") out.handle = input.handle;
-	if ("pdsUrl" in input && typeof input.pdsUrl === "string") out.pdsUrl = input.pdsUrl;
 	return out;
 }
 

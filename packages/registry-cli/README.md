@@ -23,7 +23,7 @@ emdash-registry bundle
 emdash-registry login <handle-or-did>          Interactive atproto OAuth login
 emdash-registry logout [--did <did>]           Revoke the active session
 emdash-registry whoami                         Show stored sessions
-emdash-registry switch <handle-or-did>         Switch the active publisher session
+emdash-registry switch <did>                   Switch the active publisher session
 emdash-registry search <query>                 Free-text search
 emdash-registry info <handle-or-did> <slug>    Show package details
 emdash-registry bundle                         Bundle a plugin source dir into a tarball

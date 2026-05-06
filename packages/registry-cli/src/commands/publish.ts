@@ -521,10 +521,17 @@ const IPV6_V4_COMPAT_HEX_RE = /^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
 //
 // Currently covered:
 //   - `64:ff9b::/96`        — RFC 6052 NAT64 well-known prefix
+//   - `64:ff9b:1::/48`      — RFC 8215 NAT64 local-use prefix
 //   - `2002:xxxx:xxxx::/16` — 6to4 (xxxx:xxxx encodes the v4)
 //   - `::/96`               — IPv4-compatible (already handled by
 //                             IPV6_V4_COMPAT_DOTTED_RE for dotted form)
 const IPV6_NAT64_RE = /^64:ff9b::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
+// RFC 8215 local-use NAT64 prefix `64:ff9b:1::/48`. The URL parser
+// collapses runs of zero groups into `::`, so the typical form for this
+// prefix when carrying a v4 in the last 32 bits is
+// `64:ff9b:1::WWWW:XXXX`. Match the prefix permissively and capture the
+// trailing two hex groups.
+const IPV6_NAT64_LOCAL_RE = /^64:ff9b:1:[0-9a-f:]*:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
 const IPV6_6TO4_RE = /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4}):/i;
 
 /**
@@ -589,7 +596,7 @@ function isPrivateIPv6Literal(host: string): boolean {
 	if (IPV6_LINK_LOCAL_RE.test(host)) return true;
 	// NAT64 (`64:ff9b::a.b.c.d` -> URL-normalised to
 	// `64:ff9b::aabb:ccdd`). Decode the embedded v4 and re-check.
-	const nat64 = IPV6_NAT64_RE.exec(host);
+	const nat64 = IPV6_NAT64_RE.exec(host) ?? IPV6_NAT64_LOCAL_RE.exec(host);
 	if (nat64) {
 		const v4 = decodeIPv6V4HexPair(nat64[1], nat64[2]);
 		if (v4 && isPrivateIp(v4)) return true;

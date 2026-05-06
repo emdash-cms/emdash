@@ -71,7 +71,7 @@ export const loginCommand = defineCommand({
 			console.log(
 				JSON.stringify({
 					did: result.did,
-					handle,
+					handle: handleForStorage,
 					displayName,
 					pds,
 				}),
@@ -79,8 +79,10 @@ export const loginCommand = defineCommand({
 			return;
 		}
 
-		consola.success(`Logged in as ${pc.bold(handle)}${displayName ? ` (${displayName})` : ""}`);
-		consola.info(`DID: ${pc.dim(result.did)}`);
+		consola.success(
+			`Logged in as ${pc.bold(handleForStorage ?? result.did)}${displayName ? ` (${displayName})` : ""}`,
+		);
+		if (handleForStorage) consola.info(`DID: ${pc.dim(result.did)}`);
 		if (pds) consola.info(`PDS: ${pc.dim(pds)}`);
 	},
 });

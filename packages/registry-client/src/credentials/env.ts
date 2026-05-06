@@ -1,21 +1,21 @@
 /**
  * Environment-variable credential store.
  *
- * Read-only. Reads a single publisher session from environment variables for
- * use in CI:
+ * Read-only. Reads the publisher's identity (the three fields needed to
+ * answer "who is authenticated?") from environment variables for use in
+ * CI:
  *
  *   - `EMDASH_PUBLISHER_DID`        — the publisher DID (required).
  *   - `EMDASH_PUBLISHER_HANDLE`     — the publisher handle (required).
  *   - `EMDASH_PUBLISHER_PDS`        — the PDS URL (required).
- *   - `EMDASH_PUBLISHER_SESSION`    — opaque session blob, JSON-encoded; the
- *     OAuth client manages this. The shape is the OAuth library's
- *     `StoredSession` type, persisted by the publisher's interactive login on
- *     a developer machine and copied into CI as a single secret.
  *
- * The session blob is opaque to this layer -- it's plumbed through to the
- * OAuth client when the publishing client constructs one. We only need the
- * three identity fields here so the rest of the system can answer "who is
- * authenticated?" without parsing the blob.
+ * NOTE: this store does NOT carry the OAuth session blob (refresh tokens,
+ * DPoP keys, PAR state). Those are managed by the OAuth client and keyed
+ * by DID via its own backing store. Until that backing store has an
+ * env-var implementation, automated `publish` from CI requires the OAuth
+ * library's session files to be present on disk too. Plan to add an
+ * env-var-backed OAuth session store before promoting CI publish out of
+ * "experimental".
  *
  * This store throws `ReadOnlyCredentialStoreError` from any mutating method.
  * CI workflows that try to log in interactively are misconfigured by

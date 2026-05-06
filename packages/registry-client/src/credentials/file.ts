@@ -34,6 +34,8 @@ import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promis
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
+import { isDid } from "@atcute/lexicons/syntax";
+
 import type { CredentialStore, Did, PublisherSession } from "./types.js";
 
 /** Current on-disk schema version. Bump only on breaking format changes. */
@@ -79,6 +81,18 @@ export class FileCredentialStore implements CredentialStore {
 	}
 
 	async put(session: PublisherSession): Promise<void> {
+		// Belt-and-braces: refuse to persist a session that won't pass the
+		// read-side validator. Without this, an upstream bug (e.g. a
+		// not-yet-resolved PDS URL plumbed through as "") writes silently;
+		// the next CLI invocation then fails `isFileEnvelope` on the
+		// stored corruption and the user is locked out with no obvious
+		// recovery path. Catching it here turns the same bug into a loud
+		// login-time error with the offending field named.
+		if (!isPublisherSession(session)) {
+			throw new Error(
+				`refusing to persist invalid PublisherSession: did=${JSON.stringify(session.did)}, handle=${JSON.stringify(session.handle)}, pds=${JSON.stringify(session.pds)}, updatedAt=${JSON.stringify(session.updatedAt)}. All four fields are required and pds/did must be non-empty strings.`,
+			);
+		}
 		const envelope = await this.#read();
 		envelope.sessions[session.did] = { ...session };
 		if (!envelope.currentDid) envelope.currentDid = session.did;
@@ -107,7 +121,11 @@ export class FileCredentialStore implements CredentialStore {
 			raw = await readFile(this.path, "utf8");
 		} catch (error) {
 			if (isErrnoException(error) && error.code === "ENOENT") {
-				return { version: FILE_VERSION, currentDid: null, sessions: {} };
+				return {
+					version: FILE_VERSION,
+					currentDid: null,
+					sessions: emptySessionsMap(),
+				};
 			}
 			throw error;
 		}
@@ -132,17 +150,24 @@ export class FileCredentialStore implements CredentialStore {
 		// CLI added, so blindly returning {version: FILE_VERSION, ...} would
 		// silently drop them on the next write. The user should upgrade
 		// their CLI or remove the file manually.
-		if (parsed.version > FILE_VERSION) {
+		if (!Number.isInteger(parsed.version) || parsed.version < 1 || parsed.version > FILE_VERSION) {
 			throw new Error(
-				`credential store at ${this.path} is version ${parsed.version}; this CLI only understands version ${FILE_VERSION}. Upgrade emdash-registry or remove the file manually.`,
+				`credential store at ${this.path} has version ${parsed.version}; this CLI understands versions 1..${FILE_VERSION}. Upgrade emdash-registry or remove the file manually.`,
 			);
 		}
 		// Future: branch on parsed.version < FILE_VERSION for migrations.
 		// For now there's only one version, so this is the identity case.
+		// Materialise sessions onto a null-prototype object so downstream
+		// bracket access (`envelope.sessions[did]`) can't accidentally hit
+		// `Object.prototype.toString` etc.
+		const sessions = emptySessionsMap();
+		for (const [k, v] of Object.entries(parsed.sessions)) {
+			sessions[k] = v;
+		}
 		return {
 			version: parsed.version,
 			currentDid: parsed.currentDid,
-			sessions: { ...parsed.sessions },
+			sessions,
 		};
 	}
 
@@ -177,6 +202,19 @@ export class FileCredentialStore implements CredentialStore {
 }
 
 /**
+ * Allocate an empty sessions map with no prototype, so bracket access on
+ * unknown keys (e.g. an attacker-supplied `currentDid: "toString"`) can't
+ * resolve through `Object.prototype`. The `setPrototypeOf` trick keeps a
+ * concrete `Record<string, PublisherSession>` in the type system without
+ * needing a runtime cast.
+ */
+function emptySessionsMap(): Record<string, PublisherSession> {
+	const obj: Record<string, PublisherSession> = {};
+	Object.setPrototypeOf(obj, null);
+	return obj;
+}
+
+/**
  * fsync a directory so a rename inside it is durable. Node lacks a direct
  * `fs.fsyncDir`; the workaround is `open(dir, 'r')` then `handle.sync()`.
  */
@@ -200,7 +238,7 @@ function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
 function isFileEnvelope(input: unknown): input is FileEnvelope {
 	if (!isRecord(input)) return false;
 	if (typeof input.version !== "number") return false;
-	if (input.currentDid !== null && typeof input.currentDid !== "string") return false;
+	if (input.currentDid !== null && !isDid(input.currentDid)) return false;
 	if (!isRecord(input.sessions)) return false;
 	// Validate each entry. A partially-corrupt sessions map shouldn't pass
 	// the envelope check and then explode at use-site (e.g. publish reading
@@ -212,10 +250,12 @@ function isFileEnvelope(input: unknown): input is FileEnvelope {
 		// (`envelope.sessions[did]`) silently miss.
 		if (session.did !== key) return false;
 	}
-	// `currentDid`, if present, must point at a session that exists. A
-	// dangling pointer would surface as `current()` returning null on a
-	// non-empty store, which is a confusing UX.
-	if (input.currentDid !== null && !(input.currentDid in input.sessions)) return false;
+	// `currentDid`, if present, must point at a session that exists. Use
+	// `Object.hasOwn` rather than `in` so a hand-edited file with
+	// `currentDid: "toString"` doesn't pass via the prototype chain.
+	if (input.currentDid !== null && !Object.hasOwn(input.sessions, input.currentDid)) {
+		return false;
+	}
 	return true;
 }
 
@@ -227,7 +267,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** Structural check for a PublisherSession. */
 function isPublisherSession(value: unknown): value is PublisherSession {
 	if (!isRecord(value)) return false;
-	if (typeof value.did !== "string" || value.did.length === 0) return false;
+	if (!isDid(value.did)) return false;
 	if (value.handle !== null && (typeof value.handle !== "string" || value.handle.length === 0)) {
 		return false;
 	}
