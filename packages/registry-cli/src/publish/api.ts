@@ -317,20 +317,18 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	// contract to enforce, and aggregators may reject the record.
 	const declaredAccess = buildDeclaredAccess(options.manifest);
 
-	// Warn about capabilities that don't yet have a declaredAccess mapping
-	// (`users:*`, `hooks.*:register`). The lexicon's vocabulary is closed
-	// today (see releaseExtension.json line 20: "Categories not enumerated
-	// here cannot be declared"), so we can't surface these in the trust
-	// contract until the lexicon adds `users` and `hooks` categories. The
-	// runtime will need to gate these capabilities on `manifest.capabilities`
-	// rather than `declaredAccess` until that happens; surface the gap to
-	// the publisher so they're not surprised.
-	const unmappedCaps = normalizedCaps.filter(
-		(c) => c.startsWith("users:") || c.startsWith("hooks."),
-	);
+	// Warn about capabilities that don't appear in the published
+	// declaredAccess. The lexicon's vocabulary is closed today (see
+	// releaseExtension.json line 20: "Categories not enumerated here cannot
+	// be declared"), so any capability not handled by `buildDeclaredAccess`
+	// is invisible to the trust contract. Driving the gap detection from
+	// what was actually emitted (rather than a hard-coded prefix list)
+	// means a future capability added to plugin-types but not to
+	// `buildDeclaredAccess` still fires the warning.
+	const unmappedCaps = findUnmappedCapabilities(normalizedCaps, declaredAccess);
 	if (unmappedCaps.length > 0) {
 		log.warn?.(
-			`Capabilities ${unmappedCaps.join(", ")} are not yet expressible in declaredAccess (lexicon limitation). Sandbox runtimes will gate these on manifest.capabilities until the lexicon evolves.`,
+			`Capabilities ${unmappedCaps.join(", ")} are not expressible in declaredAccess today (lexicon limitation). Sandbox runtimes will gate these on manifest.capabilities until the lexicon evolves to cover them.`,
 		);
 	}
 	const releaseExtension = {
@@ -496,6 +494,50 @@ function atUri(did: Did, collection: string, rkey: string): string {
 }
 
 /**
+ * Determine which capabilities in `normalizedCaps` have no representation
+ * in the `declaredAccess` we just built. The mapping rules are derived
+ * from what `buildDeclaredAccess` actually emits, so a future capability
+ * added to plugin-types but not to that function will surface here.
+ *
+ * The check is: for each capability, derive its target declaredAccess
+ * coordinate (category + operation). If that coordinate is missing,
+ * the capability is unmapped.
+ */
+function findUnmappedCapabilities(
+	normalizedCaps: string[],
+	declaredAccess: DeclaredAccess,
+): string[] {
+	const unmapped: string[] = [];
+	for (const cap of normalizedCaps) {
+		if (capabilityIsRepresented(cap, declaredAccess)) continue;
+		unmapped.push(cap);
+	}
+	return unmapped;
+}
+
+function capabilityIsRepresented(cap: string, declared: DeclaredAccess): boolean {
+	switch (cap) {
+		case "content:read":
+			return declared.content?.read !== undefined;
+		case "content:write":
+			return declared.content?.write !== undefined;
+		case "media:read":
+			return declared.media?.read !== undefined;
+		case "media:write":
+			return declared.media?.write !== undefined;
+		case "network:request":
+		case "network:request:unrestricted":
+			return declared.network?.request !== undefined;
+		case "email:send":
+			return declared.email?.send !== undefined;
+		default:
+			// Anything else (users:*, hooks.*:register, future capabilities)
+			// is unmapped. The lexicon doesn't have a category for it yet.
+			return false;
+	}
+}
+
+/**
  * Translate `manifest.capabilities` + `manifest.allowedHosts` into the
  * `declaredAccess` shape required by the EmDash release extension.
  *
@@ -647,17 +689,28 @@ function stampLastUpdated(existingValue: unknown): PackageProfileRecordShape | n
 	if (!Array.isArray(v.authors)) return null;
 	if (!Array.isArray(v.security)) return null;
 	if (typeof v.slug !== "string") return null;
-	return {
-		...(v as unknown as PackageProfileRecordShape),
-		// Always normalise $type to the current lexicon NSID. An existing
-		// record from an earlier experimental shape might have a different
-		// $type (or none); preserving it byte-for-byte would then fail
-		// `validateLocally` against the current schema. The whole point of
-		// stamping is the CLI is asserting "this is a current-shape profile",
-		// so override.
+	// Re-emit only schema-known fields. A spread over `v` would carry
+	// across unknown keys (e.g. fields from a since-removed earlier
+	// experimental shape), which `validateLocally` accepts silently
+	// (atcute's v.object ignores extras, see its caveat doc) but
+	// strict-validating aggregators reject. Whitelisting here is the
+	// canonicalising step.
+	const candidate: Record<string, unknown> = {
 		$type: NSID.packageProfile,
+		id: v.id,
+		type: v.type,
+		license: v.license,
+		authors: v.authors,
+		security: v.security,
+		slug: v.slug,
 		lastUpdated: new Date().toISOString(),
 	};
+	// Optional fields only if present and well-typed -- otherwise drop.
+	if (typeof v.name === "string") candidate.name = v.name;
+	if (typeof v.description === "string") candidate.description = v.description;
+	if (Array.isArray(v.keywords)) candidate.keywords = v.keywords;
+	if (v.sections && typeof v.sections === "object") candidate.sections = v.sections;
+	return candidate as unknown as PackageProfileRecordShape;
 }
 
 function buildProfileRecord(input: {

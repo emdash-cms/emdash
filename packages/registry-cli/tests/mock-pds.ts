@@ -219,14 +219,16 @@ export class MockPds implements FetchHandlerObject {
 		//   - create ops must not collide with an existing record
 		//   - update ops must target an existing record
 		//
-		// CAVEAT: a real PDS evaluates these checks AGAINST the post-batch
-		// MST snapshot, not the pre-batch state, so a `create A; update A`
-		// pair within ONE applyWrites is legal upstream. This mock evaluates
-		// against the pre-batch state, so that pattern is rejected here. The
-		// publish flow doesn't depend on within-batch dependencies (profile
-		// and release have different rkeys), so this divergence doesn't
-		// affect coverage today. If a future flow ever does, replace the
-		// pre-batch checks with a snapshot-aware simulation.
+		// CAVEAT: this mock evaluates create/update existence against the
+		// pre-batch state. Whether a real PDS allows within-batch
+		// dependencies (e.g. `create A; update A` in one applyWrites) is
+		// not crisply documented in the atproto spec, and behaviour may
+		// vary between PDS implementations. The publish flow doesn't
+		// depend on within-batch dependencies (profile and release have
+		// different rkeys), so the divergence (if any) doesn't affect
+		// coverage today. If you change the publish flow to issue a
+		// dependent batch, validate the assumption against an actual PDS
+		// before relying on it.
 		for (const op of input.writes ?? []) {
 			if (!op.rkey) {
 				return jsonResponse(400, {

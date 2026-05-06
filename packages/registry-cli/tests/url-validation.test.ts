@@ -1,0 +1,85 @@
+/**
+ * Coverage for `validatePublishUrl`. The function is the syntactic SSRF
+ * guard in publish: the FIRST line of defence before the redirect-loop
+ * DNS check. Bugs here have historically produced silent SSRF (see
+ * round-3 -> round-4 review notes), so the test net is dense around
+ * IPv6-literal, IPv4-mapped, and bracketed-host edge cases.
+ */
+import { describe, expect, it } from "vitest";
+
+import { validatePublishUrlForTest as validate } from "../src/commands/publish.js";
+
+describe("validatePublishUrl", () => {
+	describe("rejects non-public IPv4 literals", () => {
+		it.each([
+			"https://127.0.0.1/x",
+			"https://10.0.0.1/x",
+			"https://192.168.1.1/x",
+			"https://172.16.0.1/x",
+			"https://172.31.255.255/x",
+			"https://169.254.169.254/x", // AWS metadata
+			"https://0.0.0.0/x",
+			"https://100.64.0.1/x", // CGNAT
+		])("blocks %s", (url) => {
+			expect(validate(url)).not.toBeNull();
+		});
+
+		it.each(["https://172.15.0.1/x", "https://172.32.0.1/x"])(
+			"allows %s (just outside private range)",
+			(url) => {
+				expect(validate(url)).toBeNull();
+			},
+		);
+	});
+
+	describe("rejects non-public IPv6 literals", () => {
+		// These are the cases the round-3 fix claimed to handle but which
+		// silently passed because Node's URL parser keeps the brackets and
+		// normalises any embedded IPv4 to two hex groups.
+		it.each([
+			"https://[::1]/x", // loopback
+			"https://[fc00::1]/x", // ULA
+			"https://[fd00::1]/x", // ULA
+			"https://[fe80::1]/x", // link-local
+			"https://[::ffff:169.254.169.254]/x", // IPv4-mapped to AWS metadata
+			"https://[::ffff:127.0.0.1]/x", // IPv4-mapped loopback
+			"https://[::ffff:10.0.0.1]/x", // IPv4-mapped RFC1918
+			"https://[::169.254.169.254]/x", // IPv4-compatible (deprecated)
+			"https://[64:ff9b::169.254.169.254]/x", // NAT64 well-known prefix
+		])("blocks %s", (url) => {
+			expect(validate(url)).not.toBeNull();
+		});
+
+		it.each([
+			"https://[2001:db8::1]/x", // documentation prefix; not on the deny list
+			"https://[2606:4700::1]/x", // public Cloudflare
+		])("allows %s", (url) => {
+			expect(validate(url)).toBeNull();
+		});
+	});
+
+	it("rejects localhost / .local hostnames", () => {
+		expect(validate("https://localhost/x")).not.toBeNull();
+		expect(validate("https://my-machine.local/x")).not.toBeNull();
+	});
+
+	it("rejects http://", () => {
+		expect(validate("http://example.com/x")).not.toBeNull();
+	});
+
+	it("rejects file://, ftp://", () => {
+		expect(validate("file:///etc/passwd")).not.toBeNull();
+		expect(validate("ftp://example.com/x")).not.toBeNull();
+	});
+
+	it("rejects malformed URLs", () => {
+		expect(validate("not a url")).not.toBeNull();
+		expect(validate("")).not.toBeNull();
+	});
+
+	it("allows ordinary public https URLs", () => {
+		expect(validate("https://example.com/file.tar.gz")).toBeNull();
+		expect(validate("https://github.com/owner/repo/releases/download/v1/x.tar.gz")).toBeNull();
+		expect(validate("https://cdn.example.com:8443/path?query=1#frag")).toBeNull();
+	});
+});

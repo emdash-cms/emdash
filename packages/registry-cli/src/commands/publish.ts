@@ -18,6 +18,7 @@
  * tests can run it against a mock PDS.
  */
 
+import { lookup as dnsLookup } from "node:dns/promises";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
@@ -89,7 +90,8 @@ export const publishCommand = defineCommand({
 		},
 		json: {
 			type: "boolean",
-			description: "Output result as JSON",
+			description:
+				"Emit a single-line JSON object on stdout instead of human output. Success: {profile, release, cid, checksum, url, profileCreated, releaseOverwritten}. Failure: {error: {code, message}}. Human-readable progress goes to stderr in either mode.",
 		},
 	},
 	async run({ args }) {
@@ -99,14 +101,21 @@ export const publishCommand = defineCommand({
 		// can restore in the finally below (matters when the CLI is exec'd
 		// in-process by tests or wrappers).
 		const restoreReporters = args.json ? redirectConsolaToStderr() : null;
+		// `process.exit` inside a catch block runs SYNCHRONOUSLY and skips
+		// the finally. Capture the desired exit code, run finally, then
+		// exit. The exit code mirrors the originating CliError where
+		// available (so user-error vs publish-failure is distinguishable in
+		// scripts) and falls back to 1 for anything else.
+		let exitCode = 0;
 		try {
 			await runPublish(args);
 		} catch (error) {
+			exitCode = error instanceof CliError ? error.exitCode : 1;
 			handlePublishError(error, args.json);
-			process.exit(1);
 		} finally {
 			restoreReporters?.();
 		}
+		if (exitCode !== 0) process.exit(exitCode);
 	},
 });
 
@@ -353,6 +362,11 @@ function formatBytes(n: number): string {
  * non-public URL: consumers can't install from `file:///` or `http://192.x`
  * and end up with a broken record in the registry. We reject those up front.
  */
+// Exported for unit tests; not part of the public CLI surface.
+export function validatePublishUrlForTest(url: string): string | null {
+	return validatePublishUrl(url);
+}
+
 function validatePublishUrl(url: string): string | null {
 	let parsed: URL;
 	try {
@@ -370,18 +384,34 @@ function validatePublishUrl(url: string): string | null {
 	if (parsed.protocol !== "https:") {
 		return `--url must use https; got ${parsed.protocol}. Host the tarball over TLS.`;
 	}
-	const host = parsed.hostname;
+	// `URL.hostname` keeps the `[ ]` around IPv6 literals AND normalises any
+	// embedded IPv4 dotted-quad to two hex groups (e.g.
+	// `::ffff:169.254.169.254` -> `[::ffff:a9fe:a9fe]`). Strip brackets
+	// before any check; downstream helpers operate on the bracket-free form.
+	const host = stripIPv6Brackets(parsed.hostname);
 	if (
 		host === "localhost" ||
 		host === "127.0.0.1" ||
 		host === "::1" ||
 		host.endsWith(".local") ||
 		isPrivateIp(host) ||
-		isPrivateMappedIPv6(host)
+		isPrivateMappedIPv6(host) ||
+		isPrivateIPv6Literal(host)
 	) {
 		return `--url ${url} resolves to a non-public host (${host}); consumers won't be able to install from it. Host the tarball publicly first.`;
 	}
 	return null;
+}
+
+/**
+ * Remove the surrounding brackets that `URL.hostname` keeps around an IPv6
+ * literal. Returns the input unchanged if not bracketed.
+ */
+function stripIPv6Brackets(host: string): string {
+	if (host.length >= 2 && host.startsWith("[") && host.endsWith("]")) {
+		return host.slice(1, -1);
+	}
+	return host;
 }
 
 /**
@@ -396,25 +426,42 @@ function validatePublishUrl(url: string): string | null {
  * Returns an error message or null. Pass an already-validated URL.
  */
 async function validateResolvedHost(host: string): Promise<string | null> {
-	// Literal IPs are already caught by the syntactic guard. We only resolve
-	// hostnames.
-	if (IPV4_RE.test(host)) return null;
-	if (host.includes(":")) return null; // IPv6 literal in URL form
-	const { lookup } = await import("node:dns/promises");
+	// Literal IPs are caught by `validatePublishUrl`'s syntactic guard
+	// (which is invariably called immediately before this in both the
+	// initial-URL and redirect-hop paths). We skip resolving them here:
+	//   - v4 literal: matches IPV4_RE, no DNS to do.
+	//   - v6 literal: contains `:`, no DNS to do (URL keeps brackets in
+	//     hostname; the bracket form has `:` so the include check fires).
+	// Real hostnames contain neither; that's what we resolve.
+	//
+	// CAVEAT (DNS rebinding): the OS resolver may cache for a TTL the
+	// attacker controls. A 1-second TTL means the validation lookup and
+	// the subsequent `fetch` lookup can resolve to different addresses.
+	// A motivated attacker can return a public IP for the validation
+	// lookup and a private IP for the fetch. Mitigating this fully
+	// requires resolving once and binding the connection to the resolved
+	// IP literal, which means giving up SNI / Host-header convenience.
+	// We accept the residual risk for the publish CLI (run by a human
+	// publishing their own content) and document it here so it isn't
+	// surprising.
+	const stripped = stripIPv6Brackets(host);
+	if (IPV4_RE.test(stripped)) return null;
+	if (stripped.includes(":")) return null;
 	let addresses: Array<{ address: string; family: number }>;
 	try {
-		addresses = await lookup(host, { all: true, verbatim: true });
+		addresses = await dnsLookup(stripped, { all: true, verbatim: true });
 	} catch (error) {
-		return `could not resolve ${host}: ${error instanceof Error ? error.message : String(error)}`;
+		return `could not resolve ${stripped}: ${error instanceof Error ? error.message : String(error)}`;
 	}
 	for (const { address } of addresses) {
 		if (
 			address === "127.0.0.1" ||
 			address === "::1" ||
 			isPrivateIp(address) ||
-			isPrivateMappedIPv6(address)
+			isPrivateMappedIPv6(address) ||
+			isPrivateIPv6Literal(address)
 		) {
-			return `${host} resolves to non-public address ${address}`;
+			return `${stripped} resolves to non-public address ${address}`;
 		}
 	}
 	return null;
@@ -425,11 +472,29 @@ async function validateResolvedHost(host: string): Promise<string | null> {
 // a DNS-resolved check (`validateResolvedHost`) so a public hostname
 // pointing at a private IP is also caught.
 const IPV4_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-const IPV6_ULA_FC_RE = /^fc[0-9a-f]{2}:/i;
-const IPV6_ULA_FD_RE = /^fd[0-9a-f]{2}:/i;
-const IPV6_LINK_LOCAL_RE = /^fe[89ab][0-9a-f]:/i;
-// IPv4-mapped (::ffff:1.2.3.4) and IPv4-compatible (::1.2.3.4) IPv6.
-const IPV6_V4_MAPPED_RE = /^(?:0*:)*(?:ffff:)?(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i;
+// IPv6 ULA (fc00::/7), link-local (fe80::/10). Bracket-stripped form.
+const IPV6_ULA_FC_RE = /^fc[0-9a-f]{2}(?::|$)/i;
+const IPV6_ULA_FD_RE = /^fd[0-9a-f]{2}(?::|$)/i;
+const IPV6_LINK_LOCAL_RE = /^fe[89ab][0-9a-f](?::|$)/i;
+// Loopback (::1), unspecified (::) -- already special-cased in
+// `validatePublishUrl` for clarity, also caught here. Bracket-stripped.
+const IPV6_LOOPBACK_RE = /^::1$/i;
+const IPV6_UNSPECIFIED_RE = /^::$/i;
+// IPv4-compatible IPv6 (`::a.b.c.d`, deprecated but valid input form).
+const IPV6_V4_COMPAT_DOTTED_RE = /^::(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i;
+// IPv4-mapped IPv6 in dotted form (`::ffff:a.b.c.d`).
+const IPV6_V4_MAPPED_DOTTED_RE = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i;
+// IPv4-mapped IPv6 after URL parser normalisation (`::ffff:hhhh:hhhh`).
+// Two hex groups of up to 4 chars each, encoding 4 octets of v4. The URL
+// parser collapses leading zero groups into `::` and converts the IPv4
+// suffix into hex pairs.
+const IPV6_V4_MAPPED_HEX_RE = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
+// IPv6 with embedded IPv4 in non-`::` prefixes (e.g. `64:ff9b::a9fe:a9fe`
+// for NAT64). After URL normalisation the v4 suffix becomes hex too. We
+// don't try to enumerate all v6 well-known-prefix patterns; instead, the
+// catch-all `isPrivateIPv6Literal` below decodes any v6 literal whose last
+// 32 bits look like an IPv4 mapping and re-runs the v4 check.
+const IPV6_TRAILING_HEX_PAIR_RE = /:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
 
 /**
  * Detect RFC 1918, loopback, link-local, CGNAT, and 0.0.0.0/8 IPv4
@@ -457,18 +522,69 @@ function isPrivateIp(host: string): boolean {
 }
 
 /**
- * IPv4-mapped IPv6 addresses (`::ffff:127.0.0.1`) and IPv4-compatible IPv6
- * (`::127.0.0.1`) tunnel a v4 address through v6 syntax. Without this check
- * a redirect to `https://[::ffff:169.254.169.254]/` would bypass the v4
- * private-IP guard and fetch cloud-instance metadata. Match the embedded
- * v4 address and re-run the v4 check on it.
+ * IPv4-mapped (`::ffff:1.2.3.4`) and IPv4-compatible (`::1.2.3.4`) IPv6.
+ *
+ * Note: Node's `URL` parser normalises the dotted-quad form to hex pairs
+ * (`::ffff:a9fe:a9fe`), so for inputs that came through `URL.hostname` we
+ * also need the hex-pair branch. We handle both because `validatePublishUrl`
+ * is also called with redirect Locations that may not have been re-parsed.
  */
 function isPrivateMappedIPv6(host: string): boolean {
-	const m = IPV6_V4_MAPPED_RE.exec(host);
-	if (!m) return false;
-	const inner = m[1];
-	if (!inner) return false;
-	return isPrivateIp(inner);
+	const dotted = IPV6_V4_MAPPED_DOTTED_RE.exec(host) ?? IPV6_V4_COMPAT_DOTTED_RE.exec(host);
+	if (dotted) {
+		const inner = dotted[1];
+		return inner ? isPrivateIp(inner) : false;
+	}
+	const hex = IPV6_V4_MAPPED_HEX_RE.exec(host);
+	if (hex) {
+		const v4 = decodeIPv6V4HexPair(hex[1], hex[2]);
+		return v4 ? isPrivateIp(v4) : false;
+	}
+	return false;
+}
+
+/**
+ * Detect a private IPv6 address literal in bracket-stripped form. Covers
+ * loopback `::1`, unspecified `::`, ULA `fc00::/7`, link-local `fe80::/10`,
+ * and any literal whose final 32 bits decode to a private IPv4 (handles
+ * NAT64 well-known-prefix `64:ff9b::a.b.c.d` style addresses where the
+ * URL parser has converted the dotted suffix to hex).
+ */
+function isPrivateIPv6Literal(host: string): boolean {
+	if (IPV6_LOOPBACK_RE.test(host)) return true;
+	if (IPV6_UNSPECIFIED_RE.test(host)) return true;
+	if (IPV6_ULA_FC_RE.test(host)) return true;
+	if (IPV6_ULA_FD_RE.test(host)) return true;
+	if (IPV6_LINK_LOCAL_RE.test(host)) return true;
+	// Look at the last two hex groups of any v6 literal -- if both are
+	// 1-4 hex digits, decode as 4 octets and run the v4 private check. This
+	// catches NAT64 (`64:ff9b::a9fe:a9fe`), 6to4 with embedded v4, and any
+	// future well-known prefix without us having to enumerate them.
+	const v6Suffix = IPV6_TRAILING_HEX_PAIR_RE.exec(host);
+	if (v6Suffix) {
+		const v4 = decodeIPv6V4HexPair(v6Suffix[1], v6Suffix[2]);
+		if (v4 && isPrivateIp(v4)) return true;
+	}
+	return false;
+}
+
+/**
+ * Decode two IPv6 hex groups (each up to 4 hex digits) into an IPv4 dotted
+ * quad. Returns null if either group is out of range. Matches the encoding
+ * Node's `URL` parser uses when an IPv6 literal includes a dotted IPv4
+ * suffix.
+ */
+function decodeIPv6V4HexPair(a: string | undefined, b: string | undefined): string | null {
+	if (!a || !b) return null;
+	const ax = Number.parseInt(a, 16);
+	const bx = Number.parseInt(b, 16);
+	if (!Number.isFinite(ax) || !Number.isFinite(bx)) return null;
+	if (ax < 0 || ax > 0xffff || bx < 0 || bx > 0xffff) return null;
+	const o1 = (ax >> 8) & 0xff;
+	const o2 = ax & 0xff;
+	const o3 = (bx >> 8) & 0xff;
+	const o4 = bx & 0xff;
+	return `${o1}.${o2}.${o3}.${o4}`;
 }
 
 /**
@@ -647,13 +763,17 @@ async function extractManifestFromTarball(bytes: Uint8Array): Promise<PluginMani
 }
 
 /**
- * Validate the structural shape of a parsed `manifest.json` against the
- * contract. Throws a clean error if any required field is missing or
- * mistyped, so downstream code doesn't have to defensively guard every
- * `manifest.foo.bar` access.
+ * Best-effort structural sanity check on a parsed `manifest.json`. NOT a
+ * full lexicon validation: we check the shapes the publish flow actually
+ * touches (`id`, `version`, `capabilities`, `allowedHosts`, plus that
+ * `storage`/`hooks`/`routes`/`admin` are at least the right top-level
+ * shape). Hook and route entries are only checked to be string-or-object;
+ * we deliberately don't validate their inner structure here because (a)
+ * the publish flow doesn't iterate them and (b) the inner shape varies
+ * across manifest schema versions and is core's read-side problem.
  *
- * The manifest contract is the wire shape published in
- * `@emdash-cms/plugin-types`; this guard checks the fields we actively use.
+ * Callers who need a full validation should round-trip through the runtime
+ * narrowing helper in `packages/core/src/plugins/manifest-schema.ts`.
  */
 function assertManifestShape(value: unknown): PluginManifest {
 	if (!value || typeof value !== "object" || Array.isArray(value)) {
