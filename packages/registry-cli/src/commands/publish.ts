@@ -54,7 +54,7 @@ export const publishCommand = defineCommand({
 		local: {
 			type: "string",
 			description:
-				"Optional path to a local copy of the tarball at --url. Skips a re-download but still verifies the URL serves matching bytes.",
+				"Optional path to a local copy of the tarball at --url. The CLI still downloads the URL (it has to compute the checksum from what consumers will fetch), but cross-checks the local bytes match. Use this to catch a stale upload before publishing.",
 		},
 		license: {
 			type: "string",
@@ -93,6 +93,14 @@ export const publishCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
+		// In --json mode, stdout MUST contain only the final JSON object so
+		// callers can `emdash-registry publish ... --json | jq`. Route every
+		// consola log line to stderr instead of stdout. We do this by swapping
+		// in a reporter that writes to process.stderr regardless of level.
+		if (args.json) {
+			redirectConsolaToStderr();
+		}
+
 		// Validate URL before any network access. Empty or non-https URLs are
 		// rejected so we never publish a record pointing at file:// or a private
 		// IP that consumers won't be able to fetch from.
@@ -241,6 +249,28 @@ export const publishCommand = defineCommand({
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Reroute every consola log call to stderr. Used by `--json` mode so the
+ * structured JSON object on stdout is the only thing a pipe consumer sees.
+ *
+ * We replace the global reporter rather than constructing a separate
+ * instance so that downstream calls into shared helpers (which import the
+ * default `consola` singleton) are also redirected.
+ */
+function redirectConsolaToStderr(): void {
+	consola.setReporters([
+		{
+			log(logObj) {
+				const level = logObj.type ?? "info";
+				const tag = logObj.tag ? `[${logObj.tag}] ` : "";
+				const args = logObj.args ?? [];
+				const message = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
+				process.stderr.write(`${level}: ${tag}${message}\n`);
+			},
+		},
+	]);
+}
+
 function formatBytes(n: number): string {
 	if (n < 1024) return `${n} B`;
 	if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
@@ -263,8 +293,15 @@ function validatePublishUrl(url: string): string | null {
 	} catch {
 		return `--url is not a valid URL: ${url}`;
 	}
-	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-		return `--url must use http(s); got ${parsed.protocol}`;
+	// Require https. Tarball integrity is enforced by the multihash we publish
+	// alongside the URL, so a MITM can't substitute the bytes -- consumers
+	// will reject a checksum mismatch. But TLS still matters here: it
+	// prevents an active attacker from observing which plugin versions the
+	// publisher is shipping, and it shuts the door on novel checksum-bypass
+	// attacks (e.g. a lexicon evolution that loosens checksum verification).
+	// The cost is near-zero -- no public CDN serves http-only in 2026.
+	if (parsed.protocol !== "https:") {
+		return `--url must use https; got ${parsed.protocol}. Host the tarball over TLS.`;
 	}
 	const host = parsed.hostname;
 	if (
@@ -329,14 +366,48 @@ function validateStringFlags(flags: Record<string, string | undefined>): string 
  * Fetch the tarball bytes at `url`. We need the full body to compute the
  * checksum and to read `manifest.json` from inside it. Streams the response
  * with a hard cap so a malicious URL can't OOM the CLI.
+ *
+ * Follows redirects MANUALLY so we can re-validate every hop against
+ * `validatePublishUrl`. Without this, a publisher could pass a public URL
+ * that 302s to `http://169.254.169.254/...` (cloud metadata) or to a
+ * `localhost` victim, defeating the publish-side allow-list.
  */
 async function fetchTarball(url: string): Promise<Uint8Array> {
-	const res = await fetch(url, {
-		// GitHub release assets need this header to actually serve the file
-		// (without it the API URL returns JSON metadata). Direct CDN URLs
-		// ignore the header.
-		headers: { Accept: "application/octet-stream" },
-	});
+	const MAX_REDIRECTS = 10;
+	let currentUrl = url;
+	let res: Response | undefined;
+	for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+		res = await fetch(currentUrl, {
+			// GitHub release assets need this header to actually serve the file
+			// (without it the API URL returns JSON metadata). Direct CDN URLs
+			// ignore the header.
+			headers: { Accept: "application/octet-stream" },
+			redirect: "manual",
+		});
+		// `manual` means 3xx responses come back with a Location header rather
+		// than being followed. fetch() in workerd / node also surfaces
+		// "opaqueredirect" status 0 in some environments; treat any 3xx-ish
+		// state (or status 0) WITH a Location header as a redirect.
+		const status = res.status;
+		const location = res.headers.get("location");
+		if (location === null) break;
+		const isRedirect = (status >= 300 && status < 400) || status === 0;
+		if (!isRedirect) break;
+		if (hop === MAX_REDIRECTS) {
+			throw new Error(`tarball at ${url}: too many redirects (>${MAX_REDIRECTS})`);
+		}
+		// Resolve relative Locations against the current URL.
+		const next = new URL(location, currentUrl).toString();
+		const hopError = validatePublishUrl(next);
+		if (hopError) {
+			throw new Error(`tarball at ${url} redirected to a disallowed URL (${next}): ${hopError}`);
+		}
+		currentUrl = next;
+	}
+	if (!res) {
+		// Loop is structured so this is unreachable, but TS can't see it.
+		throw new Error(`failed to fetch ${url}: no response`);
+	}
 	if (!res.ok) {
 		throw new Error(`failed to fetch ${url}: ${res.status} ${res.statusText}`);
 	}
@@ -391,10 +462,14 @@ async function fetchTarball(url: string): Promise<Uint8Array> {
 
 /**
  * Extract `manifest.json` from a gzipped tarball, using `modern-tar`'s
- * stream-then-collect API. Returns the parsed manifest.
+ * stream-then-collect API. Returns the parsed-and-validated manifest.
  *
  * Accepts both `manifest.json` and `./manifest.json` since modern-tar's
  * exact naming behaviour isn't pinned in our contract.
+ *
+ * Validates the parsed JSON shape against the contract before returning,
+ * so downstream code (which iterates `capabilities`, indexes `allowedHosts`,
+ * etc.) doesn't TypeError on garbage input from a malicious tarball.
  */
 async function extractManifestFromTarball(bytes: Uint8Array): Promise<PluginManifest> {
 	const { unpackTar, createGzipDecoder } = await import("modern-tar");
@@ -421,14 +496,57 @@ async function extractManifestFromTarball(bytes: Uint8Array): Promise<PluginMani
 	if (!manifestEntry?.data) {
 		throw new Error("manifest.json not found in tarball");
 	}
+	let parsed: unknown;
 	try {
-		return JSON.parse(new TextDecoder().decode(manifestEntry.data)) as PluginManifest;
+		parsed = JSON.parse(new TextDecoder().decode(manifestEntry.data));
 	} catch (error) {
 		throw new Error(
 			`manifest.json in the tarball is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
 			{ cause: error },
 		);
 	}
+	return assertManifestShape(parsed);
+}
+
+/**
+ * Validate the structural shape of a parsed `manifest.json` against the
+ * contract. Throws a clean error if any required field is missing or
+ * mistyped, so downstream code doesn't have to defensively guard every
+ * `manifest.foo.bar` access.
+ *
+ * The manifest contract is the wire shape published in
+ * `@emdash-cms/plugin-types`; this guard checks the fields we actively use.
+ */
+function assertManifestShape(value: unknown): PluginManifest {
+	if (!value || typeof value !== "object") {
+		throw new Error("manifest.json must be an object");
+	}
+	const v = value as Record<string, unknown>;
+	if (typeof v.id !== "string" || v.id.length === 0) {
+		throw new Error("manifest.json: `id` must be a non-empty string");
+	}
+	if (typeof v.version !== "string" || v.version.length === 0) {
+		throw new Error("manifest.json: `version` must be a non-empty string");
+	}
+	if (!Array.isArray(v.capabilities) || v.capabilities.some((c) => typeof c !== "string")) {
+		throw new Error("manifest.json: `capabilities` must be an array of strings");
+	}
+	if (!Array.isArray(v.allowedHosts) || v.allowedHosts.some((h) => typeof h !== "string")) {
+		throw new Error("manifest.json: `allowedHosts` must be an array of strings");
+	}
+	if (!v.storage || typeof v.storage !== "object") {
+		throw new Error("manifest.json: `storage` must be an object");
+	}
+	if (!Array.isArray(v.hooks)) {
+		throw new Error("manifest.json: `hooks` must be an array");
+	}
+	if (!Array.isArray(v.routes)) {
+		throw new Error("manifest.json: `routes` must be an array");
+	}
+	if (!v.admin || typeof v.admin !== "object") {
+		throw new Error("manifest.json: `admin` must be an object");
+	}
+	return v as unknown as PluginManifest;
 }
 
 /**

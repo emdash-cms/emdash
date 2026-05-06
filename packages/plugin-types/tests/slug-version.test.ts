@@ -66,9 +66,41 @@ describe("isPluginVersion", () => {
 		expect(isPluginVersion("10.20.30")).toBe(true);
 	});
 
+	it("accepts canonical pre-release identifiers per semver 2.0", () => {
+		expect(isPluginVersion("1.0.0-rc.1")).toBe(true);
+		expect(isPluginVersion("1.0.0-alpha")).toBe(true);
+		expect(isPluginVersion("1.0.0-alpha.1")).toBe(true);
+		expect(isPluginVersion("1.0.0-0.3.7")).toBe(true);
+		expect(isPluginVersion("1.0.0-x.7.z.92")).toBe(true);
+	});
+
 	it("rejects build-metadata suffixes (semver `+` is disallowed)", () => {
 		expect(isPluginVersion("1.0.0+build")).toBe(false);
 		expect(isPluginVersion("1.0.0+build.1")).toBe(false);
+		expect(isPluginVersion("1.0.0-rc.0+build")).toBe(false);
+	});
+
+	it("rejects leading-zero numeric components (per semver)", () => {
+		expect(isPluginVersion("01.0.0")).toBe(false);
+		expect(isPluginVersion("1.02.0")).toBe(false);
+		expect(isPluginVersion("1.0.03")).toBe(false);
+		// Pre-release numerics also disallow leading zeros.
+		expect(isPluginVersion("1.0.0-01")).toBe(false);
+		expect(isPluginVersion("1.0.0-rc.01")).toBe(false);
+	});
+
+	it("rejects malformed versions the previous loose regex accepted", () => {
+		expect(isPluginVersion(".1.0.0")).toBe(false);
+		expect(isPluginVersion("1.0.0-")).toBe(false);
+		expect(isPluginVersion("-")).toBe(false);
+		expect(isPluginVersion(".")).toBe(false);
+		expect(isPluginVersion("foo")).toBe(false);
+		expect(isPluginVersion("1.0")).toBe(false); // missing patch
+		expect(isPluginVersion("1")).toBe(false);
+		// Note: `1.0.0--rc` is technically valid semver — `-rc` is an
+		// alphanumeric identifier with leading hyphen — even though it looks
+		// suspicious. We accept it.
+		expect(isPluginVersion("1.0.0--rc")).toBe(true);
 	});
 
 	it("rejects path-traversal and shell-control characters", () => {
@@ -87,7 +119,15 @@ describe("isPluginVersion", () => {
 	});
 
 	it("rejects versions over the max length", () => {
-		expect(isPluginVersion("1.".repeat(PLUGIN_VERSION_MAX_LENGTH / 2))).toBe(true);
-		expect(isPluginVersion("1".repeat(PLUGIN_VERSION_MAX_LENGTH + 1))).toBe(false);
+		// Construct exactly-max-length: "1." repeated, capped to keep semver shape.
+		// Use a prerelease tail to inflate length within the format.
+		const shortValid = "1.0.0";
+		expect(isPluginVersion(shortValid)).toBe(true);
+		// Synthesize a max-length valid: "1.0.0-" + identifier of length (max-6).
+		const tail = "a".repeat(PLUGIN_VERSION_MAX_LENGTH - 6);
+		const exactlyMax = `1.0.0-${tail}`;
+		expect(exactlyMax.length).toBe(PLUGIN_VERSION_MAX_LENGTH);
+		expect(isPluginVersion(exactlyMax)).toBe(true);
+		expect(isPluginVersion(`${exactlyMax}b`)).toBe(false);
 	});
 });

@@ -170,9 +170,14 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 	// each other's intermediate artefacts. Cleaned up unconditionally in the
 	// `finally` below.
 	const tmpDir = await mkdtemp(join(tmpdir(), "emdash-bundle-"));
-	const { build } = await import("tsdown");
 
 	try {
+		// Dynamic-import tsdown INSIDE the try block so a missing/broken
+		// tsdown install (or a transient ENOENT during import) doesn't leak
+		// the tmpdir we just created. The cost is one extra try-frame; the
+		// alternative was a tmpdir orphaned per failed import.
+		const { build } = await import("tsdown");
+
 		const resolvedPlugin = await extractResolvedPlugin({
 			pluginDir,
 			tmpDir,
@@ -691,8 +696,16 @@ function isPluginDescriptorShape(value: unknown): value is Record<string, unknow
 	const v = value as Record<string, unknown>;
 	if (typeof v.id !== "string" || v.id.length === 0) return false;
 	if (typeof v.version !== "string" || v.version.length === 0) return false;
-	if (v.capabilities !== undefined && !Array.isArray(v.capabilities)) return false;
-	if (v.allowedHosts !== undefined && !Array.isArray(v.allowedHosts)) return false;
+	if (v.capabilities !== undefined) {
+		if (!Array.isArray(v.capabilities)) return false;
+		// Reject non-string entries -- they'd serialize into a malformed
+		// manifest.json and confuse the runtime.
+		if (v.capabilities.some((c) => typeof c !== "string")) return false;
+	}
+	if (v.allowedHosts !== undefined) {
+		if (!Array.isArray(v.allowedHosts)) return false;
+		if (v.allowedHosts.some((h) => typeof h !== "string")) return false;
+	}
 	return true;
 }
 
@@ -710,11 +723,21 @@ function hasNonEmptyArrayField(descriptor: Record<string, unknown>, field: strin
 
 /**
  * Write a stub `emdash.mjs` into `dir` that the user's plugin code resolves
- * its `import "emdash"` against during build/probe. The shim is a Proxy:
- * `definePlugin` is the identity function (the standard format's only legal
- * use of the `emdash` import), and any other access throws with a clear
- * message. Without the Proxy, plugins that import other things from `emdash`
- * silently get `undefined`, which can be tree-shaken away and mask real bugs.
+ * its `import "emdash"` against during build/probe. The shim's surface is:
+ *
+ *   - `definePlugin` (named + default-property): identity function. The
+ *     standard format's only legal `emdash` import.
+ *   - default export: a Proxy. Any property access other than
+ *     `definePlugin` returns a function that throws on call with a clear
+ *     message. Without the Proxy, plugins doing dynamic property access on
+ *     the default would silently get undefined and tree-shake to nothing.
+ *
+ * Named imports of anything other than `definePlugin` (e.g.
+ * `import { admin } from "emdash"`) are caught by the bundler at build
+ * time -- the named binding doesn't exist on the shim, so tsdown / Rollup
+ * errors with "Module 'emdash' has no exported member 'admin'". That's a
+ * better failure mode than a runtime undefined, so we don't try to handle
+ * unknown named imports at the shim level.
  */
 async function writeEmdashShim(dir: string): Promise<string> {
 	await mkdir(dir, { recursive: true });
@@ -773,11 +796,19 @@ async function augmentWithSandboxProbe(ctx: ProbeContext): Promise<void> {
 	if (hooks) {
 		for (const hookName of Object.keys(hooks)) {
 			const hookEntry = hooks[hookName];
-			const isConfig =
-				typeof hookEntry === "object" && hookEntry !== null && "handler" in hookEntry;
-			const config = isConfig ? (hookEntry as Record<string, unknown>) : {};
+			const handler = extractHookHandler(hookEntry);
+			if (!handler) {
+				throw new BundleError(
+					"INVALID_PLUGIN_FORMAT",
+					`Sandbox entry's hook "${hookName}" must be a function or { handler: function, ... }. Got ${describeShape(hookEntry)}.`,
+				);
+			}
+			const config: Record<string, unknown> =
+				typeof hookEntry === "object" && hookEntry !== null
+					? (hookEntry as Record<string, unknown>)
+					: {};
 			resolvedPlugin.hooks[hookName] = {
-				handler: isConfig ? (hookEntry as Record<string, unknown>).handler : hookEntry,
+				handler,
 				priority: (config.priority as number | undefined) ?? 100,
 				timeout: (config.timeout as number | undefined) ?? 5000,
 				dependencies: (config.dependencies as string[] | undefined) ?? [],
@@ -789,13 +820,54 @@ async function augmentWithSandboxProbe(ctx: ProbeContext): Promise<void> {
 	}
 	if (routes) {
 		for (const [name, route] of Object.entries(routes)) {
-			const routeObj = route as Record<string, unknown>;
+			const handler = extractRouteHandler(route);
+			if (!handler) {
+				throw new BundleError(
+					"INVALID_PLUGIN_FORMAT",
+					`Sandbox entry's route "${name}" must be a function or { handler: function, ... }. Got ${describeShape(route)}.`,
+				);
+			}
+			const routeObj: Record<string, unknown> =
+				typeof route === "object" && route !== null ? (route as Record<string, unknown>) : {};
 			resolvedPlugin.routes[name] = {
-				handler: routeObj.handler,
+				handler,
 				public: routeObj.public as boolean | undefined,
 			};
 		}
 	}
+}
+
+/**
+ * Extract a hook handler from either the bare function form or the
+ * `{ handler, priority, ... }` config form. Returns `undefined` if neither
+ * shape is present so callers can hard-fail with a useful error.
+ */
+function extractHookHandler(entry: unknown): unknown {
+	if (typeof entry === "function") return entry;
+	if (entry && typeof entry === "object" && "handler" in entry) {
+		const handler = (entry as { handler: unknown }).handler;
+		if (typeof handler === "function") return handler;
+	}
+	return undefined;
+}
+
+/**
+ * Same as `extractHookHandler` for route entries.
+ */
+function extractRouteHandler(entry: unknown): unknown {
+	if (typeof entry === "function") return entry;
+	if (entry && typeof entry === "object" && "handler" in entry) {
+		const handler = (entry as { handler: unknown }).handler;
+		if (typeof handler === "function") return handler;
+	}
+	return undefined;
+}
+
+function describeShape(value: unknown): string {
+	if (value === null) return "null";
+	if (value === undefined) return "undefined";
+	if (Array.isArray(value)) return `array (length ${value.length})`;
+	return typeof value;
 }
 
 interface CollectAssetsContext {

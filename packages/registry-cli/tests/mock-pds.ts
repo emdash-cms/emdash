@@ -213,7 +213,14 @@ export class MockPds implements FetchHandlerObject {
 		}
 
 		// Validate every operation up front; either all-or-nothing, like a real
-		// applyWrites would be (atomic commit).
+		// applyWrites would be (atomic commit). Validation includes:
+		//   - rkey present
+		//   - rkey shape and repo match
+		//   - create ops must not collide with an existing record
+		//   - update ops must target an existing record
+		// Real PDSes enforce all four; without H3/H4-style guards, the mock
+		// would accept writes a real PDS would reject and tests would pass
+		// on broken code paths.
 		for (const op of input.writes ?? []) {
 			if (!op.rkey) {
 				return jsonResponse(400, {
@@ -223,6 +230,19 @@ export class MockPds implements FetchHandlerObject {
 			}
 			const guard = this.#validateWriteTarget(input.repo, op.collection, op.rkey);
 			if (guard) return guard;
+			const uri = `at://${input.repo}/${op.collection}/${op.rkey}`;
+			if (op.$type === "com.atproto.repo.applyWrites#create" && this.records.has(uri)) {
+				return jsonResponse(400, {
+					error: "RecordAlreadyExists",
+					message: `cannot create ${uri}: a record with that key already exists`,
+				});
+			}
+			if (op.$type === "com.atproto.repo.applyWrites#update" && !this.records.has(uri)) {
+				return jsonResponse(400, {
+					error: "RecordNotFound",
+					message: `cannot update ${uri}: no record with that key exists`,
+				});
+			}
 		}
 
 		// Apply atomically: collect results, then commit.

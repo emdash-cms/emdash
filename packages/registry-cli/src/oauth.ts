@@ -18,7 +18,7 @@
  * fresh login.
  */
 
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
 
@@ -130,7 +130,8 @@ class FileStore<V> implements Store<string, V> {
 	}
 
 	async #flush(): Promise<void> {
-		await mkdir(dirname(this.#path), { recursive: true, mode: 0o700 });
+		const dir = dirname(this.#path);
+		await mkdir(dir, { recursive: true, mode: 0o700 });
 		const envelope: FileStoreEnvelope<V> = {
 			version: FILE_STORE_VERSION,
 			entries: Object.fromEntries(this.#cache),
@@ -144,11 +145,34 @@ class FileStore<V> implements Store<string, V> {
 			// safe but not durable.
 			await writeFile(tmp, body, { mode: 0o600, flush: true });
 			await rename(tmp, this.#path);
+			// fsync the directory after the rename so the rename itself is
+			// durable across power loss. POSIX file fsync persists the inode
+			// data but not the directory entry; only directory fsync persists
+			// the rename. Best-effort -- some filesystems (e.g. FAT) reject
+			// open(O_RDONLY) on a directory and we'd rather not crash on a
+			// platform that doesn't support this.
+			await fsyncDir(dir).catch(() => {});
 		} catch (error) {
 			// Best-effort cleanup of the temp file if rename failed mid-write.
 			await unlink(tmp).catch(() => {});
 			throw error;
 		}
+	}
+}
+
+/**
+ * fsync a directory so that a rename or unlink inside it is durable across
+ * power loss. Node doesn't expose a `fs.fsyncDir` shortcut; the trick is to
+ * `open` the directory (read-only) and call `fsync` on the FileHandle.
+ * Throws on platforms that reject opening a directory; callers should
+ * `.catch(() => {})` since durability is best-effort.
+ */
+async function fsyncDir(path: string): Promise<void> {
+	const handle = await open(path, "r");
+	try {
+		await handle.sync();
+	} finally {
+		await handle.close();
 	}
 }
 

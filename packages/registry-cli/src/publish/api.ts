@@ -43,15 +43,22 @@
 
 import { ClientResponseError } from "@atcute/client";
 import type { Nsid } from "@atcute/lexicons";
+import { safeParse } from "@atcute/lexicons/validations";
 import {
 	deriveSlugFromId,
 	isDeprecatedCapability,
 	isPluginSlug,
 	isPluginVersion,
+	normalizeCapability,
 	type PluginManifest,
 } from "@emdash-cms/plugin-types";
 import type { Did, PublishingClient } from "@emdash-cms/registry-client";
-import { NSID } from "@emdash-cms/registry-lexicons";
+import {
+	NSID,
+	PackageProfile,
+	PackageRelease,
+	PackageReleaseExtension,
+} from "@emdash-cms/registry-lexicons";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Public types
@@ -61,6 +68,8 @@ export type PublishErrorCode =
 	| "DEPRECATED_CAPABILITY"
 	| "INVALID_SLUG"
 	| "INVALID_VERSION"
+	| "INVALID_MANIFEST"
+	| "LEXICON_VALIDATION_FAILED"
 	| "PROFILE_BOOTSTRAP_MISSING_FIELD"
 	| "RELEASE_ALREADY_PUBLISHED";
 
@@ -190,6 +199,20 @@ interface PackageReleaseRecordShape {
 			contentType?: string;
 		};
 	};
+	/**
+	 * Open-union extension container, keyed by NSID. Releases of type
+	 * `emdash-plugin` MUST include a `releaseExtension` entry carrying the
+	 * sandbox trust contract (declared access). Without it, sandbox runtimes
+	 * have no contract to enforce against.
+	 */
+	extensions: Record<string, unknown>;
+}
+
+interface DeclaredAccess {
+	content?: { read?: Record<string, unknown>; write?: Record<string, unknown> };
+	media?: { read?: Record<string, unknown>; write?: Record<string, unknown> };
+	network?: { request?: { allowedHosts?: string[] } };
+	email?: { send?: Record<string, unknown> };
 }
 
 interface FetchedRecord {
@@ -223,7 +246,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	if (!isPluginVersion(options.manifest.version)) {
 		throw new PublishError(
 			"INVALID_VERSION",
-			`Plugin version "${options.manifest.version}" doesn't match the lexicon constraint /^[a-zA-Z0-9.-]+$/ (max 64 chars; semver build-metadata "+..." disallowed).`,
+			`Plugin version "${options.manifest.version}" is not a valid semver (max 64 chars; semver build-metadata "+..." disallowed because the atproto rkey alphabet has no "+").`,
 			{ version: options.manifest.version },
 		);
 	}
@@ -268,6 +291,16 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	const profileCreated = existingProfile === null;
 	const ignoredProfileFields: string[] = [];
 
+	// Build the EmDash trust extension (declaredAccess) from the manifest's
+	// capabilities + allowedHosts. The lexicon REQUIRES this extension on
+	// every emdash-plugin release; without it, sandbox runtimes have no
+	// contract to enforce, and aggregators may reject the record.
+	const declaredAccess = buildDeclaredAccess(options.manifest);
+	const releaseExtension = {
+		$type: NSID.packageReleaseExtension,
+		declaredAccess,
+	};
+
 	const releaseRecord: PackageReleaseRecordShape = {
 		$type: NSID.packageRelease,
 		package: slug,
@@ -278,6 +311,9 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 				checksum: options.checksum,
 				contentType: "application/gzip",
 			},
+		},
+		extensions: {
+			[NSID.packageReleaseExtension]: releaseExtension,
 		},
 	};
 
@@ -354,10 +390,36 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		record: releaseRecord,
 	});
 
-	// 5. Apply atomically. `applyWrites` is typed against the lexicon's strict
-	// `Main` types; we hand it our looser local shapes (validated up front +
-	// PDS-validated server-side via validate: true) and cast at the boundary.
+	// 5. Validate every record locally against its lexicon BEFORE round-
+	// tripping. We can't rely on the PDS to validate because the experimental
+	// registry NSIDs aren't shipped with most PDSes -- a real Bluesky PDS
+	// rejects a `validate: true` write of an unknown lexicon. So we own the
+	// validation and pass `skipValidation: true` to applyWrites.
+	for (const op of writes) {
+		validateLocally(op.collection, op.record);
+	}
+
+	// Also validate the embedded extension record. Lexicon-level $type
+	// dispatch happens at the host parsing the release record's extensions
+	// map; we want to fail-fast here so a malformed extension doesn't silently
+	// reach the registry.
+	validateLocally(NSID.packageReleaseExtension, releaseExtension as unknown);
+
+	// 6. Apply atomically. `skipValidation: true` because we've already
+	// validated locally and the PDS doesn't know our experimental lexicons.
+	//
+	// We do NOT pass `swapCommit` here. `swapCommit` provides optimistic-CAS
+	// semantics by failing the write if the repo's current head CID differs
+	// from a CID we observed earlier. The use case it protects against --
+	// "another publisher concurrently updated the same record" -- doesn't
+	// exist for our flow: each repo has exactly one publisher (the human
+	// running the CLI under their own DID), and the read-then-write race is
+	// against themselves. The cost of adding swapCommit (an extra
+	// `getRepo`/`describeRepo` round-trip per publish to learn the head CID)
+	// isn't worth it for a single-user repo. If we ever support multi-agent
+	// publishing to a shared registry repo, revisit.
 	const batch = await options.publisher.applyWrites({
+		skipValidation: true,
 		writes: writes as unknown as Parameters<typeof options.publisher.applyWrites>[0]["writes"],
 	});
 
@@ -397,6 +459,97 @@ function atUri(did: Did, collection: string, rkey: string): string {
 }
 
 /**
+ * Translate `manifest.capabilities` + `manifest.allowedHosts` into the
+ * `declaredAccess` shape required by the EmDash release extension.
+ *
+ * Only the canonical capability names are inspected here; the manifest's
+ * `capabilities` is normalized at publish-time entry, and deprecated names
+ * are hard-failed before we get here.
+ */
+function buildDeclaredAccess(manifest: PluginManifest): DeclaredAccess {
+	// Normalize so legacy aliases don't slip through (defence in depth -- the
+	// manifest should have been normalized at definePlugin time).
+	const caps = new Set(manifest.capabilities.map((c) => normalizeCapability(c)));
+	const declared: DeclaredAccess = {};
+
+	if (caps.has("content:read") || caps.has("content:write")) {
+		declared.content = {};
+		if (caps.has("content:read")) declared.content.read = {};
+		if (caps.has("content:write")) declared.content.write = {};
+	}
+	if (caps.has("media:read") || caps.has("media:write")) {
+		declared.media = {};
+		if (caps.has("media:read")) declared.media.read = {};
+		if (caps.has("media:write")) declared.media.write = {};
+	}
+	if (caps.has("network:request") || caps.has("network:request:unrestricted")) {
+		declared.network = {};
+		// The lexicon's `networkRequestConstraints.allowedHosts` is "absent =
+		// no host restriction; empty array MUST NOT appear". So we only set
+		// the key when the manifest declares hosts and the unrestricted
+		// capability is NOT present.
+		const constraint: { allowedHosts?: string[] } = {};
+		if (!caps.has("network:request:unrestricted") && manifest.allowedHosts.length > 0) {
+			constraint.allowedHosts = [...manifest.allowedHosts];
+		}
+		declared.network.request = constraint;
+	}
+	if (caps.has("email:send")) {
+		declared.email = { send: {} };
+	}
+
+	return declared;
+}
+
+/**
+ * Validate `value` against the lexicon for `collection`. Throws
+ * `PublishError("LEXICON_VALIDATION_FAILED")` on failure. Skips validation
+ * for collections we don't own a schema for (caller's responsibility).
+ *
+ * We validate locally rather than trusting the PDS because experimental
+ * registry NSIDs aren't shipped with most PDSes -- a real Bluesky PDS would
+ * reject a write of `com.emdashcms.experimental.*` records when
+ * `validate: true`.
+ */
+function validateLocally(collection: string, value: unknown): void {
+	const schemas: Record<string, { mainSchema: Parameters<typeof safeParse>[0] } | undefined> = {
+		[NSID.packageProfile]: PackageProfile,
+		[NSID.packageRelease]: PackageRelease,
+		[NSID.packageReleaseExtension]: PackageReleaseExtension,
+	};
+	const ns = schemas[collection];
+	if (!ns) return;
+	const result = safeParse(ns.mainSchema, value);
+	if (result.ok) return;
+	throw new PublishError(
+		"LEXICON_VALIDATION_FAILED",
+		`Record for ${collection} did not match the lexicon. Issues: ${formatValidationIssues(result)}`,
+		{ collection, issues: result },
+	);
+}
+
+function formatValidationIssues(err: unknown): string {
+	// JSON-serialise whatever the validator handed us (typically a result
+	// object with an `issues` array). Falls back to a JSON-stringification
+	// of the whole value if the expected fields aren't there. We never call
+	// `String(err)` on an unknown object because that produces the
+	// useless `[object Object]`.
+	try {
+		if (err && typeof err === "object") {
+			const obj = err as { issues?: unknown; message?: unknown };
+			if (obj.issues !== undefined) return JSON.stringify(obj.issues);
+			if (typeof obj.message === "string") return obj.message;
+			return JSON.stringify(err);
+		}
+		if (typeof err === "string") return err;
+		return JSON.stringify(err);
+	} catch {
+		// Circular structure or similar; fall back to the type-tag.
+		return Object.prototype.toString.call(err);
+	}
+}
+
+/**
  * Fetch a record, returning `null` if the PDS reports it as missing.
  *
  * Returns the full `{ uri, cid, value }` shape (rather than the value alone)
@@ -427,6 +580,12 @@ async function getRecordOrNull(
  * fields we need to round-trip safely (in which case the caller skips the
  * update rather than overwriting an invalid record with a slightly-different
  * invalid record).
+ *
+ * Unknown / extra fields on the existing record are intentionally preserved
+ * verbatim via the spread. If they violate the lexicon, the local
+ * `validateLocally` pass before `applyWrites` will reject the candidate
+ * with a `LEXICON_VALIDATION_FAILED` error rather than letting an invalid
+ * record propagate to the registry.
  */
 function stampLastUpdated(existingValue: unknown): PackageProfileRecordShape | null {
 	if (!existingValue || typeof existingValue !== "object") return null;

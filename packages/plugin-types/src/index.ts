@@ -279,14 +279,27 @@ export const PLUGIN_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
 export const PLUGIN_SLUG_MAX_LENGTH = 64;
 
 /**
- * Version constraint per the registry lexicon: a subset of semver 2.0 with no
- * build-metadata suffix (`+...`), composed only of characters allowed in
- * atproto record keys: ASCII letters, digits, `.` and `-`.
+ * Version constraint per the registry lexicon: a subset of semver 2.0 with
+ * the build-metadata suffix (`+...`) explicitly disallowed (atproto record
+ * keys can't contain `+`), and the version composed only of characters
+ * allowed in atproto record keys.
  *
- * Note that semver disallows `_` and `~`, so even though atproto rkeys would
- * accept them they MUST NOT appear in versions.
+ * The shape mirrors the official semver 2.0 BNF:
+ *
+ *   <major>.<minor>.<patch>[-<pre-release>]
+ *
+ * where each numeric component has no leading zeros (except the literal
+ * `0`), and the optional pre-release is `.`-separated identifiers, each
+ * being either a numeric (no leading zeros) or alphanumeric-with-hyphens
+ * (must include a non-digit if it has hyphens).
+ *
+ * If you want to accept build metadata, this is the wrong type -- the
+ * registry rejects it because the atproto rkey alphabet doesn't include
+ * `+`. Build metadata is "ignored when comparing versions" per semver
+ * anyway, so dropping it before publish is fine.
  */
-export const PLUGIN_VERSION_RE = /^[a-zA-Z0-9.-]+$/;
+export const PLUGIN_VERSION_RE =
+	/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$/;
 export const PLUGIN_VERSION_MAX_LENGTH = 64;
 
 /**

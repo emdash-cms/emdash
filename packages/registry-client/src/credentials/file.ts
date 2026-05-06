@@ -18,7 +18,7 @@
  * `EnvCredentialStore` instead.
  */
 
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -138,11 +138,30 @@ export class FileCredentialStore implements CredentialStore {
 			// torn-write safe but not durable.
 			await writeFile(tmp, body, { mode: 0o600, flush: true });
 			await rename(tmp, this.path);
+			// fsync the directory after the rename so the rename itself is
+			// durable across power loss. POSIX file fsync persists the inode
+			// data but not the directory entry; only directory fsync persists
+			// the rename. Best-effort -- some filesystems (e.g. FAT, Windows)
+			// reject open(O_RDONLY) on a directory.
+			await fsyncDir(dir).catch(() => {});
 		} catch (error) {
 			// Best-effort cleanup of the temp file if rename failed mid-write.
 			await unlink(tmp).catch(() => {});
 			throw error;
 		}
+	}
+}
+
+/**
+ * fsync a directory so a rename inside it is durable. Node lacks a direct
+ * `fs.fsyncDir`; the workaround is `open(dir, 'r')` then `handle.sync()`.
+ */
+async function fsyncDir(path: string): Promise<void> {
+	const handle = await open(path, "r");
+	try {
+		await handle.sync();
+	} finally {
+		await handle.close();
 	}
 }
 

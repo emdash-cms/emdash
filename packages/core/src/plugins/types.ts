@@ -1423,13 +1423,23 @@ export interface PluginManifest {
 	admin: PluginAdminConfig;
 }
 
-// Type-level guard: if core's `PluginManifest` ever drifts from the shared
-// shape, this stops compiling. The check is one-directional -- the shared
-// type is the supertype, so any core manifest must be assignable to it.
+// Type-level guard: core's `PluginManifest` is intentionally a SUBTYPE of
+// the shared wire shape (`@emdash-cms/plugin-types` `PluginManifest`). The
+// wire shape uses looser types like `string` for hook names so the registry
+// CLI can serialise plugins targeting hook versions this core doesn't yet
+// know about. Core narrows `string` to `HookName` and `Record<string,
+// unknown>` to `PluginAdminConfig` because core's loader actually executes
+// against those types.
 //
-// `type X = never` is itself legal, so the assertion has to use a value
-// position (`const _check: T = true`) for the compiler to error when T
-// resolves to `never`. Don't replace this with a bare type alias.
+// We assert one direction: `core extends shared`. If core ever introduces a
+// required field not in shared, or uses a type that's not assignable to the
+// shared version, this stops compiling. The reverse direction (shared
+// extends core) is INTENTIONALLY not asserted because shared is wider.
+//
+// `type X = never` is itself legal as a type alias, so the assertion has to
+// be in a value position (`const _check: T = true`) for the compiler to
+// error when T resolves to `never`. Don't replace this with a bare type
+// alias.
 type _AssertManifestCompat =
 	PluginManifest extends import("@emdash-cms/plugin-types").PluginManifest ? true : never;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
