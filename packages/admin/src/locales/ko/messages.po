@@ -446,7 +446,7 @@ msgstr "추가"
 #. placeholder {0}: field.item_label
 #: packages/admin/src/components/PortableTextEditor.tsx:1465
 msgid "Add {0}"
-msgstr ""
+msgstr "{0} 추가"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:235
 msgid "Add {label}"
@@ -466,11 +466,11 @@ msgstr "반복 필드 구조를 정의하려면 하위 필드를 하나 이상 �
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2514
 msgid "Add column after"
-msgstr ""
+msgstr "오른쪽에 열 추가"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2507
 msgid "Add column before"
-msgstr ""
+msgstr "왼쪽에 열 추가"
 
 #: packages/admin/src/components/MenuEditor.tsx:291
 #: packages/admin/src/components/MenuEditor.tsx:406
@@ -503,7 +503,7 @@ msgstr "첫 번째 항목 추가"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1465
 msgid "Add item"
-msgstr ""
+msgstr "항목 추가"
 
 #: packages/admin/src/components/RepeaterField.tsx:153
 msgid "Add Item"
@@ -536,11 +536,11 @@ msgstr "EmDash 기능을 확장하려면 astro.config.mjs에 플러그인을 추
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2537
 msgid "Add row after"
-msgstr ""
+msgstr "아래에 행 추가"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2530
 msgid "Add row before"
-msgstr ""
+msgstr "위에 행 추가"
 
 #: packages/admin/src/components/FieldEditor.tsx:539
 msgid "Add Sub-Field"
@@ -792,7 +792,7 @@ msgstr "{collectionLabel} 목록으로 돌아가기"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:329
 msgid "Back to Content Types"
-msgstr ""
+msgstr "콘텐츠 유형으로 돌아가기"
 
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
@@ -1518,7 +1518,7 @@ msgstr "콘텐츠 구조 정의"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:354
 msgid "Defined in code"
-msgstr ""
+msgstr "코드에 정의됨"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:267
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
@@ -1561,7 +1561,7 @@ msgstr "{0}을(를) 삭제하시겠습니까?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2521
 msgid "Delete column"
-msgstr ""
+msgstr "열 삭제"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:405
 msgid "Delete Comment?"
@@ -1607,7 +1607,7 @@ msgstr "리디렉션을 삭제하시겠습니까?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2542
 msgid "Delete row"
-msgstr ""
+msgstr "행 삭제"
 
 #: packages/admin/src/components/Sections.tsx:294
 msgid "Delete Section?"
@@ -1615,7 +1615,7 @@ msgstr "섹션을 삭제하시겠습니까?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2557
 msgid "Delete table"
-msgstr ""
+msgstr "표 삭제"
 
 #: packages/admin/src/components/ContentList.tsx:346
 msgid "Deleted"
@@ -1820,7 +1820,7 @@ msgstr "끌어서 놓거나 클릭하여 찾아보세요(.xml)."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1641
 msgid "Drag to reorder"
-msgstr ""
+msgstr "끌어서 순서 변경"
 
 #: packages/admin/src/components/WordPressImport.tsx:1418
 msgid "Drop your WordPress export file here"
@@ -2543,7 +2543,7 @@ msgstr "재사용 가능한 섹션 삽입"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:937
 msgid "Insert a table"
-msgstr ""
+msgstr "표 삽입"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1940
 msgid "Insert an image"
@@ -2559,7 +2559,7 @@ msgstr "섹션 삽입"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2842
 msgid "Insert Table"
-msgstr ""
+msgstr "표 삽입"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:161
 msgid "Instagram"
@@ -2973,7 +2973,7 @@ msgstr "메뉴"
 #. placeholder {1}: translated.locale.toUpperCase()
 #: packages/admin/src/components/MenuEditor.tsx:90
 msgid "Menu \"{0}\" ({1}) created."
-msgstr ""
+msgstr "메뉴 \"{0}\"({1})이(가) 생성되었습니다."
 
 #. placeholder {0}: menu.label
 #: packages/admin/src/components/MenuList.tsx:52
@@ -3883,7 +3883,7 @@ msgstr "{0} 삭제"
 
 #: packages/admin/src/components/ContentEditor.tsx:1781
 msgid "Remove {label}"
-msgstr ""
+msgstr "{label} 제거"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:435
 msgid "Remove Domain"
@@ -4434,11 +4434,11 @@ msgstr "파비콘 선택"
 
 #: packages/admin/src/components/ContentEditor.tsx:1797
 msgid "Select file"
-msgstr ""
+msgstr "파일 선택"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:86
 msgid "Select File"
-msgstr ""
+msgstr "파일 선택"
 
 #: packages/admin/src/components/ContentEditor.tsx:1636
 msgid "Select image"
@@ -4455,7 +4455,7 @@ msgstr "로고 선택"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:91
 msgid "Select media"
-msgstr ""
+msgstr "미디어 선택"
 
 #: packages/admin/src/components/SeoImageField.tsx:70
 msgid "Select OG image"
@@ -4813,7 +4813,7 @@ msgstr "시스템({resolvedLabel})"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:936
 msgid "Table"
-msgstr ""
+msgstr "표"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:173
 #: packages/admin/src/components/SetupWizard.tsx:156
@@ -4840,7 +4840,7 @@ msgstr "열기 방식"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:172
 msgid "Target locale"
-msgstr ""
+msgstr "대상 로케일"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:492
 msgid "Taxonomies"
@@ -4860,7 +4860,7 @@ msgstr "분류를 찾을 수 없습니다:"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:159
 msgid "Taxonomy: {taxonomyName}"
-msgstr ""
+msgstr "분류: {taxonomyName}"
 
 #: packages/admin/src/components/SetupWizard.tsx:184
 msgid "Template:"
@@ -4875,7 +4875,7 @@ msgstr "항목"
 #. placeholder {1}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomyManager.tsx:762
 msgid "Term \"{0}\" created in {1}."
-msgstr ""
+msgstr "항목 \"{0}\"이(가) {1}에 생성되었습니다."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:744
 msgid "Term deleted"
@@ -5069,7 +5069,7 @@ msgstr "선택"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2551
 msgid "Toggle header row"
-msgstr ""
+msgstr "헤더 행 전환"
 
 #: packages/admin/src/components/ThemeToggle.tsx:30
 #: packages/admin/src/components/ThemeToggle.tsx:41
@@ -5102,22 +5102,22 @@ msgstr "번역"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:156
 msgid "Translate \"{0}\""
-msgstr ""
+msgstr "\"{0}\" 번역"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:80
 msgid "Translate {0}"
-msgstr ""
+msgstr "{0} 번역"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:194
 #: packages/admin/src/components/TranslationsPanel.tsx:99
 msgid "Translating..."
-msgstr ""
+msgstr "번역 중..."
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:761
 msgid "Translation created"
-msgstr ""
+msgstr "번역이 생성되었습니다."
 
 #: packages/admin/src/components/TranslationsPanel.tsx:56
 msgid "Translations"
@@ -5267,7 +5267,7 @@ msgstr "제목 없음"
 
 #: packages/admin/src/components/ContentEditor.tsx:1715
 msgid "Untitled file"
-msgstr ""
+msgstr "제목 없는 파일"
 
 #: packages/admin/src/components/ContentEditor.tsx:1933
 msgid "Up"
@@ -5328,7 +5328,7 @@ msgstr "업로드"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:88
 msgid "Upload a file to get started"
-msgstr ""
+msgstr "시작하려면 파일을 업로드하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1221
 msgid "Upload an export file"
@@ -5353,7 +5353,7 @@ msgstr "업로드 실패: {uploadError}"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:90
 msgid "Upload File"
-msgstr ""
+msgstr "파일 업로드"
 
 #: packages/admin/src/components/MediaLibrary.tsx:323
 msgid "Upload files"
