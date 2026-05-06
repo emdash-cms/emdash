@@ -388,7 +388,13 @@ function validatePublishUrl(url: string): string | null {
 	// embedded IPv4 dotted-quad to two hex groups (e.g.
 	// `::ffff:169.254.169.254` -> `[::ffff:a9fe:a9fe]`). Strip brackets
 	// before any check; downstream helpers operate on the bracket-free form.
-	const host = stripIPv6Brackets(parsed.hostname);
+	// Also strip a single trailing dot (FQDN form): mDNS resolvers happily
+	// resolve both `mymachine.local` and `mymachine.local.`, so the
+	// `.local` deny check has to canonicalise both.
+	const host = stripTrailingDot(stripIPv6Brackets(parsed.hostname));
+	if (host.length === 0) {
+		return `--url ${url} has an empty hostname after canonicalisation`;
+	}
 	if (
 		host === "localhost" ||
 		host === "127.0.0.1" ||
@@ -401,6 +407,16 @@ function validatePublishUrl(url: string): string | null {
 		return `--url ${url} resolves to a non-public host (${host}); consumers won't be able to install from it. Host the tarball publicly first.`;
 	}
 	return null;
+}
+
+/**
+ * Strip a single trailing dot from a DNS name (FQDN form). Idempotent.
+ * Real hostnames don't end with multiple dots after URL parsing, so we
+ * only strip one.
+ */
+function stripTrailingDot(host: string): string {
+	if (host.endsWith(".")) return host.slice(0, -1);
+	return host;
 }
 
 /**
@@ -489,12 +505,25 @@ const IPV6_V4_MAPPED_DOTTED_RE = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/
 // parser collapses leading zero groups into `::` and converts the IPv4
 // suffix into hex pairs.
 const IPV6_V4_MAPPED_HEX_RE = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
-// IPv6 with embedded IPv4 in non-`::` prefixes (e.g. `64:ff9b::a9fe:a9fe`
-// for NAT64). After URL normalisation the v4 suffix becomes hex too. We
-// don't try to enumerate all v6 well-known-prefix patterns; instead, the
-// catch-all `isPrivateIPv6Literal` below decodes any v6 literal whose last
-// 32 bits look like an IPv4 mapping and re-runs the v4 check.
-const IPV6_TRAILING_HEX_PAIR_RE = /:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
+// IPv4-compatible IPv6 after URL parser normalisation. The dotted form
+// `::a.b.c.d` is normalised by Node's URL parser to `::hhhh:hhhh` (no
+// `ffff:` prefix) -- without this branch, the IPv4-compat case slips
+// through both the dotted regex (because the URL parser ate the dots)
+// and the v4-mapped-hex regex (because there's no `ffff:`).
+const IPV6_V4_COMPAT_HEX_RE = /^::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
+// IPv6 prefixes that carry an embedded IPv4 in their last 32 bits. We
+// enumerate explicitly rather than treating EVERY v6 literal's trailing
+// 32 bits as a candidate v4 -- the broader form would false-positive
+// reject legitimate public v6 addresses whose last two hex groups
+// coincidentally encode an RFC1918 / loopback / 169.254 octet pattern.
+//
+// Currently covered:
+//   - `64:ff9b::/96`        — RFC 6052 NAT64 well-known prefix
+//   - `2002:xxxx:xxxx::/16` — 6to4 (xxxx:xxxx encodes the v4)
+//   - `::/96`               — IPv4-compatible (already handled by
+//                             IPV6_V4_COMPAT_DOTTED_RE for dotted form)
+const IPV6_NAT64_RE = /^64:ff9b::([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i;
+const IPV6_6TO4_RE = /^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4}):/i;
 
 /**
  * Detect RFC 1918, loopback, link-local, CGNAT, and 0.0.0.0/8 IPv4
@@ -535,7 +564,7 @@ function isPrivateMappedIPv6(host: string): boolean {
 		const inner = dotted[1];
 		return inner ? isPrivateIp(inner) : false;
 	}
-	const hex = IPV6_V4_MAPPED_HEX_RE.exec(host);
+	const hex = IPV6_V4_MAPPED_HEX_RE.exec(host) ?? IPV6_V4_COMPAT_HEX_RE.exec(host);
 	if (hex) {
 		const v4 = decodeIPv6V4HexPair(hex[1], hex[2]);
 		return v4 ? isPrivateIp(v4) : false;
@@ -556,13 +585,18 @@ function isPrivateIPv6Literal(host: string): boolean {
 	if (IPV6_ULA_FC_RE.test(host)) return true;
 	if (IPV6_ULA_FD_RE.test(host)) return true;
 	if (IPV6_LINK_LOCAL_RE.test(host)) return true;
-	// Look at the last two hex groups of any v6 literal -- if both are
-	// 1-4 hex digits, decode as 4 octets and run the v4 private check. This
-	// catches NAT64 (`64:ff9b::a9fe:a9fe`), 6to4 with embedded v4, and any
-	// future well-known prefix without us having to enumerate them.
-	const v6Suffix = IPV6_TRAILING_HEX_PAIR_RE.exec(host);
-	if (v6Suffix) {
-		const v4 = decodeIPv6V4HexPair(v6Suffix[1], v6Suffix[2]);
+	// NAT64 (`64:ff9b::a.b.c.d` -> URL-normalised to
+	// `64:ff9b::aabb:ccdd`). Decode the embedded v4 and re-check.
+	const nat64 = IPV6_NAT64_RE.exec(host);
+	if (nat64) {
+		const v4 = decodeIPv6V4HexPair(nat64[1], nat64[2]);
+		if (v4 && isPrivateIp(v4)) return true;
+	}
+	// 6to4 (`2002:WWXX:YYZZ::/48` where WWXX:YYZZ is the v4). The v4 is at
+	// the prefix, not the suffix.
+	const sixtofour = IPV6_6TO4_RE.exec(host);
+	if (sixtofour) {
+		const v4 = decodeIPv6V4HexPair(sixtofour[1], sixtofour[2]);
 		if (v4 && isPrivateIp(v4)) return true;
 	}
 	return false;

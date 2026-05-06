@@ -63,6 +63,27 @@ describe("validatePublishUrl", () => {
 		expect(validate("https://my-machine.local/x")).not.toBeNull();
 	});
 
+	it("rejects FQDN trailing-dot variants of denied hostnames", () => {
+		// Round-5 finding M-1: mDNS resolvers respond to both `foo.local`
+		// and `foo.local.`; the syntactic guard has to canonicalise.
+		expect(validate("https://localhost./x")).not.toBeNull();
+		expect(validate("https://my-machine.local./x")).not.toBeNull();
+	});
+
+	it("does not over-block public IPv6 with private-looking suffix", () => {
+		// Round-5 finding M-2: a generic "decode last two hex groups as v4"
+		// fallback would false-positive on `2001:db8::a00:1` (last 32 bits
+		// decode to 10.0.0.1). The fix restricts the embedded-v4 check to
+		// known v4-carrying prefixes (NAT64, 6to4).
+		expect(validate("https://[2001:db8::a00:1]/x")).toBeNull();
+	});
+
+	it("rejects 6to4 with embedded private v4", () => {
+		// 6to4 prefix 2002:: encodes the v4 in groups 2-3 (not the suffix).
+		// `2002:0a00:0001::1` -> v4 10.0.0.1 -> private.
+		expect(validate("https://[2002:a00:1::1]/x")).not.toBeNull();
+	});
+
 	it("rejects http://", () => {
 		expect(validate("http://example.com/x")).not.toBeNull();
 	});
