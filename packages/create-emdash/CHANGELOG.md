@@ -1,5 +1,11 @@
 # create-emdash
 
+## 0.10.0
+
+### Patch Changes
+
+- [#900](https://github.com/emdash-cms/emdash/pull/900) [`b3d1f40`](https://github.com/emdash-cms/emdash/commit/b3d1f40b3a22c38570aaf284435dd7adc4e9d714) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fixes interactive `Project name?` prompt to accept `.` for the current directory. The flag-positional path already accepted `.` (validated by `validateProjectName`), but the prompt's inline regex check rejected it, so users running `npm create emdash@latest` with no arguments could not scaffold into the current directory. The prompt now uses `validateProjectName` directly for parity, and its message hints at the `.` option.
+
 ## 0.9.0
 
 ### Minor Changes

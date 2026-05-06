@@ -1,5 +1,70 @@
 # emdash
 
+## 0.10.0
+
+### Minor Changes
+
+- [#916](https://github.com/emdash-cms/emdash/pull/916) [`71f4e7d`](https://github.com/emdash-cms/emdash/commit/71f4e7d85b2568dbadd9dc6ff26160789cb24e47) Thanks [@Rimander](https://github.com/Rimander)! - Adds i18n support to menus and taxonomies (categories, tags, custom
+  definitions), mirroring the per-locale model already in place for content.
+  Each row carries `locale` and `translation_group`; translations of the
+  same menu/term/def share a `translation_group`. `_emdash_menu_items.reference_id`
+  and `content_taxonomies.taxonomy_id` are remapped to store the referenced
+  row's translation_group, so a single association survives content
+  translations and is resolved against the active locale at runtime.
+  - Runtime helpers (`getMenu`, `getTaxonomyTerms`, `getTerm`, `getEntryTerms`,
+    `getAllTermsForEntries`, …) accept an optional `{ locale }` and honour the
+    i18n fallback chain; when no locale is given they fall back to the
+    request context and `defaultLocale`, matching `getEmDashCollection` /
+    `getEmDashEntry`.
+  - REST API: GET endpoints accept `?locale=xx`; POST endpoints accept
+    `locale` and `translationOf` in their bodies. New endpoints:
+    `GET/POST /_emdash/api/menus/:name/translations` and
+    `GET/POST /_emdash/api/taxonomies/:name/terms/:slug/translations`.
+  - Creating a content translation now auto-copies the source's taxonomy
+    assignments (the pivot is locale-agnostic, so the copied rows apply to
+    the whole translation group).
+  - MCP: `taxonomy_list`, `taxonomy_list_terms`, `taxonomy_create_term`,
+    `menu_list`, `menu_get` accept `locale`. New tools:
+    `taxonomy_term_translations`, `menu_translations`.
+  - Admin: `TaxonomyManager` and `MenuList` surface a `LocaleSwitcher` when
+    multiple locales are configured and thread the active locale through
+    all API calls. `TaxonomyManager` exposes a "Translate" action per term
+    that creates the translation and switches to the new locale.
+
+  No breaking changes for new installs or single-locale upgrades — defaults
+  are additive (locale defaults to `'en'` when omitted, reproducing pre-i18n
+  behaviour).
+
+  > ⚠️ **Rolling back migration `036_i18n_menus_and_taxonomies` is blocked
+  > on multi-locale installs.** Dropping the `locale` column would collapse
+  > translated rows onto an ambiguous `(name, slug)` unique key, silently
+  > deleting content. The migration's `down()` now refuses to run when any
+  > row uses a non-default locale and prints the affected table in the
+  > error. If you need to revert, export translations first (or delete
+  > them), then re-run the rollback. Single-locale installs revert cleanly.
+
+- [#902](https://github.com/emdash-cms/emdash/pull/902) [`7e32092`](https://github.com/emdash-cms/emdash/commit/7e32092596149ae2886bae34c8d2f4bad86dbe2f) Thanks [@ascorbic](https://github.com/ascorbic)! - `emdash plugin init` now prompts for the plugin format (sandboxed or native) when run interactively, and the scaffolded boilerplate matches the canonical patterns from the docs. Both formats now ship a `dist/` build via tsdown, declare a sample `storage` collection, and demonstrate a hook plus an API route. The sandboxed entry uses an explicitly typed `ContentSaveEvent`; the native entry forwards options through `createPlugin`. The descriptor `id` is now derived from the slug instead of the full scoped package name, so scoped names like `@org/my-plugin` produce a runtime-valid id. Pass `--format=sandboxed`, `--format=native`, or `--native` to skip the prompt; non-TTY runs continue to default to sandboxed.
+
+### Patch Changes
+
+- [#701](https://github.com/emdash-cms/emdash/pull/701) [`a2d3658`](https://github.com/emdash-cms/emdash/commit/a2d3658e510f292bf1fbe6b0a9e8e4f02ebc1e03) Thanks [@lsngmin](https://github.com/lsngmin)! - Fixes MediaValue.src returning bare media ID instead of a usable URL for local media
+
+- [#912](https://github.com/emdash-cms/emdash/pull/912) [`c8a3a2c`](https://github.com/emdash-cms/emdash/commit/c8a3a2cce6bfdcdc6521556bcc507f88bd79ba31) Thanks [@lsngmin](https://github.com/lsngmin)! - Permanent-delete API now refuses to remove live (non-trashed) rows and uses a content-domain `content:delete_permanent` permission instead of the unrelated `import:execute`. Existing audience (ADMIN-only) is unchanged.
+
+- [#896](https://github.com/emdash-cms/emdash/pull/896) [`699e1b3`](https://github.com/emdash-cms/emdash/commit/699e1b3d208a5ef4bca5dc3a40a39291e484f060) Thanks [@cristianuibar](https://github.com/cristianuibar)! - Fixes 500 error on `GET /_emdash/api/dashboard` when running on Cloudflare D1 with many title-bearing collections. `fetchRecentItems` now issues one query per collection in parallel and merges results in JS instead of building a single chained `UNION ALL`, which trips D1's `SQLITE_LIMIT_COMPOUND_SELECT` cap once enough collections are present (#895).
+
+- [#719](https://github.com/emdash-cms/emdash/pull/719) [`2e2b8e9`](https://github.com/emdash-cms/emdash/commit/2e2b8e90c099f3422808f0e1da9c83a9ec533b64) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the `file` field type rendering as a plain text input in the content editor. Adds a `FileFieldRenderer` that opens the media picker (with mime filter disabled) so any file type can be attached. Also adds a `hideUrlInput` prop to `MediaPickerModal` so non-image pickers can hide the image-specific "Insert from URL" input.
+
+  Aligns the Zod schema and generated TypeScript types for `image` and `file` fields with the shape the admin actually stores: `provider?`, `meta?` (for both), and `previewUrl?` (for image). Previously these fields were stripped on validation and missing from generated types, so site code could not reliably resolve local media URLs from `meta.storageKey`.
+
+- [#911](https://github.com/emdash-cms/emdash/pull/911) [`9146931`](https://github.com/emdash-cms/emdash/commit/91469312df211304d51576c9aef621148707b6d3) Thanks [@masonjames](https://github.com/masonjames)! - Fixes WordPress media URL rewriting for imported image URLs that use generated size suffixes.
+
+- Updated dependencies [[`c8a3a2c`](https://github.com/emdash-cms/emdash/commit/c8a3a2cce6bfdcdc6521556bcc507f88bd79ba31), [`2e2b8e9`](https://github.com/emdash-cms/emdash/commit/2e2b8e90c099f3422808f0e1da9c83a9ec533b64)]:
+  - @emdash-cms/auth@0.10.0
+  - @emdash-cms/admin@0.10.0
+  - @emdash-cms/auth-atproto@0.2.2
+  - @emdash-cms/gutenberg-to-portable-text@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes

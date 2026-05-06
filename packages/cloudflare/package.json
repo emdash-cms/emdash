@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/cloudflare",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Cloudflare adapters for EmDash - D1, R2, Access, and Worker Loader sandbox",
   "type": "module",
   "main": "dist/index.mjs",
