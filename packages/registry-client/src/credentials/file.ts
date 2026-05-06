@@ -88,9 +88,14 @@ export class FileCredentialStore implements CredentialStore {
 		// stored corruption and the user is locked out with no obvious
 		// recovery path. Catching it here turns the same bug into a loud
 		// login-time error with the offending field named.
+		// Belt-and-braces: catch upstream regressions (e.g. an unresolved
+		// PDS URL plumbed through as "") at write time. The candidate is
+		// stringified verbatim into the error message so the user sees
+		// which field is malformed without us having to read fields off a
+		// type-narrowed-to-never value.
 		if (!isPublisherSession(session)) {
 			throw new Error(
-				`refusing to persist invalid PublisherSession: did=${JSON.stringify(session.did)}, handle=${JSON.stringify(session.handle)}, pds=${JSON.stringify(session.pds)}, updatedAt=${JSON.stringify(session.updatedAt)}. All four fields are required and pds/did must be non-empty strings.`,
+				`refusing to persist invalid PublisherSession (${safeStringify(session)}). did, handle, pds, updatedAt are all required; did and pds must be non-empty.`,
 			);
 		}
 		const envelope = await this.#read();
@@ -198,6 +203,19 @@ export class FileCredentialStore implements CredentialStore {
 			await unlink(tmp).catch(() => {});
 			throw error;
 		}
+	}
+}
+
+/**
+ * JSON.stringify with a fallback for circular structures. Used in error
+ * messages where we'd rather show "[unserializable]" than throw out of a
+ * throw site.
+ */
+function safeStringify(value: unknown): string {
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return "[unserializable]";
 	}
 }
 
