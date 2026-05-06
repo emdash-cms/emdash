@@ -251,6 +251,26 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		);
 	}
 
+	// Refuse `network:request` with no allowedHosts. The lexicon defines
+	// `request: {}` (no allowedHosts) as "unrestricted requests" -- but the
+	// `network:request` capability name was meant to be host-restricted.
+	// Rather than silently publish a record that says "unrestricted" while
+	// the bundler told the developer "all requests will be blocked",
+	// require the publisher to be explicit: declare hosts, or upgrade to
+	// `network:request:unrestricted`.
+	const normalizedCaps = options.manifest.capabilities.map((c) => normalizeCapability(c));
+	if (
+		normalizedCaps.includes("network:request") &&
+		!normalizedCaps.includes("network:request:unrestricted") &&
+		options.manifest.allowedHosts.length === 0
+	) {
+		throw new PublishError(
+			"INVALID_MANIFEST",
+			"Plugin declares `network:request` capability but no `allowedHosts`. Either list specific host patterns in `allowedHosts`, or upgrade to `network:request:unrestricted` if the plugin really needs to call any host.",
+			{ capabilities: normalizedCaps, allowedHosts: options.manifest.allowedHosts },
+		);
+	}
+
 	// Validate profile-bootstrap fields up-front. We don't yet know whether the
 	// profile already exists (one round-trip away), but if the user supplied
 	// no fields at all and they're needed, we can fail before the network.
@@ -296,6 +316,23 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	// every emdash-plugin release; without it, sandbox runtimes have no
 	// contract to enforce, and aggregators may reject the record.
 	const declaredAccess = buildDeclaredAccess(options.manifest);
+
+	// Warn about capabilities that don't yet have a declaredAccess mapping
+	// (`users:*`, `hooks.*:register`). The lexicon's vocabulary is closed
+	// today (see releaseExtension.json line 20: "Categories not enumerated
+	// here cannot be declared"), so we can't surface these in the trust
+	// contract until the lexicon adds `users` and `hooks` categories. The
+	// runtime will need to gate these capabilities on `manifest.capabilities`
+	// rather than `declaredAccess` until that happens; surface the gap to
+	// the publisher so they're not surprised.
+	const unmappedCaps = normalizedCaps.filter(
+		(c) => c.startsWith("users:") || c.startsWith("hooks."),
+	);
+	if (unmappedCaps.length > 0) {
+		log.warn?.(
+			`Capabilities ${unmappedCaps.join(", ")} are not yet expressible in declaredAccess (lexicon limitation). Sandbox runtimes will gate these on manifest.capabilities until the lexicon evolves.`,
+		);
+	}
 	const releaseExtension = {
 		$type: NSID.packageReleaseExtension,
 		declaredAccess,
@@ -472,14 +509,19 @@ function buildDeclaredAccess(manifest: PluginManifest): DeclaredAccess {
 	const caps = new Set(manifest.capabilities.map((c) => normalizeCapability(c)));
 	const declared: DeclaredAccess = {};
 
+	// The lexicon documents that `content.write` IMPLIES `content.read`
+	// (releaseExtension.json line 53-56) and same for `media.write`.
+	// Canonicalise here so the published trust contract matches the
+	// documented semantics: any capability that implies read also surfaces
+	// `read: {}` in declaredAccess. Aggregators and sandbox runtimes can
+	// then gate on `declaredAccess.content.read` without also having to
+	// know the implication rules.
 	if (caps.has("content:read") || caps.has("content:write")) {
-		declared.content = {};
-		if (caps.has("content:read")) declared.content.read = {};
+		declared.content = { read: {} };
 		if (caps.has("content:write")) declared.content.write = {};
 	}
 	if (caps.has("media:read") || caps.has("media:write")) {
-		declared.media = {};
-		if (caps.has("media:read")) declared.media.read = {};
+		declared.media = { read: {} };
 		if (caps.has("media:write")) declared.media.write = {};
 	}
 	if (caps.has("network:request") || caps.has("network:request:unrestricted")) {
@@ -510,6 +552,15 @@ function buildDeclaredAccess(manifest: PluginManifest): DeclaredAccess {
  * registry NSIDs aren't shipped with most PDSes -- a real Bluesky PDS would
  * reject a write of `com.emdashcms.experimental.*` records when
  * `validate: true`.
+ *
+ * CAVEAT: atcute's `v.object` accepts unknown keys silently (it copies the
+ * declared shape and ignores extras). The lexicon prose for declaredAccess
+ * mandates "clients MUST reject release records that include unrecognised
+ * top-level fields", but this validator does not enforce that rule -- we
+ * rely on the fact that we construct the records ourselves and never
+ * inject unknown keys. Aggregators MUST do their own strict validation;
+ * don't treat `validateLocally` returning ok as proof the record is
+ * spec-compliant.
  */
 function validateLocally(collection: string, value: unknown): void {
 	const schemas: Record<string, { mainSchema: Parameters<typeof safeParse>[0] } | undefined> = {
@@ -598,6 +649,13 @@ function stampLastUpdated(existingValue: unknown): PackageProfileRecordShape | n
 	if (typeof v.slug !== "string") return null;
 	return {
 		...(v as unknown as PackageProfileRecordShape),
+		// Always normalise $type to the current lexicon NSID. An existing
+		// record from an earlier experimental shape might have a different
+		// $type (or none); preserving it byte-for-byte would then fail
+		// `validateLocally` against the current schema. The whole point of
+		// stamping is the CLI is asserting "this is a current-shape profile",
+		// so override.
+		$type: NSID.packageProfile,
 		lastUpdated: new Date().toISOString(),
 	};
 }

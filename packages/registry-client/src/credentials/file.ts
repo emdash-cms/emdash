@@ -138,11 +138,13 @@ export class FileCredentialStore implements CredentialStore {
 			// torn-write safe but not durable.
 			await writeFile(tmp, body, { mode: 0o600, flush: true });
 			await rename(tmp, this.path);
-			// fsync the directory after the rename so the rename itself is
-			// durable across power loss. POSIX file fsync persists the inode
-			// data but not the directory entry; only directory fsync persists
-			// the rename. Best-effort -- some filesystems (e.g. FAT, Windows)
-			// reject open(O_RDONLY) on a directory.
+			// On Linux, fsync the directory after the rename so the rename
+			// itself is durable across power loss (POSIX file fsync persists
+			// the inode but not the directory entry). On macOS the prior
+			// file fsync already covers this via the journal. On Windows
+			// `open(dir, "r")` rejects with EISDIR/EACCES; we swallow the
+			// error so the write still succeeds. Net effect: durable rename
+			// on Linux + journaled FS; benign no-op everywhere else.
 			await fsyncDir(dir).catch(() => {});
 		} catch (error) {
 			// Best-effort cleanup of the temp file if rename failed mid-write.

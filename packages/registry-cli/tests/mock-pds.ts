@@ -218,9 +218,15 @@ export class MockPds implements FetchHandlerObject {
 		//   - rkey shape and repo match
 		//   - create ops must not collide with an existing record
 		//   - update ops must target an existing record
-		// Real PDSes enforce all four; without H3/H4-style guards, the mock
-		// would accept writes a real PDS would reject and tests would pass
-		// on broken code paths.
+		//
+		// CAVEAT: a real PDS evaluates these checks AGAINST the post-batch
+		// MST snapshot, not the pre-batch state, so a `create A; update A`
+		// pair within ONE applyWrites is legal upstream. This mock evaluates
+		// against the pre-batch state, so that pattern is rejected here. The
+		// publish flow doesn't depend on within-batch dependencies (profile
+		// and release have different rkeys), so this divergence doesn't
+		// affect coverage today. If a future flow ever does, replace the
+		// pre-batch checks with a snapshot-aware simulation.
 		for (const op of input.writes ?? []) {
 			if (!op.rkey) {
 				return jsonResponse(400, {

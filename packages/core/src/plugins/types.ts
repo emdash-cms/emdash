@@ -1431,10 +1431,14 @@ export interface PluginManifest {
 // unknown>` to `PluginAdminConfig` because core's loader actually executes
 // against those types.
 //
-// We assert one direction: `core extends shared`. If core ever introduces a
-// required field not in shared, or uses a type that's not assignable to the
-// shared version, this stops compiling. The reverse direction (shared
-// extends core) is INTENTIONALLY not asserted because shared is wider.
+// We assert one direction at compile time: `core extends shared`. The
+// reverse direction (`shared extends core`) intentionally does NOT hold
+// because shared is wider -- a manifest written against the wire shape
+// could carry a hook name core doesn't know. That runtime narrowing is the
+// job of `manifest-schema.ts` (zod-validated, called at every JSON.parse
+// of a manifest.json), not of the type system. The static check below
+// catches the OTHER failure mode: core adding a required field or
+// non-assignable type that the wire shape doesn't allow.
 //
 // `type X = never` is itself legal as a type alias, so the assertion has to
 // be in a value position (`const _check: T = true`) for the compiler to

@@ -26,7 +26,10 @@ const SHA256_LENGTH = 0x20;
 /**
  * Compute the multibase-multihash sha2-256 checksum of the given bytes.
  *
- * @returns the base32-multibase string, e.g. `bciq...` (34 base32 chars).
+ * @returns the base32-multibase string, e.g. `bciq...`. The output is the
+ *   single-character multibase prefix `b` followed by base32 encoding of
+ *   34 bytes (2-byte multihash header + 32-byte digest), totalling 56
+ *   characters.
  */
 export function sha256Multihash(bytes: Uint8Array): string {
 	const digest = sha256(bytes);

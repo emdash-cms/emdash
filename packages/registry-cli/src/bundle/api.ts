@@ -316,8 +316,14 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 				"Plugin declares unrestricted network access (network:request:unrestricted) — it can make requests to any host.",
 			);
 		} else if (declaresHostRestricted && manifest.allowedHosts.length === 0) {
+			// `publish` will hard-fail this case (INVALID_MANIFEST) because
+			// the lexicon says `request: {}` means "unrestricted" -- silently
+			// publishing that contradicts the apparent intent of declaring
+			// `network:request` (host-restricted) with empty allowedHosts.
+			// Surface it loudly at bundle time so the developer fixes it
+			// before they try to publish.
 			warn(
-				"Plugin declares network:request capability but no allowedHosts — all requests will be blocked.",
+				"Plugin declares network:request capability but no allowedHosts. The lexicon treats this as `unrestricted` access. Add specific host patterns to allowedHosts, or upgrade the capability to network:request:unrestricted. `publish` will refuse this combination.",
 			);
 		}
 
