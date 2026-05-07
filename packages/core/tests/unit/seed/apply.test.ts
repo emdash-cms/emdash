@@ -1131,6 +1131,109 @@ describe("applySeed", () => {
 			expect(rows[0]?.translation_group).toBe(rows[1]?.translation_group);
 		});
 
+		it("imports menu item translations sharing one translation_group", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				menus: [
+					{
+						id: "menu:primary:en",
+						name: "primary",
+						label: "Primary",
+						locale: "en",
+						items: [
+							{ id: "item:primary:home:en", type: "custom", label: "Home", url: "/", locale: "en" },
+							{
+								id: "item:primary:about:en",
+								type: "custom",
+								label: "About",
+								url: "/about",
+								locale: "en",
+							},
+						],
+					},
+					{
+						id: "menu:primary:es",
+						name: "primary",
+						label: "Principal",
+						locale: "es",
+						translationOf: "menu:primary:en",
+						items: [
+							{
+								id: "item:primary:home:es",
+								type: "custom",
+								label: "Inicio",
+								url: "/",
+								locale: "es",
+								translationOf: "item:primary:home:en",
+							},
+							{
+								id: "item:primary:about:es",
+								type: "custom",
+								label: "Acerca",
+								url: "/about",
+								locale: "es",
+								translationOf: "item:primary:about:en",
+							},
+						],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const items = await db
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.orderBy(["label", "locale"])
+				.execute();
+
+			expect(items).toHaveLength(4);
+
+			const enHome = items.find((i) => i.label === "Home");
+			const esHome = items.find((i) => i.label === "Inicio");
+			const enAbout = items.find((i) => i.label === "About");
+			const esAbout = items.find((i) => i.label === "Acerca");
+
+			expect(enHome?.translation_group).toBe(esHome?.translation_group);
+			expect(enHome?.translation_group).toBe(enHome?.id);
+			expect(enAbout?.translation_group).toBe(esAbout?.translation_group);
+			expect(enAbout?.translation_group).not.toBe(enHome?.translation_group);
+		});
+
+		it("falls back to fresh group when item translationOf is missing", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				menus: [
+					{
+						id: "menu:primary:es",
+						name: "primary",
+						label: "Principal",
+						locale: "es",
+						items: [
+							{
+								id: "item:primary:home:es",
+								type: "custom",
+								label: "Inicio",
+								url: "/",
+								locale: "es",
+								translationOf: "item:primary:home:en",
+							},
+						],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const item = await db
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.where("label", "=", "Inicio")
+				.executeTakeFirst();
+
+			expect(item?.translation_group).toBe(item?.id);
+		});
+
 		it("imports term translations sharing one translation_group", async () => {
 			const seed: SeedFile = {
 				version: "1",

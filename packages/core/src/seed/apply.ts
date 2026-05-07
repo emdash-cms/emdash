@@ -512,6 +512,9 @@ export async function applySeed(
 	if (seed.menus) {
 		// seed-local id -> resolved info, used to wire `translationOf` refs.
 		const menuSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
+		// Spans every menu in the seed: items in a translated menu reference
+		// items in the anchor menu, so the map can't be scoped per-menu.
+		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 		const fallbackLocale = getI18nConfig()?.defaultLocale ?? "en";
 
 		for (const menu of seed.menus) {
@@ -560,7 +563,7 @@ export async function applySeed(
 
 			if (menu.id) menuSeedIdMap.set(menu.id, { id: menuId, translationGroup });
 
-			// Create menu items
+			// Create menu items (itemSeedIdMap is shared across all menus)
 			const itemCount = await applyMenuItems(
 				db,
 				menuId,
@@ -569,6 +572,7 @@ export async function applySeed(
 				null, // parent_id
 				0, // sort_order
 				seedIdMap,
+				itemSeedIdMap,
 			);
 			result.menus.items += itemCount;
 		}
@@ -920,11 +924,10 @@ async function applyContentTaxonomies(
 /**
  * Apply menu items recursively.
  *
- * Each item gets a fresh `translation_group` (= its own id). The seed format's
- * `SeedMenuItem` has no `id`/`translationOf` fields, so we can't express the
- * cross-locale "same nav entry" link here — items diverge across locales on
- * re-apply. Runtime navigation still resolves correctly because `reference_id`
- * already holds the content's translation_group.
+ * When a `SeedMenuItem` carries `id`/`translationOf`, the import resolves the
+ * source item's `translation_group` so cross-locale "same nav entry" links
+ * round-trip through export/apply (mirrors the SeedTaxonomyTerm pattern).
+ * Items without `translationOf` get a fresh group (= their own id).
  */
 async function applyMenuItems(
 	db: Kysely<Database>,
@@ -934,12 +937,14 @@ async function applyMenuItems(
 	parentId: string | null,
 	startOrder: number,
 	seedIdMap: Map<string, string>,
+	itemSeedIdMap: Map<string, { id: string; translationGroup: string }>,
 ): Promise<number> {
 	let count = 0;
 	let order = startOrder;
 
 	for (const item of items) {
 		const itemId = ulid();
+		const itemLocale = item.locale ?? locale;
 
 		// Resolve reference if needed
 		let referenceId: string | null = null;
@@ -953,6 +958,17 @@ async function applyMenuItems(
 				referenceCollection = item.collection || `${item.type}s`;
 			}
 			// If not in map, the content might not exist yet (will be broken link)
+		}
+
+		// Resolve translationOf to the source item's translation_group.
+		let translationGroup = itemId;
+		if (item.translationOf) {
+			const source = itemSeedIdMap.get(item.translationOf);
+			if (source) translationGroup = source.translationGroup;
+			else
+				console.warn(
+					`menu item "${item.label ?? item.url ?? item.ref ?? "(unlabeled)"}" (${itemLocale}): translationOf "${item.translationOf}" not found yet; minting a fresh group.`,
+				);
 		}
 
 		await db
@@ -971,10 +987,12 @@ async function applyMenuItems(
 				target: item.target ?? null,
 				css_classes: item.cssClasses ?? null,
 				created_at: new Date().toISOString(),
-				locale,
-				translation_group: itemId,
+				locale: itemLocale,
+				translation_group: translationGroup,
 			})
 			.execute();
+
+		if (item.id) itemSeedIdMap.set(item.id, { id: itemId, translationGroup });
 
 		count++;
 		order++;
@@ -983,11 +1001,12 @@ async function applyMenuItems(
 			const childCount = await applyMenuItems(
 				db,
 				menuId,
-				locale,
+				itemLocale,
 				item.children,
 				itemId,
 				0,
 				seedIdMap,
+				itemSeedIdMap,
 			);
 			count += childCount;
 		}
