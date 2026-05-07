@@ -117,7 +117,10 @@ const pageCtx = createPublicPageContext({
 							<div class="footer-col">
 								<h4>{col.heading}</h4>
 								{col.menu!.items.map((item) => (
-									<a href={item.url} target={item.target}>
+									<a
+										href={item.url}
+										target={item.target}
+										rel={item.target ? "noopener noreferrer" : undefined}>
 										{item.label}
 									</a>
 								))}
