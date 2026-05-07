@@ -83,6 +83,7 @@ import { TranslationsPanel } from "./TranslationsPanel.js";
 const ROLE_EDITOR = 40;
 
 export interface FieldDescriptor {
+	id?: string;
 	kind: string;
 	label?: string;
 	required?: boolean;
@@ -1306,6 +1307,12 @@ function FieldRenderer({
 					value={imageValue}
 					onChange={handleChange}
 					required={field.required}
+					allowedMimeTypes={
+						Array.isArray(field.validation?.allowedMimeTypes)
+							? (field.validation.allowedMimeTypes as string[])
+							: undefined
+					}
+					fieldId={field.id}
 				/>
 			);
 		}
@@ -1324,6 +1331,12 @@ function FieldRenderer({
 					value={fileValue}
 					onChange={handleChange}
 					required={field.required}
+					allowedMimeTypes={
+						Array.isArray(field.validation?.allowedMimeTypes)
+							? (field.validation.allowedMimeTypes as string[])
+							: undefined
+					}
+					fieldId={field.id}
 				/>
 			);
 		}
@@ -1559,6 +1572,8 @@ interface ImageFieldRendererProps {
 	value: ImageFieldValue | string | undefined;
 	onChange: (value: ImageFieldValue | null) => void;
 	required?: boolean;
+	allowedMimeTypes?: string[];
+	fieldId?: string;
 }
 
 function ImageFieldRenderer({
@@ -1568,6 +1583,8 @@ function ImageFieldRenderer({
 	value,
 	onChange,
 	required,
+	allowedMimeTypes,
+	fieldId,
 }: ImageFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
@@ -1641,7 +1658,10 @@ function ImageFieldRenderer({
 				open={pickerOpen}
 				onOpenChange={setPickerOpen}
 				onSelect={handleSelect}
-				mimeTypeFilter="image/"
+				mimeTypeFilters={
+					allowedMimeTypes && allowedMimeTypes.length > 0 ? allowedMimeTypes : ["image/"]
+				}
+				fieldId={fieldId}
 				title={t`Select ${label}`}
 			/>
 			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
@@ -1675,6 +1695,8 @@ interface FileFieldRendererProps {
 	value: FileFieldValue | undefined;
 	onChange: (value: FileFieldValue | null) => void;
 	required?: boolean;
+	allowedMimeTypes?: string[];
+	fieldId?: string;
 }
 
 /**
@@ -1683,7 +1705,15 @@ interface FileFieldRendererProps {
  * Like ImageFieldRenderer but for arbitrary file types. Shows a mime-type-appropriate
  * icon, filename, and size instead of an image preview.
  */
-function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRendererProps) {
+function FileFieldRenderer({
+	id,
+	label,
+	value,
+	onChange,
+	required,
+	allowedMimeTypes,
+	fieldId,
+}: FileFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 
@@ -1802,7 +1832,8 @@ function FileFieldRenderer({ id, label, value, onChange, required }: FileFieldRe
 				open={pickerOpen}
 				onOpenChange={setPickerOpen}
 				onSelect={handleSelect}
-				mimeTypeFilter=""
+				mimeTypeFilters={allowedMimeTypes ?? []}
+				fieldId={fieldId}
 				hideUrlInput
 				mediaKind="file"
 				title={t`Select ${label}`}
