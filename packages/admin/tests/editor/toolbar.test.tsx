@@ -554,7 +554,7 @@ describe("Link Insertion", () => {
 		linkBtn.element().click();
 
 		await vi.waitFor(() => {
-			const input = screen.container.querySelector('input[type="url"]');
+			const input = screen.container.querySelector('input[placeholder*="example.com"]');
 			expect(input).toBeTruthy();
 		});
 	});
@@ -578,10 +578,12 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(screen.container.querySelector('input[type="url"]')).toBeTruthy();
+			expect(screen.container.querySelector('input[placeholder*="example.com"]')).toBeTruthy();
 		});
 
-		const input = screen.container.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = screen.container.querySelector(
+			'input[placeholder*="example.com"]',
+		) as HTMLInputElement;
 		// Focus input and type URL
 		input.focus();
 		// Use native input value setter to trigger React's onChange
@@ -607,13 +609,13 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(screen.container.querySelector('input[type="url"]')).toBeTruthy();
+			expect(screen.container.querySelector('input[placeholder*="example.com"]')).toBeTruthy();
 		});
 
 		screen.getByRole("button", { name: "Cancel" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(screen.container.querySelector('input[type="url"]')).toBeNull();
+			expect(screen.container.querySelector('input[placeholder*="example.com"]')).toBeNull();
 		});
 	});
 
