@@ -251,7 +251,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						onClick={() => setShowTransforms(false)}
 					>
 						<CaretPrev className="h-4 w-4" />
-						{t`Back`}
+						<span>{t`Back`}</span>
 					</button>
 					<div className="h-px bg-kumo-line my-1" />
 					{blockTransforms.map((transform) => (
@@ -276,7 +276,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 					>
 						<span className="flex items-center gap-2">
 							<Paragraph className="h-4 w-4 text-kumo-subtle" />
-							{t`Turn into`}
+							<span>{t`Turn into`}</span>
 						</span>
 						<CaretNext className="h-4 w-4 text-kumo-subtle" />
 					</button>
@@ -286,7 +286,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						onClick={handleDuplicate}
 					>
 						<Copy className="h-4 w-4 text-kumo-subtle" />
-						{t`Duplicate`}
+						<span>{t`Duplicate`}</span>
 					</button>
 					<div className="h-px bg-kumo-line my-1" />
 					<button
@@ -295,7 +295,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						onClick={handleDelete}
 					>
 						<Trash className="h-4 w-4" />
-						{t`Delete`}
+						<span>{t`Delete`}</span>
 					</button>
 				</div>
 			)}
