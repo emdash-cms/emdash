@@ -10,6 +10,16 @@ function escapeLike(value: string): string {
 	return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
 }
 
+/**
+ * Normalize a mimeType filter (string or array) into a clean string[].
+ * Entries that are empty strings are dropped.
+ */
+function normalizeMimeFilter(input?: string | readonly string[]): string[] {
+	if (!input) return [];
+	const arr = Array.isArray(input) ? input : [input];
+	return arr.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+}
+
 export type MediaStatus = "pending" | "ready" | "failed";
 
 export interface MediaItem {
@@ -49,7 +59,8 @@ export interface CreateMediaInput {
 export interface FindManyMediaOptions {
 	limit?: number;
 	cursor?: string;
-	mimeType?: string; // Filter by mime type prefix, e.g., "image/"
+	/** Filter by MIME type. Pass a string for a single prefix/exact, or an array to match any. Strings ending with "/" are treated as LIKE prefix matches; others are exact equality. */
+	mimeType?: string | readonly string[];
 	status?: MediaStatus | "all"; // Filter by status, defaults to "ready"
 }
 
@@ -215,9 +226,17 @@ export class MediaRepository {
 			);
 		}
 
-		if (options.mimeType) {
-			const pattern = `${escapeLike(options.mimeType)}%`;
-			query = query.where(sql<SqlBool>`mime_type LIKE ${pattern} ESCAPE '\\'`);
+		const mimeFilters = normalizeMimeFilter(options.mimeType);
+		if (mimeFilters.length > 0) {
+			query = query.where((eb) =>
+				eb.or(
+					mimeFilters.map((entry) =>
+						entry.endsWith("/")
+							? sql<SqlBool>`mime_type LIKE ${`${escapeLike(entry)}%`} ESCAPE '\\'`
+							: eb("mime_type", "=", entry),
+					),
+				),
+			);
 		}
 
 		// Default to only showing ready items
@@ -276,12 +295,20 @@ export class MediaRepository {
 	/**
 	 * Count media items
 	 */
-	async count(mimeType?: string): Promise<number> {
-		let query = this.db.selectFrom("media").select((eb) => eb.fn.count("id").as("count"));
+	async count(mimeType?: string | readonly string[]): Promise<number> {
+		const filters = normalizeMimeFilter(mimeType);
+		let query = this.db.selectFrom("media").select((eb) => eb.fn.count<number>("id").as("count"));
 
-		if (mimeType) {
-			const pattern = `${escapeLike(mimeType)}%`;
-			query = query.where(sql<SqlBool>`mime_type LIKE ${pattern} ESCAPE '\\'`);
+		if (filters.length > 0) {
+			query = query.where((eb) =>
+				eb.or(
+					filters.map((entry) =>
+						entry.endsWith("/")
+							? sql<SqlBool>`mime_type LIKE ${`${escapeLike(entry)}%`} ESCAPE '\\'`
+							: eb("mime_type", "=", entry),
+					),
+				),
+			);
 		}
 
 		const result = await query.executeTakeFirst();
