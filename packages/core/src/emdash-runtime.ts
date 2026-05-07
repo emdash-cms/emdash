@@ -1322,7 +1322,7 @@ export class EmDashRuntime {
 						(field.type === "repeater" || field.type === "file" || field.type === "image") &&
 						field.validation
 					) {
-						entry.validation = field.validation as Record<string, unknown>;
+						entry.validation = { ...field.validation };
 					}
 					fields[field.slug] = entry;
 				}

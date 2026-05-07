@@ -100,7 +100,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 				: [],
 			minItems: (field.validation as Record<string, unknown>)?.minItems?.toString() ?? "",
 			maxItems: (field.validation as Record<string, unknown>)?.maxItems?.toString() ?? "",
-			allowedMimeTypes: (field.validation?.allowedMimeTypes as string[] | undefined) ?? [],
+			allowedMimeTypes: field.validation?.allowedMimeTypes ?? [],
 		};
 	}
 	return {

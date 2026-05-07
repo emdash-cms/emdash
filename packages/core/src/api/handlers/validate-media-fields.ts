@@ -41,8 +41,9 @@ async function loadMediaFieldsForCollection(
 	for (const row of rows) {
 		if (!row.validation) continue;
 		try {
-			const parsed = JSON.parse(row.validation) as { allowedMimeTypes?: string[] };
-			const list = parsed.allowedMimeTypes;
+			const parsed: unknown = JSON.parse(row.validation);
+			if (typeof parsed !== "object" || parsed === null) continue;
+			const list = (parsed as { allowedMimeTypes?: string[] }).allowedMimeTypes;
 			if (!list || list.length === 0) continue;
 			out.push({ slug: row.slug, type: row.type, allowedMimeTypes: list });
 		} catch {

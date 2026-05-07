@@ -36,8 +36,9 @@ export async function resolveFieldAllowlist(
 	if (!row.validation) return null;
 
 	try {
-		const parsed = JSON.parse(row.validation) as { allowedMimeTypes?: string[] };
-		const list = parsed.allowedMimeTypes;
+		const parsed: unknown = JSON.parse(row.validation);
+		if (typeof parsed !== "object" || parsed === null) return null;
+		const list = (parsed as { allowedMimeTypes?: string[] }).allowedMimeTypes;
 		if (!list || list.length === 0) return null;
 		return list;
 	} catch {
