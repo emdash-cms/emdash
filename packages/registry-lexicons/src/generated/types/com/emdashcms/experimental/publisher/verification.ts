@@ -1,11 +1,13 @@
 import type {} from "@atcute/lexicons";
-import type {} from "@atcute/lexicons/ambient";
 import * as v from "@atcute/lexicons/validations";
+import type {} from "@atcute/lexicons/ambient";
 
 const _mainSchema = /*#__PURE__*/ v.record(
 	/*#__PURE__*/ v.tidString(),
 	/*#__PURE__*/ v.object({
-		$type: /*#__PURE__*/ v.literal("com.emdashcms.experimental.publisher.verification"),
+		$type: /*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.publisher.verification",
+		),
 		/**
 		 * When the verification was issued.
 		 */

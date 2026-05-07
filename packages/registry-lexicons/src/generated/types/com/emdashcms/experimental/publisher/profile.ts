@@ -1,25 +1,30 @@
 import type {} from "@atcute/lexicons";
-import type {} from "@atcute/lexicons/ambient";
 import * as v from "@atcute/lexicons/validations";
+import type {} from "@atcute/lexicons/ambient";
 
 const _contactSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.publisher.profile#contact"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.publisher.profile#contact",
+		),
 	),
 	/**
 	 * @maxLength 256
 	 */
 	email: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(0, 256)]),
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 256),
+		]),
 	),
 	/**
 	 * Channel role. 'general' for ordinary contact, 'security' for vulnerability reporting.
 	 * @maxLength 32
 	 */
 	kind: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string<"general" | "security" | (string & {})>(), [
-			/*#__PURE__*/ v.stringLength(0, 32),
-		]),
+		/*#__PURE__*/ v.constrain(
+			/*#__PURE__*/ v.string<"general" | "security" | (string & {})>(),
+			[/*#__PURE__*/ v.stringLength(0, 32)],
+		),
 	),
 	/**
 	 * @maxLength 1024
@@ -33,7 +38,9 @@ const _contactSchema = /*#__PURE__*/ v.object({
 const _mainSchema = /*#__PURE__*/ v.record(
 	/*#__PURE__*/ v.literal("self"),
 	/*#__PURE__*/ v.object({
-		$type: /*#__PURE__*/ v.literal("com.emdashcms.experimental.publisher.profile"),
+		$type: /*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.publisher.profile",
+		),
 		/**
 		 * Identity-level contact channels for the publisher (general / security). Per-package security contacts on package profile records remain authoritative for their respective packages; this list is for the publisher entity itself.
 		 * @maxLength 8
