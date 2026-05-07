@@ -11,6 +11,9 @@
 
 import { Button, Input } from "@cloudflare/kumo";
 import type { Element } from "@emdash-cms/blocks";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	DotsSixVertical,
 	Trash,
@@ -105,7 +108,7 @@ function getEmbedMeta(
 	Icon: React.ComponentType<{ className?: string }>;
 	label: string;
 	color: string;
-	placeholder: string;
+	placeholder: MessageDescriptor;
 } {
 	const def = registry.get(blockType);
 	if (def) {
@@ -113,7 +116,7 @@ function getEmbedMeta(
 			Icon: resolveIcon(def.icon),
 			label: def.label,
 			color: "text-kumo-subtle",
-			placeholder: def.placeholder || "Enter URL...",
+			placeholder: def.placeholder ? { id: def.placeholder } : msg`Enter URL...`,
 		};
 	}
 
@@ -122,7 +125,7 @@ function getEmbedMeta(
 		Icon: Cube,
 		label: blockType.charAt(0).toUpperCase() + blockType.slice(1),
 		color: "text-kumo-subtle",
-		placeholder: "Enter URL...",
+		placeholder: msg`Enter URL...`,
 	};
 }
 
@@ -182,6 +185,7 @@ function PluginBlockNodeView({
 	editor,
 	getPos,
 }: NodeViewProps) {
+	const { t } = useLingui();
 	const blockType = typeof node.attrs.blockType === "string" ? node.attrs.blockType : "";
 	const id = typeof node.attrs.id === "string" ? node.attrs.id : "";
 	const data =
@@ -308,8 +312,8 @@ function PluginBlockNodeView({
 										shape="square"
 										className="h-8 w-8"
 										onClick={handleCopyUrl}
-										title="Copy URL"
-										aria-label="Copy URL"
+										title={t`Copy URL`}
+										aria-label={t`Copy URL`}
 									>
 										<Copy className="h-4 w-4" />
 									</Button>
@@ -319,8 +323,8 @@ function PluginBlockNodeView({
 										shape="square"
 										className="h-8 w-8"
 										onClick={handleOpenExternal}
-										title="Open in new tab"
-										aria-label="Open in new tab"
+										title={t`Open in new tab`}
+										aria-label={t`Open in new tab`}
 									>
 										<ArrowSquareOut className="h-4 w-4" />
 									</Button>
@@ -353,8 +357,8 @@ function PluginBlockNodeView({
 										setIsEditing(true);
 									}
 								}}
-								title={hasFields ? "Edit" : "Edit URL"}
-								aria-label={hasFields ? "Edit" : "Edit URL"}
+								title={hasFields ? t`Edit` : t`Edit URL`}
+								aria-label={hasFields ? t`Edit` : t`Edit URL`}
 							>
 								<Pencil className="h-4 w-4" />
 							</Button>
@@ -364,8 +368,8 @@ function PluginBlockNodeView({
 								shape="square"
 								className="h-8 w-8 text-kumo-danger hover:text-kumo-danger hover:bg-kumo-danger/10"
 								onClick={() => deleteNode()}
-								title="Delete"
-								aria-label="Delete embed"
+								title={t`Delete`}
+								aria-label={t`Delete embed`}
 							>
 								<Trash className="h-4 w-4" />
 							</Button>
@@ -382,7 +386,7 @@ function PluginBlockNodeView({
 									value={editValue}
 									onChange={(e) => setEditValue(e.target.value)}
 									onKeyDown={handleKeyDown}
-									placeholder={placeholder}
+									placeholder={t(placeholder)}
 									className="flex-1 h-9 text-sm font-mono"
 								/>
 								<Button
@@ -391,8 +395,8 @@ function PluginBlockNodeView({
 									shape="square"
 									className="h-9 w-9"
 									onClick={handleCancel}
-									title="Cancel (Esc)"
-									aria-label="Cancel"
+									title={t`Cancel (Esc)`}
+									aria-label={t`Cancel`}
 								>
 									<X className="h-4 w-4" />
 								</Button>
@@ -402,8 +406,8 @@ function PluginBlockNodeView({
 									shape="square"
 									className="h-9 w-9"
 									onClick={handleSave}
-									title="Save (Enter)"
-									aria-label="Save"
+									title={t`Save (Enter)`}
+									aria-label={t`Save`}
 								>
 									<Check className="h-4 w-4" />
 								</Button>

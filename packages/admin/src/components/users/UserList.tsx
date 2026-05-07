@@ -51,9 +51,9 @@ export function UserList({
 		<div className="space-y-4">
 			{/* Header */}
 			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-bold">Users</h1>
+				<h1 className="text-2xl font-bold">{t`Users`}</h1>
 				<Button onClick={onInviteUser} icon={<UserPlus />}>
-					Invite User
+					{t`Invite User`}
 				</Button>
 			</div>
 
@@ -66,11 +66,11 @@ export function UserList({
 					/>
 					<Input
 						type="search"
-						placeholder="Search by name or email..."
+						placeholder={t`Search by name or email...`}
 						className="ps-10"
 						value={searchQuery}
 						onChange={(e) => onSearchChange(e.target.value)}
-						aria-label="Search users"
+						aria-label={t`Search users`}
 					/>
 				</div>
 				<Select
@@ -79,7 +79,7 @@ export function UserList({
 						onRoleFilterChange(value === "all" || value === null ? undefined : parseInt(value, 10))
 					}
 					items={roleFilterSelectItems}
-					aria-label="Filter by role"
+					aria-label={t`Filter by role`}
 				>
 					{roleFilterSelectOptions.map((option) => (
 						<Select.Option key={option.value} value={option.value}>
@@ -95,19 +95,19 @@ export function UserList({
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
 							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								User
+								{t`User`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								Role
+								{t`Role`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								Status
+								{t`Status`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								Last Login
+								{t`Last Login`}
 							</th>
 							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								Passkeys
+								{t`Passkeys`}
 							</th>
 						</tr>
 					</thead>
@@ -117,7 +117,7 @@ export function UserList({
 								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
 									{searchQuery || roleFilter !== undefined ? (
 										<>
-											No users found matching your filters.{" "}
+											{t`No users found matching your filters.`}{" "}
 											<button
 												type="button"
 												className="text-kumo-brand underline"
@@ -131,7 +131,7 @@ export function UserList({
 										</>
 									) : (
 										<>
-											No users yet.{" "}
+											{t`No users yet.`}{" "}
 											<button
 												type="button"
 												className="text-kumo-brand underline"
@@ -153,7 +153,7 @@ export function UserList({
 								<td colSpan={5} className="px-4 py-4">
 									<div className="flex items-center justify-center gap-2 text-kumo-subtle">
 										<Loader size="sm" />
-										Loading...
+										{t`Loading...`}
 									</div>
 								</td>
 							</tr>
@@ -166,7 +166,7 @@ export function UserList({
 			{hasMore && !isLoading && (
 				<div className="flex justify-center">
 					<Button variant="outline" onClick={onLoadMore}>
-						Load More
+						{t`Load More`}
 					</Button>
 				</div>
 			)}
@@ -181,7 +181,8 @@ interface UserListRowProps {
 
 function UserListRow({ user, onSelect }: UserListRowProps) {
 	const displayName = user.name || user.email;
-	const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never";
+	const { t } = useLingui();
+	const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : t`Never`;
 
 	return (
 		<tr className="border-b hover:bg-kumo-tint/25 cursor-pointer" onClick={onSelect}>
@@ -208,12 +209,12 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 				{user.disabled ? (
 					<span className="inline-flex items-center gap-1 text-sm text-kumo-danger">
 						<Prohibit className="h-3.5 w-3.5" aria-hidden="true" />
-						Disabled
+						{t`Disabled`}
 					</span>
 				) : (
 					<span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
 						<CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
-						Active
+						{t`Active`}
 					</span>
 				)}
 			</td>
