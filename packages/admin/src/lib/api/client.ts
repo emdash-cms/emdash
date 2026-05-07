@@ -59,6 +59,8 @@ export interface AdminManifest {
 			fields: Record<
 				string,
 				{
+					/** Database row ID (ULID) for the field. Used to widen MIME allowlists on upload/media-list calls. */
+					id?: string;
 					kind: string;
 					label?: string;
 					required?: boolean;
