@@ -59,6 +59,7 @@ export interface SchemaField {
 		maxLength?: number;
 		pattern?: string;
 		options?: string[];
+		allowedMimeTypes?: string[];
 	};
 	widget?: string;
 	options?: Record<string, unknown>;
@@ -110,6 +111,7 @@ export interface CreateFieldInput {
 		maxLength?: number;
 		pattern?: string;
 		options?: string[];
+		allowedMimeTypes?: string[];
 	};
 	widget?: string;
 	options?: Record<string, unknown>;
@@ -128,6 +130,7 @@ export interface UpdateFieldInput {
 		maxLength?: number;
 		pattern?: string;
 		options?: string[];
+		allowedMimeTypes?: string[];
 	};
 	widget?: string;
 	options?: Record<string, unknown>;
