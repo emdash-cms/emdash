@@ -1188,6 +1188,7 @@ function PluginBlockModal({
 }) {
 	const [formValues, setFormValues] = React.useState<Record<string, unknown>>({});
 	const inputRef = React.useRef<HTMLInputElement>(null);
+	const { t } = useLingui();
 
 	React.useEffect(() => {
 		if (block) {
@@ -1239,20 +1240,20 @@ function PluginBlockModal({
 			<Dialog className="p-6" size={dialogSize}>
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{isEditing ? "Edit" : "Insert"} {block?.label || ""}
+						{isEditing ? t`Edit` : t`Insert`} {block?.label || ""}
 					</Dialog.Title>
 					<Dialog.Close
-						aria-label="Close"
+						aria-label={t`Close`}
 						render={(props) => (
 							<Button
 								{...props}
 								variant="ghost"
 								shape="square"
-								aria-label="Close"
+								aria-label={t`Close`}
 								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
-								<span className="sr-only">Close</span>
+								<span className="sr-only">{t`Close`}</span>
 							</Button>
 						)}
 					/>
@@ -1707,6 +1708,7 @@ function DynamicSelect({
 		value: string;
 	}> | null>(null);
 	const [loading, setLoading] = React.useState(false);
+	const { t } = useLingui();
 
 	React.useEffect(() => {
 		if (!field.optionsRoute || !pluginId) return;
@@ -1750,14 +1752,14 @@ function DynamicSelect({
 		<div>
 			<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
 			{loading ? (
-				<div className="flex h-10 items-center px-3 text-sm text-kumo-subtle">Loading...</div>
+				<div className="flex h-10 items-center px-3 text-sm text-kumo-subtle">{t`Loading...`}</div>
 			) : (
 				<select
 					className="flex h-10 w-full rounded-md border border-kumo-line bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kumo-ring focus-visible:ring-offset-2"
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(field.action_id, e.target.value)}
 				>
-					<option value="">Select...</option>
+					<option value="">{t`Select...`}</option>
 					{options.map((opt) => (
 						<option key={opt.value} value={opt.value}>
 							{opt.label}
@@ -2270,7 +2272,7 @@ export function PortableTextEditor({
 	if (!editor) {
 		return (
 			<div className={cn("border rounded-lg", className)}>
-				<div className="p-4 text-kumo-subtle">Loading editor...</div>
+				<div className="p-4 text-kumo-subtle">{t`Loading editor...`}</div>
 			</div>
 		);
 	}
@@ -2312,7 +2314,7 @@ export function PortableTextEditor({
 				onOpenChange={setMediaPickerOpen}
 				onSelect={handleImageSelect}
 				mimeTypeFilter="image/"
-				title="Select Image"
+				title={t`Select Image`}
 			/>
 
 			{/* Plugin block insertion/editing modal */}
@@ -2345,6 +2347,7 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
 	const inputRef = React.useRef<HTMLInputElement>(null);
+	const { t } = useLingui();
 
 	// When bubble menu opens with link input, populate the URL
 	React.useEffect(() => {
@@ -2411,8 +2414,8 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 						shape="square"
 						className="h-8 w-8"
 						onClick={handleSetLink}
-						title="Apply link"
-						aria-label="Apply link"
+						title={t`Apply link`}
+						aria-label={t`Apply link`}
 					>
 						<ArrowSquareOut className="h-4 w-4" />
 					</Button>
@@ -2423,8 +2426,8 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 							shape="square"
 							className="h-8 w-8 text-kumo-danger"
 							onClick={handleRemoveLink}
-							title="Remove link"
-							aria-label="Remove link"
+							title={t`Remove link`}
+							aria-label={t`Remove link`}
 						>
 							<LinkBreak className="h-4 w-4" />
 						</Button>
@@ -2435,35 +2438,35 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleBold().run()}
 						active={editor.isActive("bold")}
-						title="Bold"
+						title={t`Bold`}
 					>
 						<TextB className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleItalic().run()}
 						active={editor.isActive("italic")}
-						title="Italic"
+						title={t`Italic`}
 					>
 						<TextItalic className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleUnderline().run()}
 						active={editor.isActive("underline")}
-						title="Underline"
+						title={t`Underline`}
 					>
 						<TextUnderline className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleStrike().run()}
 						active={editor.isActive("strike")}
-						title="Strikethrough"
+						title={t`Strikethrough`}
 					>
 						<TextStrikethrough className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleCode().run()}
 						active={editor.isActive("code")}
-						title="Code"
+						title={t`Code`}
 					>
 						<Code className="h-4 w-4" />
 					</BubbleButton>
@@ -2471,7 +2474,7 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					<BubbleButton
 						onClick={() => setShowLinkInput(true)}
 						active={editor.isActive("link")}
-						title={editor.isActive("link") ? "Edit link" : "Add link"}
+						title={editor.isActive("link") ? t`Edit link` : t`Add link`}
 					>
 						<LinkIcon className="h-4 w-4" />
 					</BubbleButton>
@@ -2732,7 +2735,7 @@ function EditorToolbar({
 		<div
 			ref={toolbarRef}
 			role="toolbar"
-			aria-label="Text formatting"
+			aria-label={t`Text formatting`}
 			className="border-b bg-kumo-tint/50 p-1 flex flex-wrap gap-0.5"
 			onKeyDown={handleKeyDown}
 		>
@@ -2741,35 +2744,35 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					active={editorState.isBold}
-					title="Bold"
+					title={t`Bold`}
 				>
 					<TextB className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleItalic().run()}
 					active={editorState.isItalic}
-					title="Italic"
+					title={t`Italic`}
 				>
 					<TextItalic className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleUnderline().run()}
 					active={editorState.isUnderline}
-					title="Underline"
+					title={t`Underline`}
 				>
 					<TextUnderline className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleStrike().run()}
 					active={editorState.isStrike}
-					title="Strikethrough"
+					title={t`Strikethrough`}
 				>
 					<TextStrikethrough className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCode().run()}
 					active={editorState.isCode}
-					title="Inline Code"
+					title={t`Inline Code`}
 				>
 					<Code className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2782,21 +2785,21 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
 					active={editorState.isHeading1}
-					title="Heading 1"
+					title={t`Heading 1`}
 				>
 					<TextHOne className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
 					active={editorState.isHeading2}
-					title="Heading 2"
+					title={t`Heading 2`}
 				>
 					<TextHTwo className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
 					active={editorState.isHeading3}
-					title="Heading 3"
+					title={t`Heading 3`}
 				>
 					<TextHThree className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2809,28 +2812,28 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBulletList().run()}
 					active={editorState.isBulletList}
-					title="Bullet List"
+					title={t`Bullet List`}
 				>
 					<List className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleOrderedList().run()}
 					active={editorState.isOrderedList}
-					title="Numbered List"
+					title={t`Numbered List`}
 				>
 					<ListNumbers className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBlockquote().run()}
 					active={editorState.isBlockquote}
-					title="Quote"
+					title={t`Quote`}
 				>
 					<Quotes className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCodeBlock().run()}
 					active={editorState.isCodeBlock}
-					title="Code Block"
+					title={t`Code Block`}
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2852,21 +2855,21 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setTextAlign("left").run()}
 					active={editorState.isAlignLeft}
-					title="Align Left"
+					title={t`Align Left`}
 				>
 					<TextAlignLeft className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setTextAlign("center").run()}
 					active={editorState.isAlignCenter}
-					title="Align Center"
+					title={t`Align Center`}
 				>
 					<TextAlignCenter className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setTextAlign("right").run()}
 					active={editorState.isAlignRight}
-					title="Align Right"
+					title={t`Align Right`}
 				>
 					<TextAlignRight className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2881,14 +2884,14 @@ function EditorToolbar({
 					<ToolbarButton
 						onClick={() => setShowLinkPopover(!showLinkPopover)}
 						active={editorState.isLink}
-						title="Insert Link"
+						title={t`Insert Link`}
 					>
 						<LinkIcon className="h-4 w-4" aria-hidden="true" />
 					</ToolbarButton>
 					{showLinkPopover && (
 						<div className="absolute top-full start-0 mt-1 z-50 rounded-md border bg-kumo-overlay p-3 shadow-lg">
 							<div className="flex flex-col gap-2">
-								<label className="text-xs font-medium text-kumo-subtle">URL</label>
+								<label className="text-xs font-medium text-kumo-subtle">{t`URL`}</label>
 								<div className="flex items-center gap-1">
 									<Input
 										ref={linkInputRef}
@@ -2910,7 +2913,7 @@ function EditorToolbar({
 											setLinkUrl("");
 										}}
 									>
-										Cancel
+										{t`Cancel`}
 									</Button>
 									<div className="flex gap-1">
 										{editorState.isLink && (
@@ -2922,11 +2925,11 @@ function EditorToolbar({
 												onClick={handleRemoveLink}
 												icon={<LinkBreak />}
 											>
-												Remove
+												{t`Remove`}
 											</Button>
 										)}
 										<Button type="button" variant="primary" size="sm" onClick={handleSetLink}>
-											Apply
+											{t`Apply`}
 										</Button>
 									</div>
 								</div>
@@ -2934,12 +2937,12 @@ function EditorToolbar({
 						</div>
 					)}
 				</div>
-				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title="Insert Image">
+				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title={t`Insert Image`}>
 					<ImageIcon className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setHorizontalRule().run()}
-					title="Insert Horizontal Rule"
+					title={t`Insert Horizontal Rule`}
 				>
 					<Minus className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2952,14 +2955,14 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().undo().run()}
 					disabled={!editorState.canUndo}
-					title="Undo"
+					title={t`Undo`}
 				>
 					<ArrowUUpLeft className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().redo().run()}
 					disabled={!editorState.canRedo}
-					title="Redo"
+					title={t`Redo`}
 				>
 					<ArrowUUpRight className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2972,7 +2975,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => onFocusModeChange(focusMode === "spotlight" ? "normal" : "spotlight")}
 					active={focusMode === "spotlight"}
-					title={focusMode === "spotlight" ? "Exit Spotlight Mode" : "Spotlight Mode"}
+					title={focusMode === "spotlight" ? t`Exit Spotlight Mode` : t`Spotlight Mode`}
 				>
 					<Eye className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2984,7 +2987,7 @@ function EditorToolbar({
 				onOpenChange={setMediaPickerOpen}
 				onSelect={handleImageSelect}
 				mimeTypeFilter="image/"
-				title="Select Image"
+				title={t`Select Image`}
 			/>
 		</div>
 	);

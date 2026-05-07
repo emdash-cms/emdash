@@ -155,7 +155,7 @@ export function Widgets() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
 			setIsCreateAreaOpen(false);
-			toastManager.add({ title: "Widget area created" });
+			toastManager.add({ title: t`Widget area created` });
 		},
 		onError: (error: Error) => {
 			setCreateAreaError(error.message);
@@ -167,11 +167,11 @@ export function Widgets() {
 			createWidget(areaName, input),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
-			toastManager.add({ title: "Widget added" });
+			toastManager.add({ title: t`Widget added` });
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: "Error adding widget",
+				title: t`Error adding widget`,
 				description: error.message,
 				type: "error",
 			});
@@ -232,7 +232,7 @@ export function Widgets() {
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: "Error reordering widgets",
+				title: t`Error reordering widgets`,
 				description: error.message,
 				type: "error",
 			});
@@ -307,7 +307,7 @@ export function Widgets() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-64">
-				<div className="text-kumo-subtle">Loading widgets...</div>
+				<div className="text-kumo-subtle">{t`Loading widgets...`}</div>
 			</div>
 		);
 	}
@@ -322,8 +322,8 @@ export function Widgets() {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-3xl font-bold">Widgets</h1>
-						<p className="text-kumo-subtle">Manage content widgets in your widget areas</p>
+						<h1 className="text-3xl font-bold">{t`Widgets`}</h1>
+						<p className="text-kumo-subtle">{t`Manage content widgets in your widget areas`}</p>
 					</div>
 					<Dialog.Root
 						open={isCreateAreaOpen}
@@ -335,44 +335,44 @@ export function Widgets() {
 						<Dialog.Trigger
 							render={(props) => (
 								<Button {...props} icon={<Plus />}>
-									Add Widget Area
+									{t`Add Widget Area`}
 								</Button>
 							)}
 						/>
 						<Dialog className="p-6" size="lg">
 							<div className="flex items-start justify-between gap-4 mb-4">
 								<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-									Create Widget Area
+									{t`Create Widget Area`}
 								</Dialog.Title>
 								<Dialog.Close
-									aria-label="Close"
+									aria-label={t`Close`}
 									render={(props) => (
 										<Button
 											{...props}
 											variant="ghost"
 											shape="square"
-											aria-label="Close"
+											aria-label={t`Close`}
 											className="absolute end-4 top-4"
 										>
 											<X className="h-4 w-4" />
-											<span className="sr-only">Close</span>
+											<span className="sr-only">{t`Close`}</span>
 										</Button>
 									)}
 								/>
 							</div>
 							<form onSubmit={handleCreateArea} className="space-y-4">
 								<Input
-									label="Name"
+									label={t`Name`}
 									name="name"
 									required
 									placeholder="sidebar"
 									pattern="[a-z0-9\-]+"
 								/>
-								<Input label="Label" name="label" required placeholder="Main Sidebar" />
+								<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
 								<Input
-									label="Description"
+									label={t`Description`}
 									name="description"
-									placeholder="Appears on posts and pages"
+									placeholder={t`Appears on posts and pages`}
 								/>
 								<DialogError
 									message={createAreaError || getMutationError(createAreaMutation.error)}
@@ -383,10 +383,10 @@ export function Widgets() {
 										variant="outline"
 										onClick={() => setIsCreateAreaOpen(false)}
 									>
-										Cancel
+										{t`Cancel`}
 									</Button>
 									<Button type="submit" disabled={createAreaMutation.isPending}>
-										Create
+										{t`Create`}
 									</Button>
 								</div>
 							</form>
@@ -398,8 +398,8 @@ export function Widgets() {
 					{/* Available Widgets (draggable palette) */}
 					<div className="col-span-4">
 						<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
-							<h2 className="text-xl font-semibold">Available Widgets</h2>
-							<p className="text-sm text-kumo-subtle">Drag widgets into an area to add them</p>
+							<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
+							<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
 							<div className="space-y-2">
 								{BUILTIN_WIDGETS.map((item) => (
 									<DraggablePaletteItem
@@ -431,7 +431,7 @@ export function Widgets() {
 					<div className="col-span-8 space-y-4">
 						{areas.length === 0 ? (
 							<div className="rounded-lg border bg-kumo-base p-12 text-center">
-								<p className="text-kumo-subtle">No widget areas yet. Create one to get started.</p>
+								<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
 							</div>
 						) : (
 							areas.map((area) => (
@@ -463,7 +463,7 @@ export function Widgets() {
 					<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
 						<div className="flex items-center gap-2">
 							<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
-							<span className="font-medium">{activeWidget.title || "Untitled Widget"}</span>
+							<span className="font-medium">{activeWidget.title || t`Untitled Widget`}</span>
 							<span className="text-xs text-kumo-subtle">({activeWidget.type})</span>
 						</div>
 					</div>
@@ -547,6 +547,7 @@ function WidgetAreaPanel({
 	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
 	onBlockSidebarClose: () => void;
 }) {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const [deleteAreaName, setDeleteAreaName] = React.useState<string | null>(null);
@@ -561,7 +562,7 @@ function WidgetAreaPanel({
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
 			setDeleteAreaName(null);
-			toastManager.add({ title: "Widget area deleted" });
+			toastManager.add({ title: t`Widget area deleted` });
 		},
 	});
 
@@ -580,7 +581,7 @@ function WidgetAreaPanel({
 					variant="ghost"
 					size="sm"
 					onClick={() => setDeleteAreaName(area.name)}
-					aria-label={`Delete ${area.label} widget area`}
+					aria-label={t`Delete ${area.label} widget area`}
 				>
 					<Trash className="h-4 w-4" />
 				</Button>
@@ -616,11 +617,11 @@ function WidgetAreaPanel({
 								: "border-kumo-subtle/30 text-kumo-subtle"
 						}`}
 					>
-						{isOver ? "Drop to add widget" : "Drag here to add"}
+						{isOver ? t`Drop to add widget` : t`Drag here to add`}
 					</div>
 				)}
 				{!hasWidgets && !isDraggingPalette && (
-					<div className="text-center py-8 text-kumo-subtle">Drag widgets here to add them</div>
+					<div className="text-center py-8 text-kumo-subtle">{t`Drag widgets here to add them`}</div>
 				)}
 			</div>
 
@@ -630,10 +631,10 @@ function WidgetAreaPanel({
 					setDeleteAreaName(null);
 					deleteAreaMutation.reset();
 				}}
-				title="Delete Widget Area?"
-				description="This will delete the widget area and all its widgets. This action cannot be undone."
-				confirmLabel="Delete"
-				pendingLabel="Deleting..."
+				title={t`Delete Widget Area?`}
+				description={t`This will delete the widget area and all its widgets. This action cannot be undone.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
 				isPending={deleteAreaMutation.isPending}
 				error={deleteAreaMutation.error}
 				onConfirm={() => deleteAreaMutation.mutate(area.name)}
@@ -661,6 +662,7 @@ function WidgetItem({
 	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
 	onBlockSidebarClose: () => void;
 }) {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -680,11 +682,11 @@ function WidgetItem({
 		mutationFn: () => deleteWidget(areaName, widget.id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
-			toastManager.add({ title: "Widget deleted" });
+			toastManager.add({ title: t`Widget deleted` });
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: "Error",
+				title: t`Error`,
 				description: error.message,
 				type: "error",
 			});
@@ -695,11 +697,11 @@ function WidgetItem({
 		mutationFn: (input: UpdateWidgetInput) => updateWidget(areaName, widget.id, input),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
-			toastManager.add({ title: "Widget updated" });
+			toastManager.add({ title: t`Widget updated` });
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: "Error updating widget",
+				title: t`Error updating widget`,
 				description: error.message,
 				type: "error",
 			});
@@ -717,14 +719,14 @@ function WidgetItem({
 					{...attributes}
 					{...listeners}
 					className="cursor-grab active:cursor-grabbing"
-					aria-label={`Drag to reorder ${widget.title || "widget"}`}
+					aria-label={t`Drag to reorder ${widget.title ?? t`widget`}`}
 				>
 					<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
 				</button>
 				<button onClick={onToggle} className="flex-1 text-start" aria-expanded={isExpanded}>
 					<div className="flex items-center gap-2">
 						{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
-						<span className="font-medium">{widget.title || "Untitled Widget"}</span>
+						<span className="font-medium">{widget.title || t`Untitled Widget`}</span>
 						<span className="text-xs text-kumo-subtle">({widget.type})</span>
 					</div>
 				</button>
@@ -732,7 +734,7 @@ function WidgetItem({
 					variant="ghost"
 					size="sm"
 					onClick={() => deleteMutation.mutate()}
-					aria-label={`Delete ${widget.title || "widget"}`}
+					aria-label={t`Delete ${widget.title ?? t`widget`}`}
 				>
 					<Trash className="h-4 w-4" />
 				</Button>
@@ -771,6 +773,7 @@ function WidgetEditor({
 	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
 	onBlockSidebarClose: () => void;
 }) {
+	const { t } = useLingui();
 	const [title, setTitle] = React.useState(widget.title ?? "");
 	const [content, setContent] = React.useState<unknown[]>(
 		Array.isArray(widget.content) ? widget.content : [],
@@ -805,20 +808,20 @@ function WidgetEditor({
 	return (
 		<div className="mt-3 p-3 bg-kumo-tint rounded space-y-4">
 			<Input
-				label="Title"
+				label={t`Title`}
 				value={title}
 				onChange={(e) => setTitle(e.target.value)}
-				placeholder="Widget title"
+				placeholder={t`Widget title`}
 			/>
 
 			{widget.type === "content" && (
 				<div>
-					<Label className="text-sm font-medium mb-2 block">Content</Label>
+					<Label className="text-sm font-medium mb-2 block">{t`Content`}</Label>
 					<PortableTextEditor
 						value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
 						onChange={(value) => setContent(value as unknown[])}
 						minimal
-						placeholder="Write widget content..."
+						placeholder={t`Write widget content...`}
 						pluginBlocks={pluginBlocks}
 						onBlockSidebarOpen={onBlockSidebarOpen}
 						onBlockSidebarClose={onBlockSidebarClose}
@@ -828,12 +831,12 @@ function WidgetEditor({
 
 			{widget.type === "menu" && (
 				<Select
-					label="Menu"
+					label={t`Menu`}
 					value={menuName}
 					onValueChange={(v) => setMenuName(v ?? "")}
 					items={Object.fromEntries(menus.map((m) => [m.name, m.label || m.name]))}
 				>
-					<Select.Option value="">Select a menu...</Select.Option>
+					<Select.Option value="">{t`Select a menu...`}</Select.Option>
 					{menus.map((m) => (
 						<Select.Option key={m.name} value={m.name}>
 							{m.label || m.name}
@@ -845,7 +848,7 @@ function WidgetEditor({
 			{widget.type === "component" && (
 				<>
 					<Select
-						label="Component"
+						label={t`Component`}
 						value={componentId}
 						onValueChange={(v) => {
 							setComponentId(v ?? "");
@@ -865,7 +868,7 @@ function WidgetEditor({
 						}}
 						items={Object.fromEntries(components.map((c) => [c.id, c.label]))}
 					>
-						<Select.Option value="">Select a component...</Select.Option>
+						<Select.Option value="">{t`Select a component...`}</Select.Option>
 						{components.map((c) => (
 							<Select.Option key={c.id} value={c.id}>
 								{c.label}
@@ -888,7 +891,7 @@ function WidgetEditor({
 
 			<div className="flex justify-end">
 				<Button size="sm" onClick={handleSave} disabled={isSaving}>
-					{isSaving ? "Saving..." : "Save"}
+					{isSaving ? t`Saving...` : t`Save`}
 				</Button>
 			</div>
 		</div>

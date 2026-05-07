@@ -17,8 +17,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
+import { msg, plural } from "@lingui/core/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
@@ -57,6 +57,12 @@ interface SupportOptionDef {
 	label: MessageDescriptor;
 	description: MessageDescriptor;
 }
+
+const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = {
+	all: msg`All comments require approval`,
+	first_time: msg`First-time commenters only`,
+	none: msg`No moderation (auto-approve all)`,
+};
 
 const SUPPORT_OPTIONS: SupportOptionDef[] = [
 	{
@@ -362,8 +368,7 @@ export function ContentTypeEditor({
 					<div className="flex items-center space-x-2">
 						<FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" />
 						<p className="text-sm text-purple-700 dark:text-purple-300">
-							This collection is defined in code. Some settings cannot be changed here. Edit your
-							live.config.ts file to modify the schema.
+							{t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`}
 						</p>
 					</div>
 				</div>
@@ -374,10 +379,10 @@ export function ContentTypeEditor({
 				<div className="lg:col-span-1">
 					<form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4">
 						<div className="rounded-lg border p-4 space-y-4">
-							<h2 className="font-semibold">Settings</h2>
+							<h2 className="font-semibold">{t`Settings`}</h2>
 
 							<Input
-								label="Label (Singular)"
+								label={t`Label (Singular)`}
 								value={labelSingular}
 								onChange={(e) => handleSingularLabelChange(e.target.value)}
 								placeholder="Post"
@@ -385,7 +390,7 @@ export function ContentTypeEditor({
 							/>
 
 							<Input
-								label="Label (Plural)"
+								label={t`Label (Plural)`}
 								value={label}
 								onChange={(e) => handleLabelChange(e.target.value)}
 								placeholder="Posts"
@@ -395,28 +400,28 @@ export function ContentTypeEditor({
 							{isNew && (
 								<div>
 									<Input
-										label="Slug"
+										label={t`Slug`}
 										value={slug}
 										onChange={(e) => setSlug(e.target.value)}
 										placeholder="posts"
 										disabled={!isNew}
 									/>
-									<p className="text-xs text-kumo-subtle mt-2">Used in URLs and API endpoints</p>
+									<p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p>
 								</div>
 							)}
 
 							<InputArea
-								label="Description"
+								label={t`Description`}
 								value={description}
 								onChange={(e) => setDescription(e.target.value)}
-								placeholder="A brief description of this content type"
+								placeholder={t`A brief description of this content type`}
 								rows={3}
 								disabled={isFromCode}
 							/>
 
 							<div>
 								<Input
-									label="URL Pattern"
+									label={t`URL Pattern`}
 									value={urlPattern}
 									onChange={(e) => setUrlPattern(e.target.value)}
 									placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`}
@@ -424,11 +429,11 @@ export function ContentTypeEditor({
 								/>
 								{urlPattern && !urlPattern.includes("{slug}") && (
 									<p className="text-xs text-kumo-danger mt-2">
-										Pattern must include a {"{slug}"} placeholder
+										{t`Pattern must include a ${"{slug}"} placeholder`}
 									</p>
 								)}
 								<p className="text-xs text-kumo-subtle mt-1">
-									Pattern for generating URLs, e.g. /blog/{"{slug}"}
+									{t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`}
 								</p>
 							</div>
 
@@ -473,9 +478,9 @@ export function ContentTypeEditor({
 										disabled={isFromCode}
 									/>
 									<div>
-										<span className="text-sm font-medium">SEO</span>
+										<span className="text-sm font-medium">{t`SEO`}</span>
 										<p className="text-xs text-kumo-subtle">
-											Add SEO metadata fields (title, description, image) and include in sitemap
+											{t`Add SEO metadata fields (title, description, image) and include in sitemap`}
 										</p>
 									</div>
 								</label>
@@ -485,7 +490,7 @@ export function ContentTypeEditor({
 						{/* Comments settings — only for existing collections */}
 						{!isNew && (
 							<div className="rounded-lg border p-4 space-y-4">
-								<h2 className="font-semibold">Comments</h2>
+								<h2 className="font-semibold">{t`Comments`}</h2>
 
 								<label
 									className={cn(
@@ -501,9 +506,9 @@ export function ContentTypeEditor({
 										disabled={isFromCode}
 									/>
 									<div>
-										<span className="text-sm font-medium">Enable comments</span>
+										<span className="text-sm font-medium">{t`Enable comments`}</span>
 										<p className="text-xs text-kumo-subtle">
-											Allow visitors to leave comments on this collection's content
+											{t`Allow visitors to leave comments on this collection's content`}
 										</p>
 									</div>
 								</label>
@@ -511,21 +516,21 @@ export function ContentTypeEditor({
 								{commentsEnabled && (
 									<>
 										<Select
-											label="Moderation"
+											label={t`Moderation`}
 											value={commentsModeration}
 											onValueChange={(v) =>
 												setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time")
 											}
 											items={{
-												all: "All comments require approval",
-												first_time: "First-time commenters only",
-												none: "No moderation (auto-approve all)",
+												all: t(MODERATION_OPTIONS.all),
+												first_time: t(MODERATION_OPTIONS.first_time),
+												none: t(MODERATION_OPTIONS.none),
 											}}
 											disabled={isFromCode}
 										/>
 
 										<Input
-											label="Close comments after (days)"
+											label={t`Close comments after (days)`}
 											type="number"
 											min={0}
 											value={String(commentsClosedAfterDays)}
@@ -536,7 +541,7 @@ export function ContentTypeEditor({
 											disabled={isFromCode}
 										/>
 										<p className="text-xs text-kumo-subtle -mt-2">
-											Set to 0 to never close comments automatically.
+											{t`Set to 0 to never close comments automatically.`}
 										</p>
 
 										<label
@@ -554,10 +559,10 @@ export function ContentTypeEditor({
 											/>
 											<div>
 												<span className="text-sm font-medium">
-													Auto-approve authenticated users
+													{t`Auto-approve authenticated users`}
 												</span>
 												<p className="text-xs text-kumo-subtle">
-													Comments from logged-in CMS users are approved automatically
+													{t`Comments from logged-in CMS users are approved automatically`}
 												</p>
 											</div>
 										</label>
@@ -572,7 +577,7 @@ export function ContentTypeEditor({
 								disabled={!hasChanges || !urlPatternValid || isSaving}
 								className="w-full"
 							>
-								{isSaving ? "Saving..." : isNew ? "Create Content Type" : "Save Changes"}
+								{isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`}
 							</Button>
 						)}
 					</form>
@@ -584,15 +589,17 @@ export function ContentTypeEditor({
 						<div className="rounded-lg border">
 							<div className="flex items-center justify-between p-4 border-b">
 								<div>
-									<h2 className="font-semibold">Fields</h2>
+									<h2 className="font-semibold">{t`Fields`}</h2>
 									<p className="text-sm text-kumo-subtle">
-										{SYSTEM_FIELDS.length} system + {fields.length} custom field
-										{fields.length !== 1 ? "s" : ""}
+										<Trans>
+											{SYSTEM_FIELDS.length} system + {fields.length} custom{" "}
+											{plural(fields.length, { one: "field", other: "fields" })}
+										</Trans>
 									</p>
 								</div>
 								{!isFromCode && (
 									<Button icon={<Plus />} onClick={handleAddField}>
-										Add Field
+										{t`Add Field`}
 									</Button>
 								)}
 							</div>
@@ -600,7 +607,7 @@ export function ContentTypeEditor({
 							{/* System fields - always shown */}
 							<div className="border-b bg-kumo-tint/30">
 								<div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider">
-									System Fields
+									{t`System Fields`}
 								</div>
 								<div className="divide-y divide-kumo-line/50">
 									{SYSTEM_FIELDS.map((field) => (
@@ -613,18 +620,18 @@ export function ContentTypeEditor({
 							{fields.length === 0 ? (
 								<div className="p-8 text-center text-kumo-subtle">
 									<Database className="mx-auto h-12 w-12 mb-4 opacity-50" />
-									<p className="font-medium">No custom fields yet</p>
-									<p className="text-sm">Add fields to define the structure of your content</p>
+									<p className="font-medium">{t`No custom fields yet`}</p>
+									<p className="text-sm">{t`Add fields to define the structure of your content`}</p>
 									{!isFromCode && (
 										<Button className="mt-4" icon={<Plus />} onClick={handleAddField}>
-											Add First Field
+											{t`Add First Field`}
 										</Button>
 									)}
 								</div>
 							) : (
 								<>
 									<div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider border-b">
-										Custom Fields
+										{t`Custom Fields`}
 									</div>
 									<DndContext
 										sensors={sensors}
@@ -667,14 +674,14 @@ export function ContentTypeEditor({
 			<ConfirmDialog
 				open={!!deleteFieldTarget}
 				onClose={() => setDeleteFieldTarget(null)}
-				title="Delete Field?"
+				title={t`Delete Field?`}
 				description={
 					deleteFieldTarget
-						? `Are you sure you want to delete the "${deleteFieldTarget.label}" field?`
+						? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?`
 						: ""
 				}
-				confirmLabel="Delete"
-				pendingLabel="Deleting..."
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
 				isPending={false}
 				error={null}
 				onConfirm={() => {
@@ -696,6 +703,7 @@ interface FieldRowProps {
 }
 
 function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
+	const { t } = useLingui();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: field.id,
 		disabled: isFromCode,
@@ -716,7 +724,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 					{...attributes}
 					{...listeners}
 					className="cursor-grab active:cursor-grabbing me-3"
-					aria-label={`Drag to reorder ${field.label}`}
+					aria-label={t`Drag to reorder ${field.label}`}
 				>
 					<DotsSixVertical className="h-5 w-5 text-kumo-subtle" />
 				</button>
@@ -730,9 +738,9 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 				</div>
 				<div className="flex items-center space-x-2 mt-1">
 					<span className="text-xs text-kumo-subtle capitalize">{field.type}</span>
-					{field.required && <Badge variant="secondary">Required</Badge>}
-					{field.unique && <Badge variant="secondary">Unique</Badge>}
-					{field.searchable && <Badge variant="secondary">Searchable</Badge>}
+					{field.required && <Badge variant="secondary">{t`Required`}</Badge>}
+					{field.unique && <Badge variant="secondary">{t`Unique`}</Badge>}
+					{field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>}
 				</div>
 			</div>
 			{!isFromCode && (
@@ -741,7 +749,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 						variant="ghost"
 						shape="square"
 						onClick={onEdit}
-						aria-label={`Edit ${field.label} field`}
+						aria-label={t`Edit ${field.label} field`}
 					>
 						<Pencil className="h-4 w-4" />
 					</Button>
@@ -749,7 +757,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 						variant="ghost"
 						shape="square"
 						onClick={onDelete}
-						aria-label={`Delete ${field.label} field`}
+						aria-label={t`Delete ${field.label} field`}
 					>
 						<Trash className="h-4 w-4 text-kumo-danger" />
 					</Button>
@@ -777,7 +785,7 @@ function SystemFieldRow({ field }: { field: SystemFieldInfo }) {
 					<code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle">
 						{field.slug}
 					</code>
-					<Badge variant="secondary">System</Badge>
+					<Badge variant="secondary">{t`System`}</Badge>
 				</div>
 				<p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p>
 			</div>
