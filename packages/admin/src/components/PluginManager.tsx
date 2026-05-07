@@ -361,20 +361,25 @@ function PluginCard({
 						)}
 
 						{isMarketplace && hasMarketplace && (
-							<Link to="/plugins/marketplace/$pluginId" params={{ pluginId: plugin.id }}>
-								<Button variant="ghost" size="sm">
-									<Storefront className="me-1.5 h-3.5 w-3.5" />
-									{t`View in Marketplace`}
-								</Button>
+							<Link
+								to="/plugins/marketplace/$pluginId"
+								params={{ pluginId: plugin.id }}
+								className={buttonVariants({ variant: "ghost", size: "sm" })}
+							>
+								<Storefront className="me-1.5 h-3.5 w-3.5" />
+								{t`View in Marketplace`}
 							</Link>
 						)}
 
 						{plugin.hasAdminPages && plugin.enabled && (
-							<Link to="/plugins/$pluginId/$" params={{ pluginId: plugin.id, _splat: "" }}>
-								<Button variant="ghost" shape="square" aria-label={t`Settings`}>
-									<Gear className="h-4 w-4" />
-									<span className="sr-only">{t`Settings`}</span>
-								</Button>
+							<Link
+								to="/plugins/$pluginId/$"
+								params={{ pluginId: plugin.id, _splat: "" }}
+								aria-label={t`Settings`}
+								className={buttonVariants({ variant: "ghost", shape: "square" })}
+							>
+								<Gear className="h-4 w-4" />
+								<span className="sr-only">{t`Settings`}</span>
 							</Link>
 						)}
 

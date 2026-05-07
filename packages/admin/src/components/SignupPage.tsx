@@ -10,12 +10,13 @@
  * 3. After clicking email link: Passkey registration
  */
 
-import { Button, Input, Loader } from "@cloudflare/kumo";
+import { Button, buttonVariants, Input, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { requestSignup, verifySignupToken, type SignupVerifyResult } from "../lib/api";
+import { cn } from "../lib/utils";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
 import { LogoLockup } from "./Logo.js";
 
@@ -265,9 +266,7 @@ function ErrorStep({ message, code, onRetry }: ErrorStepProps) {
 
 			<div className="space-y-2">
 				{code === "user_exists" ? (
-					<Link to="/login">
-						<Button className="w-full">{t`Sign in instead`}</Button>
-					</Link>
+					<Link to="/login" className={cn(buttonVariants(), "w-full")}>{t`Sign in instead`}</Link>
 				) : (
 					onRetry && (
 						<Button onClick={onRetry} className="w-full">
@@ -275,11 +274,10 @@ function ErrorStep({ message, code, onRetry }: ErrorStepProps) {
 						</Button>
 					)
 				)}
-				<Link to="/login">
-					<Button variant="ghost" className="w-full">
-						{t`Back to login`}
-					</Button>
-				</Link>
+				<Link
+					to="/login"
+					className={cn(buttonVariants({ variant: "ghost" }), "w-full")}
+				>{t`Back to login`}</Link>
 			</div>
 		</div>
 	);
