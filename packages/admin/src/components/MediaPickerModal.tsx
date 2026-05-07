@@ -54,6 +54,10 @@ export interface MediaPickerModalProps {
 	 * Defaults to "image" — set to "file" for generic file pickers.
 	 */
 	mediaKind?: "image" | "file";
+	/** MIME allowlist — array of exact MIMEs or `type/` prefixes. Wired up fully in Task 11. */
+	mimeTypeFilters?: string[];
+	/** `_emdash_fields` row id for server-side MIME widening. Wired up fully in Task 11. */
+	fieldId?: string;
 }
 
 /**
