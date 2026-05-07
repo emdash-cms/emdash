@@ -1287,6 +1287,8 @@ export class EmDashRuntime {
 						// or arbitrary `Record<string, unknown>` for plugin field widgets that
 						// need per-field config (e.g. a checkbox grid receiving its column defs).
 						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
+						id?: string;
+						validation?: Record<string, unknown>;
 					}
 				> = {};
 
@@ -1298,7 +1300,7 @@ export class EmDashRuntime {
 					};
 					// Always include the field's database ID so the admin can forward it
 					// to upload/media-list API calls for MIME allowlist widening.
-					(entry as Record<string, unknown>).id = field.id;
+					entry.id = field.id;
 					if (field.widget) entry.widget = field.widget;
 					// Plugin field widgets read their per-field config from `field.options`,
 					// which the seed schema types as `Record<string, unknown>`. Pass it
@@ -1320,7 +1322,7 @@ export class EmDashRuntime {
 						(field.type === "repeater" || field.type === "file" || field.type === "image") &&
 						field.validation
 					) {
-						(entry as Record<string, unknown>).validation = field.validation;
+						entry.validation = field.validation as Record<string, unknown>;
 					}
 					fields[field.slug] = entry;
 				}

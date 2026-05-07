@@ -43,6 +43,10 @@ export interface ManifestCollection {
 			 *     (e.g. a checkbox grid receiving its column definitions)
 			 */
 			options?: Array<{ value: string; label: string }> | Record<string, unknown>;
+			/** The `_emdash_fields` row ID. Used by the admin to forward to upload/media-list API calls. */
+			id?: string;
+			/** Validation config for the field (e.g. `allowedMimeTypes` for file/image fields, subFields for repeater). */
+			validation?: Record<string, unknown>;
 		}
 	>;
 }
