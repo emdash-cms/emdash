@@ -292,7 +292,7 @@ export interface EmDashHandlers {
 	handleMediaList: (params: {
 		cursor?: string;
 		limit?: number;
-		mimeType?: string;
+		mimeType?: string | readonly string[];
 	}) => Promise<HandlerResponse>;
 
 	handleMediaGet: (id: string) => Promise<HandlerResponse>;

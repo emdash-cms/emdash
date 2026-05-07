@@ -1980,7 +1980,11 @@ export class EmDashRuntime {
 	// Media Handlers
 	// =========================================================================
 
-	async handleMediaList(params: { cursor?: string; limit?: number; mimeType?: string }) {
+	async handleMediaList(params: {
+		cursor?: string;
+		limit?: number;
+		mimeType?: string | readonly string[];
+	}) {
 		return handleMediaList(this.db, params);
 	}
 

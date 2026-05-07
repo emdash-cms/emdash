@@ -6,9 +6,21 @@ import { cursorPaginationQuery } from "./common.js";
 // Media: Input schemas
 // ---------------------------------------------------------------------------
 
+/**
+ * Accepts a comma-separated string (from URL query params) or an array of
+ * strings (from JSON body or programmatic use) and normalises to string[].
+ */
+const mimeTypeFilter = z
+	.union([z.string(), z.array(z.string())])
+	.transform((v) => {
+		const arr = Array.isArray(v) ? v : v.split(",");
+		return arr.map((s) => s.trim()).filter((s) => s.length > 0);
+	})
+	.optional();
+
 export const mediaListQuery = cursorPaginationQuery
 	.extend({
-		mimeType: z.string().optional(),
+		mimeType: mimeTypeFilter,
 	})
 	.meta({ id: "MediaListQuery" });
 
@@ -59,7 +71,7 @@ export const mediaConfirmBody = z
 export const mediaProviderListQuery = cursorPaginationQuery
 	.extend({
 		query: z.string().optional(),
-		mimeType: z.string().optional(),
+		mimeType: mimeTypeFilter,
 	})
 	.meta({ id: "MediaProviderListQuery" });
 
