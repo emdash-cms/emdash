@@ -12,7 +12,7 @@
  */
 
 import { isHandle } from "@atcute/lexicons/syntax";
-import { OAuthResponseError } from "@atcute/oauth-node-client";
+import { OAuthCallbackError, OAuthResponseError } from "@atcute/oauth-node-client";
 import { FileCredentialStore } from "@emdash-cms/registry-client";
 import { defineCommand } from "citty";
 import { consola } from "consola";
@@ -121,6 +121,13 @@ export const loginCommand = defineCommand({
 		} catch (error) {
 			if (error instanceof OAuthResponseError) {
 				await reportOAuthFailure(error);
+				process.exit(1);
+			}
+			if (error instanceof OAuthCallbackError) {
+				consola.error(`Login failed: ${error.errorDescription ?? error.error}`);
+				if (error.errorDescription && error.error !== error.errorDescription) {
+					consola.info(`Error code: ${error.error}`);
+				}
 				process.exit(1);
 			}
 			throw error;

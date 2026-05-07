@@ -240,10 +240,10 @@ export interface OAuthClientFactoryOptions {
 	 */
 	redirectUri: `http://127.0.0.1:${number}/callback`;
 	/**
-	 * Scopes to request. Defaults to {@link DEFAULT_CLI_SCOPE} — granular per
-	 * the atproto OAuth permission spec, scoped to the two record collections
-	 * the CLI publishes plus an `rpc:com.atproto.server.getSession` for handle
-	 * resolution.
+	 * Scopes to request. Defaults to {@link DEFAULT_CLI_SCOPE}: `atproto` plus
+	 * `repo:<nsid>` for every record-shaped lexicon in
+	 * `@emdash-cms/registry-lexicons` and `rpc:<nsid>?aud=*` for every
+	 * aggregator query.
 	 */
 	scope?: string;
 }
