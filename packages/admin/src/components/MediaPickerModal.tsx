@@ -35,6 +35,24 @@ interface SelectedMedia {
 	item: MediaItem | MediaProviderItem;
 }
 
+/**
+ * Returns true if the given MIME type matches any entry in the filters array.
+ * Each filter entry is either an exact MIME type (e.g. "image/png") or a
+ * type prefix ending with "/" (e.g. "image/").
+ */
+function matchesAnyFilter(mime: string, filters: string[] | undefined): boolean {
+	if (!filters || filters.length === 0) return true;
+	for (const entry of filters) {
+		if (!entry || !entry.includes("/")) continue;
+		if (entry.endsWith("/")) {
+			if (mime.startsWith(entry)) return true;
+		} else if (mime === entry) {
+			return true;
+		}
+	}
+	return false;
+}
+
 export interface MediaPickerModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -81,12 +99,22 @@ export function MediaPickerModal({
 	onOpenChange,
 	onSelect,
 	mimeTypeFilter = "image/",
+	mimeTypeFilters,
+	fieldId,
 	title: providedTitle,
 	hideUrlInput = false,
 	mediaKind = "image",
 }: MediaPickerModalProps) {
 	const { t } = useLingui();
 	const isFileKind = mediaKind === "file";
+
+	// Unified filters: mimeTypeFilters (plural array) takes precedence over the
+	// legacy mimeTypeFilter (singular string).
+	const filters = React.useMemo(() => {
+		if (mimeTypeFilters && mimeTypeFilters.length > 0) return mimeTypeFilters;
+		if (mimeTypeFilter && mimeTypeFilter.length > 0) return [mimeTypeFilter];
+		return undefined;
+	}, [mimeTypeFilters, mimeTypeFilter]);
 	const title = providedTitle ?? (isFileKind ? t`Select File` : t`Select Image`);
 	const emptyStateUploadHint = isFileKind
 		? t`Upload a file to get started`
@@ -146,10 +174,10 @@ export function MediaPickerModal({
 
 	// Fetch local media list
 	const { data: localData, isLoading: localLoading } = useQuery({
-		queryKey: ["media", mimeTypeFilter],
+		queryKey: ["media", filters?.join(",") ?? ""],
 		queryFn: () =>
 			fetchMediaList({
-				mimeType: mimeTypeFilter,
+				mimeType: filters,
 				limit: 50,
 			}),
 		enabled: open && activeProvider === "local",
@@ -157,10 +185,10 @@ export function MediaPickerModal({
 
 	// Fetch provider media list
 	const { data: providerData, isLoading: providerLoading } = useQuery({
-		queryKey: ["provider-media", activeProvider, mimeTypeFilter, searchQuery],
+		queryKey: ["provider-media", activeProvider, filters?.join(",") ?? "", searchQuery],
 		queryFn: () =>
 			fetchProviderMedia(activeProvider, {
-				mimeType: mimeTypeFilter,
+				mimeType: filters,
 				limit: 50,
 				query: searchQuery || undefined,
 			}),
@@ -173,7 +201,7 @@ export function MediaPickerModal({
 
 	// Upload mutation for local provider
 	const uploadLocalMutation = useMutation({
-		mutationFn: (file: File) => uploadMedia(file),
+		mutationFn: (file: File) => uploadMedia(file, { fieldId }),
 		onSuccess: (item) => {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 			setSelectedItem({ providerId: "local", item });
@@ -209,7 +237,7 @@ export function MediaPickerModal({
 			updateMedia(id, { width, height }),
 		onSuccess: (_updated, { id, width, height }) => {
 			queryClient.setQueryData(
-				["media", mimeTypeFilter],
+				["media", filters?.join(",") ?? ""],
 				(old: { items: MediaItem[]; nextCursor?: string } | undefined) => {
 					if (!old) return old;
 					return {
@@ -245,11 +273,10 @@ export function MediaPickerModal({
 	const items = React.useMemo(() => {
 		if (activeProvider === "local") {
 			const localItems = localData?.items || [];
-			if (!mimeTypeFilter) return localItems;
-			return localItems.filter((item) => item.mimeType.startsWith(mimeTypeFilter));
+			return localItems.filter((item) => matchesAnyFilter(item.mimeType, filters));
 		}
 		return providerData?.items || [];
-	}, [activeProvider, localData?.items, providerData?.items, mimeTypeFilter]);
+	}, [activeProvider, localData?.items, providerData?.items, filters]);
 
 	const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const files = e.target.files;
@@ -492,10 +519,10 @@ export function MediaPickerModal({
 							<input
 								ref={fileInputRef}
 								type="file"
-								accept={mimeTypeFilter ? `${mimeTypeFilter}*` : undefined}
+								accept={filters ? filters.join(",") : undefined}
 								className="sr-only"
 								onChange={handleFileSelect}
-								aria-label="Upload file"
+								aria-label={t`Upload file`}
 							/>
 						</>
 					)}

@@ -35,12 +35,15 @@ export interface MediaItem {
 export async function fetchMediaList(options?: {
 	cursor?: string;
 	limit?: number;
-	mimeType?: string;
+	mimeType?: string | string[];
 }): Promise<FindManyResult<MediaItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
 	if (options?.limit) params.set("limit", String(options.limit));
-	if (options?.mimeType) params.set("mimeType", options.mimeType);
+	if (options?.mimeType) {
+		const value = Array.isArray(options.mimeType) ? options.mimeType.join(",") : options.mimeType;
+		if (value) params.set("mimeType", value);
+	}
 
 	const url = `${API_BASE}/media${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
@@ -63,7 +66,10 @@ interface UploadUrlResponse {
  * Try to get a signed upload URL
  * Returns null if signed URLs are not supported (e.g., local storage)
  */
-async function getUploadUrl(file: File): Promise<UploadUrlResponse | null> {
+async function getUploadUrl(
+	file: File,
+	opts?: { fieldId?: string },
+): Promise<UploadUrlResponse | null> {
 	try {
 		const response = await apiFetch(`${API_BASE}/media/upload-url`, {
 			method: "POST",
@@ -72,6 +78,7 @@ async function getUploadUrl(file: File): Promise<UploadUrlResponse | null> {
 				filename: file.name,
 				contentType: file.type,
 				size: file.size,
+				...(opts?.fieldId ? { fieldId: opts.fieldId } : {}),
 			}),
 		});
 
@@ -147,7 +154,7 @@ async function getImageDimensions(file: File): Promise<{ width: number; height: 
 /**
  * Upload media file via direct upload (legacy/local storage)
  */
-async function uploadMediaDirect(file: File): Promise<MediaItem> {
+async function uploadMediaDirect(file: File, opts?: { fieldId?: string }): Promise<MediaItem> {
 	// Get image dimensions before upload
 	const dimensions = await getImageDimensions(file);
 
@@ -156,6 +163,7 @@ async function uploadMediaDirect(file: File): Promise<MediaItem> {
 	// Send dimensions as form fields
 	if (dimensions?.width) formData.append("width", String(dimensions.width));
 	if (dimensions?.height) formData.append("height", String(dimensions.height));
+	if (opts?.fieldId) formData.append("fieldId", opts.fieldId);
 
 	const response = await apiFetch(`${API_BASE}/media`, {
 		method: "POST",
@@ -171,13 +179,13 @@ async function uploadMediaDirect(file: File): Promise<MediaItem> {
  * Tries signed URL upload first (for S3/R2 storage), falls back to direct upload
  * (for local storage) if signed URLs are not supported.
  */
-export async function uploadMedia(file: File): Promise<MediaItem> {
+export async function uploadMedia(file: File, opts?: { fieldId?: string }): Promise<MediaItem> {
 	// Try to get a signed upload URL
-	const uploadInfo = await getUploadUrl(file);
+	const uploadInfo = await getUploadUrl(file, opts);
 
 	if (!uploadInfo) {
 		// Signed URLs not supported, use direct upload
-		return uploadMediaDirect(file);
+		return uploadMediaDirect(file, opts);
 	}
 
 	// Upload directly to storage via signed URL
@@ -274,14 +282,17 @@ export async function fetchProviderMedia(
 		cursor?: string;
 		limit?: number;
 		query?: string;
-		mimeType?: string;
+		mimeType?: string | string[];
 	},
 ): Promise<FindManyResult<MediaProviderItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.query) params.set("query", options.query);
-	if (options?.mimeType) params.set("mimeType", options.mimeType);
+	if (options?.mimeType) {
+		const value = Array.isArray(options.mimeType) ? options.mimeType.join(",") : options.mimeType;
+		if (value) params.set("mimeType", value);
+	}
 
 	const url = `${API_BASE}/media/providers/${providerId}${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
