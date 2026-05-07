@@ -27,18 +27,14 @@ async function loadMediaFieldsForCollection(
 	db: Kysely<Database>,
 	collectionSlug: string,
 ): Promise<FieldRow[]> {
-	const collection = await db
-		.selectFrom("_emdash_collections")
-		.select("id")
-		.where("slug", "=", collectionSlug)
-		.executeTakeFirst();
-	if (!collection) return [];
-
 	const rows = await db
 		.selectFrom("_emdash_fields")
-		.select(["slug", "type", "validation"])
-		.where("collection_id", "=", collection.id)
-		.where((eb) => eb.or([eb("type", "=", "file"), eb("type", "=", "image")]))
+		.innerJoin("_emdash_collections", "_emdash_collections.id", "_emdash_fields.collection_id")
+		.select(["_emdash_fields.slug", "_emdash_fields.type", "_emdash_fields.validation"])
+		.where("_emdash_collections.slug", "=", collectionSlug)
+		.where((eb) =>
+			eb.or([eb("_emdash_fields.type", "=", "file"), eb("_emdash_fields.type", "=", "image")]),
+		)
 		.execute();
 
 	const out: FieldRow[] = [];
