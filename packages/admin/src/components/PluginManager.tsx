@@ -6,7 +6,7 @@
  * update/uninstall for marketplace-installed plugins.
  */
 
-import { Badge, Button, Switch, Toast } from "@cloudflare/kumo";
+import { Badge, Button, buttonVariants, Switch, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	PuzzlePiece,
@@ -147,19 +147,15 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 							variant="ghost"
 							onClick={() => void refetchUpdates()}
 							disabled={isCheckingUpdates}
+							icon={<ArrowsClockwise className={cn(isCheckingUpdates && "animate-spin")} />}
 						>
-							<ArrowsClockwise
-								className={cn("me-2 h-4 w-4", isCheckingUpdates && "animate-spin")}
-							/>
 							{t`Check for updates`}
 						</Button>
 					)}
 					{hasMarketplace && (
-						<Link to="/plugins/marketplace">
-							<Button variant="ghost">
-								<Storefront className="me-2 h-4 w-4" />
-								{t`Marketplace`}
-							</Button>
+						<Link to="/plugins/marketplace" className={buttonVariants({ variant: "ghost" })}>
+							<Storefront className="me-2 h-4 w-4" aria-hidden="true" />
+							{t`Marketplace`}
 						</Link>
 					)}
 					<span className="text-sm text-kumo-subtle">{t`${plugins?.length ?? 0} plugins`}</span>
@@ -479,8 +475,8 @@ function PluginCard({
 									className="text-kumo-danger hover:text-kumo-danger"
 									onClick={() => setShowUninstallConfirm(true)}
 									disabled={uninstallMutation.isPending}
+									icon={<Trash />}
 								>
-									<Trash className="me-2 h-4 w-4" />
 									{t`Uninstall`}
 								</Button>
 							</div>

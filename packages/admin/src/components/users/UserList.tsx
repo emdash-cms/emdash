@@ -119,20 +119,25 @@ export function UserList({
 										<>
 											No users found matching your filters.{" "}
 											<button
+												type="button"
 												className="text-kumo-brand underline"
 												onClick={() => {
 													onSearchChange("");
 													onRoleFilterChange(undefined);
 												}}
 											>
-												Clear filters
+												{t`Clear filters`}
 											</button>
 										</>
 									) : (
 										<>
 											No users yet.{" "}
-											<button className="text-kumo-brand underline" onClick={onInviteUser}>
-												Invite your first team member
+											<button
+												type="button"
+												className="text-kumo-brand underline"
+												onClick={onInviteUser}
+											>
+												{t`Invite your first team member`}
 											</button>
 										</>
 									)}

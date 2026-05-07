@@ -1,4 +1,13 @@
-import { Badge, Button, buttonVariants, Dialog, Input, Loader, Tabs } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	buttonVariants,
+	Dialog,
+	Input,
+	LinkButton,
+	Loader,
+	Tabs,
+} from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -509,15 +518,14 @@ function ContentListItem({
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (
-						<a
+						<LinkButton
 							href={contentUrl(collection, item.slug, urlPattern)}
-							target="_blank"
-							rel="noopener noreferrer"
+							external
+							variant="ghost"
+							shape="square"
 							aria-label={t`View published ${title}`}
-							className={buttonVariants({ variant: "ghost", shape: "square" })}
-						>
-							<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
-						</a>
+							icon={<ArrowSquareOut />}
+						/>
 					)}
 					<Link
 						to="/content/$collection/$id"

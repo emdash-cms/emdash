@@ -137,8 +137,12 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 					<p className="mt-1 text-sm text-kumo-subtle">
 						{error instanceof Error ? error.message : t`An error occurred`}
 					</p>
-					<Button variant="ghost" className="mt-4" onClick={() => void refetch()}>
-						<ArrowsClockwise className="me-2 h-4 w-4" />
+					<Button
+						variant="ghost"
+						className="mt-4"
+						onClick={() => void refetch()}
+						icon={<ArrowsClockwise />}
+					>
 						{t`Retry`}
 					</Button>
 				</div>

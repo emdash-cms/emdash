@@ -1359,10 +1359,10 @@ function PluginAuthStep({
 							href={`${siteUrl}/wp-admin/profile.php#application-passwords-section`}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="mt-2 inline-flex items-center gap-1 text-blue-600 hover:underline"
+							className="mt-2 inline-flex items-center gap-1 text-kumo-brand hover:underline"
 						>
 							{t`Open WordPress Profile`}
-							<ArrowSquareOut className="h-3 w-3" />
+							<ArrowSquareOut className="h-3 w-3" aria-hidden="true" />
 						</a>
 					</div>
 				</div>

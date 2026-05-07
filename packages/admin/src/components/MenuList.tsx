@@ -220,7 +220,7 @@ export function MenuList() {
 									search={{ locale: menu.locale }}
 									className={buttonVariants({ variant: "outline", size: "sm" })}
 								>
-									<Pencil className="h-4 w-4 me-2" />
+									<Pencil className="me-2 h-4 w-4" aria-hidden="true" />
 									{t`Edit`}
 								</Link>
 								<Button
