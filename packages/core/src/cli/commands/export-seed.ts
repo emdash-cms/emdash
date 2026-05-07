@@ -102,7 +102,7 @@ export const exportSeedCommand = defineCommand({
 /**
  * Export database to seed file format
  */
-async function exportSeed(db: Kysely<Database>, withContent?: string): Promise<SeedFile> {
+export async function exportSeed(db: Kysely<Database>, withContent?: string): Promise<SeedFile> {
 	const seed: SeedFile = {
 		$schema: "https://emdashcms.com/seed.schema.json",
 		version: "1",
@@ -318,8 +318,7 @@ async function exportMenus(db: Kysely<Database>): Promise<SeedMenu[]> {
 	const result: SeedMenu[] = [];
 	// translation_group -> seed-local id of the anchor menu in that group.
 	const groupToSeedId = new Map<string, string>();
-	// Spans every menu so translated items can reference anchor items in
-	// sibling menus (matches the apply-side scope).
+	// Shared across menus: translated items reference anchor items in sibling menus.
 	const itemGroupToSeedId = new Map<string, string>();
 	const usedItemSeedIds = new Set<string>();
 
@@ -396,7 +395,6 @@ function buildMenuItemTree(
 		menuLocale: string | null;
 		// translation_group -> seed-local id of the anchor item in that group.
 		itemGroupToSeedId: Map<string, string>;
-		// Tracks every minted seed id so collisions can fall back to the DB id.
 		usedItemSeedIds: Set<string>;
 	},
 ): SeedMenuItem[] {
@@ -421,8 +419,7 @@ function buildMenuItemTree(
 			i18nCtx.usedItemSeedIds.add(candidate);
 			return candidate;
 		}
-		// Collision (e.g. duplicate labels under different parents). Append the
-		// DB id to guarantee uniqueness within the seed file.
+		// Collision fallback: append DB id to disambiguate duplicate labels.
 		const fallback = locale
 			? `item:${i18nCtx.menuName}:${base}:${item.id}:${locale}`
 			: `item:${i18nCtx.menuName}:${base}:${item.id}`;
@@ -477,9 +474,8 @@ function buildMenuItemTree(
 			return seedItem;
 		});
 
-		// Sibling order is preserved (it maps to `sort_order` on import). The
-		// anchor menu is exported before its translation menus (see exportMenus),
-		// so cross-menu `translationOf` references already resolve in order.
+		// Sibling order is preserved (maps to sort_order on import). Cross-menu
+		// `translationOf` already resolves because exportMenus sorts anchors first.
 		return result;
 	}
 

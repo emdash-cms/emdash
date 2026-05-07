@@ -512,8 +512,7 @@ export async function applySeed(
 	if (seed.menus) {
 		// seed-local id -> resolved info, used to wire `translationOf` refs.
 		const menuSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
-		// Spans every menu in the seed: items in a translated menu reference
-		// items in the anchor menu, so the map can't be scoped per-menu.
+		// Shared across menus: translated items reference anchor items in sibling menus.
 		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 		const fallbackLocale = getI18nConfig()?.defaultLocale ?? "en";
 
@@ -563,7 +562,7 @@ export async function applySeed(
 
 			if (menu.id) menuSeedIdMap.set(menu.id, { id: menuId, translationGroup });
 
-			// Create menu items (itemSeedIdMap is shared across all menus)
+			// Create menu items
 			const itemCount = await applyMenuItems(
 				db,
 				menuId,
@@ -926,8 +925,8 @@ async function applyContentTaxonomies(
  *
  * When a `SeedMenuItem` carries `id`/`translationOf`, the import resolves the
  * source item's `translation_group` so cross-locale "same nav entry" links
- * round-trip through export/apply (mirrors the SeedTaxonomyTerm pattern).
- * Items without `translationOf` get a fresh group (= their own id).
+ * survive export → apply. Items without `translationOf` get a fresh group
+ * (= their own id).
  */
 async function applyMenuItems(
 	db: Kysely<Database>,
@@ -960,7 +959,6 @@ async function applyMenuItems(
 			// If not in map, the content might not exist yet (will be broken link)
 		}
 
-		// Resolve translationOf to the source item's translation_group.
 		let translationGroup = itemId;
 		if (item.translationOf) {
 			const source = itemSeedIdMap.get(item.translationOf);
