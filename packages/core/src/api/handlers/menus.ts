@@ -318,7 +318,10 @@ export async function handleMenuUpdate(
 		if (!menu) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
+				error: {
+					code: "NOT_FOUND",
+					message: `Menu '${name}' not found${input.locale ? ` in locale '${input.locale}'` : ""}`,
+				},
 			};
 		}
 
@@ -360,7 +363,12 @@ export async function handleMenuDelete(
 		if (!menu) {
 			return {
 				success: false,
-				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
+				error: {
+					code: "NOT_FOUND",
+					message: `Menu '${name}' not found${
+						options.locale ? ` in locale '${options.locale}'` : ""
+					}`,
+				},
 			};
 		}
 
@@ -668,6 +676,7 @@ export async function handleMenuSetItems(
 	db: Kysely<Database>,
 	menuName: string,
 	items: MenuSetItemsInput[],
+	options: { locale?: string } = {},
 ): Promise<ApiResult<{ name: string; itemCount: number }>> {
 	// Validate parentIndex references — must be strictly earlier so
 	// the array can be inserted in order with parents resolved first.
@@ -699,11 +708,14 @@ export async function handleMenuSetItems(
 				// Existence check INSIDE the transaction so a concurrent
 				// menu_delete between lookup and write can't leave orphan
 				// items on D1 (FKs disabled by default).
-				const menu = await trx
+				let menuQuery = trx
 					.selectFrom("_emdash_menus")
-					.select("id")
-					.where("name", "=", menuName)
-					.executeTakeFirst();
+					.select(["id", "locale"])
+					.where("name", "=", menuName);
+				if (options.locale !== undefined) {
+					menuQuery = menuQuery.where("locale", "=", options.locale);
+				}
+				const menu = await menuQuery.executeTakeFirst();
 
 				if (!menu) {
 					throw notFoundSentinel;
@@ -733,6 +745,7 @@ export async function handleMenuSetItems(
 							title_attr: item.titleAttr ?? null,
 							target: item.target ?? null,
 							css_classes: item.cssClasses ?? null,
+							locale: menu.locale,
 						})
 						.execute();
 					insertedIds.push(id);
@@ -748,7 +761,12 @@ export async function handleMenuSetItems(
 			if (error === notFoundSentinel) {
 				return {
 					success: false,
-					error: { code: "NOT_FOUND", message: `Menu '${menuName}' not found` },
+					error: {
+						code: "NOT_FOUND",
+						message: `Menu '${menuName}' not found${
+							options.locale ? ` in locale '${options.locale}'` : ""
+						}`,
+					},
 				};
 			}
 			throw error;

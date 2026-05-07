@@ -558,9 +558,9 @@ describe("Navigation Menus", () => {
 		// (REST routes, future programmatic users) bypass that guard, so
 		// the handler enforces the same constraint.
 
-		async function setupMenu(name: string): Promise<string> {
+		async function setupMenu(name: string, locale = "en"): Promise<string> {
 			const id = ulid();
-			await db.insertInto("_emdash_menus").values({ id, name, label: name }).execute();
+			await db.insertInto("_emdash_menus").values({ id, name, label: name, locale }).execute();
 			return id;
 		}
 
@@ -620,6 +620,88 @@ describe("Navigation Menus", () => {
 			expect(items).toHaveLength(1);
 			expect(items[0]?.id).toBe(otherItemId);
 			expect(items[0]?.menu_id).toBe(otherMenuId);
+		});
+
+		it("includes locale in NOT_FOUND when a locale-scoped lookup misses", async () => {
+			const { handleMenuSetItems } = await import("../../../src/api/handlers/menus.js");
+
+			const result = await handleMenuSetItems(
+				db,
+				"main",
+				[{ label: "Accueil", type: "custom", customUrl: "/fr" }],
+				{ locale: "fr-fr" },
+			);
+			expect(result.success).toBe(false);
+			expect(result.error?.code).toBe("NOT_FOUND");
+			expect(result.error?.message).toContain("fr-fr");
+		});
+
+		it("targets the requested locale and tags inserted items with the menu locale", async () => {
+			const { handleMenuSetItems } = await import("../../../src/api/handlers/menus.js");
+
+			const enMenuId = await setupMenu("main", "en");
+			const frMenuId = await setupMenu("main", "fr-fr");
+
+			await db
+				.insertInto("_emdash_menu_items")
+				.values([
+					{
+						id: ulid(),
+						menu_id: enMenuId,
+						sort_order: 0,
+						type: "custom",
+						custom_url: "/en-home",
+						label: "Home",
+						locale: "en",
+					},
+					{
+						id: ulid(),
+						menu_id: frMenuId,
+						sort_order: 0,
+						type: "custom",
+						custom_url: "/fr-ancien",
+						label: "Ancien",
+						locale: "fr-fr",
+					},
+				])
+				.execute();
+
+			const result = await handleMenuSetItems(
+				db,
+				"main",
+				[
+					{ label: "Accueil", type: "custom", customUrl: "/fr" },
+					{ label: "Guides", type: "custom", customUrl: "/fr/guides", parentIndex: 0 },
+				],
+				{ locale: "fr-fr" },
+			);
+			expect(result.success).toBe(true);
+
+			// The EN menu must remain untouched; otherwise the locale-aware
+			// lookup regressed back to "first matching row wins".
+			const enItems = await db
+				.selectFrom("_emdash_menu_items")
+				.select(["label", "custom_url", "locale"])
+				.where("menu_id", "=", enMenuId)
+				.orderBy("sort_order", "asc")
+				.execute();
+			expect(enItems).toEqual([{ label: "Home", custom_url: "/en-home", locale: "en" }]);
+
+			const frItems = await db
+				.selectFrom("_emdash_menu_items")
+				.select(["label", "custom_url", "locale", "parent_id"])
+				.where("menu_id", "=", frMenuId)
+				.orderBy("sort_order", "asc")
+				.execute();
+			expect(frItems).toHaveLength(2);
+			expect(frItems[0]?.label).toBe("Accueil");
+			expect(frItems[0]?.custom_url).toBe("/fr");
+			expect(frItems[0]?.locale).toBe("fr-fr");
+			expect(frItems[0]?.parent_id).toBeNull();
+			expect(frItems[1]?.label).toBe("Guides");
+			expect(frItems[1]?.custom_url).toBe("/fr/guides");
+			expect(frItems[1]?.locale).toBe("fr-fr");
+			expect(frItems[1]?.parent_id).toBeTruthy();
 		});
 	});
 

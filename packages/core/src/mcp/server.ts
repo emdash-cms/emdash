@@ -1993,14 +1993,26 @@ export function createMcpServer(): McpServer {
 			description:
 				"Create a new navigation menu. The `name` is the stable identifier used " +
 				"by site templates (e.g. 'main', 'footer'); `label` is the human-readable " +
-				"name shown in the admin. Add items afterwards with menu_set_items.",
-			inputSchema: z.object({
-				name: z
-					.string()
-					.regex(COLLECTION_SLUG_PATTERN)
-					.describe("Stable identifier (lowercase letters, numbers, underscores)"),
-				label: z.string().describe("Display name for the admin"),
-			}),
+				"name shown in the admin. Menus are per-locale, so pass `locale` when " +
+				"the same menu name exists in multiple translations. Add items afterwards " +
+				"with menu_set_items. If `translationOf` is set, `locale` must also be set.",
+			inputSchema: z
+				.object({
+					name: z
+						.string()
+						.regex(COLLECTION_SLUG_PATTERN)
+						.describe("Stable identifier (lowercase letters, numbers, underscores)"),
+					label: z.string().describe("Display name for the admin"),
+					locale: z.string().optional().describe("Locale for this menu (e.g. 'fr-fr')"),
+					translationOf: z
+						.string()
+						.optional()
+						.describe("Existing menu id to create this locale variant from"),
+				})
+				.refine((value) => !value.translationOf || value.locale, {
+					message: "`locale` is required when `translationOf` is provided",
+					path: ["locale"],
+				}),
 		},
 		async (args, extra) => {
 			requireScope(extra, "menus:manage");
@@ -2008,7 +2020,14 @@ export function createMcpServer(): McpServer {
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuCreate } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuCreate(ec.db, { name: args.name, label: args.label }));
+				return unwrap(
+					await handleMenuCreate(ec.db, {
+						name: args.name,
+						label: args.label,
+						locale: args.locale,
+						translationOf: args.translationOf,
+					}),
+				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_CREATE_ERROR");
 			}
@@ -2019,10 +2038,13 @@ export function createMcpServer(): McpServer {
 		"menu_update",
 		{
 			title: "Update Menu",
-			description: "Update a menu's label. The `name` (stable identifier) cannot be changed.",
+			description:
+				"Update a menu's label. The `name` (stable identifier) cannot be changed. " +
+				"On multi-locale installs, pass `locale` so the correct translation is updated.",
 			inputSchema: z.object({
 				name: z.string().describe("Menu name to update"),
 				label: z.string().describe("New display label"),
+				locale: z.string().optional().describe("Locale of the menu to update"),
 			}),
 		},
 		async (args, extra) => {
@@ -2031,7 +2053,9 @@ export function createMcpServer(): McpServer {
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuUpdate } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuUpdate(ec.db, args.name, { label: args.label }));
+				return unwrap(
+					await handleMenuUpdate(ec.db, args.name, { label: args.label, locale: args.locale }),
+				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_UPDATE_ERROR");
 			}
@@ -2042,9 +2066,12 @@ export function createMcpServer(): McpServer {
 		"menu_delete",
 		{
 			title: "Delete Menu",
-			description: "Delete a menu. Items are also removed. Cannot be undone.",
+			description:
+				"Delete a menu. Items are also removed. Cannot be undone. On multi-locale " +
+				"installs, pass `locale` so only the intended translation is removed.",
 			inputSchema: z.object({
 				name: z.string().describe("Menu name to delete"),
+				locale: z.string().optional().describe("Locale of the menu to delete"),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -2054,7 +2081,7 @@ export function createMcpServer(): McpServer {
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuDelete } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuDelete(ec.db, args.name));
+				return unwrap(await handleMenuDelete(ec.db, args.name, { locale: args.locale }));
 			} catch (error) {
 				return respondHandlerError(error, "MENU_DELETE_ERROR");
 			}
@@ -2069,9 +2096,11 @@ export function createMcpServer(): McpServer {
 				"Replace the entire item list of a menu in one call. This is atomic: the " +
 				"existing items are deleted and the new list is inserted in the order " +
 				"provided. Use this rather than per-item add/remove tools so the resulting " +
-				"order and parent links are unambiguous.",
+				"order and parent links are unambiguous. On multi-locale installs, pass " +
+				"`locale` so only the intended translation is rewritten.",
 			inputSchema: z.object({
 				name: z.string().describe("Menu name to update"),
+				locale: z.string().optional().describe("Locale of the menu to rewrite"),
 				items: z
 					.array(
 						z.object({
@@ -2115,7 +2144,9 @@ export function createMcpServer(): McpServer {
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuSetItems } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuSetItems(ec.db, args.name, args.items));
+				return unwrap(
+					await handleMenuSetItems(ec.db, args.name, args.items, { locale: args.locale }),
+				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_SET_ITEMS_ERROR");
 			}

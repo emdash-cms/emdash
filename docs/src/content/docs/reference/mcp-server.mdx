@@ -514,63 +514,84 @@ Permanently delete a term from a taxonomy. Any content tagged with the term lose
 
 #### `menu_list`
 
-List all navigation menus. Returns name, label, and timestamps.
+List navigation menus. Menus are per-locale: pass `locale` to return one locale's
+rows only, or omit it to list every locale variant.
 
-**No parameters.**
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `locale` | `string` | No | Filter by locale (omit for all locale variants) |
 
 **Scope:** `content:read` | **Read-only:** Yes
 
 #### `menu_get`
 
-Get a menu by name including all its items in order. Items have a label, URL, type, and optional parent for nesting.
+Get a menu by name including all its items in order. Items have a label, URL, type,
+and optional parent for nesting. When the same menu name exists in multiple locales,
+pass `locale` to resolve the intended translation.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Menu name (e.g. `main`, `footer`) |
+| `locale` | `string` | No | Locale to resolve the menu for |
 
 **Scope:** `content:read` | **Read-only:** Yes
 
 #### `menu_create`
 
-Create a new navigation menu. The `name` is the stable identifier used by site templates; `label` is the human-readable name shown in the admin. Add items afterwards with `menu_set_items`.
+Create a new navigation menu. The `name` is the stable identifier used by site
+templates; `label` is the human-readable name shown in the admin. Menus are
+per-locale, so pass `locale` when the same menu name exists in multiple
+translations. Add items afterwards with `menu_set_items`. If `translationOf` is
+set, `locale` must also be set.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Stable identifier (`/^[a-z][a-z0-9_]*$/`) |
 | `label` | `string` | Yes | Display name for the admin |
+| `locale` | `string` | No | Locale for this menu (e.g. `fr-fr`) |
+| `translationOf` | `string` | No | Existing menu id to create this locale variant from |
 
 **Scope:** `menus:manage` | **Minimum role:** Editor
 
 #### `menu_update`
 
-Update a menu's label. The `name` (stable identifier) cannot be changed.
+Update a menu's label. The `name` (stable identifier) cannot be changed. On
+multi-locale installs, pass `locale` so the correct translation is updated.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Menu name to update |
 | `label` | `string` | Yes | New display label |
+| `locale` | `string` | No | Locale of the menu to update |
 
 **Scope:** `menus:manage` | **Minimum role:** Editor
 
 #### `menu_delete`
 
-Delete a menu and all its items. Cannot be undone.
+Delete a menu and all its items. Cannot be undone. On multi-locale installs,
+pass `locale` so only the intended translation is removed.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Menu name to delete |
+| `locale` | `string` | No | Locale of the menu to delete |
 
 **Scope:** `menus:manage` | **Minimum role:** Editor | **Destructive:** Yes
 
 #### `menu_set_items`
 
-Replace the entire item list of a menu in one call. Atomic: existing items are deleted and the new list is inserted in the order provided. Use this rather than per-item add/remove operations so the resulting order and parent links are unambiguous.
+Replace the entire item list of a menu in one call. Atomic: existing items are
+deleted and the new list is inserted in the order provided. Use this rather
+than per-item add/remove operations so the resulting order and parent links are
+unambiguous. On multi-locale installs, pass `locale` so only the intended
+translation is rewritten.
 
 Items are positioned by array index. Nesting is expressed via `parentIndex` -- an item with `parentIndex: 0` is nested under the item at index `0`. The parent must appear earlier in the list. Items without `parentIndex` are top-level.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Menu name to update |
+| `locale` | `string` | No | Locale of the menu to rewrite |
 | `items` | `MenuItem[]` | Yes | Ordered list of menu items (see below) |
 
 Each `MenuItem` has:
