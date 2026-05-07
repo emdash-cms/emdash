@@ -519,7 +519,11 @@ export function MediaPickerModal({
 							<input
 								ref={fileInputRef}
 								type="file"
-								accept={filters ? filters.join(",") : undefined}
+								accept={
+									filters
+										? filters.map((f) => (f.endsWith("/") ? f + "*" : f)).join(",")
+										: undefined
+								}
 								className="sr-only"
 								onChange={handleFileSelect}
 								aria-label={t`Upload file`}
