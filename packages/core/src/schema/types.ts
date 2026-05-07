@@ -131,6 +131,7 @@ export interface FieldValidation {
 	subFields?: RepeaterSubField[]; // For repeater fields
 	minItems?: number; // For repeater fields
 	maxItems?: number; // For repeater fields
+	allowedMimeTypes?: string[];
 }
 
 /**
