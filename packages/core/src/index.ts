@@ -27,7 +27,7 @@ export type {
 export type { MediaItem, CreateMediaInput } from "./database/repositories/media.js";
 
 // Fields
-export { portableText, image, reference } from "./fields/index.js";
+export { portableText, image, file, reference } from "./fields/index.js";
 export { normalizeMediaValue } from "./media/normalize.js";
 export { generatePlaceholder } from "./media/placeholder.js";
 export type { PlaceholderData } from "./media/placeholder.js";
