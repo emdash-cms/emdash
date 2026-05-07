@@ -56,6 +56,7 @@ export function mediaUploadUrlBody(maxSize: number) {
 				.positive()
 				.max(maxSize, `File size must not exceed ${formatFileSize(maxSize)}`),
 			contentHash: z.string().optional(),
+			fieldId: z.string().optional(),
 		})
 		.meta({ id: "MediaUploadUrlBody" });
 }
