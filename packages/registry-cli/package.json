@@ -1,0 +1,68 @@
+{
+	"name": "@emdash-cms/registry-cli",
+	"version": "0.0.0",
+	"description": "CLI for publishing plugins to the EmDash plugin registry, and searching it from the terminal. Atproto OAuth, FAIR-shaped records, sandboxed-plugin-only.",
+	"type": "module",
+	"main": "dist/api.mjs",
+	"exports": {
+		".": {
+			"types": "./dist/api.d.mts",
+			"default": "./dist/api.mjs"
+		}
+	},
+	"bin": {
+		"emdash-registry": "./dist/index.mjs"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"prepublishOnly": "node --run build",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"check": "publint"
+	},
+	"dependencies": {
+		"@atcute/client": "catalog:",
+		"@atcute/identity-resolver": "catalog:",
+		"@atcute/lexicons": "catalog:",
+		"@atcute/multibase": "catalog:",
+		"@atcute/oauth-node-client": "catalog:",
+		"@oslojs/crypto": "catalog:",
+		"@emdash-cms/plugin-types": "workspace:*",
+		"@emdash-cms/registry-client": "workspace:*",
+		"@emdash-cms/registry-lexicons": "workspace:*",
+		"citty": "^0.1.6",
+		"consola": "^3.4.2",
+		"image-size": "^2.0.2",
+		"modern-tar": "^0.7.5",
+		"picocolors": "^1.1.1",
+		"tsdown": "catalog:"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"@types/node": "catalog:",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin-registry",
+		"atproto",
+		"fair",
+		"cli"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/registry-cli"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash"
+}

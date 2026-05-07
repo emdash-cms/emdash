@@ -14,6 +14,7 @@ import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
 import { ArrowPrev } from "../ArrowIcons.js";
+import { EditorHeader } from "../EditorHeader";
 import { MediaPickerModal } from "../MediaPickerModal";
 
 export function GeneralSettings() {
@@ -113,15 +114,31 @@ export function GeneralSettings() {
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center gap-3">
-				<Link to="/settings">
-					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-						<ArrowPrev className="h-4 w-4" />
+			{/* Sticky header — keeps Save in view while users scroll a long
+			    settings form. The bottom "Save Settings" button is preserved
+			    below so the natural last-control DOM order works for keyboard
+			    and screen-reader users. */}
+			<EditorHeader
+				leading={
+					<Link to="/settings">
+						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
+							<ArrowPrev className="h-4 w-4" />
+						</Button>
+					</Link>
+				}
+				actions={
+					<Button
+						type="submit"
+						form="general-settings-form"
+						disabled={saveMutation.isPending}
+						icon={<FloppyDisk />}
+					>
+						{saveMutation.isPending ? t`Saving...` : t`Save Settings`}
 					</Button>
-				</Link>
-				<h1 className="text-2xl font-bold">{t`General Settings`}</h1>
-			</div>
+				}
+			>
+				<h1 className="text-2xl font-bold truncate">{t`General Settings`}</h1>
+			</EditorHeader>
 
 			{/* Status banner */}
 			{saveStatus && (
@@ -141,7 +158,7 @@ export function GeneralSettings() {
 				</div>
 			)}
 
-			<form onSubmit={handleSubmit} className="space-y-6">
+			<form id="general-settings-form" onSubmit={handleSubmit} className="space-y-6">
 				{/* Site Identity */}
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<h2 className="mb-4 text-lg font-semibold">{t`Site Identity`}</h2>

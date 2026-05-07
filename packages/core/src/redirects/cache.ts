@@ -1,8 +1,13 @@
 /**
- * Redirect pattern cache.
+ * Redirect rule cache.
  *
- * Module-level cache for compiled redirect pattern rules. The middleware
- * populates this on first request; route handlers invalidate it on writes.
+ * Module-level cache for enabled redirect rules. The middleware populates this
+ * on first request; route handlers invalidate it on writes.
+ *
+ * Both exact-match and pattern rules are loaded from one query and cached
+ * together: exact rules indexed by source path in a Map, pattern rules
+ * pre-compiled into an array. A single warm request issues zero database
+ * queries; a cold isolate issues one.
  *
  * This module deliberately has NO Astro imports so it can be safely imported
  * from handlers, seed, CLI, and tests without dragging in `astro:middleware`.
@@ -17,36 +22,51 @@ export interface CachedRedirectRule {
 	compiled: CompiledPattern;
 }
 
-/**
- * Cached pattern rules with compiled regexes.
- * null = not yet populated, array = cached.
- */
-let cachedPatternRules: CachedRedirectRule[] | null = null;
+export interface CachedRedirects {
+	/** Exact-match rules indexed by source path (`source` -> `Redirect`). */
+	exact: Map<string, Redirect>;
+	/** Pattern rules with their compiled regexes, preserving insertion order. */
+	patterns: CachedRedirectRule[];
+}
 
 /**
- * Invalidate the cached redirect pattern rules.
+ * Cached enabled redirects.
+ * null = not yet populated, object = cached.
+ */
+let cachedRedirects: CachedRedirects | null = null;
+
+/**
+ * Invalidate the cached redirects (both exact and pattern).
  * Call when redirects are created, updated, or deleted.
  */
 export function invalidateRedirectCache(): void {
-	cachedPatternRules = null;
+	cachedRedirects = null;
 }
 
 /**
- * Get the cached compiled pattern rules, or null if the cache is cold.
+ * Get the cached redirects, or null if the cache is cold.
  */
-export function getCachedPatternRules(): CachedRedirectRule[] | null {
-	return cachedPatternRules;
+export function getCachedRedirects(): CachedRedirects | null {
+	return cachedRedirects;
 }
 
 /**
- * Populate the pattern rules cache from a list of enabled pattern redirects.
+ * Populate the cache from a list of enabled redirects (both exact and
+ * pattern). The caller is responsible for passing only enabled rows — the
+ * cache stores them as-is.
  */
-export function setCachedPatternRules(redirects: Redirect[]): CachedRedirectRule[] {
-	cachedPatternRules = redirects.map((r) => ({
-		redirect: r,
-		compiled: compilePattern(r.source),
-	}));
-	return cachedPatternRules;
+export function setCachedRedirects(redirects: Redirect[]): CachedRedirects {
+	const exact = new Map<string, Redirect>();
+	const patterns: CachedRedirectRule[] = [];
+	for (const r of redirects) {
+		if (r.isPattern) {
+			patterns.push({ redirect: r, compiled: compilePattern(r.source) });
+		} else {
+			exact.set(r.source, r);
+		}
+	}
+	cachedRedirects = { exact, patterns };
+	return cachedRedirects;
 }
 
 /**

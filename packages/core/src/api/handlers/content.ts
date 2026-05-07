@@ -476,6 +476,17 @@ export async function handleContentCreate(
 			}
 			await hydrateBylines(trx, collection, created);
 
+			// When this row is a translation of an existing item, inherit the
+			// source's taxonomy assignments. The pivot stores translation_groups
+			// so the copied rows apply to every locale of the translation group
+			// (existing per-locale assignments still resolve correctly in
+			// `getEntryTerms` because the join picks the locale-specific row).
+			if (body.translationOf) {
+				const { TaxonomyRepository } = await import("../../database/repositories/taxonomy.js");
+				const taxRepo = new TaxonomyRepository(trx);
+				await taxRepo.copyEntryTerms(collection, body.translationOf, created.id);
+			}
+
 			// Side-write SEO data if provided
 			if (body.seo && hasSeo) {
 				const seoRepo = new SeoRepository(trx);
@@ -1124,12 +1135,13 @@ export async function handleContentPublish(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	options: { publishedAt?: string } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.publish(collection, resolvedId);
+			return repo.publish(collection, resolvedId, options.publishedAt);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);

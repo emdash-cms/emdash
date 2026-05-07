@@ -16,7 +16,7 @@ import {
 	File as FileIcon,
 } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
@@ -25,15 +25,22 @@ import {
 	deleteMenuItem,
 	updateMenuItem,
 	reorderMenuItems,
+	fetchMenuTranslations,
+	createMenuTranslation,
 	type MenuItem,
 } from "../lib/api";
+import { fetchManifest } from "../lib/api/client.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { useI18nConfig } from "./LocaleSwitcher.js";
+import { TranslationsPanel } from "./TranslationsPanel.js";
 
 export function MenuEditor() {
 	const { t } = useLingui();
 	const { name } = useParams({ from: "/_admin/menus/$name" });
+	const search = useSearch({ from: "/_admin/menus/$name" });
+	const routeLocale = search.locale;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -44,10 +51,58 @@ export function MenuEditor() {
 	const [addError, setAddError] = React.useState<string | null>(null);
 	const [editError, setEditError] = React.useState<string | null>(null);
 
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+	const i18n = useI18nConfig(manifest);
+
 	const { data: menu, isLoading } = useQuery({
-		queryKey: ["menu", name],
-		queryFn: () => fetchMenu(name),
+		queryKey: ["menu", name, routeLocale ?? null],
+		queryFn: () => fetchMenu(name, { locale: routeLocale }),
 		staleTime: Infinity,
+	});
+
+	// The locale we lock mutations to: explicit URL param wins; else fall back
+	// to whatever the loaded menu row says (handles entry from the old /menus/$name
+	// URL without a locale query).
+	const menuLocale = routeLocale ?? menu?.locale;
+
+	const { data: translationsData } = useQuery({
+		queryKey: ["menu-translations", name, menuLocale ?? null],
+		queryFn: () => fetchMenuTranslations(name, { locale: menuLocale }),
+		enabled: !!menu && !!i18n && i18n.locales.length > 1,
+	});
+
+	const translateMutation = useMutation({
+		mutationFn: (targetLocale: string) =>
+			createMenuTranslation(
+				name,
+				{ locale: targetLocale, label: menu?.label },
+				{ locale: menuLocale },
+			),
+		onSuccess: (translated) => {
+			void queryClient.invalidateQueries({ queryKey: ["menus"] });
+			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
+			void queryClient.invalidateQueries({ queryKey: ["menu-translations", name] });
+			toastManager.add({
+				title: t`Translation created`,
+				description: t`Menu "${translated.label}" (${translated.locale.toUpperCase()}) created.`,
+			});
+			// Switch the editor to the new locale so the user keeps editing.
+			void navigate({
+				to: "/menus/$name",
+				params: { name },
+				search: { locale: translated.locale },
+			});
+		},
+		onError: (error: Error) => {
+			toastManager.add({
+				title: t`Error`,
+				description: error.message,
+				type: "error",
+			});
+		},
 	});
 
 	// Sync local items with fetched data
@@ -58,7 +113,8 @@ export function MenuEditor() {
 	}, [menu]);
 
 	const createMutation = useMutation({
-		mutationFn: (input: Parameters<typeof createMenuItem>[1]) => createMenuItem(name, input),
+		mutationFn: (input: Parameters<typeof createMenuItem>[1]) =>
+			createMenuItem(name, input, { locale: menuLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			setIsAddOpen(false);
@@ -70,7 +126,7 @@ export function MenuEditor() {
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: (itemId: string) => deleteMenuItem(name, itemId),
+		mutationFn: (itemId: string) => deleteMenuItem(name, itemId, { locale: menuLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			toastManager.add({
@@ -94,7 +150,7 @@ export function MenuEditor() {
 		}: {
 			itemId: string;
 			input: Parameters<typeof updateMenuItem>[2];
-		}) => updateMenuItem(name, itemId, input),
+		}) => updateMenuItem(name, itemId, input, { locale: menuLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			setEditingItem(null);
@@ -109,7 +165,8 @@ export function MenuEditor() {
 	});
 
 	const reorderMutation = useMutation({
-		mutationFn: (input: Parameters<typeof reorderMenuItems>[1]) => reorderMenuItems(name, input),
+		mutationFn: (input: Parameters<typeof reorderMenuItems>[1]) =>
+			reorderMenuItems(name, input, { locale: menuLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			toastManager.add({
@@ -308,6 +365,32 @@ export function MenuEditor() {
 				onOpenChange={setIsContentPickerOpen}
 				onSelect={handleAddContent}
 			/>
+
+			{i18n && i18n.locales.length > 1 && menu ? (
+				<div className="border rounded-lg p-4">
+					<TranslationsPanel
+						locales={i18n.locales}
+						defaultLocale={i18n.defaultLocale}
+						currentLocale={menu.locale}
+						translations={
+							translationsData?.translations.map((tr) => ({ id: tr.id, locale: tr.locale })) ?? [
+								{ id: menu.id, locale: menu.locale },
+							]
+						}
+						onOpen={(tr) =>
+							navigate({
+								to: "/menus/$name",
+								params: { name },
+								search: { locale: tr.locale },
+							})
+						}
+						onCreate={(target) => translateMutation.mutate(target)}
+						pendingLocale={
+							translateMutation.isPending ? (translateMutation.variables ?? null) : null
+						}
+					/>
+				</div>
+			) : null}
 
 			{localItems.length === 0 ? (
 				<div className="border rounded-lg p-12 text-center">

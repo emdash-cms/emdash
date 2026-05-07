@@ -1,0 +1,65 @@
+{
+	"name": "@emdash-cms/registry-client",
+	"version": "0.0.0",
+	"description": "Atproto-aware client for the EmDash plugin registry: credential storage, publisher repo operations, and discovery against an aggregator.",
+	"type": "module",
+	"main": "dist/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./credentials": {
+			"types": "./dist/credentials/index.d.ts",
+			"default": "./dist/credentials/index.js"
+		},
+		"./publishing": {
+			"types": "./dist/publishing/index.d.ts",
+			"default": "./dist/publishing/index.js"
+		},
+		"./discovery": {
+			"types": "./dist/discovery/index.d.ts",
+			"default": "./dist/discovery/index.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"prepublishOnly": "node --run build",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution"
+	},
+	"dependencies": {
+		"@atcute/atproto": "catalog:",
+		"@atcute/client": "catalog:",
+		"@atcute/lexicons": "catalog:",
+		"@emdash-cms/registry-lexicons": "workspace:*"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"@types/node": "catalog:",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin-registry",
+		"atproto",
+		"fair"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/registry-client"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash"
+}

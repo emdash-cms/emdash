@@ -1,0 +1,229 @@
+---
+title: Settings
+description: Per-plugin configuration through the KV store, exposed in the admin UI as a Block Kit page.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Sandboxed plugins store their settings in the per-plugin **KV store** and render the editing UI as a [Block Kit](/plugins/creating-plugins/block-kit/) page. The auto-generated `admin.settingsSchema` form that native plugins can use isn't available in the sandbox — instead, you describe the form in JSON and serve it from a route.
+
+It's a bit more work than `settingsSchema`, but everything happens through the same machinery the plugin already uses for hooks and routes — there's nothing extra to learn.
+
+## The KV store
+
+Every plugin gets a private key-value store accessible as `ctx.kv` in any hook or route. It's the canonical place for settings and any other small persistent state:
+
+```typescript
+interface KVAccess {
+	get<T>(key: string): Promise<T | null>;
+	set(key: string, value: unknown): Promise<void>;
+	delete(key: string): Promise<boolean>;
+	list(prefix?: string): Promise<Array<{ key: string; value: unknown }>>;
+}
+```
+
+KV is per-plugin — keys you write are stored under your plugin id and aren't visible to other plugins.
+
+### Reading and writing
+
+```typescript
+// Read
+const enabled = await ctx.kv.get<boolean>("settings:enabled");
+const config = await ctx.kv.get<{ url: string; timeout: number }>("state:config");
+
+// Write
+await ctx.kv.set("settings:lastSync", new Date().toISOString());
+await ctx.kv.set("state:cache", { data: items, expiry: Date.now() + 3600000 });
+
+// Delete
+const deleted = await ctx.kv.delete("state:tempData");
+
+// List by prefix
+const allSettings = await ctx.kv.list("settings:");
+// → [{ key: "settings:enabled", value: true }, ...]
+```
+
+### Key naming conventions
+
+Use prefixes to keep different kinds of values separate. The convention across EmDash plugins:
+
+| Prefix      | Purpose                       | Example           |
+| ----------- | ----------------------------- | ----------------- |
+| `settings:` | User-configurable preferences | `settings:apiKey` |
+| `state:`    | Internal plugin state         | `state:lastSync`  |
+| `cache:`    | Cached data                   | `cache:results`   |
+
+```typescript
+// Clear prefixes
+await ctx.kv.set("settings:webhookUrl", url);
+await ctx.kv.set("state:lastRun", timestamp);
+await ctx.kv.set("cache:feed", feedData);
+
+// Avoid bare keys
+await ctx.kv.set("url", url);
+```
+
+## Settings UI in Block Kit
+
+Sandboxed plugins describe their settings page as Block Kit. The admin sends a `page_load` interaction to a route on your plugin (conventionally `routes.admin`), and the plugin returns a JSON description of the form. When the user clicks Save, the admin sends a `block_action` or `form_submit` interaction back; the plugin writes to KV and returns updated blocks.
+
+```typescript title="src/sandbox-entry.ts"
+import { definePlugin } from "emdash";
+import type { PluginContext } from "emdash";
+
+interface BlockInteraction {
+	type: "page_load" | "block_action" | "form_submit";
+	page?: string;
+	action_id?: string;
+	values?: Record<string, unknown>;
+}
+
+export default definePlugin({
+	routes: {
+		admin: {
+			handler: async (routeCtx, ctx: PluginContext) => {
+				const interaction = routeCtx.input as BlockInteraction;
+
+				if (interaction.type === "page_load" && interaction.page === "/settings") {
+					return renderSettings(ctx);
+				}
+
+				if (interaction.type === "form_submit" && interaction.action_id === "save") {
+					await saveSettings(ctx, interaction.values ?? {});
+					return {
+						...(await renderSettings(ctx)),
+						toast: { message: "Settings saved", type: "success" },
+					};
+				}
+
+				return { blocks: [] };
+			},
+		},
+	},
+});
+
+async function renderSettings(ctx: PluginContext) {
+	const apiKey = (await ctx.kv.get<string>("settings:apiKey")) ?? "";
+	const enabled = (await ctx.kv.get<boolean>("settings:enabled")) ?? true;
+	const maxItems = (await ctx.kv.get<number>("settings:maxItems")) ?? 100;
+
+	return {
+		blocks: [
+			{ type: "header", text: "Plugin settings" },
+			{
+				type: "form",
+				block_id: "settings",
+				fields: [
+					{
+						type: "secret_input",
+						action_id: "apiKey",
+						label: "API key",
+						initial_value: apiKey,
+					},
+					{
+						type: "toggle",
+						action_id: "enabled",
+						label: "Enabled",
+						initial_value: enabled,
+					},
+					{
+						type: "number_input",
+						action_id: "maxItems",
+						label: "Max items",
+						min: 1,
+						max: 1000,
+						initial_value: maxItems,
+					},
+				],
+				submit: { label: "Save", action_id: "save" },
+			},
+		],
+	};
+}
+
+async function saveSettings(ctx: PluginContext, values: Record<string, unknown>) {
+	for (const [key, value] of Object.entries(values)) {
+		if (value !== undefined) {
+			await ctx.kv.set(`settings:${key}`, value);
+		}
+	}
+}
+```
+
+To wire the settings page into the admin sidebar, declare it on the descriptor:
+
+```typescript title="src/index.ts"
+adminPages: [{ path: "/settings", label: "Settings", icon: "settings" }],
+```
+
+EmDash routes `page_load` interactions for that path to your `admin` route automatically.
+
+See [Block Kit](/plugins/creating-plugins/block-kit/) for the full set of block types, form fields, conditional fields, and the `@emdash-cms/blocks` builder helpers.
+
+## Secret values
+
+Block Kit's `secret_input` field renders as a masked input. Treat any value the user enters there with care:
+
+```typescript
+{
+	type: "secret_input",
+	action_id: "apiKey",
+	label: "API key",
+	// Don't seed initial_value with the real secret — pass an empty string or a sentinel,
+	// and only overwrite when the user enters a non-empty value.
+	initial_value: "",
+}
+```
+
+When saving, skip empty strings to avoid clearing the existing secret on every save:
+
+```typescript
+async function saveSettings(ctx: PluginContext, values: Record<string, unknown>) {
+	if (typeof values.apiKey === "string" && values.apiKey.length > 0) {
+		await ctx.kv.set("settings:apiKey", values.apiKey);
+	}
+	// ... other fields
+}
+```
+
+## Default values
+
+KV reads return `null` for keys that haven't been written. Pass defaults at the read site:
+
+```typescript
+const enabled = (await ctx.kv.get<boolean>("settings:enabled")) ?? true;
+const maxItems = (await ctx.kv.get<number>("settings:maxItems")) ?? 100;
+```
+
+Or persist defaults during installation:
+
+```typescript
+hooks: {
+	"plugin:install": async (_event, ctx) => {
+		await ctx.kv.set("settings:enabled", true);
+		await ctx.kv.set("settings:maxItems", 100);
+	},
+},
+```
+
+The trade-off is that `plugin:install` runs once per install. If you ship a new setting in a later version, only fresh installs see the default — existing installs need either a migration in `plugin:activate` (idempotent: only write if missing) or to keep using the read-time fallback.
+
+## Settings vs storage vs KV
+
+| Use case                       | Mechanism                                          |
+| ------------------------------ | -------------------------------------------------- |
+| Admin-editable preferences     | `ctx.kv` with `settings:` prefix + Block Kit page  |
+| Internal plugin state          | `ctx.kv` with `state:` prefix                      |
+| Document collections (queries) | `ctx.storage`                                      |
+
+**KV** is for small values keyed by a string — settings, sync cursors, cached computations. No queries, no indexes.
+
+**Storage** is for document collections with indexed queries — form submissions, audit logs, anything where you want to filter, paginate, or count.
+
+## Storage layout
+
+KV values live in the `_options` table with plugin-namespaced keys. Your code uses `settings:apiKey`; EmDash stores it as `plugin:<your-plugin-id>:settings:apiKey`. The prefix is added automatically and prevents one plugin from reading or overwriting another's KV data.
+
+## Native plugins: `settingsSchema`
+
+If you're writing a native plugin (because you need React admin pages or PT components), you can declare a settings schema directly inside `definePlugin()` and let EmDash auto-generate the form. See [Native plugins](/plugins/creating-native-plugins/your-first-native-plugin/) for that path.

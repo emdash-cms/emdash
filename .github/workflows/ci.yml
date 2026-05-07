@@ -90,7 +90,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run --filter emdash... build
+      # Build emdash + its deps AND the registry packages. The registry
+      # packages aren't deps of `emdash`, so the `emdash...` filter would
+      # leave them unbuilt and their tests would fail to resolve workspace
+      # links to dist/.
+      - run: pnpm run --filter emdash... --filter "@emdash-cms/registry-*" --filter "@emdash-cms/plugin-types" build
       - run: pnpm test:unit
         env:
           EMDASH_TEST_PG: postgres://postgres:test@localhost:5432/emdash_test

@@ -59,6 +59,13 @@ export const localeCode = z
 	.regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code")
 	.transform((v) => v.toLowerCase());
 
+/** Shared `?locale=xx` query shape for endpoints that filter by locale. */
+export const localeFilterQuery = z
+	.object({
+		locale: z.string().min(1).optional(),
+	})
+	.meta({ id: "LocaleFilterQuery" });
+
 // ---------------------------------------------------------------------------
 // OpenAPI: Shared response schemas
 // ---------------------------------------------------------------------------

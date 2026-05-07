@@ -11,7 +11,7 @@
  * - Manual trigger via API route
  *
  * Demonstrates:
- * - network:fetch:any capability (unrestricted outbound for user-configured URLs)
+ * - network:request:unrestricted capability (unrestricted outbound for user-configured URLs)
  * - settings.secret() for encrypted tokens
  * - apiRoutes for custom endpoints
  * - content:afterDelete hook
@@ -20,6 +20,8 @@
  */
 
 import type { PluginDescriptor } from "emdash";
+
+import { version } from "../package.json";
 
 export interface WebhookPayload {
 	event: "content:create" | "content:update" | "content:delete" | "media:upload";
@@ -37,10 +39,10 @@ export interface WebhookPayload {
 export function webhookNotifierPlugin(): PluginDescriptor {
 	return {
 		id: "webhook-notifier",
-		version: "0.1.0",
+		version,
 		format: "standard",
 		entrypoint: "@emdash-cms/plugin-webhook-notifier/sandbox",
-		capabilities: ["network:fetch:any"],
+		capabilities: ["network:request:unrestricted"],
 		storage: {
 			deliveries: { indexes: ["timestamp", "webhookUrl", "status"] },
 		},

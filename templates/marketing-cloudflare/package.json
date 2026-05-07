@@ -3,14 +3,15 @@
 	"version": "0.0.3",
 	"private": true,
 	"type": "module",
+	"emdash": {
+		"seed": "seed/seed.json"
+	},
 	"scripts": {
 		"dev": "astro dev",
 		"build": "astro build",
 		"preview": "astro preview",
 		"deploy": "astro build && wrangler deploy",
-		"typecheck": "astro check",
-		"bootstrap": "emdash init && emdash seed",
-		"seed": "emdash seed"
+		"typecheck": "astro check"
 	},
 	"dependencies": {
 		"@astrojs/cloudflare": "catalog:",

@@ -314,6 +314,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/taxonomies/[name]/terms/[slug]/translations",
+		entrypoint: resolveRoute("api/taxonomies/[name]/terms/[slug]/translations.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/terms/[taxonomy]",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/terms/[taxonomy].ts"),
 	});
@@ -553,6 +558,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/menus/[name]/reorder",
 		entrypoint: resolveRoute("api/menus/[name]/reorder.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/menus/[name]/translations",
+		entrypoint: resolveRoute("api/menus/[name]/translations.ts"),
 	});
 
 	// Widget area routes

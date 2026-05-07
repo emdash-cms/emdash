@@ -118,6 +118,38 @@ const blogUrl = await getPreviewUrl({
 // Returns: /blog/my-draft-post?_preview=eyJjaWQ...
 ```
 
+### Locale-aware paths
+
+`pathPattern` also supports a `{locale}` placeholder. Pass an empty `locale`
+when the entry is in the default locale and `prefixDefaultLocale` is `false`;
+adjacent slashes left by the empty value are collapsed automatically.
+
+```ts
+await getPreviewUrl({
+	collection: "posts",
+	id: "hello",
+	secret,
+	pathPattern: "/{locale}/{id}",
+	locale: "pt-br",
+});
+// Returns: /pt-br/hello?_preview=...
+
+await getPreviewUrl({
+	collection: "posts",
+	id: "hello",
+	secret,
+	pathPattern: "/{locale}/{id}",
+	locale: "", // default locale, no prefix
+});
+// Returns: /hello?_preview=...
+```
+
+The admin's "View on site" link goes through `POST /_emdash/api/content/{collection}/{id}/preview-url`,
+which reads the entry's locale, looks up the site's i18n config and supplies
+the `locale` automatically. To change the default pattern used by that
+endpoint, set `EMDASH_PREVIEW_PATH_PATTERN` (e.g. `/{locale}/{id}`) — request
+bodies still win when they include their own `pathPattern`.
+
 ## Token Expiration
 
 Control how long preview links remain valid:
@@ -316,7 +348,8 @@ Generate a preview URL with a signed token.
 - `secret` — Signing secret (string)
 - `expiresIn` — Token validity duration (default: `"1h"`)
 - `baseUrl` — Optional base URL for absolute links
-- `pathPattern` — URL pattern with `{collection}` and `{id}` placeholders (default: `"/{collection}/{id}"`)
+- `pathPattern` — URL pattern with `{collection}`, `{id}` and `{locale}` placeholders (default: `"/{collection}/{id}"`)
+- `locale` — Value substituted for `{locale}`. Empty string omits the locale segment (slashes are collapsed).
 
 **Returns:** `Promise<string>`
 

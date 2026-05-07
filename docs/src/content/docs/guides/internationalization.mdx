@@ -95,6 +95,58 @@ Fallback only applies to single-entry queries. List queries return entries for t
   When a fallback is used, the response metadata includes `fallbackLocale` so your template can display a "this content is not yet translated" notice.
 </Aside>
 
+### Menus
+
+Menus are per-locale — the same `name` (e.g. `"primary"`) can exist in several
+locales, all linked via a shared `translation_group`. Menu items resolve their
+content references against the active locale's version of the referenced
+content.
+
+```astro title="src/components/PrimaryNav.astro"
+---
+import { getMenu } from "emdash";
+
+const menu = await getMenu("primary", { locale: Astro.currentLocale });
+---
+
+<nav aria-label="Primary">
+  <ul>
+    {menu?.items.map((item) => (
+      <li><a href={item.url}>{item.label}</a></li>
+    ))}
+  </ul>
+</nav>
+```
+
+Create translations of an existing menu from the admin's **Menus** list — the
+items are cloned with `reference_id` intact (it stores the referenced content's
+`translation_group`), so the new menu's links point at the right per-locale
+content automatically.
+
+### Taxonomies (categories, tags)
+
+Terms are per-locale. Definitions (`_emdash_taxonomy_defs`) are also per-locale,
+so `label` / `labelSingular` can be translated too. The pivot
+`content_taxonomies.taxonomy_id` stores the term's `translation_group`, so a
+single assignment spans every locale of the content.
+
+```astro
+---
+import { getTaxonomyTerms, getEntryTerms } from "emdash";
+
+const categories = await getTaxonomyTerms("category", {
+  locale: Astro.currentLocale,
+});
+const terms = await getEntryTerms("posts", post.id, undefined, {
+  locale: Astro.currentLocale,
+});
+---
+```
+
+Translating a piece of content automatically inherits the source's term
+assignments — you only need to translate the *terms themselves* once, and every
+post that uses them resolves to the right locale at read time.
+
 ### Collection listing
 
 Filter a collection by locale:

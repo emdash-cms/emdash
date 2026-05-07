@@ -570,6 +570,27 @@ describe("Editor component behaviour", () => {
 		expect(typeof editorArg.chain).toBe("function");
 	});
 
+	it("calls onEditorReady with null on unmount so consumers can clear stale references", async () => {
+		// Without this cleanup, ContentEditor's `portableTextEditor` slot keeps
+		// pointing at a destroyed TipTap instance during the brief remount window
+		// when switching translations (FieldRenderer is re-keyed by item.id),
+		// causing DocumentOutline to render against a destroyed editor.
+		const onEditorReady = vi.fn();
+		const screen = await render(
+			<PortableTextEditor onEditorReady={onEditorReady} value={[textBlock("Mount/unmount")]} />,
+		);
+		await waitForEditor();
+
+		await vi.waitFor(() => expect(onEditorReady).toHaveBeenCalledTimes(1), { timeout: 2000 });
+		expect(onEditorReady.mock.calls[0]![0]).toBeTruthy();
+
+		// Unmount and verify the cleanup fires onEditorReady(null).
+		await screen.unmount();
+
+		await vi.waitFor(() => expect(onEditorReady).toHaveBeenCalledTimes(2), { timeout: 2000 });
+		expect(onEditorReady.mock.calls[1]![0]).toBeNull();
+	});
+
 	it("shows word count and character count in footer", async () => {
 		await render(<PortableTextEditor value={[textBlock("One two three")]} />);
 		await waitForEditor();

@@ -24,6 +24,7 @@ export type {
 	RadioElement,
 	RepeaterElement,
 	RepeaterSubField,
+	MediaPickerElement,
 	Element,
 	// Form
 	FieldCondition,
@@ -35,6 +36,7 @@ export type {
 	ChartConfig,
 	TimeseriesChartConfig,
 	CustomChartConfig,
+	TabPanel,
 	// Blocks
 	HeaderBlock,
 	SectionBlock,
@@ -49,6 +51,7 @@ export type {
 	ColumnsBlock,
 	ChartBlock,
 	CodeBlock,
+	TabBlock,
 	BannerBlock,
 	MeterBlock,
 	EmptyBlock,

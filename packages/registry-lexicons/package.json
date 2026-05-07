@@ -1,0 +1,68 @@
+{
+	"name": "@emdash-cms/registry-lexicons",
+	"version": "0.0.0",
+	"description": "Generated TypeScript types for EmDash plugin registry lexicons (com.emdashcms.experimental.*). EXPERIMENTAL: NSIDs and shapes will change.",
+	"type": "module",
+	"main": "dist/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./lexicons/*": "./lexicons/*.json",
+		"./types/*": {
+			"types": "./dist/generated/types/*.d.ts",
+			"default": "./dist/generated/types/*.js"
+		}
+	},
+	"files": [
+		"dist",
+		"lexicons"
+	],
+	"atcute:lexicons": {
+		"mappings": {
+			"com.emdashcms.experimental.*": {
+				"type": "namespace",
+				"path": "./dist/generated/types/{{nsid_remainder}}"
+			}
+		}
+	},
+	"scripts": {
+		"codegen": "lex-cli generate",
+		"build:lexicons": "node scripts/copy-lexicons.mjs",
+		"build:types": "tsdown",
+		"build": "pnpm run build:lexicons && pnpm run codegen && pnpm run build:types",
+		"prepublishOnly": "node --run build",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution"
+	},
+	"dependencies": {
+		"@atcute/atproto": "catalog:",
+		"@atcute/lexicons": "catalog:"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"@atcute/lex-cli": "catalog:",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin-registry",
+		"atproto",
+		"fair",
+		"lexicons"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/registry-lexicons"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash"
+}

@@ -582,7 +582,7 @@ export default definePlugin({
 		"evil/escalate-capabilities": {
 			handler: async (_ctx: { input: unknown; request: unknown }, pluginCtx: PluginContext) => {
 				// Try to perform actions beyond declared capabilities
-				// This plugin has read:content but NOT write:content
+				// This plugin has content:read but NOT content:write
 				// The bridge should reject any write attempts
 				const results: Record<string, { blocked: boolean; error?: string; data?: unknown }> = {};
 
@@ -707,7 +707,7 @@ export default definePlugin({
 						]);
 						tests.capabilityEscalation = {
 							passed: false,
-							message: "FAIL: Created content without write:content capability!",
+							message: "FAIL: Created content without content:write capability!",
 						};
 					} catch (e) {
 						const msg = e instanceof Error ? e.message : String(e);

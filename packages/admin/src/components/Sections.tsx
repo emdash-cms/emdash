@@ -187,7 +187,7 @@ export function Sections() {
 									}}
 									required
 									placeholder="hero-banner"
-									pattern="[a-z0-9-]+"
+									pattern="[a-z0-9\-]+"
 									title={t`Lowercase letters, numbers, and hyphens only`}
 								/>
 								<p className="text-xs text-kumo-subtle mt-1">

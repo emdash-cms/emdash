@@ -14,6 +14,7 @@ This is a monorepo using pnpm workspaces.
 - **packages/core**: Main `emdash` package -- Astro integration, runtime, schema, API routes, CLI
 - **packages/admin**: `@emdash-cms/admin` -- React admin UI shipped as a single mounted app under `/_emdash/admin/*`
 - **packages/auth**: `@emdash-cms/auth` -- RBAC primitives (`Permissions`, `hasPermission`, `canActOnOwn`), passkey + magic link, RoleLevel ladder
+- **packages/auth-atproto**: `@emdash-cms/auth-atproto` -- ATProto / Bluesky OAuth login
 - **packages/blocks**: `@emdash-cms/blocks` -- shared Portable Text block defs and renderers
 - **packages/cloudflare**: `@emdash-cms/cloudflare` -- D1/R2/Workers integration helpers
 - **packages/marketplace**: `@emdash-cms/marketplace` -- plugin/theme marketplace client
@@ -39,7 +40,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR. Key rules:
 - **You MUST use the PR template.** Every PR must include the PR template with all sections filled out. The template is loaded automatically when you create a PR via the GitHub UI. If you create a PR via the API or CLI, copy the template from `.github/PULL_REQUEST_TEMPLATE.md` into the PR body. **PRs that do not use the template will be closed automatically by CI.**
 - **Features require a prior approved Discussion.** Do not open a feature PR without one. It will be closed. Open a [Discussion](https://github.com/emdash-cms/emdash/discussions/categories/ideas) in the Ideas category first.
 - **Bug fixes and docs** can be PRed directly.
-- **Check every applicable checkbox** in the PR template, including the "I have read CONTRIBUTING.md" box and the AI disclosure box if any part of the code was AI-generated.
+- **Check every applicable checkbox** in the PR template, including the "I have read CONTRIBUTING.md" box and the AI disclosure box if any part of the code was AI-generated. Name the model(s)/tool(s) you used next to the disclosure box (e.g. Claude Opus 4.7, GPT-5.5, Cursor + Sonnet 4.6).
 - **Do not make bulk/spray changes** (e.g., "fix all lint warnings", "add types everywhere", "improve error handling across codebase"). If you see a systemic issue, open a Discussion.
 - **Do not touch code outside the scope of your change.** No drive-by refactors, no "while I'm here" improvements, no added comments or logging in unrelated files.
 - **All CI checks must pass.** Typecheck, lint, format, and tests. No exceptions.
@@ -92,7 +93,7 @@ See [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets) for full guidanc
 2. Full lint suite clean: `pnpm --silent lint:json | jq '.diagnostics | length'`. Returns JSON with stderr piped to /dev/null, so it won't break parsers. Fix any issues.
 3. Format with `pnpm format` (oxfmt with tabs for indentation, configured in `.prettierrc`).
 4. Add a changeset if the change affects a published package: `pnpm changeset`.
-5. Open the PR (via `gh pr create` or the GitHub UI). Fill out every section of the PR template -- copy `.github/PULL_REQUEST_TEMPLATE.md` into the body if using the API/CLI. Check the AI disclosure box if any code was AI-generated.
+5. Open the PR (via `gh pr create` or the GitHub UI). Fill out every section of the PR template -- copy `.github/PULL_REQUEST_TEMPLATE.md` into the body if using the API/CLI. Check the AI disclosure box if any code was AI-generated and name the model/tool you used.
 
 ## Architecture Overview
 
@@ -296,7 +297,7 @@ Migrations live in `packages/core/src/database/migrations/`. Conventions:
 - **Column types:** SQLite types -- `"text"`, `"integer"`, `"real"`, `"blob"`. Booleans are `"integer"` with `defaultTo(0)`. Timestamps are `"text"` with ``defaultTo(sql`(datetime('now'))`)``. IDs are `"text"` primary keys (ULIDs from `ulidx`).
 - **Index naming:** `idx_{table}_{column}` for single-column, `idx_{table}_{purpose}` for multi-column.
 - **Foreign keys** must always have an accompanying index.
-- **Registration:** Migrations are statically imported in `database/runner.ts` and added to the `StaticMigrationProvider`. They are NOT auto-discovered -- this is required for Workers bundler compatibility. When adding a migration: (1) create the file, (2) add a static import in `runner.ts`, (3) add it to `getMigrations()`.
+- **Registration:** Migrations are statically imported in `database/migrations/runner.ts` and added to the `StaticMigrationProvider`. They are NOT auto-discovered -- this is required for Workers bundler compatibility. When adding a migration: (1) create the file, (2) add a static import in `runner.ts`, (3) add it to `getMigrations()`.
 - **Multi-table migrations:** When altering all content tables, query `_emdash_collections` to discover `ec_*` tables and loop. See `013_scheduled_publishing.ts` for the pattern.
 
 ### API Route Structure
@@ -349,7 +350,7 @@ The cache key must include every argument that changes the result. Missing an ar
 
 `requestCached` caches the _promise_, so concurrent callers share the in-flight query. On error the entry is deleted so the next call retries.
 
-**Module-scope singletons must live on `globalThis`.** Vite duplicates modules across chunks during SSR bundling. A plain `let cache: X | null = null` in a module becomes _two_ variables if two chunks inline the module -- defeating the singleton. Use a `Symbol.for` key on `globalThis`, as `request-context.ts` does. See also `packages/core/src/bylines/index.ts` (`bylinesHolder`) for the pattern applied to a boolean cache. The fix cut ~2 cold-start queries per D1 isolate.
+**Module-scope singletons must live on `globalThis`.** Vite duplicates modules across chunks during SSR bundling. A plain `let cache: X | null = null` in a module becomes _two_ variables if two chunks inline the module -- defeating the singleton. Use a `Symbol.for` key on `globalThis`, as `request-context.ts` does. See also `packages/core/src/settings/index.ts` (`SITE_SETTINGS_CACHE_KEY` / `holder`) for the pattern applied to a versioned cache, and `packages/core/src/request-cache.ts` for the per-request variant. The fix cut ~2 cold-start queries per D1 isolate.
 
 **Prefer the batch query to a "has any" probe.** Adding a `SELECT id FROM foo LIMIT 1` before a batch query to skip it on empty sites trades one extra query on every real request for saving one query on sites that almost never exist. On live sites the batch query returns empty at the same cost; handle missing tables with an `isMissingTableError` catch.
 
@@ -625,7 +626,7 @@ Dynamic content tables are managed by `SchemaRegistry` in `schema/registry.ts`:
 - **Table names:** `ec_{collection_slug}` (e.g., `ec_posts`). System tables: `_emdash_{name}`.
 - **Slug validation:** `/^[a-z][a-z0-9_]*$/`, max 63 chars. Checked against `RESERVED_COLLECTION_SLUGS` and `RESERVED_FIELD_SLUGS`.
 - **Standard columns:** Every content table gets `id`, `slug`, `status`, `author_id`, `created_at`, `updated_at`, `published_at`, `scheduled_at`, `deleted_at`, `version`, `live_revision_id`, `draft_revision_id`. User-defined field columns are added via `ALTER TABLE`.
-- **Field type mapping:** `FIELD_TYPE_TO_COLUMN` maps: string/text/datetime/image/reference -> TEXT, number -> REAL, integer/boolean -> INTEGER, portableText/json -> JSON.
+- **Field type mapping:** `FIELD_TYPE_TO_COLUMN` (in `schema/types.ts`) maps each field type to a SQL column type. Most string-shaped types (string, text, datetime, image, file, reference, slug, url, select) map to TEXT; number to REAL; integer/boolean to INTEGER; portableText/json/multiSelect to JSON. Check the map directly when adding a new field type.
 - **Orphan discovery:** `discoverOrphanedTables()` finds `ec_*` tables without matching `_emdash_collections` entries. This is used for recovering from crashes during schema changes.
 
 ### Testing
@@ -657,9 +658,9 @@ When accepting redirect URLs from query params or request bodies:
 
 ## TypeScript Configuration
 
-- Target: ES2022
+- Target: ES2023
 - Module: preserve (for bundler compatibility)
-- Strict mode with `noUncheckedIndexedAccess`, `noImplicitOverride`
+- Strict mode with `noUncheckedIndexedAccess`, `noImplicitOverride`, `verbatimModuleSyntax`
 
 ## Dev Bypass for Browser Testing
 
