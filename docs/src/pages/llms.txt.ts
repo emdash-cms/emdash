@@ -47,7 +47,8 @@ export const GET: APIRoute = async ({ site }) => {
 async function resolveItem(item: SidebarItem, docs: DocsEntry[]): Promise<Link[]> {
 	// Shorthand: a string is a slug reference.
 	if (typeof item === "string") {
-		return entryLink(getEntry("docs", item));
+		const entry = getEntry("docs", item);
+		return entry ? [entryLink(entry)] : [];
 	}
 
 	if ("link" in item && item.link) {
@@ -55,7 +56,8 @@ async function resolveItem(item: SidebarItem, docs: DocsEntry[]): Promise<Link[]
 	}
 
 	if ("slug" in item && item.slug) {
-		return entryLink(await getEntry("docs", item.slug), item.label);
+		const entry = await getEntry("docs", item.slug);
+		return entry ? [entryLink(entry, item.label)] : [];
 	}
 
 	if ("items" in item && item.items) {
@@ -71,18 +73,17 @@ async function resolveItem(item: SidebarItem, docs: DocsEntry[]): Promise<Link[]
 		return docs
 			.filter((entry) => entry.id.startsWith(prefix))
 			.toSorted((a, b) => a.id.localeCompare(b.id))
-			.flatMap((entry) => entryLink(entry));
+			.map((entry) => entryLink(entry));
 	}
 
 	return [];
 }
 
-function entryLink(entry: DocsEntry | undefined, override?: string): Link[] {
-	if (!entry) return [];
+function entryLink(entry: DocsEntry, override?: string): Link {
 	const slug = entry.id === "index" ? "" : entry.id;
 	const href = "/" + slug + (slug ? "/" : "");
 	const label = override ?? entry.data.sidebar?.label ?? entry.data.title;
-	return [{ label, href }];
+	return { label, href };
 }
 
 function absUrl(href: string, site: URL | undefined): string {
