@@ -46,4 +46,12 @@ const main = defineCommand({
 	},
 });
 
-void runMain(main);
+// citty's `runMain` only force-exits on error or `--help`; on normal
+// completion it just resolves and lets the event loop drain. After a
+// successful `login` the success message prints, `run()` returns, but
+// something inside atcute / the loopback HTTP path leaves a ref'd handle
+// alive indefinitely -- the CLI hangs forever instead of returning to the
+// shell. (The same is true for `logout`'s revocation flow.) Force-exit on
+// success so users get an immediate prompt back; non-success paths already
+// `process.exit` themselves.
+void runMain(main).then(() => process.exit(0));

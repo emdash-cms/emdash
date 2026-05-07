@@ -8,12 +8,15 @@
  *      resource server URL the session is bound to -- exactly the PDS the
  *      session can actually talk to. Always populated for authenticated
  *      sessions; never empty.
- *   2. Handle: `com.atproto.server.getSession`. Best-effort; falls back
- *      to the DID on failure. The DID is then surfaced as a placeholder
- *      handle that the caller is expected to detect (`isHandle()`) and
- *      treat as null for storage.
- *   3. Display name: `app.bsky.actor.profile` (rkey `self`). Optional;
- *      absent profile records are not an error.
+ *   2. Handle: resolved from the DID document via `LocalActorResolver`.
+ *      `alsoKnownAs` is read off the DID doc and the handle is verified to
+ *      round-trip back to the same DID before it's accepted. No PDS XRPC
+ *      involved -- this works regardless of how the PDS handles OAuth/DPoP
+ *      tokens, and doesn't need an `rpc:` scope. Falls back to the DID on
+ *      failure; the caller detects that via `isHandle()`.
+ *   3. Display name: `app.bsky.actor.profile` (rkey `self`) via
+ *      `getRecord` -- a public repo read that doesn't require auth. Absent
+ *      profile records are not an error.
  *
  * The PDS URL is no longer best-effort: a session without a usable PDS
  * is unrecoverable, so we throw rather than persist an empty string and
@@ -22,9 +25,7 @@
 
 import type { OAuthSession } from "@atcute/oauth-node-client";
 
-interface GetSessionResponse {
-	handle?: string;
-}
+import { createActorResolver } from "./oauth.js";
 
 export interface AtprotoProfile {
 	handle: string;
@@ -56,10 +57,12 @@ export async function resolveAtprotoProfile(session: OAuthSession): Promise<Atpr
 	let displayName: string | null = null;
 
 	try {
-		const res = await session.handle("/xrpc/com.atproto.server.getSession");
-		if (res.ok) {
-			const data = pickGetSession(await res.json());
-			if (data.handle) handle = data.handle;
+		const resolved = await createActorResolver().resolve(did);
+		// `LocalActorResolver` returns `'handle.invalid'` when the
+		// alsoKnownAs handle doesn't round-trip back to this DID. Treat
+		// that as "no handle" and fall back to the DID.
+		if (resolved.handle && resolved.handle !== "handle.invalid") {
+			handle = resolved.handle;
 		}
 	} catch {
 		// best-effort; fall through to DID as handle
@@ -77,13 +80,6 @@ export async function resolveAtprotoProfile(session: OAuthSession): Promise<Atpr
 	}
 
 	return { handle, displayName, pds };
-}
-
-function pickGetSession(input: unknown): GetSessionResponse {
-	if (!input || typeof input !== "object") return {};
-	const out: GetSessionResponse = {};
-	if ("handle" in input && typeof input.handle === "string") out.handle = input.handle;
-	return out;
 }
 
 function pickDisplayName(input: unknown): string | null {
