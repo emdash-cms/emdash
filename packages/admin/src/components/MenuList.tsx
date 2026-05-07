@@ -5,6 +5,8 @@
  */
 
 import { Button, Dialog, Input, Toast, buttonVariants } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -209,7 +211,10 @@ export function MenuList() {
 										) : null}
 									</h3>
 									<p className="text-sm text-kumo-subtle">
-										{menu.name} • {menu.itemCount || 0} items
+										<Trans>
+											{menu.name} •{" "}
+											{plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })}
+										</Trans>
 									</p>
 								</div>
 							</Link>

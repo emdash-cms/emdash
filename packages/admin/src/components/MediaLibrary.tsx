@@ -79,12 +79,12 @@ export function MediaLibrary({
 		if (activeProvider === "local") {
 			return {
 				id: "local",
-				name: "Library",
+				name: t`Library`,
 				capabilities: { browse: true, search: false, upload: true, delete: true },
 			} as MediaProviderInfo;
 		}
 		return providers?.find((p) => p.id === activeProvider);
-	}, [activeProvider, providers]);
+	}, [activeProvider, providers, t]);
 
 	// Update selected item when items change (e.g., after metadata update)
 	React.useEffect(() => {
@@ -199,7 +199,7 @@ export function MediaLibrary({
 	// Build provider tabs
 	const providerTabs = React.useMemo(() => {
 		const tabs: Array<{ id: string; name: string; icon?: string }> = [
-			{ id: "local", name: "Library", icon: undefined },
+			{ id: "local", name: t`Library`, icon: undefined },
 		];
 		if (providers) {
 			for (const p of providers) {
@@ -209,7 +209,7 @@ export function MediaLibrary({
 			}
 		}
 		return tabs;
-	}, [providers]);
+	}, [providers, t]);
 
 	// Get current items based on active provider
 	const currentItems = activeProvider === "local" ? items : [];

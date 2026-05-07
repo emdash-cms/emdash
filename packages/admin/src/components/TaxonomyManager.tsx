@@ -387,7 +387,7 @@ function TermFormDialog({
 							label={t`Name`}
 							value={label}
 							onChange={(e) => setLabel(e.target.value)}
-							placeholder="News"
+							placeholder={t`News`}
 							required
 						/>
 
@@ -621,7 +621,7 @@ function CreateTaxonomyDialog({
 							label={t`Label`}
 							value={label}
 							onChange={(e) => setLabel(e.target.value)}
-							placeholder="Genres"
+							placeholder={t`Genres`}
 							required
 						/>
 

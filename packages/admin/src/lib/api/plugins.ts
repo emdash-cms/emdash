@@ -2,6 +2,9 @@
  * Plugin management APIs
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export interface PluginInfo {
@@ -49,9 +52,12 @@ export async function fetchPlugin(pluginId: string): Promise<PluginInfo> {
 		if (response.status === 404) {
 			throw new Error(`Plugin "${pluginId}" not found`);
 		}
-		await throwResponseError(response, "Failed to fetch plugin");
+		await throwResponseError(response, i18n._(msg`Failed to fetch plugin`));
 	}
-	const result = await parseApiResponse<{ item: PluginInfo }>(response, "Failed to fetch plugin");
+	const result = await parseApiResponse<{ item: PluginInfo }>(
+		response,
+		i18n._(msg`Failed to fetch plugin`),
+	);
 	return result.item;
 }
 

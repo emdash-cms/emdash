@@ -613,7 +613,7 @@ export function ContentEditor({
 						<div
 							className="flex items-center text-xs text-kumo-subtle"
 							role="status"
-							aria-label="Autosave status"
+							aria-label={t`Autosave status`}
 							aria-live="polite"
 						>
 							{isAutosaving ? (

@@ -5,6 +5,8 @@
  */
 
 import { Button, Dialog, Input, InputArea, Toast } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -39,10 +41,10 @@ const sourceIcons: Record<SectionSource, React.ElementType> = {
 	import: FileArrowDown,
 };
 
-const sourceLabels: Record<SectionSource, string> = {
-	theme: "Theme",
-	user: "Custom",
-	import: "Imported",
+const sourceLabels: Record<SectionSource, MessageDescriptor> = {
+	theme: msg`Theme`,
+	user: msg`Custom`,
+	import: msg`Imported`,
 };
 
 export function Sections() {
@@ -175,7 +177,7 @@ export function Sections() {
 									}
 								}}
 								required
-								placeholder="Hero Banner"
+								placeholder={t`Hero Banner`}
 							/>
 							<div>
 								<Input
@@ -198,7 +200,7 @@ export function Sections() {
 								label={t`Description`}
 								value={createDescription}
 								onChange={(e) => setCreateDescription(e.target.value)}
-								placeholder="A full-width hero banner with heading, text, and CTA button"
+								placeholder={t`A full-width hero banner with heading, text, and CTA button`}
 								rows={3}
 							/>
 							<DialogError message={createError || getMutationError(createMutation.error)} />
@@ -351,10 +353,10 @@ function SectionCard({
 					</div>
 					<div
 						className="flex items-center gap-1 text-xs text-kumo-subtle"
-						title={sourceLabels[section.source]}
+						title={t(sourceLabels[section.source])}
 					>
 						<SourceIcon className="h-3 w-3" />
-						<span>{sourceLabels[section.source]}</span>
+						<span>{t(sourceLabels[section.source])}</span>
 					</div>
 				</div>
 

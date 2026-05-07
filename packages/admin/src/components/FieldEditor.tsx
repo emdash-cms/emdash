@@ -513,7 +513,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 								label={t`Options (one per line)`}
 								value={options}
 								onChange={(e) => setField("options", e.target.value)}
-								placeholder={"Option 1\nOption 2\nOption 3"}
+								placeholder={t`Option 1\nOption 2\nOption 3`}
 								rows={5}
 							/>
 						)}

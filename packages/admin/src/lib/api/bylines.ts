@@ -1,3 +1,6 @@
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import {
 	API_BASE,
 	apiFetch,
@@ -83,5 +86,5 @@ export async function deleteByline(id: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/admin/bylines/${id}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete byline");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete byline`));
 }

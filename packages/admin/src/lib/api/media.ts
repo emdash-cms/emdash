@@ -2,6 +2,9 @@
  * Media upload, list, delete, and provider APIs
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import {
 	API_BASE,
 	apiFetch,
@@ -119,7 +122,7 @@ async function uploadToSignedUrl(file: File, uploadInfo: UploadUrlResponse): Pro
 		body: file,
 	});
 
-	if (!response.ok) await throwResponseError(response, "Failed to upload file");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to upload file`));
 }
 
 /**
@@ -201,7 +204,7 @@ export async function deleteMedia(id: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/media/${id}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete media");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete media`));
 }
 
 /**
@@ -321,5 +324,5 @@ export async function deleteFromProvider(providerId: string, itemId: string): Pr
 	const response = await apiFetch(`${API_BASE}/media/providers/${providerId}/${itemId}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete from provider");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete from provider`));
 }

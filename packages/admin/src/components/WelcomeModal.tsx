@@ -53,13 +53,13 @@ function scopeDescriptor(isAdmin: boolean, userRole: number): MessageDescriptor 
 const MSG_ADMIN_INVITE = msg`As an administrator, you can invite other users from the Users section.`;
 const MSG_CLOSE = msg`Close`;
 
-async function dismissWelcome(): Promise<void> {
+async function dismissWelcome(fallbackMessage: string): Promise<void> {
 	const response = await apiFetch("/_emdash/api/auth/me", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ action: "dismissWelcome" }),
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to dismiss welcome");
+	if (!response.ok) await throwResponseError(response, fallbackMessage);
 }
 
 export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModalProps) {
@@ -67,7 +67,7 @@ export function WelcomeModal({ open, onClose, userName, userRole }: WelcomeModal
 	const queryClient = useQueryClient();
 
 	const dismissMutation = useMutation({
-		mutationFn: dismissWelcome,
+		mutationFn: () => dismissWelcome(t`Failed to dismiss welcome`),
 		onSuccess: () => {
 			// Update the cached user data to reflect that they've seen the welcome
 			queryClient.setQueryData(["currentUser"], (old: unknown) => {

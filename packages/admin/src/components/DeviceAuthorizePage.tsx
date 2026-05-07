@@ -102,7 +102,7 @@ export function DeviceAuthorizePage() {
 				body: JSON.stringify({ user_code: trimmed, action: "approve" }),
 			});
 
-			const data = await parseApiResponse<{ authorized: boolean }>(res, "Authorization failed");
+			const data = await parseApiResponse<{ authorized: boolean }>(res, t`Authorization failed`);
 			setPageState(data.authorized ? "success" : "denied");
 		} catch (err) {
 			setErrorMessage(err instanceof Error ? err.message : "Network error");

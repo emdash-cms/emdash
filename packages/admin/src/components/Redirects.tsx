@@ -126,7 +126,7 @@ function RedirectFormDialog({
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<Input
 						label={t`Source path`}
-						placeholder="/old-page or /blog/[slug]"
+						placeholder={t`/old-page or /blog/[slug]`}
 						value={source}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSource(e.target.value)}
 						required
@@ -134,7 +134,7 @@ function RedirectFormDialog({
 
 					<Input
 						label={t`Destination path`}
-						placeholder="/new-page or /articles/[slug]"
+						placeholder={t`/new-page or /articles/[slug]`}
 						value={destination}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDestination(e.target.value)}
 						required
@@ -158,7 +158,7 @@ function RedirectFormDialog({
 
 						<Input
 							label={t`Group (optional)`}
-							placeholder="e.g. import, blog"
+							placeholder={t`e.g. import, blog`}
 							value={groupName}
 							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGroupName(e.target.value)}
 						/>

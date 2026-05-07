@@ -59,14 +59,17 @@ export interface MediaPickerModalProps {
 /**
  * Probe image URL to get dimensions
  */
-function probeImageDimensions(url: string): Promise<{ width: number; height: number }> {
+function probeImageDimensions(
+	url: string,
+	errorMessage: string,
+): Promise<{ width: number; height: number }> {
 	return new Promise((resolve, reject) => {
 		const img = new window.Image();
 		img.onload = () => {
 			resolve({ width: img.naturalWidth, height: img.naturalHeight });
 		};
 		img.onerror = () => {
-			reject(new Error("Failed to load image"));
+			reject(new Error(errorMessage));
 		};
 		img.src = url;
 	});
@@ -309,7 +312,7 @@ export function MediaPickerModal({
 		setUrlError(null);
 
 		try {
-			const dimensions = await probeImageDimensions(url.href);
+			const dimensions = await probeImageDimensions(url.href, t`Failed to load image`);
 			const externalItem: MediaItem = {
 				id: "",
 				filename: url.pathname.split("/").pop() || "external-image",
@@ -392,7 +395,7 @@ export function MediaPickerModal({
 									<Globe className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 									<Input
 										type="url"
-										placeholder="https://example.com/image.jpg"
+										placeholder={t`https://example.com/image.jpg`}
 										aria-label={t`Image URL`}
 										value={imageUrl}
 										onChange={(e) => {
@@ -491,7 +494,7 @@ export function MediaPickerModal({
 								accept={mimeTypeFilter ? `${mimeTypeFilter}*` : undefined}
 								className="sr-only"
 								onChange={handleFileSelect}
-								aria-label="Upload file"
+								aria-label={t`Upload file`}
 							/>
 						</>
 					)}

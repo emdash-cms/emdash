@@ -347,7 +347,7 @@ export function SignupPage() {
 			await requestSignup(submittedEmail);
 			setStep("check-email");
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to send verification email");
+			setError(err instanceof Error ? err.message : t`Failed to send verification email`);
 		} finally {
 			setIsLoading(false);
 		}

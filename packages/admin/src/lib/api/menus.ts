@@ -6,6 +6,9 @@
  * been updated yet).
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export interface Menu {
@@ -157,7 +160,7 @@ export async function deleteMenu(name: string, options: LocaleOptions = {}): Pro
 	const response = await apiFetch(withLocale(`${API_BASE}/menus/${name}`, options.locale), {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete menu");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete menu`));
 }
 
 /**
@@ -211,7 +214,7 @@ export async function deleteMenuItem(
 		withLocale(`${API_BASE}/menus/${menuName}/items?id=${itemId}`, options.locale),
 		{ method: "DELETE" },
 	);
-	if (!response.ok) await throwResponseError(response, "Failed to delete menu item");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete menu item`));
 }
 
 /**

@@ -3,6 +3,8 @@
  */
 
 import type { Element } from "@emdash-cms/blocks";
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 
 export const API_BASE = "/_emdash/api";
 
@@ -182,7 +184,7 @@ export async function parseApiResponse<T>(
  */
 export async function fetchManifest(): Promise<AdminManifest> {
 	const response = await apiFetch(`${API_BASE}/manifest`);
-	return parseApiResponse<AdminManifest>(response, "Failed to fetch manifest");
+	return parseApiResponse<AdminManifest>(response, i18n._(msg`Failed to fetch manifest`));
 }
 
 /**

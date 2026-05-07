@@ -6,6 +6,9 @@
  * admin UI doesn't need to know the marketplace URL.
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 // ---------------------------------------------------------------------------
@@ -154,7 +157,7 @@ export async function installMarketplacePlugin(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(opts),
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to install plugin");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to install plugin`));
 }
 
 /**
@@ -170,7 +173,7 @@ export async function updateMarketplacePlugin(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(opts),
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to update plugin");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to update plugin`));
 }
 
 /**
@@ -186,7 +189,7 @@ export async function uninstallMarketplacePlugin(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(opts),
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to uninstall plugin");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to uninstall plugin`));
 }
 
 /**
