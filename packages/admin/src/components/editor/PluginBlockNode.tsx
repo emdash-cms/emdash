@@ -108,7 +108,10 @@ function getEmbedMeta(
 	Icon: React.ComponentType<{ className?: string }>;
 	label: string;
 	color: string;
-	placeholder: MessageDescriptor;
+	/** Plugin-supplied placeholder (rendered as-is, not translated). */
+	placeholder?: string;
+	/** Translated fallback when no plugin placeholder is supplied. */
+	placeholderFallback: MessageDescriptor;
 } {
 	const def = registry.get(blockType);
 	if (def) {
@@ -116,7 +119,8 @@ function getEmbedMeta(
 			Icon: resolveIcon(def.icon),
 			label: def.label,
 			color: "text-kumo-subtle",
-			placeholder: def.placeholder ? { id: def.placeholder } : msg`Enter URL...`,
+			placeholder: def.placeholder,
+			placeholderFallback: msg`Enter URL...`,
 		};
 	}
 
@@ -125,7 +129,7 @@ function getEmbedMeta(
 		Icon: Cube,
 		label: blockType.charAt(0).toUpperCase() + blockType.slice(1),
 		color: "text-kumo-subtle",
-		placeholder: msg`Enter URL...`,
+		placeholderFallback: msg`Enter URL...`,
 	};
 }
 
@@ -195,7 +199,10 @@ function PluginBlockNodeView({
 	const registry = getRegistry(
 		editor as unknown as { storage: Record<string, Record<string, unknown>> },
 	);
-	const { Icon, label, color, placeholder } = getEmbedMeta(blockType, registry);
+	const { Icon, label, color, placeholder, placeholderFallback } = getEmbedMeta(
+		blockType,
+		registry,
+	);
 
 	// Check if this block type has fields defined in the registry
 	const blockDef = registry.get(blockType);
@@ -386,7 +393,7 @@ function PluginBlockNodeView({
 									value={editValue}
 									onChange={(e) => setEditValue(e.target.value)}
 									onKeyDown={handleKeyDown}
-									placeholder={t(placeholder)}
+									placeholder={placeholder ?? t(placeholderFallback)}
 									className="flex-1 h-9 text-sm font-mono"
 								/>
 								<Button
