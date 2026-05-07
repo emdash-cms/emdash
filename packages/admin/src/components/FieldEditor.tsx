@@ -18,8 +18,8 @@ import {
 	Rows,
 	Plus,
 	Trash,
+	X,
 } from "@phosphor-icons/react";
-import { X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { FieldType, CreateFieldInput, SchemaField } from "../lib/api";
