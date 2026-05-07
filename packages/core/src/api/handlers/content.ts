@@ -27,6 +27,7 @@ import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
+import { validateMediaFields } from "./validate-media-fields.js";
 
 /**
  * Narrow a caught error to one carrying a structured `apiError` discriminant.
@@ -444,6 +445,10 @@ export async function handleContentCreate(
 			};
 		}
 
+		// Validate file/image fields against their allowedMimeTypes constraints
+		const mimeCheck = await validateMediaFields(db, collection, body.data);
+		if (!mimeCheck.success) return mimeCheck;
+
 		// Wrap content + SEO writes in a transaction for atomicity
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
@@ -589,6 +594,12 @@ export async function handleContentUpdate(
 					message: `Collection "${collection}" does not have SEO enabled. Remove the seo field or enable SEO on this collection.`,
 				},
 			};
+		}
+
+		// Validate file/image fields against their allowedMimeTypes constraints
+		if (body.data) {
+			const mimeCheck = await validateMediaFields(db, collection, body.data);
+			if (!mimeCheck.success) return mimeCheck;
 		}
 
 		const repo = new ContentRepository(db);
