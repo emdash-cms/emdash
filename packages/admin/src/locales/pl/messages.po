@@ -446,7 +446,7 @@ msgstr "Dodaj"
 #. placeholder {0}: field.item_label
 #: packages/admin/src/components/PortableTextEditor.tsx:1465
 msgid "Add {0}"
-msgstr ""
+msgstr "Dodaj {0}"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:235
 msgid "Add {label}"
@@ -466,11 +466,11 @@ msgstr "Dodaj co najmniej jedno podpole, aby zdefiniować strukturę repeatera."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2514
 msgid "Add column after"
-msgstr ""
+msgstr "Dodaj kolumnę po"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2507
 msgid "Add column before"
-msgstr ""
+msgstr "Dodaj kolumnę przed"
 
 #: packages/admin/src/components/MenuEditor.tsx:291
 #: packages/admin/src/components/MenuEditor.tsx:406
@@ -503,7 +503,7 @@ msgstr "Dodaj pierwszy element"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1465
 msgid "Add item"
-msgstr ""
+msgstr "Dodaj element"
 
 #: packages/admin/src/components/RepeaterField.tsx:153
 msgid "Add Item"
@@ -536,11 +536,11 @@ msgstr "Dodaj wtyczki do astro.config.mjs, aby rozszerzyć funkcjonalność EmDa
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2537
 msgid "Add row after"
-msgstr ""
+msgstr "Dodaj wiersz poniżej"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2530
 msgid "Add row before"
-msgstr ""
+msgstr "Dodaj wiersz powyżej"
 
 #: packages/admin/src/components/FieldEditor.tsx:539
 msgid "Add Sub-Field"
@@ -792,7 +792,7 @@ msgstr "Wróć do listy {collectionLabel}"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:329
 msgid "Back to Content Types"
-msgstr ""
+msgstr "Powrót do typów treści"
 
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
@@ -1007,7 +1007,7 @@ msgstr "Sprawdzanie uwierzytelniania..."
 
 #: packages/admin/src/components/SetupWizard.tsx:317
 msgid "Choose how to sign in"
-msgstr ""
+msgstr "Wybierz sposób logowania"
 
 #: packages/admin/src/components/Settings.tsx:130
 msgid "Choose your preferred admin language"
@@ -1398,11 +1398,11 @@ msgstr "Utwórz swój passkey"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:82
 msgid "Create, update, and delete navigation menus"
-msgstr ""
+msgstr "Tworzenie, edycja i usuwanie menu nawigacyjnych"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:77
 msgid "Create, update, and delete taxonomy terms"
-msgstr ""
+msgstr "Tworzenie, edycja i usuwanie terminów taksonomii"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:52
 msgid "Create, update, delete content"
@@ -1518,7 +1518,7 @@ msgstr "Zdefiniuj strukturę swoich treści"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:354
 msgid "Defined in code"
-msgstr ""
+msgstr "Zdefiniowane w kodzie"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:267
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
@@ -1561,7 +1561,7 @@ msgstr "Usunąć {0}?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2521
 msgid "Delete column"
-msgstr ""
+msgstr "Usuń kolumnę"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:405
 msgid "Delete Comment?"
@@ -1607,7 +1607,7 @@ msgstr "Usunąć przekierowanie?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2542
 msgid "Delete row"
-msgstr ""
+msgstr "Usuń wiersz"
 
 #: packages/admin/src/components/Sections.tsx:294
 msgid "Delete Section?"
@@ -1615,7 +1615,7 @@ msgstr "Usunąć sekcję?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2557
 msgid "Delete table"
-msgstr ""
+msgstr "Usuń tabelę"
 
 #: packages/admin/src/components/ContentList.tsx:346
 msgid "Deleted"
@@ -1820,7 +1820,7 @@ msgstr "Przeciągnij i upuść lub kliknij, aby wybrać plik (.xml)"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1641
 msgid "Drag to reorder"
-msgstr ""
+msgstr "Przeciągnij, aby zmienić kolejność"
 
 #: packages/admin/src/components/WordPressImport.tsx:1418
 msgid "Drop your WordPress export file here"
@@ -2026,7 +2026,7 @@ msgstr "Wprowadź kod z terminala"
 
 #: packages/admin/src/components/LoginPage.tsx:325
 msgid "Enter your handle to sign in."
-msgstr ""
+msgstr "Wpisz swój handle, aby się zalogować."
 
 #: packages/admin/src/components/WordPressImport.tsx:1289
 msgid "Enter your WordPress credentials to import content directly."
@@ -2543,7 +2543,7 @@ msgstr "Wstaw sekcję wielokrotnego użytku"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:937
 msgid "Insert a table"
-msgstr ""
+msgstr "Wstaw tabelę"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1940
 msgid "Insert an image"
@@ -2559,7 +2559,7 @@ msgstr "Wstaw sekcję"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2842
 msgid "Insert Table"
-msgstr ""
+msgstr "Wstaw tabelę"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:161
 msgid "Instagram"
@@ -2973,7 +2973,7 @@ msgstr "Menu"
 #. placeholder {1}: translated.locale.toUpperCase()
 #: packages/admin/src/components/MenuEditor.tsx:90
 msgid "Menu \"{0}\" ({1}) created."
-msgstr ""
+msgstr "Menu \"{0}\" ({1}) zostało utworzone."
 
 #. placeholder {0}: menu.label
 #: packages/admin/src/components/MenuList.tsx:52
@@ -3021,7 +3021,7 @@ msgstr "Menu ({0})"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:81
 msgid "Menus Manage"
-msgstr ""
+msgstr "Zarządzanie menu"
 
 #: packages/admin/src/components/SeoPanel.tsx:162
 msgid "Meta Description"
@@ -3635,7 +3635,7 @@ msgstr "Uprawnienia"
 
 #: packages/admin/src/components/SetupWizard.tsx:319
 msgid "Pick any method to create your admin account."
-msgstr ""
+msgstr "Wybierz dowolną metodę, aby utworzyć konto administratora."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:313
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
@@ -3806,7 +3806,7 @@ msgstr "Odczyt plików mediów"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:87
 msgid "Read site settings"
-msgstr ""
+msgstr "Odczyt ustawień strony"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:278
 msgid "Reading"
@@ -3883,7 +3883,7 @@ msgstr "Usuń {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:1781
 msgid "Remove {label}"
-msgstr ""
+msgstr "Usuń {label}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:435
 msgid "Remove Domain"
@@ -4434,11 +4434,11 @@ msgstr "Wybierz favicon"
 
 #: packages/admin/src/components/ContentEditor.tsx:1797
 msgid "Select file"
-msgstr ""
+msgstr "Wybierz plik"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:86
 msgid "Select File"
-msgstr ""
+msgstr "Wybierz plik"
 
 #: packages/admin/src/components/ContentEditor.tsx:1636
 msgid "Select image"
@@ -4455,7 +4455,7 @@ msgstr "Wybierz logo"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:91
 msgid "Select media"
-msgstr ""
+msgstr "Wybierz media"
 
 #: packages/admin/src/components/SeoImageField.tsx:70
 msgid "Select OG image"
@@ -4566,11 +4566,11 @@ msgstr "Ustawienia"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:91
 msgid "Settings Manage"
-msgstr ""
+msgstr "Zarządzanie ustawieniami"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:86
 msgid "Settings Read"
-msgstr ""
+msgstr "Odczyt ustawień"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:54
 msgid "Settings saved successfully"
@@ -4600,7 +4600,7 @@ msgstr "Zaloguj się"
 
 #: packages/admin/src/components/SetupWizard.tsx:384
 msgid "Sign In"
-msgstr ""
+msgstr "Zaloguj się"
 
 #: packages/admin/src/components/SignupPage.tsx:269
 msgid "Sign in instead"
@@ -4615,7 +4615,7 @@ msgstr "Zaloguj się do swojej strony"
 #: packages/admin/src/components/LoginPage.tsx:231
 #: packages/admin/src/components/SetupWizard.tsx:293
 msgid "Sign in with {0}"
-msgstr ""
+msgstr "Zaloguj się przez {0}"
 
 #: packages/admin/src/components/LoginPage.tsx:229
 msgid "Sign in with email"
@@ -4813,7 +4813,7 @@ msgstr "Systemowy ({resolvedLabel})"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:936
 msgid "Table"
-msgstr ""
+msgstr "Tabela"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:173
 #: packages/admin/src/components/SetupWizard.tsx:156
@@ -4840,7 +4840,7 @@ msgstr "Cel"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:172
 msgid "Target locale"
-msgstr ""
+msgstr "Docelowy język"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:492
 msgid "Taxonomies"
@@ -4848,7 +4848,7 @@ msgstr "Taksonomie"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:76
 msgid "Taxonomies Manage"
-msgstr ""
+msgstr "Zarządzanie taksonomiami"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:901
 msgid "Taxonomy created"
@@ -4860,7 +4860,7 @@ msgstr "Nie znaleziono taksonomii:"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:159
 msgid "Taxonomy: {taxonomyName}"
-msgstr ""
+msgstr "Taksonomia: {taxonomyName}"
 
 #: packages/admin/src/components/SetupWizard.tsx:184
 msgid "Template:"
@@ -4875,7 +4875,7 @@ msgstr "Termin"
 #. placeholder {1}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomyManager.tsx:762
 msgid "Term \"{0}\" created in {1}."
-msgstr ""
+msgstr "Termin \"{0}\" utworzony w {1}."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:744
 msgid "Term deleted"
@@ -5069,7 +5069,7 @@ msgstr "aby wybrać"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2551
 msgid "Toggle header row"
-msgstr ""
+msgstr "Przełącz wiersz nagłówka"
 
 #: packages/admin/src/components/ThemeToggle.tsx:30
 #: packages/admin/src/components/ThemeToggle.tsx:41
@@ -5102,22 +5102,22 @@ msgstr "Przetłumacz"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:156
 msgid "Translate \"{0}\""
-msgstr ""
+msgstr "Przetłumacz \"{0}\""
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:80
 msgid "Translate {0}"
-msgstr ""
+msgstr "Przetłumacz {0}"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:194
 #: packages/admin/src/components/TranslationsPanel.tsx:99
 msgid "Translating..."
-msgstr ""
+msgstr "Tłumaczenie..."
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:761
 msgid "Translation created"
-msgstr ""
+msgstr "Tłumaczenie utworzone"
 
 #: packages/admin/src/components/TranslationsPanel.tsx:56
 msgid "Translations"
@@ -5267,7 +5267,7 @@ msgstr "Bez tytułu"
 
 #: packages/admin/src/components/ContentEditor.tsx:1715
 msgid "Untitled file"
-msgstr ""
+msgstr "Plik bez nazwy"
 
 #: packages/admin/src/components/ContentEditor.tsx:1933
 msgid "Up"
@@ -5288,7 +5288,7 @@ msgstr "Zaktualizuj ustawienia dla {0}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:92
 msgid "Update site settings"
-msgstr ""
+msgstr "Aktualizacja ustawień strony"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
 #: packages/admin/src/components/TaxonomyManager.tsx:364
@@ -5328,7 +5328,7 @@ msgstr "Prześlij"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:88
 msgid "Upload a file to get started"
-msgstr ""
+msgstr "Prześlij plik, aby rozpocząć"
 
 #: packages/admin/src/components/WordPressImport.tsx:1221
 msgid "Upload an export file"
@@ -5353,7 +5353,7 @@ msgstr "Przesyłanie nie powiodło się: {uploadError}"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:90
 msgid "Upload File"
-msgstr ""
+msgstr "Prześlij plik"
 
 #: packages/admin/src/components/MediaLibrary.tsx:323
 msgid "Upload files"
@@ -5760,4 +5760,4 @@ msgstr "ID kanału lub nazwa YouTube"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:173
 msgid "YouTube"
-msgstr ""
+msgstr "YouTube"
