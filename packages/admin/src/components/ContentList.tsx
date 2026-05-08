@@ -236,7 +236,7 @@ export function ContentList({
 									</th>
 								</tr>
 							</thead>
-							<tbody>
+							<tbody className="divide-y divide-kumo-line">
 								{isLoading && items.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
@@ -350,7 +350,7 @@ export function ContentList({
 									</th>
 								</tr>
 							</thead>
-							<tbody>
+							<tbody className="divide-y divide-kumo-line">
 								{isTrashedLoading && trashedItems.length === 0 ? (
 									<tr>
 										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
@@ -481,7 +481,7 @@ function ContentListItem({
 	const date = new Date(item.updatedAt || item.createdAt);
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
 				<Link
 					to="/content/$collection/$id"
@@ -587,7 +587,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 	const deletedDate = new Date(item.deletedAt);
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
 				<span className="font-medium text-kumo-subtle">{title}</span>
 			</td>

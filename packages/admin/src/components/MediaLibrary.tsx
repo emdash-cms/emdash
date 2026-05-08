@@ -419,7 +419,7 @@ export function MediaLibrary({
 								<th className="px-4 py-3 text-end text-sm font-medium">{t`Actions`}</th>
 							</tr>
 						</thead>
-						<tbody>
+						<tbody className="divide-y divide-kumo-line">
 							{activeProvider === "local"
 								? currentItems.map((item) => (
 										<MediaListItem
@@ -584,7 +584,7 @@ function MediaListItem({ item, selected, onClick }: MediaListItemProps) {
 	return (
 		<tr
 			className={cn(
-				"border-b cursor-pointer transition-colors",
+				"cursor-pointer transition-colors",
 				selected ? "bg-kumo-brand/10" : "hover:bg-kumo-tint/25",
 			)}
 			onClick={onClick}
@@ -638,7 +638,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 	return (
 		<tr
 			className={cn(
-				"border-b cursor-pointer transition-colors",
+				"cursor-pointer transition-colors",
 				selected ? "bg-kumo-brand/10" : "hover:bg-kumo-tint/25",
 			)}
 			onClick={onClick}

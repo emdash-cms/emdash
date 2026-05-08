@@ -1024,9 +1024,9 @@ function FeatureComparison() {
 							<th className="text-center p-3 font-medium whitespace-nowrap">{t`Plugin`}</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody className="divide-y divide-kumo-line">
 						{FEATURE_COMPARISON.map((item) => (
-							<tr key={item.feature} className="border-b last:border-0">
+							<tr key={item.feature}>
 								<td className="p-3 text-kumo-subtle">{item.feature}</td>
 								<td className="p-3 text-center">
 									<FeatureStatus status={item.wxr} note={item.wxrNote} />

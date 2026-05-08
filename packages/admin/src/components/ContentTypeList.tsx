@@ -107,7 +107,7 @@ export function ContentTypeList({
 							</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody className="divide-y divide-kumo-line">
 						{isLoading ? (
 							<tr>
 								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
@@ -170,7 +170,7 @@ function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
 	const isFromCode = collection.source === "code";
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
 				<div className="flex items-center space-x-3">
 					<div
