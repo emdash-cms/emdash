@@ -2326,15 +2326,14 @@ function AuthorMappingStep({
 								<Select
 									value={mapping.emdashUserId || ""}
 									onValueChange={(v) => onMappingChange(mapping.wpLogin, v || null)}
+									items={{
+										"": t`Leave unassigned`,
+										...Object.fromEntries(
+											emdashUsers.map((user) => [user.id, user.name || user.email]),
+										),
+									}}
 									aria-label={t`Map WordPress user ${mapping.wpLogin} to EmDash user`}
-								>
-									<Select.Option value="">{t`Leave unassigned`}</Select.Option>
-									{emdashUsers.map((user) => (
-										<Select.Option key={user.id} value={user.id}>
-											{user.name || user.email}
-										</Select.Option>
-									))}
-								</Select>
+								/>
 							</div>
 						</div>
 					))}

@@ -183,16 +183,19 @@ export function BylinesPage() {
 						onChange={(e) => setSearch(e.target.value)}
 					/>
 					<div className="flex items-center gap-2">
-						<Select
-							aria-label={t`Filter byline type`}
-							value={guestFilter}
-							onValueChange={(v) => setGuestFilter((v as "all" | "guest" | "linked") ?? "all")}
-							className="w-full"
-						>
-							<Select.Option value="all">{t`All bylines`}</Select.Option>
-							<Select.Option value="guest">{t`Guest only`}</Select.Option>
-							<Select.Option value="linked">{t`Linked only`}</Select.Option>
-						</Select>
+						<div className="flex-1">
+							<Select
+								aria-label={t`Filter byline type`}
+								value={guestFilter}
+								onValueChange={(v) => setGuestFilter((v as "all" | "guest" | "linked") ?? "all")}
+								items={{
+									all: t`All bylines`,
+									guest: t`Guest only`,
+									linked: t`Linked only`,
+								}}
+								className="w-full"
+							/>
+						</div>
 						<Button
 							variant="secondary"
 							onClick={() => {
@@ -277,14 +280,12 @@ export function BylinesPage() {
 								isGuest: val ? false : prev.isGuest,
 							}));
 						}}
-					>
-						<Select.Option value="">{t`No linked user`}</Select.Option>
-						{users.map((u) => (
-							<Select.Option key={u.id} value={u.id}>
-								{getUserLabel(u)}
-							</Select.Option>
-						))}
-					</Select>
+						items={{
+							"": t`No linked user`,
+							...Object.fromEntries(users.map((u) => [u.id, getUserLabel(u)])),
+						}}
+						className="w-full"
+					/>
 					<Switch
 						label={t`Guest byline`}
 						checked={form.isGuest}
