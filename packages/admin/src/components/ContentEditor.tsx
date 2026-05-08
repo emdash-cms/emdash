@@ -790,6 +790,15 @@ export function ContentEditor({
 							})}
 						</div>
 					</div>
+
+					{/* Save action at the bottom of the main column so users hit it
+					    naturally when they finish editing, without needing to scroll
+					    past the entire sidebar. */}
+					{!isDistractionFree && (
+						<div className="flex justify-end">
+							<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+						</div>
+					)}
 				</div>
 
 				{/* Sidebar - hidden in distraction-free mode */}
@@ -1043,15 +1052,6 @@ export function ContentEditor({
 					)}
 				</div>
 			</div>
-
-			{/* Bottom-of-form save -- last interactive control in DOM order so
-			    keyboard / screen-reader users hit it after working through the
-			    fields, mirroring the header SaveButton's state. */}
-			{!isDistractionFree && (
-				<div className="flex justify-end">
-					<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
-				</div>
-			)}
 		</form>
 	);
 }

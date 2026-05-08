@@ -200,9 +200,9 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 						/>
 					</div>
 
-					{/* Bottom-of-form save -- last interactive control in DOM order
-					    so keyboard / screen-reader users hit it after working
-					    through the fields, mirroring the header SaveButton's state. */}
+					{/* Save action at the bottom of the main column so users hit
+					    it naturally when they finish editing, without needing to
+					    scroll past the entire sidebar. */}
 					<div className="flex justify-end">
 						<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />
 					</div>
