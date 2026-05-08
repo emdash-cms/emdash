@@ -15,11 +15,11 @@ msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:226
 msgid " - Guest"
-msgstr ""
+msgstr " - Tamu"
 
 #: packages/admin/src/routes/bylines.tsx:226
 msgid " - Linked"
-msgstr ""
+msgstr " - Tertaut"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:72
 #: packages/admin/src/components/TranslationsPanel.tsx:76
@@ -74,7 +74,7 @@ msgstr "{0, plural, other {# koleksi}}"
 #. placeholder {0}: result.affected
 #: packages/admin/src/router.tsx:1118
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
-msgstr ""
+msgstr "{0} komentar diperbarui"
 
 #. placeholder {0}: comments.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:344
@@ -163,13 +163,13 @@ msgstr "{0, plural, one {#{1} item} other {#{2} item}}"
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:576
 msgid "{0, plural, one {field} other {fields}}"
-msgstr ""
+msgstr "{0} bidang"
 
 #. placeholder {0}: menu.name
 #. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
 #: packages/admin/src/components/MenuList.tsx:215
 msgid "{0} • {1}"
-msgstr ""
+msgstr "{0} • {1}"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1142
@@ -228,7 +228,7 @@ msgstr "Pratinjau {0}"
 #. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const plural = value ? `${value}s` : ""; handleLabelChange(plural); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="text-2xl font-bold truncate"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && ( <span className="ms-2 text-purple-600 dark:text-purple-400">{t`Defined in code`}</span> )} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950 p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" /> <p className="text-sm text-purple-700 dark:text-purple-300"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder="Post" disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder="Posts" disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>Features</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && ( <Button type="submit" disabled={!hasChanges || !urlPatternValid || isSaving} className="w-full" > {isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`} </Button> )} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
 #: packages/admin/src/components/ContentTypeEditor.tsx:574
 msgid "{0} system + {1} custom {2}"
-msgstr ""
+msgstr "{0} sistem + {1} kustom {2}"
 
 #. placeholder {0}: taxonomy.label
 #: packages/admin/src/components/TaxonomySidebar.tsx:316
@@ -256,7 +256,7 @@ msgstr "{0}/160 karakter"
 #. placeholder {0}: allowedHosts.join(", ")
 #: packages/admin/src/lib/api/marketplace.ts:255
 msgid "{base} to: {0}"
-msgstr ""
+msgstr "{base} ke: {0}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:337
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
@@ -343,11 +343,11 @@ msgstr "{uploaded} berhasil, {failed} gagal"
 
 #: packages/admin/src/components/Redirects.tsx:137
 msgid "/new-page or /articles/[slug]"
-msgstr ""
+msgstr "/halaman-baru atau /artikel/[slug]"
 
 #: packages/admin/src/components/Redirects.tsx:129
 msgid "/old-page or /blog/[slug]"
-msgstr ""
+msgstr "/halaman-lama atau /blog/[slug]"
 
 #: packages/admin/src/components/WordPressImport.tsx:1929
 msgid "• Files are downloaded from your WordPress site"
@@ -446,11 +446,11 @@ msgstr "90 hari"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:418
 msgid "A brief description of this content type"
-msgstr ""
+msgstr "Deskripsi singkat tipe konten ini"
 
 #: packages/admin/src/components/Sections.tsx:203
 msgid "A full-width hero banner with heading, text, and CTA button"
-msgstr ""
+msgstr "Spanduk hero lebar penuh dengan judul, teks, dan tombol CTA"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:165
 msgid "A short description of your site"
@@ -466,16 +466,16 @@ msgstr "Terima & Perbarui"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:206
 msgid "Accept Invite"
-msgstr ""
+msgstr "Terima Undangan"
 
 #: packages/admin/src/router.tsx:1138
 msgid "Access Denied"
-msgstr ""
+msgstr "Akses Ditolak"
 
 #: packages/admin/src/lib/api/marketplace.ts:224
 #: packages/admin/src/lib/api/marketplace.ts:232
 msgid "Access your media library"
-msgstr ""
+msgstr "Akses pustaka media Anda"
 
 #: packages/admin/src/components/SetupWizard.tsx:354
 msgid "Account"
@@ -483,7 +483,7 @@ msgstr "Akun"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:121
 msgid "Account already exists"
-msgstr ""
+msgstr "Akun sudah ada"
 
 #: packages/admin/src/components/SignupPage.tsx:261
 msgid "Account exists"
@@ -539,11 +539,11 @@ msgstr "Tambah setidaknya satu sub-field untuk menentukan struktur pengulang."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2510
 msgid "Add column after"
-msgstr ""
+msgstr "Tambah kolom setelah"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2503
 msgid "Add column before"
-msgstr ""
+msgstr "Tambah kolom sebelum"
 
 #: packages/admin/src/components/MenuEditor.tsx:291
 #: packages/admin/src/components/MenuEditor.tsx:406
@@ -573,11 +573,11 @@ msgstr "Tambah field"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:604
 msgid "Add fields to define the structure of your content"
-msgstr ""
+msgstr "Tambah bidang untuk menentukan struktur konten Anda"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:607
 msgid "Add First Field"
-msgstr ""
+msgstr "Tambah Bidang Pertama"
 
 #: packages/admin/src/components/RepeaterField.tsx:169
 msgid "Add First Item"
@@ -593,7 +593,7 @@ msgstr "Tambah Item"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2470
 msgid "Add link"
-msgstr ""
+msgstr "Tambah tautan"
 
 #: packages/admin/src/components/MenuEditor.tsx:399
 msgid "Add links to build your navigation menu"
@@ -601,7 +601,7 @@ msgstr "Tambah tautan untuk membangun menu navigasi Anda"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:162
 msgid "Add MIME type or extension"
-msgstr ""
+msgstr "Tambah tipe MIME atau ekstensi"
 
 #: packages/admin/src/components/ContentList.tsx:159
 msgid "Add New"
@@ -626,15 +626,15 @@ msgstr "Tambah plugin ke astro.config.mjs untuk memperluas fungsionalitas EmDash
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2533
 msgid "Add row after"
-msgstr ""
+msgstr "Tambah baris setelah"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2526
 msgid "Add row before"
-msgstr ""
+msgstr "Tambah baris sebelum"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:476
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
-msgstr ""
+msgstr "Tambah bidang metadata SEO (judul, deskripsi, gambar) dan sertakan dalam peta situs"
 
 #: packages/admin/src/components/FieldEditor.tsx:538
 msgid "Add Sub-Field"
@@ -646,7 +646,7 @@ msgstr "Tambah tag..."
 
 #: packages/admin/src/components/Widgets.tsx:338
 msgid "Add Widget Area"
-msgstr ""
+msgstr "Tambah Area Widget"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:128
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
@@ -681,15 +681,15 @@ msgstr "Setelah kirim:"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2858
 msgid "Align Center"
-msgstr ""
+msgstr "Rata Tengah"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2851
 msgid "Align Left"
-msgstr ""
+msgstr "Rata Kiri"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2865
 msgid "Align Right"
-msgstr ""
+msgstr "Rata Kanan"
 
 #: packages/admin/src/components/ContentList.tsx:186
 msgid "All"
@@ -697,7 +697,7 @@ msgstr "Semua"
 
 #: packages/admin/src/routes/bylines.tsx:192
 msgid "All bylines"
-msgstr ""
+msgstr "Semua byline"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:108
 msgid "All capabilities"
@@ -709,7 +709,7 @@ msgstr "Semua koleksi"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:63
 msgid "All comments require approval"
-msgstr ""
+msgstr "Semua komentar memerlukan persetujuan"
 
 #: packages/admin/src/components/WordPressImport.tsx:2324
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
@@ -742,7 +742,7 @@ msgstr "Izinkan pengguna dari domain tertentu untuk mendaftar"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:497
 msgid "Allow visitors to leave comments on this collection's content"
-msgstr ""
+msgstr "Izinkan pengunjung meninggalkan komentar pada konten koleksi ini"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:240
 msgid "Allowed Domains"
@@ -750,7 +750,7 @@ msgstr "Domain yang Diizinkan"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:102
 msgid "Allowed types"
-msgstr ""
+msgstr "Tipe yang diizinkan"
 
 #: packages/admin/src/components/SignupPage.tsx:437
 msgid "Already have an account?"
@@ -762,7 +762,7 @@ msgstr "Juga hapus data penyimpanan plugin"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:202
 msgid "Alt text"
-msgstr ""
+msgstr "Teks alternatif"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:298
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:463
@@ -806,7 +806,7 @@ msgstr "Terjadi kesalahan"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:217
 msgid "An unknown error occurred"
-msgstr ""
+msgstr "Terjadi kesalahan tak dikenal"
 
 #: packages/admin/src/components/WordPressImport.tsx:1414
 msgid "Analyzing export file..."
@@ -818,7 +818,7 @@ msgstr "Menganalisis situs WordPress..."
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:105
 msgid "Any media type allowed (subject to global limits)."
-msgstr ""
+msgstr "Semua tipe media diizinkan (tunduk pada batasan global)."
 
 #: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:183
@@ -827,7 +827,7 @@ msgstr "Token API"
 
 #: packages/admin/src/components/Widgets.tsx:375
 msgid "Appears on posts and pages"
-msgstr ""
+msgstr "Tampil pada pos dan halaman"
 
 #: packages/admin/src/components/WordPressImport.tsx:1329
 msgid "Application Password"
@@ -835,12 +835,12 @@ msgstr "Kata Sandi Aplikasi"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2925
 msgid "Apply"
-msgstr ""
+msgstr "Terapkan"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2410
 #: packages/admin/src/components/PortableTextEditor.tsx:2411
 msgid "Apply link"
-msgstr ""
+msgstr "Terapkan tautan"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:148
 #: packages/admin/src/components/comments/CommentInbox.tsx:237
@@ -866,7 +866,7 @@ msgstr "diarsipkan"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:65
 msgid "Archives"
-msgstr ""
+msgstr "Arsip"
 
 #. placeholder {0}: deleteTarget.label
 #: packages/admin/src/components/ContentTypeList.tsx:145
@@ -876,7 +876,7 @@ msgstr "Anda yakin ingin menghapus \"{0}\"? Ini juga akan menghapus semua konten
 #. placeholder {0}: deleteFieldTarget.label
 #: packages/admin/src/components/ContentTypeEditor.tsx:660
 msgid "Are you sure you want to delete the \"{0}\" field?"
-msgstr ""
+msgstr "Anda yakin ingin menghapus bidang \"{0}\"?"
 
 #: packages/admin/src/components/MenuList.tsx:254
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
@@ -892,7 +892,7 @@ msgstr "Tetapkan penulis WordPress ke pengguna EmDash. Pos akan diatribusikan ke
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
 msgid "Audio"
-msgstr ""
+msgstr "Audio"
 
 #. placeholder {0}: error.message
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:279
@@ -906,7 +906,7 @@ msgstr "Kesalahan autentikasi: {error}"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:256
 msgid "Authentication failed"
-msgstr ""
+msgstr "Autentikasi gagal"
 
 #. placeholder {0}: manifest?.authMode
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -934,7 +934,7 @@ msgstr "Otorisasi ditolak"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:105
 msgid "Authorization failed"
-msgstr ""
+msgstr "Otorisasi gagal"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:259
 msgid "Authorize"
@@ -958,7 +958,7 @@ msgstr "Otomatis (perubahan slug)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:541
 msgid "Auto-approve authenticated users"
-msgstr ""
+msgstr "Setujui otomatis pengguna terautentikasi"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:406
 msgid "Auto-generated from name (you can edit)"
@@ -966,11 +966,11 @@ msgstr "Dibuat otomatis dari nama (dapat diedit)"
 
 #: packages/admin/src/router.tsx:732
 msgid "Autosave failed"
-msgstr ""
+msgstr "Penyimpanan otomatis gagal"
 
 #: packages/admin/src/components/ContentEditor.tsx:613
 msgid "Autosave status"
-msgstr ""
+msgstr "Status penyimpanan otomatis"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:595
 msgid "Available media"
@@ -982,7 +982,7 @@ msgstr "Penyedia Tersedia"
 
 #: packages/admin/src/components/Widgets.tsx:401
 msgid "Available Widgets"
-msgstr ""
+msgstr "Widget Tersedia"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:254
 #: packages/admin/src/components/MenuEditor.tsx:275
@@ -1036,16 +1036,16 @@ msgstr "Verifikasi Bing"
 
 #: packages/admin/src/routes/bylines.tsx:267
 msgid "Bio"
-msgstr ""
+msgstr "Bio"
 
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:125
 msgid "Block actions - drag to reorder, click for menu"
-msgstr ""
+msgstr "Aksi blok - seret untuk mengurutkan, klik untuk menu"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2434
 #: packages/admin/src/components/PortableTextEditor.tsx:2740
 msgid "Bold"
-msgstr ""
+msgstr "Tebal"
 
 #: packages/admin/src/components/FieldEditor.tsx:174
 #: packages/admin/src/components/FieldEditor.tsx:583
@@ -1082,7 +1082,7 @@ msgstr "Daftar Poin"
 #: packages/admin/src/components/ContentEditor.tsx:966
 #: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
-msgstr ""
+msgstr "Byline"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:25
 msgid "Can create content"
@@ -1141,7 +1141,7 @@ msgstr "Batal"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:405
 msgid "Cancel (Esc)"
-msgstr ""
+msgstr "Batal (Esc)"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:146
 msgid "Cancel rename"
@@ -1153,7 +1153,7 @@ msgstr "Tidak dapat menghapus bagian tema"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:356
 msgid "Cannot determine MIME type from URL. Use a URL ending in a recognized image extension (e.g. .jpg, .png, .webp)."
-msgstr ""
+msgstr "Tidak dapat menentukan tipe MIME dari URL. Gunakan URL yang diakhiri ekstensi gambar yang dikenal (mis. .jpg, .png, .webp)."
 
 #: packages/admin/src/components/SeoPanel.tsx:181
 msgid "Canonical URL"
@@ -1175,7 +1175,7 @@ msgstr "Keterangan"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:68
 msgid "Captions / Subtitles"
-msgstr ""
+msgstr "Takarir / Subtitle"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:193
 msgid "Categories"
@@ -1199,7 +1199,7 @@ msgstr "Ubah"
 #. placeholder {2}: getRoleLabel(pendingSaveData?.role ?? 0)
 #: packages/admin/src/routes/users.tsx:296
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
-msgstr ""
+msgstr "Ubah <0>{0}</0> dari <1>{1}</1> ke <2>{2}</2>? Mereka akan kehilangan akses ke fitur tingkat lebih tinggi."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:237
 msgid "Change Favicon"
@@ -1211,7 +1211,7 @@ msgstr "Ubah Logo"
 
 #: packages/admin/src/router.tsx:777
 msgid "Changes discarded"
-msgstr ""
+msgstr "Perubahan dibatalkan"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:135
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
@@ -1249,7 +1249,7 @@ msgstr "Pilih bahasa admin pilihan Anda"
 
 #: packages/admin/src/components/users/UserList.tsx:129
 msgid "Clear filters"
-msgstr ""
+msgstr "Bersihkan filter"
 
 #: packages/admin/src/components/SignupPage.tsx:138
 msgid "Click the link in the email to continue setting up your account."
@@ -1319,7 +1319,7 @@ msgstr "Tutup"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:520
 msgid "Close comments after (days)"
-msgstr ""
+msgstr "Tutup komentar setelah (hari)"
 
 #: packages/admin/src/components/users/UserDetail.tsx:121
 msgid "Close panel"
@@ -1351,7 +1351,7 @@ msgstr "kolega@contoh.com"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:156
 msgid "Collection"
-msgstr ""
+msgstr "Koleksi"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 msgid "Collection:"
@@ -1386,7 +1386,7 @@ msgstr "Komentar"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:544
 msgid "Comments from logged-in CMS users are approved automatically"
-msgstr ""
+msgstr "Komentar dari pengguna CMS yang login disetujui otomatis"
 
 #: packages/admin/src/components/SignupPage.tsx:401
 msgid "Complete signup"
@@ -1394,7 +1394,7 @@ msgstr "Selesaikan pendaftaran"
 
 #: packages/admin/src/components/Widgets.tsx:851
 msgid "Component"
-msgstr ""
+msgstr "Komponen"
 
 #: packages/admin/src/components/FieldEditor.tsx:342
 msgid "Configure Field"
@@ -1406,7 +1406,7 @@ msgstr "Konfirmasi"
 
 #: packages/admin/src/components/WordPressImport.tsx:627
 msgid "Connect"
-msgstr ""
+msgstr "Hubungkan"
 
 #: packages/admin/src/components/WordPressImport.tsx:1346
 msgid "Connect & Analyze"
@@ -1452,7 +1452,7 @@ msgstr "Konten ditemukan:"
 
 #: packages/admin/src/router.tsx:796
 msgid "Content has been scheduled for publishing"
-msgstr ""
+msgstr "Konten telah dijadwalkan untuk diterbitkan"
 
 #: packages/admin/src/components/RevisionHistory.tsx:131
 msgid "Content has been updated to the selected revision."
@@ -1464,7 +1464,7 @@ msgstr "ID Konten:"
 
 #: packages/admin/src/router.tsx:744
 msgid "Content is now live"
-msgstr ""
+msgstr "Konten sekarang tayang"
 
 #: packages/admin/src/components/WordPressImport.tsx:2177
 msgid "content items"
@@ -1476,11 +1476,11 @@ msgstr "Baca Konten"
 
 #: packages/admin/src/router.tsx:760
 msgid "Content removed from public view"
-msgstr ""
+msgstr "Konten dihapus dari tampilan publik"
 
 #: packages/admin/src/router.tsx:814
 msgid "Content reverted to draft"
-msgstr ""
+msgstr "Konten dikembalikan ke draf"
 
 #: packages/admin/src/components/RevisionHistory.tsx:296
 msgid "Content snapshot:"
@@ -1551,7 +1551,7 @@ msgstr "Salin token"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:322
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:323
 msgid "Copy URL"
-msgstr ""
+msgstr "Salin URL"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:138
 msgid "Could not copy automatically. Please select the URL above and copy manually."
@@ -1567,7 +1567,7 @@ msgstr "Tidak dapat mendeteksi WordPress"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:88
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
-msgstr ""
+msgstr "Tidak dapat memetakan \"{draft}\" ke tipe MIME. Ketik MIME secara langsung."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:820
 msgid "Count"
@@ -1585,7 +1585,7 @@ msgstr "Buat"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:263
 msgid "Create \"{trimmedInput}\""
-msgstr ""
+msgstr "Buat \"{trimmedInput}\""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:887
 msgid "Create a bullet list"
@@ -1616,7 +1616,7 @@ msgstr "Buat kredit penulis"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 msgid "Create Content Type"
-msgstr ""
+msgstr "Buat Tipe Konten"
 
 #: packages/admin/src/components/MenuList.tsx:126
 #: packages/admin/src/components/MenuList.tsx:189
@@ -1682,7 +1682,7 @@ msgstr "Buat Token"
 
 #: packages/admin/src/components/Widgets.tsx:345
 msgid "Create Widget Area"
-msgstr ""
+msgstr "Buat Area Widget"
 
 #: packages/admin/src/components/SetupWizard.tsx:560
 msgid "Create your account"
@@ -1709,7 +1709,7 @@ msgstr "Buat passkey Anda"
 #: packages/admin/src/lib/api/marketplace.ts:223
 #: packages/admin/src/lib/api/marketplace.ts:231
 msgid "Create, update, and delete content"
-msgstr ""
+msgstr "Membuat, memperbarui, dan menghapus konten"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:81
 msgid "Create, update, and delete navigation menus"
@@ -1737,7 +1737,7 @@ msgstr "Dibuat {0}"
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
 #: packages/admin/src/router.tsx:844
 msgid "Created {0} translation"
-msgstr ""
+msgstr "{0} terjemahan dibuat"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:123
 msgid "Created At"
@@ -1776,7 +1776,7 @@ msgstr "Kustom"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:614
 msgid "Custom Fields"
-msgstr ""
+msgstr "Bidang Kustom"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:154
 msgid "Custom robots.txt content. Leave empty to use the default."
@@ -1884,7 +1884,7 @@ msgstr "Hapus {0}"
 #. placeholder {0}: field.label
 #: packages/admin/src/components/ContentTypeEditor.tsx:740
 msgid "Delete {0} field"
-msgstr ""
+msgstr "Hapus bidang {0}"
 
 #. placeholder {0}: menu.name
 #: packages/admin/src/components/MenuList.tsx:237
@@ -1894,7 +1894,7 @@ msgstr "Hapus menu {0}"
 #. placeholder {0}: area.label
 #: packages/admin/src/components/Widgets.tsx:584
 msgid "Delete {0} widget area"
-msgstr ""
+msgstr "Hapus area widget {0}"
 
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
 #: packages/admin/src/components/TaxonomyManager.tsx:880
@@ -1903,11 +1903,11 @@ msgstr "Hapus {0}?"
 
 #: packages/admin/src/routes/bylines.tsx:336
 msgid "Delete Byline?"
-msgstr ""
+msgstr "Hapus Byline?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2517
 msgid "Delete column"
-msgstr ""
+msgstr "Hapus kolom"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:405
 msgid "Delete Comment?"
@@ -1919,16 +1919,16 @@ msgstr "Hapus Tipe Konten?"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:379
 msgid "Delete embed"
-msgstr ""
+msgstr "Hapus sematan"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:657
 msgid "Delete Field?"
-msgstr ""
+msgstr "Hapus Bidang?"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:191
 #: packages/admin/src/components/editor/ImageNode.tsx:192
 msgid "Delete image"
-msgstr ""
+msgstr "Hapus gambar"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:253
 msgid "Delete Media?"
@@ -1966,7 +1966,7 @@ msgstr "Hapus Pengalihan?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2538
 msgid "Delete row"
-msgstr ""
+msgstr "Hapus baris"
 
 #: packages/admin/src/components/Sections.tsx:296
 msgid "Delete Section?"
@@ -1974,11 +1974,11 @@ msgstr "Hapus Bagian?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2553
 msgid "Delete table"
-msgstr ""
+msgstr "Hapus tabel"
 
 #: packages/admin/src/components/Widgets.tsx:634
 msgid "Delete Widget Area?"
-msgstr ""
+msgstr "Hapus Area Widget?"
 
 #: packages/admin/src/components/ContentList.tsx:346
 msgid "Deleted"
@@ -2005,15 +2005,15 @@ msgstr "Demo"
 
 #: packages/admin/src/routes/users.tsx:303
 msgid "Demote User"
-msgstr ""
+msgstr "Turunkan Pengguna"
 
 #: packages/admin/src/routes/users.tsx:294
 msgid "Demote User?"
-msgstr ""
+msgstr "Turunkan Pengguna?"
 
 #: packages/admin/src/routes/users.tsx:304
 msgid "Demoting..."
-msgstr ""
+msgstr "Menurunkan..."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:270
 msgid "Deny"
@@ -2021,7 +2021,7 @@ msgstr "Tolak"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:209
 msgid "Describe the image..."
-msgstr ""
+msgstr "Deskripsikan gambar..."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:301
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
@@ -2094,11 +2094,11 @@ msgstr "Nonaktifkan pengalihan"
 
 #: packages/admin/src/routes/users.tsx:279
 msgid "Disable User"
-msgstr ""
+msgstr "Nonaktifkan Pengguna"
 
 #: packages/admin/src/routes/users.tsx:272
 msgid "Disable User?"
-msgstr ""
+msgstr "Nonaktifkan Pengguna?"
 
 #: packages/admin/src/components/PluginManager.tsx:304
 #: packages/admin/src/components/Redirects.tsx:392
@@ -2114,11 +2114,11 @@ msgstr "Dinonaktifkan:"
 #. placeholder {0}: selectedUser?.name || selectedUser?.email
 #: packages/admin/src/routes/users.tsx:274
 msgid "Disabling <0>{0}</0> will prevent them from logging in until re-enabled. Their content will be preserved."
-msgstr ""
+msgstr "Menonaktifkan <0>{0}</0> akan mencegah mereka login hingga diaktifkan kembali. Konten mereka akan dipertahankan."
 
 #: packages/admin/src/routes/users.tsx:280
 msgid "Disabling..."
-msgstr ""
+msgstr "Menonaktifkan..."
 
 #: packages/admin/src/components/ContentEditor.tsx:660
 #: packages/admin/src/components/ContentEditor.tsx:682
@@ -2168,7 +2168,7 @@ msgstr "Pemisah"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:63
 msgid "Documents"
-msgstr ""
+msgstr "Dokumen"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:319
 msgid "Domain"
@@ -2227,7 +2227,7 @@ msgstr "Seret dan lepas atau klik untuk menelusuri (.xml)"
 
 #: packages/admin/src/components/Widgets.tsx:620
 msgid "Drag here to add"
-msgstr ""
+msgstr "Seret ke sini untuk menambah"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1638
 msgid "Drag to reorder"
@@ -2238,23 +2238,23 @@ msgstr "Seret untuk mengurutkan ulang"
 #: packages/admin/src/components/ContentTypeEditor.tsx:707
 #: packages/admin/src/components/Widgets.tsx:722
 msgid "Drag to reorder {0}"
-msgstr ""
+msgstr "Seret untuk mengurutkan {0}"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:335
 msgid "Drag to reorder block"
-msgstr ""
+msgstr "Seret untuk mengurutkan blok"
 
 #: packages/admin/src/components/Widgets.tsx:624
 msgid "Drag widgets here to add them"
-msgstr ""
+msgstr "Seret widget ke sini untuk menambahkannya"
 
 #: packages/admin/src/components/Widgets.tsx:402
 msgid "Drag widgets into an area to add them"
-msgstr ""
+msgstr "Seret widget ke area untuk menambahkannya"
 
 #: packages/admin/src/components/Widgets.tsx:620
 msgid "Drop to add widget"
-msgstr ""
+msgstr "Lepas untuk menambah widget"
 
 #: packages/admin/src/components/WordPressImport.tsx:1427
 msgid "Drop your WordPress export file here"
@@ -2262,7 +2262,7 @@ msgstr "Letakkan file ekspor WordPress Anda di sini"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:289
 msgid "Duplicate"
-msgstr ""
+msgstr "Duplikat"
 
 #: packages/admin/src/components/ContentList.tsx:531
 msgid "Duplicate {title}"
@@ -2270,11 +2270,11 @@ msgstr "Duplikasi {title}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:161
 msgid "e.g. application/zip or .pdf"
-msgstr ""
+msgstr "mis. application/zip atau .pdf"
 
 #: packages/admin/src/components/Redirects.tsx:160
 msgid "e.g. import, blog"
-msgstr ""
+msgstr "mis. import, blog"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:410
 msgid "e.g., CI/CD Pipeline"
@@ -2309,7 +2309,7 @@ msgstr "Edit {0}"
 #. placeholder {0}: field.label
 #: packages/admin/src/components/ContentTypeEditor.tsx:732
 msgid "Edit {0} field"
-msgstr ""
+msgstr "Edit bidang {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:599
 msgid "Edit {collectionLabel}"
@@ -2321,7 +2321,7 @@ msgstr "Edit {title}"
 
 #: packages/admin/src/components/ContentEditor.tsx:2067
 msgid "Edit byline"
-msgstr ""
+msgstr "Edit byline"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:364
 msgid "Edit Domain"
@@ -2333,7 +2333,7 @@ msgstr "Edit Field"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2470
 msgid "Edit link"
-msgstr ""
+msgstr "Edit tautan"
 
 #: packages/admin/src/components/MenuEditor.tsx:478
 msgid "Edit Menu Item"
@@ -2359,7 +2359,7 @@ msgstr "Edit pengalihan {0}"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 msgid "Edit URL"
-msgstr ""
+msgstr "Edit URL"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:36
 #: packages/admin/src/components/WelcomeModal.tsx:26
@@ -2436,7 +2436,7 @@ msgstr "Aktifkan"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:495
 msgid "Enable comments"
-msgstr ""
+msgstr "Aktifkan komentar"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:87
 msgid "Enable full-text search on this collection"
@@ -2496,7 +2496,7 @@ msgstr "Masukkan kode dari terminal Anda"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:123
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:132
 msgid "Enter URL..."
-msgstr ""
+msgstr "Masukkan URL..."
 
 #: packages/admin/src/components/LoginPage.tsx:325
 msgid "Enter your handle to sign in."
@@ -2521,11 +2521,11 @@ msgstr "Kesalahan"
 
 #: packages/admin/src/components/Widgets.tsx:174
 msgid "Error adding widget"
-msgstr ""
+msgstr "Gagal menambah widget"
 
 #: packages/admin/src/components/Widgets.tsx:235
 msgid "Error reordering widgets"
-msgstr ""
+msgstr "Gagal mengurutkan widget"
 
 #: packages/admin/src/components/SectionEditor.tsx:52
 msgid "Error saving section"
@@ -2533,7 +2533,7 @@ msgstr "Gagal menyimpan bagian"
 
 #: packages/admin/src/components/Widgets.tsx:704
 msgid "Error updating widget"
-msgstr ""
+msgstr "Gagal memperbarui widget"
 
 #: packages/admin/src/components/WordPressImport.tsx:1846
 msgid "Exists"
@@ -2545,7 +2545,7 @@ msgstr "Keluar mode bebas gangguan"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2971
 msgid "Exit Spotlight Mode"
-msgstr ""
+msgstr "Keluar dari Mode Sorotan"
 
 #: packages/admin/src/components/PluginManager.tsx:407
 msgid "Expand"
@@ -2566,7 +2566,7 @@ msgstr "Kedaluwarsa"
 
 #: packages/admin/src/components/WordPressImport.tsx:1112
 msgid "Export from WordPress manually"
-msgstr ""
+msgstr "Ekspor dari WordPress secara manual"
 
 #: packages/admin/src/components/WordPressImport.tsx:1236
 msgid "Export your content from WordPress to import everything including drafts."
@@ -2594,15 +2594,15 @@ msgstr "Gagal menambah domain"
 
 #: packages/admin/src/components/WordPressImport.tsx:367
 msgid "Failed to analyze WordPress site"
-msgstr ""
+msgstr "Gagal menganalisis situs WordPress"
 
 #: packages/admin/src/components/SandboxedPluginPage.tsx:54
 msgid "Failed to communicate with plugin"
-msgstr ""
+msgstr "Gagal berkomunikasi dengan plugin"
 
 #: packages/admin/src/components/SetupWizard.tsx:493
 msgid "Failed to create admin"
-msgstr ""
+msgstr "Gagal membuat admin"
 
 #: packages/admin/src/components/ContentEditor.tsx:2051
 msgid "Failed to create byline"
@@ -2618,78 +2618,78 @@ msgstr "Gagal membuat istilah"
 
 #: packages/admin/src/router.tsx:849
 msgid "Failed to create translation"
-msgstr ""
+msgstr "Gagal membuat terjemahan"
 
 #: packages/admin/src/router.tsx:338
 #: packages/admin/src/router.tsx:367
 #: packages/admin/src/router.tsx:869
 msgid "Failed to delete"
-msgstr ""
+msgstr "Gagal menghapus"
 
 #: packages/admin/src/lib/api/users.ts:345
 msgid "Failed to delete allowed domain"
-msgstr ""
+msgstr "Gagal menghapus domain yang diizinkan"
 
 #: packages/admin/src/lib/api/bylines.ts:89
 msgid "Failed to delete byline"
-msgstr ""
+msgstr "Gagal menghapus byline"
 
 #: packages/admin/src/lib/api/schema.ts:222
 msgid "Failed to delete collection"
-msgstr ""
+msgstr "Gagal menghapus koleksi"
 
 #: packages/admin/src/lib/api/comments.ts:111
 #: packages/admin/src/router.tsx:1098
 msgid "Failed to delete comment"
-msgstr ""
+msgstr "Gagal menghapus komentar"
 
 #: packages/admin/src/lib/api/content.ts:217
 msgid "Failed to delete content"
-msgstr ""
+msgstr "Gagal menghapus konten"
 
 #: packages/admin/src/lib/api/schema.ts:278
 msgid "Failed to delete field"
-msgstr ""
+msgstr "Gagal menghapus bidang"
 
 #: packages/admin/src/lib/api/media.ts:338
 msgid "Failed to delete from provider"
-msgstr ""
+msgstr "Gagal menghapus dari penyedia"
 
 #: packages/admin/src/lib/api/media.ts:215
 msgid "Failed to delete media"
-msgstr ""
+msgstr "Gagal menghapus media"
 
 #: packages/admin/src/lib/api/menus.ts:163
 msgid "Failed to delete menu"
-msgstr ""
+msgstr "Gagal menghapus menu"
 
 #: packages/admin/src/lib/api/menus.ts:217
 msgid "Failed to delete menu item"
-msgstr ""
+msgstr "Gagal menghapus item menu"
 
 #: packages/admin/src/lib/api/users.ts:256
 msgid "Failed to delete passkey"
-msgstr ""
+msgstr "Gagal menghapus passkey"
 
 #: packages/admin/src/lib/api/redirects.ts:111
 msgid "Failed to delete redirect"
-msgstr ""
+msgstr "Gagal menghapus pengalihan"
 
 #: packages/admin/src/lib/api/sections.ts:110
 msgid "Failed to delete section"
-msgstr ""
+msgstr "Gagal menghapus seksi"
 
 #: packages/admin/src/lib/api/taxonomies.ts:201
 msgid "Failed to delete term"
-msgstr ""
+msgstr "Gagal menghapus istilah"
 
 #: packages/admin/src/lib/api/widgets.ts:146
 msgid "Failed to delete widget"
-msgstr ""
+msgstr "Gagal menghapus widget"
 
 #: packages/admin/src/lib/api/widgets.ts:108
 msgid "Failed to delete widget area"
-msgstr ""
+msgstr "Gagal menghapus area widget"
 
 #: packages/admin/src/components/PluginManager.tsx:109
 msgid "Failed to disable plugin"
@@ -2697,19 +2697,19 @@ msgstr "Gagal menonaktifkan plugin"
 
 #: packages/admin/src/lib/api/users.ts:118
 msgid "Failed to disable user"
-msgstr ""
+msgstr "Gagal menonaktifkan pengguna"
 
 #: packages/admin/src/router.tsx:783
 msgid "Failed to discard changes"
-msgstr ""
+msgstr "Gagal membatalkan perubahan"
 
 #: packages/admin/src/components/WelcomeModal.tsx:70
 msgid "Failed to dismiss welcome"
-msgstr ""
+msgstr "Gagal menutup sambutan"
 
 #: packages/admin/src/router.tsx:381
 msgid "Failed to duplicate"
-msgstr ""
+msgstr "Gagal menduplikasi"
 
 #: packages/admin/src/components/PluginManager.tsx:90
 msgid "Failed to enable plugin"
@@ -2717,49 +2717,49 @@ msgstr "Gagal mengaktifkan plugin"
 
 #: packages/admin/src/lib/api/users.ts:138
 msgid "Failed to enable user"
-msgstr ""
+msgstr "Gagal mengaktifkan pengguna"
 
 #: packages/admin/src/components/WordPressImport.tsx:295
 msgid "Failed to execute import"
-msgstr ""
+msgstr "Gagal menjalankan impor"
 
 #: packages/admin/src/lib/api/schema.ts:170
 #: packages/admin/src/lib/api/schema.ts:174
 msgid "Failed to fetch collection"
-msgstr ""
+msgstr "Gagal mengambil koleksi"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:81
 msgid "Failed to fetch entry terms"
-msgstr ""
+msgstr "Gagal mengambil istilah entri"
 
 #: packages/admin/src/lib/api/client.ts:189
 msgid "Failed to fetch manifest"
-msgstr ""
+msgstr "Gagal mengambil manifes"
 
 #: packages/admin/src/lib/api/plugins.ts:55
 #: packages/admin/src/lib/api/plugins.ts:59
 msgid "Failed to fetch plugin"
-msgstr ""
+msgstr "Gagal mengambil plugin"
 
 #: packages/admin/src/lib/api/content.ts:462
 #: packages/admin/src/lib/api/content.ts:467
 msgid "Failed to fetch revision"
-msgstr ""
+msgstr "Gagal mengambil revisi"
 
 #: packages/admin/src/components/SetupWizard.tsx:446
 msgid "Failed to fetch setup status"
-msgstr ""
+msgstr "Gagal mengambil status penyiapan"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:65
 msgid "Failed to fetch terms"
-msgstr ""
+msgstr "Gagal mengambil istilah"
 
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
 #: packages/admin/src/router.tsx:642
 #: packages/admin/src/router.tsx:1029
 msgid "Failed to fetch user"
-msgstr ""
+msgstr "Gagal mengambil pengguna"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:271
 msgid "Failed to generate preview"
@@ -2771,28 +2771,28 @@ msgstr "Gagal membuat URL pratinjau"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:176
 msgid "Failed to get authentication options"
-msgstr ""
+msgstr "Gagal mendapatkan opsi autentikasi"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Failed to get registration options"
-msgstr ""
+msgstr "Gagal mendapatkan opsi registrasi"
 
 #: packages/admin/src/components/WordPressImport.tsx:386
 msgid "Failed to import from WordPress"
-msgstr ""
+msgstr "Gagal mengimpor dari WordPress"
 
 #: packages/admin/src/components/WordPressImport.tsx:319
 #: packages/admin/src/lib/api/import.ts:256
 msgid "Failed to import media"
-msgstr ""
+msgstr "Gagal mengimpor media"
 
 #: packages/admin/src/lib/api/marketplace.ts:160
 msgid "Failed to install plugin"
-msgstr ""
+msgstr "Gagal memasang plugin"
 
 #: packages/admin/src/router.tsx:244
 msgid "Failed to load admin"
-msgstr ""
+msgstr "Gagal memuat admin"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
 msgid "Failed to load allowed domains"
@@ -2801,7 +2801,7 @@ msgstr "Gagal memuat domain yang diizinkan"
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:170
 msgid "Failed to load bylines: {0}"
-msgstr ""
+msgstr "Gagal memuat byline: {0}"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:89
 msgid "Failed to load email settings"
@@ -2809,7 +2809,7 @@ msgstr "Gagal memuat pengaturan email"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:365
 msgid "Failed to load image"
-msgstr ""
+msgstr "Gagal memuat gambar"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:144
 msgid "Failed to load passkeys"
@@ -2839,27 +2839,27 @@ msgstr "Gagal memuat tema"
 #. placeholder {0}: usersQuery.error.message
 #: packages/admin/src/routes/users.tsx:205
 msgid "Failed to load users: {0}"
-msgstr ""
+msgstr "Gagal memuat pengguna: {0}"
 
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:46
 msgid "Failed to load widget"
-msgstr ""
+msgstr "Gagal memuat widget"
 
 #: packages/admin/src/router.tsx:1123
 msgid "Failed to perform bulk action"
-msgstr ""
+msgstr "Gagal menjalankan aksi massal"
 
 #: packages/admin/src/lib/api/content.ts:260
 msgid "Failed to permanently delete content"
-msgstr ""
+msgstr "Gagal menghapus konten secara permanen"
 
 #: packages/admin/src/components/WordPressImport.tsx:276
 msgid "Failed to prepare import"
-msgstr ""
+msgstr "Gagal menyiapkan impor"
 
 #: packages/admin/src/router.tsx:748
 msgid "Failed to publish"
-msgstr ""
+msgstr "Gagal menerbitkan"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:130
 msgid "Failed to remove domain"
@@ -2876,32 +2876,32 @@ msgstr "Gagal mengganti nama passkey"
 
 #: packages/admin/src/lib/api/schema.ts:293
 msgid "Failed to reorder fields"
-msgstr ""
+msgstr "Gagal mengurutkan bidang"
 
 #: packages/admin/src/lib/api/widgets.ts:158
 msgid "Failed to reorder widgets"
-msgstr ""
+msgstr "Gagal mengurutkan widget"
 
 #: packages/admin/src/router.tsx:353
 msgid "Failed to restore"
-msgstr ""
+msgstr "Gagal memulihkan"
 
 #: packages/admin/src/lib/api/content.ts:249
 msgid "Failed to restore content"
-msgstr ""
+msgstr "Gagal memulihkan konten"
 
 #: packages/admin/src/lib/api/content.ts:484
 #: packages/admin/src/lib/api/content.ts:489
 msgid "Failed to restore revision"
-msgstr ""
+msgstr "Gagal memulihkan revisi"
 
 #: packages/admin/src/lib/api/api-tokens.ts:98
 msgid "Failed to revoke API token"
-msgstr ""
+msgstr "Gagal mencabut token API"
 
 #: packages/admin/src/components/WordPressImport.tsx:332
 msgid "Failed to rewrite URLs"
-msgstr ""
+msgstr "Gagal menulis ulang URL"
 
 #: packages/admin/src/router.tsx:701
 #: packages/admin/src/router.tsx:1540
@@ -2916,7 +2916,7 @@ msgstr "Gagal menyimpan pengaturan"
 
 #: packages/admin/src/router.tsx:801
 msgid "Failed to schedule"
-msgstr ""
+msgstr "Gagal menjadwalkan"
 
 #: packages/admin/src/components/LoginPage.tsx:70
 #: packages/admin/src/components/LoginPage.tsx:75
@@ -2925,7 +2925,7 @@ msgstr "Gagal mengirim tautan ajaib"
 
 #: packages/admin/src/lib/api/users.ts:128
 msgid "Failed to send recovery link"
-msgstr ""
+msgstr "Gagal mengirim tautan pemulihan"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:61
 msgid "Failed to send test email"
@@ -2933,23 +2933,23 @@ msgstr "Gagal mengirim email uji"
 
 #: packages/admin/src/components/SignupPage.tsx:349
 msgid "Failed to send verification email"
-msgstr ""
+msgstr "Gagal mengirim email verifikasi"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:100
 msgid "Failed to set entry terms"
-msgstr ""
+msgstr "Gagal mengatur istilah entri"
 
 #: packages/admin/src/lib/api/marketplace.ts:192
 msgid "Failed to uninstall plugin"
-msgstr ""
+msgstr "Gagal mencopot plugin"
 
 #: packages/admin/src/router.tsx:764
 msgid "Failed to unpublish"
-msgstr ""
+msgstr "Gagal membatalkan penerbitan"
 
 #: packages/admin/src/router.tsx:819
 msgid "Failed to unschedule"
-msgstr ""
+msgstr "Gagal membatalkan penjadwalan"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:320
@@ -2966,23 +2966,23 @@ msgstr "Gagal memperbarui domain"
 
 #: packages/admin/src/lib/api/marketplace.ts:176
 msgid "Failed to update plugin"
-msgstr ""
+msgstr "Gagal memperbarui plugin"
 
 #: packages/admin/src/router.tsx:1082
 msgid "Failed to update status"
-msgstr ""
+msgstr "Gagal memperbarui status"
 
 #: packages/admin/src/lib/api/media.ts:132
 msgid "Failed to upload file"
-msgstr ""
+msgstr "Gagal mengunggah file"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:250
 msgid "Failed to verify authentication"
-msgstr ""
+msgstr "Gagal memverifikasi autentikasi"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:253
 msgid "Failed to verify registration"
-msgstr ""
+msgstr "Gagal memverifikasi registrasi"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:221
 #: packages/admin/src/components/settings/GeneralSettings.tsx:226
@@ -3015,7 +3015,7 @@ msgstr "Slug field tidak dapat diubah setelah dibuat"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:572
 msgid "Fields"
-msgstr ""
+msgstr "Bidang"
 
 #: packages/admin/src/components/WordPressImport.tsx:2139
 msgid "Fields created:"
@@ -3057,31 +3057,31 @@ msgstr "Filter berdasarkan koleksi"
 
 #: packages/admin/src/components/users/UserList.tsx:82
 msgid "Filter by role"
-msgstr ""
+msgstr "Filter berdasarkan peran"
 
 #: packages/admin/src/components/Sections.tsx:245
 msgid "Filter by source"
-msgstr ""
+msgstr "Filter berdasarkan sumber"
 
 #: packages/admin/src/components/Redirects.tsx:393
 msgid "Filter by status"
-msgstr ""
+msgstr "Filter berdasarkan status"
 
 #: packages/admin/src/components/Redirects.tsx:399
 msgid "Filter by type"
-msgstr ""
+msgstr "Filter berdasarkan tipe"
 
 #: packages/admin/src/routes/bylines.tsx:188
 msgid "Filter byline type"
-msgstr ""
+msgstr "Filter tipe byline"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "First-time commenters only"
-msgstr ""
+msgstr "Hanya komentator pertama kali"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
 msgid "Fonts"
-msgstr ""
+msgstr "Font"
 
 #: packages/admin/src/components/WordPressImport.tsx:1237
 msgid "For a complete import including drafts and all content, export from WordPress."
@@ -3110,7 +3110,7 @@ msgstr "Pengaturan Umum"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:624
 msgid "Genres"
-msgstr ""
+msgstr "Genre"
 
 #: packages/admin/src/components/WelcomeModal.tsx:143
 msgid "Get Started"
@@ -3143,11 +3143,11 @@ msgstr "Grup (opsional)"
 
 #: packages/admin/src/routes/bylines.tsx:290
 msgid "Guest byline"
-msgstr ""
+msgstr "Byline tamu"
 
 #: packages/admin/src/routes/bylines.tsx:193
 msgid "Guest only"
-msgstr ""
+msgstr "Hanya tamu"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:61
 #: packages/admin/src/components/PortableTextEditor.tsx:856
@@ -3174,11 +3174,11 @@ msgstr "Tinggi"
 
 #: packages/admin/src/components/Sections.tsx:180
 msgid "Hero Banner"
-msgstr ""
+msgstr "Spanduk Hero"
 
 #: packages/admin/src/components/SectionEditor.tsx:271
 msgid "hero, banner, cta"
-msgstr ""
+msgstr "hero, spanduk, cta"
 
 #: packages/admin/src/components/SeoPanel.tsx:191
 msgid "Hide from search engines"
@@ -3219,7 +3219,7 @@ msgstr "https://contoh.com atau /tentang"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:449
 msgid "https://example.com/image.jpg"
-msgstr ""
+msgstr "https://example.com/image.jpg"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:241
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:143
@@ -3246,7 +3246,7 @@ msgstr "Gambar dari pustaka media"
 #: packages/admin/src/components/editor/ImageNode.tsx:179
 #: packages/admin/src/components/editor/ImageNode.tsx:180
 msgid "Image settings"
-msgstr ""
+msgstr "Pengaturan gambar"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:203
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:364
@@ -3267,7 +3267,7 @@ msgstr "URL gambar diperbarui di"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:61
 msgid "Images"
-msgstr ""
+msgstr "Gambar"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
 #: packages/admin/src/components/Sidebar.tsx:228
@@ -3354,7 +3354,7 @@ msgstr "Tidak Kompatibel"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2768
 msgid "Inline Code"
-msgstr ""
+msgstr "Kode Inline"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:461
 #: packages/admin/src/components/MediaPickerModal.tsx:666
@@ -3380,7 +3380,7 @@ msgstr "Sisipkan bagian yang dapat digunakan kembali"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:937
 msgid "Insert a table"
-msgstr ""
+msgstr "Sisipkan tabel"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1935
 msgid "Insert an image"
@@ -3392,15 +3392,15 @@ msgstr "Sisipkan dari URL"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2938
 msgid "Insert Horizontal Rule"
-msgstr ""
+msgstr "Sisipkan Garis Horizontal"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2933
 msgid "Insert Image"
-msgstr ""
+msgstr "Sisipkan Gambar"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2880
 msgid "Insert Link"
-msgstr ""
+msgstr "Sisipkan Tautan"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:57
 msgid "Insert Section"
@@ -3408,7 +3408,7 @@ msgstr "Sisipkan Bagian"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2838
 msgid "Insert Table"
-msgstr ""
+msgstr "Sisipkan Tabel"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:150
 msgid "Instagram"
@@ -3451,7 +3451,7 @@ msgstr "Bilangan Bulat"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:119
 msgid "Invalid invite link"
-msgstr ""
+msgstr "Tautan undangan tidak valid"
 
 #: packages/admin/src/components/ContentEditor.tsx:1508
 msgid "Invalid JSON"
@@ -3463,11 +3463,11 @@ msgstr "Tautan tidak valid"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:207
 msgid "Invite Error"
-msgstr ""
+msgstr "Kesalahan Undangan"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:117
 msgid "Invite expired"
-msgstr ""
+msgstr "Undangan kedaluwarsa"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:79
 msgid "Invite Link Created"
@@ -3480,12 +3480,12 @@ msgstr "Undang Pengguna"
 
 #: packages/admin/src/components/users/UserList.tsx:140
 msgid "Invite your first team member"
-msgstr ""
+msgstr "Undang anggota tim pertama Anda"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2441
 #: packages/admin/src/components/PortableTextEditor.tsx:2747
 msgid "Italic"
-msgstr ""
+msgstr "Miring"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/PortableTextEditor.tsx:1624
@@ -3532,11 +3532,11 @@ msgstr "Label"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:394
 msgid "Label (Plural)"
-msgstr ""
+msgstr "Label (Jamak)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:386
 msgid "Label (Singular)"
-msgstr ""
+msgstr "Label (Tunggal)"
 
 #: packages/admin/src/components/LoginPage.tsx:345
 #: packages/admin/src/components/Settings.tsx:129
@@ -3558,7 +3558,7 @@ msgstr "Login terakhir"
 
 #: packages/admin/src/components/users/UserList.tsx:107
 msgid "Last Login"
-msgstr ""
+msgstr "Login Terakhir"
 
 #: packages/admin/src/components/Redirects.tsx:217
 msgid "Last seen"
@@ -3620,11 +3620,11 @@ msgstr "Akun Terhubung ({0})"
 
 #: packages/admin/src/routes/bylines.tsx:194
 msgid "Linked only"
-msgstr ""
+msgstr "Hanya tertaut"
 
 #: packages/admin/src/routes/bylines.tsx:273
 msgid "Linked user"
-msgstr ""
+msgstr "Pengguna tertaut"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:156
 msgid "LinkedIn"
@@ -3665,7 +3665,7 @@ msgstr "Memuat komentar..."
 
 #: packages/admin/src/router.tsx:1711
 msgid "Loading configuration..."
-msgstr ""
+msgstr "Memuat konfigurasi..."
 
 #: packages/admin/src/components/ContentPickerModal.tsx:164
 msgid "Loading content..."
@@ -3673,7 +3673,7 @@ msgstr "Memuat konten..."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2268
 msgid "Loading editor..."
-msgstr ""
+msgstr "Memuat editor..."
 
 #: packages/admin/src/components/MenuEditor.tsx:255
 msgid "Loading menu..."
@@ -3712,7 +3712,7 @@ msgstr "Memuat istilah..."
 
 #: packages/admin/src/components/Widgets.tsx:310
 msgid "Loading widgets..."
-msgstr ""
+msgstr "Memuat widget..."
 
 #: packages/admin/src/components/ContentList.tsx:245
 #: packages/admin/src/components/ContentList.tsx:330
@@ -3773,17 +3773,17 @@ msgstr "Hanya huruf kecil, angka, dan garis bawah, dimulai dengan huruf"
 
 #: packages/admin/src/components/Widgets.tsx:371
 msgid "Main Sidebar"
-msgstr ""
+msgstr "Bilah Samping Utama"
 
 #: packages/admin/src/lib/api/marketplace.ts:227
 #: packages/admin/src/lib/api/marketplace.ts:235
 msgid "Make network requests"
-msgstr ""
+msgstr "Membuat permintaan jaringan"
 
 #: packages/admin/src/lib/api/marketplace.ts:228
 #: packages/admin/src/lib/api/marketplace.ts:236
 msgid "Make network requests to any host (unrestricted)"
-msgstr ""
+msgstr "Membuat permintaan jaringan ke host mana pun (tidak terbatas)"
 
 #: packages/admin/src/components/Sidebar.tsx:426
 msgid "Manage"
@@ -3797,7 +3797,7 @@ msgstr "Kelola {0} untuk {1}"
 
 #: packages/admin/src/components/Widgets.tsx:326
 msgid "Manage content widgets in your widget areas"
-msgstr ""
+msgstr "Kelola widget konten di area widget Anda"
 
 #: packages/admin/src/components/PluginManager.tsx:166
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
@@ -3826,7 +3826,7 @@ msgstr "Petakan Penulis"
 #. placeholder {0}: mapping.wpLogin
 #: packages/admin/src/components/WordPressImport.tsx:2308
 msgid "Map WordPress user {0} to EmDash user"
-msgstr ""
+msgstr "Petakan pengguna WordPress {0} ke pengguna EmDash"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:501
 msgid "Mark as spam"
@@ -3909,7 +3909,7 @@ msgstr "Menu"
 #. placeholder {1}: translated.locale.toUpperCase()
 #: packages/admin/src/components/MenuEditor.tsx:90
 msgid "Menu \"{0}\" ({1}) created."
-msgstr ""
+msgstr "Menu \"{0}\" ({1}) dibuat."
 
 #. placeholder {0}: menu.label
 #: packages/admin/src/components/MenuList.tsx:55
@@ -3989,7 +3989,7 @@ msgstr "Nilai Min"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:506
 msgid "Moderation"
-msgstr ""
+msgstr "Moderasi"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:129
 msgid "Moderation Signals"
@@ -4005,7 +4005,7 @@ msgstr "Ubah skema koleksi"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:42
 msgid "Most Popular"
-msgstr ""
+msgstr "Terpopuler"
 
 #: packages/admin/src/components/ContentList.tsx:552
 msgid "Move \"{title}\" to trash? You can restore it later."
@@ -4081,11 +4081,11 @@ msgstr "Tidak Pernah"
 
 #: packages/admin/src/router.tsx:844
 msgid "new"
-msgstr ""
+msgstr "baru"
 
 #: packages/admin/src/routes/bylines.tsx:206
 msgid "New"
-msgstr ""
+msgstr "Baru"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:103
 msgid "NEW"
@@ -4136,11 +4136,11 @@ msgstr "Jendela baru"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:36
 msgid "Newest"
-msgstr ""
+msgstr "Terbaru"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:390
 msgid "News"
-msgstr ""
+msgstr "Berita"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
@@ -4193,7 +4193,7 @@ msgstr "Belum ada komentar disetujui."
 
 #: packages/admin/src/routes/bylines.tsx:231
 msgid "No bylines found"
-msgstr ""
+msgstr "Tidak ada byline ditemukan"
 
 #: packages/admin/src/components/ContentEditor.tsx:1992
 msgid "No bylines selected."
@@ -4213,7 +4213,7 @@ msgstr "Tidak ada komentar yang cocok dengan pencarian Anda."
 
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:80
 msgid "No content"
-msgstr ""
+msgstr "Tidak ada konten"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:171
 msgid "No content found"
@@ -4229,7 +4229,7 @@ msgstr "Belum ada tipe konten."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:603
 msgid "No custom fields yet"
-msgstr ""
+msgstr "Belum ada bidang kustom"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:265
 msgid "No detailed description available."
@@ -4265,7 +4265,7 @@ msgstr "Tidak ada judul di dokumen"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:159
 msgid "No invite token provided"
-msgstr ""
+msgstr "Tidak ada token undangan diberikan"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1547
 #: packages/admin/src/components/RepeaterField.tsx:160
@@ -4278,7 +4278,7 @@ msgstr "Tanpa batas"
 
 #: packages/admin/src/routes/bylines.tsx:284
 msgid "No linked user"
-msgstr ""
+msgstr "Tidak ada pengguna tertaut"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:266
 msgid "No matching passkey found for this account."
@@ -4318,7 +4318,7 @@ msgstr "Tanpa minimum"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:65
 msgid "No moderation (auto-approve all)"
-msgstr ""
+msgstr "Tanpa moderasi (setujui otomatis semua)"
 
 #: packages/admin/src/components/users/UserDetail.tsx:248
 msgid "No passkeys registered"
@@ -4392,15 +4392,15 @@ msgstr "Tidak ada tema yang ditemukan"
 
 #: packages/admin/src/components/users/UserList.tsx:120
 msgid "No users found matching your filters."
-msgstr ""
+msgstr "Tidak ada pengguna ditemukan sesuai filter Anda."
 
 #: packages/admin/src/components/users/UserList.tsx:134
 msgid "No users yet."
-msgstr ""
+msgstr "Belum ada pengguna."
 
 #: packages/admin/src/components/Widgets.tsx:434
 msgid "No widget areas yet. Create one to get started."
-msgstr ""
+msgstr "Belum ada area widget. Buat satu untuk memulai."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:416
 #: packages/admin/src/components/TaxonomyManager.tsx:422
@@ -4445,7 +4445,7 @@ msgstr "Hanya huruf kecil, angka, dan tanda hubung"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:106
 msgid "Only the listed MIME types will be accepted for this field."
-msgstr ""
+msgstr "Hanya tipe MIME yang tercantum yang akan diterima untuk bidang ini."
 
 #: packages/admin/src/components/SignupPage.tsx:402
 msgid "Oops!"
@@ -4541,7 +4541,7 @@ msgstr "Paket"
 
 #: packages/admin/src/router.tsx:1737
 msgid "Page Not Found"
-msgstr ""
+msgstr "Halaman Tidak Ditemukan"
 
 #: packages/admin/src/components/PluginManager.tsx:323
 #: packages/admin/src/components/WordPressImport.tsx:1167
@@ -4633,16 +4633,16 @@ msgstr "Pola (Regex)"
 #. placeholder {0}: "{slug}"
 #: packages/admin/src/components/ContentTypeEditor.tsx:437
 msgid "Pattern for generating URLs, e.g. /blog/{0}"
-msgstr ""
+msgstr "Pola untuk menghasilkan URL, mis. /blog/{0}"
 
 #. placeholder {0}: "{slug}"
 #: packages/admin/src/components/ContentTypeEditor.tsx:433
 msgid "Pattern must include a {0} placeholder"
-msgstr ""
+msgstr "Pola harus menyertakan placeholder {0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:62
 msgid "PDF"
-msgstr ""
+msgstr "PDF"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
 #: packages/admin/src/components/ContentList.tsx:689
@@ -4680,7 +4680,7 @@ msgstr "Biasa"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:133
 msgid "Please ask your administrator to send a new invite."
-msgstr ""
+msgstr "Silakan minta administrator Anda mengirim undangan baru."
 
 #: packages/admin/src/components/SetupWizard.tsx:181
 msgid "Please enter a valid email"
@@ -4708,12 +4708,12 @@ msgstr "Plugin diaktifkan"
 
 #: packages/admin/src/components/SandboxedPluginPage.tsx:89
 msgid "Plugin Error"
-msgstr ""
+msgstr "Kesalahan Plugin"
 
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:37
 msgid "Plugin error ({0})"
-msgstr ""
+msgstr "Kesalahan plugin ({0})"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:113
 msgid "Plugin not found"
@@ -4730,7 +4730,7 @@ msgstr "Izin Plugin"
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginPage.tsx:40
 msgid "Plugin responded with {0}: {text}"
-msgstr ""
+msgstr "Plugin merespons dengan {0}: {text}"
 
 #: packages/admin/src/components/PluginManager.tsx:255
 msgid "Plugin uninstalled"
@@ -4845,7 +4845,7 @@ msgstr "Buat kredit penulis cepat"
 #: packages/admin/src/components/editor/ImageNode.tsx:167
 #: packages/admin/src/components/editor/ImageNode.tsx:168
 msgid "Quick edit alt text"
-msgstr ""
+msgstr "Edit cepat teks alternatif"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:85
 #: packages/admin/src/components/PortableTextEditor.tsx:906
@@ -4872,12 +4872,12 @@ msgstr "Baca pengaturan situs"
 #: packages/admin/src/lib/api/marketplace.ts:226
 #: packages/admin/src/lib/api/marketplace.ts:234
 msgid "Read user accounts"
-msgstr ""
+msgstr "Membaca akun pengguna"
 
 #: packages/admin/src/lib/api/marketplace.ts:222
 #: packages/admin/src/lib/api/marketplace.ts:230
 msgid "Read your content"
-msgstr ""
+msgstr "Membaca konten Anda"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:267
 msgid "Reading"
@@ -4894,7 +4894,7 @@ msgstr "Aktivitas Terbaru"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:43
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:35
 msgid "Recently Updated"
-msgstr ""
+msgstr "Baru Diperbarui"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:144
 msgid "Recipient email"
@@ -4921,7 +4921,7 @@ msgstr "Pengalihan"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2958
 msgid "Redo"
-msgstr ""
+msgstr "Ulangi"
 
 #: packages/admin/src/components/FieldEditor.tsx:216
 msgid "Reference"
@@ -4942,7 +4942,7 @@ msgstr "Pengguna terdaftar"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:259
 msgid "Registration failed"
-msgstr ""
+msgstr "Registrasi gagal"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:266
 msgid "Registration was cancelled or timed out. Please try again."
@@ -4968,11 +4968,11 @@ msgstr "Hapus {0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:145
 msgid "Remove {entry}"
-msgstr ""
+msgstr "Hapus {entry}"
 
 #: packages/admin/src/components/ContentEditor.tsx:1797
 msgid "Remove {label}"
-msgstr ""
+msgstr "Hapus {label}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:430
 msgid "Remove Domain"
@@ -5005,7 +5005,7 @@ msgstr "Hapus item {0}"
 #: packages/admin/src/components/PortableTextEditor.tsx:2422
 #: packages/admin/src/components/PortableTextEditor.tsx:2423
 msgid "Remove link"
-msgstr ""
+msgstr "Hapus tautan"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
 msgid "Remove passkey"
@@ -5142,11 +5142,11 @@ msgstr "Blok konten yang dapat digunakan kembali yang dapat Anda sisipkan ke kon
 
 #: packages/admin/src/router.tsx:778
 msgid "Reverted to published version"
-msgstr ""
+msgstr "Dikembalikan ke versi terbit"
 
 #: packages/admin/src/components/WordPressImport.tsx:650
 msgid "Review"
-msgstr ""
+msgstr "Tinjau"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:72
 msgid "Review New Permissions"
@@ -5228,11 +5228,11 @@ msgstr "Simpan"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:416
 msgid "Save (Enter)"
-msgstr ""
+msgstr "Simpan (Enter)"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:236
 msgid "Save alt text"
-msgstr ""
+msgstr "Simpan teks alternatif"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 #: packages/admin/src/components/users/UserDetail.tsx:311
@@ -5382,11 +5382,11 @@ msgstr "Cari {0}..."
 
 #: packages/admin/src/components/users/UserList.tsx:69
 msgid "Search by name or email..."
-msgstr ""
+msgstr "Cari berdasarkan nama atau email..."
 
 #: packages/admin/src/routes/bylines.tsx:181
 msgid "Search bylines"
-msgstr ""
+msgstr "Cari byline"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:163
 msgid "Search comments"
@@ -5418,7 +5418,7 @@ msgstr "Cari halaman dan konten..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:101
 msgid "Search plugins"
-msgstr ""
+msgstr "Cari plugin"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:97
 msgid "Search plugins..."
@@ -5435,7 +5435,7 @@ msgstr "Cari sumber atau tujuan..."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:93
 msgid "Search themes"
-msgstr ""
+msgstr "Cari tema"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:89
 msgid "Search themes..."
@@ -5443,7 +5443,7 @@ msgstr "Cari tema..."
 
 #: packages/admin/src/components/users/UserList.tsx:73
 msgid "Search users"
-msgstr ""
+msgstr "Cari pengguna"
 
 #: packages/admin/src/components/MediaLibrary.tsx:336
 #: packages/admin/src/components/MediaPickerModal.tsx:518
@@ -5555,11 +5555,11 @@ msgstr "Pilih {label}"
 
 #: packages/admin/src/components/Widgets.tsx:871
 msgid "Select a component..."
-msgstr ""
+msgstr "Pilih komponen..."
 
 #: packages/admin/src/components/Widgets.tsx:839
 msgid "Select a menu..."
-msgstr ""
+msgstr "Pilih menu..."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:283
 msgid "Select all"
@@ -5567,7 +5567,7 @@ msgstr "Pilih semua"
 
 #: packages/admin/src/components/ContentEditor.tsx:1917
 msgid "Select byline"
-msgstr ""
+msgstr "Pilih byline"
 
 #: packages/admin/src/components/ContentEditor.tsx:1914
 msgid "Select byline..."
@@ -5589,11 +5589,11 @@ msgstr "Pilih Favicon"
 
 #: packages/admin/src/components/ContentEditor.tsx:1813
 msgid "Select file"
-msgstr ""
+msgstr "Pilih file"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:125
 msgid "Select File"
-msgstr ""
+msgstr "Pilih File"
 
 #: packages/admin/src/components/ContentEditor.tsx:1639
 msgid "Select image"
@@ -5708,7 +5708,7 @@ msgstr "Atur ukuran tampilan kustom untuk instans gambar ini."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:531
 msgid "Set to 0 to never close comments automatically."
-msgstr ""
+msgstr "Atur ke 0 untuk tidak pernah menutup komentar otomatis."
 
 #: packages/admin/src/components/SetupWizard.tsx:559
 msgid "Set up your site"
@@ -5742,7 +5742,7 @@ msgstr "Pengaturan berhasil disimpan"
 
 #: packages/admin/src/components/SetupWizard.tsx:468
 msgid "Setup failed"
-msgstr ""
+msgstr "Penyiapan gagal"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:109
 msgid "Share this link with the invited user"
@@ -5945,11 +5945,11 @@ msgstr "Spam"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2971
 msgid "Spotlight Mode"
-msgstr ""
+msgstr "Mode Sorotan"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:64
 msgid "Spreadsheets"
-msgstr ""
+msgstr "Spreadsheet"
 
 #: packages/admin/src/components/WordPressImport.tsx:1758
 msgid "Start Import"
@@ -5970,7 +5970,7 @@ msgstr "Kode status"
 #: packages/admin/src/components/PortableTextEditor.tsx:2455
 #: packages/admin/src/components/PortableTextEditor.tsx:2761
 msgid "Strikethrough"
-msgstr ""
+msgstr "Coret"
 
 #: packages/admin/src/components/WordPressImport.tsx:1591
 msgid "Structure"
@@ -5995,7 +5995,7 @@ msgstr "Passkey disinkronkan"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:768
 msgid "System"
-msgstr ""
+msgstr "Sistem"
 
 #: packages/admin/src/components/ThemeToggle.tsx:24
 msgid "System ({resolvedLabel})"
@@ -6003,11 +6003,11 @@ msgstr "Sistem ({resolvedLabel})"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:590
 msgid "System Fields"
-msgstr ""
+msgstr "Bidang Sistem"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:936
 msgid "Table"
-msgstr ""
+msgstr "Tabel"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:162
 #: packages/admin/src/components/SetupWizard.tsx:127
@@ -6030,7 +6030,7 @@ msgstr "Target"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:172
 msgid "Target locale"
-msgstr ""
+msgstr "Lokal target"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:495
 msgid "Taxonomies"
@@ -6050,7 +6050,7 @@ msgstr "Taksonomi tidak ditemukan:"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:159
 msgid "Taxonomy: {taxonomyName}"
-msgstr ""
+msgstr "Taksonomi: {taxonomyName}"
 
 #: packages/admin/src/components/SetupWizard.tsx:155
 msgid "Template:"
@@ -6065,7 +6065,7 @@ msgstr "Istilah"
 #. placeholder {1}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomyManager.tsx:757
 msgid "Term \"{0}\" created in {1}."
-msgstr ""
+msgstr "Istilah \"{0}\" dibuat di {1}."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:739
 msgid "Term deleted"
@@ -6077,7 +6077,7 @@ msgstr "tes@contoh.com"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2731
 msgid "Text formatting"
-msgstr ""
+msgstr "Pemformatan teks"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:198
 msgid "The device will not be granted access."
@@ -6114,7 +6114,7 @@ msgstr "Nama situs Anda, digunakan di header dan metadata"
 
 #: packages/admin/src/router.tsx:1739
 msgid "The page you're looking for doesn't exist."
-msgstr ""
+msgstr "Halaman yang Anda cari tidak ada."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:172
 msgid "The public URL of your site (used for canonical links and sitemaps)"
@@ -6156,11 +6156,11 @@ msgstr "Tema"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:372
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
-msgstr ""
+msgstr "Koleksi ini didefinisikan dalam kode. Beberapa pengaturan tidak dapat diubah di sini. Edit file live.config.ts Anda untuk mengubah skema."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:361
 msgid "This field does not accept {sniffedMime} files."
-msgstr ""
+msgstr "Bidang ini tidak menerima file {sniffedMime}."
 
 #: packages/admin/src/components/ContentEditor.tsx:1655
 #: packages/admin/src/components/ContentEditor.tsx:1828
@@ -6197,7 +6197,7 @@ msgstr "Aturan pengalihan ini akan dihapus permanen."
 
 #: packages/admin/src/routes/bylines.tsx:337
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
-msgstr ""
+msgstr "Ini menghapus profil byline. Tautan byline konten dihapus dan penunjuk utama dibersihkan."
 
 #: packages/admin/src/components/SectionEditor.tsx:283
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
@@ -6209,7 +6209,7 @@ msgstr "Bagian ini diimpor dari sistem lain."
 
 #: packages/admin/src/components/Widgets.tsx:635
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
-msgstr ""
+msgstr "Ini akan menghapus area widget dan semua widget-nya. Tindakan ini tidak dapat dibatalkan."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:276
 msgid "This will grant CLI access with your permissions."
@@ -6284,7 +6284,7 @@ msgstr "untuk memilih"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2547
 msgid "Toggle header row"
-msgstr ""
+msgstr "Alihkan baris header"
 
 #: packages/admin/src/components/ThemeToggle.tsx:30
 #: packages/admin/src/components/ThemeToggle.tsx:41
@@ -6317,23 +6317,23 @@ msgstr "Terjemahkan"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:156
 msgid "Translate \"{0}\""
-msgstr ""
+msgstr "Terjemahkan \"{0}\""
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:80
 msgid "Translate {0}"
-msgstr ""
+msgstr "Terjemahkan {0}"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:194
 #: packages/admin/src/components/TranslationsPanel.tsx:99
 msgid "Translating..."
-msgstr ""
+msgstr "Menerjemahkan..."
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:756
 #: packages/admin/src/router.tsx:843
 msgid "Translation created"
-msgstr ""
+msgstr "Terjemahan dibuat"
 
 #: packages/admin/src/components/TranslationsPanel.tsx:56
 msgid "Translations"
@@ -6379,7 +6379,7 @@ msgstr "Coba sesuaikan pencarian atau filter Anda."
 
 #: packages/admin/src/routes/users.tsx:210
 msgid "Try again"
-msgstr ""
+msgstr "Coba lagi"
 
 #: packages/admin/src/components/WordPressImport.tsx:1421
 msgid "Try Again"
@@ -6401,7 +6401,7 @@ msgstr "Coba dengan data saya"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:279
 msgid "Turn into"
-msgstr ""
+msgstr "Ubah menjadi"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:132
 msgid "Twitter"
@@ -6430,11 +6430,11 @@ msgstr "Tidak Ditetapkan"
 #: packages/admin/src/components/PortableTextEditor.tsx:2448
 #: packages/admin/src/components/PortableTextEditor.tsx:2754
 msgid "Underline"
-msgstr ""
+msgstr "Garis bawah"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2951
 msgid "Undo"
-msgstr ""
+msgstr "Batalkan"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:181
 #: packages/admin/src/components/PluginManager.tsx:494
@@ -6489,7 +6489,7 @@ msgstr "Batal Publikasikan"
 
 #: packages/admin/src/router.tsx:760
 msgid "Unpublished"
-msgstr ""
+msgstr "Tidak diterbitkan"
 
 #: packages/admin/src/components/ContentTypeList.tsx:55
 msgid "Unregistered Content Tables Found"
@@ -6501,12 +6501,12 @@ msgstr "Batal Jadwalkan"
 
 #: packages/admin/src/router.tsx:813
 msgid "Unscheduled"
-msgstr ""
+msgstr "Tidak dijadwalkan"
 
 #. placeholder {0}: (element as { type: string }).type
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:128
 msgid "Unsupported widget element type: {0}"
-msgstr ""
+msgstr "Tipe elemen widget tidak didukung: {0}"
 
 #: packages/admin/src/components/Dashboard.tsx:249
 msgid "Untitled"
@@ -6514,12 +6514,12 @@ msgstr "Tanpa Judul"
 
 #: packages/admin/src/components/ContentEditor.tsx:1731
 msgid "Untitled file"
-msgstr ""
+msgstr "File tanpa judul"
 
 #: packages/admin/src/components/Widgets.tsx:466
 #: packages/admin/src/components/Widgets.tsx:729
 msgid "Untitled Widget"
-msgstr ""
+msgstr "Widget Tanpa Judul"
 
 #: packages/admin/src/components/ContentEditor.tsx:1948
 msgid "Up"
@@ -6580,7 +6580,7 @@ msgstr "Unggah"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:127
 msgid "Upload a file to get started"
-msgstr ""
+msgstr "Unggah file untuk memulai"
 
 #: packages/admin/src/components/WordPressImport.tsx:1230
 msgid "Upload an export file"
@@ -6597,7 +6597,7 @@ msgstr "Unggah dan hapus media"
 #: packages/admin/src/lib/api/marketplace.ts:225
 #: packages/admin/src/lib/api/marketplace.ts:233
 msgid "Upload and manage media"
-msgstr ""
+msgstr "Mengunggah dan mengelola media"
 
 #: packages/admin/src/components/WordPressImport.tsx:1123
 #: packages/admin/src/components/WordPressImport.tsx:1244
@@ -6610,11 +6610,11 @@ msgstr "Unggah gagal: {uploadError}"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:552
 msgid "Upload file"
-msgstr ""
+msgstr "Unggah file"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:129
 msgid "Upload File"
-msgstr ""
+msgstr "Unggah File"
 
 #: packages/admin/src/components/MediaLibrary.tsx:323
 msgid "Upload files"
@@ -6678,7 +6678,7 @@ msgstr "URL"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:425
 msgid "URL Pattern"
-msgstr ""
+msgstr "Pola URL"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:113
 #: packages/admin/src/components/FieldEditor.tsx:229
@@ -6715,7 +6715,7 @@ msgstr "Digunakan oleh pembaca layar dan saat gambar gagal dimuat"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:410
 msgid "Used in URLs and API endpoints"
-msgstr ""
+msgstr "Digunakan dalam URL dan endpoint API"
 
 #: packages/admin/src/components/SectionEditor.tsx:254
 #: packages/admin/src/components/Sections.tsx:196
@@ -6768,7 +6768,7 @@ msgstr "Validasi"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:194
 msgid "Verifying your invite..."
-msgstr ""
+msgstr "Memverifikasi undangan Anda..."
 
 #: packages/admin/src/components/SignupPage.tsx:386
 msgid "Verifying your link..."
@@ -6785,7 +6785,7 @@ msgstr "Versi"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Video"
-msgstr ""
+msgstr "Video"
 
 #: packages/admin/src/components/Settings.tsx:116
 msgid "View email provider status and send test emails"
@@ -6852,7 +6852,7 @@ msgstr "Situs Web"
 
 #: packages/admin/src/routes/bylines.tsx:262
 msgid "Website URL"
-msgstr ""
+msgstr "URL Situs Web"
 
 #: packages/admin/src/components/WelcomeModal.tsx:96
 msgid "Welcome to EmDash, {firstName}!"
@@ -6893,31 +6893,31 @@ msgstr "Bilangan bulat"
 #: packages/admin/src/components/Widgets.tsx:722
 #: packages/admin/src/components/Widgets.tsx:737
 msgid "widget"
-msgstr ""
+msgstr "widget"
 
 #: packages/admin/src/components/Widgets.tsx:170
 msgid "Widget added"
-msgstr ""
+msgstr "Widget ditambahkan"
 
 #: packages/admin/src/components/Widgets.tsx:158
 msgid "Widget area created"
-msgstr ""
+msgstr "Area widget dibuat"
 
 #: packages/admin/src/components/Widgets.tsx:565
 msgid "Widget area deleted"
-msgstr ""
+msgstr "Area widget dihapus"
 
 #: packages/admin/src/components/Widgets.tsx:685
 msgid "Widget deleted"
-msgstr ""
+msgstr "Widget dihapus"
 
 #: packages/admin/src/components/Widgets.tsx:814
 msgid "Widget title"
-msgstr ""
+msgstr "Judul widget"
 
 #: packages/admin/src/components/Widgets.tsx:700
 msgid "Widget updated"
-msgstr ""
+msgstr "Widget diperbarui"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:329
@@ -6949,7 +6949,7 @@ msgstr "Nama Pengguna WordPress"
 
 #: packages/admin/src/components/Widgets.tsx:824
 msgid "Write widget content..."
-msgstr ""
+msgstr "Tulis konten widget..."
 
 #: packages/admin/src/components/WordPressImport.tsx:1023
 msgid "WXR File"
@@ -6985,7 +6985,7 @@ msgstr "Anda memiliki akses penuh untuk mengelola situs ini, termasuk pengguna, 
 
 #: packages/admin/src/router.tsx:1139
 msgid "You need Editor permissions to moderate comments."
-msgstr ""
+msgstr "Anda memerlukan izin Editor untuk memoderasi komentar."
 
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/settings/PasskeyItem.tsx:206
@@ -6999,7 +6999,7 @@ msgstr "Anda tidak akan dapat menggunakan passkey ini untuk masuk lagi. Tindakan
 #. placeholder {0}: inviteData.roleName
 #: packages/admin/src/components/InviteAcceptPage.tsx:52
 msgid "You'll be joining as <0>{0}</0>"
-msgstr ""
+msgstr "Anda akan bergabung sebagai <0>{0}</0>"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:369
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
@@ -7019,7 +7019,7 @@ msgstr "Anda masuk melalui Cloudflare Access"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:50
 msgid "You've been invited!"
-msgstr ""
+msgstr "Anda telah diundang!"
 
 #: packages/admin/src/components/SignupPage.tsx:70
 msgid "you@company.com"
