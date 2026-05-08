@@ -54,6 +54,9 @@ export async function validateMediaFields(
 	collectionSlug: string,
 	data: Record<string, unknown>,
 ): Promise<ApiResult<true>> {
+	// Cache is keyed on slug only. If a handler creates/modifies a field and
+	// then writes content in the same request (e.g. bulk import), the cached
+	// list will be stale for that request. This is an edge case in normal use.
 	const fields = await requestCached(`mediaFields:${collectionSlug}`, () =>
 		loadMediaFieldsForCollection(db, collectionSlug),
 	);
@@ -107,6 +110,9 @@ export async function validateMediaFields(
 			if (typeof ref.mimeType !== "string") {
 				return fail(`Field '${field.slug}' requires a mimeType declaration for non-local media`);
 			}
+			// TODO: long-term, consider a server-side HEAD probe or provider-vouched
+			// MIMEs for non-local refs; for now the constraint is only as strong as
+			// the client that constructed the ref.
 			mime = ref.mimeType;
 		}
 

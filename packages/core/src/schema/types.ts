@@ -239,7 +239,7 @@ export interface CreateFieldInput {
 	required?: boolean;
 	unique?: boolean;
 	defaultValue?: unknown;
-	validation?: FieldValidation;
+	validation?: FieldValidation | null;
 	widget?: string;
 	options?: FieldWidgetOptions;
 	sortOrder?: number;

@@ -3,6 +3,7 @@ import { useLingui } from "@lingui/react/macro";
 import { Plus, X } from "@phosphor-icons/react";
 import * as React from "react";
 
+import { EXTENSION_TO_MIME, VALID_MIME_RE } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
 
 interface Preset {
@@ -37,36 +38,6 @@ const PRESETS: ReadonlyArray<Preset> = [
 	{ key: "captions", mimeTypes: ["text/vtt", "application/x-subrip"] },
 	{ key: "fonts", mimeTypes: ["font/"] },
 ];
-
-const EXTENSION_TO_MIME: Record<string, string> = {
-	".pdf": "application/pdf",
-	".png": "image/png",
-	".jpg": "image/jpeg",
-	".jpeg": "image/jpeg",
-	".gif": "image/gif",
-	".webp": "image/webp",
-	".svg": "image/svg+xml",
-	".mp3": "audio/mpeg",
-	".wav": "audio/wav",
-	".mp4": "video/mp4",
-	".webm": "video/webm",
-	".zip": "application/zip",
-	".tar": "application/x-tar",
-	".gz": "application/gzip",
-	".csv": "text/csv",
-	".doc": "application/msword",
-	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-	".xls": "application/vnd.ms-excel",
-	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-	".txt": "text/plain",
-	".rtf": "application/rtf",
-	".vtt": "text/vtt",
-	".srt": "application/x-subrip",
-	".woff": "font/woff",
-	".woff2": "font/woff2",
-};
-
-const VALID_MIME_RE = /^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]*$/i;
 
 function expandShorthand(entry: string): string | null {
 	const trimmed = entry.trim();

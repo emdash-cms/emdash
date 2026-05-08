@@ -7,7 +7,7 @@ export function matchesMimeAllowlist(mime: string, allowList: readonly string[])
 	for (const entry of allowList) {
 		if (!entry || !entry.includes("/")) continue;
 		const normalizedEntry = normalizeMime(entry);
-		if (entry.endsWith("/")) {
+		if (normalizedEntry.endsWith("/")) {
 			if (normalized.startsWith(normalizedEntry)) return true;
 		} else if (normalized === normalizedEntry) {
 			return true;
@@ -44,10 +44,12 @@ export const EXTENSION_TO_MIME: Readonly<Record<string, string>> = {
 	".woff2": "font/woff2",
 };
 
+const VALID_MIME_RE = /^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]*$/i;
+
 export function expandExtensionShorthand(entry: string): string | null {
 	const trimmed = entry.trim();
 	if (!trimmed) return null;
-	if (trimmed.includes("/")) return trimmed;
+	if (trimmed.includes("/")) return VALID_MIME_RE.test(trimmed) ? trimmed : null;
 	if (trimmed.startsWith(".")) {
 		return EXTENSION_TO_MIME[trimmed.toLowerCase()] ?? null;
 	}

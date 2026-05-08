@@ -26,6 +26,7 @@ import {
 	type MediaProviderItem,
 } from "../lib/api";
 import { providerItemToMediaItem, getFileIcon } from "../lib/media-utils";
+import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
 import { DialogError } from "./DialogError.js";
 
@@ -346,11 +347,26 @@ export function MediaPickerModal({
 		setUrlError(null);
 
 		try {
+			const sniffedMime = mimeFromUrl(url) ?? "image/unknown";
+
+			// Pre-validate against the field's allowlist so the user sees the error
+			// here rather than at content-save time (where it becomes INVALID_MIME_FOR_FIELD).
+			if (sniffedMime === "image/unknown" && filters && filters.length > 0) {
+				setUrlError(
+					t`Cannot determine MIME type from URL. Use a URL ending in a recognized image extension (e.g. .jpg, .png, .webp).`,
+				);
+				return;
+			}
+			if (filters && filters.length > 0 && !matchesMimeAllowlist(sniffedMime, filters)) {
+				setUrlError(t`This field does not accept ${sniffedMime} files.`);
+				return;
+			}
+
 			const dimensions = await probeImageDimensions(url.href, t`Failed to load image`);
 			const externalItem: MediaItem = {
 				id: "",
 				filename: url.pathname.split("/").pop() || "external-image",
-				mimeType: "image/unknown",
+				mimeType: sniffedMime,
 				url: url.href,
 				provider: "external-url",
 				size: 0,
