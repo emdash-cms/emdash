@@ -387,12 +387,12 @@ Common imports: `Button`, `LinkButton`, `Dialog`, `Input`, `InputArea`, `Select`
 
 #### Buttons and links: pick the right component
 
-| Need                                       | Component                                                |
-| ------------------------------------------ | -------------------------------------------------------- |
-| In-place action (submit, toggle, open)     | `Button`                                                 |
-| External link styled as a button           | `LinkButton href="..." external`                         |
-| Internal router-aware link as a button     | `RouterLinkButton to="..."` (in `components/`)           |
-| Non-button element needing button classes  | `buttonVariants(...)` (e.g. file-upload `<span>` inside `<label>`) |
+| Need                                      | Component                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------ |
+| In-place action (submit, toggle, open)    | `Button`                                                           |
+| External link styled as a button          | `LinkButton href="..." external`                                   |
+| Internal router-aware link as a button    | `RouterLinkButton to="..."` (in `components/`)                     |
+| Non-button element needing button classes | `buttonVariants(...)` (e.g. file-upload `<span>` inside `<label>`) |
 
 `RouterLinkButton` is our wrapper around TanStack Router's `<Link>` styled with Kumo button classes. Use it for any internal navigation that should look like a button -- typed `to`/`params`/`search`/`preload` props pass through. Never write `<Link><Button>...</Button></Link>` (renders invalid `<a><button>` HTML, breaks a11y). Never write `<a>` with hand-rolled button styling.
 
