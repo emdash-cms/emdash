@@ -11,7 +11,7 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input, Select } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
 import {
 	DndContext,
 	KeyboardSensor,
@@ -1361,15 +1361,11 @@ function BlockKitField({
 		}
 		case "toggle": {
 			return (
-				<div className="flex items-center gap-2">
-					<input
-						type="checkbox"
-						checked={!!value}
-						onChange={(e) => onChange(field.action_id, e.target.checked)}
-						className="h-4 w-4"
-					/>
-					<label className="text-sm font-medium">{field.label}</label>
-				</div>
+				<Switch
+					checked={!!value}
+					onCheckedChange={(checked) => onChange(field.action_id, checked)}
+					label={<span className="text-sm font-medium">{field.label}</span>}
+				/>
 			);
 		}
 		case "repeater": {

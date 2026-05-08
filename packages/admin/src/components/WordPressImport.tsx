@@ -1,4 +1,13 @@
-import { Badge, Button, Input, LinkButton, Loader, Select, buttonVariants } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	Input,
+	LinkButton,
+	Loader,
+	Select,
+	Switch,
+	buttonVariants,
+} from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -1585,15 +1594,10 @@ function ReviewStep({
 					<div className="divide-y">
 						{/* Menus */}
 						<div className="p-4">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-3">
-									<input
-										type="checkbox"
-										checked={importMenus}
-										onChange={(e) => onImportMenusChange(e.target.checked)}
-										className="h-4 w-4 rounded border-gray-300"
-										aria-label={t`Import navigation menus`}
-									/>
+							<Switch
+								checked={importMenus}
+								onCheckedChange={(checked) => onImportMenusChange(checked)}
+								label={
 									<div className="flex items-center gap-2">
 										<List className="h-4 w-4 text-kumo-subtle" />
 										<div>
@@ -1603,43 +1607,31 @@ function ReviewStep({
 											</p>
 										</div>
 									</div>
-								</div>
-							</div>
+								}
+							/>
 						</div>
 
 						{/* Categories count */}
 						{analysis.categories > 0 && (
 							<div className="p-4">
-								<div className="flex items-center gap-3">
-									<input
-										type="checkbox"
-										checked={true}
-										disabled
-										className="h-4 w-4 rounded border-gray-300"
-										aria-label={t`Categories will be imported`}
-									/>
-									<div>
-										<p className="font-medium">{t`Categories (${analysis.categories})`}</p>
-									</div>
-								</div>
+								<Switch
+									checked={true}
+									onCheckedChange={() => {}}
+									disabled
+									label={<p className="font-medium">{t`Categories (${analysis.categories})`}</p>}
+								/>
 							</div>
 						)}
 
 						{/* Tags count */}
 						{analysis.tags > 0 && (
 							<div className="p-4">
-								<div className="flex items-center gap-3">
-									<input
-										type="checkbox"
-										checked={true}
-										disabled
-										className="h-4 w-4 rounded border-gray-300"
-										aria-label={t`Tags will be imported`}
-									/>
-									<div>
-										<p className="font-medium">{t`Tags (${analysis.tags})`}</p>
-									</div>
-								</div>
+								<Switch
+									checked={true}
+									onCheckedChange={() => {}}
+									disabled
+									label={<p className="font-medium">{t`Tags (${analysis.tags})`}</p>}
+								/>
 							</div>
 						)}
 					</div>
@@ -1661,53 +1653,36 @@ function ReviewStep({
 					<div className="divide-y">
 						{/* Site title & tagline */}
 						<div className="p-4">
-							<div className="flex items-center gap-3">
-								<input
-									type="checkbox"
-									checked={importSiteTitle}
-									onChange={(e) => onImportSiteTitleChange(e.target.checked)}
-									className="h-4 w-4 rounded border-gray-300"
-									aria-label={t`Import site title and tagline`}
-								/>
-								<div>
-									<p className="font-medium">{t`Site title & tagline`}</p>
-								</div>
-							</div>
+							<Switch
+								checked={importSiteTitle}
+								onCheckedChange={(checked) => onImportSiteTitleChange(checked)}
+								label={<p className="font-medium">{t`Site title & tagline`}</p>}
+							/>
 						</div>
 
 						{/* Logo & favicon */}
 						<div className="p-4">
-							<div className="flex items-center gap-3">
-								<input
-									type="checkbox"
-									checked={importLogo}
-									onChange={(e) => onImportLogoChange(e.target.checked)}
-									className="h-4 w-4 rounded border-gray-300"
-									aria-label={t`Import logo and favicon`}
-								/>
-								<div>
-									<p className="font-medium">{t`Logo & favicon`}</p>
-								</div>
-							</div>
+							<Switch
+								checked={importLogo}
+								onCheckedChange={(checked) => onImportLogoChange(checked)}
+								label={<p className="font-medium">{t`Logo & favicon`}</p>}
+							/>
 						</div>
 
 						{/* SEO settings */}
 						<div className="p-4">
-							<div className="flex items-center gap-3">
-								<input
-									type="checkbox"
-									checked={importSeo}
-									onChange={(e) => onImportSeoChange(e.target.checked)}
-									className="h-4 w-4 rounded border-gray-300"
-									aria-label={t`Import SEO settings`}
-								/>
-								<div>
-									<p className="font-medium">{t`SEO settings (Yoast)`}</p>
-									<p className="text-sm text-kumo-subtle">
-										{t`Meta titles, descriptions, and social images`}
-									</p>
-								</div>
-							</div>
+							<Switch
+								checked={importSeo}
+								onCheckedChange={(checked) => onImportSeoChange(checked)}
+								label={
+									<div>
+										<p className="font-medium">{t`SEO settings (Yoast)`}</p>
+										<p className="text-sm text-kumo-subtle">
+											{t`Meta titles, descriptions, and social images`}
+										</p>
+									</div>
+								}
+							/>
 						</div>
 					</div>
 				</div>
@@ -1812,13 +1787,10 @@ function PostTypeRow({
 		<div className="p-4">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
-					<input
-						type="checkbox"
+					<Switch
 						checked={selection?.enabled ?? false}
 						disabled={!canImport}
-						onChange={(e) => onToggleEnabled(e.target.checked)}
-						className="h-4 w-4 rounded border-gray-300"
-						aria-label={t`Import ${postType.name}`}
+						onCheckedChange={(checked) => onToggleEnabled(checked)}
 					/>
 					<button
 						onClick={onToggleExpand}

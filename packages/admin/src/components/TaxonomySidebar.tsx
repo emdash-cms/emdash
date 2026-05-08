@@ -6,7 +6,7 @@
  * - Tag input for flat taxonomies (tags)
  */
 
-import { Button, Input, Label, Toast } from "@cloudflare/kumo";
+import { Button, Checkbox, Input, Label, Toast } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -118,18 +118,16 @@ function CategoryCheckboxTree({
 
 	return (
 		<div>
-			<label
-				className="flex items-center py-1 cursor-pointer hover:bg-kumo-tint/50 rounded px-2"
+			<div
+				className="py-1 hover:bg-kumo-tint/50 rounded px-2"
 				style={{ marginInlineStart: `${level}rem` }}
 			>
-				<input
-					type="checkbox"
+				<Checkbox
 					checked={isChecked}
-					onChange={() => onToggle(term.id)}
-					className="me-2"
+					onCheckedChange={() => onToggle(term.id)}
+					label={<span className="text-sm">{term.label}</span>}
 				/>
-				<span className="text-sm">{term.label}</span>
-			</label>
+			</div>
 			{term.children.map((child) => (
 				<CategoryCheckboxTree
 					key={child.id}

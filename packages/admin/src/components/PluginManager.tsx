@@ -6,7 +6,7 @@
  * update/uninstall for marketplace-installed plugins.
  */
 
-import { Badge, Button, Switch, Toast } from "@cloudflare/kumo";
+import { Badge, Button, Checkbox, Switch, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	PuzzlePiece,
@@ -569,15 +569,11 @@ export function UninstallConfirmDialog({
 					<p className="text-sm text-kumo-subtle">
 						{t`This will remove the plugin and its bundle from your site.`}
 					</p>
-					<label className="flex items-center gap-2 text-sm">
-						<input
-							type="checkbox"
-							checked={deleteData}
-							onChange={(e) => setDeleteData(e.target.checked)}
-							className="rounded border"
-						/>
-						{t`Also delete plugin storage data`}
-					</label>
+					<Checkbox
+						checked={deleteData}
+						onCheckedChange={(checked) => setDeleteData(checked)}
+						label={t`Also delete plugin storage data`}
+					/>
 					<DialogError message={error} />
 				</div>
 				<div className="flex justify-end gap-3 border-t px-6 py-4">

@@ -1,4 +1,4 @@
-import { Badge, Button, Input, InputArea, Label, Select } from "@cloudflare/kumo";
+import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo";
 import {
 	DndContext,
 	closestCenter,
@@ -441,50 +441,43 @@ export function ContentTypeEditor({
 							<div className="space-y-3">
 								<Label>Features</Label>
 								{SUPPORT_OPTIONS.map((option) => (
-									<label
+									<div
 										key={option.value}
 										className={cn(
-											"flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50",
-											isFromCode && "opacity-60 cursor-not-allowed",
+											"p-2 rounded-md hover:bg-kumo-tint/50",
+											isFromCode && "opacity-60",
 										)}
 									>
-										<input
-											type="checkbox"
+										<Checkbox
 											checked={supports.includes(option.value)}
-											onChange={() => handleSupportToggle(option.value)}
-											className="mt-1 rounded border-kumo-line"
+											onCheckedChange={() => handleSupportToggle(option.value)}
 											disabled={isFromCode}
+											label={
+												<div>
+													<span className="text-sm font-medium">{t(option.label)}</span>
+													<p className="text-xs text-kumo-subtle">{t(option.description)}</p>
+												</div>
+											}
 										/>
-										<div>
-											<span className="text-sm font-medium">{t(option.label)}</span>
-											<p className="text-xs text-kumo-subtle">{t(option.description)}</p>
-										</div>
-									</label>
+									</div>
 								))}
 							</div>
 
 							{/* SEO toggle */}
 							<div className="pt-2 border-t">
-								<label
-									className={cn(
-										"flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50",
-										isFromCode && "opacity-60 cursor-not-allowed",
-									)}
-								>
-									<input
-										type="checkbox"
-										checked={hasSeo}
-										onChange={() => setHasSeo(!hasSeo)}
-										className="mt-1 rounded border-kumo-line"
-										disabled={isFromCode}
-									/>
-									<div>
-										<span className="text-sm font-medium">{t`SEO`}</span>
-										<p className="text-xs text-kumo-subtle">
-											{t`Add SEO metadata fields (title, description, image) and include in sitemap`}
-										</p>
-									</div>
-								</label>
+								<Switch
+									checked={hasSeo}
+									onCheckedChange={(checked) => setHasSeo(checked)}
+									disabled={isFromCode}
+									label={
+										<div>
+											<span className="text-sm font-medium">{t`SEO`}</span>
+											<p className="text-xs text-kumo-subtle">
+												{t`Add SEO metadata fields (title, description, image) and include in sitemap`}
+											</p>
+										</div>
+									}
+								/>
 							</div>
 						</div>
 
@@ -493,26 +486,19 @@ export function ContentTypeEditor({
 							<div className="rounded-lg border p-4 space-y-4">
 								<h2 className="font-semibold">{t`Comments`}</h2>
 
-								<label
-									className={cn(
-										"flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50",
-										isFromCode && "opacity-60 cursor-not-allowed",
-									)}
-								>
-									<input
-										type="checkbox"
-										checked={commentsEnabled}
-										onChange={() => setCommentsEnabled(!commentsEnabled)}
-										className="mt-1 rounded border-kumo-line"
-										disabled={isFromCode}
-									/>
-									<div>
-										<span className="text-sm font-medium">{t`Enable comments`}</span>
-										<p className="text-xs text-kumo-subtle">
-											{t`Allow visitors to leave comments on this collection's content`}
-										</p>
-									</div>
-								</label>
+								<Switch
+									checked={commentsEnabled}
+									onCheckedChange={(checked) => setCommentsEnabled(checked)}
+									disabled={isFromCode}
+									label={
+										<div>
+											<span className="text-sm font-medium">{t`Enable comments`}</span>
+											<p className="text-xs text-kumo-subtle">
+												{t`Allow visitors to leave comments on this collection's content`}
+											</p>
+										</div>
+									}
+								/>
 
 								{commentsEnabled && (
 									<>
@@ -545,28 +531,21 @@ export function ContentTypeEditor({
 											{t`Set to 0 to never close comments automatically.`}
 										</p>
 
-										<label
-											className={cn(
-												"flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50",
-												isFromCode && "opacity-60 cursor-not-allowed",
-											)}
-										>
-											<input
-												type="checkbox"
-												checked={commentsAutoApproveUsers}
-												onChange={() => setCommentsAutoApproveUsers(!commentsAutoApproveUsers)}
-												className="mt-1 rounded border-kumo-line"
-												disabled={isFromCode}
-											/>
-											<div>
-												<span className="text-sm font-medium">
-													{t`Auto-approve authenticated users`}
-												</span>
-												<p className="text-xs text-kumo-subtle">
-													{t`Comments from logged-in CMS users are approved automatically`}
-												</p>
-											</div>
-										</label>
+										<Switch
+											checked={commentsAutoApproveUsers}
+											onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)}
+											disabled={isFromCode}
+											label={
+												<div>
+													<span className="text-sm font-medium">
+														{t`Auto-approve authenticated users`}
+													</span>
+													<p className="text-xs text-kumo-subtle">
+														{t`Comments from logged-in CMS users are approved automatically`}
+													</p>
+												</div>
+											}
+										/>
 									</>
 								)}
 							</div>

@@ -1,4 +1,4 @@
-import { Button, Dialog, Input, InputArea, Select } from "@cloudflare/kumo";
+import { Button, Dialog, Input, InputArea, Select, Switch } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	TextT,
@@ -431,38 +431,26 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 
 						{/* Toggles */}
 						<div className="flex items-center space-x-6">
-							<label className="flex items-center space-x-2">
-								<input
-									type="checkbox"
-									checked={required}
-									onChange={(e) => setField("required", e.target.checked)}
-									className="rounded border-kumo-line"
-								/>
-								<span className="text-sm">{t`Required`}</span>
-							</label>
-							<label className="flex items-center space-x-2">
-								<input
-									type="checkbox"
-									checked={unique}
-									onChange={(e) => setField("unique", e.target.checked)}
-									className="rounded border-kumo-line"
-								/>
-								<span className="text-sm">{t`Unique`}</span>
-							</label>
+							<Switch
+								checked={required}
+								onCheckedChange={(checked) => setField("required", checked)}
+								label={<span className="text-sm">{t`Required`}</span>}
+							/>
+							<Switch
+								checked={unique}
+								onCheckedChange={(checked) => setField("unique", checked)}
+								label={<span className="text-sm">{t`Unique`}</span>}
+							/>
 							{(selectedType === "string" ||
 								selectedType === "text" ||
 								selectedType === "portableText" ||
 								selectedType === "slug" ||
 								selectedType === "url") && (
-								<label className="flex items-center space-x-2">
-									<input
-										type="checkbox"
-										checked={searchable}
-										onChange={(e) => setField("searchable", e.target.checked)}
-										className="rounded border-kumo-line"
-									/>
-									<span className="text-sm">{t`Searchable`}</span>
-								</label>
+								<Switch
+									checked={searchable}
+									onCheckedChange={(checked) => setField("searchable", checked)}
+									label={<span className="text-sm">{t`Searchable`}</span>}
+								/>
 							)}
 						</div>
 
@@ -600,18 +588,15 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 													/>
 												</div>
 											</div>
-											<label className="flex items-center gap-2 text-sm">
-												<input
-													type="checkbox"
-													checked={sf.required}
-													onChange={(e) => {
-														const updated = [...formState.subFields];
-														updated[i] = { ...sf, required: e.target.checked };
-														setFormState((prev) => ({ ...prev, subFields: updated }));
-													}}
-												/>
-												{t`Required`}
-											</label>
+											<Switch
+												label={t`Required`}
+												checked={sf.required ?? false}
+												onCheckedChange={(checked) => {
+													const updated = [...formState.subFields];
+													updated[i] = { ...sf, required: checked };
+													setFormState((prev) => ({ ...prev, subFields: updated }));
+												}}
+											/>
 										</div>
 										<Button
 											variant="ghost"

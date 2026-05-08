@@ -657,18 +657,13 @@ function CreateTaxonomyDialog({
 								</p>
 								<div className="border rounded-md p-2 space-y-1">
 									{collectionEntries.map(({ slug, label: collLabel }) => (
-										<label
-											key={slug}
-											className="flex items-center gap-2 py-1 px-2 cursor-pointer hover:bg-kumo-tint/50 rounded"
-										>
-											<input
-												type="checkbox"
+										<div key={slug} className="py-1 px-2 hover:bg-kumo-tint/50 rounded">
+											<Checkbox
 												checked={selectedCollections.includes(slug)}
-												onChange={() => toggleCollection(slug)}
-												className="rounded"
+												onCheckedChange={() => toggleCollection(slug)}
+												label={<span className="text-sm">{collLabel}</span>}
 											/>
-											<span className="text-sm">{collLabel}</span>
-										</label>
+										</div>
 									))}
 								</div>
 							</div>
