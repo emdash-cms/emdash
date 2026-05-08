@@ -20,7 +20,7 @@ interface MediaRefValue {
 
 function asMediaRef(value: unknown): MediaRefValue | null {
 	if (value === null || value === undefined) return null;
-	if (typeof value !== "object") return null;
+	if (typeof value !== "object" || Array.isArray(value)) return null;
 	return value as MediaRefValue;
 }
 
@@ -48,7 +48,9 @@ async function loadMediaFieldsForCollection(
 			if (!list || list.length === 0) continue;
 			out.push({ slug: row.slug, type: row.type, allowedMimeTypes: list });
 		} catch {
-			// Malformed validation JSON — skip
+			console.warn(
+				`[emdash] malformed validation JSON for field '${row.slug}' — skipping MIME check`,
+			);
 		}
 	}
 	return out;
@@ -96,7 +98,19 @@ export async function validateMediaFields(
 		if (!ref) continue;
 
 		const provider = typeof ref.provider === "string" ? ref.provider : "local";
-		if (provider !== "local") continue;
+		if (provider !== "local") {
+			if (typeof ref.mimeType !== "string") continue;
+			if (!matchesMimeAllowlist(ref.mimeType, field.allowedMimeTypes)) {
+				return {
+					success: false,
+					error: {
+						code: "INVALID_MIME_FOR_FIELD",
+						message: `Field '${field.slug}' does not accept ${ref.mimeType}`,
+					},
+				};
+			}
+			continue;
+		}
 
 		if (typeof ref.id !== "string") continue;
 		const mime = mimeById.get(ref.id);

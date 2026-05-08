@@ -49,7 +49,13 @@ const fieldValidation = z
 		subFields: z.array(repeaterSubFieldSchema).min(1).optional(),
 		minItems: z.number().int().min(0).optional(),
 		maxItems: z.number().int().min(1).optional(),
-		allowedMimeTypes: z.array(z.string()).optional(),
+		allowedMimeTypes: z
+			.array(
+				z
+					.string()
+					.regex(/^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]*$/i, "Invalid MIME type"),
+			)
+			.optional(),
 	})
 	.optional();
 

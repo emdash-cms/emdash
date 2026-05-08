@@ -1,7 +1,6 @@
-import type { Kysely } from "kysely";
-
 import { hasPermission } from "@emdash-cms/auth";
 import type { RoleLevel } from "@emdash-cms/auth";
+import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 

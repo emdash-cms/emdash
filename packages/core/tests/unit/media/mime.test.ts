@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 
-import { matchesMimeAllowlist, normalizeMime, expandExtensionShorthand } from "../../../src/media/mime.js";
+import {
+	matchesMimeAllowlist,
+	normalizeMime,
+	expandExtensionShorthand,
+} from "../../../src/media/mime.js";
 
 describe("matchesMimeAllowlist", () => {
 	it("matches exact MIME types", () => {
@@ -41,7 +45,9 @@ describe("matchesMimeAllowlist", () => {
 	it("strips MIME parameters before matching", () => {
 		expect(matchesMimeAllowlist("text/html; charset=utf-8", ["text/html"])).toBe(true);
 		expect(matchesMimeAllowlist("text/plain; charset=iso-8859-1", ["text/"])).toBe(true);
-		expect(matchesMimeAllowlist("application/json; charset=utf-8", ["application/pdf"])).toBe(false);
+		expect(matchesMimeAllowlist("application/json; charset=utf-8", ["application/pdf"])).toBe(
+			false,
+		);
 	});
 });
 

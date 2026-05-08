@@ -20,9 +20,7 @@ function normalizeMimeFilter(input?: string | readonly string[]): string[] {
 	return arr
 		.filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
 		.map((entry) =>
-			entry.endsWith("/")
-				? entry.toLowerCase()
-				: entry.split(";")[0]!.trim().toLowerCase(),
+			entry.endsWith("/") ? entry.toLowerCase() : entry.split(";")[0]!.trim().toLowerCase(),
 		);
 }
 

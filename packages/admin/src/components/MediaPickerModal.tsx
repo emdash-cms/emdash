@@ -42,11 +42,13 @@ interface SelectedMedia {
  */
 function matchesAnyFilter(mime: string, filters: string[] | undefined): boolean {
 	if (!filters || filters.length === 0) return true;
+	const normalizedMime = mime.toLowerCase();
 	for (const entry of filters) {
 		if (!entry || !entry.includes("/")) continue;
-		if (entry.endsWith("/")) {
-			if (mime.startsWith(entry)) return true;
-		} else if (mime === entry) {
+		const normalizedEntry = entry.toLowerCase();
+		if (normalizedEntry.endsWith("/")) {
+			if (normalizedMime.startsWith(normalizedEntry)) return true;
+		} else if (normalizedMime === normalizedEntry) {
 			return true;
 		}
 	}
@@ -114,7 +116,8 @@ export function MediaPickerModal({
 	// Unified filters: mimeTypeFilters (plural array) takes precedence over the
 	// legacy mimeTypeFilter (singular string).
 	const filters = React.useMemo(() => {
-		if (mimeTypeFilters !== undefined) return mimeTypeFilters.length > 0 ? mimeTypeFilters : undefined;
+		if (mimeTypeFilters !== undefined)
+			return mimeTypeFilters.length > 0 ? mimeTypeFilters : undefined;
 		if (mimeTypeFilter && mimeTypeFilter.length > 0) return [mimeTypeFilter];
 		return undefined;
 	}, [mimeTypeFilters, mimeTypeFilter]);
@@ -349,6 +352,7 @@ export function MediaPickerModal({
 				filename: url.pathname.split("/").pop() || "external-image",
 				mimeType: "image/unknown",
 				url: url.href,
+				provider: "external-url",
 				size: 0,
 				width: dimensions.width,
 				height: dimensions.height,

@@ -148,9 +148,7 @@ describeEachDialect("save-side media-field MIME validation", (dialect) => {
 		expect(result.error.code).toBe("INVALID_MIME_FOR_FIELD");
 	});
 
-	it("skips MIME validation for non-local provider refs (cannot verify server-side)", async () => {
-		// Non-local provider refs cannot be verified server-side without provider introspection,
-		// so they are intentionally skipped. allowedMimeTypes enforcement only applies to local refs.
+	it("rejects external-provider ref when mimeType is present and does not match allowlist", async () => {
 		const result = await handleContentCreate(ctx.db, "posts", {
 			slug: "p4",
 			data: {
@@ -161,6 +159,41 @@ describeEachDialect("save-side media-field MIME validation", (dialect) => {
 					filename: "remote.zip",
 					mimeType: "application/zip",
 					src: "https://example.com/remote.zip",
+				},
+			},
+		});
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.code).toBe("INVALID_MIME_FOR_FIELD");
+	});
+
+	it("accepts external-provider ref when mimeType matches the allowlist", async () => {
+		const result = await handleContentCreate(ctx.db, "posts", {
+			slug: "p4b",
+			data: {
+				title: "p4b",
+				attachment: {
+					id: "ext-2",
+					provider: "s3",
+					filename: "remote.pdf",
+					mimeType: "application/pdf",
+					src: "https://example.com/remote.pdf",
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("skips MIME validation for external-provider ref with no mimeType field", async () => {
+		const result = await handleContentCreate(ctx.db, "posts", {
+			slug: "p4c",
+			data: {
+				title: "p4c",
+				attachment: {
+					id: "ext-3",
+					provider: "s3",
+					filename: "remote-unknown",
+					src: "https://example.com/remote-unknown",
 				},
 			},
 		});

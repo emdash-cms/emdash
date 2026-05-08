@@ -66,10 +66,12 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 	".woff2": "font/woff2",
 };
 
+const VALID_MIME_RE = /^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]*$/i;
+
 function expandShorthand(entry: string): string | null {
 	const trimmed = entry.trim();
 	if (!trimmed) return null;
-	if (trimmed.includes("/")) return trimmed;
+	if (trimmed.includes("/")) return VALID_MIME_RE.test(trimmed) ? trimmed : null;
 	if (trimmed.startsWith(".")) return EXTENSION_TO_MIME[trimmed.toLowerCase()] ?? null;
 	return null;
 }
