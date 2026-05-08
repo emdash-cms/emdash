@@ -99,7 +99,17 @@ export async function validateMediaFields(
 
 		const provider = typeof ref.provider === "string" ? ref.provider : "local";
 		if (provider !== "local") {
-			if (typeof ref.mimeType !== "string") continue;
+			// mimeType is required on constrained external-provider refs.
+			// The value is trusted as-is — no server-side fetch to verify it.
+			if (typeof ref.mimeType !== "string") {
+				return {
+					success: false,
+					error: {
+						code: "INVALID_MIME_FOR_FIELD",
+						message: `Field '${field.slug}' requires a mimeType declaration for non-local media`,
+					},
+				};
+			}
 			if (!matchesMimeAllowlist(ref.mimeType, field.allowedMimeTypes)) {
 				return {
 					success: false,
@@ -112,7 +122,15 @@ export async function validateMediaFields(
 			continue;
 		}
 
-		if (typeof ref.id !== "string") continue;
+		if (typeof ref.id !== "string") {
+			return {
+				success: false,
+				error: {
+					code: "INVALID_MIME_FOR_FIELD",
+					message: `Field '${field.slug}' references media with an invalid id`,
+				},
+			};
+		}
 		const mime = mimeById.get(ref.id);
 
 		if (!mime) {

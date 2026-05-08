@@ -42,6 +42,10 @@ export function formatFileSize(bytes: number): string {
 	return `${Math.floor(bytes / 1024 / 1024)}MB`;
 }
 
+// Matches a full MIME type (type/subtype) with an optional semicolon-delimited
+// parameter section. Forbids CR/LF to prevent header injection.
+const CONTENT_TYPE_RE = /^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]+(\s*;[^\r\n]*)?$/i;
+
 export function mediaUploadUrlBody(maxSize: number) {
 	if (!Number.isFinite(maxSize) || maxSize <= 0) {
 		throw new Error(`EmDash: maxUploadSize must be a positive finite number, got ${maxSize}`);
@@ -49,7 +53,10 @@ export function mediaUploadUrlBody(maxSize: number) {
 	return z
 		.object({
 			filename: z.string().min(1, "filename is required"),
-			contentType: z.string().min(1, "contentType is required"),
+			contentType: z
+				.string()
+				.min(1, "contentType is required")
+				.regex(CONTENT_TYPE_RE, "Invalid content type"),
 			size: z
 				.number()
 				.int()

@@ -35,7 +35,7 @@ const PRESETS: ReadonlyArray<Preset> = [
 	{ key: "audio", mimeTypes: ["audio/"] },
 	{ key: "video", mimeTypes: ["video/"] },
 	{ key: "captions", mimeTypes: ["text/vtt", "application/x-subrip"] },
-	{ key: "fonts", mimeTypes: ["font/", "application/font-woff"] },
+	{ key: "fonts", mimeTypes: ["font/"] },
 ];
 
 const EXTENSION_TO_MIME: Record<string, string> = {

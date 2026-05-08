@@ -184,7 +184,7 @@ describeEachDialect("save-side media-field MIME validation", (dialect) => {
 		expect(result.success).toBe(true);
 	});
 
-	it("skips MIME validation for external-provider ref with no mimeType field", async () => {
+	it("rejects external-provider ref with no mimeType when field is constrained", async () => {
 		const result = await handleContentCreate(ctx.db, "posts", {
 			slug: "p4c",
 			data: {
@@ -197,7 +197,22 @@ describeEachDialect("save-side media-field MIME validation", (dialect) => {
 				},
 			},
 		});
-		expect(result.success).toBe(true);
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.code).toBe("INVALID_MIME_FOR_FIELD");
+	});
+
+	it("rejects local-provider ref with non-string id when field is constrained", async () => {
+		const result = await handleContentCreate(ctx.db, "posts", {
+			slug: "p4d",
+			data: {
+				title: "p4d",
+				attachment: { id: 123, provider: "local", filename: "doc.pdf" },
+			},
+		});
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.code).toBe("INVALID_MIME_FOR_FIELD");
 	});
 
 	it("file/image field without allowedMimeTypes is not validated", async () => {
