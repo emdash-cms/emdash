@@ -310,10 +310,12 @@ export class AdminPage {
 	}
 
 	/**
-	 * Click the save button
+	 * Click the save button. Editor pages now render two SaveButtons (one in
+	 * the header, one at the bottom of the main column); both submit the same
+	 * form so we click the first match.
 	 */
 	async clickSave(): Promise<void> {
-		await this.page.locator('button:has-text("Save")').click();
+		await this.page.locator('button:has-text("Save")').first().click();
 	}
 
 	/**
@@ -323,6 +325,7 @@ export class AdminPage {
 		// Wait for the save button to show "Saved" or stop showing "Saving..."
 		await this.page
 			.getByRole("button", { name: "Saved" })
+			.first()
 			.waitFor({ timeout: 10000 })
 			.catch(() => {});
 		await this.waitForLoading();
