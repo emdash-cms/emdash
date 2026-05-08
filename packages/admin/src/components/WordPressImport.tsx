@@ -1791,6 +1791,7 @@ function PostTypeRow({
 						checked={selection?.enabled ?? false}
 						disabled={!canImport}
 						onCheckedChange={(checked) => onToggleEnabled(checked)}
+						aria-label={t`Import ${postType.name}`}
 					/>
 					<button
 						onClick={onToggleExpand}
