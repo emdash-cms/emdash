@@ -1,4 +1,5 @@
 import { Button, Input, InputArea, Loader, Switch } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -51,6 +52,7 @@ function getUserLabel(user: UserListItem): string {
 }
 
 export function BylinesPage() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const [search, setSearch] = React.useState("");
 	const [guestFilter, setGuestFilter] = React.useState<"all" | "guest" | "linked">("all");
@@ -165,7 +167,7 @@ export function BylinesPage() {
 	}
 
 	if (error) {
-		return <div className="text-kumo-danger">Failed to load bylines: {error.message}</div>;
+		return <div className="text-kumo-danger">{t`Failed to load bylines: ${error.message}`}</div>;
 	}
 
 	const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -176,20 +178,20 @@ export function BylinesPage() {
 			<div className="rounded-lg border p-4">
 				<div className="mb-4 space-y-2">
 					<Input
-						placeholder="Search bylines"
+						placeholder={t`Search bylines`}
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 					/>
 					<div className="flex items-center gap-2">
 						<select
-							aria-label="Filter byline type"
+							aria-label={t`Filter byline type`}
 							value={guestFilter}
 							onChange={(e) => setGuestFilter(e.target.value as "all" | "guest" | "linked")}
 							className="w-full rounded border bg-kumo-base px-3 py-2 text-sm"
 						>
-							<option value="all">All bylines</option>
-							<option value="guest">Guest only</option>
-							<option value="linked">Linked only</option>
+							<option value="all">{t`All bylines`}</option>
+							<option value="guest">{t`Guest only`}</option>
+							<option value="linked">{t`Linked only`}</option>
 						</select>
 						<Button
 							variant="secondary"
@@ -198,7 +200,7 @@ export function BylinesPage() {
 								setForm(toFormState(null));
 							}}
 						>
-							New
+							{t`New`}
 						</Button>
 					</div>
 				</div>
@@ -218,12 +220,12 @@ export function BylinesPage() {
 								<p className="font-medium">{item.displayName}</p>
 								<p className="text-xs text-kumo-subtle">
 									{item.slug}
-									{item.isGuest ? " - Guest" : item.userId ? " - Linked" : ""}
+									{item.isGuest ? t` - Guest` : item.userId ? t` - Linked` : ""}
 								</p>
 							</button>
 						);
 					})}
-					{items.length === 0 && <p className="text-sm text-kumo-subtle">No bylines found</p>}
+					{items.length === 0 && <p className="text-sm text-kumo-subtle">{t`No bylines found`}</p>}
 					{nextCursor && (
 						<Button
 							variant="secondary"
@@ -231,7 +233,7 @@ export function BylinesPage() {
 							onClick={() => loadMoreMutation.mutate()}
 							disabled={loadMoreMutation.isPending}
 						>
-							{loadMoreMutation.isPending ? "Loading..." : "Load more"}
+							{loadMoreMutation.isPending ? t`Loading...` : t`Load more`}
 						</Button>
 					)}
 				</div>
@@ -239,33 +241,33 @@ export function BylinesPage() {
 
 			<div className="rounded-lg border p-6">
 				<h2 className="text-lg font-semibold mb-4">
-					{selected ? `Edit ${selected.displayName}` : "Create byline"}
+					{selected ? t`Edit ${selected.displayName}` : t`Create byline`}
 				</h2>
 
 				<div className="space-y-4">
 					<Input
-						label="Display name"
+						label={t`Display name`}
 						value={form.displayName}
 						onChange={(e) => setForm((prev) => ({ ...prev, displayName: e.target.value }))}
 					/>
 					<Input
-						label="Slug"
+						label={t`Slug`}
 						value={form.slug}
 						onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
 					/>
 					<Input
-						label="Website URL"
+						label={t`Website URL`}
 						value={form.websiteUrl}
 						onChange={(e) => setForm((prev) => ({ ...prev, websiteUrl: e.target.value }))}
 					/>
 					<InputArea
-						label="Bio"
+						label={t`Bio`}
 						value={form.bio}
 						onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
 						rows={5}
 					/>
 					<div>
-						<label className="text-sm font-medium">Linked user</label>
+						<label className="text-sm font-medium">{t`Linked user`}</label>
 						<select
 							value={form.userId ?? ""}
 							onChange={(e) =>
@@ -277,7 +279,7 @@ export function BylinesPage() {
 							}
 							className="mt-1 w-full rounded border bg-kumo-base px-3 py-2 text-sm"
 						>
-							<option value="">No linked user</option>
+							<option value="">{t`No linked user`}</option>
 							{users.map((user) => (
 								<option key={user.id} value={user.id}>
 									{getUserLabel(user)}
@@ -286,7 +288,7 @@ export function BylinesPage() {
 						</select>
 					</div>
 					<Switch
-						label="Guest byline"
+						label={t`Guest byline`}
 						checked={form.isGuest}
 						onCheckedChange={(checked) =>
 							setForm((prev) => ({
@@ -310,7 +312,7 @@ export function BylinesPage() {
 							}}
 							disabled={!form.displayName || !form.slug || isSaving}
 						>
-							{isSaving ? "Saving..." : selected ? "Save" : "Create"}
+							{isSaving ? t`Saving...` : selected ? t`Save` : t`Create`}
 						</Button>
 
 						{selected && (
@@ -319,7 +321,7 @@ export function BylinesPage() {
 								onClick={() => setShowDeleteConfirm(true)}
 								disabled={deleteMutation.isPending}
 							>
-								Delete
+								{t`Delete`}
 							</Button>
 						)}
 					</div>
@@ -332,10 +334,10 @@ export function BylinesPage() {
 					setShowDeleteConfirm(false);
 					deleteMutation.reset();
 				}}
-				title="Delete Byline?"
-				description="This removes the byline profile. Content byline links are removed and lead pointers are cleared."
-				confirmLabel="Delete"
-				pendingLabel="Deleting..."
+				title={t`Delete Byline?`}
+				description={t`This removes the byline profile. Content byline links are removed and lead pointers are cleared.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => deleteMutation.mutate()}

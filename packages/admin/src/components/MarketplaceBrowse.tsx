@@ -6,7 +6,8 @@
  */
 
 import { Badge, Button } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
@@ -37,11 +38,11 @@ function isSortOption(value: string): value is SortOption {
 	return SORT_OPTIONS.has(value);
 }
 
-const SORT_LABELS: Record<SortOption, string> = {
-	installs: "Most Popular",
-	updated: "Recently Updated",
-	created: "Newest",
-	name: "Name",
+const SORT_LABELS: Record<SortOption, MessageDescriptor> = {
+	installs: msg`Most Popular`,
+	updated: msg`Recently Updated`,
+	created: msg`Newest`,
+	name: msg`Name`,
 };
 
 export interface MarketplaceBrowseProps {
@@ -123,7 +124,7 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 				>
 					{Object.entries(SORT_LABELS).map(([value, label]) => (
 						<option key={value} value={value}>
-							{label}
+							{t(label)}
 						</option>
 					))}
 				</select>
@@ -137,8 +138,12 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 					<p className="mt-1 text-sm text-kumo-subtle">
 						{error instanceof Error ? error.message : t`An error occurred`}
 					</p>
-					<Button variant="ghost" className="mt-4" onClick={() => void refetch()}>
-						<ArrowsClockwise className="me-2 h-4 w-4" />
+					<Button
+						variant="ghost"
+						className="mt-4"
+						onClick={() => void refetch()}
+						icon={<ArrowsClockwise />}
+					>
 						{t`Retry`}
 					</Button>
 				</div>

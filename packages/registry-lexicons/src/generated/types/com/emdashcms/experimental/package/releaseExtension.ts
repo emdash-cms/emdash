@@ -3,7 +3,9 @@ import * as v from "@atcute/lexicons/validations";
 
 const _contentAccessSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.releaseExtension#contentAccess"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#contentAccess",
+		),
 	),
 	/**
 	 * Plugin may read content records.
@@ -34,7 +36,9 @@ const _contentWriteConstraintsSchema = /*#__PURE__*/ v.object({
 });
 const _declaredAccessSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.releaseExtension#declaredAccess"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#declaredAccess",
+		),
 	),
 	/**
 	 * Access to site content (posts, pages, custom collections).
@@ -63,7 +67,9 @@ const _declaredAccessSchema = /*#__PURE__*/ v.object({
 });
 const _emailAccessSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.releaseExtension#emailAccess"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#emailAccess",
+		),
 	),
 	/**
 	 * Plugin may send mail.
@@ -81,7 +87,9 @@ const _emailSendConstraintsSchema = /*#__PURE__*/ v.object({
 });
 const _mainSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.releaseExtension"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension",
+		),
 	),
 	/**
 	 * Structured per-category access manifest. The sandbox enforces every operation declared here at runtime.
@@ -92,7 +100,9 @@ const _mainSchema = /*#__PURE__*/ v.object({
 });
 const _mediaAccessSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.releaseExtension#mediaAccess"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#mediaAccess",
+		),
 	),
 	/**
 	 * Plugin may read media metadata and fetch media bytes.
@@ -123,7 +133,9 @@ const _mediaWriteConstraintsSchema = /*#__PURE__*/ v.object({
 });
 const _networkAccessSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.releaseExtension#networkAccess"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#networkAccess",
+		),
 	),
 	/**
 	 * Plugin may make outbound HTTP requests. Constraints scope the access; an empty object grants unrestricted requests.
@@ -146,7 +158,9 @@ const _networkRequestConstraintsSchema = /*#__PURE__*/ v.object({
 	allowedHosts: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.constrain(
 			/*#__PURE__*/ v.array(
-				/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(0, 256)]),
+				/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+					/*#__PURE__*/ v.stringLength(0, 256),
+				]),
 			),
 			[/*#__PURE__*/ v.arrayLength(1, 64)],
 		),
@@ -164,7 +178,8 @@ type mediaAccess$schematype = typeof _mediaAccessSchema;
 type mediaReadConstraints$schematype = typeof _mediaReadConstraintsSchema;
 type mediaWriteConstraints$schematype = typeof _mediaWriteConstraintsSchema;
 type networkAccess$schematype = typeof _networkAccessSchema;
-type networkRequestConstraints$schematype = typeof _networkRequestConstraintsSchema;
+type networkRequestConstraints$schematype =
+	typeof _networkRequestConstraintsSchema;
 
 export interface contentAccessSchema extends contentAccess$schematype {}
 export interface contentReadConstraintsSchema extends contentReadConstraints$schematype {}
@@ -184,31 +199,48 @@ export const contentReadConstraintsSchema =
 	_contentReadConstraintsSchema as contentReadConstraintsSchema;
 export const contentWriteConstraintsSchema =
 	_contentWriteConstraintsSchema as contentWriteConstraintsSchema;
-export const declaredAccessSchema = _declaredAccessSchema as declaredAccessSchema;
+export const declaredAccessSchema =
+	_declaredAccessSchema as declaredAccessSchema;
 export const emailAccessSchema = _emailAccessSchema as emailAccessSchema;
-export const emailSendConstraintsSchema = _emailSendConstraintsSchema as emailSendConstraintsSchema;
+export const emailSendConstraintsSchema =
+	_emailSendConstraintsSchema as emailSendConstraintsSchema;
 export const mainSchema = _mainSchema as mainSchema;
 export const mediaAccessSchema = _mediaAccessSchema as mediaAccessSchema;
-export const mediaReadConstraintsSchema = _mediaReadConstraintsSchema as mediaReadConstraintsSchema;
+export const mediaReadConstraintsSchema =
+	_mediaReadConstraintsSchema as mediaReadConstraintsSchema;
 export const mediaWriteConstraintsSchema =
 	_mediaWriteConstraintsSchema as mediaWriteConstraintsSchema;
 export const networkAccessSchema = _networkAccessSchema as networkAccessSchema;
 export const networkRequestConstraintsSchema =
 	_networkRequestConstraintsSchema as networkRequestConstraintsSchema;
 
-export interface ContentAccess extends v.InferInput<typeof contentAccessSchema> {}
-export interface ContentReadConstraints extends v.InferInput<typeof contentReadConstraintsSchema> {}
+export interface ContentAccess extends v.InferInput<
+	typeof contentAccessSchema
+> {}
+export interface ContentReadConstraints extends v.InferInput<
+	typeof contentReadConstraintsSchema
+> {}
 export interface ContentWriteConstraints extends v.InferInput<
 	typeof contentWriteConstraintsSchema
 > {}
-export interface DeclaredAccess extends v.InferInput<typeof declaredAccessSchema> {}
+export interface DeclaredAccess extends v.InferInput<
+	typeof declaredAccessSchema
+> {}
 export interface EmailAccess extends v.InferInput<typeof emailAccessSchema> {}
-export interface EmailSendConstraints extends v.InferInput<typeof emailSendConstraintsSchema> {}
+export interface EmailSendConstraints extends v.InferInput<
+	typeof emailSendConstraintsSchema
+> {}
 export interface Main extends v.InferInput<typeof mainSchema> {}
 export interface MediaAccess extends v.InferInput<typeof mediaAccessSchema> {}
-export interface MediaReadConstraints extends v.InferInput<typeof mediaReadConstraintsSchema> {}
-export interface MediaWriteConstraints extends v.InferInput<typeof mediaWriteConstraintsSchema> {}
-export interface NetworkAccess extends v.InferInput<typeof networkAccessSchema> {}
+export interface MediaReadConstraints extends v.InferInput<
+	typeof mediaReadConstraintsSchema
+> {}
+export interface MediaWriteConstraints extends v.InferInput<
+	typeof mediaWriteConstraintsSchema
+> {}
+export interface NetworkAccess extends v.InferInput<
+	typeof networkAccessSchema
+> {}
 export interface NetworkRequestConstraints extends v.InferInput<
 	typeof networkRequestConstraintsSchema
 > {}

@@ -56,9 +56,38 @@ export const NSID = {
 
 export type NSIDValue = (typeof NSID)[keyof typeof NSID];
 
+/**
+ * NSIDs of record-shaped lexicons in this package (one row per NSID in the
+ * publisher's repo). Embedded objects (`releaseExtension`) and shared defs
+ * (`aggregator.defs`) are excluded — they don't address their own collection.
+ *
+ * Useful for consumers building OAuth `repo:` scopes or enumerating writable
+ * collections without hand-rolling a list that drifts from the lexicons.
+ */
+export const RECORD_NSIDS = [
+	NSID.packageProfile,
+	NSID.packageRelease,
+	NSID.publisherProfile,
+	NSID.publisherVerification,
+] as const;
+
+/**
+ * NSIDs of query-shaped lexicons in this package (read-only XRPC methods on
+ * the aggregator). Procedures and shared defs are excluded.
+ *
+ * Useful for consumers building OAuth `rpc:` scopes or enumerating callable
+ * AppView endpoints.
+ */
+export const QUERY_NSIDS = [
+	NSID.aggregatorGetLatestRelease,
+	NSID.aggregatorGetPackage,
+	NSID.aggregatorListReleases,
+	NSID.aggregatorResolvePackage,
+	NSID.aggregatorSearchPackages,
+] as const;
+
 import type * as PackageProfileNs from "./generated/types/com/emdashcms/experimental/package/profile.js";
 import type * as PackageReleaseNs from "./generated/types/com/emdashcms/experimental/package/release.js";
-import type * as PackageReleaseExtensionNs from "./generated/types/com/emdashcms/experimental/package/releaseExtension.js";
 import type * as PublisherProfileNs from "./generated/types/com/emdashcms/experimental/publisher/profile.js";
 import type * as PublisherVerificationNs from "./generated/types/com/emdashcms/experimental/publisher/verification.js";
 
@@ -67,13 +96,13 @@ import type * as PublisherVerificationNs from "./generated/types/com/emdashcms/e
  * to its PDS. Used by `PublishingClient.putRecord` (and any other typed-write
  * helper) to ensure callers pass a record matching the collection's lexicon.
  *
- * Query / procedure NSIDs (the `aggregator.*` ones) are deliberately absent --
- * they aren't records.
+ * Embedded objects (`releaseExtension`, which lives inside a release record's
+ * `extensions` map) and query/procedure NSIDs (the `aggregator.*` ones) are
+ * deliberately absent -- they aren't standalone repo collections.
  */
 export interface RegistryRecords {
 	"com.emdashcms.experimental.package.profile": PackageProfileNs.Main;
 	"com.emdashcms.experimental.package.release": PackageReleaseNs.Main;
-	"com.emdashcms.experimental.package.releaseExtension": PackageReleaseExtensionNs.Main;
 	"com.emdashcms.experimental.publisher.profile": PublisherProfileNs.Main;
 	"com.emdashcms.experimental.publisher.verification": PublisherVerificationNs.Main;
 }

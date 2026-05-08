@@ -199,6 +199,8 @@ export function WordPressImport() {
 		}
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+	const { t } = useLingui();
+
 	// Probe mutation
 	const probeMutation = useMutation({
 		mutationFn: probeImportUrl,
@@ -262,7 +264,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
-			setPrepareError(error instanceof Error ? error.message : "Failed to prepare import");
+			setPrepareError(error instanceof Error ? error.message : t`Failed to prepare import`);
 			setStep("review");
 		},
 	});
@@ -281,7 +283,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
-			setImportError(error instanceof Error ? error.message : "Failed to execute import");
+			setImportError(error instanceof Error ? error.message : t`Failed to execute import`);
 			setStep("review");
 		},
 	});
@@ -305,7 +307,7 @@ export function WordPressImport() {
 		},
 		onError: (error) => {
 			setMediaProgress(null);
-			setMediaError(error instanceof Error ? error.message : "Failed to import media");
+			setMediaError(error instanceof Error ? error.message : t`Failed to import media`);
 			setStep("media");
 		},
 	});
@@ -318,7 +320,7 @@ export function WordPressImport() {
 			setStep("complete");
 		},
 		onError: (error) => {
-			setMediaError(error instanceof Error ? error.message : "Failed to rewrite URLs");
+			setMediaError(error instanceof Error ? error.message : t`Failed to rewrite URLs`);
 			setStep("complete");
 		},
 	});
@@ -353,7 +355,7 @@ export function WordPressImport() {
 			setStep("review");
 		},
 		onError: (error) => {
-			setImportError(error instanceof Error ? error.message : "Failed to analyze WordPress site");
+			setImportError(error instanceof Error ? error.message : t`Failed to analyze WordPress site`);
 			setStep("plugin-auth");
 		},
 	});
@@ -372,7 +374,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
-			setImportError(error instanceof Error ? error.message : "Failed to import from WordPress");
+			setImportError(error instanceof Error ? error.message : t`Failed to import from WordPress`);
 			setStep("review");
 		},
 	});
@@ -600,8 +602,6 @@ export function WordPressImport() {
 	// Check if we're using the plugin source
 	const isPluginSource = importSource?.type === "wordpress-plugin";
 
-	const { t } = useLingui();
-
 	return (
 		<div className="space-y-6">
 			<div>
@@ -615,7 +615,7 @@ export function WordPressImport() {
 			<div className="flex items-center gap-2 text-sm flex-wrap">
 				<StepIndicator
 					number={1}
-					label="Connect"
+					label={t`Connect`}
 					active={
 						step === "choose" ||
 						step === "probing" ||
@@ -638,7 +638,7 @@ export function WordPressImport() {
 				<div className="h-px w-8 bg-kumo-line" />
 				<StepIndicator
 					number={2}
-					label="Review"
+					label={t`Review`}
 					active={step === "review" || step === "authors"}
 					complete={
 						step === "preparing" ||
@@ -652,7 +652,7 @@ export function WordPressImport() {
 				<div className="h-px w-8 bg-kumo-line" />
 				<StepIndicator
 					number={3}
-					label="Import"
+					label={t`Import`}
 					active={step === "preparing" || step === "importing"}
 					complete={
 						step === "media" ||
@@ -666,7 +666,7 @@ export function WordPressImport() {
 						<div className="h-px w-8 bg-kumo-line" />
 						<StepIndicator
 							number={4}
-							label="Media"
+							label={t`Media`}
 							active={step === "media" || step === "importing-media" || step === "rewriting"}
 							complete={step === "complete"}
 						/>
@@ -1359,10 +1359,10 @@ function PluginAuthStep({
 							href={`${siteUrl}/wp-admin/profile.php#application-passwords-section`}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="mt-2 inline-flex items-center gap-1 text-blue-600 hover:underline"
+							className="mt-2 inline-flex items-center gap-1 text-kumo-brand hover:underline"
 						>
 							{t`Open WordPress Profile`}
-							<ArrowSquareOut className="h-3 w-3" />
+							<ArrowSquareOut className="h-3 w-3" aria-hidden="true" />
 						</a>
 					</div>
 				</div>

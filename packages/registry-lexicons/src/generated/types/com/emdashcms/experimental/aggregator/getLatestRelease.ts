@@ -1,7 +1,6 @@
 import type {} from "@atcute/lexicons";
-import type {} from "@atcute/lexicons/ambient";
 import * as v from "@atcute/lexicons/validations";
-
+import type {} from "@atcute/lexicons/ambient";
 import * as ComEmdashcmsExperimentalAggregatorDefs from "./defs.js";
 
 const _mainSchema = /*#__PURE__*/ v.query(

@@ -1,16 +1,20 @@
 import type {} from "@atcute/lexicons";
-import type {} from "@atcute/lexicons/ambient";
 import * as v from "@atcute/lexicons/validations";
+import type {} from "@atcute/lexicons/ambient";
 
 const _authorSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.profile#author"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.profile#author",
+		),
 	),
 	/**
 	 * @maxLength 256
 	 */
 	email: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(0, 256)]),
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 256),
+		]),
 	),
 	/**
 	 * @maxLength 256
@@ -31,13 +35,17 @@ const _authorSchema = /*#__PURE__*/ v.object({
 });
 const _contactSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.profile#contact"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.profile#contact",
+		),
 	),
 	/**
 	 * @maxLength 256
 	 */
 	email: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(0, 256)]),
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 256),
+		]),
 	),
 	/**
 	 * @maxLength 1024
@@ -51,7 +59,9 @@ const _contactSchema = /*#__PURE__*/ v.object({
 const _mainSchema = /*#__PURE__*/ v.record(
 	/*#__PURE__*/ v.string(),
 	/*#__PURE__*/ v.object({
-		$type: /*#__PURE__*/ v.literal("com.emdashcms.experimental.package.profile"),
+		$type: /*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.profile",
+		),
 		/**
 		 * At least one author. Vendors SHOULD specify at least one of url or email per author.
 		 * @minLength 1
@@ -136,20 +146,25 @@ const _mainSchema = /*#__PURE__*/ v.record(
 		 * @maxLength 64
 		 */
 		slug: /*#__PURE__*/ v.optional(
-			/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(1, 64)]),
+			/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+				/*#__PURE__*/ v.stringLength(1, 64),
+			]),
 		),
 		/**
 		 * Package type from FAIR's type registry. EmDash plugins use 'emdash-plugin'. Custom types use the 'x-' prefix.
 		 * @maxLength 64
 		 */
-		type: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string<"emdash-plugin" | (string & {})>(), [
-			/*#__PURE__*/ v.stringLength(0, 64),
-		]),
+		type: /*#__PURE__*/ v.constrain(
+			/*#__PURE__*/ v.string<"emdash-plugin" | (string & {})>(),
+			[/*#__PURE__*/ v.stringLength(0, 64)],
+		),
 	}),
 );
 const _sectionsSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.profile#sections"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.profile#sections",
+		),
 	),
 	/**
 	 * @maxLength 20000

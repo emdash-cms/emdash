@@ -6,6 +6,7 @@ import {
 	Input,
 	InputArea,
 	Label,
+	LinkButton,
 	Loader,
 	Select,
 	Switch,
@@ -613,7 +614,7 @@ export function ContentEditor({
 						<div
 							className="flex items-center text-xs text-kumo-subtle"
 							role="status"
-							aria-label="Autosave status"
+							aria-label={t`Autosave status`}
 							aria-live="polite"
 						>
 							{isAutosaving ? (
@@ -659,7 +660,7 @@ export function ContentEditor({
 								<Dialog.Root>
 									<Dialog.Trigger
 										render={(p) => (
-											<Button {...p} type="button" variant="outline" size="sm" icon={<X />}>
+											<Button {...p} type="button" variant="outline" icon={<X />}>
 												{t`Discard changes`}
 											</Button>
 										)}
@@ -708,15 +709,14 @@ export function ContentEditor({
 								</Button>
 							)}
 							{isLive && item?.slug && (
-								<a
+								<LinkButton
 									href={contentUrl(collection, item.slug, urlPattern)}
-									target="_blank"
-									rel="noopener noreferrer"
-									className={buttonVariants({ variant: "outline" })}
+									external
+									variant="outline"
+									icon={<ArrowSquareOut />}
 								>
-									<ArrowSquareOut className="me-2 h-4 w-4" aria-hidden="true" />
 									{t`Live View`}
-								</a>
+								</LinkButton>
 							)}
 						</>
 					)}

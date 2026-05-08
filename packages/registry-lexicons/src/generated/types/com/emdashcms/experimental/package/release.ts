@@ -1,10 +1,12 @@
 import type {} from "@atcute/lexicons";
-import type {} from "@atcute/lexicons/ambient";
 import * as v from "@atcute/lexicons/validations";
+import type {} from "@atcute/lexicons/ambient";
 
 const _artifactSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.release#artifact"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.release#artifact",
+		),
 	),
 	/**
 	 * Multibase-encoded multihash of the artifact bytes. EmDash clients MUST support sha2-256 (multihash code 0x12) and SHOULD support sha2-512 (0x13) and blake3 (0x1e). Recommended base prefix: base32 ('b'). Clients reject artifacts whose checksum uses an unsupported hash function rather than skipping verification.
@@ -18,7 +20,9 @@ const _artifactSchema = /*#__PURE__*/ v.object({
 	 * @maxLength 256
 	 */
 	contentType: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(0, 256)]),
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 256),
+		]),
 	),
 	/**
 	 * Pixel height, for image artifacts.
@@ -26,14 +30,18 @@ const _artifactSchema = /*#__PURE__*/ v.object({
 	 * @maximum 8192
 	 */
 	height: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.integer(), [/*#__PURE__*/ v.integerRange(1, 8192)]),
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.integer(), [
+			/*#__PURE__*/ v.integerRange(1, 8192),
+		]),
 	),
 	/**
 	 * Unique ID within the artifact type.
 	 * @maxLength 128
 	 */
 	id: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(0, 128)]),
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 128),
+		]),
 	),
 	/**
 	 * BCP 47 language tag for localised artifacts (icon, screenshot).
@@ -52,7 +60,9 @@ const _artifactSchema = /*#__PURE__*/ v.object({
 	 * @maxLength 1024
 	 */
 	signature: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(0, 1024)]),
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 1024),
+		]),
 	),
 	/**
 	 * URL where the artifact can be downloaded.
@@ -67,12 +77,16 @@ const _artifactSchema = /*#__PURE__*/ v.object({
 	 * @maximum 8192
 	 */
 	width: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.integer(), [/*#__PURE__*/ v.integerRange(1, 8192)]),
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.integer(), [
+			/*#__PURE__*/ v.integerRange(1, 8192),
+		]),
 	),
 });
 const _artifactsSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.package.release#artifacts"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.release#artifacts",
+		),
 	),
 	get banner() {
 		return /*#__PURE__*/ v.optional(artifactSchema);
@@ -93,7 +107,9 @@ const _artifactsSchema = /*#__PURE__*/ v.object({
 const _mainSchema = /*#__PURE__*/ v.record(
 	/*#__PURE__*/ v.string(),
 	/*#__PURE__*/ v.object({
-		$type: /*#__PURE__*/ v.literal("com.emdashcms.experimental.package.release"),
+		$type: /*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.release",
+		),
 		/**
 		 * Map of artifact type to artifact object. MUST have at least one entry. The 'package' entry (installable bundle) is required.
 		 */
@@ -162,16 +178,19 @@ const _sbomSchema = /*#__PURE__*/ v.object({
 	 * @maxLength 256
 	 */
 	checksum: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(0, 256)]),
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 256),
+		]),
 	),
 	/**
 	 * SBOM format identifier.
 	 * @maxLength 32
 	 */
 	format: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string<"cyclonedx" | "spdx" | (string & {})>(), [
-			/*#__PURE__*/ v.stringLength(0, 32),
-		]),
+		/*#__PURE__*/ v.constrain(
+			/*#__PURE__*/ v.string<"cyclonedx" | "spdx" | (string & {})>(),
+			[/*#__PURE__*/ v.stringLength(0, 32)],
+		),
 	),
 	/**
 	 * URL where the SBOM document can be fetched.

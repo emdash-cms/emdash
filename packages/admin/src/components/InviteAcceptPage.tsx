@@ -4,6 +4,8 @@
  */
 
 import { Button, Input, Loader } from "@cloudflare/kumo";
+import { Trans } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Link, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -23,6 +25,7 @@ function handleInviteSuccess() {
 }
 
 function RegisterStep({ inviteData, token }: RegisterStepProps) {
+	const { t } = useLingui();
 	const [name, setName] = React.useState("");
 
 	return (
@@ -43,17 +46,19 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 						/>
 					</svg>
 				</div>
-				<h2 className="text-xl font-semibold">You've been invited!</h2>
+				<h2 className="text-xl font-semibold">{t`You've been invited!`}</h2>
 				<p className="text-kumo-subtle mt-2">
-					You'll be joining as{" "}
-					<span className="font-medium text-kumo-default">{inviteData.roleName}</span>
+					<Trans>
+						You'll be joining as{" "}
+						<span className="font-medium text-kumo-default">{inviteData.roleName}</span>
+					</Trans>
 				</p>
 			</div>
 
-			<Input label="Email" value={inviteData.email} disabled className="bg-kumo-tint" />
+			<Input label={t`Email`} value={inviteData.email} disabled className="bg-kumo-tint" />
 
 			<Input
-				label="Your name (optional)"
+				label={t`Your name (optional)`}
 				type="text"
 				value={name}
 				onChange={(e) => setName(e.target.value)}
@@ -63,17 +68,16 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 			/>
 
 			<div className="pt-4 border-t">
-				<h3 className="text-sm font-medium mb-3">Create your passkey</h3>
+				<h3 className="text-sm font-medium mb-3">{t`Create your passkey`}</h3>
 				<p className="text-sm text-kumo-subtle mb-4">
-					Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or
-					security key.
+					{t`Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key.`}
 				</p>
 
 				<PasskeyRegistration
 					optionsEndpoint="/_emdash/api/auth/invite/register-options"
 					verifyEndpoint="/_emdash/api/auth/invite/complete"
 					onSuccess={handleInviteSuccess}
-					buttonText="Create Account"
+					buttonText={t`Create Account`}
 					additionalData={{ token, name: name || undefined }}
 				/>
 			</div>
@@ -87,6 +91,7 @@ interface ErrorStepProps {
 }
 
 function ErrorStep({ message, code }: ErrorStepProps) {
+	const { t } = useLingui();
 	return (
 		<div className="space-y-6 text-center">
 			<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-danger/10 mx-auto">
@@ -108,12 +113,12 @@ function ErrorStep({ message, code }: ErrorStepProps) {
 			<div>
 				<h2 className="text-xl font-semibold text-kumo-danger">
 					{code === "TOKEN_EXPIRED"
-						? "Invite expired"
+						? t`Invite expired`
 						: code === "INVALID_TOKEN"
-							? "Invalid invite link"
+							? t`Invalid invite link`
 							: code === "USER_EXISTS"
-								? "Account already exists"
-								: "Something went wrong"}
+								? t`Account already exists`
+								: t`Something went wrong`}
 				</h2>
 				<p className="text-kumo-subtle mt-2">{message}</p>
 			</div>
@@ -121,16 +126,16 @@ function ErrorStep({ message, code }: ErrorStepProps) {
 			<div className="space-y-2">
 				{code === "USER_EXISTS" ? (
 					<Link to="/login">
-						<Button className="w-full">Sign in instead</Button>
+						<Button className="w-full">{t`Sign in instead`}</Button>
 					</Link>
 				) : (
 					<>
 						<p className="text-sm text-kumo-subtle">
-							Please ask your administrator to send a new invite.
+							{t`Please ask your administrator to send a new invite.`}
 						</p>
 						<Link to="/login">
 							<Button variant="ghost" className="w-full">
-								Back to login
+								{t`Back to login`}
 							</Button>
 						</Link>
 					</>
@@ -141,6 +146,7 @@ function ErrorStep({ message, code }: ErrorStepProps) {
 }
 
 export function InviteAcceptPage() {
+	const { t } = useLingui();
 	const { token: urlToken } = useSearch({ strict: false });
 	const [step, setStep] = React.useState<InviteStep>("verify");
 	const [error, setError] = React.useState<string | undefined>();
@@ -151,7 +157,7 @@ export function InviteAcceptPage() {
 
 	React.useEffect(() => {
 		if (!urlToken) {
-			setError("No invite token provided");
+			setError(t`No invite token provided`);
 			setStep("error");
 			setIsLoading(false);
 			return;
@@ -186,7 +192,7 @@ export function InviteAcceptPage() {
 			<div className="min-h-screen flex items-center justify-center bg-kumo-base">
 				<div className="text-center">
 					<Loader />
-					<p className="mt-4 text-kumo-subtle">Verifying your invite...</p>
+					<p className="mt-4 text-kumo-subtle">{t`Verifying your invite...`}</p>
 				</div>
 			</div>
 		);
@@ -198,8 +204,8 @@ export function InviteAcceptPage() {
 				<div className="text-center mb-8">
 					<LogoLockup className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
-						{step === "register" && "Accept Invite"}
-						{step === "error" && "Invite Error"}
+						{step === "register" && t`Accept Invite`}
+						{step === "error" && t`Invite Error`}
 					</h1>
 				</div>
 
@@ -209,7 +215,7 @@ export function InviteAcceptPage() {
 					)}
 
 					{step === "error" && (
-						<ErrorStep message={error ?? "An unknown error occurred"} code={errorCode} />
+						<ErrorStep message={error ?? t`An unknown error occurred`} code={errorCode} />
 					)}
 				</div>
 			</div>

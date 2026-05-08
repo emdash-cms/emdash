@@ -7,6 +7,9 @@
  * that haven't yet been updated).
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export interface TaxonomyTerm {
@@ -195,7 +198,7 @@ export async function deleteTerm(
 		withLocale(`${API_BASE}/taxonomies/${taxonomyName}/terms/${slug}`, options.locale),
 		{ method: "DELETE" },
 	);
-	if (!response.ok) await throwResponseError(response, "Failed to delete term");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete term`));
 }
 
 /** List every translation (locale variant) of a term. */

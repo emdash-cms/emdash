@@ -37,12 +37,50 @@ import {
 	type LoopbackClientMetadata,
 	type OAuthSession,
 	OAuthClient,
+	OAuthResponseError,
 	type Store,
 	type StoredSession,
 	type StoredState,
 } from "@atcute/oauth-node-client";
+import { QUERY_NSIDS, RECORD_NSIDS } from "@emdash-cms/registry-lexicons";
 
 import { DEFAULT_OAUTH_DIR } from "./config.js";
+
+/**
+ * Default OAuth scope for the registry CLI. Granular per the atproto OAuth
+ * permission spec, derived from the lexicon set in `@emdash-cms/registry-lexicons`:
+ *
+ *   - `atproto`: base requirement (DID-bound DPoP session, identity).
+ *   - `repo:<nsid>` for every record-shaped lexicon: write profile, release,
+ *     publisher profile, and verification records via `applyWrites`. Repo
+ *     reads of public records don't require a scope, and embedded objects
+ *     (`releaseExtension`) ride inside their parent record.
+ *   - `rpc:<nsid>?aud=*` for every query-shaped lexicon: cover the
+ *     aggregator XRPC methods even though the publish CLI doesn't call them
+ *     yet — granting them at login means future tooling that resumes the
+ *     stored session can call the aggregator without forcing a re-login.
+ *     `aud=*` because the aggregator's service DID isn't pinned today.
+ *
+ * `transition:generic` is intentionally not included. PDSes accept granular
+ * scopes at PAR even when their `scopes_supported` metadata still lists only
+ * the transitional shims, so requesting only what we need keeps the consent
+ * screen honest.
+ */
+const DEFAULT_CLI_SCOPE = [
+	"atproto",
+	...RECORD_NSIDS.map((nsid) => `repo:${nsid}`),
+	...QUERY_NSIDS.map((nsid) => `rpc:${nsid}?aud=*`),
+].join(" ");
+
+/**
+ * Legacy fallback scope used when the AS returns `invalid_scope` for the
+ * granular request. `transition:generic` predates the granular permission
+ * spec and every atproto OAuth server has supported it since OAuth shipped,
+ * so it's the safe re-try shape. The publish flow doesn't get any narrower
+ * permissions out of this path -- it's purely a compatibility shim for
+ * publishers on un-upgraded PDSes.
+ */
+const LEGACY_FALLBACK_SCOPE = "atproto transition:generic";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Filesystem-backed Store<K, V>
@@ -202,10 +240,36 @@ export interface OAuthClientFactoryOptions {
 	 */
 	redirectUri: `http://127.0.0.1:${number}/callback`;
 	/**
-	 * Scopes to request. Defaults to `atproto transition:generic`, which is
-	 * what the publishing CLI needs to put records in the publisher's repo.
+	 * Scopes to request. Defaults to {@link DEFAULT_CLI_SCOPE}: `atproto` plus
+	 * `repo:<nsid>` for every record-shaped lexicon in
+	 * `@emdash-cms/registry-lexicons` and `rpc:<nsid>?aud=*` for every
+	 * aggregator query.
 	 */
 	scope?: string;
+}
+
+/**
+ * Build a `LocalActorResolver` for atproto identity lookups (handle <-> DID,
+ * DID document, PDS endpoint). Shared by the OAuth client and post-login
+ * profile resolution so they agree on handle/DID round-trip rules.
+ */
+export function createActorResolver(): LocalActorResolver {
+	return new LocalActorResolver({
+		handleResolver: new CompositeHandleResolver({
+			methods: {
+				dns: new DohJsonHandleResolver({
+					dohUrl: "https://cloudflare-dns.com/dns-query",
+				}),
+				http: new WellKnownHandleResolver(),
+			},
+		}),
+		didDocumentResolver: new CompositeDidDocumentResolver({
+			methods: {
+				plc: new PlcDidDocumentResolver(),
+				web: new WebDidDocumentResolver(),
+			},
+		}),
+	});
 }
 
 /**
@@ -222,22 +286,7 @@ export function createCliOAuthClient(options: OAuthClientFactoryOptions): OAuthC
 	const sessions = new FileStore<StoredSession>(join(stateDir, "sessions.json"));
 	const states = new FileStore<StoredState>(join(stateDir, "states.json"));
 
-	const actorResolver = new LocalActorResolver({
-		handleResolver: new CompositeHandleResolver({
-			methods: {
-				dns: new DohJsonHandleResolver({
-					dohUrl: "https://cloudflare-dns.com/dns-query",
-				}),
-				http: new WellKnownHandleResolver(),
-			},
-		}),
-		didDocumentResolver: new CompositeDidDocumentResolver({
-			methods: {
-				plc: new PlcDidDocumentResolver(),
-				web: new WebDidDocumentResolver(),
-			},
-		}),
-	});
+	const actorResolver = createActorResolver();
 
 	// Loopback public client per RFC 8252: no client_id, no JWKS, no
 	// confidential auth. The PDS derives metadata from the client_id URL
@@ -246,7 +295,7 @@ export function createCliOAuthClient(options: OAuthClientFactoryOptions): OAuthC
 	// loopbackRedirectUriSchema.
 	const metadata: LoopbackClientMetadata = {
 		redirect_uris: [options.redirectUri],
-		scope: options.scope ?? "atproto transition:generic",
+		scope: options.scope ?? DEFAULT_CLI_SCOPE,
 	};
 
 	return new OAuthClient({
@@ -514,11 +563,61 @@ export interface RunInteractiveLoginOptions {
 	timeoutMs?: number;
 	/** Hook for printing the verification URL when the browser-open fails. */
 	onUrl?: (url: URL) => void;
+	/**
+	 * Hook fired when the AS rejected the granular scope request and the
+	 * flow is retrying with the legacy `transition:generic` fallback. The
+	 * CLI uses this to print a notice so the user knows their PDS is
+	 * granting broader permissions than the spec-compliant path would.
+	 */
+	onLegacyScopeFallback?: () => void;
 }
 
 export interface RunInteractiveLoginResult {
 	session: OAuthSession;
 	did: Did;
+}
+
+/**
+ * Build an OAuth client, call `authorize`, and on `invalid_scope` retry once
+ * with the legacy `transition:generic` shim. Returns whichever client actually
+ * pushed an authorization request, so the caller hands the same client to
+ * `callback()` (the second client owns the persisted state).
+ *
+ * `invalid_scope` is the well-defined RFC 6749 §5.2 error the AS returns when
+ * a requested scope isn't supported. The retry path doesn't fire on any other
+ * OAuth error -- a `bad_request`, `server_error`, etc. all bubble up so the
+ * login command can render them via its `OAuthResponseError` handler.
+ */
+async function authorizeWithLegacyFallback(input: {
+	stateDir: string | undefined;
+	redirectUri: `http://127.0.0.1:${number}/callback`;
+	identifier: ActorIdentifier;
+	onLegacyScopeFallback: (() => void) | undefined;
+}): Promise<{ client: OAuthClient; url: URL }> {
+	const granular = createCliOAuthClient({
+		stateDir: input.stateDir,
+		redirectUri: input.redirectUri,
+	});
+	try {
+		const { url } = await granular.authorize({
+			target: { type: "account", identifier: input.identifier },
+		});
+		return { client: granular, url };
+	} catch (error) {
+		if (!(error instanceof OAuthResponseError) || error.error !== "invalid_scope") {
+			throw error;
+		}
+		input.onLegacyScopeFallback?.();
+		const legacy = createCliOAuthClient({
+			stateDir: input.stateDir,
+			redirectUri: input.redirectUri,
+			scope: LEGACY_FALLBACK_SCOPE,
+		});
+		const { url } = await legacy.authorize({
+			target: { type: "account", identifier: input.identifier },
+		});
+		return { client: legacy, url };
+	}
 }
 
 /**
@@ -535,14 +634,12 @@ export async function runInteractiveLogin(
 ): Promise<RunInteractiveLoginResult> {
 	const server = await bindLoopbackServer(options.timeoutMs);
 	try {
-		const client = createCliOAuthClient({
+		const identifier = parseActorIdentifier(options.identifier);
+		const { client, url } = await authorizeWithLegacyFallback({
 			stateDir: options.stateDir,
 			redirectUri: server.redirectUri,
-		});
-
-		const identifier = parseActorIdentifier(options.identifier);
-		const { url } = await client.authorize({
-			target: { type: "account", identifier },
+			identifier,
+			onLegacyScopeFallback: options.onLegacyScopeFallback,
 		});
 
 		options.onUrl?.(url);

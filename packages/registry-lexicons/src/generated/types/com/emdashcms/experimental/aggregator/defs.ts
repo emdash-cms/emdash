@@ -1,10 +1,12 @@
-import * as ComAtprotoLabelDefs from "@atcute/atproto/types/label/defs";
 import type {} from "@atcute/lexicons";
 import * as v from "@atcute/lexicons/validations";
+import * as ComAtprotoLabelDefs from "@atcute/atproto/types/label/defs";
 
 const _packageViewSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.aggregator.defs#packageView"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.aggregator.defs#packageView",
+		),
 	),
 	/**
 	 * CID of the profile record content the aggregator indexed. Lets clients confirm they're working with the same bytes the aggregator did.
@@ -28,9 +30,10 @@ const _packageViewSchema = /*#__PURE__*/ v.object({
 	 */
 	get labels() {
 		return /*#__PURE__*/ v.optional(
-			/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.array(ComAtprotoLabelDefs.labelSchema), [
-				/*#__PURE__*/ v.arrayLength(0, 64),
-			]),
+			/*#__PURE__*/ v.constrain(
+				/*#__PURE__*/ v.array(ComAtprotoLabelDefs.labelSchema),
+				[/*#__PURE__*/ v.arrayLength(0, 64)],
+			),
 		);
 	},
 	/**
@@ -38,7 +41,9 @@ const _packageViewSchema = /*#__PURE__*/ v.object({
 	 * @maxLength 64
 	 */
 	latestVersion: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(0, 64)]),
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 64),
+		]),
 	),
 	/**
 	 * The signed profile record verbatim, passed through from the publisher's repo (carrying its $type, all required fields, etc.).
@@ -49,7 +54,9 @@ const _packageViewSchema = /*#__PURE__*/ v.object({
 	 * @minLength 1
 	 * @maxLength 64
 	 */
-	slug: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [/*#__PURE__*/ v.stringLength(1, 64)]),
+	slug: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+		/*#__PURE__*/ v.stringLength(1, 64),
+	]),
 	/**
 	 * AT URI of the profile record the aggregator indexed. Pins exactly which record version this view describes.
 	 */
@@ -57,7 +64,9 @@ const _packageViewSchema = /*#__PURE__*/ v.object({
 });
 const _releaseViewSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
-		/*#__PURE__*/ v.literal("com.emdashcms.experimental.aggregator.defs#releaseView"),
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.aggregator.defs#releaseView",
+		),
 	),
 	/**
 	 * CID of the release record content the aggregator indexed.
@@ -77,9 +86,10 @@ const _releaseViewSchema = /*#__PURE__*/ v.object({
 	 */
 	get labels() {
 		return /*#__PURE__*/ v.optional(
-			/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.array(ComAtprotoLabelDefs.labelSchema), [
-				/*#__PURE__*/ v.arrayLength(0, 64),
-			]),
+			/*#__PURE__*/ v.constrain(
+				/*#__PURE__*/ v.array(ComAtprotoLabelDefs.labelSchema),
+				[/*#__PURE__*/ v.arrayLength(0, 64)],
+			),
 		);
 	},
 	/**

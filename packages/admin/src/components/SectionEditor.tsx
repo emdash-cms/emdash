@@ -258,7 +258,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 										label={t`Keywords`}
 										value={keywords}
 										onChange={(e) => setKeywords(e.target.value)}
-										placeholder="hero, banner, cta"
+										placeholder={t`hero, banner, cta`}
 									/>
 									<p className="text-xs text-kumo-subtle mt-1">{t`Comma-separated keywords for search.`}</p>
 								</div>

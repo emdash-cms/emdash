@@ -20,7 +20,18 @@ const siteDescription =
 const siteLogo = (settings?.logo as any)?.url ? settings.logo as
 	{ mediaId: string; alt?: string; url: string } : null;
 
-const menu = await getMenu("primary");
+const [menu, footerProduct, footerCompany, footerSupport] = await Promise.all([
+	getMenu("primary"),
+	getMenu("footer_product"),
+	getMenu("footer_company"),
+	getMenu("footer_support"),
+]);
+
+const footerColumns = [
+	{ heading: "Product", menu: footerProduct },
+	{ heading: "Company", menu: footerCompany },
+	{ heading: "Support", menu: footerSupport },
+].filter((col) => col.menu && col.menu.items.length > 0);
 
 const pageCtx = createPublicPageContext({
 	Astro,
@@ -101,24 +112,21 @@ const pageCtx = createPublicPageContext({
 					</p>
 				</div>
 				<div class="footer-links">
-					<div class="footer-col">
-						<h4>Product</h4>
-						<a href="/#features">Features</a>
-						<a href="/pricing">Pricing</a>
-						<a href="/changelog">Changelog</a>
-					</div>
-					<div class="footer-col">
-						<h4>Company</h4>
-						<a href="/about">About</a>
-						<a href="/blog">Blog</a>
-						<a href="/careers">Careers</a>
-					</div>
-					<div class="footer-col">
-						<h4>Support</h4>
-						<a href="/docs">Documentation</a>
-						<a href="/contact">Contact</a>
-						<a href="/status">Status</a>
-					</div>
+					{
+						footerColumns.map((col) => (
+							<div class="footer-col">
+								<h4>{col.heading}</h4>
+								{col.menu!.items.map((item) => (
+									<a
+										href={item.url}
+										target={item.target}
+										rel={item.target ? "noopener noreferrer" : undefined}>
+										{item.label}
+									</a>
+								))}
+							</div>
+						))
+					}
 				</div>
 			</div>
 			<div class="footer-bottom">

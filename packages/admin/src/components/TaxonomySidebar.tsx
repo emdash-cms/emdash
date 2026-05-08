@@ -7,6 +7,8 @@
  */
 
 import { Button, Input, Label, Toast } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -58,7 +60,10 @@ async function fetchTaxonomyDefs(): Promise<TaxonomyDef[]> {
  */
 async function fetchTerms(taxonomyName: string): Promise<TaxonomyTerm[]> {
 	const res = await apiFetch(`/_emdash/api/taxonomies/${taxonomyName}/terms`);
-	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(res, "Failed to fetch terms");
+	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(
+		res,
+		i18n._(msg`Failed to fetch terms`),
+	);
 	return data.terms;
 }
 
@@ -73,7 +78,7 @@ async function fetchEntryTerms(
 	const res = await apiFetch(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`);
 	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(
 		res,
-		"Failed to fetch entry terms",
+		i18n._(msg`Failed to fetch entry terms`),
 	);
 	return data.terms;
 }
@@ -92,7 +97,7 @@ async function setEntryTerms(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ termIds }),
 	});
-	if (!res.ok) await throwResponseError(res, "Failed to set entry terms");
+	if (!res.ok) await throwResponseError(res, i18n._(msg`Failed to set entry terms`));
 }
 
 /**
@@ -257,7 +262,7 @@ function TagInput({
 								className="w-full text-start px-3 py-2 text-sm hover:bg-kumo-tint text-kumo-accent flex items-center gap-1 border-t"
 							>
 								<Plus className="w-3 h-3" />
-								{isCreating ? "Creating..." : `Create "${trimmedInput}"`}
+								{isCreating ? t`Creating...` : t`Create "${trimmedInput}"`}
 							</button>
 						)}
 					</div>
