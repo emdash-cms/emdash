@@ -1,4 +1,4 @@
-import { Input, Switch } from "@cloudflare/kumo";
+import { Input, Select, Switch } from "@cloudflare/kumo";
 import type { Element } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
@@ -100,21 +100,12 @@ function BlockKitFieldElement({
 		case "select": {
 			const options = Array.isArray(element.options) ? element.options : [];
 			return (
-				<div>
-					<label className="text-sm font-medium mb-1.5 block">{element.label}</label>
-					<select
-						className="flex w-full rounded-md border border-kumo-line bg-transparent px-3 py-2 text-sm"
-						value={typeof value === "string" ? value : ""}
-						onChange={(e) => onChange(element.action_id, e.target.value)}
-					>
-						<option value="">{t`Select...`}</option>
-						{options.map((opt) => (
-							<option key={opt.value} value={opt.value}>
-								{opt.label}
-							</option>
-						))}
-					</select>
-				</div>
+				<Select
+					label={element.label}
+					value={typeof value === "string" ? value : ""}
+					onValueChange={(v) => onChange(element.action_id, v ?? "")}
+					items={Object.fromEntries(options.map((opt) => [opt.value, opt.label]))}
+				/>
 			);
 		}
 		case "media_picker":

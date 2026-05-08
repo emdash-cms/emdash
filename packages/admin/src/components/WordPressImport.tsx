@@ -1,4 +1,4 @@
-import { Badge, Button, Input, LinkButton, Loader, buttonVariants } from "@cloudflare/kumo";
+import { Badge, Button, Input, LinkButton, Loader, Select, buttonVariants } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -2323,18 +2323,18 @@ function AuthorMappingStep({
 							</div>
 							<div className="flex items-center gap-2">
 								<span className="text-kumo-subtle">→</span>
-								<select
+								<Select
 									value={mapping.emdashUserId || ""}
-									onChange={(e) => onMappingChange(mapping.wpLogin, e.target.value || null)}
-									className="w-48 px-3 py-2 rounded-md border bg-kumo-base text-sm"
+									onValueChange={(v) => onMappingChange(mapping.wpLogin, v || null)}
+									aria-label={t`Map WordPress user ${mapping.wpLogin} to EmDash user`}
 								>
-									<option value="">{t`Leave unassigned`}</option>
+									<Select.Option value="">{t`Leave unassigned`}</Select.Option>
 									{emdashUsers.map((user) => (
-										<option key={user.id} value={user.id}>
+										<Select.Option key={user.id} value={user.id}>
 											{user.name || user.email}
-										</option>
+										</Select.Option>
 									))}
-								</select>
+								</Select>
 							</div>
 						</div>
 					))}

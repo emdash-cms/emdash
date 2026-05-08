@@ -4,7 +4,7 @@
  * Browse, create, and manage reusable content sections (block patterns).
  */
 
-import { Button, Dialog, Input, InputArea, Toast } from "@cloudflare/kumo";
+import { Button, Dialog, Input, InputArea, Select, Toast } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -231,19 +231,19 @@ export function Sections() {
 				</div>
 
 				{/* Source filter */}
-				<select
-					value={selectedSource || ""}
-					onChange={(e) => {
-						const val = e.target.value;
-						setSelectedSource(val === "theme" || val === "user" || val === "import" ? val : null);
+				<Select
+					value={selectedSource ?? ""}
+					onValueChange={(v) => {
+						setSelectedSource(v === "theme" || v === "user" || v === "import" ? v : null);
 					}}
-					className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2"
-				>
-					<option value="">{t`All Sources`}</option>
-					<option value="theme">{t`Theme`}</option>
-					<option value="user">{t`Custom`}</option>
-					<option value="import">{t`Imported`}</option>
-				</select>
+					items={{
+						"": t`All Sources`,
+						...Object.fromEntries(
+							Object.entries(sourceLabels).map(([key, label]) => [key, t(label)]),
+						),
+					}}
+					aria-label={t`Filter by source`}
+				/>
 			</div>
 
 			{/* Section Grid */}

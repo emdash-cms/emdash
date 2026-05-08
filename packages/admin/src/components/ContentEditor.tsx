@@ -1890,18 +1890,16 @@ function BylineCreditsEditor({
 	return (
 		<div className="space-y-3">
 			<div className="flex gap-2">
-				<select
+				<Select
 					value={selectedBylineId}
-					onChange={(e) => setSelectedBylineId(e.target.value)}
-					className="w-full rounded border bg-kumo-base px-3 py-2 text-sm"
-				>
-					<option value="">{t`Select byline...`}</option>
-					{availableToAdd.map((b) => (
-						<option key={b.id} value={b.id}>
-							{b.displayName}
-						</option>
-					))}
-				</select>
+					onValueChange={(v) => setSelectedBylineId(v ?? "")}
+					items={{
+						"": t`Select byline...`,
+						...Object.fromEntries(availableToAdd.map((b) => [b.id, b.displayName])),
+					}}
+					aria-label={t`Select byline`}
+					className="w-full"
+				/>
 				<Button
 					type="button"
 					variant="secondary"

@@ -1,4 +1,4 @@
-import { Badge, Button, Dialog, Input, Label, Switch } from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, Label, Select, Switch } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -142,18 +142,17 @@ function RedirectFormDialog({
 
 					<div className="grid grid-cols-2 gap-4">
 						<div>
-							<Label htmlFor="redirect-type">{t`Status code`}</Label>
-							<select
-								id="redirect-type"
+							<Select
+								label={t`Status code`}
 								value={type}
-								onChange={(e) => setType(e.target.value)}
-								className="flex h-10 w-full rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm"
-							>
-								<option value="301">{t`301 Permanent`}</option>
-								<option value="302">{t`302 Temporary`}</option>
-								<option value="307">{t`307 Temporary (Strict)`}</option>
-								<option value="308">{t`308 Permanent (Strict)`}</option>
-							</select>
+								onValueChange={(v) => setType(v ?? "301")}
+								items={{
+									"301": t`301 Permanent`,
+									"302": t`302 Temporary`,
+									"307": t`307 Temporary (Strict)`,
+									"308": t`308 Permanent (Strict)`,
+								}}
+							/>
 						</div>
 
 						<Input
@@ -387,24 +386,18 @@ export function Redirects() {
 								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
 							/>
 						</div>
-						<select
+						<Select
 							value={filterEnabled}
-							onChange={(e) => setFilterEnabled(e.target.value)}
-							className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 text-sm"
-						>
-							<option value="all">{t`All statuses`}</option>
-							<option value="true">{t`Enabled`}</option>
-							<option value="false">{t`Disabled`}</option>
-						</select>
-						<select
+							onValueChange={(v) => setFilterEnabled(v ?? "all")}
+							items={{ all: t`All statuses`, true: t`Enabled`, false: t`Disabled` }}
+							aria-label={t`Filter by status`}
+						/>
+						<Select
 							value={filterAuto}
-							onChange={(e) => setFilterAuto(e.target.value)}
-							className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 text-sm"
-						>
-							<option value="all">{t`All types`}</option>
-							<option value="false">{t`Manual`}</option>
-							<option value="true">{t`Auto (slug change)`}</option>
-						</select>
+							onValueChange={(v) => setFilterAuto(v ?? "all")}
+							items={{ all: t`All types`, false: t`Manual`, true: t`Auto (slug change)` }}
+							aria-label={t`Filter by type`}
+						/>
 					</div>
 
 					{/* Loop warning banner */}

@@ -5,7 +5,7 @@
  * Items can be added, removed, and reordered via drag-and-drop.
  */
 
-import { Button, Input, InputArea } from "@cloudflare/kumo";
+import { Button, Input, InputArea, Select } from "@cloudflare/kumo";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import {
@@ -356,22 +356,12 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 			);
 		case "select":
 			return (
-				<div>
-					<label className="text-sm font-medium">{subField.label}</label>
-					<select
-						className="w-full mt-1 rounded-md border px-3 py-2 text-sm"
-						value={typeof value === "string" ? value : ""}
-						onChange={(e) => onChange(e.target.value)}
-						required={subField.required}
-					>
-						<option value="">{t`Select...`}</option>
-						{subField.options?.map((opt) => (
-							<option key={opt} value={opt}>
-								{opt}
-							</option>
-						))}
-					</select>
-				</div>
+				<Select
+					label={subField.label}
+					value={typeof value === "string" ? value : ""}
+					onValueChange={(v) => onChange(v ?? "")}
+					items={Object.fromEntries((subField.options ?? []).map((opt) => [opt, opt]))}
+				/>
 			);
 		default:
 			return (

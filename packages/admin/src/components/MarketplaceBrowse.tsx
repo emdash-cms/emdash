@@ -5,7 +5,7 @@
  * Navigates to plugin detail on card click.
  */
 
-import { Badge, Button } from "@cloudflare/kumo";
+import { Badge, Button, Input, Select } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -92,42 +92,36 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<div className="relative flex-1">
 					<MagnifyingGlass className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
-					<input
+					<Input
 						type="search"
 						placeholder={t`Search plugins...`}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="w-full rounded-md border bg-kumo-base px-3 py-2 ps-9 text-sm placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-ring"
+						className="ps-9"
+						aria-label={t`Search plugins`}
 					/>
 				</div>
-				<select
+				<Select
 					value={capability}
-					onChange={(e) => setCapability(e.target.value)}
-					className="rounded-md border bg-kumo-base px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kumo-ring"
-					aria-label={t`Filter by capability`}
-				>
-					<option value="">{t`All capabilities`}</option>
-					{Object.entries(CAPABILITY_LABELS).map(([value, label]) => (
-						<option key={value} value={value}>
-							{label}
-						</option>
-					))}
-				</select>
-				<select
-					value={sort}
-					onChange={(e) => {
-						const v = e.target.value;
-						if (isSortOption(v)) setSort(v);
+					onValueChange={(v) => setCapability(v ?? "")}
+					items={{
+						"": t`All capabilities`,
+						...Object.fromEntries(
+							Object.entries(CAPABILITY_LABELS).map(([value, label]) => [value, t`${label}`]),
+						),
 					}}
-					className="rounded-md border bg-kumo-base px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kumo-ring"
+					aria-label={t`Filter by capability`}
+				/>
+				<Select
+					value={sort}
+					onValueChange={(v) => {
+						if (v && isSortOption(v)) setSort(v);
+					}}
+					items={Object.fromEntries(
+						Object.entries(SORT_LABELS).map(([value, label]) => [value, t(label)]),
+					)}
 					aria-label={t`Sort plugins`}
-				>
-					{Object.entries(SORT_LABELS).map(([value, label]) => (
-						<option key={value} value={value}>
-							{t(label)}
-						</option>
-					))}
-				</select>
+				/>
 			</div>
 
 			{/* Error state */}

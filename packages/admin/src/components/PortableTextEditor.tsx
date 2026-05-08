@@ -11,7 +11,7 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Select } from "@cloudflare/kumo";
 import {
 	DndContext,
 	KeyboardSensor,
@@ -1754,18 +1754,12 @@ function DynamicSelect({
 			{loading ? (
 				<div className="flex h-10 items-center px-3 text-sm text-kumo-subtle">{t`Loading...`}</div>
 			) : (
-				<select
-					className="flex h-10 w-full rounded-md border border-kumo-line bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kumo-ring focus-visible:ring-offset-2"
+				<Select
+					aria-label={field.label}
 					value={typeof value === "string" ? value : ""}
-					onChange={(e) => onChange(field.action_id, e.target.value)}
-				>
-					<option value="">{t`Select...`}</option>
-					{options.map((opt) => (
-						<option key={opt.value} value={opt.value}>
-							{opt.label}
-						</option>
-					))}
-				</select>
+					onValueChange={(v) => onChange(field.action_id, v ?? "")}
+					items={Object.fromEntries(options.map((opt) => [opt.value, opt.label]))}
+				/>
 			)}
 		</div>
 	);

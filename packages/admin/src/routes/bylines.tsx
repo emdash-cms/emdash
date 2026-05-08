@@ -1,4 +1,4 @@
-import { Button, Input, InputArea, Loader, Switch } from "@cloudflare/kumo";
+import { Button, Input, InputArea, Loader, Select, Switch } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -183,16 +183,16 @@ export function BylinesPage() {
 						onChange={(e) => setSearch(e.target.value)}
 					/>
 					<div className="flex items-center gap-2">
-						<select
+						<Select
 							aria-label={t`Filter byline type`}
 							value={guestFilter}
-							onChange={(e) => setGuestFilter(e.target.value as "all" | "guest" | "linked")}
-							className="w-full rounded border bg-kumo-base px-3 py-2 text-sm"
+							onValueChange={(v) => setGuestFilter((v as "all" | "guest" | "linked") ?? "all")}
+							className="w-full"
 						>
-							<option value="all">{t`All bylines`}</option>
-							<option value="guest">{t`Guest only`}</option>
-							<option value="linked">{t`Linked only`}</option>
-						</select>
+							<Select.Option value="all">{t`All bylines`}</Select.Option>
+							<Select.Option value="guest">{t`Guest only`}</Select.Option>
+							<Select.Option value="linked">{t`Linked only`}</Select.Option>
+						</Select>
 						<Button
 							variant="secondary"
 							onClick={() => {
@@ -266,27 +266,25 @@ export function BylinesPage() {
 						onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
 						rows={5}
 					/>
-					<div>
-						<label className="text-sm font-medium">{t`Linked user`}</label>
-						<select
-							value={form.userId ?? ""}
-							onChange={(e) =>
-								setForm((prev) => ({
-									...prev,
-									userId: e.target.value || null,
-									isGuest: e.target.value ? false : prev.isGuest,
-								}))
-							}
-							className="mt-1 w-full rounded border bg-kumo-base px-3 py-2 text-sm"
-						>
-							<option value="">{t`No linked user`}</option>
-							{users.map((user) => (
-								<option key={user.id} value={user.id}>
-									{getUserLabel(user)}
-								</option>
-							))}
-						</select>
-					</div>
+					<Select
+						label={t`Linked user`}
+						value={form.userId ?? ""}
+						onValueChange={(v) => {
+							const val = (v as string) || null;
+							setForm((prev) => ({
+								...prev,
+								userId: val,
+								isGuest: val ? false : prev.isGuest,
+							}));
+						}}
+					>
+						<Select.Option value="">{t`No linked user`}</Select.Option>
+						{users.map((u) => (
+							<Select.Option key={u.id} value={u.id}>
+								{getUserLabel(u)}
+							</Select.Option>
+						))}
+					</Select>
 					<Switch
 						label={t`Guest byline`}
 						checked={form.isGuest}
