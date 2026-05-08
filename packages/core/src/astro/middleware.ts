@@ -47,7 +47,12 @@ import { createPublicMediaUrlResolver } from "../media/url.js";
 import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
-import { getRequestContext, runWithContext } from "../request-context.js";
+import {
+	createRequestMetrics,
+	getRequestContext,
+	type RequestMetrics,
+	runWithContext,
+} from "../request-context.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import type { EmDashHandlers } from "./types.js";
 
@@ -209,6 +214,33 @@ function finalizeResponse(
 	return res;
 }
 
+/**
+ * Append always-on counters (db.*, cache.*) to the Server-Timing list.
+ *
+ * dur values for `count`, `hit`, `miss` are integer counts — Server-Timing
+ * spec only models milliseconds, but browsers show whatever number is given,
+ * which is the convention most projects use for non-time samples.
+ */
+function pushMetricsTimings(
+	timings: Array<{ name: string; dur: number; desc?: string }>,
+	metrics: RequestMetrics,
+): void {
+	if (metrics.dbCount > 0) {
+		timings.push({ name: "db.total", dur: metrics.dbTotalMs, desc: "DB total" });
+		timings.push({ name: "db.count", dur: metrics.dbCount, desc: "Query count" });
+		if (metrics.dbFirstOffset !== null) {
+			timings.push({ name: "db.first", dur: metrics.dbFirstOffset, desc: "First query at" });
+		}
+		if (metrics.dbLastOffset !== null) {
+			timings.push({ name: "db.last", dur: metrics.dbLastOffset, desc: "Last query at" });
+		}
+	}
+	if (metrics.cacheHits + metrics.cacheMisses > 0) {
+		timings.push({ name: "cache.hit", dur: metrics.cacheHits, desc: "Cache hits" });
+		timings.push({ name: "cache.miss", dur: metrics.cacheMisses, desc: "Cache misses" });
+	}
+}
+
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
 const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
@@ -251,6 +283,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const queryRecorder = isInstrumentationEnabled()
 		? createRecorder(url.pathname, request.method, request.headers.get("x-perf-phase") ?? "default")
 		: undefined;
+
+	const metrics = createRequestMetrics(performance.now());
 
 	const run = async (): Promise<Response> => {
 		// Process /_emdash routes and public routes with an active session
@@ -355,13 +389,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					const response = await next();
 					timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 					timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+					pushMetricsTimings(timings, metrics);
 					return finalizeResponse(response, timings);
 				};
 				if (anonScoped) {
 					const parent = getRequestContext();
 					const ctx = parent
 						? { ...parent, db: anonScoped.db }
-						: { editMode: false, db: anonScoped.db };
+						: { editMode: false, db: anonScoped.db, metrics };
 					return runWithContext(ctx, async () => {
 						const response = await runAnon();
 						anonScoped.commit();
@@ -516,12 +551,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const response = await next();
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+				pushMetricsTimings(timings, metrics);
 				return finalizeResponse(response, timings);
 			};
 
 			if (scoped) {
 				const parent = getRequestContext();
-				const ctx = parent ? { ...parent, db: scoped.db } : { editMode: false, db: scoped.db };
+				const ctx = parent
+					? { ...parent, db: scoped.db }
+					: { editMode: false, db: scoped.db, metrics };
 				return runWithContext(ctx, async () => {
 					const response = await renderAndFinalize();
 					scoped.commit();
@@ -542,20 +580,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const parent = getRequestContext();
 			const ctx = parent
 				? { ...parent, editMode, db: playgroundDb, dbIsIsolated: true }
-				: { editMode, db: playgroundDb, dbIsIsolated: true };
+				: { editMode, db: playgroundDb, dbIsIsolated: true, metrics };
 			return runWithContext(ctx, doInit);
 		}
 		return doInit();
 	};
 
-	if (queryRecorder) {
-		try {
-			return await runWithContext({ editMode: false, queryRecorder }, run);
-		} finally {
-			flushRecorder(queryRecorder);
-		}
+	try {
+		return await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+	} finally {
+		if (queryRecorder) flushRecorder(queryRecorder);
 	}
-	return run();
 });
 
 export default onRequest;

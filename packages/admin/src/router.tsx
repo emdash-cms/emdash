@@ -4,7 +4,7 @@
  * Defines all admin routes and their components.
  */
 
-import { Loader, Toast } from "@cloudflare/kumo";
+import { Button, Loader, Toast } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
@@ -1721,12 +1721,9 @@ function ErrorScreen({ error }: { error: string }) {
 			<div className="text-center">
 				<h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1>
 				<p className="mt-2 text-kumo-subtle">{error}</p>
-				<button
-					onClick={() => window.location.reload()}
-					className="mt-4 px-4 py-2 bg-kumo-brand text-white rounded-md"
-				>
+				<Button onClick={() => window.location.reload()} className="mt-4">
 					{t`Retry`}
-				</button>
+				</Button>
 			</div>
 		</div>
 	);

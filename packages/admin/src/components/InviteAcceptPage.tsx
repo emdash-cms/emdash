@@ -3,15 +3,16 @@
  * Validates an invite token, then registers a passkey to complete signup.
  */
 
-import { Button, Input, Loader } from "@cloudflare/kumo";
+import { Input, Loader } from "@cloudflare/kumo";
 import { Trans } from "@lingui/react/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Link, useSearch } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import { validateInviteToken, type InviteVerifyResult } from "../lib/api";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
 import { LogoLockup } from "./Logo.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 type InviteStep = "verify" | "register" | "error";
 
@@ -125,19 +126,17 @@ function ErrorStep({ message, code }: ErrorStepProps) {
 
 			<div className="space-y-2">
 				{code === "USER_EXISTS" ? (
-					<Link to="/login">
-						<Button className="w-full">{t`Sign in instead`}</Button>
-					</Link>
+					<RouterLinkButton to="/login" className="w-full">{t`Sign in instead`}</RouterLinkButton>
 				) : (
 					<>
 						<p className="text-sm text-kumo-subtle">
 							{t`Please ask your administrator to send a new invite.`}
 						</p>
-						<Link to="/login">
-							<Button variant="ghost" className="w-full">
-								{t`Back to login`}
-							</Button>
-						</Link>
+						<RouterLinkButton
+							to="/login"
+							variant="ghost"
+							className="w-full"
+						>{t`Back to login`}</RouterLinkButton>
 					</>
 				)}
 			</div>

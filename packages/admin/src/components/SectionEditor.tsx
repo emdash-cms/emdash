@@ -4,10 +4,10 @@
  * Edit a section's content and metadata.
  */
 
-import { Button, Input, InputArea, Label, Loader, Toast } from "@cloudflare/kumo";
+import { Input, InputArea, Label, Loader, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchSection, updateSection, type Section, type UpdateSectionInput } from "../lib/api";
@@ -16,6 +16,7 @@ import { ArrowPrev } from "./ArrowIcons.js";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
 import { EditorHeader } from "./EditorHeader";
 import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
 
 export function SectionEditor() {
@@ -67,11 +68,13 @@ export function SectionEditor() {
 		return (
 			<div className="space-y-6">
 				<div className="flex items-center gap-4">
-					<Link to="/sections">
-						<Button variant="ghost" shape="square" aria-label={t`Back to sections`}>
-							<ArrowPrev className="h-5 w-5" />
-						</Button>
-					</Link>
+					<RouterLinkButton
+						to="/sections"
+						aria-label={t`Back to sections`}
+						variant="ghost"
+						shape="square"
+						icon={<ArrowPrev />}
+					/>
 					<h1 className="text-2xl font-bold">{t`Section Not Found`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
@@ -168,11 +171,13 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 			    long PortableText content. */}
 			<EditorHeader
 				leading={
-					<Link to="/sections">
-						<Button variant="ghost" shape="square" aria-label={t`Back to sections`}>
-							<ArrowPrev className="h-5 w-5" />
-						</Button>
-					</Link>
+					<RouterLinkButton
+						to="/sections"
+						aria-label={t`Back to sections`}
+						variant="ghost"
+						shape="square"
+						icon={<ArrowPrev />}
+					/>
 				}
 				actions={<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />}
 			>

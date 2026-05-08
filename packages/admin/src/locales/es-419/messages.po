@@ -92,14 +92,14 @@ msgid "{0, plural, one {# content item imported} other {# content items imported
 msgstr "{0, plural, one {# elemento de contenido importado} other {# elementos de contenido importados}}"
 
 #. placeholder {0}: filteredItems.length
-#: packages/admin/src/components/ContentList.tsx:300
+#: packages/admin/src/components/ContentList.tsx:291
 msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{0, plural, one {# elemento que coincide con \"{searchQuery}\"} other {# elementos que coinciden con \"{searchQuery}\"}}"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: menu.itemCount ?? 0
 #: packages/admin/src/components/MediaPickerModal.tsx:476
-#: packages/admin/src/components/MenuList.tsx:216
+#: packages/admin/src/components/MenuList.tsx:217
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# elemento} other {# elementos}}"
 
@@ -156,18 +156,18 @@ msgstr "{0, plural, one {# usuario} other {# usuarios}}"
 #. placeholder {0}: filteredItems.length
 #. placeholder {1}: hasMore ? "+" : ""
 #. placeholder {2}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:304
+#: packages/admin/src/components/ContentList.tsx:295
 msgid "{0, plural, one {#{1} item} other {#{2} items}}"
 msgstr "{0, plural, one {#{1} elemento} other {#{2} elementos}}"
 
 #. placeholder {0}: fields.length
-#: packages/admin/src/components/ContentTypeEditor.tsx:596
+#: packages/admin/src/components/ContentTypeEditor.tsx:597
 msgid "{0, plural, one {field} other {fields}}"
 msgstr ""
 
 #. placeholder {0}: menu.name
-#. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast, buttonVariants } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className={buttonVariants({ variant: "outline", size: "sm" })} > <Pencil className="me-2 h-4 w-4" aria-hidden="true" /> {t`Edit`} </Link> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
-#: packages/admin/src/components/MenuList.tsx:214
+#. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
+#: packages/admin/src/components/MenuList.tsx:215
 msgid "{0} • {1}"
 msgstr ""
 
@@ -177,7 +177,7 @@ msgid "{0} detected"
 msgstr "{0} detectado"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:103
+#: packages/admin/src/components/PluginManager.tsx:104
 msgid "{0} has been deactivated"
 msgstr "{0} ha sido desactivado"
 
@@ -192,7 +192,7 @@ msgid "{0} installs"
 msgstr "{0} instalados"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:84
+#: packages/admin/src/components/PluginManager.tsx:85
 msgid "{0} is now active"
 msgstr "{0} ahora está activo"
 
@@ -225,8 +225,8 @@ msgstr "{0} vista previa"
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
-#. placeholder {2}: import { Badge, Button, Input, InputArea, Label, Select, buttonVariants } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const plural = value ? `${value}s` : ""; handleLabelChange(plural); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <Link to="/content-types" aria-label={t`Back to Content Types`} className={buttonVariants({ variant: "ghost", shape: "square" })} > <ArrowPrev className="h-5 w-5" /> </Link> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="text-2xl font-bold truncate"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && ( <span className="ms-2 text-purple-600 dark:text-purple-400">{t`Defined in code`}</span> )} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950 p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" /> <p className="text-sm text-purple-700 dark:text-purple-300"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder="Post" disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder="Posts" disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>Features</Label> {SUPPORT_OPTIONS.map((option) => ( <label key={option.value} className={cn( "flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50", isFromCode && "opacity-60 cursor-not-allowed", )} > <input type="checkbox" checked={supports.includes(option.value)} onChange={() => handleSupportToggle(option.value)} className="mt-1 rounded border-kumo-line" disabled={isFromCode} /> <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> </label> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <label className={cn( "flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50", isFromCode && "opacity-60 cursor-not-allowed", )} > <input type="checkbox" checked={hasSeo} onChange={() => setHasSeo(!hasSeo)} className="mt-1 rounded border-kumo-line" disabled={isFromCode} /> <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> </label> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <label className={cn( "flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50", isFromCode && "opacity-60 cursor-not-allowed", )} > <input type="checkbox" checked={commentsEnabled} onChange={() => setCommentsEnabled(!commentsEnabled)} className="mt-1 rounded border-kumo-line" disabled={isFromCode} /> <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> </label> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <label className={cn( "flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50", isFromCode && "opacity-60 cursor-not-allowed", )} > <input type="checkbox" checked={commentsAutoApproveUsers} onChange={() => setCommentsAutoApproveUsers(!commentsAutoApproveUsers)} className="mt-1 rounded border-kumo-line" disabled={isFromCode} /> <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> </label> </> )} </div> )} {!isFromCode && ( <Button type="submit" disabled={!hasChanges || !urlPatternValid || isSaving} className="w-full" > {isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`} </Button> )} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div className="border-b bg-kumo-tint/30"> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
-#: packages/admin/src/components/ContentTypeEditor.tsx:594
+#. placeholder {2}: import { Badge, Button, Input, InputArea, Label, Select } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const plural = value ? `${value}s` : ""; handleLabelChange(plural); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="text-2xl font-bold truncate"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && ( <span className="ms-2 text-purple-600 dark:text-purple-400">{t`Defined in code`}</span> )} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950 p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" /> <p className="text-sm text-purple-700 dark:text-purple-300"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder="Post" disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder="Posts" disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>Features</Label> {SUPPORT_OPTIONS.map((option) => ( <label key={option.value} className={cn( "flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50", isFromCode && "opacity-60 cursor-not-allowed", )} > <input type="checkbox" checked={supports.includes(option.value)} onChange={() => handleSupportToggle(option.value)} className="mt-1 rounded border-kumo-line" disabled={isFromCode} /> <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> </label> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <label className={cn( "flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50", isFromCode && "opacity-60 cursor-not-allowed", )} > <input type="checkbox" checked={hasSeo} onChange={() => setHasSeo(!hasSeo)} className="mt-1 rounded border-kumo-line" disabled={isFromCode} /> <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> </label> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <label className={cn( "flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50", isFromCode && "opacity-60 cursor-not-allowed", )} > <input type="checkbox" checked={commentsEnabled} onChange={() => setCommentsEnabled(!commentsEnabled)} className="mt-1 rounded border-kumo-line" disabled={isFromCode} /> <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> </label> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <label className={cn( "flex items-start space-x-3 p-2 rounded-md cursor-pointer hover:bg-kumo-tint/50", isFromCode && "opacity-60 cursor-not-allowed", )} > <input type="checkbox" checked={commentsAutoApproveUsers} onChange={() => setCommentsAutoApproveUsers(!commentsAutoApproveUsers)} className="mt-1 rounded border-kumo-line" disabled={isFromCode} /> <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> </label> </> )} </div> )} {!isFromCode && ( <Button type="submit" disabled={!hasChanges || !urlPatternValid || isSaving} className="w-full" > {isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`} </Button> )} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div className="border-b bg-kumo-tint/30"> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
+#: packages/admin/src/components/ContentTypeEditor.tsx:595
 msgid "{0} system + {1} custom {2}"
 msgstr ""
 
@@ -363,7 +363,7 @@ msgstr "• Las URL de su contenido se actualizan automáticamente"
 msgid "← Back"
 msgstr "← Volver"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:36
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:35
 msgid "1 year"
 msgstr "1 año"
 
@@ -391,7 +391,7 @@ msgstr "3. Desplácese hasta \"Contraseñas de aplicaciones\"."
 msgid "3. Select \"All content\""
 msgstr "3. Seleccione \"Todo el contenido\""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:34
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:33
 msgid "30 days"
 msgstr "30 dias"
 
@@ -431,15 +431,15 @@ msgstr "5. Copie la contraseña generada"
 msgid "5. Upload the file here"
 msgstr "5. Sube el archivo aquí"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:33
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:32
 msgid "7 days"
 msgstr "7 dias"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:35
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:34
 msgid "90 days"
 msgstr "90 dias"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:417
+#: packages/admin/src/components/ContentTypeEditor.tsx:418
 msgid "A brief description of this content type"
 msgstr ""
 
@@ -447,7 +447,7 @@ msgstr ""
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:176
+#: packages/admin/src/components/settings/GeneralSettings.tsx:165
 msgid "A short description of your site"
 msgstr "Una breve descripción de su sitio."
 
@@ -459,7 +459,7 @@ msgstr "Aceptar e instalar"
 msgid "Accept & Update"
 msgstr "Aceptar y actualizar"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:207
+#: packages/admin/src/components/InviteAcceptPage.tsx:206
 msgid "Accept Invite"
 msgstr ""
 
@@ -471,11 +471,11 @@ msgstr ""
 msgid "Account"
 msgstr "Cuenta"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:120
+#: packages/admin/src/components/InviteAcceptPage.tsx:121
 msgid "Account already exists"
 msgstr ""
 
-#: packages/admin/src/components/SignupPage.tsx:260
+#: packages/admin/src/components/SignupPage.tsx:261
 msgid "Account exists"
 msgstr "La cuenta existe"
 
@@ -484,8 +484,8 @@ msgid "Account Info"
 msgstr "Información de cuenta"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:299
-#: packages/admin/src/components/ContentList.tsx:244
-#: packages/admin/src/components/ContentList.tsx:358
+#: packages/admin/src/components/ContentList.tsx:235
+#: packages/admin/src/components/ContentList.tsx:349
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:419
 #: packages/admin/src/components/TaxonomyManager.tsx:826
@@ -514,11 +514,11 @@ msgstr ""
 msgid "Add {label}"
 msgstr "Añadir {label}"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:209
+#: packages/admin/src/components/settings/SecuritySettings.tsx:204
 msgid "Add a new passkey"
 msgstr "Agregar una nueva Passkey"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:309
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:304
 msgid "Add an allowed domain"
 msgstr "Agregar un dominio permitido"
 
@@ -545,12 +545,12 @@ msgstr "Agregar contenido"
 msgid "Add Custom Link"
 msgstr "Agregar enlace personalizado"
 
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:349
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:354
 msgid "Add Domain"
 msgstr "Agregar dominio"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:602
+#: packages/admin/src/components/ContentTypeEditor.tsx:603
 #: packages/admin/src/components/FieldEditor.tsx:331
 #: packages/admin/src/components/FieldEditor.tsx:656
 msgid "Add Field"
@@ -560,11 +560,11 @@ msgstr "Agregar campo"
 msgid "Add fields"
 msgstr "Agregar campos"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:624
+#: packages/admin/src/components/ContentTypeEditor.tsx:625
 msgid "Add fields to define the structure of your content"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:627
+#: packages/admin/src/components/ContentTypeEditor.tsx:628
 msgid "Add First Field"
 msgstr ""
 
@@ -588,7 +588,7 @@ msgstr ""
 msgid "Add links to build your navigation menu"
 msgstr "Agregue enlaces para crear su menú de navegación"
 
-#: packages/admin/src/components/ContentList.tsx:168
+#: packages/admin/src/components/ContentList.tsx:159
 msgid "Add New"
 msgstr "Agregar nuevo"
 
@@ -601,7 +601,7 @@ msgstr ""
 msgid "Add noindex meta tag"
 msgstr "Agregar metaetiqueta noindex"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:230
+#: packages/admin/src/components/settings/SecuritySettings.tsx:225
 msgid "Add Passkey"
 msgstr "Agregar Passkey"
 
@@ -617,7 +617,7 @@ msgstr ""
 msgid "Add row before"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:483
+#: packages/admin/src/components/ContentTypeEditor.tsx:484
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr ""
 
@@ -633,12 +633,12 @@ msgstr "Añadir etiquetas..."
 msgid "Add Widget Area"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:139
+#: packages/admin/src/components/settings/SocialSettings.tsx:128
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "Añade tus perfiles de redes sociales. Estos están disponibles para el tema de su sitio y se pueden mostrar en encabezados, pies de página o biografías de los autores."
 
 #: packages/admin/src/components/MenuEditor.tsx:354
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:349
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
 msgid "Adding..."
 msgstr "Añadiendo..."
 
@@ -646,7 +646,7 @@ msgstr "Añadiendo..."
 msgid "Additional data to import."
 msgstr "Datos adicionales para importar."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:96
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
 #: packages/admin/src/components/Sidebar.tsx:438
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -660,7 +660,7 @@ msgstr "Navegación de administrador"
 msgid "Administrator"
 msgstr "Administrador"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:233
+#: packages/admin/src/components/settings/EmailSettings.tsx:224
 msgid "After send:"
 msgstr "Después del envío:"
 
@@ -676,7 +676,7 @@ msgstr ""
 msgid "Align Right"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:195
+#: packages/admin/src/components/ContentList.tsx:186
 msgid "All"
 msgstr "Todo"
 
@@ -692,7 +692,7 @@ msgstr "Todas las capacidades"
 msgid "All collections"
 msgstr "Todas las colecciones"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:62
+#: packages/admin/src/components/ContentTypeEditor.tsx:63
 msgid "All comments require approval"
 msgstr ""
 
@@ -725,19 +725,19 @@ msgstr "Todos los tipos"
 msgid "Allow users from specific domains to sign up"
 msgstr "Permitir que los usuarios de dominios específicos se registren"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:511
+#: packages/admin/src/components/ContentTypeEditor.tsx:512
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:245
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:240
 msgid "Allowed Domains"
 msgstr "Dominios permitidos"
 
-#: packages/admin/src/components/SignupPage.tsx:438
+#: packages/admin/src/components/SignupPage.tsx:437
 msgid "Already have an account?"
 msgstr "¿Ya tienes una cuenta?"
 
-#: packages/admin/src/components/PluginManager.tsx:565
+#: packages/admin/src/components/PluginManager.tsx:570
 msgid "Also delete plugin storage data"
 msgstr "Eliminar también los datos de almacenamiento del plugin"
 
@@ -761,8 +761,8 @@ msgid "Alternatively, you can export from WordPress (Tools → Export) and uploa
 msgstr "Alternativamente, puede exportar desde WordPress (Herramientas → Exportar) y cargar el archivo."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:139
-#: packages/admin/src/components/PluginManager.tsx:90
-#: packages/admin/src/components/PluginManager.tsx:109
+#: packages/admin/src/components/PluginManager.tsx:91
+#: packages/admin/src/components/PluginManager.tsx:110
 #: packages/admin/src/components/TaxonomySidebar.tsx:323
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:116
 #: packages/admin/src/router.tsx:339
@@ -785,7 +785,7 @@ msgstr "Alternativamente, puede exportar desde WordPress (Herramientas → Expor
 msgid "An error occurred"
 msgstr "Se produjo un error"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:218
+#: packages/admin/src/components/InviteAcceptPage.tsx:217
 msgid "An unknown error occurred"
 msgstr ""
 
@@ -798,7 +798,7 @@ msgid "Analyzing WordPress site..."
 msgstr "Analizando el sitio de WordPress..."
 
 #: packages/admin/src/components/Settings.tsx:109
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:188
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:183
 msgid "API Tokens"
 msgstr "Tokens de API"
 
@@ -837,7 +837,7 @@ msgstr "Aprobado"
 msgid "Arbitrary JSON data"
 msgstr "Datos JSON arbitrarios"
 
-#: packages/admin/src/components/ContentList.tsx:680
+#: packages/admin/src/components/ContentList.tsx:671
 msgid "archived"
 msgstr "archivado"
 
@@ -847,11 +847,11 @@ msgid "Are you sure you want to delete \"{0}\"? This will also delete all conten
 msgstr "¿Está seguro de que desea eliminar \"{0}\"? Esto también eliminará todo el contenido de esta colección."
 
 #. placeholder {0}: deleteFieldTarget.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:680
+#: packages/admin/src/components/ContentTypeEditor.tsx:681
 msgid "Are you sure you want to delete the \"{0}\" field?"
 msgstr ""
 
-#: packages/admin/src/components/MenuList.tsx:252
+#: packages/admin/src/components/MenuList.tsx:254
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
 msgstr "¿Está seguro de que desea eliminar este menú? Esto también eliminará todos los elementos del menú. Esta acción no se puede deshacer."
 
@@ -878,7 +878,7 @@ msgid "Authentication failed"
 msgstr ""
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/SecuritySettings.tsx:134
+#: packages/admin/src/components/settings/SecuritySettings.tsx:129
 msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
 msgstr "La autenticación es administrada por un proveedor externo ({0}). La configuración de la Passkey no está disponible cuando se utiliza la autenticación externa."
 
@@ -925,7 +925,7 @@ msgstr "auto"
 msgid "Auto (slug change)"
 msgstr "Auto (cambio de slug)"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:562
+#: packages/admin/src/components/ContentTypeEditor.tsx:563
 msgid "Auto-approve authenticated users"
 msgstr ""
 
@@ -945,7 +945,7 @@ msgstr ""
 msgid "Available media"
 msgstr "Medios disponibles"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:242
+#: packages/admin/src/components/settings/EmailSettings.tsx:233
 msgid "Available Providers"
 msgstr "Proveedores disponibles"
 
@@ -964,15 +964,15 @@ msgstr "Atrás"
 msgid "Back to {collectionLabel} list"
 msgstr "Volver a la lista {collectionLabel}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:335
+#: packages/admin/src/components/ContentTypeEditor.tsx:336
 msgid "Back to Content Types"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:138
+#: packages/admin/src/components/InviteAcceptPage.tsx:139
 #: packages/admin/src/components/LoginPage.tsx:117
 #: packages/admin/src/components/LoginPage.tsx:153
 #: packages/admin/src/components/LoginPage.tsx:311
-#: packages/admin/src/components/SignupPage.tsx:280
+#: packages/admin/src/components/SignupPage.tsx:281
 msgid "Back to login"
 msgstr "Volver a iniciar sesión"
 
@@ -981,22 +981,12 @@ msgstr "Volver a iniciar sesión"
 msgid "Back to marketplace"
 msgstr "Volver al mercado"
 
-#: packages/admin/src/components/SectionEditor.tsx:71
-#: packages/admin/src/components/SectionEditor.tsx:172
+#: packages/admin/src/components/SectionEditor.tsx:73
+#: packages/admin/src/components/SectionEditor.tsx:176
 msgid "Back to sections"
 msgstr "Volver a secciones"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:168
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:183
-#: packages/admin/src/components/settings/EmailSettings.tsx:86
-#: packages/admin/src/components/settings/EmailSettings.tsx:105
-#: packages/admin/src/components/settings/GeneralSettings.tsx:102
-#: packages/admin/src/components/settings/GeneralSettings.tsx:124
-#: packages/admin/src/components/settings/SecuritySettings.tsx:105
-#: packages/admin/src/components/settings/SeoSettings.tsx:79
-#: packages/admin/src/components/settings/SeoSettings.tsx:98
-#: packages/admin/src/components/settings/SocialSettings.tsx:79
-#: packages/admin/src/components/settings/SocialSettings.tsx:98
+#: packages/admin/src/components/settings/BackToSettingsLink.tsx:19
 msgid "Back to settings"
 msgstr "Volver a la configuración"
 
@@ -1005,11 +995,11 @@ msgstr "Volver a la configuración"
 msgid "Back to Themes"
 msgstr "Volver a Temas"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:228
+#: packages/admin/src/components/settings/EmailSettings.tsx:219
 msgid "Before send:"
 msgstr "Antes de enviar:"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:155
+#: packages/admin/src/components/settings/SeoSettings.tsx:144
 msgid "Bing Verification"
 msgstr "Verificación de Bing"
 
@@ -1086,8 +1076,8 @@ msgstr "Puede ver contenido"
 #: packages/admin/src/components/ContentEditor.tsx:945
 #: packages/admin/src/components/ContentEditor.tsx:2018
 #: packages/admin/src/components/ContentEditor.tsx:2071
-#: packages/admin/src/components/ContentList.tsx:568
-#: packages/admin/src/components/ContentList.tsx:639
+#: packages/admin/src/components/ContentList.tsx:559
+#: packages/admin/src/components/ContentList.tsx:630
 #: packages/admin/src/components/ContentPickerModal.tsx:253
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/editor/ImageNode.tsx:223
@@ -1098,17 +1088,17 @@ msgstr "Puede ver contenido"
 #: packages/admin/src/components/MediaPickerModal.tsx:608
 #: packages/admin/src/components/MenuEditor.tsx:351
 #: packages/admin/src/components/MenuEditor.tsx:522
-#: packages/admin/src/components/MenuList.tsx:171
-#: packages/admin/src/components/PluginManager.tsx:571
+#: packages/admin/src/components/MenuList.tsx:172
+#: packages/admin/src/components/PluginManager.tsx:576
 #: packages/admin/src/components/PortableTextEditor.tsx:2916
 #: packages/admin/src/components/Redirects.tsx:176
 #: packages/admin/src/components/SectionPickerModal.tsx:130
 #: packages/admin/src/components/Sections.tsx:209
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:318
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:428
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:330
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:458
-#: packages/admin/src/components/settings/SecuritySettings.tsx:211
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:313
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:423
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:325
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
+#: packages/admin/src/components/settings/SecuritySettings.tsx:206
 #: packages/admin/src/components/TaxonomyManager.tsx:187
 #: packages/admin/src/components/TaxonomyManager.tsx:470
 #: packages/admin/src/components/TaxonomyManager.tsx:689
@@ -1134,7 +1124,7 @@ msgstr "No se pueden eliminar secciones de temas"
 msgid "Canonical URL"
 msgstr "URL canónica"
 
-#: packages/admin/src/components/PluginManager.tsx:410
+#: packages/admin/src/components/PluginManager.tsx:415
 msgid "Capabilities"
 msgstr "Capacidades"
 
@@ -1176,11 +1166,11 @@ msgstr "Cambiar"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:248
+#: packages/admin/src/components/settings/GeneralSettings.tsx:237
 msgid "Change Favicon"
 msgstr "Cambiar favicon"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:204
+#: packages/admin/src/components/settings/GeneralSettings.tsx:193
 msgid "Change Logo"
 msgstr "Cambiar logotipo"
 
@@ -1188,11 +1178,11 @@ msgstr "Cambiar logotipo"
 msgid "Changes discarded"
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:146
+#: packages/admin/src/components/settings/SeoSettings.tsx:135
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Carácter entre el título de la página y el nombre del sitio (por ejemplo, \"Mi entrada | Mi sitio\")"
 
-#: packages/admin/src/components/PluginManager.tsx:152
+#: packages/admin/src/components/PluginManager.tsx:153
 msgid "Check for updates"
 msgstr "Buscar actualizaciones"
 
@@ -1201,8 +1191,8 @@ msgid "Check Site"
 msgstr "Verificar sitio"
 
 #: packages/admin/src/components/LoginPage.tsx:101
-#: packages/admin/src/components/SignupPage.tsx:129
-#: packages/admin/src/components/SignupPage.tsx:401
+#: packages/admin/src/components/SignupPage.tsx:130
+#: packages/admin/src/components/SignupPage.tsx:400
 msgid "Check your email"
 msgstr "Revisa tu correo electrónico"
 
@@ -1226,7 +1216,7 @@ msgstr "Elija su idioma de administrador preferido"
 msgid "Clear filters"
 msgstr ""
 
-#: packages/admin/src/components/SignupPage.tsx:137
+#: packages/admin/src/components/SignupPage.tsx:138
 msgid "Click the link in the email to continue setting up your account."
 msgstr "Haga clic en el enlace del correo electrónico para continuar configurando su cuenta."
 
@@ -1257,9 +1247,9 @@ msgstr "Haga clic en el enlace del correo electrónico para iniciar sesión."
 #: packages/admin/src/components/MenuEditor.tsx:481
 #: packages/admin/src/components/MenuEditor.tsx:487
 #: packages/admin/src/components/MenuEditor.tsx:491
-#: packages/admin/src/components/MenuList.tsx:135
-#: packages/admin/src/components/MenuList.tsx:141
-#: packages/admin/src/components/MenuList.tsx:145
+#: packages/admin/src/components/MenuList.tsx:136
+#: packages/admin/src/components/MenuList.tsx:142
+#: packages/admin/src/components/MenuList.tsx:146
 #: packages/admin/src/components/PortableTextEditor.tsx:1246
 #: packages/admin/src/components/PortableTextEditor.tsx:1252
 #: packages/admin/src/components/PortableTextEditor.tsx:1256
@@ -1271,9 +1261,9 @@ msgstr "Haga clic en el enlace del correo electrónico para iniciar sesión."
 #: packages/admin/src/components/Sections.tsx:153
 #: packages/admin/src/components/Sections.tsx:159
 #: packages/admin/src/components/Sections.tsx:163
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:376
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:382
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:386
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:371
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:377
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:381
 #: packages/admin/src/components/TaxonomyManager.tsx:164
 #: packages/admin/src/components/TaxonomyManager.tsx:369
 #: packages/admin/src/components/TaxonomyManager.tsx:375
@@ -1292,7 +1282,7 @@ msgstr "Haga clic en el enlace del correo electrónico para iniciar sesión."
 msgid "Close"
 msgstr "Cerrar"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:533
+#: packages/admin/src/components/ContentTypeEditor.tsx:534
 msgid "Close comments after (days)"
 msgstr ""
 
@@ -1312,11 +1302,11 @@ msgstr "Código"
 msgid "Code Block"
 msgstr "Bloque de código"
 
-#: packages/admin/src/components/PluginManager.tsx:397
+#: packages/admin/src/components/PluginManager.tsx:402
 msgid "Collapse"
 msgstr "Colapsar"
 
-#: packages/admin/src/components/PluginManager.tsx:391
+#: packages/admin/src/components/PluginManager.tsx:396
 msgid "Collapse details"
 msgstr "Contraer detalles"
 
@@ -1336,7 +1326,7 @@ msgstr "Colecciones"
 msgid "Collections created:"
 msgstr "Colecciones creadas:"
 
-#: packages/admin/src/components/SectionEditor.tsx:263
+#: packages/admin/src/components/SectionEditor.tsx:268
 msgid "Comma-separated keywords for search."
 msgstr "Palabras clave de búsqueda separadas por comas."
 
@@ -1350,16 +1340,16 @@ msgid "Comment Detail"
 msgstr "Detalle del comentario"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:146
-#: packages/admin/src/components/ContentTypeEditor.tsx:493
+#: packages/admin/src/components/ContentTypeEditor.tsx:494
 #: packages/admin/src/components/Sidebar.tsx:190
 msgid "Comments"
 msgstr "Comentarios"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:565
+#: packages/admin/src/components/ContentTypeEditor.tsx:566
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr ""
 
-#: packages/admin/src/components/SignupPage.tsx:402
+#: packages/admin/src/components/SignupPage.tsx:401
 msgid "Complete signup"
 msgstr "Registro completo"
 
@@ -1371,7 +1361,7 @@ msgstr ""
 msgid "Configure Field"
 msgstr "Configurar campo"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:320
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:315
 msgid "Confirm"
 msgstr "Confirmar"
 
@@ -1402,7 +1392,7 @@ msgstr "Conectado {0}"
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:1959
-#: packages/admin/src/components/SectionEditor.tsx:191
+#: packages/admin/src/components/SectionEditor.tsx:196
 #: packages/admin/src/components/Sidebar.tsx:412
 #: packages/admin/src/components/Widgets.tsx:819
 msgid "Content"
@@ -1441,7 +1431,7 @@ msgstr ""
 msgid "content items"
 msgstr "elementos de contenido"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:46
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:45
 msgid "Content Read"
 msgstr "Lectura de contenido"
 
@@ -1462,7 +1452,7 @@ msgid "Content to Import"
 msgstr "Contenido para importar"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
-#: packages/admin/src/components/ContentTypeList.tsx:39
+#: packages/admin/src/components/ContentTypeList.tsx:40
 #: packages/admin/src/components/Sidebar.tsx:210
 msgid "Content Types"
 msgstr "Tipos de contenido"
@@ -1471,11 +1461,11 @@ msgstr "Tipos de contenido"
 msgid "Content was skipped because it already exists"
 msgstr "El contenido se omitió porque ya existe."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:51
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:50
 msgid "Content Write"
 msgstr "Escritura de contenido"
 
-#: packages/admin/src/components/SignupPage.tsx:90
+#: packages/admin/src/components/SignupPage.tsx:91
 msgid "Continue"
 msgstr "Continuar"
 
@@ -1493,7 +1483,7 @@ msgstr "Continuar importando"
 msgid "Contributor"
 msgstr "Contribuyente"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:230
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:225
 #: packages/admin/src/components/users/InviteUserModal.tsx:134
 msgid "Copied to clipboard"
 msgstr "Copiado al portapapeles"
@@ -1511,11 +1501,11 @@ msgstr "Copiar enlace de invitación"
 msgid "Copy slug"
 msgstr "Copiar slug"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:200
 msgid "Copy this token now — it won't be shown again."
 msgstr "Copie este token ahora; no se volverá a mostrar."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:223
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
 msgid "Copy token"
 msgstr "Copiar token"
 
@@ -1541,7 +1531,7 @@ msgid "Count"
 msgstr "Contar"
 
 #: packages/admin/src/components/ContentEditor.tsx:2042
-#: packages/admin/src/components/MenuList.tsx:174
+#: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:477
@@ -1567,12 +1557,12 @@ msgstr "Crear un nuevo {0}"
 msgid "Create a numbered list"
 msgstr "Crear una lista numerada"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:80
-#: packages/admin/src/components/SignupPage.tsx:219
+#: packages/admin/src/components/InviteAcceptPage.tsx:81
+#: packages/admin/src/components/SignupPage.tsx:220
 msgid "Create Account"
 msgstr "Crear una cuenta"
 
-#: packages/admin/src/components/SignupPage.tsx:400
+#: packages/admin/src/components/SignupPage.tsx:399
 msgid "Create an account"
 msgstr "Crea una cuenta"
 
@@ -1581,20 +1571,20 @@ msgstr "Crea una cuenta"
 msgid "Create byline"
 msgstr "Crear firma"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:580
+#: packages/admin/src/components/ContentTypeEditor.tsx:581
 msgid "Create Content Type"
 msgstr ""
 
-#: packages/admin/src/components/MenuList.tsx:125
-#: packages/admin/src/components/MenuList.tsx:188
+#: packages/admin/src/components/MenuList.tsx:126
+#: packages/admin/src/components/MenuList.tsx:189
 msgid "Create Menu"
 msgstr "Crear menú"
 
-#: packages/admin/src/components/MenuList.tsx:132
+#: packages/admin/src/components/MenuList.tsx:133
 msgid "Create New Menu"
 msgstr "Crear nuevo menú"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:401
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:396
 msgid "Create New Token"
 msgstr "Crear nuevo token"
 
@@ -1607,7 +1597,7 @@ msgid "Create Passkey"
 msgstr "Crear Passkey"
 
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:185
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Cree tokens de acceso personal para acceso API programático"
 
@@ -1642,8 +1632,8 @@ msgstr "Crea secciones en la biblioteca de Secciones para usarlas aquí"
 msgid "Create Taxonomy"
 msgstr "Crear taxonomía"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:263
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:455
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:258
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:450
 msgid "Create Token"
 msgstr "Crear token"
 
@@ -1655,11 +1645,11 @@ msgstr ""
 msgid "Create your account"
 msgstr "Crea tu cuenta"
 
-#: packages/admin/src/components/MenuList.tsx:186
+#: packages/admin/src/components/MenuList.tsx:187
 msgid "Create your first navigation menu to get started"
 msgstr "Crea tu primer menú de navegación para comenzar"
 
-#: packages/admin/src/components/ContentList.tsx:268
+#: packages/admin/src/components/ContentList.tsx:259
 #: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "Create your first one"
 msgstr "Crea el primero"
@@ -1668,20 +1658,20 @@ msgstr "Crea el primero"
 msgid "Create your first reusable content section to get started."
 msgstr "Cree su primera sección de contenido reutilizable para comenzar."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:71
-#: packages/admin/src/components/SignupPage.tsx:210
+#: packages/admin/src/components/InviteAcceptPage.tsx:72
+#: packages/admin/src/components/SignupPage.tsx:211
 msgid "Create your passkey"
 msgstr "Crea tu Passkey"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:82
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:81
 msgid "Create, update, and delete navigation menus"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:77
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:76
 msgid "Create, update, and delete taxonomy terms"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:52
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:51
 msgid "Create, update, delete content"
 msgstr "Crear, actualizar, eliminar contenido"
 
@@ -1691,7 +1681,7 @@ msgstr "Creado"
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:302
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:297
 #: packages/admin/src/components/users/UserDetail.tsx:260
 msgid "Created {0}"
 msgstr "Creado {0}"
@@ -1701,7 +1691,7 @@ msgstr "Creado {0}"
 msgid "Created {0} translation"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:122
+#: packages/admin/src/components/ContentTypeEditor.tsx:123
 msgid "Created At"
 msgstr "Creado en"
 
@@ -1715,10 +1705,10 @@ msgid "Creating collections and fields..."
 msgstr "Creando colecciones y campos..."
 
 #: packages/admin/src/components/ContentEditor.tsx:2042
-#: packages/admin/src/components/MenuList.tsx:174
+#: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:455
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:450
 #: packages/admin/src/components/TaxonomyManager.tsx:692
 #: packages/admin/src/components/TaxonomySidebar.tsx:265
 msgid "Creating..."
@@ -1737,15 +1727,15 @@ msgstr "Actual"
 msgid "Custom"
 msgstr "Personalizado"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:634
+#: packages/admin/src/components/ContentTypeEditor.tsx:635
 msgid "Custom Fields"
 msgstr ""
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:165
+#: packages/admin/src/components/settings/SeoSettings.tsx:154
 msgid "Custom robots.txt content. Leave empty to use the default."
 msgstr "Contenido personalizado de robots.txt. Déjelo vacío para usar el valor predeterminado."
 
-#: packages/admin/src/components/SectionEditor.tsx:181
+#: packages/admin/src/components/SectionEditor.tsx:186
 msgid "Custom Section"
 msgstr "Sección personalizada"
 
@@ -1766,7 +1756,7 @@ msgid "Dashboard"
 msgstr "Escritorio"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:296
-#: packages/admin/src/components/ContentList.tsx:241
+#: packages/admin/src/components/ContentList.tsx:232
 msgid "Date"
 msgstr "Fecha"
 
@@ -1779,7 +1769,7 @@ msgstr "Fecha y hora"
 msgid "Date and time picker"
 msgstr "Selector de fecha y hora"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:290
+#: packages/admin/src/components/settings/GeneralSettings.tsx:279
 msgid "Date Format"
 msgstr "Formato de fecha"
 
@@ -1787,12 +1777,12 @@ msgstr "Formato de fecha"
 msgid "Decimal number"
 msgstr "numero decimal"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:332
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:394
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:327
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:389
 msgid "Default Role"
 msgstr "Rol predeterminado"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:271
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:266
 msgid "Default role:"
 msgstr "Rol predeterminado:"
 
@@ -1800,24 +1790,24 @@ msgstr "Rol predeterminado:"
 msgid "Define a new taxonomy for classifying content"
 msgstr "Definir una nueva taxonomía para clasificar contenidos"
 
-#: packages/admin/src/components/ContentTypeList.tsx:40
+#: packages/admin/src/components/ContentTypeList.tsx:41
 msgid "Define the structure of your content"
 msgstr "Define la estructura de tu contenido"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:360
+#: packages/admin/src/components/ContentTypeEditor.tsx:361
 msgid "Defined in code"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:267
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
-#: packages/admin/src/components/ContentTypeEditor.tsx:683
+#: packages/admin/src/components/ContentTypeEditor.tsx:684
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/editor/BlockMenu.tsx:298
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
 #: packages/admin/src/components/MediaDetailPanel.tsx:230
 #: packages/admin/src/components/MediaDetailPanel.tsx:255
 #: packages/admin/src/components/MenuEditor.tsx:455
-#: packages/admin/src/components/MenuList.tsx:253
+#: packages/admin/src/components/MenuList.tsx:255
 #: packages/admin/src/components/Redirects.tsx:559
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
@@ -1838,19 +1828,19 @@ msgstr "¿Eliminar \"{0}\"? Esto no se puede deshacer."
 #. placeholder {0}: section.title
 #: packages/admin/src/components/ContentTypeList.tsx:229
 #: packages/admin/src/components/Sections.tsx:408
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:290
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:285
 #: packages/admin/src/components/TaxonomyManager.tsx:97
 #: packages/admin/src/components/Widgets.tsx:737
 msgid "Delete {0}"
 msgstr "Eliminar {0}"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:760
+#: packages/admin/src/components/ContentTypeEditor.tsx:761
 msgid "Delete {0} field"
 msgstr ""
 
 #. placeholder {0}: menu.name
-#: packages/admin/src/components/MenuList.tsx:235
+#: packages/admin/src/components/MenuList.tsx:237
 msgid "Delete {0} menu"
 msgstr "Eliminar menú {0}"
 
@@ -1884,7 +1874,7 @@ msgstr "¿Eliminar tipo de contenido?"
 msgid "Delete embed"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:677
+#: packages/admin/src/components/ContentTypeEditor.tsx:678
 msgid "Delete Field?"
 msgstr ""
 
@@ -1897,7 +1887,7 @@ msgstr ""
 msgid "Delete Media?"
 msgstr "¿Eliminar medios?"
 
-#: packages/admin/src/components/MenuList.tsx:251
+#: packages/admin/src/components/MenuList.tsx:253
 msgid "Delete Menu"
 msgstr "Eliminar menú"
 
@@ -1906,11 +1896,11 @@ msgid "Delete permanently"
 msgstr "Eliminar permanentemente"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:650
+#: packages/admin/src/components/ContentList.tsx:641
 msgid "Delete Permanently"
 msgstr "Eliminar permanentemente"
 
-#: packages/admin/src/components/ContentList.tsx:630
+#: packages/admin/src/components/ContentList.tsx:621
 msgid "Delete Permanently?"
 msgstr "¿Eliminar permanentemente?"
 
@@ -1943,16 +1933,16 @@ msgstr ""
 msgid "Delete Widget Area?"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:355
+#: packages/admin/src/components/ContentList.tsx:346
 msgid "Deleted"
 msgstr "Eliminado"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
-#: packages/admin/src/components/ContentTypeEditor.tsx:684
+#: packages/admin/src/components/ContentTypeEditor.tsx:685
 #: packages/admin/src/components/ContentTypeList.tsx:149
 #: packages/admin/src/components/MediaDetailPanel.tsx:230
 #: packages/admin/src/components/MediaDetailPanel.tsx:256
-#: packages/admin/src/components/MenuList.tsx:254
+#: packages/admin/src/components/MenuList.tsx:256
 #: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:890
@@ -1992,12 +1982,12 @@ msgstr ""
 msgid "Describe this image for accessibility"
 msgstr "Describe esta imagen para accesibilidad."
 
-#: packages/admin/src/components/SectionEditor.tsx:252
+#: packages/admin/src/components/SectionEditor.tsx:257
 msgid "Describe what this section is for..."
 msgstr "Describe para qué sirve esta sección..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:414
-#: packages/admin/src/components/SectionEditor.tsx:249
+#: packages/admin/src/components/ContentTypeEditor.tsx:415
+#: packages/admin/src/components/SectionEditor.tsx:254
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:373
 msgid "Description"
@@ -2015,7 +2005,7 @@ msgstr "Destino"
 msgid "Destination path"
 msgstr "Ruta de destino"
 
-#: packages/admin/src/components/PluginManager.tsx:397
+#: packages/admin/src/components/PluginManager.tsx:402
 msgid "details"
 msgstr "detalles"
 
@@ -2035,7 +2025,7 @@ msgstr "Vinculado al dispositivo"
 msgid "Device-bound passkey"
 msgstr "Passkey vinculada al dispositivo"
 
-#: packages/admin/src/components/SignupPage.tsx:142
+#: packages/admin/src/components/SignupPage.tsx:143
 msgid "Didn't receive the email?"
 msgstr "¿No recibiste el correo electrónico?"
 
@@ -2047,7 +2037,7 @@ msgstr "Dimensiones:"
 msgid "Disable"
 msgstr "Desactivar"
 
-#: packages/admin/src/components/PluginManager.tsx:385
+#: packages/admin/src/components/PluginManager.tsx:390
 msgid "Disable plugin"
 msgstr "Deshabilitar plugin"
 
@@ -2070,7 +2060,7 @@ msgstr ""
 msgid "Disabled"
 msgstr "Desactivado"
 
-#: packages/admin/src/components/PluginManager.tsx:464
+#: packages/admin/src/components/PluginManager.tsx:469
 msgid "Disabled:"
 msgstr "Desactivado:"
 
@@ -2092,8 +2082,8 @@ msgstr "Descartar cambios"
 msgid "Discard draft changes?"
 msgstr "¿Descartar cambios en el borrador?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:240
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:235
 msgid "Dismiss"
 msgstr "Descartar"
 
@@ -2107,7 +2097,7 @@ msgstr "Mostrar un menú de navegación"
 msgid "Display name"
 msgstr "Nombre para mostrar"
 
-#: packages/admin/src/components/MenuList.tsx:166
+#: packages/admin/src/components/MenuList.tsx:167
 msgid "Display name for admin interface"
 msgstr "Nombre para mostrar para la interfaz de administración"
 
@@ -2129,19 +2119,19 @@ msgstr "Modo sin distracciones (⌘⇧\\)"
 msgid "Divider"
 msgstr "Divisor"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:324
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:319
 msgid "Domain"
 msgstr "Dominio"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:86
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 msgid "Domain added successfully"
 msgstr "Dominio agregado exitosamente"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:125
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:124
 msgid "Domain removed"
 msgstr "Dominio eliminado"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:107
 msgid "Domain updated"
 msgstr "Dominio actualizado"
 
@@ -2162,7 +2152,7 @@ msgstr "Abajo"
 msgid "Downloading"
 msgstr "Descargando"
 
-#: packages/admin/src/components/ContentList.tsx:676
+#: packages/admin/src/components/ContentList.tsx:667
 msgid "draft"
 msgstr "borrador"
 
@@ -2171,11 +2161,11 @@ msgstr "borrador"
 msgid "Draft"
 msgstr "Borrador"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:118
+#: packages/admin/src/components/ContentTypeEditor.tsx:119
 msgid "draft, published, or archived"
 msgstr "borrador, publicado o archivado"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:70
+#: packages/admin/src/components/ContentTypeEditor.tsx:71
 #: packages/admin/src/components/Dashboard.tsx:188
 msgid "Drafts"
 msgstr "Borradores"
@@ -2194,7 +2184,7 @@ msgstr ""
 
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
-#: packages/admin/src/components/ContentTypeEditor.tsx:727
+#: packages/admin/src/components/ContentTypeEditor.tsx:728
 #: packages/admin/src/components/Widgets.tsx:722
 msgid "Drag to reorder {0}"
 msgstr ""
@@ -2223,7 +2213,7 @@ msgstr "Suelta tu archivo de exportación de WordPress aquí"
 msgid "Duplicate"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:541
+#: packages/admin/src/components/ContentList.tsx:532
 msgid "Duplicate {title}"
 msgstr "Duplicar {title}"
 
@@ -2231,7 +2221,7 @@ msgstr "Duplicar {title}"
 msgid "e.g. import, blog"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:415
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:410
 msgid "e.g., CI/CD Pipeline"
 msgstr "por ejemplo, canalización de CI/CD"
 
@@ -2243,7 +2233,7 @@ msgstr "por ejemplo, MacBook Pro, iPhone"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:450
-#: packages/admin/src/components/MenuList.tsx:229
+#: packages/admin/src/components/MenuList.tsx:231
 #: packages/admin/src/components/PortableTextEditor.tsx:1243
 #: packages/admin/src/components/Sections.tsx:392
 #: packages/admin/src/components/TaxonomyManager.tsx:360
@@ -2255,14 +2245,14 @@ msgstr "Editar"
 #. placeholder {0}: domain.domain
 #. placeholder {0}: selected.displayName
 #: packages/admin/src/components/ContentTypeList.tsx:220
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:281
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:276
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/routes/bylines.tsx:244
 msgid "Edit {0}"
 msgstr "Editar {0}"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:752
+#: packages/admin/src/components/ContentTypeEditor.tsx:753
 msgid "Edit {0} field"
 msgstr ""
 
@@ -2270,7 +2260,7 @@ msgstr ""
 msgid "Edit {collectionLabel}"
 msgstr "Editar {collectionLabel}"
 
-#: packages/admin/src/components/ContentList.tsx:533
+#: packages/admin/src/components/ContentList.tsx:524
 msgid "Edit {title}"
 msgstr "Editar {title}"
 
@@ -2278,7 +2268,7 @@ msgstr "Editar {title}"
 msgid "Edit byline"
 msgstr "Editar firma"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:369
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:364
 msgid "Edit Domain"
 msgstr "Editar dominio"
 
@@ -2321,9 +2311,9 @@ msgstr ""
 msgid "Editor"
 msgstr "Editor"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:58
+#: packages/admin/src/components/InviteAcceptPage.tsx:59
 #: packages/admin/src/components/Settings.tsx:115
-#: packages/admin/src/components/SignupPage.tsx:196
+#: packages/admin/src/components/SignupPage.tsx:197
 #: packages/admin/src/components/users/UserDetail.tsx:154
 msgid "Email"
 msgstr "Correo electrónico"
@@ -2333,30 +2323,30 @@ msgid "Email (optional)"
 msgstr "Correo electrónico (opcional)"
 
 #: packages/admin/src/components/LoginPage.tsx:126
-#: packages/admin/src/components/SignupPage.tsx:65
+#: packages/admin/src/components/SignupPage.tsx:66
 #: packages/admin/src/components/users/InviteUserModal.tsx:154
 msgid "Email address"
 msgstr "Dirección de correo electrónico"
 
 #: packages/admin/src/components/SetupWizard.tsx:179
-#: packages/admin/src/components/SignupPage.tsx:48
+#: packages/admin/src/components/SignupPage.tsx:49
 msgid "Email is required"
 msgstr "Se requiere correo electrónico"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:224
+#: packages/admin/src/components/settings/EmailSettings.tsx:215
 msgid "Email Middleware"
 msgstr "Middleware de correo electrónico"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:134
+#: packages/admin/src/components/settings/EmailSettings.tsx:125
 msgid "Email Pipeline"
 msgstr "Canalización de correo electrónico"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:208
+#: packages/admin/src/components/settings/EmailSettings.tsx:199
 msgid "Email provider active"
 msgstr "Proveedor de correo electrónico activo"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:90
-#: packages/admin/src/components/settings/EmailSettings.tsx:109
+#: packages/admin/src/components/settings/EmailSettings.tsx:85
+#: packages/admin/src/components/settings/EmailSettings.tsx:100
 msgid "Email Settings"
 msgstr "Configuración de correo electrónico"
 
@@ -2364,7 +2354,7 @@ msgstr "Configuración de correo electrónico"
 msgid "Email verified"
 msgstr "Correo electrónico verificado"
 
-#: packages/admin/src/components/SignupPage.tsx:188
+#: packages/admin/src/components/SignupPage.tsx:189
 msgid "Email verified!"
 msgstr "Correo electrónico verificado!"
 
@@ -2389,15 +2379,15 @@ msgstr "¡Se detectó el plugin EmDash Exporter! Puedes importar directamente."
 msgid "Enable"
 msgstr "Habilitar"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:509
+#: packages/admin/src/components/ContentTypeEditor.tsx:510
 msgid "Enable comments"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:86
+#: packages/admin/src/components/ContentTypeEditor.tsx:87
 msgid "Enable full-text search on this collection"
 msgstr "Habilitar la búsqueda de texto completo en esta colección"
 
-#: packages/admin/src/components/PluginManager.tsx:385
+#: packages/admin/src/components/PluginManager.tsx:390
 msgid "Enable plugin"
 msgstr "Habilitar plugin"
 
@@ -2482,7 +2472,7 @@ msgstr ""
 msgid "Error reordering widgets"
 msgstr ""
 
-#: packages/admin/src/components/SectionEditor.tsx:51
+#: packages/admin/src/components/SectionEditor.tsx:52
 msgid "Error saving section"
 msgstr "Error al guardar la sección"
 
@@ -2502,20 +2492,20 @@ msgstr "Salir del modo sin distracciones"
 msgid "Exit Spotlight Mode"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:397
+#: packages/admin/src/components/PluginManager.tsx:402
 msgid "Expand"
 msgstr "Expandir"
 
-#: packages/admin/src/components/PluginManager.tsx:391
+#: packages/admin/src/components/PluginManager.tsx:396
 msgid "Expand details"
 msgstr "Ampliar detalles"
 
 #. placeholder {0}: new Date(token.expiresAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:292
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:287
 msgid "Expires {0}"
 msgstr "Vence {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:441
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:436
 msgid "Expiry"
 msgstr "Expiración"
 
@@ -2527,7 +2517,7 @@ msgstr "Exportar desde WordPress manualmente"
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Exporta tu contenido desde WordPress para importarlo todo, incluidos los borradores."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:155
+#: packages/admin/src/components/settings/SocialSettings.tsx:144
 msgid "Facebook"
 msgstr "Facebook"
 
@@ -2543,7 +2533,7 @@ msgstr "Fallido"
 msgid "Failed security audit"
 msgstr "Auditoría de seguridad fallida"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:91
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:90
 msgid "Failed to add domain"
 msgstr "No se pudo agregar el dominio"
 
@@ -2646,7 +2636,7 @@ msgstr ""
 msgid "Failed to delete widget area"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:108
+#: packages/admin/src/components/PluginManager.tsx:109
 msgid "Failed to disable plugin"
 msgstr "No se pudo deshabilitar el plugin"
 
@@ -2666,7 +2656,7 @@ msgstr ""
 msgid "Failed to duplicate"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:89
+#: packages/admin/src/components/PluginManager.tsx:90
 msgid "Failed to enable plugin"
 msgstr "No se pudo habilitar el plugin"
 
@@ -2749,7 +2739,7 @@ msgstr ""
 msgid "Failed to load admin"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:212
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:207
 msgid "Failed to load allowed domains"
 msgstr "No se pudieron cargar los dominios permitidos"
 
@@ -2758,7 +2748,7 @@ msgstr "No se pudieron cargar los dominios permitidos"
 msgid "Failed to load bylines: {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:94
+#: packages/admin/src/components/settings/EmailSettings.tsx:89
 msgid "Failed to load email settings"
 msgstr "No se pudo cargar la configuración de correo electrónico"
 
@@ -2766,7 +2756,7 @@ msgstr "No se pudo cargar la configuración de correo electrónico"
 msgid "Failed to load image"
 msgstr ""
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:149
+#: packages/admin/src/components/settings/SecuritySettings.tsx:144
 msgid "Failed to load passkeys"
 msgstr "No se pudieron cargar las claves de acceso"
 
@@ -2775,7 +2765,7 @@ msgid "Failed to load plugin"
 msgstr "No se pudo cargar el plugin"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:135
+#: packages/admin/src/components/PluginManager.tsx:136
 msgid "Failed to load plugins: {0}"
 msgstr "No se pudieron cargar los plugins: {0}"
 
@@ -2816,16 +2806,16 @@ msgstr ""
 msgid "Failed to publish"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:131
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:130
 msgid "Failed to remove domain"
 msgstr "No se pudo eliminar el dominio"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:99
-#: packages/admin/src/components/settings/SecuritySettings.tsx:83
+#: packages/admin/src/components/settings/SecuritySettings.tsx:82
 msgid "Failed to remove passkey"
 msgstr "No se pudo eliminar la Passkey"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:67
+#: packages/admin/src/components/settings/SecuritySettings.tsx:66
 msgid "Failed to rename passkey"
 msgstr "No se pudo cambiar el nombre de la Passkey"
 
@@ -2863,9 +2853,9 @@ msgstr ""
 msgid "Failed to save"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:59
-#: packages/admin/src/components/settings/SeoSettings.tsx:54
-#: packages/admin/src/components/settings/SocialSettings.tsx:54
+#: packages/admin/src/components/settings/GeneralSettings.tsx:58
+#: packages/admin/src/components/settings/SeoSettings.tsx:53
+#: packages/admin/src/components/settings/SocialSettings.tsx:53
 msgid "Failed to save settings"
 msgstr "No se pudo guardar la configuración"
 
@@ -2882,11 +2872,11 @@ msgstr "No se pudo enviar el enlace mágico"
 msgid "Failed to send recovery link"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:62
+#: packages/admin/src/components/settings/EmailSettings.tsx:61
 msgid "Failed to send test email"
 msgstr "No se pudo enviar el correo electrónico de prueba"
 
-#: packages/admin/src/components/SignupPage.tsx:350
+#: packages/admin/src/components/SignupPage.tsx:349
 msgid "Failed to send verification email"
 msgstr ""
 
@@ -2915,7 +2905,7 @@ msgstr ""
 msgid "Failed to update byline"
 msgstr "No se pudo actualizar la firma"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:114
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
 msgid "Failed to update domain"
 msgstr "No se pudo actualizar el dominio"
 
@@ -2939,8 +2929,8 @@ msgstr ""
 msgid "Failed to verify registration"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:232
-#: packages/admin/src/components/settings/GeneralSettings.tsx:237
+#: packages/admin/src/components/settings/GeneralSettings.tsx:221
+#: packages/admin/src/components/settings/GeneralSettings.tsx:226
 msgid "Favicon"
 msgstr "favicon"
 
@@ -2968,7 +2958,7 @@ msgstr "Etiqueta de campo"
 msgid "Field slugs cannot be changed after creation"
 msgstr "Los slugs de campo no se pueden cambiar después de la creación"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:592
+#: packages/admin/src/components/ContentTypeEditor.tsx:593
 msgid "Fields"
 msgstr ""
 
@@ -3018,7 +3008,7 @@ msgstr ""
 msgid "Filter byline type"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:63
+#: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "First-time commenters only"
 msgstr ""
 
@@ -3034,7 +3024,7 @@ msgstr "Para obtener la mejor experiencia de importación, instale el"
 msgid "Full access"
 msgstr "Acceso completo"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:96
 msgid "Full admin access"
 msgstr "Acceso completo de administrador"
 
@@ -3042,8 +3032,8 @@ msgstr "Acceso completo de administrador"
 msgid "General"
 msgstr "General"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:106
-#: packages/admin/src/components/settings/GeneralSettings.tsx:140
+#: packages/admin/src/components/settings/GeneralSettings.tsx:101
+#: packages/admin/src/components/settings/GeneralSettings.tsx:129
 msgid "General Settings"
 msgstr "Configuraciones generales"
 
@@ -3055,7 +3045,7 @@ msgstr ""
 msgid "Get Started"
 msgstr "Empezar"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:149
+#: packages/admin/src/components/settings/SocialSettings.tsx:138
 msgid "GitHub"
 msgstr "GitHub"
 
@@ -3064,11 +3054,11 @@ msgid "Give this passkey a name to help you identify it later."
 msgstr "Asigne un nombre a esta Passkey para poder identificarla más adelante."
 
 #: packages/admin/src/components/WordPressImport.tsx:2251
-#: packages/admin/src/router.tsx:1745
+#: packages/admin/src/router.tsx:1742
 msgid "Go to Dashboard"
 msgstr "Ir al panel"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:149
+#: packages/admin/src/components/settings/SeoSettings.tsx:138
 msgid "Google Verification"
 msgstr "Verificación de Google"
 
@@ -3115,7 +3105,7 @@ msgstr "Altura"
 msgid "Hero Banner"
 msgstr ""
 
-#: packages/admin/src/components/SectionEditor.tsx:261
+#: packages/admin/src/components/SectionEditor.tsx:266
 msgid "hero, banner, cta"
 msgstr ""
 
@@ -3123,7 +3113,7 @@ msgstr ""
 msgid "Hide from search engines"
 msgstr "Ocultarse de los motores de búsqueda"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:215
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Hide token"
 msgstr "Ocultar token"
 
@@ -3165,7 +3155,7 @@ msgstr ""
 msgid "Icon blurred due to image audit"
 msgstr "Icono borroso debido a auditoría de imagen"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:104
+#: packages/admin/src/components/ContentTypeEditor.tsx:105
 msgid "ID"
 msgstr "IDENTIFICACIÓN"
 
@@ -3362,7 +3352,7 @@ msgstr "Insertar sección"
 msgid "Insert Table"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:161
+#: packages/admin/src/components/settings/SocialSettings.tsx:150
 msgid "Instagram"
 msgstr "Instagram"
 
@@ -3370,7 +3360,7 @@ msgstr "Instagram"
 msgid "Install"
 msgstr "Instalar"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:190
+#: packages/admin/src/components/settings/EmailSettings.tsx:181
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr "Instale y active un plugin de proveedor de correo electrónico para habilitar funciones de correo electrónico como invitaciones, enlaces mágicos y recuperación de contraseña."
 
@@ -3384,11 +3374,11 @@ msgid "Installed"
 msgstr "Instalado"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:433
+#: packages/admin/src/components/PluginManager.tsx:438
 msgid "Installed from marketplace (v{0})"
 msgstr "Instalado desde Marketplace (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:452
+#: packages/admin/src/components/PluginManager.tsx:457
 msgid "Installed:"
 msgstr "Instalado:"
 
@@ -3401,7 +3391,7 @@ msgstr "Instalando..."
 msgid "Integer"
 msgstr "Entero"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:118
+#: packages/admin/src/components/InviteAcceptPage.tsx:119
 msgid "Invalid invite link"
 msgstr ""
 
@@ -3409,15 +3399,15 @@ msgstr ""
 msgid "Invalid JSON"
 msgstr "JSON no válido"
 
-#: packages/admin/src/components/SignupPage.tsx:258
+#: packages/admin/src/components/SignupPage.tsx:259
 msgid "Invalid link"
 msgstr "Enlace no válido"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:208
+#: packages/admin/src/components/InviteAcceptPage.tsx:207
 msgid "Invite Error"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:116
+#: packages/admin/src/components/InviteAcceptPage.tsx:117
 msgid "Invite expired"
 msgstr ""
 
@@ -3458,7 +3448,7 @@ msgid "Item updated"
 msgstr "Artículo actualizado"
 
 #: packages/admin/src/components/SetupWizard.tsx:213
-#: packages/admin/src/components/SignupPage.tsx:204
+#: packages/admin/src/components/SignupPage.tsx:205
 msgid "Jane Doe"
 msgstr "Jane Doe"
 
@@ -3467,7 +3457,7 @@ msgid "JSON"
 msgstr "JSON"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:294
-#: packages/admin/src/components/SectionEditor.tsx:258
+#: packages/admin/src/components/SectionEditor.tsx:263
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:189
 msgid "Keywords"
 msgstr "Palabras clave"
@@ -3476,17 +3466,17 @@ msgstr "Palabras clave"
 #: packages/admin/src/components/FieldEditor.tsx:554
 #: packages/admin/src/components/MenuEditor.tsx:329
 #: packages/admin/src/components/MenuEditor.tsx:498
-#: packages/admin/src/components/MenuList.tsx:165
+#: packages/admin/src/components/MenuList.tsx:166
 #: packages/admin/src/components/TaxonomyManager.tsx:621
 #: packages/admin/src/components/Widgets.tsx:371
 msgid "Label"
 msgstr "Etiqueta"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:393
+#: packages/admin/src/components/ContentTypeEditor.tsx:394
 msgid "Label (Plural)"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:385
+#: packages/admin/src/components/ContentTypeEditor.tsx:386
 msgid "Label (Singular)"
 msgstr ""
 
@@ -3500,7 +3490,7 @@ msgstr "Idioma"
 msgid "Large section heading"
 msgstr "Encabezado de sección grande"
 
-#: packages/admin/src/components/PluginManager.tsx:458
+#: packages/admin/src/components/PluginManager.tsx:463
 msgid "Last enabled:"
 msgstr "Última habilitación:"
 
@@ -3526,7 +3516,7 @@ msgstr "último usado"
 
 #. placeholder {0}: new Date(cred.lastUsedAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.lastUsedAt).toLocaleDateString()
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:297
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:292
 #: packages/admin/src/components/users/UserDetail.tsx:262
 msgid "Last used {0}"
 msgstr "Usado por última vez {0}"
@@ -3557,7 +3547,7 @@ msgstr "Claro"
 msgid "Light"
 msgstr "Claro"
 
-#: packages/admin/src/components/SignupPage.tsx:256
+#: packages/admin/src/components/SignupPage.tsx:257
 msgid "Link expired"
 msgstr "Enlace caducado"
 
@@ -3578,7 +3568,7 @@ msgstr ""
 msgid "Linked user"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:167
+#: packages/admin/src/components/settings/SocialSettings.tsx:156
 msgid "LinkedIn"
 msgstr "LinkedIn"
 
@@ -3601,8 +3591,8 @@ msgstr "Vista en vivo"
 msgid "Load more"
 msgstr "Cargar más"
 
-#: packages/admin/src/components/ContentList.tsx:339
-#: packages/admin/src/components/ContentList.tsx:396
+#: packages/admin/src/components/ContentList.tsx:330
+#: packages/admin/src/components/ContentList.tsx:387
 #: packages/admin/src/components/users/UserList.tsx:169
 msgid "Load More"
 msgstr "Cargar más"
@@ -3631,11 +3621,11 @@ msgstr ""
 msgid "Loading menu..."
 msgstr "Cargando menú..."
 
-#: packages/admin/src/components/MenuList.tsx:93
+#: packages/admin/src/components/MenuList.tsx:94
 msgid "Loading menus..."
 msgstr "Cargando menús..."
 
-#: packages/admin/src/components/PluginManager.tsx:126
+#: packages/admin/src/components/PluginManager.tsx:127
 msgid "Loading plugins..."
 msgstr "Cargando plugins..."
 
@@ -3648,9 +3638,9 @@ msgstr "Cargando redirecciones..."
 msgid "Loading sections..."
 msgstr "Cargando secciones..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:109
-#: packages/admin/src/components/settings/SeoSettings.tsx:86
-#: packages/admin/src/components/settings/SocialSettings.tsx:86
+#: packages/admin/src/components/settings/GeneralSettings.tsx:104
+#: packages/admin/src/components/settings/SeoSettings.tsx:81
+#: packages/admin/src/components/settings/SocialSettings.tsx:81
 msgid "Loading settings..."
 msgstr "Cargando configuración..."
 
@@ -3666,15 +3656,15 @@ msgstr "Cargando términos..."
 msgid "Loading widgets..."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:254
-#: packages/admin/src/components/ContentList.tsx:339
-#: packages/admin/src/components/ContentList.tsx:368
-#: packages/admin/src/components/ContentList.tsx:396
+#: packages/admin/src/components/ContentList.tsx:245
+#: packages/admin/src/components/ContentList.tsx:330
+#: packages/admin/src/components/ContentList.tsx:359
+#: packages/admin/src/components/ContentList.tsx:387
 #: packages/admin/src/components/ContentPickerModal.tsx:238
 #: packages/admin/src/components/MarketplaceBrowse.tsx:204
 #: packages/admin/src/components/PortableTextEditor.tsx:1755
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:181
-#: packages/admin/src/components/settings/SecuritySettings.tsx:118
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:176
+#: packages/admin/src/components/settings/SecuritySettings.tsx:113
 #: packages/admin/src/components/TaxonomyManager.tsx:782
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:172
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:254
@@ -3685,7 +3675,7 @@ msgstr ""
 msgid "Loading..."
 msgstr "Cargando..."
 
-#: packages/admin/src/components/ContentList.tsx:234
+#: packages/admin/src/components/ContentList.tsx:225
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "Lugar"
@@ -3701,8 +3691,8 @@ msgstr "Bloquear relación de aspecto"
 msgid "Log out"
 msgstr "Cerrar sesión"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:188
-#: packages/admin/src/components/settings/GeneralSettings.tsx:193
+#: packages/admin/src/components/settings/GeneralSettings.tsx:177
+#: packages/admin/src/components/settings/GeneralSettings.tsx:182
 msgid "Logo"
 msgstr "Logo"
 
@@ -3745,7 +3735,7 @@ msgstr ""
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "Administrar plugins instalados. Habilite o deshabilite plugins para controlar su funcionalidad."
 
-#: packages/admin/src/components/MenuList.tsx:103
+#: packages/admin/src/components/MenuList.tsx:104
 msgid "Manage navigation menus for your site"
 msgstr "Administrar menús de navegación para su sitio"
 
@@ -3825,11 +3815,11 @@ msgstr "Se omitió la importación de medios"
 msgid "Media Library"
 msgstr "Biblioteca multimedia"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:56
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:55
 msgid "Media Read"
 msgstr "Lectura de medios"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:61
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:60
 msgid "Media Write"
 msgstr "Escritura de medios"
 
@@ -3849,15 +3839,15 @@ msgid "Menu \"{0}\" ({1}) created."
 msgstr ""
 
 #. placeholder {0}: menu.label
-#: packages/admin/src/components/MenuList.tsx:54
+#: packages/admin/src/components/MenuList.tsx:55
 msgid "Menu \"{0}\" has been created."
 msgstr "Se ha creado el menú \"{0}\"."
 
-#: packages/admin/src/components/MenuList.tsx:53
+#: packages/admin/src/components/MenuList.tsx:54
 msgid "Menu created"
 msgstr "Menú creado"
 
-#: packages/admin/src/components/MenuList.tsx:73
+#: packages/admin/src/components/MenuList.tsx:74
 msgid "Menu deleted"
 msgstr "Menú eliminado"
 
@@ -3882,7 +3872,7 @@ msgid "Menu order has been updated."
 msgstr "Se ha actualizado el orden del menú."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
-#: packages/admin/src/components/MenuList.tsx:102
+#: packages/admin/src/components/MenuList.tsx:103
 #: packages/admin/src/components/Sidebar.tsx:195
 msgid "Menus"
 msgstr "Menús"
@@ -3892,7 +3882,7 @@ msgstr "Menús"
 msgid "Menus ({0})"
 msgstr "Menús ({0})"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:81
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:80
 msgid "Menus Manage"
 msgstr ""
 
@@ -3900,11 +3890,11 @@ msgstr ""
 msgid "Meta Description"
 msgstr "Meta descripción"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:158
+#: packages/admin/src/components/settings/SeoSettings.tsx:147
 msgid "Meta tag content for Bing Webmaster Tools verification"
 msgstr "Contenido de metaetiqueta para la verificación de Herramientas para webmasters de Bing"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:152
+#: packages/admin/src/components/settings/SeoSettings.tsx:141
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Contenido de metaetiqueta para la verificación de Google Search Console"
 
@@ -3924,7 +3914,7 @@ msgstr "Longitud mínima"
 msgid "Min Value"
 msgstr "Valor mínimo"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:519
+#: packages/admin/src/components/ContentTypeEditor.tsx:520
 msgid "Moderation"
 msgstr ""
 
@@ -3936,7 +3926,7 @@ msgstr "Señales de moderación"
 msgid "Modified"
 msgstr "Modificado"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:72
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:71
 msgid "Modify collection schemas"
 msgstr "Modificar esquemas de colección"
 
@@ -3944,11 +3934,11 @@ msgstr "Modificar esquemas de colección"
 msgid "Most Popular"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:562
+#: packages/admin/src/components/ContentList.tsx:553
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "¿Mover \"{title}\" a la papelera? Puedes restaurarlo más tarde."
 
-#: packages/admin/src/components/ContentList.tsx:553
+#: packages/admin/src/components/ContentList.tsx:544
 msgid "Move {title} to trash"
 msgstr "Mover {title} a la papelera"
 
@@ -3958,12 +3948,12 @@ msgstr "Bajar"
 
 #: packages/admin/src/components/ContentEditor.tsx:930
 #: packages/admin/src/components/ContentEditor.tsx:952
-#: packages/admin/src/components/ContentList.tsx:575
+#: packages/admin/src/components/ContentList.tsx:566
 msgid "Move to Trash"
 msgstr "Mover a la papelera"
 
 #: packages/admin/src/components/ContentEditor.tsx:936
-#: packages/admin/src/components/ContentList.tsx:560
+#: packages/admin/src/components/ContentList.tsx:551
 msgid "Move to Trash?"
 msgstr "¿Mover a la Papelera?"
 
@@ -3989,7 +3979,7 @@ msgstr "Mi blog impresionante"
 
 #: packages/admin/src/components/ContentTypeList.tsx:94
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
-#: packages/admin/src/components/MenuList.tsx:153
+#: packages/admin/src/components/MenuList.tsx:154
 #: packages/admin/src/components/TaxonomyManager.tsx:387
 #: packages/admin/src/components/TaxonomyManager.tsx:630
 #: packages/admin/src/components/TaxonomyManager.tsx:824
@@ -4040,7 +4030,7 @@ msgstr "Nuevo {collectionLabel}"
 msgid "New collection"
 msgstr "Nueva colección"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:354
+#: packages/admin/src/components/ContentTypeEditor.tsx:355
 #: packages/admin/src/components/ContentTypeList.tsx:44
 msgid "New Content Type"
 msgstr "Nuevo tipo de contenido"
@@ -4082,7 +4072,7 @@ msgid "Next"
 msgstr "Próximo"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:371
-#: packages/admin/src/components/ContentList.tsx:327
+#: packages/admin/src/components/ContentList.tsx:318
 msgid "Next page"
 msgstr "Página siguiente"
 
@@ -4100,7 +4090,7 @@ msgid "No {0} available."
 msgstr "No hay {0} disponible."
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:261
+#: packages/admin/src/components/ContentList.tsx:252
 msgid "No {0} yet."
 msgstr "Aún no hay {0}."
 
@@ -4118,7 +4108,7 @@ msgstr "Aún no se han registrado errores 404."
 msgid "No alt text"
 msgstr "Sin texto alternativo"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:275
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:270
 msgid "No API tokens yet. Create one to get started."
 msgstr "Aún no hay tokens API. Crea uno para comenzar."
 
@@ -4162,7 +4152,7 @@ msgstr "No hay contenido en esta colección."
 msgid "No content types yet."
 msgstr "Aún no hay tipos de contenido."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:623
+#: packages/admin/src/components/ContentTypeEditor.tsx:624
 msgid "No custom fields yet"
 msgstr ""
 
@@ -4170,11 +4160,11 @@ msgstr ""
 msgid "No detailed description available."
 msgstr "No hay descripción detallada disponible."
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:300
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:295
 msgid "No domains configured. Users must be invited individually."
 msgstr "No hay dominios configurados. Los usuarios deben ser invitados individualmente."
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:187
+#: packages/admin/src/components/settings/EmailSettings.tsx:178
 msgid "No email provider configured"
 msgstr "No hay ningún proveedor de correo electrónico configurado"
 
@@ -4186,7 +4176,7 @@ msgstr "No hay ningún proveedor de correo electrónico configurado. Comparte es
 msgid "No EmDash users found"
 msgstr "No se encontraron usuarios de EmDash"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:32
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:31
 msgid "No expiry"
 msgstr "Sin caducidad"
 
@@ -4198,7 +4188,7 @@ msgstr "No hay campos para comparar"
 msgid "No headings in document"
 msgstr "No hay encabezados en el documento"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:160
+#: packages/admin/src/components/InviteAcceptPage.tsx:159
 msgid "No invite token provided"
 msgstr ""
 
@@ -4242,7 +4232,7 @@ msgstr "Aún no hay medios"
 msgid "No menu items yet"
 msgstr "Aún no hay elementos de menú"
 
-#: packages/admin/src/components/MenuList.tsx:185
+#: packages/admin/src/components/MenuList.tsx:186
 msgid "No menus yet"
 msgstr "Aún no hay menús"
 
@@ -4251,7 +4241,7 @@ msgstr "Aún no hay menús"
 msgid "No minimum"
 msgstr "Sin mínimo"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:64
+#: packages/admin/src/components/ContentTypeEditor.tsx:65
 msgid "No moderation (auto-approve all)"
 msgstr ""
 
@@ -4259,7 +4249,7 @@ msgstr ""
 msgid "No passkeys registered"
 msgstr "No hay claves registradas"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:200
+#: packages/admin/src/components/settings/SecuritySettings.tsx:195
 msgid "No passkeys registered yet."
 msgstr "Aún no se han registrado claves de acceso."
 
@@ -4292,7 +4282,7 @@ msgstr "Sin resultados"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "No hay resultados para \"{debouncedQuery}\". Pruebe con un término de búsqueda diferente."
 
-#: packages/admin/src/components/ContentList.tsx:275
+#: packages/admin/src/components/ContentList.tsx:266
 msgid "No results for \"{searchQuery}\""
 msgstr "No hay resultados para \"{searchQuery}\""
 
@@ -4347,7 +4337,7 @@ msgstr "Ninguno (nivel superior)"
 msgid "Number"
 msgstr "Número"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:287
+#: packages/admin/src/components/settings/GeneralSettings.tsx:276
 msgid "Number of posts to show per page on list views"
 msgstr "Número de entradas a mostrar por página en las vistas de lista"
 
@@ -4370,15 +4360,15 @@ msgstr "en un nombre de host personalizado no se trata como seguro, ni siquiera 
 msgid "Only authorize codes you recognize."
 msgstr "Sólo autoriza códigos que reconozcas."
 
-#: packages/admin/src/components/SignupPage.tsx:95
+#: packages/admin/src/components/SignupPage.tsx:96
 msgid "Only email addresses from allowed domains can sign up."
 msgstr "Sólo se pueden registrar direcciones de correo electrónico de dominios permitidos."
 
-#: packages/admin/src/components/MenuList.tsx:158
+#: packages/admin/src/components/MenuList.tsx:159
 msgid "Only lowercase letters, numbers, and hyphens"
 msgstr "Sólo letras minúsculas, números y guiones"
 
-#: packages/admin/src/components/SignupPage.tsx:403
+#: packages/admin/src/components/SignupPage.tsx:402
 msgid "Oops!"
 msgstr "¡Ups!"
 
@@ -4466,11 +4456,11 @@ msgstr "Anula el título de la página en los resultados del motor de búsqueda.
 msgid "Ownership"
 msgstr "Propiedad"
 
-#: packages/admin/src/components/PluginManager.tsx:442
+#: packages/admin/src/components/PluginManager.tsx:447
 msgid "Package"
 msgstr "Paquete"
 
-#: packages/admin/src/router.tsx:1740
+#: packages/admin/src/router.tsx:1737
 msgid "Page Not Found"
 msgstr ""
 
@@ -4496,7 +4486,7 @@ msgstr "Parte de un bucle de redirección"
 msgid "Pass"
 msgstr "Aprobar"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:99
+#: packages/admin/src/components/settings/SecuritySettings.tsx:98
 msgid "Passkey added successfully"
 msgstr "Passkey agregada exitosamente"
 
@@ -4512,15 +4502,15 @@ msgstr "Nombre de la Passkey (opcional)"
 msgid "Passkey registered successfully!"
 msgstr "¡La Passkey se registró correctamente!"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:77
+#: packages/admin/src/components/settings/SecuritySettings.tsx:76
 msgid "Passkey removed"
 msgstr "Passkey eliminada"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:61
+#: packages/admin/src/components/settings/SecuritySettings.tsx:60
 msgid "Passkey renamed"
 msgstr "Passkey renombrada"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:182
+#: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/users/UserList.tsx:110
 msgid "Passkeys"
 msgstr "Claves de acceso"
@@ -4530,12 +4520,12 @@ msgstr "Claves de acceso"
 msgid "Passkeys ({0})"
 msgstr "Claves de acceso ({0})"
 
-#: packages/admin/src/components/settings/SecuritySettings.tsx:186
+#: packages/admin/src/components/settings/SecuritySettings.tsx:181
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Las claves de acceso son una forma segura y sin contraseña de iniciar sesión en su cuenta. Puede registrar varias claves de acceso para diferentes dispositivos."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:73
-#: packages/admin/src/components/SignupPage.tsx:212
+#: packages/admin/src/components/InviteAcceptPage.tsx:74
+#: packages/admin/src/components/SignupPage.tsx:213
 msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
 msgstr "Las claves de acceso son una forma segura y sin contraseña de iniciar sesión utilizando los datos biométricos, el PIN o la clave de seguridad de su dispositivo."
 
@@ -4562,17 +4552,17 @@ msgid "Pattern (Regex)"
 msgstr "Patrón (Regex)"
 
 #. placeholder {0}: "{slug}"
-#: packages/admin/src/components/ContentTypeEditor.tsx:436
+#: packages/admin/src/components/ContentTypeEditor.tsx:437
 msgid "Pattern for generating URLs, e.g. /blog/{0}"
 msgstr ""
 
 #. placeholder {0}: "{slug}"
-#: packages/admin/src/components/ContentTypeEditor.tsx:432
+#: packages/admin/src/components/ContentTypeEditor.tsx:433
 msgid "Pattern must include a {0} placeholder"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:699
+#: packages/admin/src/components/ContentList.tsx:690
 msgid "pending"
 msgstr "pendiente"
 
@@ -4584,11 +4574,11 @@ msgstr "Pendiente"
 msgid "Pending changes"
 msgstr "Cambios pendientes"
 
-#: packages/admin/src/components/ContentList.tsx:633
+#: packages/admin/src/components/ContentList.tsx:624
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "¿Eliminar permanentemente \"{title}\"? Esto no se puede deshacer."
 
-#: packages/admin/src/components/ContentList.tsx:622
+#: packages/admin/src/components/ContentList.tsx:613
 msgid "Permanently delete {title}"
 msgstr "Eliminar permanentemente {title}"
 
@@ -4605,7 +4595,7 @@ msgstr ""
 msgid "Plain"
 msgstr "Plano"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:134
+#: packages/admin/src/components/InviteAcceptPage.tsx:133
 msgid "Please ask your administrator to send a new invite."
 msgstr ""
 
@@ -4613,7 +4603,7 @@ msgstr ""
 msgid "Please enter a valid email"
 msgstr "Por favor introduce un correo electrónico válido"
 
-#: packages/admin/src/components/SignupPage.tsx:53
+#: packages/admin/src/components/SignupPage.tsx:54
 msgid "Please enter a valid email address"
 msgstr "Por favor, introduce una dirección de correo electrónico válida"
 
@@ -4625,11 +4615,11 @@ msgstr "Por favor ingresa una URL válida"
 msgid "Plugin"
 msgstr "Plugin"
 
-#: packages/admin/src/components/PluginManager.tsx:102
+#: packages/admin/src/components/PluginManager.tsx:103
 msgid "Plugin disabled"
 msgstr "Plugin deshabilitado"
 
-#: packages/admin/src/components/PluginManager.tsx:83
+#: packages/admin/src/components/PluginManager.tsx:84
 msgid "Plugin enabled"
 msgstr "Plugin habilitado"
 
@@ -4668,9 +4658,9 @@ msgid "Plugin updated"
 msgstr "Plugin actualizado"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:219
-#: packages/admin/src/components/PluginManager.tsx:125
-#: packages/admin/src/components/PluginManager.tsx:134
-#: packages/admin/src/components/PluginManager.tsx:143
+#: packages/admin/src/components/PluginManager.tsx:126
+#: packages/admin/src/components/PluginManager.tsx:135
+#: packages/admin/src/components/PluginManager.tsx:144
 #: packages/admin/src/components/Sidebar.tsx:212
 #: packages/admin/src/components/Sidebar.tsx:450
 msgid "Plugins"
@@ -4684,7 +4674,7 @@ msgstr "Dirige los motores de búsqueda a la versión original de esta página, 
 msgid "Posts"
 msgstr "Entradas"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:281
+#: packages/admin/src/components/settings/GeneralSettings.tsx:270
 msgid "Posts Per Page"
 msgstr "Entradas por página"
 
@@ -4702,12 +4692,12 @@ msgid "Preparing..."
 msgstr "Preparante..."
 
 #: packages/admin/src/components/ContentEditor.tsx:652
-#: packages/admin/src/components/ContentTypeEditor.tsx:80
+#: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaLibrary.tsx:415
 msgid "Preview"
 msgstr "Avance"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:81
+#: packages/admin/src/components/ContentTypeEditor.tsx:82
 msgid "Preview content before publishing"
 msgstr "Vista previa del contenido antes de publicar"
 
@@ -4720,7 +4710,7 @@ msgid "Previous"
 msgstr "Anterior"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:352
-#: packages/admin/src/components/ContentList.tsx:315
+#: packages/admin/src/components/ContentList.tsx:306
 msgid "Previous page"
 msgstr "Pagina anterior"
 
@@ -4728,11 +4718,11 @@ msgstr "Pagina anterior"
 msgid "Previous screenshot"
 msgstr "Captura de pantalla anterior"
 
-#: packages/admin/src/components/MenuList.tsx:165
+#: packages/admin/src/components/MenuList.tsx:166
 msgid "Primary Navigation"
 msgstr "Navegación primaria"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:211
+#: packages/admin/src/components/settings/EmailSettings.tsx:202
 msgid "Provider:"
 msgstr "Proveedor:"
 
@@ -4745,7 +4735,7 @@ msgstr "Publicar"
 msgid "Publish changes"
 msgstr "Publicar cambios"
 
-#: packages/admin/src/components/ContentList.tsx:674
+#: packages/admin/src/components/ContentList.tsx:665
 msgid "published"
 msgstr "publicado"
 
@@ -4761,7 +4751,7 @@ msgstr "Publicado"
 msgid "Published {0}"
 msgstr "Publicado {0}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:134
+#: packages/admin/src/components/ContentTypeEditor.tsx:135
 msgid "Published At"
 msgstr "Publicado en"
 
@@ -4780,23 +4770,23 @@ msgstr ""
 msgid "Quote"
 msgstr "Cita"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:67
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:66
 msgid "Read collection schemas"
 msgstr "Leer esquemas de colección"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:47
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:46
 msgid "Read content entries"
 msgstr "Leer entradas de contenido"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:57
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:56
 msgid "Read media files"
 msgstr "Leer archivos multimedia"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:87
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:86
 msgid "Read site settings"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:278
+#: packages/admin/src/components/settings/GeneralSettings.tsx:267
 msgid "Reading"
 msgstr "Lectura"
 
@@ -4812,7 +4802,7 @@ msgstr "Actividad reciente"
 msgid "Recently Updated"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:153
+#: packages/admin/src/components/settings/EmailSettings.tsx:144
 msgid "Recipient email"
 msgstr "Correo electrónico del destinatario"
 
@@ -4848,7 +4838,7 @@ msgid "Register"
 msgstr "Registro"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:146
-#: packages/admin/src/components/settings/SecuritySettings.tsx:225
+#: packages/admin/src/components/settings/SecuritySettings.tsx:220
 msgid "Register Passkey"
 msgstr "Registrar Passkey"
 
@@ -4868,8 +4858,8 @@ msgstr "El registro fue cancelado o agotado. Por favor inténtalo de nuevo."
 #: packages/admin/src/components/ContentEditor.tsx:1954
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
 #: packages/admin/src/components/PortableTextEditor.tsx:2928
-#: packages/admin/src/components/settings/GeneralSettings.tsx:213
-#: packages/admin/src/components/settings/GeneralSettings.tsx:257
+#: packages/admin/src/components/settings/GeneralSettings.tsx:202
+#: packages/admin/src/components/settings/GeneralSettings.tsx:246
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
 #: packages/admin/src/components/settings/PasskeyItem.tsx:209
 msgid "Remove"
@@ -4886,11 +4876,11 @@ msgstr "Eliminar {0}"
 msgid "Remove {label}"
 msgstr ""
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:435
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:430
 msgid "Remove Domain"
 msgstr "Eliminar dominio"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:419
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:414
 msgid "Remove Domain?"
 msgstr "¿Quitar dominio?"
 
@@ -4975,11 +4965,11 @@ msgstr "Responder a:"
 msgid "Repository"
 msgstr "Repositorio"
 
-#: packages/admin/src/components/SignupPage.tsx:274
+#: packages/admin/src/components/SignupPage.tsx:273
 msgid "Request a new link"
 msgstr "Solicitar un nuevo enlace"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:741
+#: packages/admin/src/components/ContentTypeEditor.tsx:742
 #: packages/admin/src/components/FieldEditor.tsx:430
 #: packages/admin/src/components/FieldEditor.tsx:602
 msgid "Required"
@@ -4999,11 +4989,11 @@ msgstr "Requerido para accesibilidad. Describe la imagen para lectores de pantal
 msgid "Requires EmDash {0}"
 msgstr "Requiere EmDash {0}"
 
-#: packages/admin/src/components/SignupPage.tsx:153
+#: packages/admin/src/components/SignupPage.tsx:154
 msgid "Resend email"
 msgstr "Reenviar correo electrónico"
 
-#: packages/admin/src/components/SignupPage.tsx:152
+#: packages/admin/src/components/SignupPage.tsx:153
 msgid "Resend in {resendCooldown}s"
 msgstr "Reenviar en {resendCooldown}s"
 
@@ -5016,7 +5006,7 @@ msgstr "Restablecer al original"
 msgid "Restore"
 msgstr "Restaurar"
 
-#: packages/admin/src/components/ContentList.tsx:610
+#: packages/admin/src/components/ContentList.tsx:601
 msgid "Restore {title}"
 msgstr "Restaurar {title}"
 
@@ -5044,7 +5034,7 @@ msgstr "Restaurando..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:147
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:124
-#: packages/admin/src/router.tsx:1728
+#: packages/admin/src/router.tsx:1725
 msgid "Retry"
 msgstr "Rever"
 
@@ -5068,20 +5058,20 @@ msgstr "Revisar nuevos permisos"
 msgid "Revision restored"
 msgstr "Revisión restaurada"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:75
+#: packages/admin/src/components/ContentTypeEditor.tsx:76
 #: packages/admin/src/components/RevisionHistory.tsx:161
 msgid "Revisions"
 msgstr "Revisiones"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:338
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:333
 msgid "Revoke token"
 msgstr "Revocar token"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:313
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:308
 msgid "Revoke?"
 msgstr "¿Revocar?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:320
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:315
 msgid "Revoking..."
 msgstr "Revocando..."
 
@@ -5146,12 +5136,12 @@ msgstr ""
 msgid "Save alt text"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:580
+#: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Save Changes"
 msgstr "Guardar cambios"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:71
+#: packages/admin/src/components/ContentTypeEditor.tsx:72
 msgid "Save content as draft before publishing"
 msgstr "Guarde el contenido como borrador antes de publicarlo"
 
@@ -5159,18 +5149,18 @@ msgstr "Guarde el contenido como borrador antes de publicarlo"
 msgid "Save name"
 msgstr "Guardar nombre"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:110
-#: packages/admin/src/components/settings/SeoSettings.tsx:173
+#: packages/admin/src/components/settings/SeoSettings.tsx:99
+#: packages/admin/src/components/settings/SeoSettings.tsx:162
 msgid "Save SEO Settings"
 msgstr "Guardar configuración de SEO"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:136
-#: packages/admin/src/components/settings/GeneralSettings.tsx:307
+#: packages/admin/src/components/settings/GeneralSettings.tsx:125
+#: packages/admin/src/components/settings/GeneralSettings.tsx:296
 msgid "Save Settings"
 msgstr "Guardar configuración"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:110
-#: packages/admin/src/components/settings/SocialSettings.tsx:184
+#: packages/admin/src/components/settings/SocialSettings.tsx:99
+#: packages/admin/src/components/settings/SocialSettings.tsx:173
 msgid "Save Social Links"
 msgstr "Guardar enlaces sociales"
 
@@ -5181,18 +5171,18 @@ msgstr "Guardado"
 
 #: packages/admin/src/components/ContentEditor.tsx:622
 #: packages/admin/src/components/ContentEditor.tsx:2092
-#: packages/admin/src/components/ContentTypeEditor.tsx:580
+#: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/FieldEditor.tsx:656
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
 #: packages/admin/src/components/MenuEditor.tsx:525
 #: packages/admin/src/components/Redirects.tsx:181
 #: packages/admin/src/components/SaveButton.tsx:42
-#: packages/admin/src/components/settings/GeneralSettings.tsx:136
-#: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/components/settings/SeoSettings.tsx:110
-#: packages/admin/src/components/settings/SeoSettings.tsx:173
-#: packages/admin/src/components/settings/SocialSettings.tsx:110
-#: packages/admin/src/components/settings/SocialSettings.tsx:184
+#: packages/admin/src/components/settings/GeneralSettings.tsx:125
+#: packages/admin/src/components/settings/GeneralSettings.tsx:296
+#: packages/admin/src/components/settings/SeoSettings.tsx:99
+#: packages/admin/src/components/settings/SeoSettings.tsx:162
+#: packages/admin/src/components/settings/SocialSettings.tsx:99
+#: packages/admin/src/components/settings/SocialSettings.tsx:173
 #: packages/admin/src/components/TaxonomyManager.tsx:474
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
@@ -5212,7 +5202,7 @@ msgstr "Horario para"
 msgid "Schedule for later"
 msgstr "Agenda para más tarde"
 
-#: packages/admin/src/components/ContentList.tsx:678
+#: packages/admin/src/components/ContentList.tsx:669
 msgid "scheduled"
 msgstr "programado"
 
@@ -5234,20 +5224,20 @@ msgstr "Cambios de esquema"
 msgid "Schema preparation failed"
 msgstr "Error en la preparación del esquema"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:66
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:65
 msgid "Schema Read"
 msgstr "Lectura de esquema"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:71
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:70
 msgid "Schema Write"
 msgstr "Escritura de esquema"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:421
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
 msgid "Scopes"
 msgstr "Alcances"
 
 #. placeholder {0}: token.scopes.join(", ")
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:289
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:284
 msgid "Scopes: {0}"
 msgstr "Alcances: {0}"
 
@@ -5278,17 +5268,17 @@ msgstr "Visor de capturas de pantalla"
 msgid "Screenshots"
 msgstr "Capturas de pantalla"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:85
+#: packages/admin/src/components/ContentTypeEditor.tsx:86
 msgid "Search"
 msgstr "Buscar"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:179
+#: packages/admin/src/components/ContentList.tsx:170
 msgid "Search {0}"
 msgstr "Buscar {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:178
+#: packages/admin/src/components/ContentList.tsx:169
 msgid "Search {0}..."
 msgstr "Buscar {0}..."
 
@@ -5312,7 +5302,7 @@ msgstr "Buscar comentarios..."
 msgid "Search content..."
 msgstr "Buscar contenido..."
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:139
+#: packages/admin/src/components/settings/SeoSettings.tsx:128
 msgid "Search Engine Optimization"
 msgstr "Optimización de motores de búsqueda"
 
@@ -5354,7 +5344,7 @@ msgstr ""
 msgid "Search..."
 msgstr "Buscar..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:743
+#: packages/admin/src/components/ContentTypeEditor.tsx:744
 #: packages/admin/src/components/FieldEditor.tsx:453
 msgid "Searchable"
 msgstr "Buscable"
@@ -5363,7 +5353,7 @@ msgstr "Buscable"
 msgid "Section"
 msgstr "Sección"
 
-#: packages/admin/src/components/SectionEditor.tsx:79
+#: packages/admin/src/components/SectionEditor.tsx:82
 msgid "Section \"{slug}\" could not be found."
 msgstr "No se pudo encontrar la sección \"{slug}\"."
 
@@ -5375,19 +5365,19 @@ msgstr "Sección creada"
 msgid "Section deleted"
 msgstr "Sección eliminada"
 
-#: packages/admin/src/components/SectionEditor.tsx:223
+#: packages/admin/src/components/SectionEditor.tsx:228
 msgid "Section Details"
 msgstr "Detalles de la sección"
 
-#: packages/admin/src/components/SectionEditor.tsx:75
+#: packages/admin/src/components/SectionEditor.tsx:78
 msgid "Section Not Found"
 msgstr "Sección no encontrada"
 
-#: packages/admin/src/components/SectionEditor.tsx:43
+#: packages/admin/src/components/SectionEditor.tsx:44
 msgid "Section saved"
 msgstr "Sección guardada"
 
-#: packages/admin/src/components/SectionEditor.tsx:229
+#: packages/admin/src/components/SectionEditor.tsx:234
 msgid "Section title"
 msgstr "Título de la sección"
 
@@ -5441,7 +5431,7 @@ msgstr "Error de seguridad. Asegúrate de estar en una conexión segura."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:243
 #: packages/admin/src/components/Header.tsx:85
-#: packages/admin/src/components/settings/SecuritySettings.tsx:109
+#: packages/admin/src/components/settings/SecuritySettings.tsx:104
 msgid "Security Settings"
 msgstr "Configuración de seguridad"
 
@@ -5482,8 +5472,8 @@ msgstr "Seleccionar comentario de {0}"
 msgid "Select Content"
 msgstr "Seleccionar contenido"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:269
-#: packages/admin/src/components/settings/GeneralSettings.tsx:325
+#: packages/admin/src/components/settings/GeneralSettings.tsx:258
+#: packages/admin/src/components/settings/GeneralSettings.tsx:314
 msgid "Select Favicon"
 msgstr "Seleccionar favicon"
 
@@ -5505,8 +5495,8 @@ msgstr "Seleccionar imagen"
 msgid "Select Image"
 msgstr "Seleccionar imagen"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:225
-#: packages/admin/src/components/settings/GeneralSettings.tsx:318
+#: packages/admin/src/components/settings/GeneralSettings.tsx:214
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "Select Logo"
 msgstr "Seleccionar logotipo"
 
@@ -5537,11 +5527,11 @@ msgid "Selected:"
 msgstr "Seleccionado:"
 
 #: packages/admin/src/components/Settings.tsx:98
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:172
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:167
 msgid "Self-Signup Domains"
 msgstr "Dominios de registro automático"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:148
+#: packages/admin/src/components/settings/EmailSettings.tsx:139
 msgid "Send a test email through the full pipeline to verify your email configuration."
 msgstr "Envíe un correo electrónico de prueba a través del proceso completo para verificar su configuración de correo electrónico."
 
@@ -5561,31 +5551,31 @@ msgstr "Enviar enlace mágico"
 msgid "Send Recovery Link"
 msgstr "Enviar enlace de recuperación"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:162
+#: packages/admin/src/components/settings/EmailSettings.tsx:153
 msgid "Send Test"
 msgstr "Enviar prueba"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:145
+#: packages/admin/src/components/settings/EmailSettings.tsx:136
 msgid "Send Test Email"
 msgstr "Enviar correo electrónico de prueba"
 
 #: packages/admin/src/components/LoginPage.tsx:149
-#: packages/admin/src/components/settings/EmailSettings.tsx:162
-#: packages/admin/src/components/SignupPage.tsx:87
-#: packages/admin/src/components/SignupPage.tsx:150
+#: packages/admin/src/components/settings/EmailSettings.tsx:153
+#: packages/admin/src/components/SignupPage.tsx:88
+#: packages/admin/src/components/SignupPage.tsx:151
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
 #: packages/admin/src/components/users/UserDetail.tsx:332
 msgid "Sending..."
 msgstr "Envío..."
 
 #: packages/admin/src/components/ContentEditor.tsx:1021
-#: packages/admin/src/components/ContentTypeEditor.tsx:481
+#: packages/admin/src/components/ContentTypeEditor.tsx:482
 #: packages/admin/src/components/Settings.tsx:81
 msgid "SEO"
 msgstr "SEO"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:83
-#: packages/admin/src/components/settings/SeoSettings.tsx:114
+#: packages/admin/src/components/settings/SeoSettings.tsx:78
+#: packages/admin/src/components/settings/SeoSettings.tsx:103
 msgid "SEO Settings"
 msgstr "Configuración de SEO"
 
@@ -5593,7 +5583,7 @@ msgstr "Configuración de SEO"
 msgid "SEO settings (Yoast)"
 msgstr "Configuración de SEO (Yoast)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:49
+#: packages/admin/src/components/settings/SeoSettings.tsx:48
 msgid "SEO settings saved"
 msgstr "Configuración SEO guardada"
 
@@ -5606,7 +5596,7 @@ msgstr "Título SEO"
 msgid "Set a custom display size for this image instance."
 msgstr "Establezca un tamaño de visualización personalizado para esta instancia de imagen."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:544
+#: packages/admin/src/components/ContentTypeEditor.tsx:545
 msgid "Set to 0 to never close comments automatically."
 msgstr ""
 
@@ -5619,25 +5609,24 @@ msgid "Setting up..."
 msgstr "Configurando..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
-#: packages/admin/src/components/ContentTypeEditor.tsx:382
+#: packages/admin/src/components/ContentTypeEditor.tsx:383
 #: packages/admin/src/components/Header.tsx:93
-#: packages/admin/src/components/PluginManager.tsx:374
-#: packages/admin/src/components/PluginManager.tsx:376
+#: packages/admin/src/components/PluginManager.tsx:379
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:229
 #: packages/admin/src/components/WordPressImport.tsx:1655
 msgid "Settings"
 msgstr "Ajustes"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:91
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:90
 msgid "Settings Manage"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:86
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:85
 msgid "Settings Read"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:54
+#: packages/admin/src/components/settings/GeneralSettings.tsx:53
 msgid "Settings saved successfully"
 msgstr "Configuración guardada exitosamente"
 
@@ -5654,7 +5643,7 @@ msgstr "Comparte este enlace con el usuario invitado."
 msgid "Short Text"
 msgstr "Texto corto"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:215
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Show token"
 msgstr "Mostrar token"
 
@@ -5663,7 +5652,7 @@ msgstr "Mostrar token"
 msgid "Shown when hovering over the image."
 msgstr "Se muestra al pasar el cursor sobre la imagen."
 
-#: packages/admin/src/components/SignupPage.tsx:440
+#: packages/admin/src/components/SignupPage.tsx:439
 msgid "Sign in"
 msgstr "Iniciar sesión"
 
@@ -5717,7 +5706,7 @@ msgstr "Entrada de texto de una sola línea"
 msgid "Site"
 msgstr "Sitio"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:164
+#: packages/admin/src/components/settings/GeneralSettings.tsx:153
 msgid "Site Identity"
 msgstr "Identidad del sitio"
 
@@ -5729,7 +5718,7 @@ msgstr "Identidad del sitio, logotipo, favicon y preferencias de lectura"
 msgid "Site Settings"
 msgstr "Configuración del sitio"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:167
+#: packages/admin/src/components/settings/GeneralSettings.tsx:156
 #: packages/admin/src/components/SetupWizard.tsx:116
 msgid "Site Title"
 msgstr "Título del sitio"
@@ -5742,7 +5731,7 @@ msgstr "Título y eslogan del sitio"
 msgid "Site title is required"
 msgstr "El título del sitio es obligatorio."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:179
+#: packages/admin/src/components/settings/GeneralSettings.tsx:168
 msgid "Site URL"
 msgstr "URL del sitio"
 
@@ -5765,12 +5754,12 @@ msgstr "Saltado"
 #: packages/admin/src/components/ContentEditor.tsx:826
 #: packages/admin/src/components/ContentEditor.tsx:2001
 #: packages/admin/src/components/ContentEditor.tsx:2063
-#: packages/admin/src/components/ContentTypeEditor.tsx:110
-#: packages/admin/src/components/ContentTypeEditor.tsx:403
+#: packages/admin/src/components/ContentTypeEditor.tsx:111
+#: packages/admin/src/components/ContentTypeEditor.tsx:404
 #: packages/admin/src/components/ContentTypeList.tsx:97
 #: packages/admin/src/components/FieldEditor.tsx:224
 #: packages/admin/src/components/FieldEditor.tsx:407
-#: packages/admin/src/components/SectionEditor.tsx:234
+#: packages/admin/src/components/SectionEditor.tsx:239
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:396
 #: packages/admin/src/routes/bylines.tsx:254
@@ -5786,12 +5775,12 @@ msgid "Small section heading"
 msgstr "Encabezado de sección pequeña"
 
 #: packages/admin/src/components/Settings.tsx:75
-#: packages/admin/src/components/settings/SocialSettings.tsx:83
-#: packages/admin/src/components/settings/SocialSettings.tsx:114
+#: packages/admin/src/components/settings/SocialSettings.tsx:78
+#: packages/admin/src/components/settings/SocialSettings.tsx:103
 msgid "Social Links"
 msgstr "Enlaces sociales"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:49
+#: packages/admin/src/components/settings/SocialSettings.tsx:48
 msgid "Social links saved"
 msgstr "Enlaces sociales guardados"
 
@@ -5799,7 +5788,7 @@ msgstr "Enlaces sociales guardados"
 msgid "Social media profile links"
 msgstr "Enlaces de perfil de redes sociales"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:137
+#: packages/admin/src/components/settings/SocialSettings.tsx:126
 msgid "Social Profiles"
 msgstr "Perfiles sociales"
 
@@ -5807,8 +5796,8 @@ msgstr "Perfiles sociales"
 msgid "Some content types cannot be imported"
 msgstr "Algunos tipos de contenido no se pueden importar"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:121
-#: packages/admin/src/components/SignupPage.tsx:261
+#: packages/admin/src/components/InviteAcceptPage.tsx:122
+#: packages/admin/src/components/SignupPage.tsx:262
 msgid "Something went wrong"
 msgstr "algo salió mal"
 
@@ -5824,9 +5813,9 @@ msgstr "Ordenar temas"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:215
-#: packages/admin/src/components/PluginManager.tsx:430
+#: packages/admin/src/components/PluginManager.tsx:435
 #: packages/admin/src/components/Redirects.tsx:447
-#: packages/admin/src/components/SectionEditor.tsx:269
+#: packages/admin/src/components/SectionEditor.tsx:274
 msgid "Source"
 msgstr "Fuente"
 
@@ -5853,8 +5842,8 @@ msgid "Start Import"
 msgstr "Iniciar importación"
 
 #: packages/admin/src/components/ContentEditor.tsx:832
-#: packages/admin/src/components/ContentList.tsx:227
-#: packages/admin/src/components/ContentTypeEditor.tsx:116
+#: packages/admin/src/components/ContentList.tsx:218
+#: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:452
 #: packages/admin/src/components/users/UserList.tsx:104
 msgid "Status"
@@ -5890,7 +5879,7 @@ msgstr "Sincronizado"
 msgid "Synced passkey"
 msgstr "Passkey sincronizada"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:788
+#: packages/admin/src/components/ContentTypeEditor.tsx:789
 msgid "System"
 msgstr ""
 
@@ -5898,7 +5887,7 @@ msgstr ""
 msgid "System ({resolvedLabel})"
 msgstr "Sistema ({resolvedLabel})"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:610
+#: packages/admin/src/components/ContentTypeEditor.tsx:611
 msgid "System Fields"
 msgstr ""
 
@@ -5906,7 +5895,7 @@ msgstr ""
 msgid "Table"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:173
+#: packages/admin/src/components/settings/GeneralSettings.tsx:162
 #: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Tagline"
 msgstr "Lema"
@@ -5937,7 +5926,7 @@ msgstr ""
 msgid "Taxonomies"
 msgstr "Taxonomías"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:76
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:75
 msgid "Taxonomies Manage"
 msgstr ""
 
@@ -5972,7 +5961,7 @@ msgstr ""
 msgid "Term deleted"
 msgstr "Término eliminado"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:157
+#: packages/admin/src/components/settings/EmailSettings.tsx:148
 msgid "test@example.com"
 msgstr "prueba@ejemplo.com"
 
@@ -5997,7 +5986,7 @@ msgid "The invited user will have this role once they complete registration."
 msgstr "El usuario invitado tendrá este rol una vez que complete el registro."
 
 #: packages/admin/src/components/LoginPage.tsx:113
-#: packages/admin/src/components/SignupPage.tsx:138
+#: packages/admin/src/components/SignupPage.tsx:139
 msgid "The link will expire in 15 minutes."
 msgstr "El enlace caducará en 15 minutos."
 
@@ -6005,19 +5994,19 @@ msgstr "El enlace caducará en 15 minutos."
 msgid "The marketplace is empty. Check back later for new plugins."
 msgstr "El mercado está vacío. Vuelve más tarde para ver nuevos plugins."
 
-#: packages/admin/src/components/MenuList.tsx:74
+#: packages/admin/src/components/MenuList.tsx:75
 msgid "The menu has been deleted."
 msgstr "El menú ha sido eliminado."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:170
+#: packages/admin/src/components/settings/GeneralSettings.tsx:159
 msgid "The name of your site, used in the header and metadata"
 msgstr "El nombre de su sitio, utilizado en el encabezado y los metadatos."
 
-#: packages/admin/src/router.tsx:1742
+#: packages/admin/src/router.tsx:1739
 msgid "The page you're looking for doesn't exist."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:183
+#: packages/admin/src/components/settings/GeneralSettings.tsx:172
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "La URL pública de su sitio (utilizada para enlaces canónicos y mapas de sitio)"
 
@@ -6031,7 +6020,7 @@ msgid "Theme"
 msgstr "Tema"
 
 #. placeholder {0}: section.themeId
-#: packages/admin/src/components/SectionEditor.tsx:282
+#: packages/admin/src/components/SectionEditor.tsx:287
 msgid "Theme ID: {0}"
 msgstr "ID del tema: {0}"
 
@@ -6039,7 +6028,7 @@ msgstr "ID del tema: {0}"
 msgid "Theme not found"
 msgstr "Tema no encontrado"
 
-#: packages/admin/src/components/SectionEditor.tsx:181
+#: packages/admin/src/components/SectionEditor.tsx:186
 msgid "Theme Section"
 msgstr "Sección temática"
 
@@ -6056,7 +6045,7 @@ msgstr "Tema: {label}"
 msgid "Themes"
 msgstr "Temas"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:371
+#: packages/admin/src/components/ContentTypeEditor.tsx:372
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr ""
 
@@ -6065,7 +6054,7 @@ msgstr ""
 msgid "This field is required"
 msgstr "Este campo es obligatorio"
 
-#: packages/admin/src/components/SectionEditor.tsx:276
+#: packages/admin/src/components/SectionEditor.tsx:281
 msgid "This is a custom section."
 msgstr "Esta es una sección personalizada."
 
@@ -6097,11 +6086,11 @@ msgstr "Esta regla de redirección se eliminará permanentemente."
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr ""
 
-#: packages/admin/src/components/SectionEditor.tsx:273
+#: packages/admin/src/components/SectionEditor.tsx:278
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
 msgstr "Esta sección está proporcionada por el tema. La edición creará una copia personalizada que anulará la versión del tema."
 
-#: packages/admin/src/components/SectionEditor.tsx:278
+#: packages/admin/src/components/SectionEditor.tsx:283
 msgid "This section was imported from another system."
 msgstr "Esta sección fue importada de otro sistema."
 
@@ -6131,7 +6120,7 @@ msgstr "Esto eliminará permanentemente \"{0}\". Esta acción no se puede deshac
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Esto eliminará permanentemente este comentario. Esta acción no se puede deshacer."
 
-#: packages/admin/src/components/PluginManager.tsx:556
+#: packages/admin/src/components/PluginManager.tsx:561
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Esto eliminará el plugin y su paquete de su sitio."
 
@@ -6143,17 +6132,17 @@ msgstr "Esto volverá a la versión publicada. Los borradores de cambios se perd
 msgid "Thoughts, tutorials, and more"
 msgstr "Pensamientos, tutoriales y más"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:296
+#: packages/admin/src/components/settings/GeneralSettings.tsx:285
 msgid "Timezone"
 msgstr "Zona horaria"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:299
+#: packages/admin/src/components/settings/GeneralSettings.tsx:288
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "Zona horaria para mostrar fechas (por ejemplo, América/Nueva_York)"
 
-#: packages/admin/src/components/ContentList.tsx:221
-#: packages/admin/src/components/ContentList.tsx:352
-#: packages/admin/src/components/SectionEditor.tsx:226
+#: packages/admin/src/components/ContentList.tsx:212
+#: packages/admin/src/components/ContentList.tsx:343
+#: packages/admin/src/components/SectionEditor.tsx:231
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:811
 msgid "Title"
@@ -6164,7 +6153,7 @@ msgstr "Título"
 msgid "Title (Tooltip)"
 msgstr "Título (información sobre herramientas)"
 
-#: packages/admin/src/components/settings/SeoSettings.tsx:143
+#: packages/admin/src/components/settings/SeoSettings.tsx:132
 msgid "Title Separator"
 msgstr "Separador de título"
 
@@ -6190,11 +6179,11 @@ msgid "Toggle theme (current: {label})"
 msgstr "Alternar tema (actual: {label})"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:202
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:197
 msgid "Token created: {0}"
 msgstr "Token creado: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:412
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:407
 msgid "Token Name"
 msgstr "Nombre del token"
 
@@ -6202,7 +6191,7 @@ msgstr "Nombre del token"
 msgid "Tools → Export"
 msgstr "Herramientas → Exportar"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:76
+#: packages/admin/src/components/ContentTypeEditor.tsx:77
 msgid "Track content history"
 msgstr "Seguimiento del historial de contenido"
 
@@ -6245,11 +6234,11 @@ msgstr "basura"
 #: packages/admin/src/components/comments/CommentInbox.tsx:216
 #: packages/admin/src/components/comments/CommentInbox.tsx:257
 #: packages/admin/src/components/comments/CommentInbox.tsx:513
-#: packages/admin/src/components/ContentList.tsx:201
+#: packages/admin/src/components/ContentList.tsx:192
 msgid "Trash"
 msgstr "Basura"
 
-#: packages/admin/src/components/ContentList.tsx:375
+#: packages/admin/src/components/ContentList.tsx:366
 msgid "Trash is empty"
 msgstr "la papelera esta vacia"
 
@@ -6301,7 +6290,7 @@ msgstr "prueba con mis datos"
 msgid "Turn into"
 msgstr ""
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:143
+#: packages/admin/src/components/settings/SocialSettings.tsx:132
 msgid "Twitter"
 msgstr "Gorjeo"
 
@@ -6335,29 +6324,29 @@ msgid "Undo"
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:480
-#: packages/admin/src/components/PluginManager.tsx:574
+#: packages/admin/src/components/PluginManager.tsx:485
+#: packages/admin/src/components/PluginManager.tsx:579
 msgid "Uninstall"
 msgstr "Desinstalar"
 
-#: packages/admin/src/components/PluginManager.tsx:554
+#: packages/admin/src/components/PluginManager.tsx:559
 msgid "Uninstall {pluginName}?"
 msgstr "¿Desinstalar {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:549
+#: packages/admin/src/components/PluginManager.tsx:554
 msgid "Uninstall confirmation"
 msgstr "Confirmación de desinstalación"
 
-#: packages/admin/src/components/PluginManager.tsx:574
+#: packages/admin/src/components/PluginManager.tsx:579
 msgid "Uninstalling..."
 msgstr "Desinstalando..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:742
+#: packages/admin/src/components/ContentTypeEditor.tsx:743
 #: packages/admin/src/components/FieldEditor.tsx:439
 msgid "Unique"
 msgstr "Único"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:106
+#: packages/admin/src/components/ContentTypeEditor.tsx:107
 msgid "Unique identifier (ULID)"
 msgstr "Identificador único (ULID)"
 
@@ -6432,11 +6421,11 @@ msgid "Update Field"
 msgstr "Actualizar campo"
 
 #. placeholder {0}: editingDomain?.domain
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:372
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:367
 msgid "Update settings for {0}"
 msgstr "Actualizar configuración para {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:92
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:91
 msgid "Update site settings"
 msgstr ""
 
@@ -6454,7 +6443,7 @@ msgstr "Actualice esta regla de redirección."
 msgid "Update to v{0}"
 msgstr "Actualizar a v{0}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:128
+#: packages/admin/src/components/ContentTypeEditor.tsx:129
 msgid "Updated At"
 msgstr "Actualizado en"
 
@@ -6488,7 +6477,7 @@ msgstr "Cargar un archivo de exportación"
 msgid "Upload an image to get started"
 msgstr "Sube una imagen para comenzar"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:62
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:61
 msgid "Upload and delete media"
 msgstr "Cargar y eliminar medios"
 
@@ -6569,16 +6558,16 @@ msgstr "Subiendo..."
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:424
+#: packages/admin/src/components/ContentTypeEditor.tsx:425
 msgid "URL Pattern"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:112
+#: packages/admin/src/components/ContentTypeEditor.tsx:113
 #: packages/admin/src/components/FieldEditor.tsx:225
 msgid "URL-friendly identifier"
 msgstr "Identificador compatible con URL"
 
-#: packages/admin/src/components/MenuList.tsx:161
+#: packages/admin/src/components/MenuList.tsx:162
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
 msgstr "Identificador compatible con URL (por ejemplo, \"principal\", \"pie de página\")"
 
@@ -6606,11 +6595,11 @@ msgstr "Se utiliza como elemento visual principal de esta entrada en las página
 msgid "Used by screen readers and when image fails to load"
 msgstr "Utilizado por lectores de pantalla y cuando la imagen no se carga"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:409
+#: packages/admin/src/components/ContentTypeEditor.tsx:410
 msgid "Used in URLs and API endpoints"
 msgstr ""
 
-#: packages/admin/src/components/SectionEditor.tsx:244
+#: packages/admin/src/components/SectionEditor.tsx:249
 #: packages/admin/src/components/Sections.tsx:196
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "Se utiliza para identificar esta sección. Sólo letras minúsculas, números y guiones."
@@ -6623,7 +6612,7 @@ msgid "User"
 msgstr "Usuario"
 
 #. placeholder {0}: manifest?.authMode
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:197
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:192
 msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
 msgstr "El acceso de los usuarios lo gestiona un proveedor externo ({0}). La configuración del dominio de registro automático no está disponible cuando se utiliza la autenticación externa."
 
@@ -6641,11 +6630,11 @@ msgstr "Usuario no encontrado"
 msgid "Users"
 msgstr "Usuarios"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:421
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:416
 msgid "Users from"
 msgstr "Usuarios de"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:249
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:244
 msgid "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
 msgstr "Los usuarios con direcciones de correo electrónico de estos dominios pueden registrarse sin invitación. Se les asignará el rol especificado automáticamente."
 
@@ -6659,11 +6648,11 @@ msgstr "v{0} disponible"
 msgid "Validation"
 msgstr "Validación"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:195
+#: packages/admin/src/components/InviteAcceptPage.tsx:194
 msgid "Verifying your invite..."
 msgstr ""
 
-#: packages/admin/src/components/SignupPage.tsx:387
+#: packages/admin/src/components/SignupPage.tsx:386
 msgid "Verifying your link..."
 msgstr "Verificando tu enlace..."
 
@@ -6680,7 +6669,7 @@ msgstr "Versión"
 msgid "View email provider status and send test emails"
 msgstr "Ver el estado del proveedor de correo electrónico y enviar correos electrónicos de prueba"
 
-#: packages/admin/src/components/PluginManager.tsx:367
+#: packages/admin/src/components/PluginManager.tsx:371
 msgid "View in Marketplace"
 msgstr "Ver en el mercado"
 
@@ -6688,7 +6677,7 @@ msgstr "Ver en el mercado"
 msgid "View mode"
 msgstr "Modo de visualización"
 
-#: packages/admin/src/components/ContentList.tsx:526
+#: packages/admin/src/components/ContentList.tsx:517
 msgid "View published {title}"
 msgstr "Ver publicado {title}"
 
@@ -6722,7 +6711,7 @@ msgstr "Comprobaremos qué opciones de importación están disponibles para su s
 msgid "We'll send you a link to sign in without a password."
 msgstr "Le enviaremos un enlace para iniciar sesión sin contraseña."
 
-#: packages/admin/src/components/SignupPage.tsx:131
+#: packages/admin/src/components/SignupPage.tsx:132
 msgid "We've sent a verification link to"
 msgstr "Hemos enviado un enlace de verificación a"
 
@@ -6759,15 +6748,15 @@ msgstr "¿Qué sucede cuando importas?"
 msgid "What will happen when you import"
 msgstr "¿Qué pasará cuando importes?"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:124
+#: packages/admin/src/components/ContentTypeEditor.tsx:125
 msgid "When the entry was created"
 msgstr "Cuando se creó la entrada"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:130
+#: packages/admin/src/components/ContentTypeEditor.tsx:131
 msgid "When the entry was last modified"
 msgstr "Cuándo se modificó la entrada por última vez"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:136
+#: packages/admin/src/components/ContentTypeEditor.tsx:137
 msgid "When the entry was published"
 msgstr "Cuando se publicó la entrada."
 
@@ -6824,11 +6813,11 @@ msgstr "Ancho"
 msgid "Will create"
 msgstr "creará"
 
-#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:422
+#: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:417
 msgid "will no longer be able to sign up without an invite. Existing users are not affected."
 msgstr "ya no podrá registrarse sin una invitación. Los usuarios existentes no se ven afectados."
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:193
+#: packages/admin/src/components/settings/EmailSettings.tsx:184
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "Sin un proveedor de correo electrónico, los enlaces de invitación deben compartirse manualmente."
 
@@ -6886,7 +6875,7 @@ msgid "You won't be able to use this passkey to sign in anymore. This action can
 msgstr "Ya no podrás utilizar esta Passkey para iniciar sesión. Esta acción no se puede deshacer."
 
 #. placeholder {0}: inviteData.roleName
-#: packages/admin/src/components/InviteAcceptPage.tsx:51
+#: packages/admin/src/components/InviteAcceptPage.tsx:52
 msgid "You'll be joining as <0>{0}</0>"
 msgstr ""
 
@@ -6898,7 +6887,7 @@ msgstr "Se le pedirá que utilice la autenticación biométrica, la clave de seg
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "Serás redirigido a WordPress para autorizar la conexión."
 
-#: packages/admin/src/components/SignupPage.tsx:190
+#: packages/admin/src/components/SignupPage.tsx:191
 msgid "You'll be signing up as"
 msgstr "Te registrarás como"
 
@@ -6906,11 +6895,11 @@ msgstr "Te registrarás como"
 msgid "You're signed in via Cloudflare Access"
 msgstr "Has iniciado sesión a través de Cloudflare Access"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:49
+#: packages/admin/src/components/InviteAcceptPage.tsx:50
 msgid "You've been invited!"
 msgstr ""
 
-#: packages/admin/src/components/SignupPage.tsx:69
+#: packages/admin/src/components/SignupPage.tsx:70
 msgid "you@company.com"
 msgstr "usted@empresa.com"
 
@@ -6937,19 +6926,19 @@ msgstr "Su dispositivo no admite las funciones de seguridad requeridas."
 msgid "Your Email"
 msgstr "Tu correo electrónico"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:158
+#: packages/admin/src/components/settings/SocialSettings.tsx:147
 msgid "Your Facebook page or profile username"
 msgstr "Su página de Facebook o nombre de usuario de perfil"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:152
+#: packages/admin/src/components/settings/SocialSettings.tsx:141
 msgid "Your GitHub username"
 msgstr "Tu nombre de usuario de GitHub"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:164
+#: packages/admin/src/components/settings/SocialSettings.tsx:153
 msgid "Your Instagram username"
 msgstr "Tu nombre de usuario de Instagram"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:170
+#: packages/admin/src/components/settings/SocialSettings.tsx:159
 msgid "Your LinkedIn profile username"
 msgstr "El nombre de usuario de tu perfil de LinkedIn"
 
@@ -6957,8 +6946,8 @@ msgstr "El nombre de usuario de tu perfil de LinkedIn"
 msgid "Your Name"
 msgstr "Su nombre"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:61
-#: packages/admin/src/components/SignupPage.tsx:200
+#: packages/admin/src/components/InviteAcceptPage.tsx:62
+#: packages/admin/src/components/SignupPage.tsx:201
 msgid "Your name (optional)"
 msgstr "Tu nombre (opcional)"
 
@@ -6966,7 +6955,7 @@ msgstr "Tu nombre (opcional)"
 msgid "Your Role"
 msgstr "Tu papel"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:146
+#: packages/admin/src/components/settings/SocialSettings.tsx:135
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Su identificador de Twitter/X (por ejemplo, @nombredeusuario)"
 
@@ -6975,10 +6964,10 @@ msgstr "Su identificador de Twitter/X (por ejemplo, @nombredeusuario)"
 msgid "Your WordPress export contains {0} media files."
 msgstr "Su exportación de WordPress contiene {0} archivos multimedia."
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:176
+#: packages/admin/src/components/settings/SocialSettings.tsx:165
 msgid "Your YouTube channel ID or handle"
 msgstr "El identificador o identificador de tu canal de YouTube"
 
-#: packages/admin/src/components/settings/SocialSettings.tsx:173
+#: packages/admin/src/components/settings/SocialSettings.tsx:162
 msgid "YouTube"
 msgstr "YouTube"

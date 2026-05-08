@@ -8,12 +8,11 @@ import { Button, Input, InputArea } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { FloppyDisk, CheckCircle, WarningCircle, MagnifyingGlass } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings } from "../../lib/api";
-import { ArrowPrev } from "../ArrowIcons.js";
 import { EditorHeader } from "../EditorHeader";
+import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
 export function SeoSettings() {
 	const { t } = useLingui();
@@ -75,11 +74,7 @@ export function SeoSettings() {
 		return (
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
-					<Link to="/settings">
-						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowPrev className="h-4 w-4" />
-						</Button>
-					</Link>
+					<BackToSettingsLink />
 					<h1 className="text-2xl font-bold">{t`SEO Settings`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
@@ -93,13 +88,7 @@ export function SeoSettings() {
 		<div className="space-y-6">
 			{/* Sticky header — see GeneralSettings for the same pattern. */}
 			<EditorHeader
-				leading={
-					<Link to="/settings">
-						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowPrev className="h-4 w-4" />
-						</Button>
-					</Link>
-				}
+				leading={<BackToSettingsLink />}
 				actions={
 					<Button
 						type="submit"
