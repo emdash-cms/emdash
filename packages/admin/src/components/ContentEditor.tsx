@@ -10,7 +10,6 @@ import {
 	Loader,
 	Select,
 	Switch,
-	buttonVariants,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -48,6 +47,7 @@ import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -578,15 +578,15 @@ export function ContentEditor({
 			>
 				<div className="flex items-center space-x-4">
 					{!isDistractionFree && (
-						<Link
+						<RouterLinkButton
 							to="/content/$collection"
 							params={{ collection }}
 							search={{ locale: undefined }}
 							aria-label={t`Back to ${collectionLabel} list`}
-							className={buttonVariants({ variant: "ghost", shape: "square" })}
-						>
-							<ArrowPrev className="h-5 w-5" aria-hidden="true" />
-						</Link>
+							variant="ghost"
+							shape="square"
+							icon={<ArrowPrev />}
+						/>
 					)}
 					{isDistractionFree && (
 						<Button

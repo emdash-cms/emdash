@@ -6,7 +6,7 @@
  * update/uninstall for marketplace-installed plugins.
  */
 
-import { Badge, Button, buttonVariants, Switch, Toast } from "@cloudflare/kumo";
+import { Badge, Button, Switch, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	PuzzlePiece,
@@ -43,6 +43,7 @@ import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 export interface PluginManagerProps {
 	/** Admin manifest — used to check if marketplace is configured */
@@ -153,10 +154,9 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 						</Button>
 					)}
 					{hasMarketplace && (
-						<Link to="/plugins/marketplace" className={buttonVariants({ variant: "ghost" })}>
-							<Storefront className="me-2 h-4 w-4" aria-hidden="true" />
+						<RouterLinkButton to="/plugins/marketplace" variant="ghost" icon={<Storefront />}>
 							{t`Marketplace`}
-						</Link>
+						</RouterLinkButton>
 					)}
 					<span className="text-sm text-kumo-subtle">{t`${plugins?.length ?? 0} plugins`}</span>
 				</div>
@@ -361,26 +361,26 @@ function PluginCard({
 						)}
 
 						{isMarketplace && hasMarketplace && (
-							<Link
+							<RouterLinkButton
 								to="/plugins/marketplace/$pluginId"
 								params={{ pluginId: plugin.id }}
-								className={buttonVariants({ variant: "ghost", size: "sm" })}
+								variant="ghost"
+								size="sm"
+								icon={<Storefront />}
 							>
-								<Storefront className="me-1.5 h-3.5 w-3.5" />
 								{t`View in Marketplace`}
-							</Link>
+							</RouterLinkButton>
 						)}
 
 						{plugin.hasAdminPages && plugin.enabled && (
-							<Link
+							<RouterLinkButton
 								to="/plugins/$pluginId/$"
 								params={{ pluginId: plugin.id, _splat: "" }}
 								aria-label={t`Settings`}
-								className={buttonVariants({ variant: "ghost", shape: "square" })}
-							>
-								<Gear className="h-4 w-4" />
-								<span className="sr-only">{t`Settings`}</span>
-							</Link>
+								variant="ghost"
+								shape="square"
+								icon={<Gear />}
+							/>
 						)}
 
 						<Switch

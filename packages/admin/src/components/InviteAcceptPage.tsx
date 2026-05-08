@@ -3,16 +3,16 @@
  * Validates an invite token, then registers a passkey to complete signup.
  */
 
-import { buttonVariants, Input, Loader } from "@cloudflare/kumo";
+import { Input, Loader } from "@cloudflare/kumo";
 import { Trans } from "@lingui/react/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Link, useSearch } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import { validateInviteToken, type InviteVerifyResult } from "../lib/api";
-import { cn } from "../lib/utils";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
 import { LogoLockup } from "./Logo.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 type InviteStep = "verify" | "register" | "error";
 
@@ -126,16 +126,17 @@ function ErrorStep({ message, code }: ErrorStepProps) {
 
 			<div className="space-y-2">
 				{code === "USER_EXISTS" ? (
-					<Link to="/login" className={cn(buttonVariants(), "w-full")}>{t`Sign in instead`}</Link>
+					<RouterLinkButton to="/login" className="w-full">{t`Sign in instead`}</RouterLinkButton>
 				) : (
 					<>
 						<p className="text-sm text-kumo-subtle">
 							{t`Please ask your administrator to send a new invite.`}
 						</p>
-						<Link
+						<RouterLinkButton
 							to="/login"
-							className={cn(buttonVariants({ variant: "ghost" }), "w-full")}
-						>{t`Back to login`}</Link>
+							variant="ghost"
+							className="w-full"
+						>{t`Back to login`}</RouterLinkButton>
 					</>
 				)}
 			</div>

@@ -1,13 +1,4 @@
-import {
-	Badge,
-	Button,
-	buttonVariants,
-	Dialog,
-	Input,
-	LinkButton,
-	Loader,
-	Tabs,
-} from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, LinkButton, Loader, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -30,6 +21,7 @@ import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /** Sortable content list columns. Maps to the server's order field whitelist. */
 export type ContentListSortField = "title" | "status" | "locale" | "updatedAt";
@@ -158,15 +150,14 @@ export function ContentList({
 						/>
 					)}
 				</div>
-				<Link
+				<RouterLinkButton
 					to="/content/$collection/new"
 					params={{ collection }}
 					search={{ locale: activeLocale }}
-					className={buttonVariants()}
+					icon={<Plus />}
 				>
-					<Plus className="me-2 h-4 w-4" aria-hidden="true" />
 					{t`Add New`}
-				</Link>
+				</RouterLinkButton>
 			</div>
 
 			{/* Search */}
@@ -527,14 +518,14 @@ function ContentListItem({
 							icon={<ArrowSquareOut />}
 						/>
 					)}
-					<Link
+					<RouterLinkButton
 						to="/content/$collection/$id"
 						params={{ collection, id: item.id }}
 						aria-label={t`Edit ${title}`}
-						className={buttonVariants({ variant: "ghost", shape: "square" })}
-					>
-						<Pencil className="h-4 w-4" aria-hidden="true" />
-					</Link>
+						variant="ghost"
+						shape="square"
+						icon={<Pencil />}
+					/>
 					<Button
 						variant="ghost"
 						shape="square"

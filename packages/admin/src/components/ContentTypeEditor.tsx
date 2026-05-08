@@ -1,4 +1,4 @@
-import { Badge, Button, Input, InputArea, Label, Select, buttonVariants } from "@cloudflare/kumo";
+import { Badge, Button, Input, InputArea, Label, Select } from "@cloudflare/kumo";
 import {
 	DndContext,
 	closestCenter,
@@ -20,7 +20,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
 import type {
@@ -35,6 +35,7 @@ import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EditorHeader } from "./EditorHeader";
 import { FieldEditor } from "./FieldEditor";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
 
 // Regex patterns for slug generation
@@ -330,13 +331,13 @@ export function ContentTypeEditor({
 			    so DOM order still ends with a submit control. */}
 			<EditorHeader
 				leading={
-					<Link
+					<RouterLinkButton
 						to="/content-types"
 						aria-label={t`Back to Content Types`}
-						className={buttonVariants({ variant: "ghost", shape: "square" })}
-					>
-						<ArrowPrev className="h-5 w-5" />
-					</Link>
+						variant="ghost"
+						shape="square"
+						icon={<ArrowPrev />}
+					/>
 				}
 				actions={
 					!isFromCode && !isNew ? (
