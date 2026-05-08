@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
-import { matchesMimeAllowlist } from "../../media/mime.js";
+import { matchesMimeAllowlist, parseAllowedMimeTypes } from "../../media/mime.js";
 import { requestCached } from "../../request-cache.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import type { ApiResult } from "../types.js";
@@ -24,6 +24,10 @@ function asMediaRef(value: unknown): MediaRefValue | null {
 	return value as MediaRefValue;
 }
 
+function fail(message: string): ApiResult<never> {
+	return { success: false, error: { code: "INVALID_MIME_FOR_FIELD", message } };
+}
+
 async function loadMediaFieldsForCollection(
 	db: Kysely<Database>,
 	collectionSlug: string,
@@ -33,25 +37,14 @@ async function loadMediaFieldsForCollection(
 		.innerJoin("_emdash_collections", "_emdash_collections.id", "_emdash_fields.collection_id")
 		.select(["_emdash_fields.slug", "_emdash_fields.type", "_emdash_fields.validation"])
 		.where("_emdash_collections.slug", "=", collectionSlug)
-		.where((eb) =>
-			eb.or([eb("_emdash_fields.type", "=", "file"), eb("_emdash_fields.type", "=", "image")]),
-		)
+		.where("_emdash_fields.type", "in", ["file", "image"])
 		.execute();
 
 	const out: FieldRow[] = [];
 	for (const row of rows) {
-		if (!row.validation) continue;
-		try {
-			const parsed: unknown = JSON.parse(row.validation);
-			if (typeof parsed !== "object" || parsed === null) continue;
-			const list = (parsed as { allowedMimeTypes?: string[] }).allowedMimeTypes;
-			if (!list || list.length === 0) continue;
-			out.push({ slug: row.slug, type: row.type, allowedMimeTypes: list });
-		} catch {
-			console.warn(
-				`[emdash] malformed validation JSON for field '${row.slug}' — skipping MIME check`,
-			);
-		}
+		const list = parseAllowedMimeTypes(row.validation);
+		if (!list) continue;
+		out.push({ slug: row.slug, type: row.type, allowedMimeTypes: list });
 	}
 	return out;
 }
@@ -98,59 +91,27 @@ export async function validateMediaFields(
 		if (!ref) continue;
 
 		const provider = typeof ref.provider === "string" ? ref.provider : "local";
-		if (provider !== "local") {
-			// mimeType is required on constrained external-provider refs.
-			// The value is trusted as-is — no server-side fetch to verify it.
+
+		// External providers carry mimeType in the ref; trust it as-is.
+		// Local media: look up the stored mimeType by id.
+		let mime: string | undefined;
+		if (provider === "local") {
+			if (typeof ref.id !== "string") {
+				return fail(`Field '${field.slug}' references media with an invalid id`);
+			}
+			mime = mimeById.get(ref.id);
+			if (!mime) {
+				return fail(`Field '${field.slug}' references media with unknown MIME type`);
+			}
+		} else {
 			if (typeof ref.mimeType !== "string") {
-				return {
-					success: false,
-					error: {
-						code: "INVALID_MIME_FOR_FIELD",
-						message: `Field '${field.slug}' requires a mimeType declaration for non-local media`,
-					},
-				};
+				return fail(`Field '${field.slug}' requires a mimeType declaration for non-local media`);
 			}
-			if (!matchesMimeAllowlist(ref.mimeType, field.allowedMimeTypes)) {
-				return {
-					success: false,
-					error: {
-						code: "INVALID_MIME_FOR_FIELD",
-						message: `Field '${field.slug}' does not accept ${ref.mimeType}`,
-					},
-				};
-			}
-			continue;
-		}
-
-		if (typeof ref.id !== "string") {
-			return {
-				success: false,
-				error: {
-					code: "INVALID_MIME_FOR_FIELD",
-					message: `Field '${field.slug}' references media with an invalid id`,
-				},
-			};
-		}
-		const mime = mimeById.get(ref.id);
-
-		if (!mime) {
-			return {
-				success: false,
-				error: {
-					code: "INVALID_MIME_FOR_FIELD",
-					message: `Field '${field.slug}' references media with unknown MIME type`,
-				},
-			};
+			mime = ref.mimeType;
 		}
 
 		if (!matchesMimeAllowlist(mime, field.allowedMimeTypes)) {
-			return {
-				success: false,
-				error: {
-					code: "INVALID_MIME_FOR_FIELD",
-					message: `Field '${field.slug}' does not accept ${mime}`,
-				},
-			};
+			return fail(`Field '${field.slug}' does not accept ${mime}`);
 		}
 	}
 

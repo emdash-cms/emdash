@@ -113,7 +113,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const fieldId =
 			typeof fieldIdEntry === "string" && fieldIdEntry.length > 0 ? fieldIdEntry : null;
 
-		const fieldAllowlist = fieldId ? await resolveFieldAllowlist(emdash.db, fieldId, user) : null;
+		const fieldAllowlist = fieldId ? await resolveFieldAllowlist(emdash.db, fieldId) : null;
 		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
 
 		if (!matchesMimeAllowlist(file.type, allowlist)) {

@@ -445,7 +445,6 @@ export async function handleContentCreate(
 			};
 		}
 
-		// Validate file/image fields against their allowedMimeTypes constraints
 		const mimeCheck = await validateMediaFields(db, collection, body.data);
 		if (!mimeCheck.success) return mimeCheck;
 
@@ -596,7 +595,6 @@ export async function handleContentUpdate(
 			};
 		}
 
-		// Validate file/image fields against their allowedMimeTypes constraints
 		if (body.data) {
 			const mimeCheck = await validateMediaFields(db, collection, body.data);
 			if (!mimeCheck.success) return mimeCheck;
