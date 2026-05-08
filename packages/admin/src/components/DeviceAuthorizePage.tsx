@@ -193,7 +193,7 @@ export function DeviceAuthorizePage() {
 
 				{/* Denied state */}
 				{pageState === "denied" && (
-					<div className="rounded-lg border border-kumo-line p-6 text-center">
+					<div className="rounded-lg border border-kumo-line bg-kumo-base p-6 text-center">
 						<h2 className="font-medium">{t`Authorization denied`}</h2>
 						<p className="text-sm text-kumo-subtle mt-1">{t`The device will not be granted access.`}</p>
 						<Button

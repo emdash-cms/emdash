@@ -272,7 +272,7 @@ export function CommentInbox({
 			)}
 
 			{/* Table */}
-			<div className="rounded-md border overflow-x-auto">
+			<div className="rounded-md border bg-kumo-base overflow-x-auto">
 				<table className="w-full">
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">

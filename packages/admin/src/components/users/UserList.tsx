@@ -90,7 +90,7 @@ export function UserList({
 			</div>
 
 			{/* Table */}
-			<div className="rounded-md border overflow-x-auto">
+			<div className="rounded-md border bg-kumo-base overflow-x-auto">
 				<table className="w-full">
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
@@ -245,7 +245,7 @@ export function UserListSkeleton() {
 			</div>
 
 			{/* Table skeleton */}
-			<div className="rounded-md border">
+			<div className="rounded-md border bg-kumo-base">
 				<div className="border-b bg-kumo-tint/50 px-4 py-3">
 					<div className="h-4 w-full bg-kumo-tint animate-pulse rounded" />
 				</div>

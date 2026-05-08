@@ -201,7 +201,7 @@ export function ContentList({
 			{activeTab === "all" ? (
 				<>
 					{/* Table */}
-					<div className="rounded-md border overflow-x-auto">
+					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
@@ -335,7 +335,7 @@ export function ContentList({
 			) : (
 				<>
 					{/* Trash Table */}
-					<div className="rounded-md border overflow-x-auto">
+					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
@@ -448,9 +448,8 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 				type="button"
 				onClick={handleClick}
 				className={cn(
-					"inline-flex items-center gap-1 rounded hover:text-kumo-brand",
+					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-brand",
 					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
-					isActive ? "text-kumo-fg" : "text-kumo-subtle",
 				)}
 			>
 				<span>{label}</span>
