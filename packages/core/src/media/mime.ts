@@ -1,9 +1,15 @@
+export function normalizeMime(mime: string): string {
+	return mime.split(";")[0]!.trim().toLowerCase();
+}
+
 export function matchesMimeAllowlist(mime: string, allowList: readonly string[]): boolean {
+	const normalized = normalizeMime(mime);
 	for (const entry of allowList) {
 		if (!entry || !entry.includes("/")) continue;
+		const normalizedEntry = normalizeMime(entry);
 		if (entry.endsWith("/")) {
-			if (mime.startsWith(entry)) return true;
-		} else if (mime === entry) {
+			if (normalized.startsWith(normalizedEntry)) return true;
+		} else if (normalized === normalizedEntry) {
 			return true;
 		}
 	}

@@ -1,6 +1,14 @@
 import type { Kysely } from "kysely";
 
+import { hasPermission } from "@emdash-cms/auth";
+import type { RoleLevel } from "@emdash-cms/auth";
+
 import type { Database } from "../../database/types.js";
+
+interface UserLike {
+	id: string;
+	role: RoleLevel;
+}
 
 /**
  * MIME types allowed for upload by default (when no field-specific list
@@ -24,7 +32,9 @@ export const GLOBAL_UPLOAD_ALLOWLIST: readonly string[] = [
 export async function resolveFieldAllowlist(
 	db: Kysely<Database>,
 	fieldId: string,
+	user: UserLike | null | undefined,
 ): Promise<string[] | null> {
+	if (!hasPermission(user, "content:create")) return null;
 	const row = await db
 		.selectFrom("_emdash_fields")
 		.select(["type", "validation"])

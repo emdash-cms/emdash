@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 import { matchesMimeAllowlist } from "../../media/mime.js";
+import { requestCached } from "../../request-cache.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import type { ApiResult } from "../types.js";
 
@@ -58,7 +59,9 @@ export async function validateMediaFields(
 	collectionSlug: string,
 	data: Record<string, unknown>,
 ): Promise<ApiResult<true>> {
-	const fields = await loadMediaFieldsForCollection(db, collectionSlug);
+	const fields = await requestCached(`mediaFields:${collectionSlug}`, () =>
+		loadMediaFieldsForCollection(db, collectionSlug),
+	);
 	if (fields.length === 0) return { success: true, data: true };
 
 	// Collect local media ids that need a MIME lookup
@@ -93,13 +96,10 @@ export async function validateMediaFields(
 		if (!ref) continue;
 
 		const provider = typeof ref.provider === "string" ? ref.provider : "local";
-		let mime: string | undefined;
-		if (provider === "local") {
-			if (typeof ref.id !== "string") continue;
-			mime = mimeById.get(ref.id);
-		} else {
-			if (typeof ref.mimeType === "string") mime = ref.mimeType;
-		}
+		if (provider !== "local") continue;
+
+		if (typeof ref.id !== "string") continue;
+		const mime = mimeById.get(ref.id);
 
 		if (!mime) {
 			return {

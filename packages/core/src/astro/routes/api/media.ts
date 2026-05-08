@@ -16,7 +16,7 @@ import { GLOBAL_UPLOAD_ALLOWLIST, resolveFieldAllowlist } from "#api/handlers/me
 import { isParseError, parseQuery } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, formatFileSize, mediaListQuery } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
-import { matchesMimeAllowlist } from "#media/mime.js";
+import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
 import { generatePlaceholder } from "#media/placeholder.js";
 import { computeContentHash } from "#utils/hash.js";
 
@@ -113,7 +113,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const fieldId =
 			typeof fieldIdEntry === "string" && fieldIdEntry.length > 0 ? fieldIdEntry : null;
 
-		const fieldAllowlist = fieldId ? await resolveFieldAllowlist(emdash.db, fieldId) : null;
+		const fieldAllowlist = fieldId ? await resolveFieldAllowlist(emdash.db, fieldId, user) : null;
 		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
 
 		if (!matchesMimeAllowlist(file.type, allowlist)) {
@@ -182,7 +182,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Create media record
 		const result = await emdash.handleMediaCreate({
 			filename: file.name,
-			mimeType: file.type,
+			mimeType: normalizeMime(file.type),
 			size: file.size,
 			width,
 			height,

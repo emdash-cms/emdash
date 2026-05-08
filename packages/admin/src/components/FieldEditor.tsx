@@ -326,7 +326,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			required,
 			unique,
 			searchable: isSearchableType ? searchable : undefined,
-			validation: Object.keys(validation).length > 0 ? validation : undefined,
+			validation: Object.keys(validation).length > 0 ? validation : null,
 		};
 
 		onSave(input);

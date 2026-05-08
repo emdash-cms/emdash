@@ -148,7 +148,9 @@ describeEachDialect("save-side media-field MIME validation", (dialect) => {
 		expect(result.error.code).toBe("INVALID_MIME_FOR_FIELD");
 	});
 
-	it("validates external-provider values via the value's mimeType", async () => {
+	it("skips MIME validation for non-local provider refs (cannot verify server-side)", async () => {
+		// Non-local provider refs cannot be verified server-side without provider introspection,
+		// so they are intentionally skipped. allowedMimeTypes enforcement only applies to local refs.
 		const result = await handleContentCreate(ctx.db, "posts", {
 			slug: "p4",
 			data: {
@@ -162,9 +164,7 @@ describeEachDialect("save-side media-field MIME validation", (dialect) => {
 				},
 			},
 		});
-		expect(result.success).toBe(false);
-		if (result.success) return;
-		expect(result.error.code).toBe("INVALID_MIME_FOR_FIELD");
+		expect(result.success).toBe(true);
 	});
 
 	it("file/image field without allowedMimeTypes is not validated", async () => {

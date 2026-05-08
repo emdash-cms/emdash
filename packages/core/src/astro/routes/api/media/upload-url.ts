@@ -18,7 +18,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { GLOBAL_UPLOAD_ALLOWLIST, resolveFieldAllowlist } from "#api/handlers/media-allowlist.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaUploadUrlBody } from "#api/schemas.js";
-import { matchesMimeAllowlist } from "#media/mime.js";
+import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
 
 export const prerender = false;
 
@@ -74,7 +74,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Validate content type (field-aware widening)
 		const fieldAllowlist = body.fieldId
-			? await resolveFieldAllowlist(emdash.db, body.fieldId)
+			? await resolveFieldAllowlist(emdash.db, body.fieldId, user)
 			: null;
 		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
 
@@ -106,7 +106,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Create pending media record with content hash
 		const mediaItem = await repo.createPending({
 			filename: body.filename,
-			mimeType: body.contentType,
+			mimeType: normalizeMime(body.contentType),
 			size: body.size,
 			storageKey,
 			contentHash: body.contentHash,

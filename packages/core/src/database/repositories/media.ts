@@ -17,7 +17,13 @@ function escapeLike(value: string): string {
 function normalizeMimeFilter(input?: string | readonly string[]): string[] {
 	if (!input) return [];
 	const arr = Array.isArray(input) ? input : [input];
-	return arr.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+	return arr
+		.filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
+		.map((entry) =>
+			entry.endsWith("/")
+				? entry.toLowerCase()
+				: entry.split(";")[0]!.trim().toLowerCase(),
+		);
 }
 
 export type MediaStatus = "pending" | "ready" | "failed";

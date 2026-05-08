@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { matchesMimeAllowlist, expandExtensionShorthand } from "../../../src/media/mime.js";
+import { matchesMimeAllowlist, normalizeMime, expandExtensionShorthand } from "../../../src/media/mime.js";
 
 describe("matchesMimeAllowlist", () => {
 	it("matches exact MIME types", () => {
@@ -29,6 +29,35 @@ describe("matchesMimeAllowlist", () => {
 	it("ignores malformed entries (no slash) without throwing", () => {
 		expect(matchesMimeAllowlist("image/png", ["image"])).toBe(false);
 		expect(matchesMimeAllowlist("image/png", [""])).toBe(false);
+	});
+
+	it("is case-insensitive per RFC 2045", () => {
+		expect(matchesMimeAllowlist("Image/JPEG", ["image/jpeg"])).toBe(true);
+		expect(matchesMimeAllowlist("image/jpeg", ["Image/JPEG"])).toBe(true);
+		expect(matchesMimeAllowlist("IMAGE/PNG", ["image/"])).toBe(true);
+		expect(matchesMimeAllowlist("VIDEO/MP4", ["video/"])).toBe(true);
+	});
+
+	it("strips MIME parameters before matching", () => {
+		expect(matchesMimeAllowlist("text/html; charset=utf-8", ["text/html"])).toBe(true);
+		expect(matchesMimeAllowlist("text/plain; charset=iso-8859-1", ["text/"])).toBe(true);
+		expect(matchesMimeAllowlist("application/json; charset=utf-8", ["application/pdf"])).toBe(false);
+	});
+});
+
+describe("normalizeMime", () => {
+	it("lowercases the type", () => {
+		expect(normalizeMime("Image/JPEG")).toBe("image/jpeg");
+		expect(normalizeMime("APPLICATION/PDF")).toBe("application/pdf");
+	});
+
+	it("strips parameters", () => {
+		expect(normalizeMime("text/html; charset=utf-8")).toBe("text/html");
+		expect(normalizeMime("text/plain;charset=iso-8859-1")).toBe("text/plain");
+	});
+
+	it("leaves already-normalized types unchanged", () => {
+		expect(normalizeMime("image/png")).toBe("image/png");
 	});
 });
 

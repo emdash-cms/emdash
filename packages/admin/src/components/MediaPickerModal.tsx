@@ -114,7 +114,7 @@ export function MediaPickerModal({
 	// Unified filters: mimeTypeFilters (plural array) takes precedence over the
 	// legacy mimeTypeFilter (singular string).
 	const filters = React.useMemo(() => {
-		if (mimeTypeFilters && mimeTypeFilters.length > 0) return mimeTypeFilters;
+		if (mimeTypeFilters !== undefined) return mimeTypeFilters.length > 0 ? mimeTypeFilters : undefined;
 		if (mimeTypeFilter && mimeTypeFilter.length > 0) return [mimeTypeFilter];
 		return undefined;
 	}, [mimeTypeFilters, mimeTypeFilter]);

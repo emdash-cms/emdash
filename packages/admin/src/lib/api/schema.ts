@@ -115,7 +115,7 @@ export interface CreateFieldInput {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
-	};
+	} | null;
 	widget?: string;
 	options?: Record<string, unknown>;
 }
@@ -134,7 +134,7 @@ export interface UpdateFieldInput {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
-	};
+	} | null;
 	widget?: string;
 	options?: Record<string, unknown>;
 	sortOrder?: number;
