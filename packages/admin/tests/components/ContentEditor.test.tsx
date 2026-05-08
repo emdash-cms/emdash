@@ -261,7 +261,7 @@ describe("ContentEditor", () => {
 			await expect.element(all[1]!).toBeChecked();
 
 			// Save and verify the data sent to onSave
-			const saveBtn = screen.getByRole("button", { name: "Save" });
+			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
 			await saveBtn.click();
 
 			expect(onSave).toHaveBeenCalledWith(
@@ -537,7 +537,7 @@ describe("ContentEditor", () => {
 				.element(screen.getByRole("button", { name: "Select Attachment" }))
 				.toBeInTheDocument();
 
-			await screen.getByRole("button", { name: "Save" }).click();
+			await screen.getByRole("button", { name: "Save" }).first().click();
 			expect(onSave).toHaveBeenCalledWith(
 				expect.objectContaining({
 					data: expect.objectContaining({ attachment: null }),
@@ -592,7 +592,7 @@ describe("ContentEditor", () => {
 			const dtInput = screen.getByLabelText("Recall date");
 			await dtInput.fill("2026-02-26T09:30");
 
-			const saveBtn = screen.getByRole("button", { name: "Save" });
+			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
 			await saveBtn.click();
 
 			expect(onSave).toHaveBeenCalledWith(
@@ -634,7 +634,7 @@ describe("ContentEditor", () => {
 			const titleInput = screen.getByLabelText("Title");
 			await titleInput.fill("Test Title");
 
-			const saveBtn = screen.getByRole("button", { name: "Save" });
+			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
 			await saveBtn.click();
 
 			expect(onSave).toHaveBeenCalledWith(
@@ -649,14 +649,14 @@ describe("ContentEditor", () => {
 		it("SaveButton shows correct dirty state for new items", async () => {
 			const screen = await renderEditor({ isNew: true });
 			// New items are always dirty
-			const saveBtn = screen.getByRole("button", { name: "Save" });
+			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
 			await expect.element(saveBtn).toBeEnabled();
 		});
 
 		it("SaveButton is disabled (Saved) for existing item with no changes", async () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item });
-			const savedBtn = screen.getByRole("button", { name: "Saved" });
+			const savedBtn = screen.getByRole("button", { name: "Saved" }).first();
 			await expect.element(savedBtn).toBeDisabled();
 		});
 

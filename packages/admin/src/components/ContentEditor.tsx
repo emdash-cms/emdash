@@ -564,8 +564,9 @@ export function ContentEditor({
 		>
 			{/* Header. In distraction-free mode this becomes a hover-revealed
 			    overlay so the chrome stays out of the way while writing. In
-			    normal mode it's a regular block; save is reachable via the
-			    in-form Save button + Cmd+S, so no sticky chrome is needed. */}
+			    normal mode it's a regular block; the form also renders a
+			    Save button at the bottom so save is reachable without
+			    scrolling back up. */}
 			<div
 				className={cn(
 					"flex flex-wrap items-center justify-between gap-y-2",
@@ -1042,6 +1043,15 @@ export function ContentEditor({
 					)}
 				</div>
 			</div>
+
+			{/* Bottom-of-form save -- last interactive control in DOM order so
+			    keyboard / screen-reader users hit it after working through the
+			    fields, mirroring the header SaveButton's state. */}
+			{!isDistractionFree && (
+				<div className="flex justify-end">
+					<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+				</div>
+			)}
 		</form>
 	);
 }

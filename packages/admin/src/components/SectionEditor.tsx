@@ -167,8 +167,6 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 
 	return (
 		<div className="space-y-6">
-			{/* Sticky header — keeps the Save action visible while scrolling
-			    long PortableText content. */}
 			<EditorHeader
 				leading={
 					<RouterLinkButton
@@ -200,6 +198,13 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 							onBlockSidebarOpen={handleBlockSidebarOpen}
 							onBlockSidebarClose={handleBlockSidebarClose}
 						/>
+					</div>
+
+					{/* Bottom-of-form save -- last interactive control in DOM order
+					    so keyboard / screen-reader users hit it after working
+					    through the fields, mirroring the header SaveButton's state. */}
+					<div className="flex justify-end">
+						<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />
 					</div>
 				</div>
 

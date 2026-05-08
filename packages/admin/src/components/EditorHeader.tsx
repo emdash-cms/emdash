@@ -4,12 +4,12 @@
  * Shared header used by editor pages (Content, Content Type, Section,
  * Settings) for consistent placement of a back-link / title / actions row.
  *
- * Renders as a normal block at the top of the page. The save action is
- * always available via the in-form save button at the natural end of the
- * form and the standard Cmd+S keyboard shortcut, so a sticky save header
- * isn't needed and adds visual chrome without much benefit (and brought
- * its own bugs around backdrop transparency, z-index stacking, and a
- * fragile negative-margin trick to span the scroll container).
+ * Renders as a normal block at the top of the page. The previous sticky
+ * variant had transparency/z-index/layout bugs and added permanent visual
+ * chrome; we now rely on each editor rendering an additional Save button
+ * at the natural end of the form (DOM order matches logical order, so
+ * keyboard / screen-reader users hit a save control as the last
+ * interactive element) instead.
  *
  * RTL:
  *   The component itself uses only symmetric horizontal utilities
