@@ -11,6 +11,7 @@
  */
 
 import type { AstroIntegration, AstroIntegrationLogger } from "astro";
+import { memoryCache } from "astro/config";
 
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
@@ -271,11 +272,34 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 								},
 							];
 
+				// EmDash relies on Astro's experimental response cache:
+				// - API routes (publish, unpublish, schedule, etc.) call `cache.invalidate()`
+				//   to bust tagged entries when content changes.
+				// - Templates and user pages call `Astro.cache.set(cacheHint)` so list/detail
+				//   routes are cacheable per-tag.
+				// When the host project does not opt into `experimental.cache`, both call sites
+				// hit `undefined` at runtime and crash with `Cannot read properties of undefined`.
+				// Auto-inject `memoryCache()` as the default provider so the contract holds for
+				// every host (graft path, starter templates, Deploy-to-Cloudflare button, etc.).
+				// Hosts that already configured a provider keep theirs.
+				const existingCacheProvider = (
+					astroConfig.experimental as { cache?: { provider?: unknown } } | undefined
+				)?.cache?.provider;
+				const cacheConfig = {
+					cache: {
+						provider: existingCacheProvider ?? memoryCache(),
+					},
+				};
+
 				updateConfig({
 					security: securityConfig,
 					// fonts is a valid AstroConfig key but may not be in the
 					// type definition for the minimum supported Astro version
 					...({ fonts: emdashFonts } as Record<string, unknown>),
+					// experimental.cache is opt-in in Astro 6 and undefined by default;
+					// cast through unknown because the experimental typing varies across
+					// Astro minor versions.
+					...({ experimental: cacheConfig } as Record<string, unknown>),
 					vite: createViteConfig(
 						{
 							serializableConfig,
