@@ -134,6 +134,8 @@ export interface SeedMenu {
  * Menu item in seed
  */
 export interface SeedMenuItem {
+	/** Optional seed-local id, e.g. "item:primary:home:en". */
+	id?: string;
 	type: string;
 	label?: string;
 	url?: string; // For custom type
@@ -142,6 +144,8 @@ export interface SeedMenuItem {
 	target?: "_blank" | "_self";
 	titleAttr?: string;
 	cssClasses?: string;
+	locale?: string;
+	translationOf?: string;
 	children?: SeedMenuItem[];
 }
 

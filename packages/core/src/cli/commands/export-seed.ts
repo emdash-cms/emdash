@@ -32,6 +32,7 @@ import type {
 	SeedWidget,
 	SeedContentEntry,
 } from "../../seed/types.js";
+import { slugify } from "../../utils/slugify.js";
 
 const SETTINGS_PREFIX = "site:";
 
@@ -101,7 +102,7 @@ export const exportSeedCommand = defineCommand({
 /**
  * Export database to seed file format
  */
-async function exportSeed(db: Kysely<Database>, withContent?: string): Promise<SeedFile> {
+export async function exportSeed(db: Kysely<Database>, withContent?: string): Promise<SeedFile> {
 	const seed: SeedFile = {
 		$schema: "https://emdashcms.com/seed.schema.json",
 		version: "1",
@@ -317,6 +318,9 @@ async function exportMenus(db: Kysely<Database>): Promise<SeedMenu[]> {
 	const result: SeedMenu[] = [];
 	// translation_group -> seed-local id of the anchor menu in that group.
 	const groupToSeedId = new Map<string, string>();
+	// Shared across menus: translated items reference anchor items in sibling menus.
+	const itemGroupToSeedId = new Map<string, string>();
+	const usedItemSeedIds = new Set<string>();
 
 	for (const menu of menus) {
 		const seedId =
@@ -329,7 +333,13 @@ async function exportMenus(db: Kysely<Database>): Promise<SeedMenu[]> {
 			.orderBy("sort_order", "asc")
 			.execute();
 
-		const seedItems = buildMenuItemTree(items);
+		const seedItems = buildMenuItemTree(items, {
+			i18nEnabled,
+			menuName: menu.name,
+			menuLocale: menu.locale ?? null,
+			itemGroupToSeedId,
+			usedItemSeedIds,
+		});
 
 		const seedMenu: SeedMenu = {
 			id: seedId,
@@ -376,7 +386,17 @@ function buildMenuItemTree(
 		target: string | null;
 		title_attr: string | null;
 		css_classes: string | null;
+		locale?: string | null;
+		translation_group?: string | null;
 	}>,
+	i18nCtx: {
+		i18nEnabled: boolean;
+		menuName: string;
+		menuLocale: string | null;
+		// translation_group -> seed-local id of the anchor item in that group.
+		itemGroupToSeedId: Map<string, string>;
+		usedItemSeedIds: Set<string>;
+	},
 ): SeedMenuItem[] {
 	// Build parent -> children map
 	const childMap = new Map<string | null, typeof items>();
@@ -389,10 +409,28 @@ function buildMenuItemTree(
 		childMap.get(parentId)!.push(item);
 	}
 
+	function makeSeedId(item: (typeof items)[number]): string {
+		const base = slugify(item.label || "") || item.id;
+		const locale = i18nCtx.i18nEnabled ? (item.locale ?? i18nCtx.menuLocale) : null;
+		const candidate = locale
+			? `item:${i18nCtx.menuName}:${base}:${locale}`
+			: `item:${i18nCtx.menuName}:${base}`;
+		if (!i18nCtx.usedItemSeedIds.has(candidate)) {
+			i18nCtx.usedItemSeedIds.add(candidate);
+			return candidate;
+		}
+		// Collision fallback: append DB id to disambiguate duplicate labels.
+		const fallback = locale
+			? `item:${i18nCtx.menuName}:${base}:${item.id}:${locale}`
+			: `item:${i18nCtx.menuName}:${base}:${item.id}`;
+		i18nCtx.usedItemSeedIds.add(fallback);
+		return fallback;
+	}
+
 	// Recursively build tree
 	function buildLevel(parentId: string | null): SeedMenuItem[] {
 		const children = childMap.get(parentId) || [];
-		return children.map((item) => {
+		const result = children.map((item) => {
 			const seedItem: SeedMenuItem = {
 				type: item.type,
 				label: item.label || undefined,
@@ -415,6 +453,18 @@ function buildMenuItemTree(
 				seedItem.cssClasses = item.css_classes;
 			}
 
+			if (i18nCtx.i18nEnabled) {
+				const itemLocale = item.locale ?? i18nCtx.menuLocale;
+				const seedId = makeSeedId(item);
+				seedItem.id = seedId;
+				if (itemLocale) seedItem.locale = itemLocale;
+				if (item.translation_group) {
+					const anchor = i18nCtx.itemGroupToSeedId.get(item.translation_group);
+					if (anchor && anchor !== seedId) seedItem.translationOf = anchor;
+					else if (!anchor) i18nCtx.itemGroupToSeedId.set(item.translation_group, seedId);
+				}
+			}
+
 			// Add children
 			const itemChildren = buildLevel(item.id);
 			if (itemChildren.length > 0) {
@@ -423,6 +473,10 @@ function buildMenuItemTree(
 
 			return seedItem;
 		});
+
+		// Sibling order is preserved (maps to sort_order on import). Cross-menu
+		// `translationOf` already resolves because exportMenus sorts anchors first.
+		return result;
 	}
 
 	return buildLevel(null);
