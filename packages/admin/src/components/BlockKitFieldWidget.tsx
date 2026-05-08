@@ -104,7 +104,10 @@ function BlockKitFieldElement({
 					label={element.label}
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(element.action_id, v ?? "")}
-					items={Object.fromEntries(options.map((opt) => [opt.value, opt.label]))}
+					items={{
+						"": t`Select...`,
+						...Object.fromEntries(options.map((opt) => [opt.value, opt.label])),
+					}}
 				/>
 			);
 		}

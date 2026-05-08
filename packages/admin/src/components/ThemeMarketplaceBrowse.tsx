@@ -6,6 +6,8 @@
  */
 
 import { Button, Input, Select } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
@@ -29,10 +31,10 @@ import {
 
 type SortOption = "updated" | "created" | "name";
 
-const SORT_LABELS: Record<SortOption, string> = {
-	updated: "Recently Updated",
-	created: "Newest",
-	name: "Name",
+const SORT_LABELS: Record<SortOption, MessageDescriptor> = {
+	updated: msg`Recently Updated`,
+	created: msg`Newest`,
+	name: msg`Name`,
 };
 
 const VALID_SORTS = new Set<string>(["updated", "created", "name"]);
@@ -97,7 +99,7 @@ export function ThemeMarketplaceBrowse() {
 						if (v && isSortOption(v)) setSort(v);
 					}}
 					items={Object.fromEntries(
-						Object.entries(SORT_LABELS).map(([value, label]) => [value, t`${label}`]),
+						Object.entries(SORT_LABELS).map(([value, label]) => [value, t(label)]),
 					)}
 					aria-label={t`Sort themes`}
 				/>

@@ -338,7 +338,12 @@ function PluginCard({
 							{plugin.capabilities.length > 0 && (
 								<span
 									className="flex items-center gap-1"
-									title={plugin.capabilities.map((c) => CAPABILITY_LABELS[c] ?? c).join(", ")}
+									title={plugin.capabilities
+										.map((c) => {
+											const label = CAPABILITY_LABELS[c];
+											return label ? t(label) : c;
+										})
+										.join(", ")}
 								>
 									<ShieldCheck className="h-3 w-3" />
 									{t`${plugin.capabilities.length} permission${plugin.capabilities.length !== 1 ? "s" : ""}`}
@@ -415,15 +420,19 @@ function PluginCard({
 									{t`Capabilities`}
 								</h4>
 								<div className="flex flex-wrap gap-1">
-									{plugin.capabilities.map((cap) => (
-										<span
-											key={cap}
-											className="inline-flex items-center rounded-md bg-kumo-tint px-2 py-0.5 text-xs"
-											title={CAPABILITY_LABELS[cap]}
-										>
-											{CAPABILITY_LABELS[cap] ?? cap}
-										</span>
-									))}
+									{plugin.capabilities.map((cap) => {
+										const label = CAPABILITY_LABELS[cap];
+										const text = label ? t(label) : cap;
+										return (
+											<span
+												key={cap}
+												className="inline-flex items-center rounded-md bg-kumo-tint px-2 py-0.5 text-xs"
+												title={text}
+											>
+												{text}
+											</span>
+										);
+									})}
 								</div>
 							</div>
 						)}

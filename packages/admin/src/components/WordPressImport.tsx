@@ -2333,6 +2333,7 @@ function AuthorMappingStep({
 										),
 									}}
 									aria-label={t`Map WordPress user ${mapping.wpLogin} to EmDash user`}
+									className="w-48"
 								/>
 							</div>
 						</div>

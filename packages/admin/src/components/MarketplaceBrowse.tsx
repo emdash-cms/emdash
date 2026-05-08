@@ -107,7 +107,7 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 					items={{
 						"": t`All capabilities`,
 						...Object.fromEntries(
-							Object.entries(CAPABILITY_LABELS).map(([value, label]) => [value, t`${label}`]),
+							Object.entries(CAPABILITY_LABELS).map(([value, label]) => [value, t(label)]),
 						),
 					}}
 					aria-label={t`Filter by capability`}

@@ -215,23 +215,25 @@ export async function checkPluginUpdates(): Promise<PluginUpdateInfo[]> {
  * Canonical names are the keys; legacy names alias to the same labels so
  * old manifests still render meaningful copy until they're republished.
  */
-export const CAPABILITY_LABELS: Record<string, string> = {
+import type { MessageDescriptor } from "@lingui/core";
+
+export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	// Canonical
-	"content:read": "Read your content",
-	"content:write": "Create, update, and delete content",
-	"media:read": "Access your media library",
-	"media:write": "Upload and manage media",
-	"users:read": "Read user accounts",
-	"network:request": "Make network requests",
-	"network:request:unrestricted": "Make network requests to any host (unrestricted)",
+	"content:read": msg`Read your content`,
+	"content:write": msg`Create, update, and delete content`,
+	"media:read": msg`Access your media library`,
+	"media:write": msg`Upload and manage media`,
+	"users:read": msg`Read user accounts`,
+	"network:request": msg`Make network requests`,
+	"network:request:unrestricted": msg`Make network requests to any host (unrestricted)`,
 	// Legacy aliases (still emitted by older installed manifests)
-	"read:content": "Read your content",
-	"write:content": "Create, update, and delete content",
-	"read:media": "Access your media library",
-	"write:media": "Upload and manage media",
-	"read:users": "Read user accounts",
-	"network:fetch": "Make network requests",
-	"network:fetch:any": "Make network requests to any host (unrestricted)",
+	"read:content": msg`Read your content`,
+	"write:content": msg`Create, update, and delete content`,
+	"read:media": msg`Access your media library`,
+	"write:media": msg`Upload and manage media`,
+	"read:users": msg`Read user accounts`,
+	"network:fetch": msg`Make network requests`,
+	"network:fetch:any": msg`Make network requests to any host (unrestricted)`,
 };
 
 /** Capability names that grant scoped network access (legacy + canonical). */
@@ -240,11 +242,17 @@ const NETWORK_REQUEST_CAPABILITIES = new Set(["network:request", "network:fetch"
 /**
  * Get a human-readable description for a capability.
  * For scoped network capabilities, appends the allowed hosts if provided.
+ *
+ * Module-scope so calls outside React components work; uses the global i18n
+ * instance for translation. Components that have access to `useLingui` can
+ * also resolve `CAPABILITY_LABELS[capability]` directly with `t(...)` if they
+ * need the translated string without the host suffix.
  */
 export function describeCapability(capability: string, allowedHosts?: string[]): string {
-	const base = CAPABILITY_LABELS[capability] ?? capability;
+	const descriptor = CAPABILITY_LABELS[capability];
+	const base = descriptor ? i18n._(descriptor) : capability;
 	if (NETWORK_REQUEST_CAPABILITIES.has(capability) && allowedHosts && allowedHosts.length > 0) {
-		return `${base} to: ${allowedHosts.join(", ")}`;
+		return i18n._(msg`${base} to: ${allowedHosts.join(", ")}`);
 	}
 	return base;
 }

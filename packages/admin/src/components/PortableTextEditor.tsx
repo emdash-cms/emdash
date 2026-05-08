@@ -1758,7 +1758,10 @@ function DynamicSelect({
 					aria-label={field.label}
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(field.action_id, v ?? "")}
-					items={Object.fromEntries(options.map((opt) => [opt.value, opt.label]))}
+					items={{
+						"": t`Select...`,
+						...Object.fromEntries(options.map((opt) => [opt.value, opt.label])),
+					}}
 				/>
 			)}
 		</div>

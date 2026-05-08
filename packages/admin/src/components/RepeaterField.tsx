@@ -360,7 +360,10 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 					label={subField.label}
 					value={typeof value === "string" ? value : ""}
 					onValueChange={(v) => onChange(v ?? "")}
-					items={Object.fromEntries((subField.options ?? []).map((opt) => [opt, opt]))}
+					items={{
+						"": t`Select...`,
+						...Object.fromEntries((subField.options ?? []).map((opt) => [opt, opt])),
+					}}
 				/>
 			);
 		default:
