@@ -148,7 +148,7 @@ export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
 
 	return (
 		<div className="space-y-3">
-			<SeoImageField seo={seo} onChange={onChange} />
+			<SeoImageField key={contentKey} seo={seo} onChange={onChange} />
 
 			<Input
 				label={t`SEO Title`}
