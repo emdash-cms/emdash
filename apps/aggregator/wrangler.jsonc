@@ -4,10 +4,10 @@
 	"main": "./src/index.ts",
 	"compatibility_date": "2026-02-24",
 	"compatibility_flags": ["nodejs_compat"],
-	// Production routes are configured at deploy time. The aggregator's API is
-	// served from `api.emdashcms.com` per the plan's domain split; the CDN
-	// (`cdn.emdashcms.com`) is a separate Worker added in Slice 3 alongside R2.
-	// Local development (`wrangler dev`) doesn't need a route binding.
+	// Production routes are configured at deploy time. The CDN
+	// (`cdn.emdashcms.com`) is a separate Worker that we'll add later
+	// alongside R2. Local development (`wrangler dev`) doesn't need a route
+	// binding.
 	"d1_databases": [
 		{
 			"binding": "DB",
@@ -56,13 +56,11 @@
 		"crons": ["0 */6 * * *"],
 	},
 	"vars": {
-		// Jetstream endpoint. Override per environment in wrangler env vars.
+		// Jetstream endpoint. Override per environment for self-hosted relays
+		// or staging backends.
 		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
 		// Constellation HTTP API for cold-start backfill DID discovery.
 		"CONSTELLATION_URL": "https://constellation.microcosm.blue",
-		// Comma-separated NSIDs we ingest. Experimental during development;
-		// stabilises to pm.fair.package.* in Slice 4.
-		"WANTED_COLLECTIONS": "com.emdashcms.experimental.package.profile,com.emdashcms.experimental.package.release",
 	},
 	"observability": {
 		"enabled": true,

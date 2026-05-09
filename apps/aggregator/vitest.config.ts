@@ -12,8 +12,8 @@
  *
  * External services (PDS, Jetstream, DID resolver, Constellation) become
  * dependency-injected via env bindings populated from
- * `@emdash-cms/atproto-test-utils` once that package's mocks land. PR 1 only
- * exercises the schema; PR 2+ start using the mock infrastructure.
+ * `@emdash-cms/atproto-test-utils`. The smoke test only exercises the schema;
+ * suites that drive the ingest pipeline use the mock infrastructure.
  *
  * Why workers-pool over plain vitest: aggregator behaviour depends on D1
  * transaction semantics, DO storage durability, and Queue batching — all

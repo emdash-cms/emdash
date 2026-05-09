@@ -101,8 +101,8 @@ export class FakeRepo {
 	}
 
 	/**
-	 * Update an existing record. Re-signs the commit. The aggregator's PR 3
-	 * tests need this to model a profile update flow.
+	 * Update an existing record. Re-signs the commit. The aggregator's
+	 * verification tests use this to model a profile update flow.
 	 */
 	async updateRecord(
 		collection: string,
@@ -120,9 +120,9 @@ export class FakeRepo {
 	}
 
 	/**
-	 * Delete a record. Re-signs the commit. The aggregator's PR 3 tests need
-	 * this to model the publisher-deleted-the-record path that triggers
-	 * tombstoning in D1.
+	 * Delete a record. Re-signs the commit. The aggregator's verification
+	 * tests use this to model the publisher-deleted-the-record path that
+	 * triggers tombstoning in D1.
 	 */
 	async deleteRecord(collection: string, rkey: string): Promise<void> {
 		const op = {
@@ -153,7 +153,8 @@ export class FakeRepo {
 	/**
 	 * Returns the full repo as a CAR. Used for `com.atproto.sync.getRepo` and
 	 * by reconciliation flows that want to verify the entire repo at once.
-	 * Slice 1 doesn't use this directly but it's a one-liner so we expose it.
+	 * Not used by the verification path today, but it's a one-liner that
+	 * matches a real PDS endpoint, so we expose it for future tests.
 	 */
 	async getFullRepoCar(): Promise<Uint8Array> {
 		const head = await this.storage.getRoot();

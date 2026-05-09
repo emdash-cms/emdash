@@ -1,9 +1,9 @@
 -- EmDash plugin registry aggregator: initial schema.
 --
--- Lands every v1 table at once on purpose. Slices 2 and 3 add features that
--- read these tables but do not need new ones, so this migration is the only
--- DDL we expect to ship before Slice 4 (NSID stabilisation), at which point
--- the table contents — not their shape — get rewritten.
+-- Lands every table that the v1 read API + ingest pipeline + label hydration
+-- + mirror tracking needs, at once on purpose: features that read these
+-- tables don't need to add new ones, so this is the only DDL we expect to
+-- ship while NSIDs remain experimental.
 
 ------------------------------------------------------------------------------
 -- Records: package profiles + releases
@@ -79,7 +79,7 @@ CREATE TABLE release_duplicate_attempts (
 CREATE INDEX idx_release_duplicates ON release_duplicate_attempts(did, package, version);
 
 ------------------------------------------------------------------------------
--- Mirror tracking (Slice 3 populates; schema lands now to avoid churn)
+-- Mirror tracking (populated when the artifact mirror lands)
 ------------------------------------------------------------------------------
 
 CREATE TABLE mirrored_artifacts (
@@ -95,7 +95,7 @@ CREATE TABLE mirrored_artifacts (
 );
 
 ------------------------------------------------------------------------------
--- Labels (Slice 2 populates; schema lands now)
+-- Labels (populated when the labeller integration lands)
 ------------------------------------------------------------------------------
 
 -- Append-only label history. Every label received is written here, including

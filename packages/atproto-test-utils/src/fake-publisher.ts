@@ -72,8 +72,8 @@ export class FakePublisher {
 		// `authors` minLength: 1 and `security` minLength: 1. Defaulting to
 		// empty arrays would let test fixtures silently produce
 		// lexicon-invalid records that pass today (no validator runs) but
-		// start failing as soon as PR 3's verification path runs the schema
-		// check. Enforce both invariants in the helper instead.
+		// would fail the moment a real validator does. Enforce both
+		// invariants in the helper instead.
 		const security: Array<Record<string, string>> = [];
 		if (opts.securityEmail) security.push({ email: opts.securityEmail });
 		if (opts.securityUrl) security.push({ url: opts.securityUrl });
