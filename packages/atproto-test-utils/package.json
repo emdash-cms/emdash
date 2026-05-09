@@ -21,7 +21,9 @@
 		"@atcute/lexicons": "catalog:",
 		"@atcute/mst": "catalog:",
 		"@atcute/multibase": "catalog:",
-		"@atcute/repo": "catalog:"
+		"@atcute/repo": "catalog:",
+		"@atproto/crypto": "catalog:",
+		"@atproto/repo": "catalog:"
 	},
 	"devDependencies": {
 		"@types/node": "catalog:",
