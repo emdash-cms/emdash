@@ -255,9 +255,15 @@ function notFound(error: string, message: string): Response {
 	return jsonResponse(404, { error, message });
 }
 
+/**
+ * Validate and narrow to the `AtprotoDid` shape (`did:plc:…` or `did:web:…`).
+ * Mirrors the type's runtime guarantee — the verifier only accepts these
+ * methods, so anything else (e.g. `did:key:`) coming through `?repo=` or
+ * `?did=` is rejected at the boundary instead of silently slipping through.
+ */
 function parseDid(value: string | null | undefined): AtprotoDid | null {
 	if (!value) return null;
-	if (!value.startsWith("did:")) return null;
+	if (!value.startsWith("did:plc:") && !value.startsWith("did:web:")) return null;
 	return value as AtprotoDid;
 }
 

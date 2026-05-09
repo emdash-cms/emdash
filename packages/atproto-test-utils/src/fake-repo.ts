@@ -19,10 +19,10 @@ import {
 	Repo,
 	WriteOpAction,
 	blocksToCarFile,
+	getRecords,
 	type RecordCreateOp,
 	type RecordPath,
 } from "@atproto/repo";
-import { getRecords } from "@atproto/repo/dist/sync/provider.js";
 
 import type { AtprotoDid } from "./types.js";
 
@@ -144,7 +144,7 @@ export class FakeRepo {
 	}
 
 	/** Snapshot of a single record value, no MST proof. */
-	getRecordValue(collection: string, rkey: string): unknown | undefined {
+	getRecordValue(collection: string, rkey: string): unknown {
 		return this.records.get(`${collection}/${rkey}`)?.value;
 	}
 }
