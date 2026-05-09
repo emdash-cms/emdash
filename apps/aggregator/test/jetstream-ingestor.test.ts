@@ -256,6 +256,39 @@ describe("JetstreamIngestor", () => {
 		await expect(h.runPromise).resolves.toBeUndefined();
 	});
 
+	it("consecutiveFailures stays 0 across disconnect-with-events cycles", async () => {
+		// Per the documented contract: 0 means the most recent connection
+		// attempt produced at least one event. A connect → consume → close
+		// cycle must NOT bump the counter to 1.
+		const stream = new MockJetstream();
+		const queue = new InMemoryQueue();
+		const storage = new MapStorage();
+		const ingestor = new JetstreamIngestor({
+			client: new MockJetstreamClient(stream),
+			queue,
+			storage,
+			wantedCollections: [PROFILE_NSID],
+			backoff: { initialDelayMs: 1, maxDelayMs: 5, multiplier: 2, jitter: 0 },
+			sleep: () => Promise.resolve(),
+		});
+		const runPromise = ingestor.run();
+
+		// Three full cycles of: connect → emit → close. After each, the
+		// counter should still be 0 because each attempt made progress.
+		for (let i = 0; i < 3; i++) {
+			stream.emitCommit({ did: TEST_DID, collection: PROFILE_NSID, rkey: `r${i}` });
+			await waitFor(() => queue.jobs.length === i + 1, `event ${i}`);
+			stream.closeAll();
+			// Yield enough microtasks for the run loop to process the close
+			// and complete its bookkeeping before we inspect.
+			await new Promise<void>((r) => setTimeout(r, 5));
+			expect(ingestor.consecutiveFailures).toBe(0);
+		}
+
+		ingestor.stop();
+		await runPromise;
+	});
+
 	it("resets backoff after a successful event, even across reconnects", async () => {
 		// Without a reset, a subscription that disconnects → reconnects →
 		// processes an event → disconnects again would back off as if the

@@ -45,12 +45,17 @@ export class RecordsJetstreamDO extends DurableObject<Env> {
 	}
 
 	/**
-	 * Status surface used by `/_admin/start` (post-deploy bootstrap) and the
-	 * 5-minute cron liveness pump. Idempotent — calling it on an
-	 * already-running DO just reports the current cursor and consecutive
-	 * failure count, which is the real liveness signal: 0 means the most
-	 * recent connection attempt produced events; a high value indicates
-	 * Jetstream is unreachable or the wantedCollections filter is wrong.
+	 * Status surface for the `/_admin/start` bootstrap and the 5-minute cron
+	 * liveness pump. Idempotent — calling it on an already-running DO just
+	 * reports the current cursor and consecutive-failure count. `0` means
+	 * the most recent connection attempt produced at least one event; a
+	 * non-zero value indicates the latest reconnect cycle hasn't yet
+	 * delivered an event (Jetstream unreachable, wantedCollections
+	 * mismatch, or queue backpressure).
+	 *
+	 * The bootstrap route in the worker doesn't proxy this body — it
+	 * fires-and-forgets the DO fetch and returns 204 — so this surface is
+	 * effectively internal to the DO + cron pump.
 	 */
 	override async fetch(_request: Request): Promise<Response> {
 		return Response.json({

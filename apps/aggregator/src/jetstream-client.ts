@@ -121,7 +121,11 @@ export function wrapAtcuteSubscription<E extends { kind: string }>(
 		},
 		close: () => {
 			fireClosed();
-			void inner?.return?.();
+			// `.catch` swallows rejections from the inner iterator's cleanup
+			// (an EventIterator's `return()` shouldn't reject, but a future
+			// implementation could). Without this, a rejection here would
+			// surface as an unhandled-promise warning in workerd.
+			inner?.return?.()?.catch(() => {});
 		},
 		[Symbol.asyncIterator](): AsyncIterator<JetstreamCommitEvent> {
 			inner ??= sub[Symbol.asyncIterator]();

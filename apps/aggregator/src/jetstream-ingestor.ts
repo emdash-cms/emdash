@@ -135,16 +135,15 @@ export class JetstreamIngestor {
 		while (!this.stopped) {
 			try {
 				await this.connectAndConsume();
-				// Subscription ended cleanly (Jetstream closed the socket
-				// without error). Treat as a soft failure for backoff
-				// purposes — but if we successfully consumed events during
-				// the connection, reset the counter first so the backoff
-				// reflects the latest streak, not historical failures.
+				// Subscription ended cleanly. If we consumed at least one
+				// event, the connection was healthy — reset the counter and
+				// reconnect with the floor delay. Otherwise treat as a soft
+				// failure and grow the backoff.
 				if (this.madeProgress) this._consecutiveFailures = 0;
-				this._consecutiveFailures += 1;
+				else this._consecutiveFailures += 1;
 			} catch (err) {
 				if (this.madeProgress) this._consecutiveFailures = 0;
-				this._consecutiveFailures += 1;
+				else this._consecutiveFailures += 1;
 				this.logger.warn?.("jetstream subscription failed", {
 					error: err instanceof Error ? err.message : String(err),
 					consecutiveFailures: this._consecutiveFailures,
