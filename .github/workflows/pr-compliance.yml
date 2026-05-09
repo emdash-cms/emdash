@@ -50,6 +50,7 @@ jobs:
                 /- \[x\] Bug fix/i,
                 /- \[x\] Feature/i,
                 /- \[x\] Refactor/i,
+                /- \[x\] Translation/i,
                 /- \[x\] Documentation/i,
                 /- \[x\] Performance/i,
                 /- \[x\] Tests/i,
