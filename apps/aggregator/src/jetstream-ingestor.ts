@@ -119,16 +119,20 @@ export class JetstreamIngestor {
 
 	/**
 	 * Run the connect-consume-reconnect loop until `stop()` is called.
-	 * Resolves when `stop()` returns; rejects only if a non-recoverable
-	 * error escapes the loop (today: queue.send failures bubble up, since a
-	 * silently-dropped event would corrupt the index).
+	 *
+	 * Resolves when `stop()` is called and the current subscription drains.
+	 * Does NOT reject for transient failures — connection drops, parse
+	 * errors, queue.send rejections all increment the backoff counter and
+	 * retry. The DO observes liveness via the `currentCursor` getter and
+	 * the failure counter exposed on the ingestor. We could instead bubble
+	 * queue failures and let the DO crash loud; current choice is to
+	 * absorb them because Cloudflare Queues have transient failures and
+	 * the cron liveness ping recovers the DO either way.
 	 */
 	async run(): Promise<void> {
 		this.cursor = (await this.storage.get(CURSOR_STORAGE_KEY)) ?? null;
-		let consecutiveFailures = 0;
 
 		while (!this.stopped) {
-			this.madeProgress = false;
 			try {
 				await this.connectAndConsume();
 				// Subscription ended cleanly (Jetstream closed the socket
@@ -136,20 +140,27 @@ export class JetstreamIngestor {
 				// purposes — but if we successfully consumed events during
 				// the connection, reset the counter first so the backoff
 				// reflects the latest streak, not historical failures.
-				if (this.madeProgress) consecutiveFailures = 0;
-				consecutiveFailures += 1;
+				if (this.madeProgress) this._consecutiveFailures = 0;
+				this._consecutiveFailures += 1;
 			} catch (err) {
-				if (this.madeProgress) consecutiveFailures = 0;
-				consecutiveFailures += 1;
+				if (this.madeProgress) this._consecutiveFailures = 0;
+				this._consecutiveFailures += 1;
 				this.logger.warn?.("jetstream subscription failed", {
 					error: err instanceof Error ? err.message : String(err),
-					consecutiveFailures,
+					consecutiveFailures: this._consecutiveFailures,
 				});
 			}
 			if (this.stopped) break;
-			await this.sleep(this.computeBackoff(consecutiveFailures));
+			await this.sleep(this.computeBackoff(this._consecutiveFailures));
 		}
 	}
+
+	/** Number of consecutive failed/empty connection attempts. Exposed for
+	 * liveness probes; `0` means the most recent attempt produced events. */
+	get consecutiveFailures(): number {
+		return this._consecutiveFailures;
+	}
+	private _consecutiveFailures = 0;
 
 	stop(): void {
 		this.stopped = true;
@@ -157,6 +168,11 @@ export class JetstreamIngestor {
 	}
 
 	private async connectAndConsume(): Promise<void> {
+		// Tied to one connection attempt: set true when we actually enqueue
+		// an event, read by the run loop to decide whether to reset
+		// backoff. Resetting per-attempt (rather than per-loop-iteration at
+		// the top of run()) keeps the flag's lifetime crisp.
+		this.madeProgress = false;
 		const sub = this.client.subscribe({
 			wantedCollections: this.wantedCollections,
 			...(this.cursor !== null ? { cursor: this.cursor } : {}),
@@ -199,8 +215,15 @@ export class JetstreamIngestor {
 	}
 
 	private computeBackoff(failures: number): number {
+		// Defensive: `failures` is always >= 1 when called from the run loop
+		// (the increment happens before computeBackoff), but a future caller
+		// passing 0 would give `initialDelayMs / multiplier`, which is below
+		// the floor. Clamp explicitly.
 		const exp = Math.min(
-			this.backoff.initialDelayMs * this.backoff.multiplier ** (failures - 1),
+			Math.max(
+				this.backoff.initialDelayMs,
+				this.backoff.initialDelayMs * this.backoff.multiplier ** (failures - 1),
+			),
 			this.backoff.maxDelayMs,
 		);
 		if (this.backoff.jitter <= 0) return exp;

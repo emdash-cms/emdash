@@ -51,9 +51,14 @@
 		},
 	],
 	"triggers": {
-		// Reconciliation pass — listRecords per known DID, fix anything
-		// Jetstream missed. Every 6 hours per the plan.
-		"crons": ["0 */6 * * *"],
+		// Liveness ping for the records DO. The DO holds Jetstream open and
+		// stays alive while the WebSocket is up, but during a Jetstream
+		// outage it spends time in backoff sleeps with no active connection
+		// — that's when CF can evict it. The 5-minute cron wakes it back up
+		// quickly; constructor-time `ingestor.run()` resumes from the
+		// persisted cursor. Reconciliation work will share this trigger when
+		// it lands.
+		"crons": ["*/5 * * * *"],
 	},
 	"vars": {
 		// Jetstream endpoint. Override per environment for self-hosted relays

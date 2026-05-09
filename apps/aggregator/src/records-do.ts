@@ -22,11 +22,13 @@ import { JetstreamIngestor, type IngestorStorage } from "./jetstream-ingestor.js
 /** Singleton DO ID. There's exactly one ingestor per deployment. */
 export const RECORDS_DO_NAME = "main";
 
+type IngestorState = "running" | "crashed";
+
 export class RecordsJetstreamDO extends DurableObject<Env> {
 	private readonly ingestor: JetstreamIngestor;
-	/** Held so the run loop isn't garbage-collected. We never await it
-	 * outside `stop()` — `run()` only resolves when `stop()` is called. */
+	/** Held so the run loop isn't garbage-collected. */
 	private readonly runPromise: Promise<void>;
+	private state: IngestorState = "running";
 
 	constructor(state: DurableObjectState, env: Env) {
 		super(state, env);
@@ -36,23 +38,25 @@ export class RecordsJetstreamDO extends DurableObject<Env> {
 			storage: wrapDoStorage(state.storage),
 		});
 		// Fire-and-forget. Run loop is meant to live for the DO's lifetime;
-		// errors that escape it indicate a non-recoverable bug we want to
-		// see in logs.
+		// rejection means the loop hit a non-recoverable error (queue
+		// failures are absorbed inside `run()`). Surface that via the
+		// fetch handler so external monitoring can see it.
 		this.runPromise = this.ingestor.run().catch((err) => {
+			this.state = "crashed";
 			console.error("[aggregator] jetstream ingestor crashed", err);
 		});
 	}
 
 	/**
-	 * Cron-driven liveness ping. The DO instance is created on first call
-	 * (which kicks off the constructor and the run loop) and stays warm as
-	 * long as the WebSocket is open. Subsequent pings are no-ops aside from
-	 * exercising the ingestor's current cursor as health output.
+	 * Status surface used by `/_admin/start` (post-deploy bootstrap) and the
+	 * 5-minute cron liveness pump. Idempotent — calling it on an
+	 * already-running DO just reports the current cursor + ingestor state.
 	 */
 	override async fetch(_request: Request): Promise<Response> {
 		return Response.json({
-			status: "running",
+			status: this.state,
 			cursor: this.ingestor.currentCursor,
+			consecutiveFailures: this.ingestor.consecutiveFailures,
 		});
 	}
 }

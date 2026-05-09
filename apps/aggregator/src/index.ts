@@ -49,8 +49,16 @@ export default {
 		// PDS-verified ingest will land here.
 	},
 
-	async scheduled(_event: ScheduledEvent, _env: Env, _ctx: ExecutionContext): Promise<void> {
-		// Reconciliation pass against publisher PDSes will land here.
+	async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+		// DO liveness. The records DO is meant to hold an outbound WebSocket
+		// continuously, but during a Jetstream outage it spends time in
+		// backoff sleeps — that's when CF can evict it. Hitting the DO from
+		// the cron wakes it back up; constructor-time `ingestor.run()`
+		// resumes from the persisted cursor. Reconciliation work will share
+		// this trigger when it lands.
+		const id = env.RECORDS_DO.idFromName(RECORDS_DO_NAME);
+		const stub = env.RECORDS_DO.get(id);
+		ctx.waitUntil(stub.fetch("https://do.internal/liveness"));
 	},
 };
 

@@ -73,37 +73,63 @@ export class RealJetstreamClient implements JetstreamClient {
 	}
 }
 
-function wrapAtcuteSubscription(sub: JetstreamSubscription): JetstreamSubscriptionHandle {
-	let closed = false;
+/**
+ * Minimum shape `wrapAtcuteSubscription` needs from its input: a `cursor`
+ * getter and an async iterable of events with a `kind` discriminator. Both
+ * `JetstreamSubscription` (production) and a stub-with-never-resolving-next
+ * (the C2 regression test) satisfy this without casts.
+ */
+export interface RawJetstreamSubscription<E extends { kind: string }> extends AsyncIterable<E> {
+	readonly cursor: number;
+}
+
+/**
+ * Exported so tests can drive the wrapper against a stub subscription with a
+ * never-resolving `next()` and verify that `close()` actually cancels the
+ * pending await. Production callers should construct via `RealJetstreamClient`.
+ */
+export function wrapAtcuteSubscription<E extends { kind: string }>(
+	sub: RawJetstreamSubscription<E>,
+): JetstreamSubscriptionHandle {
+	// Hoist the inner iterator so `close()` can call `inner.return()` from
+	// outside the iterator factory. `EventIterator.return()` is what wakes a
+	// wedged for-await — it destroys the WebSocket and resolves any pending
+	// `next()` to `{ done: true }`. Without the hoist, `close()` would have
+	// no way to reach the inner iterator, and a quiescent stream (no events
+	// arriving) would block the consumer indefinitely.
+	let inner: AsyncIterator<E> | null = null;
 	return {
 		get cursor() {
 			return sub.cursor;
 		},
 		close: () => {
-			closed = true;
-			// `@atcute/jetstream`'s subscription doesn't expose an explicit
-			// close — closing the iterator drops the WebSocket. We rely on
-			// the iterator's `return()` being invoked when the consumer
-			// stops awaiting; nothing to do here.
+			void inner?.return?.();
 		},
 		[Symbol.asyncIterator](): AsyncIterator<JetstreamCommitEvent> {
-			const inner = sub[Symbol.asyncIterator]();
+			inner ??= sub[Symbol.asyncIterator]();
+			const it = inner;
 			return {
 				async next(): Promise<IteratorResult<JetstreamCommitEvent>> {
-					while (!closed) {
-						const result = await inner.next();
+					// Loop until either the inner iterator ends or we yield a
+					// commit. Shutdown is signalled exclusively via the inner
+					// iterator returning `done: true` (triggered by an
+					// external `close()` call or by Jetstream itself ending
+					// the stream).
+					for (;;) {
+						const result = await it.next();
 						if (result.done) return { value: undefined, done: true };
 						const event = result.value;
 						if (event.kind === "commit") {
-							return { value: event as JetstreamCommitEvent, done: false };
+							// Cast within the function: by `kind === "commit"` we
+							// know the event is a commit; the generic `E` is too
+							// wide for the compiler to narrow automatically.
+							return { value: event as unknown as JetstreamCommitEvent, done: false };
 						}
 						// Skip identity/account events; loop until next commit.
 					}
-					return { value: undefined, done: true };
 				},
 				async return(): Promise<IteratorResult<JetstreamCommitEvent>> {
-					closed = true;
-					await inner.return?.();
+					await it.return?.();
 					return { value: undefined, done: true };
 				},
 			};
