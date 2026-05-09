@@ -12,8 +12,10 @@
 		{
 			"binding": "DB",
 			"database_name": "emdash-aggregator",
-			// Filled in via `wrangler d1 create emdash-aggregator` before first deploy.
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			// `database_id` intentionally omitted — wrangler auto-provisions
+			// the D1 instance on first deploy. A placeholder ID would make
+			// wrangler think the binding is already configured and skip
+			// provisioning.
 			"migrations_dir": "./migrations",
 		},
 	],
