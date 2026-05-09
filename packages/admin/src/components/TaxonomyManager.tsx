@@ -66,7 +66,7 @@ function TermRow({
 	const { t } = useLingui();
 	return (
 		<>
-			<div className="flex items-center gap-4 py-2 px-4 border-b hover:bg-kumo-tint/50">
+			<div className="flex items-center gap-4 py-2 px-4 hover:bg-kumo-tint/50">
 				<div style={{ marginInlineStart: `${level * 1.5}rem` }} className="flex-1">
 					<span className="font-medium">{term.label}</span>
 					<span className="text-sm text-kumo-subtle ms-2">({term.slug})</span>
@@ -828,7 +828,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 						{t`No ${taxonomyDef.label.toLowerCase()} yet. Create one to get started.`}
 					</div>
 				) : (
-					<div>
+					<div className="divide-y divide-kumo-line">
 						{terms.map((term) => (
 							<TermRow
 								key={term.id}

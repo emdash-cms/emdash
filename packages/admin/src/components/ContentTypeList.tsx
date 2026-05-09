@@ -86,7 +86,7 @@ export function ContentTypeList({
 			)}
 
 			{/* Table */}
-			<div className="rounded-md border overflow-x-auto">
+			<div className="rounded-md border bg-kumo-base overflow-x-auto">
 				<table className="w-full">
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
@@ -107,7 +107,7 @@ export function ContentTypeList({
 							</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody className="divide-y divide-kumo-line">
 						{isLoading ? (
 							<tr>
 								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
@@ -170,7 +170,7 @@ function ContentTypeRow({ collection, onRequestDelete }: ContentTypeRowProps) {
 	const isFromCode = collection.source === "code";
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
 				<div className="flex items-center space-x-3">
 					<div

@@ -75,7 +75,6 @@ import {
 } from "./PortableTextEditor";
 import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
-import { SeoImageField } from "./SeoImageField";
 import { SeoPanel } from "./SeoPanel";
 import { TaxonomySidebar } from "./TaxonomySidebar";
 import { TranslationsPanel } from "./TranslationsPanel.js";
@@ -767,25 +766,6 @@ export function ContentEditor({
 										manifest={manifest}
 									/>
 								);
-								if (
-									name === "featured_image" &&
-									field.kind === "image" &&
-									hasSeo &&
-									!isNew &&
-									onSeoChange
-								) {
-									return (
-										<div
-											key={`${fieldKey}-with-seo`}
-											className="grid grid-cols-1 gap-6 md:grid-cols-2"
-										>
-											<div>{fieldEl}</div>
-											<div>
-												<SeoImageField seo={item?.seo} onChange={onSeoChange} />
-											</div>
-										</div>
-									);
-								}
 								return fieldEl;
 							})}
 						</div>

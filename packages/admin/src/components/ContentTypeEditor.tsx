@@ -379,7 +379,7 @@ export function ContentTypeEditor({
 				{/* Settings form */}
 				<div className="lg:col-span-1">
 					<form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4">
-						<div className="rounded-lg border p-4 space-y-4">
+						<div className="rounded-lg border bg-kumo-base p-4 space-y-4">
 							<h2 className="font-semibold">{t`Settings`}</h2>
 
 							<Input
@@ -483,7 +483,7 @@ export function ContentTypeEditor({
 
 						{/* Comments settings — only for existing collections */}
 						{!isNew && (
-							<div className="rounded-lg border p-4 space-y-4">
+							<div className="rounded-lg border bg-kumo-base p-4 space-y-4">
 								<h2 className="font-semibold">{t`Comments`}</h2>
 
 								<Switch
@@ -566,7 +566,7 @@ export function ContentTypeEditor({
 				{/* Fields section - only show for existing collections */}
 				{!isNew && (
 					<div className="lg:col-span-2">
-						<div className="rounded-lg border">
+						<div className="rounded-lg border bg-kumo-base">
 							<div className="flex items-center justify-between p-4 border-b">
 								<div>
 									<h2 className="font-semibold">{t`Fields`}</h2>
@@ -585,11 +585,11 @@ export function ContentTypeEditor({
 							</div>
 
 							{/* System fields - always shown */}
-							<div className="border-b bg-kumo-tint/30">
-								<div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider">
+							<div>
+								<div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b">
 									{t`System Fields`}
 								</div>
-								<div className="divide-y divide-kumo-line/50">
+								<div className="divide-y divide-kumo-line/50 border-b">
 									{SYSTEM_FIELDS.map((field) => (
 										<SystemFieldRow key={field.slug} field={field} />
 									))}
@@ -610,7 +610,7 @@ export function ContentTypeEditor({
 								</div>
 							) : (
 								<>
-									<div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider border-b">
+									<div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b">
 										{t`Custom Fields`}
 									</div>
 									<DndContext

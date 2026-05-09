@@ -201,7 +201,7 @@ export function ContentList({
 			{activeTab === "all" ? (
 				<>
 					{/* Table */}
-					<div className="rounded-md border overflow-x-auto">
+					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
@@ -236,7 +236,7 @@ export function ContentList({
 									</th>
 								</tr>
 							</thead>
-							<tbody>
+							<tbody className="divide-y divide-kumo-line">
 								{isLoading && items.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
@@ -335,7 +335,7 @@ export function ContentList({
 			) : (
 				<>
 					{/* Trash Table */}
-					<div className="rounded-md border overflow-x-auto">
+					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
@@ -350,7 +350,7 @@ export function ContentList({
 									</th>
 								</tr>
 							</thead>
-							<tbody>
+							<tbody className="divide-y divide-kumo-line">
 								{isTrashedLoading && trashedItems.length === 0 ? (
 									<tr>
 										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
@@ -448,9 +448,8 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 				type="button"
 				onClick={handleClick}
 				className={cn(
-					"inline-flex items-center gap-1 rounded hover:text-kumo-brand",
+					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-brand",
 					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
-					isActive ? "text-kumo-fg" : "text-kumo-subtle",
 				)}
 			>
 				<span>{label}</span>
@@ -482,7 +481,7 @@ function ContentListItem({
 	const date = new Date(item.updatedAt || item.createdAt);
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
 				<Link
 					to="/content/$collection/$id"
@@ -588,7 +587,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 	const deletedDate = new Date(item.deletedAt);
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
 				<span className="font-medium text-kumo-subtle">{title}</span>
 			</td>

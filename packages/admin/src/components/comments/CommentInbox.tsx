@@ -272,7 +272,7 @@ export function CommentInbox({
 			)}
 
 			{/* Table */}
-			<div className="rounded-md border overflow-x-auto">
+			<div className="rounded-md border bg-kumo-base overflow-x-auto">
 				<table className="w-full">
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
@@ -300,7 +300,7 @@ export function CommentInbox({
 							</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody className="divide-y divide-kumo-line">
 						{isLoading && comments.length === 0 ? (
 							<tr>
 								<td colSpan={6} className="px-4 py-8 text-center text-kumo-subtle">
@@ -448,7 +448,7 @@ function CommentRow({
 	const excerpt = comment.body.length > 120 ? comment.body.slice(0, 120) + "..." : comment.body;
 
 	return (
-		<tr className={cn("border-b hover:bg-kumo-tint/25", isSelected && "bg-kumo-tint/40")}>
+		<tr className={cn("hover:bg-kumo-tint/25", isSelected && "bg-kumo-tint/40")}>
 			<td className="w-10 px-3 py-3">
 				<Checkbox
 					checked={isSelected}

@@ -90,7 +90,7 @@ export function UserList({
 			</div>
 
 			{/* Table */}
-			<div className="rounded-md border overflow-x-auto">
+			<div className="rounded-md border bg-kumo-base overflow-x-auto">
 				<table className="w-full">
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
@@ -111,7 +111,7 @@ export function UserList({
 							</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody className="divide-y divide-kumo-line">
 						{users.length === 0 && !isLoading ? (
 							<tr>
 								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
@@ -185,7 +185,7 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 	const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : t`Never`;
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25 cursor-pointer" onClick={onSelect}>
+		<tr className="hover:bg-kumo-tint/25 cursor-pointer" onClick={onSelect}>
 			<td className="px-4 py-3">
 				<div className="flex items-center gap-3">
 					{/* Avatar */}
@@ -245,15 +245,17 @@ export function UserListSkeleton() {
 			</div>
 
 			{/* Table skeleton */}
-			<div className="rounded-md border">
+			<div className="rounded-md border bg-kumo-base">
 				<div className="border-b bg-kumo-tint/50 px-4 py-3">
 					<div className="h-4 w-full bg-kumo-tint animate-pulse rounded" />
 				</div>
-				{Array.from({ length: 5 }, (_, i) => (
-					<div key={i} className="border-b px-4 py-4">
-						<div className="h-8 w-full bg-kumo-tint animate-pulse rounded" />
-					</div>
-				))}
+				<div className="divide-y divide-kumo-line">
+					{Array.from({ length: 5 }, (_, i) => (
+						<div key={i} className="px-4 py-4">
+							<div className="h-8 w-full bg-kumo-tint animate-pulse rounded" />
+						</div>
+					))}
+				</div>
 			</div>
 		</div>
 	);
