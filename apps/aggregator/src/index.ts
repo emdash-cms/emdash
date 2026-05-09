@@ -16,6 +16,7 @@
  */
 
 import type { RecordsJob } from "./env.js";
+import { processBatch } from "./records-consumer.js";
 import { RECORDS_DO_NAME } from "./records-do.js";
 
 export { RecordsJetstreamDO } from "./records-do.js";
@@ -50,8 +51,8 @@ export default {
 		});
 	},
 
-	async queue(_batch: MessageBatch<RecordsJob>, _env: Env, _ctx: ExecutionContext): Promise<void> {
-		// PDS-verified ingest will land here.
+	async queue(batch: MessageBatch<RecordsJob>, env: Env, _ctx: ExecutionContext): Promise<void> {
+		await processBatch(batch, env);
 	},
 
 	async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {

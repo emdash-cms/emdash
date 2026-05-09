@@ -103,11 +103,15 @@ export class DidResolver {
 	}
 }
 
+function isDid(value: string): value is Did {
+	return DID_PATTERN.test(value);
+}
+
 function asDid(did: string): Did {
-	if (!DID_PATTERN.test(did)) {
+	if (!isDid(did)) {
 		throw new Error(`invalid DID: ${did}`);
 	}
-	return did as Did;
+	return did;
 }
 
 function extractCacheable(doc: DidDocument): Omit<CachedDidDoc, "resolvedAt"> {

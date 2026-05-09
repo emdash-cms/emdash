@@ -58,7 +58,16 @@ CREATE TABLE releases (
 	verified_at TEXT NOT NULL,
 	tombstoned_at TEXT,                         -- soft delete (publisher deleted record)
 	PRIMARY KEY (did, package, version),
-	FOREIGN KEY (did, package) REFERENCES packages(did, slug)
+	-- ON DELETE CASCADE because Jetstream events for a publisher can arrive
+	-- in arbitrary order under network reorder. A publisher who deletes their
+	-- profile (and all releases) emits the events in author-order, but the
+	-- profile-delete might land at the consumer before the release-deletes.
+	-- Without cascade, the consumer would have to either skip the profile
+	-- delete (leaving stale rows) or sequence retries, neither of which is
+	-- worth the complexity. Releases are version-immutable from a publishing
+	-- perspective, but a publisher is still entitled to remove their entire
+	-- package; cascade mirrors that intent.
+	FOREIGN KEY (did, package) REFERENCES packages(did, slug) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_releases_latest ON releases(did, package, version_sort DESC) WHERE tombstoned_at IS NULL;
