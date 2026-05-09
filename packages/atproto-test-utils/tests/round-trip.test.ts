@@ -145,10 +145,78 @@ describe("MockPds XRPC dispatch", () => {
 			{ method: "GET" },
 		);
 		expect(res.status).toBe(200);
-		const body = (await res.json()) as { records: Array<{ uri: string }> };
+		const body = (await res.json()) as {
+			records: Array<{ uri: string }>;
+			cursor?: string;
+		};
 		expect(body.records).toHaveLength(2);
 		expect(body.records.map((r) => r.uri)).toContain(`at://${frank.did}/${PROFILE_NSID}/a`);
 		expect(body.records.map((r) => r.uri)).toContain(`at://${frank.did}/${PROFILE_NSID}/b`);
+		// At end-of-stream, cirrus's rpcListRecords omits cursor; aggregator
+		// reads `body.cursor` and treats undefined as "no more pages."
+		expect(body.cursor).toBeUndefined();
+	});
+
+	it("returns 405 when the wrong HTTP method is used on a known endpoint", async () => {
+		// Real PDSes reject method mismatches. Tests asserting POST-vs-GET
+		// behaviour catch a different class of regression than 404 routing.
+		const fixture = createFakePublisherFixture();
+		await fixture.createPublisher({ did: "did:plc:lola000000000000000000000" });
+
+		const res = await fixture.pds.handle("/xrpc/com.atproto.repo.applyWrites", {
+			method: "GET",
+		});
+		expect(res.status).toBe(405);
+	});
+
+	it("supports applyWrites #update and #delete", async () => {
+		const fixture = createFakePublisherFixture();
+		const mike = await fixture.createPublisher({ did: "did:plc:mike000000000000000000000" });
+		await mike.publishProfile({ slug: "p", license: "MIT", securityEmail: "x@y.test" });
+
+		// Update — re-publish with a different license.
+		const updateRes = await fixture.pds.handle("/xrpc/com.atproto.repo.applyWrites", {
+			method: "POST",
+			body: JSON.stringify({
+				repo: mike.did,
+				writes: [
+					{
+						$type: "com.atproto.repo.applyWrites#update",
+						collection: PROFILE_NSID,
+						rkey: "p",
+						value: {
+							$type: PROFILE_NSID,
+							slug: "p",
+							type: "emdash-plugin",
+							license: "Apache-2.0",
+							authors: [{ name: "Mike" }],
+							security: [{ email: "sec@y.test" }],
+							lastUpdated: new Date().toISOString(),
+						},
+					},
+				],
+			}),
+		});
+		expect(updateRes.status).toBe(200);
+		const updated = mike.repo.getRecordValue(PROFILE_NSID, "p") as { license: string };
+		expect(updated.license).toBe("Apache-2.0");
+
+		// Delete — record should be gone afterwards.
+		const deleteRes = await fixture.pds.handle("/xrpc/com.atproto.repo.applyWrites", {
+			method: "POST",
+			body: JSON.stringify({
+				repo: mike.did,
+				writes: [
+					{
+						$type: "com.atproto.repo.applyWrites#delete",
+						collection: PROFILE_NSID,
+						rkey: "p",
+					},
+				],
+			}),
+		});
+		expect(deleteRes.status).toBe(200);
+		expect(mike.repo.getRecordValue(PROFILE_NSID, "p")).toBeUndefined();
 	});
 
 	it("returns an exclusion-proof CAR for a missing record (verifyRecord rejects)", async () => {
@@ -248,6 +316,55 @@ describe("MockJetstream", () => {
 		}
 		sub.close();
 	});
+
+	it("treats cursor as last-seen: reconnect skips the cursor event itself", async () => {
+		// Real Jetstream's cursor semantics: "I have this one, give me what's
+		// after." A reconnect with cursor=N must NOT redeliver the event whose
+		// time_us is exactly N. This test was the off-by-one MockJetstream had
+		// before — kept here to prevent regression.
+		const fixture = createFakePublisherFixture();
+		const evt = fixture.jetstream.emitCommit({
+			did: "did:plc:jill000000000000000000000",
+			collection: PROFILE_NSID,
+			rkey: "first",
+		});
+		fixture.jetstream.emitCommit({
+			did: "did:plc:jill000000000000000000000",
+			collection: PROFILE_NSID,
+			rkey: "second",
+		});
+
+		const sub = fixture.jetstream.subscribe({ cursor: evt.time_us });
+		const iter = sub[Symbol.asyncIterator]();
+		const result = await iter.next();
+		if (result.value?.kind === "commit") {
+			expect(result.value.commit.rkey).toBe("second");
+		}
+		sub.close();
+	});
+
+	it("exposes a per-subscriber cursor reflecting the last yielded event", async () => {
+		// The exposed `cursor` must be per-subscriber, not the global head, so
+		// reconnecting with it resumes from where THIS subscriber stopped.
+		const fixture = createFakePublisherFixture();
+		const a = fixture.jetstream.emitCommit({
+			did: "did:plc:kate000000000000000000000",
+			collection: PROFILE_NSID,
+			rkey: "a",
+		});
+		fixture.jetstream.emitCommit({
+			did: "did:plc:kate000000000000000000000",
+			collection: PROFILE_NSID,
+			rkey: "b",
+		});
+
+		const sub = fixture.jetstream.subscribe({});
+		expect(sub.cursor).toBe(0); // nothing delivered yet
+		const iter = sub[Symbol.asyncIterator]();
+		await iter.next(); // event "a"
+		expect(sub.cursor).toBe(a.time_us);
+		sub.close();
+	});
 });
 
 describe("MockDidResolver", () => {
@@ -267,6 +384,37 @@ describe("MockDidResolver", () => {
 	it("returns null for an unknown DID", () => {
 		const fixture = createFakePublisherFixture();
 		expect(fixture.didResolver.resolve("did:plc:unknown00000000000000000")).toBeNull();
+	});
+});
+
+describe("FakePublisher.publishProfile lexicon constraints", () => {
+	it("throws when no security contact is provided", async () => {
+		// The profile lexicon requires `security` minLength: 1. The helper
+		// must not silently produce lex-invalid records that would pass today
+		// but break as soon as the aggregator's lexicon validator runs.
+		const fixture = createFakePublisherFixture();
+		const ned = await fixture.createPublisher({ did: "did:plc:ned000000000000000000000" });
+		await expect(ned.publishProfile({ slug: "no-security", license: "MIT" })).rejects.toThrow(
+			/security/i,
+		);
+	});
+
+	it("defaults authors to a single entry derived from the publisher handle", async () => {
+		const fixture = createFakePublisherFixture();
+		const olive = await fixture.createPublisher({
+			did: "did:plc:olive00000000000000000000",
+			handle: "olive.test",
+		});
+		await olive.publishProfile({
+			slug: "default-authors",
+			license: "MIT",
+			securityEmail: "x@y.test",
+		});
+		const value = olive.repo.getRecordValue(PROFILE_NSID, "default-authors") as {
+			authors: Array<{ name: string }>;
+		};
+		expect(value.authors).toHaveLength(1);
+		expect(value.authors[0]?.name).toBe("olive.test");
 	});
 });
 

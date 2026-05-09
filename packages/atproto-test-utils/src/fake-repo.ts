@@ -101,6 +101,40 @@ export class FakeRepo {
 	}
 
 	/**
+	 * Update an existing record. Re-signs the commit. The aggregator's PR 3
+	 * tests need this to model a profile update flow.
+	 */
+	async updateRecord(
+		collection: string,
+		rkey: string,
+		value: Record<string, unknown>,
+	): Promise<void> {
+		const op = {
+			action: WriteOpAction.Update,
+			collection,
+			rkey,
+			record: value,
+		} as unknown as RecordCreateOp;
+		this.repo = await this.repo.applyWrites(op, this.keypair);
+		this.records.set(`${collection}/${rkey}`, { collection, rkey, value });
+	}
+
+	/**
+	 * Delete a record. Re-signs the commit. The aggregator's PR 3 tests need
+	 * this to model the publisher-deleted-the-record path that triggers
+	 * tombstoning in D1.
+	 */
+	async deleteRecord(collection: string, rkey: string): Promise<void> {
+		const op = {
+			action: WriteOpAction.Delete,
+			collection,
+			rkey,
+		} as unknown as RecordCreateOp;
+		this.repo = await this.repo.applyWrites(op, this.keypair);
+		this.records.delete(`${collection}/${rkey}`);
+	}
+
+	/**
 	 * Returns the CAR bytes for `com.atproto.sync.getRecord`: the latest signed
 	 * commit + MST proof down to the record + the record block. The verifier
 	 * walks this exact shape.

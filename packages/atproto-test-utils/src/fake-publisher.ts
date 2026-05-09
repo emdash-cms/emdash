@@ -68,16 +68,34 @@ export class FakePublisher {
 	}
 
 	async publishProfile(opts: PublishProfileOptions): Promise<{ rkey: string }> {
+		// The lexicon (com.emdashcms.experimental.package.profile) requires
+		// `authors` minLength: 1 and `security` minLength: 1. Defaulting to
+		// empty arrays would let test fixtures silently produce
+		// lexicon-invalid records that pass today (no validator runs) but
+		// start failing as soon as PR 3's verification path runs the schema
+		// check. Enforce both invariants in the helper instead.
 		const security: Array<Record<string, string>> = [];
 		if (opts.securityEmail) security.push({ email: opts.securityEmail });
 		if (opts.securityUrl) security.push({ url: opts.securityUrl });
+		if (security.length === 0) {
+			throw new Error(
+				"publishProfile: pass at least one of securityEmail or securityUrl. " +
+					"The profile lexicon requires `security` minLength: 1.",
+			);
+		}
+		const authors = opts.authors ?? [{ name: this.handle ?? "Test Publisher" }];
+		if (authors.length === 0) {
+			throw new Error(
+				"publishProfile: `authors` cannot be empty. The profile lexicon requires minLength: 1.",
+			);
+		}
 		const value: Record<string, unknown> = {
 			$type: PROFILE_NSID,
 			id: `at://${this.repo.did}/${PROFILE_NSID}/${opts.slug}`,
 			slug: opts.slug,
 			type: "emdash-plugin",
 			license: opts.license,
-			authors: opts.authors ?? [],
+			authors,
 			security,
 			lastUpdated: new Date().toISOString(),
 		};

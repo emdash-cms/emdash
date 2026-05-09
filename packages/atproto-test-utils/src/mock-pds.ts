@@ -52,22 +52,42 @@ export class MockPds implements FetchHandlerObject {
 		const body = await readJsonBody(init.body);
 		this.calls.push({ method, pathname, ...(body !== undefined ? { body } : {}) });
 
-		switch (url.pathname) {
-			case "/xrpc/com.atproto.repo.getRecord":
+		// Real PDS rejects method mismatches; we do the same so a regression
+		// where the aggregator uses the wrong verb fails loudly in tests.
+		const route = `${method} ${url.pathname}`;
+		switch (route) {
+			case "get /xrpc/com.atproto.repo.getRecord":
 				return this.repoGetRecord(url);
-			case "/xrpc/com.atproto.repo.listRecords":
+			case "get /xrpc/com.atproto.repo.listRecords":
 				return this.repoListRecords(url);
-			case "/xrpc/com.atproto.repo.applyWrites":
+			case "post /xrpc/com.atproto.repo.applyWrites":
 				return this.repoApplyWrites(body);
-			case "/xrpc/com.atproto.repo.putRecord":
+			case "post /xrpc/com.atproto.repo.putRecord":
 				return this.repoPutRecord(body);
-			case "/xrpc/com.atproto.sync.getRecord":
+			case "get /xrpc/com.atproto.sync.getRecord":
 				return this.syncGetRecord(url);
-			default:
+			default: {
+				// Distinguish "wrong method" from "unknown endpoint" — real
+				// PDSes return 405 vs 404, and tests asserting on those status
+				// codes catch a different class of regression.
+				const knownRoutes = new Set([
+					"/xrpc/com.atproto.repo.getRecord",
+					"/xrpc/com.atproto.repo.listRecords",
+					"/xrpc/com.atproto.repo.applyWrites",
+					"/xrpc/com.atproto.repo.putRecord",
+					"/xrpc/com.atproto.sync.getRecord",
+				]);
+				if (knownRoutes.has(url.pathname)) {
+					return jsonResponse(405, {
+						error: "MethodNotAllowed",
+						message: `${method.toUpperCase()} not allowed on ${url.pathname}`,
+					});
+				}
 				return jsonResponse(404, {
 					error: "MethodNotFound",
 					message: `MockPds does not implement ${url.pathname}`,
 				});
+			}
 		}
 	}
 
@@ -134,6 +154,13 @@ export class MockPds implements FetchHandlerObject {
 			cid: cidPlaceholder(),
 			value: r.value,
 		}));
+		// `cursor` is omitted at end-of-stream — matches cirrus's
+		// rpcListRecords (the field is optional in its return type, and
+		// JSON.stringify drops undefined keys). The aggregator's
+		// reconciliation reads `body.cursor` and treats absent / undefined as
+		// "no more pages." MockPds doesn't paginate today; if a future test
+		// needs multi-page semantics, return a string cursor here when more
+		// records remain in the underlying repo.
 		return jsonResponse(200, { records: items });
 	}
 
@@ -152,13 +179,24 @@ export class MockPds implements FetchHandlerObject {
 				rkey?: string;
 				value?: Record<string, unknown>;
 			};
-			if (op.$type !== "com.atproto.repo.applyWrites#create") {
-				return invalidRequest(`MockPds only supports create writes, got ${String(op.$type)}`);
+			if (!op.collection || !op.rkey) {
+				return invalidRequest(`write missing collection or rkey on ${String(op.$type)}`);
 			}
-			if (!op.collection || !op.rkey || !op.value) {
-				return invalidRequest("create write missing collection, rkey, or value");
+			switch (op.$type) {
+				case "com.atproto.repo.applyWrites#create":
+					if (!op.value) return invalidRequest("create write missing value");
+					await repo.putRecord(op.collection, op.rkey, op.value);
+					break;
+				case "com.atproto.repo.applyWrites#update":
+					if (!op.value) return invalidRequest("update write missing value");
+					await repo.updateRecord(op.collection, op.rkey, op.value);
+					break;
+				case "com.atproto.repo.applyWrites#delete":
+					await repo.deleteRecord(op.collection, op.rkey);
+					break;
+				default:
+					return invalidRequest(`unsupported write $type: ${String(op.$type)}`);
 			}
-			await repo.putRecord(op.collection, op.rkey, op.value);
 		}
 		return jsonResponse(200, { results: b.writes.map(() => ({})) });
 	}

@@ -52,6 +52,11 @@ interface ActiveSubscriber {
 	queue: JetstreamEvent[];
 	resolve: (() => void) | null;
 	closed: boolean;
+	/** time_us of the most recent event delivered to this subscriber's
+	 * iterator. Exposed via the `cursor` getter so a reconnection with this
+	 * value resumes strictly after the last delivery. 0 means "nothing
+	 * delivered yet"; reconnecting with 0 replays full history. */
+	lastDeliveredTimeUs: number;
 }
 
 export interface MockJetstreamSubscribeOptions {
@@ -133,23 +138,31 @@ export class MockJetstream {
 			queue: [],
 			resolve: null,
 			closed: false,
+			lastDeliveredTimeUs: 0,
 		};
-		// Replay history at-or-after cursor. Cursor is microsecond timestamp;
-		// 0 / undefined means replay from beginning.
+		// Replay history strictly after the cursor. Real Jetstream treats the
+		// cursor as "last seen, don't redeliver" — reconnecting with cursor=N
+		// must NOT include the event whose time_us is exactly N. cursor=0
+		// (or omitted) replays everything.
 		const cursor = opts.cursor ?? 0;
 		for (const event of this.history) {
-			if (event.time_us < cursor) continue;
+			if (event.time_us <= cursor) continue;
 			if (!subscriberWants(sub, event)) continue;
 			sub.queue.push(event);
 		}
 		this.subscribers.set(id, sub);
 
-		const history = this.history;
 		const subscribers = this.subscribers;
 		const iterable: MockJetstreamSubscription = {
 			id,
+			// Per-subscriber cursor: the time_us of the most recent event the
+			// iterator has yielded. Reconnecting with this value resumes
+			// strictly after that point, which is what every real subscriber
+			// needs. Returning the global head (the previous behaviour) made
+			// disconnect-then-reconnect silently drop everything between
+			// `consumed` and `globalHead`.
 			get cursor() {
-				return history.at(-1)?.time_us ?? 0;
+				return sub.lastDeliveredTimeUs;
 			},
 			close: () => {
 				sub.closed = true;
@@ -164,8 +177,19 @@ export class MockJetstream {
 				async next() {
 					while (true) {
 						const event = sub.queue.shift();
-						if (event) return { value: event, done: false };
+						if (event) {
+							sub.lastDeliveredTimeUs = event.time_us;
+							return { value: event, done: false };
+						}
 						if (sub.closed) return { value: undefined, done: true };
+						// next() is documented as single-consumer. If a caller
+						// invokes it concurrently, the second await would
+						// orphan the first resolver. Detect and fail loudly.
+						if (sub.resolve !== null) {
+							throw new Error(
+								"MockJetstreamSubscription.next() called concurrently from two consumers; this is not supported",
+							);
+						}
 						await new Promise<void>((resolve) => {
 							sub.resolve = resolve;
 						});
