@@ -9,7 +9,10 @@ import { render } from "../utils/render.tsx";
 // Constants
 // ---------------------------------------------------------------------------
 
-const UPLOAD_BUTTON_REGEX = /Upload/;
+// Anchored to the button's exact accessible name. Without anchors this also
+// matches the hidden file `<input aria-label="Upload file">` and trips
+// playwright's strict-mode "resolved to N elements" guard.
+const UPLOAD_BUTTON_REGEX = /^Upload$/;
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");

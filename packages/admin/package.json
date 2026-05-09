@@ -81,7 +81,7 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^4.6.0",
-    "@vitest/browser-playwright": "^4.0.18",
+    "@vitest/browser-playwright": "^4.1.5",
     "jsdom": "^26.1.0",
     "playwright": "^1.58.2",
     "publint": "catalog:",
