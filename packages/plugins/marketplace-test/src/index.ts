@@ -32,3 +32,5 @@ export function marketplaceTestPlugin(): PluginDescriptor {
 		},
 	};
 }
+
+export default marketplaceTestPlugin;
