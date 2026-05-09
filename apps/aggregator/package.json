@@ -22,6 +22,7 @@
 		"@atcute/client": "catalog:",
 		"@atcute/crypto": "catalog:",
 		"@atcute/firehose": "catalog:",
+		"@atcute/identity": "catalog:",
 		"@atcute/identity-resolver": "catalog:",
 		"@atcute/jetstream": "catalog:",
 		"@atcute/lexicons": "catalog:",

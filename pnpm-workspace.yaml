@@ -28,6 +28,7 @@ catalog:
   "@atcute/client": ^4.2.1
   "@atcute/crypto": ^2.4.1
   "@atcute/firehose": ^1.0.0
+  "@atcute/identity": ^2.0.0
   "@atcute/identity-resolver": ^1.2.2
   "@atcute/jetstream": ^2.0.0
   "@atcute/lex-cli": ^2.8.1
