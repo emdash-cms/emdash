@@ -636,6 +636,30 @@ describe("Navigation Menus", () => {
 			expect(result.error?.message).toContain("fr-fr");
 		});
 
+		it("returns AMBIGUOUS_LOCALE when locale is omitted on a multi-locale install", async () => {
+			const { handleMenuSetItems } = await import("../../../src/api/handlers/menus.js");
+
+			// Two menus with the same name in different locales — exactly the
+			// shape that used to silently let the wrong translation be rewritten.
+			await setupMenu("main", "en");
+			await setupMenu("main", "fr-fr");
+
+			const result = await handleMenuSetItems(db, "main", [
+				{ label: "Whatever", type: "custom", customUrl: "/" },
+			]);
+
+			expect(result.success).toBe(false);
+			expect(result.error?.code).toBe("AMBIGUOUS_LOCALE");
+			// Both locales surface in the message so callers can recover.
+			expect(result.error?.message).toContain("en");
+			expect(result.error?.message).toContain("fr-fr");
+			expect(result.error?.message).toMatch(/multiple locales/);
+
+			// Transaction must have rolled back — no items written to either menu.
+			const items = await db.selectFrom("_emdash_menu_items").selectAll().execute();
+			expect(items).toEqual([]);
+		});
+
 		it("targets the requested locale and tags inserted items with the menu locale", async () => {
 			const { handleMenuSetItems } = await import("../../../src/api/handlers/menus.js");
 
