@@ -4470,6 +4470,9 @@ msgid ""
 "Option 2\n"
 "Option 3"
 msgstr ""
+"Opsi 1\n"
+"Opsi 2\n"
+"Opsi 3"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:474
