@@ -1,0 +1,31 @@
+{
+	"name": "@emdash-cms/atproto-test-utils",
+	"version": "0.0.0",
+	"private": true,
+	"description": "In-memory atproto fakes for EmDash tests: a real-crypto MockPds, a driveable MockJetstream, and a MockDidResolver. Used by both the registry CLI and the aggregator so verification code paths run in tests against the same primitives production sees.",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@atcute/car": "catalog:",
+		"@atcute/cbor": "catalog:",
+		"@atcute/cid": "catalog:",
+		"@atcute/client": "catalog:",
+		"@atcute/crypto": "catalog:",
+		"@atcute/lexicons": "catalog:",
+		"@atcute/mst": "catalog:",
+		"@atcute/multibase": "catalog:",
+		"@atcute/repo": "catalog:"
+	},
+	"devDependencies": {
+		"@types/node": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	}
+}

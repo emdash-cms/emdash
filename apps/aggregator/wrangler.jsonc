@@ -1,0 +1,68 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-aggregator",
+	"main": "./src/index.ts",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
+	// Production routes are configured at deploy time. The aggregator's API is
+	// served from `api.emdashcms.com` per the plan's domain split; the CDN
+	// (`cdn.emdashcms.com`) is a separate Worker added in Slice 3 alongside R2.
+	// Local development (`wrangler dev`) doesn't need a route binding.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash-aggregator",
+			// Filled in via `wrangler d1 create emdash-aggregator` before first deploy.
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "./migrations",
+		},
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "RECORDS_QUEUE",
+				"queue": "emdash-aggregator-records",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "emdash-aggregator-records",
+				"max_batch_size": 25,
+				"max_batch_timeout": 5,
+				"max_retries": 5,
+				"dead_letter_queue": "emdash-aggregator-records-dlq",
+			},
+		],
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "RECORDS_DO",
+				"class_name": "RecordsJetstreamDO",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["RecordsJetstreamDO"],
+		},
+	],
+	"triggers": {
+		// Reconciliation pass — listRecords per known DID, fix anything
+		// Jetstream missed. Every 6 hours per the plan.
+		"crons": ["0 */6 * * *"],
+	},
+	"vars": {
+		// Jetstream endpoint. Override per environment in wrangler env vars.
+		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
+		// Constellation HTTP API for cold-start backfill DID discovery.
+		"CONSTELLATION_URL": "https://constellation.microcosm.blue",
+		// Comma-separated NSIDs we ingest. Experimental during development;
+		// stabilises to pm.fair.package.* in Slice 4.
+		"WANTED_COLLECTIONS": "com.emdashcms.experimental.package.profile,com.emdashcms.experimental.package.release",
+	},
+	"observability": {
+		"enabled": true,
+	},
+}

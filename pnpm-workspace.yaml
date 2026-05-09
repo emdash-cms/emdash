@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - packages/plugins/*
+  - apps/*
   - demos/*
   - templates/*
   - packages/blocks/playground
@@ -19,12 +20,24 @@ catalog:
   "@astrojs/node": ^10.0.0
   "@astrojs/react": ^5.0.0
   "@atcute/atproto": ^3.1.11
+  "@atcute/car": ^6.0.0
+  "@atcute/cbor": ^2.3.3
+  "@atcute/cid": ^2.4.1
   "@atcute/client": ^4.2.1
+  "@atcute/crypto": ^2.4.1
+  "@atcute/firehose": ^1.0.0
   "@atcute/identity-resolver": ^1.2.2
+  "@atcute/jetstream": ^2.0.0
   "@atcute/lex-cli": ^2.8.1
   "@atcute/lexicons": ^1.3.0
+  "@atcute/mst": ^1.0.1
   "@atcute/multibase": ^1.2.0
   "@atcute/oauth-node-client": ^1.1.0
+  "@atcute/repo": ^1.0.0
+  "@atcute/xrpc-server": ^2.0.0
+  "@atcute/xrpc-server-cloudflare": ^2.0.0
+  "@cloudflare/vite-plugin": ^1.36.3
+  "@cloudflare/vitest-pool-workers": ^0.16.3
   "@cloudflare/workers-types": ^4.20260305.1
   "@lingui/babel-plugin-lingui-macro": ^5.9.4
   "@lingui/cli": ^5.9.4
@@ -71,5 +84,6 @@ catalog:
   react-dom: 19.2.4
   tsdown: 0.20.3
   typescript: ^5.9.3
-  vitest: ^4.0.18
+  vite: ^8.0.11
+  vitest: ^4.1.5
   wrangler: ^4.80.0
