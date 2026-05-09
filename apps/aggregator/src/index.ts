@@ -16,11 +16,29 @@
  */
 
 import type { RecordsJob } from "./env.js";
+import { RECORDS_DO_NAME } from "./records-do.js";
 
 export { RecordsJetstreamDO } from "./records-do.js";
 
+/**
+ * Operational bootstrap route. Hitting `/_admin/start` once after deploy
+ * spins up the Records DO, which opens its outbound WebSocket and starts
+ * ingesting. The DO's WebSocket keeps it alive thereafter; this route is
+ * idempotent — calling it on an already-running DO just returns its current
+ * status. Recommended deploy hook:
+ *
+ *   wrangler deploy && curl https://api.emdashcms.com/_admin/start
+ */
+const BOOTSTRAP_PATH = "/_admin/start";
+
 export default {
-	async fetch(_request: Request, _env: Env, _ctx: ExecutionContext): Promise<Response> {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		const url = new URL(request.url);
+		if (url.pathname === BOOTSTRAP_PATH) {
+			return bootstrapRecordsDo(env);
+		}
+		// Suppress unused-arg lint until the XRPC routes land.
+		void ctx;
 		return new Response("emdash-aggregator: not yet implemented", {
 			status: 503,
 			headers: { "content-type": "text/plain" },
@@ -32,6 +50,12 @@ export default {
 	},
 
 	async scheduled(_event: ScheduledEvent, _env: Env, _ctx: ExecutionContext): Promise<void> {
-		// 6h reconciliation pass will land here.
+		// Reconciliation pass against publisher PDSes will land here.
 	},
 };
+
+async function bootstrapRecordsDo(env: Env): Promise<Response> {
+	const id = env.RECORDS_DO.idFromName(RECORDS_DO_NAME);
+	const stub = env.RECORDS_DO.get(id);
+	return stub.fetch("https://do.internal/bootstrap");
+}

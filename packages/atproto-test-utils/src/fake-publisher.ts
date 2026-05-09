@@ -24,10 +24,10 @@ const DID_KEY_PREFIX_RE = /^did:key:/;
 import { MockDidResolver, buildDidDocument } from "./mock-did-resolver.js";
 import { MockJetstream } from "./mock-jetstream.js";
 import { MockPds } from "./mock-pds.js";
+import { PROFILE_NSID, RELEASE_NSID } from "./nsid.js";
 import type { AtprotoDid } from "./types.js";
 
-export const PROFILE_NSID = "com.emdashcms.experimental.package.profile";
-export const RELEASE_NSID = "com.emdashcms.experimental.package.release";
+export { PROFILE_NSID, RELEASE_NSID } from "./nsid.js";
 
 export interface FakePublisherOptions extends FakeRepoOptions {
 	handle?: string;
