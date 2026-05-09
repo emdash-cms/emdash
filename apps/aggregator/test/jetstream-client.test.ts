@@ -21,24 +21,28 @@ interface QuiescentEvent {
 	kind: string;
 }
 
-/** Subscription stub whose `next()` only resolves when `return()` is called.
- * Models a real WebSocket where Jetstream isn't currently emitting events.
+/**
+ * Subscription stub whose `next()` returns a Promise that NEVER resolves,
+ * even after `return()` is called. This mirrors `@mary-ext/event-iterator`'s
+ * actual behaviour: `EventIterator.return()` drops its resolver reference
+ * without invoking it (`lib/index.ts:55-67`), so a pending `next()` Promise
+ * is orphaned. If the wrapper relies on `inner.return()` resolving the
+ * pending await (the C1 mistake), this stub catches it — the for-await
+ * never wakes from `inner.return()` alone, only the closed-signal race in
+ * the wrapper can unblock it.
  */
 function quiescentSubscription(): RawJetstreamSubscription<QuiescentEvent> {
-	let resolveNext: (() => void) | null = null;
+	let returned = false;
 	const innerIter: AsyncIterator<QuiescentEvent> = {
-		async next() {
-			await new Promise<void>((resolve) => {
-				resolveNext = resolve;
-			});
-			return { value: undefined, done: true };
+		next() {
+			if (returned) return Promise.resolve({ value: undefined, done: true });
+			// Return a Promise that never settles. Mirrors EventIterator's
+			// behaviour: it stashes the resolver in a private field and
+			// drops it on return() without ever calling it.
+			return new Promise<IteratorResult<QuiescentEvent>>(() => {});
 		},
 		async return() {
-			if (resolveNext) {
-				const r = resolveNext;
-				resolveNext = null;
-				r();
-			}
+			returned = true;
 			return { value: undefined, done: true };
 		},
 	};

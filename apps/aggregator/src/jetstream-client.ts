@@ -91,18 +91,36 @@ export interface RawJetstreamSubscription<E extends { kind: string }> extends As
 export function wrapAtcuteSubscription<E extends { kind: string }>(
 	sub: RawJetstreamSubscription<E>,
 ): JetstreamSubscriptionHandle {
-	// Hoist the inner iterator so `close()` can call `inner.return()` from
-	// outside the iterator factory. `EventIterator.return()` is what wakes a
-	// wedged for-await — it destroys the WebSocket and resolves any pending
-	// `next()` to `{ done: true }`. Without the hoist, `close()` would have
-	// no way to reach the inner iterator, and a quiescent stream (no events
-	// arriving) would block the consumer indefinitely.
+	// Hoist the inner iterator so `close()` can reach it from outside the
+	// iterator factory.
 	let inner: AsyncIterator<E> | null = null;
+	// Shutdown signal raced against `inner.next()`. We can't rely on
+	// `inner.return()` to unblock a pending `next()` — `@mary-ext/event-iterator`
+	// drops its resolver on `return()` without invoking it (lib/index.ts:55-67),
+	// so a quiescent stream's pending `next()` Promise leaks. Racing against
+	// `closedSignal` lets the consumer wake regardless of the inner iterator's
+	// behaviour. The orphaned `it.next()` Promise is one of:
+	//   - resolved later when an event arrives (harmless, garbage-collected).
+	//   - leaked forever if Jetstream stays quiescent (no value held; only
+	//     the Promise object is GC-rooted by the inner iterator's #resolve).
+	let resolveClosed: (() => void) | null = null;
+	const closedSignal = new Promise<void>((resolve) => {
+		resolveClosed = resolve;
+	});
+	const fireClosed = () => {
+		if (resolveClosed) {
+			const r = resolveClosed;
+			resolveClosed = null;
+			r();
+		}
+	};
+
 	return {
 		get cursor() {
 			return sub.cursor;
 		},
 		close: () => {
+			fireClosed();
 			void inner?.return?.();
 		},
 		[Symbol.asyncIterator](): AsyncIterator<JetstreamCommitEvent> {
@@ -110,13 +128,11 @@ export function wrapAtcuteSubscription<E extends { kind: string }>(
 			const it = inner;
 			return {
 				async next(): Promise<IteratorResult<JetstreamCommitEvent>> {
-					// Loop until either the inner iterator ends or we yield a
-					// commit. Shutdown is signalled exclusively via the inner
-					// iterator returning `done: true` (triggered by an
-					// external `close()` call or by Jetstream itself ending
-					// the stream).
 					for (;;) {
-						const result = await it.next();
+						const result = await Promise.race([
+							it.next(),
+							closedSignal.then((): IteratorResult<E> => ({ value: undefined, done: true })),
+						]);
 						if (result.done) return { value: undefined, done: true };
 						const event = result.value;
 						if (event.kind === "commit") {
@@ -129,6 +145,7 @@ export function wrapAtcuteSubscription<E extends { kind: string }>(
 					}
 				},
 				async return(): Promise<IteratorResult<JetstreamCommitEvent>> {
+					fireClosed();
 					await it.return?.();
 					return { value: undefined, done: true };
 				},

@@ -22,13 +22,10 @@ import { JetstreamIngestor, type IngestorStorage } from "./jetstream-ingestor.js
 /** Singleton DO ID. There's exactly one ingestor per deployment. */
 export const RECORDS_DO_NAME = "main";
 
-type IngestorState = "running" | "crashed";
-
 export class RecordsJetstreamDO extends DurableObject<Env> {
 	private readonly ingestor: JetstreamIngestor;
 	/** Held so the run loop isn't garbage-collected. */
 	private readonly runPromise: Promise<void>;
-	private state: IngestorState = "running";
 
 	constructor(state: DurableObjectState, env: Env) {
 		super(state, env);
@@ -37,12 +34,12 @@ export class RecordsJetstreamDO extends DurableObject<Env> {
 			queue: env.RECORDS_QUEUE,
 			storage: wrapDoStorage(state.storage),
 		});
-		// Fire-and-forget. Run loop is meant to live for the DO's lifetime;
-		// rejection means the loop hit a non-recoverable error (queue
-		// failures are absorbed inside `run()`). Surface that via the
-		// fetch handler so external monitoring can see it.
+		// Fire-and-forget. The run loop absorbs every error path internally
+		// today (transient queue failures, connection drops, parse errors
+		// all retry with backoff). The catch is here defensively — if a
+		// future change introduces a non-recoverable rejection, we want it
+		// in the logs rather than as an unhandled promise.
 		this.runPromise = this.ingestor.run().catch((err) => {
-			this.state = "crashed";
 			console.error("[aggregator] jetstream ingestor crashed", err);
 		});
 	}
@@ -50,11 +47,13 @@ export class RecordsJetstreamDO extends DurableObject<Env> {
 	/**
 	 * Status surface used by `/_admin/start` (post-deploy bootstrap) and the
 	 * 5-minute cron liveness pump. Idempotent — calling it on an
-	 * already-running DO just reports the current cursor + ingestor state.
+	 * already-running DO just reports the current cursor and consecutive
+	 * failure count, which is the real liveness signal: 0 means the most
+	 * recent connection attempt produced events; a high value indicates
+	 * Jetstream is unreachable or the wantedCollections filter is wrong.
 	 */
 	override async fetch(_request: Request): Promise<Response> {
 		return Response.json({
-			status: this.state,
 			cursor: this.ingestor.currentCursor,
 			consecutiveFailures: this.ingestor.consecutiveFailures,
 		});
