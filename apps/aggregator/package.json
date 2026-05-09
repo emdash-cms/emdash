@@ -35,7 +35,6 @@
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",
 		"@cloudflare/vitest-pool-workers": "catalog:",
-		"@cloudflare/workers-types": "catalog:",
 		"@emdash-cms/atproto-test-utils": "workspace:*",
 		"@types/node": "catalog:",
 		"typescript": "catalog:",

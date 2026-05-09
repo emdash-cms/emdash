@@ -16,8 +16,6 @@
 
 import { DurableObject } from "cloudflare:workers";
 
-import type { Env } from "./env.js";
-
 export class RecordsJetstreamDO extends DurableObject<Env> {
 	override async fetch(_request: Request): Promise<Response> {
 		// PR 2: handle internal admin/debug requests (e.g. status, force-reconnect).

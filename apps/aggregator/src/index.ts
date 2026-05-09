@@ -16,9 +16,7 @@
  * test in `test/smoke.test.ts` proves migrations apply and the Worker boots.
  */
 
-import type { ExecutionContext, MessageBatch, ScheduledEvent } from "@cloudflare/workers-types";
-
-import type { Env, RecordsJob } from "./env.js";
+import type { RecordsJob } from "./env.js";
 
 export { RecordsJetstreamDO } from "./records-do.js";
 
