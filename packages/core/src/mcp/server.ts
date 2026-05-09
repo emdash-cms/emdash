@@ -1996,23 +1996,21 @@ export function createMcpServer(): McpServer {
 				"name shown in the admin. Menus are per-locale, so pass `locale` when " +
 				"the same menu name exists in multiple translations. Add items afterwards " +
 				"with menu_set_items. If `translationOf` is set, `locale` must also be set.",
-			inputSchema: z
-				.object({
-					name: z
-						.string()
-						.regex(COLLECTION_SLUG_PATTERN)
-						.describe("Stable identifier (lowercase letters, numbers, underscores)"),
-					label: z.string().describe("Display name for the admin"),
-					locale: z.string().optional().describe("Locale for this menu (e.g. 'fr-fr')"),
-					translationOf: z
-						.string()
-						.optional()
-						.describe("Existing menu id to create this locale variant from"),
-				})
-				.refine((value) => !value.translationOf || value.locale, {
-					message: "`locale` is required when `translationOf` is provided",
-					path: ["locale"],
-				}),
+			// `locale`-when-`translationOf` is enforced inside handleMenuCreate
+			// so REST/SDK callers get the same guard. The description above
+			// documents the rule; the handler returns VALIDATION_ERROR.
+			inputSchema: z.object({
+				name: z
+					.string()
+					.regex(COLLECTION_SLUG_PATTERN)
+					.describe("Stable identifier (lowercase letters, numbers, underscores)"),
+				label: z.string().describe("Display name for the admin"),
+				locale: z.string().optional().describe("Locale for this menu (e.g. 'fr-fr')"),
+				translationOf: z
+					.string()
+					.optional()
+					.describe("Existing menu id to create this locale variant from"),
+			}),
 		},
 		async (args, extra) => {
 			requireScope(extra, "menus:manage");

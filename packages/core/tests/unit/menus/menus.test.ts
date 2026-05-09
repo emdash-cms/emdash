@@ -729,7 +729,195 @@ describe("Navigation Menus", () => {
 		});
 	});
 
+	describe("item handlers — multi-locale ambiguity", () => {
+		// Item-level handlers (create/update/delete/reorder) had the same
+		// `name`-only lookup as the menu-level handlers, so they used to
+		// silently target an arbitrary translation on multi-locale installs.
+		// These tests pin down the AMBIGUOUS_LOCALE behavior so a future
+		// regression to "first matching row wins" gets caught.
+
+		async function setupTwoLocales(name = "main") {
+			const enId = ulid();
+			const frId = ulid();
+			await db
+				.insertInto("_emdash_menus")
+				.values([
+					{ id: enId, name, label: name, locale: "en" },
+					{ id: frId, name, label: name, locale: "fr-fr" },
+				])
+				.execute();
+			return { enId, frId };
+		}
+
+		it("handleMenuItemCreate: AMBIGUOUS_LOCALE when locale omitted", async () => {
+			const { handleMenuItemCreate } = await import("../../../src/api/handlers/menus.js");
+			await setupTwoLocales();
+
+			const result = await handleMenuItemCreate(db, "main", {
+				type: "custom",
+				label: "Home",
+				customUrl: "/",
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.error?.code).toBe("AMBIGUOUS_LOCALE");
+			expect(result.error?.message).toContain("en");
+			expect(result.error?.message).toContain("fr-fr");
+
+			// No item written to either menu.
+			const items = await db.selectFrom("_emdash_menu_items").selectAll().execute();
+			expect(items).toEqual([]);
+		});
+
+		it("handleMenuItemUpdate: AMBIGUOUS_LOCALE when locale omitted", async () => {
+			const { handleMenuItemUpdate } = await import("../../../src/api/handlers/menus.js");
+			const { enId } = await setupTwoLocales();
+			// Seed an item on the EN menu so the update would otherwise resolve.
+			const itemId = ulid();
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({
+					id: itemId,
+					menu_id: enId,
+					sort_order: 0,
+					type: "custom",
+					custom_url: "/",
+					label: "Home",
+					locale: "en",
+				})
+				.execute();
+
+			const result = await handleMenuItemUpdate(db, "main", itemId, { label: "New" });
+
+			expect(result.success).toBe(false);
+			expect(result.error?.code).toBe("AMBIGUOUS_LOCALE");
+
+			// Label untouched.
+			const after = await db
+				.selectFrom("_emdash_menu_items")
+				.select("label")
+				.where("id", "=", itemId)
+				.executeTakeFirstOrThrow();
+			expect(after.label).toBe("Home");
+		});
+
+		it("handleMenuItemDelete: AMBIGUOUS_LOCALE when locale omitted", async () => {
+			const { handleMenuItemDelete } = await import("../../../src/api/handlers/menus.js");
+			const { enId } = await setupTwoLocales();
+			const itemId = ulid();
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({
+					id: itemId,
+					menu_id: enId,
+					sort_order: 0,
+					type: "custom",
+					custom_url: "/",
+					label: "Home",
+					locale: "en",
+				})
+				.execute();
+
+			const result = await handleMenuItemDelete(db, "main", itemId);
+
+			expect(result.success).toBe(false);
+			expect(result.error?.code).toBe("AMBIGUOUS_LOCALE");
+
+			// Item still present.
+			const surviving = await db
+				.selectFrom("_emdash_menu_items")
+				.select("id")
+				.where("id", "=", itemId)
+				.executeTakeFirst();
+			expect(surviving).toBeDefined();
+		});
+
+		it("handleMenuItemReorder: AMBIGUOUS_LOCALE when locale omitted", async () => {
+			const { handleMenuItemReorder } = await import("../../../src/api/handlers/menus.js");
+			const { enId } = await setupTwoLocales();
+			const itemId = ulid();
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({
+					id: itemId,
+					menu_id: enId,
+					sort_order: 0,
+					type: "custom",
+					custom_url: "/",
+					label: "Home",
+					locale: "en",
+				})
+				.execute();
+
+			const result = await handleMenuItemReorder(db, "main", [
+				{ id: itemId, parentId: null, sortOrder: 99 },
+			]);
+
+			expect(result.success).toBe(false);
+			expect(result.error?.code).toBe("AMBIGUOUS_LOCALE");
+
+			// sort_order untouched (not 99).
+			const after = await db
+				.selectFrom("_emdash_menu_items")
+				.select("sort_order")
+				.where("id", "=", itemId)
+				.executeTakeFirstOrThrow();
+			expect(after.sort_order).toBe(0);
+		});
+
+		it("handleMenuItemCreate: with locale, succeeds and tags item locale", async () => {
+			// Sanity check that the disambiguated path still works.
+			const { handleMenuItemCreate } = await import("../../../src/api/handlers/menus.js");
+			await setupTwoLocales();
+
+			const result = await handleMenuItemCreate(
+				db,
+				"main",
+				{ type: "custom", label: "Accueil", customUrl: "/fr" },
+				{ locale: "fr-fr" },
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.data?.locale).toBe("fr-fr");
+		});
+	});
+
 	describe("handleMenuCreate (translationOf)", () => {
+		it("rejects translationOf without locale (handler-level guard)", async () => {
+			const { handleMenuCreate } = await import("../../../src/api/handlers/menus.js");
+
+			// Seed a source menu so the call would otherwise be valid.
+			const sourceId = ulid();
+			await db
+				.insertInto("_emdash_menus")
+				.values({ id: sourceId, name: "primary", label: "Primary", locale: "en" })
+				.execute();
+
+			const result = await handleMenuCreate(db, {
+				name: "primary",
+				label: "Principal",
+				translationOf: sourceId,
+				// locale intentionally omitted
+			});
+
+			// Previously this guard lived only at the MCP boundary, so REST/SDK
+			// callers could clone into the default locale by accident. The
+			// handler now refuses and the MCP layer relies on this check.
+			expect(result.success).toBe(false);
+			expect(result.error?.code).toBe("VALIDATION_ERROR");
+			expect(result.error?.message).toMatch(/locale/i);
+			expect(result.error?.message).toMatch(/translationOf/i);
+
+			// No row created.
+			const created = await db
+				.selectFrom("_emdash_menus")
+				.selectAll()
+				.where("name", "=", "primary")
+				.execute();
+			expect(created).toHaveLength(1);
+			expect(created[0]?.id).toBe(sourceId);
+		});
+
 		it("clones items inheriting the source's translation_group", async () => {
 			const { handleMenuCreate } = await import("../../../src/api/handlers/menus.js");
 
