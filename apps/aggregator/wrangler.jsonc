@@ -34,6 +34,18 @@
 				"max_retries": 5,
 				"dead_letter_queue": "emdash-aggregator-records-dlq",
 			},
+			{
+				// Drains the DLQ. Today the consumer just logs each
+				// dead-lettered job to Workers Analytics so operators can
+				// observe drift; once the reconciliation pass lands it
+				// will replace this with retry-from-listRecords. The DLQ
+				// itself has no DLQ — repeated drain failures get acked
+				// after retries.
+				"queue": "emdash-aggregator-records-dlq",
+				"max_batch_size": 25,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
+			},
 		],
 	},
 	"durable_objects": {

@@ -63,6 +63,21 @@ export interface ConsumerDeps {
 	resolver: DidResolver;
 	fetch?: typeof fetch;
 	now?: () => Date;
+	/**
+	 * Optional override for the PDS-verification step. Used by tests to inject
+	 * synthetic `VerifiedPdsRecord` payloads without standing up a real CAR
+	 * fixture (the FakePublisher/MockPds toolkit can't run inside the workers
+	 * test pool — see `@atproto/repo` lex-data incompatibility). Defaults to
+	 * `fetchAndVerifyRecord`.
+	 */
+	verify?: (opts: {
+		pds: string;
+		did: string;
+		collection: string;
+		rkey: string;
+		publicKey: import("@atcute/crypto").PublicKey;
+		fetch?: typeof fetch;
+	}) => Promise<VerifiedPdsRecord>;
 }
 
 /** Subset of `cloudflare:workers` `Message` we use; defining inline so tests
@@ -132,6 +147,42 @@ export async function processBatch(
 	}
 }
 
+/**
+ * Drain the records DLQ. Today's policy is "log + ack" — we record the
+ * dead-lettered job to Workers logs (and `dead_letters` in D1, for
+ * structured queryability) so operators can observe drift, and ack the
+ * message so the DLQ doesn't grow unbounded. The reconciliation pass
+ * (Slice 1, not yet built) will replace this with retry-from-listRecords;
+ * until then this prevents legitimate-but-out-of-order messages
+ * (MissingDependencyError exhausting retries) from being permanently
+ * dropped without trace.
+ */
+export async function drainDeadLetterBatch(
+	batch: MessageBatchLike<RecordsJob>,
+	env: Env,
+): Promise<void> {
+	const now = new Date();
+	for (const message of batch.messages) {
+		const job = message.body;
+		console.warn("[aggregator] DLQ drain: acking job", {
+			did: job.did,
+			collection: job.collection,
+			rkey: job.rkey,
+			operation: job.operation,
+		});
+		try {
+			await writeDeadLetter(env.DB, job, "UNEXPECTED_ERROR", "drained from DLQ", now);
+		} catch (err) {
+			console.error("[aggregator] DLQ drain: failed to write forensics row", {
+				did: job.did,
+				rkey: job.rkey,
+				error: err instanceof Error ? err.message : String(err),
+			});
+		}
+		message.ack();
+	}
+}
+
 export async function processMessage(
 	job: RecordsJob,
 	controller: MessageController,
@@ -173,7 +224,22 @@ export async function processMessage(
 				controller.retry();
 				return;
 			}
-			await writeDeadLetter(deps.db, job, mapPdsReason(err.reason), err.message, now());
+			// Compute the mapped reason in its own try/catch — `mapPdsReason`
+			// throws on the supposedly-unreachable PDS_NETWORK_ERROR case;
+			// without this guard, the throw escapes the catch we're inside
+			// (function-arg evaluation runs before writeDeadLetter) and the
+			// whole batch crashes. Fall back to UNEXPECTED_ERROR loudly.
+			let mapped: DeadLetterReason;
+			try {
+				mapped = mapPdsReason(err.reason);
+			} catch (mapErr) {
+				console.error("[aggregator] mapPdsReason failed; falling back", {
+					reason: err.reason,
+					error: mapErr instanceof Error ? mapErr.message : String(mapErr),
+				});
+				mapped = "UNEXPECTED_ERROR";
+			}
+			await writeDeadLetter(deps.db, job, mapped, err.message, now());
 			controller.ack();
 			return;
 		}
@@ -217,7 +283,8 @@ export async function processMessage(
 
 async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<void> {
 	const resolved = await deps.resolver.resolve(job.did);
-	const verified = await fetchAndVerifyRecord({
+	const verifyFn = deps.verify ?? fetchAndVerifyRecord;
+	const verified = await verifyFn({
 		pds: resolved.pds,
 		did: job.did,
 		collection: job.collection,
@@ -433,7 +500,7 @@ export async function ingestPackageRelease(
 	}
 
 	const sigMeta = JSON.stringify({ cid: verified.cid });
-	const result = await db
+	const insertStmt = db
 		.prepare(
 			`INSERT INTO releases
 			   (did, package, version, rkey, version_sort, artifacts, requires, suggests,
@@ -463,17 +530,31 @@ export async function ingestPackageRelease(
 			verified.carBytes,
 			sigMeta,
 			now.toISOString(),
-		)
-		.run();
+		);
 
-	let releaseSetChanged = result.meta.changes === 1;
-	if (result.meta.changes === 0) {
+	// Atomic with the refresh: D1 wraps a batch in a single transaction. If
+	// the insert succeeds but the refresh fails (transient D1 hiccup), both
+	// roll back together and the message retries to a clean state. Without
+	// the batch, an insert-success / refresh-failure could leave
+	// `packages.latest_version` permanently stale.
+	const batchResults = await db.batch([
+		insertStmt,
+		refreshPackageLatestStmt(db, job.did, record.package),
+	]);
+	const insertResult = batchResults[0];
+	if (!insertResult) {
+		// Defensive: D1.batch() guarantees one result per statement; if it
+		// ever returns fewer, surface loudly rather than silently no-oping.
+		throw new Error("D1 batch returned no result for INSERT statement");
+	}
+
+	if (insertResult.meta.changes === 0) {
 		// Conflict path. Three sub-cases:
 		//   1. Same content, not tombstoned → legitimate idempotent replay,
-		//      silent no-op.
+		//      silent no-op (the refresh in the batch above is a no-op too).
 		//   2. Same content, tombstoned → publisher re-published a previously
-		//      deleted release; clear the tombstone so it reappears in read
-		//      results.
+		//      deleted release; clear the tombstone + refresh so it reappears
+		//      in read results.
 		//   3. Different content → immutability violation; audit it.
 		const existing = await db
 			.prepare(
@@ -485,20 +566,22 @@ export async function ingestPackageRelease(
 		if (existing) {
 			const sameContent = bytesEqual(toUint8(existing.record_blob), verified.carBytes);
 			if (sameContent && existing.tombstoned_at !== null) {
-				await db
-					.prepare(
-						`UPDATE releases SET tombstoned_at = NULL
-						 WHERE did = ? AND package = ? AND version = ?`,
-					)
-					.bind(job.did, record.package, record.version)
-					.run();
-				releaseSetChanged = true;
+				await db.batch([
+					db
+						.prepare(
+							`UPDATE releases SET tombstoned_at = NULL
+							 WHERE did = ? AND package = ? AND version = ?`,
+						)
+						.bind(job.did, record.package, record.version),
+					refreshPackageLatestStmt(db, job.did, record.package),
+				]);
 			} else if (!sameContent) {
 				await db
 					.prepare(
 						`INSERT INTO release_duplicate_attempts
 						   (did, package, version, rejected_at, reason, attempted_record_blob)
-						 VALUES (?, ?, ?, ?, ?, ?)`,
+						 VALUES (?, ?, ?, ?, ?, ?)
+						 ON CONFLICT(did, package, version, attempted_record_blob) DO NOTHING`,
 					)
 					.bind(
 						job.did,
@@ -513,61 +596,46 @@ export async function ingestPackageRelease(
 		}
 	}
 
-	// Whenever the visible-release set for this package changed, recompute
-	// `packages.latest_version` and `capabilities` from the new max-version
-	// row. The schema promises these are denormalised from the latest release;
-	// the read API queries them directly without sorting at request time.
-	if (releaseSetChanged) {
-		await refreshPackageLatest(db, job.did, record.package);
-	}
-
 	// TODO(slice 3): enqueue artifact-mirror task for this release. Until then,
 	// `mirrored_artifacts` stays empty for new releases.
 }
 
 /**
  * Recompute `packages.latest_version` and `capabilities` from the current
- * max-version-sort, non-tombstoned release. Capabilities are the keys of the
- * release's `declaredAccess` map — the cheap projection the search SQL uses
- * for capability filtering.
+ * max-version-sort, non-tombstoned release.
  *
- * Called from the release writer (after insert / un-tombstone) and from
- * `applyDelete` (after release tombstone). Both code paths can change which
- * release is "latest" for a package.
+ * Single UPDATE with correlated subqueries — race-safe under concurrent
+ * release ingest because the read and write happen in one statement, which
+ * D1/SQLite serialises against other writers. A naïve SELECT-then-UPDATE
+ * pair could see two workers each read max=v1, then race to write — final
+ * value depends on commit order rather than actual current state.
+ *
+ * Capabilities are the keys of the latest release's `declaredAccess` map,
+ * extracted via SQLite's json1 functions. When no release exists or
+ * `declaredAccess` is missing/non-object, json_each over NULL yields an
+ * empty set and `json_group_array()` returns `'[]'`. App code treats `'[]'`
+ * and NULL equivalently for capability filtering.
  */
-async function refreshPackageLatest(db: D1Database, did: string, pkg: string): Promise<void> {
-	const latest = await db
-		.prepare(
-			`SELECT version, emdash_extension
-			 FROM releases
-			 WHERE did = ? AND package = ? AND tombstoned_at IS NULL
-			 ORDER BY version_sort DESC LIMIT 1`,
+const REFRESH_PACKAGE_LATEST_SQL = `
+	UPDATE packages SET
+		latest_version = (
+			SELECT version FROM releases
+			WHERE did = packages.did AND package = packages.slug AND tombstoned_at IS NULL
+			ORDER BY version_sort DESC LIMIT 1
+		),
+		capabilities = (
+			SELECT json_group_array(key) FROM json_each(
+				(SELECT json_extract(emdash_extension, '$.declaredAccess')
+				 FROM releases
+				 WHERE did = packages.did AND package = packages.slug AND tombstoned_at IS NULL
+				 ORDER BY version_sort DESC LIMIT 1)
+			)
 		)
-		.bind(did, pkg)
-		.first<{ version: string; emdash_extension: string }>();
+	WHERE did = ? AND slug = ?
+`;
 
-	let latestVersion: string | null = null;
-	let capabilities: string | null = null;
-	if (latest) {
-		latestVersion = latest.version;
-		try {
-			const parsed: unknown = JSON.parse(latest.emdash_extension);
-			if (isPlainObject(parsed) && isPlainObject(parsed.declaredAccess)) {
-				capabilities = JSON.stringify(Object.keys(parsed.declaredAccess));
-			}
-		} catch {
-			// Stored extension is malformed JSON; leave capabilities null
-			// rather than failing the whole consumer pass.
-		}
-	}
-
-	await db
-		.prepare(
-			`UPDATE packages SET latest_version = ?, capabilities = ?
-			 WHERE did = ? AND slug = ?`,
-		)
-		.bind(latestVersion, capabilities, did, pkg)
-		.run();
+function refreshPackageLatestStmt(db: D1Database, did: string, pkg: string): D1PreparedStatement {
+	return db.prepare(REFRESH_PACKAGE_LATEST_SQL).bind(did, pkg);
 }
 
 export async function ingestPublisherProfile(
@@ -703,17 +771,20 @@ export async function applyDelete(db: D1Database, job: RecordsJob, now: Date): P
 			// for did=? then filter by rkey.
 			const parsed = parseReleaseRkey(job.rkey);
 			if (!parsed) return;
-			const result = await db
-				.prepare(
-					`UPDATE releases SET tombstoned_at = ?
-					 WHERE did = ? AND package = ? AND version = ? AND tombstoned_at IS NULL`,
-				)
-				.bind(now.toISOString(), job.did, parsed.pkg, parsed.version)
-				.run();
-			if (result.meta.changes > 0) {
-				// Tombstoning may have removed the latest release; recompute.
-				await refreshPackageLatest(db, job.did, parsed.pkg);
-			}
+			// Batch tombstone + refresh: D1 wraps in a single transaction so
+			// the visible-release set and the denormalised latest_version
+			// commit together. Refresh runs even on idempotent re-deletes
+			// (changes=0) — refresh is itself idempotent and the cost is one
+			// extra UPDATE that touches no row when state is already correct.
+			await db.batch([
+				db
+					.prepare(
+						`UPDATE releases SET tombstoned_at = ?
+						 WHERE did = ? AND package = ? AND version = ? AND tombstoned_at IS NULL`,
+					)
+					.bind(now.toISOString(), job.did, parsed.pkg, parsed.version),
+				refreshPackageLatestStmt(db, job.did, parsed.pkg),
+			]);
 			return;
 		}
 		case NSID.publisherProfile:
@@ -835,13 +906,24 @@ function encodeRkeyVersion(version: string): string {
  *
  * Splits on the FIRST `:`. Both `package` (slug regex) and `version` (semver
  * subset) reject `:` in the lexicon, so a single split is unambiguous.
+ *
+ * `decodeURIComponent` throws URIError on malformed `%`-escapes (e.g.
+ * `1.0.0%XX`). Callers must not let URIError propagate — the dispatcher's
+ * delete branch maps non-IngestError throws to `controller.retry()`, which
+ * would burn 5 attempts on a permanently malformed rkey. Catch + null-out
+ * here.
  */
 function parseReleaseRkey(rkey: string): { pkg: string; version: string } | null {
 	const idx = rkey.indexOf(":");
 	if (idx <= 0 || idx === rkey.length - 1) return null;
 	const pkg = rkey.slice(0, idx);
 	const encodedVersion = rkey.slice(idx + 1);
-	const version = decodeURIComponent(encodedVersion);
+	let version: string;
+	try {
+		version = decodeURIComponent(encodedVersion);
+	} catch {
+		return null;
+	}
 	return { pkg, version };
 }
 

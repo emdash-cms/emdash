@@ -156,15 +156,31 @@ export function wrapAtcuteSubscription<E extends { kind: string }>(
 }
 
 /**
- * Discriminator-based predicate that narrows the wider `{ kind: string }`
- * input to the typed `JetstreamCommitEvent` shape. Runtime check is the kind
- * field; the function trusts that producers (`@atcute/jetstream`'s
- * `JetstreamSubscription` and the test stubs) emit commit events with the
- * full schema. A producer that emits `{ kind: "commit" }` without the rest
- * would slip through here — that's a contract bug at the source, not
- * something this layer can defend against without re-running the lexicon
- * validator at the boundary.
+ * Discriminator + structural predicate that narrows to `JetstreamCommitEvent`.
+ *
+ * The runtime check verifies BOTH `kind === "commit"` AND that `commit` is
+ * present and shaped enough for the ingestor's downstream access (it reads
+ * `event.commit.collection`, `event.commit.rkey`, `event.commit.operation`,
+ * `event.commit.cid`). Without the structural check, a producer emitting
+ * `{kind: "commit"}` with no `commit` field would crash the ingestor on
+ * access; the cursor wouldn't advance; Jetstream would replay the same
+ * malformed event forever.
  */
-function isCommitEvent(event: { kind: string }): event is JetstreamCommitEvent {
-	return event.kind === "commit";
+/** Wider parameter type than the bare `{ kind: string }` constraint so the
+ * predicate can inspect `commit` without an unsafe cast. Any producer
+ * conforming to `RawJetstreamSubscription<E>` where `E extends { kind: string }`
+ * is assignable here because `commit` is optional. */
+type MaybeCommitEvent = {
+	kind: string;
+	commit?: { collection?: unknown; rkey?: unknown; operation?: unknown };
+};
+
+function isCommitEvent(event: MaybeCommitEvent): event is JetstreamCommitEvent {
+	return (
+		event.kind === "commit" &&
+		event.commit !== undefined &&
+		typeof event.commit.collection === "string" &&
+		typeof event.commit.rkey === "string" &&
+		typeof event.commit.operation === "string"
+	);
 }

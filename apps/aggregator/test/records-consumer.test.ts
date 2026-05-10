@@ -1091,33 +1091,278 @@ describe("applyDelete unknown collection (Mi5)", () => {
 	});
 });
 
-describe("processMessage dispatcher: missing-dependency retry (Mi7 + B4)", () => {
-	it("retries the message when the writer throws MissingDependencyError", async () => {
-		// No profile seeded — the release writer's parent-profile check throws.
-		const { deps, cache } = buildDeps({
-			fetch: () =>
-				// fetch returns valid-looking-but-garbage CAR; the writer never gets there
-				// because the parent check runs after verifyAndIngest. So we need
-				// a fetch that ACTUALLY produces a record the writer accepts...
-				//
-				// Easier path: inject a custom resolver that produces a record + skip
-				// pds-verify entirely. But that requires a deeper stub. Instead,
-				// directly observe the writer behaviour above (already covered) and
-				// here only verify the dispatcher's retry path via a synthetic
-				// MissingDependencyError thrown from a custom verifyAndIngest stub —
-				// not currently exposed. Until processBatch grows a deeper override,
-				// this dispatcher branch is exercised in production by real release
-				// events arriving before profiles. Document the gap rather than
-				// fabricate a brittle test.
-				Promise.resolve(new Response("", { status: 503 })),
+describe("processMessage dispatcher: MissingDependencyError → retry (Mi7 + B4)", () => {
+	it("retries the message when the release writer throws MissingDependencyError", async () => {
+		// No parent profile seeded — release writer's parent-profile check
+		// throws MissingDependencyError → dispatcher should map to retry().
+		const cache = new MapDidDocCache();
+		const resolver = new DidResolver({
+			cache,
+			resolver: new StubResolver(),
+			ttlMs: 1_000_000,
+			now: () => NOW,
 		});
 		cache.seed(DID_A);
+		const release = {
+			$type: NSID.packageRelease,
+			package: "demo",
+			version: "1.0.0",
+			artifacts: { package: { url: "https://x.test/d.tgz", checksum: "bsha-abc" } },
+			extensions: {
+				"com.emdashcms.experimental.package.releaseExtension": {
+					$type: "com.emdashcms.experimental.package.releaseExtension",
+					declaredAccess: {},
+				},
+			},
+		};
+		const deps: ConsumerDeps = {
+			db: testEnv.DB,
+			resolver,
+			now: () => NOW,
+			// Inject a verifier that returns a real-shaped record without
+			// running the actual @atcute/repo verification chain.
+			verify: () =>
+				Promise.resolve({
+					cid: "bafyreigtest00000000000000000000000000000000000000000000",
+					record: release,
+					carBytes: new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
+				}),
+		};
 		const msg = new FakeMessage();
-		// 503 → transient, should retry. Confirms the retry path works at
-		// least for this branch even if MissingDependencyError isn't directly
-		// reachable without further dep injection.
 		await processMessage(jobFor(DID_A, NSID.packageRelease, "demo:1.0.0"), msg, deps);
+
 		expect(msg.retried).toBe(1);
+		expect(msg.acked).toBe(0);
+		expect(await deadLetterCount()).toBe(0);
+	});
+});
+
+describe("ingestPackageRelease: latest_version refresh atomicity (B1+B2 round 2)", () => {
+	const validProfile = {
+		$type: NSID.packageProfile,
+		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
+		slug: "demo",
+		type: "emdash-plugin",
+		license: "MIT",
+		authors: [{ name: "Tester" }],
+		security: [{ email: "x@y.test" }],
+	};
+	function release(version: string) {
+		return {
+			$type: NSID.packageRelease,
+			package: "demo",
+			version,
+			artifacts: { package: { url: "https://x.test/d.tgz", checksum: "bsha-abc" } },
+			extensions: {
+				"com.emdashcms.experimental.package.releaseExtension": {
+					$type: "com.emdashcms.experimental.package.releaseExtension",
+					declaredAccess: { content: { read: {} } },
+				},
+			},
+		};
+	}
+	beforeEach(async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified(validProfile),
+			NOW,
+		);
+	});
+
+	it("idempotent same-content insert still leaves latest_version correct", async () => {
+		const job = jobFor(DID_A, NSID.packageRelease, "demo:1.0.0");
+		const verified = fakeVerified(release("1.0.0"));
+		await ingestPackageRelease(testEnv.DB, job, verified, NOW);
+		// Manually corrupt latest_version to simulate a refresh that
+		// somehow drifted out of sync with the underlying releases.
+		await testEnv.DB.prepare(`UPDATE packages SET latest_version = NULL`).run();
+		// Replay same content. Refresh always runs in the batch — should fix.
+		await ingestPackageRelease(testEnv.DB, job, verified, NOW);
+		const row = await testEnv.DB.prepare(`SELECT latest_version FROM packages`).first<{
+			latest_version: string;
+		}>();
+		expect(row?.latest_version).toBe("1.0.0");
+	});
+
+	it("uses single-statement UPDATE for refresh (race-safety check via SQL shape)", async () => {
+		// Insert v1, manually insert v2 directly (bypassing writer), then
+		// re-trigger refresh by re-inserting v1 (idempotent). The race-safe
+		// UPDATE should pick up v2 as the new latest because its subquery
+		// reads current max state, not a snapshot from before the manual
+		// insert.
+		await ingestPackageRelease(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageRelease, "demo:1.0.0"),
+			fakeVerified(release("1.0.0")),
+			NOW,
+		);
+		// Manually insert v2 with a known version_sort that sorts after 1.0.0.
+		await testEnv.DB.prepare(
+			`INSERT INTO releases
+			   (did, package, version, rkey, version_sort, artifacts,
+			    emdash_extension, cts, record_blob, signature_metadata, verified_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		)
+			.bind(
+				DID_A,
+				"demo",
+				"2.0.0",
+				"demo:2.0.0",
+				"0000000002.0000000000.0000000000.zzz",
+				"{}",
+				JSON.stringify({ declaredAccess: { network: { fetch: {} } } }),
+				NOW.toISOString(),
+				new Uint8Array([0xff]),
+				JSON.stringify({ cid: "x" }),
+				NOW.toISOString(),
+			)
+			.run();
+		// Re-trigger refresh by re-publishing v1 (same content → DO NOTHING,
+		// but the batched refresh-UPDATE still runs).
+		await ingestPackageRelease(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageRelease, "demo:1.0.0"),
+			fakeVerified(release("1.0.0")),
+			NOW,
+		);
+		const row = await testEnv.DB.prepare(
+			`SELECT latest_version, capabilities FROM packages`,
+		).first<{ latest_version: string; capabilities: string }>();
+		expect(row?.latest_version).toBe("2.0.0");
+		expect(JSON.parse(row?.capabilities ?? "[]")).toEqual(["network"]);
+	});
+});
+
+describe("release_duplicate_attempts UNIQUE constraint (#7)", () => {
+	const validProfile = {
+		$type: NSID.packageProfile,
+		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
+		slug: "demo",
+		type: "emdash-plugin",
+		license: "MIT",
+		authors: [{ name: "Tester" }],
+		security: [{ email: "x@y.test" }],
+	};
+	function release(version: string) {
+		return {
+			$type: NSID.packageRelease,
+			package: "demo",
+			version,
+			artifacts: { package: { url: "https://x.test/d.tgz", checksum: "bsha-abc" } },
+			extensions: {
+				"com.emdashcms.experimental.package.releaseExtension": {
+					$type: "com.emdashcms.experimental.package.releaseExtension",
+					declaredAccess: {},
+				},
+			},
+		};
+	}
+	beforeEach(async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified(validProfile),
+			NOW,
+		);
+	});
+
+	it("dedupes repeated identical duplicate-attempt payloads", async () => {
+		const job = jobFor(DID_A, NSID.packageRelease, "demo:1.0.0");
+		await ingestPackageRelease(testEnv.DB, job, fakeVerified(release("1.0.0")), NOW);
+
+		// Hostile-publisher pattern: pump the same different-content tampered
+		// payload many times.
+		const tampered: VerifiedPdsRecord = {
+			cid: "bafyreigDIFFERENT00000000000000000000000000000000000000",
+			record: release("1.0.0"),
+			carBytes: new Uint8Array([0x01, 0x02, 0x03]),
+		};
+		for (let i = 0; i < 5; i++) {
+			await ingestPackageRelease(testEnv.DB, job, tampered, NOW);
+		}
+		const dups = await testEnv.DB.prepare(
+			`SELECT COUNT(*) as n FROM release_duplicate_attempts`,
+		).first<{ n: number }>();
+		expect(dups?.n).toBe(1);
+	});
+
+	it("audits distinct tampered payloads as separate attempts", async () => {
+		const job = jobFor(DID_A, NSID.packageRelease, "demo:1.0.0");
+		await ingestPackageRelease(testEnv.DB, job, fakeVerified(release("1.0.0")), NOW);
+
+		await ingestPackageRelease(
+			testEnv.DB,
+			job,
+			{
+				cid: "x",
+				record: release("1.0.0"),
+				carBytes: new Uint8Array([0x01]),
+			},
+			NOW,
+		);
+		await ingestPackageRelease(
+			testEnv.DB,
+			job,
+			{
+				cid: "y",
+				record: release("1.0.0"),
+				carBytes: new Uint8Array([0x02]),
+			},
+			NOW,
+		);
+		const dups = await testEnv.DB.prepare(
+			`SELECT COUNT(*) as n FROM release_duplicate_attempts`,
+		).first<{ n: number }>();
+		expect(dups?.n).toBe(2);
+	});
+});
+
+describe("parseReleaseRkey: malformed encoding (#5)", () => {
+	it("applyDelete with malformed %-encoded rkey is a silent no-op", async () => {
+		// Don't seed anything — the parse should fail before any DB hit.
+		// Asserting it doesn't throw (which would route to retry instead of
+		// the desired silent ack).
+		await expect(
+			applyDelete(
+				testEnv.DB,
+				jobFor(DID_A, NSID.packageRelease, "demo:1.0.0%XX", { operation: "delete" }),
+				NOW,
+			),
+		).resolves.toBeUndefined();
+	});
+});
+
+describe("DLQ drain (#6)", () => {
+	it("acks each message and writes a forensics row", async () => {
+		const { drainDeadLetterBatch: drain } = await import("../src/records-consumer.js");
+		const messages: Array<MessageController & { body: RecordsJob }> = [
+			{
+				body: jobFor(DID_A, NSID.packageRelease, "demo:1.0.0"),
+				ack: () => {},
+				retry: () => {},
+			},
+			{
+				body: jobFor(DID_B, NSID.packageProfile, "other"),
+				ack: () => {},
+				retry: () => {},
+			},
+		];
+		let acked = 0;
+		messages.forEach((m) => {
+			const orig = m.ack;
+			m.ack = () => {
+				acked += 1;
+				orig();
+			};
+		});
+		await drain({ messages }, { DB: testEnv.DB } as unknown as Env);
+
+		expect(acked).toBe(2);
+		const dl = await testEnv.DB.prepare(`SELECT COUNT(*) as n FROM dead_letters`).first<{
+			n: number;
+		}>();
+		expect(dl?.n).toBe(2);
 	});
 });
 

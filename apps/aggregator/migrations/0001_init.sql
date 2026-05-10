@@ -76,13 +76,20 @@ CREATE INDEX idx_releases_cts ON releases(cts);
 -- Audit trail for rejected duplicate-version attempts. FAIR PR #77 makes
 -- versions immutable: a second record at the same (did, package, version) is
 -- rejected at the SQL layer and logged here for forensics.
+--
+-- The UNIQUE constraint deduplicates true-duplicate attempts (same DID,
+-- same version, same payload) so a hostile publisher pumping the same bytes
+-- doesn't fill the audit table — each unique (did, package, version,
+-- attempted_record_blob) tuple writes at most one row. The consumer's
+-- INSERT carries `ON CONFLICT … DO NOTHING` to honour this.
 CREATE TABLE release_duplicate_attempts (
 	did TEXT NOT NULL,
 	package TEXT NOT NULL,
 	version TEXT NOT NULL,
 	rejected_at TEXT NOT NULL,
 	reason TEXT NOT NULL,
-	attempted_record_blob BLOB NOT NULL
+	attempted_record_blob BLOB NOT NULL,
+	UNIQUE (did, package, version, attempted_record_blob)
 );
 
 CREATE INDEX idx_release_duplicates ON release_duplicate_attempts(did, package, version);

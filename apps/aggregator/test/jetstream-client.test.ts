@@ -95,11 +95,18 @@ describe("wrapAtcuteSubscription", () => {
 	});
 
 	it("filters non-commit events", async () => {
-		const events: Array<{ kind: string; commit?: { collection: string } }> = [
+		// `isCommitEvent` requires the full commit shape (collection + rkey +
+		// operation) — a `{kind: "commit"}` envelope without a structurally
+		// valid `commit` object is correctly rejected as "malformed", so the
+		// stub must mirror what production producers emit.
+		const events: Array<{
+			kind: string;
+			commit?: { collection: string; rkey: string; operation: string };
+		}> = [
 			{ kind: "identity" },
-			{ kind: "commit", commit: { collection: "x" } },
+			{ kind: "commit", commit: { collection: "x", rkey: "r1", operation: "create" } },
 			{ kind: "account" },
-			{ kind: "commit", commit: { collection: "y" } },
+			{ kind: "commit", commit: { collection: "y", rkey: "r2", operation: "create" } },
 		];
 		let i = 0;
 		const sub: RawJetstreamSubscription<(typeof events)[number]> = {
