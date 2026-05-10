@@ -1209,7 +1209,7 @@ describe("ingestPackageRelease: latest_version refresh atomicity", () => {
 				"demo",
 				"2.0.0",
 				"demo:2.0.0",
-				"0000000002.0000000000.0000000000.zzz",
+				"0000000002.0000000000.0000000000.~",
 				"{}",
 				JSON.stringify({ declaredAccess: { network: { fetch: {} } } }),
 				NOW.toISOString(),
@@ -1512,6 +1512,228 @@ describe("release_duplicate_attempts.rejected_at tracks latest attempt", () => {
 			`SELECT rejected_at FROM release_duplicate_attempts`,
 		).first<{ rejected_at: string }>();
 		expect(row?.rejected_at).toBe(t2.toISOString());
+	});
+});
+
+describe("processBatch isolates per-message failures", () => {
+	it("retries the failing message and continues processing the rest of the batch", async () => {
+		const { processBatch } = await import("../src/records-consumer.js");
+		// First message's processMessage will throw (forensics-write fails);
+		// second message should still be processed.
+		const failingDeps: ConsumerDeps = {
+			db: {
+				prepare: () => ({
+					bind: () => ({
+						run: () => Promise.reject(new Error("D1 unavailable")),
+						first: () => Promise.reject(new Error("D1 unavailable")),
+					}),
+				}),
+			} as unknown as D1Database,
+			resolver: new DidResolver({
+				cache: new MapDidDocCache(),
+				resolver: new StubResolver(),
+				ttlMs: 1_000_000,
+				now: () => NOW,
+			}),
+			now: () => NOW,
+			// verify that throws → processMessage tries to writeDeadLetter →
+			// that throws too because db is broken → escapes to processBatch.
+			verify: () =>
+				Promise.reject(Object.assign(new Error("network down"), { name: "PdsVerificationError" })),
+		};
+
+		const messages: Array<MessageController & { body: RecordsJob }> = [];
+		const acks: number[] = [];
+		const retries: number[] = [];
+		for (let i = 0; i < 3; i++) {
+			const idx = i;
+			messages.push({
+				body: jobFor(`did:plc:b${i.toString().padStart(20, "0")}`, NSID.packageProfile, "x"),
+				ack: () => {
+					acks.push(idx);
+				},
+				retry: () => {
+					retries.push(idx);
+				},
+			});
+		}
+		await processBatch({ messages }, {} as Env, failingDeps);
+
+		// Each message either acks or retries — no message escapes the loop
+		// without being controlled. With the failing deps every message ends
+		// up retried via the catch in processBatch.
+		expect(retries).toEqual([0, 1, 2]);
+		expect(acks).toEqual([]);
+	});
+});
+
+describe("duplicate detection compares CIDs, not CAR bytes", () => {
+	const validProfile = {
+		$type: NSID.packageProfile,
+		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
+		slug: "demo",
+		type: "emdash-plugin",
+		license: "MIT",
+		authors: [{ name: "Tester" }],
+		security: [{ email: "x@y.test" }],
+	};
+	const release = {
+		$type: NSID.packageRelease,
+		package: "demo",
+		version: "1.0.0",
+		artifacts: { package: { url: "https://x.test/d.tgz", checksum: "bsha-abc" } },
+		extensions: {
+			"com.emdashcms.experimental.package.releaseExtension": {
+				$type: "com.emdashcms.experimental.package.releaseExtension",
+				declaredAccess: {},
+			},
+		},
+	};
+
+	beforeEach(async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified(validProfile),
+			NOW,
+		);
+	});
+
+	it("treats same CID + different CAR bytes as a benign replay (no audit row)", async () => {
+		const job = jobFor(DID_A, NSID.packageRelease, "demo:1.0.0");
+		// First ingest with one set of bytes.
+		await ingestPackageRelease(
+			testEnv.DB,
+			job,
+			{
+				cid: "bafyreigtest00000000000000000000000000000000000000000000",
+				record: release,
+				carBytes: new Uint8Array([0x01, 0x02, 0x03]),
+			},
+			NOW,
+		);
+		// Re-fetch produces different CAR bytes (publisher has written other
+		// records → MST proof differs) but the same record CID.
+		await ingestPackageRelease(
+			testEnv.DB,
+			job,
+			{
+				cid: "bafyreigtest00000000000000000000000000000000000000000000",
+				record: release,
+				carBytes: new Uint8Array([0xff, 0xfe, 0xfd, 0xfc]),
+			},
+			NOW,
+		);
+		const dups = await testEnv.DB.prepare(
+			`SELECT COUNT(*) as n FROM release_duplicate_attempts`,
+		).first<{ n: number }>();
+		expect(dups?.n).toBe(0);
+	});
+
+	it("treats different CID at same version as an immutability violation", async () => {
+		const job = jobFor(DID_A, NSID.packageRelease, "demo:1.0.0");
+		await ingestPackageRelease(
+			testEnv.DB,
+			job,
+			{
+				cid: "bafyreigtest00000000000000000000000000000000000000000000",
+				record: release,
+				carBytes: new Uint8Array([0x01]),
+			},
+			NOW,
+		);
+		await ingestPackageRelease(
+			testEnv.DB,
+			job,
+			{
+				cid: "bafyreigtampered000000000000000000000000000000000000000",
+				record: release,
+				carBytes: new Uint8Array([0x02]),
+			},
+			NOW,
+		);
+		const row = await testEnv.DB.prepare(
+			`SELECT attempted_cid, reason FROM release_duplicate_attempts`,
+		).first<{ attempted_cid: string; reason: string }>();
+		expect(row?.attempted_cid).toBe("bafyreigtampered000000000000000000000000000000000000000");
+		expect(row?.reason).toBe("IMMUTABLE_VERSION");
+	});
+});
+
+describe("computeVersionSort: final sentinel beats pathological prereleases", () => {
+	const validProfile = {
+		$type: NSID.packageProfile,
+		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
+		slug: "demo",
+		type: "emdash-plugin",
+		license: "MIT",
+		authors: [{ name: "Tester" }],
+		security: [{ email: "x@y.test" }],
+	};
+	function release(version: string) {
+		return {
+			$type: NSID.packageRelease,
+			package: "demo",
+			version,
+			artifacts: { package: { url: "https://x.test/d.tgz", checksum: "bsha-abc" } },
+			extensions: {
+				"com.emdashcms.experimental.package.releaseExtension": {
+					$type: "com.emdashcms.experimental.package.releaseExtension",
+					declaredAccess: {},
+				},
+			},
+		};
+	}
+	beforeEach(async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified(validProfile),
+			NOW,
+		);
+	});
+
+	it("`1.0.0` (final) sorts after `1.0.0-zzzz` (prerelease longer than old `zzz` sentinel)", async () => {
+		await ingestPackageRelease(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageRelease, "demo:1.0.0-zzzz"),
+			fakeVerified(release("1.0.0-zzzz")),
+			NOW,
+		);
+		await ingestPackageRelease(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageRelease, "demo:1.0.0"),
+			fakeVerified(release("1.0.0")),
+			NOW,
+		);
+		const row = await testEnv.DB.prepare(`SELECT latest_version FROM packages`).first<{
+			latest_version: string;
+		}>();
+		expect(row?.latest_version).toBe("1.0.0");
+	});
+});
+
+describe("parseReleaseRkey component validation", () => {
+	it("applyDelete rejects `package:version:extra` rkey via IngestError", async () => {
+		// Splitting on the first `:` would parse as pkg=`demo`, version=`1.0.0:extra`.
+		// The semver regex must reject the colon-bearing version.
+		await expect(
+			applyDelete(
+				testEnv.DB,
+				jobFor(DID_A, NSID.packageRelease, "demo:1.0.0:extra", { operation: "delete" }),
+				NOW,
+			),
+		).rejects.toMatchObject({ name: "IngestError", reason: "RKEY_MISMATCH" });
+	});
+
+	it("applyDelete rejects rkeys whose package portion violates the slug regex", async () => {
+		await expect(
+			applyDelete(
+				testEnv.DB,
+				jobFor(DID_A, NSID.packageRelease, "9bad-leading-digit:1.0.0", { operation: "delete" }),
+				NOW,
+			),
+		).rejects.toMatchObject({ name: "IngestError", reason: "RKEY_MISMATCH" });
 	});
 });
 

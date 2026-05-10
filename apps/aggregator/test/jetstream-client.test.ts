@@ -160,6 +160,38 @@ describe("wrapAtcuteSubscription", () => {
 		expect(out).toHaveLength(0);
 	});
 
+	it("rejects commits whose operation isn't one of create/update/delete", async () => {
+		// A producer emitting an unknown operation would otherwise produce a
+		// RecordsJob the consumer can't handle, ending up as
+		// UNEXPECTED_ERROR in dead_letters. Better to drop at the source.
+		const events = [
+			{
+				kind: "commit",
+				commit: {
+					collection: "x",
+					rkey: "r1",
+					operation: "rebase", // not a real atproto op
+					cid: "bafyc1",
+				},
+			},
+		];
+		let i = 0;
+		const sub: RawJetstreamSubscription<(typeof events)[number]> = {
+			cursor: 0,
+			[Symbol.asyncIterator]: () => ({
+				async next() {
+					if (i >= events.length) return { value: undefined, done: true };
+					const value = events[i++];
+					return { value: value as (typeof events)[number], done: false };
+				},
+			}),
+		};
+		const handle = wrapAtcuteSubscription(sub);
+		const out: unknown[] = [];
+		for await (const event of handle) out.push(event);
+		expect(out).toHaveLength(0);
+	});
+
 	it("accepts delete commits without cid", async () => {
 		// Delete events legitimately have no cid; predicate must let them
 		// through.

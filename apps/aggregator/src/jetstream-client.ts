@@ -180,20 +180,19 @@ type MaybeCommitEvent = {
 	};
 };
 
+const KNOWN_OPERATIONS = new Set(["create", "update", "delete"]);
+
 function isCommitEvent(event: MaybeCommitEvent): event is JetstreamCommitEvent {
 	if (event.kind !== "commit" || event.commit === undefined) return false;
 	const c = event.commit;
-	if (
-		typeof c.collection !== "string" ||
-		typeof c.rkey !== "string" ||
-		typeof c.operation !== "string"
-	) {
-		return false;
-	}
+	if (typeof c.collection !== "string" || typeof c.rkey !== "string") return false;
+	// Restrict to the operations the downstream RecordsJob + applyDelete
+	// dispatcher know about. An unknown operation slipping through would
+	// produce a job the consumer can't process and would land in
+	// dead_letters as UNEXPECTED_ERROR — better to drop it at the source.
+	if (typeof c.operation !== "string" || !KNOWN_OPERATIONS.has(c.operation)) return false;
 	// `cid` is required for create/update (the ingestor reads it into the
-	// RecordsJob); delete events legitimately have no cid. Validate
-	// conditionally so a malformed create/update with missing cid doesn't
-	// slip through and produce a job with `cid: undefined`.
+	// RecordsJob); delete events legitimately have no cid.
 	if (c.operation !== "delete" && typeof c.cid !== "string") return false;
 	return true;
 }

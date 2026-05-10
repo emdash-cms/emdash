@@ -142,8 +142,22 @@ export async function processBatch(
 	const deps = depsOverride ?? createProductionDeps(env);
 	// Process jobs independently — a single failed verification must not fail
 	// the whole batch and trigger redeliveries for already-acked messages.
+	// Wrap each call: a `writeDeadLetter` throw inside `processMessage`
+	// (e.g. transient D1 hiccup mid-batch) would otherwise escape and halt
+	// the for-loop, leaving subsequent messages without ack/retry. Same
+	// shape as `drainDeadLetterBatch`.
 	for (const message of batch.messages) {
-		await processMessage(message.body, message, deps);
+		try {
+			await processMessage(message.body, message, deps);
+		} catch (err) {
+			console.error("[aggregator] processMessage threw unexpectedly", {
+				did: message.body.did,
+				collection: message.body.collection,
+				rkey: message.body.rkey,
+				error: err instanceof Error ? err.message : String(err),
+			});
+			message.retry();
+		}
 	}
 }
 
@@ -561,15 +575,23 @@ export async function ingestPackageRelease(
 		//      deleted release; clear the tombstone + refresh so it reappears
 		//      in read results.
 		//   3. Different content → immutability violation; audit it.
+		//
+		// Comparison is on the verified record CID (content-addressed), NOT
+		// on raw CAR bytes. CARs include the publisher's commit + MST proof,
+		// which change whenever the publisher writes ANY other record in
+		// the same repo — so a benign re-fetch of an unchanged record
+		// produces different bytes. CIDs only change when the record itself
+		// changes.
 		const existing = await db
 			.prepare(
-				`SELECT record_blob, tombstoned_at
+				`SELECT signature_metadata, tombstoned_at
 				 FROM releases WHERE did = ? AND package = ? AND version = ?`,
 			)
 			.bind(job.did, record.package, record.version)
-			.first<{ record_blob: ArrayBuffer | Uint8Array; tombstoned_at: string | null }>();
+			.first<{ signature_metadata: string; tombstoned_at: string | null }>();
 		if (existing) {
-			const sameContent = bytesEqual(toUint8(existing.record_blob), verified.carBytes);
+			const existingCid = parseCid(existing.signature_metadata);
+			const sameContent = existingCid === verified.cid;
 			if (sameContent && existing.tombstoned_at !== null) {
 				await db.batch([
 					db
@@ -581,24 +603,29 @@ export async function ingestPackageRelease(
 					refreshPackageLatestStmt(db, job.did, record.package),
 				]);
 			} else if (!sameContent) {
-				// On true-duplicate (same hostile bytes pumped repeatedly),
-				// UPDATE rejected_at so the audit row tracks the latest
-				// attempt rather than freezing at the first one. Operators
-				// querying "is this attack ongoing?" can read rejected_at
-				// to see freshness. Same-bytes spam still dedupes to one
-				// row per (did, package, version, attempted_record_blob).
+				// On true-duplicate (same hostile content pumped repeatedly,
+				// distinguished by CID), DO UPDATE so the audit row tracks
+				// the latest attempt rather than freezing at the first one.
+				// Operators querying "is this attack ongoing?" read
+				// `rejected_at` for freshness. The bytes are kept in
+				// `attempted_record_blob` for forensics — operators can see
+				// what was actually attempted even if the publisher has
+				// since deleted the offending record from their PDS.
 				await db
 					.prepare(
 						`INSERT INTO release_duplicate_attempts
-						   (did, package, version, rejected_at, reason, attempted_record_blob)
-						 VALUES (?, ?, ?, ?, ?, ?)
-						 ON CONFLICT(did, package, version, attempted_record_blob)
-						   DO UPDATE SET rejected_at = excluded.rejected_at`,
+						   (did, package, version, attempted_cid, rejected_at, reason, attempted_record_blob)
+						 VALUES (?, ?, ?, ?, ?, ?, ?)
+						 ON CONFLICT(did, package, version, attempted_cid)
+						   DO UPDATE SET
+						     rejected_at = excluded.rejected_at,
+						     attempted_record_blob = excluded.attempted_record_blob`,
 					)
 					.bind(
 						job.did,
 						record.package,
 						record.version,
+						verified.cid,
 						now.toISOString(),
 						"IMMUTABLE_VERSION",
 						verified.carBytes,
@@ -962,24 +989,25 @@ function encodeRkeyVersion(version: string): string {
 }
 
 /**
- * Parse a release rkey of the form `<package>:<encoded-version>` back into its
- * components. Returns null on malformed input. Callers decide what to do with
- * null — `applyDelete` throws `IngestError("RKEY_MISMATCH", …)` to surface
- * the malformed delete in `dead_letters` rather than silently swallowing it.
+ * Parse a release rkey of the form `<package>:<encoded-version>` back into
+ * its components. Validates BOTH parts against the regexes the consumer uses
+ * elsewhere — a malformed rkey like `demo:1.0.0:extra` would otherwise split
+ * to `pkg="demo"`, `version="1.0.0:extra"` and silently no-op the delete (no
+ * row matches an illegal version), losing the audit trail.
  *
- * Splits on the FIRST `:`. Both `package` (slug regex) and `version` (semver
- * subset) reject `:` in the lexicon, so a single split is unambiguous.
+ * Returns null on any malformation. Callers decide what to do — `applyDelete`
+ * throws `IngestError("RKEY_MISMATCH", …)` to surface the malformed delete
+ * in `dead_letters`.
  *
  * `decodeURIComponent` throws URIError on malformed `%`-escapes (e.g.
  * `1.0.0%XX`). Caught here so the function's contract is "returns null OR a
- * parsed pair, never throws" — the dispatcher's delete branch would
- * otherwise see a non-IngestError throw and retry 5 times on a permanently
- * malformed rkey before DLQ.
+ * validated pair, never throws".
  */
 function parseReleaseRkey(rkey: string): { pkg: string; version: string } | null {
 	const idx = rkey.indexOf(":");
 	if (idx <= 0 || idx === rkey.length - 1) return null;
 	const pkg = rkey.slice(0, idx);
+	if (!PACKAGE_SLUG_RE.test(pkg)) return null;
 	const encodedVersion = rkey.slice(idx + 1);
 	let version: string;
 	try {
@@ -987,6 +1015,7 @@ function parseReleaseRkey(rkey: string): { pkg: string; version: string } | null
 	} catch {
 		return null;
 	}
+	if (!SEMVER_RE.test(version)) return null;
 	return { pkg, version };
 }
 
@@ -997,12 +1026,15 @@ const pad = (s: string) => s.padStart(10, "0");
 /**
  * Pre-compute a fixed-width sortable string for a semver version.
  *
- * Format: `<10-digit-major>.<10-digit-minor>.<10-digit-patch>.<prerelease-or-zzz>`
+ * Format: `<10-digit-major>.<10-digit-minor>.<10-digit-patch>.<prerelease-or-FINAL_SENTINEL>`
  *
  * - Numeric components are zero-padded to 10 digits so lexicographic sort
  *   matches numeric order ('1.10.0' > '1.9.0').
- * - The prerelease tag uses 'zzz' as a sentinel for non-prerelease so finals
- *   outrank any prerelease at the same major.minor.patch.
+ * - The final-release sentinel `~` is one character above the prerelease
+ *   alphabet (`[0-9A-Za-z-]`, max char `z` at ASCII 122; `~` at 126), so
+ *   any final release sorts after any prerelease at the same
+ *   major.minor.patch — including pathological prereleases like
+ *   `1.0.0-zzzz` that would beat a `zzz` sentinel by being longer.
  * - Within a prerelease tag, numeric identifiers are zero-padded too. This
  *   matches semver precedence rules approximately; the "numeric < non-numeric"
  *   wrinkle isn't fully captured but the typical patterns ('rc.1', 'beta.2')
@@ -1011,6 +1043,7 @@ const pad = (s: string) => s.padStart(10, "0");
  * Returns null when the input doesn't parse as our supported semver subset
  * (the lexicon disallows build metadata '+...').
  */
+const FINAL_VERSION_SENTINEL = "~";
 function computeVersionSort(version: string): string | null {
 	const m = SEMVER_RE.exec(version);
 	if (!m) return null;
@@ -1036,24 +1069,27 @@ function computeVersionSort(version: string): string | null {
 		}
 		return `${pad(major)}.${pad(minor)}.${pad(patch)}.${padded.join(".")}`;
 	}
-	return `${pad(major)}.${pad(minor)}.${pad(patch)}.zzz`;
+	return `${pad(major)}.${pad(minor)}.${pad(patch)}.${FINAL_VERSION_SENTINEL}`;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
-	if (a.byteLength !== b.byteLength) return false;
-	for (let i = 0; i < a.byteLength; i++) {
-		if (a[i] !== b[i]) return false;
+/**
+ * Pull the verified record's CID out of the JSON-stringified
+ * `signature_metadata` column. Returns null if the column is missing or
+ * malformed (which shouldn't happen in writer-controlled data, but the
+ * fallback keeps the comparison robust against future schema drift).
+ */
+function parseCid(signatureMetadata: string): string | null {
+	try {
+		const parsed: unknown = JSON.parse(signatureMetadata);
+		if (isPlainObject(parsed) && typeof parsed.cid === "string") return parsed.cid;
+	} catch {
+		// fall through
 	}
-	return true;
-}
-
-function toUint8(value: ArrayBuffer | Uint8Array): Uint8Array {
-	if (value instanceof Uint8Array) return value;
-	return new Uint8Array(value);
+	return null;
 }
 
 function formatValidationIssues(issues: unknown): string {

@@ -77,21 +77,30 @@ CREATE INDEX idx_releases_cts ON releases(cts);
 -- versions immutable: a second record at the same (did, package, version) is
 -- rejected at the SQL layer and logged here for forensics.
 --
--- The UNIQUE constraint deduplicates true-duplicate attempts (same DID,
--- same version, same payload) so a hostile publisher pumping the same bytes
--- doesn't fill the audit table — each unique (did, package, version,
--- attempted_record_blob) tuple resolves to at most one row. The consumer's
--- INSERT uses `ON CONFLICT … DO UPDATE SET rejected_at = excluded.rejected_at`
--- so the row's timestamp tracks the latest attempt; operators querying
--- "is this attack ongoing?" can read `rejected_at` for freshness.
+-- The UNIQUE constraint dedupes attempts by content (CID), not by raw bytes.
+-- CAR bytes include the publisher's commit + MST proof which churns whenever
+-- the publisher writes any other record in the same repo, so byte-equality
+-- would misclassify benign retries as new attempts and bloat the table.
+-- The CID is content-addressed and stable for an unchanged record.
+--
+-- The consumer's INSERT uses `ON CONFLICT … DO UPDATE SET rejected_at,
+-- attempted_record_blob = excluded.{rejected_at, attempted_record_blob}` so
+-- the row tracks the latest attempt timestamp + the latest envelope bytes
+-- (newer proofs supersede older ones in the forensics column).
 CREATE TABLE release_duplicate_attempts (
 	did TEXT NOT NULL,
 	package TEXT NOT NULL,
 	version TEXT NOT NULL,
+	-- CID of the verified record (stable for content; changes only when the
+	-- record itself changes). Used as the dedup key.
+	attempted_cid TEXT NOT NULL,
 	rejected_at TEXT NOT NULL,
 	reason TEXT NOT NULL,
+	-- Raw CAR bytes from the most recent attempt. Kept for forensics so
+	-- operators can inspect what was actually attempted even if the
+	-- publisher has since deleted the offending record.
 	attempted_record_blob BLOB NOT NULL,
-	UNIQUE (did, package, version, attempted_record_blob)
+	UNIQUE (did, package, version, attempted_cid)
 );
 
 -- The UNIQUE constraint creates an implicit index on

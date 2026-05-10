@@ -2,10 +2,13 @@
  * pds-verify unit tests.
  *
  * Cover the HTTP / error-shaping logic with a stub `fetch`. The actual
- * verification handoff to `@atcute/repo`'s `verifyRecord` is exercised
- * end-to-end at the consumer level (where the full MockPds + FakePublisher
- * fixture is wired in), because building a valid signed CAR by hand here
- * would re-implement what `@atcute/repo` already tests internally.
+ * verification handoff to `@atcute/repo`'s `verifyRecord` is NOT exercised
+ * end-to-end anywhere in this suite — building a valid signed CAR by hand
+ * would re-implement what `@atcute/repo` already tests internally, and the
+ * consumer-level test path stubs verification via `ConsumerDeps.verify`
+ * (the FakePublisher / MockPds fixture from `@emdash-cms/atproto-test-utils`
+ * can't load inside `@cloudflare/vitest-pool-workers` due to a transitive
+ * `@atproto/lex-data` incompatibility; see records-consumer test header).
  *
  * What we DO test here is the surface every reason code can be reached
  * through, plus the `isTransient` policy mapping the consumer relies on.
