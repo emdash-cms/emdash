@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -31,8 +31,7 @@ describe("extractManifestFromTarball (publish CLI)", () => {
 	async function buildTarball(files: Record<string, string | Uint8Array>): Promise<Uint8Array> {
 		for (const [name, body] of Object.entries(files)) {
 			const fullPath = join(stagingDir, name);
-			const dir = fullPath.slice(0, fullPath.lastIndexOf("/"));
-			if (dir !== stagingDir) await mkdir(dir, { recursive: true });
+			await mkdir(dirname(fullPath), { recursive: true });
 			await writeFile(fullPath, body);
 		}
 		const tarballPath = join(outDir, "test.tar.gz");
