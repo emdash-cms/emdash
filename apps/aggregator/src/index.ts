@@ -82,13 +82,22 @@ function requireAdminAuth(request: Request, env: Env): Response | null {
 		return new Response("admin endpoints not configured", { status: 503 });
 	}
 	const auth = request.headers.get("authorization");
-	if (!auth || !auth.startsWith("Bearer ")) {
+	const SCHEME_PREFIX = "bearer ";
+	// RFC 6750 §2.1: the auth scheme is case-insensitive. `curl -H
+	// "authorization: bearer ..."` and SDKs that don't canonicalise the
+	// scheme would otherwise fail with a confusing 401 even though the
+	// token is correct.
+	if (
+		!auth ||
+		auth.length < SCHEME_PREFIX.length ||
+		auth.slice(0, SCHEME_PREFIX.length).toLowerCase() !== SCHEME_PREFIX
+	) {
 		return new Response("unauthorized", {
 			status: 401,
 			headers: { "www-authenticate": "Bearer" },
 		});
 	}
-	const token = auth.slice("Bearer ".length);
+	const token = auth.slice(SCHEME_PREFIX.length);
 	if (!timingSafeEqual(token, expected)) {
 		return new Response("unauthorized", {
 			status: 401,
@@ -130,6 +139,12 @@ export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const url = new URL(request.url);
 		if (url.pathname === BOOTSTRAP_PATH) {
+			if (request.method !== "POST") {
+				return new Response("method not allowed", {
+					status: 405,
+					headers: { allow: "POST" },
+				});
+			}
 			const denied = requireAdminAuth(request, env);
 			if (denied) return denied;
 			const id = env.RECORDS_DO.idFromName(RECORDS_DO_NAME);

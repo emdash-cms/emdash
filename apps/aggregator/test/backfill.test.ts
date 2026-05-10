@@ -568,7 +568,7 @@ describe("backfillCollection: defenses against malicious / buggy PDS", () => {
 
 		const result = await backfillDid(DID_A, { resolver, queue, fetch: fetchImpl });
 
-		expect(result.errors.some((e) => e.includes("exceeding cap"))).toBe(true);
+		expect(result.errors.some((e) => e.includes("per-page cap"))).toBe(true);
 		// No records enqueued for the over-capped collection.
 		expect(queue.sent.filter((j) => j.collection === collection)).toHaveLength(0);
 	});
@@ -591,6 +591,36 @@ describe("backfillCollection: defenses against malicious / buggy PDS", () => {
 		const sent = queue.sent.filter((j) => j.collection === collection);
 		expect(sent.map((j) => j.rkey)).toEqual(["legit"]);
 		expect(result.enqueued).toBe(1);
+	});
+});
+
+describe("backfillCollection: enqueue budget cap", () => {
+	it("stops enqueuing when MAX_TOTAL_ENQUEUE is reached and reports the partial count", async () => {
+		// Force the cap by giving a tiny budget. 50 records × 4 collections =
+		// 200 records the worker would otherwise enqueue; budget of 30 should
+		// cap it after the first collection's first page.
+		const queue = new CapturingQueue();
+		const resolver = buildResolver();
+		const recordsByCollection: Record<string, MockListRecord[]> = {};
+		for (const c of WANTED_COLLECTIONS) {
+			recordsByCollection[c] = Array.from({ length: 50 }, (_, i) => ({
+				uri: `at://${DID_A}/${c}/r${i}`,
+				cid: `c${i}`,
+				value: {},
+			}));
+		}
+		const fetchImpl = makeFetch(recordsByCollection);
+		const result = await backfillDid(
+			DID_A,
+			{ resolver, queue, fetch: fetchImpl },
+			{ remaining: 30 },
+		);
+		// The first collection's full page (50 records) was within the cap?
+		// No — after 30 records the budget hits 0, the inner break fires,
+		// the page's batch send carries 30 records, then the post-send
+		// throw aborts further pages.
+		expect(result.enqueued).toBeLessThanOrEqual(30);
+		expect(queue.sent.length).toBeLessThanOrEqual(30);
 	});
 });
 
@@ -710,15 +740,30 @@ describe("backfill admin route: auth + input validation", () => {
 	});
 });
 
-describe("admin start route: auth", () => {
-	it("returns 401 without token", async () => {
+describe("admin start route: auth + method", () => {
+	it("returns 405 on GET (POST-only route)", async () => {
 		const res = await SELF.fetch("https://test/_admin/start");
+		expect(res.status).toBe(405);
+		expect(res.headers.get("allow")).toBe("POST");
+	});
+
+	it("returns 401 on POST without token", async () => {
+		const res = await SELF.fetch("https://test/_admin/start", { method: "POST" });
 		expect(res.status).toBe(401);
 	});
 
-	it("returns 204 with valid token", async () => {
+	it("returns 204 on POST with valid token", async () => {
 		const res = await SELF.fetch("https://test/_admin/start", {
+			method: "POST",
 			headers: { authorization: "Bearer test-admin-token" },
+		});
+		expect(res.status).toBe(204);
+	});
+
+	it("accepts case-insensitive Bearer scheme (RFC 6750 §2.1)", async () => {
+		const res = await SELF.fetch("https://test/_admin/start", {
+			method: "POST",
+			headers: { authorization: "bearer test-admin-token" },
 		});
 		expect(res.status).toBe(204);
 	});

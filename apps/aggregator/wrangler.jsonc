@@ -81,9 +81,19 @@
 		"CONSTELLATION_URL": "https://constellation.microcosm.blue",
 	},
 	// Required secrets, declared in config so `wrangler types` generates the
-	// typed binding and `wrangler deploy` refuses to ship without them set.
-	// Set in production with `wrangler secret put ADMIN_TOKEN`; tests bind
-	// a stub value via miniflare in vitest.config.ts.
+	// typed binding and `wrangler deploy` validates the secret is set on the
+	// target Worker before publishing. `wrangler dev` warns at startup when a
+	// required secret isn't in `.dev.vars` / `.env`.
+	//
+	// Set in production with `wrangler secret put ADMIN_TOKEN`. Tests bind
+	// a stub via miniflare in vitest.config.ts. Local dev pulls from
+	// `.dev.vars` (gitignored; see `.dev.vars.example`).
+	//
+	// The `requireAdminAuth` runtime guard fails closed (503) if the binding
+	// is somehow empty at request time, so even a misconfigured deploy can't
+	// leave the admin routes unauth-passable. NOTE: this `secrets` block is
+	// not inherited by named environments — repeat it under each `env.<name>`
+	// you add or that env's deploys won't enforce the secret.
 	"secrets": {
 		"required": ["ADMIN_TOKEN"],
 	},
