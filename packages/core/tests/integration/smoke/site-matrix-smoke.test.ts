@@ -125,13 +125,15 @@ async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promis
 // ---------------------------------------------------------------------------
 
 describe("Site build verification", () => {
-	it("all templates and playground build successfully", { timeout: 300_000 }, async () => {
+	it("all templates and playground build successfully", { timeout: 600_000 }, async () => {
 		await ensureBuilt();
 
 		try {
 			await execAsync(
 				"pnpm",
 				[
+					"--workspace-concurrency",
+					"2",
 					"run",
 					"--recursive",
 					"--filter",
@@ -142,7 +144,7 @@ describe("Site build verification", () => {
 				],
 				{
 					cwd: WORKSPACE_ROOT,
-					timeout: 240_000,
+					timeout: 480_000,
 					env: {
 						...process.env,
 						CI: "true",
@@ -154,7 +156,7 @@ describe("Site build verification", () => {
 				error instanceof Error && "stderr" in error ? (error as { stderr: string }).stderr : "";
 			const stdout =
 				error instanceof Error && "stdout" in error ? (error as { stdout: string }).stdout : "";
-			throw new Error(`Site builds failed:\n\n${stderr || stdout}`.slice(0, 5000), {
+			throw new Error(`Site builds failed:\n\n${stderr || stdout}`.slice(0, 20000), {
 				cause: error,
 			});
 		}
