@@ -2987,7 +2987,7 @@ msgstr "Gagal memverifikasi registrasi"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:221
 #: packages/admin/src/components/settings/GeneralSettings.tsx:226
 msgid "Favicon"
-msgstr "Favicon"
+msgstr "Favikon"
 
 #: packages/admin/src/components/WordPressImport.tsx:1022
 msgid "Feature"
@@ -3756,7 +3756,7 @@ msgstr "Logo"
 
 #: packages/admin/src/components/WordPressImport.tsx:1668
 msgid "Logo & favicon"
-msgstr "Logo & favicon"
+msgstr "Logo dan Favikon"
 
 #: packages/admin/src/components/FieldEditor.tsx:156
 #: packages/admin/src/components/FieldEditor.tsx:580
@@ -3817,7 +3817,7 @@ msgstr "Kelola passkey dan autentikasi Anda"
 
 #: packages/admin/src/components/Redirects.tsx:398
 msgid "Manual"
-msgstr "Manual"
+msgstr "Panduan"
 
 #: packages/admin/src/components/WordPressImport.tsx:2260
 msgid "Map Authors"
@@ -6015,7 +6015,7 @@ msgstr "Tabel"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:162
 #: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Tagline"
-msgstr "Tagline"
+msgstr "Slogan"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 msgid "Tags"
