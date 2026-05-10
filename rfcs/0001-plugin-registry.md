@@ -504,7 +504,7 @@ Registered with FAIR's extension registry as the `emdash-plugin` package type an
 
 | Type         | Description                                                                                                                                                                                                                                                                   |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `package`    | The installable plugin bundle. MUST be a gzipped tar archive (`application/gzip`), MUST be ≤ 50 MB, MUST contain `manifest.json` and `backend.js` at the archive root, MAY contain `admin.js` and `README.md`. The `checksum` property is required for security verification. |
+| `package`    | The installable plugin bundle. MUST be a gzipped tar archive (`application/gzip`), MUST contain `manifest.json` and `backend.js` at the archive root, MAY contain `admin.js` and `README.md`. The `checksum` property is required for security verification. Subject to the bundle size caps in [Bundle size limits](#bundle-size-limits).               |
 | `icon`       | Square package icon. SHOULD be 128×128 or 256×256. `contentType`: `image/png`, `image/jpeg`, `image/svg`, or `image/gif`. SHOULD specify `width` and `height`. SHOULD NOT require auth. May specify `lang` (RFC4646) for localised icons.                                     |
 | `screenshot` | UI screenshot. `contentType` and dimension rules as for `icon`. SHOULD NOT exceed 10 MB. SHOULD NOT require auth. May specify `lang`.                                                                                                                                         |
 | `banner`     | Wide listing-page header image. Common sizes 772×250 and 1544×500. `contentType` and rules as for `icon`. MAY be omitted; clients SHOULD ignore banners not matching a usable size.                                                                                           |
@@ -616,6 +616,32 @@ The only normative constraint key defined here is `allowedHosts` under `network.
 - Clients MUST reject any release whose `declaredAccess` contains a top-level field not enumerated in the vocabulary above (unrecognised access category) or an unrecognised operation inside a known category. Lexicon evolution adds new fields over time; the client's own runtime version determines which are recognised.
 - Unrecognised constraint _keys_ inside a known operation's constraint object MUST NOT cause rejection — they're surfaced to the user per the [Constraints](#constraints) contract.
 
+#### Bundle size limits
+
+Conforming clients and aggregators MUST reject `package` artifacts whose decompressed contents exceed any of:
+
+- Total decompressed size ≤ **256 KB**.
+- Per-file decompressed size ≤ **128 KB**.
+- File count ≤ **20**.
+
+Decompression MUST stream-validate against these caps and abort as soon as any is exceeded, without buffering the full archive — the caps double as tar-bomb defence.
+
+These numbers are tied to the constrained surface of the sandboxed runtime. The host provides the API surface, storage, and UI primitives, so legitimate sandboxed plugins are small: the largest existing first-party sandboxed plugin (`atproto`, which performs OAuth, JWT signing, and ATProto network calls) is ~37 KB built; most are under 20 KB. The 256 KB cap leaves roughly 7× headroom over the largest observed real plugin.
+
+The caps serve three purposes:
+
+1. **Bounded parse / memory cost.** Restricted JS runtimes parse significantly slower than V8, and the parsed form is not shared across host isolates. 256 KB keeps cold-isolate plugin load in the tens of milliseconds and bounds heap growth as multiple plugins share an isolate.
+2. **Reviewability.** A 256 KB bundle is something a marketplace reviewer (human or automated) can read end-to-end before approval. Larger ceilings concede that nobody reads the code, defeating the purpose of sandboxing untrusted code.
+3. **Bounded cold-fetch latency.** First-load fetches happen on the user's request path; 256 KB is sub-100 ms over typical CDN paths.
+
+**Layered enforcement.** The caps are protocol-level, not implementation-private. Three independent enforcement points are required:
+
+- The publish CLI rejects oversized bundles before signing the release record.
+- Aggregators reject oversized artifacts at ingest (see [Artifact mirroring](#artifact-mirroring)) and refuse to mirror them.
+- Install clients re-validate at install time, after checksum verification, before handing the bundle to the sandbox loader.
+
+Hosts MAY accept larger bundles for private, sideloaded plugins in their own deployments. Releases published under `pm.fair.package.release` with the `emdash-plugin` package type MUST conform to the caps; aggregators MUST reject non-conforming releases at ingest. If a future sandboxed-runtime feature legitimately requires more bytes (for example, embedded WASM modules or large locale catalogs), it will be introduced as a separate, opt-in artifact channel with its own caps rather than by widening these.
+
 **Latest release selection:**
 
 - The latest release for a package is the release record in the same repository with `record.package` equal to the target package's slug, having the highest semver `version` (compared using full semver precedence rules, not lexicographic ordering).
@@ -709,7 +735,7 @@ The client always verifies the downloaded bytes against the artifact's `checksum
 The default aggregator auto-mirrors releases whose redistribution is unambiguous:
 
 1. On indexing a new release record, the aggregator fetches the `package` artifact from its declared `url`.
-2. It validates: the bytes hash to the artifact's `checksum`; the archive parses as a valid gzipped tar; the archive root contains `manifest.json` and `backend.js`; the archive is under the 50 MB cap; the parsed manifest's `capabilities` and `allowedHosts` match the release's `emdash` extension data.
+2. It validates: the bytes hash to the artifact's `checksum`; the archive parses as a valid gzipped tar; the archive root contains `manifest.json` and `backend.js`; the decompressed contents conform to the [bundle size limits](#bundle-size-limits); the parsed manifest's `capabilities` and `allowedHosts` match the release's `emdash` extension data.
 3. It checks the redistribution policy (see [Mirror policy](#mirror-policy)) and either stores the validated bytes in its own content-addressed object store and advertises mirror URLs on subsequent release responses, or indexes the record metadata-only and leaves `mirrors` empty.
 
 This validation exists to keep the mirror honest — the aggregator operator does not want to become a dumping ground for arbitrary binaries published under `pm.fair.package.release` records. It is _not_ a trust signal for clients. The client re-verifies integrity on download regardless, because a mirror operator might be compromised, stale, or lazy.
@@ -808,7 +834,7 @@ Publishing is URL-based:
 $ emdash plugin publish --url https://github.com/example/gallery/releases/download/v1.0.0/gallery-plugin-1.0.0.tar.gz
 ```
 
-1. Fetches the bundle archive from the URL, validates it is under the 50 MB cap, and computes its multibase checksum.
+1. Fetches the bundle archive from the URL, validates it conforms to the [bundle size limits](#bundle-size-limits), and computes its multibase checksum.
 2. Reads `manifest.json` from the bundle. Extracts the trust-contract fields: `declaredAccess` (for the release's `emdash` extension) and the package-level metadata `name`, `slug`, `description`, `authors`, `license`, `security`, etc. (for the package profile). The implementation-contract fields (`hooks`, `routes`, `storage`, `admin`) are not used at this step; they stay bundle-internal for the runtime to consume at install time.
 3. On first publish for a `slug`, creates the `pm.fair.package.profile` record. Always creates the `pm.fair.package.release` record with a `package` artifact carrying the URL and checksum, and the `emdash` extension carrying the `declaredAccess` block lifted from the manifest.
 
@@ -850,6 +876,8 @@ GET /xrpc/com.emdashcms.aggregator.searchPackages?q=gallery&limit=20
 ```
 
 returning JSON of the shape `{ packages: [...], cursor }`. All release-returning endpoints return the envelope described in [Artifact mirroring](#artifact-mirroring): the signed release record plus a `mirrors` array of URLs the aggregator is currently serving the artifact from. The specific mirror URL scheme is an implementation detail of each aggregator and is not part of the protocol.
+
+**Standard atproto record access.** Alongside the EmDash-specific endpoints above, the aggregator implements [`com.atproto.repo.getRecord`](https://atproto.com/lexicons/com-atproto-repo#comatprotorepogetrecord) for the indexed FAIR record collections (`pm.fair.package.profile`, `pm.fair.package.release`, and the `com.emdashcms.experimental.package.*` fallback). Clients — including generic atproto tooling that knows nothing about the EmDash registry — can fetch a record by `repo` (DID), `collection` (NSID), and `rkey` directly from the aggregator without resolving and contacting the publisher's PDS. Responses follow the standard atproto shape (`{ uri, cid, value }`); the aggregator returns its indexed copy of the record as-is. This is a discovery and caching convenience: it lets the aggregator stand in for the PDS for cheap reads, but it is not itself a trust anchor for installation — install-time provenance is still established as described in [Install provenance verification](#install-provenance-verification).
 
 **Aggregator selection.** EmDash sites choose which aggregator they use via a three-layer precedence chain:
 
@@ -1164,7 +1192,7 @@ The verification mechanism extends naturally to delegation. A `com.emdashcms.pub
 - **Manifest consistency:** Test that the EmDash client refuses to install a release whose bundle `manifest.json` declares `capabilities` or `allowedHosts` that don't exactly match the release's `emdash` extension data.
 - **Metadata fallback:** Test that the EmDash client falls back to PDS-direct record lookup when the aggregator is unreachable.
 - **Artifact source fallback:** Test that the client walks the local mirror → aggregator mirror → artifact's declared `url` chain correctly when earlier sources are unavailable, and that the checksum is re-verified at each source.
-- **Aggregator mirror validation:** Test that the aggregator rejects artifacts that exceed the 50 MB cap, fail to parse as valid `.tar.gz`, are missing required root entries, or whose parsed manifest capabilities/allowedHosts disagree with the release record's `emdash` extension.
+- **Aggregator mirror validation:** Test that the aggregator rejects artifacts that violate any of the [bundle size limits](#bundle-size-limits) (total decompressed size, per-file size, file count), fail to parse as valid `.tar.gz`, are missing required root entries, or whose parsed manifest capabilities/allowedHosts disagree with the release record's `emdash` extension. Verify decompression aborts on cap violation without buffering the full archive.
 - **Missing extension handling:** Test that the EmDash install client refuses to install a release with no `emdash` extension data, and that a generic directory can still render the release's metadata.
 - **Deletion handling:** Delete package and release records on a test PDS, verify the aggregator retains tombstones (per FAIR's deletion semantics), removes the mirrored artifact from its object store, and removes them from search and install flows. Verify deletion does not trigger automatic uninstall on already-installed clients.
 - **Labeller-driven yank:** Apply a `security:yanked` label (via a configured labeller) to a release's AT URI; verify the EmDash admin UI surfaces this on already-installed sites and excludes the release from latest-release selection.
