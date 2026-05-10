@@ -33,7 +33,15 @@ export default defineConfig({
 		cloudflareTest({
 			wrangler: { configPath: "./wrangler.jsonc" },
 			miniflare: {
-				bindings: { TEST_MIGRATIONS: migrations },
+				bindings: {
+					TEST_MIGRATIONS: migrations,
+					// Stub admin auth token so tests can exercise the auth-gated
+					// admin routes without needing a real secret in the test
+					// environment. Production deploys pull from
+					// `wrangler secret put ADMIN_TOKEN`; the value below only
+					// applies inside the workers test pool.
+					ADMIN_TOKEN: "test-admin-token",
+				},
 			},
 		}),
 	],

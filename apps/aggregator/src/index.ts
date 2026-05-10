@@ -15,9 +15,18 @@
  * Worker boots.
  */
 
+import {
+	AtprotoWebDidDocumentResolver,
+	CompositeDidDocumentResolver,
+	PlcDidDocumentResolver,
+} from "@atcute/identity-resolver";
+
+import { backfillDids } from "./backfill.js";
+import { createD1DidDocCache, DidResolver } from "./did-resolver.js";
 import type { RecordsJob } from "./env.js";
 import { drainDeadLetterBatch, processBatch } from "./records-consumer.js";
 import { RECORDS_DO_NAME } from "./records-do.js";
+import { isPlainObject } from "./utils.js";
 
 const RECORDS_QUEUE_NAME = "emdash-aggregator-records";
 const RECORDS_DLQ_NAME = "emdash-aggregator-records-dlq";
@@ -25,21 +34,104 @@ const RECORDS_DLQ_NAME = "emdash-aggregator-records-dlq";
 export { RecordsJetstreamDO } from "./records-do.js";
 
 /**
- * Operational bootstrap route. Hitting `/_admin/start` once after deploy
- * spins up the Records DO, which opens its outbound WebSocket and starts
- * ingesting. The DO's WebSocket keeps it alive thereafter. The route is
- * unauthenticated but returns no operational detail — just a fixed 204 —
- * so a probing caller learns nothing useful. The action is idempotent on
- * an already-running DO. Recommended deploy hook:
+ * Operational admin routes. Both gated by the `ADMIN_TOKEN` secret declared
+ * in `wrangler.jsonc`'s `secrets.required` and validated via constant-time
+ * compare against the `Authorization: Bearer <token>` header. Recommended
+ * deploy hook:
  *
- *   wrangler deploy && curl -X POST https://api.emdashcms.com/_admin/start
+ *   wrangler deploy && curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+ *     https://api.emdashcms.com/_admin/start
+ *
+ * `/_admin/start` spins up the Records DO (idempotent on an already-running DO).
+ * `/_admin/backfill` triggers cold-start discovery against an explicit DID list.
+ *
+ * Auth-gating both routes: backfill specifically introduces caller-chosen
+ * URLs into the worker's outbound fetches (via `did:web` resolution + the
+ * publisher's PDS endpoint), so the unauth posture would expose an SSRF-shaped
+ * surface. Same gate on `/_admin/start` for symmetry — anyone with the token
+ * can do operational things.
  */
 const BOOTSTRAP_PATH = "/_admin/start";
+const BACKFILL_PATH = "/_admin/backfill";
+
+const MAX_BACKFILL_DIDS = 1000;
+const DID_PATTERN = /^did:[a-z]+:[A-Za-z0-9._%:-]+$/;
+
+/**
+ * Constant-time string equality. Use over `===` for any compare against a
+ * secret to avoid leaking length/prefix information through timing channels.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+	if (a.length !== b.length) return false;
+	let diff = 0;
+	for (let i = 0; i < a.length; i++) {
+		diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+	}
+	return diff === 0;
+}
+
+/**
+ * Validate the request's `Authorization: Bearer <token>` header against
+ * `env.ADMIN_TOKEN`. Returns null on success, or a 401 Response to return
+ * directly. Empty/missing token in env fails closed.
+ */
+function requireAdminAuth(request: Request, env: Env): Response | null {
+	const expected = env.ADMIN_TOKEN;
+	if (!expected) {
+		// Misconfigured production or unset dev — closed by default.
+		return new Response("admin endpoints not configured", { status: 503 });
+	}
+	const auth = request.headers.get("authorization");
+	if (!auth || !auth.startsWith("Bearer ")) {
+		return new Response("unauthorized", {
+			status: 401,
+			headers: { "www-authenticate": "Bearer" },
+		});
+	}
+	const token = auth.slice("Bearer ".length);
+	if (!timingSafeEqual(token, expected)) {
+		return new Response("unauthorized", {
+			status: 401,
+			headers: { "www-authenticate": "Bearer" },
+		});
+	}
+	return null;
+}
+
+function parseBackfillBody(body: unknown): { dids: string[] } | { error: string } {
+	if (!isPlainObject(body)) {
+		return { error: "request body must be a JSON object" };
+	}
+	const rawDids = body["dids"];
+	if (!Array.isArray(rawDids)) {
+		return { error: "`dids` must be an array of DID strings" };
+	}
+	if (rawDids.length === 0) {
+		return { error: "`dids` must not be empty" };
+	}
+	if (rawDids.length > MAX_BACKFILL_DIDS) {
+		return {
+			error: `\`dids\` must contain at most ${MAX_BACKFILL_DIDS} entries (got ${rawDids.length})`,
+		};
+	}
+	const seen = new Set<string>();
+	for (const did of rawDids) {
+		if (typeof did !== "string" || !DID_PATTERN.test(did)) {
+			return { error: `invalid DID in list: ${JSON.stringify(did)}` };
+		}
+		seen.add(did);
+	}
+	// Set iteration order matches insertion; dedup preserves first-seen order
+	// so the operator sees jobs run in the order they submitted.
+	return { dids: [...seen] };
+}
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const url = new URL(request.url);
 		if (url.pathname === BOOTSTRAP_PATH) {
+			const denied = requireAdminAuth(request, env);
+			if (denied) return denied;
 			const id = env.RECORDS_DO.idFromName(RECORDS_DO_NAME);
 			const stub = env.RECORDS_DO.get(id);
 			// Fire-and-forget so the response shape doesn't depend on the
@@ -47,6 +139,33 @@ export default {
 			// was already running, just woke up, or is mid-startup.
 			ctx.waitUntil(stub.fetch("https://do.internal/bootstrap"));
 			return new Response(null, { status: 204 });
+		}
+		if (url.pathname === BACKFILL_PATH) {
+			if (request.method !== "POST") {
+				return new Response("method not allowed", {
+					status: 405,
+					headers: { allow: "POST" },
+				});
+			}
+			const denied = requireAdminAuth(request, env);
+			if (denied) return denied;
+			let body: unknown;
+			try {
+				body = await request.json();
+			} catch {
+				return new Response("request body must be valid JSON", { status: 400 });
+			}
+			const parsed = parseBackfillBody(body);
+			if ("error" in parsed) {
+				return new Response(parsed.error, { status: 400 });
+			}
+			// Fire-and-forget via waitUntil so the route returns 202 quickly
+			// regardless of the DID list size. Backfill progress is observable
+			// via Workers logs and the resulting D1 writes; the response body
+			// just confirms the trigger landed. Per-DID errors are logged from
+			// inside backfillDids; callers don't get them in the response.
+			ctx.waitUntil(runBackfill(parsed.dids, env));
+			return new Response(null, { status: 202 });
 		}
 		return new Response("emdash-aggregator: not yet implemented", {
 			status: 503,
@@ -82,3 +201,47 @@ export default {
 		ctx.waitUntil(stub.fetch("https://do.internal/liveness"));
 	},
 };
+
+/**
+ * Production wiring for the backfill worker. Constructs a DID resolver
+ * pointed at the live PLC + atproto-web methods, and points the queue at
+ * the production Records Queue binding. Per-DID progress is logged as the
+ * loop runs so an operator watching `wrangler tail` sees live progress and
+ * can tell where a backfill stopped if waitUntil exhausts mid-loop.
+ */
+async function runBackfill(dids: readonly string[], env: Env): Promise<void> {
+	console.log("[aggregator] backfill starting", { didCount: dids.length });
+	try {
+		const composite = new CompositeDidDocumentResolver({
+			methods: {
+				plc: new PlcDidDocumentResolver(),
+				web: new AtprotoWebDidDocumentResolver(),
+			},
+		});
+		const resolver = new DidResolver({
+			cache: createD1DidDocCache(env.DB),
+			resolver: composite,
+		});
+		const summary = await backfillDids(dids, {
+			resolver,
+			queue: env.RECORDS_QUEUE,
+			onDidComplete: (result) => {
+				console.log("[aggregator] backfill did", {
+					did: result.did,
+					enqueued: result.enqueued,
+					errors: result.errors,
+				});
+			},
+		});
+		console.log("[aggregator] backfill complete", {
+			didCount: dids.length,
+			totalEnqueued: summary.totalEnqueued,
+			didsWithErrors: summary.results.filter((r) => r.errors.length > 0).length,
+		});
+	} catch (err) {
+		console.error("[aggregator] backfill aborted", {
+			didCount: dids.length,
+			error: err instanceof Error ? (err.stack ?? err.message) : String(err),
+		});
+	}
+}

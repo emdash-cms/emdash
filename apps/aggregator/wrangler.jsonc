@@ -80,6 +80,13 @@
 		// Constellation HTTP API for cold-start backfill DID discovery.
 		"CONSTELLATION_URL": "https://constellation.microcosm.blue",
 	},
+	// Required secrets, declared in config so `wrangler types` generates the
+	// typed binding and `wrangler deploy` refuses to ship without them set.
+	// Set in production with `wrangler secret put ADMIN_TOKEN`; tests bind
+	// a stub value via miniflare in vitest.config.ts.
+	"secrets": {
+		"required": ["ADMIN_TOKEN"],
+	},
 	"observability": {
 		"enabled": true,
 	},

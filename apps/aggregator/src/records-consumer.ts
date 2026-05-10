@@ -53,6 +53,7 @@ import {
 	type VerificationFailureReason,
 	type VerifiedPdsRecord,
 } from "./pds-verify.js";
+import { isPlainObject } from "./utils.js";
 
 /**
  * Deps the consumer needs at runtime. Constructed once per `processBatch` call
@@ -1070,10 +1071,6 @@ function computeVersionSort(version: string): string | null {
 		return `${pad(major)}.${pad(minor)}.${pad(patch)}.${padded.join(".")}`;
 	}
 	return `${pad(major)}.${pad(minor)}.${pad(patch)}.${FINAL_VERSION_SENTINEL}`;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**
