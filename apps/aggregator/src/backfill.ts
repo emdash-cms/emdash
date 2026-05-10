@@ -1,36 +1,53 @@
 /**
  * Cold-start discovery worker.
  *
- * Operator-triggered (via `POST /_admin/backfill`); takes a list of DIDs,
- * calls `com.atproto.repo.listRecords` against each publisher's PDS for every
- * collection in `WANTED_COLLECTIONS`, and enqueues each returned record onto
- * the existing Records Queue as a `RecordsJob`. The consumer's verification +
- * write + idempotency machinery handles the rest — same code path as live
- * Jetstream, distinguished only by trigger.
+ * Operator-triggered (via `POST /_admin/backfill`). Two trigger shapes:
  *
- * Live discovery is Jetstream's job, not this worker's; it picks up new
- * publishers automatically. Backfill exists for the cold-start gap (publishers
- * who published before the aggregator was listening) and for operator-triggered
- * recovery after a known outage. There is deliberately no periodic scheduler
- * — see plan §"Why no reconciliation cron".
+ *   - `{ "dids": [...] }` — explicit list, primarily for testing or recovery
+ *     of a known DID set.
+ *   - `{}` (empty body) — production cold-start. Calls
+ *     `com.atproto.sync.listReposByCollection` against the configured relay
+ *     for each NSID in `WANTED_COLLECTIONS`, paginates the full DID set,
+ *     dedupes, and feeds the union into the same backfill loop.
+ *
+ * Architecture: the POST handler synchronously discovers DIDs (or accepts an
+ * explicit list), then fans out one `BackfillJob = { did, collection }` per
+ * (DID × WANTED_COLLECTIONS) pair onto the dedicated `BACKFILL_QUEUE` via
+ * `sendBatch`. A separate consumer (`backfill-consumer.ts`) processes one
+ * pair at a time: resolve PDS, paginate `com.atproto.repo.listRecords`,
+ * batch-enqueue each returned record onto the existing Records Queue.
+ *
+ * Why a separate queue rather than running the per-DID loop inside the
+ * `ctx.waitUntil` of the POST handler: Cloudflare's hard 30-second
+ * wall-clock cap on `waitUntil` would limit a single backfill POST to
+ * ~15–25 DIDs before in-flight work was cancelled. The queue gives us
+ * automatic retry, concurrency, and per-pair invocation budgets that each
+ * fit comfortably under the sub-request ceiling.
+ *
+ * Live discovery (post-cold-start) is Jetstream's job, not this worker's;
+ * the consumer writes `known_publishers` opportunistically on any record
+ * event for an unseen DID. Backfill exists for the cold-start gap
+ * (publishers who published before the aggregator was listening) and for
+ * operator-triggered recovery after a known outage. There is deliberately
+ * no periodic scheduler — see plan §"Why no reconciliation cron".
  */
 
 import { WANTED_COLLECTIONS } from "./constants.js";
 import type { DidResolver } from "./did-resolver.js";
-import type { RecordsJob } from "./env.js";
+import type { BackfillJob, RecordsJob } from "./env.js";
 import { isPlainObject } from "./utils.js";
 
 const PAGE_SIZE = 100;
 /** Per-listRecords-page timeout. A hostile or hung publisher PDS that
  * accepts the connection but stalls the body would otherwise block the
  * fetch until workerd's overall sub-request budget exhausts — starving
- * every DID after this one in the serial loop. Same shape as
+ * every later page in the same consumer invocation. Same shape as
  * `pds-verify.ts`'s fetchCar timeout. */
 const LIST_RECORDS_TIMEOUT_MS = 15_000;
-/** Cap on listRecords pagination per collection. A buggy or malicious PDS
- * that echoes the same cursor would otherwise loop forever inside one
- * `ctx.waitUntil`. 1000 pages × 100 records = 100k records per collection,
- * which is past anything we'd legitimately backfill in one shot. */
+/** Cap on listRecords pagination per (DID, collection) pair. A buggy or
+ * malicious PDS that echoes the same cursor would otherwise loop forever
+ * inside one consumer invocation. 1000 pages × 100 records = 100k records
+ * per pair, which is past anything we'd legitimately backfill in one shot. */
 const MAX_PAGES_PER_COLLECTION = 1000;
 /** Defensive cap on records per page. Real PDSes honour the `limit` query
  * param; this guards against a hostile PDS returning an enormous array.
@@ -42,7 +59,7 @@ const MAX_RECORDS_PER_PAGE = PAGE_SIZE;
 /** Cloudflare Queues' hard cap on `sendBatch` size. Per-page enqueues are
  * always ≤ this thanks to MAX_RECORDS_PER_PAGE; documented here so the
  * relationship is visible at the call site. */
-const QUEUE_SEND_BATCH_CAP = 100;
+export const QUEUE_SEND_BATCH_CAP = 100;
 // Static guard: bumping MAX_RECORDS_PER_PAGE above the queue's batch cap
 // would silently break sendBatch in production. Surface the violation at
 // module load rather than at the first batch send.
@@ -51,185 +68,227 @@ if (MAX_RECORDS_PER_PAGE > QUEUE_SEND_BATCH_CAP) {
 		`MAX_RECORDS_PER_PAGE (${MAX_RECORDS_PER_PAGE}) exceeds QUEUE_SEND_BATCH_CAP (${QUEUE_SEND_BATCH_CAP})`,
 	);
 }
-/** Cap on the total number of records a single backfill invocation may
- * enqueue. Defends against a leaked admin token being weaponised to flood
- * the queue at near-zero cost to the attacker. The blast radius of one
- * compromised POST is bounded by this number × per-message billing.
- *
- * 50k = ~50 plausible publishers × ~250 records each, well past v1 scale.
- * Worker waitUntil exhausts long before this in any honest workload. */
-const MAX_TOTAL_ENQUEUE = 50_000;
 /** Atproto rkey grammar: ALPHA / DIGIT / "." / "-" / "_" / ":" / "~". */
 const RKEY_PATTERN = /^[A-Za-z0-9._:~-]{1,512}$/;
 
-/** Thrown when the per-invocation enqueue cap is reached. Caller catches
- * and stops processing further DIDs / collections; partial work already
- * committed to the queue is what it is (consumer is idempotent on retry). */
-export class EnqueueLimitReached extends Error {
-	constructor(public readonly limit: number) {
-		super(`backfill enqueue cap of ${limit} reached`);
-	}
-}
-
-/** Producer-side queue surface. The production binding `env.RECORDS_QUEUE`
- * satisfies this; tests pass an in-memory implementation. The return type
- * is `unknown` rather than `void` so workerd's `Queue.send` (which returns
- * a `QueueSendResponse`) is structurally assignable. */
-export interface BackfillQueue {
+/** Producer-side records queue surface. The production binding
+ * `env.RECORDS_QUEUE` satisfies this; tests pass an in-memory implementation. */
+export interface RecordsQueueProducer {
 	sendBatch(messages: ReadonlyArray<{ body: RecordsJob }>): Promise<unknown>;
 }
 
-export interface BackfillDeps {
+/** Producer-side backfill-jobs queue surface. The production binding
+ * `env.BACKFILL_QUEUE` satisfies this; tests pass an in-memory
+ * implementation. Same shape as `RecordsQueueProducer`, separated so the
+ * type system catches accidental cross-wiring. */
+export interface BackfillQueueProducer {
+	sendBatch(messages: ReadonlyArray<{ body: BackfillJob }>): Promise<unknown>;
+}
+
+/** Cap on pages walked per relay collection. Same shape as
+ * MAX_PAGES_PER_COLLECTION but for the discovery side. At 100 repos/page,
+ * 100 pages = 10k publishers — past anything we'd legitimately discover at
+ * Slice 1 scale. */
+const MAX_DISCOVERY_PAGES_PER_COLLECTION = 100;
+const DISCOVERY_PAGE_SIZE = 100;
+const DISCOVERY_TIMEOUT_MS = 15_000;
+/** Defensive cap on the union of discovered DIDs. A relay returning a
+ * runaway list (bug or hostile mirror) would otherwise let one POST fan
+ * out millions of jobs onto BACKFILL_QUEUE. At Slice 1 scale we expect a
+ * handful to a few hundred publishers. */
+export const MAX_DISCOVERED_DIDS = 1000;
+
+/**
+ * Discover all DIDs publishing any of `WANTED_COLLECTIONS` by querying the
+ * relay's `com.atproto.sync.listReposByCollection`. Returns the union of
+ * unique DIDs across all collections, in arbitrary order.
+ *
+ * Uses the same defenses as the per-pair listRecords loop: per-page
+ * timeout, max-page cap, cursor-equality check. Per-collection failures
+ * are logged and the loop continues — discovery via the relay is
+ * best-effort; a partial discovery list is better than none. Stops early
+ * once `MAX_DISCOVERED_DIDS` is reached so a runaway relay can't pump
+ * arbitrary fan-out into the queue.
+ */
+export async function discoverDids(
+	relayUrl: string,
+	opts: { fetch?: typeof fetch; timeoutMs?: number } = {},
+): Promise<string[]> {
+	const fetchImpl = opts.fetch ?? fetch;
+	const timeoutMs = opts.timeoutMs ?? DISCOVERY_TIMEOUT_MS;
+	const dids = new Set<string>();
+	for (const collection of WANTED_COLLECTIONS) {
+		try {
+			await discoverCollection(relayUrl, collection, fetchImpl, timeoutMs, dids);
+		} catch (err) {
+			console.error("[aggregator] backfill discovery failed for collection", {
+				collection,
+				error: err instanceof Error ? err.message : String(err),
+			});
+		}
+		if (dids.size >= MAX_DISCOVERED_DIDS) {
+			console.warn("[aggregator] backfill discovery hit DID cap, stopping early", {
+				cap: MAX_DISCOVERED_DIDS,
+				stoppedAfterCollection: collection,
+			});
+			break;
+		}
+	}
+	return [...dids];
+}
+
+async function discoverCollection(
+	relayUrl: string,
+	collection: string,
+	fetchImpl: typeof fetch,
+	timeoutMs: number,
+	dids: Set<string>,
+): Promise<void> {
+	let cursor: string | undefined;
+	let prevCursor: string | undefined;
+	let pages = 0;
+	do {
+		if (++pages > MAX_DISCOVERY_PAGES_PER_COLLECTION) {
+			throw new Error(`exceeded ${MAX_DISCOVERY_PAGES_PER_COLLECTION} discovery pages`);
+		}
+		if (cursor !== undefined && cursor === prevCursor) {
+			throw new Error("relay returned identical cursor twice");
+		}
+		prevCursor = cursor;
+
+		const url = new URL("/xrpc/com.atproto.sync.listReposByCollection", relayUrl);
+		url.searchParams.set("collection", collection);
+		url.searchParams.set("limit", String(DISCOVERY_PAGE_SIZE));
+		if (cursor) url.searchParams.set("cursor", cursor);
+
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), timeoutMs);
+		let response: Response;
+		try {
+			response = await fetchImpl(url.toString(), {
+				headers: { accept: "application/json" },
+				signal: controller.signal,
+			});
+		} catch (err) {
+			if (err instanceof Error && err.name === "AbortError") {
+				throw new Error(`listReposByCollection timed out after ${timeoutMs}ms`, { cause: err });
+			}
+			throw err;
+		} finally {
+			clearTimeout(timer);
+		}
+		if (!response.ok) {
+			throw new Error(`listReposByCollection returned ${response.status}`);
+		}
+		const body: unknown = await response.json();
+		if (!isPlainObject(body)) throw new Error("listReposByCollection returned non-object body");
+		const repos = body["repos"];
+		if (!Array.isArray(repos)) {
+			throw new Error("listReposByCollection response missing `repos` array");
+		}
+		for (const repo of repos) {
+			if (!isPlainObject(repo)) continue;
+			const did = repo["did"];
+			if (typeof did === "string") {
+				dids.add(did);
+				if (dids.size >= MAX_DISCOVERED_DIDS) return;
+			}
+		}
+		const nextCursor = body["cursor"];
+		cursor = typeof nextCursor === "string" && nextCursor.length > 0 ? nextCursor : undefined;
+	} while (cursor);
+}
+
+/**
+ * Fan out backfill work for a list of DIDs onto `BACKFILL_QUEUE`. Produces
+ * one `BackfillJob` per (DID × WANTED_COLLECTIONS) pair, sent in batches
+ * of up to `QUEUE_SEND_BATCH_CAP` to honour Cloudflare Queues' sendBatch
+ * limit. Returns the total number of jobs enqueued.
+ *
+ * Caller is responsible for capping `dids.length` (admin route enforces
+ * `MAX_BACKFILL_DIDS` for the explicit path; `discoverDids` enforces
+ * `MAX_DISCOVERED_DIDS` for the discovery path). This function trusts its
+ * input and just fans out — the per-call work is bounded by
+ * `dids.length * WANTED_COLLECTIONS.length` enqueues.
+ */
+export async function enqueueBackfillJobs(
+	dids: readonly string[],
+	queue: BackfillQueueProducer,
+): Promise<number> {
+	const messages: { body: BackfillJob }[] = [];
+	for (const did of dids) {
+		for (const collection of WANTED_COLLECTIONS) {
+			messages.push({ body: { did, collection } });
+		}
+	}
+	for (let i = 0; i < messages.length; i += QUEUE_SEND_BATCH_CAP) {
+		await queue.sendBatch(messages.slice(i, i + QUEUE_SEND_BATCH_CAP));
+	}
+	return messages.length;
+}
+
+export interface ProcessBackfillJobDeps {
 	resolver: DidResolver;
-	queue: BackfillQueue;
+	queue: RecordsQueueProducer;
 	/** Inject for tests; defaults to `globalThis.fetch`. */
 	fetch?: typeof fetch;
 	/** Override for the per-listRecords-page timeout. Defaults to
 	 * `LIST_RECORDS_TIMEOUT_MS`. Tests use a small value to exercise the
 	 * abort path without burning the production budget. */
 	listRecordsTimeoutMs?: number;
-	/** Optional callback fired after each DID completes (success or failure).
-	 * Used by the production wiring to log per-DID progress so an operator
-	 * watching `wrangler tail` sees where a long backfill is up to. */
-	onDidComplete?: (result: BackfillDidResult) => void;
 }
 
-export interface BackfillDidResult {
+export interface ProcessBackfillJobResult {
 	did: string;
+	collection: string;
 	enqueued: number;
-	/** One entry per failure during this DID's backfill. listRecords failures
-	 * are per-collection; resolution failures abort early. Empty array on
-	 * total success. */
-	errors: string[];
-}
-
-export interface BackfillSummary {
-	totalEnqueued: number;
-	results: BackfillDidResult[];
 }
 
 /**
- * Backfill multiple DIDs serially. Per-DID failures don't stop the loop —
- * one bad publisher doesn't block the rest.
+ * Process one (DID, collection) pair: resolve the DID's PDS, paginate
+ * `com.atproto.repo.listRecords` for the collection, and batch-enqueue
+ * each returned record onto the records queue.
  *
- * Aborts the loop early if the per-invocation enqueue cap is reached. The
- * partial summary still reflects what got through; the operator can re-run
- * with the unfinished tail of the DID list.
- */
-export async function backfillDids(
-	dids: readonly string[],
-	deps: BackfillDeps,
-): Promise<BackfillSummary> {
-	const results: BackfillDidResult[] = [];
-	const budget: EnqueueBudget = { remaining: MAX_TOTAL_ENQUEUE };
-	for (const did of dids) {
-		const result = await backfillDid(did, deps, budget);
-		results.push(result);
-		deps.onDidComplete?.(result);
-		if (budget.remaining <= 0) {
-			console.warn("[aggregator] backfill enqueue cap reached, aborting remaining DIDs", {
-				cap: MAX_TOTAL_ENQUEUE,
-				triggerDid: result.did,
-				didsProcessed: results.length,
-				didsRemaining: dids.length - results.length,
-			});
-			break;
-		}
-	}
-	const totalEnqueued = results.reduce((sum, r) => sum + r.enqueued, 0);
-	return { totalEnqueued, results };
-}
-
-/** Mutable counter shared across the per-DID / per-collection loops so the
- * cap is global to one backfill invocation. */
-interface EnqueueBudget {
-	remaining: number;
-}
-
-/**
- * Backfill a single DID across every collection in `WANTED_COLLECTIONS`.
- * Resolution failure aborts (we can't enqueue verifiable jobs without
- * knowing the PDS); per-collection listRecords failures are recorded and
- * the loop continues to the next collection.
+ * Throws on any failure (resolution, listRecords status, pagination
+ * runaway). The queue consumer translates a thrown result into
+ * `message.retry()`; messages that exhaust max_retries land in the
+ * backfill DLQ for the operator to inspect.
  *
- * Optional `budget` shares the per-invocation enqueue cap across DIDs.
- * Tests that call this directly without a budget get an effectively
- * unbounded one.
+ * 404 from the PDS on the first page is treated as "publisher does not
+ * host this collection" and returns 0 enqueues without throwing — same
+ * shape as the previous serial-loop semantics.
  */
-export async function backfillDid(
-	did: string,
-	deps: BackfillDeps,
-	budget: EnqueueBudget = { remaining: MAX_TOTAL_ENQUEUE },
-): Promise<BackfillDidResult> {
-	const errors: string[] = [];
-	let enqueued = 0;
-
-	// resolve() writes to known_publishers as a side-effect of the cache
-	// upsert, so this also registers the publisher for any future code path
-	// that iterates that table.
-	let pds: string;
-	try {
-		const resolved = await deps.resolver.resolve(did);
-		pds = resolved.pds;
-	} catch (err) {
-		errors.push(`resolve failed: ${err instanceof Error ? err.message : String(err)}`);
-		return { did, enqueued, errors };
-	}
-
+export async function processBackfillJob(
+	job: BackfillJob,
+	deps: ProcessBackfillJobDeps,
+): Promise<ProcessBackfillJobResult> {
+	const resolved = await deps.resolver.resolve(job.did);
 	const fetchImpl = deps.fetch ?? fetch;
 	const timeoutMs = deps.listRecordsTimeoutMs ?? LIST_RECORDS_TIMEOUT_MS;
-	for (const collection of WANTED_COLLECTIONS) {
-		// Track this collection's enqueues separately so a mid-pagination
-		// throw still reports the partial count instead of swallowing the
-		// records that already landed in the queue.
-		const before = budget.remaining;
-		try {
-			await backfillCollection({
-				did,
-				pds,
-				collection,
-				queue: deps.queue,
-				fetchImpl,
-				timeoutMs,
-				budget,
-			});
-		} catch (err) {
-			if (err instanceof EnqueueLimitReached) {
-				// Stop processing further collections for this DID; outer
-				// loop will catch the budget exhaustion and stop entirely.
-				// Append a sentinel error so the operator's per-DID log
-				// shows the cap fired (otherwise `enqueued: 47, errors: []`
-				// looks like a successful 47-record DID).
-				enqueued += before - budget.remaining;
-				errors.push(
-					`enqueue cap reached mid-DID at collection ${collection} — partial backfill, re-run to complete`,
-				);
-				return { did, enqueued, errors };
-			}
-			errors.push(`${collection}: ${err instanceof Error ? err.message : String(err)}`);
-		}
-		enqueued += before - budget.remaining;
-	}
-
-	return { did, enqueued, errors };
+	const enqueued = await paginateAndEnqueue({
+		did: job.did,
+		pds: resolved.pds,
+		collection: job.collection,
+		queue: deps.queue,
+		fetchImpl,
+		timeoutMs,
+	});
+	return { did: job.did, collection: job.collection, enqueued };
 }
 
-interface BackfillCollectionOpts {
+interface PaginateOpts {
 	did: string;
 	pds: string;
 	collection: string;
-	queue: BackfillQueue;
+	queue: RecordsQueueProducer;
 	fetchImpl: typeof fetch;
 	timeoutMs: number;
-	budget: EnqueueBudget;
 }
 
 /**
  * Walk one DID's records for a single collection, paginating through
  * `listRecords` and enqueuing each result via `sendBatch` (one batch per
- * page). Decrements `opts.budget.remaining` per record enqueued; throws
- * `EnqueueLimitReached` when the budget hits zero so the caller can stop
- * processing further collections / DIDs.
+ * page). Returns the total records enqueued.
  *
  * 404 from the PDS on the FIRST page means the repo doesn't host this
  * collection — silently treated as zero records, not an error. A 404
@@ -244,12 +303,12 @@ interface BackfillCollectionOpts {
  * `?limit=` query and returns more records than that throws — we'd rather
  * surface the spec violation than silently chunk and hide the upstream bug.
  */
-async function backfillCollection(opts: BackfillCollectionOpts): Promise<void> {
+async function paginateAndEnqueue(opts: PaginateOpts): Promise<number> {
 	let cursor: string | undefined;
 	let prevCursor: string | undefined;
 	let pages = 0;
+	let totalEnqueued = 0;
 	do {
-		if (opts.budget.remaining <= 0) throw new EnqueueLimitReached(MAX_TOTAL_ENQUEUE);
 		if (++pages > MAX_PAGES_PER_COLLECTION) {
 			throw new Error(`exceeded ${MAX_PAGES_PER_COLLECTION} pages`);
 		}
@@ -283,7 +342,7 @@ async function backfillCollection(opts: BackfillCollectionOpts): Promise<void> {
 		if (response.status === 404) {
 			if (cursor === undefined) {
 				// First-page 404: publisher has no records of this collection.
-				return;
+				return totalEnqueued;
 			}
 			// Mid-pagination 404 is a partial failure; surface it.
 			throw new Error(`listRecords returned 404 mid-pagination at cursor=${cursor}`);
@@ -303,7 +362,6 @@ async function backfillCollection(opts: BackfillCollectionOpts): Promise<void> {
 
 		const messages: { body: RecordsJob }[] = [];
 		for (const record of records) {
-			if (opts.budget.remaining - messages.length <= 0) break;
 			const rkey = parseRkeyFromUri(record.uri, opts.collection);
 			if (!rkey) continue;
 			messages.push({
@@ -321,10 +379,10 @@ async function backfillCollection(opts: BackfillCollectionOpts): Promise<void> {
 			// the static assertion above, so this sendBatch never exceeds
 			// Cloudflare's 100-message limit by construction.
 			await opts.queue.sendBatch(messages);
-			opts.budget.remaining -= messages.length;
+			totalEnqueued += messages.length;
 		}
-		if (opts.budget.remaining <= 0) throw new EnqueueLimitReached(MAX_TOTAL_ENQUEUE);
 	} while (cursor);
+	return totalEnqueued;
 }
 
 interface ListRecordEntry {

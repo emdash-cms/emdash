@@ -25,6 +25,16 @@
 				"binding": "RECORDS_QUEUE",
 				"queue": "emdash-aggregator-records",
 			},
+			{
+				// Backfill orchestrator (POST /_admin/backfill) fans
+				// (DID, collection) pairs onto this queue. Per-pair work
+				// (resolve PDS → listRecords → sendBatch onto RECORDS_QUEUE)
+				// fits well within a single consumer invocation's waitUntil,
+				// solving the 30s wall-clock cap that would otherwise limit
+				// us to ~15–25 DIDs per backfill POST.
+				"binding": "BACKFILL_QUEUE",
+				"queue": "emdash-aggregator-backfill",
+			},
 		],
 		"consumers": [
 			{
@@ -46,6 +56,23 @@
 				"max_batch_size": 25,
 				"max_batch_timeout": 30,
 				"max_retries": 3,
+			},
+			{
+				// Backfill (DID, collection) consumer. Each job: resolve
+				// PDS, paginate listRecords for one collection, batch
+				// results onto RECORDS_QUEUE. Smaller batch size than the
+				// records consumer because each job involves outbound PDS
+				// fetches; backpressure from RECORDS_QUEUE flows naturally
+				// via this consumer's runtime budget. Failed jobs land in
+				// a DLQ that's intentionally unbound — backfill is
+				// operator-triggered and operator-monitored, so DLQ
+				// drainage is a follow-up concern rather than an
+				// always-on automation requirement.
+				"queue": "emdash-aggregator-backfill",
+				"max_batch_size": 5,
+				"max_batch_timeout": 5,
+				"max_retries": 3,
+				"dead_letter_queue": "emdash-aggregator-backfill-dlq",
 			},
 		],
 	},
@@ -77,8 +104,13 @@
 		// Jetstream endpoint. Override per environment for self-hosted relays
 		// or staging backends.
 		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
-		// Constellation HTTP API for cold-start backfill DID discovery.
-		"CONSTELLATION_URL": "https://constellation.microcosm.blue",
+		// Relay base URL implementing `com.atproto.sync.listReposByCollection`,
+		// used by `/_admin/backfill` to enumerate publishers of our NSIDs at
+		// cold-start time. Defaults to Bluesky's main relay (the canonical
+		// atproto relay; same trust orbit as our Jetstream endpoint).
+		// Override for self-hosted indexers (e.g. Microcosm's Lightrail)
+		// if/when we want a non-bsky.network discovery path.
+		"RELAY_URL": "https://bsky.network",
 	},
 	// Required secrets, declared in config so `wrangler types` generates the
 	// typed binding and `wrangler deploy` validates the secret is set on the

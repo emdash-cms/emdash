@@ -15,21 +15,16 @@
  * Worker boots.
  */
 
-import {
-	AtprotoWebDidDocumentResolver,
-	CompositeDidDocumentResolver,
-	PlcDidDocumentResolver,
-} from "@atcute/identity-resolver";
-
-import { backfillDids } from "./backfill.js";
-import { createD1DidDocCache, DidResolver } from "./did-resolver.js";
-import type { RecordsJob } from "./env.js";
+import { processBackfillBatch } from "./backfill-consumer.js";
+import { discoverDids, enqueueBackfillJobs } from "./backfill.js";
+import type { BackfillJob, RecordsJob } from "./env.js";
 import { drainDeadLetterBatch, processBatch } from "./records-consumer.js";
 import { RECORDS_DO_NAME } from "./records-do.js";
 import { isPlainObject } from "./utils.js";
 
 const RECORDS_QUEUE_NAME = "emdash-aggregator-records";
 const RECORDS_DLQ_NAME = "emdash-aggregator-records-dlq";
+const BACKFILL_QUEUE_NAME = "emdash-aggregator-backfill";
 
 export { RecordsJetstreamDO } from "./records-do.js";
 
@@ -43,7 +38,11 @@ export { RecordsJetstreamDO } from "./records-do.js";
  *     https://api.emdashcms.com/_admin/start
  *
  * `/_admin/start` spins up the Records DO (idempotent on an already-running DO).
- * `/_admin/backfill` triggers cold-start discovery against an explicit DID list.
+ * `/_admin/backfill` discovers publishers (or accepts an explicit DID list)
+ * and fans (DID, collection) jobs onto `BACKFILL_QUEUE`; the consumer in
+ * `backfill-consumer.ts` does the per-pair listRecords + records-queue
+ * fan-out work asynchronously, getting queue retry + concurrency for free
+ * and sidestepping the 30s `waitUntil` cap on the POST handler.
  *
  * Auth-gating both routes: backfill specifically introduces caller-chosen
  * URLs into the worker's outbound fetches (via `did:web` resolution + the
@@ -54,7 +53,18 @@ export { RecordsJetstreamDO } from "./records-do.js";
 const BOOTSTRAP_PATH = "/_admin/start";
 const BACKFILL_PATH = "/_admin/backfill";
 
-const MAX_BACKFILL_DIDS = 1000;
+/**
+ * Cap on the explicit DID list a single POST may submit. Lower than the
+ * old serial-loop cap (was 1000) because the queue-fan-out path amplifies
+ * a leaked-token attack: each submitted DID becomes
+ * `WANTED_COLLECTIONS.length` queue messages, each consuming a consumer
+ * invocation with its own outbound PDS fetches. 100 × 4 = 400 jobs is
+ * still a meaningful operator-recovery batch but a tractable blast radius.
+ *
+ * Discovery-mode submissions are bounded separately by
+ * `MAX_DISCOVERED_DIDS` inside `discoverDids`.
+ */
+const MAX_BACKFILL_DIDS = 100;
 const DID_PATTERN = /^did:[a-z]+:[A-Za-z0-9._%:-]+$/;
 
 /**
@@ -111,16 +121,28 @@ function requireAdminAuth(request: Request, env: Env): Response | null {
 	return null;
 }
 
-function parseBackfillBody(body: unknown): { dids: string[] } | { error: string } {
+type BackfillRequest = { mode: "explicit"; dids: string[] } | { mode: "discover" };
+
+function parseBackfillBody(body: unknown): BackfillRequest | { error: string } {
 	if (!isPlainObject(body)) {
 		return { error: "request body must be a JSON object" };
 	}
 	const rawDids = body["dids"];
+	// Empty body OR `{ "dids": null }` OR `{ "dids": undefined }` ⇒ discovery
+	// mode. Production cold-start uses this path; the explicit list is the
+	// testing / recovery seam.
+	if (rawDids === undefined || rawDids === null) {
+		return { mode: "discover" };
+	}
 	if (!Array.isArray(rawDids)) {
-		return { error: "`dids` must be an array of DID strings" };
+		return {
+			error: "`dids` must be an array of DID strings, or omitted to discover via the relay",
+		};
 	}
 	if (rawDids.length === 0) {
-		return { error: "`dids` must not be empty" };
+		return {
+			error: "`dids` must not be empty (omit the field to discover via the relay)",
+		};
 	}
 	if (rawDids.length > MAX_BACKFILL_DIDS) {
 		return {
@@ -136,7 +158,7 @@ function parseBackfillBody(body: unknown): { dids: string[] } | { error: string 
 	}
 	// Set iteration order matches insertion; dedup preserves first-seen order
 	// so the operator sees jobs run in the order they submitted.
-	return { dids: [...seen] };
+	return { mode: "explicit", dids: [...seen] };
 }
 
 export default {
@@ -168,11 +190,19 @@ export default {
 			}
 			const denied = requireAdminAuth(request, env);
 			if (denied) return denied;
-			let body: unknown;
-			try {
-				body = await request.json();
-			} catch {
-				return new Response("request body must be valid JSON", { status: 400 });
+			// Empty / no body is the production discovery path. JSON-parse
+			// failures with no content (Content-Length: 0) come back as
+			// SyntaxError; we treat that as "discover" rather than 400ing
+			// so `curl -X POST ... /_admin/backfill` (no body) does the
+			// expected thing.
+			let body: unknown = {};
+			const text = await request.text();
+			if (text.length > 0) {
+				try {
+					body = JSON.parse(text);
+				} catch {
+					return new Response("request body must be valid JSON", { status: 400 });
+				}
 			}
 			const parsed = parseBackfillBody(body);
 			if ("error" in parsed) {
@@ -183,7 +213,7 @@ export default {
 			// via Workers logs and the resulting D1 writes; the response body
 			// just confirms the trigger landed. Per-DID errors are logged from
 			// inside backfillDids; callers don't get them in the response.
-			ctx.waitUntil(runBackfill(parsed.dids, env));
+			ctx.waitUntil(runBackfill(parsed, env));
 			return new Response(null, { status: 202 });
 		}
 		return new Response("emdash-aggregator: not yet implemented", {
@@ -192,15 +222,24 @@ export default {
 		});
 	},
 
-	async queue(batch: MessageBatch<RecordsJob>, env: Env, _ctx: ExecutionContext): Promise<void> {
-		// Workerd routes both consumers (records + records-dlq) here; dispatch
-		// by queue name. Adding a third queue requires updating this switch.
+	async queue(batch: MessageBatch, env: Env, _ctx: ExecutionContext): Promise<void> {
+		// Workerd routes every consumer here; dispatch by queue name to the
+		// matching typed handler. The parameter is unparameterised
+		// (`MessageBatch` defaults to `MessageBatch<unknown>`) because the
+		// binding is shared across queues — narrowing happens per-case via
+		// the queue name, which is a runtime tag the compiler can't see.
 		switch (batch.queue) {
 			case RECORDS_QUEUE_NAME:
-				await processBatch(batch, env);
+				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by queue name
+				await processBatch(batch as MessageBatch<RecordsJob>, env);
 				return;
 			case RECORDS_DLQ_NAME:
-				await drainDeadLetterBatch(batch, env);
+				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by queue name
+				await drainDeadLetterBatch(batch as MessageBatch<RecordsJob>, env);
+				return;
+			case BACKFILL_QUEUE_NAME:
+				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by queue name
+				await processBackfillBatch(batch as MessageBatch<BackfillJob>, env);
 				return;
 			default:
 				console.error("[aggregator] unknown queue, acking batch", { queue: batch.queue });
@@ -221,49 +260,64 @@ export default {
 	},
 };
 
+type BackfillRequestParsed = { mode: "explicit"; dids: string[] } | { mode: "discover" };
+
 /**
- * Production wiring for the backfill worker. Constructs a DID resolver
- * pointed at the live PLC + atproto-web methods, and points the queue at
- * the production Records Queue binding. Per-DID progress is logged as the
- * loop runs so an operator watching `wrangler tail` sees live progress and
- * can tell where a backfill stopped if waitUntil exhausts mid-loop.
+ * Backfill orchestrator. Runs inside the POST handler's `ctx.waitUntil`.
+ * Two paths:
+ *
+ *   - "discover" — call `com.atproto.sync.listReposByCollection` against
+ *     `env.RELAY_URL` for each NSID in WANTED_COLLECTIONS, union the DIDs,
+ *     then fan them out as backfill jobs.
+ *   - "explicit" — operator-supplied DID list, used for testing or for
+ *     recovery of a known DID set.
+ *
+ * In both cases the actual per-(DID, collection) work runs in the
+ * `BACKFILL_QUEUE` consumer (see `backfill-consumer.ts`). This orchestrator
+ * just discovers + enqueues — both fast operations that fit well within
+ * Cloudflare's 30s `waitUntil` ceiling regardless of fan-out size, even
+ * after a `MAX_DISCOVERED_DIDS`-sized union.
+ *
+ * Per-pair progress is logged from the consumer; this function only logs
+ * the discovery + fan-out result so an operator watching `wrangler tail`
+ * sees how many jobs were enqueued.
  */
-async function runBackfill(dids: readonly string[], env: Env): Promise<void> {
-	console.log("[aggregator] backfill starting", { didCount: dids.length });
+async function runBackfill(req: BackfillRequestParsed, env: Env): Promise<void> {
 	try {
-		const composite = new CompositeDidDocumentResolver({
-			methods: {
-				plc: new PlcDidDocumentResolver(),
-				web: new AtprotoWebDidDocumentResolver(),
-			},
-		});
-		const resolver = new DidResolver({
-			cache: createD1DidDocCache(env.DB),
-			resolver: composite,
-		});
-		const summary = await backfillDids(dids, {
-			resolver,
-			queue: env.RECORDS_QUEUE,
-			onDidComplete: (result) => {
-				console.log("[aggregator] backfill did", {
-					did: result.did,
-					enqueued: result.enqueued,
-					errors: result.errors,
-				});
-			},
-		});
-		console.log("[aggregator] backfill complete", {
-			didsRequested: dids.length,
-			// Separate from didsRequested so the early-abort case (enqueue
-			// cap fired) is visible in the summary log without the operator
-			// having to correlate against an earlier warn line.
-			didsProcessed: summary.results.length,
-			totalEnqueued: summary.totalEnqueued,
-			didsWithErrors: summary.results.filter((r) => r.errors.length > 0).length,
+		let dids: readonly string[];
+		if (req.mode === "discover") {
+			console.log("[aggregator] backfill discovery starting", {
+				relay: env.RELAY_URL,
+			});
+			dids = await discoverDids(env.RELAY_URL);
+			console.log("[aggregator] backfill discovery complete", {
+				relay: env.RELAY_URL,
+				didCount: dids.length,
+			});
+		} else {
+			dids = req.dids;
+			console.log("[aggregator] backfill enqueue starting", {
+				mode: "explicit",
+				didCount: dids.length,
+			});
+		}
+
+		if (dids.length === 0) {
+			console.warn("[aggregator] backfill produced zero DIDs, nothing to enqueue", {
+				mode: req.mode,
+			});
+			return;
+		}
+
+		const enqueued = await enqueueBackfillJobs(dids, env.BACKFILL_QUEUE);
+		console.log("[aggregator] backfill enqueue complete", {
+			mode: req.mode,
+			didCount: dids.length,
+			jobsEnqueued: enqueued,
 		});
 	} catch (err) {
 		console.error("[aggregator] backfill aborted", {
-			didCount: dids.length,
+			mode: req.mode,
 			error: err instanceof Error ? (err.stack ?? err.message) : String(err),
 		});
 	}

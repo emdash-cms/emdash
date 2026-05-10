@@ -20,3 +20,18 @@ export interface RecordsJob {
 	 */
 	jetstreamRecord?: unknown;
 }
+
+/**
+ * One unit of cold-start backfill work: walk every record under `collection`
+ * for `did` via that DID's PDS, then enqueue each record onto the records
+ * queue for the standard verify-and-write path.
+ *
+ * Granularity is (DID, collection) rather than per-DID because the per-DID
+ * fan-out can exceed Cloudflare's 30s `ctx.waitUntil` wall-clock cap. One
+ * collection's worth of pagination fits comfortably under that ceiling and
+ * gets queue-level retry + concurrency for free.
+ */
+export interface BackfillJob {
+	did: string;
+	collection: string;
+}
