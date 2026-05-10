@@ -172,14 +172,19 @@ export async function drainDeadLetterBatch(
 		});
 		try {
 			await writeDeadLetter(env.DB, job, "UNEXPECTED_ERROR", "drained from DLQ", now);
+			message.ack();
 		} catch (err) {
-			console.error("[aggregator] DLQ drain: failed to write forensics row", {
+			// Don't ack on D1 failure — workerd will redeliver per the DLQ
+			// consumer's max_retries, and after exhaustion the message is
+			// dropped (no DLQ-of-DLQ). Better to retry than silently lose
+			// forensics on a transient hiccup.
+			console.error("[aggregator] DLQ drain: failed to write forensics row, retrying", {
 				did: job.did,
 				rkey: job.rkey,
 				error: err instanceof Error ? err.message : String(err),
 			});
+			message.retry();
 		}
-		message.ack();
 	}
 }
 
@@ -576,12 +581,19 @@ export async function ingestPackageRelease(
 					refreshPackageLatestStmt(db, job.did, record.package),
 				]);
 			} else if (!sameContent) {
+				// On true-duplicate (same hostile bytes pumped repeatedly),
+				// UPDATE rejected_at so the audit row tracks the latest
+				// attempt rather than freezing at the first one. Operators
+				// querying "is this attack ongoing?" can read rejected_at
+				// to see freshness. Same-bytes spam still dedupes to one
+				// row per (did, package, version, attempted_record_blob).
 				await db
 					.prepare(
 						`INSERT INTO release_duplicate_attempts
 						   (did, package, version, rejected_at, reason, attempted_record_blob)
 						 VALUES (?, ?, ?, ?, ?, ?)
-						 ON CONFLICT(did, package, version, attempted_record_blob) DO NOTHING`,
+						 ON CONFLICT(did, package, version, attempted_record_blob)
+						   DO UPDATE SET rejected_at = excluded.rejected_at`,
 					)
 					.bind(
 						job.did,
@@ -616,6 +628,15 @@ export async function ingestPackageRelease(
  * empty set and `json_group_array()` returns `'[]'`. App code treats `'[]'`
  * and NULL equivalently for capability filtering.
  */
+// The WHERE clause guard prevents the UPDATE from touching `packages` when
+// the computed values match what's already stored. Without it, every
+// idempotent refresh (the common case for Jetstream redelivery of an
+// already-ingested release) fires `packages_au` AFTER UPDATE which DELETEs
+// and re-INSERTs into `packages_fts` even though name/description/keywords
+// /authors/sections didn't change. SQL-level no-op short-circuit avoids the
+// trigger fire entirely. Subqueries duplicate by design — SQLite can share
+// them via expression CSE; even un-shared the cost is two extra index seeks
+// on a path that already does the same lookups.
 const REFRESH_PACKAGE_LATEST_SQL = `
 	UPDATE packages SET
 		latest_version = (
@@ -632,6 +653,21 @@ const REFRESH_PACKAGE_LATEST_SQL = `
 			)
 		)
 	WHERE did = ? AND slug = ?
+		AND (
+			latest_version IS NOT (
+				SELECT version FROM releases
+				WHERE did = packages.did AND package = packages.slug AND tombstoned_at IS NULL
+				ORDER BY version_sort DESC LIMIT 1
+			)
+			OR capabilities IS NOT (
+				SELECT json_group_array(key) FROM json_each(
+					(SELECT json_extract(emdash_extension, '$.declaredAccess')
+					 FROM releases
+					 WHERE did = packages.did AND package = packages.slug AND tombstoned_at IS NULL
+					 ORDER BY version_sort DESC LIMIT 1)
+				)
+			)
+		)
 `;
 
 function refreshPackageLatestStmt(db: D1Database, did: string, pkg: string): D1PreparedStatement {
@@ -770,7 +806,15 @@ export async function applyDelete(db: D1Database, job: RecordsJob, now: Date): P
 			// instead of the partial idx_releases_latest, which has to scan
 			// for did=? then filter by rkey.
 			const parsed = parseReleaseRkey(job.rkey);
-			if (!parsed) return;
+			if (!parsed) {
+				// Surface the malformed delete so an operator investigating
+				// "why didn't this delete take effect?" has an audit trail.
+				// IngestError → dispatcher writes a dead_letters row + acks.
+				throw new IngestError(
+					"RKEY_MISMATCH",
+					`package.release delete with malformed rkey: '${job.rkey}'`,
+				);
+			}
 			// Batch tombstone + refresh: D1 wraps in a single transaction so
 			// the visible-release set and the denormalised latest_version
 			// commit together. Refresh runs even on idempotent re-deletes

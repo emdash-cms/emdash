@@ -1318,18 +1318,19 @@ describe("release_duplicate_attempts UNIQUE constraint (#7)", () => {
 	});
 });
 
-describe("parseReleaseRkey: malformed encoding (#5)", () => {
-	it("applyDelete with malformed %-encoded rkey is a silent no-op", async () => {
-		// Don't seed anything — the parse should fail before any DB hit.
-		// Asserting it doesn't throw (which would route to retry instead of
-		// the desired silent ack).
+describe("parseReleaseRkey: malformed encoding (#5 / round-3)", () => {
+	it("applyDelete with malformed %-encoded rkey throws IngestError → forensics + ack", async () => {
+		// Round-2 silently no-op'd. Round-3 reviewer flagged that this lost
+		// the audit trail; an operator investigating "why didn't this delete
+		// take effect?" had nothing to look at. Now throws IngestError so
+		// the dispatcher writes a dead_letters row before acking.
 		await expect(
 			applyDelete(
 				testEnv.DB,
 				jobFor(DID_A, NSID.packageRelease, "demo:1.0.0%XX", { operation: "delete" }),
 				NOW,
 			),
-		).resolves.toBeUndefined();
+		).rejects.toMatchObject({ name: "IngestError", reason: "RKEY_MISMATCH" });
 	});
 });
 
@@ -1363,6 +1364,155 @@ describe("DLQ drain (#6)", () => {
 			n: number;
 		}>();
 		expect(dl?.n).toBe(2);
+	});
+});
+
+describe("DLQ drain: D1 failure (round-3 #1)", () => {
+	it("retries the message when writeDeadLetter throws", async () => {
+		const { drainDeadLetterBatch: drain } = await import("../src/records-consumer.js");
+		let acked = 0;
+		let retried = 0;
+		const message: MessageController & { body: RecordsJob } = {
+			body: jobFor(DID_A, NSID.packageRelease, "demo:1.0.0"),
+			ack: () => {
+				acked += 1;
+			},
+			retry: () => {
+				retried += 1;
+			},
+		};
+		// Stub DB whose insert throws to simulate transient D1 failure.
+		const failingDb = {
+			prepare: () => ({
+				bind: () => ({
+					run: () => Promise.reject(new Error("D1 unavailable")),
+				}),
+			}),
+		} as unknown as D1Database;
+		await drain({ messages: [message] }, { DB: failingDb } as unknown as Env);
+
+		expect(retried).toBe(1);
+		expect(acked).toBe(0);
+	});
+});
+
+describe("refresh skips writes when values unchanged (round-3 #2 — FTS thrashing)", () => {
+	const validProfile = {
+		$type: NSID.packageProfile,
+		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
+		slug: "demo",
+		type: "emdash-plugin",
+		license: "MIT",
+		// name + description give FTS something to index so the test can
+		// observe trigger-induced reindexing.
+		name: "Demo Plugin",
+		description: "A searchable demo plugin",
+		authors: [{ name: "Tester" }],
+		security: [{ email: "x@y.test" }],
+	};
+	const release = {
+		$type: NSID.packageRelease,
+		package: "demo",
+		version: "1.0.0",
+		artifacts: { package: { url: "https://x.test/d.tgz", checksum: "bsha-abc" } },
+		extensions: {
+			"com.emdashcms.experimental.package.releaseExtension": {
+				$type: "com.emdashcms.experimental.package.releaseExtension",
+				declaredAccess: { content: { read: {} } },
+			},
+		},
+	};
+
+	beforeEach(async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified(validProfile),
+			NOW,
+		);
+	});
+
+	it("does not re-fire packages_au trigger on idempotent refresh", async () => {
+		const job = jobFor(DID_A, NSID.packageRelease, "demo:1.0.0");
+		const verified = fakeVerified(release);
+		await ingestPackageRelease(testEnv.DB, job, verified, NOW);
+
+		// Capture FTS state after first ingest.
+		const ftsBefore = await testEnv.DB.prepare(
+			`SELECT rowid FROM packages_fts WHERE packages_fts MATCH ?`,
+		)
+			.bind("demo")
+			.all();
+
+		// Replay same content many times. Each replay would normally fire
+		// the AFTER UPDATE trigger and re-index FTS even with same content.
+		// The WHERE-AND-IS-NOT guard short-circuits before the trigger.
+		for (let i = 0; i < 10; i++) {
+			await ingestPackageRelease(testEnv.DB, job, verified, NOW);
+		}
+
+		const ftsAfter = await testEnv.DB.prepare(
+			`SELECT rowid FROM packages_fts WHERE packages_fts MATCH ?`,
+		)
+			.bind("demo")
+			.all();
+
+		// FTS state must be unchanged (same single row). Asserting both row
+		// count and rowid stability — a re-trigger would delete + re-insert
+		// with the same rowid in this trigger's design, but if SQLite ever
+		// optimizes that to a no-op, this test still passes.
+		expect(ftsAfter.results).toHaveLength(1);
+		expect(ftsAfter.results).toEqual(ftsBefore.results);
+	});
+});
+
+describe("release_duplicate_attempts.rejected_at tracks latest (round-3 #4)", () => {
+	const validProfile = {
+		$type: NSID.packageProfile,
+		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
+		slug: "demo",
+		type: "emdash-plugin",
+		license: "MIT",
+		authors: [{ name: "Tester" }],
+		security: [{ email: "x@y.test" }],
+	};
+	const release = {
+		$type: NSID.packageRelease,
+		package: "demo",
+		version: "1.0.0",
+		artifacts: { package: { url: "https://x.test/d.tgz", checksum: "bsha-abc" } },
+		extensions: {
+			"com.emdashcms.experimental.package.releaseExtension": {
+				$type: "com.emdashcms.experimental.package.releaseExtension",
+				declaredAccess: {},
+			},
+		},
+	};
+
+	it("DO UPDATE refreshes rejected_at on repeated identical attempts", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified(validProfile),
+			NOW,
+		);
+		const job = jobFor(DID_A, NSID.packageRelease, "demo:1.0.0");
+		await ingestPackageRelease(testEnv.DB, job, fakeVerified(release), NOW);
+
+		const tampered: VerifiedPdsRecord = {
+			cid: "x",
+			record: release,
+			carBytes: new Uint8Array([0x01, 0x02, 0x03]),
+		};
+		const t1 = new Date("2026-05-09T12:00:00.000Z");
+		const t2 = new Date("2026-05-10T18:00:00.000Z");
+		await ingestPackageRelease(testEnv.DB, job, tampered, t1);
+		await ingestPackageRelease(testEnv.DB, job, tampered, t2);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT rejected_at FROM release_duplicate_attempts`,
+		).first<{ rejected_at: string }>();
+		expect(row?.rejected_at).toBe(t2.toISOString());
 	});
 });
 

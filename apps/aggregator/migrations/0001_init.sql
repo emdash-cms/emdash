@@ -92,7 +92,10 @@ CREATE TABLE release_duplicate_attempts (
 	UNIQUE (did, package, version, attempted_record_blob)
 );
 
-CREATE INDEX idx_release_duplicates ON release_duplicate_attempts(did, package, version);
+-- The UNIQUE constraint creates an implicit index on
+-- (did, package, version, attempted_record_blob); a separate index on the
+-- (did, package, version) prefix is redundant for both lookups (the implicit
+-- index handles prefix seeks) and inserts (one fewer index to maintain).
 
 ------------------------------------------------------------------------------
 -- Publishers: identity-level publisher profiles + verification claims
