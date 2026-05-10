@@ -1910,7 +1910,7 @@ export function PortableTextEditor({
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
 
 	// Slash commands state
-	const [slashMenuState, setSlashMenuState] = React.useState<SlashMenuState>({
+	const [slashMenuState, _setSlashMenuState] = React.useState<SlashMenuState>({
 		isOpen: false,
 		items: [],
 		selectedIndex: 0,
@@ -1918,11 +1918,25 @@ export function PortableTextEditor({
 		range: null,
 	});
 
-	// Ref to access current state synchronously in keyboard handlers
+	// Ref to access current state synchronously in keyboard handlers.
+	// We wrap the state setter so the ref is always updated before the
+	// next keyboard event fires — useEffect runs too late (after commit).
 	const slashMenuStateRef = React.useRef(slashMenuState);
-	React.useEffect(() => {
-		slashMenuStateRef.current = slashMenuState;
-	}, [slashMenuState]);
+	const setSlashMenuState: React.Dispatch<React.SetStateAction<SlashMenuState>> = React.useCallback(
+		(action) => {
+			if (typeof action === "function") {
+				_setSlashMenuState((prev) => {
+					const next = action(prev);
+					slashMenuStateRef.current = next;
+					return next;
+				});
+			} else {
+				slashMenuStateRef.current = action;
+				_setSlashMenuState(action);
+			}
+		},
+		[],
+	);
 
 	// Build slash commands
 	const slashCommands = React.useMemo(() => {

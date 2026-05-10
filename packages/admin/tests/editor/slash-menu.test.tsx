@@ -285,10 +285,13 @@ describe("Slash Command Menu", () => {
 		await focusEditor(pm);
 		editor.commands.insertContent("/");
 
-		const menu = await waitForSlashMenu();
-		const items = getSlashMenuItems(menu);
+		await waitForSlashMenu();
 
-		expect(isItemSelected(items[0]!)).toBe(true);
+		await vi.waitFor(() => {
+			const menu = getSlashMenu()!;
+			const items = getSlashMenuItems(menu);
+			expect(isItemSelected(items[0]!)).toBe(true);
+		});
 	});
 
 	it("moves selection down with ArrowDown", async () => {
