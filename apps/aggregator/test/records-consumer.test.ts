@@ -633,7 +633,7 @@ describe("processMessage dispatcher", () => {
 
 // ─── Adversarial-review fixes: regression tests ─────────────────────────────
 
-describe("ingestPackageProfile: package.profile security[] contact validation (M1)", () => {
+describe("ingestPackageProfile: security[] contact validation", () => {
 	it("rejects security entries with neither url nor email", async () => {
 		const job = jobFor(DID_A, NSID.packageProfile, "demo");
 		await expect(
@@ -655,7 +655,7 @@ describe("ingestPackageProfile: package.profile security[] contact validation (M
 	});
 });
 
-describe("ingestPackageRelease: extension validation (B3)", () => {
+describe("ingestPackageRelease: releaseExtension validation", () => {
 	const validProfile = {
 		$type: NSID.packageProfile,
 		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
@@ -761,7 +761,7 @@ describe("ingestPackageRelease: extension validation (B3)", () => {
 	});
 });
 
-describe("ingestPackageRelease: package field charset (Mi6)", () => {
+describe("ingestPackageRelease: package field charset", () => {
 	beforeEach(async () => {
 		await ingestPackageProfile(
 			testEnv.DB,
@@ -804,7 +804,7 @@ describe("ingestPackageRelease: package field charset (Mi6)", () => {
 	});
 });
 
-describe("ingestPackageRelease: parent profile pre-check (Mi7)", () => {
+describe("ingestPackageRelease: parent profile pre-check", () => {
 	it("throws MissingDependencyError when no parent profile exists", async () => {
 		// No profile seeded — release event arriving before its profile.
 		await expect(
@@ -828,19 +828,14 @@ describe("ingestPackageRelease: parent profile pre-check (Mi7)", () => {
 		).rejects.toMatchObject({ name: "MissingDependencyError" });
 	});
 
-	it("retries the message when MissingDependencyError surfaces in the dispatcher", async () => {
-		// The dispatcher should map MissingDependencyError → controller.retry().
-		// Cache-seed but don't seed a profile; verifyAndIngest runs through
-		// resolver → fetch (returns garbage so verifyRecord throws) — that's
-		// not the right path. Instead, build a verified record path via stub
-		// fetch returning... actually simpler: skip the dispatcher and assert
-		// directly on the writer (other dispatcher branches are covered).
-		// Coverage of dispatcher's retry-on-MissingDependency lives in the
-		// dispatcher dedicated suite below.
-	});
+	// Dispatcher-level retry-on-MissingDependency coverage lives in the
+	// "processMessage dispatcher" suite further down — uses
+	// `ConsumerDeps.verify` injection so the writer's parent-profile
+	// pre-check actually fires and the dispatcher's retry branch runs
+	// end-to-end.
 });
 
-describe("ingestPackageRelease: latest_version + capabilities denormalisation (B1)", () => {
+describe("ingestPackageRelease: latest_version + capabilities denormalisation", () => {
 	const validProfile = {
 		$type: NSID.packageProfile,
 		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
@@ -955,7 +950,7 @@ describe("ingestPackageRelease: latest_version + capabilities denormalisation (B
 	});
 });
 
-describe("ingestPackageRelease: same-content re-publish on tombstoned row (B2)", () => {
+describe("ingestPackageRelease: same-content re-publish on tombstoned row", () => {
 	const validProfile = {
 		$type: NSID.packageProfile,
 		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
@@ -1022,7 +1017,7 @@ describe("ingestPackageRelease: same-content re-publish on tombstoned row (B2)",
 	});
 });
 
-describe("computeVersionSort + version overflow rejection (M3)", () => {
+describe("computeVersionSort + version overflow rejection", () => {
 	const validProfile = {
 		$type: NSID.packageProfile,
 		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
@@ -1079,7 +1074,7 @@ describe("computeVersionSort + version overflow rejection (M3)", () => {
 	});
 });
 
-describe("applyDelete unknown collection (Mi5)", () => {
+describe("applyDelete unknown collection", () => {
 	it("throws IngestError UNKNOWN_COLLECTION instead of silently dropping", async () => {
 		await expect(
 			applyDelete(
@@ -1091,7 +1086,7 @@ describe("applyDelete unknown collection (Mi5)", () => {
 	});
 });
 
-describe("processMessage dispatcher: MissingDependencyError → retry (Mi7 + B4)", () => {
+describe("processMessage dispatcher: MissingDependencyError → retry", () => {
 	it("retries the message when the release writer throws MissingDependencyError", async () => {
 		// No parent profile seeded — release writer's parent-profile check
 		// throws MissingDependencyError → dispatcher should map to retry().
@@ -1137,7 +1132,7 @@ describe("processMessage dispatcher: MissingDependencyError → retry (Mi7 + B4)
 	});
 });
 
-describe("ingestPackageRelease: latest_version refresh atomicity (B1+B2 round 2)", () => {
+describe("ingestPackageRelease: latest_version refresh atomicity", () => {
 	const validProfile = {
 		$type: NSID.packageProfile,
 		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
@@ -1234,7 +1229,7 @@ describe("ingestPackageRelease: latest_version refresh atomicity (B1+B2 round 2)
 	});
 });
 
-describe("release_duplicate_attempts UNIQUE constraint (#7)", () => {
+describe("release_duplicate_attempts UNIQUE constraint", () => {
 	const validProfile = {
 		$type: NSID.packageProfile,
 		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
@@ -1318,12 +1313,11 @@ describe("release_duplicate_attempts UNIQUE constraint (#7)", () => {
 	});
 });
 
-describe("parseReleaseRkey: malformed encoding (#5 / round-3)", () => {
-	it("applyDelete with malformed %-encoded rkey throws IngestError → forensics + ack", async () => {
-		// Round-2 silently no-op'd. Round-3 reviewer flagged that this lost
-		// the audit trail; an operator investigating "why didn't this delete
-		// take effect?" had nothing to look at. Now throws IngestError so
-		// the dispatcher writes a dead_letters row before acking.
+describe("parseReleaseRkey: malformed %-encoding in delete rkey", () => {
+	it("throws IngestError so the dispatcher writes a dead_letters row before acking", async () => {
+		// Silently no-op'ing the parse failure would lose the audit trail —
+		// an operator investigating "why didn't this delete take effect?"
+		// would have nothing to look at.
 		await expect(
 			applyDelete(
 				testEnv.DB,
@@ -1334,7 +1328,7 @@ describe("parseReleaseRkey: malformed encoding (#5 / round-3)", () => {
 	});
 });
 
-describe("DLQ drain (#6)", () => {
+describe("drainDeadLetterBatch", () => {
 	it("acks each message and writes a forensics row", async () => {
 		const { drainDeadLetterBatch: drain } = await import("../src/records-consumer.js");
 		const messages: Array<MessageController & { body: RecordsJob }> = [
@@ -1367,7 +1361,7 @@ describe("DLQ drain (#6)", () => {
 	});
 });
 
-describe("DLQ drain: D1 failure (round-3 #1)", () => {
+describe("drainDeadLetterBatch: D1 failure", () => {
 	it("retries the message when writeDeadLetter throws", async () => {
 		const { drainDeadLetterBatch: drain } = await import("../src/records-consumer.js");
 		let acked = 0;
@@ -1396,7 +1390,7 @@ describe("DLQ drain: D1 failure (round-3 #1)", () => {
 	});
 });
 
-describe("refresh skips writes when values unchanged (round-3 #2 — FTS thrashing)", () => {
+describe("refresh skips writes when values unchanged (avoids FTS-trigger thrashing)", () => {
 	const validProfile = {
 		$type: NSID.packageProfile,
 		id: `at://${DID_A}/${NSID.packageProfile}/demo`,
@@ -1466,7 +1460,7 @@ describe("refresh skips writes when values unchanged (round-3 #2 — FTS thrashi
 	});
 });
 
-describe("release_duplicate_attempts.rejected_at tracks latest (round-3 #4)", () => {
+describe("release_duplicate_attempts.rejected_at tracks latest attempt", () => {
 	const validProfile = {
 		$type: NSID.packageProfile,
 		id: `at://${DID_A}/${NSID.packageProfile}/demo`,

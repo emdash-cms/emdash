@@ -149,9 +149,12 @@ async function fetchCar(
 
 	if (response.status === 404) {
 		// Distinct from a generic 4xx. The publisher may have deleted the
-		// record between Jetstream emitting and us fetching, in which case the
-		// caller should ack without forensics. Other 4xx (auth, bad request)
-		// are programming errors and warrant forensics.
+		// record between Jetstream emitting and us fetching, which is the
+		// common cause; other 4xx (auth, bad request) suggest programming
+		// errors. Both end up dead-lettered by the consumer (the audit trail
+		// is useful even for legitimate races so operators can spot
+		// systematic Jetstream-vs-PDS skew); the distinct reason code keeps
+		// them queryable separately.
 		throw new PdsVerificationError("RECORD_NOT_FOUND", `PDS returned 404 for ${url}`, 404);
 	}
 	if (!response.ok) {

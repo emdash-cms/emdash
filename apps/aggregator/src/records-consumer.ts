@@ -637,6 +637,13 @@ export async function ingestPackageRelease(
 // trigger fire entirely. Subqueries duplicate by design — SQLite can share
 // them via expression CSE; even un-shared the cost is two extra index seeks
 // on a path that already does the same lookups.
+//
+// The capabilities subquery wraps `json_each` in `(SELECT key ORDER BY key)`
+// so the resulting JSON array is order-stable. Without the ORDER BY,
+// `json_each` enumerates in unspecified order — `{content, network}` could
+// serialise as `["content","network"]` one run and `["network","content"]`
+// the next, defeating the IS NOT short-circuit and re-firing the trigger
+// on every idempotent refresh.
 const REFRESH_PACKAGE_LATEST_SQL = `
 	UPDATE packages SET
 		latest_version = (
@@ -645,11 +652,13 @@ const REFRESH_PACKAGE_LATEST_SQL = `
 			ORDER BY version_sort DESC LIMIT 1
 		),
 		capabilities = (
-			SELECT json_group_array(key) FROM json_each(
-				(SELECT json_extract(emdash_extension, '$.declaredAccess')
-				 FROM releases
-				 WHERE did = packages.did AND package = packages.slug AND tombstoned_at IS NULL
-				 ORDER BY version_sort DESC LIMIT 1)
+			SELECT json_group_array(key) FROM (
+				SELECT key FROM json_each(
+					(SELECT json_extract(emdash_extension, '$.declaredAccess')
+					 FROM releases
+					 WHERE did = packages.did AND package = packages.slug AND tombstoned_at IS NULL
+					 ORDER BY version_sort DESC LIMIT 1)
+				) ORDER BY key
 			)
 		)
 	WHERE did = ? AND slug = ?
@@ -660,11 +669,13 @@ const REFRESH_PACKAGE_LATEST_SQL = `
 				ORDER BY version_sort DESC LIMIT 1
 			)
 			OR capabilities IS NOT (
-				SELECT json_group_array(key) FROM json_each(
-					(SELECT json_extract(emdash_extension, '$.declaredAccess')
-					 FROM releases
-					 WHERE did = packages.did AND package = packages.slug AND tombstoned_at IS NULL
-					 ORDER BY version_sort DESC LIMIT 1)
+				SELECT json_group_array(key) FROM (
+					SELECT key FROM json_each(
+						(SELECT json_extract(emdash_extension, '$.declaredAccess')
+						 FROM releases
+						 WHERE did = packages.did AND package = packages.slug AND tombstoned_at IS NULL
+						 ORDER BY version_sort DESC LIMIT 1)
+					) ORDER BY key
 				)
 			)
 		)
@@ -945,17 +956,18 @@ function encodeRkeyVersion(version: string): string {
 
 /**
  * Parse a release rkey of the form `<package>:<encoded-version>` back into its
- * components. Returns null on malformed input — callers should treat that as
- * "this isn't a release we recognise" and no-op.
+ * components. Returns null on malformed input. Callers decide what to do with
+ * null — `applyDelete` throws `IngestError("RKEY_MISMATCH", …)` to surface
+ * the malformed delete in `dead_letters` rather than silently swallowing it.
  *
  * Splits on the FIRST `:`. Both `package` (slug regex) and `version` (semver
  * subset) reject `:` in the lexicon, so a single split is unambiguous.
  *
  * `decodeURIComponent` throws URIError on malformed `%`-escapes (e.g.
- * `1.0.0%XX`). Callers must not let URIError propagate — the dispatcher's
- * delete branch maps non-IngestError throws to `controller.retry()`, which
- * would burn 5 attempts on a permanently malformed rkey. Catch + null-out
- * here.
+ * `1.0.0%XX`). Caught here so the function's contract is "returns null OR a
+ * parsed pair, never throws" — the dispatcher's delete branch would
+ * otherwise see a non-IngestError throw and retry 5 times on a permanently
+ * malformed rkey before DLQ.
  */
 function parseReleaseRkey(rkey: string): { pkg: string; version: string } | null {
 	const idx = rkey.indexOf(":");

@@ -316,9 +316,20 @@ CREATE TABLE dead_letters (
 	did TEXT NOT NULL,
 	collection TEXT NOT NULL,
 	rkey TEXT NOT NULL,
-	reason TEXT NOT NULL,                       -- 'BAD_SIGNATURE', 'MST_PROOF_FAIL', 'LEXICON_FAIL', 'AT_URI_MISMATCH', 'RKEY_MISMATCH', 'CONTENT_MISMATCH'
-	detail TEXT,                                -- free-form context (which field, expected vs got)
-	payload BLOB NOT NULL,                      -- unverified record bytes for inspection
+	-- Reason code; matches the `DeadLetterReason` union in records-consumer.ts.
+	-- Current values: 'RECORD_NOT_FOUND', 'RESPONSE_TOO_LARGE', 'INVALID_PROOF',
+	-- 'PDS_HTTP_ERROR', 'LEXICON_VALIDATION_FAILED', 'RKEY_MISMATCH',
+	-- 'CONTACT_VALIDATION_FAILED', 'INVALID_VERSION', 'UNKNOWN_COLLECTION',
+	-- 'UNEXPECTED_ERROR'.
+	reason TEXT NOT NULL,
+	-- Free-form context (which field, expected vs got, library error message, etc.).
+	detail TEXT,
+	-- UTF-8 encoded JSON bytes of `RecordsJob.jetstreamRecord` when present, or a
+	-- fallback envelope `{operation, cid}` for delete events that don't carry one.
+	-- Stored as BLOB so future formats (CBOR, raw record bytes) can land here
+	-- without a schema change; today operators must `CAST(payload AS TEXT)` to
+	-- read.
+	payload BLOB NOT NULL,
 	received_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

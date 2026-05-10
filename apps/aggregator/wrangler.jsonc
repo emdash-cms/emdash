@@ -35,12 +35,13 @@
 				"dead_letter_queue": "emdash-aggregator-records-dlq",
 			},
 			{
-				// Drains the DLQ. Today the consumer just logs each
-				// dead-lettered job to Workers Analytics so operators can
-				// observe drift; once the reconciliation pass lands it
-				// will replace this with retry-from-listRecords. The DLQ
-				// itself has no DLQ — repeated drain failures get acked
-				// after retries.
+				// Drains the DLQ. Today the consumer logs each dead-lettered
+				// job to Workers logs and writes a `dead_letters` row, then
+				// acks. On D1 failure the handler calls `message.retry()`
+				// (configured `max_retries: 3` per below); after that, the
+				// DLQ has no DLQ-of-DLQ so workerd drops the message. Once
+				// the reconciliation pass lands it'll replace this with
+				// retry-from-listRecords.
 				"queue": "emdash-aggregator-records-dlq",
 				"max_batch_size": 25,
 				"max_batch_timeout": 30,
