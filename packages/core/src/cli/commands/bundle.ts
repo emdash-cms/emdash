@@ -23,20 +23,22 @@ import consola from "consola";
 import { CAPABILITY_RENAMES, isDeprecatedCapability } from "../../plugins/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import {
-	fileExists,
-	readImageDimensions,
-	extractManifest,
-	findNodeBuiltinImports,
-	findBuildOutput,
-	findSourceExports,
-	resolveSourceEntry,
-	calculateDirectorySize,
+	collectBundleEntries,
 	createTarball,
-	MAX_BUNDLE_SIZE,
+	extractManifest,
+	fileExists,
+	findBuildOutput,
+	findNodeBuiltinImports,
+	findSourceExports,
+	formatBytes,
+	ICON_SIZE,
 	MAX_SCREENSHOTS,
 	MAX_SCREENSHOT_WIDTH,
 	MAX_SCREENSHOT_HEIGHT,
-	ICON_SIZE,
+	readImageDimensions,
+	resolveSourceEntry,
+	totalBundleBytes,
+	validateBundleSize,
 } from "./bundle-utils.js";
 
 const TS_EXT_RE = /\.(tsx?|[mc]?js)$/;
@@ -596,15 +598,16 @@ export const bundleCommand = defineCommand({
 				}
 			}
 
-			// Calculate total bundle size
-			const totalSize = await calculateDirectorySize(bundleDir);
-			if (totalSize > MAX_BUNDLE_SIZE) {
-				const sizeMB = (totalSize / 1024 / 1024).toFixed(2);
-				consola.error(`Bundle size ${sizeMB}MB exceeds maximum of 5MB`);
+			// Bundle size caps (RFC 0001 §"Bundle size limits").
+			const bundleEntries = await collectBundleEntries(bundleDir);
+			const sizeViolations = validateBundleSize(bundleEntries);
+			if (sizeViolations.length > 0) {
+				for (const v of sizeViolations) consola.error(v);
 				hasErrors = true;
 			} else {
-				const sizeKB = (totalSize / 1024).toFixed(1);
-				consola.info(`Bundle size: ${sizeKB}KB`);
+				consola.info(
+					`Bundle size: ${formatBytes(totalBundleBytes(bundleEntries))} across ${bundleEntries.length} file${bundleEntries.length === 1 ? "" : "s"}`,
+				);
 			}
 
 			if (hasErrors) {

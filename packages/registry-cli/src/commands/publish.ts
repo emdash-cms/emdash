@@ -28,6 +28,7 @@ import { defineCommand } from "citty";
 import consola from "consola";
 import pc from "picocolors";
 
+import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/utils.js";
 import { sha256Multihash } from "../multihash.js";
 import { resumeSession } from "../oauth.js";
 import {
@@ -37,8 +38,14 @@ import {
 	type PublishLogger,
 } from "../publish/api.js";
 
-/** Hard cap on tarball size we'll buffer into memory. Mirrors MAX_BUNDLE_SIZE. */
-const MAX_TARBALL_BYTES = 5 * 1024 * 1024;
+/**
+ * Hard cap on the gzipped tarball we'll buffer into memory. Sized for the
+ * decompressed bundle cap from RFC 0001 (MAX_BUNDLE_SIZE = 256 KB) plus
+ * tar headers and worst-case gzip overhead. Anything larger is rejected at
+ * fetch time before decompression. The decompressed bundle is then re-checked
+ * against the per-file and total caps via `validateBundleSize`.
+ */
+const MAX_TARBALL_BYTES = 384 * 1024;
 
 export const publishCommand = defineCommand({
 	meta: {
@@ -349,12 +356,6 @@ function redirectConsolaToStderr(): () => void {
 	};
 }
 
-function formatBytes(n: number): string {
-	if (n < 1024) return `${n} B`;
-	if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-	return `${(n / 1024 / 1024).toFixed(2)} MB`;
-}
-
 /**
  * Validate the publish URL before any network access. Returns an error message
  * to print, or `null` if the URL is acceptable.
@@ -489,6 +490,7 @@ async function validateResolvedHost(host: string): Promise<string | null> {
 // guard is the FIRST line of defence -- the redirect loop additionally runs
 // a DNS-resolved check (`validateResolvedHost`) so a public hostname
 // pointing at a private IP is also caught.
+const TAR_LEADING_DOT_SLASH_RE = /^\.\//;
 const IPV4_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
 // IPv6 ULA (fc00::/7), link-local (fe80::/10). Bracket-stripped form.
 const IPV6_ULA_FC_RE = /^fc[0-9a-f]{2}(?::|$)/i;
@@ -655,6 +657,20 @@ function validateStringFlags(flags: Record<string, string | undefined>): string 
  * that 302s to `http://169.254.169.254/...` (cloud metadata) or to a
  * `localhost` victim, defeating the publish-side allow-list.
  */
+/**
+ * Build the error message for the gzipped-fetch cap. The cap itself is an
+ * implementation detail of the fetch buffer (sized to fit any bundle that
+ * meets the published RFC 0001 caps); the user-facing constraint is the
+ * decompressed total — surface that here so the next attempt aims at the
+ * right number.
+ */
+function oversizedFetchError(url: string, fetched: number): string {
+	return (
+		`tarball at ${url} is ${formatBytes(fetched)} (gzipped), exceeding the ${formatBytes(MAX_TARBALL_BYTES)} fetch cap. ` +
+		`Sandboxed plugin bundles must decompress to at most ${formatBytes(MAX_BUNDLE_SIZE)} (RFC 0001).`
+	);
+}
+
 async function fetchTarball(url: string): Promise<Uint8Array> {
 	const MAX_REDIRECTS = 10;
 	let currentUrl = url;
@@ -715,18 +731,14 @@ async function fetchTarball(url: string): Promise<Uint8Array> {
 	if (contentLength) {
 		const len = Number(contentLength);
 		if (Number.isFinite(len) && len > MAX_TARBALL_BYTES) {
-			throw new Error(
-				`tarball at ${url} is ${formatBytes(len)} which exceeds the ${formatBytes(MAX_TARBALL_BYTES)} limit`,
-			);
+			throw new Error(oversizedFetchError(url, len));
 		}
 	}
 
 	if (!res.body) {
 		const buf = await res.arrayBuffer();
 		if (buf.byteLength > MAX_TARBALL_BYTES) {
-			throw new Error(
-				`tarball at ${url} is ${formatBytes(buf.byteLength)} which exceeds the ${formatBytes(MAX_TARBALL_BYTES)} limit`,
-			);
+			throw new Error(oversizedFetchError(url, buf.byteLength));
 		}
 		return new Uint8Array(buf);
 	}
@@ -743,7 +755,7 @@ async function fetchTarball(url: string): Promise<Uint8Array> {
 			total += value.length;
 			if (total > MAX_TARBALL_BYTES) {
 				await reader.cancel();
-				throw new Error(`tarball at ${url} exceeds the ${formatBytes(MAX_TARBALL_BYTES)} limit`);
+				throw new Error(oversizedFetchError(url, total));
 			}
 			chunks.push(value);
 		}
@@ -764,10 +776,20 @@ async function fetchTarball(url: string): Promise<Uint8Array> {
  * Accepts both `manifest.json` and `./manifest.json` since modern-tar's
  * exact naming behaviour isn't pinned in our contract.
  *
+ * Enforces the bundle size caps from RFC 0001 against the decompressed
+ * entries — total decompressed size, per-file size, and file count. The
+ * gzipped fetch is already capped at MAX_TARBALL_BYTES upstream; this is
+ * the post-decompression check that matches what aggregators enforce at
+ * ingest, so a publisher who would be rejected at the registry sees the
+ * same error locally first.
+ *
  * Validates the parsed JSON shape against the contract before returning,
  * so downstream code (which iterates `capabilities`, indexes `allowedHosts`,
  * etc.) doesn't TypeError on garbage input from a malicious tarball.
  */
+// Exported for unit tests; not part of the public CLI surface.
+export const extractManifestFromTarballForTest = extractManifestFromTarball;
+
 async function extractManifestFromTarball(bytes: Uint8Array): Promise<PluginManifest> {
 	const { unpackTar, createGzipDecoder } = await import("modern-tar");
 	const source = new ReadableStream<Uint8Array>({
@@ -784,6 +806,24 @@ async function extractManifestFromTarball(bytes: Uint8Array): Promise<PluginMani
 		throw new Error(
 			`tarball at the URL is not a valid gzipped tar archive: ${error instanceof Error ? error.message : String(error)}`,
 			{ cause: error },
+		);
+	}
+	// The bundle size caps apply to regular files only: directories,
+	// symlinks, hardlinks, devices, and FIFOs all carry no content and
+	// shouldn't appear in a sandboxed plugin bundle anyway. Filtering by
+	// header.type matches what `collectBundleEntries` does for the staging
+	// dir (where `item.isFile()` already excludes non-files), so the bundle
+	// command and the publish command agree on what counts.
+	const fileEntries = entries
+		.filter((e) => (e.header.type ?? "file") === "file")
+		.map((e) => ({
+			name: e.header.name.replace(TAR_LEADING_DOT_SLASH_RE, ""),
+			bytes: e.data?.byteLength ?? 0,
+		}));
+	const sizeViolations = validateBundleSize(fileEntries);
+	if (sizeViolations.length > 0) {
+		throw new Error(
+			`tarball at the URL violates bundle size caps:\n  - ${sizeViolations.join("\n  - ")}`,
 		);
 	}
 	const manifestEntry = entries.find((e) => {

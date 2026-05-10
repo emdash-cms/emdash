@@ -45,20 +45,22 @@ import {
 	type ResolvedPlugin,
 } from "./types.js";
 import {
-	calculateDirectorySize,
+	collectBundleEntries,
 	createTarball,
 	extractManifest,
 	fileExists,
 	findBuildOutput,
 	findNodeBuiltinImports,
 	findSourceExports,
+	formatBytes,
 	ICON_SIZE,
-	MAX_BUNDLE_SIZE,
 	MAX_SCREENSHOTS,
 	MAX_SCREENSHOT_HEIGHT,
 	MAX_SCREENSHOT_WIDTH,
 	readImageDimensions,
 	resolveSourceEntry,
+	totalBundleBytes,
+	validateBundleSize,
 } from "./utils.js";
 
 const TS_EXT_RE = /\.(tsx?|[mc]?js)$/;
@@ -374,14 +376,15 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 			}
 		}
 
-		// Bundle size.
-		const totalSize = await calculateDirectorySize(bundleDir);
-		if (totalSize > MAX_BUNDLE_SIZE) {
-			const sizeMB = (totalSize / 1024 / 1024).toFixed(2);
-			validationErrors.push(`Bundle size ${sizeMB}MB exceeds maximum of 5MB.`);
+		// Bundle size caps (RFC 0001 §"Bundle size limits").
+		const bundleEntries = await collectBundleEntries(bundleDir);
+		const sizeViolations = validateBundleSize(bundleEntries);
+		if (sizeViolations.length > 0) {
+			validationErrors.push(...sizeViolations);
 		} else {
-			const sizeKB = (totalSize / 1024).toFixed(1);
-			log.info?.(`Bundle size: ${sizeKB}KB`);
+			log.info?.(
+				`Bundle size: ${formatBytes(totalBundleBytes(bundleEntries))} across ${bundleEntries.length} file${bundleEntries.length === 1 ? "" : "s"}`,
+			);
 		}
 
 		if (validationErrors.length > 0) {

@@ -19,7 +19,12 @@ import type { ManifestHookEntry, PluginManifest, ResolvedPlugin } from "./types.
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-export const MAX_BUNDLE_SIZE = 5 * 1024 * 1024;
+// Bundle size caps per RFC 0001 §"Bundle size limits". These are decompressed
+// sizes; the gzipped tarball is typically a fraction of MAX_BUNDLE_SIZE.
+export const MAX_BUNDLE_SIZE = 256 * 1024;
+export const MAX_FILE_SIZE = 128 * 1024;
+export const MAX_FILE_COUNT = 20;
+
 export const MAX_SCREENSHOTS = 5;
 export const MAX_SCREENSHOT_WIDTH = 1920;
 export const MAX_SCREENSHOT_HEIGHT = 1080;
@@ -246,21 +251,92 @@ export function findSourceExports(
 // ── Directory helpers ────────────────────────────────────────────────────────
 
 /**
- * Recursively calculate the total size of all files in a directory.
+ * One file in a bundle: a tarball-relative path and its byte length.
+ * Produced by `collectBundleEntries` (from a staging dir) or by the publish
+ * flow (from tarball entries); consumed by `validateBundleSize`.
  */
-export async function calculateDirectorySize(dir: string): Promise<number> {
-	let total = 0;
+export interface BundleFileEntry {
+	name: string;
+	bytes: number;
+}
+
+/**
+ * Recursively walk a staging directory and return a flat list of all files
+ * with sizes. Names are relative to `dir` so they match what would appear
+ * as the tarball entry name.
+ */
+export async function collectBundleEntries(dir: string): Promise<BundleFileEntry[]> {
+	const entries: BundleFileEntry[] = [];
+	await walkBundle(dir, "", entries);
+	return entries;
+}
+
+async function walkBundle(dir: string, prefix: string, into: BundleFileEntry[]): Promise<void> {
 	const items = await readdir(dir, { withFileTypes: true });
 	for (const item of items) {
 		const fullPath = join(dir, item.name);
+		const relPath = prefix ? `${prefix}/${item.name}` : item.name;
 		if (item.isFile()) {
 			const s = await stat(fullPath);
-			total += s.size;
+			into.push({ name: relPath, bytes: s.size });
 		} else if (item.isDirectory()) {
-			total += await calculateDirectorySize(fullPath);
+			await walkBundle(fullPath, relPath, into);
 		}
 	}
+}
+
+/**
+ * Sum the byte sizes of all entries.
+ */
+export function totalBundleBytes(entries: readonly BundleFileEntry[]): number {
+	let total = 0;
+	for (const e of entries) total += e.bytes;
 	return total;
+}
+
+/**
+ * Check a bundle against the three size caps from RFC 0001:
+ *   - total decompressed ≤ MAX_BUNDLE_SIZE
+ *   - per-file decompressed ≤ MAX_FILE_SIZE
+ *   - file count ≤ MAX_FILE_COUNT
+ *
+ * Returns a list of violation messages (empty if the bundle is within all
+ * caps). Messages are deterministic per input — the total/count violations
+ * come first, then oversized files in alphabetical order — so the same
+ * bundle always produces the same error text.
+ */
+export function validateBundleSize(entries: readonly BundleFileEntry[]): string[] {
+	const violations: string[] = [];
+	const total = totalBundleBytes(entries);
+	if (total > MAX_BUNDLE_SIZE) {
+		violations.push(
+			`Bundle size ${formatBytes(total)} exceeds maximum of ${formatBytes(MAX_BUNDLE_SIZE)}.`,
+		);
+	}
+	if (entries.length > MAX_FILE_COUNT) {
+		violations.push(
+			`Bundle contains ${entries.length} files, exceeds maximum of ${MAX_FILE_COUNT}.`,
+		);
+	}
+	const oversized = entries
+		.filter((e) => e.bytes > MAX_FILE_SIZE)
+		.toSorted((a, b) => a.name.localeCompare(b.name));
+	for (const e of oversized) {
+		violations.push(
+			`File ${e.name} is ${formatBytes(e.bytes)}, exceeds per-file maximum of ${formatBytes(MAX_FILE_SIZE)}.`,
+		);
+	}
+	return violations;
+}
+
+/**
+ * Render a byte count as a human-friendly string. Mirrors the format used
+ * by the publish CLI's user-facing error messages (e.g. "256.0 KB").
+ */
+export function formatBytes(n: number): string {
+	if (n < 1024) return `${n} B`;
+	if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+	return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
 // ── Tarball creation ─────────────────────────────────────────────────────────
