@@ -328,6 +328,30 @@ describe("processBackfillJob", () => {
 		expect(result.enqueued).toBe(1);
 	});
 
+	it("skips records whose URI references a different DID than the job (defensive)", async () => {
+		const queue = new CapturingRecordsQueue();
+		const resolver = buildResolver();
+		const collection = WANTED_COLLECTIONS[0];
+		if (!collection) throw new Error("test assumes ≥1 collection");
+		// Buggy/malicious PDS: returns a record under a *different* repo's DID.
+		// Even if everything else parses, that record's signature would be
+		// from the wrong key — enqueueing it would just churn dead-letters.
+		const fetchImpl = makeFetch({
+			[collection]: [
+				{ uri: `at://${DID_A}/${collection}/legit`, cid: "c1", value: {} },
+				{ uri: `at://${DID_B}/${collection}/imposter`, cid: "c2", value: {} },
+			],
+		});
+
+		const result = await processBackfillJob(
+			{ did: DID_A, collection },
+			{ resolver, queue, fetch: fetchImpl },
+		);
+
+		expect(queue.sent.map((j) => j.rkey)).toEqual(["legit"]);
+		expect(result.enqueued).toBe(1);
+	});
+
 	it("rejects records with malformed rkey (atproto rkey grammar violation)", async () => {
 		const queue = new CapturingRecordsQueue();
 		const resolver = buildResolver();
@@ -505,6 +529,54 @@ describe("processBackfillJob: defenses against malicious / buggy PDS", () => {
 				{ resolver, queue, fetch: fetchImpl, listRecordsTimeoutMs: 25 },
 			),
 		).rejects.toThrow(/timed out after 25ms/);
+	});
+
+	it("throws when listRecords body isn't a JSON object (no silent zero)", async () => {
+		const queue = new CapturingRecordsQueue();
+		const resolver = buildResolver();
+		const collection = WANTED_COLLECTIONS[0];
+		if (!collection) throw new Error("test assumes ≥1 collection");
+		const fetchImpl: typeof fetch = async () =>
+			new Response(JSON.stringify(["not", "an", "object"]), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+
+		await expect(
+			processBackfillJob({ did: DID_A, collection }, { resolver, queue, fetch: fetchImpl }),
+		).rejects.toThrow(/not a JSON object/);
+	});
+
+	it("throws when listRecords body is missing the records array", async () => {
+		const queue = new CapturingRecordsQueue();
+		const resolver = buildResolver();
+		const collection = WANTED_COLLECTIONS[0];
+		if (!collection) throw new Error("test assumes ≥1 collection");
+		const fetchImpl: typeof fetch = async () =>
+			new Response(JSON.stringify({ cursor: "x" }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+
+		await expect(
+			processBackfillJob({ did: DID_A, collection }, { resolver, queue, fetch: fetchImpl }),
+		).rejects.toThrow(/missing `records` array/);
+	});
+
+	it("throws when cursor is present but not a string (no silent end-of-pagination)", async () => {
+		const queue = new CapturingRecordsQueue();
+		const resolver = buildResolver();
+		const collection = WANTED_COLLECTIONS[0];
+		if (!collection) throw new Error("test assumes ≥1 collection");
+		const fetchImpl: typeof fetch = async () =>
+			new Response(JSON.stringify({ records: [], cursor: 42 }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+
+		await expect(
+			processBackfillJob({ did: DID_A, collection }, { resolver, queue, fetch: fetchImpl }),
+		).rejects.toThrow(/cursor was not a string/);
 	});
 });
 

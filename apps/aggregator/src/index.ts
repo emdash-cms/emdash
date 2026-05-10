@@ -73,17 +73,23 @@ const BACKFILL_PATH = "/_admin/backfill";
 const MAX_BACKFILL_DIDS = 100;
 const DID_PATTERN = /^did:[a-z]+:[A-Za-z0-9._%:-]+$/;
 
+const tokenEncoder = new TextEncoder();
+
 /**
- * Constant-time string equality. Use over `===` for any compare against a
- * secret to avoid leaking length/prefix information through timing channels.
+ * Constant-time string equality via workerd's audited
+ * `crypto.subtle.timingSafeEqual`. The primitive returns `false` immediately
+ * for length-mismatched buffers, so the *prefix*-comparison is constant-time
+ * but a length difference is still observable via timing — acceptable here
+ * because the protected secret (`ADMIN_TOKEN`) has a fixed configured length
+ * known only to the operator, and any realistic length-via-timing attack
+ * would require so many requests that other defences (rate-limiting,
+ * Cloudflare Bot Management, log review) catch it first.
  */
 function timingSafeEqual(a: string, b: string): boolean {
-	if (a.length !== b.length) return false;
-	let diff = 0;
-	for (let i = 0; i < a.length; i++) {
-		diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-	}
-	return diff === 0;
+	const aBuf = tokenEncoder.encode(a);
+	const bBuf = tokenEncoder.encode(b);
+	if (aBuf.byteLength !== bBuf.byteLength) return false;
+	return crypto.subtle.timingSafeEqual(aBuf, bBuf);
 }
 
 /**

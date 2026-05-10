@@ -32,6 +32,8 @@
  * no periodic scheduler — see plan §"Why no reconciliation cron".
  */
 
+import { parseCanonicalResourceUri } from "@atcute/lexicons/syntax";
+
 import { WANTED_COLLECTIONS } from "./constants.js";
 import type { DidResolver } from "./did-resolver.js";
 import type { BackfillJob, RecordsJob } from "./env.js";
@@ -68,9 +70,6 @@ if (MAX_RECORDS_PER_PAGE > QUEUE_SEND_BATCH_CAP) {
 		`MAX_RECORDS_PER_PAGE (${MAX_RECORDS_PER_PAGE}) exceeds QUEUE_SEND_BATCH_CAP (${QUEUE_SEND_BATCH_CAP})`,
 	);
 }
-/** Atproto rkey grammar: ALPHA / DIGIT / "." / "-" / "_" / ":" / "~". */
-const RKEY_PATTERN = /^[A-Za-z0-9._:~-]{1,512}$/;
-
 /** Producer-side records queue surface. The production binding
  * `env.RECORDS_QUEUE` satisfies this; tests pass an in-memory implementation. */
 export interface RecordsQueueProducer {
@@ -370,13 +369,22 @@ async function paginateAndEnqueue(opts: PaginateOpts): Promise<number> {
 
 		const messages: { body: RecordsJob }[] = [];
 		for (const record of records) {
-			const rkey = parseRkeyFromUri(record.uri, opts.collection);
-			if (!rkey) continue;
+			const parsed = parseCanonicalResourceUri(record.uri);
+			if (!parsed.ok) continue;
+			// Defence vs. a buggy/malicious PDS that returns records under
+			// a different DID (or a different collection) than the one we
+			// asked for. Such jobs would never verify (signature would be
+			// from a different key) and would just churn dead-letters; drop
+			// at the source. `parseCanonicalResourceUri` already validated
+			// the rkey grammar and the collection NSID for us, so we only
+			// need the cross-checks here.
+			if (parsed.value.repo !== opts.did) continue;
+			if (parsed.value.collection !== opts.collection) continue;
 			messages.push({
 				body: {
 					did: opts.did,
 					collection: opts.collection,
-					rkey,
+					rkey: parsed.value.rkey,
 					operation: "create",
 					cid: record.cid,
 				},
@@ -399,44 +407,51 @@ interface ListRecordEntry {
 	value: unknown;
 }
 
+/**
+ * Parse a `com.atproto.repo.listRecords` response body. Throws on any
+ * structural mismatch — a PDS that 200s with the wrong shape is upstream
+ * breakage, not "no records", and silently treating it as the latter
+ * causes operator-invisible partial backfills. The thrown error
+ * propagates out of `processBackfillJob` and the queue consumer retries
+ * (then DLQs) per the standard policy.
+ */
 function extractListRecordsBody(body: unknown): ListRecordEntry[] {
-	if (!isPlainObject(body)) return [];
+	if (!isPlainObject(body)) {
+		throw new Error("listRecords response was not a JSON object");
+	}
 	const records = body["records"];
-	if (!Array.isArray(records)) return [];
+	if (!Array.isArray(records)) {
+		throw new Error("listRecords response missing `records` array");
+	}
 	const out: ListRecordEntry[] = [];
 	for (const r of records) {
-		if (!isPlainObject(r)) continue;
+		if (!isPlainObject(r)) {
+			throw new Error("listRecords record entry was not a JSON object");
+		}
 		const uri = r["uri"];
 		const cid = r["cid"];
-		if (typeof uri !== "string" || typeof cid !== "string") continue;
+		if (typeof uri !== "string" || typeof cid !== "string") {
+			throw new Error("listRecords record entry missing string `uri` or `cid`");
+		}
 		out.push({ uri, cid, value: r["value"] });
 	}
 	return out;
 }
 
-function extractCursor(body: unknown): string | undefined {
-	if (!isPlainObject(body)) return undefined;
-	const cursor = body["cursor"];
-	return typeof cursor === "string" ? cursor : undefined;
-}
-
 /**
- * Extract the rkey from an AT URI of the shape `at://did/collection/rkey`
- * and validate it against the atproto rkey grammar. Returns null if any
- * step fails; callers treat that as "this isn't a record we recognise"
- * and skip the entry without aborting the page.
+ * Pull the optional `cursor` out of a `listRecords` response. `undefined`
+ * (no key) is the spec-compliant signal for "end of pagination"; any other
+ * non-string value (number, object, etc.) is a PDS bug and throws so the
+ * pagination loop doesn't silently terminate on the wrong page.
  */
-function parseRkeyFromUri(uri: string, expectedCollection: string): string | null {
-	const expectedPrefix = `at://`;
-	if (!uri.startsWith(expectedPrefix)) return null;
-	const tail = uri.slice(expectedPrefix.length);
-	const slash1 = tail.indexOf("/");
-	if (slash1 < 0) return null;
-	const slash2 = tail.indexOf("/", slash1 + 1);
-	if (slash2 < 0) return null;
-	const collection = tail.slice(slash1 + 1, slash2);
-	if (collection !== expectedCollection) return null;
-	const rkey = tail.slice(slash2 + 1);
-	if (!RKEY_PATTERN.test(rkey)) return null;
-	return rkey;
+function extractCursor(body: unknown): string | undefined {
+	if (!isPlainObject(body)) {
+		throw new Error("listRecords response was not a JSON object");
+	}
+	const cursor = body["cursor"];
+	if (cursor === undefined) return undefined;
+	if (typeof cursor !== "string") {
+		throw new Error(`listRecords cursor was not a string (got ${typeof cursor})`);
+	}
+	return cursor;
 }
