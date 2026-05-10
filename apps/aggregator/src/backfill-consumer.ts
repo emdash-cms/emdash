@@ -17,11 +17,12 @@
  *   - Unexpected throws inside the batch loop are caught per-message so one
  *     bad job can't poison the rest of the batch.
  *
- * The DLQ is intentionally not auto-drained today — backfill is operator-
- * triggered, so DLQ inspection is part of the operator's workflow when a
- * backfill POST shows partial completion in `wrangler tail`. A drain
- * consumer can land later when we have a clear ack policy (probably:
- * write a row to D1 and ack, like the records-DLQ drain).
+ * DLQ drain (`drainBackfillDeadLetterBatch`): logs each dead-lettered
+ * pair at error level (so operators tailing `wrangler tail` see it loud)
+ * and acks so the DLQ doesn't accumulate unbounded. No D1 forensics row —
+ * the recovery action for a backfill pair that exhausted retries is
+ * "re-run backfill for the affected DID", which only needs the
+ * (did, collection) pair already on the log line.
  */
 
 import {

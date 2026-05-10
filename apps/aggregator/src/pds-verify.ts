@@ -18,7 +18,7 @@
  */
 
 import type { PublicKey } from "@atcute/crypto";
-import type { AtprotoDid } from "@atcute/lexicons/syntax";
+import { type AtprotoDid, isDid } from "@atcute/lexicons/syntax";
 import { verifyRecord } from "@atcute/repo";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -215,6 +215,11 @@ async function fetchCar(
  * message.retry()` without re-encoding the policy in the catch block.
  */
 function isAtprotoDid(value: string): value is AtprotoDid {
+	// Library `isDid` enforces the full grammar (length, terminator chars);
+	// the prefix check then narrows to the atproto-supported method subset
+	// (`did:plc:` or `did:web:`). A bare prefix check would accept things
+	// like `did:plc:` (empty body), so the library call carries weight here.
+	if (!isDid(value)) return false;
 	return value.startsWith("did:plc:") || value.startsWith("did:web:");
 }
 
