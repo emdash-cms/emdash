@@ -73,6 +73,21 @@ export interface JetstreamIngestorOptions {
 	sleep?: (ms: number) => Promise<void>;
 	/** Random source for jitter, swap in tests for determinism. */
 	random?: () => number;
+	/**
+	 * Called when no cursor is persisted in DO storage (fresh deploy,
+	 * regional failover, dev-state wipe). Should return a Jetstream
+	 * `time_us` (microseconds since epoch) to start from, or `null` to
+	 * fall back to the subscription library's default (effectively
+	 * "now"). The DO supplies `MAX(verified_at)` across the four
+	 * content tables — events older than the latest record we've
+	 * already verified are no-ops thanks to consumer idempotency, but
+	 * events newer than that are the gap we'd otherwise miss between
+	 * our last known data and the moment Jetstream reconnects.
+	 *
+	 * Optional so tests can omit it; production wiring always supplies
+	 * it via the DO.
+	 */
+	cursorFloor?: () => Promise<number | null>;
 }
 
 const DEFAULT_BACKOFF: Required<IngestorBackoffConfig> = {
@@ -101,6 +116,8 @@ export class JetstreamIngestor {
 	 * spiral into ever-larger backoffs. */
 	private madeProgress = false;
 
+	private readonly cursorFloor: (() => Promise<number | null>) | null;
+
 	constructor(opts: JetstreamIngestorOptions) {
 		this.client = opts.client;
 		this.queue = opts.queue;
@@ -110,6 +127,7 @@ export class JetstreamIngestor {
 		this.logger = opts.logger ?? {};
 		this.sleep = opts.sleep ?? defaultSleep;
 		this.random = opts.random ?? Math.random;
+		this.cursorFloor = opts.cursorFloor ?? null;
 	}
 
 	/** The cursor most recently enqueued + persisted. `null` until the first event. */
@@ -131,6 +149,27 @@ export class JetstreamIngestor {
 	 */
 	async run(): Promise<void> {
 		this.cursor = (await this.storage.get(CURSOR_STORAGE_KEY)) ?? null;
+		if (this.cursor === null && this.cursorFloor !== null) {
+			// Storage was empty (fresh deploy / regional failover / dev wipe)
+			// but our content tables may have rows from a prior backfill.
+			// Derive a cursor from the latest verified record so we don't
+			// silently skip events between backfill-time and reconnect-time.
+			// Persist immediately so a crash before the first Jetstream event
+			// arrives doesn't re-derive on the next run (the floor function
+			// is allowed to be expensive).
+			try {
+				const floor = await this.cursorFloor();
+				if (floor !== null) {
+					this.cursor = floor;
+					await this.storage.put(CURSOR_STORAGE_KEY, floor);
+					this.logger.info?.("jetstream cursor seeded from D1 floor", { cursor: floor });
+				}
+			} catch (err) {
+				this.logger.warn?.("cursorFloor lookup failed, falling back to subscription default", {
+					error: err instanceof Error ? err.message : String(err),
+				});
+			}
+		}
 
 		while (!this.stopped) {
 			try {

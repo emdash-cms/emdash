@@ -19,6 +19,30 @@ import { DurableObject } from "cloudflare:workers";
 import { RealJetstreamClient } from "./jetstream-client.js";
 import { JetstreamIngestor, type IngestorStorage } from "./jetstream-ingestor.js";
 
+/** SQL `time_us` floor across the four content tables. Microseconds since
+ * epoch (Jetstream's cursor unit). Returns null when no rows exist
+ * (truly fresh install) so the subscription falls back to its own
+ * "now" default — there's nothing to gap-fill for. */
+async function deriveJetstreamCursorFloor(db: D1Database): Promise<number | null> {
+	const row = await db
+		.prepare(
+			`SELECT MAX(t) AS latest FROM (
+				SELECT MAX(verified_at) AS t FROM packages
+				UNION ALL
+				SELECT MAX(verified_at) AS t FROM releases
+				UNION ALL
+				SELECT MAX(verified_at) AS t FROM publishers
+				UNION ALL
+				SELECT MAX(verified_at) AS t FROM publisher_verifications
+			)`,
+		)
+		.first<{ latest: string | null }>();
+	if (!row?.latest) return null;
+	const ms = new Date(row.latest).getTime();
+	if (!Number.isFinite(ms)) return null;
+	return ms * 1000;
+}
+
 /** Singleton DO ID. There's exactly one ingestor per deployment. */
 export const RECORDS_DO_NAME = "main";
 
@@ -33,6 +57,7 @@ export class RecordsJetstreamDO extends DurableObject {
 			client: new RealJetstreamClient(env.JETSTREAM_URL),
 			queue: env.RECORDS_QUEUE,
 			storage: wrapDoStorage(state.storage),
+			cursorFloor: () => deriveJetstreamCursorFloor(env.DB),
 		});
 		// Fire-and-forget. The run loop absorbs every error path internally
 		// today (transient queue failures, connection drops, parse errors

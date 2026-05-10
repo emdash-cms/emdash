@@ -56,6 +56,7 @@ export { RecordsJetstreamDO } from "./records-do.js";
  */
 const BOOTSTRAP_PATH = "/_admin/start";
 const BACKFILL_PATH = "/_admin/backfill";
+const STATUS_PATH = "/_admin/status";
 
 /**
  * Cap on the explicit DID list a single POST may submit. Lower than the
@@ -194,6 +195,24 @@ export default {
 			// was already running, just woke up, or is mid-startup.
 			ctx.waitUntil(stub.fetch("https://do.internal/bootstrap"));
 			return new Response(null, { status: 204 });
+		}
+		if (url.pathname === STATUS_PATH) {
+			if (request.method !== "GET") {
+				return new Response("method not allowed", {
+					status: 405,
+					headers: { allow: "GET" },
+				});
+			}
+			const denied = requireAdminAuth(request, env);
+			if (denied) return denied;
+			// Proxy the DO's status JSON straight through. The DO returns
+			// `{cursor, consecutiveFailures}` — `consecutiveFailures: 0`
+			// means the latest connection attempt produced events; non-zero
+			// means Jetstream is unreachable, the wantedCollections filter
+			// is mismatched, or queue backpressure is biting.
+			const id = env.RECORDS_DO.idFromName(RECORDS_DO_NAME);
+			const stub = env.RECORDS_DO.get(id);
+			return stub.fetch("https://do.internal/status");
 		}
 		if (url.pathname === BACKFILL_PATH) {
 			if (request.method !== "POST") {

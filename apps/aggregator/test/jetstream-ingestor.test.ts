@@ -194,6 +194,104 @@ describe("JetstreamIngestor", () => {
 		await runPromise;
 	});
 
+	it("seeds cursor from cursorFloor when storage is empty", async () => {
+		// DO storage is empty (fresh deploy / regional failover) but the
+		// cursorFloor callback supplies a time_us derived from D1 — typically
+		// MAX(verified_at) across content tables. The ingestor should adopt
+		// it AND persist it immediately so a crash before the first event
+		// doesn't re-derive on next run.
+		const stream = new MockJetstream();
+		const queue = new InMemoryQueue();
+		const storage = new MapStorage();
+		const floorTimeUs = 1_700_000_000_000_000; // arbitrary stable epoch us
+		let calls = 0;
+
+		const ingestor = new JetstreamIngestor({
+			client: new MockJetstreamClient(stream),
+			queue,
+			storage,
+			wantedCollections: [PROFILE_NSID],
+			backoff: { initialDelayMs: 1, maxDelayMs: 5, multiplier: 2, jitter: 0 },
+			sleep: () => Promise.resolve(),
+			cursorFloor: () => {
+				calls += 1;
+				return Promise.resolve(floorTimeUs);
+			},
+		});
+		const runPromise = ingestor.run();
+
+		// Persistence is the contract — the run loop should write the floor
+		// to storage before opening any subscription.
+		await waitFor(() => ingestor.currentCursor === floorTimeUs, "floor adopted by ingestor");
+		expect(calls).toBe(1);
+		expect(await storage.get("jetstream:cursor")).toBe(floorTimeUs);
+
+		ingestor.stop();
+		await runPromise;
+	});
+
+	it("ignores cursorFloor when storage already has a cursor (no override)", async () => {
+		// The persisted cursor wins — cursorFloor is for the empty-storage
+		// case only. A call to floor() on a warm DO would silently roll the
+		// cursor back to a stale value.
+		const stream = new MockJetstream();
+		const queue = new InMemoryQueue();
+		const storage = new MapStorage();
+		const persisted = 2_000_000_000_000_000;
+		await storage.put("jetstream:cursor", persisted);
+		let floorCalled = false;
+
+		const ingestor = new JetstreamIngestor({
+			client: new MockJetstreamClient(stream),
+			queue,
+			storage,
+			wantedCollections: [PROFILE_NSID],
+			backoff: { initialDelayMs: 1, maxDelayMs: 5, multiplier: 2, jitter: 0 },
+			sleep: () => Promise.resolve(),
+			cursorFloor: () => {
+				floorCalled = true;
+				return Promise.resolve(1_000_000_000_000_000);
+			},
+		});
+		const runPromise = ingestor.run();
+		// Give the run loop a tick to read storage.
+		await new Promise((resolve) => setTimeout(resolve, 5));
+
+		expect(floorCalled).toBe(false);
+		expect(ingestor.currentCursor).toBe(persisted);
+
+		ingestor.stop();
+		await runPromise;
+	});
+
+	it("falls back to subscription default when cursorFloor returns null", async () => {
+		// Truly fresh install — D1 has no rows so floor() returns null.
+		// Storage stays empty; the subscription's own default kicks in
+		// (effectively "now"). Ingestor's cursor stays null until the
+		// first event lands.
+		const stream = new MockJetstream();
+		const queue = new InMemoryQueue();
+		const storage = new MapStorage();
+
+		const ingestor = new JetstreamIngestor({
+			client: new MockJetstreamClient(stream),
+			queue,
+			storage,
+			wantedCollections: [PROFILE_NSID],
+			backoff: { initialDelayMs: 1, maxDelayMs: 5, multiplier: 2, jitter: 0 },
+			sleep: () => Promise.resolve(),
+			cursorFloor: () => Promise.resolve(null),
+		});
+		const runPromise = ingestor.run();
+		await new Promise((resolve) => setTimeout(resolve, 5));
+
+		expect(ingestor.currentCursor).toBeNull();
+		expect(await storage.get("jetstream:cursor")).toBeUndefined();
+
+		ingestor.stop();
+		await runPromise;
+	});
+
 	it("handles delete operations (no record body, empty cid)", async () => {
 		const h = buildHarness();
 		h.stream.emit({
