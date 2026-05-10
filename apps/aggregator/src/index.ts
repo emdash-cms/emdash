@@ -22,6 +22,7 @@ import { discoverDids, enqueueBackfillJobs } from "./backfill.js";
 import type { BackfillJob, RecordsJob } from "./env.js";
 import { drainDeadLetterBatch, processBatch } from "./records-consumer.js";
 import { RECORDS_DO_NAME } from "./records-do.js";
+import { handleXrpc } from "./routes/xrpc/router.js";
 import { isPlainObject } from "./utils.js";
 
 const RECORDS_QUEUE_NAME = "emdash-aggregator-records";
@@ -232,8 +233,13 @@ export default {
 			ctx.waitUntil(runBackfill(parsed, env));
 			return new Response(null, { status: 202 });
 		}
-		return new Response("emdash-aggregator: not yet implemented", {
-			status: 503,
+		// XRPC read API: aggregator endpoints + cached sync.getRecord
+		// passthrough. Returns null if pathname doesn't start with /xrpc/, so
+		// non-matching paths fall through to the catch-all below.
+		const xrpc = await handleXrpc(env, request);
+		if (xrpc) return xrpc;
+		return new Response("emdash-aggregator: not found", {
+			status: 404,
 			headers: { "content-type": "text/plain" },
 		});
 	},

@@ -11,3 +11,22 @@
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
+
+/**
+ * Pull the verified record's CID out of a JSON-stringified
+ * `signature_metadata` column value. Returns null on malformed input
+ * (missing column, non-JSON, missing `cid` key) — callers decide what
+ * to do; in writer-controlled data this never happens, but the
+ * fallback keeps read-side comparisons robust against future schema
+ * drift.
+ */
+export function parseSignatureMetadataCid(signatureMetadata: string | null): string | null {
+	if (signatureMetadata === null) return null;
+	try {
+		const parsed: unknown = JSON.parse(signatureMetadata);
+		if (isPlainObject(parsed) && typeof parsed["cid"] === "string") return parsed["cid"];
+	} catch {
+		// fall through
+	}
+	return null;
+}

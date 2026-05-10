@@ -53,7 +53,7 @@ import {
 	type VerificationFailureReason,
 	type VerifiedPdsRecord,
 } from "./pds-verify.js";
-import { isPlainObject } from "./utils.js";
+import { isPlainObject, parseSignatureMetadataCid } from "./utils.js";
 
 /**
  * Deps the consumer needs at runtime. Constructed once per `processBatch` call
@@ -602,7 +602,7 @@ export async function ingestPackageRelease(
 			.bind(job.did, record.package, record.version)
 			.first<{ signature_metadata: string; tombstoned_at: string | null }>();
 		if (existing) {
-			const existingCid = parseCid(existing.signature_metadata);
+			const existingCid = parseSignatureMetadataCid(existing.signature_metadata);
 			const sameContent = existingCid === verified.cid;
 			if (sameContent && existing.tombstoned_at !== null) {
 				await db.batch([
@@ -1090,22 +1090,6 @@ function computeVersionSort(version: string): string | null {
 		return `${pad(major)}.${pad(minor)}.${pad(patch)}.${padded.join(".")}`;
 	}
 	return `${pad(major)}.${pad(minor)}.${pad(patch)}.${FINAL_VERSION_SENTINEL}`;
-}
-
-/**
- * Pull the verified record's CID out of the JSON-stringified
- * `signature_metadata` column. Returns null if the column is missing or
- * malformed (which shouldn't happen in writer-controlled data, but the
- * fallback keeps the comparison robust against future schema drift).
- */
-function parseCid(signatureMetadata: string): string | null {
-	try {
-		const parsed: unknown = JSON.parse(signatureMetadata);
-		if (isPlainObject(parsed) && typeof parsed.cid === "string") return parsed.cid;
-	} catch {
-		// fall through
-	}
-	return null;
 }
 
 function formatValidationIssues(issues: unknown): string {
