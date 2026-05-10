@@ -504,6 +504,11 @@ class MapDidDocCache implements DidDocCache {
 		this.entries.set(did, { ...doc, resolvedAt: now });
 		return Promise.resolve();
 	}
+	expire(did: string) {
+		const entry = this.entries.get(did);
+		if (entry) this.entries.set(did, { ...entry, resolvedAt: new Date(0) });
+		return Promise.resolve();
+	}
 	seed(did: string) {
 		this.entries.set(did, {
 			pds: "https://pds.test.example",

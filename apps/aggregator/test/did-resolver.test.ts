@@ -44,6 +44,7 @@ class MapDidDocCache implements DidDocCache {
 	private readonly entries = new Map<string, CachedDidDoc>();
 	readonly reads: string[] = [];
 	readonly upserts: Array<{ did: string; doc: Omit<CachedDidDoc, "resolvedAt">; now: Date }> = [];
+	readonly expires: string[] = [];
 
 	read(did: string): Promise<CachedDidDoc | null> {
 		this.reads.push(did);
@@ -52,6 +53,14 @@ class MapDidDocCache implements DidDocCache {
 	upsert(did: string, doc: Omit<CachedDidDoc, "resolvedAt">, now: Date): Promise<void> {
 		this.upserts.push({ did, doc, now });
 		this.entries.set(did, { ...doc, resolvedAt: now });
+		return Promise.resolve();
+	}
+	expire(did: string): Promise<void> {
+		this.expires.push(did);
+		const entry = this.entries.get(did);
+		if (entry) {
+			this.entries.set(did, { ...entry, resolvedAt: new Date(0) });
+		}
 		return Promise.resolve();
 	}
 }
@@ -317,6 +326,42 @@ describe("DidResolver", () => {
 
 			// One resolver call for the cache miss; the second resolve hits D1.
 			expect(resolver.calls).toHaveLength(1);
+		});
+
+		it("expire only touches pds_resolved_at; preserves first_seen_at and last_seen_at", async () => {
+			const cache = createD1DidDocCache(testEnv.DB);
+			const seenAt = new Date("2026-05-09T12:00:00.000Z");
+			await cache.upsert(
+				TEST_DID,
+				{
+					pds: TEST_PDS,
+					signingKey: signingKeyMultibase,
+					signingKeyId: `${TEST_DID}#atproto`,
+				},
+				seenAt,
+			);
+
+			await cache.expire(TEST_DID);
+
+			const row = await testEnv.DB.prepare(
+				`SELECT first_seen_at, last_seen_at, pds_resolved_at FROM known_publishers WHERE did = ?`,
+			)
+				.bind(TEST_DID)
+				.first<{ first_seen_at: string; last_seen_at: string; pds_resolved_at: string }>();
+			expect(row?.first_seen_at).toBe(seenAt.toISOString());
+			expect(row?.last_seen_at).toBe(seenAt.toISOString());
+			// pds_resolved_at gets pushed to epoch so the next resolve()
+			// sees the row as stale per the TTL check.
+			expect(row?.pds_resolved_at).toBe("1970-01-01T00:00:00.000Z");
+		});
+
+		it("expire on an unknown DID is a no-op (no row appears)", async () => {
+			const cache = createD1DidDocCache(testEnv.DB);
+			await cache.expire(TEST_DID);
+			const row = await testEnv.DB.prepare(`SELECT did FROM known_publishers WHERE did = ?`)
+				.bind(TEST_DID)
+				.first();
+			expect(row).toBeNull();
 		});
 	});
 });

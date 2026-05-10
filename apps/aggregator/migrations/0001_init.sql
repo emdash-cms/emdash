@@ -80,8 +80,10 @@ CREATE INDEX idx_releases_cts ON releases(cts);
 -- The UNIQUE constraint deduplicates true-duplicate attempts (same DID,
 -- same version, same payload) so a hostile publisher pumping the same bytes
 -- doesn't fill the audit table — each unique (did, package, version,
--- attempted_record_blob) tuple writes at most one row. The consumer's
--- INSERT carries `ON CONFLICT … DO NOTHING` to honour this.
+-- attempted_record_blob) tuple resolves to at most one row. The consumer's
+-- INSERT uses `ON CONFLICT … DO UPDATE SET rejected_at = excluded.rejected_at`
+-- so the row's timestamp tracks the latest attempt; operators querying
+-- "is this attack ongoing?" can read `rejected_at` for freshness.
 CREATE TABLE release_duplicate_attempts (
 	did TEXT NOT NULL,
 	package TEXT NOT NULL,

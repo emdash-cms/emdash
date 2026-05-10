@@ -800,10 +800,17 @@ export async function ingestPublisherVerification(
 export async function applyDelete(db: D1Database, job: RecordsJob, now: Date): Promise<void> {
 	switch (job.collection) {
 		case NSID.packageProfile:
-			// Hard-delete the profile. Releases hang off the profile via FK; we
-			// don't cascade because doing so silently throws away publication
-			// history. Operators inspecting an "orphaned" release row can tell
-			// the publisher deleted the profile.
+			// Hard-delete the profile. The releases FK is ON DELETE CASCADE
+			// (see `0001_init.sql`), so all of this publisher's releases for
+			// this slug are removed in the same statement. CASCADE is the
+			// right semantic when the publisher's intent is "the whole
+			// package goes away" — and crucially, it lets out-of-order
+			// Jetstream delivery work: a profile-delete arriving before its
+			// release-deletes doesn't fail with FK violation. Audit history
+			// for those releases lives only in `release_duplicate_attempts`
+			// (for prior immutability violations) and `dead_letters` (for
+			// prior verification failures); the canonical release rows are
+			// gone with the profile.
 			await db
 				.prepare(`DELETE FROM packages WHERE did = ? AND slug = ?`)
 				.bind(job.did, job.rkey)

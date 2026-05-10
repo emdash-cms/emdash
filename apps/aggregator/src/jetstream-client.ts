@@ -172,15 +172,28 @@ export function wrapAtcuteSubscription<E extends { kind: string }>(
  * is assignable here because `commit` is optional. */
 type MaybeCommitEvent = {
 	kind: string;
-	commit?: { collection?: unknown; rkey?: unknown; operation?: unknown };
+	commit?: {
+		collection?: unknown;
+		rkey?: unknown;
+		operation?: unknown;
+		cid?: unknown;
+	};
 };
 
 function isCommitEvent(event: MaybeCommitEvent): event is JetstreamCommitEvent {
-	return (
-		event.kind === "commit" &&
-		event.commit !== undefined &&
-		typeof event.commit.collection === "string" &&
-		typeof event.commit.rkey === "string" &&
-		typeof event.commit.operation === "string"
-	);
+	if (event.kind !== "commit" || event.commit === undefined) return false;
+	const c = event.commit;
+	if (
+		typeof c.collection !== "string" ||
+		typeof c.rkey !== "string" ||
+		typeof c.operation !== "string"
+	) {
+		return false;
+	}
+	// `cid` is required for create/update (the ingestor reads it into the
+	// RecordsJob); delete events legitimately have no cid. Validate
+	// conditionally so a malformed create/update with missing cid doesn't
+	// slip through and produce a job with `cid: undefined`.
+	if (c.operation !== "delete" && typeof c.cid !== "string") return false;
+	return true;
 }

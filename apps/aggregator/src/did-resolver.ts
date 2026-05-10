@@ -37,6 +37,13 @@ export interface CachedDidDoc {
 export interface DidDocCache {
 	read(did: string): Promise<CachedDidDoc | null>;
 	upsert(did: string, doc: Omit<CachedDidDoc, "resolvedAt">, now: Date): Promise<void>;
+	/** Force the cached row to look stale without disturbing other timestamps
+	 * the cache tracks (e.g. `last_seen_at` in the D1 binding). Used by
+	 * `DidResolver.invalidate()` after a signature failure suggests a key
+	 * rotation. The implementation chooses what "stale" means; the
+	 * Map-backed test cache rewrites `resolvedAt` to epoch, the D1 binding
+	 * sets `pds_resolved_at` only. */
+	expire(did: string): Promise<void>;
 }
 
 export interface DidDocumentResolverLike {
@@ -86,20 +93,12 @@ export class DidResolver {
 
 	/** Force a re-resolution next time. Used by the verification path on
 	 * signature failure (the cached signing key may be stale after a
-	 * publisher key rotation). */
+	 * publisher key rotation). Delegates to the cache's `expire` so other
+	 * timestamps the cache tracks (e.g. `last_seen_at`) aren't disturbed —
+	 * we shouldn't pretend the publisher hasn't been seen since 1970 just
+	 * because we want to drop the cached crypto. */
 	async invalidate(did: string): Promise<void> {
-		// The cache doesn't expose a delete because invalidation is rare and
-		// we want the row to stay around as a "known publisher" record.
-		// Setting `pds_resolved_at` to a long-past time forces re-resolve on
-		// the next `resolve()` call without losing the discovery membership.
-		const long_ago = new Date(0);
-		const cached = await this.cache.read(asDid(did));
-		if (!cached) return;
-		await this.cache.upsert(
-			asDid(did),
-			{ pds: cached.pds, signingKey: cached.signingKey, signingKeyId: cached.signingKeyId },
-			long_ago,
-		);
+		await this.cache.expire(asDid(did));
 	}
 }
 
@@ -216,6 +215,19 @@ export function createD1DidDocCache(db: D1Database): DidDocCache {
 					   last_seen_at = excluded.last_seen_at`,
 				)
 				.bind(did, doc.pds, doc.signingKey, doc.signingKeyId, nowIso, nowIso, nowIso)
+				.run();
+		},
+		async expire(did): Promise<void> {
+			// Touches only `pds_resolved_at`; first_seen_at / last_seen_at /
+			// the cached crypto are intentionally untouched. Setting to epoch
+			// is unambiguous "older than any plausible TTL". No-op when the
+			// row doesn't exist.
+			await db
+				.prepare(
+					`UPDATE known_publishers SET pds_resolved_at = '1970-01-01T00:00:00.000Z'
+					 WHERE did = ?`,
+				)
+				.bind(did)
 				.run();
 		},
 	};
