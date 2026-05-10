@@ -55,9 +55,12 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 	const router = getRouter(env);
 	const response = await router.fetch(request);
 	// Override Cache-Control unconditionally on aggregator endpoints — the
-	// router doesn't set one and the takedown story requires `no-store`
-	// regardless of which endpoint responded. Cloning so we don't mutate
-	// a frozen Response from `json()`.
+	// takedown story requires `no-store` regardless of which endpoint
+	// responded, and it's deliberately not per-handler-overridable (a
+	// future endpoint that wants public caching has to be intercepted
+	// before the router, like sync.getRecord, where the cache contract
+	// can be reasoned about end-to-end). Cloning so we don't mutate a
+	// frozen Response from `json()`.
 	const headers = new Headers(response.headers);
 	headers.set("cache-control", NO_STORE);
 	return new Response(response.body, {

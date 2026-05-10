@@ -4,17 +4,30 @@
  * Cursors are opaque base64url strings to clients; internally they encode
  * a small JSON object specific to the endpoint's ORDER BY clause. We use
  * different shapes for different endpoints (list cursors carry sort
- * keys; offset cursors carry an integer) — keep each endpoint's encoder
- * paired with its decoder.
+ * keys; offset cursors carry an integer).
  *
- * `decode*` functions accept `undefined` for "no cursor" and never throw.
- * A malformed cursor (forged, base64 garbage, or carrying an unexpected
- * shape) returns `null`, which callers treat as "start from the
- * beginning". Throwing would let a client attacker DOS by sending bad
- * cursors; silently restarting is safer than 400ing.
+ * Decode discipline: an *absent* cursor (`undefined`) means "first page".
+ * A *provided* cursor that fails to decode throws `InvalidCursorError`,
+ * which handlers translate into a 400 InvalidRequest. Earlier drafts
+ * silently restarted on bad cursors to defend against DOS via forged
+ * cursors, but that policy lets a legitimate client (with a corrupted
+ * cursor from URL-encoding mishaps, mid-rollout schema changes, etc.)
+ * loop forever re-fetching page 1 thinking they're paginating. The DOS
+ * argument doesn't apply because the workload is bounded by `limit`
+ * regardless. Throw loud, fail fast.
+ *
+ * Offset cursors additionally cap `offset` to `MAX_OFFSET` so a forged
+ * cursor with a wildly large offset can't trigger an arbitrarily deep
+ * SQL scan. Real clients never paginate that deep.
  */
 
 import { isPlainObject } from "../../utils.js";
+
+/** Throw when a *provided* cursor fails to decode. Handler catches and
+ * converts to 400 InvalidRequest. */
+export class InvalidCursorError extends Error {
+	override readonly name = "InvalidCursorError";
+}
 
 interface ListCursor {
 	versionSort: string;
@@ -27,21 +40,33 @@ export function encodeListCursor(cursor: ListCursor): string {
 
 export function decodeListCursor(raw: string | undefined): ListCursor | null {
 	if (raw === undefined) return null;
+	let parsed: unknown;
 	try {
-		const parsed: unknown = JSON.parse(base64UrlDecode(raw));
-		if (!isPlainObject(parsed)) return null;
-		const versionSort = parsed["versionSort"];
-		const version = parsed["version"];
-		if (typeof versionSort !== "string" || typeof version !== "string") return null;
-		return { versionSort, version };
+		parsed = JSON.parse(base64UrlDecode(raw));
 	} catch {
-		return null;
+		throw new InvalidCursorError("cursor is not a valid base64url-encoded JSON object");
 	}
+	if (!isPlainObject(parsed)) {
+		throw new InvalidCursorError("cursor must decode to a JSON object");
+	}
+	const versionSort = parsed["versionSort"];
+	const version = parsed["version"];
+	if (typeof versionSort !== "string" || typeof version !== "string") {
+		throw new InvalidCursorError("cursor must carry string `versionSort` and `version` fields");
+	}
+	return { versionSort, version };
 }
 
 interface OffsetCursor {
 	offset: number;
 }
+
+/** Cap on offset values accepted from a client cursor. Real pagination
+ * never reaches this depth — at the lexicon's `limit: 100` cap that's
+ * 100 pages of 100 results = 10k items; defaulting to `limit: 25` makes
+ * it 400 pages. Past that, a forged cursor is the more likely
+ * explanation than a legitimate client. */
+const MAX_OFFSET = 10_000;
 
 export function encodeOffsetCursor(cursor: OffsetCursor): string {
 	return base64UrlEncode(JSON.stringify(cursor));
@@ -49,15 +74,23 @@ export function encodeOffsetCursor(cursor: OffsetCursor): string {
 
 export function decodeOffsetCursor(raw: string | undefined): OffsetCursor | null {
 	if (raw === undefined) return null;
+	let parsed: unknown;
 	try {
-		const parsed: unknown = JSON.parse(base64UrlDecode(raw));
-		if (!isPlainObject(parsed)) return null;
-		const offset = parsed["offset"];
-		if (typeof offset !== "number" || !Number.isInteger(offset) || offset < 0) return null;
-		return { offset };
+		parsed = JSON.parse(base64UrlDecode(raw));
 	} catch {
-		return null;
+		throw new InvalidCursorError("cursor is not a valid base64url-encoded JSON object");
 	}
+	if (!isPlainObject(parsed)) {
+		throw new InvalidCursorError("cursor must decode to a JSON object");
+	}
+	const offset = parsed["offset"];
+	if (typeof offset !== "number" || !Number.isInteger(offset) || offset < 0) {
+		throw new InvalidCursorError("cursor `offset` must be a non-negative integer");
+	}
+	if (offset > MAX_OFFSET) {
+		throw new InvalidCursorError(`cursor offset exceeds maximum (${MAX_OFFSET})`);
+	}
+	return { offset };
 }
 
 const BASE64URL_PLUS = /\+/g;

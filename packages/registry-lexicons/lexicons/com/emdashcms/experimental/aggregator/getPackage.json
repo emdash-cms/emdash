@@ -33,11 +33,7 @@
 			"errors": [
 				{
 					"name": "NotFound",
-					"description": "No package indexed under the given (did, slug)."
-				},
-				{
-					"name": "Tombstoned",
-					"description": "The package was indexed but has been deleted by the publisher."
+					"description": "No package indexed under the given (did, slug). Aggregators that hard-delete on publisher deletion (rather than soft-deleting) return NotFound for both the never-indexed and the deleted cases — clients should treat them equivalently."
 				}
 			]
 		}

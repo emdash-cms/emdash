@@ -10,10 +10,10 @@
  * (did, package)".
  */
 
-import { json, XRPCError } from "@atcute/xrpc-server";
+import { InvalidRequestError, json, XRPCError } from "@atcute/xrpc-server";
 import { type AggregatorDefs, type AggregatorListReleases } from "@emdash-cms/registry-lexicons";
 
-import { decodeListCursor, encodeListCursor } from "./cursor.js";
+import { decodeListCursor, encodeListCursor, InvalidCursorError } from "./cursor.js";
 import { type ReleaseRow, releaseColumns, releaseView } from "./views.js";
 
 const DEFAULT_LIMIT = 25;
@@ -46,8 +46,17 @@ export async function listReleases(
 	// Cursor encodes the LAST seen (version_sort, version) on the previous
 	// page so the next page picks up below it in DESC order. `WHERE`
 	// half-tuple inequality so SQLite's index on (did, package, version_sort
-	// DESC) stays useful.
-	const cursor = decodeListCursor(params.cursor);
+	// DESC) stays useful. A *provided* cursor that fails to decode 400s
+	// (would otherwise loop the client through page 1 forever).
+	let cursor: ReturnType<typeof decodeListCursor>;
+	try {
+		cursor = decodeListCursor(params.cursor);
+	} catch (err) {
+		if (err instanceof InvalidCursorError) {
+			throw new InvalidRequestError({ error: "InvalidRequest", message: err.message });
+		}
+		throw err;
+	}
 	const rows = await session
 		.prepare(
 			`SELECT ${releaseColumns()}, version_sort
@@ -84,6 +93,12 @@ export async function listReleases(
 		releases: page.map(releaseView),
 	};
 	if (hasMore && last) {
+		// Cursor encodes the internal `version_sort` format. If the
+		// `computeVersionSort` encoding ever changes, in-flight cursors
+		// will be cursor-incompatible across the deploy — clients will
+		// 400 (per the strict-cursor policy) and fall back to fetching
+		// page 1. Acceptable for the experimental NSID; revisit if/when
+		// we stabilise.
 		response.cursor = encodeListCursor({ versionSort: last.version_sort, version: last.version });
 	}
 	return json(response);

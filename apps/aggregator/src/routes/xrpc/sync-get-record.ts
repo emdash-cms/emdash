@@ -52,12 +52,17 @@ export async function syncGetRecord(env: Env, request: Request): Promise<Respons
 			`record not found for (${did}, ${collection}, ${rkey})`,
 		);
 	}
-	// Normalise to a fresh Uint8Array. D1 returns BLOBs as ArrayBuffer in
-	// production but as Uint8Array via miniflare in tests; copying through
-	// `new Uint8Array(buf)` covers both and produces the byte-stream shape
-	// workerd's Response constructor wants. (Without this normalisation,
-	// passing an `ArrayBuffer` directly works in production but trips
-	// miniflare's "ReadableStream did not return bytes" check.)
+	// Normalise to a Uint8Array view. D1 returns BLOBs as ArrayBuffer in
+	// production but as Uint8Array via miniflare in tests; wrapping in
+	// `new Uint8Array(buf)` produces the byte-stream shape workerd's
+	// Response constructor wants. (Without this normalisation, passing an
+	// `ArrayBuffer` directly works in production but trips miniflare's
+	// "ReadableStream did not return bytes" check.)
+	//
+	// `new Uint8Array(arrayBuffer)` *views* the buffer rather than copying.
+	// That's safe here because workerd buffers the entire body during
+	// Response construction (the body isn't streamed asynchronously back
+	// to the client over the lifetime of the underlying buffer).
 	const body = carBytes instanceof Uint8Array ? carBytes : new Uint8Array(carBytes);
 	return new Response(request.method === "HEAD" ? null : body, {
 		status: 200,

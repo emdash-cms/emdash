@@ -20,14 +20,14 @@
  * last_updated DESC) — the lexicon's documented behaviour.
  */
 
-import { json } from "@atcute/xrpc-server";
+import { InvalidRequestError, json } from "@atcute/xrpc-server";
 import {
 	type AggregatorDefs,
 	NSID,
 	type AggregatorSearchPackages,
 } from "@emdash-cms/registry-lexicons";
 
-import { decodeOffsetCursor, encodeOffsetCursor } from "./cursor.js";
+import { decodeOffsetCursor, encodeOffsetCursor, InvalidCursorError } from "./cursor.js";
 import { type PackageRow, packageColumns, packageView } from "./views.js";
 
 const DEFAULT_LIMIT = 25;
@@ -38,7 +38,15 @@ export async function searchPackages(
 	params: AggregatorSearchPackages.$params,
 ): Promise<Response> {
 	const limit = clampLimit(params.limit);
-	const offset = decodeOffsetCursor(params.cursor)?.offset ?? 0;
+	let offset: number;
+	try {
+		offset = decodeOffsetCursor(params.cursor)?.offset ?? 0;
+	} catch (err) {
+		if (err instanceof InvalidCursorError) {
+			throw new InvalidRequestError({ error: "InvalidRequest", message: err.message });
+		}
+		throw err;
+	}
 	const session = env.DB.withSession("first-primary");
 
 	const hasQuery = typeof params.q === "string" && params.q.trim().length > 0;
@@ -92,7 +100,7 @@ function buildFtsSearchSql(hasCapability: boolean): string {
 		WHERE packages_fts MATCH ?
 		${ENFORCEMENT_FILTER_SQL}
 		${hasCapability ? CAPABILITY_FILTER_SQL : ""}
-		ORDER BY bm25(packages_fts), p.last_updated DESC
+		ORDER BY bm25(packages_fts), p.last_updated DESC, p.did ASC, p.slug ASC
 		LIMIT ? OFFSET ?
 	`;
 }
@@ -110,13 +118,18 @@ function buildFtsBindings(
 }
 
 function buildBrowseSql(hasCapability: boolean): string {
+	// Stable tiebreakers (did, slug) so offset pagination doesn't shuffle
+	// rows across pages when many packages share `last_updated` (or it's
+	// NULL — `last_updated` comes from the optional record.lastUpdated
+	// field). NULLS LAST keeps NULL `last_updated` rows out of the way
+	// of the freshness sort but still reachable via pagination.
 	return `
 		SELECT ${packageColumns("p.")}
 		FROM packages p
 		WHERE 1=1
 		${ENFORCEMENT_FILTER_SQL}
 		${hasCapability ? CAPABILITY_FILTER_SQL : ""}
-		ORDER BY p.last_updated DESC
+		ORDER BY p.last_updated IS NULL, p.last_updated DESC, p.did ASC, p.slug ASC
 		LIMIT ? OFFSET ?
 	`;
 }

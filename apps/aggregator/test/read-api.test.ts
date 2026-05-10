@@ -257,6 +257,14 @@ describe("listReleases", () => {
 		);
 		expect(res.status).toBe(404);
 	});
+
+	it("400s on a provided-but-malformed cursor", async () => {
+		await seedPackage({ slug: "demo" });
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorListReleases}?did=${DID_A}&package=demo&cursor=garbage!!!`,
+		);
+		expect(res.status).toBe(400);
+	});
 });
 
 describe("getLatestRelease", () => {
@@ -274,7 +282,7 @@ describe("getLatestRelease", () => {
 		expect(body["uri"]).toBe(`at://${DID_A}/${NSID.packageRelease}/demo:2.0.0`);
 	});
 
-	it("returns 404 when latest_version points at a tombstoned release", async () => {
+	it("returns 404 when ALL releases are tombstoned (or none exist)", async () => {
 		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
 		await seedRelease({ version: "1.0.0", tombstoned: true });
 
@@ -282,6 +290,23 @@ describe("getLatestRelease", () => {
 			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
 		);
 		expect(res.status).toBe(404);
+	});
+
+	it("falls back to the next-best release when latest_version points at a tombstoned one", async () => {
+		// `latest_version` was set to 2.0.0, then 2.0.0 was tombstoned but
+		// `refreshPackageLatestStmt` hasn't run yet (or failed). The fast-path
+		// JOIN misses; the slow-path ORDER BY should still find 1.0.0 and
+		// return it instead of 404ing.
+		await seedPackage({ slug: "demo", latestVersion: "2.0.0" });
+		await seedRelease({ version: "1.0.0" });
+		await seedRelease({ version: "2.0.0", tombstoned: true });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as Record<string, unknown>;
+		expect(body["version"]).toBe("1.0.0");
 	});
 
 	it("returns 404 when no package row exists", async () => {
@@ -342,6 +367,41 @@ describe("searchPackages", () => {
 		);
 		// Either matches nothing or matches normally — but doesn't 500.
 		expect(res.status).toBe(200);
+	});
+
+	it("treats FTS operators as literal tokens (the escape actually works)", async () => {
+		await seedPackage({ slug: "alpha", name: "Alpha" });
+		await seedPackage({ slug: "beta", name: "Beta" });
+		// `alpha OR beta` would match both packages if `OR` were interpreted
+		// as the FTS5 operator. With proper escaping the whole string is one
+		// literal phrase that can't possibly appear in either record's
+		// indexed text → zero matches. A buggy escape that stripped the
+		// quotes would return *both* packages.
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorSearchPackages}?q=${encodeURIComponent("alpha OR beta")}`,
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { packages: Array<{ slug: string }> };
+		expect(body.packages).toEqual([]);
+	});
+
+	it("400s on a provided-but-malformed cursor (no silent restart)", async () => {
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorSearchPackages}?cursor=not-a-valid-cursor`,
+		);
+		expect(res.status).toBe(400);
+	});
+
+	it("400s on a forged cursor with an out-of-range offset", async () => {
+		// Encode {offset: 1_000_000} → over MAX_OFFSET → 400.
+		const forged = btoa(JSON.stringify({ offset: 1_000_000 }))
+			.replace(/\+/g, "-")
+			.replace(/\//g, "_")
+			.replace(/=+$/, "");
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorSearchPackages}?cursor=${forged}`,
+		);
+		expect(res.status).toBe(400);
 	});
 });
 

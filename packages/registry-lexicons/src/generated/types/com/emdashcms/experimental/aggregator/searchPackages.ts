@@ -9,11 +9,12 @@ const _mainSchema = /*#__PURE__*/ v.query(
 		params: /*#__PURE__*/ v.object({
 			/**
 			 * Optional filter: only return packages that declare this access category (e.g. 'email', 'network'). Compares against the latest release's declaredAccess top-level keys.
+			 * @minLength 1
 			 * @maxLength 64
 			 */
 			capability: /*#__PURE__*/ v.optional(
 				/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
-					/*#__PURE__*/ v.stringLength(0, 64),
+					/*#__PURE__*/ v.stringLength(1, 64),
 				]),
 			),
 			/**

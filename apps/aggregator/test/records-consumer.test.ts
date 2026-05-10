@@ -144,6 +144,27 @@ describe("ingestPackageProfile", () => {
 		expect(row?.license).toBe("Apache-2.0");
 	});
 
+	it("preserves indexed_at across re-ingest, advances verified_at", async () => {
+		// Lexicon's `packageView.indexedAt` semantic is "first observed".
+		// The upsert omits `indexed_at` from `DO UPDATE SET` to keep the
+		// first-write timestamp stable. `verified_at` is bumped (it tracks
+		// "last verified" — the opposite intent).
+		const job = jobFor(DID_A, NSID.packageProfile, "demo");
+		const firstSeen = new Date("2026-01-01T00:00:00.000Z");
+		const reIngested = new Date("2026-05-10T12:00:00.000Z");
+
+		await ingestPackageProfile(testEnv.DB, job, fakeVerified(validRecord), firstSeen);
+		await ingestPackageProfile(testEnv.DB, job, fakeVerified(validRecord), reIngested);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT indexed_at, verified_at FROM packages WHERE did = ?`,
+		)
+			.bind(DID_A)
+			.first<{ indexed_at: string; verified_at: string }>();
+		expect(row?.indexed_at).toBe(firstSeen.toISOString());
+		expect(row?.verified_at).toBe(reIngested.toISOString());
+	});
+
 	it("rejects when rkey ≠ record.slug", async () => {
 		const job = jobFor(DID_A, NSID.packageProfile, "different");
 		await expect(

@@ -17,6 +17,7 @@
 					"capability": {
 						"type": "string",
 						"description": "Optional filter: only return packages that declare this access category (e.g. 'email', 'network'). Compares against the latest release's declaredAccess top-level keys.",
+						"minLength": 1,
 						"maxLength": 64
 					},
 					"limit": {
