@@ -18,10 +18,9 @@ import {
 	type PublicKey,
 } from "@atcute/crypto";
 import { type DidDocument, getAtprotoVerificationMaterial, getPdsEndpoint } from "@atcute/identity";
-import type { Did } from "@atcute/lexicons/syntax";
+import { type Did, isDid } from "@atcute/lexicons/syntax";
 
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
-const DID_PATTERN = /^did:[a-z]+:[A-Za-z0-9._%:-]+$/;
 
 /** Cache entry shape; the multibase signing key is stored raw so the
  * `PublicKey` instance is reconstructed on each `resolve()`. WebCrypto
@@ -100,10 +99,6 @@ export class DidResolver {
 	async invalidate(did: string): Promise<void> {
 		await this.cache.expire(asDid(did));
 	}
-}
-
-function isDid(value: string): value is Did {
-	return DID_PATTERN.test(value);
 }
 
 function asDid(did: string): Did {

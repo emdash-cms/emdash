@@ -15,6 +15,8 @@
  * Worker boots.
  */
 
+import { isDid } from "@atcute/lexicons/syntax";
+
 import { drainBackfillDeadLetterBatch, processBackfillBatch } from "./backfill-consumer.js";
 import { discoverDids, enqueueBackfillJobs } from "./backfill.js";
 import type { BackfillJob, RecordsJob } from "./env.js";
@@ -71,7 +73,6 @@ const BACKFILL_PATH = "/_admin/backfill";
  * the same per-pair caps in the consumer.
  */
 const MAX_BACKFILL_DIDS = 100;
-const DID_PATTERN = /^did:[a-z]+:[A-Za-z0-9._%:-]+$/;
 
 const tokenEncoder = new TextEncoder();
 
@@ -163,7 +164,7 @@ function parseBackfillBody(body: unknown): BackfillRequest | { error: string } {
 	}
 	const seen = new Set<string>();
 	for (const did of rawDids) {
-		if (typeof did !== "string" || !DID_PATTERN.test(did)) {
+		if (!isDid(did)) {
 			return { error: `invalid DID in list: ${JSON.stringify(did)}` };
 		}
 		seen.add(did);
