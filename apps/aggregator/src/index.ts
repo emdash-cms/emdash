@@ -15,7 +15,7 @@
  * Worker boots.
  */
 
-import { processBackfillBatch } from "./backfill-consumer.js";
+import { drainBackfillDeadLetterBatch, processBackfillBatch } from "./backfill-consumer.js";
 import { discoverDids, enqueueBackfillJobs } from "./backfill.js";
 import type { BackfillJob, RecordsJob } from "./env.js";
 import { drainDeadLetterBatch, processBatch } from "./records-consumer.js";
@@ -25,6 +25,7 @@ import { isPlainObject } from "./utils.js";
 const RECORDS_QUEUE_NAME = "emdash-aggregator-records";
 const RECORDS_DLQ_NAME = "emdash-aggregator-records-dlq";
 const BACKFILL_QUEUE_NAME = "emdash-aggregator-backfill";
+const BACKFILL_DLQ_NAME = "emdash-aggregator-backfill-dlq";
 
 export { RecordsJetstreamDO } from "./records-do.js";
 
@@ -58,11 +59,16 @@ const BACKFILL_PATH = "/_admin/backfill";
  * old serial-loop cap (was 1000) because the queue-fan-out path amplifies
  * a leaked-token attack: each submitted DID becomes
  * `WANTED_COLLECTIONS.length` queue messages, each consuming a consumer
- * invocation with its own outbound PDS fetches. 100 × 4 = 400 jobs is
- * still a meaningful operator-recovery batch but a tractable blast radius.
+ * invocation with its own outbound PDS fetches. 100 × 4 = 400 jobs from
+ * the explicit path is a meaningful operator-recovery batch but a
+ * tractable blast radius for the explicit path.
  *
- * Discovery-mode submissions are bounded separately by
- * `MAX_DISCOVERED_DIDS` inside `discoverDids`.
+ * The discovery path (empty body) has a separate ceiling at
+ * `MAX_DISCOVERED_DIDS = 1000` and is therefore actually the larger
+ * worst-case fan-out source — by design, since legitimate-publisher
+ * enumeration is the primary use case and we want the explicit list to
+ * be the tighter "operator types it themselves" bucket. Both paths share
+ * the same per-pair caps in the consumer.
  */
 const MAX_BACKFILL_DIDS = 100;
 const DID_PATTERN = /^did:[a-z]+:[A-Za-z0-9._%:-]+$/;
@@ -208,11 +214,14 @@ export default {
 			if ("error" in parsed) {
 				return new Response(parsed.error, { status: 400 });
 			}
-			// Fire-and-forget via waitUntil so the route returns 202 quickly
-			// regardless of the DID list size. Backfill progress is observable
-			// via Workers logs and the resulting D1 writes; the response body
-			// just confirms the trigger landed. Per-DID errors are logged from
-			// inside backfillDids; callers don't get them in the response.
+			// Fire-and-forget via waitUntil so the route returns 202 quickly.
+			// `runBackfill` only does discovery + queue fan-out (both fast);
+			// per-pair work runs in the BACKFILL_QUEUE consumer with its own
+			// invocation budget. Operator-facing observability:
+			//   - this handler's logs ([aggregator] backfill discovery/enqueue)
+			//   - per-pair logs from `backfill-consumer.ts`
+			//   - DLQ inspection (`emdash-aggregator-backfill-dlq`) for
+			//     pairs that exhausted retries
 			ctx.waitUntil(runBackfill(parsed, env));
 			return new Response(null, { status: 202 });
 		}
@@ -240,6 +249,10 @@ export default {
 			case BACKFILL_QUEUE_NAME:
 				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by queue name
 				await processBackfillBatch(batch as MessageBatch<BackfillJob>, env);
+				return;
+			case BACKFILL_DLQ_NAME:
+				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by queue name
+				drainBackfillDeadLetterBatch(batch as MessageBatch<BackfillJob>, env);
 				return;
 			default:
 				console.error("[aggregator] unknown queue, acking batch", { queue: batch.queue });

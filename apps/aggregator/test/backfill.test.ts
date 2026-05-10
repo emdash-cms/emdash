@@ -21,7 +21,7 @@ import type { Did } from "@atcute/lexicons/syntax";
 import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { processBackfillBatch } from "../src/backfill-consumer.js";
+import { drainBackfillDeadLetterBatch, processBackfillBatch } from "../src/backfill-consumer.js";
 import {
 	type BackfillQueueProducer,
 	discoverDids,
@@ -636,6 +636,24 @@ describe("processBackfillBatch (consumer)", () => {
 		expect(succeeding.retried).toBe(0);
 		expect(recordsQueue.sent).toHaveLength(1);
 		expect(recordsQueue.sent[0]?.collection).toBe(collection2);
+	});
+});
+
+describe("drainBackfillDeadLetterBatch", () => {
+	it("acks every dead-lettered job (DLQ doesn't accumulate)", () => {
+		const collection = WANTED_COLLECTIONS[0];
+		if (!collection) throw new Error("test assumes ≥1 collection");
+		const messages = [
+			new FakeMessage<BackfillJob>({ did: DID_A, collection }),
+			new FakeMessage<BackfillJob>({ did: DID_B, collection }),
+		];
+
+		drainBackfillDeadLetterBatch({ messages }, {} as Env);
+
+		for (const m of messages) {
+			expect(m.acked).toBe(1);
+			expect(m.retried).toBe(0);
+		}
 	});
 });
 

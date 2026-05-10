@@ -60,19 +60,31 @@
 			{
 				// Backfill (DID, collection) consumer. Each job: resolve
 				// PDS, paginate listRecords for one collection, batch
-				// results onto RECORDS_QUEUE. Smaller batch size than the
-				// records consumer because each job involves outbound PDS
-				// fetches; backpressure from RECORDS_QUEUE flows naturally
-				// via this consumer's runtime budget. Failed jobs land in
-				// a DLQ that's intentionally unbound — backfill is
-				// operator-triggered and operator-monitored, so DLQ
-				// drainage is a follow-up concern rather than an
-				// always-on automation requirement.
+				// results onto RECORDS_QUEUE. `max_batch_size: 1` so each
+				// pair gets its own consumer invocation — listRecords can
+				// chain ~15s per page × `MAX_PAGES_PER_COLLECTION`, so
+				// batching multiple pairs per invocation risks blowing
+				// the consumer wall-clock budget. Throughput is fine
+				// because backfill is operator-triggered, not steady-state.
 				"queue": "emdash-aggregator-backfill",
-				"max_batch_size": 5,
+				"max_batch_size": 1,
 				"max_batch_timeout": 5,
 				"max_retries": 3,
 				"dead_letter_queue": "emdash-aggregator-backfill-dlq",
+			},
+			{
+				// Drains the backfill DLQ. Logs each dead-lettered pair
+				// loud enough that operators tailing logs see it, then
+				// acks so the DLQ doesn't accumulate unbounded. We don't
+				// write a forensics row to D1 here (no `backfill_dead_letters`
+				// table) because the operator's recovery action is
+				// "re-trigger backfill for the affected DID" — they don't
+				// need the per-pair payload, just the (did, collection)
+				// pair, which is on the log line.
+				"queue": "emdash-aggregator-backfill-dlq",
+				"max_batch_size": 25,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
 			},
 		],
 	},

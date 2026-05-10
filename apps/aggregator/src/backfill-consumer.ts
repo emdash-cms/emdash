@@ -73,6 +73,28 @@ export async function processBackfillBatch(
 	}
 }
 
+/**
+ * Drain the backfill DLQ. Mirror of `records-consumer.drainDeadLetterBatch`
+ * but without the D1 forensics row — the recovery action for a backfill
+ * pair that exhausted retries is "re-run backfill for the affected DID",
+ * which only needs the (did, collection) pair from the log line.
+ *
+ * Logs at error level so operators tailing `wrangler tail` see the message
+ * loud, acks so the DLQ doesn't accumulate unbounded.
+ */
+export function drainBackfillDeadLetterBatch(
+	batch: MessageBatchLike<BackfillJob>,
+	_env: Env,
+): void {
+	for (const message of batch.messages) {
+		console.error("[aggregator] backfill DLQ drain: pair exhausted retries", {
+			did: message.body.did,
+			collection: message.body.collection,
+		});
+		message.ack();
+	}
+}
+
 function createProductionDeps(env: Env): ProcessBackfillJobDeps {
 	const composite = new CompositeDidDocumentResolver({
 		methods: {

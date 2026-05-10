@@ -221,9 +221,17 @@ export async function enqueueBackfillJobs(
 			messages.push({ body: { did, collection } });
 		}
 	}
+	// Fan the sendBatch calls in parallel. Each is an independent outbound
+	// sub-request and the orchestrator runs inside the POST handler's 30s
+	// `waitUntil` budget — serial awaits on a `MAX_DISCOVERED_DIDS`-sized
+	// fan-out (1000 DIDs × 4 collections / 100 = 40 batches) would
+	// noticeably eat into the cold-start budget on top of discovery's own
+	// fetches.
+	const sends: Promise<unknown>[] = [];
 	for (let i = 0; i < messages.length; i += QUEUE_SEND_BATCH_CAP) {
-		await queue.sendBatch(messages.slice(i, i + QUEUE_SEND_BATCH_CAP));
+		sends.push(queue.sendBatch(messages.slice(i, i + QUEUE_SEND_BATCH_CAP)));
 	}
+	await Promise.all(sends);
 	return messages.length;
 }
 
