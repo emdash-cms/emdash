@@ -57,11 +57,7 @@ describe("fetchAndVerifyRecord — HTTP path", () => {
 		let observedUrl: string | undefined;
 		const fetchImpl: typeof fetch = async (input) => {
 			observedUrl =
-				typeof input === "string"
-					? input
-					: input instanceof URL
-						? input.href
-						: input.url;
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 			return new Response(new Uint8Array([0]), { status: 200 });
 		};
 		await fetchAndVerifyRecord(buildOpts({ fetch: fetchImpl })).catch(() => {

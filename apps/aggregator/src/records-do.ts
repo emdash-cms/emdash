@@ -22,7 +22,7 @@ import { JetstreamIngestor, type IngestorStorage } from "./jetstream-ingestor.js
 /** Singleton DO ID. There's exactly one ingestor per deployment. */
 export const RECORDS_DO_NAME = "main";
 
-export class RecordsJetstreamDO extends DurableObject<Env> {
+export class RecordsJetstreamDO extends DurableObject {
 	private readonly ingestor: JetstreamIngestor;
 	/** Held so the run loop isn't garbage-collected. */
 	private readonly runPromise: Promise<void>;

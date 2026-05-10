@@ -139,11 +139,8 @@ export function wrapAtcuteSubscription<E extends { kind: string }>(
 						]);
 						if (result.done) return { value: undefined, done: true };
 						const event = result.value;
-						if (event.kind === "commit") {
-							// Cast within the function: by `kind === "commit"` we
-							// know the event is a commit; the generic `E` is too
-							// wide for the compiler to narrow automatically.
-							return { value: event as unknown as JetstreamCommitEvent, done: false };
+						if (isCommitEvent(event)) {
+							return { value: event, done: false };
 						}
 						// Skip identity/account events; loop until next commit.
 					}
@@ -156,4 +153,18 @@ export function wrapAtcuteSubscription<E extends { kind: string }>(
 			};
 		},
 	};
+}
+
+/**
+ * Discriminator-based predicate that narrows the wider `{ kind: string }`
+ * input to the typed `JetstreamCommitEvent` shape. Runtime check is the kind
+ * field; the function trusts that producers (`@atcute/jetstream`'s
+ * `JetstreamSubscription` and the test stubs) emit commit events with the
+ * full schema. A producer that emits `{ kind: "commit" }` without the rest
+ * would slip through here — that's a contract bug at the source, not
+ * something this layer can defend against without re-running the lexicon
+ * validator at the boundary.
+ */
+function isCommitEvent(event: { kind: string }): event is JetstreamCommitEvent {
+	return event.kind === "commit";
 }

@@ -39,6 +39,7 @@ import {
 	NSID,
 	PackageProfile,
 	PackageRelease,
+	PackageReleaseExtension,
 	PublisherProfile,
 	PublisherVerification,
 } from "@emdash-cms/registry-lexicons";
@@ -49,6 +50,7 @@ import {
 	fetchAndVerifyRecord,
 	isTransient,
 	PdsVerificationError,
+	type VerificationFailureReason,
 	type VerifiedPdsRecord,
 } from "./pds-verify.js";
 
@@ -92,6 +94,18 @@ export type DeadLetterReason =
 	| "UNKNOWN_COLLECTION"
 	| "UNEXPECTED_ERROR";
 
+/**
+ * Thrown by writers when the input is well-formed but the dependency it
+ * needs isn't yet present (e.g. a release whose parent profile hasn't been
+ * ingested). Distinct from `IngestError` because the right action is
+ * `controller.retry()` — the next attempt may succeed once the parent
+ * arrives. After Cloudflare Queues exhausts `max_retries` (5) the message
+ * lands in the configured DLQ and the reconciliation pass picks it up.
+ */
+export class MissingDependencyError extends Error {
+	override readonly name = "MissingDependencyError";
+}
+
 /** Thrown by writers and structural checks. Carries the reason for the
  * `dead_letters` row plus an optional human-readable detail. */
 export class IngestError extends Error {
@@ -105,8 +119,12 @@ export class IngestError extends Error {
 	}
 }
 
-export async function processBatch(batch: MessageBatchLike<RecordsJob>, env: Env): Promise<void> {
-	const deps = createProductionDeps(env);
+export async function processBatch(
+	batch: MessageBatchLike<RecordsJob>,
+	env: Env,
+	depsOverride?: ConsumerDeps,
+): Promise<void> {
+	const deps = depsOverride ?? createProductionDeps(env);
 	// Process jobs independently — a single failed verification must not fail
 	// the whole batch and trigger redeliveries for already-acked messages.
 	for (const message of batch.messages) {
@@ -126,6 +144,14 @@ export async function processMessage(
 			await applyDelete(deps.db, job, now());
 			controller.ack();
 		} catch (err) {
+			if (err instanceof IngestError) {
+				// Structural: unknown collection. Don't retry — the schema
+				// problem won't fix itself across attempts. Forensics + ack.
+				await writeDeadLetter(deps.db, job, err.reason, err.detail ?? err.message, now());
+				controller.ack();
+				return;
+			}
+			// Transient (D1 unavailable, etc.) — retry.
 			console.error("[aggregator] delete failed", {
 				did: job.did,
 				collection: job.collection,
@@ -154,6 +180,19 @@ export async function processMessage(
 		if (err instanceof IngestError) {
 			await writeDeadLetter(deps.db, job, err.reason, err.detail ?? err.message, now());
 			controller.ack();
+			return;
+		}
+		if (err instanceof MissingDependencyError) {
+			// Out-of-order Jetstream delivery (release before its profile is a
+			// common case). Retry; after max_retries the message lands in the
+			// DLQ for the reconciliation pass to recover.
+			console.warn("[aggregator] missing dependency, retrying", {
+				did: job.did,
+				collection: job.collection,
+				rkey: job.rkey,
+				reason: err.message,
+			});
+			controller.retry();
 			return;
 		}
 		// Unexpected — log loud, dead-letter, ack so the queue isn't blocked.
@@ -187,24 +226,12 @@ async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<voi
 		fetch: deps.fetch,
 	});
 
-	// Cross-check verified vs Jetstream copy. Verified always wins. Discrepancy
-	// is a Jetstream-correctness signal — log but don't fail.
-	//
-	// JSON canonicalisation is approximate (key order, undefined vs missing).
-	// CBOR-canonical comparison would be more correct but more work; the
-	// current bar is "alert if obviously different" and JSON suffices.
-	if (job.jetstreamRecord !== undefined) {
-		const a = JSON.stringify(job.jetstreamRecord);
-		const b = JSON.stringify(verified.record);
-		if (a !== b) {
-			console.warn("[aggregator] jetstream-discrepancy", {
-				did: job.did,
-				collection: job.collection,
-				rkey: job.rkey,
-				cid: verified.cid,
-			});
-		}
-	}
+	// Cross-check vs Jetstream copy intentionally omitted: the verified PDS
+	// copy is canonical and always wins, so the comparison is a monitoring
+	// signal only. JSON.stringify isn't a canonical comparator — key order
+	// and undefined-vs-missing differences fire false positives constantly.
+	// Add a CBOR-canonical comparator when Jetstream-correctness monitoring
+	// becomes load-bearing; for now the verified copy is what gets written.
 
 	const now = (deps.now ?? (() => new Date()))();
 
@@ -264,6 +291,18 @@ export async function ingestPackageProfile(
 			`package.profile rkey '${job.rkey}' does not match record.slug '${record.slug}'`,
 		);
 	}
+	// Lexicon-can't-express constraint (`profile.json` line 113): each
+	// security[] entry MUST carry at least one of url/email; aggregators
+	// MUST reject otherwise. authors[] only SHOULDs the same so we don't
+	// enforce there.
+	for (const c of record.security) {
+		if (!c.url && !c.email) {
+			throw new IngestError(
+				"CONTACT_VALIDATION_FAILED",
+				"package.profile security entry must include at least one of `url` or `email`",
+			);
+		}
+	}
 	const slug = record.slug ?? job.rkey;
 	const sigMeta = JSON.stringify({ cid: verified.cid });
 	await db
@@ -322,6 +361,18 @@ export async function ingestPackageRelease(
 		);
 	}
 	const record = validation.value;
+	// Lexicon describes the slug format ("ASCII letter followed by ASCII
+	// letters, digits, '-', or '_'") but doesn't pin a regex. `record.package`
+	// must obey the same shape since it's the slug of the parent profile;
+	// without this check, `package: "foo:bar"` builds an ambiguous rkey
+	// `foo:bar:1.0.0` indistinguishable from `package: "foo"` + `version:
+	// "bar:1.0.0"`. Two rows for what looks like the same release.
+	if (!PACKAGE_SLUG_RE.test(record.package)) {
+		throw new IngestError(
+			"RKEY_MISMATCH",
+			`package.release record.package '${record.package}' must match ${PACKAGE_SLUG_RE}`,
+		);
+	}
 	const expectedRkey = `${record.package}:${encodeRkeyVersion(record.version)}`;
 	if (job.rkey !== expectedRkey) {
 		throw new IngestError(
@@ -335,6 +386,49 @@ export async function ingestPackageRelease(
 		throw new IngestError(
 			"INVALID_VERSION",
 			`package.release version '${record.version}' is not parseable as semver`,
+		);
+	}
+
+	// Lexicon mandates releases of type emdash-plugin include a
+	// releaseExtension entry under the keyed open-union `extensions` map.
+	// `extensions` is typed as `unknown` in the generated schema so we
+	// validate the inner shape ourselves; without this, malformed extension
+	// payloads land in `releases.emdash_extension` and break the read API.
+	if (!isPlainObject(record.extensions)) {
+		throw new IngestError(
+			"LEXICON_VALIDATION_FAILED",
+			`package.release extensions field must be an object, got ${typeof record.extensions}`,
+		);
+	}
+	const extension = record.extensions[NSID.packageReleaseExtension];
+	if (!extension) {
+		throw new IngestError(
+			"LEXICON_VALIDATION_FAILED",
+			`package.release missing required extensions['${NSID.packageReleaseExtension}']`,
+		);
+	}
+	const extValidation = safeParse(PackageReleaseExtension.mainSchema, extension);
+	if (!extValidation.ok) {
+		throw new IngestError(
+			"LEXICON_VALIDATION_FAILED",
+			"package.release releaseExtension failed lexicon validation",
+			formatValidationIssues(extValidation.issues),
+		);
+	}
+
+	// Parent-profile presence check. The schema's FK would catch this at
+	// INSERT time, but a raw FK violation surfaces as an opaque error that
+	// gets dead-lettered as UNEXPECTED_ERROR with no recovery path. Doing
+	// the lookup explicitly lets us throw MissingDependencyError → retry,
+	// so out-of-order Jetstream delivery (release before profile) recovers
+	// once the profile arrives.
+	const parent = await db
+		.prepare(`SELECT 1 FROM packages WHERE did = ? AND slug = ?`)
+		.bind(job.did, record.package)
+		.first();
+	if (!parent) {
+		throw new MissingDependencyError(
+			`package.release ${job.rkey} requires profile ${record.package} which is not yet ingested`,
 		);
 	}
 
@@ -356,7 +450,10 @@ export async function ingestPackageRelease(
 			JSON.stringify(record.artifacts),
 			record.requires ? JSON.stringify(record.requires) : null,
 			record.suggests ? JSON.stringify(record.suggests) : null,
-			JSON.stringify(record.extensions ?? {}),
+			// Store only the validated releaseExtension contents, not the
+			// arbitrary `record.extensions` map. Schema comment for
+			// `emdash_extension` matches this shape.
+			JSON.stringify(extValidation.value),
 			record.repo ?? null,
 			// cts column intentionally mirrors verified_at: the release lexicon
 			// has no creation-timestamp field today and the atproto MST commit
@@ -369,35 +466,108 @@ export async function ingestPackageRelease(
 		)
 		.run();
 
-	// On `DO NOTHING` returning 0 rows for a release that already exists with
-	// different content, audit the duplicate-version attempt. Same content
-	// means a legitimate replay and should be silent.
+	let releaseSetChanged = result.meta.changes === 1;
 	if (result.meta.changes === 0) {
+		// Conflict path. Three sub-cases:
+		//   1. Same content, not tombstoned → legitimate idempotent replay,
+		//      silent no-op.
+		//   2. Same content, tombstoned → publisher re-published a previously
+		//      deleted release; clear the tombstone so it reappears in read
+		//      results.
+		//   3. Different content → immutability violation; audit it.
 		const existing = await db
-			.prepare(`SELECT record_blob FROM releases WHERE did = ? AND package = ? AND version = ?`)
+			.prepare(
+				`SELECT record_blob, tombstoned_at
+				 FROM releases WHERE did = ? AND package = ? AND version = ?`,
+			)
 			.bind(job.did, record.package, record.version)
-			.first<{ record_blob: ArrayBuffer | Uint8Array }>();
-		if (existing && !bytesEqual(toUint8(existing.record_blob), verified.carBytes)) {
-			await db
-				.prepare(
-					`INSERT INTO release_duplicate_attempts
-					   (did, package, version, rejected_at, reason, attempted_record_blob)
-					 VALUES (?, ?, ?, ?, ?, ?)`,
-				)
-				.bind(
-					job.did,
-					record.package,
-					record.version,
-					now.toISOString(),
-					"IMMUTABLE_VERSION",
-					verified.carBytes,
-				)
-				.run();
+			.first<{ record_blob: ArrayBuffer | Uint8Array; tombstoned_at: string | null }>();
+		if (existing) {
+			const sameContent = bytesEqual(toUint8(existing.record_blob), verified.carBytes);
+			if (sameContent && existing.tombstoned_at !== null) {
+				await db
+					.prepare(
+						`UPDATE releases SET tombstoned_at = NULL
+						 WHERE did = ? AND package = ? AND version = ?`,
+					)
+					.bind(job.did, record.package, record.version)
+					.run();
+				releaseSetChanged = true;
+			} else if (!sameContent) {
+				await db
+					.prepare(
+						`INSERT INTO release_duplicate_attempts
+						   (did, package, version, rejected_at, reason, attempted_record_blob)
+						 VALUES (?, ?, ?, ?, ?, ?)`,
+					)
+					.bind(
+						job.did,
+						record.package,
+						record.version,
+						now.toISOString(),
+						"IMMUTABLE_VERSION",
+						verified.carBytes,
+					)
+					.run();
+			}
 		}
+	}
+
+	// Whenever the visible-release set for this package changed, recompute
+	// `packages.latest_version` and `capabilities` from the new max-version
+	// row. The schema promises these are denormalised from the latest release;
+	// the read API queries them directly without sorting at request time.
+	if (releaseSetChanged) {
+		await refreshPackageLatest(db, job.did, record.package);
 	}
 
 	// TODO(slice 3): enqueue artifact-mirror task for this release. Until then,
 	// `mirrored_artifacts` stays empty for new releases.
+}
+
+/**
+ * Recompute `packages.latest_version` and `capabilities` from the current
+ * max-version-sort, non-tombstoned release. Capabilities are the keys of the
+ * release's `declaredAccess` map — the cheap projection the search SQL uses
+ * for capability filtering.
+ *
+ * Called from the release writer (after insert / un-tombstone) and from
+ * `applyDelete` (after release tombstone). Both code paths can change which
+ * release is "latest" for a package.
+ */
+async function refreshPackageLatest(db: D1Database, did: string, pkg: string): Promise<void> {
+	const latest = await db
+		.prepare(
+			`SELECT version, emdash_extension
+			 FROM releases
+			 WHERE did = ? AND package = ? AND tombstoned_at IS NULL
+			 ORDER BY version_sort DESC LIMIT 1`,
+		)
+		.bind(did, pkg)
+		.first<{ version: string; emdash_extension: string }>();
+
+	let latestVersion: string | null = null;
+	let capabilities: string | null = null;
+	if (latest) {
+		latestVersion = latest.version;
+		try {
+			const parsed: unknown = JSON.parse(latest.emdash_extension);
+			if (isPlainObject(parsed) && isPlainObject(parsed.declaredAccess)) {
+				capabilities = JSON.stringify(Object.keys(parsed.declaredAccess));
+			}
+		} catch {
+			// Stored extension is malformed JSON; leave capabilities null
+			// rather than failing the whole consumer pass.
+		}
+	}
+
+	await db
+		.prepare(
+			`UPDATE packages SET latest_version = ?, capabilities = ?
+			 WHERE did = ? AND slug = ?`,
+		)
+		.bind(latestVersion, capabilities, did, pkg)
+		.run();
 }
 
 export async function ingestPublisherProfile(
@@ -524,17 +694,28 @@ export async function applyDelete(db: D1Database, job: RecordsJob, now: Date): P
 				.bind(job.did, job.rkey)
 				.run();
 			return;
-		case NSID.packageRelease:
+		case NSID.packageRelease: {
 			// Releases are version-immutable but a publisher CAN delete them
 			// (yanking from the source). Soft-delete: read APIs filter on
 			// `tombstoned_at IS NULL` so they disappear from listings.
-			await db
+			// Parse rkey back to (package, version) so we hit the PK index
+			// instead of the partial idx_releases_latest, which has to scan
+			// for did=? then filter by rkey.
+			const parsed = parseReleaseRkey(job.rkey);
+			if (!parsed) return;
+			const result = await db
 				.prepare(
-					`UPDATE releases SET tombstoned_at = ? WHERE did = ? AND rkey = ? AND tombstoned_at IS NULL`,
+					`UPDATE releases SET tombstoned_at = ?
+					 WHERE did = ? AND package = ? AND version = ? AND tombstoned_at IS NULL`,
 				)
-				.bind(now.toISOString(), job.did, job.rkey)
+				.bind(now.toISOString(), job.did, parsed.pkg, parsed.version)
 				.run();
+			if (result.meta.changes > 0) {
+				// Tombstoning may have removed the latest release; recompute.
+				await refreshPackageLatest(db, job.did, parsed.pkg);
+			}
 			return;
+		}
 		case NSID.publisherProfile:
 			// Hard-delete; one-per-DID, no audit value in retaining it.
 			await db.prepare(`DELETE FROM publishers WHERE did = ?`).bind(job.did).run();
@@ -551,12 +732,17 @@ export async function applyDelete(db: D1Database, job: RecordsJob, now: Date): P
 				.run();
 			return;
 		default:
-			// Unknown collection on a delete is a no-op — nothing to remove.
-			console.warn("[aggregator] delete for unknown collection", {
-				did: job.did,
-				collection: job.collection,
-				rkey: job.rkey,
-			});
+			// Reach here only if a future collection is added to
+			// WANTED_COLLECTIONS without an applyDelete arm. Throw so the
+			// dispatcher writes a dead_letters row instead of silently
+			// dropping the delete — silent drops let the table drift out of
+			// sync with the publisher's repo until someone notices the
+			// inconsistency.
+			throw new IngestError(
+				"UNKNOWN_COLLECTION",
+				`delete for unhandled collection: ${job.collection}`,
+				job.collection,
+			);
 	}
 }
 
@@ -606,19 +792,13 @@ function createProductionDeps(env: Env): ConsumerDeps {
 
 /**
  * Translate a permanent `PdsVerificationError.reason` to its `DeadLetterReason`
- * counterpart. Caller has already filtered transient reasons via `isTransient`,
- * so `PDS_NETWORK_ERROR` is unreachable here — handle it as `UNEXPECTED_ERROR`
- * to keep the function total without tripping the linter on an exhaustive
- * union check.
+ * counterpart. The parameter type is the imported `VerificationFailureReason`
+ * union so a new variant added in `pds-verify.ts` becomes a compile-time
+ * error here. Transient reasons (PDS_NETWORK_ERROR today) are unreachable
+ * because the caller filters them via `isTransient`; we throw rather than
+ * silently dead-letter to surface the broken invariant loudly.
  */
-function mapPdsReason(
-	reason:
-		| "PDS_NETWORK_ERROR"
-		| "PDS_HTTP_ERROR"
-		| "RECORD_NOT_FOUND"
-		| "RESPONSE_TOO_LARGE"
-		| "INVALID_PROOF",
-): DeadLetterReason {
+function mapPdsReason(reason: VerificationFailureReason): DeadLetterReason {
 	switch (reason) {
 		case "RECORD_NOT_FOUND":
 		case "RESPONSE_TOO_LARGE":
@@ -626,7 +806,13 @@ function mapPdsReason(
 		case "PDS_HTTP_ERROR":
 			return reason;
 		case "PDS_NETWORK_ERROR":
-			return "UNEXPECTED_ERROR";
+			throw new Error(
+				"unreachable: PDS_NETWORK_ERROR should have been retried by isTransient before reaching mapPdsReason",
+			);
+		default: {
+			const exhaustive: never = reason;
+			throw new Error(`unhandled PdsVerificationError reason: ${String(exhaustive)}`);
+		}
 	}
 }
 
@@ -636,9 +822,27 @@ function mapPdsReason(
  * semver versions can include `+` for build metadata which must be
  * percent-encoded. Our lexicon disallows `+` so this is conservative.
  */
+const PACKAGE_SLUG_RE = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 const PLUS_RE = /\+/g;
 function encodeRkeyVersion(version: string): string {
 	return version.replace(PLUS_RE, "%2B");
+}
+
+/**
+ * Parse a release rkey of the form `<package>:<encoded-version>` back into its
+ * components. Returns null on malformed input — callers should treat that as
+ * "this isn't a release we recognise" and no-op.
+ *
+ * Splits on the FIRST `:`. Both `package` (slug regex) and `version` (semver
+ * subset) reject `:` in the lexicon, so a single split is unambiguous.
+ */
+function parseReleaseRkey(rkey: string): { pkg: string; version: string } | null {
+	const idx = rkey.indexOf(":");
+	if (idx <= 0 || idx === rkey.length - 1) return null;
+	const pkg = rkey.slice(0, idx);
+	const encodedVersion = rkey.slice(idx + 1);
+	const version = decodeURIComponent(encodedVersion);
+	return { pkg, version };
 }
 
 const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
@@ -669,13 +873,29 @@ function computeVersionSort(version: string): string | null {
 	const minor = m[2] ?? "0";
 	const patch = m[3] ?? "0";
 	const pre = m[4];
-	const preSort = pre
-		? pre
-				.split(".")
-				.map((p) => (NUMERIC_RE.test(p) ? pad(p) : p))
-				.join(".")
-		: "zzz";
-	return `${pad(major)}.${pad(minor)}.${pad(patch)}.${preSort}`;
+	if (major.length > 10 || minor.length > 10 || patch.length > 10) {
+		// 10-digit pad ceiling — versions past this can't be ordered correctly
+		// by simple zero-padding. ~10 billion is well past reasonable.
+		return null;
+	}
+	if (pre) {
+		const parts = pre.split(".");
+		const padded: string[] = [];
+		for (const p of parts) {
+			if (NUMERIC_RE.test(p)) {
+				if (p.length > 10) return null; // same ceiling for prerelease numerics
+				padded.push(pad(p));
+			} else {
+				padded.push(p);
+			}
+		}
+		return `${pad(major)}.${pad(minor)}.${pad(patch)}.${padded.join(".")}`;
+	}
+	return `${pad(major)}.${pad(minor)}.${pad(patch)}.zzz`;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
