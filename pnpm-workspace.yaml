@@ -29,7 +29,7 @@ catalog:
   "@atcute/crypto": ^2.4.1
   "@atcute/firehose": ^1.0.0
   "@atcute/identity": ^2.0.0
-  "@atcute/identity-resolver": ^1.2.2
+  "@atcute/identity-resolver": ^2.0.0
   "@atcute/jetstream": ^2.0.0
   "@atcute/lex-cli": ^2.8.1
   "@atcute/lexicons": ^1.3.0

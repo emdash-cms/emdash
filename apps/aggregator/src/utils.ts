@@ -13,6 +13,14 @@ export function isPlainObject(value: unknown): value is Record<string, unknown> 
 }
 
 /**
+ * `globalThis.fetch` pre-bound. Pass this whenever a library wants a
+ * `fetch` callable (resolver constructors, deps objects); the bare
+ * global trips workerd's "Illegal invocation" check when called via a
+ * stored reference.
+ */
+export const boundFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+
+/**
  * Pull the verified record's CID out of a JSON-stringified
  * `signature_metadata` column value. Returns null on malformed input
  * (missing column, non-JSON, missing `cid` key) — callers decide what

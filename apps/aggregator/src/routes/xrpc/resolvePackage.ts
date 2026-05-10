@@ -25,6 +25,7 @@ import {
 import { json, XRPCError } from "@atcute/xrpc-server";
 import { type AggregatorResolvePackage } from "@emdash-cms/registry-lexicons";
 
+import { boundFetch } from "../../utils.js";
 import { type PackageRow, packageColumns, packageView } from "./views.js";
 
 /** Cache the resolver per worker isolate. Construction is allocation-only
@@ -35,8 +36,11 @@ function getHandleResolver(): CompositeHandleResolver {
 		cachedResolver = new CompositeHandleResolver({
 			strategy: "race",
 			methods: {
-				dns: new DohJsonHandleResolver({ dohUrl: "https://mozilla.cloudflare-dns.com/dns-query" }),
-				http: new WellKnownHandleResolver(),
+				dns: new DohJsonHandleResolver({
+					dohUrl: "https://mozilla.cloudflare-dns.com/dns-query",
+					fetch: boundFetch,
+				}),
+				http: new WellKnownHandleResolver({ fetch: boundFetch }),
 			},
 		});
 	}

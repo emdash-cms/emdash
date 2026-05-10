@@ -35,6 +35,7 @@ import { processBackfillJob, type ProcessBackfillJobDeps } from "./backfill.js";
 import { createD1DidDocCache, DidResolver } from "./did-resolver.js";
 import type { BackfillJob } from "./env.js";
 import type { MessageBatchLike } from "./records-consumer.js";
+import { boundFetch } from "./utils.js";
 
 /**
  * Process one batch of backfill jobs. Mirrors `records-consumer.processBatch`'s
@@ -67,7 +68,7 @@ export async function processBackfillBatch(
 			console.error("[aggregator] backfill job failed, retrying", {
 				did: job.did,
 				collection: job.collection,
-				error: err instanceof Error ? err.message : String(err),
+				error: formatErrorChain(err),
 			});
 			message.retry();
 		}
@@ -96,11 +97,36 @@ export function drainBackfillDeadLetterBatch(
 	}
 }
 
+/** Walk an Error's `cause` chain into a single human-readable string for
+ * log output. Library code (`@atcute/identity-resolver`,
+ * `@atcute/util-fetch`) wraps low-level failures in higher-level errors
+ * via `{ cause }`; logging only `err.message` hides the actual root
+ * cause. The chain is joined with `; cause: ` so a multi-level wrap
+ * reads top-down. Bounded at 5 levels so a circular chain can't loop
+ * forever. */
+function formatErrorChain(err: unknown): string {
+	const parts: string[] = [];
+	let current: unknown = err;
+	for (let i = 0; i < 5 && current; i++) {
+		if (current instanceof Error) {
+			parts.push(`${current.name}: ${current.message}`);
+			current = (current as { cause?: unknown }).cause;
+		} else {
+			// JSON.stringify (rather than String) so a plain object cause
+			// (some libraries throw `{ code, ... }` shapes) prints its
+			// fields instead of `[object Object]`.
+			parts.push(typeof current === "string" ? current : JSON.stringify(current));
+			break;
+		}
+	}
+	return parts.join("; cause: ");
+}
+
 function createProductionDeps(env: Env): ProcessBackfillJobDeps {
 	const composite = new CompositeDidDocumentResolver({
 		methods: {
-			plc: new PlcDidDocumentResolver(),
-			web: new AtprotoWebDidDocumentResolver(),
+			plc: new PlcDidDocumentResolver({ fetch: boundFetch }),
+			web: new AtprotoWebDidDocumentResolver({ fetch: boundFetch }),
 		},
 	});
 	return {
@@ -109,5 +135,10 @@ function createProductionDeps(env: Env): ProcessBackfillJobDeps {
 			resolver: composite,
 		}),
 		queue: env.RECORDS_QUEUE,
+		// listRecords + sendBatch use this fetch for the PDS calls. Same
+		// bound-wrapper requirement as the resolver constructors —
+		// workerd's `fetch` rejects calls made through a stored
+		// reference (`const fetchImpl = deps.fetch ?? fetch; fetchImpl(url)`).
+		fetch: boundFetch,
 	};
 }

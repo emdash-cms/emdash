@@ -53,7 +53,7 @@ import {
 	type VerificationFailureReason,
 	type VerifiedPdsRecord,
 } from "./pds-verify.js";
-import { isPlainObject, parseSignatureMetadataCid } from "./utils.js";
+import { boundFetch, isPlainObject, parseSignatureMetadataCid } from "./utils.js";
 
 /**
  * Deps the consumer needs at runtime. Constructed once per `processBatch` call
@@ -955,8 +955,8 @@ async function writeDeadLetter(
 function createProductionDeps(env: Env): ConsumerDeps {
 	const composite = new CompositeDidDocumentResolver({
 		methods: {
-			plc: new PlcDidDocumentResolver(),
-			web: new AtprotoWebDidDocumentResolver(),
+			plc: new PlcDidDocumentResolver({ fetch: boundFetch }),
+			web: new AtprotoWebDidDocumentResolver({ fetch: boundFetch }),
 		},
 	});
 	return {
@@ -965,6 +965,11 @@ function createProductionDeps(env: Env): ConsumerDeps {
 			cache: createD1DidDocCache(env.DB),
 			resolver: composite,
 		}),
+		// PDS verify uses this fetch for the CAR fetch. workerd's `fetch`
+		// rejects calls made through a stored reference, so we hand off
+		// the bound wrapper rather than letting `pds-verify.ts` fall
+		// back to bare global `fetch`.
+		fetch: boundFetch,
 	};
 }
 
