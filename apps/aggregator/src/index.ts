@@ -77,7 +77,11 @@ function timingSafeEqual(a: string, b: string): boolean {
  */
 function requireAdminAuth(request: Request, env: Env): Response | null {
 	const expected = env.ADMIN_TOKEN;
-	if (!expected) {
+	// `trim()` defends against a whitespace-only secret slipping past
+	// `secrets.required`'s presence check — `wrangler secret put ADMIN_TOKEN`
+	// followed by an accidental Enter would otherwise produce a working
+	// endpoint with a trivially guessable token.
+	if (!expected || expected.trim().length === 0) {
 		// Misconfigured production or unset dev — closed by default.
 		return new Response("admin endpoints not configured", { status: 503 });
 	}
@@ -249,7 +253,11 @@ async function runBackfill(dids: readonly string[], env: Env): Promise<void> {
 			},
 		});
 		console.log("[aggregator] backfill complete", {
-			didCount: dids.length,
+			didsRequested: dids.length,
+			// Separate from didsRequested so the early-abort case (enqueue
+			// cap fired) is visible in the summary log without the operator
+			// having to correlate against an earlier warn line.
+			didsProcessed: summary.results.length,
 			totalEnqueued: summary.totalEnqueued,
 			didsWithErrors: summary.results.filter((r) => r.errors.length > 0).length,
 		});

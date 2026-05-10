@@ -615,12 +615,55 @@ describe("backfillCollection: enqueue budget cap", () => {
 			{ resolver, queue, fetch: fetchImpl },
 			{ remaining: 30 },
 		);
-		// The first collection's full page (50 records) was within the cap?
-		// No — after 30 records the budget hits 0, the inner break fires,
-		// the page's batch send carries 30 records, then the post-send
-		// throw aborts further pages.
-		expect(result.enqueued).toBeLessThanOrEqual(30);
-		expect(queue.sent.length).toBeLessThanOrEqual(30);
+		// Budget=30 + page of 50 records: inner loop pushes records while
+		// `budget.remaining - messages.length > 0`. At iter 31 the
+		// expression (30 - 30) ≤ 0 fires `break`. messages.length === 30,
+		// sendBatch sends 30, budget → 0, post-send check throws
+		// EnqueueLimitReached. Exact answer is 30 — assert the exact
+		// number so an off-by-one regression in the inner break doesn't
+		// pass under a slack `<=`.
+		expect(result.enqueued).toBe(30);
+		expect(queue.sent.length).toBe(30);
+		// Sentinel error appended so the operator can see the cap fired
+		// rather than thinking the DID was a clean 30-record publisher.
+		expect(result.errors.some((e) => e.includes("enqueue cap reached"))).toBe(true);
+	});
+});
+
+describe("backfillCollection: listRecords timeout", () => {
+	it("aborts a hung PDS fetch and surfaces the timeout per-collection", async () => {
+		const queue = new CapturingQueue();
+		const resolver = buildResolver();
+		const collection = WANTED_COLLECTIONS[0];
+		if (!collection) throw new Error("test assumes ≥1 collection");
+		const fetchImpl: typeof fetch = (input, init) => {
+			const url =
+				typeof input === "string"
+					? new URL(input)
+					: input instanceof URL
+						? input
+						: new URL(input.url);
+			if (url.searchParams.get("collection") !== collection) {
+				return Promise.resolve(new Response(JSON.stringify({ records: [] }), { status: 200 }));
+			}
+			// Hung connection: never resolve, but honour the abort signal so
+			// the AbortController-driven timeout fires.
+			return new Promise((_resolve, reject) => {
+				init?.signal?.addEventListener("abort", () => {
+					reject(new DOMException("aborted", "AbortError"));
+				});
+			});
+		};
+
+		const result = await backfillDid(DID_A, {
+			resolver,
+			queue,
+			fetch: fetchImpl,
+			listRecordsTimeoutMs: 25,
+		});
+
+		const error = result.errors.find((e) => e.includes(collection));
+		expect(error).toMatch(/timed out after 25ms/);
 	});
 });
 
@@ -737,6 +780,40 @@ describe("backfill admin route: auth + input validation", () => {
 			body: JSON.stringify({ dids: [DID_A, DID_A, DID_A] }),
 		});
 		expect(res.status).toBe(202);
+	});
+});
+
+describe("admin auth: scheme + token edge cases", () => {
+	it("accepts canonical mixed-case Bearer (regression guard)", async () => {
+		const res = await SELF.fetch("https://test/_admin/start", {
+			method: "POST",
+			headers: { authorization: "Bearer test-admin-token" },
+		});
+		expect(res.status).toBe(204);
+	});
+
+	it("accepts uppercase BEARER scheme (RFC 6750 case-insensitive)", async () => {
+		const res = await SELF.fetch("https://test/_admin/start", {
+			method: "POST",
+			headers: { authorization: "BEARER test-admin-token" },
+		});
+		expect(res.status).toBe(204);
+	});
+
+	it("rejects an Authorization header with a non-Bearer scheme", async () => {
+		const res = await SELF.fetch("https://test/_admin/start", {
+			method: "POST",
+			headers: { authorization: "Basic dGVzdC1hZG1pbi10b2tlbjo=" },
+		});
+		expect(res.status).toBe(401);
+	});
+
+	it("rejects empty token after Bearer prefix", async () => {
+		const res = await SELF.fetch("https://test/_admin/start", {
+			method: "POST",
+			headers: { authorization: "Bearer " },
+		});
+		expect(res.status).toBe(401);
 	});
 });
 

@@ -21,6 +21,12 @@ import type { RecordsJob } from "./env.js";
 import { isPlainObject } from "./utils.js";
 
 const PAGE_SIZE = 100;
+/** Per-listRecords-page timeout. A hostile or hung publisher PDS that
+ * accepts the connection but stalls the body would otherwise block the
+ * fetch until workerd's overall sub-request budget exhausts — starving
+ * every DID after this one in the serial loop. Same shape as
+ * `pds-verify.ts`'s fetchCar timeout. */
+const LIST_RECORDS_TIMEOUT_MS = 15_000;
 /** Cap on listRecords pagination per collection. A buggy or malicious PDS
  * that echoes the same cursor would otherwise loop forever inside one
  * `ctx.waitUntil`. 1000 pages × 100 records = 100k records per collection,
@@ -37,6 +43,14 @@ const MAX_RECORDS_PER_PAGE = PAGE_SIZE;
  * always ≤ this thanks to MAX_RECORDS_PER_PAGE; documented here so the
  * relationship is visible at the call site. */
 const QUEUE_SEND_BATCH_CAP = 100;
+// Static guard: bumping MAX_RECORDS_PER_PAGE above the queue's batch cap
+// would silently break sendBatch in production. Surface the violation at
+// module load rather than at the first batch send.
+if (MAX_RECORDS_PER_PAGE > QUEUE_SEND_BATCH_CAP) {
+	throw new Error(
+		`MAX_RECORDS_PER_PAGE (${MAX_RECORDS_PER_PAGE}) exceeds QUEUE_SEND_BATCH_CAP (${QUEUE_SEND_BATCH_CAP})`,
+	);
+}
 /** Cap on the total number of records a single backfill invocation may
  * enqueue. Defends against a leaked admin token being weaponised to flood
  * the queue at near-zero cost to the attacker. The blast radius of one
@@ -70,6 +84,10 @@ export interface BackfillDeps {
 	queue: BackfillQueue;
 	/** Inject for tests; defaults to `globalThis.fetch`. */
 	fetch?: typeof fetch;
+	/** Override for the per-listRecords-page timeout. Defaults to
+	 * `LIST_RECORDS_TIMEOUT_MS`. Tests use a small value to exercise the
+	 * abort path without burning the production budget. */
+	listRecordsTimeoutMs?: number;
 	/** Optional callback fired after each DID completes (success or failure).
 	 * Used by the production wiring to log per-DID progress so an operator
 	 * watching `wrangler tail` sees where a long backfill is up to. */
@@ -111,6 +129,7 @@ export async function backfillDids(
 		if (budget.remaining <= 0) {
 			console.warn("[aggregator] backfill enqueue cap reached, aborting remaining DIDs", {
 				cap: MAX_TOTAL_ENQUEUE,
+				triggerDid: result.did,
 				didsProcessed: results.length,
 				didsRemaining: dids.length - results.length,
 			});
@@ -158,6 +177,7 @@ export async function backfillDid(
 	}
 
 	const fetchImpl = deps.fetch ?? fetch;
+	const timeoutMs = deps.listRecordsTimeoutMs ?? LIST_RECORDS_TIMEOUT_MS;
 	for (const collection of WANTED_COLLECTIONS) {
 		// Track this collection's enqueues separately so a mid-pagination
 		// throw still reports the partial count instead of swallowing the
@@ -170,13 +190,20 @@ export async function backfillDid(
 				collection,
 				queue: deps.queue,
 				fetchImpl,
+				timeoutMs,
 				budget,
 			});
 		} catch (err) {
 			if (err instanceof EnqueueLimitReached) {
 				// Stop processing further collections for this DID; outer
 				// loop will catch the budget exhaustion and stop entirely.
+				// Append a sentinel error so the operator's per-DID log
+				// shows the cap fired (otherwise `enqueued: 47, errors: []`
+				// looks like a successful 47-record DID).
 				enqueued += before - budget.remaining;
+				errors.push(
+					`enqueue cap reached mid-DID at collection ${collection} — partial backfill, re-run to complete`,
+				);
 				return { did, enqueued, errors };
 			}
 			errors.push(`${collection}: ${err instanceof Error ? err.message : String(err)}`);
@@ -193,6 +220,7 @@ interface BackfillCollectionOpts {
 	collection: string;
 	queue: BackfillQueue;
 	fetchImpl: typeof fetch;
+	timeoutMs: number;
 	budget: EnqueueBudget;
 }
 
@@ -236,9 +264,22 @@ async function backfillCollection(opts: BackfillCollectionOpts): Promise<void> {
 		url.searchParams.set("limit", String(PAGE_SIZE));
 		if (cursor) url.searchParams.set("cursor", cursor);
 
-		const response = await opts.fetchImpl(url.toString(), {
-			headers: { accept: "application/json" },
-		});
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
+		let response: Response;
+		try {
+			response = await opts.fetchImpl(url.toString(), {
+				headers: { accept: "application/json" },
+				signal: controller.signal,
+			});
+		} catch (err) {
+			if (err instanceof Error && err.name === "AbortError") {
+				throw new Error(`listRecords timed out after ${opts.timeoutMs}ms`, { cause: err });
+			}
+			throw err;
+		} finally {
+			clearTimeout(timer);
+		}
 		if (response.status === 404) {
 			if (cursor === undefined) {
 				// First-page 404: publisher has no records of this collection.
@@ -276,16 +317,9 @@ async function backfillCollection(opts: BackfillCollectionOpts): Promise<void> {
 			});
 		}
 		if (messages.length > 0) {
-			// Page size is capped at QUEUE_SEND_BATCH_CAP, so this single
-			// sendBatch never exceeds Cloudflare's 100-message limit.
-			if (messages.length > QUEUE_SEND_BATCH_CAP) {
-				// Defense in depth — should be unreachable given the cap
-				// above, but throwing loudly here beats a runtime error from
-				// the queue binding silently dropping the batch.
-				throw new Error(
-					`sendBatch payload of ${messages.length} exceeds Queue cap of ${QUEUE_SEND_BATCH_CAP}`,
-				);
-			}
+			// Page size is capped at QUEUE_SEND_BATCH_CAP at module load via
+			// the static assertion above, so this sendBatch never exceeds
+			// Cloudflare's 100-message limit by construction.
 			await opts.queue.sendBatch(messages);
 			opts.budget.remaining -= messages.length;
 		}
