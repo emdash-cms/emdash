@@ -13,6 +13,7 @@
 	],
 	"vars": {
 		"GITHUB_OWNER_LOGIN": "ascorbic",
+		"GITHUB_REPO": "emdash-cms/emdash",
 	},
 	"secrets": {
 		"required": [

@@ -139,17 +139,16 @@ async function handleGitHubCallback(request: Request, env: Env): Promise<Respons
 	let roleGranted = false;
 	if (contributed && !alreadyHasRole) {
 		roleGranted = await addRole(env, oauthState.discord_id, env.DISCORD_CONTRIBUTOR_ROLE_ID);
-		console.log(`Role grant for ${oauthState.discord_id}: ${roleGranted}`);
 		if (roleGranted) {
-			const msgSent = await postMessage(
+			await postMessage(
 				env,
 				env.DISCORD_CHANNEL_ID,
 				pick(welcomeMessages, {
 					user: `<@${oauthState.discord_id}>`,
 					login: githubUser.login,
 				}),
+				[oauthState.discord_id],
 			);
-			console.log(`Welcome message sent: ${msgSent}`);
 		}
 	}
 
@@ -201,14 +200,14 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 
 	const payload = JSON.parse(body) as GitHubPRPayload;
 
+	// Verify this is from the expected repository
+	if (payload.repository.full_name !== env.GITHUB_REPO) {
+		return new Response("Wrong repository", { status: 200 });
+	}
+
 	// Only care about merged PRs
 	if (payload.action !== "closed" || !payload.pull_request.merged) {
 		return new Response("Not a merge", { status: 200 });
-	}
-
-	// Mark delivery processed before doing work (idempotent)
-	if (deliveryId) {
-		await markDeliveryProcessed(env.KV, deliveryId);
 	}
 
 	const githubLogin = payload.pull_request.user.login;
@@ -242,6 +241,7 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 				login: githubLogin,
 				pr: prLink,
 			}),
+			[link.discord_id],
 		);
 	} else {
 		await postMessage(
@@ -249,6 +249,11 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 			env.DISCORD_CHANNEL_ID,
 			pick(unlinkedMergeMessages, { login: githubLogin, pr: prLink }),
 		);
+	}
+
+	// Mark delivery processed after all side effects succeed
+	if (deliveryId) {
+		await markDeliveryProcessed(env.KV, deliveryId);
 	}
 
 	return new Response("OK", { status: 200 });

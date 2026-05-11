@@ -3,8 +3,30 @@ import type { LinkRecord } from "./types.js";
 /**
  * Store a bidirectional link between GitHub and Discord accounts.
  * Two keys: github:{github_id} -> record, discord:{discord_id} -> record
+ *
+ * Cleans up stale keys from any previous link for either account
+ * (e.g. Discord user relinks to a different GitHub account).
  */
 export async function storeLink(kv: KVNamespace, record: LinkRecord): Promise<void> {
+	// Check for existing links and clean up stale counterpart keys
+	const [existingByDiscord, existingByGitHub] = await Promise.all([
+		findByDiscordId(kv, record.discord_id),
+		findByGitHubId(kv, record.github_id),
+	]);
+
+	const deletes: Promise<void>[] = [];
+	// If this Discord user was linked to a different GitHub account, remove old github:{id} key
+	if (existingByDiscord && existingByDiscord.github_id !== record.github_id) {
+		deletes.push(kv.delete(`github:${existingByDiscord.github_id}`));
+	}
+	// If this GitHub account was linked to a different Discord user, remove old discord:{id} key
+	if (existingByGitHub && existingByGitHub.discord_id !== record.discord_id) {
+		deletes.push(kv.delete(`discord:${existingByGitHub.discord_id}`));
+	}
+	if (deletes.length > 0) {
+		await Promise.all(deletes);
+	}
+
 	const value = JSON.stringify(record);
 	await Promise.all([
 		kv.put(`github:${record.github_id}`, value),

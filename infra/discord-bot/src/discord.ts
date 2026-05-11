@@ -59,16 +59,28 @@ export async function hasRole(env: Env, userId: string, roleId: string): Promise
 }
 
 /**
- * Post a message to a channel.
+ * Post a message to a channel. Only explicit user mentions are allowed;
+ * @everyone, @here, and role mentions in content are suppressed.
  */
-export async function postMessage(env: Env, channelId: string, content: string): Promise<boolean> {
+export async function postMessage(
+	env: Env,
+	channelId: string,
+	content: string,
+	mentionUserIds?: string[],
+): Promise<boolean> {
 	const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
 		method: "POST",
 		headers: {
 			Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
 			"Content-Type": "application/json",
 		},
-		body: JSON.stringify({ content }),
+		body: JSON.stringify({
+			content,
+			allowed_mentions: {
+				parse: [], // disable @everyone, @here, role mentions
+				users: mentionUserIds ?? [], // only mention these user IDs
+			},
+		}),
 	});
 	return res.ok;
 }

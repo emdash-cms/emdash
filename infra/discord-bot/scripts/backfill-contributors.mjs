@@ -10,12 +10,26 @@
  * Uses wrangler kv:key put under the hood, so wrangler must be available.
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 const owner = "emdash-cms";
 const repo = "emdash";
 const ownerLogin = process.env.GITHUB_OWNER_LOGIN || "ascorbic";
 const token = process.env.GITHUB_TOKEN;
+
+// Read namespace ID from wrangler.jsonc to avoid hardcoding
+const wranglerConfig = JSON.parse(
+	readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf-8")
+		.replace(/\/\/.*$/gm, "") // strip line comments
+		.replace(/\/\*[\s\S]*?\*\//g, "") // strip block comments
+		.replace(/,\s*([}\]])/g, "$1"), // strip trailing commas
+);
+const namespaceId = wranglerConfig.kv_namespaces?.[0]?.id;
+if (!namespaceId) {
+	console.error("Could not find KV namespace ID in wrangler.jsonc");
+	process.exit(1);
+}
 
 const headers = {
 	Accept: "application/vnd.github+json",
@@ -76,12 +90,21 @@ while (hasMore) {
 
 console.log(`\nFound ${contributors.size} unique contributors. Writing to KV...\n`);
 
+// Validate inputs before passing to execFileSync (defense in depth)
+const idPattern = /^[0-9]+$/;
+const loginPattern = /^[a-zA-Z0-9_-]+$/;
+
 let written = 0;
 for (const [id, login] of contributors) {
+	if (!idPattern.test(String(id)) || !loginPattern.test(login)) {
+		console.error(`  Skipping invalid contributor: id=${id}, login=${login}`);
+		continue;
+	}
 	const key = `contributor:${id}`;
 	try {
-		execSync(
-			`pnpm wrangler kv key put --remote --namespace-id=2a5c0ec09f364546a10f2fa49e1ebaf4 "${key}" "${login}"`,
+		execFileSync(
+			"pnpm",
+			["wrangler", "kv", "key", "put", "--remote", `--namespace-id=${namespaceId}`, key, login],
 			{ stdio: "pipe" },
 		);
 		written++;
