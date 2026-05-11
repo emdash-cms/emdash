@@ -1,5 +1,17 @@
 # emdash
 
+## 0.11.1
+
+### Patch Changes
+
+- [#991](https://github.com/emdash-cms/emdash/pull/991) [`dc44989`](https://github.com/emdash-cms/emdash/commit/dc44989b263164625039525aa84e4a562f0a879f) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes TypeError crash on all content mutation API routes when Astro's cache API is not available. The `cache` context parameter is undefined when the cache feature is not enabled, causing `cache.enabled` to throw. All 11 call sites now use optional chaining (`cache?.enabled`).
+
+- Updated dependencies []:
+  - @emdash-cms/admin@0.11.1
+  - @emdash-cms/auth@0.11.1
+  - @emdash-cms/gutenberg-to-portable-text@0.11.1
+  - @emdash-cms/auth-atproto@0.2.4
+
 ## 0.11.0
 
 ### Minor Changes

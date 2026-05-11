@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-embeds",
-	"version": "0.1.11",
+	"version": "0.1.12",
 	"description": "Embed blocks for EmDash CMS - YouTube, Vimeo, Twitter, Bluesky, Mastodon, and more",
 	"type": "module",
 	"main": "src/index.ts",
@@ -25,7 +25,7 @@
 	"license": "MIT",
 	"peerDependencies": {
 		"astro": ">=6.0.0-beta.0",
-		"emdash": "workspace:>=0.11.0"
+		"emdash": "workspace:>=0.11.1"
 	},
 	"dependencies": {
 		"@emdash-cms/blocks": "workspace:*",
