@@ -55,6 +55,8 @@ export type PluginCapability =
 	| "users:read"
 	// Email
 	| "email:send"
+	// MCP
+	| "mcp:tools"
 	// Hook registration
 	| "hooks.email-transport:register" // exclusive `email:deliver` (transport)
 	| "hooks.email-events:register" // `email:beforeSend` / `email:afterSend`
@@ -185,6 +187,20 @@ export interface ManifestRouteEntry {
 }
 
 /**
+ * MCP tool entry in a plugin manifest.
+ *
+ * The tool itself is exposed through EmDash's native MCP endpoint. Execution
+ * is delegated to a plugin route so trusted and sandboxed plugins share the
+ * same implementation path.
+ */
+export interface ManifestMcpToolEntry {
+	name: string;
+	title?: string;
+	description: string;
+	route: string;
+}
+
+/**
  * Per-collection storage config in a plugin manifest.
  *
  * Each collection declares the indexes the host should create. Single-string
@@ -261,6 +277,8 @@ export interface PluginManifest {
 	hooks: Array<ManifestHookEntry | string>;
 	/** Route declarations -- plain name strings or structured objects. */
 	routes: Array<ManifestRouteEntry | string>;
+	/** MCP tools declared by the plugin. */
+	mcpTools?: ManifestMcpToolEntry[];
 	admin: PluginAdminConfig;
 }
 

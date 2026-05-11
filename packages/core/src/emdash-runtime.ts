@@ -34,6 +34,7 @@ import type {
 	MediaItem,
 	PluginManifest,
 	PluginCapability,
+	ManifestMcpToolEntry,
 	PluginStorageConfig,
 	PublicPageContext,
 	PageMetadataContribution,
@@ -205,6 +206,8 @@ export interface SandboxedPluginEntry {
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
+	/** MCP tool declarations */
+	mcpTools?: ManifestMcpToolEntry[];
 	/** Admin entry module */
 	adminEntry?: string;
 	/**
@@ -310,7 +313,9 @@ const marketplaceManifestCache = new Map<
 	{
 		id: string;
 		version: string;
+		capabilities?: PluginCapability[];
 		admin?: { pages?: PluginAdminPage[]; widgets?: PluginDashboardWidget[] };
+		mcpTools?: ManifestMcpToolEntry[];
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -584,7 +589,9 @@ export class EmDashRuntime {
 				marketplaceManifestCache.set(pluginId, {
 					id: bundle.manifest.id,
 					version: bundle.manifest.version,
+					capabilities: bundle.manifest.capabilities,
 					admin: bundle.manifest.admin,
+					mcpTools: bundle.manifest.mcpTools ?? [],
 				});
 
 				// Cache route metadata from manifest for auth decisions
@@ -1097,6 +1104,7 @@ export class EmDashRuntime {
 					storage: entry.storage ?? {},
 					hooks: [],
 					routes: [],
+					mcpTools: entry.mcpTools ?? [],
 					admin: {},
 				};
 
@@ -1163,7 +1171,9 @@ export class EmDashRuntime {
 					marketplaceManifestCache.set(plugin.pluginId, {
 						id: bundle.manifest.id,
 						version: bundle.manifest.version,
+						capabilities: bundle.manifest.capabilities,
 						admin: bundle.manifest.admin,
+						mcpTools: bundle.manifest.mcpTools ?? [],
 					});
 
 					// Cache route metadata from manifest for auth decisions
@@ -2148,6 +2158,60 @@ export class EmDashRuntime {
 	// =========================================================================
 	// Plugin Routes
 	// =========================================================================
+
+	getPluginMcpTools(): import("./plugins/types.js").PluginMcpToolRegistration[] {
+		const tools: import("./plugins/types.js").PluginMcpToolRegistration[] = [];
+
+		for (const plugin of this.configuredPlugins) {
+			if (!this.isPluginEnabled(plugin.id)) continue;
+			if (!plugin.capabilities.includes("mcp:tools")) continue;
+
+			for (const [name, tool] of Object.entries(plugin.mcpTools ?? {})) {
+				tools.push({
+					pluginId: plugin.id,
+					name,
+					title: tool.title,
+					description: tool.description,
+					route: tool.route,
+					input: tool.input,
+				});
+			}
+		}
+
+		for (const entry of this.sandboxedPluginEntries) {
+			if (!this.isPluginEnabled(entry.id)) continue;
+			if (!entry.capabilities.includes("mcp:tools")) continue;
+			if (!this.findSandboxedPlugin(entry.id)) continue;
+
+			for (const tool of entry.mcpTools ?? []) {
+				tools.push({
+					pluginId: entry.id,
+					name: tool.name,
+					title: tool.title,
+					description: tool.description,
+					route: tool.route,
+				});
+			}
+		}
+
+		for (const [pluginId, meta] of marketplaceManifestCache) {
+			if (!this.isPluginEnabled(pluginId)) continue;
+			if (!meta.capabilities?.includes("mcp:tools")) continue;
+			if (!this.findSandboxedPlugin(pluginId)) continue;
+
+			for (const tool of meta.mcpTools ?? []) {
+				tools.push({
+					pluginId,
+					name: tool.name,
+					title: tool.title,
+					description: tool.description,
+					route: tool.route,
+				});
+			}
+		}
+
+		return tools;
+	}
 
 	/**
 	 * Get route metadata for a plugin route without invoking the handler.

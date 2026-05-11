@@ -25,6 +25,7 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"media:write",
 	"users:read",
 	"email:send",
+	"mcp:tools",
 	"hooks.email-transport:register",
 	"hooks.email-events:register",
 	"hooks.page-fragments:register",
@@ -127,6 +128,15 @@ const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
 const manifestRouteEntrySchema = z.object({
 	name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
 	public: z.boolean().optional(),
+});
+
+const mcpToolNamePattern = /^[a-z][a-z0-9_]*$/;
+
+const manifestMcpToolEntrySchema = z.object({
+	name: z.string().min(1).regex(mcpToolNamePattern, "MCP tool name must be lowercase snake_case"),
+	title: z.string().min(1).optional(),
+	description: z.string().min(1),
+	route: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
 });
 
 // ── Sub-schemas ─────────────────────────────────────────────────
@@ -249,6 +259,7 @@ export const pluginManifestSchema = z.object({
 			manifestRouteEntrySchema,
 		]),
 	),
+	mcpTools: z.array(manifestMcpToolEntrySchema).optional().default([]),
 	admin: pluginAdminConfigSchema,
 });
 

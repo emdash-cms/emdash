@@ -105,6 +105,50 @@ describe("pluginManifestSchema — route entries", () => {
 	});
 });
 
+describe("pluginManifestSchema — MCP tool entries", () => {
+	it("should accept plugin MCP tool metadata", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			capabilities: ["mcp:tools"],
+			mcpTools: [
+				{
+					name: "summarize",
+					title: "Summarize Text",
+					description: "Summarize content using the plugin.",
+					route: "tools/summarize",
+				},
+			],
+		});
+
+		expect(result.success).toBe(true);
+		if (result.success) {
+			expect(result.data.mcpTools).toEqual([
+				{
+					name: "summarize",
+					title: "Summarize Text",
+					description: "Summarize content using the plugin.",
+					route: "tools/summarize",
+				},
+			]);
+		}
+	});
+
+	it("should reject MCP tool names outside lowercase snake_case", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			mcpTools: [
+				{
+					name: "Summarize",
+					description: "Invalid tool name.",
+					route: "tools/summarize",
+				},
+			],
+		});
+
+		expect(result.success).toBe(false);
+	});
+});
+
 describe("normalizeManifestRoute", () => {
 	it("should convert a plain string to { name } object", () => {
 		expect(normalizeManifestRoute("webhook")).toEqual({ name: "webhook" });

@@ -353,6 +353,9 @@ export interface EmDashHandlers {
 	// Plugin route metadata (for auth decisions before dispatch)
 	getPluginRouteMeta: (pluginId: string, path: string) => { public: boolean } | null;
 
+	// Plugin-defined MCP tools
+	getPluginMcpTools: () => import("../plugins/types.js").PluginMcpToolRegistration[];
+
 	// Media provider handlers
 	getMediaProvider: (providerId: string) => import("../media/types.js").MediaProvider | undefined;
 	getMediaProviderList: () => Array<{

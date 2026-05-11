@@ -159,6 +159,7 @@ function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 			success: true,
 			data: { item: contentItem },
 		}),
+		getPluginMcpTools: vi.fn(() => []),
 	} as unknown as EmDashHandlers;
 }
 

@@ -77,6 +77,65 @@ describe("adaptSandboxEntry", () => {
 			expect(result.allowedHosts).toEqual(["api.example.com", "*.cdn.com"]);
 		});
 
+		it("carries MCP tools from the standard definition", () => {
+			const def: StandardPluginDefinition = {
+				routes: {
+					summarize: {
+						handler: async () => ({ ok: true }),
+					},
+				},
+				mcpTools: {
+					summarize: {
+						title: "Summarize",
+						description: "Summarize text.",
+						route: "summarize",
+					},
+				},
+			};
+			const descriptor = createDescriptor({ capabilities: ["mcp:tools"] });
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.mcpTools).toEqual({
+				summarize: {
+					title: "Summarize",
+					description: "Summarize text.",
+					route: "summarize",
+				},
+			});
+		});
+
+		it("carries MCP tools from the descriptor", () => {
+			const def: StandardPluginDefinition = {
+				routes: {
+					summarize: {
+						handler: async () => ({ ok: true }),
+					},
+				},
+			};
+			const descriptor = createDescriptor({
+				capabilities: ["mcp:tools"],
+				mcpTools: [
+					{
+						name: "summarize",
+						title: "Summarize",
+						description: "Summarize text.",
+						route: "summarize",
+					},
+				],
+			});
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.mcpTools).toEqual({
+				summarize: {
+					title: "Summarize",
+					description: "Summarize text.",
+					route: "summarize",
+				},
+			});
+		});
+
 		it("carries storage config from descriptor", () => {
 			const def: StandardPluginDefinition = {};
 			const descriptor = createDescriptor({

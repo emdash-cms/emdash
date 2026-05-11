@@ -25,6 +25,7 @@ import {
 	type CurrentPluginCapability,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
+	type ManifestMcpToolEntry,
 	type ManifestRouteEntry,
 	type PluginCapability,
 	type PluginStorageConfig,
@@ -46,6 +47,7 @@ export {
 	type CurrentPluginCapability,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
+	type ManifestMcpToolEntry,
 	type ManifestRouteEntry,
 	type PluginCapability,
 	type PluginStorageConfig,
@@ -1076,6 +1078,32 @@ export interface PluginRoute<TInput = unknown> {
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
 }
 
+/**
+ * Plugin-defined MCP tool.
+ *
+ * Execution delegates to a plugin route so the route's existing validation,
+ * plugin context, and sandbox bridge are reused.
+ */
+export interface PluginMcpTool {
+	/** Human-readable title exposed to MCP clients */
+	title?: string;
+	/** Tool description exposed to MCP clients */
+	description: string;
+	/** Route name to invoke when the MCP tool is called */
+	route: string;
+	/** Optional Zod schema for MCP argument validation */
+	input?: z.ZodType<Record<string, unknown>>;
+}
+
+export interface PluginMcpToolRegistration {
+	pluginId: string;
+	name: string;
+	title?: string;
+	description: string;
+	route: string;
+	input?: z.ZodType<Record<string, unknown>>;
+}
+
 // =============================================================================
 // Plugin Definition
 // =============================================================================
@@ -1257,6 +1285,9 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
 	/** API routes */
 	routes?: Record<string, PluginRoute>;
 
+	/** MCP tools exposed through the host MCP endpoint */
+	mcpTools?: Record<string, PluginMcpTool>;
+
 	/** Admin UI configuration */
 	admin?: PluginAdminConfig;
 }
@@ -1272,6 +1303,7 @@ export interface ResolvedPlugin<TStorage extends PluginStorageConfig = PluginSto
 	storage: TStorage;
 	hooks: ResolvedPluginHooks;
 	routes: Record<string, PluginRoute>;
+	mcpTools?: Record<string, PluginMcpTool>;
 	admin: PluginAdminConfig;
 }
 
@@ -1351,6 +1383,13 @@ export interface StandardRouteEntry {
 	public?: boolean;
 }
 
+export interface StandardMcpToolEntry {
+	title?: string;
+	description: string;
+	route: string;
+	input?: unknown;
+}
+
 /**
  * Standard plugin definition -- the sandbox entry format.
  * Used by standard plugins that work in both trusted and sandboxed modes.
@@ -1367,6 +1406,7 @@ export interface StandardPluginDefinition {
 	hooks?: Record<string, any>;
 	// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event/route types
 	routes?: Record<string, any>;
+	mcpTools?: Record<string, StandardMcpToolEntry>;
 }
 
 /**
@@ -1420,6 +1460,8 @@ export interface PluginManifest {
 	hooks: Array<ManifestHookEntry | HookName>;
 	/** Route declarations — either plain name strings or structured objects */
 	routes: Array<ManifestRouteEntry | string>;
+	/** MCP tool declarations */
+	mcpTools?: ManifestMcpToolEntry[];
 	admin: PluginAdminConfig;
 }
 

@@ -123,6 +123,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		allowedHosts = [],
 		hooks = {},
 		routes = {},
+		mcpTools = {},
 		admin = {},
 	} = definition;
 
@@ -159,6 +160,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		"media:write",
 		"users:read",
 		"email:send",
+		"mcp:tools",
 		"hooks.email-transport:register",
 		"hooks.email-events:register",
 		"hooks.page-fragments:register",
@@ -214,6 +216,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		storage,
 		hooks: resolvedHooks,
 		routes,
+		mcpTools,
 		admin,
 	};
 }

@@ -171,6 +171,16 @@ describe("definePlugin", () => {
 			expect(plugin.capabilities).toContain("network:request");
 		});
 
+		it("accepts the mcp:tools capability", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["mcp:tools"],
+			});
+
+			expect(plugin.capabilities).toContain("mcp:tools");
+		});
+
 		it("accepts media:read and media:write", () => {
 			const plugin = definePlugin({
 				id: "test",

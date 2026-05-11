@@ -24,6 +24,7 @@ import type {
 	PluginCapability,
 	PluginStorageConfig,
 	PluginAdminConfig,
+	PluginMcpTool,
 } from "./types.js";
 
 /**
@@ -147,6 +148,26 @@ export function adaptSandboxEntry(
 		}
 	}
 
+	const mcpTools: Record<string, PluginMcpTool> = {};
+	for (const toolEntry of descriptor.mcpTools ?? []) {
+		mcpTools[toolEntry.name] = {
+			title: toolEntry.title,
+			description: toolEntry.description,
+			route: toolEntry.route,
+		};
+	}
+	if (definition.mcpTools) {
+		for (const [toolName, toolEntry] of Object.entries(definition.mcpTools)) {
+			mcpTools[toolName] = {
+				title: toolEntry.title,
+				description: toolEntry.description,
+				route: toolEntry.route,
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Standard MCP tool input is intentionally loosely typed; callers validate at runtime
+				input: toolEntry.input as PluginMcpTool["input"],
+			};
+		}
+	}
+
 	// Build capabilities from descriptor.
 	// Validate against the known set (same as defineNativePlugin). Both
 	// current and deprecated names are accepted; deprecated names are
@@ -214,6 +235,7 @@ export function adaptSandboxEntry(
 		storage,
 		hooks: resolvedHooks,
 		routes: resolvedRoutes,
+		mcpTools,
 		admin,
 	};
 }

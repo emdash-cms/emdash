@@ -167,6 +167,8 @@ export type {
 	// Route types
 	PluginRoute,
 	RouteContext,
+	PluginMcpTool,
+	PluginMcpToolRegistration,
 
 	// Admin types
 	PluginAdminConfig,
@@ -183,6 +185,7 @@ export type {
 	PluginDefinition,
 	ResolvedPlugin,
 	PluginManifest,
+	ManifestMcpToolEntry,
 
 	// Standard plugin format
 	StandardPluginDefinition,

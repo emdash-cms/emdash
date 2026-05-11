@@ -30,7 +30,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		return apiError("UNAUTHORIZED", "Authentication required", 401);
 	}
 
-	const server = createMcpServer();
+	const server = createMcpServer(emdash);
 
 	try {
 		const transport = new WebStandardStreamableHTTPServerTransport({

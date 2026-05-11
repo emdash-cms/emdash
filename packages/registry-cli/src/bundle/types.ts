@@ -65,5 +65,13 @@ export interface ResolvedPlugin {
 			public?: boolean;
 		}
 	>;
+	mcpTools?: Record<
+		string,
+		{
+			title?: string;
+			description: string;
+			route: string;
+		}
+	>;
 	admin: PluginAdminConfig;
 }
