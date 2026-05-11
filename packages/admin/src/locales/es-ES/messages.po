@@ -6,6 +6,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: @lingui/cli\n"
 "Language: es-ES\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: packages/admin/src/routes/bylines.tsx:226
 msgid " - Guest"
@@ -4463,7 +4469,10 @@ msgid ""
 "Option 1\n"
 "Option 2\n"
 "Option 3"
-msgstr "Opción 1\nOpción 2\nOpción 3"
+msgstr ""
+"Opción 1\n"
+"Opción 2\n"
+"Opción 3"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:474
