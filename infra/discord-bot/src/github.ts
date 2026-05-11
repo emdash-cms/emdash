@@ -31,7 +31,7 @@ export function githubAuthUrl(env: Env, state: string): string {
 		state,
 		scope: "", // no scope needed, just identity
 	});
-	return `https://github.com/login/oauth/authorize?${params}`;
+	return `https://github.com/login/oauth/authorize?${params.toString()}`;
 }
 
 /**
@@ -57,10 +57,7 @@ export async function exchangeGitHubCode(
 
 	if (!tokenRes.ok) return null;
 
-	const tokenData = (await tokenRes.json()) as {
-		access_token?: string;
-		error?: string;
-	};
+	const tokenData: { access_token?: string; error?: string } = await tokenRes.json();
 	if (!tokenData.access_token) return null;
 
 	const userRes = await fetch("https://api.github.com/user", {
@@ -74,7 +71,7 @@ export async function exchangeGitHubCode(
 
 	if (!userRes.ok) return null;
 
-	const user = (await userRes.json()) as { login: string; id: number };
+	const user: { login: string; id: number } = await userRes.json();
 	return { login: user.login, id: user.id };
 }
 

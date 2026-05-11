@@ -49,7 +49,7 @@ async function handleInteraction(request: Request, env: Env): Promise<Response> 
 		return new Response("Invalid signature", { status: 401 });
 	}
 
-	const interaction = (await request.json()) as DiscordInteraction;
+	const interaction: DiscordInteraction = await request.json();
 
 	// Discord PING verification
 	if (interaction.type === 1) {
@@ -198,7 +198,7 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 		return new Response("Already processed", { status: 200 });
 	}
 
-	const payload = JSON.parse(body) as GitHubPRPayload;
+	const payload: GitHubPRPayload = JSON.parse(body);
 
 	// Verify this is from the expected repository
 	if (payload.repository.full_name !== env.GITHUB_REPO) {

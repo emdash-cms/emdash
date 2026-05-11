@@ -43,7 +43,8 @@ export async function findByGitHubId(
 ): Promise<LinkRecord | null> {
 	const value = await kv.get(`github:${githubId}`);
 	if (!value) return null;
-	return JSON.parse(value) as LinkRecord;
+	const record: LinkRecord = JSON.parse(value);
+	return record;
 }
 
 /**
@@ -55,7 +56,8 @@ export async function findByDiscordId(
 ): Promise<LinkRecord | null> {
 	const value = await kv.get(`discord:${discordId}`);
 	if (!value) return null;
-	return JSON.parse(value) as LinkRecord;
+	const record: LinkRecord = JSON.parse(value);
+	return record;
 }
 
 /**
@@ -97,7 +99,8 @@ export async function consumeOAuthState(
 	const value = await kv.get(`oauth:${state}`);
 	if (!value) return null;
 	await kv.delete(`oauth:${state}`);
-	return JSON.parse(value) as { discord_id: string; discord_username: string };
+	const data: { discord_id: string; discord_username: string } = JSON.parse(value);
+	return data;
 }
 
 /**

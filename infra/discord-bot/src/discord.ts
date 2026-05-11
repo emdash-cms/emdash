@@ -52,7 +52,7 @@ export async function hasRole(env: Env, userId: string, roleId: string): Promise
 		headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` },
 	});
 	if (!res.ok) return false;
-	const member = (await res.json()) as { roles: string[] };
+	const member: { roles: string[] } = await res.json();
 	return member.roles.includes(roleId);
 }
 
