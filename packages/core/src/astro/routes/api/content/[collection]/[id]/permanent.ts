@@ -27,7 +27,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection, id] });
+	if (cache?.enabled) await cache.invalidate({ tags: [collection, id] });
 
 	return unwrapResult(result);
 };
