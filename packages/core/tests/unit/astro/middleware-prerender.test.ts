@@ -11,6 +11,29 @@ const { DB_CONFIG_MARKER } = vi.hoisted(() => ({
 	DB_CONFIG_MARKER: { binding: "DB", session: "auto" },
 }));
 
+const { MOCK_RUNTIME } = vi.hoisted(() => ({
+	MOCK_RUNTIME: new Proxy(
+		{
+			storage: null,
+			db: {},
+			hooks: {},
+			email: null,
+			configuredPlugins: [],
+		},
+		{
+			get(target, prop) {
+				if (prop === "then") return undefined;
+				if (prop in target) return target[prop as keyof typeof target];
+				if (prop === "getPluginRouteMeta") return () => ({ public: true });
+				if (prop === "handlePluginApiRoute") return async () => ({ success: true, data: {} });
+				if (prop === "collectPageMetadata") return async () => [];
+				if (prop === "collectPageFragments") return async () => [];
+				return async () => ({ success: true });
+			},
+		},
+	),
+}));
+
 vi.mock(
 	"virtual:emdash/config",
 	() => ({
@@ -44,6 +67,12 @@ vi.mock(
 vi.mock("virtual:emdash/sandboxed-plugins", () => ({ sandboxedPlugins: [] }), { virtual: true });
 vi.mock("virtual:emdash/storage", () => ({ createStorage: null }), { virtual: true });
 vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
+
+vi.mock("../../../src/emdash-runtime.js", () => ({
+	EmDashRuntime: {
+		create: async () => MOCK_RUNTIME,
+	},
+}));
 
 vi.mock("../../../src/loader.js", () => ({
 	getDb: vi.fn(async () => ({
@@ -165,6 +194,45 @@ describe("astro middleware anonymous session reads", () => {
 
 		expect(response.status).toBe(200);
 		expect(sessionGet).not.toHaveBeenCalled();
+	});
+
+	it("exposes only restricted public runtime helpers to anonymous public pages", async () => {
+		const cookies = {
+			get: vi.fn((name: string) => {
+				if (name === "astro-session") return undefined;
+				return undefined;
+			}),
+			set: vi.fn(),
+		};
+		const sessionGet = vi.fn(async () => null);
+		const astroSession = { get: sessionGet };
+		const locals: Record<string, unknown> = {};
+
+		const context: Record<string, unknown> = {
+			request: new Request("https://example.com/contact"),
+			url: new URL("https://example.com/contact"),
+			cookies,
+			locals,
+			redirect: vi.fn(),
+			isPrerendered: false,
+			session: astroSession,
+		};
+
+		const response = await onRequest(
+			context as Parameters<typeof onRequest>[0],
+			async () => new Response("ok"),
+		);
+
+		expect(response.status).toBe(200);
+		expect(sessionGet).not.toHaveBeenCalled();
+		const emdash = locals.emdash as Record<string, unknown>;
+		expect(typeof emdash.handlePluginApiRoute).toBe("function");
+		expect(typeof emdash.collectPageMetadata).toBe("function");
+		expect(typeof emdash.collectPageFragments).toBe("function");
+		expect("getPluginRouteMeta" in emdash).toBe(false);
+		expect("handleContentList" in emdash).toBe(false);
+		expect("db" in emdash).toBe(false);
+		expect("config" in emdash).toBe(false);
 	});
 
 	it("reads the Astro session when an astro-session cookie is present", async () => {
