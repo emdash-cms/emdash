@@ -12,6 +12,7 @@ packages:
   - infra/blog-demo
   - infra/cache-demo
   - infra/perf-monitor
+  - infra/discord-bot
 
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
