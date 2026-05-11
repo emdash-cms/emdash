@@ -1,5 +1,3 @@
-import type { DiscordInteraction } from "./types.js";
-
 const DISCORD_API = "https://discord.com/api/v10";
 
 /**

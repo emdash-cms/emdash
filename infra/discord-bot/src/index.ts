@@ -263,10 +263,12 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 
 type Vars = Record<string, string>;
 
+const PLACEHOLDER_RE = /\{(\w+)\}/g;
+
 /** Pick a random template and substitute {key} placeholders. */
 function pick(templates: string[], vars: Vars): string {
 	const template = templates[Math.floor(Math.random() * templates.length)]!;
-	return template.replace(/\{(\w+)\}/g, (_, key: string) => vars[key] ?? `{${key}}`);
+	return template.replace(PLACEHOLDER_RE, (_, key: string) => vars[key] ?? `{${key}}`);
 }
 
 const linkedMergeMessages = [
@@ -318,10 +320,15 @@ function htmlResponse(body: string, status: number): Response {
 	);
 }
 
+const AMP_RE = /&/g;
+const LT_RE = /</g;
+const GT_RE = />/g;
+const QUOT_RE = /"/g;
+
 function escapeHtml(str: string): string {
 	return str
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
+		.replace(AMP_RE, "&amp;")
+		.replace(LT_RE, "&lt;")
+		.replace(GT_RE, "&gt;")
+		.replace(QUOT_RE, "&quot;");
 }
