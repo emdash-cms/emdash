@@ -810,15 +810,12 @@ importers:
 
   infra/discord-bot:
     devDependencies:
-      '@cloudflare/workers-types':
-        specifier: 'catalog:'
-        version: 4.20260305.1
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
       wrangler:
         specifier: 'catalog:'
-        version: 4.80.0(@cloudflare/workers-types@4.20260305.1)
+        version: 4.90.0(@cloudflare/workers-types@4.20260305.1)
 
   infra/perf-monitor:
     devDependencies:
