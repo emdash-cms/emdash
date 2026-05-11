@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/registry-cli",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "CLI for publishing plugins to the EmDash plugin registry, and searching it from the terminal. Atproto OAuth, FAIR-shaped records, sandboxed-plugin-only.",
 	"type": "module",
 	"main": "dist/api.mjs",

@@ -1,5 +1,48 @@
 # @emdash-cms/admin
 
+## 0.11.0
+
+### Minor Changes
+
+- [#942](https://github.com/emdash-cms/emdash/pull/942) [`7c536e5`](https://github.com/emdash-cms/emdash/commit/7c536e59b005a79925dd0ecab46404d9d34196b8) Thanks [@MA2153](https://github.com/MA2153)! - Adds per-field allowed MIME types for `file` and `image` fields. Field-level `allowedTypes` is now honored end-to-end: it filters the media picker, widens upload acceptance for that field (so e.g. a zip-only field can accept zip uploads even though the global allowlist excludes them), and validates referenced media against the destination field on content save. The schema editor in admin gains an "Allowed types" control with curated presets and freeform entry.
+
+  Behavior change: the `image` builder's `allowedTypes` option was previously accepted but read by nothing. It is now load-bearing — a code-first schema that already passed `allowedTypes` (e.g. `["image/png"]`) will now actually narrow the picker and gate uploads. Most users will see no change; if you set this option intending the old (silent) behavior, drop it.
+
+  Behavior change: updating a field via the admin schema editor now explicitly clears its validation when the form contains no validation settings, instead of leaving an existing `validation` value intact. This only affects fields with pre-existing validation that is not expressible in the editor UI.
+
+- [#921](https://github.com/emdash-cms/emdash/pull/921) [`530b013`](https://github.com/emdash-cms/emdash/commit/530b013000e0547bc01f252113cff77c1e26e485) Thanks [@jcheese1](https://github.com/jcheese1)! - Adds table support to the PortableText editor. Users can now insert and edit tables via the slash command menu (/table) or toolbar button. Tables support header rows, column/row insertion and deletion, and include a bubble menu for quick editing.
+
+### Patch Changes
+
+- [#958](https://github.com/emdash-cms/emdash/pull/958) [`7f6b6ea`](https://github.com/emdash-cms/emdash/commit/7f6b6ead417f3b495843a4da5653531cf735aae4) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes admin lists, tables and info cards rendering as transparent against the page background. Card containers in the content list, content type list, content type editor, media library, comments, users and device authorization views now have an explicit `bg-kumo-base` surface so they're visually distinct from the body.
+
+  Also fixes column header labels in content list tables ("Title", "Status", etc.) rendering pale because of an undefined Tailwind class (`text-kumo-fg`) -- they now use the default text color and rely on the sort indicator icon to signal active state.
+
+- [#952](https://github.com/emdash-cms/emdash/pull/952) [`131bea6`](https://github.com/emdash-cms/emdash/commit/131bea68b7f580e353716a1a1934f2a6fec3b3e7) Thanks [@ascorbic](https://github.com/ascorbic)! - Replaces 20 raw `<input type="checkbox">` elements across the admin UI with Kumo's `Switch` and `Checkbox` components. Single-boolean toggles (SEO, Enable comments, Required, etc.) become `Switch`; multi-select / list-context checkboxes (collection multi-select, term tree nodes) become `Checkbox`. Drops manual styling and label markup that duplicated what the Kumo components provide built-in.
+
+- [#956](https://github.com/emdash-cms/emdash/pull/956) [`54b5aa1`](https://github.com/emdash-cms/emdash/commit/54b5aa1c189d7ebd8d34e02a9b3c3a560b5f263f) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Fixes broken checkboxes on the comments moderation page (`/_emdash/admin/comments`). Selecting a comment threw a JavaScript error and did not select the row.
+
+- [#934](https://github.com/emdash-cms/emdash/pull/934) [`c630e31`](https://github.com/emdash-cms/emdash/commit/c630e31d1362a275c95324f4bbc1e92d0a4646cf) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes button and link inconsistencies across the admin UI. Standardises on Kumo's `Button` `icon` prop and `LinkButton` (with `external` for new-tab links) instead of manual icon spacing and raw anchor styling, removes a `<Link><Button>` invalid HTML nesting in the plugin manager, and translates two stray English strings in the user list empty state.
+
+- [#949](https://github.com/emdash-cms/emdash/pull/949) [`7aa1897`](https://github.com/emdash-cms/emdash/commit/7aa189782946bb99397ea909cac50fc1109b27b9) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes invalid `<a><button>` HTML produced by `<Link><Button>...</Button></Link>` patterns across the admin UI. Introduces a `RouterLinkButton` component that wraps TanStack Router's `<Link>` with Kumo button styling (`variant`, `size`, `shape`, `icon` props), and migrates all existing `<Link className={buttonVariants(...)}>` usages to use it. Extracts the duplicated "Back to settings" header link into a shared `BackToSettingsLink` component.
+
+- [#940](https://github.com/emdash-cms/emdash/pull/940) [`0b8a319`](https://github.com/emdash-cms/emdash/commit/0b8a319e7afb247b1ebacd60aeb6052bec5560d5) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the long tail of untranslated English strings in the admin UI: settings panels, marketplace, sandboxed-plugin host, auth flows, taxonomy/menu management, and lib/api fallback messages. After this PR, EmDash admin UI is fully localizable across all known surfaces.
+
+- [#957](https://github.com/emdash-cms/emdash/pull/957) [`13ff061`](https://github.com/emdash-cms/emdash/commit/13ff061517ede4b29608de0120283914b43e6b76) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the OG image picker in the content editor only appearing for collections with a field literally named `featured_image`. The OG image control now lives in the SEO sidebar panel alongside the other SEO fields, so any collection with `seo` enabled can set a social preview image regardless of whether it has a featured image field.
+
+- [#955](https://github.com/emdash-cms/emdash/pull/955) [`49b66d9`](https://github.com/emdash-cms/emdash/commit/49b66d910c80b87b2632ad34e923695c9a302a05) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes the sticky editor header from content / content-type / section / settings pages. The sticky implementation had transparency artifacts (backdrop-blur over varied content), layout fragility (negative margins canceling parent padding), z-index conflicts with the app bar, and ~85px of permanent vertical chrome. Each editor now renders a Save button at the bottom of the form so users can save without scrolling back to the top header. The distraction-free hover-overlay header in the content editor is preserved.
+
+- [#966](https://github.com/emdash-cms/emdash/pull/966) [`1b2fa77`](https://github.com/emdash-cms/emdash/commit/1b2fa77d0c1455f9478908234f45e9d91847e044) Thanks [@ahliweb](https://github.com/ahliweb)! - i18n(id): complete Indonesian translation (320 strings)
+
+- [#937](https://github.com/emdash-cms/emdash/pull/937) [`af15975`](https://github.com/emdash-cms/emdash/commit/af15975b1c8daf6bdef216ac56693568d448a112) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes ~250 untranslated English strings in the admin UI's most-used screens (router toasts, content type editor, widgets, byline and user routes, invite-accept flow, portable text editor toolbar, image and embed editor nodes, user list). All `title=`, `aria-label=`, `placeholder=`, and toast messages in these areas now flow through Lingui.
+
+- [#950](https://github.com/emdash-cms/emdash/pull/950) [`a4968c1`](https://github.com/emdash-cms/emdash/commit/a4968c105741ca008035d1f33e55851b52a7d2d6) Thanks [@ascorbic](https://github.com/ascorbic)! - Replaces raw `<select>` and `<input type="search">` elements across the admin UI with Kumo's `Select` and `Input` components. This gives consistent styling, proper focus rings, accessibility (label association via the Field wrapper), and dark-mode handling for free instead of relying on hand-rolled Tailwind classes that bypassed the design system.
+
+- [#973](https://github.com/emdash-cms/emdash/pull/973) [`f80fb58`](https://github.com/emdash-cms/emdash/commit/f80fb58ca5906d65e7f1a38d91267ce511d2bef2) Thanks [@ahliweb](https://github.com/ahliweb)! - Translates the remaining untranslated string in the Indonesian locale, bringing it to 100% coverage.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.11.0
+
 ## 0.10.0
 
 ### Patch Changes

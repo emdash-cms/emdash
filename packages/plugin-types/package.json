@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-types",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Shared TypeScript types for the EmDash plugin manifest contract: capability vocabulary, manifest shape, hook/route entry types. Consumed by core (manifest reader at install/runtime) and registry-cli (manifest writer at bundle/publish time).",
 	"type": "module",
 	"main": "dist/index.js",

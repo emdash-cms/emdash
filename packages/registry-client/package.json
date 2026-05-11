@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/registry-client",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Atproto-aware client for the EmDash plugin registry: credential storage, publisher repo operations, and discovery against an aggregator.",
 	"type": "module",
 	"main": "dist/index.js",

@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/registry-lexicons",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "Generated TypeScript types for EmDash plugin registry lexicons (com.emdashcms.experimental.*). EXPERIMENTAL: NSIDs and shapes will change.",
 	"type": "module",
 	"main": "dist/index.js",
