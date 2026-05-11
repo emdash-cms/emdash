@@ -83,16 +83,30 @@ export function isInstrumentationEnabled(): boolean {
 
 function kyselyLog(event: LogEvent): void {
 	if (event.level !== "query") return;
-	const rec = getRequestContext()?.queryRecorder;
-	if (!rec) return;
-	recordEvent(rec, event.query.sql, event.query.parameters, event.queryDurationMillis);
+	const ctx = getRequestContext();
+	if (!ctx) return;
+	const dur = event.queryDurationMillis;
+	if (ctx.metrics) {
+		const m = ctx.metrics;
+		m.dbCount += 1;
+		m.dbTotalMs += dur;
+		const finishedAt = performance.now() - m.start;
+		const startedAt = finishedAt - dur;
+		if (m.dbFirstOffset === null) m.dbFirstOffset = startedAt;
+		m.dbLastOffset = finishedAt;
+	}
+	if (ctx.queryRecorder) {
+		recordEvent(ctx.queryRecorder, event.query.sql, event.query.parameters, dur);
+	}
 }
 
 /**
- * Returns a Kysely `log` option when instrumentation is enabled, or undefined.
- * Pass as `new Kysely({ dialect, log: kyselyLogOption() })` so disabled mode
- * has zero overhead — Kysely skips query timing entirely when `log` is absent.
+ * Returns a Kysely `log` callback. Always returns a function so per-request
+ * counters (db.count, db.total, db.first, db.last) and the optional NDJSON
+ * recorder both get fed. The cost over the previous "undefined when off"
+ * behaviour is one `performance.now()` pair per query inside Kysely, which
+ * is in the noise compared to any real query.
  */
-export function kyselyLogOption(): Logger | undefined {
-	return isInstrumentationEnabled() ? kyselyLog : undefined;
+export function kyselyLogOption(): Logger {
+	return kyselyLog;
 }

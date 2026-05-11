@@ -35,12 +35,21 @@ async function seedMenu(
 		sort_order?: number;
 		parent_id?: string | null;
 	}> = [],
+	options: { locale?: string; translationGroup?: string } = {},
 ): Promise<string> {
 	const menuId = ulid();
 	const now = new Date().toISOString();
 	await db
 		.insertInto("_emdash_menus" as never)
-		.values({ id: menuId, name, label, created_at: now, updated_at: now } as never)
+		.values({
+			id: menuId,
+			name,
+			label,
+			locale: options.locale ?? "en",
+			translation_group: options.translationGroup ?? menuId,
+			created_at: now,
+			updated_at: now,
+		} as never)
 		.execute();
 
 	for (const [i, item] of items.entries()) {
@@ -54,6 +63,7 @@ async function seedMenu(
 				type: "custom",
 				sort_order: item.sort_order ?? i,
 				parent_id: item.parent_id ?? null,
+				locale: options.locale ?? "en",
 				created_at: now,
 			} as never)
 			.execute();
@@ -260,6 +270,76 @@ describe("menu mutations (bug #15 / F6 / F12)", () => {
 		expect(menu.items).toEqual([]);
 	});
 
+	it("menu_create forwards locale and translationOf", async () => {
+		const createSource = await harness.client.callTool({
+			name: "menu_create",
+			arguments: { name: "main", label: "Main Menu", locale: "en" },
+		});
+		expect(createSource.isError, extractText(createSource)).toBeFalsy();
+
+		const sourceMenu = await db
+			.selectFrom("_emdash_menus")
+			.select(["id", "translation_group"])
+			.where("name", "=", "main")
+			.where("locale", "=", "en")
+			.executeTakeFirstOrThrow();
+
+		const createTranslation = await harness.client.callTool({
+			name: "menu_create",
+			arguments: {
+				name: "main",
+				label: "Menu principal",
+				locale: "fr-fr",
+				translationOf: sourceMenu.id,
+			},
+		});
+		expect(createTranslation.isError, extractText(createTranslation)).toBeFalsy();
+
+		const frMenu = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "fr-fr" },
+		});
+		expect(frMenu.isError, extractText(frMenu)).toBeFalsy();
+		const menu = extractJson<{ label: string; locale: string }>(frMenu);
+		expect(menu.label).toBe("Menu principal");
+		expect(menu.locale).toBe("fr-fr");
+
+		const translatedRow = await db
+			.selectFrom("_emdash_menus")
+			.select(["translation_group"])
+			.where("name", "=", "main")
+			.where("locale", "=", "fr-fr")
+			.executeTakeFirstOrThrow();
+		expect(translatedRow.translation_group).toBe(sourceMenu.translation_group);
+	});
+
+	it("menu_create requires locale when translationOf is provided", async () => {
+		const createSource = await harness.client.callTool({
+			name: "menu_create",
+			arguments: { name: "main", label: "Main Menu", locale: "en" },
+		});
+		expect(createSource.isError, extractText(createSource)).toBeFalsy();
+
+		const sourceMenu = await db
+			.selectFrom("_emdash_menus")
+			.select("id")
+			.where("name", "=", "main")
+			.where("locale", "=", "en")
+			.executeTakeFirstOrThrow();
+
+		const missingLocale = await harness.client.callTool({
+			name: "menu_create",
+			arguments: {
+				name: "main",
+				label: "Menu principal",
+				translationOf: sourceMenu.id,
+			},
+		});
+		expect(missingLocale.isError).toBe(true);
+		expect(extractText(missingLocale)).toMatch(/locale/i);
+		expect(extractText(missingLocale)).toMatch(/translationOf/i);
+	});
+
 	it("menu_create with a duplicate name returns CONFLICT", async () => {
 		await harness.client.callTool({
 			name: "menu_create",
@@ -292,6 +372,29 @@ describe("menu mutations (bug #15 / F6 / F12)", () => {
 		expect(menu.label).toBe("Renamed");
 	});
 
+	it("menu_update with locale only changes the targeted translation", async () => {
+		const translationGroup = ulid();
+		await seedMenu(db, "main", "Main", [], { locale: "en", translationGroup });
+		await seedMenu(db, "main", "Principal", [], { locale: "fr-fr", translationGroup });
+
+		const update = await harness.client.callTool({
+			name: "menu_update",
+			arguments: { name: "main", locale: "fr-fr", label: "Menu principal" },
+		});
+		expect(update.isError, extractText(update)).toBeFalsy();
+
+		const enMenu = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "en" },
+		});
+		const frMenu = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "fr-fr" },
+		});
+		expect(extractJson<{ label: string }>(enMenu).label).toBe("Main");
+		expect(extractJson<{ label: string }>(frMenu).label).toBe("Menu principal");
+	});
+
 	it("menu_set_items with empty list clears all items", async () => {
 		await seedMenu(db, "main", "Main", [
 			{ label: "Home", url: "/" },
@@ -310,6 +413,71 @@ describe("menu mutations (bug #15 / F6 / F12)", () => {
 		});
 		const menu = extractJson<{ items: unknown[] }>(get);
 		expect(menu.items).toEqual([]);
+	});
+
+	it("menu_set_items with locale only replaces that locale's items", async () => {
+		const translationGroup = ulid();
+		await seedMenu(
+			db,
+			"main",
+			"Main",
+			[
+				{ label: "Home", url: "/en" },
+				{ label: "Docs", url: "/en/docs" },
+			],
+			{ locale: "en", translationGroup },
+		);
+		await seedMenu(db, "main", "Principal", [{ label: "Ancien", url: "/fr/ancien" }], {
+			locale: "fr-fr",
+			translationGroup,
+		});
+
+		const result = await harness.client.callTool({
+			name: "menu_set_items",
+			arguments: {
+				name: "main",
+				locale: "fr-fr",
+				items: [
+					{ label: "Accueil", type: "custom", customUrl: "/fr" },
+					{ label: "Guides", type: "custom", customUrl: "/fr/guides", parentIndex: 0 },
+				],
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		const enMenu = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "en" },
+		});
+		const frMenu = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "fr-fr" },
+		});
+		expect(
+			extractJson<{ items: Array<{ label: string }> }>(enMenu).items.map((item) => item.label),
+		).toEqual(["Home", "Docs"]);
+		expect(
+			extractJson<{ items: Array<{ label: string }> }>(frMenu).items.map((item) => item.label),
+		).toEqual(["Accueil", "Guides"]);
+
+		const frItemLocales = await db
+			.selectFrom("_emdash_menu_items" as never)
+			.select(["locale" as never])
+			.where(
+				"menu_id" as never,
+				"=",
+				(
+					await db
+						.selectFrom("_emdash_menus" as never)
+						.select("id" as never)
+						.where("name" as never, "=", "main" as never)
+						.where("locale" as never, "=", "fr-fr" as never)
+						.executeTakeFirstOrThrow()
+				).id as never,
+			)
+			.orderBy("sort_order" as never, "asc")
+			.execute();
+		expect(frItemLocales.every((item) => item.locale === "fr-fr")).toBe(true);
 	});
 
 	it("menu_set_items supports 3-level nesting via parentIndex chain", async () => {
@@ -417,5 +585,136 @@ describe("menu mutations (bug #15 / F6 / F12)", () => {
 		});
 		expect(after.isError).toBe(true);
 		expect(extractText(after)).toMatch(/NOT_FOUND/);
+	});
+
+	it("menu_delete with locale only removes the targeted translation", async () => {
+		const translationGroup = ulid();
+		await seedMenu(db, "main", "Main", [{ label: "Home", url: "/en" }], {
+			locale: "en",
+			translationGroup,
+		});
+		await seedMenu(db, "main", "Principal", [{ label: "Accueil", url: "/fr" }], {
+			locale: "fr-fr",
+			translationGroup,
+		});
+
+		const del = await harness.client.callTool({
+			name: "menu_delete",
+			arguments: { name: "main", locale: "fr-fr" },
+		});
+		expect(del.isError, extractText(del)).toBeFalsy();
+
+		const enMenu = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "en" },
+		});
+		expect(enMenu.isError, extractText(enMenu)).toBeFalsy();
+
+		const frMenu = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "fr-fr" },
+		});
+		expect(frMenu.isError).toBe(true);
+		expect(extractText(frMenu)).toMatch(/NOT_FOUND/);
+	});
+
+	// -------------------------------------------------------------------
+	// Multi-locale ambiguity (fail loud)
+	// -------------------------------------------------------------------
+	// Background: prior to the AMBIGUOUS_LOCALE fix, calling menu_update /
+	// menu_delete / menu_set_items on a multi-locale install without a
+	// `locale` arg silently picked an arbitrary translation. Now the
+	// handler returns a structured error and the caller has to disambiguate.
+
+	it("menu_update without locale on a multi-locale install returns AMBIGUOUS_LOCALE", async () => {
+		const translationGroup = ulid();
+		await seedMenu(db, "main", "Main", [], { locale: "en", translationGroup });
+		await seedMenu(db, "main", "Principal", [], { locale: "fr-fr", translationGroup });
+
+		const result = await harness.client.callTool({
+			name: "menu_update",
+			arguments: { name: "main", label: "Whatever" },
+		});
+		expect(result.isError).toBe(true);
+		const text = extractText(result);
+		expect(text).toMatch(/AMBIGUOUS_LOCALE/);
+		expect(text).toMatch(/multiple locales/);
+		expect(text).toMatch(/en/);
+		expect(text).toMatch(/fr-fr/);
+
+		// Both labels untouched — the ambiguous call must not have written.
+		const en = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "en" },
+		});
+		const fr = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "fr-fr" },
+		});
+		expect(extractJson<{ label: string }>(en).label).toBe("Main");
+		expect(extractJson<{ label: string }>(fr).label).toBe("Principal");
+	});
+
+	it("menu_delete without locale on a multi-locale install returns AMBIGUOUS_LOCALE", async () => {
+		const translationGroup = ulid();
+		await seedMenu(db, "main", "Main", [], { locale: "en", translationGroup });
+		await seedMenu(db, "main", "Principal", [], { locale: "fr-fr", translationGroup });
+
+		const result = await harness.client.callTool({
+			name: "menu_delete",
+			arguments: { name: "main" },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/AMBIGUOUS_LOCALE/);
+
+		// Both translations must still exist.
+		const en = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "en" },
+		});
+		const fr = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "fr-fr" },
+		});
+		expect(en.isError, extractText(en)).toBeFalsy();
+		expect(fr.isError, extractText(fr)).toBeFalsy();
+	});
+
+	it("menu_set_items without locale on a multi-locale install returns AMBIGUOUS_LOCALE", async () => {
+		const translationGroup = ulid();
+		await seedMenu(db, "main", "Main", [{ label: "Keep", url: "/en/keep" }], {
+			locale: "en",
+			translationGroup,
+		});
+		await seedMenu(db, "main", "Principal", [{ label: "Garder", url: "/fr/garder" }], {
+			locale: "fr-fr",
+			translationGroup,
+		});
+
+		const result = await harness.client.callTool({
+			name: "menu_set_items",
+			arguments: {
+				name: "main",
+				items: [{ label: "New", type: "custom", customUrl: "/new" }],
+			},
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/AMBIGUOUS_LOCALE/);
+
+		// Neither translation's items were touched — transaction rolled back.
+		const en = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "en" },
+		});
+		const fr = await harness.client.callTool({
+			name: "menu_get",
+			arguments: { name: "main", locale: "fr-fr" },
+		});
+		expect(extractJson<{ items: Array<{ label: string }> }>(en).items.map((i) => i.label)).toEqual([
+			"Keep",
+		]);
+		expect(extractJson<{ items: Array<{ label: string }> }>(fr).items.map((i) => i.label)).toEqual([
+			"Garder",
+		]);
 	});
 });

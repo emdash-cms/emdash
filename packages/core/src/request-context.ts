@@ -5,8 +5,10 @@
  * without requiring explicit parameter passing. The middleware wraps next()
  * in als.run(), making the context available to all code during rendering.
  *
- * For logged-out users with no CMS signals (no edit cookie, no preview param),
- * the middleware skips ALS entirely — zero overhead for normal traffic.
+ * Middleware always wraps each request in a context so per-request
+ * metrics (db.*, cache.*) can be surfaced via Server-Timing. The cost is
+ * one ALS frame per request — sub-microsecond, negligible compared to
+ * any real work.
  *
  * The AsyncLocalStorage instance is stored on globalThis with a Symbol key
  * to guarantee a singleton even when bundlers duplicate this module across
@@ -18,6 +20,38 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { QueryRecorder } from "./database/instrumentation.js";
+
+/**
+ * Lightweight always-on counters surfaced in Server-Timing.
+ *
+ * Bumped by the Kysely log hook (db queries) and by `requestCached`
+ * (cache hits/misses). Read by middleware after the response is
+ * generated to emit `db.*` and `cache.*` Server-Timing fields.
+ *
+ * Offsets are milliseconds from `start` (the request's entry into
+ * middleware), captured via `performance.now()`.
+ */
+export interface RequestMetrics {
+	start: number;
+	dbCount: number;
+	dbTotalMs: number;
+	dbFirstOffset: number | null;
+	dbLastOffset: number | null;
+	cacheHits: number;
+	cacheMisses: number;
+}
+
+export function createRequestMetrics(start: number): RequestMetrics {
+	return {
+		start,
+		dbCount: 0,
+		dbTotalMs: 0,
+		dbFirstOffset: null,
+		dbLastOffset: null,
+		cacheHits: 0,
+		cacheMisses: 0,
+	};
+}
 
 export interface EmDashRequestContext {
 	/** Whether the current request is in visual editing mode */
@@ -54,6 +88,12 @@ export interface EmDashRequestContext {
 	 * to NDJSON after the response.
 	 */
 	queryRecorder?: QueryRecorder;
+	/**
+	 * Per-request metrics for Server-Timing. Always attached by middleware
+	 * for requests that emit timing headers; bumped by the Kysely log hook
+	 * and `requestCached`.
+	 */
+	metrics?: RequestMetrics;
 }
 
 const ALS_KEY = Symbol.for("emdash:request-context");

@@ -46,7 +46,13 @@ import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
-import { getRequestContext, runWithContext } from "../request-context.js";
+import { invalidateUrlPatternCache } from "../query.js";
+import {
+	createRequestMetrics,
+	getRequestContext,
+	type RequestMetrics,
+	runWithContext,
+} from "../request-context.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import type { EmDashHandlers } from "./types.js";
 
@@ -208,6 +214,33 @@ function finalizeResponse(
 	return res;
 }
 
+/**
+ * Append always-on counters (db.*, cache.*) to the Server-Timing list.
+ *
+ * dur values for `count`, `hit`, `miss` are integer counts — Server-Timing
+ * spec only models milliseconds, but browsers show whatever number is given,
+ * which is the convention most projects use for non-time samples.
+ */
+function pushMetricsTimings(
+	timings: Array<{ name: string; dur: number; desc?: string }>,
+	metrics: RequestMetrics,
+): void {
+	if (metrics.dbCount > 0) {
+		timings.push({ name: "db.total", dur: metrics.dbTotalMs, desc: "DB total" });
+		timings.push({ name: "db.count", dur: metrics.dbCount, desc: "Query count" });
+		if (metrics.dbFirstOffset !== null) {
+			timings.push({ name: "db.first", dur: metrics.dbFirstOffset, desc: "First query at" });
+		}
+		if (metrics.dbLastOffset !== null) {
+			timings.push({ name: "db.last", dur: metrics.dbLastOffset, desc: "Last query at" });
+		}
+	}
+	if (metrics.cacheHits + metrics.cacheMisses > 0) {
+		timings.push({ name: "cache.hit", dur: metrics.cacheHits, desc: "Cache hits" });
+		timings.push({ name: "cache.miss", dur: metrics.cacheMisses, desc: "Cache misses" });
+	}
+}
+
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
 const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
@@ -251,6 +284,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		? createRecorder(url.pathname, request.method, request.headers.get("x-perf-phase") ?? "default")
 		: undefined;
 
+	const metrics = createRequestMetrics(performance.now());
+
 	const run = async (): Promise<Response> => {
 		// Process /_emdash routes and public routes with an active session
 		// (logged-in editors need the runtime for toolbar/visual editing on public pages)
@@ -271,8 +306,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Read the Astro session user once up-front. Both the anonymous fast path
 		// and the full doInit path need this, and the session store is network-backed
 		// (KV / Durable Object) so we want to avoid re-fetching on the hot path.
-		// Skipped entirely for prerendered requests — they have no session.
-		const sessionUser = context.isPrerendered ? null : await context.session?.get("user");
+		// Skipped entirely for:
+		//   - prerendered requests (no session at build time)
+		//   - requests without an `astro-session` cookie (no session to look up)
+		// The cookie check matters on Cloudflare Workers, where Astro's session
+		// backend is KV: calling session.get() on every anonymous public request
+		// turns normal traffic into a flood of KV read misses. See #733.
+		const hasSessionCookie = cookies.get("astro-session") !== undefined;
+		const sessionUser =
+			context.isPrerendered || !hasSessionCookie ? null : await context.session?.get("user");
 
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
@@ -347,13 +389,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					const response = await next();
 					timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 					timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+					pushMetricsTimings(timings, metrics);
 					return finalizeResponse(response, timings);
 				};
 				if (anonScoped) {
 					const parent = getRequestContext();
 					const ctx = parent
 						? { ...parent, db: anonScoped.db }
-						: { editMode: false, db: anonScoped.db };
+						: { editMode: false, db: anonScoped.db, metrics };
 					return runWithContext(ctx, async () => {
 						const response = await runAnon();
 						anonScoped.commit();
@@ -394,13 +437,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Runtime init runs migrations, so the DB is guaranteed set up
 				setupVerified = true;
 
-				// Get manifest (cached after first call)
-				t0 = performance.now();
-				const manifest = await runtime.getManifest();
-				timings.push({ name: "manifest", dur: performance.now() - t0, desc: "Manifest" });
+				// The manifest is no longer pre-loaded here. It's admin-only
+				// content that public/anonymous requests never read, and
+				// loading it on every request put logged-out hot paths on
+				// the same staleness budget as admin operations. Admin
+				// routes call `emdash.getManifest()` directly.
 
 				// Attach to locals for route handlers
-				locals.emdashManifest = manifest;
 				locals.emdash = {
 					// Content handlers
 					handleContentList: runtime.handleContentList.bind(runtime),
@@ -469,8 +512,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Configuration (for checking database type, auth mode, etc.)
 					config,
 
-					// Manifest invalidation (call after schema changes)
-					invalidateManifest: runtime.invalidateManifest.bind(runtime),
+					// Lazy manifest accessor — admin-only consumers call this on
+					// demand. `requestCached` inside `getManifest` dedupes within
+					// a single request.
+					getManifest: runtime.getManifest.bind(runtime),
+
+					// Clear the URL pattern cache after schema mutations that
+					// affect collection URL patterns.
+					invalidateUrlPatternCache,
 
 					// Sandbox runner (for marketplace plugin install/update)
 					getSandboxRunner: runtime.getSandboxRunner.bind(runtime),
@@ -502,12 +551,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const response = await next();
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+				pushMetricsTimings(timings, metrics);
 				return finalizeResponse(response, timings);
 			};
 
 			if (scoped) {
 				const parent = getRequestContext();
-				const ctx = parent ? { ...parent, db: scoped.db } : { editMode: false, db: scoped.db };
+				const ctx = parent
+					? { ...parent, db: scoped.db }
+					: { editMode: false, db: scoped.db, metrics };
 				return runWithContext(ctx, async () => {
 					const response = await renderAndFinalize();
 					scoped.commit();
@@ -528,20 +580,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const parent = getRequestContext();
 			const ctx = parent
 				? { ...parent, editMode, db: playgroundDb, dbIsIsolated: true }
-				: { editMode, db: playgroundDb, dbIsIsolated: true };
+				: { editMode, db: playgroundDb, dbIsIsolated: true, metrics };
 			return runWithContext(ctx, doInit);
 		}
 		return doInit();
 	};
 
-	if (queryRecorder) {
-		try {
-			return await runWithContext({ editMode: false, queryRecorder }, run);
-		} finally {
-			flushRecorder(queryRecorder);
-		}
+	try {
+		return await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+	} finally {
+		if (queryRecorder) flushRecorder(queryRecorder);
 	}
-	return run();
 });
 
 export default onRequest;

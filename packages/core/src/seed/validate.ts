@@ -147,11 +147,16 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (!taxonomy.name) {
 					errors.push(`${prefix}: name is required`);
 				} else {
-					// Check for duplicate taxonomy names
-					if (taxonomyNames.has(taxonomy.name)) {
-						errors.push(`${prefix}.name: duplicate taxonomy name "${taxonomy.name}"`);
+					// Uniqueness is per (name, locale).
+					const key = `${taxonomy.name}::${taxonomy.locale ?? ""}`;
+					if (taxonomyNames.has(key)) {
+						errors.push(
+							taxonomy.locale
+								? `${prefix}.name: duplicate taxonomy "${taxonomy.name}" in locale "${taxonomy.locale}"`
+								: `${prefix}.name: duplicate taxonomy name "${taxonomy.name}"`,
+						);
 					}
-					taxonomyNames.add(taxonomy.name);
+					taxonomyNames.add(key);
 				}
 
 				if (!taxonomy.label) {
@@ -184,13 +189,15 @@ export function validateSeed(data: unknown): ValidationResult {
 							if (!term.slug) {
 								errors.push(`${termPrefix}: slug is required`);
 							} else {
-								// Check for duplicate term slugs
-								if (termSlugs.has(term.slug)) {
+								// Uniqueness is per (slug, locale) so the same slug can repeat
+								// across locale variants of the def.
+								const key = `${term.slug}::${term.locale ?? taxonomy.locale ?? ""}`;
+								if (termSlugs.has(key)) {
 									errors.push(
 										`${termPrefix}.slug: duplicate term slug "${term.slug}" in taxonomy "${taxonomy.name}"`,
 									);
 								}
-								termSlugs.add(term.slug);
+								termSlugs.add(key);
 							}
 
 							if (!term.label) {
@@ -207,11 +214,12 @@ export function validateSeed(data: unknown): ValidationResult {
 							}
 						}
 
-						// Second pass: validate parent references
+						// Second pass: validate parent references (within the same locale).
 						if (taxonomy.hierarchical && taxonomy.terms) {
 							for (let j = 0; j < taxonomy.terms.length; j++) {
 								const term = taxonomy.terms[j];
-								if (term.parent && !termSlugs.has(term.parent)) {
+								const termLocale = term.locale ?? taxonomy.locale ?? "";
+								if (term.parent && !termSlugs.has(`${term.parent}::${termLocale}`)) {
 									errors.push(
 										`${prefix}.terms[${j}].parent: parent term "${term.parent}" not found in taxonomy`,
 									);
@@ -243,11 +251,17 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (!menu.name) {
 					errors.push(`${prefix}: name is required`);
 				} else {
-					// Check for duplicate menu names
-					if (menuNames.has(menu.name)) {
-						errors.push(`${prefix}.name: duplicate menu name "${menu.name}"`);
+					// Uniqueness is per (name, locale) — siblings of a translation
+					// group share name but differ in locale.
+					const key = `${menu.name}::${menu.locale ?? ""}`;
+					if (menuNames.has(key)) {
+						errors.push(
+							menu.locale
+								? `${prefix}.name: duplicate menu "${menu.name}" in locale "${menu.locale}"`
+								: `${prefix}.name: duplicate menu name "${menu.name}"`,
+						);
 					}
-					menuNames.add(menu.name);
+					menuNames.add(key);
 				}
 
 				if (!menu.label) {

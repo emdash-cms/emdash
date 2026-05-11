@@ -11,7 +11,7 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
 import {
 	DndContext,
 	KeyboardSensor,
@@ -59,11 +59,13 @@ import {
 	CodeBlock,
 	Stack,
 	Eye,
+	Table as TableIcon,
 	Plus,
 	Trash,
+	Rows,
+	Columns,
 	DotsSixVertical,
 	CaretDown,
-	CaretRight,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -71,6 +73,10 @@ import { Extension, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import Placeholder from "@tiptap/extension-placeholder";
+import { Table } from "@tiptap/extension-table";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
@@ -83,6 +89,8 @@ import { createPortal } from "react-dom";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
+import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
@@ -294,6 +302,68 @@ function convertPMNode(node: {
 				_key: generateKey(),
 				style: "lineBreak",
 			};
+
+		case "table": {
+			const tableKey = generateKey();
+			const tableContent = (node.content || []) as Array<{
+				type: string;
+				content?: Array<{
+					type: string;
+					content?: unknown[];
+				}>;
+			}>;
+
+			const rows = tableContent
+				.filter((row) => row.type === "tableRow")
+				.map((row, rowIndex) => {
+					const cells = (row.content || []).map((cell, cellIndex) => {
+						const isHeader = cell.type === "tableHeader";
+						const cellContent = (cell.content || []) as Array<{
+							type: string;
+							content?: unknown[];
+						}>;
+
+						const contentSpans: PortableTextSpan[] = [];
+						const cellMarkDefs: PortableTextMarkDef[] = [];
+						for (const paragraph of cellContent) {
+							if (paragraph.type === "paragraph") {
+								const { children, markDefs } = convertInlineContent(paragraph.content || []);
+								contentSpans.push(...children);
+								cellMarkDefs.push(...markDefs);
+							}
+						}
+
+						if (contentSpans.length === 0) {
+							contentSpans.push({
+								_type: "span",
+								_key: generateKey(),
+								text: "",
+							});
+						}
+
+						return {
+							_type: "tableCell" as const,
+							_key: `${tableKey}_r${rowIndex}_c${cellIndex}`,
+							content: contentSpans,
+							isHeader,
+							markDefs: cellMarkDefs.length > 0 ? cellMarkDefs : undefined,
+						};
+					});
+
+					return {
+						_type: "tableRow" as const,
+						_key: `${tableKey}_r${rowIndex}`,
+						cells,
+					};
+				});
+
+			return {
+				_type: "table",
+				_key: tableKey,
+				rows,
+				hasHeaderRow: rows[0]?.cells.some((cell) => cell.isHeader) ?? false,
+			};
+		}
 
 		case "pluginBlock": {
 			const { blockType, id: pluginId, data } = node.attrs ?? {};
@@ -569,6 +639,66 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "break":
 			return { type: "horizontalRule" };
 
+		case "table": {
+			const tableBlock = block as {
+				_type: "table";
+				_key: string;
+				rows?: Array<{
+					_type: "tableRow";
+					_key: string;
+					cells: Array<{
+						_type: "tableCell";
+						_key: string;
+						content: PortableTextSpan[];
+						isHeader?: boolean;
+						markDefs?: PortableTextMarkDef[];
+					}>;
+				}>;
+				hasHeaderRow?: boolean;
+				markDefs?: PortableTextMarkDef[];
+			};
+
+			const tableMarkDefs = tableBlock.markDefs || [];
+			const tableMarkDefsMap = new Map(tableMarkDefs.map((md) => [md._key, md]));
+
+			const rows = (tableBlock.rows || []).map((row, rowIndex) => {
+				const cells = row.cells.map((cell) => {
+					const cellType =
+						cell.isHeader || (tableBlock.hasHeaderRow && rowIndex === 0)
+							? "tableHeader"
+							: "tableCell";
+
+					const cellMarkDefs = cell.markDefs || [];
+					const markDefsMap = new Map([
+						...tableMarkDefsMap,
+						...cellMarkDefs.map((md) => [md._key, md] as const),
+					]);
+
+					const pmContent = convertPTSpans(cell.content, [...markDefsMap.values()]);
+
+					return {
+						type: cellType,
+						content: [
+							{
+								type: "paragraph",
+								content: pmContent.length > 0 ? pmContent : undefined,
+							},
+						],
+					};
+				});
+
+				return {
+					type: "tableRow",
+					content: cells,
+				};
+			});
+
+			return {
+				type: "table",
+				content: rows,
+			};
+		}
+
 		default: {
 			// Treat unknown block types as plugin blocks (embeds)
 			// These have an id field (or url for backwards compat) for the embed source,
@@ -709,7 +839,12 @@ interface SlashCommandItem {
 	icon: Icon | React.ComponentType<{ className?: string }>;
 	command: (props: { editor: Editor; range: Range }) => void;
 	aliases?: string[];
-	category?: MessageDescriptor;
+	/**
+	 * Display category. Built-in commands use `msg`-tagged descriptors;
+	 * plugin-supplied categories arrive as plain strings via the manifest
+	 * and are passed through verbatim when rendered.
+	 */
+	category?: MessageDescriptor | string;
 }
 
 /**
@@ -794,6 +929,21 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		aliases: ["hr", "---", "separator"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).setHorizontalRule().run();
+		},
+	},
+	{
+		id: "table",
+		title: msg`Table`,
+		description: msg`Insert a table`,
+		icon: TableIcon,
+		aliases: ["grid", "spreadsheet"],
+		command: ({ editor, range }) => {
+			editor
+				.chain()
+				.focus()
+				.deleteRange(range)
+				.insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+				.run();
 		},
 	},
 ];
@@ -1038,6 +1188,7 @@ function PluginBlockModal({
 }) {
 	const [formValues, setFormValues] = React.useState<Record<string, unknown>>({});
 	const inputRef = React.useRef<HTMLInputElement>(null);
+	const { t } = useLingui();
 
 	React.useEffect(() => {
 		if (block) {
@@ -1073,25 +1224,36 @@ function PluginBlockModal({
 		? hasPluginBlockFormData(formValues)
 		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
 
+	// Size the dialog based on field complexity. The default `sm` is right for
+	// simple URL embeds (one field) but cramps Block Kit forms with several
+	// fields or a repeater, which need room for inline sub-field inputs.
+	const dialogSize = (() => {
+		if (!hasFields) return "sm";
+		const fields = block?.fields ?? [];
+		if (fields.some((f) => f.type === "repeater")) return "xl";
+		if (fields.length > 3) return "lg";
+		return "base";
+	})();
+
 	return (
 		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
-			<Dialog className="p-6" size="sm">
+			<Dialog className="p-6" size={dialogSize}>
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{isEditing ? "Edit" : "Insert"} {block?.label || ""}
+						{isEditing ? t`Edit` : t`Insert`} {block?.label || ""}
 					</Dialog.Title>
 					<Dialog.Close
-						aria-label="Close"
+						aria-label={t`Close`}
 						render={(props) => (
 							<Button
 								{...props}
 								variant="ghost"
 								shape="square"
-								aria-label="Close"
+								aria-label={t`Close`}
 								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
-								<span className="sr-only">Close</span>
+								<span className="sr-only">{t`Close`}</span>
 							</Button>
 						)}
 					/>
@@ -1112,6 +1274,7 @@ function PluginBlockModal({
 							<Input
 								ref={inputRef}
 								type="url"
+								className="w-full"
 								placeholder={block?.placeholder || "Enter URL..."}
 								value={typeof formValues.id === "string" ? formValues.id : ""}
 								onChange={(e) => handleFieldChange("id", e.target.value)}
@@ -1165,6 +1328,7 @@ function BlockKitField({
 					) : (
 						<Input
 							type="text"
+							className="w-full"
 							placeholder={placeholder}
 							value={typeof value === "string" ? value : ""}
 							onChange={(e) => onChange(field.action_id, e.target.value)}
@@ -1181,6 +1345,7 @@ function BlockKitField({
 					<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
 					<Input
 						type="number"
+						className="w-full"
 						min={min}
 						max={max}
 						value={typeof value === "number" ? String(value) : ""}
@@ -1196,20 +1361,28 @@ function BlockKitField({
 		}
 		case "toggle": {
 			return (
-				<div className="flex items-center gap-2">
-					<input
-						type="checkbox"
-						checked={!!value}
-						onChange={(e) => onChange(field.action_id, e.target.checked)}
-						className="h-4 w-4"
-					/>
-					<label className="text-sm font-medium">{field.label}</label>
-				</div>
+				<Switch
+					checked={!!value}
+					onCheckedChange={(checked) => onChange(field.action_id, checked)}
+					label={<span className="text-sm font-medium">{field.label}</span>}
+				/>
 			);
 		}
 		case "repeater": {
 			return (
 				<BlockKitRepeater field={field} pluginId={pluginId} value={value} onChange={onChange} />
+			);
+		}
+		case "media_picker": {
+			return (
+				<BlockKitMediaPickerField
+					actionId={field.action_id}
+					label={field.label}
+					placeholder={field.placeholder}
+					mimeTypeFilter={field.mime_type_filter}
+					value={value}
+					onChange={onChange}
+				/>
 			);
 		}
 		default:
@@ -1470,12 +1643,12 @@ function BlockKitRepeaterItem({
 				</span>
 				<button
 					type="button"
-					className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+					className="flex items-center gap-2 flex-1 min-w-0 text-start cursor-pointer"
 					onClick={onToggleCollapse}
 					aria-expanded={!isCollapsed}
 				>
 					{isCollapsed ? (
-						<CaretRight className="h-4 w-4 text-kumo-subtle shrink-0" />
+						<CaretNext className="h-4 w-4 text-kumo-subtle shrink-0" />
 					) : (
 						<CaretDown className="h-4 w-4 text-kumo-subtle shrink-0" />
 					)}
@@ -1531,6 +1704,7 @@ function DynamicSelect({
 		value: string;
 	}> | null>(null);
 	const [loading, setLoading] = React.useState(false);
+	const { t } = useLingui();
 
 	React.useEffect(() => {
 		if (!field.optionsRoute || !pluginId) return;
@@ -1574,20 +1748,17 @@ function DynamicSelect({
 		<div>
 			<label className="text-sm font-medium mb-1.5 block">{field.label}</label>
 			{loading ? (
-				<div className="flex h-10 items-center px-3 text-sm text-kumo-subtle">Loading...</div>
+				<div className="flex h-10 items-center px-3 text-sm text-kumo-subtle">{t`Loading...`}</div>
 			) : (
-				<select
-					className="flex h-10 w-full rounded-md border border-kumo-line bg-transparent px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kumo-ring focus-visible:ring-offset-2"
+				<Select
+					aria-label={field.label}
 					value={typeof value === "string" ? value : ""}
-					onChange={(e) => onChange(field.action_id, e.target.value)}
-				>
-					<option value="">Select...</option>
-					{options.map((opt) => (
-						<option key={opt.value} value={opt.value}>
-							{opt.label}
-						</option>
-					))}
-				</select>
+					onValueChange={(v) => onChange(field.action_id, v ?? "")}
+					items={{
+						"": t`Select...`,
+						...Object.fromEntries(options.map((opt) => [opt.value, opt.label])),
+					}}
+				/>
 			)}
 		</div>
 	);
@@ -1675,8 +1846,10 @@ export interface PortableTextEditorProps {
 	focusMode?: FocusMode;
 	/** Callback when focus mode changes */
 	onFocusModeChange?: (mode: FocusMode) => void;
-	/** Callback to receive the editor instance for external integrations */
-	onEditorReady?: (editor: Editor) => void;
+	/** Callback to receive the editor instance for external integrations.
+	 * Called with the editor on mount, and with `null` on unmount so consumers
+	 * can clear stale references (e.g. before the next instance mounts). */
+	onEditorReady?: (editor: Editor | null) => void;
 	/** Minimal chrome - hides toolbar, border, footer (distraction-free mode) */
 	minimal?: boolean;
 	/** Callback when a block node requests sidebar space (e.g. image settings) */
@@ -1783,7 +1956,8 @@ export function PortableTextEditor({
 			},
 		});
 
-		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped)
+		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped).
+		// Plugins can supply a custom `category` (plain string) — falls back to "Embeds".
 		for (const block of pluginBlocks) {
 			cmds.push({
 				id: `plugin-${block.pluginId}-${block.type}`,
@@ -1791,7 +1965,7 @@ export function PortableTextEditor({
 				description: block.description ?? t(msg`Embed a ${block.label}`),
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
-				category: msg`Embeds`,
+				category: block.category ?? msg`Embeds`,
 				command: ({ editor, range }) => {
 					editor.chain().focus().deleteRange(range).run();
 					setPluginBlockModal(block);
@@ -1860,6 +2034,12 @@ export function PortableTextEditor({
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
+			Table.configure({
+				resizable: true,
+			}),
+			TableRow,
+			TableHeader,
+			TableCell,
 			Placeholder.configure({
 				includeChildren: true,
 				placeholder: ({ node }) => {
@@ -1919,11 +2099,17 @@ export function PortableTextEditor({
 		},
 	});
 
-	// Notify when editor is ready
+	// Notify when editor is ready, and on unmount so consumers can clear the
+	// reference before TipTap destroys the instance (e.g. when keying by item.id
+	// to switch translations).
 	React.useEffect(() => {
 		if (editor && onEditorReady) {
 			onEditorReady(editor);
+			return () => {
+				onEditorReady(null);
+			};
 		}
+		return undefined;
 	}, [editor, onEditorReady]);
 
 	// Register plugin blocks into editor storage so the node view can look up metadata
@@ -2079,7 +2265,7 @@ export function PortableTextEditor({
 	if (!editor) {
 		return (
 			<div className={cn("border rounded-lg", className)}>
-				<div className="p-4 text-kumo-subtle">Loading editor...</div>
+				<div className="p-4 text-kumo-subtle">{t`Loading editor...`}</div>
 			</div>
 		);
 	}
@@ -2098,6 +2284,7 @@ export function PortableTextEditor({
 				<EditorToolbar editor={editor} focusMode={focusMode} onFocusModeChange={setFocusMode} />
 			)}
 			<EditorBubbleMenu editor={editor} />
+			<TableBubbleMenu editor={editor} />
 			<div className="relative overflow-visible">
 				<EditorContent editor={editor} />
 				{editable && <DragHandleWrapper editor={editor} />}
@@ -2120,7 +2307,7 @@ export function PortableTextEditor({
 				onOpenChange={setMediaPickerOpen}
 				onSelect={handleImageSelect}
 				mimeTypeFilter="image/"
-				title="Select Image"
+				title={t`Select Image`}
 			/>
 
 			{/* Plugin block insertion/editing modal */}
@@ -2153,6 +2340,7 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
 	const inputRef = React.useRef<HTMLInputElement>(null);
+	const { t } = useLingui();
 
 	// When bubble menu opens with link input, populate the URL
 	React.useEffect(() => {
@@ -2219,8 +2407,8 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 						shape="square"
 						className="h-8 w-8"
 						onClick={handleSetLink}
-						title="Apply link"
-						aria-label="Apply link"
+						title={t`Apply link`}
+						aria-label={t`Apply link`}
 					>
 						<ArrowSquareOut className="h-4 w-4" />
 					</Button>
@@ -2231,8 +2419,8 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 							shape="square"
 							className="h-8 w-8 text-kumo-danger"
 							onClick={handleRemoveLink}
-							title="Remove link"
-							aria-label="Remove link"
+							title={t`Remove link`}
+							aria-label={t`Remove link`}
 						>
 							<LinkBreak className="h-4 w-4" />
 						</Button>
@@ -2243,35 +2431,35 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleBold().run()}
 						active={editor.isActive("bold")}
-						title="Bold"
+						title={t`Bold`}
 					>
 						<TextB className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleItalic().run()}
 						active={editor.isActive("italic")}
-						title="Italic"
+						title={t`Italic`}
 					>
 						<TextItalic className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleUnderline().run()}
 						active={editor.isActive("underline")}
-						title="Underline"
+						title={t`Underline`}
 					>
 						<TextUnderline className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleStrike().run()}
 						active={editor.isActive("strike")}
-						title="Strikethrough"
+						title={t`Strikethrough`}
 					>
 						<TextStrikethrough className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleCode().run()}
 						active={editor.isActive("code")}
-						title="Code"
+						title={t`Code`}
 					>
 						<Code className="h-4 w-4" />
 					</BubbleButton>
@@ -2279,12 +2467,93 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					<BubbleButton
 						onClick={() => setShowLinkInput(true)}
 						active={editor.isActive("link")}
-						title={editor.isActive("link") ? "Edit link" : "Add link"}
+						title={editor.isActive("link") ? t`Edit link` : t`Add link`}
 					>
 						<LinkIcon className="h-4 w-4" />
 					</BubbleButton>
 				</>
 			)}
+		</BubbleMenu>
+	);
+}
+
+/**
+ * Table Bubble Menu - appears when cursor is in a table.
+ * Shows table editing options: add/remove rows/columns, toggle header, delete table.
+ */
+function TableBubbleMenu({ editor }: { editor: Editor }) {
+	const { t } = useLingui();
+
+	if (!editor.isActive("table")) {
+		return null;
+	}
+
+	return (
+		<BubbleMenu
+			editor={editor}
+			options={{
+				placement: "top",
+				offset: 8,
+			}}
+			shouldShow={({ editor: activeEditor }) => activeEditor.isActive("table")}
+			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
+		>
+			<BubbleButton
+				onClick={() => editor.chain().focus().addColumnBefore().run()}
+				title={t`Add column before`}
+			>
+				<Columns className="h-4 w-4" />
+				<Plus className="absolute -left-0.5 h-2 w-2" />
+			</BubbleButton>
+			<BubbleButton
+				onClick={() => editor.chain().focus().addColumnAfter().run()}
+				title={t`Add column after`}
+			>
+				<Columns className="h-4 w-4" />
+				<Plus className="absolute -right-0.5 h-2 w-2" />
+			</BubbleButton>
+			<BubbleButton
+				onClick={() => editor.chain().focus().deleteColumn().run()}
+				title={t`Delete column`}
+			>
+				<Columns className="h-4 w-4 text-kumo-danger" />
+			</BubbleButton>
+
+			<div className="mx-1 h-6 w-px bg-kumo-line" />
+
+			<BubbleButton
+				onClick={() => editor.chain().focus().addRowBefore().run()}
+				title={t`Add row before`}
+			>
+				<Rows className="h-4 w-4" />
+				<Plus className="absolute -top-0.5 h-2 w-2" />
+			</BubbleButton>
+			<BubbleButton
+				onClick={() => editor.chain().focus().addRowAfter().run()}
+				title={t`Add row after`}
+			>
+				<Rows className="h-4 w-4" />
+				<Plus className="absolute -bottom-0.5 h-2 w-2" />
+			</BubbleButton>
+			<BubbleButton onClick={() => editor.chain().focus().deleteRow().run()} title={t`Delete row`}>
+				<Rows className="h-4 w-4 text-kumo-danger" />
+			</BubbleButton>
+
+			<div className="mx-1 h-6 w-px bg-kumo-line" />
+
+			<BubbleButton
+				onClick={() => editor.chain().focus().toggleHeaderRow().run()}
+				active={editor.isActive("tableHeader")}
+				title={t`Toggle header row`}
+			>
+				<TableIcon className="h-4 w-4" />
+			</BubbleButton>
+			<BubbleButton
+				onClick={() => editor.chain().focus().deleteTable().run()}
+				title={t`Delete table`}
+			>
+				<Trash className="h-4 w-4 text-kumo-danger" />
+			</BubbleButton>
 		</BubbleMenu>
 	);
 }
@@ -2330,6 +2599,7 @@ function EditorToolbar({
 	focusMode: FocusMode;
 	onFocusModeChange: (mode: FocusMode) => void;
 }) {
+	const { t } = useLingui();
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
@@ -2458,7 +2728,7 @@ function EditorToolbar({
 		<div
 			ref={toolbarRef}
 			role="toolbar"
-			aria-label="Text formatting"
+			aria-label={t`Text formatting`}
 			className="border-b bg-kumo-tint/50 p-1 flex flex-wrap gap-0.5"
 			onKeyDown={handleKeyDown}
 		>
@@ -2467,35 +2737,35 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					active={editorState.isBold}
-					title="Bold"
+					title={t`Bold`}
 				>
 					<TextB className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleItalic().run()}
 					active={editorState.isItalic}
-					title="Italic"
+					title={t`Italic`}
 				>
 					<TextItalic className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleUnderline().run()}
 					active={editorState.isUnderline}
-					title="Underline"
+					title={t`Underline`}
 				>
 					<TextUnderline className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleStrike().run()}
 					active={editorState.isStrike}
-					title="Strikethrough"
+					title={t`Strikethrough`}
 				>
 					<TextStrikethrough className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCode().run()}
 					active={editorState.isCode}
-					title="Inline Code"
+					title={t`Inline Code`}
 				>
 					<Code className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2508,21 +2778,21 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
 					active={editorState.isHeading1}
-					title="Heading 1"
+					title={t`Heading 1`}
 				>
 					<TextHOne className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
 					active={editorState.isHeading2}
-					title="Heading 2"
+					title={t`Heading 2`}
 				>
 					<TextHTwo className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
 					active={editorState.isHeading3}
-					title="Heading 3"
+					title={t`Heading 3`}
 				>
 					<TextHThree className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2535,30 +2805,39 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBulletList().run()}
 					active={editorState.isBulletList}
-					title="Bullet List"
+					title={t`Bullet List`}
 				>
 					<List className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleOrderedList().run()}
 					active={editorState.isOrderedList}
-					title="Numbered List"
+					title={t`Numbered List`}
 				>
 					<ListNumbers className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBlockquote().run()}
 					active={editorState.isBlockquote}
-					title="Quote"
+					title={t`Quote`}
 				>
 					<Quotes className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCodeBlock().run()}
 					active={editorState.isCodeBlock}
-					title="Code Block"
+					title={t`Code Block`}
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton
+					onClick={() =>
+						editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+					}
+					active={editor.isActive("table")}
+					title={t`Insert Table`}
+				>
+					<TableIcon className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
 
@@ -2569,21 +2848,21 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setTextAlign("left").run()}
 					active={editorState.isAlignLeft}
-					title="Align Left"
+					title={t`Align Left`}
 				>
 					<TextAlignLeft className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setTextAlign("center").run()}
 					active={editorState.isAlignCenter}
-					title="Align Center"
+					title={t`Align Center`}
 				>
 					<TextAlignCenter className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setTextAlign("right").run()}
 					active={editorState.isAlignRight}
-					title="Align Right"
+					title={t`Align Right`}
 				>
 					<TextAlignRight className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2598,14 +2877,14 @@ function EditorToolbar({
 					<ToolbarButton
 						onClick={() => setShowLinkPopover(!showLinkPopover)}
 						active={editorState.isLink}
-						title="Insert Link"
+						title={t`Insert Link`}
 					>
 						<LinkIcon className="h-4 w-4" aria-hidden="true" />
 					</ToolbarButton>
 					{showLinkPopover && (
 						<div className="absolute top-full start-0 mt-1 z-50 rounded-md border bg-kumo-overlay p-3 shadow-lg">
 							<div className="flex flex-col gap-2">
-								<label className="text-xs font-medium text-kumo-subtle">URL</label>
+								<label className="text-xs font-medium text-kumo-subtle">{t`URL`}</label>
 								<div className="flex items-center gap-1">
 									<Input
 										ref={linkInputRef}
@@ -2627,7 +2906,7 @@ function EditorToolbar({
 											setLinkUrl("");
 										}}
 									>
-										Cancel
+										{t`Cancel`}
 									</Button>
 									<div className="flex gap-1">
 										{editorState.isLink && (
@@ -2639,11 +2918,11 @@ function EditorToolbar({
 												onClick={handleRemoveLink}
 												icon={<LinkBreak />}
 											>
-												Remove
+												{t`Remove`}
 											</Button>
 										)}
 										<Button type="button" variant="primary" size="sm" onClick={handleSetLink}>
-											Apply
+											{t`Apply`}
 										</Button>
 									</div>
 								</div>
@@ -2651,12 +2930,12 @@ function EditorToolbar({
 						</div>
 					)}
 				</div>
-				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title="Insert Image">
+				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title={t`Insert Image`}>
 					<ImageIcon className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setHorizontalRule().run()}
-					title="Insert Horizontal Rule"
+					title={t`Insert Horizontal Rule`}
 				>
 					<Minus className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2669,14 +2948,14 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().undo().run()}
 					disabled={!editorState.canUndo}
-					title="Undo"
+					title={t`Undo`}
 				>
 					<ArrowUUpLeft className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().redo().run()}
 					disabled={!editorState.canRedo}
-					title="Redo"
+					title={t`Redo`}
 				>
 					<ArrowUUpRight className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2689,7 +2968,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => onFocusModeChange(focusMode === "spotlight" ? "normal" : "spotlight")}
 					active={focusMode === "spotlight"}
-					title={focusMode === "spotlight" ? "Exit Spotlight Mode" : "Spotlight Mode"}
+					title={focusMode === "spotlight" ? t`Exit Spotlight Mode` : t`Spotlight Mode`}
 				>
 					<Eye className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
@@ -2701,7 +2980,7 @@ function EditorToolbar({
 				onOpenChange={setMediaPickerOpen}
 				onSelect={handleImageSelect}
 				mimeTypeFilter="image/"
-				title="Select Image"
+				title={t`Select Image`}
 			/>
 		</div>
 	);

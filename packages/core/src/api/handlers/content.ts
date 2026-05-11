@@ -27,6 +27,7 @@ import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
+import { validateMediaFields } from "./validate-media-fields.js";
 
 /**
  * Narrow a caught error to one carrying a structured `apiError` discriminant.
@@ -444,6 +445,9 @@ export async function handleContentCreate(
 			};
 		}
 
+		const mimeCheck = await validateMediaFields(db, collection, body.data);
+		if (!mimeCheck.success) return mimeCheck;
+
 		// Wrap content + SEO writes in a transaction for atomicity
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
@@ -475,6 +479,17 @@ export async function handleContentCreate(
 				created.primaryBylineId = body.bylines[0]?.bylineId ?? null;
 			}
 			await hydrateBylines(trx, collection, created);
+
+			// When this row is a translation of an existing item, inherit the
+			// source's taxonomy assignments. The pivot stores translation_groups
+			// so the copied rows apply to every locale of the translation group
+			// (existing per-locale assignments still resolve correctly in
+			// `getEntryTerms` because the join picks the locale-specific row).
+			if (body.translationOf) {
+				const { TaxonomyRepository } = await import("../../database/repositories/taxonomy.js");
+				const taxRepo = new TaxonomyRepository(trx);
+				await taxRepo.copyEntryTerms(collection, body.translationOf, created.id);
+			}
 
 			// Side-write SEO data if provided
 			if (body.seo && hasSeo) {
@@ -578,6 +593,11 @@ export async function handleContentUpdate(
 					message: `Collection "${collection}" does not have SEO enabled. Remove the seo field or enable SEO on this collection.`,
 				},
 			};
+		}
+
+		if (body.data) {
+			const mimeCheck = await validateMediaFields(db, collection, body.data);
+			if (!mimeCheck.success) return mimeCheck;
 		}
 
 		const repo = new ContentRepository(db);
@@ -1093,6 +1113,15 @@ export async function handleContentUnschedule(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content unschedule error:", error);
 		return {
 			success: false,
@@ -1115,12 +1144,13 @@ export async function handleContentPublish(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	options: { publishedAt?: string } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.publish(collection, resolvedId);
+			return repo.publish(collection, resolvedId, options.publishedAt);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1131,6 +1161,15 @@ export async function handleContentPublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content publish error:", error);
 		return {
 			success: false,
@@ -1168,6 +1207,15 @@ export async function handleContentUnpublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content unpublish error:", error);
 		return {
 			success: false,

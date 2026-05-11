@@ -96,6 +96,45 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("empty (minimal)", () => {
+			const result = validateBlocks([{ type: "empty", title: "No items" }]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("empty (full)", () => {
+			const result = validateBlocks([
+				{
+					type: "empty",
+					title: "No webhooks yet",
+					description: "Create your first webhook to receive notifications.",
+					command_line: "emdash webhooks create",
+					size: "lg",
+					actions: [
+						{ type: "button", action_id: "create", label: "Create webhook", style: "primary" },
+						{ type: "button", action_id: "import", label: "Import" },
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("accordion", () => {
+			const result = validateBlocks([
+				{
+					type: "accordion",
+					label: "Advanced settings",
+					default_open: false,
+					blocks: [{ type: "section", text: "Hidden content" }, { type: "divider" }],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("accordion with empty blocks array", () => {
+			const result = validateBlocks([{ type: "accordion", label: "Empty", blocks: [] }]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
 		it("repeater", () => {
 			const result = validateBlocks([
 				{
@@ -113,6 +152,52 @@ describe("validateBlocks", () => {
 								{ type: "text_input", action_id: "answer", label: "Answer", multiline: true },
 							],
 							initial_value: [{ question: "Q1", answer: "A1" }],
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("media_picker (minimal)", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [{ type: "media_picker", action_id: "hero", label: "Hero" }],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("media_picker (with options)", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "media_picker",
+							action_id: "hero",
+							label: "Hero",
+							mime_type_filter: "image/",
+							initial_value: "/_emdash/api/media/file/abc.png",
+							placeholder: "Pick a hero image",
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("media_picker (specific subtype)", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "media_picker",
+							action_id: "logo",
+							label: "Logo",
+							mime_type_filter: "image/svg+xml",
 						},
 					],
 				},
@@ -360,6 +445,62 @@ describe("validateBlocks", () => {
 			expect(result.errors[0]!.path).toBe("blocks[0].columns[1][0].text");
 		});
 
+		it("empty missing title", () => {
+			const result = validateBlocks([{ type: "empty" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].title");
+		});
+
+		it("empty with invalid size", () => {
+			const result = validateBlocks([{ type: "empty", title: "X", size: "huge" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].size");
+		});
+
+		it("empty with non-array actions", () => {
+			const result = validateBlocks([{ type: "empty", title: "X", actions: "nope" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].actions");
+		});
+
+		it("empty with invalid action element reports correct path", () => {
+			const result = validateBlocks([
+				{
+					type: "empty",
+					title: "X",
+					actions: [{ type: "button", action_id: "go", label: "Go", style: "neon" }],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].actions[0].style");
+		});
+
+		it("accordion missing label", () => {
+			const result = validateBlocks([{ type: "accordion", blocks: [] }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((e) => e.path)).toContain("blocks[0].label");
+		});
+
+		it("accordion with invalid nested blocks reports correct path", () => {
+			const result = validateBlocks([
+				{
+					type: "accordion",
+					label: "Wrap",
+					blocks: [{ type: "header" }],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].blocks[0].text");
+		});
+
+		it("accordion with non-boolean default_open", () => {
+			const result = validateBlocks([
+				{ type: "accordion", label: "Wrap", blocks: [], default_open: "yes" },
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].default_open");
+		});
+
 		it("stats item missing label or value", () => {
 			const result = validateBlocks([
 				{
@@ -527,6 +668,103 @@ describe("validateBlocks", () => {
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].fields[0].condition");
 			expect(result.errors[0]!.message).toContain("either 'eq' or 'neq'");
+		});
+
+		it("media_picker mime_type_filter must be a string", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{ type: "media_picker", action_id: "hero", label: "Hero", mime_type_filter: 42 },
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].mime_type_filter");
+			expect(result.errors[0]!.message).toContain("must be a string");
+		});
+
+		it("media_picker mime_type_filter rejects missing slash", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{ type: "media_picker", action_id: "hero", label: "Hero", mime_type_filter: "image" },
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].mime_type_filter");
+			expect(result.errors[0]!.message).toContain("image MIME type or prefix");
+		});
+
+		it("media_picker mime_type_filter rejects non-image type", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{ type: "media_picker", action_id: "v", label: "Video", mime_type_filter: "video/" },
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].mime_type_filter");
+		});
+
+		it("media_picker mime_type_filter rejects wildcard", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "media_picker",
+							action_id: "hero",
+							label: "Hero",
+							mime_type_filter: "image/*",
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].mime_type_filter");
+		});
+
+		it("media_picker initial_value must be a string", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "media_picker",
+							action_id: "hero",
+							label: "Hero",
+							initial_value: 42,
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].initial_value");
+			expect(result.errors[0]!.message).toContain("must be a string");
+		});
+
+		it("media_picker placeholder must be a string", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "media_picker",
+							action_id: "hero",
+							label: "Hero",
+							placeholder: false,
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].elements[0].placeholder");
+			expect(result.errors[0]!.message).toContain("must be a string");
 		});
 	});
 

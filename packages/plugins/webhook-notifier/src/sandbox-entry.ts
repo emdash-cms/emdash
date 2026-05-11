@@ -166,7 +166,7 @@ async function getConfig(ctx: PluginContext) {
 
 function getFetchFn(ctx: PluginContext): FetchFn {
 	if (!ctx.http) {
-		throw new Error("Webhook notifier requires network:fetch capability");
+		throw new Error("Webhook notifier requires network:request capability");
 	}
 	return ctx.http.fetch;
 }

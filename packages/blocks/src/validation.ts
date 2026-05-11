@@ -14,7 +14,11 @@ const BLOCK_TYPES = new Set([
 	"banner",
 	"meter",
 	"code",
+	"empty",
+	"accordion",
 ]);
+
+const EMPTY_SIZES = new Set(["sm", "base", "lg"]);
 
 const ELEMENT_TYPES = new Set([
 	"button",
@@ -28,6 +32,7 @@ const ELEMENT_TYPES = new Set([
 	"date_input",
 	"combobox",
 	"repeater",
+	"media_picker",
 ]);
 
 const REPEATER_SUB_FIELD_TYPES = new Set(["text_input", "number_input", "select", "toggle"]);
@@ -39,6 +44,13 @@ const CODE_LANGUAGES = new Set(["ts", "tsx", "jsonc", "bash", "css"]);
 const BUTTON_STYLES = new Set(["primary", "danger", "secondary"]);
 const TREND_VALUES = new Set(["up", "down", "neutral"]);
 const BANNER_VARIANTS = new Set(["default", "alert", "error"]);
+
+/**
+ * RFC 6838-style image MIME type or image-prefix.
+ * Accepts 'image/', 'image/png', 'image/svg+xml'. Rejects 'image/*'
+ * (wildcards) and non-image types like 'video/' or 'application/pdf'.
+ */
+const MEDIA_PICKER_MIME_FILTER_RE = /^image\/(?:[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126})?$/;
 
 /**
  * Validate option uniqueness and that initial_value references a valid option.
@@ -489,7 +501,9 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 			}
 			const minOk =
 				value.min_items === undefined ||
-				(Number.isInteger(value.min_items) && (value.min_items as number) >= 0);
+				(typeof value.min_items === "number" &&
+					Number.isInteger(value.min_items) &&
+					value.min_items >= 0);
 			if (!minOk) {
 				errors.push({
 					path: `${path}.min_items`,
@@ -498,7 +512,9 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 			}
 			const maxOk =
 				value.max_items === undefined ||
-				(Number.isInteger(value.max_items) && (value.max_items as number) >= 0);
+				(typeof value.max_items === "number" &&
+					Number.isInteger(value.max_items) &&
+					value.max_items >= 0);
 			if (!maxOk) {
 				errors.push({
 					path: `${path}.max_items`,
@@ -510,7 +526,9 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 				maxOk &&
 				value.min_items !== undefined &&
 				value.max_items !== undefined &&
-				(value.min_items as number) > (value.max_items as number)
+				typeof value.min_items === "number" &&
+				typeof value.max_items === "number" &&
+				value.min_items > value.max_items
 			) {
 				errors.push({
 					path: `${path}.min_items`,
@@ -533,6 +551,35 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 						}
 					}
 				}
+			}
+			break;
+		}
+		case "media_picker": {
+			if (value.mime_type_filter !== undefined) {
+				if (typeof value.mime_type_filter !== "string") {
+					errors.push({
+						path: `${path}.mime_type_filter`,
+						message: "Field 'mime_type_filter' must be a string",
+					});
+				} else if (!MEDIA_PICKER_MIME_FILTER_RE.test(value.mime_type_filter)) {
+					errors.push({
+						path: `${path}.mime_type_filter`,
+						message:
+							"Field 'mime_type_filter' must be an image MIME type or prefix, e.g. 'image/' or 'image/png' (wildcards and non-image types are not supported)",
+					});
+				}
+			}
+			if (value.initial_value !== undefined && typeof value.initial_value !== "string") {
+				errors.push({
+					path: `${path}.initial_value`,
+					message: "Field 'initial_value' must be a string",
+				});
+			}
+			if (value.placeholder !== undefined && typeof value.placeholder !== "string") {
+				errors.push({
+					path: `${path}.placeholder`,
+					message: "Field 'placeholder' must be a string",
+				});
 			}
 			break;
 		}
@@ -1079,6 +1126,73 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 				errors.push({
 					path: `${path}.variant`,
 					message: `Field 'variant' must be one of: ${[...BANNER_VARIANTS].join(", ")}`,
+				});
+			}
+			break;
+		}
+		case "empty": {
+			if (typeof value.title !== "string") {
+				errors.push({
+					path: `${path}.title`,
+					message: "Required field 'title' must be a string",
+				});
+			}
+			if (value.description !== undefined && typeof value.description !== "string") {
+				errors.push({
+					path: `${path}.description`,
+					message: "Field 'description' must be a string if provided",
+				});
+			}
+			if (value.command_line !== undefined && typeof value.command_line !== "string") {
+				errors.push({
+					path: `${path}.command_line`,
+					message: "Field 'command_line' must be a string if provided",
+				});
+			}
+			if (
+				value.size !== undefined &&
+				(typeof value.size !== "string" || !EMPTY_SIZES.has(value.size))
+			) {
+				errors.push({
+					path: `${path}.size`,
+					message: `Field 'size' must be one of: ${[...EMPTY_SIZES].join(", ")}`,
+				});
+			}
+			if (value.actions !== undefined) {
+				if (!Array.isArray(value.actions)) {
+					errors.push({
+						path: `${path}.actions`,
+						message: "Field 'actions' must be an array if provided",
+					});
+				} else {
+					for (let i = 0; i < value.actions.length; i++) {
+						validateElement(value.actions[i], `${path}.actions[${i}]`, errors);
+					}
+				}
+			}
+			break;
+		}
+		case "accordion": {
+			if (typeof value.label !== "string") {
+				errors.push({
+					path: `${path}.label`,
+					message: "Required field 'label' must be a string",
+				});
+			}
+			if (!Array.isArray(value.blocks)) {
+				errors.push({
+					path: `${path}.blocks`,
+					message: "Required field 'blocks' must be an array",
+				});
+			} else {
+				for (let i = 0; i < value.blocks.length; i++) {
+					validateBlock(value.blocks[i], `${path}.blocks[${i}]`, errors);
+				}
+			}
+			if (value.default_open !== undefined && typeof value.default_open !== "boolean") {
+				errors.push({
+					path: `${path}.default_open`,
+					message: "Field 'default_open' must be a boolean if provided",
 				});
 			}
 			break;

@@ -15,6 +15,7 @@ export const createTaxonomyDefBody = z
 			.max(63)
 			.regex(/^[a-z][a-z0-9_]*$/, "Name must be lowercase alphanumeric with underscores"),
 		label: z.string().min(1).max(200),
+		labelSingular: z.string().min(1).max(200).optional(),
 		hierarchical: z.boolean().optional().default(false),
 		collections: z
 			.array(
@@ -23,6 +24,8 @@ export const createTaxonomyDefBody = z
 			.max(100)
 			.optional()
 			.default([]),
+		locale: z.string().min(1).optional(),
+		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateTaxonomyDefBody" });
 
@@ -36,6 +39,8 @@ export const createTermBody = z
 		label: z.string().min(1),
 		parentId: z.string().nullish(),
 		description: z.string().optional(),
+		locale: z.string().min(1).optional(),
+		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateTermBody" });
 
@@ -60,8 +65,24 @@ export const taxonomyDefSchema = z
 		labelSingular: z.string().optional(),
 		hierarchical: z.boolean(),
 		collections: z.array(z.string()),
+		locale: z.string(),
+		translationGroup: z.string().nullable(),
 	})
 	.meta({ id: "TaxonomyDef" });
+
+export const taxonomyDefTranslationsSchema = z
+	.object({
+		translationGroup: z.string().nullable(),
+		translations: z.array(
+			z.object({
+				id: z.string(),
+				name: z.string(),
+				label: z.string(),
+				locale: z.string(),
+			}),
+		),
+	})
+	.meta({ id: "TaxonomyDefTranslations" });
 
 export const taxonomyListResponseSchema = z
 	.object({ taxonomies: z.array(taxonomyDefSchema) })
@@ -75,8 +96,24 @@ export const termSchema = z
 		label: z.string(),
 		parentId: z.string().nullable(),
 		description: z.string().optional(),
+		locale: z.string(),
+		translationGroup: z.string().nullable(),
 	})
 	.meta({ id: "Term" });
+
+export const termTranslationsSchema = z
+	.object({
+		translationGroup: z.string().nullable(),
+		translations: z.array(
+			z.object({
+				id: z.string(),
+				slug: z.string(),
+				label: z.string(),
+				locale: z.string(),
+			}),
+		),
+	})
+	.meta({ id: "TermTranslations" });
 
 export const termWithCountSchema: z.ZodType = z
 	.object({
@@ -88,6 +125,8 @@ export const termWithCountSchema: z.ZodType = z
 		description: z.string().optional(),
 		count: z.number().int(),
 		children: z.array(z.lazy(() => termWithCountSchema)),
+		locale: z.string(),
+		translationGroup: z.string().nullable(),
 	})
 	.meta({ id: "TermWithCount" });
 

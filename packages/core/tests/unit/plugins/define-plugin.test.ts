@@ -163,23 +163,23 @@ describe("definePlugin", () => {
 			const plugin = definePlugin({
 				id: "test",
 				version: "1.0.0",
-				capabilities: ["read:content", "write:content", "network:fetch"],
+				capabilities: ["content:read", "content:write", "network:request"],
 			});
 
-			expect(plugin.capabilities).toContain("read:content");
-			expect(plugin.capabilities).toContain("write:content");
-			expect(plugin.capabilities).toContain("network:fetch");
+			expect(plugin.capabilities).toContain("content:read");
+			expect(plugin.capabilities).toContain("content:write");
+			expect(plugin.capabilities).toContain("network:request");
 		});
 
-		it("accepts read:media and write:media", () => {
+		it("accepts media:read and media:write", () => {
 			const plugin = definePlugin({
 				id: "test",
 				version: "1.0.0",
-				capabilities: ["read:media", "write:media"],
+				capabilities: ["media:read", "media:write"],
 			});
 
-			expect(plugin.capabilities).toContain("read:media");
-			expect(plugin.capabilities).toContain("write:media");
+			expect(plugin.capabilities).toContain("media:read");
+			expect(plugin.capabilities).toContain("media:write");
 		});
 
 		it("rejects invalid capability", () => {
@@ -192,36 +192,47 @@ describe("definePlugin", () => {
 			).toThrow(INVALID_CAPABILITY_PATTERN);
 		});
 
-		it("normalizes write:content to include read:content", () => {
+		it("normalizes content:write to include content:read", () => {
 			const plugin = definePlugin({
 				id: "test",
 				version: "1.0.0",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 			});
 
-			expect(plugin.capabilities).toContain("write:content");
-			expect(plugin.capabilities).toContain("read:content");
+			expect(plugin.capabilities).toContain("content:write");
+			expect(plugin.capabilities).toContain("content:read");
 		});
 
-		it("normalizes write:media to include read:media", () => {
+		it("normalizes media:write to include media:read", () => {
 			const plugin = definePlugin({
 				id: "test",
 				version: "1.0.0",
-				capabilities: ["write:media"],
+				capabilities: ["media:write"],
 			});
 
-			expect(plugin.capabilities).toContain("write:media");
-			expect(plugin.capabilities).toContain("read:media");
+			expect(plugin.capabilities).toContain("media:write");
+			expect(plugin.capabilities).toContain("media:read");
+		});
+
+		it("normalizes network:request:unrestricted to include network:request", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["network:request:unrestricted"],
+			});
+
+			expect(plugin.capabilities).toContain("network:request:unrestricted");
+			expect(plugin.capabilities).toContain("network:request");
 		});
 
 		it("does not duplicate read when already present", () => {
 			const plugin = definePlugin({
 				id: "test",
 				version: "1.0.0",
-				capabilities: ["read:content", "write:content"],
+				capabilities: ["content:read", "content:write"],
 			});
 
-			const readCount = plugin.capabilities.filter((c) => c === "read:content").length;
+			const readCount = plugin.capabilities.filter((c) => c === "content:read").length;
 			expect(readCount).toBe(1);
 		});
 
@@ -232,6 +243,78 @@ describe("definePlugin", () => {
 			});
 
 			expect(plugin.capabilities).toEqual([]);
+		});
+
+		// ── Deprecation alias layer ────────────────────────────────
+		// During the deprecation window we accept the old names and
+		// silently rewrite them to the new names. The runtime should
+		// only ever see canonical (new) names.
+
+		it("accepts and normalizes deprecated capability names", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: [
+					"read:content",
+					"write:content",
+					"read:media",
+					"write:media",
+					"read:users",
+					"network:fetch",
+					"network:fetch:any",
+					"email:provide",
+					"email:intercept",
+					"page:inject",
+				],
+			});
+
+			// Normalized to current names
+			expect(plugin.capabilities).toContain("content:read");
+			expect(plugin.capabilities).toContain("content:write");
+			expect(plugin.capabilities).toContain("media:read");
+			expect(plugin.capabilities).toContain("media:write");
+			expect(plugin.capabilities).toContain("users:read");
+			expect(plugin.capabilities).toContain("network:request");
+			expect(plugin.capabilities).toContain("network:request:unrestricted");
+			expect(plugin.capabilities).toContain("hooks.email-transport:register");
+			expect(plugin.capabilities).toContain("hooks.email-events:register");
+			expect(plugin.capabilities).toContain("hooks.page-fragments:register");
+
+			// And the deprecated names do NOT appear in the resolved capabilities
+			expect(plugin.capabilities).not.toContain("read:content");
+			expect(plugin.capabilities).not.toContain("write:content");
+			expect(plugin.capabilities).not.toContain("network:fetch");
+			expect(plugin.capabilities).not.toContain("network:fetch:any");
+			expect(plugin.capabilities).not.toContain("email:provide");
+			expect(plugin.capabilities).not.toContain("email:intercept");
+			expect(plugin.capabilities).not.toContain("page:inject");
+		});
+
+		it("deduplicates when both deprecated and current names are passed", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				// Same capability, both spellings
+				capabilities: ["read:content", "content:read"],
+			});
+
+			const readCount = plugin.capabilities.filter((c) => c === "content:read").length;
+			expect(readCount).toBe(1);
+		});
+
+		it("normalizes deprecated names before applying implications", () => {
+			// `write:content` (deprecated) should still imply `content:read`
+			// after rewrite, not `read:content`.
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["write:content"],
+			});
+
+			expect(plugin.capabilities).toContain("content:write");
+			expect(plugin.capabilities).toContain("content:read");
+			expect(plugin.capabilities).not.toContain("write:content");
+			expect(plugin.capabilities).not.toContain("read:content");
 		});
 	});
 

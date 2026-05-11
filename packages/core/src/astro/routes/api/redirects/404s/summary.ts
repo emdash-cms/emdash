@@ -7,7 +7,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, unwrapResult } from "#api/error.js";
+import { handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleNotFoundSummary } from "#api/handlers/redirects.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { notFoundSummaryQuery } from "#api/schemas.js";
@@ -16,7 +16,9 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ url, locals }) => {
 	const { emdash, user } = locals;
-	const db = emdash.db;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
+	const db = emdash!.db;
 
 	const denied = requirePerm(user, "redirects:read");
 	if (denied) return denied;

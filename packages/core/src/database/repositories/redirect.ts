@@ -28,6 +28,9 @@ export const REFERRER_MAX_LENGTH = 512;
 /** Max stored length for the `User-Agent` header — truncated on insert. */
 export const USER_AGENT_MAX_LENGTH = 256;
 
+/** Pattern to escape LIKE wildcards: %, _, and backslash */
+const LIKE_ESCAPE_RE = /[\\%_]/g;
+
 /**
  * Truncate a header-derived string to `max` chars, preserving `null`/`undefined`
  * as `null`. Empty strings stay empty (the caller decides whether to coerce).
@@ -162,9 +165,15 @@ export class RedirectRepository {
 			.limit(limit + 1);
 
 		if (opts.search) {
-			const term = `%${opts.search}%`;
+			// Escape LIKE wildcards in the search term to prevent injection.
+			// Must include ESCAPE clause for SQLite to recognize backslash as escape char.
+			const escaped = opts.search.replace(LIKE_ESCAPE_RE, (c) => `\\${c}`);
+			const term = `%${escaped}%`;
 			query = query.where((eb) =>
-				eb.or([eb("source", "like", term), eb("destination", "like", term)]),
+				eb.or([
+					sql<boolean>`source LIKE ${term} ESCAPE '\\'`,
+					sql<boolean>`destination LIKE ${term} ESCAPE '\\'`,
+				]),
 			);
 		}
 
@@ -502,7 +511,9 @@ export class RedirectRepository {
 			.limit(limit + 1);
 
 		if (opts.search) {
-			query = query.where("path", "like", `%${opts.search}%`);
+			const escaped = opts.search.replace(LIKE_ESCAPE_RE, (c) => `\\${c}`);
+			const term = `%${escaped}%`;
+			query = query.where(sql<boolean>`path LIKE ${term} ESCAPE '\\'`);
 		}
 
 		if (opts.cursor) {

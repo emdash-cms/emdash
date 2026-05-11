@@ -3,3 +3,10 @@ dist
 .astro
 uploads
 data.db
+
+# Environment / Wrangler secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*

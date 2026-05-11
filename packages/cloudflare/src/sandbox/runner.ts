@@ -12,14 +12,15 @@
  */
 
 import { env, exports } from "cloudflare:workers";
-import type {
-	SandboxRunner,
-	SandboxedPlugin,
-	SandboxEmailSendCallback,
-	SandboxOptions,
-	SandboxRunnerFactory,
-	SerializedRequest,
-	PluginManifest,
+import {
+	normalizeCapabilities,
+	type SandboxRunner,
+	type SandboxedPlugin,
+	type SandboxEmailSendCallback,
+	type SandboxOptions,
+	type SandboxRunnerFactory,
+	type SerializedRequest,
+	type PluginManifest,
 } from "emdash";
 
 import { setEmailSendCallback } from "./bridge.js";
@@ -230,12 +231,18 @@ class CloudflareSandboxedPlugin implements SandboxedPlugin {
 			});
 		}
 
-		// Create fresh bridge binding for THIS request
+		// Create fresh bridge binding for THIS request.
+		//
+		// Capabilities are normalized to canonical names here so the bridge
+		// only ever sees the current vocabulary. Manifests installed before
+		// the rename (or sites still using the legacy alias layer) keep
+		// working — `normalizeCapabilities` rewrites legacy names like
+		// `read:content` → `content:read` and `network:fetch` → `network:request`.
 		const bridgeBinding = this.createBridge({
 			props: {
 				pluginId: this.manifest.id,
 				pluginVersion: this.manifest.version || "0.0.0",
-				capabilities: this.manifest.capabilities || [],
+				capabilities: normalizeCapabilities(this.manifest.capabilities || []),
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),
 			},

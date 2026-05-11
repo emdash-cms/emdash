@@ -60,7 +60,7 @@ export interface ImportResult {
 }
 
 export const POST: APIRoute = async ({ request, locals }) => {
-	const { emdash, emdashManifest, user } = locals;
+	const { emdash, user } = locals;
 
 	const denied = requirePerm(user, "import:execute");
 	if (denied) return denied;
@@ -70,6 +70,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 
 	try {
+		const emdashManifest = await emdash.getManifest();
+
 		const formData = await request.formData();
 		const fileEntry = formData.get("file");
 		const file = fileEntry instanceof File ? fileEntry : null;

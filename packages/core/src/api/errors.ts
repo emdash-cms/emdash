@@ -218,6 +218,10 @@ export const ErrorCode = {
 	MENU_ITEM_UPDATE_ERROR: "MENU_ITEM_UPDATE_ERROR",
 	MENU_ITEM_DELETE_ERROR: "MENU_ITEM_DELETE_ERROR",
 	MENU_REORDER_ERROR: "MENU_REORDER_ERROR",
+	// Returned when a menu name resolves to multiple locale variants and
+	// the caller did not pass `locale` to disambiguate. (name, locale) is
+	// unique, so this only fires for omitted-locale lookups.
+	AMBIGUOUS_LOCALE: "AMBIGUOUS_LOCALE",
 
 	// Taxonomies
 	TAXONOMY_LIST_ERROR: "TAXONOMY_LIST_ERROR",
@@ -362,6 +366,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.SELF_ROLE_CHANGE:
 		case ErrorCode.SSRF_BLOCKED:
 		case ErrorCode.UNKNOWN_ACTION:
+		case ErrorCode.AMBIGUOUS_LOCALE:
 			return 400;
 
 		// 401 Unauthorized

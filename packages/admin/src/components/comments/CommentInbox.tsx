@@ -8,15 +8,7 @@
 import { Badge, Button, Checkbox, Input, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	MagnifyingGlass,
-	Check,
-	Trash,
-	Warning,
-	CaretLeft,
-	CaretRight,
-	ChatCircle,
-} from "@phosphor-icons/react";
+import { MagnifyingGlass, Check, Trash, Warning, ChatCircle } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type {
@@ -26,6 +18,7 @@ import type {
 	BulkAction,
 } from "../../lib/api/comments.js";
 import { cn } from "../../lib/utils.js";
+import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { CommentDetail } from "./CommentDetail.js";
 
@@ -279,14 +272,14 @@ export function CommentInbox({
 			)}
 
 			{/* Table */}
-			<div className="rounded-md border overflow-x-auto">
+			<div className="rounded-md border bg-kumo-base overflow-x-auto">
 				<table className="w-full">
 					<thead>
 						<tr className="border-b bg-kumo-tint/50">
 							<th scope="col" className="w-10 px-3 py-3">
 								<Checkbox
 									checked={allOnPageSelected}
-									onChange={toggleAll}
+									onCheckedChange={toggleAll}
 									aria-label={t`Select all`}
 								/>
 							</th>
@@ -307,7 +300,7 @@ export function CommentInbox({
 							</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody className="divide-y divide-kumo-line">
 						{isLoading && comments.length === 0 ? (
 							<tr>
 								<td colSpan={6} className="px-4 py-8 text-center text-kumo-subtle">
@@ -358,7 +351,7 @@ export function CommentInbox({
 							onClick={() => setPage(page - 1)}
 							aria-label={t`Previous page`}
 						>
-							<CaretLeft className="h-4 w-4" />
+							<CaretPrev className="h-4 w-4" />
 						</Button>
 						<span className="text-sm">
 							{page + 1} / {totalPages}
@@ -377,7 +370,7 @@ export function CommentInbox({
 							}}
 							aria-label={t`Next page`}
 						>
-							<CaretRight className="h-4 w-4" />
+							<CaretNext className="h-4 w-4" />
 						</Button>
 					</div>
 				</div>
@@ -455,11 +448,11 @@ function CommentRow({
 	const excerpt = comment.body.length > 120 ? comment.body.slice(0, 120) + "..." : comment.body;
 
 	return (
-		<tr className={cn("border-b hover:bg-kumo-tint/25", isSelected && "bg-kumo-tint/40")}>
+		<tr className={cn("hover:bg-kumo-tint/25", isSelected && "bg-kumo-tint/40")}>
 			<td className="w-10 px-3 py-3">
 				<Checkbox
 					checked={isSelected}
-					onChange={onToggle}
+					onCheckedChange={onToggle}
 					aria-label={t`Select comment by ${comment.authorName}`}
 				/>
 			</td>

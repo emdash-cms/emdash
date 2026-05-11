@@ -77,35 +77,6 @@ interface SetupAdminResponse {
 type WizardStep = "site" | "admin" | "passkey";
 
 // ============================================================================
-// API Functions
-// ============================================================================
-
-async function fetchSetupStatus(): Promise<SetupStatusResponse> {
-	const response = await apiFetch("/_emdash/api/setup/status");
-	return parseApiResponse<SetupStatusResponse>(response, "Failed to fetch setup status");
-}
-
-async function executeSiteSetup(data: SetupSiteRequest): Promise<SetupSiteResponse> {
-	const response = await apiFetch("/_emdash/api/setup", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(data),
-	});
-
-	return parseApiResponse<SetupSiteResponse>(response, "Setup failed");
-}
-
-async function executeAdminSetup(data: SetupAdminRequest): Promise<SetupAdminResponse> {
-	const response = await apiFetch("/_emdash/api/setup/admin", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(data),
-	});
-
-	return parseApiResponse<SetupAdminResponse>(response, "Failed to create admin");
-}
-
-// ============================================================================
 // Step Components
 // ============================================================================
 
@@ -336,7 +307,7 @@ function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 							<span className="w-full border-t" />
 						</div>
 						<div className="relative flex justify-center text-xs uppercase">
-							<span className="bg-kumo-base px-2 text-kumo-subtle">Or continue with</span>
+							<span className="bg-kumo-base px-2 text-kumo-subtle">{t`Or continue with`}</span>
 						</div>
 					</div>
 
@@ -440,6 +411,7 @@ function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
 // ============================================================================
 
 export function SetupWizard() {
+	const { t } = useLingui();
 	const [currentStep, setCurrentStep] = React.useState<WizardStep>("site");
 	const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null);
 	const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null);
@@ -469,7 +441,10 @@ export function SetupWizard() {
 		error: statusError,
 	} = useQuery({
 		queryKey: ["setup", "status"],
-		queryFn: fetchSetupStatus,
+		queryFn: async () => {
+			const response = await apiFetch("/_emdash/api/setup/status");
+			return parseApiResponse<SetupStatusResponse>(response, t`Failed to fetch setup status`);
+		},
 		retry: false,
 	});
 
@@ -484,7 +459,14 @@ export function SetupWizard() {
 
 	// Site setup mutation
 	const siteMutation = useMutation({
-		mutationFn: executeSiteSetup,
+		mutationFn: async (data: SetupSiteRequest) => {
+			const response = await apiFetch("/_emdash/api/setup", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(data),
+			});
+			return parseApiResponse<SetupSiteResponse>(response, t`Setup failed`);
+		},
 		onSuccess: (data) => {
 			setError(undefined);
 			// In Access mode, setup is complete - redirect to admin
@@ -502,7 +484,14 @@ export function SetupWizard() {
 
 	// Admin setup mutation
 	const adminMutation = useMutation({
-		mutationFn: executeAdminSetup,
+		mutationFn: async (data: SetupAdminRequest) => {
+			const response = await apiFetch("/_emdash/api/setup/admin", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(data),
+			});
+			return parseApiResponse<SetupAdminResponse>(response, t`Failed to create admin`);
+		},
 		onSuccess: () => {
 			setError(undefined);
 			setCurrentStep("passkey");
@@ -529,8 +518,6 @@ export function SetupWizard() {
 		window.location.href = "/_emdash/admin";
 		return null;
 	}
-
-	const { t } = useLingui();
 
 	// Loading state
 	if (statusLoading) {

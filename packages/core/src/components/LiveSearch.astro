@@ -109,13 +109,6 @@ const config = {
 </emdash-live-search>
 
 <script>
-	// Sanitization patterns for search snippets (allow only <mark> tags from FTS5)
-	const SNIPPET_AMP_RE = /&/g;
-	const SNIPPET_LT_RE = /</g;
-	const SNIPPET_GT_RE = />/g;
-	const SNIPPET_MARK_OPEN_RE = /&lt;mark&gt;/g;
-	const SNIPPET_MARK_CLOSE_RE = /&lt;\/mark&gt;/g;
-
 	interface SearchResult {
 		collection: string;
 		id: string;
@@ -396,17 +389,15 @@ const config = {
 						collectionEl.textContent = result.collection;
 					}
 
-					// Fill in snippet (sanitize to allow only <mark> tags from FTS5 highlighting)
+					// Snippets returned by /api/search are already sanitised
+					// server-side by sanitizeSnippet() — they contain only
+					// HTML-escaped text plus literal <mark>...</mark> tags
+					// around matched terms.
 					const snippetEl = link.querySelector(
 						".emdash-live-search-result-snippet"
 					);
 					if (snippetEl && this.config.showSnippets && result.snippet) {
-						snippetEl.innerHTML = result.snippet
-							.replace(SNIPPET_AMP_RE, "&amp;")
-							.replace(SNIPPET_LT_RE, "&lt;")
-							.replace(SNIPPET_GT_RE, "&gt;")
-							.replace(SNIPPET_MARK_OPEN_RE, "<mark>")
-							.replace(SNIPPET_MARK_CLOSE_RE, "</mark>");
+						snippetEl.innerHTML = result.snippet;
 					} else if (snippetEl) {
 						snippetEl.remove();
 					}

@@ -62,8 +62,10 @@ test.describe("Form Data Loss Prevention", () => {
 		// Edits should still be there (staleTime: Infinity prevents overwrite)
 		await expect(titleInput).toHaveValue(editedTitle);
 
-		// Save button should show "Save" (dirty), not "Saved" (clean)
-		await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
+		// Save button should show "Save" (dirty), not "Saved" (clean).
+		// Editor pages render two SaveButtons (header + bottom-of-form); both
+		// reflect the same state so we just check the first.
+		await expect(page.getByRole("button", { name: "Save" }).first()).toBeEnabled();
 
 		// Restore original value to avoid side effects on other tests
 		await titleInput.fill(originalTitle);
@@ -91,8 +93,9 @@ test.describe("Form Data Loss Prevention", () => {
 			return route.continue();
 		});
 
-		// Click save
-		const saveButton = page.getByRole("button", { name: "Save" });
+		// Click save (first match -- editor pages have two SaveButtons,
+		// both submit the same form).
+		const saveButton = page.getByRole("button", { name: "Save" }).first();
 		await saveButton.click();
 
 		// Wait for the error to be processed
@@ -100,7 +103,7 @@ test.describe("Form Data Loss Prevention", () => {
 
 		// The Save button should still be enabled (form is still dirty)
 		// It should NOT show "Saved" — the mutation failed
-		await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
+		await expect(page.getByRole("button", { name: "Save" }).first()).toBeEnabled();
 
 		// Remove the route intercept and restore title
 		await page.unroute("**/api/sections/hero");

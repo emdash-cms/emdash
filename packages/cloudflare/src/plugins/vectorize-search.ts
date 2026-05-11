@@ -139,7 +139,7 @@ export function vectorizeSearch(config: VectorizeSearchConfig = {}): PluginDefin
 	return {
 		id: "vectorize-search",
 		version: "1.0.0",
-		capabilities: ["read:content"],
+		capabilities: ["content:read"],
 
 		hooks: {
 			/**

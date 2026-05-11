@@ -72,5 +72,16 @@ examples/wp-theme-unit-test/
 .opencode/*
 !.opencode/agents/
 
+# .claude is local-only EXCEPT for the symlinks pointing at AGENTS.md and skills/
+.claude/*
+!.claude/CLAUDE.md
+!.claude/skills
+
 .perf-query-counts
 query-counts-out/
+
+# Generated query-dump artefacts; tooling lives in scripts/query-dumps/ but
+# the per-run JSON and classification reports regenerate from the harness.
+scripts/query-dumps/sqlite/
+scripts/query-dumps/d1/
+scripts/query-dumps/classification.*.md

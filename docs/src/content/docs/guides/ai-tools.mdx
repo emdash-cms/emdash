@@ -7,6 +7,10 @@ import { Aside, Steps, Tabs, TabItem, LinkCard } from "@astrojs/starlight/compon
 
 EmDash has a built-in [MCP server](https://modelcontextprotocol.io) that lets AI assistants work directly with your site's content. You can ask Claude, ChatGPT, or other tools to draft posts, update pages, manage media, search your content, and more -- all through natural conversation.
 
+<Aside>
+	This guide covers your **site's** MCP server -- for managing the content of an EmDash site. If you want to give an AI coding assistant access to the EmDash documentation itself (so it can answer questions about EmDash as you build), see [Docs MCP for AI Tools](/docs-mcp) instead. Most developers connect both.
+</Aside>
+
 ## Enable the MCP Server
 
 The MCP server is disabled by default. Enable it in your Astro configuration:

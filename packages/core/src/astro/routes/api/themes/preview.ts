@@ -4,7 +4,13 @@
  * POST /_emdash/api/themes/preview
  *
  * Generates a signed preview URL for the "Try with my data" feature.
- * The PREVIEW_SECRET must be set in the environment (shared with preview Workers).
+ *
+ * Uses the resolved preview secret: env override (`EMDASH_PREVIEW_SECRET`)
+ * wins, otherwise an auto-generated stable per-site value persisted in the
+ * options table is used. Processes that share the same database converge on
+ * the same auto-generated value; only set `EMDASH_PREVIEW_SECRET` in both
+ * processes when the verifying side runs without access to the EmDash DB
+ * (e.g. a remote preview Worker).
  */
 
 import type { APIRoute } from "astro";
@@ -12,6 +18,7 @@ import type { APIRoute } from "astro";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess } from "#api/error.js";
 import { getPublicOrigin } from "#api/public-url.js";
+import { resolveSecretsCached } from "#config/secrets.js";
 
 export const prerender = false;
 
@@ -25,10 +32,9 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 	const denied = requirePerm(user, "plugins:read");
 	if (denied) return denied;
 
-	const secret = import.meta.env.EMDASH_PREVIEW_SECRET || import.meta.env.PREVIEW_SECRET || "";
-	if (!secret) {
-		return apiError("NOT_CONFIGURED", "PREVIEW_SECRET is not configured", 500);
-	}
+	// Always non-empty after resolution; env override wins, otherwise a
+	// stable DB-stored value is used.
+	const { previewSecret: secret } = await resolveSecretsCached(emdash.db);
 
 	let body: { previewUrl: string };
 	try {

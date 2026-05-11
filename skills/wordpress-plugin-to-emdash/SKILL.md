@@ -229,9 +229,7 @@ WordPress plugins that call `wp_insert_term()`, `register_nav_menu()`, or insert
 }
 ```
 
-```bash
-npx emdash seed .emdash/seed.json
-```
+Save to `.emdash/seed.json` (or wire up via `package.json#emdash.seed`); the runtime applies it on the next first-boot when the database is empty.
 
 Use `redirects` for legacy WordPress URLs that still receive traffic after migration.
 

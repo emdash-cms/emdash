@@ -6,52 +6,11 @@
  * Without JavaScript, all pages are visible as one long form.
  * The client-side script enhances with multi-page navigation, AJAX, etc.
  */
+import { parsePublicFormDefinitionResponse } from "../public-definition.js";
+import type { FormField, FormPage } from "../types.js";
 
 interface Props {
 	node: { formId: string };
-}
-
-interface FormField {
-	id: string;
-	type: string;
-	label: string;
-	name: string;
-	placeholder?: string;
-	helpText?: string;
-	required: boolean;
-	validation?: {
-		minLength?: number;
-		maxLength?: number;
-		min?: number;
-		max?: number;
-		pattern?: string;
-		patternMessage?: string;
-		accept?: string;
-		maxFileSize?: number;
-	};
-	options?: Array<{ label: string; value: string }>;
-	defaultValue?: string;
-	width: "full" | "half";
-	condition?: { field: string; op: string; value?: string };
-}
-
-interface FormPage {
-	title?: string;
-	fields: FormField[];
-}
-
-interface FormDefinition {
-	name: string;
-	slug: string;
-	pages: FormPage[];
-	settings: {
-		spamProtection: string;
-		submitLabel: string;
-		nextLabel?: string;
-		prevLabel?: string;
-	};
-	status: string;
-	_turnstileSiteKey?: string | null;
 }
 
 const { node } = Astro.props;
@@ -67,10 +26,8 @@ const response = await fetch(
 	}
 );
 
-if (!response.ok) return;
-
-const form = (await response.json()) as FormDefinition;
-if (!form || form.status !== "active") return;
+const form = await parsePublicFormDefinitionResponse(response);
+if (!form) return;
 
 const submitUrl = `/_emdash/api/plugins/emdash-forms/submit`;
 const isMultiPage = form.pages.length > 1;

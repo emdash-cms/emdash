@@ -177,7 +177,7 @@ export function PasskeyRegistration({
 
 			const optionsData = await parseApiResponse<{
 				options: PublicKeyCredentialCreationOptionsJSON;
-			}>(optionsResponse, "Failed to get registration options");
+			}>(optionsResponse, t`Failed to get registration options`);
 			const { options } = optionsData;
 
 			// Step 2: Create credential with browser
@@ -250,13 +250,13 @@ export function PasskeyRegistration({
 
 			const result = await parseApiResponse<unknown>(
 				verifyResponse,
-				"Failed to verify registration",
+				t`Failed to verify registration`,
 			);
 
 			setState({ status: "success" });
 			onSuccess(result);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Registration failed";
+			const message = error instanceof Error ? error.message : t`Registration failed`;
 
 			// Handle specific WebAuthn errors
 			let userMessage = message;

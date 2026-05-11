@@ -19,7 +19,7 @@ Run commands with `npx emdash` or add scripts to `package.json`. The binary is a
 
 ## Authentication
 
-Commands that talk to a running EmDash instance (everything except `init`, `seed`, `export-seed`, and `auth secret`) resolve authentication in this order:
+Commands that talk to a running EmDash instance resolve authentication in this order:
 
 1. **`--token` flag** — explicit token on the command line
 2. **`EMDASH_TOKEN` env var**
@@ -43,35 +43,6 @@ These flags are available on all remote commands:
 When stdout is a TTY, the CLI pretty-prints results with consola. When piped or when `--json` is set, it outputs raw JSON to stdout — suitable for `jq` or other tools.
 
 ## Commands
-
-### `emdash init`
-
-Initialize the database with core schema and optional template data.
-
-```bash
-npx emdash init [options]
-```
-
-#### Options
-
-| Option       | Alias | Description            | Default           |
-| ------------ | ----- | ---------------------- | ----------------- |
-| `--database` | `-d`  | Database file path     | `./data.db`       |
-| `--cwd`      |       | Working directory      | Current directory  |
-| `--force`    | `-f`  | Re-run schema and seed | `false`           |
-
-#### Behavior
-
-1. Reads `emdash` config from `package.json`
-2. Creates the database file if needed
-3. Runs core migrations (creates system tables)
-4. Runs template `schema.sql` if configured
-5. Runs template `seed.sql` if configured
-
-<Aside>
-	If the database already contains collections, `init` skips schema and seed unless `--force` is
-	used.
-</Aside>
 
 ### `emdash dev`
 
@@ -482,41 +453,6 @@ npx emdash menu get primary
 
 Returns the menu with all its items.
 
-### `emdash seed`
-
-Apply a seed file to the database. This command works directly on a local SQLite file (no running server needed).
-
-```bash
-npx emdash seed [path] [options]
-```
-
-#### Arguments
-
-| Argument | Description       | Default               |
-| -------- | ----------------- | --------------------- |
-| `path`   | Path to seed file | `.emdash/seed.json` |
-
-#### Options
-
-| Option             | Alias | Description                             | Default                     |
-| ------------------ | ----- | --------------------------------------- | --------------------------- |
-| `--database`       | `-d`  | Database file path                      | `./data.db`                 |
-| `--cwd`            |       | Working directory                       | Current directory           |
-| `--validate`       |       | Validate only, don't apply              | `false`                     |
-| `--no-content`     |       | Skip sample content                     | `false`                     |
-| `--on-conflict`    |       | Conflict handling: skip, update, error  | `skip`                      |
-| `--uploads-dir`    |       | Directory for media uploads             | `.emdash/uploads`         |
-| `--media-base-url` |       | Base URL for media files                | `/_emdash/api/media/file` |
-| `--base-url`       |       | Site base URL (for absolute media URLs) |                             |
-
-#### Seed File Resolution
-
-The command looks for seed files in this order:
-
-1. Positional argument (if provided)
-2. `.emdash/seed.json` (convention)
-3. Path from `package.json` `emdash.seed` field
-
 ### `emdash export-seed`
 
 Export database schema and content as a seed file. Works directly on a local SQLite file.
@@ -545,15 +481,35 @@ The exported seed file includes:
 - **Widget Areas**: Widget areas and widgets
 - **Content** (if requested): Entries with `$media` references and `$ref:` syntax for portability
 
-### `emdash auth secret`
+### `emdash secrets generate`
 
-Generate a secure authentication secret for your deployment.
+Generate an `EMDASH_ENCRYPTION_KEY` for your deployment. The key is used to
+encrypt plugin secrets at rest.
 
 ```bash
-npx emdash auth secret
+npx emdash secrets generate
 ```
 
-Outputs a random secret suitable for `EMDASH_AUTH_SECRET`.
+Prints the new key to stdout. Pipe it into your secret store, or write it
+straight to a dev file with `--write`:
+
+```bash
+npx emdash secrets generate --write .dev.vars
+npx emdash secrets generate --write .env
+```
+
+`--write` refuses to overwrite an existing entry without `--force`.
+Replacing a key in a deployment with existing encrypted data will leave
+those secrets unreadable, so the protection is intentional.
+
+### `emdash secrets fingerprint <key>`
+
+Print the 8-character fingerprint (kid) of a key without exposing its
+value. Useful in CI for verifying the right key was deployed:
+
+```bash
+npx emdash secrets fingerprint emdash_enc_v1_...
+```
 
 ## Generated Files
 
@@ -596,11 +552,13 @@ Raw schema export for tooling:
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
-| `EMDASH_DATABASE_URL`   | Database URL (set automatically by `dev`) |
-| `EMDASH_TOKEN`          | Auth token for remote operations          |
-| `EMDASH_URL`            | Default remote URL for `types` and `dev --types` |
-| `EMDASH_AUTH_SECRET`    | Secret for passkey authentication         |
-| `EMDASH_PREVIEW_SECRET` | Secret for preview token generation       |
+| `EMDASH_DATABASE_URL`     | Database URL (set automatically by `dev`) |
+| `EMDASH_TOKEN`            | Auth token for remote operations          |
+| `EMDASH_URL`              | Default remote URL for `types` and `dev --types` |
+| `EMDASH_ENCRYPTION_KEY`   | Key for encrypting plugin secrets at rest. Operator-provided — never stored in the database. Generate with `emdash secrets generate`. |
+| `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, EmDash generates and persists one in the options table. |
+| `EMDASH_IP_SALT`          | Optional override for the commenter-IP hash salt. When unset, EmDash generates and persists one in the options table. |
+| `EMDASH_AUTH_SECRET`      | Legacy. Used as the IP-salt source if set, so existing installs keep stable commenter-IP hashes across upgrade. New installs should not set this. |
 
 ## Package Scripts
 
@@ -608,11 +566,9 @@ Raw schema export for tooling:
 {
 	"scripts": {
 		"dev": "emdash dev",
-		"init": "emdash init",
 		"types": "emdash types",
-		"seed": "emdash seed",
 		"export-seed": "emdash export-seed",
-		"db:reset": "rm -f data.db && emdash init"
+		"db:reset": "rm -f data.db"
 	}
 }
 ```

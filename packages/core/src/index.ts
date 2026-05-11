@@ -27,7 +27,7 @@ export type {
 export type { MediaItem, CreateMediaInput } from "./database/repositories/media.js";
 
 // Fields
-export { portableText, image, reference } from "./fields/index.js";
+export { portableText, image, file, reference } from "./fields/index.js";
 export { normalizeMediaValue } from "./media/normalize.js";
 export { generatePlaceholder } from "./media/placeholder.js";
 export type { PlaceholderData } from "./media/placeholder.js";
@@ -261,6 +261,15 @@ export type {
 	ValidatedPluginManifest,
 	SerializedRequest,
 } from "./plugins/index.js";
+
+// Capability normalization (legacy → canonical alias layer)
+export {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapability,
+	normalizeCapabilities,
+} from "./plugins/index.js";
+export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./plugins/index.js";
 
 // Plugin descriptor (for astro.config.mjs)
 export type { PluginDescriptor } from "./astro/integration/runtime.js";

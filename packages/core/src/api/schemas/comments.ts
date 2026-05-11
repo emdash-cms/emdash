@@ -33,8 +33,8 @@ export const commentListQuery = z
 		status: z.enum(["pending", "approved", "spam", "trash"]).optional(),
 		collection: z.string().optional(),
 		search: z.string().optional(),
-		limit: z.coerce.number().int().min(1).max(100).optional(),
-		cursor: z.string().optional(),
+		limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+		cursor: z.string().max(2048).optional(),
 	})
 	.meta({ id: "CommentListQuery" });
 

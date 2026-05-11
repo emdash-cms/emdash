@@ -1,29 +1,18 @@
 ---
 export const prerender = false;
 
-import { getEmDashCollection } from "emdash";
+import { search } from "emdash";
 import Base from "../layouts/Base.astro";
-import PostCard from "../components/PostCard.astro";
-import { getReadingTime, extractText } from "../utils/reading-time";
 
 const query = Astro.url.searchParams.get("q")?.trim() || "";
 
-const { entries: allPosts } = await getEmDashCollection("posts");
-
-// Simple search: match query against title, excerpt, and content
-function matchesQuery(post: (typeof allPosts)[0], q: string): boolean {
-	if (!q) return false;
-	const lower = q.toLowerCase();
-	const title = (post.data.title || "").toLowerCase();
-	const excerpt = (post.data.excerpt || "").toLowerCase();
-	// Extract plain text from portable text blocks (avoids matching on _type, _key, etc.)
-	const content = extractText(post.data.content).toLowerCase();
-	return (
-		title.includes(lower) || excerpt.includes(lower) || content.includes(lower)
-	);
-}
-
-const results = query ? allPosts.filter((p) => matchesQuery(p, query)) : [];
+// Use the FTS-backed search() API instead of loading every post and
+// filtering in JS. FTS scales as the post count grows, returns ranked
+// results, and handles tokenization/stemming. Templates that grep all
+// post bodies in JS quickly become unusable past a few hundred posts.
+const { items: results } = query
+	? await search(query, { collections: ["posts"], limit: 30 })
+	: { items: [] };
 ---
 
 <Base
@@ -57,18 +46,23 @@ const results = query ? allPosts.filter((p) => matchesQuery(p, query)) : [];
 
 		{
 			results.length > 0 && (
-				<div class="search-results">
-					{results.map((post) => (
-						<PostCard
-							title={post.data.title}
-							excerpt={post.data.excerpt}
-							featuredImage={post.data.featured_image}
-							href={`/posts/${post.id}`}
-							date={post.data.publishedAt ?? undefined}
-							readingTime={getReadingTime(post.data.content)}
-						/>
+				<ol class="search-results">
+					{results.map((result) => (
+						<li class="search-result">
+							<a
+								href={`/posts/${result.slug ?? result.id}`}
+								class="result-link"
+							>
+								<h2 class="result-title">
+									{result.title ?? "Untitled"}
+								</h2>
+								{result.snippet && (
+									<p class="result-snippet" set:html={result.snippet} />
+								)}
+							</a>
+						</li>
 					))}
-				</div>
+				</ol>
 			)
 		}
 
@@ -134,8 +128,55 @@ const results = query ? allPosts.filter((p) => matchesQuery(p, query)) : [];
 	}
 
 	.search-results {
+		list-style: none;
+		padding: 0;
+		margin: 0;
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-8);
+	}
+
+	.search-result {
+		padding: var(--spacing-6) 0;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.search-result:first-child {
+		padding-top: 0;
+	}
+
+	.search-result:last-child {
+		border-bottom: none;
+	}
+
+	.result-link {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.result-title {
+		font-size: var(--font-size-xl);
+		font-weight: 600;
+		line-height: var(--leading-snug);
+		margin-bottom: var(--spacing-2);
+		transition: color var(--transition-fast);
+	}
+
+	.result-link:hover .result-title {
+		color: var(--color-accent);
+	}
+
+	.result-snippet {
+		font-size: var(--font-size-base);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+	}
+
+	/* FTS returns <mark> wrapping the matched terms */
+	.result-snippet :global(mark) {
+		background: var(--color-accent-ring, rgba(99, 102, 241, 0.2));
+		color: inherit;
+		padding: 0 0.1em;
+		border-radius: 2px;
 	}
 </style>

@@ -3,6 +3,8 @@
  */
 
 import type { Element } from "@emdash-cms/blocks";
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 
 export const API_BASE = "/_emdash/api";
 
@@ -59,11 +61,17 @@ export interface AdminManifest {
 			fields: Record<
 				string,
 				{
+					/** Database row ID (ULID) for the field. Used to widen MIME allowlists on upload/media-list calls. */
+					id?: string;
 					kind: string;
 					label?: string;
 					required?: boolean;
 					widget?: string;
-					options?: Array<{ value: string; label: string }>;
+					/**
+					 * For `select` / `multiSelect`: the list of enum choices.
+					 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
+					 */
+					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
 				}
 			>;
@@ -109,6 +117,7 @@ export interface AdminManifest {
 				description?: string;
 				placeholder?: string;
 				fields?: Element[];
+				category?: string;
 			}>;
 		}
 	>;
@@ -177,7 +186,7 @@ export async function parseApiResponse<T>(
  */
 export async function fetchManifest(): Promise<AdminManifest> {
 	const response = await apiFetch(`${API_BASE}/manifest`);
-	return parseApiResponse<AdminManifest>(response, "Failed to fetch manifest");
+	return parseApiResponse<AdminManifest>(response, i18n._(msg`Failed to fetch manifest`));
 }
 
 /**

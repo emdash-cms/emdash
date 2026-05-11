@@ -77,11 +77,10 @@ Use this checklist to track progress when porting a WordPress theme to EmDash.
   - [ ] Posts (3-5 with varied content)
   - [ ] Pages (About, Contact, etc.)
 - [ ] Images use `$media` syntax with `discovery/images/` files
-- [ ] Seed validates: `emdash seed --validate`
 
 ## Phase 6: Verify & Iterate
 
-- [ ] Seed applied successfully: `emdash seed`
+- [ ] Dev server applied seed cleanly on first request (no validation errors in logs)
 - [ ] Dev server running: `pnpm dev`
 - [ ] Output screenshots captured to `output/`:
   - [ ] Homepage

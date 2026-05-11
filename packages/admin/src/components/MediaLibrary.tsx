@@ -79,12 +79,12 @@ export function MediaLibrary({
 		if (activeProvider === "local") {
 			return {
 				id: "local",
-				name: "Library",
+				name: t`Library`,
 				capabilities: { browse: true, search: false, upload: true, delete: true },
 			} as MediaProviderInfo;
 		}
 		return providers?.find((p) => p.id === activeProvider);
-	}, [activeProvider, providers]);
+	}, [activeProvider, providers, t]);
 
 	// Update selected item when items change (e.g., after metadata update)
 	React.useEffect(() => {
@@ -199,7 +199,7 @@ export function MediaLibrary({
 	// Build provider tabs
 	const providerTabs = React.useMemo(() => {
 		const tabs: Array<{ id: string; name: string; icon?: string }> = [
-			{ id: "local", name: "Library", icon: undefined },
+			{ id: "local", name: t`Library`, icon: undefined },
 		];
 		if (providers) {
 			for (const p of providers) {
@@ -209,7 +209,7 @@ export function MediaLibrary({
 			}
 		}
 		return tabs;
-	}, [providers]);
+	}, [providers, t]);
 
 	// Get current items based on active provider
 	const currentItems = activeProvider === "local" ? items : [];
@@ -408,7 +408,7 @@ export function MediaLibrary({
 							))}
 				</div>
 			) : (
-				<div className="rounded-md border overflow-x-auto">
+				<div className="rounded-md border bg-kumo-base overflow-x-auto">
 					<table className="w-full">
 						<thead>
 							<tr className="border-b bg-kumo-tint/50">
@@ -419,7 +419,7 @@ export function MediaLibrary({
 								<th className="px-4 py-3 text-end text-sm font-medium">{t`Actions`}</th>
 							</tr>
 						</thead>
-						<tbody>
+						<tbody className="divide-y divide-kumo-line">
 							{activeProvider === "local"
 								? currentItems.map((item) => (
 										<MediaListItem
@@ -584,7 +584,7 @@ function MediaListItem({ item, selected, onClick }: MediaListItemProps) {
 	return (
 		<tr
 			className={cn(
-				"border-b cursor-pointer transition-colors",
+				"cursor-pointer transition-colors",
 				selected ? "bg-kumo-brand/10" : "hover:bg-kumo-tint/25",
 			)}
 			onClick={onClick}
@@ -638,7 +638,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 	return (
 		<tr
 			className={cn(
-				"border-b cursor-pointer transition-colors",
+				"cursor-pointer transition-colors",
 				selected ? "bg-kumo-brand/10" : "hover:bg-kumo-tint/25",
 			)}
 			onClick={onClick}

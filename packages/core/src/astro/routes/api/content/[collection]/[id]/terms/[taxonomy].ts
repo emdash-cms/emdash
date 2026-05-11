@@ -98,6 +98,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const editDenied = requireOwnerPerm(user, authorId, "content:edit_own", "content:edit_any");
 	if (editDenied) return editDenied;
 
+	// Resolve the canonical content ID from the handler result.
+	// The URL `id` param may be a slug; we must use the real ID for term storage.
+	const canonicalId = typeof existingItem?.id === "string" ? existingItem.id : id;
+
 	try {
 		const body = await parseBody(request, contentTermsBody);
 		if (isParseError(body)) return body;
@@ -120,15 +124,15 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			}
 		}
 
-		// Set the terms (replaces existing)
-		await repo.setTermsForEntry(collection, id, taxonomy, termIds);
+		// Set the terms (replaces existing) using the canonical ID
+		await repo.setTermsForEntry(collection, canonicalId, taxonomy, termIds);
 
 		// Term assignments changed — invalidate the hasAnyTermAssignments cache
 		// so hydration on subsequent reads issues a fresh query.
 		invalidateTermCache();
 
-		// Get the updated terms
-		const terms = await repo.getTermsForEntry(collection, id, taxonomy);
+		// Get the updated terms using the canonical ID
+		const terms = await repo.getTermsForEntry(collection, canonicalId, taxonomy);
 
 		return apiSuccess({
 			terms: terms.map((t) => ({

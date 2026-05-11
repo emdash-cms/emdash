@@ -43,6 +43,10 @@ export interface ManifestCollection {
 			 *     (e.g. a checkbox grid receiving its column definitions)
 			 */
 			options?: Array<{ value: string; label: string }> | Record<string, unknown>;
+			/** The `_emdash_fields` row ID. Used by the admin to forward to upload/media-list API calls. */
+			id?: string;
+			/** Validation config for the field (e.g. `allowedMimeTypes` for file/image fields, subFields for repeater). */
+			validation?: Record<string, unknown>;
 		}
 	>;
 }
@@ -228,6 +232,15 @@ export interface EmDashHandlers {
 			slug?: string;
 			status?: string;
 			authorId?: string | null;
+			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
+			seo?: {
+				title?: string | null;
+				description?: string | null;
+				image?: string | null;
+				canonical?: string | null;
+				noIndex?: boolean;
+			};
+			publishedAt?: string | null;
 			_rev?: string;
 		},
 	) => Promise<HandlerResponse>;
@@ -255,7 +268,11 @@ export interface EmDashHandlers {
 	) => Promise<HandlerResponse>;
 
 	// Publishing & Scheduling handlers
-	handleContentPublish: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentPublish: (
+		collection: string,
+		id: string,
+		options?: { publishedAt?: string },
+	) => Promise<HandlerResponse>;
 
 	handleContentUnpublish: (collection: string, id: string) => Promise<HandlerResponse>;
 
@@ -279,7 +296,7 @@ export interface EmDashHandlers {
 	handleMediaList: (params: {
 		cursor?: string;
 		limit?: number;
-		mimeType?: string;
+		mimeType?: string | readonly string[];
 	}) => Promise<HandlerResponse>;
 
 	handleMediaGet: (id: string) => Promise<HandlerResponse>;
@@ -362,8 +379,15 @@ export interface EmDashHandlers {
 	// Configuration (for checking database type, auth mode, etc.)
 	config: import("./integration/runtime.js").EmDashConfig;
 
-	// Manifest invalidation (call after schema changes)
-	invalidateManifest: () => void;
+	// Build the admin manifest from the live database. Only used by admin
+	// routes; logged-out requests don't need it. Per-request, deduplicated
+	// by `requestCached`.
+	getManifest: () => Promise<EmDashManifest>;
+
+	// Clear the cached URL patterns used by `resolveEmDashPath`. Call after
+	// any schema mutation that creates/updates/deletes a collection's
+	// `urlPattern` so public routing picks up the change immediately.
+	invalidateUrlPatternCache: () => void;
 
 	// Sandbox runner (for marketplace plugin install/update)
 	getSandboxRunner: () => import("../plugins/sandbox/types.js").SandboxRunner | null;

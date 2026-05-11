@@ -33,7 +33,7 @@ import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 // Test regex patterns
 const NOT_ALLOWED_FETCH_REGEX = /not allowed to fetch from host/;
 const NO_ALLOWED_FETCH_REGEX = /not allowed to fetch/;
-const NO_NETWORK_FETCH_REGEX = /does not have the "network:fetch" capability/;
+const NO_NETWORK_FETCH_REGEX = /does not have the "network:request" capability/;
 const SEO_NOT_ENABLED_REGEX = /does not have SEO enabled/;
 
 /**
@@ -555,7 +555,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const readOnlyPlugin = createTestPlugin({
 				id: "reader",
-				capabilities: ["read:content"],
+				capabilities: ["content:read"],
 			});
 
 			const ctx = factory.createContext(readOnlyPlugin);
@@ -572,7 +572,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const noContentPlugin = createTestPlugin({
 				id: "no-content",
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 			});
 
 			const ctx = factory.createContext(noContentPlugin);
@@ -584,7 +584,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const networkPlugin = createTestPlugin({
 				id: "network",
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["api.example.com"],
 			});
 
@@ -610,7 +610,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const plugin = createTestPlugin({
 				id: "unrestricted-network",
-				capabilities: ["network:fetch:any", "network:fetch"],
+				capabilities: ["network:request:unrestricted", "network:request"],
 			});
 
 			const ctx = factory.createContext(plugin);
@@ -623,7 +623,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const plugin = createTestPlugin({
 				id: "both-fetch",
-				capabilities: ["network:fetch", "network:fetch:any"],
+				capabilities: ["network:request", "network:request:unrestricted"],
 				allowedHosts: ["restricted.example.com"],
 			});
 
@@ -659,7 +659,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const writePlugin = createTestPlugin({
 				id: "writer",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 			});
 
 			const ctx = factory.createContext(writePlugin);
@@ -700,7 +700,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const plugin = createTestPlugin({
 				id: "user-reader",
-				capabilities: ["read:users"],
+				capabilities: ["users:read"],
 			});
 
 			const ctx = factory.createContext(plugin);

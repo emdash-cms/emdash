@@ -32,7 +32,7 @@ import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-token
 import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
-import type { EmDashHandlers, EmDashManifest } from "../types.js";
+import type { EmDashHandlers } from "../types.js";
 import { buildEmDashCsp } from "./csp.js";
 
 declare global {
@@ -42,7 +42,6 @@ declare global {
 			/** Token scopes when authenticated via API token or OAuth token. Undefined for session auth. */
 			tokenScopes?: string[];
 			emdash?: EmDashHandlers;
-			emdashManifest?: EmDashManifest;
 		}
 		interface SessionData {
 			user: { id: string };
@@ -723,10 +722,14 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/schema", "WRITE", "schema:write"],
 
 	// Taxonomy, menu, section, widget, revision — all content domain
+	// GET uses content:read (implicit from taxonomies:read / menus:read via role).
+	// WRITE uses the granular scope so tokens with only taxonomies:manage or
+	// menus:manage are not rejected. content:write implicitly grants these via
+	// IMPLICIT_SCOPE_GRANTS in @emdash-cms/auth.
 	["/_emdash/api/taxonomies", "GET", "content:read"],
-	["/_emdash/api/taxonomies", "WRITE", "content:write"],
+	["/_emdash/api/taxonomies", "WRITE", "taxonomies:manage"],
 	["/_emdash/api/menus", "GET", "content:read"],
-	["/_emdash/api/menus", "WRITE", "content:write"],
+	["/_emdash/api/menus", "WRITE", "menus:manage"],
 	["/_emdash/api/sections", "GET", "content:read"],
 	["/_emdash/api/sections", "WRITE", "content:write"],
 	["/_emdash/api/widget-areas", "GET", "content:read"],
@@ -738,11 +741,15 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/search", "GET", "content:read"],
 	["/_emdash/api/search", "WRITE", "admin"],
 
-	// Import, admin, settings, plugins — all require admin scope
+	// Import, admin, plugins — all require admin scope
 	["/_emdash/api/import", "*", "admin"],
 	["/_emdash/api/admin", "*", "admin"],
-	["/_emdash/api/settings", "*", "admin"],
 	["/_emdash/api/plugins", "*", "admin"],
+
+	// Settings — use granular scopes so tokens with settings:read or
+	// settings:manage are not rejected at the middleware level.
+	["/_emdash/api/settings", "GET", "settings:read"],
+	["/_emdash/api/settings", "WRITE", "settings:manage"],
 
 	// MCP endpoint — scopes enforced per-tool inside mcp/server.ts
 	["/_emdash/api/mcp", "*", "content:read"],

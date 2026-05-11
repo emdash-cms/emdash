@@ -28,6 +28,7 @@
 	"updateInternalDependencies": "minor",
 	"bumpVersionsWithWorkspaceProtocolOnly": true,
 	"ignore": [
+		"@emdash-cms/aggregator",
 		"@emdash-cms/blocks-playground",
 		"@emdash-cms/demo-cloudflare",
 		"@emdash-cms/demo-postgres",
