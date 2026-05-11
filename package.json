@@ -10,7 +10,7 @@
 		"typecheck:templates": "pnpm run --workspace-concurrency=1 --filter {./templates/*} typecheck",
 		"check": "pnpm run typecheck && pnpm run --filter {./packages/*} check",
 		"test": "pnpm run --filter {./packages/*} test",
-		"test:unit": "pnpm run --filter emdash --filter @emdash-cms/auth --filter @emdash-cms/blocks --filter @emdash-cms/gutenberg-to-portable-text --filter @emdash-cms/marketplace --filter @emdash-cms/plugin-types --filter @emdash-cms/registry-cli --filter @emdash-cms/registry-client --filter @emdash-cms/registry-lexicons test",
+		"test:unit": "pnpm run --filter emdash --filter @emdash-cms/auth --filter @emdash-cms/blocks --filter @emdash-cms/gutenberg-to-portable-text --filter @emdash-cms/marketplace --filter @emdash-cms/plugin-forms --filter @emdash-cms/plugin-types --filter @emdash-cms/registry-cli --filter @emdash-cms/registry-client --filter @emdash-cms/registry-lexicons test",
 		"test:browser": "pnpm run --filter @emdash-cms/admin test",
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",

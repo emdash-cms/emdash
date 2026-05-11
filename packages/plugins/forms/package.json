@@ -31,10 +31,14 @@
 		"@phosphor-icons/react": "^2.1.10",
 		"@cloudflare/kumo": "^1.0.0"
 	},
+	"devDependencies": {
+		"vitest": "catalog:"
+	},
 	"dependencies": {
 		"ulidx": "^2.4.1"
 	},
 	"scripts": {
+		"test": "vitest run",
 		"typecheck": "tsgo --noEmit"
 	},
 	"repository": {

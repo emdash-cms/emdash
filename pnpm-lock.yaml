@@ -1737,6 +1737,10 @@ importers:
       ulidx:
         specifier: ^2.4.1
         version: 2.4.1
+    devDependencies:
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.1.5)(@vitest/ui@4.1.5)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
 
   packages/plugins/marketplace-test:
     dependencies:
