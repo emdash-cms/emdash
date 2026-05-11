@@ -6,7 +6,7 @@ import Base from "../../layouts/Base.astro";
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
 });
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 // Single batched query for tags across every post, instead of calling
 // getEntryTerms() per post (which would be N round-trips).
