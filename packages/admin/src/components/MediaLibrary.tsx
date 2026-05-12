@@ -24,6 +24,10 @@ export interface MediaLibraryProps {
 	onSelect?: (item: MediaItem) => void;
 	onDelete?: (id: string) => void;
 	onItemUpdated?: () => void;
+	/** True when more local-library items can be fetched via cursor pagination */
+	hasMore?: boolean;
+	/** Triggered to fetch the next page of local-library items */
+	onLoadMore?: () => void;
 }
 
 /**
@@ -35,6 +39,8 @@ export function MediaLibrary({
 	onUpload,
 	onDelete,
 	onItemUpdated,
+	hasMore,
+	onLoadMore,
 }: MediaLibraryProps) {
 	const { t } = useLingui();
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
@@ -456,6 +462,15 @@ export function MediaLibrary({
 									))}
 						</tbody>
 					</table>
+				</div>
+			)}
+
+			{/* Load more (local library only — providers handle pagination internally) */}
+			{activeProvider === "local" && hasMore && onLoadMore && (
+				<div className="flex justify-center">
+					<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
+						{isLoading ? t`Loading...` : t`Load More`}
+					</Button>
 				</div>
 			)}
 

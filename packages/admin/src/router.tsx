@@ -968,10 +968,17 @@ const mediaRoute = createRoute({
 function MediaPage() {
 	const queryClient = useQueryClient();
 
-	const { data, isLoading, error } = useQuery({
-		queryKey: ["media"],
-		queryFn: () => fetchMediaList(),
-	});
+	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
+		useInfiniteQuery({
+			queryKey: ["media"],
+			queryFn: ({ pageParam }) =>
+				fetchMediaList({
+					cursor: pageParam as string | undefined,
+					limit: 100,
+				}),
+			initialPageParam: undefined as string | undefined,
+			getNextPageParam: (lastPage) => lastPage.nextCursor,
+		});
 
 	const uploadMutation = useMutation({
 		mutationFn: (file: File) => uploadMedia(file),
@@ -987,14 +994,20 @@ function MediaPage() {
 		},
 	});
 
+	const items = React.useMemo(() => {
+		return data?.pages.flatMap((page) => page.items) || [];
+	}, [data]);
+
 	if (error) {
 		return <ErrorScreen error={error.message} />;
 	}
 
 	return (
 		<MediaLibrary
-			items={data?.items || []}
-			isLoading={isLoading}
+			items={items}
+			isLoading={isLoading || isFetchingNextPage}
+			hasMore={!!hasNextPage}
+			onLoadMore={() => void fetchNextPage()}
 			onUpload={(file) => uploadMutation.mutate(file)}
 			onDelete={(id) => deleteMutation.mutate(id)}
 		/>

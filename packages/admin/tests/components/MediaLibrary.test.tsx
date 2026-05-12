@@ -182,4 +182,26 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("Media Library")).toBeInTheDocument();
 		});
 	});
+
+	describe("load more pagination", () => {
+		it("renders Load More button when hasMore is true", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, hasMore: true, onLoadMore: vi.fn() });
+			await expect.element(screen.getByRole("button", { name: "Load More" })).toBeInTheDocument();
+		});
+
+		it("does not render Load More button when hasMore is false", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, hasMore: false, onLoadMore: vi.fn() });
+			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
+		});
+
+		it("invokes onLoadMore when Load More button is clicked", async () => {
+			const onLoadMore = vi.fn();
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, hasMore: true, onLoadMore });
+			await screen.getByRole("button", { name: "Load More" }).click();
+			expect(onLoadMore).toHaveBeenCalled();
+		});
+	});
 });
