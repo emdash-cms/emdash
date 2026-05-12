@@ -11,7 +11,7 @@ import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Upload, Image, Check, Globe, MagnifyingGlass, Paperclip } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import {
@@ -179,14 +179,24 @@ export function MediaPickerModal({
 		return providers?.find((p) => p.id === activeProvider);
 	}, [activeProvider, providers]);
 
-	// Fetch local media list
-	const { data: localData, isLoading: localLoading } = useQuery({
+	// Fetch local media list (cursor-paginated so libraries beyond the
+	// first page remain selectable from the picker, not just the first 50).
+	const {
+		data: localData,
+		isLoading: localLoading,
+		fetchNextPage: fetchNextLocalPage,
+		hasNextPage: hasNextLocalPage,
+		isFetchingNextPage: isFetchingNextLocalPage,
+	} = useInfiniteQuery({
 		queryKey: ["media", filters?.join(",") ?? ""],
-		queryFn: () =>
+		queryFn: ({ pageParam }) =>
 			fetchMediaList({
 				mimeType: filters,
-				limit: 50,
+				cursor: pageParam as string | undefined,
+				limit: 100,
 			}),
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor,
 		enabled: open && activeProvider === "local",
 	});
 
@@ -202,7 +212,8 @@ export function MediaPickerModal({
 		enabled: open && activeProvider !== "local",
 	});
 
-	const isLoading = activeProvider === "local" ? localLoading : providerLoading;
+	const isLoading =
+		activeProvider === "local" ? localLoading || isFetchingNextLocalPage : providerLoading;
 
 	const [uploadError, setUploadError] = React.useState<string | null>(null);
 
@@ -245,11 +256,21 @@ export function MediaPickerModal({
 		onSuccess: (_updated, { id, width, height }) => {
 			queryClient.setQueryData(
 				["media", filters?.join(",") ?? ""],
-				(old: { items: MediaItem[]; nextCursor?: string } | undefined) => {
+				(
+					old:
+						| {
+								pages: { items: MediaItem[]; nextCursor?: string }[];
+								pageParams: unknown[];
+						  }
+						| undefined,
+				) => {
 					if (!old) return old;
 					return {
 						...old,
-						items: old.items.map((item) => (item.id === id ? { ...item, width, height } : item)),
+						pages: old.pages.map((page) => ({
+							...page,
+							items: page.items.map((item) => (item.id === id ? { ...item, width, height } : item)),
+						})),
 					};
 				},
 			);
@@ -279,11 +300,11 @@ export function MediaPickerModal({
 	// Get items for current view
 	const items = React.useMemo(() => {
 		if (activeProvider === "local") {
-			const localItems = localData?.items || [];
+			const localItems = localData?.pages.flatMap((page) => page.items) || [];
 			return localItems.filter((item) => matchesAnyFilter(item.mimeType, filters));
 		}
 		return providerData?.items || [];
-	}, [activeProvider, localData?.items, providerData?.items, filters]);
+	}, [activeProvider, localData, providerData?.items, filters]);
 
 	const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const files = e.target.files;
@@ -642,6 +663,20 @@ export function MediaPickerModal({
 										/>
 									))}
 						</ul>
+					)}
+
+					{/* Load more (local library only — providers handle pagination internally) */}
+					{activeProvider === "local" && hasNextLocalPage && (
+						<div className="flex justify-center py-3">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => void fetchNextLocalPage()}
+								disabled={isFetchingNextLocalPage}
+							>
+								{isFetchingNextLocalPage ? t`Loading...` : t`Load More`}
+							</Button>
+						</div>
 					)}
 				</div>
 

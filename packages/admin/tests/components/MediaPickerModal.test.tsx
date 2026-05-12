@@ -336,4 +336,89 @@ describe("MediaPickerModal", () => {
 			await expect.element(screen.getByLabelText("Upload file")).toBeInTheDocument();
 		});
 	});
+
+	describe("load more pagination", () => {
+		it("renders Load More button when first page returns nextCursor", async () => {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaList as any).mockResolvedValueOnce({
+				items: [
+					{
+						id: "p1",
+						filename: "page1.jpg",
+						mimeType: "image/jpeg",
+						url: "/media/page1.jpg",
+						size: 1024,
+						width: 800,
+						height: 600,
+						createdAt: "2024-01-01",
+					},
+				],
+				nextCursor: "cursor-2",
+			});
+
+			const screen = await renderModal();
+			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
+			await expect.element(screen.getByRole("button", { name: "Load More" })).toBeInTheDocument();
+		});
+
+		it("does not render Load More button when no nextCursor", async () => {
+			const screen = await renderModal();
+			// Default mock returns 2 items with no nextCursor → button should be absent
+			await expect.element(screen.getByRole("option", { name: "photo.jpg" })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
+		});
+
+		it("Load More click fetches the next page with the previous cursor", async () => {
+			const api = await import("../../src/lib/api");
+			const mock = api.fetchMediaList as any;
+			mock.mockReset();
+			mock
+				.mockResolvedValueOnce({
+					items: [
+						{
+							id: "p1",
+							filename: "page1.jpg",
+							mimeType: "image/jpeg",
+							url: "/media/page1.jpg",
+							size: 1024,
+							width: 800,
+							height: 600,
+							createdAt: "2024-01-01",
+						},
+					],
+					nextCursor: "cursor-2",
+				})
+				.mockResolvedValueOnce({
+					items: [
+						{
+							id: "p2",
+							filename: "page2.jpg",
+							mimeType: "image/jpeg",
+							url: "/media/page2.jpg",
+							size: 1024,
+							width: 800,
+							height: 600,
+							createdAt: "2024-01-02",
+						},
+					],
+				});
+
+			const screen = await renderModal();
+			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
+
+			// Direct DOM click to bypass the dialog's inert overlay
+			const loadMoreBtn = [...document.querySelectorAll("button")].find(
+				(b) => b.textContent?.trim() === "Load More",
+			)!;
+			loadMoreBtn.click();
+
+			await expect.element(screen.getByRole("option", { name: "page2.jpg" })).toBeInTheDocument();
+
+			// Second call should have been made with the previous response's cursor.
+			expect(mock).toHaveBeenCalledTimes(2);
+			expect(mock.mock.calls[1][0]).toEqual(
+				expect.objectContaining({ cursor: "cursor-2", limit: 100 }),
+			);
+		});
+	});
 });
