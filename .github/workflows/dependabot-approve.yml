@@ -11,7 +11,7 @@ permissions:
 jobs:
   approve:
     name: Auto-Approve
-    if: github.actor == 'dependabot[bot]'
+    if: github.repository == 'emdash-cms/emdash' && github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -7,7 +7,7 @@ on:
 jobs:
   sync:
     name: Sync templates to emdash-cms/templates
-    if: github.ref == 'refs/heads/main'
+    if: github.repository == 'emdash-cms/emdash' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read

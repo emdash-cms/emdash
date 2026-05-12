@@ -14,7 +14,7 @@ concurrency:
 jobs:
   extract:
     name: Extract
-    if: github.actor != 'emdashbot[bot]'
+    if: github.repository == 'emdash-cms/emdash' && github.actor != 'emdashbot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

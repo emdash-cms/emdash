@@ -24,7 +24,8 @@ jobs:
     # mentions in this check must match the `mentions` input below.
     # For issue_comment events, require the comment to be on a PR (not an issue).
     if: >-
-      github.event.sender.type != 'Bot'
+      github.repository == 'emdash-cms/emdash'
+      && github.event.sender.type != 'Bot'
       && contains(github.event.comment.body, '/review')
       && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
       && (github.event_name != 'issue_comment' || github.event.issue.pull_request != null)

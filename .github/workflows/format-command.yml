@@ -8,6 +8,7 @@ jobs:
   format:
     name: Format
     if: >-
+      github.repository == 'emdash-cms/emdash' &&
       github.event.issue.pull_request &&
       github.event.comment.body == '/format' &&
       (

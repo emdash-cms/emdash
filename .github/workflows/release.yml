@@ -16,6 +16,7 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   release:
     name: Release
+    if: github.repository == 'emdash-cms/emdash'
     runs-on: ubuntu-latest
     outputs:
       published: ${{ steps.changesets.outputs.published }}
@@ -76,7 +77,10 @@ jobs:
     name: Sync Templates
     needs: release
     if: >-
-      needs.release.outputs.published == 'true' ||
-      inputs.publish-only
+      github.repository == 'emdash-cms/emdash' &&
+      (
+        needs.release.outputs.published == 'true' ||
+        inputs.publish-only
+      )
     uses: ./.github/workflows/sync-templates.yml
     secrets: inherit
