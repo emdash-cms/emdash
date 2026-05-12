@@ -1910,7 +1910,7 @@ export function PortableTextEditor({
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
 
 	// Slash commands state
-	const [slashMenuState, setSlashMenuState] = React.useState<SlashMenuState>({
+	const [slashMenuState, setSlashMenuStateRaw] = React.useState<SlashMenuState>({
 		isOpen: false,
 		items: [],
 		selectedIndex: 0,
@@ -1918,11 +1918,39 @@ export function PortableTextEditor({
 		range: null,
 	});
 
-	// Ref to access current state synchronously in keyboard handlers
+	// Ref to access current state synchronously in keyboard handlers.
+	//
+	// TipTap's Suggestion plugin invokes onKeyDown handlers synchronously and
+	// reads state via getState() during the same call. A useEffect-based sync
+	// runs after commit -- too late, so keyboard handlers would see stale
+	// state (empty items, null range, stale selectedIndex) on the first event
+	// after a state change. This caused intermittent CI failures where Enter
+	// would not execute a command and arrow navigation would skip selections.
+	//
+	// Invariant: slashMenuStateRef.current reflects the most recent intent
+	// passed to setSlashMenuState, not necessarily committed React state. That
+	// is safe for synchronous keyboard handlers (which is all we use it for)
+	// but should not be relied on for interleaved concurrent renders.
+	//
+	// Note: in React 18 StrictMode the functional updater may be invoked twice
+	// during development. The ref write below is idempotent (writes the same
+	// computed next state both times), so this is safe.
 	const slashMenuStateRef = React.useRef(slashMenuState);
-	React.useEffect(() => {
-		slashMenuStateRef.current = slashMenuState;
-	}, [slashMenuState]);
+	const setSlashMenuState: React.Dispatch<React.SetStateAction<SlashMenuState>> = React.useCallback(
+		(action) => {
+			if (typeof action === "function") {
+				setSlashMenuStateRaw((prev) => {
+					const next = action(prev);
+					slashMenuStateRef.current = next;
+					return next;
+				});
+			} else {
+				slashMenuStateRef.current = action;
+				setSlashMenuStateRaw(action);
+			}
+		},
+		[],
+	);
 
 	// Build slash commands
 	const slashCommands = React.useMemo(() => {
