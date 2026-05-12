@@ -1927,27 +1927,26 @@ export function PortableTextEditor({
 	// after a state change. This caused intermittent CI failures where Enter
 	// would not execute a command and arrow navigation would skip selections.
 	//
+	// To guarantee the ref is current even when callers pass a functional
+	// updater (which React would otherwise defer until it processes the
+	// queued update), we compute `next` synchronously from the ref's current
+	// value, write the ref immediately, and enqueue the React update using
+	// the precomputed `next`. The ref acts as the canonical "latest intent"
+	// store for any synchronous reader between setter call and React commit.
+	//
 	// Invariant: slashMenuStateRef.current reflects the most recent intent
 	// passed to setSlashMenuState, not necessarily committed React state. That
 	// is safe for synchronous keyboard handlers (which is all we use it for)
 	// but should not be relied on for interleaved concurrent renders.
-	//
-	// Note: in React 18 StrictMode the functional updater may be invoked twice
-	// during development. The ref write below is idempotent (writes the same
-	// computed next state both times), so this is safe.
 	const slashMenuStateRef = React.useRef(slashMenuState);
 	const setSlashMenuState: React.Dispatch<React.SetStateAction<SlashMenuState>> = React.useCallback(
 		(action) => {
-			if (typeof action === "function") {
-				setSlashMenuStateRaw((prev) => {
-					const next = action(prev);
-					slashMenuStateRef.current = next;
-					return next;
-				});
-			} else {
-				slashMenuStateRef.current = action;
-				setSlashMenuStateRaw(action);
-			}
+			const next =
+				typeof action === "function"
+					? (action as (prev: SlashMenuState) => SlashMenuState)(slashMenuStateRef.current)
+					: action;
+			slashMenuStateRef.current = next;
+			setSlashMenuStateRaw(next);
 		},
 		[],
 	);
