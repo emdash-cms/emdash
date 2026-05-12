@@ -79,6 +79,18 @@ export interface MediaPickerModalProps {
 	mimeTypeFilters?: string[];
 	/** `_emdash_fields` row id for server-side MIME widening. */
 	fieldId?: string;
+	/**
+	 * Restrict the picker to the local Library only — hides the "Insert from URL"
+	 * input and suppresses external provider tabs.
+	 *
+	 * Use this for fields whose storage model only persists a local `mediaId`.
+	 * Selecting an external URL or provider item would return an item the
+	 * server cannot later resolve back to a URL (the `id` is either empty
+	 * for "Insert from URL" or a provider-namespaced string that won't match
+	 * a row in the `media` table). Site settings (logo, favicon,
+	 * `seo.defaultOgImage`) are the canonical callers.
+	 */
+	localOnly?: boolean;
 }
 
 /**
@@ -110,6 +122,7 @@ export function MediaPickerModal({
 	title: providedTitle,
 	hideUrlInput = false,
 	mediaKind = "image",
+	localOnly = false,
 }: MediaPickerModalProps) {
 	const { t } = useLingui();
 	const isFileKind = mediaKind === "file";
@@ -144,7 +157,11 @@ export function MediaPickerModal({
 		Record<string, { width: number; height: number }>
 	>({});
 
-	// Reset state when modal opens
+	// Reset state when modal opens, or when `localOnly` flips on while it's
+	// already open. Without the `localOnly` dependency a parent that toggles
+	// the prop mid-session could leave `activeProvider` on a non-local tab
+	// (the tab UI is suppressed, but the selection state and provider-media
+	// query would still target the external provider).
 	React.useEffect(() => {
 		if (open) {
 			setSelectedItem(null);
@@ -155,13 +172,16 @@ export function MediaPickerModal({
 			setUploadError(null);
 			setProviderDimensions({});
 		}
-	}, [open]);
+	}, [open, localOnly]);
 
-	// Fetch available providers
+	// Fetch available providers — skipped when `localOnly` is set since the
+	// list isn't used (provider tabs are suppressed and the active provider
+	// stays "local"). Avoids a request to /providers on every modal open
+	// when we'll just throw the result away.
 	const { data: providers } = useQuery({
 		queryKey: ["media-providers"],
 		queryFn: fetchMediaProviders,
-		enabled: open,
+		enabled: open && !localOnly,
 		// Default to just local if fetch fails
 		placeholderData: [],
 	});
@@ -190,7 +210,10 @@ export function MediaPickerModal({
 		enabled: open && activeProvider === "local",
 	});
 
-	// Fetch provider media list
+	// Fetch provider media list. Belt-and-suspenders: the reset effect
+	// forces `activeProvider` back to "local" when `localOnly` is true, but
+	// also gate this query directly so a stale render can't fire an
+	// external request between state updates.
 	const { data: providerData, isLoading: providerLoading } = useQuery({
 		queryKey: ["provider-media", activeProvider, filters?.join(",") ?? "", searchQuery],
 		queryFn: () =>
@@ -199,7 +222,7 @@ export function MediaPickerModal({
 				limit: 50,
 				query: searchQuery || undefined,
 			}),
-		enabled: open && activeProvider !== "local",
+		enabled: open && !localOnly && activeProvider !== "local",
 	});
 
 	const isLoading = activeProvider === "local" ? localLoading : providerLoading;
@@ -397,12 +420,14 @@ export function MediaPickerModal({
 	const canSearch = activeProviderInfo?.capabilities.search ?? false;
 
 	// Build provider tabs - always show local first, then add external providers
-	// Filter out "local" from API response since we add it manually
+	// Filter out "local" from API response since we add it manually.
+	// When `localOnly` is set, suppress external providers entirely so the
+	// picker can only return locally-stored media (see prop docs).
 	const providerTabs = React.useMemo(() => {
 		const tabs: Array<{ id: string; name: string; icon?: string }> = [
 			{ id: "local", name: "Library", icon: undefined },
 		];
-		if (providers) {
+		if (providers && !localOnly) {
 			for (const p of providers) {
 				if (p.id !== "local") {
 					tabs.push({ id: p.id, name: p.name, icon: p.icon });
@@ -410,7 +435,7 @@ export function MediaPickerModal({
 			}
 		}
 		return tabs;
-	}, [providers]);
+	}, [providers, localOnly]);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={handleClose}>
@@ -437,7 +462,7 @@ export function MediaPickerModal({
 				</div>
 
 				{/* URL Input (image pickers only — probes image dimensions) */}
-				{!hideUrlInput && (
+				{!hideUrlInput && !localOnly && (
 					<>
 						<div className="border-b pb-4">
 							<Label>{t`Insert from URL`}</Label>

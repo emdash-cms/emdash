@@ -164,6 +164,7 @@ import { PluginStateRepository } from "./plugins/state.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { FTSManager } from "./search/fts-manager.js";
+import { invalidateSiteSettingsCache } from "./settings/index.js";
 
 /**
  * Map schema field types to editor field kinds
@@ -2055,11 +2056,29 @@ export class EmDashRuntime {
 		id: string,
 		input: { alt?: string; caption?: string; width?: number; height?: number },
 	) {
-		return handleMediaUpdate(this.db, id, input);
+		const result = await handleMediaUpdate(this.db, id, input);
+		// Resolved media references in site settings (`logo`, `favicon`,
+		// `seo.defaultOgImage`) bake in the media row's `contentType`,
+		// `width`, and `height`. A metadata edit invalidates that snapshot
+		// for every entry point: REST routes, MCP tools, plugin code, and
+		// any future caller of `handleMediaUpdate`. Cross-isolate staleness
+		// remains bounded by isolate lifetime.
+		if (result.success) {
+			invalidateSiteSettingsCache();
+		}
+		return result;
 	}
 
 	async handleMediaDelete(id: string) {
-		return handleMediaDelete(this.db, id);
+		const result = await handleMediaDelete(this.db, id);
+		// Same reasoning as `handleMediaUpdate`: if the deleted media row
+		// was referenced by a setting, the cached resolved URL now points
+		// at a 404. Invalidation is unconditional on success — cheaper than
+		// querying which settings reference the id.
+		if (result.success) {
+			invalidateSiteSettingsCache();
+		}
+		return result;
 	}
 
 	// =========================================================================

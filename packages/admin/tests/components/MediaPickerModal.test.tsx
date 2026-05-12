@@ -241,6 +241,64 @@ describe("MediaPickerModal", () => {
 			const urlInput = document.querySelector('input[aria-label="Image URL"]');
 			expect(urlInput).toBeNull();
 		});
+
+		it("localOnly hides the URL input section", async () => {
+			// `localOnly` is for fields whose storage model only persists a local
+			// mediaId (e.g. site `logo`, `favicon`, `seo.defaultOgImage`). Selecting
+			// an external URL would return an item the server cannot resolve later.
+			const screen = await renderModal({ localOnly: true });
+
+			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			expect(document.body.textContent).not.toContain("Insert from URL");
+
+			const urlInput = document.querySelector('input[aria-label="Image URL"]');
+			expect(urlInput).toBeNull();
+		});
+
+		it("renders external provider tabs by default (control for localOnly)", async () => {
+			// Establishes that providers DO appear without `localOnly`. Without
+			// this control assertion, the suppression test below could pass
+			// purely because the providers query hadn't resolved yet.
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaProviders as any).mockResolvedValueOnce([
+				{
+					id: "cloudflare-images",
+					name: "Cloudflare Images",
+					capabilities: { upload: true, search: false },
+				},
+			]);
+
+			const screen = await renderModal();
+			await expect.element(screen.getByText("Cloudflare Images")).toBeInTheDocument();
+		});
+
+		it("localOnly suppresses external provider tabs and skips the providers fetch", async () => {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaProviders as any).mockResolvedValueOnce([
+				{
+					id: "cloudflare-images",
+					name: "Cloudflare Images",
+					capabilities: { upload: true, search: false },
+				},
+				{
+					id: "unsplash",
+					name: "Unsplash",
+					capabilities: { upload: false, search: true },
+				},
+			]);
+
+			const screen = await renderModal({ localOnly: true });
+
+			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			// External providers must not be reachable through any tab when
+			// localOnly is set, even if the API would report them.
+			expect(document.body.textContent).not.toContain("Cloudflare Images");
+			expect(document.body.textContent).not.toContain("Unsplash");
+			// `enabled: open && !localOnly` short-circuits the query, so the
+			// fetch should never have been issued. This proves the assertion
+			// above isn't just racing the resolve.
+			expect(api.fetchMediaProviders).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("mediaKind", () => {
