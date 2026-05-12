@@ -368,6 +368,50 @@ describe("MediaPickerModal", () => {
 			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
 		});
 
+		it("keeps already-loaded items visible while fetching the next page", async () => {
+			// Reproduces the Copilot review concern: when the next-page fetch is
+			// in flight, the picker grid must not blank out into a centered
+			// loader — the user's prior selection / scroll context would be lost.
+			const api = await import("../../src/lib/api");
+			const mock = api.fetchMediaList as any;
+			mock.mockReset();
+			let resolveSecond: (value: unknown) => void = () => {};
+			const secondPagePromise = new Promise((resolve) => {
+				resolveSecond = resolve;
+			});
+			mock
+				.mockResolvedValueOnce({
+					items: [
+						{
+							id: "p1",
+							filename: "page1.jpg",
+							mimeType: "image/jpeg",
+							url: "/media/page1.jpg",
+							size: 1024,
+							width: 800,
+							height: 600,
+							createdAt: "2024-01-01",
+						},
+					],
+					nextCursor: "cursor-2",
+				})
+				.mockReturnValueOnce(secondPagePromise);
+
+			const screen = await renderModal();
+			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
+
+			const loadMoreBtn = [...document.querySelectorAll("button")].find(
+				(b) => b.textContent?.trim() === "Load More",
+			)!;
+			loadMoreBtn.click();
+
+			// While the second page is still pending, the first-page item must
+			// stay in the DOM (not be replaced by a centered loader).
+			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
+
+			resolveSecond({ items: [] });
+		});
+
 		it("Load More click fetches the next page with the previous cursor", async () => {
 			const api = await import("../../src/lib/api");
 			const mock = api.fetchMediaList as any;

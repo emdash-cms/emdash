@@ -203,5 +203,19 @@ describe("MediaLibrary", () => {
 			await screen.getByRole("button", { name: "Load More" }).click();
 			expect(onLoadMore).toHaveBeenCalled();
 		});
+
+		it("keeps already-loaded items visible while fetching the next page (isLoading=true with items)", async () => {
+			// Reproduces the Copilot review concern: when isLoading flips true
+			// during a Load-More fetch, the grid must not be blanked out into a
+			// centered spinner — already-rendered items should remain visible.
+			const items = [makeMediaItem({ id: "1", filename: "first-page.jpg" })];
+			const screen = await renderLibrary({
+				items,
+				isLoading: true,
+				hasMore: true,
+				onLoadMore: vi.fn(),
+			});
+			await expect.element(screen.getByAltText("first-page.jpg")).toBeInTheDocument();
+		});
 	});
 });

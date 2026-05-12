@@ -348,7 +348,13 @@ export function MediaLibrary({
 			)}
 
 			{/* Content */}
-			{currentLoading ? (
+			{/*
+			 * Gate the full-area loader on items being empty so that "Load More"
+			 * (which sets isLoading=true while fetching the next page) does not
+			 * blank out the already-rendered grid. Mirrors the ContentList
+			 * pattern from #135.
+			 */}
+			{currentLoading && currentItems.length === 0 && currentProviderItems.length === 0 ? (
 				<div className="flex items-center justify-center py-12">
 					<Loader />
 				</div>

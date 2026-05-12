@@ -584,7 +584,13 @@ export function MediaPickerModal({
 
 				{/* Media Grid */}
 				<div className="flex-1 overflow-y-auto min-h-0">
-					{isLoading ? (
+					{/*
+					 * Gate the centered loader on items being empty so that "Load More"
+					 * (which sets isLoading=true while fetching the next cursor page)
+					 * does not blank out already-rendered items / lose the user's
+					 * selection. Mirrors the ContentList pattern from #135.
+					 */}
+					{isLoading && items.length === 0 ? (
 						<div className="flex items-center justify-center h-full">
 							<Loader />
 						</div>
