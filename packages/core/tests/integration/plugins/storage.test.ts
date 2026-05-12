@@ -8,7 +8,15 @@ import {
 	deletePluginCollection,
 } from "../../../src/database/repositories/plugin-storage.js";
 import type { Database } from "../../../src/database/types.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+	type DialectName,
+	type DialectTestContext,
+} from "../../utils/test-db.js";
 
 interface AnalyticsEvent {
 	eventType: string;
@@ -289,5 +297,33 @@ describe("Plugin Storage Integration", () => {
 			const count = await repo.count();
 			expect(count).toBe(5);
 		});
+	});
+});
+
+describeEachDialect("Plugin Storage filtered queries", (dialect: DialectName) => {
+	let ctx: DialectTestContext;
+	let repo: PluginStorageRepository<{ name: string; status: string }>;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		repo = new PluginStorageRepository(ctx.db, "filtered-plugin", "items", ["name", "status"]);
+		await repo.putMany([
+			{ id: "one", data: { name: "alpha", status: "active" } },
+			{ id: "two", data: { name: "beta", status: "inactive" } },
+			{ id: "three", data: { name: "alpha", status: "active" } },
+		]);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("should query and count with indexed filters", async () => {
+		const result = await repo.query({ where: { name: "alpha" } });
+		const count = await repo.count({ status: "active" });
+
+		expect(result.items).toHaveLength(2);
+		expect(result.items.every((item) => item.data.name === "alpha")).toBe(true);
+		expect(count).toBe(2);
 	});
 });

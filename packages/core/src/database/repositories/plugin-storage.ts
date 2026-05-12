@@ -7,7 +7,7 @@
  * @see PLUGIN-SYSTEM.md § Plugin Storage > Full API Reference
  */
 
-import type { Kysely } from "kysely";
+import type { Kysely, SqlBool } from "kysely";
 import { sql } from "kysely";
 
 import {
@@ -223,7 +223,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 					whereSqlParts.push(sql.raw(sqlParts[i]));
 				}
 			}
-			query = query.where(({ eb }) => eb(sql.join(whereSqlParts, sql.raw("")), "=", sql.raw("1")));
+			query = query.where(sql<SqlBool>`${sql.join(whereSqlParts, sql.raw(""))}`);
 		}
 
 		// Handle cursor-based pagination — throws on invalid cursor.
@@ -301,9 +301,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 						whereSqlParts.push(sql.raw(sqlParts[i]));
 					}
 				}
-				query = query.where(({ eb }) =>
-					eb(sql.join(whereSqlParts, sql.raw("")), "=", sql.raw("1")),
-				);
+				query = query.where(sql<SqlBool>`${sql.join(whereSqlParts, sql.raw(""))}`);
 			}
 		}
 

@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { Kysely, PostgresDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { PluginStorageRepository } from "../../../src/database/repositories/plugin-storage.js";
@@ -6,6 +6,31 @@ import type { Database } from "../../../src/database/types.js";
 import { IdentifierError } from "../../../src/database/validate.js";
 import { StorageQueryError } from "../../../src/plugins/storage-query.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
+type PostgresDialectPool = ConstructorParameters<typeof PostgresDialect>[0]["pool"];
+
+function createRecordingPostgresDatabase(sqlLog: string[]): Kysely<Database> {
+	const client = {
+		async query(query: string | { text?: string }) {
+			const text = typeof query === "string" ? query : (query.text ?? "");
+			sqlLog.push(text);
+			return text.includes("COUNT(*)")
+				? { rows: [{ count: 0 }], rowCount: 1 }
+				: { rows: [], rowCount: 0 };
+		},
+		release() {},
+	};
+	const pool = {
+		async connect() {
+			return client;
+		},
+		async end() {},
+	};
+
+	return new Kysely<Database>({
+		dialect: new PostgresDialect({ pool: pool as PostgresDialectPool }),
+	});
+}
 
 interface TestDocument {
 	title: string;
@@ -439,5 +464,41 @@ describe("PluginStorageRepository", () => {
 			const result = await otherRepo.get("doc1");
 			expect(result).toBeNull();
 		});
+	});
+});
+
+describe("Postgres filtered plugin storage SQL", () => {
+	it("should not compare query() predicates to an integer sentinel", async () => {
+		const sqlLog: string[] = [];
+		const db = createRecordingPostgresDatabase(sqlLog);
+		const repo = new PluginStorageRepository<{ name: string }>(db, "test-plugin", "items", [
+			"name",
+		]);
+
+		try {
+			await repo.query({ where: { name: "foo" } });
+		} finally {
+			await db.destroy();
+		}
+
+		expect(sqlLog[0]).toContain("data->>'name'");
+		expect(sqlLog[0]).not.toContain("= 1");
+	});
+
+	it("should not compare count() predicates to an integer sentinel", async () => {
+		const sqlLog: string[] = [];
+		const db = createRecordingPostgresDatabase(sqlLog);
+		const repo = new PluginStorageRepository<{ name: string }>(db, "test-plugin", "items", [
+			"name",
+		]);
+
+		try {
+			await repo.count({ name: "foo" });
+		} finally {
+			await db.destroy();
+		}
+
+		expect(sqlLog[0]).toContain("data->>'name'");
+		expect(sqlLog[0]).not.toContain("= 1");
 	});
 });
