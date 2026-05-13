@@ -30,6 +30,8 @@ import type {
 const SIMPLE_ID = /^[a-z0-9-]+$/;
 const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
+const MCP_TOOL_NAME_PATTERN = /^(?!.*__)[a-z][a-z0-9_]*$/;
+const LEADING_SLASH_PATTERN = /^\/+/;
 
 /**
  * Define an EmDash plugin.
@@ -102,12 +104,31 @@ export function definePlugin<TStorage extends PluginStorageConfig>(
 					"For native format, provide `id` and `version`.",
 			);
 		}
+		validateStandardMcpTools(definition);
 		// Identity function -- return as-is for type inference.
 		// The adapter (adaptSandboxEntry) will convert this to a ResolvedPlugin at build time.
 		return definition;
 	}
 
 	return defineNativePlugin(definition);
+}
+
+function validateStandardMcpTools(definition: StandardPluginDefinition): void {
+	const routes = definition.routes ?? {};
+	for (const [toolName, tool] of Object.entries(definition.mcpTools ?? {})) {
+		if (!MCP_TOOL_NAME_PATTERN.test(toolName)) {
+			throw new Error(
+				`Invalid MCP tool name "${toolName}". Must be lowercase snake_case and must not contain double underscores.`,
+			);
+		}
+
+		const routeName = tool.route.replace(LEADING_SLASH_PATTERN, "");
+		if (!(routeName in routes)) {
+			throw new Error(
+				`Invalid MCP tool route "${tool.route}". MCP tool routes must be declared in routes.`,
+			);
+		}
+	}
 }
 
 /**
@@ -203,6 +224,25 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		!canonical.includes("network:request")
 	) {
 		normalizedCapabilities.push("network:request");
+	}
+
+	const mcpToolEntries = Object.entries(mcpTools);
+	if (mcpToolEntries.length > 0 && !normalizedCapabilities.includes("mcp:tools")) {
+		throw new Error(`Plugin "${id}" declares MCP tools but is missing the "mcp:tools" capability.`);
+	}
+	for (const [toolName, tool] of mcpToolEntries) {
+		if (!MCP_TOOL_NAME_PATTERN.test(toolName)) {
+			throw new Error(
+				`Invalid MCP tool name "${toolName}" in plugin "${id}". Must be lowercase snake_case and must not contain double underscores.`,
+			);
+		}
+
+		const routeName = tool.route.replace(LEADING_SLASH_PATTERN, "");
+		if (!(routeName in routes)) {
+			throw new Error(
+				`Invalid MCP tool route "${tool.route}" in plugin "${id}". MCP tool routes must be declared in routes.`,
+			);
+		}
 	}
 
 	// Normalize hooks

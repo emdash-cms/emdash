@@ -110,12 +110,25 @@ describe("pluginManifestSchema — MCP tool entries", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
 			capabilities: ["mcp:tools"],
+			routes: ["tools/summarize"],
 			mcpTools: [
 				{
 					name: "summarize",
 					title: "Summarize Text",
 					description: "Summarize content using the plugin.",
 					route: "tools/summarize",
+					inputSchema: {
+						type: "object",
+						properties: {
+							text: {
+								type: "string",
+								description: "Text to summarize.",
+								minLength: 1,
+							},
+						},
+						required: ["text"],
+						additionalProperties: false,
+					},
 				},
 			],
 		});
@@ -128,6 +141,18 @@ describe("pluginManifestSchema — MCP tool entries", () => {
 					title: "Summarize Text",
 					description: "Summarize content using the plugin.",
 					route: "tools/summarize",
+					inputSchema: {
+						type: "object",
+						properties: {
+							text: {
+								type: "string",
+								description: "Text to summarize.",
+								minLength: 1,
+							},
+						},
+						required: ["text"],
+						additionalProperties: false,
+					},
 				},
 			]);
 		}
@@ -136,11 +161,85 @@ describe("pluginManifestSchema — MCP tool entries", () => {
 	it("should reject MCP tool names outside lowercase snake_case", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
+			capabilities: ["mcp:tools"],
+			routes: ["tools/summarize"],
 			mcpTools: [
 				{
 					name: "Summarize",
 					description: "Invalid tool name.",
 					route: "tools/summarize",
+				},
+			],
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it("should reject MCP tool names with double underscores", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			capabilities: ["mcp:tools"],
+			routes: ["tools/summarize"],
+			mcpTools: [
+				{
+					name: "bad__name",
+					description: "Invalid tool name.",
+					route: "tools/summarize",
+				},
+			],
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it("should reject MCP tools without the mcp:tools capability", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: ["tools/summarize"],
+			mcpTools: [
+				{
+					name: "summarize",
+					description: "Summarize text.",
+					route: "tools/summarize",
+				},
+			],
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it("should reject MCP tools that reference undeclared routes", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			capabilities: ["mcp:tools"],
+			routes: ["tools/other"],
+			mcpTools: [
+				{
+					name: "summarize",
+					description: "Summarize text.",
+					route: "tools/summarize",
+				},
+			],
+		});
+
+		expect(result.success).toBe(false);
+	});
+
+	it("should reject unsupported JSON Schema keywords in MCP input schemas", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			capabilities: ["mcp:tools"],
+			routes: ["tools/summarize"],
+			mcpTools: [
+				{
+					name: "summarize",
+					description: "Summarize text.",
+					route: "tools/summarize",
+					inputSchema: {
+						type: "object",
+						properties: {},
+						$ref: "#/$defs/input",
+					},
 				},
 			],
 		});

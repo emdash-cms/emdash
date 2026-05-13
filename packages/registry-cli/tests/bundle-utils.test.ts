@@ -80,6 +80,13 @@ describe("extractManifest", () => {
 						title: "Summarize",
 						description: "Summarize text.",
 						route: "summarize",
+						inputSchema: {
+							type: "object",
+							properties: {
+								text: { type: "string" },
+							},
+							required: ["text"],
+						},
 					},
 				},
 			}),
@@ -91,6 +98,13 @@ describe("extractManifest", () => {
 				title: "Summarize",
 				description: "Summarize text.",
 				route: "summarize",
+				inputSchema: {
+					type: "object",
+					properties: {
+						text: { type: "string" },
+					},
+					required: ["text"],
+				},
 			},
 		]);
 	});

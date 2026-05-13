@@ -25,7 +25,7 @@ import {
 	type CurrentPluginCapability,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
-	type ManifestMcpToolEntry,
+	type ManifestMcpToolEntry as SharedManifestMcpToolEntry,
 	type ManifestRouteEntry,
 	type PluginCapability,
 	type PluginStorageConfig,
@@ -47,12 +47,64 @@ export {
 	type CurrentPluginCapability,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
-	type ManifestMcpToolEntry,
 	type ManifestRouteEntry,
 	type PluginCapability,
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
 };
+
+export interface ManifestJsonSchemaBase {
+	title?: string;
+	description?: string;
+	default?: unknown;
+}
+
+export interface ManifestJsonStringSchema extends ManifestJsonSchemaBase {
+	type: "string";
+	enum?: string[];
+	format?: "date-time" | "email" | "uri" | "uuid";
+	minLength?: number;
+	maxLength?: number;
+	pattern?: string;
+}
+
+export interface ManifestJsonNumberSchema extends ManifestJsonSchemaBase {
+	type: "number" | "integer";
+	enum?: number[];
+	minimum?: number;
+	maximum?: number;
+}
+
+export interface ManifestJsonBooleanSchema extends ManifestJsonSchemaBase {
+	type: "boolean";
+	enum?: boolean[];
+}
+
+export interface ManifestJsonArraySchema extends ManifestJsonSchemaBase {
+	type: "array";
+	items: ManifestJsonSchema;
+	minItems?: number;
+	maxItems?: number;
+}
+
+export interface ManifestJsonObjectSchema extends ManifestJsonSchemaBase {
+	type: "object";
+	properties?: Record<string, ManifestJsonSchema>;
+	required?: string[];
+	additionalProperties?: boolean;
+}
+
+export type ManifestJsonSchema =
+	| ManifestJsonStringSchema
+	| ManifestJsonNumberSchema
+	| ManifestJsonBooleanSchema
+	| ManifestJsonArraySchema
+	| ManifestJsonObjectSchema;
+
+export interface ManifestMcpToolEntry extends SharedManifestMcpToolEntry {
+	/** JSON Schema object used for MCP input validation and client introspection. */
+	inputSchema?: ManifestJsonObjectSchema;
+}
 
 // =============================================================================
 // Storage Types
@@ -1093,6 +1145,8 @@ export interface PluginMcpTool {
 	route: string;
 	/** Optional Zod schema for MCP argument validation */
 	input?: z.ZodType<Record<string, unknown>>;
+	/** Optional JSON Schema object for manifest output and MCP introspection */
+	inputSchema?: ManifestJsonObjectSchema;
 }
 
 export interface PluginMcpToolRegistration {
@@ -1102,6 +1156,7 @@ export interface PluginMcpToolRegistration {
 	description: string;
 	route: string;
 	input?: z.ZodType<Record<string, unknown>>;
+	inputSchema?: ManifestJsonObjectSchema;
 }
 
 // =============================================================================
@@ -1388,6 +1443,7 @@ export interface StandardMcpToolEntry {
 	description: string;
 	route: string;
 	input?: unknown;
+	inputSchema?: ManifestJsonObjectSchema;
 }
 
 /**

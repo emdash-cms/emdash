@@ -130,13 +130,100 @@ const manifestRouteEntrySchema = z.object({
 	public: z.boolean().optional(),
 });
 
-const mcpToolNamePattern = /^[a-z][a-z0-9_]*$/;
+const mcpToolNamePattern = /^(?!.*__)[a-z][a-z0-9_]*$/;
+
+const jsonSchemaPattern = z.string().refine(
+	(pattern) => {
+		try {
+			RegExp(pattern);
+			return true;
+		} catch {
+			return false;
+		}
+	},
+	{ message: "Pattern must be a valid regular expression" },
+);
+
+const manifestJsonSchemaBase = z.object({
+	title: z.string().min(1).optional(),
+	description: z.string().min(1).optional(),
+	default: z.unknown().optional(),
+});
+
+const manifestJsonSchema: z.ZodType = z.lazy(() =>
+	z.discriminatedUnion("type", [
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("string"),
+				enum: z.array(z.string()).min(1).optional(),
+				format: z.enum(["date-time", "email", "uri", "uuid"]).optional(),
+				minLength: z.number().int().nonnegative().optional(),
+				maxLength: z.number().int().nonnegative().optional(),
+				pattern: jsonSchemaPattern.optional(),
+			})
+			.strict(),
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("number"),
+				enum: z.array(z.number()).min(1).optional(),
+				minimum: z.number().optional(),
+				maximum: z.number().optional(),
+			})
+			.strict(),
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("integer"),
+				enum: z.array(z.number().int()).min(1).optional(),
+				minimum: z.number().optional(),
+				maximum: z.number().optional(),
+			})
+			.strict(),
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("boolean"),
+				enum: z.array(z.boolean()).min(1).optional(),
+			})
+			.strict(),
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("array"),
+				items: manifestJsonSchema,
+				minItems: z.number().int().nonnegative().optional(),
+				maxItems: z.number().int().nonnegative().optional(),
+			})
+			.strict(),
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("object"),
+				properties: z.record(z.string(), manifestJsonSchema).optional(),
+				required: z.array(z.string()).optional(),
+				additionalProperties: z.boolean().optional(),
+			})
+			.strict(),
+	]),
+);
+
+const manifestJsonObjectSchema = manifestJsonSchemaBase
+	.extend({
+		type: z.literal("object"),
+		properties: z.record(z.string(), manifestJsonSchema).optional(),
+		required: z.array(z.string()).optional(),
+		additionalProperties: z.boolean().optional(),
+	})
+	.strict();
 
 const manifestMcpToolEntrySchema = z.object({
-	name: z.string().min(1).regex(mcpToolNamePattern, "MCP tool name must be lowercase snake_case"),
+	name: z
+		.string()
+		.min(1)
+		.regex(
+			mcpToolNamePattern,
+			"MCP tool name must be lowercase snake_case and must not contain double underscores",
+		),
 	title: z.string().min(1).optional(),
 	description: z.string().min(1),
 	route: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
+	inputSchema: manifestJsonObjectSchema.optional(),
 });
 
 // ── Sub-schemas ─────────────────────────────────────────────────
@@ -236,32 +323,55 @@ const pluginAdminConfigSchema = z.object({
  *
  * Every JSON.parse of a manifest.json should validate through this.
  */
-export const pluginManifestSchema = z.object({
-	id: z.string().min(1),
-	version: z.string().min(1),
-	capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)),
-	allowedHosts: z.array(z.string()),
-	storage: z.record(z.string(), storageCollectionSchema),
-	/**
-	 * Hook declarations — accepts both plain name strings (legacy) and
-	 * structured objects with exclusive/priority/timeout metadata.
-	 * Plain strings are normalized to `{ name }` objects after parsing.
-	 */
-	hooks: z.array(z.union([z.enum(HOOK_NAMES), manifestHookEntrySchema])),
-	/**
-	 * Route declarations — accepts both plain name strings and
-	 * structured objects with public metadata.
-	 * Plain strings are normalized to `{ name }` objects after parsing.
-	 */
-	routes: z.array(
-		z.union([
-			z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-			manifestRouteEntrySchema,
-		]),
-	),
-	mcpTools: z.array(manifestMcpToolEntrySchema).optional().default([]),
-	admin: pluginAdminConfigSchema,
-});
+export const pluginManifestSchema = z
+	.object({
+		id: z.string().min(1),
+		version: z.string().min(1),
+		capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)),
+		allowedHosts: z.array(z.string()),
+		storage: z.record(z.string(), storageCollectionSchema),
+		/**
+		 * Hook declarations — accepts both plain name strings (legacy) and
+		 * structured objects with exclusive/priority/timeout metadata.
+		 * Plain strings are normalized to `{ name }` objects after parsing.
+		 */
+		hooks: z.array(z.union([z.enum(HOOK_NAMES), manifestHookEntrySchema])),
+		/**
+		 * Route declarations — accepts both plain name strings and
+		 * structured objects with public metadata.
+		 * Plain strings are normalized to `{ name }` objects after parsing.
+		 */
+		routes: z.array(
+			z.union([
+				z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
+				manifestRouteEntrySchema,
+			]),
+		),
+		mcpTools: z.array(manifestMcpToolEntrySchema).optional().default([]),
+		admin: pluginAdminConfigSchema,
+	})
+	.superRefine((manifest, ctx) => {
+		if (manifest.mcpTools.length === 0) return;
+
+		if (!manifest.capabilities.includes("mcp:tools")) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["capabilities"],
+				message: 'Manifest with MCP tools must include the "mcp:tools" capability',
+			});
+		}
+
+		const routeNames = new Set(manifest.routes.map((route) => normalizeManifestRoute(route).name));
+		for (const [index, tool] of manifest.mcpTools.entries()) {
+			if (!routeNames.has(tool.route)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["mcpTools", index, "route"],
+					message: "MCP tool route must be declared in routes",
+				});
+			}
+		}
+	});
 
 export type ValidatedPluginManifest = z.infer<typeof pluginManifestSchema>;
 

@@ -2161,19 +2161,27 @@ export class EmDashRuntime {
 
 	getPluginMcpTools(): import("./plugins/types.js").PluginMcpToolRegistration[] {
 		const tools: import("./plugins/types.js").PluginMcpToolRegistration[] = [];
+		const seen = new Set<string>();
+		const addTool = (tool: import("./plugins/types.js").PluginMcpToolRegistration) => {
+			const key = `${tool.pluginId}\0${tool.name}`;
+			if (seen.has(key)) return;
+			seen.add(key);
+			tools.push(tool);
+		};
 
 		for (const plugin of this.configuredPlugins) {
 			if (!this.isPluginEnabled(plugin.id)) continue;
 			if (!plugin.capabilities.includes("mcp:tools")) continue;
 
 			for (const [name, tool] of Object.entries(plugin.mcpTools ?? {})) {
-				tools.push({
+				addTool({
 					pluginId: plugin.id,
 					name,
 					title: tool.title,
 					description: tool.description,
 					route: tool.route,
 					input: tool.input,
+					inputSchema: tool.inputSchema,
 				});
 			}
 		}
@@ -2184,12 +2192,13 @@ export class EmDashRuntime {
 			if (!this.findSandboxedPlugin(entry.id)) continue;
 
 			for (const tool of entry.mcpTools ?? []) {
-				tools.push({
+				addTool({
 					pluginId: entry.id,
 					name: tool.name,
 					title: tool.title,
 					description: tool.description,
 					route: tool.route,
+					inputSchema: tool.inputSchema,
 				});
 			}
 		}
@@ -2200,12 +2209,13 @@ export class EmDashRuntime {
 			if (!this.findSandboxedPlugin(pluginId)) continue;
 
 			for (const tool of meta.mcpTools ?? []) {
-				tools.push({
+				addTool({
 					pluginId,
 					name: tool.name,
 					title: tool.title,
 					description: tool.description,
 					route: tool.route,
+					inputSchema: tool.inputSchema,
 				});
 			}
 		}

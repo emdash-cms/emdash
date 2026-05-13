@@ -186,6 +186,54 @@ export interface ManifestRouteEntry {
 	public?: boolean;
 }
 
+export interface ManifestJsonSchemaBase {
+	title?: string;
+	description?: string;
+	default?: unknown;
+}
+
+export interface ManifestJsonStringSchema extends ManifestJsonSchemaBase {
+	type: "string";
+	enum?: string[];
+	format?: "date-time" | "email" | "uri" | "uuid";
+	minLength?: number;
+	maxLength?: number;
+	pattern?: string;
+}
+
+export interface ManifestJsonNumberSchema extends ManifestJsonSchemaBase {
+	type: "number" | "integer";
+	enum?: number[];
+	minimum?: number;
+	maximum?: number;
+}
+
+export interface ManifestJsonBooleanSchema extends ManifestJsonSchemaBase {
+	type: "boolean";
+	enum?: boolean[];
+}
+
+export interface ManifestJsonArraySchema extends ManifestJsonSchemaBase {
+	type: "array";
+	items: ManifestJsonSchema;
+	minItems?: number;
+	maxItems?: number;
+}
+
+export interface ManifestJsonObjectSchema extends ManifestJsonSchemaBase {
+	type: "object";
+	properties?: Record<string, ManifestJsonSchema>;
+	required?: string[];
+	additionalProperties?: boolean;
+}
+
+export type ManifestJsonSchema =
+	| ManifestJsonStringSchema
+	| ManifestJsonNumberSchema
+	| ManifestJsonBooleanSchema
+	| ManifestJsonArraySchema
+	| ManifestJsonObjectSchema;
+
 /**
  * MCP tool entry in a plugin manifest.
  *
@@ -198,6 +246,8 @@ export interface ManifestMcpToolEntry {
 	title?: string;
 	description: string;
 	route: string;
+	/** JSON Schema object used for MCP input validation and client introspection. */
+	inputSchema?: ManifestJsonObjectSchema;
 }
 
 /**

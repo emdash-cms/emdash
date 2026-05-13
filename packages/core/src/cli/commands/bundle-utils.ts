@@ -161,6 +161,7 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 			title: tool.title,
 			description: tool.description,
 			route: tool.route,
+			inputSchema: tool.inputSchema,
 		})),
 		admin: {
 			// Omit entry (it's a module specifier for the host, not relevant in bundles)

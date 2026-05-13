@@ -39,6 +39,7 @@ export interface PluginMcpToolDescriptor {
 	title?: string;
 	description: string;
 	route: string;
+	inputSchema?: import("../../plugins/types.js").ManifestJsonObjectSchema;
 }
 
 /**

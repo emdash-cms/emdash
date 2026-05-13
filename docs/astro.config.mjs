@@ -106,6 +106,7 @@ export default defineConfig({
 						{ label: "API Routes", slug: "plugins/creating-plugins/api-routes" },
 						{ label: "Storage", slug: "plugins/creating-plugins/storage" },
 						{ label: "Settings", slug: "plugins/creating-plugins/settings" },
+						{ label: "MCP Tools", slug: "plugins/creating-plugins/mcp-tools" },
 						{ label: "Block Kit", slug: "plugins/creating-plugins/block-kit" },
 						{
 							label: "Capabilities & Security",
