@@ -13,6 +13,13 @@ on:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
+# Default-deny at the workflow level. Each job scopes its own permissions:
+# - `release` declares contents/id-token/pull-requests below.
+# - `sync-templates` calls a reusable workflow whose own job-level
+#   permissions block (contents: read) takes precedence over the caller's
+#   inherited permissions.
+permissions: {}
+
 jobs:
   release:
     name: Release
@@ -36,6 +43,9 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
+          # Intentional: changesets/action pushes the release PR / tags
+          # using this credential.
+          persist-credentials: true
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
@@ -79,4 +89,8 @@ jobs:
       needs.release.outputs.published == 'true' ||
       inputs.publish-only
     uses: ./.github/workflows/sync-templates.yml
-    secrets: inherit
+    # Pass only the secrets sync-templates actually uses, not the full set
+    # available to this release workflow.
+    secrets:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
