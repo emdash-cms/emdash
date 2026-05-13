@@ -41,7 +41,6 @@
 import type { Handle } from "@atcute/lexicons";
 import type { Kysely } from "kysely";
 
-import type { RegistryConfig } from "../../astro/integration/runtime.js";
 import type { Database } from "../../database/types.js";
 import { extractBundle } from "../../plugins/marketplace.js";
 import type { PluginBundle } from "../../plugins/marketplace.js";
@@ -54,6 +53,7 @@ import {
 	validateAggregatorUrl,
 } from "../../registry/config.js";
 import { makeRegistryPluginId } from "../../registry/plugin-id.js";
+import type { RegistryConfig } from "../../registry/types.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";

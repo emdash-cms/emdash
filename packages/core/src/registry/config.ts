@@ -8,7 +8,7 @@
  * seconds so the browser doesn't need a duration parser.
  */
 
-import type { RegistryConfig } from "../astro/integration/runtime.js";
+import type { RegistryConfig } from "./types.js";
 
 /**
  * Shape returned in the admin manifest's `registry` field. The browser

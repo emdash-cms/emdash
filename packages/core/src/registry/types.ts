@@ -1,0 +1,138 @@
+/**
+ * Public types for the experimental plugin registry.
+ *
+ * Kept in their own module so they don't get re-bundled into the
+ * `astro/integration/runtime.ts` chunk's dist output. tsdown / rolldown
+ * are sensitive to which top-level types live alongside `definePlugin`'s
+ * overloads, and pulling these types into the integration module
+ * affected downstream `definePlugin()` overload resolution for trusted
+ * plugins built against core's dist (see commit history for the
+ * detailed write-up).
+ */
+
+/**
+ * Experimental plugin registry configuration.
+ *
+ * See {@link ExperimentalConfig.registry}.
+ */
+export interface RegistryConfig {
+	/**
+	 * Base URL of the registry aggregator (an atproto AppView that indexes
+	 * the firehose for `pm.fair.package.*` and `com.emdashcms.*` records).
+	 *
+	 * Must be the origin where the aggregator's XRPC endpoints are mounted,
+	 * such that `${aggregatorUrl}/xrpc/<nsid>` resolves to a valid endpoint.
+	 *
+	 * Must be HTTPS in production; `http://localhost` or `http://127.0.0.1`
+	 * are accepted in dev.
+	 */
+	aggregatorUrl: string;
+
+	/**
+	 * Optional comma-separated list of labeller DIDs forwarded as the
+	 * `atproto-accept-labelers` header on every aggregator request.
+	 *
+	 * Format follows the atproto convention:
+	 * `did:plc:abc;redact, did:plc:def`
+	 *
+	 * When unset, the aggregator applies its operator-default labeller set
+	 * (typically the EmDash publisher-verification labeller and any
+	 * additional trusted labellers the aggregator operator configured).
+	 */
+	acceptLabelers?: string;
+
+	/**
+	 * Site-level policy applied to the latest-release selection filter.
+	 *
+	 * These filters operate over the signed records the aggregator returns;
+	 * they are not protocol-level constraints. See the RFC's
+	 * "Update Discovery and Takedowns" section for the integration point.
+	 */
+	policy?: {
+		/**
+		 * Hold back releases newer than this when computing the recommended
+		 * install or update version. Mitigates "compromised publisher
+		 * account pushes a malicious release of an established plugin" by
+		 * giving the takedown labeller a detection window.
+		 *
+		 * Accepts a duration string (`"24h"`, `"48h"`, `"72h"`, `"7d"`) or a
+		 * number of seconds.
+		 *
+		 * Currently applies uniformly to all releases. A future addition
+		 * may exempt brand-new packages (those with no prior release
+		 * history) so the holdback doesn't block first-time publishing,
+		 * but that exemption is not implemented yet; use
+		 * {@link minimumReleaseAgeExclude} to allowlist trusted publishers
+		 * whose packages should install immediately.
+		 *
+		 * Defaults to `undefined` (no holdback). A future trust/moderation
+		 * RFC will specify the recommended default.
+		 */
+		minimumReleaseAge?: string | number;
+
+		/**
+		 * Packages exempt from the {@link minimumReleaseAge} holdback. Use
+		 * for publishers whose release tempo you've explicitly accepted --
+		 * your own first-party plugins, a trusted partner, etc.
+		 *
+		 * Each entry is either:
+		 *   - A bare publisher DID (e.g. `"did:plc:abc123"`) -- every
+		 *     package from that publisher is exempt.
+		 *   - A `<did>/<slug>` pair (e.g.
+		 *     `"did:plc:abc123/hotfix-plugin"`) -- only that specific
+		 *     package is exempt.
+		 *
+		 * Whole-publisher exemptions are the common case: trust is
+		 * naturally a property of the publisher, not of each individual
+		 * package. Per-package exemptions exist for cases where a publisher
+		 * has one plugin you want fast-track installs for and others you'd
+		 * rather hold back.
+		 *
+		 * Only DIDs are accepted -- not handles. Handles are mutable
+		 * aggregator-supplied envelope data, and accepting them as a
+		 * trust input would let a compromised aggregator bypass the
+		 * holdback by claiming any handle for any package. DIDs are
+		 * tied to the AT URI of the package record itself, so even a
+		 * compromised aggregator cannot lie about which DID published
+		 * a release.
+		 *
+		 * Mirrors pnpm's `minimumReleaseAgeExclude`.
+		 *
+		 * @example
+		 * ```ts
+		 * minimumReleaseAgeExclude: [
+		 *   "did:plc:emdashfirstparty",     // every package from this publisher
+		 *   "did:plc:abc123/hotfix-plugin", // just this one package
+		 * ]
+		 * ```
+		 */
+		minimumReleaseAgeExclude?: readonly string[];
+	};
+}
+
+/**
+ * Experimental EmDash features. See `EmDashConfig.experimental`.
+ *
+ * Each field is independently opt-in. Fields may be promoted out of
+ * `experimental` (becoming top-level `EmDashConfig` options) or removed
+ * in minor releases; check the changelog when upgrading.
+ */
+export interface ExperimentalConfig {
+	/**
+	 * Decentralized plugin registry.
+	 *
+	 * When set, replaces the centralized `marketplace` for the admin UI's
+	 * browse and install flows. The registry is an atproto-backed
+	 * federation: package metadata lives in each publisher's PDS, an
+	 * aggregator (the `aggregatorUrl`) indexes the firehose and exposes
+	 * read-only XRPC endpoints for discovery, and EmDash verifies each
+	 * release against the publisher's signed records before installing.
+	 *
+	 * See [RFC 0001](https://github.com/emdash-cms/emdash/pull/694) for
+	 * the protocol design and threat model.
+	 *
+	 * Requires `sandboxRunner` to be configured -- registry plugins always
+	 * run sandboxed.
+	 */
+	registry?: RegistryConfig;
+}
