@@ -139,6 +139,9 @@ jobs:
         with:
           ref: ${{ steps.pr.outputs.sha }}
           token: ${{ steps.app-token.outputs.token }}
+          # Intentional: the same-repo push step below pushes the
+          # updated snapshots back to the PR branch using this credential.
+          persist-credentials: true
 
       # --- Fork PRs: checkout the fork at the pinned SHA so we can push back ---
 
