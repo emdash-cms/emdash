@@ -38,22 +38,26 @@ export interface ManifestRegistryConfig {
 }
 
 /**
- * Normalize a capabilities list for set-style comparison.
+ * Canonicalize a capabilities list for set-style comparison.
  *
  * Capabilities (the legacy declared-access shape used by the current
  * sandbox enforcer) are conceptually a *set*: order, duplicates, and
  * non-string entries don't carry meaning. The install handler's drift
  * check compares the admin's acknowledged set against the bundle
- * manifest's set; both sides pass through this normalizer first so
+ * manifest's set; both sides pass through this canonicalizer first so
  * an aggregator-supplied array with unstable order or junk entries
  * can't cause a spurious drift rejection.
  *
- * Filters non-strings, deduplicates, and sorts lexically. Exported so
- * the same shape is produced by the browser before sending the
- * `acknowledgedDeclaredAccess` payload and by the server before
+ * Filters non-strings, deduplicates, and sorts lexically. Named to
+ * avoid shadowing `@emdash-cms/plugin-types`'s existing
+ * `normalizeCapabilities` (which dedupes + applies the deprecated →
+ * current alias map but does not filter junk or sort).
+ *
+ * Exported so the same shape is produced by the browser before sending
+ * the `acknowledgedDeclaredAccess` payload and by the server before
  * comparing against the bundle.
  */
-export function normalizeCapabilities(value: unknown): string[] {
+export function canonicalCapabilitiesForDriftCheck(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];
 	const seen = new Set<string>();
 	for (const entry of value) {
@@ -61,7 +65,7 @@ export function normalizeCapabilities(value: unknown): string[] {
 			seen.add(entry);
 		}
 	}
-	return Array.from(seen).sort();
+	return [...seen].toSorted();
 }
 
 /**

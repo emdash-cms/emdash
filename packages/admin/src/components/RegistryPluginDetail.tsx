@@ -21,9 +21,9 @@ import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
+	canonicalCapabilitiesForDriftCheck,
 	getLatestRegistryRelease,
 	installRegistryPlugin,
-	normalizeCapabilities,
 	releasePassesPolicy,
 	resolveRegistryPackage,
 	type RegistryClientConfig,
@@ -84,14 +84,21 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	)?.[1];
 
 	const capabilities: string[] = Array.isArray(ext?.capabilities)
-		? normalizeCapabilities(ext?.capabilities)
-		: normalizeCapabilities(declaredAccessToCapabilityList(ext?.declaredAccess));
+		? canonicalCapabilitiesForDriftCheck(ext?.capabilities)
+		: canonicalCapabilitiesForDriftCheck(declaredAccessToCapabilityList(ext?.declaredAccess));
 
 	const profile = pkg?.profile as { name?: string; description?: string } | undefined;
 	const verified = (pkg?.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
 	const policyOk =
 		release && pkg ? releasePassesPolicy(release, { did: pkg.did, slug }, config.policy) : true;
+	// Install requires a resolvable handle: the server validates handles
+	// with at least one `.`, which DID strings (`did:plc:abc`) don't
+	// satisfy. Publishers whose handle the aggregator couldn't resolve
+	// (or who haven't claimed one yet) can't be installed today. Surface
+	// the limitation in the UI rather than letting the user click into
+	// `INVALID_HANDLE` from the server.
+	const hasResolvableHandle = Boolean(pkg?.handle && pkg.handle.includes("."));
 
 	const installMutation = useMutation({
 		mutationFn: () =>
@@ -99,7 +106,17 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				handle,
 				slug,
 				version: release?.version,
-				acknowledgedDeclaredAccess: capabilities,
+				// Only send the acknowledgement when the dialog had real
+				// capability data to display. The server's drift check is
+				// gated on `acknowledgedDeclaredAccess !== undefined`, so
+				// omitting the field opts out of the check entirely --
+				// correct behaviour for the (currently common) case where
+				// the publisher's release record doesn't yet carry an
+				// extension block. The bundle's actual capabilities are
+				// still bound to the checksum-verified bytes; the drift
+				// check is a UX sanity belt for already-displayed
+				// consent, not an authorization gate.
+				acknowledgedDeclaredAccess: capabilities.length > 0 ? capabilities : undefined,
 			}),
 		onSuccess: () => {
 			setShowConsent(false);
@@ -173,13 +190,29 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				<div>
 					<Button
 						variant="primary"
-						disabled={!release || !policyOk}
+						disabled={!release || !policyOk || !hasResolvableHandle}
 						onClick={() => setShowConsent(true)}
 					>
 						{t`Install`}
 					</Button>
 				</div>
 			</div>
+
+			{/* Unresolvable handle notice */}
+			{pkg && !hasResolvableHandle ? (
+				<div
+					className="flex items-start gap-3 rounded-md border border-kumo-warning bg-kumo-warning/10 p-4 text-kumo-warning"
+					role="status"
+				>
+					<Warning className="mt-0.5 h-5 w-5 shrink-0" />
+					<div>
+						<p className="font-medium">{t`Publisher handle is not resolvable`}</p>
+						<p className="mt-1 text-sm text-kumo-default">
+							{t`This package's publisher hasn't claimed a handle the aggregator can resolve, so it can't be installed yet. The publisher needs to set up a handle (any domain they control) before this plugin is installable.`}
+						</p>
+					</div>
+				</div>
+			) : null}
 
 			{/* Policy holdback notice */}
 			{release && !policyOk ? (

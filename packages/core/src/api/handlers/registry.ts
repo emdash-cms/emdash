@@ -48,7 +48,7 @@ import type { PluginBundle } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
 import {
-	normalizeCapabilities,
+	canonicalCapabilitiesForDriftCheck,
 	parseDurationSeconds,
 	releaseExemptFromMinimumAge,
 	validateAggregatorUrl,
@@ -57,7 +57,7 @@ import { makeRegistryPluginId } from "../../registry/plugin-id.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
-import { storeBundleInR2 } from "./marketplace.js";
+import { deleteBundleFromR2, storeBundleInR2 } from "./marketplace.js";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -690,9 +690,31 @@ export async function handleRegistryInstall(
 		// signed createdAt from the publisher's PDS (deferred to the
 		// follow-up that adds full MST verification). If the timestamp
 		// is missing or malformed, we fail closed and reject the install.
+		// `registryConfig` is the user-supplied integration option, not
+		// the normalized manifest shape, so the duration parse runs once
+		// per install. Catch a malformed value here -- normally caught at
+		// `normalizeRegistryConfig` time, but a future config-mutation
+		// path could re-enter with a bad value -- and surface it as a
+		// structured error rather than letting it bubble out as a generic
+		// 500.
 		const minimumReleaseAge = registryConfig.policy?.minimumReleaseAge;
-		const minimumReleaseAgeSeconds =
-			minimumReleaseAge !== undefined ? parseDurationSeconds(minimumReleaseAge) : 0;
+		let minimumReleaseAgeSeconds = 0;
+		if (minimumReleaseAge !== undefined) {
+			try {
+				minimumReleaseAgeSeconds = parseDurationSeconds(minimumReleaseAge);
+			} catch (err) {
+				return {
+					success: false,
+					error: {
+						code: "REGISTRY_POLICY_INVALID",
+						message:
+							err instanceof Error
+								? err.message
+								: "Invalid minimumReleaseAge value in registry config",
+					},
+				};
+			}
+		}
 		if (minimumReleaseAgeSeconds > 0) {
 			const exclude = registryConfig.policy?.minimumReleaseAgeExclude?.map((e) =>
 				e.trim().toLowerCase(),
@@ -876,8 +898,8 @@ export async function handleRegistryInstall(
 		// the runtime starts enforcing `declaredAccess` natively, this
 		// comparison switches to that shape.
 		if (input.acknowledgedDeclaredAccess !== undefined) {
-			const acknowledged = normalizeCapabilities(input.acknowledgedDeclaredAccess);
-			const actual = normalizeCapabilities(bundle.manifest.capabilities);
+			const acknowledged = canonicalCapabilitiesForDriftCheck(input.acknowledgedDeclaredAccess);
+			const actual = canonicalCapabilitiesForDriftCheck(bundle.manifest.capabilities);
 			if (
 				acknowledged.length !== actual.length ||
 				acknowledged.some((cap, i) => cap !== actual[i])
@@ -901,14 +923,32 @@ export async function handleRegistryInstall(
 		// (the signed record from the publisher's repo), not from the
 		// bundle manifest -- the manifest carries the trust contract,
 		// the profile carries the marketing copy.
+		//
+		// If the state-row write fails (DB error, PK race against a
+		// concurrent install of the same package), clean up the R2 bundle
+		// we just wrote so we don't leave orphans. The cleanup is
+		// best-effort; if it also fails, the row failure still surfaces
+		// to the caller.
 		const profile = packageView.profile as { name?: string; description?: string };
-		await stateRepo.upsert(pluginId, version, "active", {
-			source: "registry",
-			displayName: profile.name ?? slug,
-			description: profile.description ?? undefined,
-			registryPublisherDid: publisherDid,
-			registrySlug: slug,
-		});
+		try {
+			await stateRepo.upsert(pluginId, version, "active", {
+				source: "registry",
+				displayName: profile.name ?? slug,
+				description: profile.description ?? undefined,
+				registryPublisherDid: publisherDid,
+				registrySlug: slug,
+			});
+		} catch (stateErr) {
+			try {
+				await deleteBundleFromR2(storage, pluginId, version, "registry");
+			} catch (cleanupErr) {
+				console.warn(
+					`[registry-install] Failed to clean up R2 bundle for ${pluginId}@${version} after state-row write failure:`,
+					cleanupErr,
+				);
+			}
+			throw stateErr;
+		}
 
 		return {
 			success: true,

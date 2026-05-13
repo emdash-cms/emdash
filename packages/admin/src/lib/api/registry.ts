@@ -208,15 +208,15 @@ export function releasePassesPolicy(
 }
 
 /**
- * Normalize a capabilities list for set-style comparison. Mirrors the
- * server-side helper of the same name in
+ * Canonicalize a capabilities list for set-style comparison. Mirrors
+ * the server-side helper `canonicalCapabilitiesForDriftCheck` in
  * `packages/core/src/registry/config.ts` -- both sides must produce
  * the same canonical shape so the install handler's drift check is
  * stable across reorderings, duplicates, and junk entries.
  *
  * Filters non-strings, deduplicates, and sorts lexically.
  */
-export function normalizeCapabilities(value: unknown): string[] {
+export function canonicalCapabilitiesForDriftCheck(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];
 	const seen = new Set<string>();
 	for (const entry of value) {
@@ -224,7 +224,7 @@ export function normalizeCapabilities(value: unknown): string[] {
 			seen.add(entry);
 		}
 	}
-	return Array.from(seen).sort();
+	return [...seen].toSorted();
 }
 
 /**

@@ -1336,10 +1336,14 @@ function MarketplaceDetailPage() {
 		return new Set(plugins.map((p) => p.id));
 	}, [plugins]);
 
-	// Registry detail when configured. The `pluginId` route param carries
-	// `${handle}/${slug}` in the registry case; the slash is encoded once
-	// by the router and decoded back here.
-	if (manifest?.registry) {
+	// Discriminate by param shape, not by the manifest flag. A registry
+	// pluginId is always `${handle}/${slug}` and contains exactly one `/`;
+	// a marketplace pluginId is a single segment with no `/`. This keeps
+	// deep links to marketplace-installed plugins working on sites that
+	// later opt into the registry, instead of unconditionally routing
+	// every visit to RegistryPluginDetail.
+	const looksLikeRegistryId = pluginId.includes("/");
+	if (manifest?.registry && looksLikeRegistryId) {
 		return <RegistryPluginDetail pluginId={pluginId} config={manifest.registry} />;
 	}
 
