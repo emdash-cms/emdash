@@ -208,6 +208,26 @@ export function releasePassesPolicy(
 }
 
 /**
+ * Normalize a capabilities list for set-style comparison. Mirrors the
+ * server-side helper of the same name in
+ * `packages/core/src/registry/config.ts` -- both sides must produce
+ * the same canonical shape so the install handler's drift check is
+ * stable across reorderings, duplicates, and junk entries.
+ *
+ * Filters non-strings, deduplicates, and sorts lexically.
+ */
+export function normalizeCapabilities(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	const seen = new Set<string>();
+	for (const entry of value) {
+		if (typeof entry === "string" && entry.length > 0) {
+			seen.add(entry);
+		}
+	}
+	return Array.from(seen).sort();
+}
+
+/**
  * Matches a `(publisher_did, slug)` against the
  * `minimumReleaseAgeExclude` allowlist. Mirrors the server-side helper
  * of the same name in `packages/core/src/registry/config.ts`.

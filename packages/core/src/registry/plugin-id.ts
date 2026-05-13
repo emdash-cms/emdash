@@ -8,7 +8,7 @@
  * `syncMarketplacePlugins`, sandbox cache keys). Rather than refactor
  * everything to carry a composite identifier, we normalize the registry
  * tuple to an opaque content-addressed id that satisfies the existing
- * `validatePluginIdentifier` shape (`/^[a-z][a-z0-9_]*$/`).
+ * `validatePluginIdentifier` shape (`/^[a-z][a-z0-9_-]*$/`).
  *
  * The normalized id is:
  *
@@ -23,12 +23,16 @@
  *   - Collision-resistant. 80 bits of truncated hash; a 50% birthday
  *     collision happens around 2^40 distinct plugins, well beyond what
  *     this registry will ever index.
- *   - R2-safe. Lowercase alphanumerics + underscores, no `:` or `/`.
- *     Existing sandbox cache keys (`${pluginId}:${version}`) keep
- *     working because the id contains no `:`.
- *   - Cannot collide with marketplace plugin ids. Marketplace ids must
- *     start with an ASCII letter (`/^[a-z]/`); the `r_` prefix means
- *     registry ids never look like marketplace ids.
+ *   - R2-safe. Lowercase alphanumerics + underscore (no hyphens), no
+ *     `:` or `/`. Existing sandbox cache keys (`${pluginId}:${version}`)
+ *     keep working because the id contains no `:`.
+ *   - Syntactically distinct from typical marketplace plugin ids: the
+ *     `r_` prefix plus exactly 16 base32 characters is unlikely to be
+ *     chosen as a marketplace id. Not formally guaranteed by the
+ *     validator -- marketplace ids may begin with `r_` and contain
+ *     hyphens -- so the install handler also performs an explicit
+ *     pre-existing-row check at the derived id and rejects any cross-
+ *     source collision (`PLUGIN_ID_COLLISION`).
  *
  * Reverse lookup (id → publisher + slug) requires the `plugin_states`
  * row -- the hash is one-way. That's intentional: any code path that

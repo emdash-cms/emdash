@@ -48,6 +48,7 @@ import type { PluginBundle } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
 import {
+	normalizeCapabilities,
 	parseDurationSeconds,
 	releaseExemptFromMinimumAge,
 	validateAggregatorUrl,
@@ -866,26 +867,30 @@ export async function handleRegistryInstall(
 		// label envelope and release-record `declaredAccess` are
 		// independent assertions; this catches the case where they
 		// diverged between the consent dialog and the install POST.
-		if (
-			input.acknowledgedDeclaredAccess !== undefined &&
-			JSON.stringify(input.acknowledgedDeclaredAccess) !==
-				JSON.stringify(bundle.manifest.capabilities)
-		) {
-			// We compare against the bundle's *capabilities* (the legacy
-			// shape) for v1 because EmDash's existing sandbox enforces
-			// capabilities, not the RFC's structured `declaredAccess`.
-			// Once the runtime starts enforcing `declaredAccess` natively,
-			// this comparison switches to that shape. Until then the
-			// admin UI lifts capabilities from the release record's
-			// extension data and the comparison is meaningful.
-			return {
-				success: false,
-				error: {
-					code: "DECLARED_ACCESS_DRIFT",
-					message:
-						"Plugin manifest has changed since you consented. Re-open the install dialog to review the new permissions.",
-				},
-			};
+		//
+		// Both sides are normalised (filter to strings, dedupe, sort) so
+		// reorderings or junk entries don't trigger spurious rejections.
+		// We compare against the bundle's *capabilities* (the legacy
+		// shape) for v1 because EmDash's existing sandbox enforces
+		// capabilities, not the RFC's structured `declaredAccess`. Once
+		// the runtime starts enforcing `declaredAccess` natively, this
+		// comparison switches to that shape.
+		if (input.acknowledgedDeclaredAccess !== undefined) {
+			const acknowledged = normalizeCapabilities(input.acknowledgedDeclaredAccess);
+			const actual = normalizeCapabilities(bundle.manifest.capabilities);
+			if (
+				acknowledged.length !== actual.length ||
+				acknowledged.some((cap, i) => cap !== actual[i])
+			) {
+				return {
+					success: false,
+					error: {
+						code: "DECLARED_ACCESS_DRIFT",
+						message:
+							"Plugin manifest has changed since you consented. Re-open the install dialog to review the new permissions.",
+					},
+				};
+			}
 		}
 
 		// Step 7: store in R2 under the registry prefix.

@@ -410,9 +410,9 @@ export async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBun
 
 	// Collect decompressed bytes with a hard cap. A gzip-bomb -- a small
 	// tarball that decompresses to gigabytes -- otherwise exhausts
-	// worker / Node memory before we know to reject it. The cap is
-	// generous (32 MiB) relative to any plausible plugin bundle and
-	// strict enough to bound the worst case.
+	// worker / Node memory before we know to reject it. The cap matches
+	// RFC 0001's publish-time bundle size limit (MAX_DECOMPRESSED_BUNDLE_BYTES);
+	// anything past that isn't a legitimate sandboxed plugin.
 	const reader = decompressedStream.getReader();
 	const chunks: Uint8Array[] = [];
 	let total = 0;

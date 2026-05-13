@@ -23,6 +23,7 @@ import * as React from "react";
 import {
 	getLatestRegistryRelease,
 	installRegistryPlugin,
+	normalizeCapabilities,
 	releasePassesPolicy,
 	resolveRegistryPackage,
 	type RegistryClientConfig,
@@ -68,9 +69,13 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// available and fall back to the structured declaredAccess flattened
 	// to a string list otherwise. This keeps `CapabilityConsentDialog` --
 	// which only understands `capabilities` -- working unchanged.
+	//
+	// `normalizeCapabilities` filters non-strings, dedupes, and sorts so
+	// an aggregator-supplied array with unstable order or junk entries
+	// can't trigger a spurious server-side drift rejection later.
 	const releaseDoc = release?.release as
 		| {
-				extensions?: Record<string, { declaredAccess?: unknown; capabilities?: string[] }>;
+				extensions?: Record<string, { declaredAccess?: unknown; capabilities?: unknown }>;
 		  }
 		| undefined;
 	const extensionEntries = releaseDoc?.extensions ? Object.entries(releaseDoc.extensions) : [];
@@ -79,8 +84,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	)?.[1];
 
 	const capabilities: string[] = Array.isArray(ext?.capabilities)
-		? (ext?.capabilities as string[])
-		: declaredAccessToCapabilityList(ext?.declaredAccess);
+		? normalizeCapabilities(ext?.capabilities)
+		: normalizeCapabilities(declaredAccessToCapabilityList(ext?.declaredAccess));
 
 	const profile = pkg?.profile as { name?: string; description?: string } | undefined;
 	const verified = (pkg?.labels ?? []).some((l: { val?: string }) => l.val === "verified");

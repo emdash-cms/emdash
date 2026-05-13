@@ -38,6 +38,33 @@ export interface ManifestRegistryConfig {
 }
 
 /**
+ * Normalize a capabilities list for set-style comparison.
+ *
+ * Capabilities (the legacy declared-access shape used by the current
+ * sandbox enforcer) are conceptually a *set*: order, duplicates, and
+ * non-string entries don't carry meaning. The install handler's drift
+ * check compares the admin's acknowledged set against the bundle
+ * manifest's set; both sides pass through this normalizer first so
+ * an aggregator-supplied array with unstable order or junk entries
+ * can't cause a spurious drift rejection.
+ *
+ * Filters non-strings, deduplicates, and sorts lexically. Exported so
+ * the same shape is produced by the browser before sending the
+ * `acknowledgedDeclaredAccess` payload and by the server before
+ * comparing against the bundle.
+ */
+export function normalizeCapabilities(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	const seen = new Set<string>();
+	for (const entry of value) {
+		if (typeof entry === "string" && entry.length > 0) {
+			seen.add(entry);
+		}
+	}
+	return Array.from(seen).sort();
+}
+
+/**
  * Returns whether a `(publisher_did, slug)` pair is on the
  * minimum-release-age exemption list. Exported so the same matcher is
  * used by the browser policy filter and the server-side install
