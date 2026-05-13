@@ -1,23 +1,30 @@
 /**
  * Renders an atproto publisher's identity, with three branches:
  *
- *   - **Verified handle**: shows `@handle`. Either the aggregator
- *     already resolved the handle at ingest (we trust that), or our
- *     local `LocalActorResolver` round-tripped the DID document's
- *     `alsoKnownAs` back to the same DID.
+ *   - **Verified handle**: shows `@handle`. Our local
+ *     `LocalActorResolver` round-tripped the DID document's
+ *     `alsoKnownAs` back to the same DID (verified by DNS TXT or
+ *     `.well-known`, not by the aggregator).
  *   - **Unverified publisher**: DID document claims a handle but the
- *     handle's domain doesn't point back to the same DID. Treat as
- *     untrusted -- the publisher might be impersonating someone else.
- *     Surface as `Unverified publisher` in error styling. Callers
- *     should also disable destructive actions (install, etc.).
- *   - **Missing handle**: no claimed handle at all (or DID document
- *     resolution failed entirely). Fall back to the raw DID.
+ *     handle's domain doesn't point back to the same DID, OR the
+ *     aggregator's claimed handle doesn't match the bidirectionally
+ *     verified one. Treat as untrusted -- the publisher might be
+ *     impersonating someone else, or the aggregator might be lying
+ *     about a handle. Surface as `Unverified publisher` in error
+ *     styling. Callers should also disable destructive actions
+ *     (install, etc.).
+ *   - **Missing handle**: no handle claimed in the DID document (no
+ *     `alsoKnownAs`), or the DID document couldn't be fetched
+ *     (network error, unsupported DID method).
  *
  * `aggregatorHandle` is what the registry's `searchPackages` /
- * `resolvePackage` endpoint returned for this DID -- best-effort, may
- * be `null`. When absent, this component falls back to a per-DID
- * `LocalActorResolver` lookup via `resolveDidToHandle`, cached in
- * localStorage for 24h so repeat renders don't refetch.
+ * `resolvePackage` endpoint returned for this DID. It is NEVER trusted
+ * on its own -- the aggregator is an untrusted indexer that could be
+ * compromised or buggy. We always run our own DID->handle round-trip
+ * via `LocalActorResolver` (cached in localStorage for 24h) and use
+ * the aggregator's value only to *cross-check*: if the aggregator
+ * claims a handle that differs from what the DID document
+ * bidirectionally verifies, the publisher is marked invalid.
  */
 
 import { useLingui } from "@lingui/react/macro";
@@ -25,6 +32,9 @@ import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { resolveDidToHandle } from "../lib/api/registry.js";
+
+/** Trailing dot(s) on an FQDN, stripped before handle comparison. */
+const TRAILING_DOT = /\.+$/;
 
 export type PublisherHandleStatus = "ok" | "invalid" | "missing";
 
@@ -57,19 +67,48 @@ export function usePublisherHandle(
 	did: string,
 	aggregatorHandle?: string | null,
 ): PublisherHandleResult {
-	const { data: didHandleResolution } = useQuery({
+	// Always run the local DID->handle round-trip. We never trust the
+	// aggregator's `aggregatorHandle` on its own: a compromised
+	// aggregator could label an attacker DID as `stripe.com` and any
+	// shortcut that returns the aggregator's value as verified would
+	// let the impersonation through unchecked.
+	const { data: didHandleResolution, isPending } = useQuery({
 		queryKey: ["registry", "did-handle", did],
 		queryFn: () => resolveDidToHandle(did),
-		enabled: Boolean(did) && !aggregatorHandle,
+		enabled: Boolean(did),
 		staleTime: 5 * 60 * 1000,
 	});
 
-	if (aggregatorHandle) return { status: "ok", handle: aggregatorHandle };
-	if (!didHandleResolution) return { status: "missing" };
-	if (didHandleResolution.status === "ok") {
-		return { status: "ok", handle: didHandleResolution.handle };
+	if (isPending || !didHandleResolution) return { status: "missing" };
+
+	// DID document didn't claim a handle (or the document was
+	// unreachable). The aggregator might have one, but without our own
+	// verification we can't display it.
+	if (didHandleResolution.status === "missing") {
+		return { status: "missing" };
 	}
-	return { status: didHandleResolution.status };
+
+	// DID document claims a handle but it doesn't round-trip.
+	// `invalid` always wins over an aggregator-supplied handle.
+	if (didHandleResolution.status === "invalid") {
+		return { status: "invalid" };
+	}
+
+	// Bidirectionally verified handle. Cross-check against the
+	// aggregator's claim: if they differ, flag the publisher as
+	// invalid. The aggregator may simply be stale, but we shouldn't
+	// silently disagree with our own verification by showing the
+	// aggregator's value -- the conservative read is "something is
+	// off, surface it to the admin".
+	const verifiedHandle = didHandleResolution.handle.toLowerCase();
+	if (aggregatorHandle) {
+		const claimed = aggregatorHandle.toLowerCase().replace(TRAILING_DOT, "");
+		if (claimed !== verifiedHandle) {
+			return { status: "invalid" };
+		}
+	}
+
+	return { status: "ok", handle: didHandleResolution.handle };
 }
 
 export function PublisherHandle({

@@ -55,6 +55,7 @@ import {
 } from "../../registry/config.js";
 import { makeRegistryPluginId } from "../../registry/plugin-id.js";
 import type { RegistryConfigInput } from "../../registry/types.js";
+import { resolveAndValidateExternalUrl, SsrfError } from "../../security/ssrf.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
@@ -268,17 +269,11 @@ function timedFetch(totalDeadline: number): typeof fetch {
 }
 
 /**
- * IPv4 octets that resolve to non-routable or loopback addresses. The
- * registry artifact fetcher refuses to make outbound HTTP requests to
- * any host whose hostname is one of these literal addresses, because
- * a compromised aggregator or publisher could otherwise use the
- * EmDash worker as an SSRF stepping stone into the deploy environment
- * (private networks, instance metadata, cloud-provider IMDS).
- *
- * Hostname-based DNS rebinding is not addressed here; the only
- * mitigation that closes that gap is doing the address resolution
- * ourselves and re-checking after connect. Out of scope for this
- * iteration but documented as a follow-up.
+ * Localhost-equivalent hostnames the artifact fetcher rejects in
+ * production. The full literal-IP / DNS-rebinding blocklist lives in
+ * `#security/ssrf.js` and is invoked via `resolveAndValidateExternalUrl`
+ * below; this small set exists only because the artifact handler has
+ * a dev-mode escape hatch that lets `http://localhost` through.
  */
 const FORBIDDEN_HOSTNAMES = new Set([
 	"localhost",
@@ -287,40 +282,8 @@ const FORBIDDEN_HOSTNAMES = new Set([
 	"ip6-loopback",
 ]);
 
-/** Matches a literal IPv4 address (four dotted decimal octets, 0-255). */
-const IPV4_PATTERN = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-
 /** Trailing dot on a hostname, stripped before URL host comparisons. */
 const TRAILING_DOT = /\.$/;
-
-function isForbiddenIPv4(hostname: string): boolean {
-	const match = IPV4_PATTERN.exec(hostname);
-	if (!match) return false;
-	const octets = match.slice(1, 5).map((s) => Number(s));
-	if (octets.some((o) => o < 0 || o > 255)) return true; // malformed
-	const [a, b] = octets;
-	// 127.0.0.0/8 loopback, 10.0.0.0/8 RFC1918, 172.16.0.0/12 RFC1918,
-	// 192.168.0.0/16 RFC1918, 169.254.0.0/16 link-local (incl. AWS IMDS),
-	// 100.64.0.0/10 CGNAT, 0.0.0.0/8 reserved, 224.0.0.0/4 multicast,
-	// 240.0.0.0/4 reserved.
-	if (a === 0 || a === 10 || a === 127) return true;
-	if (a === 169 && b === 254) return true;
-	if (a === 172 && b! >= 16 && b! <= 31) return true;
-	if (a === 192 && b === 168) return true;
-	if (a === 100 && b! >= 64 && b! <= 127) return true;
-	if (a! >= 224) return true;
-	return false;
-}
-
-function isForbiddenIPv6(hostname: string): boolean {
-	// URL.hostname strips brackets, but a leading colon (`::1`) or
-	// IPv6 format is enough to identify. We err on the side of rejecting
-	// any literal IPv6 address rather than enumerating private ranges
-	// (fc00::/7, fe80::/10, ::1/128, etc.) -- legitimate registry
-	// artifacts are not served from raw IPv6 literals.
-	if (hostname.includes(":")) return true;
-	return false;
-}
 
 /** Hostnames that resolve to the local machine; rejected outright in production. */
 function isLocalhostHostname(hostname: string): boolean {
@@ -339,13 +302,19 @@ function isLocalhostHostname(hostname: string): boolean {
 /**
  * Validate that `urlString` is a safe outbound target for artifact
  * downloads. Rejects non-HTTPS (except localhost in dev), embedded
- * credentials, and any host that's a loopback / private / link-local
- * literal address.
+ * credentials, any host that's a loopback / private / link-local
+ * literal address, and any hostname whose resolved A or AAAA records
+ * point at one of those addresses (closes the DNS-rebinding gap).
+ *
+ * Wraps `resolveAndValidateExternalUrl` from the import-pipeline SSRF
+ * module so both code paths share one DoH cache, one resolver, one
+ * blocklist, and one set of regression tests. Layers an
+ * artifact-specific protocol/dev-localhost policy on top.
  *
  * `import.meta.env.DEV` is a Vite/Astro compile-time constant, so
  * production bundles cannot enable the dev escape hatch at runtime.
  */
-function assertSafeArtifactUrl(urlString: string): URL {
+async function assertSafeArtifactUrl(urlString: string): Promise<URL> {
 	let url: URL;
 	try {
 		url = new URL(urlString);
@@ -382,13 +351,23 @@ function assertSafeArtifactUrl(urlString: string): URL {
 		throw new Error("Artifact URL must use https (http allowed only for localhost in dev)");
 	}
 
-	if (!localhost) {
-		if (isForbiddenIPv4(hostname) || isForbiddenIPv6(hostname)) {
-			throw new Error(`Artifact URL points to a non-routable address: ${hostname}`);
-		}
+	if (localhost) {
+		// Dev-only path; nothing to resolve.
+		return url;
 	}
 
-	return url;
+	// Delegate IP-literal + DNS-rebinding validation to the import
+	// pipeline's SSRF helper. Adapts the SsrfError to the existing
+	// artifact-URL error vocabulary so callers keep their current
+	// catch shape.
+	try {
+		return await resolveAndValidateExternalUrl(url.href);
+	} catch (err) {
+		if (err instanceof SsrfError) {
+			throw new Error(`Artifact URL rejected: ${err.message}`);
+		}
+		throw err;
+	}
 }
 
 /**
@@ -409,7 +388,7 @@ async function fetchWithLimits(initialUrl: string, totalDeadline: number): Promi
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), perUrlTimeout);
 	try {
-		let current = assertSafeArtifactUrl(initialUrl);
+		let current = await assertSafeArtifactUrl(initialUrl);
 		let response: Response;
 		for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
 			response = await fetch(current.href, { redirect: "manual", signal: controller.signal });
@@ -420,7 +399,7 @@ async function fetchWithLimits(initialUrl: string, totalDeadline: number): Promi
 				throw new Error(`Too many redirects fetching artifact (>${MAX_REDIRECTS})`);
 			}
 			const next = new URL(location, current);
-			current = assertSafeArtifactUrl(next.href);
+			current = await assertSafeArtifactUrl(next.href);
 		}
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- response is assigned in the first loop iteration
 		const finalResponse = response!;
@@ -481,6 +460,26 @@ async function fetchWithLimits(initialUrl: string, totalDeadline: number): Promi
 	}
 }
 
+/**
+ * Strip query string and fragment from a URL for use in
+ * client-visible error messages. Registry artifacts are often hosted
+ * on storage backends that include presigned tokens in the query
+ * string; surfacing the raw URL on a failed install leaks those
+ * tokens into the admin's HTTP response and any log drain that
+ * captures the error chain. Origin + pathname is enough to identify
+ * the host and resource without exposing credentials.
+ *
+ * Falls back to a generic placeholder when the URL is malformed.
+ */
+function redactUrlForError(raw: string): string {
+	try {
+		const u = new URL(raw);
+		return `${u.origin}${u.pathname}`;
+	} catch {
+		return "<malformed url>";
+	}
+}
+
 /** Walk artifact source URLs in priority order and return the first that fetches successfully. */
 async function fetchArtifact(mirrors: string[], declaredUrl: string): Promise<Uint8Array> {
 	// Clamp mirrors regardless of what the lexicon type says -- a buggy
@@ -488,23 +487,30 @@ async function fetchArtifact(mirrors: string[], declaredUrl: string): Promise<Ui
 	// and slow-loris each one. The declared URL is always tried last.
 	const clampedMirrors = mirrors.slice(0, MAX_MIRRORS);
 	const urls = [...clampedMirrors, declaredUrl];
-	const errors: string[] = [];
+	// Client-visible errors carry redacted URLs (origin + path only).
+	// The full URL with any query-string token is logged server-side
+	// so operators can still debug delivery failures.
+	const clientErrors: string[] = [];
 
 	const totalDeadline = Date.now() + ARTIFACT_TOTAL_BUDGET_MS;
 
 	for (const url of urls) {
 		if (Date.now() >= totalDeadline) {
-			errors.push("(total artifact download budget exhausted)");
+			clientErrors.push("(total artifact download budget exhausted)");
 			break;
 		}
 		try {
 			return await fetchWithLimits(url, totalDeadline);
 		} catch (err) {
-			errors.push(`${url}: ${err instanceof Error ? err.message : String(err)}`);
+			const message = err instanceof Error ? err.message : String(err);
+			console.warn(`[registry-install] Artifact fetch failed from ${url}:`, message);
+			clientErrors.push(`${redactUrlForError(url)}: ${message}`);
 		}
 	}
 
-	throw new Error(`Failed to download artifact from any source. Tried:\n  ${errors.join("\n  ")}`);
+	throw new Error(
+		`Failed to download artifact from any source. Tried:\n  ${clientErrors.join("\n  ")}`,
+	);
 }
 
 // ── Install ────────────────────────────────────────────────────────
@@ -931,25 +937,46 @@ export async function handleRegistryInstall(
 		// marketplace plugins that happen to share the publisher's slug.
 		bundle.manifest = { ...bundle.manifest, id: pluginId };
 
-		// Drift check: capabilities the admin acknowledged must match
-		// what the bundle's manifest actually declares. Aggregator-side
-		// label envelope and release-record `declaredAccess` are
-		// independent assertions; this catches the case where they
-		// diverged between the consent dialog and the install POST.
+		// Capability consent gate: the admin MUST acknowledge the
+		// capabilities the bundle's manifest actually declares before we
+		// install it. The bundle manifest is the only source of truth
+		// the runtime sandbox enforces -- the release record's
+		// `declaredAccess` extension is an aggregator-supplied
+		// assertion that the publisher may or may not have included,
+		// and trusting it would let a malicious publisher (or a
+		// compromised aggregator) ship a bundle whose manifest
+		// requests `content:*` etc. behind an empty consent dialog.
 		//
-		// Both sides are normalised (filter to strings, dedupe, sort) so
-		// reorderings or junk entries don't trigger spurious rejections.
+		// Two outcomes after normalization (filter to strings, dedupe,
+		// sort):
+		//
+		//   1. The bundle declares no capabilities: install is allowed
+		//      without any acknowledgement (nothing to consent to).
+		//   2. The bundle declares capabilities: install requires the
+		//      caller to send `acknowledgedDeclaredAccess`, and the
+		//      sorted lists must match exactly.
+		//
 		// We compare against the bundle's *capabilities* (the legacy
 		// shape) for v1 because EmDash's existing sandbox enforces
 		// capabilities, not the RFC's structured `declaredAccess`. Once
 		// the runtime starts enforcing `declaredAccess` natively, this
 		// comparison switches to that shape.
-		if (input.acknowledgedDeclaredAccess !== undefined) {
+		const actualCapabilities = canonicalCapabilitiesForDriftCheck(bundle.manifest.capabilities);
+		if (actualCapabilities.length > 0) {
+			if (input.acknowledgedDeclaredAccess === undefined) {
+				return {
+					success: false,
+					error: {
+						code: "DECLARED_ACCESS_REQUIRED",
+						message:
+							"This plugin declares capabilities that require consent. Re-open the install dialog to review and acknowledge them.",
+					},
+				};
+			}
 			const acknowledged = canonicalCapabilitiesForDriftCheck(input.acknowledgedDeclaredAccess);
-			const actual = canonicalCapabilitiesForDriftCheck(bundle.manifest.capabilities);
 			if (
-				acknowledged.length !== actual.length ||
-				acknowledged.some((cap, i) => cap !== actual[i])
+				acknowledged.length !== actualCapabilities.length ||
+				acknowledged.some((cap, i) => cap !== actualCapabilities[i])
 			) {
 				return {
 					success: false,
@@ -971,11 +998,29 @@ export async function handleRegistryInstall(
 		// bundle manifest -- the manifest carries the trust contract,
 		// the profile carries the marketing copy.
 		//
-		// If the state-row write fails (DB error, PK race against a
-		// concurrent install of the same package), clean up the R2 bundle
-		// we just wrote so we don't leave orphans. The cleanup is
-		// best-effort; if it also fails, the row failure still surfaces
-		// to the caller.
+		// On failure, we may need to clean up the R2 bundle we just
+		// wrote. But two parallel installs of the same (did, slug,
+		// version) both pass the earlier `existing` check at line 822
+		// (the read is not transactional with the insert), both upload
+		// to the same deterministic R2 prefix (overwrites are
+		// content-identical because R2 keys include the version and
+		// the bundle is checksum-verified upstream), and then one wins
+		// the insert while the other fails with a PK constraint
+		// violation.
+		//
+		// If we blindly clean up R2 on every state-write failure, the
+		// loser of that race would delete the winner's bundle and the
+		// runtime would fail to load the plugin on the next sync.
+		//
+		// Instead: on state-write failure, re-query the state row. If
+		// a row now exists for this pluginId, we lost the race -- the
+		// winner owns the R2 bundle and we must not touch it. If the
+		// row doesn't exist, the failure was a real DB error and the
+		// R2 bytes are orphans; clean them up.
+		//
+		// Cleanup is best-effort; if it also fails, the row failure
+		// still surfaces to the caller and the orphan R2 bundle costs
+		// only the storage of a single checksum-verified zip.
 		const profile = packageView.profile as { name?: string; description?: string };
 		try {
 			await stateRepo.upsert(pluginId, version, "active", {
@@ -986,13 +1031,25 @@ export async function handleRegistryInstall(
 				registrySlug: slug,
 			});
 		} catch (stateErr) {
+			let lostRace = false;
 			try {
-				await deleteBundleFromR2(storage, pluginId, version, "registry");
-			} catch (cleanupErr) {
+				const winner = await stateRepo.get(pluginId);
+				lostRace = winner !== undefined && winner !== null;
+			} catch (probeErr) {
 				console.warn(
-					`[registry-install] Failed to clean up R2 bundle for ${pluginId}@${version} after state-row write failure:`,
-					cleanupErr,
+					`[registry-install] Failed to probe state row for ${pluginId} after state-write failure; treating as orphan:`,
+					probeErr,
 				);
+			}
+			if (!lostRace) {
+				try {
+					await deleteBundleFromR2(storage, pluginId, version, "registry");
+				} catch (cleanupErr) {
+					console.warn(
+						`[registry-install] Failed to clean up R2 bundle for ${pluginId}@${version} after state-row write failure:`,
+						cleanupErr,
+					);
+				}
 			}
 			throw stateErr;
 		}

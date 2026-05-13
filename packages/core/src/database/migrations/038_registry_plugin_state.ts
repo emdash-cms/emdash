@@ -76,9 +76,16 @@ async function upSqlite(db: Kysely<unknown>): Promise<void> {
 }
 
 async function upPostgres(db: Kysely<unknown>): Promise<void> {
+	// Scope the column check to the connection's current schema.
+	// Without `table_schema = current_schema()`, a `_plugin_state` table
+	// in another schema (per-tenant Postgres, shared Postgres clusters,
+	// per-test schemas) makes this query see columns from the wrong
+	// table and skip the ALTERs entirely, leaving the active schema's
+	// `_plugin_state` missing the registry columns.
 	const cols = await sql<{ column_name: string }>`
 		SELECT column_name FROM information_schema.columns
 		WHERE table_name = '_plugin_state'
+		  AND table_schema = current_schema()
 	`.execute(db);
 	const colNames = new Set(cols.rows.map((c) => c.column_name));
 

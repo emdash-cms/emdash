@@ -147,17 +147,24 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				did: pkg.did,
 				slug,
 				version: release?.version,
-				// Only send the acknowledgement when the dialog had real
-				// capability data to display. The server's drift check is
-				// gated on `acknowledgedDeclaredAccess !== undefined`, so
-				// omitting the field opts out of the check entirely --
-				// correct behaviour for the (currently common) case where
-				// the publisher's release record doesn't yet carry an
-				// extension block. The bundle's actual capabilities are
-				// still bound to the checksum-verified bytes; the drift
-				// check is a UX sanity belt for already-displayed
-				// consent, not an authorization gate.
-				acknowledgedDeclaredAccess: capabilities.length > 0 ? capabilities : undefined,
+				// Always send the acknowledgement, even when the dialog
+				// showed no permissions. The server compares this list
+				// against the bundle's actual `manifest.capabilities`
+				// after download:
+				//
+				//   - If the bundle has capabilities, the server
+				//     requires us to send a matching list (the consent
+				//     dialog is the only place the admin sees what
+				//     they're agreeing to).
+				//   - If the bundle has no capabilities, no consent is
+				//     required and the server ignores this field.
+				//
+				// Sending the empty list when the release extension was
+				// missing means a publisher who ships a bundle with
+				// permissions but no extension block can't sneak the
+				// permissions past an empty consent dialog -- the
+				// server will refuse with `DECLARED_ACCESS_REQUIRED`.
+				acknowledgedDeclaredAccess: capabilities,
 			});
 		},
 		onSuccess: () => {

@@ -143,6 +143,7 @@
     "#menus/*": "./src/menus/*",
     "#widgets/*": "./src/widgets/*",
     "#import/*": "./src/import/*",
+    "#security/*": "./src/security/*",
     "#utils/*": "./src/utils/*",
     "#preview/*": "./src/preview/*",
     "#seed/*": "./src/seed/*",

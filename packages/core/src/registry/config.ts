@@ -173,6 +173,14 @@ export function validateAggregatorUrl(aggregatorUrl: string): URL {
 	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
 		throw new Error(`registry.aggregatorUrl must use http or https: ${aggregatorUrl}`);
 	}
+	// Reject embedded credentials. The normalized aggregator URL ends
+	// up in the admin manifest and is shipped to every admin browser;
+	// browser `fetch()` also outright rejects URLs with `user:pass@`,
+	// so leaving them in would both leak the credentials and break the
+	// registry UI at runtime.
+	if (parsed.username || parsed.password) {
+		throw new Error("registry.aggregatorUrl must not contain embedded credentials (user:pass@)");
+	}
 
 	// WHATWG URL preserves the brackets on IPv6 hostnames -- strip them
 	// before any comparison so `https://[::1]/` is recognised as localhost

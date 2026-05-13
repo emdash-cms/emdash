@@ -145,20 +145,62 @@ export interface ExperimentalConfig {
 	 *
 	 * When set, replaces the centralized `marketplace` for the admin UI's
 	 * browse and install flows. The registry is an atproto-backed
-	 * federation: package metadata lives in each publisher's PDS, an
-	 * aggregator (the `aggregatorUrl`) indexes the firehose and exposes
-	 * read-only XRPC endpoints for discovery, and EmDash verifies each
-	 * release against the publisher's signed records before installing.
+	 * federation: package metadata lives in each publisher's PDS and
+	 * an aggregator (the `aggregatorUrl`) indexes the firehose and
+	 * exposes read-only XRPC endpoints for discovery.
 	 *
 	 * See [RFC 0001](https://github.com/emdash-cms/emdash/pull/694) for
-	 * the protocol design and threat model.
+	 * the protocol design.
 	 *
-	 * Requires `sandboxRunner` to be configured -- registry plugins always
-	 * run sandboxed.
+	 * **Trust model (v1, experimental).** Today EmDash trusts the
+	 * configured aggregator with these claims, per package and per
+	 * release:
+	 *
+	 *   - The publisher DID associated with a `(did, slug)` pair.
+	 *   - The artifact `url`, the artifact `checksum`, and any mirror
+	 *     URLs returned for a release.
+	 *   - The published handle for a DID (used for display only;
+	 *     EmDash separately verifies the DID->handle round-trip in the
+	 *     admin UI before treating a handle as confirmed).
+	 *
+	 * What EmDash verifies independently before activating an
+	 * installed plugin:
+	 *
+	 *   - The artifact bytes hash to the checksum the aggregator
+	 *     returned (so a malicious mirror or in-transit tamper can't
+	 *     swap the bundle).
+	 *   - The bundle's `manifest.id` matches the requested slug, and
+	 *     its `manifest.version` matches the release version (so an
+	 *     attacker who controls the aggregator can't trick the
+	 *     sandbox into addressing the wrong plugin id).
+	 *   - The bundle's `manifest.capabilities` matches what the admin
+	 *     acknowledged in the consent dialog (so a publisher can't
+	 *     ship a bundle that requests more permissions than the
+	 *     dialog displayed).
+	 *
+	 * What's NOT yet verified:
+	 *
+	 *   - Full MST proof / publisher signature on the release record.
+	 *     A compromised aggregator can forge a release for any DID
+	 *     and slug, and the install will succeed as long as the
+	 *     bundle matches the (forged) checksum.
+	 *   - Per-release replay / rollback: the aggregator chooses which
+	 *     release version is "latest".
+	 *
+	 * **Recommendation.** Until full signature verification lands,
+	 * point `aggregatorUrl` only at an aggregator you operate
+	 * yourself or one you trust with the same level of authority as
+	 * a centralized plugin source. The `policy.minimumReleaseAge` and
+	 * `acceptLabelers` knobs partially mitigate by widening the
+	 * detection window for takedowns, but they assume the labeller
+	 * system is operating.
+	 *
+	 * Requires `sandboxRunner` to be configured -- registry plugins
+	 * always run sandboxed.
 	 *
 	 * Accepts a bare URL string as shorthand for
-	 * `{ aggregatorUrl: "..." }`. Use the full object form when you need
-	 * `acceptLabelers` or `policy`.
+	 * `{ aggregatorUrl: "..." }`. Use the full object form when you
+	 * need `acceptLabelers` or `policy`.
 	 */
 	registry?: RegistryConfigInput;
 }
