@@ -23,6 +23,7 @@ import {
 	type RegistryClientConfig,
 	type RegistryPackageView,
 } from "../lib/api/registry.js";
+import { PublisherHandle, usePublisherHandle } from "./PublisherHandle.js";
 
 export interface RegistryBrowseProps {
 	/** Resolved manifest.registry block. Required -- caller checks. */
@@ -154,69 +155,47 @@ interface RegistryPackageCardProps {
 
 function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 	const { t } = useLingui();
-	// Only domain-like handles are installable; the server's handle
-	// validator rejects DID strings. Cards for packages whose handle the
-	// aggregator couldn't resolve render the same content but without a
-	// link, so the user understands the package isn't actionable.
-	const installable = Boolean(pkg.handle && pkg.handle.includes("."));
-	const handleDisplay = pkg.handle ?? pkg.did;
+	const handleResult = usePublisherHandle(pkg.did, pkg.handle);
+	// Always link by handle when we have one (cleaner URL), DID
+	// otherwise. The detail page accepts either.
+	const linkSegment = handleResult.handle ?? pkg.did;
 	// `profile` is a pass-through of the signed package profile record.
 	// We duck-type minimal display fields out of it.
 	const profile = pkg.profile as { name?: string; description?: string };
 	const verified = (pkg.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
-	const inner = (
-		<div className="flex items-start gap-3">
-			<div className="mt-1 rounded-md bg-kumo-subtle p-2 text-kumo-subtle">
-				<PuzzlePiece className="h-5 w-5" />
-			</div>
-			<div className="min-w-0 flex-1">
-				<div className="flex items-center gap-2">
-					<h2 className="truncate font-semibold">{profile.name ?? pkg.slug}</h2>
-					{verified ? (
-						<ShieldCheck
-							className="h-4 w-4 shrink-0 text-kumo-brand"
-							aria-label={t`Verified publisher`}
-						/>
-					) : null}
-				</div>
-				<p className="truncate text-xs text-kumo-subtle">{handleDisplay}</p>
-				{profile.description ? (
-					<p className="mt-2 line-clamp-2 text-sm text-kumo-default">{profile.description}</p>
-				) : null}
-				{installed ? (
-					<div className="mt-3">
-						<Badge variant="success">{t`Installed`}</Badge>
-					</div>
-				) : null}
-				{!installable ? (
-					<div className="mt-3">
-						<Badge variant="outline">{t`Publisher handle unresolved`}</Badge>
-					</div>
-				) : null}
-			</div>
-		</div>
-	);
-
-	if (!installable) {
-		return (
-			<div
-				className="block rounded-md border border-kumo-border bg-kumo-surface p-4 opacity-60"
-				aria-disabled="true"
-			>
-				{inner}
-			</div>
-		);
-	}
-
 	return (
 		<Link
 			to="/plugins/marketplace/$pluginId"
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- installable check above ensures pkg.handle is defined
-			params={{ pluginId: `${pkg.handle!}/${pkg.slug}` }}
+			params={{ pluginId: `${linkSegment}/${pkg.slug}` }}
 			className="block rounded-md border border-kumo-border bg-kumo-surface p-4 transition-colors hover:bg-kumo-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
 		>
-			{inner}
+			<div className="flex items-start gap-3">
+				<div className="mt-1 rounded-md bg-kumo-subtle p-2 text-kumo-subtle">
+					<PuzzlePiece className="h-5 w-5" />
+				</div>
+				<div className="min-w-0 flex-1">
+					<div className="flex items-center gap-2">
+						<h2 className="truncate font-semibold">{profile.name ?? pkg.slug}</h2>
+						{verified ? (
+							<ShieldCheck
+								className="h-4 w-4 shrink-0 text-kumo-brand"
+								aria-label={t`Verified publisher`}
+							/>
+						) : null}
+					</div>
+					<PublisherHandle did={pkg.did} aggregatorHandle={pkg.handle} variant="card" />
+
+					{profile.description ? (
+						<p className="mt-2 line-clamp-2 text-sm text-kumo-default">{profile.description}</p>
+					) : null}
+					{installed ? (
+						<div className="mt-3">
+							<Badge variant="success">{t`Installed`}</Badge>
+						</div>
+					) : null}
+				</div>
+			</div>
 		</Link>
 	);
 }

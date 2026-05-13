@@ -169,6 +169,7 @@
   },
   "dependencies": {
     "@atcute/lexicons": "catalog:",
+    "@atcute/multibase": "catalog:",
     "@emdash-cms/admin": "workspace:*",
     "@emdash-cms/auth": "workspace:*",
     "@emdash-cms/gutenberg-to-portable-text": "workspace:*",

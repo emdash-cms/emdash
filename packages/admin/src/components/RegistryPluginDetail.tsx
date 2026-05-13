@@ -23,6 +23,7 @@ import * as React from "react";
 import {
 	canonicalCapabilitiesForDriftCheck,
 	getLatestRegistryRelease,
+	getRegistryPackage,
 	installRegistryPlugin,
 	releasePassesPolicy,
 	resolveRegistryPackage,
@@ -31,6 +32,7 @@ import {
 import { ArrowPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
+import { PublisherHandle, usePublisherHandle } from "./PublisherHandle.js";
 
 export interface RegistryPluginDetailProps {
 	/** `${handle}/${slug}` -- the pluginId param from the route. */
@@ -44,17 +46,46 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const queryClient = useQueryClient();
 	const [showConsent, setShowConsent] = React.useState(false);
 
-	// Parse `handle/slug` out of the route param. Slugs themselves are
-	// `[A-Za-z][A-Za-z0-9_-]*` (no slashes), so the first `/` is the split.
-	const slashIdx = pluginId.indexOf("/");
-	const handle = slashIdx > 0 ? pluginId.slice(0, slashIdx) : "";
-	const slug = slashIdx > 0 ? pluginId.slice(slashIdx + 1) : "";
-
-	const { data: pkg, isLoading: isLoadingPkg } = useQuery({
-		queryKey: ["registry", "package", config.aggregatorUrl, handle, slug],
-		queryFn: () => resolveRegistryPackage(config, handle, slug),
-		enabled: Boolean(handle && slug),
+	// Plugins list — used to compute whether this package is already
+	// installed. Same query key as elsewhere so the install mutation's
+	// invalidate hook updates the install button without a manual
+	// refresh.
+	const { data: installedPlugins } = useQuery({
+		queryKey: ["plugins"],
+		queryFn: async () => {
+			const { fetchPlugins } = await import("../lib/api/plugins.js");
+			return fetchPlugins();
+		},
 	});
+
+	// Parse `<publisher>/<slug>` out of the route param. The publisher
+	// segment is either a handle (`example.dev`) or a DID
+	// (`did:plc:abc...`). Slugs are `[A-Za-z][A-Za-z0-9_-]*` (no `/`),
+	// so the *last* `/` is the split (a handle could contain a `/`
+	// historically, though atproto handles don't; the DID form
+	// definitely doesn't).
+	const slashIdx = pluginId.lastIndexOf("/");
+	const publisher = slashIdx > 0 ? pluginId.slice(0, slashIdx) : "";
+	const slug = slashIdx > 0 ? pluginId.slice(slashIdx + 1) : "";
+	const isDid = publisher.startsWith("did:");
+
+	// When linked by handle, resolve via `resolvePackage(handle, slug)`.
+	// When linked by DID, go straight to `getPackage(did, slug)`. Either
+	// way we end up with the same `RegistryPackageView` shape.
+	const { data: pkg, isLoading: isLoadingPkg } = useQuery({
+		queryKey: ["registry", "package", config.aggregatorUrl, publisher, slug, isDid],
+		queryFn: () =>
+			isDid
+				? getRegistryPackage(config, publisher, slug)
+				: resolveRegistryPackage(config, publisher, slug),
+		enabled: Boolean(publisher && slug),
+	});
+
+	// Resolve the publisher's handle for display (and for the install
+	// gate -- we block install on an "invalid" status, where the
+	// publisher claims a handle that doesn't round-trip back to this
+	// DID, because that's an impersonation risk).
+	const handleResult = usePublisherHandle(pkg?.did ?? "", pkg?.handle);
 
 	const { data: release } = useQuery({
 		queryKey: ["registry", "latest-release", config.aggregatorUrl, pkg?.did, slug],
@@ -92,18 +123,28 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 
 	const policyOk =
 		release && pkg ? releasePassesPolicy(release, { did: pkg.did, slug }, config.policy) : true;
-	// Install requires a resolvable handle: the server validates handles
-	// with at least one `.`, which DID strings (`did:plc:abc`) don't
-	// satisfy. Publishers whose handle the aggregator couldn't resolve
-	// (or who haven't claimed one yet) can't be installed today. Surface
-	// the limitation in the UI rather than letting the user click into
-	// `INVALID_HANDLE` from the server.
-	const hasResolvableHandle = Boolean(pkg?.handle && pkg.handle.includes("."));
+	// Handle resolution affects display only -- installs are addressed
+	// by DID, so an unverified or missing handle doesn't block install.
+	// A handle that *claims* a value but doesn't verify (`status:
+	// "invalid"`) is a publisher misconfiguration we surface as a
+	// warning but don't gate on.
+
+	// Is this package already installed? Match on (publisher DID,
+	// slug) -- the same key the install handler writes to plugin_states.
+	const installedEntry = React.useMemo(() => {
+		if (!pkg || !installedPlugins) return undefined;
+		return installedPlugins.find(
+			(p) =>
+				p.source === "registry" && p.registryPublisherDid === pkg.did && p.registrySlug === slug,
+		);
+	}, [pkg, installedPlugins, slug]);
+	const isInstalled = Boolean(installedEntry);
 
 	const installMutation = useMutation({
-		mutationFn: () =>
-			installRegistryPlugin({
-				handle,
+		mutationFn: () => {
+			if (!pkg) throw new Error("Package not loaded");
+			return installRegistryPlugin({
+				did: pkg.did,
 				slug,
 				version: release?.version,
 				// Only send the acknowledgement when the dialog had real
@@ -117,7 +158,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				// check is a UX sanity belt for already-displayed
 				// consent, not an authorization gate.
 				acknowledgedDeclaredAccess: capabilities.length > 0 ? capabilities : undefined,
-			}),
+			});
+		},
 		onSuccess: () => {
 			setShowConsent(false);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
@@ -179,7 +221,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						) : null}
 					</div>
 					<p className="text-sm text-kumo-subtle">
-						{t`Published by`} {pkg.handle ?? pkg.did}
+						{t`Published by`}{" "}
+						<PublisherHandle did={pkg.did} aggregatorHandle={pkg.handle} variant="detail" />
 					</p>
 					{release ? (
 						<p className="text-xs text-kumo-subtle">
@@ -188,27 +231,42 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					) : null}
 				</div>
 				<div>
-					<Button
-						variant="primary"
-						disabled={!release || !policyOk || !hasResolvableHandle}
-						onClick={() => setShowConsent(true)}
-					>
-						{t`Install`}
-					</Button>
+					{isInstalled ? (
+						<Button variant="secondary" disabled>
+							{t`Installed`}
+						</Button>
+					) : (
+						<Button
+							variant="primary"
+							disabled={!release || !policyOk || handleResult.status === "invalid"}
+							onClick={() => setShowConsent(true)}
+						>
+							{t`Install`}
+						</Button>
+					)}
 				</div>
 			</div>
 
-			{/* Unresolvable handle notice */}
-			{pkg && !hasResolvableHandle ? (
+			{/* Invalid-handle notice. The publisher's DID document claims a
+			    handle but the handle's domain doesn't point back to this
+			    DID. Possible causes: an expired DNS record or stale
+			    .well-known/atproto-did file on the publisher's side
+			    (legitimate but misconfigured), OR an active impersonation
+			    attempt -- somebody publishing under a DID that claims to
+			    be `stripe.com` etc. We can't tell the two apart from this
+			    side, so we treat the claim as untrusted and block
+			    install. Don't display the spoofed handle string -- it
+			    might be exactly what the attacker wants the admin to see. */}
+			{handleResult.status === "invalid" ? (
 				<div
-					className="flex items-start gap-3 rounded-md border border-kumo-warning bg-kumo-warning/10 p-4 text-kumo-warning"
-					role="status"
+					className="flex items-start gap-3 rounded-md border border-kumo-error bg-kumo-error/10 p-4 text-kumo-error"
+					role="alert"
 				>
 					<Warning className="mt-0.5 h-5 w-5 shrink-0" />
 					<div>
-						<p className="font-medium">{t`Publisher handle is not resolvable`}</p>
+						<p className="font-medium">{t`We couldn't verify this publisher's identity`}</p>
 						<p className="mt-1 text-sm text-kumo-default">
-							{t`This package's publisher hasn't claimed a handle the aggregator can resolve, so it can't be installed yet. The publisher needs to set up a handle (any domain they control) before this plugin is installable.`}
+							{t`This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying.`}
 						</p>
 					</div>
 				</div>

@@ -38,7 +38,7 @@
  *     mitigated by the artifact checksum but not detected.
  */
 
-import type { Handle } from "@atcute/lexicons";
+import type { Did } from "@atcute/lexicons";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
@@ -48,12 +48,13 @@ import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
 import {
 	canonicalCapabilitiesForDriftCheck,
+	coerceRegistryConfig,
 	parseDurationSeconds,
 	releaseExemptFromMinimumAge,
 	validateAggregatorUrl,
 } from "../../registry/config.js";
 import { makeRegistryPluginId } from "../../registry/plugin-id.js";
-import type { RegistryConfig } from "../../registry/types.js";
+import type { RegistryConfigInput } from "../../registry/types.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
@@ -62,8 +63,18 @@ import { deleteBundleFromR2, storeBundleInR2 } from "./marketplace.js";
 // ── Types ──────────────────────────────────────────────────────────
 
 export interface RegistryInstallInput {
-	/** Publisher's atproto handle, e.g. `"example.dev"`. */
-	handle: string;
+	/**
+	 * Publisher DID. Required. The browser is expected to resolve
+	 * `(handle, slug) → (did, slug)` via the aggregator's
+	 * `resolvePackage` XRPC before posting -- the server then skips that
+	 * round-trip and looks up the package directly.
+	 *
+	 * Passing DID rather than handle here means installs work for
+	 * publishers whose handle the aggregator couldn't resolve at view
+	 * time (handle is "best-effort" per the lexicon -- absent for any
+	 * publisher whose DID document didn't resolve cleanly at ingest).
+	 */
+	did: string;
 	/** Package slug (rkey of the publisher's profile record). */
 	slug: string;
 	/** Optional explicit version. When omitted, the aggregator's latest. */
@@ -106,35 +117,68 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 	return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** multihash code for sha2-256 (single-byte varint). */
+const MULTIHASH_SHA256_CODE = 0x12;
+/** sha2-256 digest length in bytes (single-byte varint). */
+const MULTIHASH_SHA256_LENGTH = 0x20;
+
 /**
- * Verify that a multibase multihash string from a release record's
+ * Compute the multibase-multihash sha2-256 checksum of `bytes`, in the
+ * same `b<base32>` shape the registry CLI publishes
+ * (`packages/registry-cli/src/multihash.ts`). Returns a 56-character
+ * string starting with `b`.
+ *
+ * The trust contract is: if both sides produce the same string for
+ * the same bytes, the bytes are unchanged. We don't decode the
+ * publisher-supplied checksum -- we just re-encode our own and compare,
+ * which is equivalent and avoids needing a base32 decoder.
+ */
+async function sha256MultibaseMultihash(bytes: Uint8Array): Promise<string> {
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Uint8Array is a valid BufferSource at runtime
+	const digestBuf = await crypto.subtle.digest("SHA-256", bytes as unknown as BufferSource);
+	const digest = new Uint8Array(digestBuf);
+	const multihash = new Uint8Array(2 + digest.length);
+	multihash[0] = MULTIHASH_SHA256_CODE;
+	multihash[1] = MULTIHASH_SHA256_LENGTH;
+	multihash.set(digest, 2);
+	const { toBase32 } = await import("@atcute/multibase");
+	return `b${toBase32(multihash)}`;
+}
+
+/**
+ * Verify that a checksum string from a release record's
  * `artifact.checksum` field corresponds to the SHA-256 of the given
  * bytes.
  *
- * The lexicon mandates support for sha2-256 (multihash code 0x12) and
- * recommends base32 ('b' prefix) encoding. We accept the canonical
- * `b<base32>` shape and reject anything we can't unambiguously verify.
- * Hash functions other than sha2-256 are out of scope for this initial
- * release; the install fails closed.
+ * Accepts two formats:
+ *
+ *   - Bare lowercase/uppercase hex SHA-256 (64 chars). Convenience for
+ *     publishers / tools that emit hex rather than multibase.
+ *   - Multibase-multihash with the `b` (base32) prefix and sha2-256.
+ *     This is the format RFC 0001 mandates and the registry CLI emits
+ *     (see `packages/registry-cli/src/multihash.ts`).
+ *
+ * Hash functions other than sha2-256 are out of scope for this
+ * initial release; the install fails closed.
  */
 async function verifyChecksum(bytes: Uint8Array, checksum: string): Promise<boolean> {
-	// Bare hex-sha256 (no multibase prefix) -- accepted as a convenience
-	// because PluginBundle.checksum from extractBundle() is plain hex,
-	// and registries that haven't fully adopted multibase yet emit hex.
 	if (SHA256_HEX_PATTERN.test(checksum)) {
 		const actual = await sha256Hex(bytes);
 		return checksum.toLowerCase() === actual;
 	}
 
-	// Multibase-base32 multihash with sha2-256: 'b' + base32(0x12, 0x20, <32 bytes>).
-	// The full decode pipeline (base32 → multihash header → digest bytes →
-	// hex) is more code than the trust boundary it gains us today, given
-	// the verification step is fundamentally bounded by what algorithm
-	// the upstream record chose. Leaving the multibase path for the
-	// followup that pairs with full MST verification.
-	//
-	// For now we fail closed on multibase strings rather than risk a
-	// false-positive verification.
+	// Multibase-base32 multihash with sha2-256. We re-encode our own
+	// digest in the same shape and compare strings -- equivalent to
+	// decoding and comparing bytes, but doesn't need a base32 decoder.
+	// 56 chars = 'b' + base32(34 bytes) = 'b' + 55 chars.
+	if (checksum.length === 56 && checksum.startsWith("b")) {
+		const actual = await sha256MultibaseMultihash(bytes);
+		// Case-insensitive: multibase 'b' is lowercase by convention but
+		// some emitters use uppercase. RFC 4648 base32 alphabets are
+		// case-insensitive.
+		return actual.toLowerCase() === checksum.toLowerCase();
+	}
+
 	return false;
 }
 
@@ -469,10 +513,13 @@ export async function handleRegistryInstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	sandboxRunner: SandboxRunner | null,
-	registryConfig: RegistryConfig | undefined,
+	registryConfigInput: RegistryConfigInput | undefined,
 	input: RegistryInstallInput,
 	opts?: { configuredPluginIds?: Set<string> },
 ): Promise<ApiResult<RegistryInstallResult>> {
+	// Accept either the bare-string shorthand or the full
+	// `RegistryConfig` object (see `RegistryConfigInput`).
+	const registryConfig = coerceRegistryConfig(registryConfigInput);
 	if (!registryConfig) {
 		return {
 			success: false,
@@ -519,7 +566,7 @@ export async function handleRegistryInstall(
 		};
 	}
 
-	const { handle, slug, version: requestedVersion } = input;
+	const { did, slug, version: requestedVersion } = input;
 
 	// Lazy-load the discovery client. Avoids pulling @atcute/client into
 	// every code path that imports core/api/handlers.
@@ -536,31 +583,31 @@ export async function handleRegistryInstall(
 		fetch: timedFetch(aggregatorDeadline),
 	});
 
-	// Basic shape check on the handle. Aggregator's lexicon types the
-	// param as `${string}.${string}`, but the handler accepts a plain
-	// string from request bodies; reject malformed shapes here rather
-	// than letting the XRPC call fail opaquely. Full RFC 3986 handle
-	// validation is the aggregator's job.
-	if (!handle.includes(".")) {
+	// Basic shape check on the DID. The browser is expected to send a
+	// DID resolved via the aggregator's `resolvePackage`; reject obvious
+	// malformations here rather than letting the XRPC call fail
+	// opaquely. The lexicon's `did:${string}:${string}` template is the
+	// authoritative check.
+	if (!did.startsWith("did:") || did.split(":").length < 3) {
 		return {
 			success: false,
 			error: {
-				code: "INVALID_HANDLE",
-				message: "Handle must be a domain-like identifier (e.g. example.dev)",
+				code: "INVALID_DID",
+				message: "DID must be a valid atproto DID (e.g. did:plc:abc123)",
 			},
 		};
 	}
 
 	try {
-		// Step 1: resolve (handle, slug) → (did, slug)
-		// Cast: the validation above ensures `handle` matches the lexicon's
-		// `${string}.${string}` shape.
-		const packageView = await discovery.resolvePackage({
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape validated above
-			handle: handle as Handle,
+		// Step 1: look up the package by DID + slug. The browser already
+		// resolved any handle to a DID via `resolvePackage`; we skip that
+		// round-trip and go straight to `getPackage`.
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- validated above
+		const publisherDid = did as Did;
+		const packageView = await discovery.getPackage({
+			did: publisherDid,
 			slug,
 		});
-		const publisherDid = packageView.did;
 
 		// Step 2: select the target release.
 		// For an explicit version, page through listReleases until we find
@@ -611,8 +658,8 @@ export async function handleRegistryInstall(
 				error: {
 					code: "NO_RELEASE",
 					message: requestedVersion
-						? `Version ${requestedVersion} not found for ${handle}/${slug}`
-						: `No installable release found for ${handle}/${slug}`,
+						? `Version ${requestedVersion} not found for ${publisherDid}/${slug}`
+						: `No installable release found for ${publisherDid}/${slug}`,
 				},
 			};
 		}
@@ -779,7 +826,7 @@ export async function handleRegistryInstall(
 					success: false,
 					error: {
 						code: "ALREADY_INSTALLED",
-						message: `Plugin ${handle}/${slug} is already installed`,
+						message: `Plugin ${publisherDid}/${slug} is already installed`,
 					},
 				};
 			}

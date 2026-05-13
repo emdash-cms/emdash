@@ -68,7 +68,7 @@ export interface DiscoveryClientOptions {
  * @example
  * ```ts
  * const discovery = new DiscoveryClient({
- *   aggregatorUrl: "https://experimental-registry.emdashcms.com",
+ *   aggregatorUrl: "https://registry.emdashcms.com",
  * });
  * const result = await discovery.searchPackages({ q: "gallery", limit: 10 });
  * for (const pkg of result.packages) {

@@ -8,7 +8,7 @@
  * seconds so the browser doesn't need a duration parser.
  */
 
-import type { RegistryConfig } from "./types.js";
+import type { RegistryConfig, RegistryConfigInput } from "./types.js";
 
 /**
  * Shape returned in the admin manifest's `registry` field. The browser
@@ -210,20 +210,47 @@ export function validateAggregatorUrl(aggregatorUrl: string): URL {
 }
 
 /**
- * Normalize the user-supplied `RegistryConfig` into the shape that ships
- * to the admin browser via the manifest endpoint.
+ * Expand the `RegistryConfigInput` shorthand into the full
+ * `RegistryConfig` object shape.
  *
- * Returns `null` when `config` is undefined so callers can spread the
- * result directly into the manifest object.
+ * Users can pass a bare aggregator URL string for the common case
+ * (`experimental.registry: "https://registry.emdashcms.com"`); the
+ * normalizer handles either form transparently.
+ *
+ * Returns `undefined` for `undefined` input so callers can chain with
+ * optional chaining.
+ */
+export function coerceRegistryConfig(
+	input: RegistryConfigInput | undefined,
+): RegistryConfig | undefined {
+	if (input === undefined) return undefined;
+	if (typeof input === "string") return { aggregatorUrl: input };
+	return input;
+}
+
+/**
+ * Normalize the user-supplied `RegistryConfigInput` into the shape that
+ * ships to the admin browser via the manifest endpoint.
+ *
+ * Accepts either the shorthand string form
+ * (`"https://registry.emdashcms.com"`) or the full `RegistryConfig`
+ * object. Returns `null` when `input` is undefined so callers can
+ * spread the result directly into the manifest object.
  *
  * Throws if the aggregator URL is malformed, points at a forbidden host,
- * or `policy.minimumReleaseAge` is unparseable. Both surface at runtime
- * startup as 500s from the manifest endpoint -- intended, because the
- * alternative is silently disabling the registry on misconfigured sites.
+ * or `policy.minimumReleaseAge` is unparseable. These surface at
+ * runtime startup as 500s from the manifest endpoint -- intended,
+ * because the alternative is silently disabling the registry on
+ * misconfigured sites.
+ *
+ * TODO: switch to a Zod schema for richer per-field error messages and
+ * to surface misconfigurations to the admin UI as a banner instead of
+ * a manifest 500.
  */
 export function normalizeRegistryConfig(
-	config: RegistryConfig | undefined,
+	input: RegistryConfigInput | undefined,
 ): ManifestRegistryConfig | null {
+	const config = coerceRegistryConfig(input);
 	if (!config) return null;
 
 	const aggregatorUrl = config.aggregatorUrl?.trim();

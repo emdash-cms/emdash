@@ -111,6 +111,28 @@ export interface RegistryConfig {
 }
 
 /**
+ * Shorthand: pass a bare aggregator URL string in place of a full
+ * `RegistryConfig` object when you don't need `acceptLabelers` or
+ * `policy`. The normalizer expands the string into
+ * `{ aggregatorUrl: <string> }` before any downstream code sees it.
+ *
+ * @example
+ * ```ts
+ * experimental: {
+ *   registry: "https://registry.emdashcms.com",
+ * }
+ * ```
+ *
+ * Equivalent to:
+ * ```ts
+ * experimental: {
+ *   registry: { aggregatorUrl: "https://registry.emdashcms.com" },
+ * }
+ * ```
+ */
+export type RegistryConfigInput = string | RegistryConfig;
+
+/**
  * Experimental EmDash features. See `EmDashConfig.experimental`.
  *
  * Each field is independently opt-in. Fields may be promoted out of
@@ -133,6 +155,10 @@ export interface ExperimentalConfig {
 	 *
 	 * Requires `sandboxRunner` to be configured -- registry plugins always
 	 * run sandboxed.
+	 *
+	 * Accepts a bare URL string as shorthand for
+	 * `{ aggregatorUrl: "..." }`. Use the full object form when you need
+	 * `acceptLabelers` or `policy`.
 	 */
-	registry?: RegistryConfig;
+	registry?: RegistryConfigInput;
 }

@@ -4,10 +4,12 @@
  * POST /_emdash/api/admin/plugins/registry/install
  *
  * Installs a plugin from the experimental decentralized plugin registry
- * (see RFC 0001). The browser passes the publisher handle and slug it
- * resolved through the aggregator's `searchPackages` / `resolvePackage`
- * endpoints; the server re-resolves and re-verifies on its side before
- * fetching the artifact and handing it to the sandbox loader.
+ * (see RFC 0001). The browser resolves `(handle, slug) → (did, slug)`
+ * via the aggregator before posting and sends the publisher DID
+ * directly; the server skips the resolvePackage round-trip and looks
+ * up the package by DID. Sending DID rather than handle means installs
+ * work for publishers whose handle the aggregator couldn't resolve at
+ * view time (handle is best-effort per the lexicon).
  */
 
 import type { APIRoute } from "astro";
@@ -21,8 +23,19 @@ import { isParseError, parseBody } from "#api/parse.js";
 export const prerender = false;
 
 const installBodySchema = z.object({
-	/** Publisher's atproto handle (e.g. `"example.dev"`). */
-	handle: z.string().min(1).max(253),
+	/**
+	 * Publisher DID. Required. Browser is expected to resolve
+	 * `(handle, slug) → did` against the aggregator before posting.
+	 */
+	did: z
+		.string()
+		.min(1)
+		.max(2048)
+		// Loose match -- atproto DID specs allow `did:plc:*` and
+		// `did:web:*` plus future methods. Reject anything that
+		// doesn't even start with `did:` rather than enumerating
+		// methods here; downstream lexicon validation tightens.
+		.regex(/^did:[a-z]+:/, "Invalid DID"),
 	/** Package slug. */
 	slug: z
 		.string()
@@ -73,7 +86,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			emdash.getSandboxRunner(),
 			emdash.config.experimental?.registry,
 			{
-				handle: body.handle,
+				did: body.did,
 				slug: body.slug,
 				version: body.version,
 				acknowledgedDeclaredAccess: body.acknowledgedDeclaredAccess,

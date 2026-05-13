@@ -87,7 +87,7 @@ export interface RegistrySearchOpts {
 }
 
 export interface RegistryInstallRequest {
-	handle: string;
+	did: string;
 	slug: string;
 	version?: string;
 	acknowledgedDeclaredAccess?: unknown;
@@ -108,6 +108,7 @@ export interface RegistryInstallResult {
 interface WrappedDiscoveryClient {
 	searchPackages: (opts: RegistrySearchOpts) => Promise<RegistrySearchResult>;
 	resolvePackage: (handle: string, slug: string) => Promise<RegistryPackageView>;
+	getPackage: (did: string, slug: string) => Promise<RegistryPackageView>;
 	getLatestRelease: (did: string, slug: string) => Promise<RegistryReleaseView>;
 	listReleases: (
 		did: string,
@@ -150,6 +151,14 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 			const result = await discovery.resolvePackage({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape validated by aggregator
 				handle: handle as Handle,
+				slug,
+			});
+			return result as RegistryPackageView;
+		},
+		async getPackage(did: string, slug: string) {
+			const result = await discovery.getPackage({
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
+				did: did as Did,
 				slug,
 			});
 			return result as RegistryPackageView;
@@ -279,6 +288,15 @@ export async function resolveRegistryPackage(
 	return client.resolvePackage(handle, slug);
 }
 
+export async function getRegistryPackage(
+	config: RegistryClientConfig,
+	did: string,
+	slug: string,
+): Promise<RegistryPackageView> {
+	const client = await getDiscoveryClient(config);
+	return client.getPackage(did, slug);
+}
+
 export async function getLatestRegistryRelease(
 	config: RegistryClientConfig,
 	did: string,
@@ -296,6 +314,129 @@ export async function listRegistryReleases(
 ): Promise<{ releases: RegistryReleaseView[]; cursor?: string }> {
 	const client = await getDiscoveryClient(config);
 	return client.listReleases(did, slug, cursor);
+}
+
+/**
+ * Resolve a publisher DID to its claimed handle using the same
+ * `LocalActorResolver` pattern as `@emdash-cms/registry-cli` and
+ * `@emdash-cms/auth-atproto`. Bidirectional verification (handle's
+ * domain points back to the same DID) is part of the resolver --
+ * `LocalActorResolver` returns the sentinel `"handle.invalid"` when
+ * the `alsoKnownAs` handle is present but doesn't round-trip.
+ *
+ * Three distinct outcomes the UI can render:
+ *
+ *   - `{ status: "ok", handle }` — verified handle, round-trip OK.
+ *   - `{ status: "invalid" }` — DID claims a handle but it doesn't
+ *     resolve back. The publisher's handle setup is broken; the admin
+ *     should see a clear "Invalid handle" indicator rather than the
+ *     raw DID.
+ *   - `{ status: "missing" }` — no handle claimed at all (no
+ *     `alsoKnownAs`), or the DID document couldn't be fetched (network
+ *     error, unsupported DID method).
+ */
+let actorResolver: import("@atcute/identity-resolver").LocalActorResolver | null = null;
+async function getActorResolver(): Promise<import("@atcute/identity-resolver").LocalActorResolver> {
+	if (actorResolver) return actorResolver;
+	const {
+		CompositeDidDocumentResolver,
+		CompositeHandleResolver,
+		DohJsonHandleResolver,
+		LocalActorResolver,
+		PlcDidDocumentResolver,
+		WebDidDocumentResolver,
+		WellKnownHandleResolver,
+	} = await import("@atcute/identity-resolver");
+	actorResolver = new LocalActorResolver({
+		handleResolver: new CompositeHandleResolver({
+			methods: {
+				dns: new DohJsonHandleResolver({ dohUrl: "https://cloudflare-dns.com/dns-query" }),
+				http: new WellKnownHandleResolver(),
+			},
+		}),
+		didDocumentResolver: new CompositeDidDocumentResolver({
+			methods: {
+				plc: new PlcDidDocumentResolver(),
+				web: new WebDidDocumentResolver(),
+			},
+		}),
+	});
+	return actorResolver;
+}
+
+export type DidHandleResolution =
+	| { status: "ok"; handle: string }
+	| { status: "invalid" }
+	| { status: "missing" };
+
+/**
+ * localStorage-backed cache for DID→handle resolutions. Handles are
+ * stable for hours-to-days in practice, but bound the cache so a
+ * compromised handle eventually flips back to "invalid" without a
+ * forced refresh. 24h matches the typical atproto handle TTL.
+ *
+ * Failures (network errors, unsupported DID method) are *not* cached --
+ * those should retry on the next render.
+ */
+const HANDLE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const HANDLE_CACHE_KEY_PREFIX = "emdash:did-handle:";
+
+interface CachedResolution {
+	resolution: DidHandleResolution;
+	expiresAt: number;
+}
+
+function readHandleCache(did: string): DidHandleResolution | null {
+	if (typeof localStorage === "undefined") return null;
+	try {
+		const raw = localStorage.getItem(`${HANDLE_CACHE_KEY_PREFIX}${did}`);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw) as CachedResolution;
+		if (!parsed || typeof parsed.expiresAt !== "number" || parsed.expiresAt < Date.now()) {
+			return null;
+		}
+		return parsed.resolution;
+	} catch {
+		return null;
+	}
+}
+
+function writeHandleCache(did: string, resolution: DidHandleResolution): void {
+	if (typeof localStorage === "undefined") return;
+	try {
+		const entry: CachedResolution = { resolution, expiresAt: Date.now() + HANDLE_CACHE_TTL_MS };
+		localStorage.setItem(`${HANDLE_CACHE_KEY_PREFIX}${did}`, JSON.stringify(entry));
+	} catch {
+		// quota exceeded or storage disabled; drop silently
+	}
+}
+
+export async function resolveDidToHandle(did: string): Promise<DidHandleResolution> {
+	const cached = readHandleCache(did);
+	if (cached) return cached;
+
+	let result: DidHandleResolution;
+	try {
+		const resolver = await getActorResolver();
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- caller's DID has the right shape
+		const resolved = await resolver.resolve(did as Did);
+		if (resolved.handle === "handle.invalid") {
+			result = { status: "invalid" };
+		} else if (resolved.handle) {
+			result = { status: "ok", handle: resolved.handle };
+		} else {
+			result = { status: "missing" };
+		}
+	} catch (err) {
+		// Network / DID-method failure: don't cache, so a transient
+		// outage doesn't poison the cache for 24h. Log so a publisher
+		// debugging "why is my handle not resolving?" can see the cause.
+		console.warn(`[registry] DID->handle resolution failed for ${did}:`, err);
+		return { status: "missing" };
+	}
+
+	writeHandleCache(did, result);
+	return result;
 }
 
 // ---------------------------------------------------------------------------
