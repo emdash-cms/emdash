@@ -204,6 +204,18 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
       - run: pnpm run --filter @emdash-cms/admin test
+      # Upload vitest browser-mode failure screenshots so we can diagnose
+      # CI-only flakes (e.g. the recurring slash-menu race). Only runs on
+      # failure, only uploads the screenshot directories.
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-test-screenshots
+          path: |
+            packages/admin/tests/**/__screenshots__/**
+          if-no-files-found: ignore
+          retention-days: 1
 
   test-e2e-rollup:
     name: E2E Tests

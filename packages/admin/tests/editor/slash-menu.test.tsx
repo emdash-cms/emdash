@@ -189,6 +189,59 @@ function isItemSelected(el: HTMLElement): boolean {
 	return el.className.split(WHITESPACE_SPLIT_REGEX).includes("bg-kumo-tint");
 }
 
+/**
+ * DIAGNOSTIC (temporary, see #1004 follow-up): dump everything useful about
+ * the slash menu state to console.log. Called from a catch block when
+ * vi.waitFor times out, so the failing CI log contains the actual menu
+ * contents and DOM state at the moment of failure. Remove once the
+ * underlying race is understood and fixed.
+ */
+function dumpMenuState(label: string): void {
+	const menu = getSlashMenu();
+	const lines: string[] = [
+		`[slash-menu diag] === ${label} ===`,
+		`[slash-menu diag] menu present: ${menu !== null}`,
+		`[slash-menu diag] activeElement: ${document.activeElement?.tagName} (class=${document.activeElement?.className?.slice(0, 80)})`,
+		`[slash-menu diag] body > div count: ${document.querySelectorAll("body > div").length}`,
+	];
+	if (menu) {
+		const items = getSlashMenuItems(menu);
+		lines.push(`[slash-menu diag] items rendered: ${items.length}`);
+		lines.push(`[slash-menu diag] menu textContent length: ${menu.textContent?.length ?? 0}`);
+		lines.push(`[slash-menu diag] menu first 200 chars: ${menu.textContent?.slice(0, 200)}`);
+		items.forEach((el, i) => {
+			const dataIndex = el.getAttribute("data-index");
+			const selected = isItemSelected(el);
+			const classes = el.className;
+			lines.push(
+				`[slash-menu diag]   item ${i} (data-index=${dataIndex}) selected=${selected} classes=${classes.slice(0, 200)}`,
+			);
+		});
+		// menu.outerHTML truncated to 2000 chars
+		lines.push(`[slash-menu diag] menu outerHTML: ${menu.outerHTML.slice(0, 2000)}`);
+	}
+	for (const line of lines) {
+		console.log(line);
+	}
+}
+
+/**
+ * DIAGNOSTIC wrapper around vi.waitFor that dumps menu state on timeout.
+ * Same semantics as vi.waitFor; only adds logging on failure.
+ */
+async function diagWaitFor<T>(
+	label: string,
+	predicate: () => T | Promise<T>,
+	options?: { timeout?: number; interval?: number },
+): Promise<T> {
+	try {
+		return await vi.waitFor(predicate, options);
+	} catch (err) {
+		dumpMenuState(label);
+		throw err;
+	}
+}
+
 // =============================================================================
 // Slash Command Menu
 // =============================================================================
@@ -287,7 +340,8 @@ describe("Slash Command Menu", () => {
 
 		await waitForSlashMenu();
 
-		await vi.waitFor(
+		await diagWaitFor(
+			"highlights the first item by default",
 			() => {
 				const menu = getSlashMenu()!;
 				const items = getSlashMenuItems(menu);
@@ -305,7 +359,7 @@ describe("Slash Command Menu", () => {
 
 		await userEvent.keyboard("{ArrowDown}");
 
-		await vi.waitFor(() => {
+		await diagWaitFor("moves selection down with ArrowDown", () => {
 			const menu = getSlashMenu()!;
 			const items = getSlashMenuItems(menu);
 			expect(isItemSelected(items[1]!)).toBe(true);
@@ -321,13 +375,13 @@ describe("Slash Command Menu", () => {
 
 		// Move down, then back up
 		await userEvent.keyboard("{ArrowDown}");
-		await vi.waitFor(() => {
+		await diagWaitFor("ArrowUp from second item: first ArrowDown", () => {
 			const items = getSlashMenuItems(getSlashMenu()!);
 			expect(isItemSelected(items[1]!)).toBe(true);
 		});
 
 		await userEvent.keyboard("{ArrowUp}");
-		await vi.waitFor(() => {
+		await diagWaitFor("ArrowUp from second item: back to first", () => {
 			const items = getSlashMenuItems(getSlashMenu()!);
 			expect(isItemSelected(items[0]!)).toBe(true);
 		});
@@ -341,7 +395,7 @@ describe("Slash Command Menu", () => {
 
 		await userEvent.keyboard("{ArrowUp}");
 
-		await vi.waitFor(() => {
+		await diagWaitFor("wraps selection around (ArrowUp from first)", () => {
 			const menu = getSlashMenu()!;
 			const items = getSlashMenuItems(menu);
 			const lastItem = items.at(-1)!;
@@ -360,7 +414,7 @@ describe("Slash Command Menu", () => {
 
 		await waitForSlashMenuClosed();
 
-		await vi.waitFor(() => {
+		await diagWaitFor("Enter converts to heading: h1 should exist", () => {
 			expect(pm.querySelector("h1")).toBeTruthy();
 		});
 	});
