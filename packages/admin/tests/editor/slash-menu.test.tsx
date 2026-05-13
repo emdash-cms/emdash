@@ -220,9 +220,7 @@ function dumpMenuState(label: string): void {
 		// menu.outerHTML truncated to 2000 chars
 		lines.push(`[slash-menu diag] menu outerHTML: ${menu.outerHTML.slice(0, 2000)}`);
 	}
-	for (const line of lines) {
-		console.log(line);
-	}
+	console.log(lines.join("\n"));
 }
 
 /**
