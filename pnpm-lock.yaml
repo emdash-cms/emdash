@@ -231,6 +231,9 @@ catalogs:
     wrangler:
       specifier: ^4.83.0
       version: 4.90.0
+    zod:
+      specifier: ^4.3.6
+      version: 4.4.1
 
 importers:
 
@@ -1080,8 +1083,8 @@ importers:
         specifier: ^2.4.1
         version: 2.4.1
       zod:
-        specifier: ^4.3.5
-        version: 4.3.6
+        specifier: 'catalog:'
+        version: 4.4.1
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
@@ -1330,7 +1333,7 @@ importers:
         version: 0.27.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@modelcontextprotocol/sdk':
         specifier: ^1.26.0
-        version: 1.26.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
+        version: 1.26.0(@cfworker/json-schema@4.1.1)(zod@4.4.1)
       '@oslojs/crypto':
         specifier: 'catalog:'
         version: 1.0.1
@@ -1440,8 +1443,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.0
       zod:
-        specifier: ^4.3.5
-        version: 4.3.6
+        specifier: 'catalog:'
+        version: 4.4.1
     devDependencies:
       '@apidevtools/swagger-parser':
         specifier: ^12.1.0
@@ -1487,7 +1490,7 @@ importers:
         version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.1.5)(@vitest/ui@4.1.5)(jsdom@26.1.0)(vite@6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2))
       zod-openapi:
         specifier: ^5.4.6
-        version: 5.4.6(zod@4.3.6)
+        version: 5.4.6(zod@4.4.1)
     optionalDependencies:
       '@libsql/kysely-libsql':
         specifier: ^0.4.0
@@ -10391,9 +10394,6 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
-  zod@4.3.6:
-    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
-
   zod@4.4.1:
     resolution: {integrity: sha512-a6ENMBBGZBsnlSebQ/eKCguSBeGKSf4O7BPnqVPmYGtpBYI7VSqoVqw+QcB7kPRjbqPwhYTpFbVj/RqNz/CT0Q==}
 
@@ -12625,7 +12625,7 @@ snapshots:
     dependencies:
       moo: 0.5.3
 
-  '@modelcontextprotocol/sdk@1.26.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)':
+  '@modelcontextprotocol/sdk@1.26.0(@cfworker/json-schema@4.1.1)(zod@4.4.1)':
     dependencies:
       '@hono/node-server': 1.19.9(hono@4.12.4)
       ajv: 8.17.1
@@ -12642,8 +12642,8 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 4.3.6
-      zod-to-json-schema: 3.25.1(zod@4.3.6)
+      zod: 4.4.1
+      zod-to-json-schema: 3.25.1(zod@4.4.1)
     optionalDependencies:
       '@cfworker/json-schema': 4.1.1
     transitivePeerDependencies:
@@ -15093,7 +15093,7 @@ snapshots:
       vitefu: 1.1.2(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2))
       xxhash-wasm: 1.1.0
       yargs-parser: 22.0.0
-      zod: 4.3.6
+      zod: 4.4.1
     optionalDependencies:
       sharp: 0.34.5
     transitivePeerDependencies:
@@ -15187,7 +15187,7 @@ snapshots:
       vitefu: 1.1.2(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2))
       xxhash-wasm: 1.1.0
       yargs-parser: 22.0.0
-      zod: 4.3.6
+      zod: 4.4.1
     optionalDependencies:
       sharp: 0.34.5
     transitivePeerDependencies:
@@ -15281,7 +15281,7 @@ snapshots:
       vitefu: 1.1.2(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2))
       xxhash-wasm: 1.1.0
       yargs-parser: 22.0.0
-      zod: 4.3.6
+      zod: 4.4.1
     optionalDependencies:
       sharp: 0.34.5
     transitivePeerDependencies:
@@ -15468,7 +15468,7 @@ snapshots:
       vitefu: 1.1.2(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2))
       xxhash-wasm: 1.1.0
       yargs-parser: 22.0.0
-      zod: 4.3.6
+      zod: 4.4.1
     optionalDependencies:
       sharp: 0.34.5
     transitivePeerDependencies:
@@ -16885,7 +16885,7 @@ snapshots:
       smol-toml: 1.6.0
       strip-json-comments: 5.0.3
       typescript: 6.0.0-beta
-      zod: 4.3.6
+      zod: 4.4.1
 
   kysely-d1@0.4.0(kysely@0.27.6):
     dependencies:
@@ -20003,21 +20003,15 @@ snapshots:
       cookie: 1.1.1
       youch-core: 0.3.3
 
-  zod-openapi@5.4.6(zod@4.3.6):
+  zod-openapi@5.4.6(zod@4.4.1):
     dependencies:
-      zod: 4.3.6
-
-  zod-to-json-schema@3.25.1(zod@4.3.6):
-    dependencies:
-      zod: 4.3.6
+      zod: 4.4.1
 
   zod-to-json-schema@3.25.1(zod@4.4.1):
     dependencies:
       zod: 4.4.1
 
   zod@3.25.76: {}
-
-  zod@4.3.6: {}
 
   zod@4.4.1: {}
 

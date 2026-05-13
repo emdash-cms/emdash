@@ -207,7 +207,7 @@
     "sax": "^1.4.1",
     "ulidx": "^2.4.1",
     "upng-js": "^2.1.0",
-    "zod": "^4.3.5"
+    "zod": "catalog:"
   },
   "optionalDependencies": {
     "@libsql/kysely-libsql": "^0.4.0",
