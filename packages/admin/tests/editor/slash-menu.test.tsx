@@ -189,57 +189,6 @@ function isItemSelected(el: HTMLElement): boolean {
 	return el.className.split(WHITESPACE_SPLIT_REGEX).includes("bg-kumo-tint");
 }
 
-/**
- * DIAGNOSTIC (temporary, see #1004 follow-up): dump everything useful about
- * the slash menu state to console.log. Called from a catch block when
- * vi.waitFor times out, so the failing CI log contains the actual menu
- * contents and DOM state at the moment of failure. Remove once the
- * underlying race is understood and fixed.
- */
-function dumpMenuState(label: string): void {
-	const menu = getSlashMenu();
-	const lines: string[] = [
-		`[slash-menu diag] === ${label} ===`,
-		`[slash-menu diag] menu present: ${menu !== null}`,
-		`[slash-menu diag] activeElement: ${document.activeElement?.tagName} (class=${document.activeElement?.className?.slice(0, 80)})`,
-		`[slash-menu diag] body > div count: ${document.querySelectorAll("body > div").length}`,
-	];
-	if (menu) {
-		const items = getSlashMenuItems(menu);
-		lines.push(`[slash-menu diag] items rendered: ${items.length}`);
-		lines.push(`[slash-menu diag] menu textContent length: ${menu.textContent?.length ?? 0}`);
-		lines.push(`[slash-menu diag] menu first 200 chars: ${menu.textContent?.slice(0, 200)}`);
-		items.forEach((el, i) => {
-			const dataIndex = el.getAttribute("data-index");
-			const selected = isItemSelected(el);
-			const classes = el.className;
-			lines.push(
-				`[slash-menu diag]   item ${i} (data-index=${dataIndex}) selected=${selected} classes=${classes.slice(0, 200)}`,
-			);
-		});
-		// menu.outerHTML truncated to 2000 chars
-		lines.push(`[slash-menu diag] menu outerHTML: ${menu.outerHTML.slice(0, 2000)}`);
-	}
-	console.log(lines.join("\n"));
-}
-
-/**
- * DIAGNOSTIC wrapper around vi.waitFor that dumps menu state on timeout.
- * Same semantics as vi.waitFor; only adds logging on failure.
- */
-async function diagWaitFor<T>(
-	label: string,
-	predicate: () => T | Promise<T>,
-	options?: { timeout?: number; interval?: number },
-): Promise<T> {
-	try {
-		return await vi.waitFor(predicate, options);
-	} catch (err) {
-		dumpMenuState(label);
-		throw err;
-	}
-}
-
 // =============================================================================
 // Slash Command Menu
 // =============================================================================
@@ -338,8 +287,7 @@ describe("Slash Command Menu", () => {
 
 		await waitForSlashMenu();
 
-		await diagWaitFor(
-			"highlights the first item by default",
+		await vi.waitFor(
 			() => {
 				const menu = getSlashMenu()!;
 				const items = getSlashMenuItems(menu);
@@ -357,7 +305,7 @@ describe("Slash Command Menu", () => {
 
 		await userEvent.keyboard("{ArrowDown}");
 
-		await diagWaitFor("moves selection down with ArrowDown", () => {
+		await vi.waitFor(() => {
 			const menu = getSlashMenu()!;
 			const items = getSlashMenuItems(menu);
 			expect(isItemSelected(items[1]!)).toBe(true);
@@ -373,13 +321,13 @@ describe("Slash Command Menu", () => {
 
 		// Move down, then back up
 		await userEvent.keyboard("{ArrowDown}");
-		await diagWaitFor("ArrowUp from second item: first ArrowDown", () => {
+		await vi.waitFor(() => {
 			const items = getSlashMenuItems(getSlashMenu()!);
 			expect(isItemSelected(items[1]!)).toBe(true);
 		});
 
 		await userEvent.keyboard("{ArrowUp}");
-		await diagWaitFor("ArrowUp from second item: back to first", () => {
+		await vi.waitFor(() => {
 			const items = getSlashMenuItems(getSlashMenu()!);
 			expect(isItemSelected(items[0]!)).toBe(true);
 		});
@@ -393,7 +341,7 @@ describe("Slash Command Menu", () => {
 
 		await userEvent.keyboard("{ArrowUp}");
 
-		await diagWaitFor("wraps selection around (ArrowUp from first)", () => {
+		await vi.waitFor(() => {
 			const menu = getSlashMenu()!;
 			const items = getSlashMenuItems(menu);
 			const lastItem = items.at(-1)!;
@@ -412,7 +360,7 @@ describe("Slash Command Menu", () => {
 
 		await waitForSlashMenuClosed();
 
-		await diagWaitFor("Enter converts to heading: h1 should exist", () => {
+		await vi.waitFor(() => {
 			expect(pm.querySelector("h1")).toBeTruthy();
 		});
 	});
@@ -539,8 +487,15 @@ describe("Slash Command Menu", () => {
 		const menu = await waitForSlashMenu();
 		const items = getSlashMenuItems(menu);
 
-		// React listens for pointerenter/mouseenter on the element.
-		// Use userEvent.hover which properly dispatches pointer + mouse events.
+		// The menu gates mouseenter on a "has the user actually moved the
+		// pointer since the menu opened?" flag, to avoid jumping selection
+		// when the menu renders under a stationary pointer (which happens
+		// in CI because pointer position persists across tests). Dispatch a
+		// real pointermove on the menu first so the gate is open before we
+		// hover an item. userEvent.hover by itself only teleports the
+		// cursor to the target and fires pointerenter -- no pointermove.
+		menu.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" }));
+
 		await userEvent.hover(items[2]!);
 
 		await vi.waitFor(() => {
