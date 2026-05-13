@@ -1,5 +1,14 @@
 # @emdash-cms/admin
 
+## 0.12.1
+
+### Patch Changes
+
+- [#1013](https://github.com/emdash-cms/emdash/pull/1013) [`0cd8c6d`](https://github.com/emdash-cms/emdash/commit/0cd8c6d4e0f0dc126d66f953afcfdc3d6201d00b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the slash command menu's initial selection getting overridden when the menu opens under a stationary pointer. The menu items previously reacted to `mouseenter` unconditionally, so an item rendered beneath the cursor would steal selection from the keyboard default before any user interaction. Mouse-hover-selects still works, but only after the user actually moves the pointer over the menu.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.12.1
+
 ## 0.12.0
 
 ### Minor Changes
