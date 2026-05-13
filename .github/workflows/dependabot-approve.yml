@@ -11,7 +11,12 @@ permissions:
 jobs:
   approve:
     name: Auto-Approve
-    if: github.actor == 'dependabot[bot]'
+    # Use github.event.pull_request.user.login, not github.actor.
+    # github.actor reflects the last actor on the trigger and is spoofable
+    # via a PR whose HEAD commit author is 'dependabot[bot]'. The
+    # pull_request.user.login is the PR opener and cannot be spoofed.
+    # https://docs.zizmor.sh/audits/#bot-conditions
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
