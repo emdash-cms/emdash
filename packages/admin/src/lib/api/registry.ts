@@ -1,0 +1,308 @@
+/**
+ * Registry API client
+ *
+ * The admin UI talks to two distinct services for registry features:
+ *
+ *   - **Browse / search / detail**: directly to the configured aggregator
+ *     via `@emdash-cms/registry-client`'s `DiscoveryClient`. The
+ *     aggregator is a public, CORS-enabled atproto AppView; no server
+ *     proxy is needed.
+ *   - **Install**: POST to the EmDash server (which holds the sandbox,
+ *     R2, and `_plugin_state` table). The server re-resolves the same
+ *     `(handle, slug)` against the aggregator, re-verifies the bundle,
+ *     and writes the install. The browser is the consent UI; the server
+ *     is the install actor.
+ *
+ * The discovery client is constructed lazily so we only pull
+ * `@atcute/client` into the admin bundle when the registry path is
+ * actually exercised. Sites with no `experimental.registry` config never
+ * pay the cost (verified at ~2 KB gzip when it does load).
+ */
+
+import type { Did, Handle } from "@atcute/lexicons";
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
+import { API_BASE, apiFetch, throwResponseError } from "./client.js";
+
+export type { Did, Handle };
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/**
+ * Registry configuration carried on the EmDash manifest. The browser
+ * reads this on app boot and passes the relevant fields into the
+ * DiscoveryClient and the latest-release policy filter.
+ */
+export interface RegistryClientConfig {
+	aggregatorUrl: string;
+	acceptLabelers?: string;
+	policy?: {
+		minimumReleaseAgeSeconds?: number;
+		minimumReleaseAgeExclude?: string[];
+	};
+}
+
+/**
+ * Lightweight aliases for the lexicon-generated types. The hooks return
+ * the raw XRPC output -- callers narrow `profile` / `release` as needed
+ * (they're typed as `unknown` by the lexicon because the signed records
+ * are pass-through).
+ */
+export interface RegistryPackageView {
+	uri: string;
+	cid: string;
+	did: string;
+	handle?: string;
+	slug: string;
+	indexedAt: string;
+	latestVersion?: string;
+	profile: unknown;
+	labels?: Array<{ val: string; src?: string; uri?: string }>;
+}
+
+export interface RegistryReleaseView {
+	uri: string;
+	cid: string;
+	did: string;
+	package: string;
+	version: string;
+	indexedAt: string;
+	mirrors?: string[];
+	release: unknown;
+	labels?: Array<{ val: string; src?: string; uri?: string }>;
+}
+
+export interface RegistrySearchResult {
+	packages: RegistryPackageView[];
+	cursor?: string;
+}
+
+export interface RegistrySearchOpts {
+	q?: string;
+	cursor?: string;
+	limit?: number;
+}
+
+export interface RegistryInstallRequest {
+	handle: string;
+	slug: string;
+	version?: string;
+	acknowledgedDeclaredAccess?: unknown;
+}
+
+export interface RegistryInstallResult {
+	pluginId: string;
+	publisherDid: string;
+	slug: string;
+	version: string;
+	capabilities: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Discovery client (lazy)
+// ---------------------------------------------------------------------------
+
+interface WrappedDiscoveryClient {
+	searchPackages: (opts: RegistrySearchOpts) => Promise<RegistrySearchResult>;
+	resolvePackage: (handle: string, slug: string) => Promise<RegistryPackageView>;
+	getLatestRelease: (did: string, slug: string) => Promise<RegistryReleaseView>;
+	listReleases: (
+		did: string,
+		slug: string,
+		cursor?: string,
+	) => Promise<{ releases: RegistryReleaseView[]; cursor?: string }>;
+}
+
+let cachedDiscovery: {
+	config: RegistryClientConfig;
+	client: WrappedDiscoveryClient;
+} | null = null;
+
+async function getDiscoveryClient(config: RegistryClientConfig): Promise<WrappedDiscoveryClient> {
+	if (
+		cachedDiscovery &&
+		cachedDiscovery.config.aggregatorUrl === config.aggregatorUrl &&
+		cachedDiscovery.config.acceptLabelers === config.acceptLabelers
+	) {
+		return cachedDiscovery.client;
+	}
+
+	const mod = await import("@emdash-cms/registry-client/discovery");
+	const DiscoveryClient = mod.DiscoveryClient;
+	const discovery = new DiscoveryClient({
+		aggregatorUrl: config.aggregatorUrl,
+		acceptLabelers: config.acceptLabelers,
+	});
+
+	const wrapped: WrappedDiscoveryClient = {
+		async searchPackages(opts: RegistrySearchOpts) {
+			const result = await discovery.searchPackages({
+				q: opts.q,
+				cursor: opts.cursor,
+				limit: opts.limit,
+			});
+			return result as RegistrySearchResult;
+		},
+		async resolvePackage(handle: string, slug: string) {
+			const result = await discovery.resolvePackage({
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape validated by aggregator
+				handle: handle as Handle,
+				slug,
+			});
+			return result as RegistryPackageView;
+		},
+		async getLatestRelease(did: string, slug: string) {
+			const result = await discovery.getLatestRelease({
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
+				did: did as Did,
+				package: slug,
+			});
+			return result as RegistryReleaseView;
+		},
+		async listReleases(did: string, slug: string, cursor?: string) {
+			const result = await discovery.listReleases({
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
+				did: did as Did,
+				package: slug,
+				cursor,
+			});
+			return result as { releases: RegistryReleaseView[]; cursor?: string };
+		},
+	};
+
+	cachedDiscovery = { config, client: wrapped };
+	return wrapped;
+}
+
+// ---------------------------------------------------------------------------
+// Latest-release policy filter
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns whether a release should be considered installable given the
+ * configured policy. Currently implements the minimum-release-age check
+ * described in RFC 0001's "Pre-label gap and launch tempo" section,
+ * plus the `minimumReleaseAgeExclude` allowlist.
+ *
+ * Returns `false` (release blocked) when the policy is configured but
+ * the release is missing a valid `indexedAt` -- we fail closed rather
+ * than silently letting unbounded-age releases through.
+ */
+export function releasePassesPolicy(
+	release: RegistryReleaseView,
+	pkg: { did: string; slug: string },
+	policy: RegistryClientConfig["policy"],
+	now: number = Date.now(),
+): boolean {
+	if (!policy?.minimumReleaseAgeSeconds) return true;
+	if (releaseExemptFromMinimumAge(policy.minimumReleaseAgeExclude, pkg.did, pkg.slug)) {
+		return true;
+	}
+	const indexedAt = Date.parse(release.indexedAt);
+	if (!Number.isFinite(indexedAt)) return false;
+	const ageSeconds = (now - indexedAt) / 1000;
+	return ageSeconds >= policy.minimumReleaseAgeSeconds;
+}
+
+/**
+ * Matches a `(publisher_did, slug)` against the
+ * `minimumReleaseAgeExclude` allowlist. Mirrors the server-side helper
+ * of the same name in `packages/core/src/registry/config.ts`.
+ *
+ * DID-only on purpose: handles are aggregator-supplied envelope data
+ * and accepting them as a trust input would let a compromised
+ * aggregator bypass the holdback by claiming any handle for any
+ * package. DIDs are tied to the AT URI of the record itself.
+ *
+ * Entries from the config list have already been lowercased at
+ * manifest build time, so this only needs to lowercase the runtime
+ * values for comparison.
+ */
+export function releaseExemptFromMinimumAge(
+	exclude: readonly string[] | undefined,
+	publisherDid: string,
+	slug: string,
+): boolean {
+	if (!exclude || exclude.length === 0) return false;
+	const didLower = publisherDid.toLowerCase();
+	const slugLower = slug.toLowerCase();
+	const fullDid = `${didLower}/${slugLower}`;
+
+	for (const entry of exclude) {
+		if (entry === didLower) return true;
+		if (entry === fullDid) return true;
+	}
+	return false;
+}
+
+// ---------------------------------------------------------------------------
+// Public discovery hooks (callable by React Query)
+// ---------------------------------------------------------------------------
+
+export async function searchRegistryPackages(
+	config: RegistryClientConfig,
+	opts: RegistrySearchOpts,
+): Promise<RegistrySearchResult> {
+	const client = await getDiscoveryClient(config);
+	return client.searchPackages(opts);
+}
+
+export async function resolveRegistryPackage(
+	config: RegistryClientConfig,
+	handle: string,
+	slug: string,
+): Promise<RegistryPackageView> {
+	const client = await getDiscoveryClient(config);
+	return client.resolvePackage(handle, slug);
+}
+
+export async function getLatestRegistryRelease(
+	config: RegistryClientConfig,
+	did: string,
+	slug: string,
+): Promise<RegistryReleaseView> {
+	const client = await getDiscoveryClient(config);
+	return client.getLatestRelease(did, slug);
+}
+
+export async function listRegistryReleases(
+	config: RegistryClientConfig,
+	did: string,
+	slug: string,
+	cursor?: string,
+): Promise<{ releases: RegistryReleaseView[]; cursor?: string }> {
+	const client = await getDiscoveryClient(config);
+	return client.listReleases(did, slug, cursor);
+}
+
+// ---------------------------------------------------------------------------
+// Install (server POST)
+// ---------------------------------------------------------------------------
+
+const INSTALL_ENDPOINT = `${API_BASE}/admin/plugins/registry/install`;
+
+/**
+ * Install a plugin from the registry.
+ *
+ * Posts to the EmDash server, which re-resolves the same `(handle,
+ * slug)` against the aggregator, re-verifies the bundle's checksum
+ * against the signed release record, and writes the install. Surfaces
+ * structured error codes (`RELEASE_YANKED`, `CHECKSUM_MISMATCH`,
+ * `DECLARED_ACCESS_DRIFT`, etc.) that callers map to localized
+ * messages.
+ */
+export async function installRegistryPlugin(
+	body: RegistryInstallRequest,
+): Promise<RegistryInstallResult> {
+	const response = await apiFetch(INSTALL_ENDPOINT, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to install plugin`));
+	const json = (await response.json()) as { data: RegistryInstallResult };
+	return json.data;
+}

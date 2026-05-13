@@ -156,6 +156,20 @@ export interface AdminManifest {
 	 */
 	marketplace?: string;
 	/**
+	 * Experimental decentralized plugin registry. Present when
+	 * `experimental.registry` is configured in the EmDash integration.
+	 * When present, the admin UI uses the registry instead of the
+	 * centralized marketplace for browse and install.
+	 */
+	registry?: {
+		aggregatorUrl: string;
+		acceptLabelers?: string;
+		policy?: {
+			minimumReleaseAgeSeconds?: number;
+			minimumReleaseAgeExclude?: string[];
+		};
+	};
+	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.
 	 */

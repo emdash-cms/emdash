@@ -21,10 +21,14 @@ export interface PluginInfo {
 	installedAt?: string;
 	activatedAt?: string;
 	deactivatedAt?: string;
-	/** Plugin source: 'config' (declared in astro.config) or 'marketplace' */
-	source?: "config" | "marketplace";
+	/** Plugin source: 'config' (declared in astro.config), 'marketplace', or 'registry' */
+	source?: "config" | "marketplace" | "registry";
 	/** Installed marketplace version (set when source = 'marketplace') */
 	marketplaceVersion?: string;
+	/** Publisher DID, for registry-source plugins. */
+	registryPublisherDid?: string;
+	/** Publisher slug, for registry-source plugins. */
+	registrySlug?: string;
 	/** Description of what the plugin does */
 	description?: string;
 	/** URL to the plugin icon (marketplace plugins use the icon proxy) */
