@@ -9,12 +9,22 @@ import { WelcomeModal } from "./WelcomeModal";
 export interface ShellProps {
 	children: React.ReactNode;
 	manifest: {
-		collections: Record<string, { label: string }>;
+		collections: Record<string, {
+			label: string;
+			sortOrder?: number;
+			group?: string;
+		}>;
 		plugins: Record<
 			string,
 			{
 				package?: string;
-				adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+				adminPages?: Array<{
+					path: string;
+					label?: string;
+					icon?: string;
+					group?: string;
+					sortOrder?: number;
+				}>;
 			}
 		>;
 		taxonomies: Array<{

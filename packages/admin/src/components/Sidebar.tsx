@@ -36,7 +36,11 @@ const ROLE_EDITOR = 40;
 
 export interface SidebarNavProps {
 	manifest: {
-		collections: Record<string, { label: string }>;
+		collections: Record<string, {
+			label: string;
+			sortOrder?: number;
+			group?: string;
+		}>;
 		plugins: Record<
 			string,
 			{
@@ -47,6 +51,8 @@ export interface SidebarNavProps {
 					path: string;
 					label?: string;
 					icon?: string;
+					group?: string;
+					sortOrder?: number;
 				}>;
 				dashboardWidgets?: Array<{ id: string; title?: string }>;
 				version?: string;
