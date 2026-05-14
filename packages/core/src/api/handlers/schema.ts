@@ -596,7 +596,7 @@ export async function syncCollectionToMenu(
 		// Check if a menu item for this collection already exists
 		const existing = await db
 			.selectFrom("_emdash_menu_items")
-			.select(["id"])
+			.select("_emdash_menu_items.id")
 			.innerJoin("_emdash_menus", "_emdash_menu_items.menu_id", "_emdash_menus.id")
 			.where("_emdash_menus.name", "=", menuName)
 			.where("type", "=", "collection")
@@ -641,13 +641,12 @@ export async function syncCollectionToMenu(
 				title_attr: null,
 				target: null,
 				css_classes: null,
-				locale: menu.locale,
+				locale: menu.locale ?? "en",
 				translation_group: id,
 			})
 			.execute();
 	} catch {
 		// Silently fail -- menu sync is best-effort
-		console.debug("[emdash] Menu sync failed for collection:", collectionSlug);
 	}
 }
 
