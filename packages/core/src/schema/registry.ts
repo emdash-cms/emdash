@@ -692,23 +692,22 @@ export class SchemaRegistry {
 	 * collection's sort_order in a single batch. Used by the admin UI
 	 * drag-and-drop reordering.
 	 */
-	async reorderCollections(
-		collections: Array<{ slug: string; sortOrder: number }>,
-	): Promise<void> {
+	async reorderCollections(collections: Array<{ slug: string; sortOrder: number }>): Promise<void> {
 		// Batch validate all slugs in one query
 		const existingSlugs = await this.db
 			.selectFrom("_emdash_collections")
 			.select("slug")
-			.where("slug", "in", collections.map((c) => c.slug))
+			.where(
+				"slug",
+				"in",
+				collections.map((c) => c.slug),
+			)
 			.execute();
 
 		const existingSlugSet = new Set(existingSlugs.map((c) => c.slug));
 		const missing = collections.filter((c) => !existingSlugSet.has(c.slug));
 		if (missing.length > 0) {
-			throw new SchemaError(
-				`Collection not found: ${missing[0].slug}`,
-				"COLLECTION_NOT_FOUND",
-			);
+			throw new SchemaError(`Collection not found: ${missing[0].slug}`, "COLLECTION_NOT_FOUND");
 		}
 
 		// Batch update in a transaction

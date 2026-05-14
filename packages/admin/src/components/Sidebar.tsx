@@ -381,10 +381,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const ungroupedCollections = collectionGroups.get("") ?? [];
 	const namedCollectionGroups = [...collectionGroups.entries()]
 		.filter(([group]) => group !== "")
-		.map(([group, items]): NavGroup => ({
-			label: group,
-			items,
-		}));
+		.map(
+			([group, items]): NavGroup => ({
+				label: group,
+				items,
+			}),
+		);
 
 	const contentItems: NavItem[] = [
 		...ungroupedCollections,

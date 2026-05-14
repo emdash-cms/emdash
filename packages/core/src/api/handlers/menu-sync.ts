@@ -7,8 +7,8 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
-import type { Database } from "../../database/types.js";
 import { withTransaction } from "../../database/transaction.js";
+import type { Database } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
 
 export interface SyncDiff {
