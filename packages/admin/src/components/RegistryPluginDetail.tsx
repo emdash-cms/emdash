@@ -101,18 +101,23 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// to a string list otherwise. This keeps `CapabilityConsentDialog` --
 	// which only understands `capabilities` -- working unchanged.
 	//
-	// `normalizeCapabilities` filters non-strings, dedupes, and sorts so
-	// an aggregator-supplied array with unstable order or junk entries
-	// can't trigger a spurious server-side drift rejection later.
+	// `canonicalCapabilitiesForDriftCheck` filters non-strings, dedupes,
+	// and sorts so an aggregator-supplied array with unstable order or
+	// junk entries can't trigger a spurious server-side drift rejection
+	// later.
+	//
+	// NSID is exact-matched, not prefix-matched. RFC 0001 fixes the NSID
+	// for this extension; accepting variants like `…releaseExtensionV2`
+	// or `…releaseExtension.deprecated` would let a publisher render a
+	// different permissions list than another publisher would for the
+	// same RFC-0001 fields.
+	const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
 	const releaseDoc = release?.release as
 		| {
 				extensions?: Record<string, { declaredAccess?: unknown; capabilities?: unknown }>;
 		  }
 		| undefined;
-	const extensionEntries = releaseDoc?.extensions ? Object.entries(releaseDoc.extensions) : [];
-	const ext = extensionEntries.find(([k]) =>
-		k.startsWith("com.emdashcms.experimental.package.releaseExtension"),
-	)?.[1];
+	const ext = releaseDoc?.extensions?.[RELEASE_EXTENSION_NSID];
 
 	const capabilities: string[] = Array.isArray(ext?.capabilities)
 		? canonicalCapabilitiesForDriftCheck(ext?.capabilities)
