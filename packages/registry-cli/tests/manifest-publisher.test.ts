@@ -58,6 +58,8 @@ describe("PublisherSchema", () => {
 
 describe("ManifestSchema with publisher", () => {
 	const minimal = {
+		slug: "my-plugin",
+		version: "0.1.0",
 		license: "MIT",
 		author: { name: "Jane Doe" },
 		security: { email: "security@example.com" },
@@ -79,9 +81,12 @@ describe("ManifestSchema with publisher", () => {
 		expect(result.success).toBe(true);
 	});
 
-	it("accepts a manifest without a publisher (first-publish state)", () => {
+	it("rejects a manifest without a publisher", () => {
+		// publisher is required for the runtime to compute the plugin's
+		// AT URI. The author must fill it in before any local-dev or
+		// publish run.
 		const result = ManifestSchema.safeParse(minimal);
-		expect(result.success).toBe(true);
+		expect(result.success).toBe(false);
 	});
 
 	it("rejects a manifest with an invalid publisher", () => {
@@ -146,6 +151,8 @@ describe("writePublisherBack", () => {
 		const path = join(dir, "emdash-plugin.jsonc");
 		const source = `{
 	// Top-level comment
+	"slug": "my-plugin",
+	"version": "0.1.0",
 	"license": "MIT",
 	"author": { "name": "Jane Doe" },
 	"security": { "email": "security@example.com" }
@@ -171,6 +178,8 @@ describe("writePublisherBack", () => {
 	it("appends a // <handle> comment when a session handle is provided", async () => {
 		const path = join(dir, "emdash-plugin.jsonc");
 		const source = `{
+	"slug": "my-plugin",
+	"version": "0.1.0",
 	"license": "MIT",
 	"author": { "name": "Jane Doe" },
 	"security": { "email": "security@example.com" }
@@ -202,6 +211,8 @@ describe("writePublisherBack", () => {
 		// after a maintainer transfer) would have triggered this.
 		const path = join(dir, "emdash-plugin.jsonc");
 		const source = `{
+	"slug": "my-plugin",
+	"version": "0.1.0",
 	"license": "MIT",
 	"description": "Originally published as ${SESSION_DID}. See changelog.",
 	"author": { "name": "Jane Doe" },
@@ -229,6 +240,8 @@ describe("writePublisherBack", () => {
 	it("omits the comment when no handle is provided", async () => {
 		const path = join(dir, "emdash-plugin.jsonc");
 		const source = `{
+	"slug": "my-plugin",
+	"version": "0.1.0",
 	"license": "MIT",
 	"author": { "name": "Jane Doe" },
 	"security": { "email": "security@example.com" }
@@ -274,6 +287,8 @@ describe("writePublisherBack", () => {
 	it("does not overwrite an existing publisher (defensive re-parse)", async () => {
 		const path = join(dir, "emdash-plugin.jsonc");
 		const source = `{
+	"slug": "my-plugin",
+	"version": "0.1.0",
 	"license": "MIT",
 	"publisher": "did:plc:user-pinned-already",
 	"author": { "name": "Jane Doe" },
@@ -326,6 +341,8 @@ describe("writePublisherBack", () => {
 	it("produces a JSONC document that round-trips through the loader", async () => {
 		const path = join(dir, "emdash-plugin.jsonc");
 		const source = `{
+	"slug": "my-plugin",
+	"version": "0.1.0",
 	"license": "MIT",
 	"author": { "name": "Jane Doe" },
 	"security": { "email": "security@example.com" }

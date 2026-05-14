@@ -28,6 +28,9 @@ import {
 } from "../src/manifest/load.js";
 
 const MINIMAL = `{
+	"slug": "my-plugin",
+	"version": "0.1.0",
+	"publisher": "example.com",
 	"license": "MIT",
 	"author": { "name": "Jane Doe" },
 	"security": { "email": "security@example.com" }
@@ -45,6 +48,9 @@ describe("parseAndValidateManifest (in-memory)", () => {
 	it("accepts JSONC features (comments + trailing commas)", () => {
 		const source = `{
 			// top-level comment
+			"slug": "my-plugin",
+			"version": "0.1.0",
+			"publisher": "example.com",
 			"license": "MIT", /* block comment */
 			"author": { "name": "Jane Doe", },
 			"security": { "email": "security@example.com", },

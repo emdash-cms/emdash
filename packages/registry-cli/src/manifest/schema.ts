@@ -51,6 +51,15 @@
  */
 
 import { isDid, isHandle } from "@atcute/lexicons/syntax";
+import {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapability,
+	PLUGIN_SLUG_MAX_LENGTH,
+	PLUGIN_SLUG_RE,
+	PLUGIN_VERSION_MAX_LENGTH,
+	PLUGIN_VERSION_RE,
+} from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -237,6 +246,207 @@ export const RepoSchema = z
 	});
 
 // ──────────────────────────────────────────────────────────────────────────
+// Identity (slug + version)
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * The plugin's slug. ASCII letter then letters/digits/hyphens/underscores,
+ * max 64 chars. Same constraints as the registry lexicon's `rkey`-portion
+ * of a release record, validated via the shared `PLUGIN_SLUG_RE` in
+ * `@emdash-cms/plugin-types`.
+ *
+ * Slug + publisher together form the package identity. The runtime derives
+ * the AT URI from them; the author never writes the URI directly.
+ */
+export const SlugSchema = z
+	.string()
+	.min(1, "slug must be a non-empty string")
+	.max(PLUGIN_SLUG_MAX_LENGTH, `slug must be <= ${PLUGIN_SLUG_MAX_LENGTH} characters`)
+	.regex(
+		PLUGIN_SLUG_RE,
+		'slug must start with a lowercase letter, then lowercase letters / digits / "-" / "_" (e.g. "gallery", "my-plugin")',
+	)
+	.meta({
+		title: "Slug",
+		description:
+			"URL-safe plugin identifier within the publisher's namespace. ASCII letter then letters/digits/hyphens/underscores, max 64 characters. Combined with the publisher DID, this is the registry's primary key.",
+		examples: ["gallery", "image-resizer", "my-plugin"],
+	});
+
+/**
+ * The plugin's version. Subset of semver 2.0; build-metadata (`+...`) is
+ * disallowed because atproto record keys can't contain `+`. Validated via
+ * `PLUGIN_VERSION_RE` from `@emdash-cms/plugin-types`.
+ */
+export const VersionSchema = z
+	.string()
+	.min(1, "version must be a non-empty string")
+	.max(PLUGIN_VERSION_MAX_LENGTH, `version must be <= ${PLUGIN_VERSION_MAX_LENGTH} characters`)
+	.regex(
+		PLUGIN_VERSION_RE,
+		'version must follow semver 2.0 without build-metadata (e.g. "0.1.0", "1.2.3-rc.1")',
+	)
+	.meta({
+		title: "Version",
+		description:
+			"Plugin version. Semver 2.0 subset; build-metadata `+...` is disallowed (the atproto record-key alphabet has no `+`). Bumped on every release.",
+		examples: ["0.1.0", "1.2.3", "1.0.0-rc.1"],
+	});
+
+// ──────────────────────────────────────────────────────────────────────────
+// Trust contract (capabilities + allowedHosts + storage)
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * The set of currently-valid (non-deprecated) capability names.
+ *
+ * Mirrors the `CurrentPluginCapability` union from `@emdash-cms/plugin-types`.
+ * TS unions don't survive erasure into a runtime Set, so we maintain the
+ * list here and the schema's tests catch drift against the type definition.
+ */
+const CURRENT_CAPABILITIES = new Set<string>([
+	"network:request",
+	"network:request:unrestricted",
+	"content:read",
+	"content:write",
+	"media:read",
+	"media:write",
+	"users:read",
+	"email:send",
+	"hooks.email-transport:register",
+	"hooks.email-events:register",
+	"hooks.page-fragments:register",
+]);
+
+/**
+ * A single capability declaration. Plain string, validated for membership
+ * in the current vocabulary AND for being non-deprecated. Deprecated names
+ * are hard-rejected with a hint pointing at the replacement — the deprecation
+ * window is for already-published plugins, not for new authoring.
+ *
+ * Uses a single `superRefine` so we can produce an issue-specific message
+ * that names the offending capability string. The shape mirrors Zod 4's
+ * recommended pattern for "value-dependent error messages".
+ */
+export const CapabilitySchema = z
+	.string()
+	.min(1, "capability must be a non-empty string")
+	.superRefine((cap, ctx) => {
+		if (isDeprecatedCapability(cap)) {
+			const replacement = CAPABILITY_RENAMES[cap];
+			ctx.addIssue({
+				code: "custom",
+				message: `capability "${cap}" is deprecated. Use "${replacement}" instead.`,
+			});
+			return;
+		}
+		const normalised = normalizeCapability(cap);
+		if (!CURRENT_CAPABILITIES.has(normalised)) {
+			ctx.addIssue({
+				code: "custom",
+				message: `capability "${cap}" is not a recognised name. See the docs for the available capabilities.`,
+			});
+		}
+	});
+
+/**
+ * Capabilities array. The plugin's declared trust contract. Empty array
+ * (or omitted field, defaulting to empty) means the plugin asks for no
+ * privileges beyond the built-in surface (logging, kv, routes/hooks
+ * registration).
+ *
+ * Cross-field rule (in `ManifestSchema`'s `.refine()`): if `capabilities`
+ * includes `network:request` (and NOT `network:request:unrestricted`),
+ * then `allowedHosts` must be a non-empty array. This matches the
+ * `releaseExtension` lexicon's `networkRequestConstraints.allowedHosts`
+ * "absent OR non-empty" rule.
+ */
+export const CapabilitiesSchema = z
+	.array(CapabilitySchema)
+	.max(32, "capabilities[] must have <= 32 entries")
+	.meta({
+		title: "Capabilities",
+		description:
+			"Trust contract: what runtime APIs the plugin is allowed to use. Changing this between releases requires a version bump because installed users have consented to the old contract.",
+	});
+
+/**
+ * Slash or whitespace in a hostname pattern is a sign the user pasted a
+ * URL or path instead of a bare host. Hoisted out of `.refine()` so the
+ * regex is compiled once.
+ */
+const HOST_PATTERN_INVALID_CHARS = /[/\s]/;
+
+/**
+ * Allowed-hosts list for `network:request`. Each entry is a hostname
+ * pattern with no scheme/path/whitespace; a leading `*.` permits
+ * subdomains. (Ports are accepted by this loose check; the publish-time
+ * lexicon validator is the strict authority on the exact grammar.)
+ */
+export const AllowedHostsSchema = z
+	.array(
+		z
+			.string()
+			.min(1, "host pattern must be non-empty")
+			.max(256, "host pattern must be <= 256 characters")
+			.refine(
+				(h) => !HOST_PATTERN_INVALID_CHARS.test(h) && !h.includes("://"),
+				'host pattern must be a hostname only (no scheme, path, or whitespace; "*." for subdomain wildcard is allowed)',
+			),
+	)
+	.max(64, "allowedHosts[] must have <= 64 entries")
+	.meta({
+		title: "Allowed hosts",
+		description:
+			"Allow-list of outbound host patterns when `network:request` is declared. Subdomain wildcards use a leading `*.`. Required (non-empty) when `network:request` is declared without `network:request:unrestricted`.",
+		examples: [["api.example.com", "*.cdn.example.com"]],
+	});
+
+/**
+ * Storage collection config. Mirrors `StorageCollectionConfig` from
+ * `@emdash-cms/plugin-types`. Indexes are field names (or composite
+ * arrays). Unique indexes are queryable too — don't duplicate them in
+ * `indexes`.
+ */
+export const StorageCollectionSchema = z
+	.object({
+		indexes: z.array(z.union([z.string().min(1), z.array(z.string().min(1)).min(1)])),
+		uniqueIndexes: z
+			.array(z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]))
+			.optional(),
+	})
+	.strict()
+	.meta({
+		title: "Storage collection",
+		description:
+			"Index configuration for a single storage collection. Indexes are either single field names or composite (array of field names).",
+	});
+
+/**
+ * Storage declaration. Map of collection name to its index config.
+ * Collection names follow the same slug-like rules as plugin slugs:
+ * lowercase letters, digits, hyphens, underscores. The runtime uses the
+ * collection name verbatim as the SQL table-suffix, so the grammar must
+ * be safe.
+ */
+export const StorageSchema = z
+	.record(
+		z
+			.string()
+			.min(1, "storage collection name must be non-empty")
+			.regex(
+				/^[a-z][a-z0-9_]*$/,
+				'storage collection name must start with a lowercase letter, then lowercase letters / digits / "_"',
+			),
+		StorageCollectionSchema,
+	)
+	.meta({
+		title: "Storage",
+		description:
+			"Storage collections the plugin uses. Each collection is namespaced to this plugin at runtime.",
+	});
+
+// ──────────────────────────────────────────────────────────────────────────
 // Top-level manifest
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -264,14 +474,30 @@ export const ManifestSchema = z
 			})
 			.optional(),
 
+		// Identity. Slug + publisher together form the package's identity;
+		// the AT URI is derived at runtime, never authored.
+		slug: SlugSchema,
+		version: VersionSchema,
+
 		// Required on first publish, ignored on subsequent publishes (the
 		// existing profile wins). Same precedence rules as today's
 		// --license flag.
 		license: LicenseSchema,
 
-		// Optional publisher pin. Omitted on first publish, the CLI
-		// writes the active session's DID back here automatically.
-		publisher: PublisherSchema.optional(),
+		// Publisher pin. Required for the plugin to load — the runtime
+		// can't compute the AT URI without it. Authors fill it in before
+		// first run; on first publish, if the value matches the session,
+		// it stays. If a publisher migrates the manifest's `publisher`
+		// must be updated explicitly.
+		publisher: PublisherSchema,
+
+		// Trust contract. Static for a given version; changes require
+		// a version bump because installed users have consented to the
+		// old contract. Default-empty so the minimal manifest doesn't
+		// need to spell out the absence of privileges.
+		capabilities: CapabilitiesSchema.default([]),
+		allowedHosts: AllowedHostsSchema.default([]),
+		storage: StorageSchema.default({}),
 
 		// Single-author form. Mutually exclusive with `authors`.
 		author: AuthorSchema.optional(),
@@ -329,6 +555,42 @@ export const ManifestSchema = z
 		message: "manifest must specify either `security: { ... }` or `securityContacts: [...]`",
 		path: ["security"],
 	})
+	.refine(
+		(v) => {
+			// network:request without :unrestricted requires a non-empty
+			// allowedHosts. Without this guard, the lexicon's
+			// networkRequestConstraints rule fires at publish time and
+			// users see a confusing PDS error rather than a schema error.
+			const caps = new Set((v.capabilities ?? []).map((c) => normalizeCapability(c)));
+			if (caps.has("network:request") && !caps.has("network:request:unrestricted")) {
+				return (v.allowedHosts ?? []).length > 0;
+			}
+			return true;
+		},
+		{
+			message:
+				'capability "network:request" requires a non-empty `allowedHosts` list. Either add hosts, or upgrade to "network:request:unrestricted" if the plugin really needs to call any host.',
+			path: ["allowedHosts"],
+		},
+	)
+	.refine(
+		(v) => {
+			// network:request:unrestricted with allowedHosts is contradictory
+			// — the unrestricted capability says "any host", but the list
+			// implies "only these". The lexicon's rule is "allowedHosts
+			// MUST NOT appear when unrestricted"; same here.
+			const caps = new Set((v.capabilities ?? []).map((c) => normalizeCapability(c)));
+			if (caps.has("network:request:unrestricted")) {
+				return (v.allowedHosts ?? []).length === 0;
+			}
+			return true;
+		},
+		{
+			message:
+				'`allowedHosts` must be empty when "network:request:unrestricted" is declared (the unrestricted capability already grants any host).',
+			path: ["allowedHosts"],
+		},
+	)
 	.meta({
 		title: "EmDash plugin manifest",
 		description:

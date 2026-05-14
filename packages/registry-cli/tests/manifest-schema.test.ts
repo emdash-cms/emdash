@@ -123,6 +123,9 @@ describe("RepoSchema", () => {
 
 describe("ManifestSchema (full document)", () => {
 	const minimal = {
+		slug: "my-plugin",
+		version: "0.1.0",
+		publisher: "example.com",
 		license: "MIT",
 		author: { name: "Jane Doe" },
 		security: { email: "security@example.com" },
@@ -143,6 +146,9 @@ describe("ManifestSchema (full document)", () => {
 
 	it("accepts the multi-author/multi-contact form", () => {
 		const result = ManifestSchema.safeParse({
+			slug: "my-plugin",
+			version: "0.1.0",
+			publisher: "example.com",
 			license: "MIT",
 			authors: [{ name: "Alice" }, { name: "Bob" }],
 			securityContacts: [{ email: "alice@example.com" }, { url: "https://example.com/security" }],
@@ -152,49 +158,47 @@ describe("ManifestSchema (full document)", () => {
 
 	it("rejects mixing `author` and `authors`", () => {
 		const result = ManifestSchema.safeParse({
-			license: "MIT",
-			author: { name: "Alice" },
+			...minimal,
 			authors: [{ name: "Bob" }],
-			security: { email: "security@example.com" },
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) {
-			expect(result.error.issues[0]?.message).toContain("both `author` and `authors`");
+			expect(result.error.issues.some((i) => i.message.includes("both `author` and `authors`"))).toBe(
+				true,
+			);
 		}
 	});
 
 	it("rejects mixing `security` and `securityContacts`", () => {
 		const result = ManifestSchema.safeParse({
-			license: "MIT",
-			author: { name: "Alice" },
-			security: { email: "a@example.com" },
+			...minimal,
 			securityContacts: [{ email: "b@example.com" }],
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) {
-			expect(result.error.issues[0]?.message).toContain("both `security` and `securityContacts`");
+			expect(
+				result.error.issues.some((i) =>
+					i.message.includes("both `security` and `securityContacts`"),
+				),
+			).toBe(true);
 		}
 	});
 
 	it("requires either `author` or `authors`", () => {
-		const result = ManifestSchema.safeParse({
-			license: "MIT",
-			security: { email: "security@example.com" },
-		});
+		const { author: _author, ...withoutAuthor } = minimal;
+		const result = ManifestSchema.safeParse(withoutAuthor);
 		expect(result.success).toBe(false);
 		if (!result.success) {
-			expect(result.error.issues[0]?.message).toContain("`author: { ... }`");
+			expect(result.error.issues.some((i) => i.message.includes("`author: { ... }`"))).toBe(true);
 		}
 	});
 
 	it("requires either `security` or `securityContacts`", () => {
-		const result = ManifestSchema.safeParse({
-			license: "MIT",
-			author: { name: "Alice" },
-		});
+		const { security: _security, ...withoutSecurity } = minimal;
+		const result = ManifestSchema.safeParse(withoutSecurity);
 		expect(result.success).toBe(false);
 		if (!result.success) {
-			expect(result.error.issues[0]?.message).toContain("`security: { ... }`");
+			expect(result.error.issues.some((i) => i.message.includes("`security: { ... }`"))).toBe(true);
 		}
 	});
 
@@ -207,20 +211,20 @@ describe("ManifestSchema (full document)", () => {
 	});
 
 	it("rejects an empty authors array (lexicon requires >= 1)", () => {
+		const { author: _author, ...rest } = minimal;
 		const result = ManifestSchema.safeParse({
-			license: "MIT",
+			...rest,
 			authors: [],
-			security: { email: "security@example.com" },
 		});
 		expect(result.success).toBe(false);
 	});
 
 	it("rejects more than 32 authors (lexicon cap)", () => {
 		const authors = Array.from({ length: 33 }, (_, i) => ({ name: `Author ${i}` }));
+		const { author: _author, ...rest } = minimal;
 		const result = ManifestSchema.safeParse({
-			license: "MIT",
+			...rest,
 			authors,
-			security: { email: "security@example.com" },
 		});
 		expect(result.success).toBe(false);
 	});
@@ -236,6 +240,9 @@ describe("ManifestSchema (full document)", () => {
 	it("accepts a full populated manifest", () => {
 		const result = ManifestSchema.safeParse({
 			$schema: "./node_modules/@emdash-cms/registry-cli/schemas/emdash-plugin.schema.json",
+			slug: "gallery",
+			version: "0.1.0",
+			publisher: "example.com",
 			license: "MIT",
 			author: {
 				name: "Jane Doe",
@@ -250,6 +257,8 @@ describe("ManifestSchema (full document)", () => {
 			description: "Image gallery block for EmDash.",
 			keywords: ["gallery", "images", "media"],
 			repo: "https://github.com/emdash-cms/plugin-gallery",
+			capabilities: ["content:read"],
+			storage: { events: { indexes: ["timestamp"] } },
 		});
 		expect(result.success).toBe(true);
 	});

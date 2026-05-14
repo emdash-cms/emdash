@@ -8,39 +8,60 @@
 		"$schema": {
 			"$ref": "#/$defs/__schema0"
 		},
-		"license": {
+		"slug": {
 			"$ref": "#/$defs/__schema1"
 		},
-		"publisher": {
+		"version": {
 			"$ref": "#/$defs/__schema2"
 		},
-		"author": {
+		"license": {
 			"$ref": "#/$defs/__schema3"
 		},
-		"authors": {
-			"$ref": "#/$defs/__schema8"
+		"publisher": {
+			"$ref": "#/$defs/__schema4"
 		},
-		"security": {
+		"capabilities": {
+			"$ref": "#/$defs/__schema5"
+		},
+		"allowedHosts": {
+			"$ref": "#/$defs/__schema7"
+		},
+		"storage": {
 			"$ref": "#/$defs/__schema9"
 		},
-		"securityContacts": {
-			"$ref": "#/$defs/__schema13"
-		},
-		"name": {
-			"$ref": "#/$defs/__schema14"
-		},
-		"description": {
-			"$ref": "#/$defs/__schema15"
-		},
-		"keywords": {
+		"author": {
 			"$ref": "#/$defs/__schema16"
 		},
+		"authors": {
+			"$ref": "#/$defs/__schema21"
+		},
+		"security": {
+			"$ref": "#/$defs/__schema22"
+		},
+		"securityContacts": {
+			"$ref": "#/$defs/__schema26"
+		},
+		"name": {
+			"$ref": "#/$defs/__schema27"
+		},
+		"description": {
+			"$ref": "#/$defs/__schema28"
+		},
+		"keywords": {
+			"$ref": "#/$defs/__schema29"
+		},
 		"repo": {
-			"$ref": "#/$defs/__schema18"
+			"$ref": "#/$defs/__schema31"
 		}
 	},
 	"required": [
-		"license"
+		"slug",
+		"version",
+		"license",
+		"publisher",
+		"capabilities",
+		"allowedHosts",
+		"storage"
 	],
 	"additionalProperties": false,
 	"$defs": {
@@ -49,6 +70,32 @@
 			"description": "Path or URL to the JSON Schema describing this file. Editors use this for completion and validation."
 		},
 		"__schema1": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 64,
+			"pattern": "^[a-z][a-z0-9_-]*$",
+			"title": "Slug",
+			"description": "URL-safe plugin identifier within the publisher's namespace. ASCII letter then letters/digits/hyphens/underscores, max 64 characters. Combined with the publisher DID, this is the registry's primary key.",
+			"examples": [
+				"gallery",
+				"image-resizer",
+				"my-plugin"
+			]
+		},
+		"__schema2": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 64,
+			"pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$",
+			"title": "Version",
+			"description": "Plugin version. Semver 2.0 subset; build-metadata `+...` is disallowed (the atproto record-key alphabet has no `+`). Bumped on every release.",
+			"examples": [
+				"0.1.0",
+				"1.2.3",
+				"1.0.0-rc.1"
+			]
+		},
+		"__schema3": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 256,
@@ -60,7 +107,7 @@
 				"MIT OR Apache-2.0"
 			]
 		},
-		"__schema2": {
+		"__schema4": {
 			"type": "string",
 			"title": "Publisher",
 			"description": "Atproto DID or handle of the publishing identity. Pinned on first publish to prevent accidental publishes from a different account. DIDs are recommended (durable); handles work but are mutable.",
@@ -69,20 +116,133 @@
 				"example.com"
 			]
 		},
-		"__schema3": {
-			"$ref": "#/$defs/__schema4"
+		"__schema5": {
+			"default": [],
+			"maxItems": 32,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema6"
+			},
+			"title": "Capabilities",
+			"description": "Trust contract: what runtime APIs the plugin is allowed to use. Changing this between releases requires a version bump because installed users have consented to the old contract."
 		},
-		"__schema4": {
+		"__schema6": {
+			"type": "string",
+			"minLength": 1
+		},
+		"__schema7": {
+			"default": [],
+			"maxItems": 64,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema8"
+			},
+			"title": "Allowed hosts",
+			"description": "Allow-list of outbound host patterns when `network:request` is declared. Subdomain wildcards use a leading `*.`. Required (non-empty) when `network:request` is declared without `network:request:unrestricted`.",
+			"examples": [
+				[
+					"api.example.com",
+					"*.cdn.example.com"
+				]
+			]
+		},
+		"__schema8": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 256
+		},
+		"__schema9": {
+			"default": {},
+			"type": "object",
+			"propertyNames": {
+				"$ref": "#/$defs/__schema10"
+			},
+			"additionalProperties": {
+				"$ref": "#/$defs/__schema11"
+			},
+			"title": "Storage",
+			"description": "Storage collections the plugin uses. Each collection is namespaced to this plugin at runtime."
+		},
+		"__schema10": {
+			"type": "string",
+			"minLength": 1,
+			"pattern": "^[a-z][a-z0-9_]*$"
+		},
+		"__schema11": {
+			"type": "object",
+			"properties": {
+				"indexes": {
+					"$ref": "#/$defs/__schema12"
+				},
+				"uniqueIndexes": {
+					"$ref": "#/$defs/__schema14"
+				}
+			},
+			"required": [
+				"indexes"
+			],
+			"additionalProperties": false,
+			"title": "Storage collection",
+			"description": "Index configuration for a single storage collection. Indexes are either single field names or composite (array of field names)."
+		},
+		"__schema12": {
+			"type": "array",
+			"items": {
+				"anyOf": [
+					{
+						"type": "string",
+						"minLength": 1
+					},
+					{
+						"minItems": 1,
+						"type": "array",
+						"items": {
+							"$ref": "#/$defs/__schema13"
+						}
+					}
+				]
+			}
+		},
+		"__schema13": {
+			"type": "string",
+			"minLength": 1
+		},
+		"__schema14": {
+			"type": "array",
+			"items": {
+				"anyOf": [
+					{
+						"type": "string",
+						"minLength": 1
+					},
+					{
+						"minItems": 1,
+						"type": "array",
+						"items": {
+							"$ref": "#/$defs/__schema15"
+						}
+					}
+				]
+			}
+		},
+		"__schema15": {
+			"type": "string",
+			"minLength": 1
+		},
+		"__schema16": {
+			"$ref": "#/$defs/__schema17"
+		},
+		"__schema17": {
 			"type": "object",
 			"properties": {
 				"name": {
-					"$ref": "#/$defs/__schema5"
+					"$ref": "#/$defs/__schema18"
 				},
 				"url": {
-					"$ref": "#/$defs/__schema6"
+					"$ref": "#/$defs/__schema19"
 				},
 				"email": {
-					"$ref": "#/$defs/__schema7"
+					"$ref": "#/$defs/__schema20"
 				}
 			},
 			"required": [
@@ -92,104 +252,104 @@
 			"title": "Author",
 			"description": "A single author entry. Mirrors the lexicon's author shape."
 		},
-		"__schema5": {
+		"__schema18": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 256,
 			"description": "Display name."
 		},
-		"__schema6": {
+		"__schema19": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
 			"description": "Author's homepage or profile URL. Either this or `email` is recommended."
 		},
-		"__schema7": {
+		"__schema20": {
 			"type": "string",
 			"maxLength": 256,
 			"format": "email",
 			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
 			"description": "Author's contact email. Either this or `url` is recommended."
 		},
-		"__schema8": {
+		"__schema21": {
 			"minItems": 1,
 			"maxItems": 32,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema4"
+				"$ref": "#/$defs/__schema17"
 			},
 			"title": "Authors (multiple)",
 			"description": "Multi-author form. Mutually exclusive with `author`. Use the singular `author` if there is only one."
 		},
-		"__schema9": {
-			"$ref": "#/$defs/__schema10"
+		"__schema22": {
+			"$ref": "#/$defs/__schema23"
 		},
-		"__schema10": {
+		"__schema23": {
 			"type": "object",
 			"properties": {
 				"url": {
-					"$ref": "#/$defs/__schema11"
+					"$ref": "#/$defs/__schema24"
 				},
 				"email": {
-					"$ref": "#/$defs/__schema12"
+					"$ref": "#/$defs/__schema25"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Security contact",
 			"description": "A single security contact. At least one of `url` or `email` must be present."
 		},
-		"__schema11": {
+		"__schema24": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
 			"description": "Security disclosure URL (e.g. a security.txt or vulnerability-reporting page). Either this or `email` is required."
 		},
-		"__schema12": {
+		"__schema25": {
 			"type": "string",
 			"maxLength": 256,
 			"format": "email",
 			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
 			"description": "Security contact email. Either this or `url` is required."
 		},
-		"__schema13": {
+		"__schema26": {
 			"minItems": 1,
 			"maxItems": 8,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema10"
+				"$ref": "#/$defs/__schema23"
 			},
 			"title": "Security contacts (multiple)",
 			"description": "Multi-contact form. Mutually exclusive with `security`. Use the singular `security` if there is only one."
 		},
-		"__schema14": {
+		"__schema27": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"title": "Display name",
 			"description": "Human-readable name shown in directory listings. Defaults to the plugin's `id` when omitted."
 		},
-		"__schema15": {
+		"__schema28": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"title": "Description",
 			"description": "Short description (<= 140 graphemes by FAIR convention). Aggregators may truncate longer values when displaying in compact lists."
 		},
-		"__schema16": {
+		"__schema29": {
 			"maxItems": 5,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema17"
+				"$ref": "#/$defs/__schema30"
 			},
 			"title": "Keywords",
 			"description": "Search keywords (<= 5 entries, FAIR convention)."
 		},
-		"__schema17": {
+		"__schema30": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 128
 		},
-		"__schema18": {
+		"__schema31": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
