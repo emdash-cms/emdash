@@ -5,14 +5,14 @@
 import { describe, it, expect } from "vitest";
 
 import {
-	syncCollectionToMenu,
-	removeCollectionFromMenu,
-} from "../../../src/api/handlers/schema.js";
-import {
 	computeMenuSyncDiff,
 	applyMenuSyncDiff,
 	syncSidebarToMenu,
 } from "../../../src/api/handlers/menu-sync.js";
+import {
+	syncCollectionToMenu,
+	removeCollectionFromMenu,
+} from "../../../src/api/handlers/schema.js";
 
 describe("Menu Sync Exports", () => {
 	it("exports syncCollectionToMenu as a function", () => {

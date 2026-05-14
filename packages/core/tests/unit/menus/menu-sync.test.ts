@@ -14,18 +14,18 @@ import { Kysely, SqliteDialect } from "kysely";
 import { ulid } from "ulidx";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
-import { runMigrations } from "../../../src/database/migrations/runner.js";
-import type { Database as EmDashDatabase } from "../../../src/database/types.js";
-import { SchemaRegistry } from "../../../src/schema/registry.js";
-import {
-	syncCollectionToMenu,
-	removeCollectionFromMenu,
-} from "../../../src/api/handlers/schema.js";
 import {
 	computeMenuSyncDiff,
 	applyMenuSyncDiff,
 	syncSidebarToMenu,
 } from "../../../src/api/handlers/menu-sync.js";
+import {
+	syncCollectionToMenu,
+	removeCollectionFromMenu,
+} from "../../../src/api/handlers/schema.js";
+import { runMigrations } from "../../../src/database/migrations/runner.js";
+import type { Database as EmDashDatabase } from "../../../src/database/types.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 
 describe("Menu Sync", () => {
 	let db: Kysely<EmDashDatabase>;

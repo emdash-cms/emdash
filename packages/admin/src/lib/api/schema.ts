@@ -312,8 +312,7 @@ export async function reorderCollections(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ collections }),
 	});
-	if (!response.ok)
-		await throwResponseError(response, i18n._(msg`Failed to reorder collections`));
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to reorder collections`));
 }
 
 // ============================================

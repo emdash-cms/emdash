@@ -1,7 +1,16 @@
 import { Badge, Button } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Pencil, Trash, Database, FileText, Warning, Check, ArrowsVertical } from "@phosphor-icons/react";
+import {
+	Plus,
+	Pencil,
+	Trash,
+	Database,
+	FileText,
+	Warning,
+	Check,
+	ArrowsVertical,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 

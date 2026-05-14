@@ -47,11 +47,7 @@ export async function computeMenuSyncDiff(
 		// Get existing menu items of type 'collection'
 		const menuItems = await db
 			.selectFrom("_emdash_menu_items")
-			.select([
-				"_emdash_menu_items.id",
-				"reference_collection",
-				"sort_order",
-			])
+			.select(["_emdash_menu_items.id", "reference_collection", "sort_order"])
 			.innerJoin("_emdash_menus", "_emdash_menu_items.menu_id", "_emdash_menus.id")
 			.where("_emdash_menus.name", "=", menuName)
 			.where("type", "=", "collection")

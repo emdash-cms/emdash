@@ -169,9 +169,7 @@ describe("Collection Ordering and Grouping", () => {
 			await registry.createCollection({ slug: "posts", label: "Posts" });
 
 			await expect(
-				registry.reorderCollections([
-					{ slug: "nonexistent", sortOrder: 0 },
-				]),
+				registry.reorderCollections([{ slug: "nonexistent", sortOrder: 0 }]),
 			).rejects.toThrow();
 		});
 	});

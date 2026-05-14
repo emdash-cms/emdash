@@ -1,5 +1,4 @@
 import { Button, Dialog } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import {
 	DndContext,
 	closestCenter,
@@ -16,6 +15,7 @@ import {
 	verticalListSortingStrategy,
 	arrayMove,
 } from "@dnd-kit/sortable";
+import { useLingui } from "@lingui/react/macro";
 import { DotsSixVertical, X } from "@phosphor-icons/react";
 import * as React from "react";
 
@@ -65,7 +65,9 @@ function SortableCollectionRow({ item }: { item: CollectionOrderItem }) {
 				<DotsSixVertical className="size-4" />
 			</button>
 			<span className="flex-1 text-sm font-medium">{item.label}</span>
-			<code className="text-xs text-kumo-subtle bg-kumo-tint px-1.5 py-0.5 rounded">{item.slug}</code>
+			<code className="text-xs text-kumo-subtle bg-kumo-tint px-1.5 py-0.5 rounded">
+				{item.slug}
+			</code>
 		</div>
 	);
 }
@@ -86,9 +88,7 @@ export function CollectionReorderDialog({
 	React.useEffect(() => {
 		if (open) {
 			setOrder(
-				collections.toSorted(
-					(a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
-				),
+				collections.toSorted((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label)),
 			);
 		}
 	}, [open, collections]);

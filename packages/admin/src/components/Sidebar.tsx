@@ -94,12 +94,15 @@ function resolveIcon(name: string | undefined, fallback: React.ElementType): Rea
 
 export interface SidebarNavProps {
 	manifest: {
-		collections: Record<string, {
-			label: string;
-			sortOrder?: number;
-			group?: string;
-			icon?: string;
-		}>;
+		collections: Record<
+			string,
+			{
+				label: string;
+				sortOrder?: number;
+				group?: string;
+				icon?: string;
+			}
+		>;
 		plugins: Record<
 			string,
 			{
@@ -227,21 +230,16 @@ function resolveItemPath(item: NavItem): string {
  * Expandable nav item with children (submenu).
  * The parent item is not navigable — clicking toggles the children.
  */
-function NavSubMenu({
-	item,
-	currentPath,
-}: {
-	item: NavItem;
-	currentPath: string;
-}) {
+function NavSubMenu({ item, currentPath }: { item: NavItem; currentPath: string }) {
 	const { state } = useSidebar();
 	const [expanded, setExpanded] = React.useState(false);
 	const Icon = item.icon;
 
-	const hasActiveChild = item.children?.some((child) => {
-		const childPath = resolveItemPath(child);
-		return isItemActive(childPath, currentPath);
-	}) ?? false;
+	const hasActiveChild =
+		item.children?.some((child) => {
+			const childPath = resolveItemPath(child);
+			return isItemActive(childPath, currentPath);
+		}) ?? false;
 
 	React.useEffect(() => {
 		if (hasActiveChild) setExpanded(true);
@@ -383,13 +381,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const ungroupedCollections = collectionGroups.get("") ?? [];
 	const namedCollectionGroups = [...collectionGroups.entries()]
 		.filter(([group]) => group !== "")
-		.map(([group, items]): NavGroup => ({
-			label: group,
-			items: [
-				...items,
-				{ to: "/media", label: t`Media`, icon: Image },
-			],
-		}));
+		.map(
+			([group, items]): NavGroup => ({
+				label: group,
+				items: [...items, { to: "/media", label: t`Media`, icon: Image }],
+			}),
+		);
 
 	const contentItems: NavItem[] = [
 		...ungroupedCollections,
@@ -496,9 +493,9 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const visibleManage = filterByRole(manageItems);
 	const visibleAdmin = filterByRole(filteredAdminItems);
 	const visibleUngroupedPlugins = filterByRole(ungroupedPlugins);
-	const visibleNamedPluginGroups = namedPluginGroups.map(
-		(group): NavGroup => ({ ...group, items: filterByRole(group.items) }),
-	).filter((group) => group.items.length > 0);
+	const visibleNamedPluginGroups = namedPluginGroups
+		.map((group): NavGroup => ({ ...group, items: filterByRole(group.items) }))
+		.filter((group) => group.items.length > 0);
 
 	function renderNavItems(items: NavItem[]) {
 		return items.map((item, index) => {
@@ -657,10 +654,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 					{/* Dashboard — standalone */}
 					<KumoSidebar.Group>
 						<KumoSidebar.Menu>
-							<NavMenuLink
-								item={dashboardItem}
-								isActive={isItemActive("/", currentPath)}
-							/>
+							<NavMenuLink item={dashboardItem} isActive={isItemActive("/", currentPath)} />
 						</KumoSidebar.Menu>
 					</KumoSidebar.Group>
 
@@ -671,9 +665,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						<KumoSidebar.Group collapsible defaultOpen>
 							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Content`}</KumoSidebar.GroupLabel>
 							<KumoSidebar.GroupContent>
-								<KumoSidebar.Menu>
-									{renderNavItems(visibleContent)}
-								</KumoSidebar.Menu>
+								<KumoSidebar.Menu>{renderNavItems(visibleContent)}</KumoSidebar.Menu>
 							</KumoSidebar.GroupContent>
 						</KumoSidebar.Group>
 					)}

@@ -686,9 +686,7 @@ export class SchemaRegistry {
 	 * collection's sort_order in a single batch. Used by the admin UI
 	 * drag-and-drop reordering.
 	 */
-	async reorderCollections(
-		collections: Array<{ slug: string; sortOrder: number }>,
-	): Promise<void> {
+	async reorderCollections(collections: Array<{ slug: string; sortOrder: number }>): Promise<void> {
 		// Validate all slugs exist first
 		for (const { slug } of collections) {
 			const exists = await this.getCollection(slug);

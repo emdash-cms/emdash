@@ -5,12 +5,12 @@
  */
 
 import type { APIRoute } from "astro";
+import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
 import { requireDb, unwrapResult } from "#api/error.js";
 import { handleSchemaCollectionMenuSync } from "#api/index.js";
 import { parseBody, isParseError } from "#api/parse.js";
-import { z } from "zod";
 
 export const prerender = false;
 
