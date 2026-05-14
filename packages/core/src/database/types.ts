@@ -221,6 +221,8 @@ export interface CollectionTable {
 	comments_moderation: Generated<string>; // 'all' | 'first_time' | 'none'
 	comments_closed_after_days: Generated<number>; // 0 = never close
 	comments_auto_approve_users: Generated<number>; // 0 or 1
+	sort_order: Generated<number>; // 0 = default, lower = earlier in sidebar
+	group: string | null; // Sidebar group name (e.g., "Blog", "Shop")
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }
