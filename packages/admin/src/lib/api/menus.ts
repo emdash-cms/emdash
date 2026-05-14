@@ -290,5 +290,3 @@ export interface SyncResult {
 	removed: number;
 	reordered: number;
 }
-
-

@@ -636,12 +636,7 @@ export async function syncCollectionToMenu(
 			.executeTakeFirst();
 
 		if (!menu) {
-			console.warn(
-				"[emdash] Menu not found for addToMenu:",
-				menuName,
-				"locale:",
-				locale,
-			);
+			console.warn("[emdash] Menu not found for addToMenu:", menuName, "locale:", locale);
 			return false;
 		}
 
