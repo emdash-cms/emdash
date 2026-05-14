@@ -28,7 +28,7 @@
  */
 
 import { createHash, randomUUID } from "node:crypto";
-import { readFile, rename, stat, writeFile } from "node:fs/promises";
+import { open, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { isDid, isHandle, type Did, type Handle } from "@atcute/lexicons/syntax";
@@ -163,18 +163,26 @@ export async function writePublisherBack(input: {
 }): Promise<void> {
 	const { manifestPath, sessionDid, sessionHandle, onInfo, onWarn } = input;
 	try {
-		// Stat first: if the file ballooned between load and write-back
-		// (e.g. user pasted in a large changelog mid-publish), don't
-		// buffer the new contents. The post-publish path should never
-		// touch a file the loader wouldn't have accepted.
-		const info = await stat(manifestPath);
-		if (info.size > MANIFEST_MAX_BYTES) {
+		// Bounded read with the same cap the loader uses. If the file
+		// ballooned between load and write-back (e.g. the user pasted
+		// in a huge changelog while we were publishing), abort the
+		// write-back rather than buffering the new contents — the
+		// post-publish path should never touch a file the loader
+		// wouldn't have accepted.
+		const initial = await readManifestBounded(manifestPath);
+		if (initial.kind === "oversize") {
 			onWarn?.(
-				`Skipped writing publisher to ${manifestPath} (file is now ${info.size} bytes, exceeding the ${MANIFEST_MAX_BYTES}-byte cap; the publish succeeded).`,
+				`Skipped writing publisher to ${manifestPath} (file is now larger than the ${MANIFEST_MAX_BYTES}-byte cap; the publish succeeded).`,
 			);
 			return;
 		}
-		const source = await readFile(manifestPath, "utf8");
+		if (initial.kind === "missing") {
+			onWarn?.(
+				`Skipped writing publisher to ${manifestPath} (file was removed during publish; the publish succeeded).`,
+			);
+			return;
+		}
+		const source = initial.source;
 
 		// Defensive re-parse: confirm `publisher` is still absent. If
 		// the user added one while we were publishing, leave their value
@@ -264,8 +272,24 @@ export async function writePublisherBack(input: {
 		const expectedHash = sha256(source);
 		const tmp = join(dirname(manifestPath), `.${randomUUID()}.tmp`);
 		await writeFile(tmp, updated, "utf8");
-		const currentSource = await readFile(manifestPath, "utf8").catch(() => null);
-		const currentHash = currentSource === null ? null : sha256(currentSource);
+		// Re-read with the same bounded primitive so a file that grew
+		// past the cap during publish doesn't OOM the verification step.
+		// Oversize and missing both indicate the file is no longer the
+		// bytes we hashed; treat them as drift and bail.
+		//
+		// Wrap in try/catch so genuinely-unexpected fs failures here
+		// (EISDIR if the file was replaced with a directory, EACCES,
+		// etc.) ALSO route through the drift-cleanup path. Otherwise
+		// the tmpfile we just wrote would leak into the manifest's
+		// directory because the outer catch handles the failure but
+		// doesn't know there's a tmpfile to clean up.
+		let currentHash: string | null;
+		try {
+			const current = await readManifestBounded(manifestPath);
+			currentHash = current.kind === "ok" ? sha256(current.source) : null;
+		} catch {
+			currentHash = null;
+		}
 		if (currentHash !== expectedHash) {
 			// File changed under us. Clean up the tmpfile and bail.
 			await unlinkIgnoreMissing(tmp);
@@ -282,6 +306,59 @@ export async function writePublisherBack(input: {
 			`Could not pin publisher to ${manifestPath}: ${reason}. ` +
 				`The publish succeeded; you can add publisher manually on your next edit.`,
 		);
+	}
+}
+
+/**
+ * Discriminated result of a bounded manifest read.
+ */
+type BoundedReadResult =
+	| { kind: "ok"; source: string }
+	| { kind: "oversize" }
+	| { kind: "missing" };
+
+/**
+ * Read a manifest with a hard size cap. Returns a discriminated result:
+ *   - `ok` carrying the UTF-8 contents,
+ *   - `oversize` when the file exceeds `MANIFEST_MAX_BYTES`,
+ *   - `missing` for ENOENT.
+ *
+ * Bounded variant of the loader's read; same TOCTOU-free pattern (one
+ * pre-allocated buffer, never grows). We use a discriminated union
+ * rather than sentinel strings so the type system catches a caller
+ * that forgets to handle the failure cases.
+ */
+async function readManifestBounded(filePath: string): Promise<BoundedReadResult> {
+	let handle: Awaited<ReturnType<typeof open>>;
+	try {
+		handle = await open(filePath, "r");
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			"code" in error &&
+			(error as { code: unknown }).code === "ENOENT"
+		) {
+			return { kind: "missing" };
+		}
+		throw error;
+	}
+	try {
+		const buffer = Buffer.allocUnsafe(MANIFEST_MAX_BYTES + 1);
+		let totalRead = 0;
+		while (totalRead < buffer.length) {
+			const { bytesRead } = await handle.read(
+				buffer,
+				totalRead,
+				buffer.length - totalRead,
+				totalRead,
+			);
+			if (bytesRead === 0) break;
+			totalRead += bytesRead;
+		}
+		if (totalRead > MANIFEST_MAX_BYTES) return { kind: "oversize" };
+		return { kind: "ok", source: buffer.subarray(0, totalRead).toString("utf8") };
+	} finally {
+		await handle.close().catch(() => {});
 	}
 }
 

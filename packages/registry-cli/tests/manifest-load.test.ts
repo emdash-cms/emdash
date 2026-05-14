@@ -181,4 +181,22 @@ describe("loadManifest (filesystem)", () => {
 			expect((error as ManifestError).code).toBe("MANIFEST_NOT_FOUND");
 		}
 	});
+
+	it("returns MANIFEST_TOO_LARGE when the file exceeds the cap", async () => {
+		// Build a file just over the 1 MiB cap. Filler is JSONC-friendly
+		// (a long string value) so the bytes can't be misread as a
+		// syntactic short-circuit.
+		const { MANIFEST_MAX_BYTES } = await import("../src/manifest/load.js");
+		const filler = "x".repeat(MANIFEST_MAX_BYTES);
+		const oversize = `{ "license": "${filler}", "author": {"name":"J"}, "security": {"email":"a@b.com"} }`;
+		const filePath = join(dir, "oversize.jsonc");
+		await writeFile(filePath, oversize, "utf8");
+		try {
+			await loadManifest(filePath);
+			expect.fail("expected ManifestError");
+		} catch (error) {
+			expect(error).toBeInstanceOf(ManifestError);
+			expect((error as ManifestError).code).toBe("MANIFEST_TOO_LARGE");
+		}
+	});
 });

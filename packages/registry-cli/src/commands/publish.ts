@@ -19,7 +19,7 @@
  */
 
 import { lookup as dnsLookup } from "node:dns/promises";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import type { PluginManifest } from "@emdash-cms/plugin-types";
@@ -426,13 +426,9 @@ interface ManifestLoadOutcome {
  * Resolve the manifest layer for `runPublish`. Returns `null` when no
  * manifest was loaded (either suppressed by --no-manifest or the
  * default-path file is missing). Throws a CliError when the user
- * explicitly named a manifest path that couldn't be loaded.
- *
- * Surfaces a warning for any field the manifest carries that publish
- * doesn't yet read end-to-end (issues #1029-#1033). Those fields are
- * not silently dropped at publish — they're accepted in the manifest
- * today so plugin authors can start writing them; the rest of the
- * pipeline catches up issue-by-issue.
+ * explicitly named a manifest path that couldn't be loaded, and warns
+ * when `--no-manifest` is used while a manifest exists at the default
+ * path so the publisher-pin safety story stays visible.
  */
 async function loadManifestBootstrap(
 	args: PublishArgs,
@@ -448,7 +444,6 @@ async function loadManifestBootstrap(
 		// the path cheap: no parse, no schema validation.
 		const defaultPath = `./${MANIFEST_FILENAME}`;
 		try {
-			const { stat } = await import("node:fs/promises");
 			await stat(defaultPath);
 			log.warn(
 				`Skipping manifest at ${defaultPath} (--no-manifest is set). Publisher pin and license/security defaults are NOT being applied for this publish.`,

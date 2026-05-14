@@ -1,13 +1,15 @@
 /**
  * Read and validate an `emdash-plugin.jsonc` manifest from disk.
  *
- * Three failure modes, each with a distinct error code for scriptable
- * consumers (`validate --json`, programmatic API users):
+ * Failure modes, each with a distinct error code for scriptable consumers
+ * (`validate --json`, programmatic API users):
  *
  *   - `MANIFEST_NOT_FOUND` — file doesn't exist at the resolved path.
+ *   - `MANIFEST_TOO_LARGE` — file exceeds `MANIFEST_MAX_BYTES`. Reading
+ *     stops at the cap; the file is never fully buffered.
  *   - `MANIFEST_PARSE_ERROR` — JSONC parse failure (trailing comma, missing
- *     bracket, control char in string). Includes line + column from
- *     `jsonc-parser`'s offset.
+ *     bracket, control char in string, duplicate keys). Includes line +
+ *     column from `jsonc-parser`'s offset.
  *   - `MANIFEST_VALIDATION_ERROR` — JSONC parsed cleanly but the value
  *     failed the Zod schema. Includes the field path and the offending
  *     value's location in the source where possible.
@@ -17,7 +19,7 @@
  * pointer they'd get from `tsc` or `eslint`, not a Zod issue tree.
  */
 
-import { readFile, stat } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { parseTree, type Node, type ParseError, printParseErrorCode } from "jsonc-parser";
@@ -104,47 +106,74 @@ export async function loadManifest(path: string): Promise<LoadManifestResult> {
 			? resolved
 			: resolve(resolved, MANIFEST_FILENAME);
 
-	// Stat first so a wildly-oversized file fails before we buffer it.
-	// `readFile` itself doesn't honour any cap, so we'd otherwise read
-	// the whole thing into memory before any size check could fire.
-	let size: number;
-	try {
-		const info = await stat(filePath);
-		size = info.size;
-	} catch (error) {
-		if (isNodeNotFoundError(error)) {
-			throw new ManifestError(
-				"MANIFEST_NOT_FOUND",
-				`No manifest at ${filePath}. Create one with: emdash-registry init`,
-				filePath,
-			);
-		}
-		throw error;
-	}
-	if (size > MANIFEST_MAX_BYTES) {
-		throw new ManifestError(
-			"MANIFEST_TOO_LARGE",
-			`Manifest at ${filePath} is ${size} bytes; the maximum supported size is ${MANIFEST_MAX_BYTES} bytes. Check that you pointed --manifest at the right file.`,
-			filePath,
-		);
-	}
-
-	let source: string;
-	try {
-		source = await readFile(filePath, "utf8");
-	} catch (error) {
-		if (isNodeNotFoundError(error)) {
-			// Race: file was removed between stat and readFile.
-			throw new ManifestError(
-				"MANIFEST_NOT_FOUND",
-				`No manifest at ${filePath}. Create one with: emdash-registry init`,
-				filePath,
-			);
-		}
-		throw error;
-	}
-
+	// Bounded read: open the file and read at most MANIFEST_MAX_BYTES+1
+	// bytes. The extra byte is a sentinel — if we get it, the file is
+	// definitely over the cap regardless of what `stat` would say.
+	// This closes the stat-then-readFile race where a concurrent writer
+	// could grow the file between size check and buffer.
+	const source = await readBoundedUtf8(filePath);
 	return parseAndValidate(source, filePath);
+}
+
+/**
+ * Read a UTF-8 file with a hard cap of `MANIFEST_MAX_BYTES` bytes.
+ * Throws `ManifestError(MANIFEST_TOO_LARGE)` if the file exceeds the cap,
+ * `ManifestError(MANIFEST_NOT_FOUND)` for ENOENT.
+ *
+ * We allocate a buffer of `MANIFEST_MAX_BYTES + 1` and read into it; if
+ * the read fills the whole buffer, the file is at least one byte over
+ * the limit and we reject. This avoids the TOCTOU window of a separate
+ * `stat` call: a concurrent writer can grow the file between syscalls,
+ * but it can never make our buffer larger than what we allocated up
+ * front.
+ *
+ * `read` returns a single chunk synchronously from kernel buffers when
+ * available; for files of our cap size (1 MiB) this is one syscall on
+ * Linux/macOS. We loop in case the kernel returns a short read.
+ */
+async function readBoundedUtf8(filePath: string): Promise<string> {
+	let handle: Awaited<ReturnType<typeof open>>;
+	try {
+		handle = await open(filePath, "r");
+	} catch (error) {
+		if (isNodeNotFoundError(error)) {
+			throw new ManifestError(
+				"MANIFEST_NOT_FOUND",
+				`No manifest at ${filePath}. Create one with: emdash-registry init`,
+				filePath,
+			);
+		}
+		throw error;
+	}
+	try {
+		// One extra byte so we can detect oversize without reading
+		// arbitrarily much.
+		const buffer = Buffer.allocUnsafe(MANIFEST_MAX_BYTES + 1);
+		let totalRead = 0;
+		while (totalRead < buffer.length) {
+			const { bytesRead } = await handle.read(
+				buffer,
+				totalRead,
+				buffer.length - totalRead,
+				totalRead,
+			);
+			if (bytesRead === 0) break;
+			totalRead += bytesRead;
+		}
+		if (totalRead > MANIFEST_MAX_BYTES) {
+			throw new ManifestError(
+				"MANIFEST_TOO_LARGE",
+				`Manifest at ${filePath} is larger than the ${MANIFEST_MAX_BYTES}-byte cap. Check that you pointed --manifest at the right file.`,
+				filePath,
+			);
+		}
+		return buffer.subarray(0, totalRead).toString("utf8");
+	} finally {
+		await handle.close().catch(() => {
+			// Closing a handle should never fail in practice; if it
+			// does, swallow it — the read result is already in hand.
+		});
+	}
 }
 
 /**
