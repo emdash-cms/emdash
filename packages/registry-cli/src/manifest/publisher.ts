@@ -113,8 +113,12 @@ export async function checkPublisher(input: {
  * Resolve an atproto handle to a DID via the same actor-resolver the
  * OAuth flow uses (DoH + .well-known). Surfaces resolution failures
  * with a clear hint pointing the user at the DID-pin escape hatch.
+ *
+ * Exported so the `init` command can resolve a handle the user typed
+ * (or pulled from their active session) before writing it to the
+ * manifest — same primitive, same failure mode, same error code.
  */
-async function resolveHandleToDid(handle: Handle): Promise<Did> {
+export async function resolveHandleToDid(handle: Handle): Promise<Did> {
 	const resolver = createActorResolver();
 	try {
 		const resolved = await resolver.resolve(handle);

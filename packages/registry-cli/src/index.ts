@@ -11,6 +11,7 @@
  *   - switch   — change the active publisher session
  *   - search   — free-text search the aggregator
  *   - info     — show details about a package
+ *   - init     — scaffold a new sandboxed plugin
  *   - bundle   — bundle a plugin source directory into a tarball
  *   - publish  — publish a release that points at a hosted tarball
  *   - validate — validate an emdash-plugin.jsonc manifest against the v1 schema
@@ -23,6 +24,7 @@ import { defineCommand, runMain } from "citty";
 
 import { bundleCommand } from "./bundle/command.js";
 import { infoCommand } from "./commands/info.js";
+import { initCommand } from "./commands/init.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
 import { publishCommand } from "./commands/publish.js";
@@ -43,6 +45,7 @@ const main = defineCommand({
 		switch: switchCommand,
 		search: searchCommand,
 		info: infoCommand,
+		init: initCommand,
 		bundle: bundleCommand,
 		publish: publishCommand,
 		validate: validateCommand,

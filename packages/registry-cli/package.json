@@ -32,6 +32,7 @@
 		"@atcute/lexicons": "catalog:",
 		"@atcute/multibase": "catalog:",
 		"@atcute/oauth-node-client": "catalog:",
+		"@clack/prompts": "^1.4.0",
 		"@emdash-cms/plugin-types": "workspace:*",
 		"@emdash-cms/registry-client": "workspace:*",
 		"@emdash-cms/registry-lexicons": "workspace:*",
