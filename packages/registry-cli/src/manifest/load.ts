@@ -216,11 +216,7 @@ function parseAndValidate(source: string, filePath: string): LoadManifestResult 
 	if (!root) {
 		// Shouldn't be reachable when `allowEmptyContent: false` is set and
 		// `parseErrors` is empty, but `parseTree`'s return type is nullable.
-		throw new ManifestError(
-			"MANIFEST_PARSE_ERROR",
-			`${filePath}: file is empty`,
-			filePath,
-		);
+		throw new ManifestError("MANIFEST_PARSE_ERROR", `${filePath}: file is empty`, filePath);
 	}
 
 	// Reject duplicate keys before validation. `nodeToValue` is last-wins
@@ -349,9 +345,7 @@ function findNodeAtPath(root: Node, path: ReadonlyArray<string | number>): Node 
  * We scan the entire tree, not just the root: duplicate keys inside
  * `author: { ... }` or `security: { ... }` are equally review-hostile.
  */
-function findDuplicateKey(
-	node: Node,
-): { key: string; offset: number } | undefined {
+function findDuplicateKey(node: Node): { key: string; offset: number } | undefined {
 	if (node.type === "object" && node.children) {
 		const seen = new Set<string>();
 		for (const prop of node.children) {

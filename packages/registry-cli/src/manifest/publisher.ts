@@ -34,9 +34,8 @@ import { dirname, join } from "node:path";
 import { isDid, isHandle, type Did, type Handle } from "@atcute/lexicons/syntax";
 import { applyEdits, modify, parseTree, printParseErrorCode, type ParseError } from "jsonc-parser";
 
-import { MANIFEST_MAX_BYTES } from "./load.js";
-
 import { createActorResolver } from "../oauth.js";
+import { MANIFEST_MAX_BYTES } from "./load.js";
 
 /**
  * Result of comparing a manifest's pinned publisher against the active
@@ -253,9 +252,7 @@ export async function writePublisherBack(input: {
 		// DID string that happens to appear elsewhere in the document
 		// (e.g. in `description`) can't deflect the comment to the
 		// wrong line.
-		const updated = sessionHandle
-			? annotatePublisherLine(applied, sessionHandle)
-			: applied;
+		const updated = sessionHandle ? annotatePublisherLine(applied, sessionHandle) : applied;
 
 		// Atomic write: tmpfile + rename. POSIX rename is atomic, so a
 		// crash mid-write leaves the previous file intact rather than
