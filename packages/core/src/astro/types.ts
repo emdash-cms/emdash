@@ -190,6 +190,14 @@ export interface EmDashManifest {
 		siteName?: string;
 		favicon?: string;
 	};
+	/**
+	 * Sidebar configuration for hiding core features and collections.
+	 * Set via the `sidebar` config in `astro.config.mjs`.
+	 */
+	sidebar?: {
+		hideCoreFeatures?: string[];
+		hideCollections?: string[];
+	};
 }
 
 /**

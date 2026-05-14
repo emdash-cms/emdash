@@ -516,6 +516,31 @@ export interface EmDashConfig {
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
 	};
+
+	/**
+	 * Admin sidebar configuration.
+	 *
+	 * Use to hide built-in core features from the sidebar for sites that
+	 * only use a subset of EmDash's content surface. Hidden items remain
+	 * fully functional (APIs work, direct URLs work) — they are just not
+	 * shown in the navigation.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   sidebar: {
+	 *     hideCoreFeatures: ["comments", "redirects", "widgets", "sections", "bylines"],
+	 *     hideCollections: ["tags", "categories"],
+	 *   },
+	 * })
+	 * ```
+	 */
+	sidebar?: {
+		/** Core feature slugs to hide from the sidebar. */
+		hideCoreFeatures?: string[];
+		/** Collection slugs to hide from the sidebar. */
+		hideCollections?: string[];
+	};
 }
 
 /**

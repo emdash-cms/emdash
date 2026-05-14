@@ -62,6 +62,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					authMode: authMode.type === "external" ? authMode.providerType : "passkey",
 					signupEnabled,
 					admin: adminBranding,
+					sidebar: emdash?.config?.sidebar,
 				}
 			: {
 					version: VERSION,
@@ -73,6 +74,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					authMode: "passkey",
 					signupEnabled,
 					admin: adminBranding,
+					sidebar: emdash?.config?.sidebar,
 				};
 
 		return Response.json(
