@@ -82,6 +82,7 @@ catalog:
   "@types/node": 24.10.13
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
+  jsonc-parser: ^3.3.1
   astro: ^6.0.1
   astro-iconset: ^0.0.4
   better-sqlite3: ^12.8.0
@@ -98,4 +99,4 @@ catalog:
   # structurally incompatible ZodType<T> across packages that mix astro/zod
   # and emdash's zod (e.g. trusted plugins like @emdash-cms/plugin-forms
   # importing 'z' from astro/zod and passing schemas to definePlugin).
-  zod: ^4.3.6
+  zod: ^4.4.1

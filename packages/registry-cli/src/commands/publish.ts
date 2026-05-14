@@ -19,7 +19,7 @@
  */
 
 import { lookup as dnsLookup } from "node:dns/promises";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import type { PluginManifest } from "@emdash-cms/plugin-types";
@@ -29,6 +29,13 @@ import consola from "consola";
 import pc from "picocolors";
 
 import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/utils.js";
+import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
+import { checkPublisher, PublisherCheckError, writePublisherBack } from "../manifest/publisher.js";
+import {
+	manifestToProfileBootstrap,
+	normaliseManifest,
+	type NormalisedManifest,
+} from "../manifest/translate.js";
 import { sha256Multihash } from "../multihash.js";
 import { resumeSession } from "../oauth.js";
 import {
@@ -88,6 +95,16 @@ export const publishCommand = defineCommand({
 		"security-url": {
 			type: "string",
 			description: "Security contact URL (first publish only)",
+		},
+		manifest: {
+			type: "string",
+			description: `Path to emdash-plugin.jsonc, or the directory containing it. Defaults to ./${MANIFEST_FILENAME}. Pass --no-manifest (or set to "false") to disable manifest loading and rely entirely on flags.`,
+		},
+		"no-manifest": {
+			type: "boolean",
+			description:
+				"Disable manifest loading and rely entirely on flags. Useful in CI where the manifest lives elsewhere or shouldn't be implicitly consumed.",
+			default: false,
 		},
 		"allow-overwrite": {
 			type: "boolean",
@@ -149,6 +166,59 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	});
 	if (stringFlagError) throw new CliError(stringFlagError, 2, "INVALID_FLAG");
 
+	// Load the manifest if present. Precedence: explicit flags win over
+	// manifest values, manifest values fill in any gaps. With
+	// --no-manifest, we skip loading entirely.
+	//
+	// The default path is `./emdash-plugin.jsonc`. If the user didn't pass
+	// --manifest and there's no file at the default path, that's NOT an
+	// error: legacy flag-only invocations keep working. Only `--manifest`
+	// explicit-not-found is an error.
+	const manifestLoad = await loadManifestBootstrap(args, consola);
+	const manifestBase = manifestLoad?.bootstrap ?? null;
+
+	// Resume the active publisher session BEFORE any network access.
+	// The publisher-mismatch check below depends only on the session DID
+	// and the manifest's pinned publisher; running both up front means
+	// a wrong-account publish fails in milliseconds rather than after a
+	// full tarball fetch + decompress + manifest extract.
+	const credentials = new FileCredentialStore();
+	const session = await credentials.current();
+	if (!session) {
+		throw new CliError(
+			"Not logged in. Run: emdash-registry login <handle-or-did>",
+			1,
+			"NOT_LOGGED_IN",
+		);
+	}
+	consola.info(`Publishing as ${pc.bold(session.handle ?? session.did)} (${pc.dim(session.did)})`);
+
+	// Verify the manifest's pinned publisher matches the active session
+	// before fetching the tarball. The check is offline (DID compare is
+	// verbatim; handle resolution only runs if the manifest pins a handle)
+	// so we can fail fast on the wrong-account case.
+	if (manifestLoad?.manifest.publisher !== undefined) {
+		try {
+			const check = await checkPublisher({
+				manifestPublisher: manifestLoad.manifest.publisher,
+				sessionDid: session.did,
+			});
+			if (check.kind === "mismatch") {
+				throw new CliError(
+					`Manifest pins publisher to ${pc.bold(check.pinnedDisplay)} (${check.pinnedDid}), but the active session is ${session.did}. ` +
+						`Either switch sessions (\`emdash-registry switch ${check.pinnedDid}\`), or edit the manifest if you are transferring the plugin to a new publisher.`,
+					1,
+					"MANIFEST_PUBLISHER_MISMATCH",
+				);
+			}
+		} catch (error) {
+			if (error instanceof PublisherCheckError) {
+				throw new CliError(error.message, 1, error.code);
+			}
+			throw error;
+		}
+	}
+
 	// Fetch + checksum the tarball, then extract the manifest BEFORE we
 	// print any reassuring "tarball looks fine" lines. A 200 from a CDN
 	// can serve an HTML 404 page; we want the failure to land before the
@@ -177,18 +247,6 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		consola.success(`Local file at ${pc.dim(localPath)} matches the URL`);
 	}
 
-	// Resume the active publisher session.
-	const credentials = new FileCredentialStore();
-	const session = await credentials.current();
-	if (!session) {
-		throw new CliError(
-			"Not logged in. Run: emdash-registry login <handle-or-did>",
-			1,
-			"NOT_LOGGED_IN",
-		);
-	}
-	consola.info(`Publishing as ${pc.bold(session.handle ?? session.did)} (${pc.dim(session.did)})`);
-
 	const oauthSession = await resumeSession(session.did);
 	const publisher = PublishingClient.fromHandler({
 		handler: oauthSession,
@@ -196,7 +254,15 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		pds: session.pds,
 	});
 
+	// Build the final ProfileBootstrap. Layer ordering:
+	//   1. manifest values (if any) at the bottom
+	//   2. flag values on top (explicit caller intent wins)
+	// Each layer only writes a key when the caller provided it; missing
+	// keys remain missing so the API's "required on first publish" checks
+	// fire at the right time. Spreading `null` is a no-op, so the
+	// no-manifest path doesn't need a fallback object.
 	const profile: ProfileBootstrap = {
+		...manifestBase,
 		...(args.license !== undefined ? { license: args.license } : {}),
 		...(args["author-name"] !== undefined ? { authorName: args["author-name"] } : {}),
 		...(args["author-url"] !== undefined ? { authorUrl: args["author-url"] } : {}),
@@ -221,6 +287,26 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		allowOverwrite: args["allow-overwrite"],
 		logger,
 	});
+
+	// Post-publish: pin the active session's DID back to the manifest if
+	// the user didn't pin one themselves. This is a convenience, not a
+	// publish requirement — failures are logged but don't fail the
+	// command (the publish already committed to the PDS).
+	//
+	// The handle is passed for the line-comment annotation; the CLI
+	// itself only ever uses the DID for the equality check.
+	if (manifestLoad && manifestLoad.manifest.publisher === undefined) {
+		await writePublisherBack({
+			manifestPath: manifestLoad.path,
+			sessionDid: session.did,
+			// session.handle is nullable; normalise to undefined for the
+			// optional argument so the absence-vs-empty distinction stays
+			// clean at the writePublisherBack boundary.
+			sessionHandle: session.handle ?? undefined,
+			onInfo: (m) => consola.info(m),
+			onWarn: (m) => consola.warn(m),
+		});
+	}
 
 	// Subsequent-publish: warn about ignored first-publish-only flags.
 	if (!result.profileCreated && result.ignoredProfileFields.length > 0) {
@@ -319,9 +405,79 @@ type PublishArgs = {
 	"author-email"?: string;
 	"security-email"?: string;
 	"security-url"?: string;
+	manifest?: string;
+	"no-manifest"?: boolean;
 	"allow-overwrite"?: boolean;
 	json?: boolean;
 };
+
+/**
+ * Result of resolving the manifest for `runPublish`. Surfaces both the
+ * derived ProfileBootstrap (the publish API's input) and the normalised
+ * manifest itself, so downstream code can run the publisher-pin check
+ * and the post-publish write-back without re-parsing the file.
+ */
+interface ManifestLoadOutcome {
+	/** Resolved absolute path to the manifest file. */
+	path: string;
+	/** Normalised manifest (single/multi-author forms collapsed). */
+	manifest: NormalisedManifest;
+	/** Bridged ProfileBootstrap for the legacy publish-API input. */
+	bootstrap: ProfileBootstrap;
+}
+
+/**
+ * Resolve the manifest layer for `runPublish`. Returns `null` when no
+ * manifest was loaded (either suppressed by --no-manifest or the
+ * default-path file is missing). Throws a CliError when the user
+ * explicitly named a manifest path that couldn't be loaded, and warns
+ * when `--no-manifest` is used while a manifest exists at the default
+ * path so the publisher-pin safety story stays visible.
+ */
+async function loadManifestBootstrap(
+	args: PublishArgs,
+	log: { info(m: string): void; warn(m: string): void },
+): Promise<ManifestLoadOutcome | null> {
+	const optedOut =
+		args["no-manifest"] === true || args.manifest === "false" || args.manifest === "";
+	if (optedOut) {
+		// `--no-manifest` is a power-user escape hatch (CI, debugging),
+		// but silently skipping a manifest at the default path defeats
+		// the publisher-pin safety story. If the file exists, warn that
+		// the pin (if any) won't be checked. We probe via stat to keep
+		// the path cheap: no parse, no schema validation.
+		const defaultPath = `./${MANIFEST_FILENAME}`;
+		try {
+			await stat(defaultPath);
+			log.warn(
+				`Skipping manifest at ${defaultPath} (--no-manifest is set). Publisher pin and license/security defaults are NOT being applied for this publish.`,
+			);
+		} catch {
+			// No manifest at the default path; nothing to warn about.
+		}
+		return null;
+	}
+	const explicit = args.manifest !== undefined && args.manifest.length > 0;
+	const path = args.manifest ?? `./${MANIFEST_FILENAME}`;
+	try {
+		const { manifest, path: resolvedPath } = await loadManifest(path);
+		const normalised = normaliseManifest(manifest);
+		log.info(`Loaded manifest: ${pc.dim(resolvedPath)}`);
+		return {
+			path: resolvedPath,
+			manifest: normalised,
+			bootstrap: manifestToProfileBootstrap(normalised),
+		};
+	} catch (error) {
+		if (error instanceof ManifestError) {
+			// Default-path miss: not an error. Legacy flag-only callers
+			// keep working when they have no manifest file.
+			if (!explicit && error.code === "MANIFEST_NOT_FOUND") return null;
+			throw new CliError(error.message, 1, error.code);
+		}
+		throw error;
+	}
+}
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 

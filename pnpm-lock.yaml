@@ -210,6 +210,9 @@ catalogs:
     better-sqlite3:
       specifier: ^12.8.0
       version: 12.8.0
+    jsonc-parser:
+      specifier: ^3.3.1
+      version: 3.3.1
     publint:
       specifier: 0.3.17
       version: 0.3.17
@@ -235,7 +238,7 @@ catalogs:
       specifier: ^4.83.0
       version: 4.90.0
     zod:
-      specifier: ^4.3.6
+      specifier: ^4.4.1
       version: 4.4.1
 
 importers:
@@ -1861,6 +1864,9 @@ importers:
       image-size:
         specifier: ^2.0.2
         version: 2.0.2
+      jsonc-parser:
+        specifier: 'catalog:'
+        version: 3.3.1
       modern-tar:
         specifier: ^0.7.5
         version: 0.7.6
@@ -1870,6 +1876,9 @@ importers:
       tsdown:
         specifier: 'catalog:'
         version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260213.1)(oxc-resolver@11.16.4)(publint@0.3.17)(typescript@5.9.3)
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.1
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'

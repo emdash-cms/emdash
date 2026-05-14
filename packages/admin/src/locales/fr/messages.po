@@ -1014,7 +1014,7 @@ msgstr "Retour à la place de marché"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:347
 msgid "Back to plugins"
-msgstr ""
+msgstr "Retour aux modules d'extension"
 
 #: packages/admin/src/components/SectionEditor.tsx:73
 #: packages/admin/src/components/SectionEditor.tsx:174
@@ -1062,7 +1062,7 @@ msgstr "Bref résumé affiché sous le titre dans les résultats de recherche"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:71
 msgid "Browse and install plugins published to the decentralized registry."
-msgstr ""
+msgstr "Parcourez et installez les modules d'extension publiés dans le registre décentralisé."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:88
 msgid "Browse and install plugins to extend your site."
@@ -1211,11 +1211,11 @@ msgstr "Modifier <0>{0}</0> de <1>{1}</1> à <2>{2}</2> ? Ils perdront l’acc�
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:262
 msgid "Change Favicon"
-msgstr "Modifier le favicon"
+msgstr "Modifier la favicon"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:200
 msgid "Change Image"
-msgstr ""
+msgstr "Modifier l'image"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:208
 msgid "Change Logo"
@@ -1838,7 +1838,7 @@ msgstr "Nombre décimal"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:311
 msgid "Declared permissions"
-msgstr ""
+msgstr "Autorisations déclarées"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:327
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:389
@@ -1851,11 +1851,11 @@ msgstr "Rôle par défaut :"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:180
 msgid "Default social image"
-msgstr ""
+msgstr "Image sociale par défaut"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:171
 msgid "Default Social Image"
-msgstr ""
+msgstr "Image sociale par défaut"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:599
 msgid "Define a new taxonomy for classifying content"
@@ -2851,7 +2851,7 @@ msgstr "Échec lors du chargement des modules d'extension : {0}"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:95
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
-msgstr ""
+msgstr "Échec lors du chargement des modules d'extension. L'agrégateur de registres est peut-être injoignable."
 
 #: packages/admin/src/components/RevisionHistory.tsx:180
 msgid "Failed to load revisions"
@@ -3384,7 +3384,7 @@ msgstr "Incompatible"
 #. placeholder {0}: formatDate(release.indexedAt)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:241
 msgid "indexed {0}"
-msgstr ""
+msgstr "indexé le {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2821
 msgid "Inline Code"
@@ -4381,11 +4381,11 @@ msgstr "Aucun module d'extension trouvé"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:117
 msgid "No plugins have been published to this registry yet."
-msgstr ""
+msgstr "Aucun module d'extension n'a été publié dans ce registre pour l'instant."
 
 #: packages/admin/src/components/RegistryBrowse.tsx:116
 msgid "No plugins match \"{debouncedQuery}\"."
-msgstr ""
+msgstr "Aucun module d'extension ne correspond à « {debouncedQuery} »."
 
 #: packages/admin/src/components/Sections.tsx:343
 msgid "No preview"
@@ -4775,7 +4775,7 @@ msgstr "Module d'extension introuvable"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:210
 msgid "Plugin not found. The publisher handle or slug may be incorrect."
-msgstr ""
+msgstr "Module d'extension introuvable. L'identifiant ou le slug de l'éditeur est peut-être incorrect."
 
 #: packages/admin/src/components/WordPressImport.tsx:1048
 msgid "plugin on your WordPress site."
@@ -4787,7 +4787,7 @@ msgstr "Autorisations du module d'extension"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:70
 msgid "Plugin Registry"
-msgstr ""
+msgstr "Registre des modules d'extension"
 
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginPage.tsx:40
@@ -4902,7 +4902,7 @@ msgstr "Publié le"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:236
 msgid "Published by"
-msgstr ""
+msgstr "Publié par"
 
 #: packages/admin/src/components/ContentEditor.tsx:2000
 msgid "Quick create byline"
@@ -4995,7 +4995,7 @@ msgstr "Référence"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:251
 msgid "Referenced favicon unavailable."
-msgstr ""
+msgstr "Favicon référencée indisponible."
 
 #: packages/admin/src/components/ContentTypeList.tsx:78
 msgid "Register"
@@ -5020,7 +5020,7 @@ msgstr "L'inscription a été annulée ou a expiré. Veuillez réessayer."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:295
 msgid "Release is too new to install"
-msgstr ""
+msgstr "La version est trop récente pour être installée"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/ContentEditor.tsx:1969
@@ -5661,7 +5661,7 @@ msgstr "Sélectionner le contenu"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:268
 msgid "Select Default Social Image"
-msgstr ""
+msgstr "Sélectionner l'image sociale par défaut"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:283
 #: packages/admin/src/components/settings/GeneralSettings.tsx:344
@@ -6204,11 +6204,11 @@ msgstr "L'URL publique de votre site (utilisée pour les liens canoniques et les
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:189
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
-msgstr ""
+msgstr "L'image référencée n'est plus disponible. Choisissez-en une nouvelle ou supprimez la référence."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:197
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
-msgstr ""
+msgstr "Le logo référencé n'est plus disponible. Choisissez-en un nouveau ou supprimez la référence."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
@@ -6283,7 +6283,7 @@ msgstr "Ce module d'extension ne nécessite aucune autorisation particulière."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:281
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
-msgstr ""
+msgstr "Cet éditeur revendique un nom dont il ne peut prouver être propriétaire — il pourrait s'agir d'une usurpation d'identité. L'installation est désactivée. Si vous connaissez l'éditeur et lui faites confiance, demandez-lui de corriger la configuration de son identité avant de réessayer."
 
 #: packages/admin/src/components/Redirects.tsx:551
 msgid "This redirect rule will be permanently removed."
@@ -6546,7 +6546,7 @@ msgstr "Confirmation de désinstallation"
 
 #: packages/admin/src/components/PluginManager.tsx:505
 msgid "Uninstall is not yet available for registry plugins. Disable the plugin to stop it from running; full uninstall will land in a follow-up."
-msgstr ""
+msgstr "La désinstallation n'est pas encore disponible pour les modules d'extension du registre. Désactivez le module d'extension pour l'empêcher de fonctionner ; la désinstallation complète arrivera dans une prochaine mise à jour."
 
 #: packages/admin/src/components/PluginManager.tsx:594
 msgid "Uninstalling..."
@@ -6621,7 +6621,7 @@ msgstr "Widget sans titre"
 
 #: packages/admin/src/components/PublisherHandle.tsx:145
 msgid "Unverified publisher"
-msgstr ""
+msgstr "Éditeur non vérifié"
 
 #: packages/admin/src/components/ContentEditor.tsx:1948
 msgid "Up"
@@ -6805,7 +6805,7 @@ msgstr "Utilisez votre clé d'accès enregistrée pour vous connecter en toute s
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
-msgstr ""
+msgstr "Utilisé comme image Open Graph de repli lorsqu'une page n'en a pas. Taille recommandée : 1200×630."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:642
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
@@ -6875,7 +6875,7 @@ msgstr "Validation"
 #: packages/admin/src/components/RegistryBrowse.tsx:183
 #: packages/admin/src/components/RegistryPluginDetail.tsx:231
 msgid "Verified publisher"
-msgstr ""
+msgstr "Éditeur vérifié"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:194
 msgid "Verifying your invite..."
@@ -6897,7 +6897,7 @@ msgstr "Version"
 #. placeholder {0}: release.version
 #: packages/admin/src/components/RegistryPluginDetail.tsx:241
 msgid "Version {0}"
-msgstr ""
+msgstr "Version {0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Video"
@@ -6943,7 +6943,7 @@ msgstr "Nous n'avons pas pu nous connecter à un site WordPress à l'adresse {0}
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:279
 msgid "We couldn't verify this publisher's identity"
-msgstr ""
+msgstr "Nous n'avons pas pu vérifier l'identité de cet éditeur"
 
 #: packages/admin/src/components/WordPressImport.tsx:926
 msgid "We'll check what import options are available for your site."
@@ -7200,7 +7200,7 @@ msgstr "Votre rôle"
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:297
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
-msgstr ""
+msgstr "Votre site exige que les versions soient publiées depuis au moins {0} avant de pouvoir être installées. Cette version sera installable plus tard."
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:135
 msgid "Your Twitter/X handle (e.g., @username)"

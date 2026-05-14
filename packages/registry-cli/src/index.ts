@@ -13,6 +13,7 @@
  *   - info     — show details about a package
  *   - bundle   — bundle a plugin source directory into a tarball
  *   - publish  — publish a release that points at a hosted tarball
+ *   - validate — validate an emdash-plugin.jsonc manifest against the v1 schema
  *
  * EXPERIMENTAL: this CLI targets `com.emdashcms.experimental.*` and the
  * experimental aggregator. Pin to an exact version while RFC 0001 is in flight.
@@ -27,6 +28,7 @@ import { logoutCommand } from "./commands/logout.js";
 import { publishCommand } from "./commands/publish.js";
 import { searchCommand } from "./commands/search.js";
 import { switchCommand } from "./commands/switch.js";
+import { validateCommand } from "./commands/validate.js";
 import { whoamiCommand } from "./commands/whoami.js";
 
 const main = defineCommand({
@@ -43,6 +45,7 @@ const main = defineCommand({
 		info: infoCommand,
 		bundle: bundleCommand,
 		publish: publishCommand,
+		validate: validateCommand,
 	},
 });
 

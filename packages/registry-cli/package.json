@@ -14,11 +14,13 @@
 		"emdash-registry": "./dist/index.mjs"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"schemas"
 	],
 	"scripts": {
-		"build": "tsdown",
+		"build": "node --run gen-schema && tsdown",
 		"dev": "tsdown --watch",
+		"gen-schema": "node --no-warnings --experimental-strip-types scripts/gen-schema.ts",
 		"prepublishOnly": "node --run build",
 		"typecheck": "tsgo --noEmit",
 		"test": "vitest run",
@@ -30,16 +32,18 @@
 		"@atcute/lexicons": "catalog:",
 		"@atcute/multibase": "catalog:",
 		"@atcute/oauth-node-client": "catalog:",
-		"@oslojs/crypto": "catalog:",
 		"@emdash-cms/plugin-types": "workspace:*",
 		"@emdash-cms/registry-client": "workspace:*",
 		"@emdash-cms/registry-lexicons": "workspace:*",
+		"@oslojs/crypto": "catalog:",
 		"citty": "^0.1.6",
 		"consola": "^3.4.2",
 		"image-size": "^2.0.2",
+		"jsonc-parser": "catalog:",
 		"modern-tar": "^0.7.5",
 		"picocolors": "^1.1.1",
-		"tsdown": "catalog:"
+		"tsdown": "catalog:",
+		"zod": "catalog:"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
