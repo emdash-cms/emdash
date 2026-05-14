@@ -1211,7 +1211,7 @@ msgstr "Modifier <0>{0}</0> de <1>{1}</1> à <2>{2}</2> ? Ils perdront l’acc�
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:262
 msgid "Change Favicon"
-msgstr "Modifier le favicon"
+msgstr "Modifier la favicon"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:200
 msgid "Change Image"
