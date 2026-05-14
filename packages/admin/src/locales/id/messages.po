@@ -1215,7 +1215,7 @@ msgstr "Ubah Favicon"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:200
 msgid "Change Image"
-msgstr ""
+msgstr "Ubah Gambar"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:208
 msgid "Change Logo"
@@ -1851,11 +1851,11 @@ msgstr "Peran bawaan:"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:180
 msgid "Default social image"
-msgstr ""
+msgstr "Gambar sosial bawaan"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:171
 msgid "Default Social Image"
-msgstr ""
+msgstr "Gambar Sosial Bawaan"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:599
 msgid "Define a new taxonomy for classifying content"
@@ -2318,7 +2318,7 @@ msgstr "mis., MacBook Pro, iPhone"
 #: packages/admin/src/components/TaxonomyManager.tsx:360
 #: packages/admin/src/components/TranslationsPanel.tsx:88
 msgid "Edit"
-msgstr "Edit"
+msgstr "Sunting"
 
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
@@ -2328,62 +2328,62 @@ msgstr "Edit"
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/routes/bylines.tsx:247
 msgid "Edit {0}"
-msgstr "Edit {0}"
+msgstr "Sunting {0}"
 
 #. placeholder {0}: field.label
 #: packages/admin/src/components/ContentTypeEditor.tsx:732
 msgid "Edit {0} field"
-msgstr "Edit bidang {0}"
+msgstr "Sunting bidang {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:599
 msgid "Edit {collectionLabel}"
-msgstr "Edit {collectionLabel}"
+msgstr "Sunting {collectionLabel}"
 
 #: packages/admin/src/components/ContentList.tsx:523
 msgid "Edit {title}"
-msgstr "Edit {title}"
+msgstr "Sunting {title}"
 
 #: packages/admin/src/components/ContentEditor.tsx:2067
 msgid "Edit byline"
-msgstr "Edit byline"
+msgstr "Sunting byline"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:364
 msgid "Edit Domain"
-msgstr "Edit Domain"
+msgstr "Sunting Domain"
 
 #: packages/admin/src/components/FieldEditor.tsx:342
 msgid "Edit Field"
-msgstr "Edit Field"
+msgstr "Sunting Field"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2523
 msgid "Edit link"
-msgstr "Edit tautan"
+msgstr "Sunting tautan"
 
 #: packages/admin/src/components/MenuEditor.tsx:478
 msgid "Edit Menu Item"
-msgstr "Edit Item Menu"
+msgstr "Sunting Item Menu"
 
 #: packages/admin/src/components/MenuEditor.tsx:282
 msgid "Edit menu items"
-msgstr "Edit item menu"
+msgstr "Sunting item menu"
 
 #: packages/admin/src/components/Redirects.tsx:501
 msgid "Edit redirect"
-msgstr "Edit pengalihan"
+msgstr "Sunting pengalihan"
 
 #: packages/admin/src/components/Redirects.tsx:102
 msgid "Edit Redirect"
-msgstr "Edit Pengalihan"
+msgstr "Sunting Pengalihan"
 
 #. placeholder {0}: r.source
 #: packages/admin/src/components/Redirects.tsx:502
 msgid "Edit redirect {0}"
-msgstr "Edit pengalihan {0}"
+msgstr "Sunting pengalihan {0}"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 msgid "Edit URL"
-msgstr "Edit URL"
+msgstr "Sunting URL"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:36
 #: packages/admin/src/components/WelcomeModal.tsx:26
@@ -4995,7 +4995,7 @@ msgstr "Referensi"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:251
 msgid "Referenced favicon unavailable."
-msgstr ""
+msgstr "Favicon yang dirujuk tidak tersedia."
 
 #: packages/admin/src/components/ContentTypeList.tsx:78
 msgid "Register"
@@ -5661,7 +5661,7 @@ msgstr "Pilih Konten"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:268
 msgid "Select Default Social Image"
-msgstr ""
+msgstr "Pilih Gambar Sosial Bawaan"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:283
 #: packages/admin/src/components/settings/GeneralSettings.tsx:344
@@ -6094,7 +6094,7 @@ msgstr "Tabel"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:162
 #: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Tagline"
-msgstr "Tagline"
+msgstr "Slogan"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 msgid "Tags"
@@ -6204,11 +6204,11 @@ msgstr "URL publik situs Anda (digunakan untuk tautan kanonis dan peta situs)"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:189
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
-msgstr ""
+msgstr "Gambar yang dirujuk tidak lagi tersedia. Pilih yang baru atau hapus referensi."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:197
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
-msgstr ""
+msgstr "Logo yang dirujuk tidak lagi tersedia. Pilih yang baru atau hapus referensi."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
@@ -6805,7 +6805,7 @@ msgstr "Gunakan passkey terdaftar Anda untuk masuk dengan aman."
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
-msgstr ""
+msgstr "Digunakan sebagai gambar Open Graph cadangan saat halaman tidak memilikinya. Ukuran yang direkomendasikan: 1200×630."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:642
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
