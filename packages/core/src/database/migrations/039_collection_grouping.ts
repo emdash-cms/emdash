@@ -11,10 +11,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	}
 
 	if (!(await columnExists(db, "_emdash_collections", "group"))) {
-		await db.schema
-			.alterTable("_emdash_collections")
-			.addColumn("group", "text")
-			.execute();
+		await db.schema.alterTable("_emdash_collections").addColumn("group", "text").execute();
 	}
 }
 
