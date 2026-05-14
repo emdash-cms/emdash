@@ -133,6 +133,15 @@ describe("parseAndValidateManifest (in-memory)", () => {
 			} catch (error) {
 				const err = error as ManifestError;
 				expect(err.code).toBe("MANIFEST_VALIDATION_ERROR");
+				// The line:col must point at the typo'd key, not at the
+				// parent object's opening brace. Typos are the most
+				// common error class; landing on the right line matters.
+				// Regression: previously this returned undefined because
+				// `findNodeAtPath` couldn't resolve a key that didn't
+				// exist in the schema.
+				const typoIssue = err.issues.find((i) => i.message.includes('"licens"'));
+				expect(typoIssue).toBeDefined();
+				expect(typoIssue?.location?.line).toBe(3);
 			}
 		});
 	});

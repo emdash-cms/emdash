@@ -223,13 +223,17 @@ export async function writePublisherBack(input: {
 		// them against the source. This is the JSONC-aware path that
 		// preserves comments and existing whitespace.
 		//
-		// `formattingOptions.insertSpaces: false` matches the repo's
-		// tab-indented JSONC convention. The `getInsertionIndex` callback
-		// places `publisher` immediately after `license` (or at the end
-		// of the object if `license` isn't present, which shouldn't
-		// happen for a schema-valid manifest but is handled defensively).
+		// Indentation is sniffed from the user's existing source rather
+		// than hard-coded. Without this, a 2-space-indented manifest
+		// gets silently rewritten to tabs on first publish — a
+		// surprising behaviour for a write-back that's supposed to be
+		// a small, targeted edit. `getInsertionIndex` places `publisher`
+		// immediately after `license` (or at the end of the object if
+		// `license` isn't present, which shouldn't happen for a
+		// schema-valid manifest but is handled defensively).
+		const indent = detectIndent(source);
 		const edits = modify(source, ["publisher"], sessionDid, {
-			formattingOptions: { insertSpaces: false, tabSize: 1 },
+			formattingOptions: { insertSpaces: !indent.useTabs, tabSize: indent.size },
 			getInsertionIndex: (existingProps) => {
 				const licenseIdx = existingProps.indexOf("license");
 				if (licenseIdx >= 0) return licenseIdx + 1;
@@ -357,6 +361,36 @@ async function readManifestBounded(filePath: string): Promise<BoundedReadResult>
 	} finally {
 		await handle.close().catch(() => {});
 	}
+}
+
+/**
+ * Sniff the indentation style used by the source so the write-back can
+ * match it. Looks at the first indented line and reports whether the
+ * leading whitespace is tabs or spaces, and the run length.
+ *
+ * Falls back to tabs-with-tabSize-1 when:
+ *   - no indented line is found (single-line manifest), or
+ *   - the file is unreadable in a way we can't infer from.
+ *
+ * The tab-fallback matches the conventions of the repo's own JSONC files
+ * (wrangler.jsonc, tsconfig.json, this very package's templates).
+ */
+function detectIndent(source: string): { useTabs: boolean; size: number } {
+	const lines = source.split("\n");
+	for (const line of lines) {
+		if (line.length === 0) continue;
+		const first = line[0];
+		if (first === "\t") return { useTabs: true, size: 1 };
+		if (first === " ") {
+			let count = 0;
+			while (count < line.length && line[count] === " ") count++;
+			// Indent runs of 1 are weird; round up to 2 as the most
+			// common non-tab indent. Anything 2-8 we use verbatim.
+			return { useTabs: false, size: Math.max(2, Math.min(count, 8)) };
+		}
+		// Non-whitespace first char → this line isn't indented; keep looking.
+	}
+	return { useTabs: true, size: 1 };
 }
 
 /** Compute a stable hash of the source bytes, used for TOCTOU narrowing. */

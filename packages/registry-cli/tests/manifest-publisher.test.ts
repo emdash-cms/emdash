@@ -243,6 +243,34 @@ describe("writePublisherBack", () => {
 		expect(publisherLine).not.toContain("//");
 	});
 
+	it("preserves the source's indentation (2-space)", async () => {
+		// Regression: an earlier version hard-coded tab indentation in
+		// the modify() formattingOptions, which silently reformatted
+		// any 2-space-indented manifest to tabs on first publish. The
+		// detector sniffs the source's existing indent and matches it.
+		const path = join(dir, "emdash-plugin.jsonc");
+		const source = [
+			"{",
+			'  "slug": "my-plugin",',
+			'  "version": "0.1.0",',
+			'  "license": "MIT",',
+			'  "author": { "name": "Jane Doe" },',
+			'  "security": { "email": "security@example.com" }',
+			"}",
+			"",
+		].join("\n");
+		await writeFile(path, source, "utf8");
+		await writePublisherBack({ manifestPath: path, sessionDid: SESSION_DID });
+		const updated = await readFile(path, "utf8");
+		// Pre-existing 2-space lines should still be 2-space, no tab
+		// characters should have appeared anywhere.
+		expect(updated).not.toContain("\t");
+		// The new publisher line should also use 2 spaces.
+		const publisherLine = updated.split("\n").find((l) => l.includes('"publisher"'))!;
+		expect(publisherLine.startsWith("  ")).toBe(true);
+		expect(publisherLine.startsWith("\t")).toBe(false);
+	});
+
 	it("does not overwrite an existing publisher (defensive re-parse)", async () => {
 		const path = join(dir, "emdash-plugin.jsonc");
 		const source = `{

@@ -177,6 +177,48 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	const manifestLoad = await loadManifestBootstrap(args, consola);
 	const manifestBase = manifestLoad?.bootstrap ?? null;
 
+	// Resume the active publisher session BEFORE any network access.
+	// The publisher-mismatch check below depends only on the session DID
+	// and the manifest's pinned publisher; running both up front means
+	// a wrong-account publish fails in milliseconds rather than after a
+	// full tarball fetch + decompress + manifest extract.
+	const credentials = new FileCredentialStore();
+	const session = await credentials.current();
+	if (!session) {
+		throw new CliError(
+			"Not logged in. Run: emdash-registry login <handle-or-did>",
+			1,
+			"NOT_LOGGED_IN",
+		);
+	}
+	consola.info(`Publishing as ${pc.bold(session.handle ?? session.did)} (${pc.dim(session.did)})`);
+
+	// Verify the manifest's pinned publisher matches the active session
+	// before fetching the tarball. The check is offline (DID compare is
+	// verbatim; handle resolution only runs if the manifest pins a handle)
+	// so we can fail fast on the wrong-account case.
+	if (manifestLoad?.manifest.publisher !== undefined) {
+		try {
+			const check = await checkPublisher({
+				manifestPublisher: manifestLoad.manifest.publisher,
+				sessionDid: session.did,
+			});
+			if (check.kind === "mismatch") {
+				throw new CliError(
+					`Manifest pins publisher to ${pc.bold(check.pinnedDisplay)} (${check.pinnedDid}), but the active session is ${session.did}. ` +
+						`Either switch sessions (\`emdash-registry switch ${check.pinnedDid}\`), or edit the manifest if you are transferring the plugin to a new publisher.`,
+					1,
+					"MANIFEST_PUBLISHER_MISMATCH",
+				);
+			}
+		} catch (error) {
+			if (error instanceof PublisherCheckError) {
+				throw new CliError(error.message, 1, error.code);
+			}
+			throw error;
+		}
+	}
+
 	// Fetch + checksum the tarball, then extract the manifest BEFORE we
 	// print any reassuring "tarball looks fine" lines. A 200 from a CDN
 	// can serve an HTML 404 page; we want the failure to land before the
@@ -203,44 +245,6 @@ async function runPublish(args: PublishArgs): Promise<void> {
 			);
 		}
 		consola.success(`Local file at ${pc.dim(localPath)} matches the URL`);
-	}
-
-	// Resume the active publisher session.
-	const credentials = new FileCredentialStore();
-	const session = await credentials.current();
-	if (!session) {
-		throw new CliError(
-			"Not logged in. Run: emdash-registry login <handle-or-did>",
-			1,
-			"NOT_LOGGED_IN",
-		);
-	}
-	consola.info(`Publishing as ${pc.bold(session.handle ?? session.did)} (${pc.dim(session.did)})`);
-
-	// Verify the manifest's pinned publisher matches the active session
-	// before we open any network connections to the PDS. The check runs
-	// here (rather than at manifest-load time) because it depends on
-	// session.did, which we only know now.
-	if (manifestLoad?.manifest.publisher !== undefined) {
-		try {
-			const check = await checkPublisher({
-				manifestPublisher: manifestLoad.manifest.publisher,
-				sessionDid: session.did,
-			});
-			if (check.kind === "mismatch") {
-				throw new CliError(
-					`Manifest pins publisher to ${pc.bold(check.pinnedDisplay)} (${check.pinnedDid}), but the active session is ${session.did}. ` +
-						`Either switch sessions (\`emdash-registry switch ${check.pinnedDid}\`), or edit the manifest if you are transferring the plugin to a new publisher.`,
-					1,
-					"MANIFEST_PUBLISHER_MISMATCH",
-				);
-			}
-		} catch (error) {
-			if (error instanceof PublisherCheckError) {
-				throw new CliError(error.message, 1, error.code);
-			}
-			throw error;
-		}
 	}
 
 	const oauthSession = await resumeSession(session.did);

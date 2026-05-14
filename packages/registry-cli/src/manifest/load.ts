@@ -267,12 +267,40 @@ function parseAndValidate(source: string, filePath: string): LoadManifestResult 
  * Symbols cannot appear in a JSON-parsed value's path (JSON has no symbol
  * keys), so we narrow defensively and treat any stray symbol as an
  * opaque "<symbol>" string in the displayed path.
+ *
+ * Special-cases `unrecognized_keys` (typo'd field names): Zod reports the
+ * issue at the parent path with the offending key(s) in `issue.keys`.
+ * Without special handling, the line:col points at the parent object's
+ * opening brace, not the actual typo. We resolve the first listed key
+ * inside the parent and use ITS source offset, so a `"licens": "MIT"`
+ * mistake gets the pointer landing on the bad key's line and column.
  */
 function zodIssueToManifestIssue(issue: ZodIssue, source: string, root: Node): ManifestIssue {
 	const path = narrowZodPath(issue.path);
 	const pathStr = formatZodPath(path);
-	const node = findNodeAtPath(root, path);
-	const offset = node?.offset;
+
+	let offset: number | undefined;
+	if (issue.code === "unrecognized_keys") {
+		const keys = (issue as ZodIssue & { keys?: readonly string[] }).keys;
+		const firstKey = keys?.[0];
+		if (firstKey !== undefined) {
+			const parent = findNodeAtPath(root, path);
+			if (parent?.type === "object" && parent.children) {
+				const prop: Node | undefined = parent.children.find(
+					(c) =>
+						c.type === "property" &&
+						c.children?.[0]?.type === "string" &&
+						c.children[0].value === firstKey,
+				);
+				const keyNode = prop?.children?.[0];
+				if (keyNode) offset = keyNode.offset;
+			}
+		}
+	}
+	if (offset === undefined) {
+		offset = findNodeAtPath(root, path)?.offset;
+	}
+
 	const location = offset !== undefined ? offsetToLineCol(source, offset) : undefined;
 	return location
 		? { path: pathStr, message: issue.message, location }
@@ -308,30 +336,51 @@ function formatZodPath(path: ReadonlyArray<string | number>): string {
 }
 
 /**
- * Walk the JSONC syntax tree to find the node at a given path. Returns
- * `undefined` if the path traverses through a missing key (which is
- * common for "required" issues: the field doesn't exist in the source,
- * so we point at the parent object instead).
+ * Walk the JSONC syntax tree to find the node at a given path. When the
+ * path traverses into a missing key or a wrong-shape value, returns the
+ * deepest ancestor that DID exist — so the resulting line:col still
+ * points at something useful (the parent object, where the missing
+ * property "should have been"). This matters most for two error
+ * classes:
+ *
+ *   - Missing required key: Zod's path is `[key]`, the value doesn't
+ *     exist; returning the root object's offset puts the pointer at the
+ *     opening brace, which an editor highlights as "issue with this
+ *     object".
+ *   - Unknown key (typo): Zod's path is `[wrongKey]`, the value doesn't
+ *     exist in the parent. Same parent-fallback gives the pointer the
+ *     line of the parent object.
+ *
+ * Both cases used to return undefined and lose the line:col entirely.
  */
 function findNodeAtPath(root: Node, path: ReadonlyArray<string | number>): Node | undefined {
 	let current: Node | undefined = root;
+	let lastResolved: Node | undefined = root;
 	for (const segment of path) {
-		if (!current) return undefined;
+		if (!current) return lastResolved;
 		if (typeof segment === "number") {
 			if (current.type !== "array" || !current.children) return current;
-			current = current.children[segment];
+			const next: Node | undefined = current.children[segment];
+			if (!next) return current;
+			current = next;
 		} else {
 			if (current.type !== "object" || !current.children) return current;
-			const prop = current.children.find(
+			const prop: Node | undefined = current.children.find(
 				(c) =>
 					c.type === "property" &&
 					c.children?.[0]?.type === "string" &&
 					c.children[0].value === segment,
 			);
 			// `property` node's children are [keyNode, valueNode]. We want
-			// the value for further traversal.
-			current = prop?.children?.[1];
+			// the value for further traversal. If the property is missing
+			// entirely (e.g. typo'd key, missing required field), fall
+			// back to the current object so the caller gets a source
+			// location for the containing structure.
+			const next: Node | undefined = prop?.children?.[1];
+			if (!next) return current;
+			current = next;
 		}
+		lastResolved = current;
 	}
 	return current;
 }
