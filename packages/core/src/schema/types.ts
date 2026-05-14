@@ -169,6 +169,10 @@ export interface Collection {
 	commentsClosedAfterDays: number;
 	/** Auto-approve comments from authenticated CMS users */
 	commentsAutoApproveUsers: boolean;
+	/** Sidebar sort order (lower = earlier) */
+	sortOrder: number;
+	/** Sidebar group name */
+	group?: string;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -233,6 +237,10 @@ export interface UpdateCollectionInput {
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;
 	commentsAutoApproveUsers?: boolean;
+	/** Sidebar sort order (lower = earlier) */
+	sortOrder?: number;
+	/** Sidebar group name */
+	group?: string;
 }
 
 /**

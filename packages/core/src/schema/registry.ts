@@ -113,6 +113,7 @@ export class SchemaRegistry {
 		const rows = await this.db
 			.selectFrom("_emdash_collections")
 			.selectAll()
+			.orderBy("sort_order", "asc")
 			.orderBy("slug", "asc")
 			.execute();
 
@@ -245,6 +246,8 @@ export class SchemaRegistry {
 					has_seo: hasSeo ? 1 : 0,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
 					url_pattern: input.urlPattern ?? null,
+					sort_order: input.sortOrder ?? 0,
+					group: input.group ?? null,
 				})
 				.execute();
 
@@ -317,6 +320,8 @@ export class SchemaRegistry {
 							: existing.commentsAutoApproveUsers
 								? 1
 								: 0,
+					sort_order: input.sortOrder ?? existing.sortOrder,
+					group: input.group !== undefined ? (input.group ?? null) : (existing.group ?? null),
 					updated_at: now,
 				})
 				.where("slug", "=", slug)
@@ -1010,6 +1015,8 @@ export class SchemaRegistry {
 					: "first_time",
 			commentsClosedAfterDays: row.comments_closed_after_days ?? 90,
 			commentsAutoApproveUsers: row.comments_auto_approve_users === 1,
+			sortOrder: row.sort_order,
+			group: row.group ?? undefined,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at,
 		};
