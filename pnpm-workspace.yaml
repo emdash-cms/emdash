@@ -21,8 +21,6 @@ catalog:
   "@astrojs/node": ^10.0.0
   "@astrojs/react": ^5.0.0
   "@atcute/atproto": ^3.1.11
-  "@atproto/crypto": ^0.4.5
-  "@atproto/repo": ^0.9.1
   "@atcute/car": ^6.0.0
   "@atcute/cbor": ^2.3.3
   "@atcute/cid": ^2.4.1
@@ -40,16 +38,19 @@ catalog:
   "@atcute/repo": ^1.0.0
   "@atcute/xrpc-server": ^2.0.0
   "@atcute/xrpc-server-cloudflare": ^2.0.0
+  "@atproto/crypto": ^0.4.5
+  "@atproto/repo": ^0.9.1
+  "@cloudflare/kumo": ^1.16.0
   "@cloudflare/vite-plugin": ^1.36.3
   "@cloudflare/vitest-pool-workers": ^0.16.3
   "@cloudflare/workers-types": ^4.20260305.1
+  "@iconify-json/ph": ^1.2.2
   "@lingui/babel-plugin-lingui-macro": ^5.9.4
   "@lingui/cli": ^5.9.4
   "@lingui/conf": ^5.9.4
   "@lingui/core": ^5.9.4
   "@lingui/macro": ^5.9.4
   "@lingui/react": ^5.9.4
-  "@iconify-json/ph": ^1.2.2
   "@oslojs/crypto": ^1.0.1
   "@oslojs/encoding": ^1.1.0
   "@oslojs/webauthn": ^1.0.0

@@ -72,7 +72,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, other {# koleksi}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1131
+#: packages/admin/src/router.tsx:1133
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0} komentar diperbarui"
 
@@ -182,7 +182,7 @@ msgid "{0} has been deactivated"
 msgstr "{0} telah dinonaktifkan"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:256
+#: packages/admin/src/components/PluginManager.tsx:257
 msgid "{0} has been removed"
 msgstr "{0} telah dihapus"
 
@@ -209,7 +209,7 @@ msgstr "{0} item akan diimpor"
 
 #. placeholder {0}: plugin.capabilities.length
 #. placeholder {1}: plugin.capabilities.length !== 1 ? "s" : ""
-#: packages/admin/src/components/PluginManager.tsx:349
+#: packages/admin/src/components/PluginManager.tsx:350
 msgid "{0} permission{1}"
 msgstr "{0} izin{1}"
 
@@ -237,7 +237,7 @@ msgstr "{0} diperbarui"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:243
+#: packages/admin/src/components/PluginManager.tsx:244
 msgid "{0} updated to v{1}"
 msgstr "{0} diperbarui ke v{1}"
 
@@ -468,7 +468,7 @@ msgstr "Terima & Perbarui"
 msgid "Accept Invite"
 msgstr "Terima Undangan"
 
-#: packages/admin/src/router.tsx:1151
+#: packages/admin/src/router.tsx:1153
 msgid "Access Denied"
 msgstr "Akses Ditolak"
 
@@ -756,7 +756,7 @@ msgstr "Tipe yang diizinkan"
 msgid "Already have an account?"
 msgstr "Sudah punya akun?"
 
-#: packages/admin/src/components/PluginManager.tsx:575
+#: packages/admin/src/components/PluginManager.tsx:585
 msgid "Also delete plugin storage data"
 msgstr "Juga hapus data penyimpanan plugin"
 
@@ -784,23 +784,23 @@ msgstr "Alternatifnya, ekspor dari WordPress (Alat → Ekspor) dan unggah fileny
 #: packages/admin/src/components/PluginManager.tsx:110
 #: packages/admin/src/components/TaxonomySidebar.tsx:321
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:339
-#: packages/admin/src/router.tsx:354
-#: packages/admin/src/router.tsx:368
-#: packages/admin/src/router.tsx:382
-#: packages/admin/src/router.tsx:702
-#: packages/admin/src/router.tsx:733
-#: packages/admin/src/router.tsx:749
-#: packages/admin/src/router.tsx:765
-#: packages/admin/src/router.tsx:784
-#: packages/admin/src/router.tsx:802
-#: packages/admin/src/router.tsx:820
-#: packages/admin/src/router.tsx:850
-#: packages/admin/src/router.tsx:870
-#: packages/admin/src/router.tsx:1096
-#: packages/admin/src/router.tsx:1112
-#: packages/admin/src/router.tsx:1137
-#: packages/admin/src/router.tsx:1554
+#: packages/admin/src/router.tsx:341
+#: packages/admin/src/router.tsx:356
+#: packages/admin/src/router.tsx:370
+#: packages/admin/src/router.tsx:384
+#: packages/admin/src/router.tsx:704
+#: packages/admin/src/router.tsx:735
+#: packages/admin/src/router.tsx:751
+#: packages/admin/src/router.tsx:767
+#: packages/admin/src/router.tsx:786
+#: packages/admin/src/router.tsx:804
+#: packages/admin/src/router.tsx:822
+#: packages/admin/src/router.tsx:852
+#: packages/admin/src/router.tsx:872
+#: packages/admin/src/router.tsx:1098
+#: packages/admin/src/router.tsx:1114
+#: packages/admin/src/router.tsx:1139
+#: packages/admin/src/router.tsx:1597
 msgid "An error occurred"
 msgstr "Terjadi kesalahan"
 
@@ -964,7 +964,7 @@ msgstr "Setujui otomatis pengguna terautentikasi"
 msgid "Auto-generated from name (you can edit)"
 msgstr "Dibuat otomatis dari nama (dapat diedit)"
 
-#: packages/admin/src/router.tsx:732
+#: packages/admin/src/router.tsx:734
 msgid "Autosave failed"
 msgstr "Penyimpanan otomatis gagal"
 
@@ -1012,6 +1012,10 @@ msgstr "Kembali ke login"
 msgid "Back to marketplace"
 msgstr "Kembali ke marketplace"
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:347
+msgid "Back to plugins"
+msgstr ""
+
 #: packages/admin/src/components/SectionEditor.tsx:73
 #: packages/admin/src/components/SectionEditor.tsx:174
 msgid "Back to sections"
@@ -1055,6 +1059,10 @@ msgstr "Boolean"
 #: packages/admin/src/components/SeoPanel.tsx:169
 msgid "Brief summary shown below the title in search results"
 msgstr "Ringkasan singkat di bawah judul di hasil pencarian"
+
+#: packages/admin/src/components/RegistryBrowse.tsx:71
+msgid "Browse and install plugins published to the decentralized registry."
+msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:88
 msgid "Browse and install plugins to extend your site."
@@ -1120,7 +1128,7 @@ msgstr "Dapat melihat konten"
 #: packages/admin/src/components/MenuEditor.tsx:351
 #: packages/admin/src/components/MenuEditor.tsx:522
 #: packages/admin/src/components/MenuList.tsx:172
-#: packages/admin/src/components/PluginManager.tsx:581
+#: packages/admin/src/components/PluginManager.tsx:591
 #: packages/admin/src/components/PortableTextEditor.tsx:2962
 #: packages/admin/src/components/Redirects.tsx:175
 #: packages/admin/src/components/SectionPickerModal.tsx:130
@@ -1159,7 +1167,7 @@ msgstr "Tidak dapat menentukan tipe MIME dari URL. Gunakan URL yang diakhiri eks
 msgid "Canonical URL"
 msgstr "URL Kanonis"
 
-#: packages/admin/src/components/PluginManager.tsx:420
+#: packages/admin/src/components/PluginManager.tsx:421
 msgid "Capabilities"
 msgstr "Kapabilitas"
 
@@ -1213,7 +1221,7 @@ msgstr "Ubah Gambar"
 msgid "Change Logo"
 msgstr "Ubah Logo"
 
-#: packages/admin/src/router.tsx:777
+#: packages/admin/src/router.tsx:779
 msgid "Changes discarded"
 msgstr "Perubahan dibatalkan"
 
@@ -1341,11 +1349,11 @@ msgstr "Kode"
 msgid "Code Block"
 msgstr "Blok Kode"
 
-#: packages/admin/src/components/PluginManager.tsx:407
+#: packages/admin/src/components/PluginManager.tsx:408
 msgid "Collapse"
 msgstr "Ciutkan"
 
-#: packages/admin/src/components/PluginManager.tsx:401
+#: packages/admin/src/components/PluginManager.tsx:402
 msgid "Collapse details"
 msgstr "Ciutkan detail"
 
@@ -1454,7 +1462,7 @@ msgstr "Kesalahan Konten ({0})"
 msgid "Content found:"
 msgstr "Konten ditemukan:"
 
-#: packages/admin/src/router.tsx:796
+#: packages/admin/src/router.tsx:798
 msgid "Content has been scheduled for publishing"
 msgstr "Konten telah dijadwalkan untuk diterbitkan"
 
@@ -1466,7 +1474,7 @@ msgstr "Konten telah diperbarui ke revisi yang dipilih."
 msgid "Content ID:"
 msgstr "ID Konten:"
 
-#: packages/admin/src/router.tsx:744
+#: packages/admin/src/router.tsx:746
 msgid "Content is now live"
 msgstr "Konten sekarang tayang"
 
@@ -1478,11 +1486,11 @@ msgstr "item konten"
 msgid "Content Read"
 msgstr "Baca Konten"
 
-#: packages/admin/src/router.tsx:760
+#: packages/admin/src/router.tsx:762
 msgid "Content removed from public view"
 msgstr "Konten dihapus dari tampilan publik"
 
-#: packages/admin/src/router.tsx:814
+#: packages/admin/src/router.tsx:816
 msgid "Content reverted to draft"
 msgstr "Konten dikembalikan ke draf"
 
@@ -1739,7 +1747,7 @@ msgid "Created {0}"
 msgstr "Dibuat {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:844
+#: packages/admin/src/router.tsx:846
 msgid "Created {0} translation"
 msgstr "{0} terjemahan dibuat"
 
@@ -1827,6 +1835,10 @@ msgstr "Format Tanggal"
 #: packages/admin/src/components/FieldEditor.tsx:163
 msgid "Decimal number"
 msgstr "Angka desimal"
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:311
+msgid "Declared permissions"
+msgstr ""
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:327
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:389
@@ -2064,7 +2076,7 @@ msgstr "Tujuan"
 msgid "Destination path"
 msgstr "Jalur tujuan"
 
-#: packages/admin/src/components/PluginManager.tsx:407
+#: packages/admin/src/components/PluginManager.tsx:408
 msgid "details"
 msgstr "detail"
 
@@ -2096,7 +2108,7 @@ msgstr "Dimensi:"
 msgid "Disable"
 msgstr "Nonaktifkan"
 
-#: packages/admin/src/components/PluginManager.tsx:395
+#: packages/admin/src/components/PluginManager.tsx:396
 msgid "Disable plugin"
 msgstr "Nonaktifkan plugin"
 
@@ -2112,14 +2124,14 @@ msgstr "Nonaktifkan Pengguna"
 msgid "Disable User?"
 msgstr "Nonaktifkan Pengguna?"
 
-#: packages/admin/src/components/PluginManager.tsx:304
+#: packages/admin/src/components/PluginManager.tsx:305
 #: packages/admin/src/components/Redirects.tsx:392
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
 msgstr "Dinonaktifkan"
 
-#: packages/admin/src/components/PluginManager.tsx:478
+#: packages/admin/src/components/PluginManager.tsx:479
 msgid "Disabled:"
 msgstr "Dinonaktifkan:"
 
@@ -2454,7 +2466,7 @@ msgstr "Aktifkan komentar"
 msgid "Enable full-text search on this collection"
 msgstr "Aktifkan pencarian teks lengkap di koleksi ini"
 
-#: packages/admin/src/components/PluginManager.tsx:395
+#: packages/admin/src/components/PluginManager.tsx:396
 msgid "Enable plugin"
 msgstr "Aktifkan plugin"
 
@@ -2527,7 +2539,7 @@ msgstr "Masukkan URL situs WordPress Anda"
 #: packages/admin/src/components/MenuEditor.tsx:179
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
-#: packages/admin/src/router.tsx:1735
+#: packages/admin/src/router.tsx:1778
 msgid "Error"
 msgstr "Kesalahan"
 
@@ -2559,11 +2571,11 @@ msgstr "Keluar mode bebas gangguan"
 msgid "Exit Spotlight Mode"
 msgstr "Keluar dari Mode Sorotan"
 
-#: packages/admin/src/components/PluginManager.tsx:407
+#: packages/admin/src/components/PluginManager.tsx:408
 msgid "Expand"
 msgstr "Perluas"
 
-#: packages/admin/src/components/PluginManager.tsx:401
+#: packages/admin/src/components/PluginManager.tsx:402
 msgid "Expand details"
 msgstr "Perluas detail"
 
@@ -2628,13 +2640,13 @@ msgstr "Gagal membuat beberapa koleksi"
 msgid "Failed to create term"
 msgstr "Gagal membuat istilah"
 
-#: packages/admin/src/router.tsx:849
+#: packages/admin/src/router.tsx:851
 msgid "Failed to create translation"
 msgstr "Gagal membuat terjemahan"
 
-#: packages/admin/src/router.tsx:338
-#: packages/admin/src/router.tsx:367
-#: packages/admin/src/router.tsx:869
+#: packages/admin/src/router.tsx:340
+#: packages/admin/src/router.tsx:369
+#: packages/admin/src/router.tsx:871
 msgid "Failed to delete"
 msgstr "Gagal menghapus"
 
@@ -2651,7 +2663,7 @@ msgid "Failed to delete collection"
 msgstr "Gagal menghapus koleksi"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1111
+#: packages/admin/src/router.tsx:1113
 msgid "Failed to delete comment"
 msgstr "Gagal menghapus komentar"
 
@@ -2711,7 +2723,7 @@ msgstr "Gagal menonaktifkan plugin"
 msgid "Failed to disable user"
 msgstr "Gagal menonaktifkan pengguna"
 
-#: packages/admin/src/router.tsx:783
+#: packages/admin/src/router.tsx:785
 msgid "Failed to discard changes"
 msgstr "Gagal membatalkan perubahan"
 
@@ -2719,7 +2731,7 @@ msgstr "Gagal membatalkan perubahan"
 msgid "Failed to dismiss welcome"
 msgstr "Gagal menutup sambutan"
 
-#: packages/admin/src/router.tsx:381
+#: packages/admin/src/router.tsx:383
 msgid "Failed to duplicate"
 msgstr "Gagal menduplikasi"
 
@@ -2744,12 +2756,12 @@ msgstr "Gagal mengambil koleksi"
 msgid "Failed to fetch entry terms"
 msgstr "Gagal mengambil istilah entri"
 
-#: packages/admin/src/lib/api/client.ts:189
+#: packages/admin/src/lib/api/client.ts:203
 msgid "Failed to fetch manifest"
 msgstr "Gagal mengambil manifes"
 
-#: packages/admin/src/lib/api/plugins.ts:55
 #: packages/admin/src/lib/api/plugins.ts:59
+#: packages/admin/src/lib/api/plugins.ts:63
 msgid "Failed to fetch plugin"
 msgstr "Gagal mengambil plugin"
 
@@ -2768,8 +2780,8 @@ msgstr "Gagal mengambil istilah"
 
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:642
-#: packages/admin/src/router.tsx:1042
+#: packages/admin/src/router.tsx:644
+#: packages/admin/src/router.tsx:1044
 msgid "Failed to fetch user"
 msgstr "Gagal mengambil pengguna"
 
@@ -2799,10 +2811,11 @@ msgid "Failed to import media"
 msgstr "Gagal mengimpor media"
 
 #: packages/admin/src/lib/api/marketplace.ts:160
+#: packages/admin/src/lib/api/registry.ts:466
 msgid "Failed to install plugin"
 msgstr "Gagal memasang plugin"
 
-#: packages/admin/src/router.tsx:244
+#: packages/admin/src/router.tsx:246
 msgid "Failed to load admin"
 msgstr "Gagal memuat admin"
 
@@ -2836,6 +2849,10 @@ msgstr "Gagal memuat plugin"
 msgid "Failed to load plugins: {0}"
 msgstr "Gagal memuat plugin: {0}"
 
+#: packages/admin/src/components/RegistryBrowse.tsx:95
+msgid "Failed to load plugins. The registry aggregator may be unreachable."
+msgstr ""
+
 #: packages/admin/src/components/RevisionHistory.tsx:180
 msgid "Failed to load revisions"
 msgstr "Gagal memuat revisi"
@@ -2857,7 +2874,7 @@ msgstr "Gagal memuat pengguna: {0}"
 msgid "Failed to load widget"
 msgstr "Gagal memuat widget"
 
-#: packages/admin/src/router.tsx:1136
+#: packages/admin/src/router.tsx:1138
 msgid "Failed to perform bulk action"
 msgstr "Gagal menjalankan aksi massal"
 
@@ -2869,7 +2886,7 @@ msgstr "Gagal menghapus konten secara permanen"
 msgid "Failed to prepare import"
 msgstr "Gagal menyiapkan impor"
 
-#: packages/admin/src/router.tsx:748
+#: packages/admin/src/router.tsx:750
 msgid "Failed to publish"
 msgstr "Gagal menerbitkan"
 
@@ -2894,7 +2911,7 @@ msgstr "Gagal mengurutkan bidang"
 msgid "Failed to reorder widgets"
 msgstr "Gagal mengurutkan widget"
 
-#: packages/admin/src/router.tsx:353
+#: packages/admin/src/router.tsx:355
 msgid "Failed to restore"
 msgstr "Gagal memulihkan"
 
@@ -2915,8 +2932,8 @@ msgstr "Gagal mencabut token API"
 msgid "Failed to rewrite URLs"
 msgstr "Gagal menulis ulang URL"
 
-#: packages/admin/src/router.tsx:701
-#: packages/admin/src/router.tsx:1553
+#: packages/admin/src/router.tsx:703
+#: packages/admin/src/router.tsx:1596
 msgid "Failed to save"
 msgstr "Gagal menyimpan"
 
@@ -2926,7 +2943,7 @@ msgstr "Gagal menyimpan"
 msgid "Failed to save settings"
 msgstr "Gagal menyimpan pengaturan"
 
-#: packages/admin/src/router.tsx:801
+#: packages/admin/src/router.tsx:803
 msgid "Failed to schedule"
 msgstr "Gagal menjadwalkan"
 
@@ -2955,11 +2972,11 @@ msgstr "Gagal mengatur istilah entri"
 msgid "Failed to uninstall plugin"
 msgstr "Gagal mencopot plugin"
 
-#: packages/admin/src/router.tsx:764
+#: packages/admin/src/router.tsx:766
 msgid "Failed to unpublish"
 msgstr "Gagal membatalkan penerbitan"
 
-#: packages/admin/src/router.tsx:819
+#: packages/admin/src/router.tsx:821
 msgid "Failed to unschedule"
 msgstr "Gagal membatalkan penjadwalan"
 
@@ -2980,7 +2997,7 @@ msgstr "Gagal memperbarui domain"
 msgid "Failed to update plugin"
 msgstr "Gagal memperbarui plugin"
 
-#: packages/admin/src/router.tsx:1095
+#: packages/admin/src/router.tsx:1097
 msgid "Failed to update status"
 msgstr "Gagal memperbarui status"
 
@@ -3137,7 +3154,7 @@ msgid "Give this passkey a name to help you identify it later."
 msgstr "Beri passkey ini nama untuk mengidentifikasinya nanti."
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
-#: packages/admin/src/router.tsx:1755
+#: packages/admin/src/router.tsx:1798
 msgid "Go to Dashboard"
 msgstr "Buka Dasbor"
 
@@ -3217,7 +3234,7 @@ msgstr "Beranda"
 msgid "Homepage"
 msgstr "Halaman Utama"
 
-#: packages/admin/src/components/PluginManager.tsx:335
+#: packages/admin/src/components/PluginManager.tsx:336
 msgid "Hooks"
 msgstr "Hook"
 
@@ -3364,6 +3381,11 @@ msgstr "Sertakan konten contoh (disarankan untuk situs baru)"
 msgid "Incompatible"
 msgstr "Tidak Kompatibel"
 
+#. placeholder {0}: formatDate(release.indexedAt)
+#: packages/admin/src/components/RegistryPluginDetail.tsx:241
+msgid "indexed {0}"
+msgstr ""
+
 #: packages/admin/src/components/PortableTextEditor.tsx:2821
 msgid "Inline Code"
 msgstr "Kode Inline"
@@ -3427,6 +3449,7 @@ msgid "Instagram"
 msgstr "Instagram"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:193
+#: packages/admin/src/components/RegistryPluginDetail.tsx:256
 msgid "Install"
 msgstr "Pasang"
 
@@ -3440,15 +3463,17 @@ msgstr "Pemasangan diblokir"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:174
+#: packages/admin/src/components/RegistryBrowse.tsx:194
+#: packages/admin/src/components/RegistryPluginDetail.tsx:248
 msgid "Installed"
 msgstr "Terpasang"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:447
+#: packages/admin/src/components/PluginManager.tsx:448
 msgid "Installed from marketplace (v{0})"
 msgstr "Terpasang dari marketplace (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:466
+#: packages/admin/src/components/PluginManager.tsx:467
 msgid "Installed:"
 msgstr "Terpasang:"
 
@@ -3560,7 +3585,7 @@ msgstr "Bahasa"
 msgid "Large section heading"
 msgstr "Judul bagian besar"
 
-#: packages/admin/src/components/PluginManager.tsx:472
+#: packages/admin/src/components/PluginManager.tsx:473
 msgid "Last enabled:"
 msgstr "Terakhir diaktifkan:"
 
@@ -3656,6 +3681,7 @@ msgstr "Tampilan Langsung"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:236
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
+#: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/routes/bylines.tsx:239
 msgid "Load more"
@@ -3677,7 +3703,7 @@ msgstr "Memuat koleksi..."
 msgid "Loading comments..."
 msgstr "Memuat komentar..."
 
-#: packages/admin/src/router.tsx:1724
+#: packages/admin/src/router.tsx:1767
 msgid "Loading configuration..."
 msgstr "Memuat konfigurasi..."
 
@@ -3737,6 +3763,7 @@ msgstr "Memuat widget..."
 #: packages/admin/src/components/MediaLibrary.tsx:478
 #: packages/admin/src/components/MediaPickerModal.tsx:708
 #: packages/admin/src/components/PortableTextEditor.tsx:1777
+#: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:176
 #: packages/admin/src/components/settings/SecuritySettings.tsx:113
 #: packages/admin/src/components/TaxonomyManager.tsx:777
@@ -3854,7 +3881,7 @@ msgstr "marketplace"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:158
-#: packages/admin/src/components/PluginManager.tsx:305
+#: packages/admin/src/components/PluginManager.tsx:306
 #: packages/admin/src/components/Sidebar.tsx:219
 msgid "Marketplace"
 msgstr "Marketplace"
@@ -4095,7 +4122,7 @@ msgstr "Navigasi"
 msgid "Never"
 msgstr "Tidak Pernah"
 
-#: packages/admin/src/router.tsx:844
+#: packages/admin/src/router.tsx:846
 msgid "new"
 msgstr "baru"
 
@@ -4352,6 +4379,14 @@ msgstr "Tidak ada plugin yang dikonfigurasi"
 msgid "No plugins found"
 msgstr "Tidak ada plugin yang ditemukan"
 
+#: packages/admin/src/components/RegistryBrowse.tsx:117
+msgid "No plugins have been published to this registry yet."
+msgstr ""
+
+#: packages/admin/src/components/RegistryBrowse.tsx:116
+msgid "No plugins match \"{debouncedQuery}\"."
+msgstr ""
+
 #: packages/admin/src/components/Sections.tsx:343
 msgid "No preview"
 msgstr "Tidak ada pratinjau"
@@ -4554,15 +4589,15 @@ msgstr "Mengganti judul halaman di hasil mesin pencari"
 msgid "Ownership"
 msgstr "Kepemilikan"
 
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:457
 msgid "Package"
 msgstr "Paket"
 
-#: packages/admin/src/router.tsx:1750
+#: packages/admin/src/router.tsx:1793
 msgid "Page Not Found"
 msgstr "Halaman Tidak Ditemukan"
 
-#: packages/admin/src/components/PluginManager.tsx:323
+#: packages/admin/src/components/PluginManager.tsx:324
 #: packages/admin/src/components/WordPressImport.tsx:1167
 msgid "Pages"
 msgstr "Halaman"
@@ -4738,6 +4773,10 @@ msgstr "Kesalahan plugin ({0})"
 msgid "Plugin not found"
 msgstr "Plugin tidak ditemukan"
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:210
+msgid "Plugin not found. The publisher handle or slug may be incorrect."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1048
 msgid "plugin on your WordPress site."
 msgstr "plugin di situs WordPress Anda."
@@ -4746,16 +4785,20 @@ msgstr "plugin di situs WordPress Anda."
 msgid "Plugin Permissions"
 msgstr "Izin Plugin"
 
+#: packages/admin/src/components/RegistryBrowse.tsx:70
+msgid "Plugin Registry"
+msgstr ""
+
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginPage.tsx:40
 msgid "Plugin responded with {0}: {text}"
 msgstr "Plugin merespons dengan {0}: {text}"
 
-#: packages/admin/src/components/PluginManager.tsx:255
+#: packages/admin/src/components/PluginManager.tsx:256
 msgid "Plugin uninstalled"
 msgstr "Plugin dihapus"
 
-#: packages/admin/src/components/PluginManager.tsx:242
+#: packages/admin/src/components/PluginManager.tsx:243
 msgid "Plugin updated"
 msgstr "Plugin diperbarui"
 
@@ -4844,7 +4887,7 @@ msgstr "dipublikasikan"
 #: packages/admin/src/components/ContentEditor.tsx:825
 #: packages/admin/src/components/ContentPickerModal.tsx:209
 #: packages/admin/src/components/Dashboard.tsx:187
-#: packages/admin/src/router.tsx:744
+#: packages/admin/src/router.tsx:746
 msgid "Published"
 msgstr "Dipublikasikan"
 
@@ -4856,6 +4899,10 @@ msgstr "Dipublikasikan {0}"
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 msgid "Published At"
 msgstr "Dipublikasikan Pada"
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:236
+msgid "Published by"
+msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:2000
 msgid "Quick create byline"
@@ -4970,6 +5017,10 @@ msgstr "Registrasi gagal"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:266
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Pendaftaran dibatalkan atau waktu telah habis. Silakan coba lagi."
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:295
+msgid "Release is too new to install"
+msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/ContentEditor.tsx:1969
@@ -5156,7 +5207,7 @@ msgstr "Memulihkan..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:1738
+#: packages/admin/src/router.tsx:1781
 msgid "Retry"
 msgstr "Coba Lagi"
 
@@ -5164,7 +5215,7 @@ msgstr "Coba Lagi"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Blok konten yang dapat digunakan kembali yang dapat Anda sisipkan ke konten apa pun"
 
-#: packages/admin/src/router.tsx:778
+#: packages/admin/src/router.tsx:780
 msgid "Reverted to published version"
 msgstr "Dikembalikan ke versi terbit"
 
@@ -5329,7 +5380,7 @@ msgid "scheduled"
 msgstr "terjadwal"
 
 #: packages/admin/src/components/ContentEditor.tsx:832
-#: packages/admin/src/router.tsx:795
+#: packages/admin/src/router.tsx:797
 msgid "Scheduled"
 msgstr "Terjadwal"
 
@@ -5441,10 +5492,12 @@ msgid "Search pages and content..."
 msgstr "Cari halaman dan konten..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:101
+#: packages/admin/src/components/RegistryBrowse.tsx:84
 msgid "Search plugins"
 msgstr "Cari plugin"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:97
+#: packages/admin/src/components/RegistryBrowse.tsx:80
 msgid "Search plugins..."
 msgstr "Cari plugin..."
 
@@ -5750,7 +5803,7 @@ msgstr "Mengatur..."
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
 #: packages/admin/src/components/ContentTypeEditor.tsx:383
 #: packages/admin/src/components/Header.tsx:93
-#: packages/admin/src/components/PluginManager.tsx:384
+#: packages/admin/src/components/PluginManager.tsx:385
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:229
 #: packages/admin/src/components/WordPressImport.tsx:1647
@@ -5952,7 +6005,7 @@ msgstr "Urutkan tema"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:215
-#: packages/admin/src/components/PluginManager.tsx:444
+#: packages/admin/src/components/PluginManager.tsx:445
 #: packages/admin/src/components/Redirects.tsx:440
 #: packages/admin/src/components/SectionEditor.tsx:279
 msgid "Source"
@@ -6141,7 +6194,7 @@ msgstr "Menu telah dihapus."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Nama situs Anda, digunakan di header dan metadata"
 
-#: packages/admin/src/router.tsx:1752
+#: packages/admin/src/router.tsx:1795
 msgid "The page you're looking for doesn't exist."
 msgstr "Halaman yang Anda cari tidak ada."
 
@@ -6228,6 +6281,10 @@ msgstr "Passkey ini sudah terdaftar di perangkat ini."
 msgid "This plugin requires no special permissions."
 msgstr "Plugin ini tidak memerlukan izin khusus."
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:281
+msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
+msgstr ""
+
 #: packages/admin/src/components/Redirects.tsx:551
 msgid "This redirect rule will be permanently removed."
 msgstr "Aturan pengalihan ini akan dihapus permanen."
@@ -6270,7 +6327,7 @@ msgstr "Ini akan menghapus permanen \"{0}\". Tindakan ini tidak dapat dibatalkan
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Ini akan menghapus permanen komentar ini. Tindakan ini tidak dapat dibatalkan."
 
-#: packages/admin/src/components/PluginManager.tsx:570
+#: packages/admin/src/components/PluginManager.tsx:580
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Ini akan menghapus plugin dan bundelnya dari situs Anda."
 
@@ -6368,7 +6425,7 @@ msgstr "Menerjemahkan..."
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/router.tsx:843
+#: packages/admin/src/router.tsx:845
 msgid "Translation created"
 msgstr "Terjemahan dibuat"
 
@@ -6474,20 +6531,24 @@ msgid "Undo"
 msgstr "Batalkan"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:494
-#: packages/admin/src/components/PluginManager.tsx:584
+#: packages/admin/src/components/PluginManager.tsx:495
+#: packages/admin/src/components/PluginManager.tsx:594
 msgid "Uninstall"
 msgstr "Hapus"
 
-#: packages/admin/src/components/PluginManager.tsx:568
+#: packages/admin/src/components/PluginManager.tsx:578
 msgid "Uninstall {pluginName}?"
 msgstr "Hapus {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:563
+#: packages/admin/src/components/PluginManager.tsx:573
 msgid "Uninstall confirmation"
 msgstr "Konfirmasi penghapusan"
 
-#: packages/admin/src/components/PluginManager.tsx:584
+#: packages/admin/src/components/PluginManager.tsx:505
+msgid "Uninstall is not yet available for registry plugins. Disable the plugin to stop it from running; full uninstall will land in a follow-up."
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:594
 msgid "Uninstalling..."
 msgstr "Menghapus..."
 
@@ -6524,7 +6585,7 @@ msgstr "Passkey tanpa nama"
 msgid "Unpublish"
 msgstr "Batal Publikasikan"
 
-#: packages/admin/src/router.tsx:760
+#: packages/admin/src/router.tsx:762
 msgid "Unpublished"
 msgstr "Tidak diterbitkan"
 
@@ -6536,7 +6597,7 @@ msgstr "Tabel Konten Tidak Terdaftar Ditemukan"
 msgid "Unschedule"
 msgstr "Batal Jadwalkan"
 
-#: packages/admin/src/router.tsx:813
+#: packages/admin/src/router.tsx:815
 msgid "Unscheduled"
 msgstr "Tidak dijadwalkan"
 
@@ -6557,6 +6618,10 @@ msgstr "File tanpa judul"
 #: packages/admin/src/components/Widgets.tsx:729
 msgid "Untitled Widget"
 msgstr "Widget Tanpa Judul"
+
+#: packages/admin/src/components/PublisherHandle.tsx:145
+msgid "Unverified publisher"
+msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1948
 msgid "Up"
@@ -6589,7 +6654,7 @@ msgid "Update this redirect rule."
 msgstr "Perbarui aturan pengalihan ini."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:364
+#: packages/admin/src/components/PluginManager.tsx:365
 msgid "Update to v{0}"
 msgstr "Perbarui ke v{0}"
 
@@ -6607,7 +6672,7 @@ msgid "Updating content URLs..."
 msgstr "Memperbarui URL konten..."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:144
-#: packages/admin/src/components/PluginManager.tsx:364
+#: packages/admin/src/components/PluginManager.tsx:365
 msgid "Updating..."
 msgstr "Memperbarui..."
 
@@ -6798,7 +6863,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Pengguna dengan alamat email dari domain ini dapat mendaftar tanpa undangan. Mereka akan otomatis diberi peran yang ditentukan."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:308
+#: packages/admin/src/components/PluginManager.tsx:309
 msgid "v{0} available"
 msgstr "v{0} tersedia"
 
@@ -6806,6 +6871,11 @@ msgstr "v{0} tersedia"
 #: packages/admin/src/components/FieldEditor.tsx:490
 msgid "Validation"
 msgstr "Validasi"
+
+#: packages/admin/src/components/RegistryBrowse.tsx:183
+#: packages/admin/src/components/RegistryPluginDetail.tsx:231
+msgid "Verified publisher"
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:194
 msgid "Verifying your invite..."
@@ -6824,6 +6894,11 @@ msgstr "Memverifikasi..."
 msgid "Version"
 msgstr "Versi"
 
+#. placeholder {0}: release.version
+#: packages/admin/src/components/RegistryPluginDetail.tsx:241
+msgid "Version {0}"
+msgstr ""
+
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Video"
 msgstr "Video"
@@ -6832,7 +6907,7 @@ msgstr "Video"
 msgid "View email provider status and send test emails"
 msgstr "Lihat status penyedia email dan kirim email uji"
 
-#: packages/admin/src/components/PluginManager.tsx:376
+#: packages/admin/src/components/PluginManager.tsx:377
 msgid "View in Marketplace"
 msgstr "Lihat di Marketplace"
 
@@ -6865,6 +6940,10 @@ msgstr "Peringatkan"
 #: packages/admin/src/components/WordPressImport.tsx:1105
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "Kami tidak dapat terhubung ke situs WordPress di {0}. Ini bisa berarti situs bukan WordPress, REST API yang dinonaktifkan, atau situs tidak dapat diakses."
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:279
+msgid "We couldn't verify this publisher's identity"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:926
 msgid "We'll check what import options are available for your site."
@@ -6961,7 +7040,7 @@ msgid "Widget updated"
 msgstr "Widget diperbarui"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
-#: packages/admin/src/components/PluginManager.tsx:329
+#: packages/admin/src/components/PluginManager.tsx:330
 #: packages/admin/src/components/Sidebar.tsx:197
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
@@ -7024,7 +7103,7 @@ msgstr "Anda tidak dapat mengubah peran Anda sendiri"
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "Anda memiliki akses penuh untuk mengelola situs ini, termasuk pengguna, pengaturan, dan semua konten."
 
-#: packages/admin/src/router.tsx:1152
+#: packages/admin/src/router.tsx:1154
 msgid "You need Editor permissions to moderate comments."
 msgstr "Anda memerlukan izin Editor untuk memoderasi komentar."
 
@@ -7117,6 +7196,11 @@ msgstr "Nama Anda (opsional)"
 #: packages/admin/src/components/WelcomeModal.tsx:40
 msgid "Your Role"
 msgstr "Peran Anda"
+
+#. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
+#: packages/admin/src/components/RegistryPluginDetail.tsx:297
+msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
+msgstr ""
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:135
 msgid "Your Twitter/X handle (e.g., @username)"

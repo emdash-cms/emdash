@@ -19,7 +19,7 @@ import { join } from "node:path";
  * aggregator. See `.opencode/plans/plugin-registry-implementation.md`
  * § "Open questions".
  */
-export const DEFAULT_AGGREGATOR_URL = "https://experimental-registry.emdashcms.com";
+export const DEFAULT_AGGREGATOR_URL = "https://registry.emdashcms.com";
 
 /**
  * Default directory for OAuth state (sessions, in-flight authorize states).

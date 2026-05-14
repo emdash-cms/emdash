@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@emdash-cms/blocks": "workspace:*",
-    "@cloudflare/kumo": "^1.1.0",
+    "@cloudflare/kumo": "catalog:",
     "@phosphor-icons/react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
