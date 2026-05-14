@@ -1207,7 +1207,7 @@ msgstr "Ubah Favicon"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:200
 msgid "Change Image"
-msgstr ""
+msgstr "Ubah Gambar"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:208
 msgid "Change Logo"
@@ -1839,11 +1839,11 @@ msgstr "Peran bawaan:"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:180
 msgid "Default social image"
-msgstr ""
+msgstr "Gambar sosial bawaan"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:171
 msgid "Default Social Image"
-msgstr ""
+msgstr "Gambar Sosial Bawaan"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:599
 msgid "Define a new taxonomy for classifying content"
@@ -4948,7 +4948,7 @@ msgstr "Referensi"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:251
 msgid "Referenced favicon unavailable."
-msgstr ""
+msgstr "Favicon yang dirujuk tidak tersedia."
 
 #: packages/admin/src/components/ContentTypeList.tsx:78
 msgid "Register"
@@ -5608,7 +5608,7 @@ msgstr "Pilih Konten"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:268
 msgid "Select Default Social Image"
-msgstr ""
+msgstr "Pilih Gambar Sosial Bawaan"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:283
 #: packages/admin/src/components/settings/GeneralSettings.tsx:344
@@ -6151,11 +6151,11 @@ msgstr "URL publik situs Anda (digunakan untuk tautan kanonis dan peta situs)"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:189
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
-msgstr ""
+msgstr "Gambar yang dirujuk tidak lagi tersedia. Pilih yang baru atau hapus referensi."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:197
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
-msgstr ""
+msgstr "Logo yang dirujuk tidak lagi tersedia. Pilih yang baru atau hapus referensi."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
@@ -6740,7 +6740,7 @@ msgstr "Gunakan passkey terdaftar Anda untuk masuk dengan aman."
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:173
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
-msgstr ""
+msgstr "Digunakan sebagai gambar Open Graph cadangan saat halaman tidak memilikinya. Ukuran yang direkomendasikan: 1200×630."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:642
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
