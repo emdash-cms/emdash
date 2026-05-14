@@ -126,6 +126,14 @@ export {
 	type MenuSetItemsInput,
 } from "./menus.js";
 
+// Menu sync handlers
+export {
+	computeMenuSyncDiff,
+	applyMenuSyncDiff,
+	syncSidebarToMenu,
+	type SyncDiff,
+} from "./menu-sync.js";
+
 // Section handlers
 export {
 	handleSectionList,

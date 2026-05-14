@@ -266,3 +266,45 @@ export async function createMenuTranslation(
 	);
 	return parseApiResponse<Menu>(response, "Failed to create menu translation");
 }
+
+// ============================================
+// Menu Sync
+// ============================================
+
+export interface SyncDiff {
+	toAdd: Array<{
+		menuName: string;
+		label: string;
+		referenceCollection: string;
+		sortOrder: number;
+	}>;
+	toRemove: string[];
+	toReorder: Array<{
+		id: string;
+		sortOrder: number;
+	}>;
+}
+
+export interface SyncResult {
+	added: number;
+	removed: number;
+	reordered: number;
+}
+
+/**
+ * Preview sync changes (diff between sidebar and menu).
+ */
+export async function fetchMenuSyncDiff(name: string): Promise<SyncDiff> {
+	const response = await apiFetch(`${API_BASE}/menus/${name}/sync-diff`);
+	return parseApiResponse<SyncDiff>(response, "Failed to fetch menu sync diff");
+}
+
+/**
+ * Apply sync changes (align menu with sidebar structure).
+ */
+export async function applyMenuSync(name: string): Promise<SyncResult> {
+	const response = await apiFetch(`${API_BASE}/menus/${name}/sync`, {
+		method: "POST",
+	});
+	return parseApiResponse<SyncResult>(response, "Failed to apply menu sync");
+}
