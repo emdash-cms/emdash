@@ -165,6 +165,7 @@ export class SchemaRegistry {
 		const collectionRows = await this.db
 			.selectFrom("_emdash_collections")
 			.selectAll()
+			.orderBy("sort_order", "asc")
 			.orderBy("slug", "asc")
 			.execute();
 
@@ -691,23 +692,35 @@ export class SchemaRegistry {
 	 * collection's sort_order in a single batch. Used by the admin UI
 	 * drag-and-drop reordering.
 	 */
-	async reorderCollections(collections: Array<{ slug: string; sortOrder: number }>): Promise<void> {
-		// Validate all slugs exist first
-		for (const { slug } of collections) {
-			const exists = await this.getCollection(slug);
-			if (!exists) {
-				throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
-			}
+	async reorderCollections(
+		collections: Array<{ slug: string; sortOrder: number }>,
+	): Promise<void> {
+		// Batch validate all slugs in one query
+		const existingSlugs = await this.db
+			.selectFrom("_emdash_collections")
+			.select("slug")
+			.where("slug", "in", collections.map((c) => c.slug))
+			.execute();
+
+		const existingSlugSet = new Set(existingSlugs.map((c) => c.slug));
+		const missing = collections.filter((c) => !existingSlugSet.has(c.slug));
+		if (missing.length > 0) {
+			throw new SchemaError(
+				`Collection not found: ${missing[0].slug}`,
+				"COLLECTION_NOT_FOUND",
+			);
 		}
 
-		// Batch update
-		for (const { slug, sortOrder } of collections) {
-			await this.db
-				.updateTable("_emdash_collections")
-				.set({ sort_order: sortOrder })
-				.where("slug", "=", slug)
-				.execute();
-		}
+		// Batch update in a transaction
+		await withTransaction(this.db, async (trx) => {
+			for (const { slug, sortOrder } of collections) {
+				await trx
+					.updateTable("_emdash_collections")
+					.set({ sort_order: sortOrder })
+					.where("slug", "=", slug)
+					.execute();
+			}
+		});
 	}
 
 	// ============================================

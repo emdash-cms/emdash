@@ -48,6 +48,7 @@ describe("Menu Sync", () => {
 				id: menuId,
 				name: "primary",
 				label: "Primary Navigation",
+				locale: "en",
 			})
 			.execute();
 	});
@@ -241,13 +242,17 @@ describe("Menu Sync", () => {
 		it("adds new menu items from diff", async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts", sortOrder: 0 });
 
-			const result = await applyMenuSyncDiff(db, {
-				toAdd: [
-					{ menuName: "primary", label: "Posts", referenceCollection: "posts", sortOrder: 0 },
-				],
-				toRemove: [],
-				toReorder: [],
-			});
+			const result = await applyMenuSyncDiff(
+				db,
+				{
+					toAdd: [
+						{ menuName: "primary", label: "Posts", referenceCollection: "posts", sortOrder: 0 },
+					],
+					toRemove: [],
+					toReorder: [],
+				},
+				"primary",
+			);
 
 			expect(result.success).toBe(true);
 			if (result.success) {
@@ -271,14 +276,19 @@ describe("Menu Sync", () => {
 					reference_collection: "old",
 					label: "Old",
 					sort_order: 0,
+					locale: "en",
 				})
 				.execute();
 
-			const result = await applyMenuSyncDiff(db, {
-				toAdd: [],
-				toRemove: [itemId],
-				toReorder: [],
-			});
+			const result = await applyMenuSyncDiff(
+				db,
+				{
+					toAdd: [],
+					toRemove: [itemId],
+					toReorder: [],
+				},
+				"primary",
+			);
 
 			expect(result.success).toBe(true);
 			if (result.success) {

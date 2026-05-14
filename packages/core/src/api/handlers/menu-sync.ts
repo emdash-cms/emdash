@@ -8,6 +8,7 @@ import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import type { Database } from "../../database/types.js";
+import { withTransaction } from "../../database/transaction.js";
 import type { ApiResult } from "../types.js";
 
 export interface SyncDiff {
@@ -34,6 +35,7 @@ export interface SyncDiff {
 export async function computeMenuSyncDiff(
 	db: Kysely<Database>,
 	menuName: string,
+	locale = "en",
 ): Promise<ApiResult<SyncDiff>> {
 	try {
 		// Get all collections ordered by sort_order
@@ -44,12 +46,13 @@ export async function computeMenuSyncDiff(
 			.orderBy("slug", "asc")
 			.execute();
 
-		// Get existing menu items of type 'collection'
+		// Get existing menu items of type 'collection' for the specific locale
 		const menuItems = await db
 			.selectFrom("_emdash_menu_items")
 			.select(["_emdash_menu_items.id", "reference_collection", "sort_order"])
 			.innerJoin("_emdash_menus", "_emdash_menu_items.menu_id", "_emdash_menus.id")
 			.where("_emdash_menus.name", "=", menuName)
+			.where("_emdash_menus.locale", "=", locale)
 			.where("type", "=", "collection")
 			.orderBy("sort_order", "asc")
 			.execute();
@@ -89,7 +92,8 @@ export async function computeMenuSyncDiff(
 			success: true,
 			data: { toAdd, toRemove, toReorder },
 		};
-	} catch {
+	} catch (error) {
+		console.error("[menu-sync] computeMenuSyncDiff failed:", error);
 		return {
 			success: false,
 			error: {
@@ -106,71 +110,82 @@ export async function computeMenuSyncDiff(
 export async function applyMenuSyncDiff(
 	db: Kysely<Database>,
 	diff: SyncDiff,
+	menuName: string,
+	locale = "en",
 ): Promise<ApiResult<{ added: number; removed: number; reordered: number }>> {
 	try {
-		let added = 0;
-		let removed = 0;
-		let reordered = 0;
-
-		// Get menu ID
+		// Validate menu exists up front using the passed menuName
 		const menu = await db
 			.selectFrom("_emdash_menus")
 			.select(["id", "locale"])
-			.where("name", "=", diff.toAdd[0]?.menuName ?? "")
+			.where("name", "=", menuName)
+			.where("locale", "=", locale)
 			.executeTakeFirst();
 
-		if (!menu && diff.toAdd.length > 0) {
+		if (!menu) {
 			return {
 				success: false,
-				error: { code: "MENU_NOT_FOUND", message: `Menu not found: ${diff.toAdd[0].menuName}` },
+				error: { code: "MENU_NOT_FOUND", message: `Menu not found: ${menuName}` },
 			};
 		}
 
-		// Add new items
-		for (const item of diff.toAdd) {
-			const id = ulid();
-			await db
-				.insertInto("_emdash_menu_items")
-				.values({
-					id,
-					menu_id: menu!.id,
-					type: "collection",
-					reference_collection: item.referenceCollection,
-					reference_id: null,
-					custom_url: null,
-					label: item.label,
-					sort_order: item.sortOrder,
-					title_attr: null,
-					target: null,
-					css_classes: null,
-					locale: menu!.locale ?? "en",
-					translation_group: id,
-				})
-				.execute();
-			added++;
-		}
+		return withTransaction(db, async (trx) => {
+			let added = 0;
+			let removed = 0;
+			let reordered = 0;
 
-		// Remove orphaned items
-		for (const id of diff.toRemove) {
-			await db.deleteFrom("_emdash_menu_items").where("id", "=", id).execute();
-			removed++;
-		}
+			// Add new items
+			for (const item of diff.toAdd) {
+				const id = ulid();
+				await trx
+					.insertInto("_emdash_menu_items")
+					.values({
+						id,
+						menu_id: menu.id,
+						type: "collection",
+						reference_collection: item.referenceCollection,
+						reference_id: null,
+						custom_url: null,
+						label: item.label,
+						sort_order: item.sortOrder,
+						title_attr: null,
+						target: null,
+						css_classes: null,
+						locale: menu.locale ?? "en",
+						translation_group: id,
+					})
+					.execute();
+				added++;
+			}
 
-		// Reorder items
-		for (const item of diff.toReorder) {
-			await db
-				.updateTable("_emdash_menu_items")
-				.set({ sort_order: item.sortOrder })
-				.where("id", "=", item.id)
-				.execute();
-			reordered++;
-		}
+			// Remove orphaned items (scoped to this menu)
+			if (diff.toRemove.length > 0) {
+				await trx
+					.deleteFrom("_emdash_menu_items")
+					.where("id", "in", diff.toRemove)
+					.where("menu_id", "=", menu.id)
+					.execute();
+				removed = diff.toRemove.length;
+			}
 
-		return {
-			success: true,
-			data: { added, removed, reordered },
-		};
-	} catch {
+			// Reorder items (scoped to this menu)
+			for (const item of diff.toReorder) {
+				await trx
+					.updateTable("_emdash_menu_items")
+					.set({ sort_order: item.sortOrder })
+					.where("id", "=", item.id)
+					.where("menu_id", "=", menu.id)
+					.execute();
+				reordered++;
+			}
+
+			return {
+				success: true,
+				data: { added, removed, reordered },
+			};
+		});
+	} catch (error) {
+		console.error("[menu-sync] applyMenuSyncDiff failed:", error);
 		return {
 			success: false,
 			error: {
@@ -187,9 +202,10 @@ export async function applyMenuSyncDiff(
 export async function syncSidebarToMenu(
 	db: Kysely<Database>,
 	menuName: string,
+	locale = "en",
 ): Promise<ApiResult<{ added: number; removed: number; reordered: number }>> {
-	const diffResult = await computeMenuSyncDiff(db, menuName);
+	const diffResult = await computeMenuSyncDiff(db, menuName, locale);
 	if (!diffResult.success) return diffResult;
 
-	return applyMenuSyncDiff(db, diffResult.data);
+	return applyMenuSyncDiff(db, diffResult.data, menuName, locale);
 }

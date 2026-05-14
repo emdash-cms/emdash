@@ -15,12 +15,15 @@ import { parseBody, isParseError } from "#api/parse.js";
 export const prerender = false;
 
 const reorderBody = z.object({
-	collections: z.array(
-		z.object({
-			slug: z.string().min(1),
-			sortOrder: z.number().int(),
-		}),
-	),
+	collections: z
+		.array(
+			z.object({
+				slug: z.string().min(1),
+				sortOrder: z.number().int().min(0),
+			}),
+		)
+		.min(1)
+		.max(200),
 });
 
 export const POST: APIRoute = async ({ request, locals }) => {

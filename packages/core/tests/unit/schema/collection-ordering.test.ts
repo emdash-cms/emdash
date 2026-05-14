@@ -94,14 +94,16 @@ describe("Collection Ordering and Grouping", () => {
 
 	describe("listCollectionsWithFields ordering", () => {
 		it("orders by sort_order ASC, then slug ASC", async () => {
-			await registry.createCollection({ slug: "zoo", label: "Zoo", sortOrder: 2 });
+			// Use inputs where alphabetical and sort_order disagree
+			await registry.createCollection({ slug: "zebra", label: "Zebra", sortOrder: 0 });
 			await registry.createCollection({ slug: "art", label: "Art", sortOrder: 1 });
-			await registry.createCollection({ slug: "blog", label: "Blog", sortOrder: 1 });
+			await registry.createCollection({ slug: "blog", label: "Blog", sortOrder: 0 });
 
 			const collections = await registry.listCollectionsWithFields();
 			const slugs = collections.map((c) => c.slug);
 
-			expect(slugs).toEqual(["art", "blog", "zoo"]);
+			// sort_order=0 first (blog, zebra by slug), then sort_order=1 (art)
+			expect(slugs).toEqual(["blog", "zebra", "art"]);
 		});
 
 		it("includes group field in results", async () => {

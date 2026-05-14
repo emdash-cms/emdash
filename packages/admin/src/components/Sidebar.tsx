@@ -381,12 +381,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const ungroupedCollections = collectionGroups.get("") ?? [];
 	const namedCollectionGroups = [...collectionGroups.entries()]
 		.filter(([group]) => group !== "")
-		.map(
-			([group, items]): NavGroup => ({
-				label: group,
-				items: [...items, { to: "/media", label: t`Media`, icon: Image }],
-			}),
-		);
+		.map(([group, items]): NavGroup => ({
+			label: group,
+			items,
+		}));
 
 	const contentItems: NavItem[] = [
 		...ungroupedCollections,

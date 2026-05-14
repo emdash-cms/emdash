@@ -591,6 +591,7 @@ export async function syncCollectionToMenu(
 	collectionSlug: string,
 	collectionLabel: string,
 	menuName: string,
+	locale = "en",
 ): Promise<void> {
 	try {
 		// Check if a menu item for this collection already exists
@@ -599,6 +600,7 @@ export async function syncCollectionToMenu(
 			.select("_emdash_menu_items.id")
 			.innerJoin("_emdash_menus", "_emdash_menu_items.menu_id", "_emdash_menus.id")
 			.where("_emdash_menus.name", "=", menuName)
+			.where("_emdash_menus.locale", "=", locale)
 			.where("type", "=", "collection")
 			.where("reference_collection", "=", collectionSlug)
 			.executeTakeFirst();
@@ -610,9 +612,18 @@ export async function syncCollectionToMenu(
 			.selectFrom("_emdash_menus")
 			.select(["id", "locale"])
 			.where("name", "=", menuName)
+			.where("locale", "=", locale)
 			.executeTakeFirst();
 
-		if (!menu) return; // Menu doesn't exist
+		if (!menu) {
+			console.warn(
+				"[emdash] Menu not found for addToMenu:",
+				menuName,
+				"locale:",
+				locale,
+			);
+			return;
+		}
 
 		// Get the max sort_order to append at the end
 		const maxOrder = await db
@@ -645,8 +656,8 @@ export async function syncCollectionToMenu(
 				translation_group: id,
 			})
 			.execute();
-	} catch {
-		// Silently fail -- menu sync is best-effort
+	} catch (error) {
+		console.error("[emdash] syncCollectionToMenu failed:", error);
 	}
 }
 
@@ -664,9 +675,8 @@ export async function removeCollectionFromMenu(
 			.where("type", "=", "collection")
 			.where("reference_collection", "=", collectionSlug)
 			.execute();
-	} catch {
-		// Silently fail
-		console.debug("[emdash] Menu cleanup failed for collection:", collectionSlug);
+	} catch (error) {
+		console.error("[emdash] Menu cleanup failed for collection:", collectionSlug, error);
 	}
 }
 
@@ -678,6 +688,7 @@ export async function handleSchemaCollectionMenuSync(
 	db: Kysely<Database>,
 	collectionSlug: string,
 	menuName: string,
+	locale = "en",
 ): Promise<ApiResult<{ success: boolean }>> {
 	try {
 		const registry = new SchemaRegistry(db);
@@ -689,13 +700,29 @@ export async function handleSchemaCollectionMenuSync(
 			};
 		}
 
-		await syncCollectionToMenu(db, collectionSlug, collection.label, menuName);
+		// Validate menu exists before syncing
+		const menu = await db
+			.selectFrom("_emdash_menus")
+			.select("id")
+			.where("name", "=", menuName)
+			.where("locale", "=", locale)
+			.executeTakeFirst();
+
+		if (!menu) {
+			return {
+				success: false,
+				error: { code: "MENU_NOT_FOUND", message: `Menu not found: ${menuName}` },
+			};
+		}
+
+		await syncCollectionToMenu(db, collectionSlug, collection.label, menuName, locale);
 
 		return {
 			success: true,
 			data: { success: true },
 		};
-	} catch {
+	} catch (error) {
+		console.error("[emdash] handleSchemaCollectionMenuSync failed:", error);
 		return {
 			success: false,
 			error: {
