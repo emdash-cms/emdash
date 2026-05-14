@@ -66,6 +66,7 @@ export {
 	handleSchemaCollectionCreate,
 	handleSchemaCollectionUpdate,
 	handleSchemaCollectionDelete,
+	handleSchemaCollectionReorder,
 	handleSchemaFieldList,
 	handleSchemaFieldGet,
 	handleSchemaFieldCreate,

@@ -1,12 +1,13 @@
 import { Badge, Button } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Pencil, Trash, Database, FileText, Warning, Check } from "@phosphor-icons/react";
+import { Plus, Pencil, Trash, Database, FileText, Warning, Check, ArrowsUpDown } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import type { SchemaCollection, OrphanedTable } from "../lib/api";
 import { cn } from "../lib/utils";
+import { CollectionReorderDialog } from "./CollectionReorderDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -16,6 +17,7 @@ export interface ContentTypeListProps {
 	isLoading?: boolean;
 	onDelete?: (slug: string) => void;
 	onRegisterOrphan?: (slug: string) => void;
+	onReorder?: (collections: Array<{ slug: string; sortOrder: number }>) => Promise<void>;
 }
 
 /**
@@ -27,9 +29,11 @@ export function ContentTypeList({
 	isLoading,
 	onDelete,
 	onRegisterOrphan,
+	onReorder,
 }: ContentTypeListProps) {
 	const { t } = useLingui();
 	const [deleteTarget, setDeleteTarget] = React.useState<SchemaCollection | null>(null);
+	const [reorderOpen, setReorderOpen] = React.useState(false);
 	const hasOrphans = orphanedTables && orphanedTables.length > 0;
 
 	return (
@@ -40,9 +44,18 @@ export function ContentTypeList({
 					<h1 className="text-2xl font-bold">{t`Content Types`}</h1>
 					<p className="text-kumo-subtle text-sm">{t`Define the structure of your content`}</p>
 				</div>
-				<RouterLinkButton to="/content-types/new" icon={<Plus />}>
-					{t`New Content Type`}
-				</RouterLinkButton>
+				<div className="flex items-center gap-2">
+					<Button
+						variant="secondary"
+						icon={<ArrowsUpDown />}
+						onClick={() => setReorderOpen(true)}
+					>
+						{t`Reorder`}
+					</Button>
+					<RouterLinkButton to="/content-types/new" icon={<Plus />}>
+						{t`New Content Type`}
+					</RouterLinkButton>
+				</div>
 			</div>
 
 			{/* Orphaned Tables Warning */}
@@ -155,6 +168,17 @@ export function ContentTypeList({
 						setDeleteTarget(null);
 					}
 				}}
+			/>
+
+			<CollectionReorderDialog
+				open={reorderOpen}
+				onClose={() => setReorderOpen(false)}
+				collections={collections.map((c) => ({
+					slug: c.slug,
+					label: c.label,
+					sortOrder: c.sortOrder ?? 0,
+				}))}
+				onReorder={onReorder ?? (async () => {})}
 			/>
 		</div>
 	);

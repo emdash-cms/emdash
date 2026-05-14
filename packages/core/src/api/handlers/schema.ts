@@ -452,6 +452,42 @@ export async function handleSchemaFieldReorder(
 	}
 }
 
+/**
+ * Reorder collections
+ */
+export async function handleSchemaCollectionReorder(
+	db: Kysely<Database>,
+	collections: Array<{ slug: string; sortOrder: number }>,
+): Promise<ApiResult<{ success: boolean }>> {
+	try {
+		const registry = new SchemaRegistry(db);
+		await registry.reorderCollections(collections);
+
+		return {
+			success: true,
+			data: { success: true },
+		};
+	} catch (error) {
+		if (error instanceof SchemaError) {
+			return {
+				success: false,
+				error: {
+					code: error.code,
+					message: error.message,
+					details: error.details,
+				},
+			};
+		}
+		return {
+			success: false,
+			error: {
+				code: "SCHEMA_COLLECTION_REORDER_ERROR",
+				message: "Failed to reorder collections",
+			},
+		};
+	}
+}
+
 // ============================================
 // Orphaned Table Discovery
 // ============================================

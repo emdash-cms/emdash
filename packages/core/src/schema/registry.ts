@@ -679,6 +679,34 @@ export class SchemaRegistry {
 		}
 	}
 
+	/**
+	 * Reorder collections by updating their sort_order values.
+	 *
+	 * Accepts an array of `{ slug, sortOrder }` objects and updates each
+	 * collection's sort_order in a single batch. Used by the admin UI
+	 * drag-and-drop reordering.
+	 */
+	async reorderCollections(
+		collections: Array<{ slug: string; sortOrder: number }>,
+	): Promise<void> {
+		// Validate all slugs exist first
+		for (const { slug } of collections) {
+			const exists = await this.getCollection(slug);
+			if (!exists) {
+				throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
+			}
+		}
+
+		// Batch update
+		for (const { slug, sortOrder } of collections) {
+			await this.db
+				.updateTable("_emdash_collections")
+				.set({ sort_order: sortOrder })
+				.where("slug", "=", slug)
+				.execute();
+		}
+	}
+
 	// ============================================
 	// DDL Operations
 	// ============================================
