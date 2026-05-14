@@ -7,37 +7,36 @@
  *
  * The bundling steps:
  *
- *   1. Resolve plugin entrypoints from the user's `package.json`.
- *   2. Build the main entry with `tsdown` and dynamically import it to
- *      extract a `ResolvedPlugin` (descriptor factory or `createPlugin`).
- *   3. If a sandbox entry exists, build it twice — once as a probe to
- *      capture hook/route names for the manifest, once as the final
- *      `backend.js` (minified, with `emdash` aliased to a no-op shim).
- *   4. Build `admin.js` if an admin entry is declared.
- *   5. Write `manifest.json` and copy assets (README, icon, screenshots).
- *   6. Validate (size limits, no Node builtins, no source exports, admin
+ *   1. Read `emdash-plugin.jsonc` via the manifest loader: identity (slug,
+ *      version), trust contract (capabilities, allowedHosts, storage), and
+ *      the rest of the profile fields.
+ *   2. Build `src/plugin.ts` as a probe to capture hook/route names that
+ *      go into the bundled `manifest.json`.
+ *   3. Build `src/plugin.ts` again as the final `backend.js` (minified,
+ *      with `emdash` aliased to a no-op shim that exposes only
+ *      `definePlugin`).
+ *   4. Write `manifest.json` from the manifest fields + probed surface,
+ *      and copy assets (README, icon, screenshots).
+ *   5. Validate (size limits, no Node builtins, no source exports, admin
  *      route consistency, sandbox-incompatible features).
- *   7. Create the gzipped tarball and return its checksum.
+ *   6. Create the gzipped tarball and return its checksum.
  *
  * Failures throw `BundleError` with a structured `code` so callers can
  * branch (CLI shows a helpful message; tests assert the code).
  */
 
 import { createHash } from "node:crypto";
-import {
-	copyFile,
-	mkdir,
-	mkdtemp,
-	readdir,
-	readFile,
-	rm,
-	stat,
-	symlink,
-	writeFile,
-} from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, extname, join, resolve } from "node:path";
 
+import {
+	ManifestError,
+	MANIFEST_FILENAME,
+	loadManifest,
+	type LoadManifestResult,
+} from "../manifest/load.js";
+import { normaliseManifest, type NormalisedManifest } from "../manifest/translate.js";
 import {
 	CAPABILITY_RENAMES,
 	isDeprecatedCapability,
@@ -51,14 +50,12 @@ import {
 	fileExists,
 	findBuildOutput,
 	findNodeBuiltinImports,
-	findSourceExports,
 	formatBytes,
 	ICON_SIZE,
 	MAX_SCREENSHOTS,
 	MAX_SCREENSHOT_HEIGHT,
 	MAX_SCREENSHOT_WIDTH,
 	readImageDimensions,
-	resolveSourceEntry,
 	totalBundleBytes,
 	validateBundleSize,
 } from "./utils.js";
@@ -66,16 +63,15 @@ import {
 const TS_EXT_RE = /\.(tsx?|[mc]?js)$/;
 const SLASH_RE = /\//g;
 const LEADING_AT_RE = /^@/;
-const EMDASH_SCOPE_RE = /^@emdash-cms\//;
 
 // ──────────────────────────────────────────────────────────────────────────
 // Public types
 // ──────────────────────────────────────────────────────────────────────────
 
 export type BundleErrorCode =
-	| "MISSING_PACKAGE_JSON"
-	| "MISSING_ENTRYPOINT"
-	| "MAIN_BUILD_FAILED"
+	| "MISSING_MANIFEST"
+	| "MISSING_PLUGIN_ENTRY"
+	| "MANIFEST_INVALID"
 	| "INVALID_PLUGIN_FORMAT"
 	| "TRUSTED_ONLY_FEATURE"
 	| "BACKEND_BUILD_FAILED"
@@ -135,17 +131,25 @@ export interface BundleResult {
 // Implementation
 // ──────────────────────────────────────────────────────────────────────────
 
-interface ResolvedEntries {
-	mainEntry: string;
-	backendEntry: string | undefined;
-	adminEntry: string | undefined;
-	pkg: PackageJson;
-}
+/**
+ * Conventional source-file paths the bundler looks for. The redesign
+ * pins these instead of consulting `package.json` exports — a sandboxed
+ * plugin has exactly one runtime entry, and the manifest provides
+ * identity. Anything beyond these conventions is the author's
+ * responsibility (e.g. typecheck against their own tsconfig).
+ */
+const PLUGIN_ENTRY_PATH = "src/plugin.ts";
 
-interface PackageJson {
-	name?: string;
-	main?: string;
-	exports?: Record<string, unknown>;
+interface ResolvedEntries {
+	/**
+	 * Absolute path to `src/plugin.ts`. The single source file the
+	 * bundler probes (for hook/route names) and builds (as backend.js).
+	 */
+	pluginEntry: string;
+	/** The validated manifest, used as the source of truth for identity + trust contract. */
+	manifest: NormalisedManifest;
+	/** Resolved path of the loaded `emdash-plugin.jsonc`, kept for diagnostics. */
+	manifestPath: string;
 }
 
 export async function bundlePlugin(options: BundleOptions): Promise<BundleResult> {
@@ -161,10 +165,10 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 
 	log.start?.(validateOnly ? "Validating plugin..." : "Bundling plugin...");
 
-	// ── 1. Read package.json and resolve entrypoints ──
+	// ── 1. Read manifest + locate plugin entry ──
 	const entries = await resolveEntries(pluginDir, log);
 
-	// ── 2. Extract manifest by importing the plugin ──
+	// ── 2. Assemble ResolvedPlugin from manifest + probe ──
 	log.start?.("Extracting plugin manifest...");
 
 	// Each invocation gets its own tmpdir under the OS tmp root so concurrent
@@ -180,31 +184,13 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 		// alternative was a tmpdir orphaned per failed import.
 		const { build } = await import("tsdown");
 
-		const resolvedPlugin = await extractResolvedPlugin({
-			pluginDir,
+		const resolvedPlugin = await assembleResolvedPlugin({
 			tmpDir,
 			entries,
 			build,
 		});
 
 		const manifest = extractManifest(resolvedPlugin);
-
-		// Sandboxed plugins must not declare native-mode-only features.
-		if (resolvedPlugin.admin?.entry) {
-			throw new BundleError(
-				"TRUSTED_ONLY_FEATURE",
-				"Plugin declares adminEntry — React admin components require native/trusted mode. Use Block Kit for sandboxed admin pages, or remove adminEntry.",
-			);
-		}
-		if (
-			resolvedPlugin.admin?.portableTextBlocks &&
-			resolvedPlugin.admin.portableTextBlocks.length > 0
-		) {
-			throw new BundleError(
-				"TRUSTED_ONLY_FEATURE",
-				"Plugin declares portableTextBlocks — these require native/trusted mode and cannot be bundled for the marketplace.",
-			);
-		}
 
 		log.success?.(`Plugin: ${manifest.id}@${manifest.version}`);
 		log.info?.(
@@ -221,13 +207,13 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 		const bundleDir = join(tmpDir, "bundle");
 		await mkdir(bundleDir, { recursive: true });
 
-		if (entries.backendEntry) {
+		{
 			log.start?.("Bundling backend...");
 			const shimPath = await writeEmdashShim(join(tmpDir, "shims"));
 
 			await build({
 				config: false,
-				entry: [entries.backendEntry],
+				entry: [entries.pluginEntry],
 				format: "esm",
 				outDir: join(tmpDir, "backend"),
 				dts: false,
@@ -238,61 +224,25 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 				treeshake: true,
 			});
 
-			const backendBaseName = basename(entries.backendEntry).replace(TS_EXT_RE, "");
+			const backendBaseName = basename(entries.pluginEntry).replace(TS_EXT_RE, "");
 			const backendOutputPath = await findBuildOutput(join(tmpDir, "backend"), backendBaseName);
 			if (!backendOutputPath) {
 				throw new BundleError("BACKEND_BUILD_FAILED", "Backend build produced no output");
 			}
 			await copyFile(backendOutputPath, join(bundleDir, "backend.js"));
 			log.success?.("Built backend.js");
-		} else {
-			warn(
-				'No sandbox entry found — bundle will have no backend.js. Add "src/sandbox-entry.ts" or a "./sandbox" export.',
-			);
 		}
 
-		// ── 4. Bundle admin.js ──
-		if (entries.adminEntry) {
-			log.start?.("Bundling admin...");
-			await build({
-				config: false,
-				entry: [entries.adminEntry],
-				format: "esm",
-				outDir: join(tmpDir, "admin"),
-				dts: false,
-				platform: "neutral",
-				external: [],
-				minify: true,
-				treeshake: true,
-			});
-
-			const adminBaseName = basename(entries.adminEntry).replace(TS_EXT_RE, "");
-			const adminOutputPath = await findBuildOutput(join(tmpDir, "admin"), adminBaseName);
-			if (adminOutputPath) {
-				await copyFile(adminOutputPath, join(bundleDir, "admin.js"));
-				log.success?.("Built admin.js");
-			}
-		}
-
-		// ── 5. Write manifest.json ──
+		// ── 4. Write manifest.json ──
 		await writeFile(join(bundleDir, "manifest.json"), JSON.stringify(manifest, null, 2));
 
-		// ── 6. Collect assets ──
+		// ── 5. Collect assets ──
 		log.start?.("Collecting assets...");
 		await collectAssets({ pluginDir, bundleDir, log, warn });
 
-		// ── 7. Validate ──
+		// ── 6. Validate ──
 		log.start?.("Validating bundle...");
 		const validationErrors: string[] = [];
-
-		// Source exports check (npm-published plugins must point at built files).
-		if (entries.pkg.exports) {
-			for (const issue of findSourceExports(entries.pkg.exports)) {
-				validationErrors.push(
-					`Export "${issue.exportPath}" points to source (${issue.resolvedPath}). Package exports must point to built files (e.g. dist/*.mjs).`,
-				);
-			}
-		}
 
 		// Node builtins in backend.js -> hard fail.
 		const backendPath = join(bundleDir, "backend.js");
@@ -440,294 +390,98 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────
 
+/**
+ * Read the manifest and locate the plugin's runtime entry. The redesign
+ * pins both to conventional locations:
+ *
+ *   - `<dir>/emdash-plugin.jsonc` — identity + trust contract + profile
+ *     fields. Parsed and validated by the same loader the CLI's
+ *     `validate` command uses, so error messages are consistent.
+ *   - `<dir>/src/plugin.ts` — the runtime code (routes + hooks via
+ *     `definePlugin`). Single source file; no `package.json` exports
+ *     consulted.
+ *
+ * `package.json` is not read here at all. It's still present in the
+ * plugin directory because Node tooling needs it (vitest, tsc), but
+ * the bundler doesn't care about its `name`, `version`, `main`, or
+ * `exports` fields — those would just be ways to disagree with the
+ * manifest.
+ */
 async function resolveEntries(pluginDir: string, log: BundleLogger): Promise<ResolvedEntries> {
-	const pkgPath = join(pluginDir, "package.json");
-	if (!(await fileExists(pkgPath))) {
-		throw new BundleError("MISSING_PACKAGE_JSON", `No package.json found in ${pluginDir}`);
-	}
-
-	const pkg = JSON.parse(await readFile(pkgPath, "utf-8")) as PackageJson;
-
-	let backendEntry: string | undefined;
-	let adminEntry: string | undefined;
-
-	if (pkg.exports) {
-		const sandboxExport = pkg.exports["./sandbox"];
-		if (typeof sandboxExport === "string") {
-			backendEntry = await resolveSourceEntry(pluginDir, sandboxExport);
-		} else if (
-			sandboxExport &&
-			typeof sandboxExport === "object" &&
-			"import" in sandboxExport &&
-			typeof (sandboxExport as { import: unknown }).import === "string"
-		) {
-			backendEntry = await resolveSourceEntry(
-				pluginDir,
-				(sandboxExport as { import: string }).import,
-			);
-		}
-
-		const adminExport = pkg.exports["./admin"];
-		if (typeof adminExport === "string") {
-			adminEntry = await resolveSourceEntry(pluginDir, adminExport);
-		} else if (
-			adminExport &&
-			typeof adminExport === "object" &&
-			"import" in adminExport &&
-			typeof (adminExport as { import: unknown }).import === "string"
-		) {
-			adminEntry = await resolveSourceEntry(pluginDir, (adminExport as { import: string }).import);
-		}
-	}
-
-	if (!backendEntry) {
-		const defaultSandbox = join(pluginDir, "src/sandbox-entry.ts");
-		if (await fileExists(defaultSandbox)) {
-			backendEntry = defaultSandbox;
-		}
-	}
-
-	let mainEntry: string | undefined;
-	if (pkg.exports?.["."] !== undefined) {
-		const mainExport = pkg.exports["."];
-		if (typeof mainExport === "string") {
-			mainEntry = await resolveSourceEntry(pluginDir, mainExport);
-		} else if (
-			mainExport &&
-			typeof mainExport === "object" &&
-			"import" in mainExport &&
-			typeof (mainExport as { import: unknown }).import === "string"
-		) {
-			mainEntry = await resolveSourceEntry(pluginDir, (mainExport as { import: string }).import);
-		}
-	}
-	if (!mainEntry && pkg.main) {
-		mainEntry = await resolveSourceEntry(pluginDir, pkg.main);
-	}
-	if (!mainEntry) {
-		const defaultMain = join(pluginDir, "src/index.ts");
-		if (await fileExists(defaultMain)) {
-			mainEntry = defaultMain;
-		}
-	}
-
-	if (!mainEntry) {
+	const manifestPath = join(pluginDir, MANIFEST_FILENAME);
+	if (!(await fileExists(manifestPath))) {
 		throw new BundleError(
-			"MISSING_ENTRYPOINT",
-			"Cannot find plugin entrypoint. Expected src/index.ts or main/exports in package.json.",
+			"MISSING_MANIFEST",
+			`No ${MANIFEST_FILENAME} found in ${pluginDir}. Create one with: emdash-registry init`,
 		);
 	}
 
-	log.info?.(`Main entry: ${mainEntry}`);
-	if (backendEntry) log.info?.(`Backend entry: ${backendEntry}`);
-	if (adminEntry) log.info?.(`Admin entry: ${adminEntry}`);
+	let loaded: LoadManifestResult;
+	try {
+		loaded = await loadManifest(manifestPath);
+	} catch (error) {
+		if (error instanceof ManifestError) {
+			throw new BundleError("MANIFEST_INVALID", error.message);
+		}
+		throw error;
+	}
+	const manifest = normaliseManifest(loaded.manifest);
 
-	return { mainEntry, backendEntry, adminEntry, pkg };
+	const pluginEntry = join(pluginDir, PLUGIN_ENTRY_PATH);
+	if (!(await fileExists(pluginEntry))) {
+		throw new BundleError(
+			"MISSING_PLUGIN_ENTRY",
+			`No ${PLUGIN_ENTRY_PATH} found in ${pluginDir}. Sandboxed plugins place their routes and hooks in this single file (see emdash-registry init for the canonical layout).`,
+		);
+	}
+
+	log.info?.(`Manifest: ${loaded.path}`);
+	log.info?.(`Plugin entry: ${pluginEntry}`);
+
+	return { pluginEntry, manifest, manifestPath: loaded.path };
 }
 
-interface ExtractContext {
-	pluginDir: string;
+interface AssembleContext {
 	tmpDir: string;
 	entries: ResolvedEntries;
 	build: typeof import("tsdown").build;
 }
 
-async function extractResolvedPlugin(ctx: ExtractContext): Promise<ResolvedPlugin> {
-	const { pluginDir, tmpDir, entries, build } = ctx;
-	const mainOutDir = join(tmpDir, "main");
-	await build({
-		config: false,
-		entry: [entries.mainEntry],
-		format: "esm",
-		outDir: mainOutDir,
-		dts: false,
-		platform: "node",
-		external: ["emdash", EMDASH_SCOPE_RE],
-	});
+/**
+ * Assemble a `ResolvedPlugin` from the manifest (identity + trust contract)
+ * and a probe of `src/plugin.ts` (hook/route surface).
+ *
+ * The redesign collapses what used to be two distinct steps — main-entry
+ * descriptor extraction and sandbox-entry probe — into a single probe.
+ * Identity isn't authored in code anymore; the manifest is the source of
+ * truth, validated upstream by `loadManifest`.
+ */
+async function assembleResolvedPlugin(ctx: AssembleContext): Promise<ResolvedPlugin> {
+	const { tmpDir, entries, build } = ctx;
 
-	const pluginNodeModules = join(pluginDir, "node_modules");
-	const tmpNodeModules = join(mainOutDir, "node_modules");
-	if (await fileExists(pluginNodeModules)) {
-		await symlink(pluginNodeModules, tmpNodeModules, "junction");
-	}
-
-	const mainBaseName = basename(entries.mainEntry).replace(TS_EXT_RE, "");
-	const mainOutputPath = await findBuildOutput(mainOutDir, mainBaseName);
-	if (!mainOutputPath) {
-		throw new BundleError(
-			"MAIN_BUILD_FAILED",
-			`Failed to build main entry — no output found in ${mainOutDir}`,
-		);
-	}
-
-	const pluginModule = (await import(mainOutputPath)) as Record<string, unknown>;
-
-	let resolvedPlugin: ResolvedPlugin | undefined;
-	let descriptor: Record<string, unknown> | undefined;
-
-	// Strict format detection. We only call exports we can identify by name --
-	// `createPlugin()` (native) or the default export (standard descriptor or
-	// pre-resolved object). Speculatively calling every named export is a
-	// foot-gun: a `validateInput()` helper that returns `{id, version}` would
-	// be mis-resolved.
-	if (typeof pluginModule.createPlugin === "function") {
-		const native = (pluginModule.createPlugin as () => unknown)();
-		if (!isResolvedPluginShape(native)) {
-			throw new BundleError(
-				"INVALID_PLUGIN_FORMAT",
-				"createPlugin() returned something that's not a ResolvedPlugin (missing id, version, or wrong types).",
-			);
-		}
-		resolvedPlugin = native;
-	} else if (typeof pluginModule.default === "function") {
-		// Standard format default export. The factory returns a descriptor
-		// (id + version + serialisable fields, no hook handlers); we build
-		// the ResolvedPlugin shape around it and probe the sandbox entry for
-		// hook/route names below.
-		const result = (pluginModule.default as () => unknown)();
-		if (!isPluginDescriptorShape(result)) {
-			throw new BundleError(
-				"INVALID_PLUGIN_FORMAT",
-				"Default export factory returned something that's not a plugin descriptor (missing id or version, or wrong types).",
-			);
-		}
-		descriptor = result;
-		resolvedPlugin = buildResolvedFromDescriptor(result);
-	} else if (typeof pluginModule.default === "object" && pluginModule.default !== null) {
-		const defaultExport = pluginModule.default;
-		if (!isResolvedPluginShape(defaultExport)) {
-			throw new BundleError(
-				"INVALID_PLUGIN_FORMAT",
-				"Default export object is not a ResolvedPlugin (missing id, version, or wrong types).",
-			);
-		}
-		resolvedPlugin = defaultExport;
-	}
-
-	if (!resolvedPlugin) {
-		throw new BundleError(
-			"INVALID_PLUGIN_FORMAT",
-			"Could not extract plugin definition. Expected one of:\n" +
-				"  - `export function createPlugin() { ... }` (native format)\n" +
-				"  - `export default function() { return { id, version, ... } }` (standard format)\n" +
-				"  - `export default { id, version, ... }` (pre-resolved native)",
-		);
-	}
-
-	// For the standard format, probe the sandbox entry to capture hook and
-	// route names for the manifest. Only runs when we have a descriptor (i.e.
-	// the plugin came in via the standard format) and a sandbox entry.
-	if (descriptor && entries.backendEntry) {
-		await augmentWithSandboxProbe({
-			resolvedPlugin,
-			descriptor,
-			backendEntry: entries.backendEntry,
-			tmpDir,
-			build,
-		});
-	}
-
-	// If a standard-format descriptor declares hooks/routes we couldn't probe
-	// (because there's no sandbox entry), the published manifest will be a
-	// lie -- the host will refuse to dispatch hooks the plugin promised to
-	// implement. Catch it here.
-	if (
-		descriptor &&
-		!entries.backendEntry &&
-		(hasNonEmptyArrayField(descriptor, "hooks") || hasNonEmptyArrayField(descriptor, "routes"))
-	) {
-		throw new BundleError(
-			"INVALID_PLUGIN_FORMAT",
-			"Plugin descriptor declares hooks or routes but no sandbox entry exists to back them. " +
-				'Add `src/sandbox-entry.ts` (or a "./sandbox" export in package.json) that ' +
-				"exports `default { hooks, routes }`. Without it, the published manifest " +
-				"will promise functionality the bundle can't deliver.",
-		);
-	}
-
-	return resolvedPlugin;
-}
-
-function buildResolvedFromDescriptor(descriptor: Record<string, unknown>): ResolvedPlugin {
-	return {
-		id: descriptor.id as string,
-		version: descriptor.version as string,
-		capabilities: (descriptor.capabilities as ResolvedPlugin["capabilities"]) ?? [],
-		allowedHosts: (descriptor.allowedHosts as string[]) ?? [],
-		storage: (descriptor.storage as ResolvedPlugin["storage"]) ?? {},
+	const resolvedPlugin: ResolvedPlugin = {
+		// `id` on the bundled manifest is the publisher's natural slug.
+		// The runtime rewrites it to the opaque `r_<hash>` at install
+		// time (see makeRegistryPluginId), but on-wire the slug is what
+		// the install handler matches against the registry's record key.
+		id: entries.manifest.slug,
+		version: entries.manifest.version,
+		capabilities: entries.manifest.capabilities,
+		allowedHosts: entries.manifest.allowedHosts,
+		storage: entries.manifest.storage,
 		hooks: {},
 		routes: {},
-		admin: {
-			pages: descriptor.adminPages as ResolvedPlugin["admin"]["pages"],
-			widgets: descriptor.adminWidgets as ResolvedPlugin["admin"]["widgets"],
-		},
+		admin: {},
 	};
-}
 
-/**
- * Type guard: does this value look like a `ResolvedPlugin` enough to use?
- *
- * Validates the fields we read in the bundling pipeline. Doesn't try to
- * exhaustively validate hook/route handler shapes -- those are functions and
- * the manifest only records their names.
- */
-function isResolvedPluginShape(value: unknown): value is ResolvedPlugin {
-	if (!value || typeof value !== "object") return false;
-	const v = value as Record<string, unknown>;
-	if (typeof v.id !== "string" || v.id.length === 0) return false;
-	if (typeof v.version !== "string" || v.version.length === 0) return false;
-	if (v.capabilities !== undefined && !Array.isArray(v.capabilities)) return false;
-	if (v.allowedHosts !== undefined && !Array.isArray(v.allowedHosts)) return false;
-	if (v.storage !== undefined && (typeof v.storage !== "object" || v.storage === null)) {
-		return false;
-	}
-	if (v.hooks !== undefined && (typeof v.hooks !== "object" || v.hooks === null)) {
-		return false;
-	}
-	if (v.routes !== undefined && (typeof v.routes !== "object" || v.routes === null)) {
-		return false;
-	}
-	if (v.admin !== undefined && (typeof v.admin !== "object" || v.admin === null)) {
-		return false;
-	}
-	return true;
-}
+	await probePluginSurface({
+		resolvedPlugin,
+		pluginEntry: entries.pluginEntry,
+		tmpDir,
+		build,
+	});
 
-/**
- * Type guard: does this value look like a plugin descriptor (the standard
- * format's factory return value)?
- *
- * Looser than `isResolvedPluginShape` -- descriptors don't carry hooks or
- * routes (those live in the sandbox entry, probed separately).
- */
-function isPluginDescriptorShape(value: unknown): value is Record<string, unknown> {
-	if (!value || typeof value !== "object") return false;
-	const v = value as Record<string, unknown>;
-	if (typeof v.id !== "string" || v.id.length === 0) return false;
-	if (typeof v.version !== "string" || v.version.length === 0) return false;
-	if (v.capabilities !== undefined) {
-		if (!Array.isArray(v.capabilities)) return false;
-		// Reject non-string entries -- they'd serialize into a malformed
-		// manifest.json and confuse the runtime.
-		if (v.capabilities.some((c) => typeof c !== "string")) return false;
-	}
-	if (v.allowedHosts !== undefined) {
-		if (!Array.isArray(v.allowedHosts)) return false;
-		if (v.allowedHosts.some((h) => typeof h !== "string")) return false;
-	}
-	return true;
-}
-
-/**
- * `descriptor[field]` is a non-empty array (or non-empty object). Used to
- * detect when a standard-format descriptor declares hooks/routes that the
- * bundler can't populate (because there's no sandbox entry to probe).
- */
-function hasNonEmptyArrayField(descriptor: Record<string, unknown>, field: string): boolean {
-	const v = descriptor[field];
-	if (Array.isArray(v)) return v.length > 0;
-	if (v && typeof v === "object") return Object.keys(v).length > 0;
-	return false;
+	return resolvedPlugin;
 }
 
 /**
@@ -772,35 +526,54 @@ export default new Proxy({ definePlugin }, handler);
 
 interface ProbeContext {
 	resolvedPlugin: ResolvedPlugin;
-	descriptor: Record<string, unknown>;
-	backendEntry: string;
+	pluginEntry: string;
 	tmpDir: string;
 	build: typeof import("tsdown").build;
 }
 
-async function augmentWithSandboxProbe(ctx: ProbeContext): Promise<void> {
-	const { resolvedPlugin, descriptor, backendEntry, tmpDir, build } = ctx;
-	const backendProbeDir = join(tmpDir, "backend-probe");
+/**
+ * Build `src/plugin.ts` with `emdash` aliased to the no-op shim (which
+ * only exports `definePlugin`), then import it to read its default
+ * export's `hooks` and `routes` shape. The handler functions are
+ * recorded on the `ResolvedPlugin` even though `extractManifest` will
+ * strip them — they prove the surface is callable, and the probe build
+ * surfaces any compile-time error in the plugin code before we bother
+ * with the real backend build.
+ */
+async function probePluginSurface(ctx: ProbeContext): Promise<void> {
+	const { resolvedPlugin, pluginEntry, tmpDir, build } = ctx;
+	const probeOutDir = join(tmpDir, "plugin-probe");
 	const probeShimPath = await writeEmdashShim(join(tmpDir, "probe-shims"));
 	await build({
 		config: false,
-		entry: [backendEntry],
+		entry: [pluginEntry],
 		format: "esm",
-		outDir: backendProbeDir,
+		outDir: probeOutDir,
 		dts: false,
 		platform: "neutral",
 		external: [],
 		alias: { emdash: probeShimPath },
 		treeshake: true,
 	});
-	const backendBaseName = basename(backendEntry).replace(TS_EXT_RE, "");
-	const backendProbePath = await findBuildOutput(backendProbeDir, backendBaseName);
-	if (!backendProbePath) return;
+	const probeBaseName = basename(pluginEntry).replace(TS_EXT_RE, "");
+	const probeOutputPath = await findBuildOutput(probeOutDir, probeBaseName);
+	if (!probeOutputPath) {
+		throw new BundleError(
+			"BACKEND_BUILD_FAILED",
+			`Failed to build ${pluginEntry} for probe — no output found in ${probeOutDir}`,
+		);
+	}
 
-	const backendModule = (await import(backendProbePath)) as Record<string, unknown>;
-	const standardDef = (backendModule.default ?? {}) as Record<string, unknown>;
-	const hooks = standardDef.hooks as Record<string, unknown> | undefined;
-	const routes = standardDef.routes as Record<string, unknown> | undefined;
+	const pluginModule = (await import(probeOutputPath)) as Record<string, unknown>;
+	const definition = (pluginModule.default ?? {}) as Record<string, unknown>;
+	if (typeof definition !== "object" || definition === null) {
+		throw new BundleError(
+			"INVALID_PLUGIN_FORMAT",
+			`${pluginEntry} must default-export the result of definePlugin({ hooks, routes }). Got ${describeShape(definition)}.`,
+		);
+	}
+	const hooks = definition.hooks as Record<string, unknown> | undefined;
+	const routes = definition.routes as Record<string, unknown> | undefined;
 
 	if (hooks) {
 		for (const hookName of Object.keys(hooks)) {
@@ -809,7 +582,7 @@ async function augmentWithSandboxProbe(ctx: ProbeContext): Promise<void> {
 			if (!handler) {
 				throw new BundleError(
 					"INVALID_PLUGIN_FORMAT",
-					`Sandbox entry's hook "${hookName}" must be a function or { handler: function, ... }. Got ${describeShape(hookEntry)}.`,
+					`${pluginEntry}: hook "${hookName}" must be a function or { handler: function, ... }. Got ${describeShape(hookEntry)}.`,
 				);
 			}
 			const config: Record<string, unknown> =
@@ -823,7 +596,7 @@ async function augmentWithSandboxProbe(ctx: ProbeContext): Promise<void> {
 				dependencies: (config.dependencies as string[] | undefined) ?? [],
 				errorPolicy: (config.errorPolicy as string | undefined) ?? "abort",
 				exclusive: (config.exclusive as boolean | undefined) ?? false,
-				pluginId: descriptor.id as string,
+				pluginId: resolvedPlugin.id,
 			};
 		}
 	}
@@ -833,7 +606,7 @@ async function augmentWithSandboxProbe(ctx: ProbeContext): Promise<void> {
 			if (!handler) {
 				throw new BundleError(
 					"INVALID_PLUGIN_FORMAT",
-					`Sandbox entry's route "${name}" must be a function or { handler: function, ... }. Got ${describeShape(route)}.`,
+					`${pluginEntry}: route "${name}" must be a function or { handler: function, ... }. Got ${describeShape(route)}.`,
 				);
 			}
 			const routeObj: Record<string, unknown> =

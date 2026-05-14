@@ -42,13 +42,13 @@ describe("bundlePlugin", () => {
 		expect(result.sha256).toMatch(/^[0-9a-f]{64}$/);
 	});
 
-	it("captures hooks and routes from the sandbox-entry probe", async () => {
+	it("captures hooks and routes from the src/plugin.ts probe", async () => {
 		const result = await bundlePlugin({ dir: FIXTURE, outDir });
 		const manifest = result.manifest;
 
 		// Plain hook name (defaults).
 		expect(manifest.hooks).toContain("content:beforeCreate");
-		// Routes are extracted from the sandbox entry's default export.
+		// Routes are extracted from src/plugin.ts's default export.
 		expect(manifest.routes).toContain("admin");
 	});
 
@@ -90,12 +90,12 @@ describe("bundlePlugin", () => {
 		expect(parsed.version).toBe("1.2.3");
 	});
 
-	it("throws BundleError(MISSING_PACKAGE_JSON) for a directory with no package.json", async () => {
+	it("throws BundleError(MISSING_MANIFEST) for a directory with no emdash-plugin.jsonc", async () => {
 		const empty = await mkdtemp(join(tmpdir(), "emdash-empty-"));
 		try {
 			await expect(bundlePlugin({ dir: empty, outDir })).rejects.toMatchObject({
 				name: "BundleError",
-				code: "MISSING_PACKAGE_JSON",
+				code: "MISSING_MANIFEST",
 			});
 		} finally {
 			await rm(empty, { recursive: true, force: true });
@@ -112,8 +112,8 @@ describe("bundlePlugin", () => {
 				caught = error;
 			}
 			expect(caught).toBeInstanceOf(BundleError);
-			expect((caught as BundleError).code).toBe("MISSING_PACKAGE_JSON");
-			expect((caught as BundleError).message).toMatch(/No package\.json/);
+			expect((caught as BundleError).code).toBe("MISSING_MANIFEST");
+			expect((caught as BundleError).message).toMatch(/No emdash-plugin\.jsonc/);
 		} finally {
 			await rm(empty, { recursive: true, force: true });
 		}
@@ -154,14 +154,14 @@ describe("bundlePlugin", () => {
 		expect(contents).toEqual([]);
 	});
 
-	it("hard-fails when descriptor declares hooks but no sandbox entry exists", async () => {
-		// The bad-plugin fixture declares hooks in its descriptor but has no
-		// `src/sandbox-entry.ts` and no `./sandbox` export. Without the guard,
-		// the bundler would silently emit a manifest claiming hooks the
-		// bundle can't deliver.
+	it("hard-fails when the plugin has a manifest but no src/plugin.ts", async () => {
+		// The bad-plugin fixture has a valid emdash-plugin.jsonc but no
+		// src/plugin.ts. Without the guard, the bundler would happily
+		// produce a tarball with no backend.js, leaving the runtime with
+		// nothing to load.
 		await expect(bundlePlugin({ dir: BAD_FIXTURE, outDir })).rejects.toMatchObject({
 			name: "BundleError",
-			code: "INVALID_PLUGIN_FORMAT",
+			code: "MISSING_PLUGIN_ENTRY",
 		});
 	});
 

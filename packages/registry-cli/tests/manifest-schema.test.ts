@@ -163,9 +163,9 @@ describe("ManifestSchema (full document)", () => {
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) {
-			expect(result.error.issues.some((i) => i.message.includes("both `author` and `authors`"))).toBe(
-				true,
-			);
+			expect(
+				result.error.issues.some((i) => i.message.includes("both `author` and `authors`")),
+			).toBe(true);
 		}
 	});
 

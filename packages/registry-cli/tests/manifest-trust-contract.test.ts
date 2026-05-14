@@ -215,9 +215,9 @@ describe("ManifestSchema cross-field rules", () => {
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) {
-			expect(
-				result.error.issues.some((i) => i.message.includes("non-empty `allowedHosts`")),
-			).toBe(true);
+			expect(result.error.issues.some((i) => i.message.includes("non-empty `allowedHosts`"))).toBe(
+				true,
+			);
 		}
 	});
 
@@ -242,9 +242,7 @@ describe("ManifestSchema cross-field rules", () => {
 		expect(result.success).toBe(false);
 		if (!result.success) {
 			expect(
-				result.error.issues.some((i) =>
-					i.message.includes("`allowedHosts` must be empty"),
-				),
+				result.error.issues.some((i) => i.message.includes("`allowedHosts` must be empty")),
 			).toBe(true);
 		}
 	});
@@ -293,10 +291,6 @@ describe("ManifestSchema with the trust contract", () => {
 				users: { indexes: ["createdAt"], uniqueIndexes: ["email"] },
 			},
 		});
-		expect(result.capabilities).toEqual([
-			"content:read",
-			"content:write",
-			"network:request",
-		]);
+		expect(result.capabilities).toEqual(["content:read", "content:write", "network:request"]);
 	});
 });

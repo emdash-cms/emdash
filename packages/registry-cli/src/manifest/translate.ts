@@ -6,6 +6,8 @@
  * array shapes the lexicon uses.
  */
 
+import type { PluginCapability, PluginStorageConfig } from "@emdash-cms/plugin-types";
+
 import type { ProfileBootstrap } from "../publish/api.js";
 import type { Manifest, ManifestAuthor, ManifestSecurityContact } from "./schema.js";
 
@@ -16,20 +18,24 @@ import type { Manifest, ManifestAuthor, ManifestSecurityContact } from "./schema
  * never has to think about `author` vs `authors`.
  */
 export interface NormalisedManifest {
+	// Identity (required).
+	slug: string;
+	version: string;
+	publisher: string;
+
+	// Profile.
 	license: string;
-	/**
-	 * Pinned publisher (DID or handle). Undefined when the manifest
-	 * doesn't pin a publisher; the CLI writes the active session's DID
-	 * back after first publish so this is undefined only on first
-	 * publish or in CI flows where the user opted out via `--no-manifest`.
-	 */
-	publisher: string | undefined;
 	authors: ManifestAuthor[];
 	securityContacts: ManifestSecurityContact[];
 	name: string | undefined;
 	description: string | undefined;
 	keywords: string[] | undefined;
 	repo: string | undefined;
+
+	// Trust contract (defaults applied by the schema; always present here).
+	capabilities: PluginCapability[];
+	allowedHosts: string[];
+	storage: PluginStorageConfig;
 }
 
 /**
@@ -45,14 +51,29 @@ export function normaliseManifest(manifest: Manifest): NormalisedManifest {
 	const securityContacts =
 		manifest.securityContacts ?? (manifest.security ? [manifest.security] : []);
 	return {
-		license: manifest.license,
+		slug: manifest.slug,
+		version: manifest.version,
 		publisher: manifest.publisher,
+		license: manifest.license,
 		authors,
 		securityContacts,
 		name: manifest.name,
 		description: manifest.description,
 		keywords: manifest.keywords,
 		repo: manifest.repo,
+		// Schema validation already gates capability strings to the
+		// current vocabulary via a runtime check, so by the time we get
+		// here the strings are guaranteed members of PluginCapability.
+		// Zod's inferred type is `string[]` (it can't see the runtime
+		// narrowing), and the cast bridges that gap.
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- schema-enforced narrowing
+		capabilities: manifest.capabilities as PluginCapability[],
+		allowedHosts: manifest.allowedHosts,
+		// Same story for storage: Zod returns Record<string, {...}>,
+		// PluginStorageConfig is the same shape with a tighter key
+		// constraint.
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- schema-enforced narrowing
+		storage: manifest.storage as PluginStorageConfig,
 	};
 }
 
