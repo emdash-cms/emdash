@@ -1,7 +1,7 @@
 import { Badge, Button } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Pencil, Trash, Database, FileText, Warning, Check, ArrowsUpDown } from "@phosphor-icons/react";
+import { Plus, Pencil, Trash, Database, FileText, Warning, Check, ArrowsVertical } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -47,7 +47,7 @@ export function ContentTypeList({
 				<div className="flex items-center gap-2">
 					<Button
 						variant="secondary"
-						icon={<ArrowsUpDown />}
+						icon={<ArrowsVertical />}
 						onClick={() => setReorderOpen(true)}
 					>
 						{t`Reorder`}

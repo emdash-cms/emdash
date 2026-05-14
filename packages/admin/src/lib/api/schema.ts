@@ -40,6 +40,7 @@ export interface SchemaCollection {
 	commentsModeration: "all" | "first_time" | "none";
 	commentsClosedAfterDays: number;
 	commentsAutoApproveUsers: boolean;
+	sortOrder?: number;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -291,6 +292,21 @@ export async function reorderFields(collectionSlug: string, fieldSlugs: string[]
 		},
 	);
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to reorder fields`));
+}
+
+/**
+ * Reorder collections
+ */
+export async function reorderCollections(
+	collections: Array<{ slug: string; sortOrder: number }>,
+): Promise<void> {
+	const response = await apiFetch(`${API_BASE}/schema/collections/reorder`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ collections }),
+	});
+	if (!response.ok)
+		await throwResponseError(response, i18n._(msg`Failed to reorder collections`));
 }
 
 // ============================================

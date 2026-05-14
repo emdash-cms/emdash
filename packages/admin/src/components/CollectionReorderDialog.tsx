@@ -1,7 +1,6 @@
-import { Button, Dialog, Input } from "@cloudflare/kumo";
+import { Button, Dialog } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	arrayMove,
 	DndContext,
 	closestCenter,
 	KeyboardSensor,
@@ -15,9 +14,9 @@ import {
 	sortableKeyboardCoordinates,
 	useSortable,
 	verticalListSortingStrategy,
-	CSS,
+	arrayMove,
 } from "@dnd-kit/sortable";
-import { GripVertical, X } from "@phosphor-icons/react";
+import { DotsSixVertical, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import { cn } from "../lib/utils";
@@ -40,9 +39,9 @@ function SortableCollectionRow({ item }: { item: CollectionOrderItem }) {
 		id: item.slug,
 	});
 
-	const style = {
-		transform: CSS.Transform.toString(transform),
-		transition,
+	const style: React.CSSProperties = {
+		transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+		transition: transition ?? undefined,
 		opacity: isDragging ? 0.5 : 1,
 	};
 
@@ -62,7 +61,7 @@ function SortableCollectionRow({ item }: { item: CollectionOrderItem }) {
 				className="cursor-grab active:cursor-grabbing text-kumo-subtle hover:text-kumo-default p-1"
 				aria-label="Drag to reorder"
 			>
-				<GripVertical className="size-4" />
+				<DotsSixVertical className="size-4" />
 			</button>
 			<span className="flex-1 text-sm font-medium">{item.label}</span>
 			<code className="text-xs text-kumo-subtle bg-kumo-tint px-1.5 py-0.5 rounded">{item.slug}</code>
@@ -85,7 +84,11 @@ export function CollectionReorderDialog({
 
 	React.useEffect(() => {
 		if (open) {
-			setOrder([...collections].sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label)));
+			setOrder(
+				collections.toSorted(
+					(a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label),
+				),
+			);
 		}
 	}, [open, collections]);
 
@@ -117,22 +120,40 @@ export function CollectionReorderDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-			<Dialog.Content className="max-w-md">
-				<Dialog.Header>
-					<Dialog.Title>{t`Reorder Collections`}</Dialog.Title>
-					<Dialog.CloseButton onClick={onClose}>
-						<X className="size-4" />
-					</Dialog.CloseButton>
-				</Dialog.Header>
-
-				<Dialog.Description>
+		<Dialog.Root open={open} onOpenChange={(v: boolean) => !v && onClose()}>
+			<Dialog className="p-6 sm:max-w-md">
+				<div className="flex items-start justify-between gap-4">
+					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
+						{t`Reorder Collections`}
+					</Dialog.Title>
+					<Dialog.Close
+						render={(props) => (
+							<Button
+								{...props}
+								variant="ghost"
+								shape="square"
+								aria-label={t`Close`}
+								className="absolute end-4 top-4"
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						)}
+					/>
+				</div>
+				<Dialog.Description className="text-sm text-kumo-subtle">
 					{t`Drag and drop to change the order of collections in the sidebar.`}
 				</Dialog.Description>
 
 				<div className="space-y-1 mt-4 max-h-80 overflow-y-auto">
-					<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-						<SortableContext items={order.map((c) => c.slug)} strategy={verticalListSortingStrategy}>
+					<DndContext
+						sensors={sensors}
+						collisionDetection={closestCenter}
+						onDragEnd={handleDragEnd}
+					>
+						<SortableContext
+							items={order.map((c) => c.slug)}
+							strategy={verticalListSortingStrategy}
+						>
 							{order.map((item) => (
 								<SortableCollectionRow key={item.slug} item={item} />
 							))}
@@ -140,15 +161,15 @@ export function CollectionReorderDialog({
 					</DndContext>
 				</div>
 
-				<Dialog.Footer>
+				<div className="flex justify-end gap-2 mt-6">
 					<Button variant="secondary" onClick={onClose} disabled={saving}>
 						{t`Cancel`}
 					</Button>
 					<Button variant="primary" onClick={handleSave} disabled={saving}>
 						{saving ? t`Saving...` : t`Save Order`}
 					</Button>
-				</Dialog.Footer>
-			</Dialog.Content>
-		</Dialog>
+				</div>
+			</Dialog>
+		</Dialog.Root>
 	);
 }
