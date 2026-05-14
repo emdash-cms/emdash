@@ -1097,6 +1097,22 @@ function SlashCommandMenu({
 		}
 	}, [state.selectedIndex, state.isOpen]);
 
+	// Track whether the mouse has actually moved since the menu opened.
+	// The menu typically opens right at the text cursor, which may sit under
+	// a stationary mouse pointer. Reacting to mouseenter immediately would
+	// reset the selection to whichever item happens to be under the pointer
+	// the moment the menu renders -- overriding the keyboard-driven default
+	// (selectedIndex: 0) and any subsequent arrow-key navigation.
+	//
+	// Only flip the gate on mousemove, which fires only on real pointer
+	// movement, not on elements appearing under a stationary pointer.
+	const hasMouseMovedRef = React.useRef(false);
+	React.useEffect(() => {
+		if (!state.isOpen) {
+			hasMouseMovedRef.current = false;
+		}
+	}, [state.isOpen]);
+
 	if (!state.isOpen) return null;
 
 	return createPortal(
@@ -1107,6 +1123,9 @@ function SlashCommandMenu({
 			}}
 			style={floatingStyles}
 			className="z-[100] rounded-lg border bg-kumo-overlay p-1 shadow-lg min-w-[220px] max-h-[300px] overflow-y-auto"
+			onPointerMove={() => {
+				hasMouseMovedRef.current = true;
+			}}
 		>
 			{state.items.length === 0 ? (
 				<p className="text-sm text-kumo-subtle px-3 py-2">{t`No results`}</p>
@@ -1123,7 +1142,14 @@ function SlashCommandMenu({
 								: "hover:bg-kumo-tint/50",
 						)}
 						onClick={() => onCommand(item)}
-						onMouseEnter={() => setSelectedIndex(index)}
+						onMouseEnter={() => {
+							// Only react if the user has actually moved the
+							// mouse since the menu opened -- not when items
+							// appear under a stationary pointer.
+							if (hasMouseMovedRef.current) {
+								setSelectedIndex(index);
+							}
+						}}
 					>
 						<item.icon className="h-4 w-4 text-kumo-subtle flex-shrink-0" />
 						<div className="flex flex-col">

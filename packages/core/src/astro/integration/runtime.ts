@@ -11,7 +11,10 @@ import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
+import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
+
+export type { ExperimentalConfig, RegistryConfig } from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -264,6 +267,10 @@ export interface EmDashConfig {
 	 * Must be an HTTPS URL in production, or localhost/127.0.0.1 in dev.
 	 * Requires `sandboxRunner` to be configured (marketplace plugins run sandboxed).
 	 *
+	 * When `registry` is also configured, the registry replaces the marketplace
+	 * for the admin UI's browse and install flows. Existing marketplace-installed
+	 * plugins continue to work; new installs and updates come from the registry.
+	 *
 	 * @example
 	 * ```ts
 	 * emdash({
@@ -273,6 +280,28 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	marketplace?: string;
+
+	/**
+	 * Experimental features.
+	 *
+	 * These options are not yet stable. Shape, defaults, and behavior may
+	 * change between minor versions. Use only if you're comfortable
+	 * tracking the release notes and updating your config when an
+	 * experimental feature graduates or changes.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   experimental: {
+	 *     registry: {
+	 *       aggregatorUrl: "https://registry.emdashcms.com",
+	 *     },
+	 *   },
+	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 * })
+	 * ```
+	 */
+	experimental?: ExperimentalConfig;
 
 	/**
 	 * Maximum allowed media file upload size in bytes.

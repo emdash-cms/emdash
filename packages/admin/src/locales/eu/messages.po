@@ -72,7 +72,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1131
+#: packages/admin/src/router.tsx:1133
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr ""
 
@@ -182,7 +182,7 @@ msgid "{0} has been deactivated"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:256
+#: packages/admin/src/components/PluginManager.tsx:257
 msgid "{0} has been removed"
 msgstr ""
 
@@ -209,7 +209,7 @@ msgstr ""
 
 #. placeholder {0}: plugin.capabilities.length
 #. placeholder {1}: plugin.capabilities.length !== 1 ? "s" : ""
-#: packages/admin/src/components/PluginManager.tsx:349
+#: packages/admin/src/components/PluginManager.tsx:350
 msgid "{0} permission{1}"
 msgstr ""
 
@@ -237,7 +237,7 @@ msgstr ""
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:243
+#: packages/admin/src/components/PluginManager.tsx:244
 msgid "{0} updated to v{1}"
 msgstr ""
 
@@ -468,7 +468,7 @@ msgstr ""
 msgid "Accept Invite"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1151
+#: packages/admin/src/router.tsx:1153
 msgid "Access Denied"
 msgstr ""
 
@@ -517,7 +517,7 @@ msgid "Add"
 msgstr ""
 
 #. placeholder {0}: field.item_label
-#: packages/admin/src/components/PortableTextEditor.tsx:1462
+#: packages/admin/src/components/PortableTextEditor.tsx:1488
 msgid "Add {0}"
 msgstr ""
 
@@ -537,11 +537,11 @@ msgstr ""
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2537
+#: packages/admin/src/components/PortableTextEditor.tsx:2563
 msgid "Add column after"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2530
+#: packages/admin/src/components/PortableTextEditor.tsx:2556
 msgid "Add column before"
 msgstr ""
 
@@ -583,7 +583,7 @@ msgstr ""
 msgid "Add First Item"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1462
+#: packages/admin/src/components/PortableTextEditor.tsx:1488
 msgid "Add item"
 msgstr ""
 
@@ -591,7 +591,7 @@ msgstr ""
 msgid "Add Item"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2497
+#: packages/admin/src/components/PortableTextEditor.tsx:2523
 msgid "Add link"
 msgstr ""
 
@@ -624,11 +624,11 @@ msgstr ""
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2560
+#: packages/admin/src/components/PortableTextEditor.tsx:2586
 msgid "Add row after"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2553
+#: packages/admin/src/components/PortableTextEditor.tsx:2579
 msgid "Add row before"
 msgstr ""
 
@@ -679,15 +679,15 @@ msgstr "Kudeatzailea"
 msgid "After send:"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2885
+#: packages/admin/src/components/PortableTextEditor.tsx:2911
 msgid "Align Center"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2878
+#: packages/admin/src/components/PortableTextEditor.tsx:2904
 msgid "Align Left"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2892
+#: packages/admin/src/components/PortableTextEditor.tsx:2918
 msgid "Align Right"
 msgstr ""
 
@@ -756,7 +756,7 @@ msgstr ""
 msgid "Already have an account?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:575
+#: packages/admin/src/components/PluginManager.tsx:585
 msgid "Also delete plugin storage data"
 msgstr ""
 
@@ -784,23 +784,23 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:110
 #: packages/admin/src/components/TaxonomySidebar.tsx:321
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:339
-#: packages/admin/src/router.tsx:354
-#: packages/admin/src/router.tsx:368
-#: packages/admin/src/router.tsx:382
-#: packages/admin/src/router.tsx:702
-#: packages/admin/src/router.tsx:733
-#: packages/admin/src/router.tsx:749
-#: packages/admin/src/router.tsx:765
-#: packages/admin/src/router.tsx:784
-#: packages/admin/src/router.tsx:802
-#: packages/admin/src/router.tsx:820
-#: packages/admin/src/router.tsx:850
-#: packages/admin/src/router.tsx:870
-#: packages/admin/src/router.tsx:1096
-#: packages/admin/src/router.tsx:1112
-#: packages/admin/src/router.tsx:1137
-#: packages/admin/src/router.tsx:1554
+#: packages/admin/src/router.tsx:341
+#: packages/admin/src/router.tsx:356
+#: packages/admin/src/router.tsx:370
+#: packages/admin/src/router.tsx:384
+#: packages/admin/src/router.tsx:704
+#: packages/admin/src/router.tsx:735
+#: packages/admin/src/router.tsx:751
+#: packages/admin/src/router.tsx:767
+#: packages/admin/src/router.tsx:786
+#: packages/admin/src/router.tsx:804
+#: packages/admin/src/router.tsx:822
+#: packages/admin/src/router.tsx:852
+#: packages/admin/src/router.tsx:872
+#: packages/admin/src/router.tsx:1098
+#: packages/admin/src/router.tsx:1114
+#: packages/admin/src/router.tsx:1139
+#: packages/admin/src/router.tsx:1597
 msgid "An error occurred"
 msgstr ""
 
@@ -833,12 +833,12 @@ msgstr ""
 msgid "Application Password"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2952
+#: packages/admin/src/components/PortableTextEditor.tsx:2978
 msgid "Apply"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2437
-#: packages/admin/src/components/PortableTextEditor.tsx:2438
+#: packages/admin/src/components/PortableTextEditor.tsx:2463
+#: packages/admin/src/components/PortableTextEditor.tsx:2464
 msgid "Apply link"
 msgstr ""
 
@@ -964,7 +964,7 @@ msgstr ""
 msgid "Auto-generated from name (you can edit)"
 msgstr ""
 
-#: packages/admin/src/router.tsx:732
+#: packages/admin/src/router.tsx:734
 msgid "Autosave failed"
 msgstr ""
 
@@ -1012,6 +1012,10 @@ msgstr "Itzuli login egitera"
 msgid "Back to marketplace"
 msgstr ""
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:347
+msgid "Back to plugins"
+msgstr ""
+
 #: packages/admin/src/components/SectionEditor.tsx:73
 #: packages/admin/src/components/SectionEditor.tsx:174
 msgid "Back to sections"
@@ -1042,8 +1046,8 @@ msgstr ""
 msgid "Block actions - drag to reorder, click for menu"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2461
-#: packages/admin/src/components/PortableTextEditor.tsx:2767
+#: packages/admin/src/components/PortableTextEditor.tsx:2487
+#: packages/admin/src/components/PortableTextEditor.tsx:2793
 msgid "Bold"
 msgstr ""
 
@@ -1054,6 +1058,10 @@ msgstr ""
 
 #: packages/admin/src/components/SeoPanel.tsx:169
 msgid "Brief summary shown below the title in search results"
+msgstr ""
+
+#: packages/admin/src/components/RegistryBrowse.tsx:71
+msgid "Browse and install plugins published to the decentralized registry."
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:88
@@ -1075,7 +1083,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:101
 #: packages/admin/src/components/PortableTextEditor.tsx:886
-#: packages/admin/src/components/PortableTextEditor.tsx:2835
+#: packages/admin/src/components/PortableTextEditor.tsx:2861
 msgid "Bullet List"
 msgstr "Buleta zerrenda"
 
@@ -1120,8 +1128,8 @@ msgstr "Edukia ikusi dezake"
 #: packages/admin/src/components/MenuEditor.tsx:351
 #: packages/admin/src/components/MenuEditor.tsx:522
 #: packages/admin/src/components/MenuList.tsx:172
-#: packages/admin/src/components/PluginManager.tsx:581
-#: packages/admin/src/components/PortableTextEditor.tsx:2936
+#: packages/admin/src/components/PluginManager.tsx:591
+#: packages/admin/src/components/PortableTextEditor.tsx:2962
 #: packages/admin/src/components/Redirects.tsx:175
 #: packages/admin/src/components/SectionPickerModal.tsx:130
 #: packages/admin/src/components/Sections.tsx:209
@@ -1159,7 +1167,7 @@ msgstr ""
 msgid "Canonical URL"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:420
+#: packages/admin/src/components/PluginManager.tsx:421
 msgid "Capabilities"
 msgstr ""
 
@@ -1213,7 +1221,7 @@ msgstr ""
 msgid "Change Logo"
 msgstr ""
 
-#: packages/admin/src/router.tsx:777
+#: packages/admin/src/router.tsx:779
 msgid "Changes discarded"
 msgstr ""
 
@@ -1289,9 +1297,9 @@ msgstr "Egin klik emailean webgunean sartzeko."
 #: packages/admin/src/components/MenuList.tsx:136
 #: packages/admin/src/components/MenuList.tsx:142
 #: packages/admin/src/components/MenuList.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:1246
-#: packages/admin/src/components/PortableTextEditor.tsx:1252
-#: packages/admin/src/components/PortableTextEditor.tsx:1256
+#: packages/admin/src/components/PortableTextEditor.tsx:1272
+#: packages/admin/src/components/PortableTextEditor.tsx:1278
+#: packages/admin/src/components/PortableTextEditor.tsx:1282
 #: packages/admin/src/components/Redirects.tsx:111
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/SectionPickerModal.tsx:60
@@ -1330,22 +1338,22 @@ msgid "Close panel"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:244
-#: packages/admin/src/components/PortableTextEditor.tsx:2489
+#: packages/admin/src/components/PortableTextEditor.tsx:2515
 #: packages/admin/src/components/Redirects.tsx:443
 msgid "Code"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:93
 #: packages/admin/src/components/PortableTextEditor.tsx:916
-#: packages/admin/src/components/PortableTextEditor.tsx:2856
+#: packages/admin/src/components/PortableTextEditor.tsx:2882
 msgid "Code Block"
 msgstr "Kode blokea"
 
-#: packages/admin/src/components/PluginManager.tsx:407
+#: packages/admin/src/components/PluginManager.tsx:408
 msgid "Collapse"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:401
+#: packages/admin/src/components/PluginManager.tsx:402
 msgid "Collapse details"
 msgstr ""
 
@@ -1434,7 +1442,7 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
-#: packages/admin/src/components/PortableTextEditor.tsx:1979
+#: packages/admin/src/components/PortableTextEditor.tsx:2005
 #: packages/admin/src/components/SectionEditor.tsx:194
 #: packages/admin/src/components/Sidebar.tsx:412
 #: packages/admin/src/components/Widgets.tsx:819
@@ -1454,7 +1462,7 @@ msgstr ""
 msgid "Content found:"
 msgstr ""
 
-#: packages/admin/src/router.tsx:796
+#: packages/admin/src/router.tsx:798
 msgid "Content has been scheduled for publishing"
 msgstr ""
 
@@ -1466,7 +1474,7 @@ msgstr ""
 msgid "Content ID:"
 msgstr ""
 
-#: packages/admin/src/router.tsx:744
+#: packages/admin/src/router.tsx:746
 msgid "Content is now live"
 msgstr ""
 
@@ -1478,11 +1486,11 @@ msgstr ""
 msgid "Content Read"
 msgstr "Edukia irakurri"
 
-#: packages/admin/src/router.tsx:760
+#: packages/admin/src/router.tsx:762
 msgid "Content removed from public view"
 msgstr ""
 
-#: packages/admin/src/router.tsx:814
+#: packages/admin/src/router.tsx:816
 msgid "Content reverted to draft"
 msgstr ""
 
@@ -1739,7 +1747,7 @@ msgid "Created {0}"
 msgstr "Sorrera {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:844
+#: packages/admin/src/router.tsx:846
 msgid "Created {0} translation"
 msgstr ""
 
@@ -1826,6 +1834,10 @@ msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:163
 msgid "Decimal number"
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:311
+msgid "Declared permissions"
 msgstr ""
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:327
@@ -1917,7 +1929,7 @@ msgstr ""
 msgid "Delete Byline?"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2544
+#: packages/admin/src/components/PortableTextEditor.tsx:2570
 msgid "Delete column"
 msgstr ""
 
@@ -1976,7 +1988,7 @@ msgstr ""
 msgid "Delete Redirect?"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2565
+#: packages/admin/src/components/PortableTextEditor.tsx:2591
 msgid "Delete row"
 msgstr ""
 
@@ -1984,7 +1996,7 @@ msgstr ""
 msgid "Delete Section?"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2580
+#: packages/admin/src/components/PortableTextEditor.tsx:2606
 msgid "Delete table"
 msgstr ""
 
@@ -2064,7 +2076,7 @@ msgstr ""
 msgid "Destination path"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:407
+#: packages/admin/src/components/PluginManager.tsx:408
 msgid "details"
 msgstr ""
 
@@ -2096,7 +2108,7 @@ msgstr ""
 msgid "Disable"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:395
+#: packages/admin/src/components/PluginManager.tsx:396
 msgid "Disable plugin"
 msgstr ""
 
@@ -2112,14 +2124,14 @@ msgstr ""
 msgid "Disable User?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:304
+#: packages/admin/src/components/PluginManager.tsx:305
 #: packages/admin/src/components/Redirects.tsx:392
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:478
+#: packages/admin/src/components/PluginManager.tsx:479
 msgid "Disabled:"
 msgstr ""
 
@@ -2241,7 +2253,7 @@ msgstr ""
 msgid "Drag here to add"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1638
+#: packages/admin/src/components/PortableTextEditor.tsx:1664
 msgid "Drag to reorder"
 msgstr ""
 
@@ -2301,7 +2313,7 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:450
 #: packages/admin/src/components/MenuList.tsx:231
-#: packages/admin/src/components/PortableTextEditor.tsx:1243
+#: packages/admin/src/components/PortableTextEditor.tsx:1269
 #: packages/admin/src/components/Sections.tsx:392
 #: packages/admin/src/components/TaxonomyManager.tsx:360
 #: packages/admin/src/components/TranslationsPanel.tsx:88
@@ -2343,7 +2355,7 @@ msgstr ""
 msgid "Edit Field"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2497
+#: packages/admin/src/components/PortableTextEditor.tsx:2523
 msgid "Edit link"
 msgstr ""
 
@@ -2426,11 +2438,11 @@ msgid "Email verified!"
 msgstr ""
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:1992
+#: packages/admin/src/components/PortableTextEditor.tsx:2018
 msgid "Embed a {0}"
 msgstr "{0} txertatu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1995
+#: packages/admin/src/components/PortableTextEditor.tsx:2021
 msgid "Embeds"
 msgstr "Txertaketak"
 
@@ -2454,7 +2466,7 @@ msgstr ""
 msgid "Enable full-text search on this collection"
 msgstr "Aktibatu testu bilaketa bilduma honetan"
 
-#: packages/admin/src/components/PluginManager.tsx:395
+#: packages/admin/src/components/PluginManager.tsx:396
 msgid "Enable plugin"
 msgstr ""
 
@@ -2527,7 +2539,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:179
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
-#: packages/admin/src/router.tsx:1735
+#: packages/admin/src/router.tsx:1778
 msgid "Error"
 msgstr ""
 
@@ -2555,15 +2567,15 @@ msgstr ""
 msgid "Exit distraction-free mode"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2998
+#: packages/admin/src/components/PortableTextEditor.tsx:3024
 msgid "Exit Spotlight Mode"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:407
+#: packages/admin/src/components/PluginManager.tsx:408
 msgid "Expand"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:401
+#: packages/admin/src/components/PluginManager.tsx:402
 msgid "Expand details"
 msgstr ""
 
@@ -2628,13 +2640,13 @@ msgstr ""
 msgid "Failed to create term"
 msgstr ""
 
-#: packages/admin/src/router.tsx:849
+#: packages/admin/src/router.tsx:851
 msgid "Failed to create translation"
 msgstr ""
 
-#: packages/admin/src/router.tsx:338
-#: packages/admin/src/router.tsx:367
-#: packages/admin/src/router.tsx:869
+#: packages/admin/src/router.tsx:340
+#: packages/admin/src/router.tsx:369
+#: packages/admin/src/router.tsx:871
 msgid "Failed to delete"
 msgstr ""
 
@@ -2651,7 +2663,7 @@ msgid "Failed to delete collection"
 msgstr ""
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1111
+#: packages/admin/src/router.tsx:1113
 msgid "Failed to delete comment"
 msgstr ""
 
@@ -2711,7 +2723,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr ""
 
-#: packages/admin/src/router.tsx:783
+#: packages/admin/src/router.tsx:785
 msgid "Failed to discard changes"
 msgstr ""
 
@@ -2719,7 +2731,7 @@ msgstr ""
 msgid "Failed to dismiss welcome"
 msgstr ""
 
-#: packages/admin/src/router.tsx:381
+#: packages/admin/src/router.tsx:383
 msgid "Failed to duplicate"
 msgstr ""
 
@@ -2744,12 +2756,12 @@ msgstr ""
 msgid "Failed to fetch entry terms"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:189
+#: packages/admin/src/lib/api/client.ts:203
 msgid "Failed to fetch manifest"
 msgstr ""
 
-#: packages/admin/src/lib/api/plugins.ts:55
 #: packages/admin/src/lib/api/plugins.ts:59
+#: packages/admin/src/lib/api/plugins.ts:63
 msgid "Failed to fetch plugin"
 msgstr ""
 
@@ -2768,8 +2780,8 @@ msgstr ""
 
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:642
-#: packages/admin/src/router.tsx:1042
+#: packages/admin/src/router.tsx:644
+#: packages/admin/src/router.tsx:1044
 msgid "Failed to fetch user"
 msgstr ""
 
@@ -2799,10 +2811,11 @@ msgid "Failed to import media"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:160
+#: packages/admin/src/lib/api/registry.ts:466
 msgid "Failed to install plugin"
 msgstr ""
 
-#: packages/admin/src/router.tsx:244
+#: packages/admin/src/router.tsx:246
 msgid "Failed to load admin"
 msgstr ""
 
@@ -2836,6 +2849,10 @@ msgstr ""
 msgid "Failed to load plugins: {0}"
 msgstr ""
 
+#: packages/admin/src/components/RegistryBrowse.tsx:95
+msgid "Failed to load plugins. The registry aggregator may be unreachable."
+msgstr ""
+
 #: packages/admin/src/components/RevisionHistory.tsx:180
 msgid "Failed to load revisions"
 msgstr ""
@@ -2857,7 +2874,7 @@ msgstr ""
 msgid "Failed to load widget"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1136
+#: packages/admin/src/router.tsx:1138
 msgid "Failed to perform bulk action"
 msgstr ""
 
@@ -2869,7 +2886,7 @@ msgstr ""
 msgid "Failed to prepare import"
 msgstr ""
 
-#: packages/admin/src/router.tsx:748
+#: packages/admin/src/router.tsx:750
 msgid "Failed to publish"
 msgstr ""
 
@@ -2894,7 +2911,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr ""
 
-#: packages/admin/src/router.tsx:353
+#: packages/admin/src/router.tsx:355
 msgid "Failed to restore"
 msgstr ""
 
@@ -2915,8 +2932,8 @@ msgstr ""
 msgid "Failed to rewrite URLs"
 msgstr ""
 
-#: packages/admin/src/router.tsx:701
-#: packages/admin/src/router.tsx:1553
+#: packages/admin/src/router.tsx:703
+#: packages/admin/src/router.tsx:1596
 msgid "Failed to save"
 msgstr ""
 
@@ -2926,7 +2943,7 @@ msgstr ""
 msgid "Failed to save settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:801
+#: packages/admin/src/router.tsx:803
 msgid "Failed to schedule"
 msgstr ""
 
@@ -2955,11 +2972,11 @@ msgstr ""
 msgid "Failed to uninstall plugin"
 msgstr ""
 
-#: packages/admin/src/router.tsx:764
+#: packages/admin/src/router.tsx:766
 msgid "Failed to unpublish"
 msgstr ""
 
-#: packages/admin/src/router.tsx:819
+#: packages/admin/src/router.tsx:821
 msgid "Failed to unschedule"
 msgstr ""
 
@@ -2980,7 +2997,7 @@ msgstr ""
 msgid "Failed to update plugin"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1095
+#: packages/admin/src/router.tsx:1097
 msgid "Failed to update status"
 msgstr ""
 
@@ -3137,7 +3154,7 @@ msgid "Give this passkey a name to help you identify it later."
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
-#: packages/admin/src/router.tsx:1755
+#: packages/admin/src/router.tsx:1798
 msgid "Go to Dashboard"
 msgstr ""
 
@@ -3163,19 +3180,19 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:61
 #: packages/admin/src/components/PortableTextEditor.tsx:856
-#: packages/admin/src/components/PortableTextEditor.tsx:2808
+#: packages/admin/src/components/PortableTextEditor.tsx:2834
 msgid "Heading 1"
 msgstr "1. goiburukoa"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:69
 #: packages/admin/src/components/PortableTextEditor.tsx:866
-#: packages/admin/src/components/PortableTextEditor.tsx:2815
+#: packages/admin/src/components/PortableTextEditor.tsx:2841
 msgid "Heading 2"
 msgstr "2. goiburukoa"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:77
 #: packages/admin/src/components/PortableTextEditor.tsx:876
-#: packages/admin/src/components/PortableTextEditor.tsx:2822
+#: packages/admin/src/components/PortableTextEditor.tsx:2848
 msgid "Heading 3"
 msgstr "3. goiburukoa"
 
@@ -3217,7 +3234,7 @@ msgstr ""
 msgid "Homepage"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:335
+#: packages/admin/src/components/PluginManager.tsx:336
 msgid "Hooks"
 msgstr ""
 
@@ -3247,7 +3264,7 @@ msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "<0>{email}</0> kontua existitzen bada, sartzeko esteka magikoa bidali dugu."
 
 #: packages/admin/src/components/FieldEditor.tsx:204
-#: packages/admin/src/components/PortableTextEditor.tsx:1961
+#: packages/admin/src/components/PortableTextEditor.tsx:1987
 msgid "Image"
 msgstr "Irudia"
 
@@ -3364,13 +3381,18 @@ msgstr ""
 msgid "Incompatible"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2795
+#. placeholder {0}: formatDate(release.indexedAt)
+#: packages/admin/src/components/RegistryPluginDetail.tsx:241
+msgid "indexed {0}"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:2821
 msgid "Inline Code"
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:507
 #: packages/admin/src/components/MediaPickerModal.tsx:732
-#: packages/admin/src/components/PortableTextEditor.tsx:1243
+#: packages/admin/src/components/PortableTextEditor.tsx:1269
 msgid "Insert"
 msgstr ""
 
@@ -3386,7 +3408,7 @@ msgstr "Txertatu kode blokea"
 msgid "Insert a horizontal rule"
 msgstr "Txertatu marra horizontala"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1976
+#: packages/admin/src/components/PortableTextEditor.tsx:2002
 msgid "Insert a reusable section"
 msgstr "Txertatu atal berrerabilgarria"
 
@@ -3394,7 +3416,7 @@ msgstr "Txertatu atal berrerabilgarria"
 msgid "Insert a table"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1962
+#: packages/admin/src/components/PortableTextEditor.tsx:1988
 msgid "Insert an image"
 msgstr "Txertatu irudia"
 
@@ -3402,15 +3424,15 @@ msgstr "Txertatu irudia"
 msgid "Insert from URL"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2965
+#: packages/admin/src/components/PortableTextEditor.tsx:2991
 msgid "Insert Horizontal Rule"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2960
+#: packages/admin/src/components/PortableTextEditor.tsx:2986
 msgid "Insert Image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2907
+#: packages/admin/src/components/PortableTextEditor.tsx:2933
 msgid "Insert Link"
 msgstr ""
 
@@ -3418,7 +3440,7 @@ msgstr ""
 msgid "Insert Section"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2865
+#: packages/admin/src/components/PortableTextEditor.tsx:2891
 msgid "Insert Table"
 msgstr ""
 
@@ -3427,6 +3449,7 @@ msgid "Instagram"
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:193
+#: packages/admin/src/components/RegistryPluginDetail.tsx:256
 msgid "Install"
 msgstr ""
 
@@ -3440,15 +3463,17 @@ msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:174
+#: packages/admin/src/components/RegistryBrowse.tsx:194
+#: packages/admin/src/components/RegistryPluginDetail.tsx:248
 msgid "Installed"
 msgstr ""
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:447
+#: packages/admin/src/components/PluginManager.tsx:448
 msgid "Installed from marketplace (v{0})"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:466
+#: packages/admin/src/components/PluginManager.tsx:467
 msgid "Installed:"
 msgstr ""
 
@@ -3494,13 +3519,13 @@ msgstr ""
 msgid "Invite your first team member"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2468
-#: packages/admin/src/components/PortableTextEditor.tsx:2774
+#: packages/admin/src/components/PortableTextEditor.tsx:2494
+#: packages/admin/src/components/PortableTextEditor.tsx:2800
 msgid "Italic"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1624
+#: packages/admin/src/components/PortableTextEditor.tsx:1650
 #: packages/admin/src/components/RepeaterField.tsx:234
 msgid "Item {0}"
 msgstr ""
@@ -3560,7 +3585,7 @@ msgstr "Hizkuntza"
 msgid "Large section heading"
 msgstr "Atal-goiburu handia"
 
-#: packages/admin/src/components/PluginManager.tsx:472
+#: packages/admin/src/components/PluginManager.tsx:473
 msgid "Last enabled:"
 msgstr ""
 
@@ -3656,6 +3681,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentPickerModal.tsx:236
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
+#: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/routes/bylines.tsx:239
 msgid "Load more"
@@ -3677,7 +3703,7 @@ msgstr ""
 msgid "Loading comments..."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1724
+#: packages/admin/src/router.tsx:1767
 msgid "Loading configuration..."
 msgstr ""
 
@@ -3685,7 +3711,7 @@ msgstr ""
 msgid "Loading content..."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2295
+#: packages/admin/src/components/PortableTextEditor.tsx:2321
 msgid "Loading editor..."
 msgstr ""
 
@@ -3736,7 +3762,8 @@ msgstr ""
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/MediaLibrary.tsx:478
 #: packages/admin/src/components/MediaPickerModal.tsx:708
-#: packages/admin/src/components/PortableTextEditor.tsx:1751
+#: packages/admin/src/components/PortableTextEditor.tsx:1777
+#: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:176
 #: packages/admin/src/components/settings/SecuritySettings.tsx:113
 #: packages/admin/src/components/TaxonomyManager.tsx:777
@@ -3854,7 +3881,7 @@ msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:158
-#: packages/admin/src/components/PluginManager.tsx:305
+#: packages/admin/src/components/PluginManager.tsx:306
 #: packages/admin/src/components/Sidebar.tsx:219
 msgid "Marketplace"
 msgstr ""
@@ -3871,7 +3898,7 @@ msgstr ""
 msgid "Max Value"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1965
+#: packages/admin/src/components/PortableTextEditor.tsx:1991
 #: packages/admin/src/components/Sidebar.tsx:185
 #: packages/admin/src/components/WordPressImport.tsx:678
 #: packages/admin/src/components/WordPressImport.tsx:1173
@@ -4095,7 +4122,7 @@ msgstr "Nabigazioa"
 msgid "Never"
 msgstr ""
 
-#: packages/admin/src/router.tsx:844
+#: packages/admin/src/router.tsx:846
 msgid "new"
 msgstr ""
 
@@ -4283,7 +4310,7 @@ msgstr ""
 msgid "No invite token provided"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1547
+#: packages/admin/src/components/PortableTextEditor.tsx:1573
 #: packages/admin/src/components/RepeaterField.tsx:160
 msgid "No items yet"
 msgstr ""
@@ -4352,6 +4379,14 @@ msgstr ""
 msgid "No plugins found"
 msgstr ""
 
+#: packages/admin/src/components/RegistryBrowse.tsx:117
+msgid "No plugins have been published to this registry yet."
+msgstr ""
+
+#: packages/admin/src/components/RegistryBrowse.tsx:116
+msgid "No plugins match \"{debouncedQuery}\"."
+msgstr ""
+
 #: packages/admin/src/components/Sections.tsx:343
 msgid "No preview"
 msgstr ""
@@ -4364,7 +4399,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1112
+#: packages/admin/src/components/PortableTextEditor.tsx:1131
 msgid "No results"
 msgstr "Emaitzarik ez"
 
@@ -4434,7 +4469,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:109
 #: packages/admin/src/components/PortableTextEditor.tsx:896
-#: packages/admin/src/components/PortableTextEditor.tsx:2842
+#: packages/admin/src/components/PortableTextEditor.tsx:2868
 msgid "Numbered List"
 msgstr "Zenbakitutako zerrenda"
 
@@ -4551,15 +4586,15 @@ msgstr ""
 msgid "Ownership"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:457
 msgid "Package"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1750
+#: packages/admin/src/router.tsx:1793
 msgid "Page Not Found"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:323
+#: packages/admin/src/components/PluginManager.tsx:324
 #: packages/admin/src/components/WordPressImport.tsx:1167
 msgid "Pages"
 msgstr ""
@@ -4735,6 +4770,10 @@ msgstr ""
 msgid "Plugin not found"
 msgstr ""
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:210
+msgid "Plugin not found. The publisher handle or slug may be incorrect."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1048
 msgid "plugin on your WordPress site."
 msgstr ""
@@ -4743,16 +4782,20 @@ msgstr ""
 msgid "Plugin Permissions"
 msgstr ""
 
+#: packages/admin/src/components/RegistryBrowse.tsx:70
+msgid "Plugin Registry"
+msgstr ""
+
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginPage.tsx:40
 msgid "Plugin responded with {0}: {text}"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:255
+#: packages/admin/src/components/PluginManager.tsx:256
 msgid "Plugin uninstalled"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:242
+#: packages/admin/src/components/PluginManager.tsx:243
 msgid "Plugin updated"
 msgstr ""
 
@@ -4841,7 +4884,7 @@ msgstr ""
 #: packages/admin/src/components/ContentEditor.tsx:825
 #: packages/admin/src/components/ContentPickerModal.tsx:209
 #: packages/admin/src/components/Dashboard.tsx:187
-#: packages/admin/src/router.tsx:744
+#: packages/admin/src/router.tsx:746
 msgid "Published"
 msgstr ""
 
@@ -4854,6 +4897,10 @@ msgstr ""
 msgid "Published At"
 msgstr "Argitaraketa data"
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:236
+msgid "Published by"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:2000
 msgid "Quick create byline"
 msgstr ""
@@ -4865,7 +4912,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:85
 #: packages/admin/src/components/PortableTextEditor.tsx:906
-#: packages/admin/src/components/PortableTextEditor.tsx:2849
+#: packages/admin/src/components/PortableTextEditor.tsx:2875
 msgid "Quote"
 msgstr "Zita"
 
@@ -4935,7 +4982,7 @@ msgstr ""
 msgid "Redirects"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2985
+#: packages/admin/src/components/PortableTextEditor.tsx:3011
 msgid "Redo"
 msgstr ""
 
@@ -4968,10 +5015,14 @@ msgstr ""
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr ""
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:295
+msgid "Release is too new to install"
+msgstr ""
+
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/ContentEditor.tsx:1969
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
-#: packages/admin/src/components/PortableTextEditor.tsx:2948
+#: packages/admin/src/components/PortableTextEditor.tsx:2974
 #: packages/admin/src/components/settings/GeneralSettings.tsx:217
 #: packages/admin/src/components/settings/GeneralSettings.tsx:271
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
@@ -5018,13 +5069,13 @@ msgid "Remove Image?"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1663
+#: packages/admin/src/components/PortableTextEditor.tsx:1689
 #: packages/admin/src/components/RepeaterField.tsx:270
 msgid "Remove item {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2449
-#: packages/admin/src/components/PortableTextEditor.tsx:2450
+#: packages/admin/src/components/PortableTextEditor.tsx:2475
+#: packages/admin/src/components/PortableTextEditor.tsx:2476
 msgid "Remove link"
 msgstr ""
 
@@ -5153,7 +5204,7 @@ msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:1738
+#: packages/admin/src/router.tsx:1781
 msgid "Retry"
 msgstr ""
 
@@ -5161,7 +5212,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:778
+#: packages/admin/src/router.tsx:780
 msgid "Reverted to published version"
 msgstr ""
 
@@ -5326,7 +5377,7 @@ msgid "scheduled"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:832
-#: packages/admin/src/router.tsx:795
+#: packages/admin/src/router.tsx:797
 msgid "Scheduled"
 msgstr ""
 
@@ -5438,10 +5489,12 @@ msgid "Search pages and content..."
 msgstr "Bilatu orriak eta edukia..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:101
+#: packages/admin/src/components/RegistryBrowse.tsx:84
 msgid "Search plugins"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:97
+#: packages/admin/src/components/RegistryBrowse.tsx:80
 msgid "Search plugins..."
 msgstr ""
 
@@ -5476,7 +5529,7 @@ msgstr ""
 msgid "Searchable"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1975
+#: packages/admin/src/components/PortableTextEditor.tsx:2001
 msgid "Section"
 msgstr "Atala"
 
@@ -5625,8 +5678,8 @@ msgid "Select image"
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:138
-#: packages/admin/src/components/PortableTextEditor.tsx:2337
-#: packages/admin/src/components/PortableTextEditor.tsx:3010
+#: packages/admin/src/components/PortableTextEditor.tsx:2363
+#: packages/admin/src/components/PortableTextEditor.tsx:3036
 #: packages/admin/src/components/settings/SeoSettings.tsx:221
 msgid "Select Image"
 msgstr ""
@@ -5653,7 +5706,7 @@ msgid "Select which content types to import."
 msgstr ""
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:1758
+#: packages/admin/src/components/PortableTextEditor.tsx:1784
 #: packages/admin/src/components/RepeaterField.tsx:361
 msgid "Select..."
 msgstr ""
@@ -5747,7 +5800,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
 #: packages/admin/src/components/ContentTypeEditor.tsx:383
 #: packages/admin/src/components/Header.tsx:93
-#: packages/admin/src/components/PluginManager.tsx:384
+#: packages/admin/src/components/PluginManager.tsx:385
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:229
 #: packages/admin/src/components/WordPressImport.tsx:1647
@@ -5949,7 +6002,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:215
-#: packages/admin/src/components/PluginManager.tsx:444
+#: packages/admin/src/components/PluginManager.tsx:445
 #: packages/admin/src/components/Redirects.tsx:440
 #: packages/admin/src/components/SectionEditor.tsx:279
 msgid "Source"
@@ -5969,7 +6022,7 @@ msgstr ""
 msgid "Spam"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2998
+#: packages/admin/src/components/PortableTextEditor.tsx:3024
 msgid "Spotlight Mode"
 msgstr ""
 
@@ -5993,8 +6046,8 @@ msgstr "Egoera"
 msgid "Status code"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2482
-#: packages/admin/src/components/PortableTextEditor.tsx:2788
+#: packages/admin/src/components/PortableTextEditor.tsx:2508
+#: packages/admin/src/components/PortableTextEditor.tsx:2814
 msgid "Strikethrough"
 msgstr ""
 
@@ -6101,7 +6154,7 @@ msgstr ""
 msgid "test@example.com"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2758
+#: packages/admin/src/components/PortableTextEditor.tsx:2784
 msgid "Text formatting"
 msgstr ""
 
@@ -6138,7 +6191,7 @@ msgstr ""
 msgid "The name of your site, used in the header and metadata"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1752
+#: packages/admin/src/router.tsx:1795
 msgid "The page you're looking for doesn't exist."
 msgstr ""
 
@@ -6225,6 +6278,10 @@ msgstr ""
 msgid "This plugin requires no special permissions."
 msgstr ""
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:281
+msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
+msgstr ""
+
 #: packages/admin/src/components/Redirects.tsx:551
 msgid "This redirect rule will be permanently removed."
 msgstr ""
@@ -6267,7 +6324,7 @@ msgstr ""
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:570
+#: packages/admin/src/components/PluginManager.tsx:580
 msgid "This will remove the plugin and its bundle from your site."
 msgstr ""
 
@@ -6316,7 +6373,7 @@ msgstr ""
 msgid "to select"
 msgstr "aukeratzeko"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2574
+#: packages/admin/src/components/PortableTextEditor.tsx:2600
 msgid "Toggle header row"
 msgstr ""
 
@@ -6365,7 +6422,7 @@ msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/router.tsx:843
+#: packages/admin/src/router.tsx:845
 msgid "Translation created"
 msgstr ""
 
@@ -6461,30 +6518,34 @@ msgstr ""
 msgid "Unassigned"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2475
-#: packages/admin/src/components/PortableTextEditor.tsx:2781
+#: packages/admin/src/components/PortableTextEditor.tsx:2501
+#: packages/admin/src/components/PortableTextEditor.tsx:2807
 msgid "Underline"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2978
+#: packages/admin/src/components/PortableTextEditor.tsx:3004
 msgid "Undo"
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:494
-#: packages/admin/src/components/PluginManager.tsx:584
+#: packages/admin/src/components/PluginManager.tsx:495
+#: packages/admin/src/components/PluginManager.tsx:594
 msgid "Uninstall"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:568
+#: packages/admin/src/components/PluginManager.tsx:578
 msgid "Uninstall {pluginName}?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:563
+#: packages/admin/src/components/PluginManager.tsx:573
 msgid "Uninstall confirmation"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:584
+#: packages/admin/src/components/PluginManager.tsx:505
+msgid "Uninstall is not yet available for registry plugins. Disable the plugin to stop it from running; full uninstall will land in a follow-up."
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:594
 msgid "Uninstalling..."
 msgstr ""
 
@@ -6521,7 +6582,7 @@ msgstr ""
 msgid "Unpublish"
 msgstr ""
 
-#: packages/admin/src/router.tsx:760
+#: packages/admin/src/router.tsx:762
 msgid "Unpublished"
 msgstr ""
 
@@ -6533,7 +6594,7 @@ msgstr ""
 msgid "Unschedule"
 msgstr ""
 
-#: packages/admin/src/router.tsx:813
+#: packages/admin/src/router.tsx:815
 msgid "Unscheduled"
 msgstr ""
 
@@ -6553,6 +6614,10 @@ msgstr ""
 #: packages/admin/src/components/Widgets.tsx:466
 #: packages/admin/src/components/Widgets.tsx:729
 msgid "Untitled Widget"
+msgstr ""
+
+#: packages/admin/src/components/PublisherHandle.tsx:145
+msgid "Unverified publisher"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1948
@@ -6586,7 +6651,7 @@ msgid "Update this redirect rule."
 msgstr ""
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:364
+#: packages/admin/src/components/PluginManager.tsx:365
 msgid "Update to v{0}"
 msgstr ""
 
@@ -6604,7 +6669,7 @@ msgid "Updating content URLs..."
 msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:144
-#: packages/admin/src/components/PluginManager.tsx:364
+#: packages/admin/src/components/PluginManager.tsx:365
 msgid "Updating..."
 msgstr ""
 
@@ -6706,7 +6771,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:586
 #: packages/admin/src/components/MenuEditor.tsx:331
 #: packages/admin/src/components/MenuEditor.tsx:501
-#: packages/admin/src/components/PortableTextEditor.tsx:2914
+#: packages/admin/src/components/PortableTextEditor.tsx:2940
 msgid "URL"
 msgstr ""
 
@@ -6795,13 +6860,18 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr ""
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:308
+#: packages/admin/src/components/PluginManager.tsx:309
 msgid "v{0} available"
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:460
 #: packages/admin/src/components/FieldEditor.tsx:490
 msgid "Validation"
+msgstr ""
+
+#: packages/admin/src/components/RegistryBrowse.tsx:183
+#: packages/admin/src/components/RegistryPluginDetail.tsx:231
+msgid "Verified publisher"
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:194
@@ -6821,6 +6891,11 @@ msgstr ""
 msgid "Version"
 msgstr ""
 
+#. placeholder {0}: release.version
+#: packages/admin/src/components/RegistryPluginDetail.tsx:241
+msgid "Version {0}"
+msgstr ""
+
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Video"
 msgstr ""
@@ -6829,7 +6904,7 @@ msgstr ""
 msgid "View email provider status and send test emails"
 msgstr "Erakutsi email hornitzailearen egoera eta bidali probako emailak"
 
-#: packages/admin/src/components/PluginManager.tsx:376
+#: packages/admin/src/components/PluginManager.tsx:377
 msgid "View in Marketplace"
 msgstr ""
 
@@ -6861,6 +6936,10 @@ msgstr ""
 #. placeholder {0}: result.url
 #: packages/admin/src/components/WordPressImport.tsx:1105
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:279
+msgid "We couldn't verify this publisher's identity"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:926
@@ -6958,7 +7037,7 @@ msgid "Widget updated"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
-#: packages/admin/src/components/PluginManager.tsx:329
+#: packages/admin/src/components/PluginManager.tsx:330
 #: packages/admin/src/components/Sidebar.tsx:197
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
@@ -7021,7 +7100,7 @@ msgstr ""
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "Webgune hau osorik kudeatu dezakezu, erabiltzaileak, ezarpenak eta eduki guztia barne."
 
-#: packages/admin/src/router.tsx:1152
+#: packages/admin/src/router.tsx:1154
 msgid "You need Editor permissions to moderate comments."
 msgstr ""
 
@@ -7114,6 +7193,11 @@ msgstr ""
 #: packages/admin/src/components/WelcomeModal.tsx:40
 msgid "Your Role"
 msgstr "Zure rola"
+
+#. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
+#: packages/admin/src/components/RegistryPluginDetail.tsx:297
+msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
+msgstr ""
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:135
 msgid "Your Twitter/X handle (e.g., @username)"

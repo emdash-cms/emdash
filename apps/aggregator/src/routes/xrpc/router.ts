@@ -41,6 +41,35 @@ const NO_STORE = "private, no-store";
 const SYNC_GET_RECORD_PATH = "/xrpc/com.atproto.sync.getRecord";
 
 /**
+ * CORS for the aggregator's XRPC surface.
+ *
+ * The aggregator is a public read-only service: admin UIs running on
+ * arbitrary EmDash sites call it directly from the browser. The atproto
+ * spec doesn't standardize CORS for XRPC services, but browser clients
+ * need `Access-Control-Allow-Origin` to access the JSON responses.
+ *
+ * `*` is correct here because nothing in our responses depends on the
+ * caller's origin or credentials -- there are no cookies, no auth, no
+ * per-origin policy. We allow `atproto-accept-labelers` and
+ * `content-type` as request headers (the only two clients send), echo
+ * back the labellers header for symmetry with atproto's labeller-aware
+ * clients, and cap preflight cache at 24h.
+ */
+const CORS_HEADERS: Record<string, string> = {
+	"access-control-allow-origin": "*",
+	"access-control-allow-methods": "GET, POST, OPTIONS",
+	"access-control-allow-headers": "content-type, atproto-accept-labelers",
+	"access-control-expose-headers": "atproto-accept-labelers, content-language",
+	"access-control-max-age": "86400",
+};
+
+function applyCorsHeaders(headers: Headers): void {
+	for (const [name, value] of Object.entries(CORS_HEADERS)) {
+		headers.set(name, value);
+	}
+}
+
+/**
  * Dispatch any `/xrpc/*` request. Returns null when the path isn't an
  * XRPC route (caller falls through to other route matching).
  */
@@ -48,8 +77,24 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 	const url = new URL(request.url);
 	if (!url.pathname.startsWith("/xrpc/")) return null;
 
+	// CORS preflight. Browsers send OPTIONS before any cross-origin XRPC
+	// call; we answer with the same allow-list as the actual response
+	// so the real request goes through.
+	if (request.method === "OPTIONS") {
+		const headers = new Headers();
+		applyCorsHeaders(headers);
+		return new Response(null, { status: 204, headers });
+	}
+
 	if (url.pathname === SYNC_GET_RECORD_PATH) {
-		return syncGetRecord(env, request);
+		const response = await syncGetRecord(env, request);
+		const headers = new Headers(response.headers);
+		applyCorsHeaders(headers);
+		return new Response(response.body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers,
+		});
 	}
 
 	const router = getRouter(env);
@@ -63,6 +108,7 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 	// frozen Response from `json()`.
 	const headers = new Headers(response.headers);
 	headers.set("cache-control", NO_STORE);
+	applyCorsHeaders(headers);
 	return new Response(response.body, {
 		status: response.status,
 		statusText: response.statusText,

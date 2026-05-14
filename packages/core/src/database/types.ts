@@ -275,10 +275,14 @@ export interface PluginStateTable {
 	activated_at: string | null;
 	deactivated_at: string | null;
 	data: string | null; // JSON
-	source: Generated<string>; // 'config' | 'marketplace'
+	source: Generated<string>; // 'config' | 'marketplace' | 'registry'
 	marketplace_version: string | null;
 	display_name: string | null;
 	description: string | null;
+	// Registry-specific columns (added by migration 038). Always null for
+	// `source = 'config' | 'marketplace'`; populated for `source = 'registry'`.
+	registry_publisher_did: string | null;
+	registry_slug: string | null;
 }
 
 export interface PluginIndexTable {

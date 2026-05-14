@@ -144,8 +144,43 @@ export interface EmDashManifest {
 	/**
 	 * Whether the plugin marketplace is configured.
 	 * When true, the admin UI can show marketplace browse/install features.
+	 *
+	 * When `registry` is also present, the registry replaces the marketplace
+	 * for the admin UI's browse and install flows. Existing marketplace-installed
+	 * plugins continue to work; new installs and updates use the registry.
 	 */
 	marketplace?: boolean;
+	/**
+	 * Decentralized plugin registry configuration.
+	 *
+	 * When present, the admin UI uses the registry instead of the
+	 * centralized marketplace for browse and install. The aggregator URL
+	 * and policy fields are read by the browser; the `acceptLabelers`
+	 * header value is forwarded with every aggregator request.
+	 *
+	 * See the `registry` integration option in `astro.config.mjs`.
+	 */
+	registry?: {
+		aggregatorUrl: string;
+		acceptLabelers?: string;
+		policy?: {
+			/**
+			 * Minimum release age in seconds. The admin UI's
+			 * latest-release selection filter holds back releases younger
+			 * than this when computing the recommended install/update.
+			 *
+			 * Normalized from the integration option's duration string
+			 * (`"48h"`) to seconds at manifest build time so the browser
+			 * doesn't need a duration parser.
+			 */
+			minimumReleaseAgeSeconds?: number;
+			/**
+			 * Publishers / packages exempt from {@link minimumReleaseAgeSeconds}.
+			 * See `RegistryConfig.policy.minimumReleaseAgeExclude`.
+			 */
+			minimumReleaseAgeExclude?: string[];
+		};
+	};
 	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.
@@ -394,6 +429,9 @@ export interface EmDashHandlers {
 
 	// Sync marketplace plugin states (after install/update/uninstall)
 	syncMarketplacePlugins: () => Promise<void>;
+
+	// Sync registry plugin states (after install/update/uninstall)
+	syncRegistryPlugins: () => Promise<void>;
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
 	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;
