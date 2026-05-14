@@ -15,8 +15,7 @@
 	},
 	"files": [
 		"dist",
-		"schemas",
-		"templates"
+		"schemas"
 	],
 	"scripts": {
 		"build": "node --run gen-schema && tsdown",

@@ -61,6 +61,12 @@ export function normaliseManifest(manifest: Manifest): NormalisedManifest {
  * `publishRelease` consumes. For multi-author manifests, the first
  * author wins (the publish lexicon supports an array, but
  * `ProfileBootstrap` doesn't model that yet).
+ *
+ * `name`, `description`, `keywords`, and `repo` are accepted by the
+ * manifest schema but not wired through here. They land in publish in a
+ * follow-up issue alongside the broader profile-fields work. The fields
+ * are not silently lost — the manifest is the source of truth and we'll
+ * read them again when the publish API accepts them.
  */
 export function manifestToProfileBootstrap(manifest: NormalisedManifest): ProfileBootstrap {
 	const author = manifest.authors[0];
