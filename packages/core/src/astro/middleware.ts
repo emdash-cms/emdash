@@ -527,6 +527,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Sync marketplace plugin states (after install/update/uninstall)
 					syncMarketplacePlugins: runtime.syncMarketplacePlugins.bind(runtime),
 
+					// Sync registry plugin states (after install/update/uninstall)
+					syncRegistryPlugins: runtime.syncRegistryPlugins.bind(runtime),
+
 					// Update plugin enabled/disabled status and rebuild hook pipeline
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),
 				};

@@ -1,0 +1,132 @@
+name: CodeQL
+
+# Advanced setup so we can control when analysis runs. The "Require code
+# scanning results" ruleset rule waits for a SARIF upload; if a PR doesn't
+# touch code (locale-only, workflow-only) and the workflow never runs, the
+# check sits pending forever. We always run a job per language and either do
+# the real analysis (when relevant paths changed) or upload an empty SARIF so
+# the check reports cleanly.
+#
+# Parity with the previous default setup:
+#   - languages: actions, javascript-typescript
+#     (javascript and typescript are subsumed by javascript-typescript)
+#   - query suite: default
+#   - threat model: remote
+#   - schedule: weekly
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly run, matches previous default setup cadence.
+    - cron: "0 6 * * 1"
+
+permissions: {}
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+      pull-requests: read # dorny/paths-filter calls the PRs API on pull_request events
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            paths-filter: |
+              code:
+                - '.github/workflows/**'
+                - '.github/actions/**'
+          - language: javascript-typescript
+            paths-filter: |
+              code:
+                - '**/*.ts'
+                - '**/*.tsx'
+                - '**/*.js'
+                - '**/*.jsx'
+                - '**/*.mjs'
+                - '**/*.cjs'
+                - '**/package.json'
+                - '**/pnpm-lock.yaml'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      # On push and schedule, always analyze. On pull_request, only analyze
+      # when paths relevant to this language changed.
+      - name: Detect relevant changes
+        id: changes
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          filters: ${{ matrix.paths-filter }}
+
+      - name: Decide whether to analyze
+        id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CHANGED: ${{ steps.changes.outputs.code }}
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ] || [ "$CHANGED" = "true" ]; then
+            echo "analyze=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "analyze=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Initialize CodeQL
+        if: steps.decide.outputs.analyze == 'true'
+        uses: github/codeql-action/init@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Perform CodeQL analysis
+        if: steps.decide.outputs.analyze == 'true'
+        uses: github/codeql-action/analyze@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
+        with:
+          category: "/language:${{ matrix.language }}"
+
+      # When skipped, upload an empty SARIF so the "Require code scanning
+      # results" rule on the branch ruleset sees a result and passes the PR.
+      - name: Write empty SARIF
+        if: steps.decide.outputs.analyze != 'true'
+        env:
+          LANGUAGE: ${{ matrix.language }}
+        run: |
+          cat > empty.sarif <<EOF
+          {
+            "version": "2.1.0",
+            "\$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+            "runs": [
+              {
+                "tool": {
+                  "driver": {
+                    "name": "CodeQL",
+                    "semanticVersion": "0.0.0",
+                    "rules": []
+                  }
+                },
+                "results": [],
+                "automationDetails": {
+                  "id": "/language:${LANGUAGE}/"
+                }
+              }
+            ]
+          }
+          EOF
+
+      - name: Upload empty SARIF
+        if: steps.decide.outputs.analyze != 'true'
+        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
+        with:
+          sarif_file: empty.sarif
+          category: "/language:${{ matrix.language }}"

@@ -229,6 +229,7 @@ function PluginCard({
 	const toastManager = Toast.useToastManager();
 
 	const isMarketplace = plugin.source === "marketplace";
+	const isRegistry = plugin.source === "registry";
 	const hasUpdate = !!updateInfo && updateInfo.installed !== updateInfo.latest;
 
 	const updateMutation = useMutation({
@@ -493,6 +494,15 @@ function PluginCard({
 								>
 									{t`Uninstall`}
 								</Button>
+							</div>
+						)}
+
+						{/* Registry plugins have an install path but no uninstall
+						    handler yet. Tell the admin so they don't think the
+						    plugin is permanent or fall back to editing the DB. */}
+						{isRegistry && (
+							<div className="pt-2 border-t text-xs text-kumo-subtle">
+								{t`Uninstall is not yet available for registry plugins. Disable the plugin to stop it from running; full uninstall will land in a follow-up.`}
 							</div>
 						)}
 					</div>

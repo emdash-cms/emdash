@@ -31,11 +31,15 @@
     "locale:extract": "lingui extract --clean"
   },
   "dependencies": {
-    "@cloudflare/kumo": "^1.16.0",
+    "@atcute/identity-resolver": "catalog:",
+    "@atcute/lexicons": "catalog:",
+    "@cloudflare/kumo": "catalog:",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@emdash-cms/blocks": "workspace:*",
+    "@emdash-cms/registry-client": "workspace:*",
+    "@emdash-cms/registry-lexicons": "workspace:*",
     "@floating-ui/react": "^0.27.16",
     "@lingui/core": "catalog:",
     "@lingui/react": "catalog:",

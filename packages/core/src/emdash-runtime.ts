@@ -161,6 +161,7 @@ import { NodeCronScheduler } from "./plugins/scheduler/node.js";
 import { PiggybackScheduler } from "./plugins/scheduler/piggyback.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
+import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { FTSManager } from "./search/fts-manager.js";
@@ -304,8 +305,19 @@ const dbCache = new Map<string, Kysely<Database>>();
 let dbInitPromise: Promise<Kysely<Database>> | null = null;
 const storageCache = new Map<string, Storage>();
 const sandboxedPluginCache = new Map<string, SandboxedPlugin>();
+/**
+ * Per-tier sets of `${pluginId}:${version}` keys present in
+ * `sandboxedPluginCache`. Used during sync to know which entries belong
+ * to which install source so we can invalidate only what belongs to the
+ * tier currently being synced.
+ */
 const marketplacePluginKeys = new Set<string>();
-/** Manifest metadata for marketplace plugins: pluginId -> manifest admin config */
+const registryPluginKeys = new Set<string>();
+/**
+ * Manifest metadata for runtime-installed sandboxed plugins (marketplace
+ * and registry both). Keyed by `pluginId`; readers don't care which
+ * source the plugin came from. Named `marketplace*` for legacy reasons.
+ */
 const marketplaceManifestCache = new Map<
 	string,
 	{
@@ -506,15 +518,46 @@ export class EmDashRuntime {
 	 * current worker: loads newly active plugins and removes uninstalled ones.
 	 */
 	async syncMarketplacePlugins(): Promise<void> {
-		if (!this.config.marketplace || !this.storage) return;
+		if (!this.config.marketplace) return;
+		await this.syncSandboxedSourcePlugins("marketplace");
+	}
+
+	/**
+	 * Synchronize registry plugin runtime state with DB + storage.
+	 *
+	 * Mirrors {@link syncMarketplacePlugins} for plugins installed via the
+	 * experimental decentralized plugin registry. Called after install,
+	 * update, and uninstall handlers complete.
+	 */
+	async syncRegistryPlugins(): Promise<void> {
+		if (!this.config.experimental?.registry) return;
+		await this.syncSandboxedSourcePlugins("registry");
+	}
+
+	/**
+	 * Internal: reconcile in-memory sandboxed-plugin state with the
+	 * `_plugin_state` table for the given source tier. Shared
+	 * implementation behind `syncMarketplacePlugins` and
+	 * `syncRegistryPlugins`.
+	 *
+	 * Each source tier has its own key set in `${source}PluginKeys` so a
+	 * sync for one tier doesn't invalidate the other.
+	 */
+	private async syncSandboxedSourcePlugins(source: "marketplace" | "registry"): Promise<void> {
+		if (!this.storage) return;
 		if (!sandboxRunner || !sandboxRunner.isAvailable()) return;
+
+		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
 
 		try {
 			const stateRepo = new PluginStateRepository(this.db);
-			const marketplaceStates = await stateRepo.getMarketplacePlugins();
+			const states =
+				source === "marketplace"
+					? await stateRepo.getMarketplacePlugins()
+					: await stateRepo.getRegistryPlugins();
 
 			const desired = new Map<string, string>();
-			for (const state of marketplaceStates) {
+			for (const state of states) {
 				this.pluginStates.set(state.pluginId, state.status);
 				if (state.status === "active") {
 					this.enabledPlugins.add(state.pluginId);
@@ -522,12 +565,16 @@ export class EmDashRuntime {
 					this.enabledPlugins.delete(state.pluginId);
 				}
 				if (state.status !== "active") continue;
-				desired.set(state.pluginId, state.marketplaceVersion ?? state.version);
+				// Marketplace plugins use `marketplaceVersion` when present;
+				// registry plugins always use `version`.
+				const desiredVersion =
+					source === "marketplace" ? (state.marketplaceVersion ?? state.version) : state.version;
+				desired.set(state.pluginId, desiredVersion);
 			}
 
-			// Remove uninstalled or no-longer-active marketplace plugins from memory.
+			// Remove uninstalled or no-longer-active plugins from memory.
 			const keysToRemove: string[] = [];
-			for (const key of marketplacePluginKeys) {
+			for (const key of keySet) {
 				const [pluginId] = key.split(":");
 				if (!pluginId) continue;
 				const desiredVersion = desired.get(pluginId);
@@ -555,31 +602,31 @@ export class EmDashRuntime {
 
 				sandboxedPluginCache.delete(key);
 				this.sandboxedPlugins.delete(key);
-				marketplacePluginKeys.delete(key);
+				keySet.delete(key);
 				if (pluginId) {
 					sandboxedRouteMetaCache.delete(pluginId);
 					marketplaceManifestCache.delete(pluginId);
 				}
 			}
 
-			// Load newly active marketplace plugins.
+			// Load newly active plugins.
 			for (const [pluginId, version] of desired) {
 				const key = `${pluginId}:${version}`;
 				if (sandboxedPluginCache.has(key)) {
-					marketplacePluginKeys.add(key);
+					keySet.add(key);
 					continue;
 				}
 
-				const bundle = await loadBundleFromR2(this.storage, pluginId, version);
+				const bundle = await loadBundleFromR2(this.storage, pluginId, version, source);
 				if (!bundle) {
-					console.warn(`EmDash: Marketplace plugin ${pluginId}@${version} not found in R2`);
+					console.warn(`EmDash: ${source} plugin ${pluginId}@${version} not found in R2`);
 					continue;
 				}
 
 				const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
 				sandboxedPluginCache.set(key, loaded);
 				this.sandboxedPlugins.set(key, loaded);
-				marketplacePluginKeys.add(key);
+				keySet.add(key);
 
 				// Cache manifest admin config for getManifest()
 				marketplaceManifestCache.set(pluginId, {
@@ -601,7 +648,7 @@ export class EmDashRuntime {
 				}
 			}
 		} catch (error) {
-			console.error("EmDash: Failed to sync marketplace plugins:", error);
+			console.error(`EmDash: Failed to sync ${source} plugins:`, error);
 		}
 	}
 
@@ -756,7 +803,26 @@ export class EmDashRuntime {
 		// Cold-start: load marketplace-installed plugins from site R2
 		if (deps.config.marketplace && storage) {
 			await phase("rt.market", "Marketplace plugins", () =>
-				EmDashRuntime.loadMarketplacePlugins(db, storage, deps, sandboxedPlugins),
+				EmDashRuntime.loadInstalledSandboxedPlugins(
+					"marketplace",
+					db,
+					storage,
+					deps,
+					sandboxedPlugins,
+				),
+			);
+		}
+
+		// Cold-start: load registry-installed plugins from site R2
+		if (deps.config.experimental?.registry && storage) {
+			await phase("rt.registry", "Registry plugins", () =>
+				EmDashRuntime.loadInstalledSandboxedPlugins(
+					"registry",
+					db,
+					storage,
+					deps,
+					sandboxedPlugins,
+				),
 			);
 		}
 
@@ -1120,7 +1186,16 @@ export class EmDashRuntime {
 	 * Queries _plugin_state for source='marketplace' rows, fetches each bundle
 	 * from R2, and loads via SandboxRunner.
 	 */
-	private static async loadMarketplacePlugins(
+	/**
+	 * Cold-start load of all active sandboxed plugins for one install
+	 * tier (marketplace or registry) from site-local R2.
+	 *
+	 * Mirrors {@link syncSandboxedSourcePlugins} but runs once at runtime
+	 * creation, before request traffic arrives; the sync method runs on
+	 * demand after install / update / uninstall handlers.
+	 */
+	private static async loadInstalledSandboxedPlugins(
+		source: "marketplace" | "registry",
 		db: Kysely<Database>,
 		storage: Storage,
 		deps: RuntimeDependencies,
@@ -1134,31 +1209,37 @@ export class EmDashRuntime {
 			return;
 		}
 
+		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
+
 		try {
 			const stateRepo = new PluginStateRepository(db);
-			const marketplacePlugins = await stateRepo.getMarketplacePlugins();
+			const plugins =
+				source === "marketplace"
+					? await stateRepo.getMarketplacePlugins()
+					: await stateRepo.getRegistryPlugins();
 
-			for (const plugin of marketplacePlugins) {
+			for (const plugin of plugins) {
 				if (plugin.status !== "active") continue;
 
-				const version = plugin.marketplaceVersion ?? plugin.version;
+				// Marketplace plugins record the live version in
+				// `marketplaceVersion`; registry plugins use `version` directly.
+				const version =
+					source === "marketplace" ? (plugin.marketplaceVersion ?? plugin.version) : plugin.version;
 				const pluginKey = `${plugin.pluginId}:${version}`;
 
 				// Skip if already loaded (shouldn't happen, but guard)
 				if (cache.has(pluginKey)) continue;
 
 				try {
-					const bundle = await loadBundleFromR2(storage, plugin.pluginId, version);
+					const bundle = await loadBundleFromR2(storage, plugin.pluginId, version, source);
 					if (!bundle) {
-						console.warn(
-							`EmDash: Marketplace plugin ${plugin.pluginId}@${version} not found in R2`,
-						);
+						console.warn(`EmDash: ${source} plugin ${plugin.pluginId}@${version} not found in R2`);
 						continue;
 					}
 
 					const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
 					cache.set(pluginKey, loaded);
-					marketplacePluginKeys.add(pluginKey);
+					keySet.add(pluginKey);
 
 					// Cache manifest admin config for getManifest()
 					marketplaceManifestCache.set(plugin.pluginId, {
@@ -1178,10 +1259,10 @@ export class EmDashRuntime {
 					}
 
 					console.log(
-						`EmDash: Loaded marketplace plugin ${pluginKey} with capabilities: [${bundle.manifest.capabilities.join(", ")}]`,
+						`EmDash: Loaded ${source} plugin ${pluginKey} with capabilities: [${bundle.manifest.capabilities.join(", ")}]`,
 					);
 				} catch (error) {
-					console.error(`EmDash: Failed to load marketplace plugin ${plugin.pluginId}:`, error);
+					console.error(`EmDash: Failed to load ${source} plugin ${plugin.pluginId}:`, error);
 				}
 			}
 		} catch {
@@ -1486,6 +1567,12 @@ export class EmDashRuntime {
 				? { defaultLocale: i18nConfig.defaultLocale, locales: i18nConfig.locales }
 				: undefined;
 
+		// Normalize the experimental registry config for browser consumption.
+		// Validation errors here surface as 500s from the manifest endpoint
+		// rather than being silently dropped -- a misconfigured registry
+		// should be loud, not invisible.
+		const registry = normalizeRegistryConfig(this.config.experimental?.registry) ?? undefined;
+
 		return {
 			version: VERSION,
 			commit: COMMIT,
@@ -1496,6 +1583,7 @@ export class EmDashRuntime {
 			authMode: authModeValue,
 			i18n,
 			marketplace: !!this.config.marketplace,
+			registry,
 		};
 	}
 
