@@ -1,0 +1,312 @@
+/**
+ * Read and validate an `emdash-plugin.jsonc` manifest from disk.
+ *
+ * Three failure modes, each with a distinct error code for scriptable
+ * consumers (`validate --json`, programmatic API users):
+ *
+ *   - `MANIFEST_NOT_FOUND` — file doesn't exist at the resolved path.
+ *   - `MANIFEST_PARSE_ERROR` — JSONC parse failure (trailing comma, missing
+ *     bracket, control char in string). Includes line + column from
+ *     `jsonc-parser`'s offset.
+ *   - `MANIFEST_VALIDATION_ERROR` — JSONC parsed cleanly but the value
+ *     failed the Zod schema. Includes the field path and the offending
+ *     value's location in the source where possible.
+ *
+ * The line/column mapping is critical for editor-side workflows: a user
+ * running `emdash-registry validate` from a CI step wants the same kind of
+ * pointer they'd get from `tsc` or `eslint`, not a Zod issue tree.
+ */
+
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+import { parseTree, type Node, type ParseError, printParseErrorCode } from "jsonc-parser";
+import type { ZodIssue } from "zod";
+
+import { ManifestSchema, type Manifest } from "./schema.js";
+
+/**
+ * Conventional manifest filename. Lives next to the plugin's `package.json`.
+ */
+export const MANIFEST_FILENAME = "emdash-plugin.jsonc";
+
+export type ManifestErrorCode =
+	| "MANIFEST_NOT_FOUND"
+	| "MANIFEST_PARSE_ERROR"
+	| "MANIFEST_VALIDATION_ERROR";
+
+export class ManifestError extends Error {
+	override readonly name = "ManifestError";
+	readonly code: ManifestErrorCode;
+	/** Resolved absolute path of the manifest file. */
+	readonly path: string;
+	/**
+	 * Issues for `MANIFEST_VALIDATION_ERROR`. One per failed rule, each
+	 * carrying a JSON pointer-style path and an optional source location.
+	 * Empty for the other error codes.
+	 */
+	readonly issues: ManifestIssue[];
+
+	constructor(
+		code: ManifestErrorCode,
+		message: string,
+		path: string,
+		issues: ManifestIssue[] = [],
+	) {
+		super(message);
+		this.code = code;
+		this.path = path;
+		this.issues = issues;
+	}
+}
+
+export interface ManifestIssue {
+	/** Dotted/bracketed JSON path, e.g. `authors[0].email`. */
+	path: string;
+	message: string;
+	/** 1-indexed line and column in the manifest source, when known. */
+	location?: { line: number; column: number };
+}
+
+export interface LoadManifestResult {
+	manifest: Manifest;
+	/** Resolved absolute path. */
+	path: string;
+}
+
+/**
+ * Load and validate a manifest at `path`. `path` may be a directory (in
+ * which case `emdash-plugin.jsonc` is appended) or a file.
+ *
+ * Throws `ManifestError` on every failure path. Successful return guarantees
+ * the manifest is schema-valid (but normalisation to the publish-input
+ * shape still needs `./translate.ts`).
+ */
+export async function loadManifest(path: string): Promise<LoadManifestResult> {
+	const resolved = resolve(path);
+	// Heuristic: paths that end in `.jsonc` or `.json` are treated as
+	// files; everything else is treated as a directory. We don't `stat`
+	// to disambiguate because the error path "missing file" should be the
+	// same regardless of which form the caller passed.
+	const filePath =
+		resolved.endsWith(".jsonc") || resolved.endsWith(".json")
+			? resolved
+			: resolve(resolved, MANIFEST_FILENAME);
+
+	let source: string;
+	try {
+		source = await readFile(filePath, "utf8");
+	} catch (error) {
+		if (isNodeNotFoundError(error)) {
+			throw new ManifestError(
+				"MANIFEST_NOT_FOUND",
+				`No manifest at ${filePath}. Create one with: emdash-registry init`,
+				filePath,
+			);
+		}
+		throw error;
+	}
+
+	return parseAndValidate(source, filePath);
+}
+
+/**
+ * Variant for callers that already have the source text in hand (tests,
+ * editor integrations that read the buffer). The `path` argument is used
+ * for error messages only.
+ */
+export function parseAndValidateManifest(source: string, path: string): LoadManifestResult {
+	return parseAndValidate(source, path);
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Internals
+// ──────────────────────────────────────────────────────────────────────────
+
+function parseAndValidate(source: string, filePath: string): LoadManifestResult {
+	const parseErrors: ParseError[] = [];
+	// `parseTree` gives us both the parsed value AND the syntax tree, so we
+	// can map a Zod issue's path back to a source offset. `parse` alone
+	// loses that information.
+	const root = parseTree(source, parseErrors, {
+		// Comments are part of the JSONC contract. Trailing commas are
+		// allowed because they reduce diff noise when the user adds a new
+		// field at the end.
+		disallowComments: false,
+		allowTrailingComma: true,
+		allowEmptyContent: false,
+	});
+
+	if (parseErrors.length > 0) {
+		const first = parseErrors[0]!;
+		const { line, column } = offsetToLineCol(source, first.offset);
+		throw new ManifestError(
+			"MANIFEST_PARSE_ERROR",
+			`${filePath}:${line}:${column}: ${printParseErrorCode(first.error)}`,
+			filePath,
+		);
+	}
+
+	if (!root) {
+		// Shouldn't be reachable when `allowEmptyContent: false` is set and
+		// `parseErrors` is empty, but `parseTree`'s return type is nullable.
+		throw new ManifestError("MANIFEST_PARSE_ERROR", `${filePath}: file is empty`, filePath);
+	}
+
+	const value = nodeToValue(root);
+
+	const result = ManifestSchema.safeParse(value);
+	if (!result.success) {
+		const issues = result.error.issues.map((issue) => zodIssueToManifestIssue(issue, source, root));
+		const summary = issues
+			.map((i) => {
+				const loc = i.location ? `:${i.location.line}:${i.location.column}` : "";
+				return `${filePath}${loc}: ${i.path ? `${i.path}: ` : ""}${i.message}`;
+			})
+			.join("\n");
+		throw new ManifestError(
+			"MANIFEST_VALIDATION_ERROR",
+			`Manifest validation failed:\n${summary}`,
+			filePath,
+			issues,
+		);
+	}
+
+	return { manifest: result.data, path: filePath };
+}
+
+/**
+ * Map a Zod issue to a manifest issue. The path translation strips the
+ * leading `$` that some Zod versions prepend and produces the JSONC-style
+ * `authors[0].email` syntax users will recognise.
+ *
+ * Zod 4 types path segments as `PropertyKey` (string | number | symbol).
+ * Symbols cannot appear in a JSON-parsed value's path (JSON has no symbol
+ * keys), so we narrow defensively and treat any stray symbol as an
+ * opaque "<symbol>" string in the displayed path.
+ */
+function zodIssueToManifestIssue(issue: ZodIssue, source: string, root: Node): ManifestIssue {
+	const path = narrowZodPath(issue.path);
+	const pathStr = formatZodPath(path);
+	const node = findNodeAtPath(root, path);
+	const offset = node?.offset;
+	const location = offset !== undefined ? offsetToLineCol(source, offset) : undefined;
+	return location
+		? { path: pathStr, message: issue.message, location }
+		: { path: pathStr, message: issue.message };
+}
+
+/**
+ * Coerce a Zod 4 issue path (`PropertyKey[]`) to the string|number form
+ * the rest of the loader uses. A symbol segment is impossible for JSONC
+ * input, but we render it defensively rather than crashing.
+ */
+function narrowZodPath(path: ReadonlyArray<PropertyKey>): Array<string | number> {
+	return path.map((segment) => {
+		if (typeof segment === "string" || typeof segment === "number") return segment;
+		return segment.toString();
+	});
+}
+
+/**
+ * Format a Zod path array as `authors[0].email`. Numbers become bracketed
+ * indices; strings become dot-prefixed (except the first).
+ */
+function formatZodPath(path: ReadonlyArray<string | number>): string {
+	let out = "";
+	for (const segment of path) {
+		if (typeof segment === "number") {
+			out += `[${segment}]`;
+		} else {
+			out += out.length === 0 ? segment : `.${segment}`;
+		}
+	}
+	return out;
+}
+
+/**
+ * Walk the JSONC syntax tree to find the node at a given path. Returns
+ * `undefined` if the path traverses through a missing key (which is
+ * common for "required" issues: the field doesn't exist in the source,
+ * so we point at the parent object instead).
+ */
+function findNodeAtPath(root: Node, path: ReadonlyArray<string | number>): Node | undefined {
+	let current: Node | undefined = root;
+	for (const segment of path) {
+		if (!current) return undefined;
+		if (typeof segment === "number") {
+			if (current.type !== "array" || !current.children) return current;
+			current = current.children[segment];
+		} else {
+			if (current.type !== "object" || !current.children) return current;
+			const prop = current.children.find(
+				(c) =>
+					c.type === "property" &&
+					c.children?.[0]?.type === "string" &&
+					c.children[0].value === segment,
+			);
+			// `property` node's children are [keyNode, valueNode]. We want
+			// the value for further traversal.
+			current = prop?.children?.[1];
+		}
+	}
+	return current;
+}
+
+/**
+ * Convert a JSONC syntax-tree node to its plain JavaScript value. The
+ * `parseTree` API doesn't return values directly; this walks the tree.
+ *
+ * We can't use `jsonc-parser`'s `parse()` (which would give us the value
+ * directly) because we need the tree anyway for error-location mapping,
+ * and parsing twice doubles the work for a file we're about to validate.
+ */
+function nodeToValue(node: Node): unknown {
+	switch (node.type) {
+		case "object": {
+			const obj: Record<string, unknown> = {};
+			for (const prop of node.children ?? []) {
+				if (prop.type !== "property") continue;
+				const [keyNode, valueNode] = prop.children ?? [];
+				if (!keyNode || keyNode.type !== "string" || !valueNode) continue;
+				if (typeof keyNode.value !== "string") continue;
+				obj[keyNode.value] = nodeToValue(valueNode);
+			}
+			return obj;
+		}
+		case "array":
+			return (node.children ?? []).map((child) => nodeToValue(child));
+		case "string":
+		case "number":
+		case "boolean":
+		case "null":
+			return node.value;
+		default:
+			return undefined;
+	}
+}
+
+/**
+ * Convert a byte offset in `source` into 1-indexed line + column. Matches
+ * the convention `tsc` and `eslint` use for error pointers.
+ */
+function offsetToLineCol(source: string, offset: number): { line: number; column: number } {
+	let line = 1;
+	let column = 1;
+	const max = Math.min(offset, source.length);
+	for (let i = 0; i < max; i++) {
+		if (source.charCodeAt(i) === 10 /* \n */) {
+			line++;
+			column = 1;
+		} else {
+			column++;
+		}
+	}
+	return { line, column };
+}
+
+function isNodeNotFoundError(error: unknown): boolean {
+	return (
+		error instanceof Error && "code" in error && (error as { code: unknown }).code === "ENOENT"
+	);
+}

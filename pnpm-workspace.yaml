@@ -13,6 +13,7 @@ packages:
   - infra/cache-demo
   - infra/perf-monitor
   - infra/discord-bot
+  - infra/plugins-site
 
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
@@ -81,6 +82,7 @@ catalog:
   "@types/node": 24.10.13
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
+  jsonc-parser: ^3.3.1
   astro: ^6.0.1
   astro-iconset: ^0.0.4
   better-sqlite3: ^12.8.0
@@ -92,9 +94,4 @@ catalog:
   vite: ^8.0.11
   vitest: ^4.1.5
   wrangler: ^4.83.0
-  # Catalog-pin Zod so the whole workspace dedupes on a single instance.
-  # Zod 4 embeds the version in the type, so even ^4.3.6 vs ^4.4.1 produce
-  # structurally incompatible ZodType<T> across packages that mix astro/zod
-  # and emdash's zod (e.g. trusted plugins like @emdash-cms/plugin-forms
-  # importing 'z' from astro/zod and passing schemas to definePlugin).
-  zod: ^4.3.6
+  zod: ^4.4.1

@@ -210,6 +210,9 @@ catalogs:
     better-sqlite3:
       specifier: ^12.8.0
       version: 12.8.0
+    jsonc-parser:
+      specifier: ^3.3.1
+      version: 3.3.1
     publint:
       specifier: 0.3.17
       version: 0.3.17
@@ -235,7 +238,7 @@ catalogs:
       specifier: ^4.83.0
       version: 4.90.0
     zod:
-      specifier: ^4.3.6
+      specifier: ^4.4.1
       version: 4.4.1
 
 importers:
@@ -834,6 +837,12 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2)
+      wrangler:
+        specifier: 'catalog:'
+        version: 4.90.0(@cloudflare/workers-types@4.20260305.1)
+
+  infra/plugins-site:
+    devDependencies:
       wrangler:
         specifier: 'catalog:'
         version: 4.90.0(@cloudflare/workers-types@4.20260305.1)
@@ -1855,6 +1864,9 @@ importers:
       image-size:
         specifier: ^2.0.2
         version: 2.0.2
+      jsonc-parser:
+        specifier: 'catalog:'
+        version: 3.3.1
       modern-tar:
         specifier: ^0.7.5
         version: 0.7.6
@@ -1864,6 +1876,9 @@ importers:
       tsdown:
         specifier: 'catalog:'
         version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260213.1)(oxc-resolver@11.16.4)(publint@0.3.17)(typescript@5.9.3)
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.1
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
@@ -14778,7 +14793,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vitest: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.1.5)(@vitest/ui@4.1.5)(jsdom@26.1.0)(vite@6.4.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2))
+      vitest: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.1.5)(@vitest/ui@4.1.5)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2))
 
   '@vitest/utils@4.1.5':
     dependencies:
