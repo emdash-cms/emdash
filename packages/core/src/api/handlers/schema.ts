@@ -3,6 +3,7 @@
  */
 
 import type { Kysely } from "kysely";
+import { ulid } from "ulidx";
 
 import type { Database } from "../../database/types.js";
 import {
@@ -128,6 +129,11 @@ export async function handleSchemaCollectionCreate(
 		const registry = new SchemaRegistry(db);
 		const item = await registry.createCollection(input);
 
+		// Sync to public menu if requested
+		if (input.addToMenu) {
+			await syncCollectionToMenu(db, item.slug, item.label, input.addToMenu);
+		}
+
 		return {
 			success: true,
 			data: { item },
@@ -202,6 +208,9 @@ export async function handleSchemaCollectionDelete(
 	try {
 		const registry = new SchemaRegistry(db);
 		await registry.deleteCollection(slug, options);
+
+		// Remove from public menus
+		await removeCollectionFromMenu(db, slug);
 
 		return {
 			success: true,
@@ -564,6 +573,135 @@ export async function handleOrphanedTableRegister(
 			error: {
 				code: "ORPHAN_REGISTER_ERROR",
 				message: "Failed to register orphaned table",
+			},
+		};
+	}
+}
+
+// ============================================
+// Menu Sync Helpers
+// ============================================
+
+/**
+ * Add a collection-type menu item to a public menu.
+ * Called when a collection is created with `addToMenu`.
+ */
+export async function syncCollectionToMenu(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	collectionLabel: string,
+	menuName: string,
+): Promise<void> {
+	try {
+		// Check if a menu item for this collection already exists
+		const existing = await db
+			.selectFrom("_emdash_menu_items")
+			.select(["id"])
+			.innerJoin("_emdash_menus", "_emdash_menu_items.menu_id", "_emdash_menus.id")
+			.where("_emdash_menus.name", "=", menuName)
+			.where("type", "=", "collection")
+			.where("reference_collection", "=", collectionSlug)
+			.executeTakeFirst();
+
+		if (existing) return; // Already exists
+
+		// Get the menu ID
+		const menu = await db
+			.selectFrom("_emdash_menus")
+			.select(["id", "locale"])
+			.where("name", "=", menuName)
+			.executeTakeFirst();
+
+		if (!menu) return; // Menu doesn't exist
+
+		// Get the max sort_order to append at the end
+		const maxOrder = await db
+			.selectFrom("_emdash_menu_items")
+			.select(db.fn.max("sort_order").as("maxOrder"))
+			.where("menu_id", "=", menu.id)
+			.executeTakeFirst();
+
+		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion)
+		const sortOrder = ((maxOrder?.maxOrder as number) ?? 0) + 1;
+
+		const id = ulid();
+
+		// Insert the menu item
+		await db
+			.insertInto("_emdash_menu_items")
+			.values({
+				id,
+				menu_id: menu.id,
+				type: "collection",
+				reference_collection: collectionSlug,
+				reference_id: null,
+				custom_url: null,
+				label: collectionLabel,
+				sort_order: sortOrder,
+				title_attr: null,
+				target: null,
+				css_classes: null,
+				locale: menu.locale,
+				translation_group: id,
+			})
+			.execute();
+	} catch {
+		// Silently fail -- menu sync is best-effort
+		console.debug("[emdash] Menu sync failed for collection:", collectionSlug);
+	}
+}
+
+/**
+ * Remove collection-type menu items referencing a collection.
+ * Called when a collection is deleted.
+ */
+export async function removeCollectionFromMenu(
+	db: Kysely<Database>,
+	collectionSlug: string,
+): Promise<void> {
+	try {
+		await db
+			.deleteFrom("_emdash_menu_items")
+			.where("type", "=", "collection")
+			.where("reference_collection", "=", collectionSlug)
+			.execute();
+	} catch {
+		// Silently fail
+		console.debug("[emdash] Menu cleanup failed for collection:", collectionSlug);
+	}
+}
+
+/**
+ * Manually sync a collection to a public menu.
+ * Called via POST /_emdash/api/schema/collections/:slug/sync-menu
+ */
+export async function handleSchemaCollectionMenuSync(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	menuName: string,
+): Promise<ApiResult<{ success: boolean }>> {
+	try {
+		const registry = new SchemaRegistry(db);
+		const collection = await registry.getCollection(collectionSlug);
+		if (!collection) {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: `Collection not found: ${collectionSlug}` },
+			};
+		}
+
+		await syncCollectionToMenu(db, collectionSlug, collection.label, menuName);
+
+		return {
+			success: true,
+			data: { success: true },
+		};
+	} catch {
+		return {
+			success: false,
+			error: {
+				code: "MENU_SYNC_ERROR",
+				message: "Failed to sync collection to menu",
 			},
 		};
 	}

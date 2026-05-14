@@ -210,6 +210,12 @@ export interface CreateCollectionInput {
 	urlPattern?: string;
 	hasSeo?: boolean;
 	commentsEnabled?: boolean;
+	/** Sidebar sort order (lower = earlier) */
+	sortOrder?: number;
+	/** Sidebar group name */
+	group?: string;
+	/** Auto-add to a public menu on creation (menu name, e.g., "primary") */
+	addToMenu?: string;
 }
 
 /**

@@ -29,6 +29,12 @@ export interface ManifestCollection {
 	supports: string[];
 	hasSeo: boolean;
 	urlPattern?: string;
+	/** Sidebar sort order (lower = earlier) */
+	sortOrder: number;
+	/** Sidebar group name (e.g., "Blog", "Shop") */
+	group?: string;
+	/** Sidebar icon name (maps to Phosphor icon) */
+	icon?: string;
 	fields: Record<
 		string,
 		{

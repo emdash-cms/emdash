@@ -98,6 +98,7 @@ export interface SidebarNavProps {
 			label: string;
 			sortOrder?: number;
 			group?: string;
+			icon?: string;
 		}>;
 		plugins: Record<
 			string,
@@ -363,7 +364,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		items.push({
 			to: "/content/$collection",
 			label: config.label,
-			icon: resolveIcon((manifest.collections[name] as { icon?: string } | undefined)?.icon, FileText),
+			icon: resolveIcon(config.icon, FileText),
 			params: { collection: name },
 		});
 		collectionGroups.set(groupName, items);
@@ -371,8 +372,8 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	// Sort items within each group by sortOrder (from the manifest)
 	for (const [, items] of collectionGroups) {
 		items.sort((a, b) => {
-			const aOrder = (manifest.collections as Record<string, { sortOrder?: number }>)[a.params?.collection ?? ""]?.sortOrder ?? 0;
-			const bOrder = (manifest.collections as Record<string, { sortOrder?: number }>)[b.params?.collection ?? ""]?.sortOrder ?? 0;
+			const aOrder = manifest.collections[a.params?.collection ?? ""]?.sortOrder ?? 0;
+			const bOrder = manifest.collections[b.params?.collection ?? ""]?.sortOrder ?? 0;
 			return aOrder - bOrder || a.label.localeCompare(b.label);
 		});
 	}

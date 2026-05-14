@@ -41,6 +41,7 @@ export interface SchemaCollection {
 	commentsClosedAfterDays: number;
 	commentsAutoApproveUsers: boolean;
 	sortOrder?: number;
+	group?: string;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -84,6 +85,10 @@ export interface CreateCollectionInput {
 	supports?: string[];
 	urlPattern?: string;
 	hasSeo?: boolean;
+	sortOrder?: number;
+	group?: string;
+	/** Auto-add to a public menu on creation (menu name, e.g. "primary") */
+	addToMenu?: string;
 }
 
 export interface UpdateCollectionInput {
@@ -98,6 +103,8 @@ export interface UpdateCollectionInput {
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;
 	commentsAutoApproveUsers?: boolean;
+	sortOrder?: number;
+	group?: string;
 }
 
 export interface CreateFieldInput {

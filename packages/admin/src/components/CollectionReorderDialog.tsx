@@ -35,6 +35,7 @@ interface CollectionReorderDialogProps {
 }
 
 function SortableCollectionRow({ item }: { item: CollectionOrderItem }) {
+	const { t } = useLingui();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id: item.slug,
 	});
@@ -59,7 +60,7 @@ function SortableCollectionRow({ item }: { item: CollectionOrderItem }) {
 				{...attributes}
 				{...listeners}
 				className="cursor-grab active:cursor-grabbing text-kumo-subtle hover:text-kumo-default p-1"
-				aria-label="Drag to reorder"
+				aria-label={t`Drag to reorder`}
 			>
 				<DotsSixVertical className="size-4" />
 			</button>
