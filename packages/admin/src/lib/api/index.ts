@@ -176,8 +176,6 @@ export {
 	createMenuTranslation,
 	type SyncDiff,
 	type SyncResult,
-	fetchMenuSyncDiff,
-	applyMenuSync,
 } from "./menus.js";
 
 // Widget areas

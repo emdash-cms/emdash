@@ -13,9 +13,10 @@ import { computeMenuSyncDiff, syncSidebarToMenu } from "#api/index.js";
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ params, locals }) => {
+export const GET: APIRoute = async ({ params, locals, url }) => {
 	const { emdash, user } = locals;
 	const name = params.name;
+	const locale = url.searchParams.get("locale") ?? "en";
 
 	if (!name) {
 		return unwrapResult({
@@ -30,13 +31,14 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const denied = requirePerm(user, "menus:manage");
 	if (denied) return denied;
 
-	const result = await computeMenuSyncDiff(emdash!.db, name);
+	const result = await computeMenuSyncDiff(emdash!.db, name, locale);
 	return unwrapResult(result);
 };
 
-export const POST: APIRoute = async ({ params, locals }) => {
+export const POST: APIRoute = async ({ params, locals, url }) => {
 	const { emdash, user } = locals;
 	const name = params.name;
+	const locale = url.searchParams.get("locale") ?? "en";
 
 	if (!name) {
 		return unwrapResult({
@@ -51,6 +53,6 @@ export const POST: APIRoute = async ({ params, locals }) => {
 	const denied = requirePerm(user, "menus:manage");
 	if (denied) return denied;
 
-	const result = await syncSidebarToMenu(emdash!.db, name);
+	const result = await syncSidebarToMenu(emdash!.db, name, locale);
 	return unwrapResult(result);
 };

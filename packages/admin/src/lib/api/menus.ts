@@ -291,20 +291,4 @@ export interface SyncResult {
 	reordered: number;
 }
 
-/**
- * Preview sync changes (diff between sidebar and menu).
- */
-export async function fetchMenuSyncDiff(name: string): Promise<SyncDiff> {
-	const response = await apiFetch(`${API_BASE}/menus/${name}/sync-diff`);
-	return parseApiResponse<SyncDiff>(response, "Failed to fetch menu sync diff");
-}
 
-/**
- * Apply sync changes (align menu with sidebar structure).
- */
-export async function applyMenuSync(name: string): Promise<SyncResult> {
-	const response = await apiFetch(`${API_BASE}/menus/${name}/sync`, {
-		method: "POST",
-	});
-	return parseApiResponse<SyncResult>(response, "Failed to apply menu sync");
-}

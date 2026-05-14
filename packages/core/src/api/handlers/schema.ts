@@ -126,6 +126,25 @@ export async function handleSchemaCollectionCreate(
 	input: CreateCollectionInput,
 ): Promise<ApiResult<CollectionResponse>> {
 	try {
+		// Validate menu exists if addToMenu is specified
+		if (input.addToMenu) {
+			const menu = await db
+				.selectFrom("_emdash_menus")
+				.select("id")
+				.where("name", "=", input.addToMenu)
+				.executeTakeFirst();
+
+			if (!menu) {
+				return {
+					success: false,
+					error: {
+						code: "MENU_NOT_FOUND",
+						message: `Menu "${input.addToMenu}" not found. Collection was not created.`,
+					},
+				};
+			}
+		}
+
 		const registry = new SchemaRegistry(db);
 		const item = await registry.createCollection(input);
 
@@ -585,6 +604,7 @@ export async function handleOrphanedTableRegister(
 /**
  * Add a collection-type menu item to a public menu.
  * Called when a collection is created with `addToMenu`.
+ * Returns true if the menu item was added, false if the menu doesn't exist.
  */
 export async function syncCollectionToMenu(
 	db: Kysely<Database>,
@@ -592,7 +612,7 @@ export async function syncCollectionToMenu(
 	collectionLabel: string,
 	menuName: string,
 	locale = "en",
-): Promise<void> {
+): Promise<boolean> {
 	try {
 		// Check if a menu item for this collection already exists
 		const existing = await db
@@ -605,7 +625,7 @@ export async function syncCollectionToMenu(
 			.where("reference_collection", "=", collectionSlug)
 			.executeTakeFirst();
 
-		if (existing) return; // Already exists
+		if (existing) return true; // Already exists
 
 		// Get the menu ID
 		const menu = await db
@@ -616,8 +636,13 @@ export async function syncCollectionToMenu(
 			.executeTakeFirst();
 
 		if (!menu) {
-			console.warn("[emdash] Menu not found for addToMenu:", menuName, "locale:", locale);
-			return;
+			console.warn(
+				"[emdash] Menu not found for addToMenu:",
+				menuName,
+				"locale:",
+				locale,
+			);
+			return false;
 		}
 
 		// Get the max sort_order to append at the end
@@ -651,8 +676,10 @@ export async function syncCollectionToMenu(
 				translation_group: id,
 			})
 			.execute();
+		return true;
 	} catch (error) {
 		console.error("[emdash] syncCollectionToMenu failed:", error);
+		return false;
 	}
 }
 
