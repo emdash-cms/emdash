@@ -193,6 +193,39 @@ describe("writePublisherBack", () => {
 		expect(manifest.publisher).toBe(SESSION_DID);
 	});
 
+	it("anchors the comment to the publisher property even when the DID appears in another field", async () => {
+		// Regression: a previous implementation searched for the DID
+		// string anywhere in the document, which would attach the
+		// `// <handle>` comment to whichever field happened to contain
+		// the DID-shaped substring first. Real plugins that document a
+		// "previous publisher was did:plc:..." in the description (e.g.
+		// after a maintainer transfer) would have triggered this.
+		const path = join(dir, "emdash-plugin.jsonc");
+		const source = `{
+	"license": "MIT",
+	"description": "Originally published as ${SESSION_DID}. See changelog.",
+	"author": { "name": "Jane Doe" },
+	"security": { "email": "security@example.com" }
+}
+`;
+		await writeFile(path, source, "utf8");
+		await writePublisherBack({
+			manifestPath: path,
+			sessionDid: SESSION_DID,
+			sessionHandle: "jane.bsky.social",
+		});
+		const updated = await readFile(path, "utf8");
+		// The handle comment lives on the publisher line, NOT on the
+		// description line — confirm by inspecting each.
+		const lines = updated.split("\n");
+		const descriptionLine = lines.find((l) => l.includes('"description"'))!;
+		const publisherLine = lines.find((l) => l.includes('"publisher"'))!;
+		expect(descriptionLine).toBeDefined();
+		expect(publisherLine).toBeDefined();
+		expect(descriptionLine).not.toMatch(/\/\/ jane\.bsky\.social/);
+		expect(publisherLine).toMatch(/\/\/ jane\.bsky\.social/);
+	});
+
 	it("omits the comment when no handle is provided", async () => {
 		const path = join(dir, "emdash-plugin.jsonc");
 		const source = `{

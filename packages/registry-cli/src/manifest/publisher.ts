@@ -27,12 +27,14 @@
  * still pin a handle if they prefer the readability.
  */
 
-import { randomUUID } from "node:crypto";
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { readFile, rename, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { isDid, isHandle, type Did, type Handle } from "@atcute/lexicons/syntax";
 import { applyEdits, modify, parseTree, printParseErrorCode, type ParseError } from "jsonc-parser";
+
+import { MANIFEST_MAX_BYTES } from "./load.js";
 
 import { createActorResolver } from "../oauth.js";
 
@@ -161,6 +163,17 @@ export async function writePublisherBack(input: {
 }): Promise<void> {
 	const { manifestPath, sessionDid, sessionHandle, onInfo, onWarn } = input;
 	try {
+		// Stat first: if the file ballooned between load and write-back
+		// (e.g. user pasted in a large changelog mid-publish), don't
+		// buffer the new contents. The post-publish path should never
+		// touch a file the loader wouldn't have accepted.
+		const info = await stat(manifestPath);
+		if (info.size > MANIFEST_MAX_BYTES) {
+			onWarn?.(
+				`Skipped writing publisher to ${manifestPath} (file is now ${info.size} bytes, exceeding the ${MANIFEST_MAX_BYTES}-byte cap; the publish succeeded).`,
+			);
+			return;
+		}
 		const source = await readFile(manifestPath, "utf8");
 
 		// Defensive re-parse: confirm `publisher` is still absent. If
@@ -227,22 +240,40 @@ export async function writePublisherBack(input: {
 		// Append a `// <handle>` line comment to the inserted publisher
 		// line, if we have a handle. The comment is for human readers of
 		// `git diff`; the CLI itself never parses it back out. We locate
-		// the inserted line by matching on the DID string (opaque enough
-		// to be unique within a single-publisher manifest) and append
-		// the comment before the line terminator.
-		//
-		// The substitution runs ONCE: if the DID happens to appear
-		// elsewhere (it shouldn't for a fresh insertion, but defensively
-		// anyway), only the first match is annotated.
+		// the inserted line by re-parsing the updated source and looking
+		// up the `publisher` property node's exact source offset, so a
+		// DID string that happens to appear elsewhere in the document
+		// (e.g. in `description`) can't deflect the comment to the
+		// wrong line.
 		const updated = sessionHandle
-			? annotatePublisherLine(applied, sessionDid, sessionHandle)
+			? annotatePublisherLine(applied, sessionHandle)
 			: applied;
 
 		// Atomic write: tmpfile + rename. POSIX rename is atomic, so a
 		// crash mid-write leaves the previous file intact rather than
 		// truncating the publisher's manifest.
+		//
+		// TOCTOU narrowing: re-read the file IMMEDIATELY before rename
+		// and compare to the bytes we processed. If anything changed
+		// (editor save, concurrent publish, manual edit), abort the
+		// write-back. This doesn't eliminate the race — between the
+		// final read and the rename a writer could still land — but
+		// it shrinks the window to milliseconds. The publish has
+		// already succeeded; losing a convenience pin is preferable
+		// to overwriting a user's edit.
+		const expectedHash = sha256(source);
 		const tmp = join(dirname(manifestPath), `.${randomUUID()}.tmp`);
 		await writeFile(tmp, updated, "utf8");
+		const currentSource = await readFile(manifestPath, "utf8").catch(() => null);
+		const currentHash = currentSource === null ? null : sha256(currentSource);
+		if (currentHash !== expectedHash) {
+			// File changed under us. Clean up the tmpfile and bail.
+			await unlinkIgnoreMissing(tmp);
+			onWarn?.(
+				`Skipped writing publisher to ${manifestPath} (file changed during publish; no edits made). The publish succeeded; you can pin manually on your next edit.`,
+			);
+			return;
+		}
 		await rename(tmp, manifestPath);
 		onInfo?.(`Pinned publisher to ${sessionDid} in ${manifestPath}.`);
 	} catch (error) {
@@ -254,18 +285,52 @@ export async function writePublisherBack(input: {
 	}
 }
 
+/** Compute a stable hash of the source bytes, used for TOCTOU narrowing. */
+function sha256(source: string): string {
+	return createHash("sha256").update(source, "utf8").digest("hex");
+}
+
 /**
- * Append `// <handle>` to the line containing the freshly-inserted DID.
+ * Remove a file path, treating ENOENT as success. Used to clean up the
+ * tmpfile when the write-back is aborted post-write but pre-rename.
+ */
+async function unlinkIgnoreMissing(path: string): Promise<void> {
+	const { unlink } = await import("node:fs/promises");
+	try {
+		await unlink(path);
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			"code" in error &&
+			(error as { code: unknown }).code === "ENOENT"
+		) {
+			return;
+		}
+		// Anything else is also non-fatal here (the tmpfile is best-
+		// effort cleanup); we swallow it so the outer warn message
+		// stays the dominant signal.
+	}
+}
+
+/**
+ * Append `// <handle>` to the line containing the inserted `publisher`
+ * property's value.
  *
- * The match is anchored to the line containing `"<did>"` (the DID is
- * always quoted in JSON) so a substring collision in a different value
- * is impossible. The line may end in `",\n"` (interior key) or `"\n"`
- * (trailing key); we insert the comment BEFORE the line terminator so
- * the comma stays adjacent to the value.
+ * The implementation re-parses the updated source, locates the
+ * `publisher` property's value node by name (NOT by string-matching the
+ * DID), and uses that node's source offset as the anchor. Two reasons
+ * for the re-parse rather than a raw string search:
  *
- * If the DID isn't found, returns the input unchanged — the publish-back
- * already succeeded; an unannotated line is a degraded outcome but not
- * a failure.
+ *   1. A DID string can legitimately appear elsewhere in the manifest
+ *      (e.g. as the value of `description` or a custom comment-like
+ *      field). String search would attach the comment to the first
+ *      occurrence, not the inserted property.
+ *   2. The parse tree gives us byte-exact offsets, so the line-end
+ *      lookup can't degrade silently when `indexOf` returns -1.
+ *
+ * If the `publisher` property can't be located (unexpected — we just
+ * inserted it), returns the input unchanged. Annotation is a nice-to-
+ * have; the publish has already succeeded.
  *
  * No sanitisation of the handle is needed: `session.handle` is
  * populated by atproto's identity resolver at login time, which only
@@ -274,13 +339,32 @@ export async function writePublisherBack(input: {
  * `.well-known` to the session DID. An attacker who can put arbitrary
  * bytes into `session.handle` already controls the user's identity.
  */
-function annotatePublisherLine(source: string, did: Did, handle: string): string {
+function annotatePublisherLine(source: string, handle: string): string {
 	if (handle.length === 0) return source;
-	// Match the DID inside its quotes on one line. The DID was emitted
-	// by `JSON.stringify` via `jsonc-parser`, so it's safely escaped.
-	const needle = `"${did}"`;
-	const lineEnd = source.indexOf("\n", source.indexOf(needle));
-	if (lineEnd < 0) return source;
+
+	const tree = parseTree(source);
+	if (!tree || tree.type !== "object") return source;
+	const publisherProp = tree.children?.find(
+		(prop) =>
+			prop.type === "property" &&
+			prop.children?.[0]?.type === "string" &&
+			prop.children[0].value === "publisher",
+	);
+	const valueNode = publisherProp?.children?.[1];
+	if (!valueNode) return source;
+
+	// Find the end of the line containing the value's last byte. The
+	// value's offset+length lands right after the closing `"` of the
+	// DID string; `indexOf("\n", endOfValue)` walks forward to the
+	// newline that terminates the property's line. The intervening
+	// bytes can be `,`, whitespace, or already-existing comment text.
+	const endOfValue = valueNode.offset + valueNode.length;
+	const lineEnd = source.indexOf("\n", endOfValue);
+	if (lineEnd < 0) {
+		// `publisher` is on the last line of the file with no trailing
+		// newline. Append the comment to the end-of-file content.
+		return `${source} // ${handle}`;
+	}
 	// Walk back past any trailing CR so the comment lands at the end
 	// of the *content*, not after a literal "\r" on Windows-authored
 	// files.

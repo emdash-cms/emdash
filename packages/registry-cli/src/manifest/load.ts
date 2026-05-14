@@ -17,7 +17,7 @@
  * pointer they'd get from `tsc` or `eslint`, not a Zod issue tree.
  */
 
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { parseTree, type Node, type ParseError, printParseErrorCode } from "jsonc-parser";
@@ -30,8 +30,19 @@ import { ManifestSchema, type Manifest } from "./schema.js";
  */
 export const MANIFEST_FILENAME = "emdash-plugin.jsonc";
 
+/**
+ * Hard cap on the bytes we'll buffer for a manifest. The largest real-world
+ * v1 manifest under the current schema is a few hundred bytes; even a heavily-
+ * populated future version with all the long-form sections from issue #1030
+ * (5 sections × 20 KB cap each from the lexicon) tops out under 128 KB. We
+ * pick 1 MiB so accidental mis-targets (`--manifest ./large.tar`) fail fast
+ * with a clear error rather than OOMing the CLI.
+ */
+export const MANIFEST_MAX_BYTES = 1024 * 1024;
+
 export type ManifestErrorCode =
 	| "MANIFEST_NOT_FOUND"
+	| "MANIFEST_TOO_LARGE"
 	| "MANIFEST_PARSE_ERROR"
 	| "MANIFEST_VALIDATION_ERROR";
 
@@ -93,11 +104,37 @@ export async function loadManifest(path: string): Promise<LoadManifestResult> {
 			? resolved
 			: resolve(resolved, MANIFEST_FILENAME);
 
+	// Stat first so a wildly-oversized file fails before we buffer it.
+	// `readFile` itself doesn't honour any cap, so we'd otherwise read
+	// the whole thing into memory before any size check could fire.
+	let size: number;
+	try {
+		const info = await stat(filePath);
+		size = info.size;
+	} catch (error) {
+		if (isNodeNotFoundError(error)) {
+			throw new ManifestError(
+				"MANIFEST_NOT_FOUND",
+				`No manifest at ${filePath}. Create one with: emdash-registry init`,
+				filePath,
+			);
+		}
+		throw error;
+	}
+	if (size > MANIFEST_MAX_BYTES) {
+		throw new ManifestError(
+			"MANIFEST_TOO_LARGE",
+			`Manifest at ${filePath} is ${size} bytes; the maximum supported size is ${MANIFEST_MAX_BYTES} bytes. Check that you pointed --manifest at the right file.`,
+			filePath,
+		);
+	}
+
 	let source: string;
 	try {
 		source = await readFile(filePath, "utf8");
 	} catch (error) {
 		if (isNodeNotFoundError(error)) {
+			// Race: file was removed between stat and readFile.
 			throw new ManifestError(
 				"MANIFEST_NOT_FOUND",
 				`No manifest at ${filePath}. Create one with: emdash-registry init`,
@@ -150,7 +187,28 @@ function parseAndValidate(source: string, filePath: string): LoadManifestResult 
 	if (!root) {
 		// Shouldn't be reachable when `allowEmptyContent: false` is set and
 		// `parseErrors` is empty, but `parseTree`'s return type is nullable.
-		throw new ManifestError("MANIFEST_PARSE_ERROR", `${filePath}: file is empty`, filePath);
+		throw new ManifestError(
+			"MANIFEST_PARSE_ERROR",
+			`${filePath}: file is empty`,
+			filePath,
+		);
+	}
+
+	// Reject duplicate keys before validation. `nodeToValue` is last-wins
+	// (matches JSON.parse semantics) which silently shadows earlier keys
+	// — review-hostile for a security-sensitive document like this. We
+	// scan once for duplicates and surface them as a parse error with a
+	// source location, so a `git diff` reviewer can't be fooled by a
+	// "publisher": "<honest>" at the top of the file that gets overridden
+	// by "publisher": "<hostile>" further down.
+	const duplicate = findDuplicateKey(root);
+	if (duplicate) {
+		const { line, column } = offsetToLineCol(source, duplicate.offset);
+		throw new ManifestError(
+			"MANIFEST_PARSE_ERROR",
+			`${filePath}:${line}:${column}: duplicate key "${duplicate.key}". Each property may only be declared once.`,
+			filePath,
+		);
 	}
 
 	const value = nodeToValue(root);
@@ -251,6 +309,45 @@ function findNodeAtPath(root: Node, path: ReadonlyArray<string | number>): Node 
 		}
 	}
 	return current;
+}
+
+/**
+ * Recursively scan an object node for duplicate property names. Returns
+ * the FIRST duplicate found (innermost-first within the recursion, but
+ * order across siblings is the order in the source) with its offset for
+ * line:column reporting.
+ *
+ * We scan the entire tree, not just the root: duplicate keys inside
+ * `author: { ... }` or `security: { ... }` are equally review-hostile.
+ */
+function findDuplicateKey(
+	node: Node,
+): { key: string; offset: number } | undefined {
+	if (node.type === "object" && node.children) {
+		const seen = new Set<string>();
+		for (const prop of node.children) {
+			if (prop.type !== "property") continue;
+			const keyNode = prop.children?.[0];
+			if (!keyNode || keyNode.type !== "string" || typeof keyNode.value !== "string") {
+				continue;
+			}
+			if (seen.has(keyNode.value)) {
+				return { key: keyNode.value, offset: keyNode.offset };
+			}
+			seen.add(keyNode.value);
+			const valueNode = prop.children?.[1];
+			if (valueNode) {
+				const nested = findDuplicateKey(valueNode);
+				if (nested) return nested;
+			}
+		}
+	} else if (node.type === "array" && node.children) {
+		for (const child of node.children) {
+			const nested = findDuplicateKey(child);
+			if (nested) return nested;
+		}
+	}
+	return undefined;
 }
 
 /**

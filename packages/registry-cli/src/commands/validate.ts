@@ -20,7 +20,6 @@ import consola from "consola";
 import pc from "picocolors";
 
 import { ManifestError, loadManifest, MANIFEST_FILENAME } from "../manifest/load.js";
-import { findUnwiredManifestFields, normaliseManifest } from "../manifest/translate.js";
 
 export const validateCommand = defineCommand({
 	meta: {
@@ -37,36 +36,20 @@ export const validateCommand = defineCommand({
 		json: {
 			type: "boolean",
 			description:
-				"Emit machine-readable JSON instead of human-readable output. Stdout is { ok: true, path, unwired } or { ok: false, error: { code, message, issues } }. Exit code mirrors human mode.",
+				"Emit machine-readable JSON instead of human-readable output. Stdout is { ok: true, path } or { ok: false, error: { code, message, issues } }. Exit code mirrors human mode.",
 		},
 	},
 	async run({ args }) {
 		const path = args.path ?? ".";
 		try {
-			const { manifest, path: resolved } = await loadManifest(path);
-			const normalised = normaliseManifest(manifest);
-			const unwired = findUnwiredManifestFields(normalised);
+			const { path: resolved } = await loadManifest(path);
 
 			if (args.json) {
-				process.stdout.write(
-					`${JSON.stringify({
-						ok: true,
-						path: resolved,
-						unwired: unwired.map((u) => ({ field: u.field, issue: u.issue })),
-					})}\n`,
-				);
+				process.stdout.write(`${JSON.stringify({ ok: true, path: resolved })}\n`);
 				return;
 			}
 
 			consola.success(`Manifest is valid: ${pc.dim(resolved)}`);
-			if (unwired.length > 0) {
-				consola.warn(
-					"Some fields are accepted by the manifest schema but aren't yet read by `publish`. They'll be wired through in the issues listed.",
-				);
-				for (const u of unwired) {
-					consola.warn(`  ${pc.bold(u.field)} -> ${u.issue}`);
-				}
-			}
 		} catch (error) {
 			if (error instanceof ManifestError) {
 				if (args.json) {

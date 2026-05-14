@@ -39,7 +39,9 @@
 			"$ref": "#/$defs/__schema18"
 		}
 	},
-	"required": ["license"],
+	"required": [
+		"license"
+	],
 	"additionalProperties": false,
 	"$defs": {
 		"__schema0": {
@@ -52,13 +54,20 @@
 			"maxLength": 256,
 			"title": "License",
 			"description": "SPDX license expression (e.g. \"MIT\", \"Apache-2.0\", \"MIT OR Apache-2.0\"). Required on first publish; ignored on subsequent publishes (the existing profile wins).",
-			"examples": ["MIT", "Apache-2.0", "MIT OR Apache-2.0"]
+			"examples": [
+				"MIT",
+				"Apache-2.0",
+				"MIT OR Apache-2.0"
+			]
 		},
 		"__schema2": {
 			"type": "string",
 			"title": "Publisher",
 			"description": "Atproto DID or handle of the publishing identity. Pinned on first publish to prevent accidental publishes from a different account. DIDs are recommended (durable); handles work but are mutable.",
-			"examples": ["did:plc:abc123def456", "example.com"]
+			"examples": [
+				"did:plc:abc123def456",
+				"example.com"
+			]
 		},
 		"__schema3": {
 			"$ref": "#/$defs/__schema4"
@@ -76,7 +85,9 @@
 					"$ref": "#/$defs/__schema7"
 				}
 			},
-			"required": ["name"],
+			"required": [
+				"name"
+			],
 			"additionalProperties": false,
 			"title": "Author",
 			"description": "A single author entry. Mirrors the lexicon's author shape."
@@ -185,7 +196,9 @@
 			"pattern": "^https:\\/\\/",
 			"title": "Source repository",
 			"description": "HTTPS URL of the plugin's source repository. Surfaced in registry listings.",
-			"examples": ["https://github.com/emdash-cms/plugin-gallery"]
+			"examples": [
+				"https://github.com/emdash-cms/plugin-gallery"
+			]
 		}
 	}
 }

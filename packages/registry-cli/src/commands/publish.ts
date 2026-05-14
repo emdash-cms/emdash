@@ -32,7 +32,6 @@ import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/util
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
 import { checkPublisher, PublisherCheckError, writePublisherBack } from "../manifest/publisher.js";
 import {
-	findUnwiredManifestFields,
 	manifestToProfileBootstrap,
 	normaliseManifest,
 	type NormalisedManifest,
@@ -439,19 +438,32 @@ async function loadManifestBootstrap(
 	args: PublishArgs,
 	log: { info(m: string): void; warn(m: string): void },
 ): Promise<ManifestLoadOutcome | null> {
-	if (args["no-manifest"]) return null;
+	const optedOut =
+		args["no-manifest"] === true || args.manifest === "false" || args.manifest === "";
+	if (optedOut) {
+		// `--no-manifest` is a power-user escape hatch (CI, debugging),
+		// but silently skipping a manifest at the default path defeats
+		// the publisher-pin safety story. If the file exists, warn that
+		// the pin (if any) won't be checked. We probe via stat to keep
+		// the path cheap: no parse, no schema validation.
+		const defaultPath = `./${MANIFEST_FILENAME}`;
+		try {
+			const { stat } = await import("node:fs/promises");
+			await stat(defaultPath);
+			log.warn(
+				`Skipping manifest at ${defaultPath} (--no-manifest is set). Publisher pin and license/security defaults are NOT being applied for this publish.`,
+			);
+		} catch {
+			// No manifest at the default path; nothing to warn about.
+		}
+		return null;
+	}
 	const explicit = args.manifest !== undefined && args.manifest.length > 0;
 	const path = args.manifest ?? `./${MANIFEST_FILENAME}`;
 	try {
 		const { manifest, path: resolvedPath } = await loadManifest(path);
 		const normalised = normaliseManifest(manifest);
 		log.info(`Loaded manifest: ${pc.dim(resolvedPath)}`);
-		const unwired = findUnwiredManifestFields(normalised);
-		for (const u of unwired) {
-			log.warn(
-				`Manifest field ${pc.bold(u.field)} is accepted but not yet published end-to-end (tracking in ${u.issue}). It will be ignored until that issue lands.`,
-			);
-		}
 		return {
 			path: resolvedPath,
 			manifest: normalised,
