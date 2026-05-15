@@ -17,6 +17,7 @@ import {
 	handleMenuItemCreate,
 	handleMenuItemDelete,
 	handleMenuItemUpdate,
+	handleMenuSetItems,
 } from "../../../src/api/handlers/menus.js";
 import { createMenuItemBody, updateMenuItemBody } from "../../../src/api/schemas/menus.js";
 import type { Database } from "../../../src/database/types.js";
@@ -217,6 +218,51 @@ describe("menu handlers — camelCase responses & customUrl persistence", () => 
 			expect(res.data.items[0].customUrl).toBe("/blog");
 			expect(res.data.items[0]).not.toHaveProperty("custom_url");
 		}
+	});
+});
+
+describe("handleMenuSetItems — concurrent delete race", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("returns NOT_FOUND when the menu vanishes between resolve and write", async () => {
+		// The original handler's in-transaction `notFoundSentinel` guarded
+		// this exact race: a concurrent menu_delete between resolveMenu and
+		// the setItems INSERTs would otherwise orphan items on D1.
+		const createRes = await handleMenuCreate(db, { name: "primary", label: "Primary" });
+		expect(createRes.success).toBe(true);
+		if (!createRes.success) return;
+		const menuId = createRes.data.id;
+
+		// Simulate the concurrent delete that lands between the handler's
+		// resolveMenu lookup and the repository's transaction. We delete
+		// directly through Kysely (handlers can't be paused mid-flight).
+		await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
+		await db.deleteFrom("_emdash_menus").where("id", "=", menuId).execute();
+
+		const result = await handleMenuSetItems(db, "primary", [
+			{ label: "Orphan?", type: "custom", customUrl: "/orphan" },
+		]);
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.code).toBe("NOT_FOUND");
+			expect(result.error.message).toContain("primary");
+		}
+
+		// Nothing was inserted — no orphans.
+		const orphans = await db
+			.selectFrom("_emdash_menu_items")
+			.selectAll()
+			.where("menu_id", "=", menuId)
+			.execute();
+		expect(orphans).toHaveLength(0);
 	});
 });
 

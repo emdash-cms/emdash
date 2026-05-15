@@ -23,7 +23,7 @@ export {
 	deleteAllPluginStorage,
 	deletePluginCollection,
 } from "./plugin-storage.js";
-export { MenuRepository } from "./menu.js";
+export { MenuGoneError, MenuRepository } from "./menu.js";
 export type {
 	Menu,
 	MenuItem,

@@ -19,6 +19,20 @@ import { ulid } from "ulidx";
 import type { Database, MenuItemTable, MenuTable } from "../types.js";
 import { withTransaction } from "../transaction.js";
 
+/**
+ * Thrown from inside a repository transaction when the menu the caller
+ * resolved earlier has since been deleted. Handlers translate this to a
+ * `NOT_FOUND` API response. Necessary because D1 disables FK enforcement
+ * (so `ON DELETE CASCADE` won't fire), and an unchecked `setItems` would
+ * happily insert items whose `menu_id` no longer exists, leaving orphans.
+ */
+export class MenuGoneError extends Error {
+	constructor(public readonly menuId: string) {
+		super(`Menu ${menuId} was deleted while being modified`);
+		this.name = "MenuGoneError";
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Entity shapes (camelCase — what the API returns)
 // ---------------------------------------------------------------------------
@@ -550,6 +564,20 @@ export class MenuRepository {
 		items: SetMenuItem[],
 	): Promise<{ itemCount: number }> {
 		await withTransaction(this.db, async (trx) => {
+			// Re-check menu existence INSIDE the transaction. The handler
+			// resolved by (name, locale) before this call; if a concurrent
+			// menu_delete landed in between, inserting new items would
+			// silently orphan them on D1 (where FK enforcement is off, so
+			// the migration's ON DELETE CASCADE never fires). Throw a
+			// MenuGoneError so the rollback fires and the handler returns
+			// NOT_FOUND with the original menu name in the message.
+			const stillThere = await trx
+				.selectFrom("_emdash_menus")
+				.select("id")
+				.where("id", "=", menuId)
+				.executeTakeFirst();
+			if (!stillThere) throw new MenuGoneError(menuId);
+
 			await trx.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
 
 			const insertedIds: string[] = [];

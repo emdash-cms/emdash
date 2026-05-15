@@ -11,7 +11,7 @@
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { MenuRepository } from "../../../src/database/repositories/menu.js";
+import { MenuGoneError, MenuRepository } from "../../../src/database/repositories/menu.js";
 import type { Database } from "../../../src/database/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -304,6 +304,32 @@ describe("MenuRepository", () => {
 			expect(byLabel.get("Root")!.parentId).toBeNull();
 			expect(byLabel.get("Child")!.parentId).toBe(byLabel.get("Root")!.id);
 			expect(byLabel.get("Grandchild")!.parentId).toBe(byLabel.get("Child")!.id);
+		});
+
+		it("throws MenuGoneError when the menu disappears mid-flight (concurrent delete)", async () => {
+			// Simulates the race that the original handler's in-transaction
+			// `notFoundSentinel` guarded against: another caller deletes the
+			// menu between the handler's `resolveMenu` lookup and the
+			// repository's destructive setItems write. Without the in-tx
+			// existence check we'd happily insert orphan items on D1 (FKs off).
+			const menu = await repo.create({ name: "primary", label: "Primary" });
+			// Delete the menu's row (and any items) to mimic the racing call.
+			await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menu.id).execute();
+			await db.deleteFrom("_emdash_menus").where("id", "=", menu.id).execute();
+
+			await expect(
+				repo.setItems(menu.id, "en", [
+					{ label: "Stray", type: "custom", customUrl: "/stray" },
+				]),
+			).rejects.toBeInstanceOf(MenuGoneError);
+
+			// No orphan items left behind by the aborted transaction.
+			const orphans = await db
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.where("menu_id", "=", menu.id)
+				.execute();
+			expect(orphans).toHaveLength(0);
 		});
 
 		it("touches updated_at on the menu", async () => {

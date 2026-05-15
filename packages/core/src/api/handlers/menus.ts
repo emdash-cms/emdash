@@ -2,13 +2,7 @@
  * Menu CRUD handlers.
  *
  * Business logic for menu and menu-item endpoints. Routes are thin wrappers
- * that parse input, check auth, and call these. The SQL itself lives in
- * `MenuRepository` — same architecture as content/taxonomies/redirects/etc.
- *
- * What stays in the handler: API-shape concerns (ApiResult envelope, error
- * codes, the AMBIGUOUS_LOCALE resolution when name lookups span locales) and
- * input rules that map to API responses (e.g. `translationOf` requires
- * `locale`).
+ * that parse input, check auth, and call these.
  *
  * i18n: Menus are per-locale. `(name, locale)` is unique, so the same `name`
  * (e.g. "primary") can exist in several locales within one translation_group.
@@ -20,6 +14,7 @@
 import type { Kysely } from "kysely";
 
 import {
+	MenuGoneError,
 	MenuRepository,
 	type CreateMenuItemInput as CreateMenuItemRepoInput,
 	type Menu,
@@ -479,6 +474,22 @@ export async function handleMenuSetItems(
 		const { itemCount } = await repo.setItems(resolved.menu.id, resolved.menu.locale, items);
 		return { success: true, data: { name: menuName, itemCount } };
 	} catch (error) {
+		// `MenuGoneError` is thrown from inside the repository transaction
+		// when the menu was deleted concurrently between `resolveMenu` and the
+		// setItems write. Returning NOT_FOUND mirrors the original handler's
+		// in-transaction `notFoundSentinel` branch and keeps the response
+		// shape stable for REST/MCP callers.
+		if (error instanceof MenuGoneError) {
+			return {
+				success: false,
+				error: {
+					code: "NOT_FOUND",
+					message: `Menu '${menuName}' not found${
+						options.locale ? ` in locale '${options.locale}'` : ""
+					}`,
+				},
+			};
+		}
 		console.error("[emdash] handleMenuSetItems failed:", error);
 		return {
 			success: false,
