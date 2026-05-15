@@ -504,7 +504,7 @@ export default {
 		},
 
 		admin: {
-			handler: async (routeCtx: any, ctx: PluginContext) => {
+			handler: async (routeCtx, ctx) => {
 				const interaction = routeCtx.input as AdminInteraction | undefined;
 				const interactionType = interaction?.type ?? "page_load";
 				const pageTarget = getAdminPageTarget(interaction);

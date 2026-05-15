@@ -60,7 +60,9 @@ describe("renderManifest (fully-populated)", () => {
 	it("renders identity, license, author, security, description, repo", () => {
 		const source = renderManifest(FULL_INPUTS);
 		expect(source).toContain('"slug": "gallery"');
-		expect(source).toContain('"version": "0.1.0"');
+		// `version` deliberately omitted from the manifest scaffold —
+		// package.json#version is the source of truth.
+		expect(source).not.toContain('"version":');
 		expect(source).toContain('"publisher": "did:plc:abc123def456"');
 		expect(source).toContain('"license": "MIT"');
 		expect(source).toContain('"name": "Jane Doe"');
@@ -161,23 +163,33 @@ describe("renderManifest (partial author/security)", () => {
 });
 
 describe("renderPackageJson", () => {
-	it("uses the slug as the package name and marks it private", () => {
+	it("uses the slug as the package name and starts private", () => {
 		const parsed = JSON.parse(renderPackageJson(FULL_INPUTS));
 		expect(parsed.name).toBe("gallery");
 		expect(parsed.private).toBe(true);
 		expect(parsed.type).toBe("module");
 	});
 
-	it("ships typecheck + test scripts only — no build", () => {
+	it("ships build/dev/typecheck/test scripts", () => {
 		const parsed = JSON.parse(renderPackageJson(FULL_INPUTS));
-		expect(Object.keys(parsed.scripts)).toEqual(["typecheck", "test"]);
+		expect(parsed.scripts.build).toBe("emdash-plugin build");
+		expect(parsed.scripts.dev).toBe("emdash-plugin dev");
+		expect(parsed.scripts.typecheck).toBeDefined();
+		expect(parsed.scripts.test).toBeDefined();
 	});
 
-	it("doesn't ship main, exports, or files (no npm publishing path)", () => {
+	it("ships npm-shape main/exports/files so the plugin is pnpm-add-able", () => {
 		const parsed = JSON.parse(renderPackageJson(FULL_INPUTS));
-		expect(parsed.main).toBeUndefined();
-		expect(parsed.exports).toBeUndefined();
-		expect(parsed.files).toBeUndefined();
+		expect(parsed.main).toBe("dist/index.mjs");
+		expect(parsed.exports["."]).toBeDefined();
+		expect(parsed.exports["./sandbox"]).toBe("./dist/plugin.mjs");
+		expect(parsed.files).toContain("dist");
+		expect(parsed.files).toContain("emdash-plugin.jsonc");
+	});
+
+	it("declares @emdash-cms/plugin-cli as a devDep (provides emdash-plugin binary)", () => {
+		const parsed = JSON.parse(renderPackageJson(FULL_INPUTS));
+		expect(parsed.devDependencies["@emdash-cms/plugin-cli"]).toBeDefined();
 	});
 });
 
@@ -199,17 +211,23 @@ describe("renderTsconfig", () => {
 });
 
 describe("renderPluginEntry", () => {
-	it("imports definePlugin and PluginContext from emdash", () => {
+	it("type-only-imports SandboxedPlugin from emdash/plugin", () => {
 		const source = renderPluginEntry();
-		expect(source).toContain('import { definePlugin } from "emdash"');
-		expect(source).toContain('import type { PluginContext } from "emdash"');
+		expect(source).toContain('import type { SandboxedPlugin } from "emdash/plugin"');
+		// No runtime emdash imports — sandboxed plugins must not pull
+		// the emdash runtime into their bundle.
+		expect(source).not.toContain('import { definePlugin } from "emdash"');
 	});
 
-	it("default-exports a definePlugin call with a hello route", () => {
+	it("default-exports a bare object with `satisfies SandboxedPlugin` and a hello route", () => {
 		const source = renderPluginEntry();
-		expect(source).toContain("export default definePlugin");
+		expect(source).toContain("export default {");
+		expect(source).toContain("satisfies SandboxedPlugin");
 		expect(source).toContain("hello:");
 		expect(source).toContain("greeting:");
+		// definePlugin must not appear in the scaffold — it's
+		// native-only now and would throw at runtime if used here.
+		expect(source).not.toContain("definePlugin");
 	});
 });
 
@@ -227,8 +245,8 @@ describe("renderGitignore", () => {
 		expect(renderGitignore()).toContain("node_modules");
 	});
 
-	it("does not ignore dist — the scaffold has no dist", () => {
-		expect(renderGitignore()).not.toContain("dist");
+	it("ignores dist — the build pipeline writes it but it shouldn't be committed", () => {
+		expect(renderGitignore()).toContain("dist");
 	});
 });
 

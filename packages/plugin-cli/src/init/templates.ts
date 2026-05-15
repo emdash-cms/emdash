@@ -6,18 +6,18 @@
  * functions makes the scaffolder testable without touching disk and
  * keeps every template inspectable in one place.
  *
- * The shape produced is the three-file authoring contract:
+ * The shape produced is the authoring contract:
  *
  *   emdash-plugin.jsonc   — identity + trust contract + profile
- *   src/plugin.ts         — definePlugin({ routes, hooks })
- *   package.json          — private, type:module, devDeps only
+ *   src/plugin.ts         — `{ routes?, hooks? } satisfies SandboxedPlugin`
+ *   package.json          — type:module, devDep on @emdash-cms/plugin-cli
  *   tsconfig.json         — strict, standalone
  *   .gitignore
  *   README.md
  *   tests/plugin.test.ts
  *
- * No `src/index.ts`, no `dist/`, no tsdown. Source is the artefact;
- * `emdash-plugin bundle` transpiles at publish time.
+ * No `src/index.ts`, no `dist/` in source control. `emdash-plugin build`
+ * generates `dist/` artefacts (plugin.mjs, manifest.json, index.mjs).
  */
 
 import type { ManifestAuthor, ManifestSecurityContact } from "../manifest/schema.js";
@@ -94,7 +94,10 @@ export function renderManifest(input: ScaffoldInputs): string {
 	);
 	lines.push("");
 	lines.push(`\t"slug": ${jsonString(input.slug)},`);
-	lines.push('\t"version": "0.1.0",');
+	// `version` deliberately omitted — the build reads it from
+	// `package.json` so there's a single source of truth. Registry-only
+	// plugins (no package.json) would set it here, but the scaffold
+	// always emits one.
 
 	if (!input.publisher) {
 		lines.push(
@@ -176,37 +179,42 @@ function renderSecurityContact(contact: ManifestSecurityContact): string {
 
 /**
  * `src/plugin.ts` — runtime code. One route, no hooks. Demonstrates the
- * three primitives a sandboxed plugin author needs: definePlugin (the
- * types helper), the PluginContext type, and a return value (the runtime
- * routes it as JSON).
+ * two primitives a sandboxed plugin author needs: the strict
+ * `SandboxedPlugin` type (which infers handler signatures per hook /
+ * route name) and a default-exported `{ hooks?, routes? }` object.
  */
 export function renderPluginEntry(): string {
-	return `import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
+	return `import type { SandboxedPlugin } from "emdash/plugin";
 
 /**
- * Sandboxed plugin entry. \`definePlugin\` is a types helper — it
- * passes the definition through verbatim and gives the TS compiler
- * the right inference for hook and route handler signatures.
+ * Sandboxed plugin entry. The default export is a bare object; the
+ * \`satisfies SandboxedPlugin\` annotation gives TypeScript per-hook /
+ * per-route inference (\`ctx\` is \`PluginContext\` automatically; hook
+ * \`event\` parameters are typed by hook name).
  */
-export default definePlugin({
+export default {
 \troutes: {
 \t\thello: {
-\t\t\thandler: async (_routeCtx, ctx: PluginContext) => {
+\t\t\thandler: async (_routeCtx, ctx) => {
 \t\t\t\tctx.log.info("hello route called", { pluginId: ctx.plugin.id });
 \t\t\t\treturn { greeting: "hello", pluginId: ctx.plugin.id };
 \t\t\t},
 \t\t},
 \t},
-});
+} satisfies SandboxedPlugin;
 `;
 }
 
 /**
- * `package.json` — toolchain only. Private (won't accidentally get
- * published to npm), type:module (Node ESM), no main / exports / files /
- * build scripts. The package exists for vitest + tsc to find their feet,
- * not for distribution.
+ * `package.json` — npm-shape so the plugin is `pnpm add`-able. The
+ * scaffold sets `private: true` defensively; flip it off when you're
+ * ready to publish to npm. `version` here is the single source of
+ * truth — the build reads it and writes it into the bundled manifest.
+ *
+ * `./sandbox` export points at the built runtime bytes that both
+ * in-process and isolate loaders consume. `main` / `import` point at
+ * the auto-generated descriptor module the integration imports for
+ * default in `astro.config.mjs`.
  */
 export function renderPackageJson(input: ScaffoldInputs): string {
 	const pkg = {
@@ -214,12 +222,27 @@ export function renderPackageJson(input: ScaffoldInputs): string {
 		version: "0.1.0",
 		private: true,
 		type: "module",
+		main: "dist/index.mjs",
+		exports: {
+			".": {
+				import: "./dist/index.mjs",
+				types: "./dist/index.d.mts",
+			},
+			"./sandbox": "./dist/plugin.mjs",
+		},
+		files: ["dist", "emdash-plugin.jsonc"],
 		scripts: {
+			build: "emdash-plugin build",
+			dev: "emdash-plugin dev",
 			typecheck: "tsc --noEmit",
 			test: "vitest run",
 		},
+		peerDependencies: {
+			emdash: ">=0.12.0",
+		},
 		devDependencies: {
-			emdash: "^6.0.0",
+			"@emdash-cms/plugin-cli": ">=0.1.0",
+			emdash: ">=0.12.0",
 			typescript: "^5.9.0",
 			vitest: "^4.1.0",
 		},
@@ -252,11 +275,11 @@ export function renderTsconfig(): string {
 }
 
 /**
- * `.gitignore` — node_modules only. No `dist/` because there is no
- * `dist/`.
+ * `.gitignore` — node_modules + dist (build output should not be
+ * committed; rebuild on every install).
  */
 export function renderGitignore(): string {
-	return "node_modules/\n";
+	return "node_modules/\ndist/\n";
 }
 
 /**
@@ -294,9 +317,11 @@ emdash-plugin publish --url https://your-host/...
 
 ## Version bumps
 
-Bump \`version\` in \`emdash-plugin.jsonc\` (and \`package.json\`, for
-tooling) when you ship a release. **Bump major** for breaking changes,
-**bump minor** for new routes or hooks, **bump patch** for fixes.
+Bump \`version\` in \`package.json\` when you ship a release. The
+scaffold's \`emdash-plugin.jsonc\` deliberately omits \`version\` —
+the build pipeline reads it from \`package.json\` so there's a single
+source of truth. **Bump major** for breaking changes, **bump minor**
+for new routes or hooks, **bump patch** for fixes.
 
 You MUST bump version whenever you change \`capabilities\`, \`allowedHosts\`,
 or \`storage\` in the manifest. Installed users have consented to the

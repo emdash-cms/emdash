@@ -90,16 +90,30 @@ export class VersionMismatchError extends Error {
  *  - Only one present → returns it.
  *  - Neither present → throws `VERSION_MISSING`.
  *
- * The "Changesets-driven" common case (manifest omits `version`,
- * `package.json` carries it) and the "registry-only, no package.json"
- * case (manifest carries `version`, no `package.json`) both produce a
- * single source of truth without ceremony. The mismatch case is the
- * one we want to fail loudly on — silent prefer-one creates drift.
+ * Surrounding whitespace on either input is rejected with a dedicated
+ * error so a visually-identical-but-not-equal pair like `"1.0.0 "`
+ * vs `"1.0.0"` doesn't print a confusing mismatch message.
  */
 export function resolvePluginVersion(
 	manifestVersion: string | undefined,
 	packageVersion: string | undefined,
 ): string {
+	if (manifestVersion !== undefined && manifestVersion.trim() !== manifestVersion) {
+		throw new VersionMismatchError(
+			"VERSION_MISMATCH",
+			`Plugin version in emdash-plugin.jsonc has leading or trailing whitespace (${JSON.stringify(manifestVersion)}). Trim it.`,
+			manifestVersion,
+			packageVersion,
+		);
+	}
+	if (packageVersion !== undefined && packageVersion.trim() !== packageVersion) {
+		throw new VersionMismatchError(
+			"VERSION_MISMATCH",
+			`Plugin version in package.json has leading or trailing whitespace (${JSON.stringify(packageVersion)}). Trim it.`,
+			manifestVersion,
+			packageVersion,
+		);
+	}
 	if (manifestVersion !== undefined && packageVersion !== undefined) {
 		if (manifestVersion !== packageVersion) {
 			throw new VersionMismatchError(

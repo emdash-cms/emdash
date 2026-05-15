@@ -58,7 +58,7 @@ export {
 //
 // `StorageCollectionConfig` and `PluginStorageConfig` are re-exported above
 // from `@emdash-cms/plugin-types`. The manifest carries these shapes
-// verbatim; both this package (reader) and registry-cli (writer) agree on
+// verbatim; both this package (reader) and plugin-cli (writer) agree on
 // the same types via the shared package.
 
 /**

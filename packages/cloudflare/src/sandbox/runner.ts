@@ -27,8 +27,6 @@ import { setEmailSendCallback } from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
-const EMDASH_SHIM = "export const definePlugin = (d) => d;\n";
-
 /**
  * Default resource limits for sandboxed plugins.
  *
@@ -262,7 +260,6 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 			modules: {
 				"plugin.js": { js: this.wrapperCode! },
 				"sandbox-plugin.js": { js: this.code },
-				emdash: { js: EMDASH_SHIM },
 			},
 			// Block direct network access - plugins must use ctx.http via bridge
 			globalOutbound: null,

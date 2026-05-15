@@ -126,6 +126,18 @@ export function adaptSandboxEntry(
 	const pluginId = descriptor.id;
 	const version = descriptor.version;
 
+	// A null / array / non-object `definition` would throw a generic
+	// `TypeError: Cannot read properties of null` further down the
+	// loop without the plugin id; surface a useful error first.
+	if (typeof definition !== "object" || definition === null || Array.isArray(definition)) {
+		throw new Error(
+			`Plugin "${pluginId}" default export must be an object with ` +
+				`\`hooks\` and/or \`routes\` (got ${
+					Array.isArray(definition) ? "array" : typeof definition
+				}). Did you forget \`export default {...} satisfies SandboxedPlugin\`?`,
+		);
+	}
+
 	// Resolve hooks. `SandboxedPlugin.hooks` is keyed by hook name with
 	// per-key entry types; iterating with `Object.entries` collapses
 	// keys to `string`, so we treat each entry as the union `AnyHookEntry`
@@ -177,9 +189,45 @@ export function adaptSandboxEntry(
 				input: inputSchema as PluginRoute["input"],
 				public: publicFlag,
 				handler: async (ctx) => {
+					// In-process, `ctx.request` is a real WHATWG `Request`
+					// with a `Headers` object. The author-facing
+					// `SandboxedRequest` type promises a plain
+					// `Record<string, string>` (the shape the sandbox's
+					// serialised form delivers). Normalise so handlers
+					// behave the same in-process and in-isolate.
+					const headers: Record<string, string> = {};
+					if (ctx.request && typeof ctx.request === "object") {
+						const h: unknown = (ctx.request as { headers?: unknown }).headers;
+						if (h && typeof h === "object") {
+							if (typeof (h as Headers).forEach === "function") {
+								(h as Headers).forEach((value, name) => {
+									headers[name] = value;
+								});
+							} else {
+								for (const [name, value] of Object.entries(
+									h as Record<string, string>,
+								)) {
+									headers[name] = value;
+								}
+							}
+						}
+					}
+					const requestShape = {
+						url:
+							(ctx.request as { url?: unknown } | undefined)?.url &&
+							typeof (ctx.request as { url: unknown }).url === "string"
+								? (ctx.request as { url: string }).url
+								: "",
+						method:
+							(ctx.request as { method?: unknown } | undefined)?.method &&
+							typeof (ctx.request as { method: unknown }).method === "string"
+								? (ctx.request as { method: string }).method
+								: "GET",
+						headers,
+					};
 					const routeCtx = {
 						input: ctx.input,
-						request: ctx.request,
+						request: requestShape,
 						requestMeta: ctx.requestMeta,
 					};
 					const { input: _, request: __, requestMeta: ___, ...pluginCtx } = ctx;

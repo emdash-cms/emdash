@@ -20,7 +20,7 @@
 
 import { lookup as dnsLookup } from "node:dns/promises";
 import { readFile, stat } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import type { PluginManifest } from "@emdash-cms/plugin-types";
 import { FileCredentialStore, PublishingClient } from "@emdash-cms/registry-client";
@@ -461,7 +461,22 @@ async function loadManifestBootstrap(
 	const path = args.manifest ?? `./${MANIFEST_FILENAME}`;
 	try {
 		const { manifest, path: resolvedPath } = await loadManifest(path);
-		const normalised = normaliseManifest(manifest);
+		// Manifest `version` is optional; reconcile with
+		// `package.json#version` (the canonical source for
+		// npm-distributed plugins) before validating.
+		const packageVersion = await readSiblingPackageVersion(dirname(resolvedPath));
+		let normalised: NormalisedManifest;
+		try {
+			normalised = normaliseManifest(manifest, packageVersion);
+		} catch (error) {
+			if (error instanceof Error && "code" in error) {
+				const code = (error as { code: unknown }).code;
+				if (code === "VERSION_MISSING" || code === "VERSION_MISMATCH") {
+					throw new CliError(error.message, 1, String(code));
+				}
+			}
+			throw error;
+		}
 		log.info(`Loaded manifest: ${pc.dim(resolvedPath)}`);
 		return {
 			path: resolvedPath,
@@ -477,6 +492,57 @@ async function loadManifestBootstrap(
 		}
 		throw error;
 	}
+}
+
+/**
+ * Read `package.json#version` from the directory containing the
+ * manifest. Returns `undefined` when no `package.json` exists (the
+ * registry-only path). Throws `CliError` when the file exists but is
+ * malformed, so a typo like `"verison"` surfaces directly rather than
+ * appearing as a misleading VERSION_MISSING further down.
+ */
+async function readSiblingPackageVersion(manifestDir: string): Promise<string | undefined> {
+	const packageJsonPath = join(manifestDir, "package.json");
+	let source: string;
+	try {
+		source = await readFile(packageJsonPath, "utf-8");
+	} catch (error) {
+		// ENOENT is the registry-only path; surface anything else.
+		if (error instanceof Error && "code" in error && (error as { code: unknown }).code === "ENOENT") {
+			return undefined;
+		}
+		throw new CliError(
+			`Failed to read package.json at ${packageJsonPath}: ${error instanceof Error ? error.message : String(error)}`,
+			1,
+			"PACKAGE_JSON_UNREADABLE",
+		);
+	}
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(source);
+	} catch (error) {
+		throw new CliError(
+			`package.json at ${packageJsonPath} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+			1,
+			"PACKAGE_JSON_INVALID",
+		);
+	}
+	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+		throw new CliError(
+			`package.json at ${packageJsonPath} must be a JSON object.`,
+			1,
+			"PACKAGE_JSON_INVALID",
+		);
+	}
+	const version = (parsed as { version?: unknown }).version;
+	if (version !== undefined && (typeof version !== "string" || version.length === 0)) {
+		throw new CliError(
+			`package.json at ${packageJsonPath} has a non-string \`version\` (${JSON.stringify(version)}).`,
+			1,
+			"PACKAGE_JSON_INVALID",
+		);
+	}
+	return typeof version === "string" ? version : undefined;
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

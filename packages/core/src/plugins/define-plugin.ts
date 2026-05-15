@@ -78,11 +78,11 @@ export function definePlugin<TStorage extends PluginStorageConfig>(
 	// caller meant the sandboxed authoring flow.
 	if (typeof definition.id !== "string" || definition.id.length === 0) {
 		throw new Error(
-			"definePlugin() is for native-format plugins and requires `id`. " +
-				"Sandboxed plugins use the default-export shape with " +
-				'`satisfies SandboxedPlugin` from "emdash/plugin"; identity ' +
-				"comes from `emdash-plugin.jsonc` (slug + publisher), not the " +
-				"source file.",
+			`definePlugin() requires \`id\` (got ${typeof definition.id}). ` +
+				"For native plugins, make sure your definition has both `id` and " +
+				"`version`. For sandboxed plugins, drop `definePlugin()` entirely " +
+				'and `export default { hooks, routes } satisfies SandboxedPlugin` ' +
+				'from "emdash/plugin" — identity comes from `emdash-plugin.jsonc`.',
 		);
 	}
 	return defineNativePlugin(definition);

@@ -77,7 +77,9 @@ describe("scaffold", () => {
 		await scaffold({ targetDir, inputs: FULL_INPUTS, force: false });
 		const { manifest } = await loadManifest(targetDir);
 		expect(manifest.slug).toBe("gallery");
-		expect(manifest.version).toBe("0.1.0");
+		// `version` is intentionally omitted from the scaffold manifest;
+		// the build reads it from package.json instead.
+		expect(manifest.version).toBeUndefined();
 		expect(manifest.publisher).toBe("did:plc:abc123def456");
 		expect(manifest.license).toBe("MIT");
 	});

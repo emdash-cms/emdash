@@ -13,15 +13,21 @@
  *      Reconciles the manifest's optional `version` with `package.json#version`
  *      via `normaliseManifest` (mismatch / missing → error).
  *
- *   2. `probeAndAssemble({ entries, tmpDir })` — build `src/plugin.ts` with
- *      `emdash` aliased to a no-op shim, import the result, and harvest the
- *      hook/route surface into a `ResolvedPlugin`. Identity + trust contract
- *      come from the manifest, not the code.
+ *   2. `probeAndAssemble({ entries, tmpDir })` — build `src/plugin.ts`
+ *      unminified to a temp file, dynamically `import()` it, and harvest
+ *      the hook/route surface into a `ResolvedPlugin`. Identity + trust
+ *      contract come from the manifest, not the code.
  *
  *   3. `buildRuntime({ entries, outDir, tmpDir })` — build `src/plugin.ts`
- *      again (this time minified + tree-shaken) to produce `<outDir>/plugin.mjs`
- *      and `<outDir>/plugin.d.mts`. Same shim as the probe so the input is
- *      identical.
+ *      again, this time minified + tree-shaken + with `.d.mts` types, to
+ *      produce `<outDir>/plugin.mjs` and `<outDir>/plugin.d.mts`. Probe
+ *      and runtime builds differ deliberately in minification and dts
+ *      output; the probe only reads `default.hooks` / `default.routes`
+ *      *keys*, which minification doesn't rename (object literal keys
+ *      stay stable). Both pass the same source through tsdown with no
+ *      `external` and no `alias` — sandboxed plugins must not import
+ *      from `emdash` at runtime (types come from `emdash/plugin` and
+ *      are erased before bundling).
  *
  * Errors throw `BuildPipelineError` with a structured code. Wrappers translate
  * to their own error classes so the CLI's `BuildError` / `BundleError`
@@ -204,9 +210,21 @@ async function readPackageMeta(packageJsonPath: string): Promise<PackageMeta> {
 			`${packageJsonPath} has no "name" field. The build derives the runtime entrypoint specifier from package.json#name.`,
 		);
 	}
+	// `version` is optional (registry-only plugins may rely on the
+	// manifest's version); when present, it must be a non-empty
+	// string.
 	const versionRaw = (parsed as { version?: unknown }).version;
-	const packageVersion =
-		typeof versionRaw === "string" && versionRaw.length > 0 ? versionRaw : undefined;
+	let packageVersion: string | undefined;
+	if (versionRaw === undefined) {
+		packageVersion = undefined;
+	} else if (typeof versionRaw === "string" && versionRaw.length > 0) {
+		packageVersion = versionRaw;
+	} else {
+		throw new BuildPipelineError(
+			"PACKAGE_JSON_INVALID",
+			`${packageJsonPath} has a non-string or empty \`version\` (${JSON.stringify(versionRaw)}). Either remove the field (registry-only plugins) or set it to a non-empty string.`,
+		);
+	}
 	return { packageName: name, packageVersion };
 }
 
@@ -282,10 +300,10 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 
 	const pluginModule = (await import(probeOutputPath)) as Record<string, unknown>;
 	const definition = (pluginModule.default ?? {}) as Record<string, unknown>;
-	if (typeof definition !== "object" || definition === null) {
+	if (typeof definition !== "object" || definition === null || Array.isArray(definition)) {
 		throw new BuildPipelineError(
 			"INVALID_PLUGIN_FORMAT",
-			`${entries.pluginEntry} must default-export the result of definePlugin({ hooks, routes }). Got ${describeShape(definition)}.`,
+			`${entries.pluginEntry} must default-export an object with \`hooks\` and/or \`routes\` (sandboxed plugin shape: \`export default { hooks, routes } satisfies SandboxedPlugin\` from "emdash/plugin"). Got ${describeShape(definition)}.`,
 		);
 	}
 
@@ -306,6 +324,38 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 				typeof hookEntry === "object" && hookEntry !== null
 					? (hookEntry as Record<string, unknown>)
 					: {};
+			// Re-validate hook config values at build time. The strict
+			// `SandboxedPlugin` type rejects these at compile time;
+			// this catches authors who bypass typecheck (untyped JS,
+			// dynamic config).
+			if (
+				config.errorPolicy !== undefined &&
+				config.errorPolicy !== "continue" &&
+				config.errorPolicy !== "abort"
+			) {
+				throw new BuildPipelineError(
+					"INVALID_PLUGIN_FORMAT",
+					`${entries.pluginEntry}: hook "${hookName}" has invalid errorPolicy ${JSON.stringify(config.errorPolicy)} (must be "continue" or "abort").`,
+				);
+			}
+			if (
+				config.priority !== undefined &&
+				(typeof config.priority !== "number" || !Number.isFinite(config.priority))
+			) {
+				throw new BuildPipelineError(
+					"INVALID_PLUGIN_FORMAT",
+					`${entries.pluginEntry}: hook "${hookName}" has invalid priority ${JSON.stringify(config.priority)} (must be a finite number).`,
+				);
+			}
+			if (
+				config.timeout !== undefined &&
+				(typeof config.timeout !== "number" || !Number.isFinite(config.timeout) || config.timeout < 0)
+			) {
+				throw new BuildPipelineError(
+					"INVALID_PLUGIN_FORMAT",
+					`${entries.pluginEntry}: hook "${hookName}" has invalid timeout ${JSON.stringify(config.timeout)} (must be a non-negative finite number).`,
+				);
+			}
 			resolvedPlugin.hooks[hookName] = {
 				handler,
 				priority: (config.priority as number | undefined) ?? 100,
@@ -357,9 +407,13 @@ export interface RuntimeFiles {
 /**
  * Build `src/plugin.ts` into `<outDir>/plugin.mjs` + `<outDir>/plugin.d.mts`.
  *
- * Same `emdash` shim alias as the probe so the input is identical.
- * Minified + tree-shaken because this output is what either runs in the
- * isolate (loader string-embeds it) or is `import`-ed in-process.
+ * Same source as the probe; the configuration differs only in
+ * `minify: true` and `dts: true`. The probe stays unminified for
+ * stable property-key reads (`default.hooks`, `default.routes`); the
+ * runtime build minifies because this output is what runs in the
+ * isolate (loader string-embeds it) or is `import`-ed in-process. No
+ * `external`, no `alias` — sandboxed plugins must not import from
+ * `emdash` at runtime.
  */
 export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFiles> {
 	const { entries, outDir, tmpDir, build } = ctx;
