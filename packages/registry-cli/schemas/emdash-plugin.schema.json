@@ -29,29 +29,32 @@
 		"storage": {
 			"$ref": "#/$defs/__schema9"
 		},
-		"author": {
+		"admin": {
 			"$ref": "#/$defs/__schema16"
 		},
-		"authors": {
-			"$ref": "#/$defs/__schema21"
-		},
-		"security": {
-			"$ref": "#/$defs/__schema22"
-		},
-		"securityContacts": {
-			"$ref": "#/$defs/__schema26"
-		},
-		"name": {
+		"author": {
 			"$ref": "#/$defs/__schema27"
 		},
+		"authors": {
+			"$ref": "#/$defs/__schema32"
+		},
+		"security": {
+			"$ref": "#/$defs/__schema33"
+		},
+		"securityContacts": {
+			"$ref": "#/$defs/__schema37"
+		},
+		"name": {
+			"$ref": "#/$defs/__schema38"
+		},
 		"description": {
-			"$ref": "#/$defs/__schema28"
+			"$ref": "#/$defs/__schema39"
 		},
 		"keywords": {
-			"$ref": "#/$defs/__schema29"
+			"$ref": "#/$defs/__schema40"
 		},
 		"repo": {
-			"$ref": "#/$defs/__schema31"
+			"$ref": "#/$defs/__schema42"
 		}
 	},
 	"required": [
@@ -230,19 +233,123 @@
 			"minLength": 1
 		},
 		"__schema16": {
-			"$ref": "#/$defs/__schema17"
+			"type": "object",
+			"properties": {
+				"pages": {
+					"$ref": "#/$defs/__schema17"
+				},
+				"widgets": {
+					"$ref": "#/$defs/__schema22"
+				}
+			},
+			"additionalProperties": false,
+			"title": "Admin surface",
+			"description": "Pages and widgets the plugin exposes in the admin UI. The plugin's `admin` route handler renders Block Kit content for each path / widget id at runtime."
 		},
 		"__schema17": {
+			"maxItems": 32,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema18"
+			}
+		},
+		"__schema18": {
+			"type": "object",
+			"properties": {
+				"path": {
+					"$ref": "#/$defs/__schema19"
+				},
+				"label": {
+					"$ref": "#/$defs/__schema20"
+				},
+				"icon": {
+					"$ref": "#/$defs/__schema21"
+				}
+			},
+			"required": [
+				"path",
+				"label"
+			],
+			"additionalProperties": false,
+			"title": "Admin page",
+			"description": "A single admin page declaration. The plugin's `admin` route handler is responsible for rendering Block Kit content for this path."
+		},
+		"__schema19": {
+			"type": "string",
+			"minLength": 2,
+			"maxLength": 128,
+			"pattern": "^\\/[a-z0-9][a-z0-9/_-]*$"
+		},
+		"__schema20": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 128
+		},
+		"__schema21": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 64
+		},
+		"__schema22": {
+			"maxItems": 32,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema23"
+			}
+		},
+		"__schema23": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"$ref": "#/$defs/__schema24"
+				},
+				"title": {
+					"$ref": "#/$defs/__schema25"
+				},
+				"size": {
+					"$ref": "#/$defs/__schema26"
+				}
+			},
+			"required": [
+				"id"
+			],
+			"additionalProperties": false,
+			"title": "Admin widget",
+			"description": "A single dashboard widget declaration."
+		},
+		"__schema24": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 64,
+			"pattern": "^[a-z][a-z0-9_-]*$"
+		},
+		"__schema25": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 128
+		},
+		"__schema26": {
+			"type": "string",
+			"enum": [
+				"full",
+				"half",
+				"third"
+			]
+		},
+		"__schema27": {
+			"$ref": "#/$defs/__schema28"
+		},
+		"__schema28": {
 			"type": "object",
 			"properties": {
 				"name": {
-					"$ref": "#/$defs/__schema18"
+					"$ref": "#/$defs/__schema29"
 				},
 				"url": {
-					"$ref": "#/$defs/__schema19"
+					"$ref": "#/$defs/__schema30"
 				},
 				"email": {
-					"$ref": "#/$defs/__schema20"
+					"$ref": "#/$defs/__schema31"
 				}
 			},
 			"required": [
@@ -252,104 +359,104 @@
 			"title": "Author",
 			"description": "A single author entry. Mirrors the lexicon's author shape."
 		},
-		"__schema18": {
+		"__schema29": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 256,
 			"description": "Display name."
 		},
-		"__schema19": {
+		"__schema30": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
 			"description": "Author's homepage or profile URL. Either this or `email` is recommended."
 		},
-		"__schema20": {
+		"__schema31": {
 			"type": "string",
 			"maxLength": 256,
 			"format": "email",
 			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
 			"description": "Author's contact email. Either this or `url` is recommended."
 		},
-		"__schema21": {
+		"__schema32": {
 			"minItems": 1,
 			"maxItems": 32,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema17"
+				"$ref": "#/$defs/__schema28"
 			},
 			"title": "Authors (multiple)",
 			"description": "Multi-author form. Mutually exclusive with `author`. Use the singular `author` if there is only one."
 		},
-		"__schema22": {
-			"$ref": "#/$defs/__schema23"
+		"__schema33": {
+			"$ref": "#/$defs/__schema34"
 		},
-		"__schema23": {
+		"__schema34": {
 			"type": "object",
 			"properties": {
 				"url": {
-					"$ref": "#/$defs/__schema24"
+					"$ref": "#/$defs/__schema35"
 				},
 				"email": {
-					"$ref": "#/$defs/__schema25"
+					"$ref": "#/$defs/__schema36"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Security contact",
 			"description": "A single security contact. At least one of `url` or `email` must be present."
 		},
-		"__schema24": {
+		"__schema35": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
 			"description": "Security disclosure URL (e.g. a security.txt or vulnerability-reporting page). Either this or `email` is required."
 		},
-		"__schema25": {
+		"__schema36": {
 			"type": "string",
 			"maxLength": 256,
 			"format": "email",
 			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
 			"description": "Security contact email. Either this or `url` is required."
 		},
-		"__schema26": {
+		"__schema37": {
 			"minItems": 1,
 			"maxItems": 8,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema23"
+				"$ref": "#/$defs/__schema34"
 			},
 			"title": "Security contacts (multiple)",
 			"description": "Multi-contact form. Mutually exclusive with `security`. Use the singular `security` if there is only one."
 		},
-		"__schema27": {
+		"__schema38": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"title": "Display name",
 			"description": "Human-readable name shown in directory listings. Defaults to the plugin's `id` when omitted."
 		},
-		"__schema28": {
+		"__schema39": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"title": "Description",
 			"description": "Short description (<= 140 graphemes by FAIR convention). Aggregators may truncate longer values when displaying in compact lists."
 		},
-		"__schema29": {
+		"__schema40": {
 			"maxItems": 5,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema30"
+				"$ref": "#/$defs/__schema41"
 			},
 			"title": "Keywords",
 			"description": "Search keywords (<= 5 entries, FAIR convention)."
 		},
-		"__schema30": {
+		"__schema41": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 128
 		},
-		"__schema31": {
+		"__schema42": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",

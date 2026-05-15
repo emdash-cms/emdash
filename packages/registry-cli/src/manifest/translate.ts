@@ -17,6 +17,16 @@ import type { Manifest, ManifestAuthor, ManifestSecurityContact } from "./schema
  * pipeline rather than the raw `Manifest` so the rest of the code
  * never has to think about `author` vs `authors`.
  */
+/**
+ * Admin surface, mirroring the structure the runtime expects. Pulled
+ * out as a type alias so the bundle layer can pass it through to the
+ * bundled `manifest.json` without re-asserting the shape.
+ */
+export interface NormalisedAdmin {
+	pages: Array<{ path: string; label: string; icon?: string }>;
+	widgets: Array<{ id: string; title?: string; size?: "full" | "half" | "third" }>;
+}
+
 export interface NormalisedManifest {
 	// Identity (required).
 	slug: string;
@@ -36,6 +46,13 @@ export interface NormalisedManifest {
 	capabilities: PluginCapability[];
 	allowedHosts: string[];
 	storage: PluginStorageConfig;
+
+	/**
+	 * Admin surface. Always present in the normalised form (with
+	 * empty arrays when the manifest didn't declare anything) so the
+	 * bundle layer can pass it through without conditional handling.
+	 */
+	admin: NormalisedAdmin;
 }
 
 /**
@@ -74,6 +91,10 @@ export function normaliseManifest(manifest: Manifest): NormalisedManifest {
 		// constraint.
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- schema-enforced narrowing
 		storage: manifest.storage as PluginStorageConfig,
+		admin: {
+			pages: manifest.admin?.pages ?? [],
+			widgets: manifest.admin?.widgets ?? [],
+		},
 	};
 }
 

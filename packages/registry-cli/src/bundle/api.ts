@@ -471,7 +471,14 @@ async function assembleResolvedPlugin(ctx: AssembleContext): Promise<ResolvedPlu
 		storage: entries.manifest.storage,
 		hooks: {},
 		routes: {},
-		admin: {},
+		admin: {
+			// Pages / widgets the plugin declared in the manifest get
+			// passed straight through to the bundled `manifest.json`.
+			// `extractManifest` reads from `admin` to populate the
+			// `admin` block of the wire format.
+			pages: entries.manifest.admin.pages,
+			widgets: entries.manifest.admin.widgets,
+		},
 	};
 
 	await probePluginSurface({

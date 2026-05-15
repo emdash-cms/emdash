@@ -29,7 +29,7 @@ function createCtx() {
 
 describe("sandbox hooks", () => {
 	it("does not create syndication records from afterSave when published content has not been synced", async () => {
-		const { default: plugin } = await import("../src/sandbox-entry.js");
+		const { default: plugin } = await import("../src/plugin.js");
 		const ctx = createCtx();
 		const handler = (plugin as any).hooks["content:afterSave"].handler;
 
@@ -53,7 +53,7 @@ describe("sandbox hooks", () => {
 	});
 
 	it("does not syndicate pages by default", async () => {
-		const { default: plugin } = await import("../src/sandbox-entry.js");
+		const { default: plugin } = await import("../src/plugin.js");
 		const ctx = createCtx();
 		const handler = (plugin as any).hooks["content:afterPublish"].handler;
 
@@ -76,7 +76,7 @@ describe("sandbox hooks", () => {
 	});
 
 	it("does not expose standard.site metadata for pages by default", async () => {
-		const { default: plugin } = await import("../src/sandbox-entry.js");
+		const { default: plugin } = await import("../src/plugin.js");
 		const ctx = createCtx();
 		ctx.storage.records.get.mockResolvedValueOnce({
 			atUri: "at://did:example/site.standard.document/abc",

@@ -1,0 +1,26 @@
+{
+	"$schema": "../../registry-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "atproto",
+	"version": "0.1.3",
+	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6", // plugins.emdashcms.com
+
+	"license": "MIT",
+	"author": { "name": "Matt Kane" },
+	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
+	"description": "Syndicates published content to the AT Protocol network via standard.site lexicons, with optional Bluesky cross-posting.",
+
+	// Trust contract. Needs unrestricted outbound HTTP because the
+	// publisher's PDS host varies per user — there's no fixed
+	// allow-list. Reads content for syndication.
+	"capabilities": ["content:read", "network:request:unrestricted"],
+	"allowedHosts": [],
+	"storage": {
+		"records": { "indexes": ["contentId", "status", "lastSyncedAt"] },
+	},
+
+	"admin": {
+		"pages": [{ "path": "/status", "label": "AT Protocol", "icon": "globe" }],
+		"widgets": [{ "id": "sync-status", "title": "AT Protocol", "size": "third" }],
+	},
+}

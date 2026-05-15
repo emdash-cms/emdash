@@ -447,6 +447,86 @@ export const StorageSchema = z
 	});
 
 // ──────────────────────────────────────────────────────────────────────────
+// Admin surface (pages + dashboard widgets)
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * An admin page declaration. Sandboxed plugins render admin pages
+ * through Block Kit via their `admin` route handler — the manifest
+ * just declares where the page lives in the navigation, what it's
+ * called, and what icon goes next to it.
+ *
+ * Path is restricted to a leading slash + URL-safe characters so the
+ * admin router has a sensible space of values to dispatch on.
+ */
+export const AdminPageSchema = z
+	.object({
+		path: z
+			.string()
+			.min(2, "admin page path must be at least 2 characters (leading slash + name)")
+			.max(128, "admin page path must be <= 128 characters")
+			.regex(
+				/^\/[a-z0-9][a-z0-9/_-]*$/i,
+				'admin page path must start with "/" and contain only letters, digits, "-", "_", "/"',
+			),
+		label: z
+			.string()
+			.min(1, "admin page label cannot be empty")
+			.max(128, "admin page label must be <= 128 characters"),
+		icon: z.string().min(1).max(64).optional(),
+	})
+	.strict()
+	.meta({
+		title: "Admin page",
+		description:
+			"A single admin page declaration. The plugin's `admin` route handler is responsible for rendering Block Kit content for this path.",
+	});
+
+/**
+ * A dashboard widget declaration. Same surface contract as admin
+ * pages — the plugin's `admin` route handler renders the widget's
+ * Block Kit content, scoped by widget id.
+ */
+export const AdminWidgetSchema = z
+	.object({
+		id: z
+			.string()
+			.min(1, "admin widget id cannot be empty")
+			.max(64, "admin widget id must be <= 64 characters")
+			.regex(
+				/^[a-z][a-z0-9_-]*$/,
+				'admin widget id must start with a lowercase letter, then lowercase letters / digits / "-" / "_"',
+			),
+		title: z.string().min(1).max(128).optional(),
+		size: z.enum(["full", "half", "third"]).optional(),
+	})
+	.strict()
+	.meta({
+		title: "Admin widget",
+		description: "A single dashboard widget declaration.",
+	});
+
+/**
+ * Admin surface block in the manifest. Both fields are optional;
+ * plugins that don't expose admin UI at all simply omit the `admin`
+ * key entirely.
+ */
+export const AdminSchema = z
+	.object({
+		pages: z.array(AdminPageSchema).max(32, "admin.pages[] must have <= 32 entries").optional(),
+		widgets: z
+			.array(AdminWidgetSchema)
+			.max(32, "admin.widgets[] must have <= 32 entries")
+			.optional(),
+	})
+	.strict()
+	.meta({
+		title: "Admin surface",
+		description:
+			"Pages and widgets the plugin exposes in the admin UI. The plugin's `admin` route handler renders Block Kit content for each path / widget id at runtime.",
+	});
+
+// ──────────────────────────────────────────────────────────────────────────
 // Top-level manifest
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -498,6 +578,13 @@ export const ManifestSchema = z
 		capabilities: CapabilitiesSchema.default([]),
 		allowedHosts: AllowedHostsSchema.default([]),
 		storage: StorageSchema.default({}),
+
+		// Admin surface. Optional; plugins that don't expose any admin
+		// UI omit the key entirely. The runtime checks that any plugin
+		// declaring admin.pages or admin.widgets also serves an `admin`
+		// route — the schema can't enforce that here because route
+		// names are probed from src/plugin.ts, not the manifest.
+		admin: AdminSchema.optional(),
 
 		// Single-author form. Mutually exclusive with `authors`.
 		author: AuthorSchema.optional(),
