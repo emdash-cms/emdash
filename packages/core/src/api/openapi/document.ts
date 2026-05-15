@@ -1452,6 +1452,47 @@ const menuPaths = {
 			},
 		},
 	},
+	"/_emdash/api/menus/{name}/items/{id}": {
+		put: {
+			operationId: "updateMenuItemById",
+			summary: "Update a menu item (path-style id)",
+			tags: ["Menus"],
+			requestParams: {
+				path: z.object({
+					name: z.string().meta({ description: "Menu name" }),
+					id: z.string().meta({ description: "Menu item id" }),
+				}),
+			},
+			requestBody: { content: { [JSON_CONTENT]: { schema: updateMenuItemBody } } },
+			responses: {
+				"200": {
+					description: "Updated menu item",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(menuItemSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		delete: {
+			operationId: "deleteMenuItemById",
+			summary: "Delete a menu item (path-style id)",
+			tags: ["Menus"],
+			requestParams: {
+				path: z.object({
+					name: z.string().meta({ description: "Menu name" }),
+					id: z.string().meta({ description: "Menu item id" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Deleted",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+	},
 	"/_emdash/api/menus/{name}/reorder": {
 		post: {
 			operationId: "reorderMenuItems",

@@ -562,6 +562,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/menus/[name]/items/[id]",
+		entrypoint: resolveRoute("api/menus/[name]/items/[id].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/menus/[name]/reorder",
 		entrypoint: resolveRoute("api/menus/[name]/reorder.ts"),
 	});
