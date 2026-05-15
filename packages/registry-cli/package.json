@@ -8,6 +8,10 @@
 		".": {
 			"types": "./dist/api.d.mts",
 			"default": "./dist/api.mjs"
+		},
+		"./dev": {
+			"types": "./dist/dev.d.mts",
+			"default": "./dist/dev.mjs"
 		}
 	},
 	"bin": {

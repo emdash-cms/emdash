@@ -2,8 +2,10 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2, sandbox } from "@emdash-cms/cloudflare";
 import { formsPlugin } from "@emdash-cms/plugin-forms";
-import { webhookNotifierPlugin } from "@emdash-cms/plugin-webhook-notifier";
+import { localPlugin } from "@emdash-cms/registry-cli/dev";
 import { defineConfig, fontProviders } from "astro/config";
+
+const webhookNotifier = await localPlugin("../../packages/plugins/webhook-notifier");
 import emdash from "emdash/astro";
 
 export default defineConfig({
@@ -19,7 +21,7 @@ export default defineConfig({
 			database: d1({ binding: "DB", session: "auto" }),
 			storage: r2({ binding: "MEDIA" }),
 			plugins: [formsPlugin()],
-			sandboxed: [webhookNotifierPlugin()],
+			sandboxed: [webhookNotifier],
 			sandboxRunner: sandbox(),
 			experimental: {
 				registry: "https://registry.emdashcms.com",

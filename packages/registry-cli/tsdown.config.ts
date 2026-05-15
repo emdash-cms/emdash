@@ -15,7 +15,7 @@ export default defineConfig([
 	// Programmatic API entry. With tsdown's ESM defaults this emits
 	// `.mjs` + `.d.mts` (matching the `exports` field in package.json).
 	{
-		entry: ["src/api.ts"],
+		entry: ["src/api.ts", "src/dev.ts"],
 		format: ["esm"],
 		dts: true,
 		clean: false,
@@ -34,9 +34,11 @@ export default defineConfig([
 			"citty",
 			"consola",
 			"image-size",
+			"jsonc-parser",
 			"modern-tar",
 			"picocolors",
 			"tsdown",
+			"zod",
 		],
 	},
 ]);

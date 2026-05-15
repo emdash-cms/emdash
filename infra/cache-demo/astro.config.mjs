@@ -3,9 +3,11 @@ import { cacheCloudflare } from "@astrojs/cloudflare/cache";
 import react from "@astrojs/react";
 import { d1, r2, sandbox } from "@emdash-cms/cloudflare";
 import { formsPlugin } from "@emdash-cms/plugin-forms";
-import { webhookNotifierPlugin } from "@emdash-cms/plugin-webhook-notifier";
+import { localPlugin } from "@emdash-cms/registry-cli/dev";
 import { defineConfig, fontProviders } from "astro/config";
 import emdash from "emdash/astro";
+
+const webhookNotifier = await localPlugin("../../packages/plugins/webhook-notifier");
 
 export default defineConfig({
 	output: "server",
@@ -25,7 +27,7 @@ export default defineConfig({
 			database: d1({ binding: "DB", session: "auto" }),
 			storage: r2({ binding: "MEDIA" }),
 			plugins: [formsPlugin()],
-			sandboxed: [webhookNotifierPlugin()],
+			sandboxed: [webhookNotifier],
 			sandboxRunner: sandbox(),
 			marketplace: "https://marketplace.emdashcms.com",
 		}),
