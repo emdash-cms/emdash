@@ -37,6 +37,10 @@ export function BlockKitMediaPickerField({
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [imageBroken, setImageBroken] = React.useState(false);
 	const url = typeof value === "string" && value.length > 0 ? value : "";
+
+	React.useEffect(() => {
+		setImageBroken(false);
+	}, [url]);
 	const filter = mimeTypeFilter ?? "image/";
 	const canPreview = isSafePreviewUrl(url);
 

@@ -1587,6 +1587,10 @@ function ImageFieldRenderer({
 					? `/_emdash/api/media/file/${typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id}`
 					: undefined);
 
+	React.useEffect(() => {
+		setImageBroken(false);
+	}, [displayUrl]);
+
 	const handleSelect = (item: MediaItem) => {
 		const isLocalProvider = !item.provider || item.provider === "local";
 
