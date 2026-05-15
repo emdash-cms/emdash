@@ -5,23 +5,7 @@
  * Runs in both trusted (in-process) and sandboxed (isolate) modes.
  */
 
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
-
-interface ContentSaveEvent {
-	content: Record<string, unknown>;
-	collection: string;
-	isNew: boolean;
-}
-
-interface ContentDeleteEvent {
-	id: string;
-	collection: string;
-}
-
-interface MediaUploadEvent {
-	media: { id: string };
-}
+import type { PluginContext, SandboxedPlugin } from "emdash/plugin";
 
 interface WebhookPayload {
 	event: string;
@@ -173,14 +157,14 @@ function getFetchFn(ctx: PluginContext): FetchFn {
 
 // ── Plugin definition ──
 
-export default definePlugin({
+export default {
 	hooks: {
 		"content:afterSave": {
 			priority: 210,
 			timeout: 10000,
 			dependencies: ["audit-log"],
 			errorPolicy: "continue",
-			handler: async (event: ContentSaveEvent, ctx: PluginContext) => {
+			handler: async (event, ctx) => {
 				const { url, token, enabled } = await getConfig(ctx);
 				if (enabled === false || !url) return;
 
@@ -208,7 +192,7 @@ export default definePlugin({
 			timeout: 10000,
 			dependencies: ["audit-log"],
 			errorPolicy: "continue",
-			handler: async (event: ContentDeleteEvent, ctx: PluginContext) => {
+			handler: async (event, ctx) => {
 				const { url, token, enabled } = await getConfig(ctx);
 				if (enabled === false || !url) return;
 
@@ -228,7 +212,7 @@ export default definePlugin({
 			priority: 210,
 			timeout: 10000,
 			errorPolicy: "continue",
-			handler: async (event: MediaUploadEvent, ctx: PluginContext) => {
+			handler: async (event, ctx) => {
 				const { url, token, enabled } = await getConfig(ctx);
 				if (enabled === false || !url) return;
 
@@ -246,10 +230,7 @@ export default definePlugin({
 
 	routes: {
 		admin: {
-			handler: async (
-				routeCtx: { input: unknown; request: { url: string } },
-				ctx: PluginContext,
-			) => {
+			handler: async (routeCtx, ctx) => {
 				const interaction = routeCtx.input as {
 					type: string;
 					page?: string;
@@ -275,7 +256,7 @@ export default definePlugin({
 		},
 
 		status: {
-			handler: async (_routeCtx: { input: unknown; request: unknown }, ctx: PluginContext) => {
+			handler: async (_routeCtx, ctx) => {
 				try {
 					const url = await ctx.kv.get<string>("settings:webhookUrl");
 					const enabled = await ctx.kv.get<boolean>("settings:enabled");
@@ -301,7 +282,7 @@ export default definePlugin({
 		},
 
 		settings: {
-			handler: async (_routeCtx: { input: unknown; request: unknown }, ctx: PluginContext) => {
+			handler: async (_routeCtx, ctx) => {
 				try {
 					const settings = await ctx.kv.list("settings:");
 					const map: Record<string, unknown> = {};
@@ -322,7 +303,7 @@ export default definePlugin({
 		},
 
 		"settings/save": {
-			handler: async (routeCtx: { input: unknown; request: unknown }, ctx: PluginContext) => {
+			handler: async (routeCtx, ctx) => {
 				try {
 					const input = isRecord(routeCtx.input) ? routeCtx.input : {};
 					if (typeof input.webhookUrl === "string")
@@ -341,7 +322,7 @@ export default definePlugin({
 		},
 
 		test: {
-			handler: async (routeCtx: { input: unknown; request: unknown }, ctx: PluginContext) => {
+			handler: async (routeCtx, ctx) => {
 				const testUrl = getString(routeCtx.input, "url");
 				if (!testUrl) return { success: false, error: "No webhook URL provided" };
 
@@ -372,7 +353,7 @@ export default definePlugin({
 			},
 		},
 	},
-});
+} satisfies SandboxedPlugin;
 
 // ── Block Kit admin helpers ──
 

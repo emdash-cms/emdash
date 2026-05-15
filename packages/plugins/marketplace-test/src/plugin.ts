@@ -11,19 +11,12 @@
  * `emdash-plugin.jsonc`. This file holds runtime behaviour only.
  */
 
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
+import type { SandboxedPlugin } from "emdash/plugin";
 
-interface HookEvent {
-	content?: Record<string, unknown>;
-	collection?: string;
-	isNew?: boolean;
-}
-
-export default definePlugin({
+export default {
 	hooks: {
 		"content:beforeSave": {
-			handler: async (event: HookEvent, ctx: PluginContext) => {
+			handler: async (event, ctx) => {
 				ctx.log.info("[marketplace-test] beforeSave fired", {
 					collection: event.collection,
 					isNew: event.isNew,
@@ -31,7 +24,7 @@ export default definePlugin({
 
 				// Record execution in storage so the registry's install
 				// audit can verify the hook actually ran post-install.
-				await ctx.storage.events.put(`hook-${Date.now()}`, {
+				await ctx.storage.events!.put(`hook-${Date.now()}`, {
 					timestamp: new Date().toISOString(),
 					type: "content:beforeSave",
 					collection: event.collection,
@@ -45,18 +38,18 @@ export default definePlugin({
 
 	routes: {
 		ping: {
-			handler: async (_ctx: { input: unknown; request: unknown }, pluginCtx: PluginContext) => ({
+			handler: async (_routeCtx, ctx) => ({
 				pong: true,
-				pluginId: pluginCtx.plugin.id,
+				pluginId: ctx.plugin.id,
 				timestamp: Date.now(),
 			}),
 		},
 
 		events: {
-			handler: async (_ctx: { input: unknown; request: unknown }, pluginCtx: PluginContext) => {
-				const result = await pluginCtx.storage.events.query({ limit: 10 });
+			handler: async (_routeCtx, ctx) => {
+				const result = await ctx.storage.events!.query({ limit: 10 });
 				return { count: result.items.length, items: result.items };
 			},
 		},
 	},
-});
+} satisfies SandboxedPlugin;

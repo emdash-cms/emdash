@@ -1,11 +1,9 @@
 import node from "@astrojs/node";
 import react from "@astrojs/react";
-import { localPlugin } from "@emdash-cms/registry-cli/dev";
+import auditLog from "@emdash-cms/plugin-audit-log";
 import { defineConfig, fontProviders } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
-
-const auditLog = await localPlugin("../../packages/plugins/audit-log");
 
 export default defineConfig({
 	output: "server",

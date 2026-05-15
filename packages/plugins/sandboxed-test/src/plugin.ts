@@ -5,8 +5,7 @@
  * Runs in both trusted (in-process) and sandboxed (isolate) modes.
  */
 
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
+import type { PluginContext, SandboxedPlugin } from "emdash/plugin";
 
 interface HookEvent {
 	content?: Record<string, unknown>;
@@ -28,7 +27,7 @@ function getString(value: unknown, key: string): string | undefined {
 
 // ── Plugin definition ──
 
-export default definePlugin({
+export default {
 	hooks: {
 		"content:beforeSave": {
 			handler: async (event: HookEvent, ctx: PluginContext) => {
@@ -830,7 +829,7 @@ export default definePlugin({
 			},
 		},
 	},
-});
+} satisfies SandboxedPlugin;
 
 // ── Block Kit admin helpers ──
 

@@ -1,18 +1,12 @@
 import node from "@astrojs/node";
 import react from "@astrojs/react";
 import { apiTestPlugin } from "@emdash-cms/plugin-api-test";
+import auditLog from "@emdash-cms/plugin-audit-log";
 import { embedsPlugin } from "@emdash-cms/plugin-embeds";
-import { localPlugin } from "@emdash-cms/registry-cli/dev";
+import webhookNotifier from "@emdash-cms/plugin-webhook-notifier";
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 import { sqlite } from "emdash/db";
-
-// Sandboxed plugins are loaded directly from their source dirs via
-// localPlugin(). The trusted plugins (api-test, embeds) keep their
-// factory-based imports for now — they haven't migrated to the new
-// shape yet.
-const auditLog = await localPlugin("../../packages/plugins/audit-log");
-const webhookNotifier = await localPlugin("../../packages/plugins/webhook-notifier");
 
 export default defineConfig({
 	output: "server",

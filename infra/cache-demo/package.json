@@ -18,7 +18,7 @@
 		"@emdash-cms/cloudflare": "workspace:*",
 		"@emdash-cms/plugin-forms": "workspace:*",
 		"@emdash-cms/plugin-webhook-notifier": "workspace:*",
-		"@emdash-cms/registry-cli": "workspace:*",
+		"@emdash-cms/plugin-cli": "workspace:*",
 		"astro": "https://pkg.pr.new/astro@94d342d",
 		"emdash": "workspace:*",
 		"react": "catalog:",

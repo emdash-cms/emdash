@@ -6,7 +6,7 @@
  * what was just written.
  *
  * This module deliberately does NOT implement the interactive OAuth flow
- * itself. Callers (the CLI in `@emdash-cms/registry-cli`) are responsible for:
+ * itself. Callers (the CLI in `@emdash-cms/plugin-cli`) are responsible for:
  *   1. Driving the OAuth dance (browser-redirect with device-flow fallback,
  *      DPoP-bound tokens) via `@atcute/oauth-node-client`.
  *   2. Persisting the resulting session somewhere durable.

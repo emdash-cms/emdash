@@ -1,8 +1,7 @@
 {
-	"$schema": "../../registry-cli/schemas/emdash-plugin.schema.json",
+	"$schema": "../../plugin-cli/schemas/emdash-plugin.schema.json",
 
 	"slug": "webhook-notifier",
-	"version": "0.1.3",
 	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6", // plugins.emdashcms.com
 
 	"license": "MIT",

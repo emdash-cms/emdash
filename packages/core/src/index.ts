@@ -188,7 +188,6 @@ export { EmDashStorageError } from "./storage/types.js";
 export {
 	definePlugin,
 	adaptSandboxEntry,
-	isStandardPluginDefinition,
 	pluginManifestSchema,
 	createHookPipeline,
 	HookPipeline,
@@ -243,16 +242,9 @@ export type {
 	CollectionCommentSettings,
 	StoredComment,
 
-	// Standard plugin format
-	StandardPluginDefinition,
-	StandardHookHandler,
-	StandardHookEntry,
-	StandardRouteHandler,
-	StandardRouteEntry,
-
-	// Sandbox types
+	// Sandbox runtime types
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,

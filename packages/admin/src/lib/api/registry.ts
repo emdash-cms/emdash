@@ -318,7 +318,7 @@ export async function listRegistryReleases(
 
 /**
  * Resolve a publisher DID to its claimed handle using the same
- * `LocalActorResolver` pattern as `@emdash-cms/registry-cli` and
+ * `LocalActorResolver` pattern as `@emdash-cms/plugin-cli` and
  * `@emdash-cms/auth-atproto`. Bidirectional verification (handle's
  * domain points back to the same DID) is part of the resolver --
  * `LocalActorResolver` returns the sentinel `"handle.invalid"` when

@@ -17,7 +17,7 @@
     "@emdash-cms/plugin-audit-log": "workspace:*",
     "@emdash-cms/plugin-embeds": "workspace:*",
     "@emdash-cms/plugin-webhook-notifier": "workspace:*",
-    "@emdash-cms/registry-cli": "workspace:*",
+    "@emdash-cms/plugin-cli": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "astro": "catalog:",

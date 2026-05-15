@@ -20,7 +20,7 @@
     "@emdash-cms/plugin-atproto": "workspace:*",
     "@emdash-cms/plugin-audit-log": "workspace:*",
     "@emdash-cms/plugin-color": "workspace:*",
-    "@emdash-cms/registry-cli": "workspace:*",
+    "@emdash-cms/plugin-cli": "workspace:*",
     "astro": "catalog:",
     "better-sqlite3": "catalog:",
     "emdash": "workspace:*",

@@ -10,28 +10,7 @@
  * degradation -- the entry is still recorded).
  */
 
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
-
-interface ContentSaveEvent {
-	content: Record<string, unknown> & {
-		id?: string | number;
-		slug?: string;
-		status?: string;
-		data?: Record<string, unknown>;
-	};
-	collection: string;
-	isNew: boolean;
-}
-
-interface ContentDeleteEvent {
-	id: string;
-	collection: string;
-}
-
-interface MediaUploadEvent {
-	media: { id: string };
-}
+import type { PluginContext, SandboxedPlugin } from "emdash/plugin";
 
 interface AuditEntry {
 	timestamp: string;
@@ -69,26 +48,26 @@ const beforeSaveCache = new Map<string, unknown>();
 
 // ── Plugin definition ──
 
-export default definePlugin({
+export default {
 	hooks: {
-		"plugin:install": async (_event: unknown, ctx: PluginContext) => {
+		"plugin:install": async (_event, ctx) => {
 			ctx.log.info("Audit log plugin installed");
 		},
 
-		"plugin:activate": async (_event: unknown, ctx: PluginContext) => {
+		"plugin:activate": async (_event, ctx) => {
 			ctx.log.info("Audit log plugin activated");
 		},
 
-		"plugin:deactivate": async (_event: unknown, ctx: PluginContext) => {
+		"plugin:deactivate": async (_event, ctx) => {
 			ctx.log.info("Audit log plugin deactivated");
 		},
 
-		"plugin:uninstall": async (_event: unknown, ctx: PluginContext) => {
+		"plugin:uninstall": async (_event, ctx) => {
 			ctx.log.info("Audit log plugin uninstalled");
 		},
 
 		"content:beforeSave": {
-			handler: async (event: ContentSaveEvent, ctx: PluginContext) => {
+			handler: async (event, ctx) => {
 				if (!event.isNew && event.content.id) {
 					const contentId =
 						typeof event.content.id === "string" ? event.content.id : String(event.content.id);
@@ -108,7 +87,7 @@ export default definePlugin({
 		},
 
 		"content:afterSave": {
-			handler: async (event: ContentSaveEvent, ctx: PluginContext) => {
+			handler: async (event, ctx) => {
 				const contentId =
 					typeof event.content.id === "string" ? event.content.id : String(event.content.id ?? "");
 				const cacheKey = `${event.collection}:${contentId}`;
@@ -141,7 +120,7 @@ export default definePlugin({
 		},
 
 		"content:beforeDelete": {
-			handler: async (event: ContentDeleteEvent, ctx: PluginContext) => {
+			handler: async (event, ctx) => {
 				if (ctx.content) {
 					try {
 						const existing = await ctx.content.get(event.collection, event.id);
@@ -157,7 +136,7 @@ export default definePlugin({
 		},
 
 		"content:afterDelete": {
-			handler: async (event: ContentDeleteEvent, ctx: PluginContext) => {
+			handler: async (event, ctx) => {
 				const cacheKey = `delete:${event.collection}:${event.id}`;
 				const beforeData = beforeSaveCache.get(cacheKey);
 				beforeSaveCache.delete(cacheKey);
@@ -183,7 +162,7 @@ export default definePlugin({
 		},
 
 		"media:afterUpload": {
-			handler: async (event: MediaUploadEvent, ctx: PluginContext) => {
+			handler: async (event, ctx) => {
 				const entry: AuditEntry = {
 					timestamp: new Date().toISOString(),
 					action: "media:upload",
@@ -205,10 +184,7 @@ export default definePlugin({
 	routes: {
 		// Block Kit admin handler -- returns plain block objects (no @emdash-cms/blocks import needed)
 		admin: {
-			handler: async (
-				routeCtx: { input: unknown; request: { url: string } },
-				ctx: PluginContext,
-			) => {
+			handler: async (routeCtx, ctx) => {
 				const interaction = routeCtx.input as {
 					type: string;
 					page?: string;
@@ -230,10 +206,7 @@ export default definePlugin({
 		},
 
 		recent: {
-			handler: async (
-				_routeCtx: { input: unknown; request: { url: string } },
-				ctx: PluginContext,
-			) => {
+			handler: async (_routeCtx, ctx) => {
 				try {
 					const result = await ctx.storage.entries!.query({
 						orderBy: { timestamp: "desc" },
@@ -255,10 +228,7 @@ export default definePlugin({
 		},
 
 		history: {
-			handler: async (
-				routeCtx: { input: unknown; request: { url: string } },
-				ctx: PluginContext,
-			) => {
+			handler: async (routeCtx, ctx) => {
 				try {
 					const url = new URL(routeCtx.request.url);
 					const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10) || 50, 100);
@@ -286,7 +256,7 @@ export default definePlugin({
 			},
 		},
 	},
-});
+} satisfies SandboxedPlugin;
 
 // ── Block Kit helpers (plain objects, no @emdash-cms/blocks import) ──
 

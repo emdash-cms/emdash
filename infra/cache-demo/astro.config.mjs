@@ -3,11 +3,9 @@ import { cacheCloudflare } from "@astrojs/cloudflare/cache";
 import react from "@astrojs/react";
 import { d1, r2, sandbox } from "@emdash-cms/cloudflare";
 import { formsPlugin } from "@emdash-cms/plugin-forms";
-import { localPlugin } from "@emdash-cms/registry-cli/dev";
+import webhookNotifier from "@emdash-cms/plugin-webhook-notifier";
 import { defineConfig, fontProviders } from "astro/config";
 import emdash from "emdash/astro";
-
-const webhookNotifier = await localPlugin("../../packages/plugins/webhook-notifier");
 
 export default defineConfig({
 	output: "server",

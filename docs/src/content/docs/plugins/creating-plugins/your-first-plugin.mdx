@@ -172,18 +172,18 @@ Things worth knowing:
 
 ## Register the plugin
 
-In your site's `astro.config.mjs`, import the descriptor factory and pass it into the EmDash integration. Sandboxed plugins go in `sandboxed: []`; in-process plugins go in `plugins: []`. A standard-format plugin works in both — start with `sandboxed`.
+In your site's `astro.config.mjs`, import the default-exported descriptor and pass it into the EmDash integration. Sandboxed plugins go in `sandboxed: []`; in-process plugins go in `plugins: []`. A standard-format plugin works in both — start with `sandboxed`.
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 import { sandbox } from "@emdash-cms/cloudflare";
-import { helloPlugin } from "@my-org/plugin-hello";
+import hello from "@my-org/plugin-hello";
 
 export default defineConfig({
 	integrations: [
 		emdash({
-			sandboxed: [helloPlugin()],
+			sandboxed: [hello],
 			sandboxRunner: sandbox(),
 		}),
 	],

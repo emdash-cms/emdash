@@ -6,8 +6,7 @@
  * bluesky.ts, and standard-site.ts into a single self-contained file.
  */
 
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
+import type { PluginContext, SandboxedPlugin } from "emdash/plugin";
 
 import { getAdminPageTarget, type AdminInteraction } from "./admin-routing.js";
 import {
@@ -327,7 +326,7 @@ async function syndicatePublishedContent(
 
 // ── Plugin definition ───────────────────────────────────────────
 
-export default definePlugin({
+export default {
 	hooks: {
 		"plugin:install": async (_event: unknown, ctx: PluginContext) => {
 			ctx.log.info("AT Protocol plugin installed");
@@ -525,7 +524,7 @@ export default definePlugin({
 			},
 		},
 	},
-});
+} satisfies SandboxedPlugin;
 
 // ── Block Kit admin helpers ─────────────────────────────────────
 
