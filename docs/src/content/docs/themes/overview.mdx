@@ -18,13 +18,14 @@ A theme is a working Astro project with:
 - **A seed file** — JSON that tells the CMS what content types and fields to create
 
 <Aside>
-	EmDash gives you far more control over the content model than WordPress does. Themes take
-	advantage of this by declaring exactly which collections and fields they need via the seed file.
-	Most themes should build on the standard **posts** and **pages** collections, adding fields and
-	taxonomies as needed rather than inventing entirely new content types.
+	A theme declares exactly which collections and fields it needs via the seed file. Most themes
+	build on the standard **posts** and **pages** collections, adding fields and taxonomies as needed
+	rather than inventing entirely new content types.
 </Aside>
 
 ## Theme Structure
+
+A theme has the following layout:
 
 ```
 my-theme/
@@ -42,10 +43,10 @@ my-theme/
 
 ## How Themes Bootstrap Sites
 
-When you create a site from a theme, this happens:
+Creating a site from a theme follows these steps:
 
 1. `create-astro` scaffolds the project from the template
-2. You run `npm install` and `npm run dev`
+2. Run `npm install` and `npm run dev`
 3. On first admin visit, the **Setup Wizard** runs automatically
 4. The wizard applies the seed file, creating collections, menus, redirects, and content
 5. The site is ready to use
@@ -61,19 +62,19 @@ When you create a site from a theme, this happens:
 
 ## Installing a Theme
 
-Use `create-astro` with a template:
+The following command scaffolds a site from an official theme template:
 
 ```bash
 npm create astro@latest -- --template @emdash-cms/template-blog
 ```
 
-Community themes work via GitHub:
+Community themes hosted on GitHub use the `github:` template prefix:
 
 ```bash
 npm create astro@latest -- --template github:user/emdash-portfolio
 ```
 
-After installation:
+After scaffolding, install dependencies and start the dev server:
 
 ```bash
 cd my-site
@@ -85,34 +86,12 @@ Visit `http://localhost:4321/_emdash/admin` to complete the Setup Wizard.
 
 ## The Setup Wizard
 
-The Setup Wizard runs automatically on first admin visit. It:
+The Setup Wizard runs automatically on first admin visit. It performs these steps:
 
 1. Prompts for site title, tagline, and admin credentials
 2. Offers an option to include sample content
 3. Applies the seed file to the database
 4. Redirects to the admin dashboard
-
-```
-┌────────────────────────────────────────────────────────┐
-│                                                        │
-│                    ◆ EmDash                          │
-│                                                        │
-│              Welcome to your new site                  │
-│                                                        │
-│  Site Title:     [My Awesome Blog                    ] │
-│  Tagline:        [Thoughts and ideas                 ] │
-│                                                        │
-│  Admin Email:    [admin@example.com                  ] │
-│  Admin Password: [••••••••••••                       ] │
-│                                                        │
-│  ☑ Include sample content                              │
-│                                                        │
-│                   [Create Site →]                      │
-│                                                        │
-│  Template: Blog Starter                                │
-│  Creates: 2 collections, 3 pages, 1 post              │
-└────────────────────────────────────────────────────────┘
-```
 
 <Aside type="tip">
 	Check "Include sample content" when exploring a theme for the first time. The sample content
@@ -131,7 +110,7 @@ EmDash provides official starter themes, each available in local (SQLite + files
 
 ### Cloudflare Variants
 
-For deployment on Cloudflare Pages with D1 and R2, append `-cloudflare` to the template name:
+For deployment on Cloudflare Pages with D1 and R2, append `-cloudflare` to the template name, as in the following commands:
 
 ```bash
 npm create astro@latest -- --template @emdash-cms/template-blog-cloudflare
@@ -143,7 +122,7 @@ These variants include `wrangler.jsonc` for deployment configuration.
 
 ## Customizing After Install
 
-After the Setup Wizard completes, your site is a standard Astro project. Customize it like any Astro site:
+After the Setup Wizard completes, the site is a standard Astro project. Customize it like any Astro site:
 
 - Edit pages in `src/pages/`
 - Modify layouts in `src/layouts/`
@@ -151,7 +130,7 @@ After the Setup Wizard completes, your site is a standard Astro project. Customi
 - Install Astro integrations
 - Deploy anywhere Astro runs
 
-The seed file is only used during initial setup. Once applied, your schema lives in the database.
+The seed file is only used during initial setup. After that, manage the content model in the admin panel or with the CLI.
 
 ## Next Steps
 

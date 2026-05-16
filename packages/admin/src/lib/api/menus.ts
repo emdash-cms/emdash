@@ -15,29 +15,29 @@ export interface Menu {
 	id: string;
 	name: string;
 	label: string;
-	created_at: string;
-	updated_at: string;
+	createdAt: string;
+	updatedAt: string;
 	itemCount?: number;
 	locale: string;
-	translation_group: string | null;
+	translationGroup: string | null;
 }
 
 export interface MenuItem {
 	id: string;
-	menu_id: string;
-	parent_id: string | null;
-	sort_order: number;
+	menuId: string;
+	parentId: string | null;
+	sortOrder: number;
 	type: string;
-	reference_collection: string | null;
-	reference_id: string | null;
-	custom_url: string | null;
+	referenceCollection: string | null;
+	referenceId: string | null;
+	customUrl: string | null;
 	label: string;
-	title_attr: string | null;
+	titleAttr: string | null;
 	target: string | null;
-	css_classes: string | null;
-	created_at: string;
+	cssClasses: string | null;
+	createdAt: string;
 	locale: string;
-	translation_group: string | null;
+	translationGroup: string | null;
 }
 
 export interface MenuWithItems extends Menu {
@@ -192,7 +192,7 @@ export async function updateMenuItem(
 	options: LocaleOptions = {},
 ): Promise<MenuItem> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/menus/${menuName}/items?id=${itemId}`, options.locale),
+		withLocale(`${API_BASE}/menus/${menuName}/items/${itemId}`, options.locale),
 		{
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
@@ -211,7 +211,7 @@ export async function deleteMenuItem(
 	options: LocaleOptions = {},
 ): Promise<void> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/menus/${menuName}/items?id=${itemId}`, options.locale),
+		withLocale(`${API_BASE}/menus/${menuName}/items/${itemId}`, options.locale),
 		{ method: "DELETE" },
 	);
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete menu item`));

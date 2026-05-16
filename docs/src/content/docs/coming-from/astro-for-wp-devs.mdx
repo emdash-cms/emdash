@@ -41,7 +41,7 @@ WordPress themes have a flat structure with magic filenames. Astro uses explicit
 | `style.css`                 | `src/styles/`      | Global CSS         |
 | `functions.php`             | `astro.config.mjs` | Site configuration |
 
-A typical Astro project:
+The following tree shows a typical Astro project layout:
 
 ```
 src/
@@ -63,6 +63,8 @@ src/
 
 1. **Frontmatter** (between `---` fences) — Server-side code, like PHP at the top of a template
 2. **Template** — HTML with expressions, like the rest of a PHP template
+
+The following component declares typed props in the frontmatter and renders them in the template:
 
 ```astro title="src/components/PostCard.astro"
 ---
@@ -183,7 +185,7 @@ const { title, featured = false } = Astro.props;
 </article>
 ```
 
-Usage:
+The following markup uses that component, passing the default slot and a named `footer` slot:
 
 ```astro
 <Card title="Hello" featured>
@@ -249,7 +251,7 @@ The difference: slots receive child elements at the call site, while WordPress h
 
 ## Layouts
 
-Layouts wrap pages with common HTML structure—the `<head>`, header, footer, and anything shared across pages. This replaces `header.php` + `footer.php`.
+Layouts wrap pages with common HTML structure—the `<head>`, header, footer, and anything shared across pages. This replaces `header.php` + `footer.php`. The following layout defines that shared shell and exposes a slot for page content:
 
 ```astro title="src/layouts/Base.astro"
 ---
@@ -329,7 +331,7 @@ Styles in a `<style>` tag are automatically scoped to that component:
 </style>
 ```
 
-The generated HTML includes unique class names to prevent style leakage. No more specificity wars.
+The generated HTML includes unique class names to prevent style leakage, so component styles stay contained without escalating selector specificity.
 
 ### Global Styles
 
@@ -402,9 +404,9 @@ For simple interactions, add a `<script>` tag:
 
 Scripts are bundled and deduplicated automatically. If this component appears twice on a page, the script runs once.
 
-### Advanced: Interactive Components
+### Advanced interactive components
 
-For more complex interactivity, Astro can load JavaScript components (React, Vue, Svelte) on demand. This is optional—most sites work fine with just `<script>` tags.
+For more complex interactivity, Astro can load JavaScript components (React, Vue, Svelte) on demand. This is optional—most sites work fine with just `<script>` tags. The following page loads a component only when it scrolls into view:
 
 ```astro title="src/pages/index.astro"
 ---
@@ -475,8 +477,7 @@ const { post } = Astro.props;
 | `add_rewrite_rule()`                   | Create files or folders             |
 
 <Aside type="tip">
-	No more guessing which template WordPress will use. The URL `/posts/hello` always loads
-	`src/pages/posts/[slug].astro`.
+	Routing is explicit: the URL `/posts/hello` always loads `src/pages/posts/[slug].astro`.
 </Aside>
 
 ## Where WordPress Concepts Live
@@ -528,14 +529,14 @@ A reference for finding the Astro/EmDash equivalent of WordPress features:
 | Featured image         | Media reference field                 |
 | Gutenberg blocks       | Portable Text blocks                  |
 
-## Summary
+## Concept Mapping
 
-The jump from WordPress to Astro is significant but logical:
+The main WordPress-to-Astro shifts covered in this guide:
 
-1. **PHP templates → Astro components** — Same idea (server code + HTML), better organization
-2. **Template tags → Props and imports** — Explicit data flow instead of globals
-3. **Theme files → Pages directory** — URLs match file structure
-4. **Hooks → Slots and middleware** — More predictable insertion points
-5. **jQuery by default → Zero JS by default** — Add interactivity intentionally
+- PHP templates become Astro components: server code plus HTML, with explicit file organization.
+- Template tags become props and imports: data flows through arguments instead of globals.
+- Theme files become a pages directory: URLs match the file structure.
+- Hooks become slots and middleware: insertion points are defined where content is passed in.
+- jQuery loads by default in WordPress; Astro ships no JavaScript until you add it.
 
 Start with the [Getting Started](/getting-started/) guide to build your first EmDash site, or explore [Working with Content](/guides/working-with-content/) to learn how to query and render CMS data.

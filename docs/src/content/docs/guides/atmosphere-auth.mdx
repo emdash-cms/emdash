@@ -15,9 +15,13 @@ This is a good fit when:
 
 ## Install
 
+Install the provider package:
+
 ```bash
 pnpm add @emdash-cms/auth-atproto
 ```
+
+Add the provider to the EmDash integration:
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -38,9 +42,11 @@ export default defineConfig({
 
 That's enough to put **Sign in with Atmosphere** on the login page and the setup wizard. With no allowlist configured, the first user becomes Admin and self-signup is closed for everyone after that — see [allowlists](#allowlists) to open it up.
 
-No environment variables, client secret, or OAuth-app registration is required. The provider is a public OAuth client and serves its own metadata document at `/.well-known/atproto-client-metadata.json`.
+The provider is a public OAuth client and serves its own metadata document at `/.well-known/atproto-client-metadata.json`, so it works with the configuration above alone — no environment variables, client secret, or OAuth-app registration to set up.
 
 ## Configuration
+
+The `atproto()` provider accepts an allowlist and a default role:
 
 ```js
 atproto({
@@ -94,7 +100,7 @@ When you start a fresh site with the Atmosphere provider configured, the setup w
 
 </Steps>
 
-The same flow runs for every subsequent login — handle in, redirect to your provider, redirect back, you're signed in.
+The same flow runs for every subsequent login: enter your handle, authenticate at your provider, and return to EmDash signed in.
 
 ## Local development
 
@@ -121,13 +127,13 @@ Then open `http://127.0.0.1:4321/_emdash/admin` for the whole flow.
 
 ## Production
 
-There's nothing extra to configure for production. The provider serves its own client metadata at:
+The same configuration works in production. The provider serves its own client metadata at:
 
 ```
 https://your-site.example.com/.well-known/atproto-client-metadata.json
 ```
 
-Authorization servers fetch this URL during the login dance to verify the client's redirect URI. Make sure your deployment's site URL is reachable on the public internet over HTTPS — internal-only deployments behind a VPN won't be able to complete a login because the user's authorization server can't fetch the metadata document.
+Authorization servers fetch this URL during login to verify the client's redirect URI. Make sure your deployment's site URL is reachable on the public internet over HTTPS — internal-only deployments behind a VPN won't be able to complete a login because the user's authorization server can't fetch the metadata document.
 
 If you run EmDash behind a TLS-terminating reverse proxy, set [`siteUrl`](/reference/configuration#siteurl) so EmDash builds the right redirect URI. Without it, requests look like `http://internal-host:4321` and the metadata won't match what the auth server sees.
 

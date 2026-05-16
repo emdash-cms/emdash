@@ -5,9 +5,9 @@ description: Add WordPress-style CMS features to your Astro site with EmDash
 
 import { Aside, Card, CardGrid, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash is a CMS built specifically for Astro—not a generic headless CMS with an Astro adapter. It extends your Astro site with database-backed content, a polished admin UI, and WordPress-style features (menus, widgets, taxonomies) while preserving the developer experience you expect.
+EmDash is a CMS built specifically for Astro. It extends your Astro site with database-backed content, a polished admin UI, and WordPress-style features (menus, widgets, taxonomies) while preserving the developer experience you expect.
 
-Everything you know about Astro still applies. EmDash enhances your site; it doesn't replace your workflow.
+Everything you know about Astro still applies. EmDash adds content management on top of your existing Astro workflow.
 
 ## What EmDash Adds
 
@@ -16,7 +16,7 @@ EmDash provides the content management features that file-based Astro sites lack
 | Feature              | Description                                          |
 | -------------------- | ---------------------------------------------------- |
 | **Admin UI**         | Full WYSIWYG editing interface at `/_emdash/admin` |
-| **Database storage** | Content stored in SQLite, libSQL, or Cloudflare D1   |
+| **Database storage** | Content stored in SQLite, libSQL, Cloudflare D1, or PostgreSQL |
 | **Media library**    | Upload, organize, and serve images and files         |
 | **Navigation menus** | Drag-and-drop menu management with nesting           |
 | **Widget areas**     | Dynamic sidebars and footer regions                  |
@@ -26,8 +26,8 @@ EmDash provides the content management features that file-based Astro sites lack
 | **Revisions**        | Content version history                              |
 
 <Aside type="tip">
-	Content changes appear immediately without rebuilding your site. EmDash sites run in SSR mode by
-	default.
+	EmDash sites run in SSR mode by default, so content is served at runtime and changes appear
+	immediately.
 </Aside>
 
 ## Astro Collections vs EmDash
@@ -36,7 +36,7 @@ Astro's `astro:content` collections are file-based and resolved at build time. E
 
 |                    | Astro Collections                    | EmDash Collections                 |
 | ------------------ | ------------------------------------ | ------------------------------------ |
-| **Storage**        | Markdown/MDX files in `src/content/` | SQLite/D1 database                   |
+| **Storage**        | Markdown/MDX files in `src/content/` | SQL database (SQLite, libSQL, D1, or Postgres) |
 | **Editing**        | Code editor                          | Admin UI                             |
 | **Content format** | Markdown with frontmatter            | Portable Text (structured JSON)      |
 | **Updates**        | Requires rebuild                     | Instant (SSR)                        |
@@ -69,6 +69,8 @@ EmDash requires two configuration files.
 
 ### Astro Integration
 
+The following configuration registers EmDash as an Astro integration in server output mode:
+
 ```ts title="astro.config.mjs"
 import { defineConfig } from "astro/config";
 import emdash, { local } from "emdash/astro";
@@ -90,6 +92,8 @@ export default defineConfig({
 
 ### Live Collections Loader
 
+The following file registers EmDash as a live content source:
+
 ```ts title="src/live.config.ts"
 import { defineLiveCollection } from "astro:content";
 import { emdashLoader } from "emdash/runtime";
@@ -101,7 +105,7 @@ export const collections = {
 };
 ```
 
-This registers EmDash as a live content source. The `_emdash` collection internally routes to your content types (posts, pages, products).
+The `_emdash` collection internally routes to your content types (posts, pages, products).
 
 ## Querying Content
 
@@ -204,6 +208,8 @@ EmDash provides APIs for WordPress-style features that don't exist in Astro's co
 
 ### Navigation Menus
 
+The following layout fetches a menu by location and renders it with nested items:
+
 ```astro title="src/layouts/Base.astro"
 ---
 import { getMenu } from "emdash";
@@ -233,6 +239,8 @@ const primaryMenu = await getMenu("primary");
 
 ### Widget Areas
 
+The following layout fetches a widget area and renders each widget:
+
 ```astro title="src/layouts/BlogPost.astro"
 ---
 import { getWidgetArea } from "emdash";
@@ -256,6 +264,8 @@ const sidebar = await getWidgetArea("sidebar");
 ```
 
 ### Site Settings
+
+The following component reads global site settings and renders a logo or title:
 
 ```astro title="src/components/Header.astro"
 ---
@@ -320,7 +330,7 @@ export default definePlugin({
 
 ## Server Rendering
 
-EmDash sites run in SSR mode. Content changes appear immediately without rebuilds.
+EmDash sites run in SSR mode, so content is served at runtime and changes appear immediately.
 
 For static pages with `getStaticPaths`, content is fetched at build time:
 

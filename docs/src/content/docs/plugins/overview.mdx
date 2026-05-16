@@ -5,7 +5,7 @@ description: Extend EmDash with hooks, storage, settings, admin pages, and API r
 
 import { Aside, Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
 
-Plugins extend EmDash without modifying core code. They can react to content lifecycle events, store their own data, expose settings to administrators, add pages to the admin panel, and serve API routes.
+Plugins extend EmDash through a defined extension surface. They can react to content lifecycle events, store their own data, expose settings to administrators, add pages to the admin panel, and serve API routes.
 
 ## What plugins can do
 
@@ -32,10 +32,10 @@ Plugins extend EmDash without modifying core code. They can react to content lif
 
 ## Two kinds of plugins
 
-EmDash plugins come in two flavours:
+EmDash plugins come in two formats:
 
-- **Sandboxed plugins** run in an isolated runtime managed by a configurable sandbox runner. They can be installed from the marketplace with one click, are subject to capability and resource enforcement, and can't reach anything they didn't explicitly declare. This is the recommended choice for most plugins.
-- **Native plugins** run in the same process as your Astro site. They have full access to the runtime, can ship React admin pages and Portable Text rendering components, and inject HTML into public pages — but can't be published to the marketplace and require a code change plus a deploy to install.
+- **Sandboxed plugins** run in an isolated runtime managed by a configurable sandbox runner. They can be installed from the marketplace with one click, are subject to capability and resource enforcement, and reach only the APIs they declare. This is the recommended choice for most plugins.
+- **Native plugins** run in the same process as your Astro site. They have full access to the runtime, can ship React admin pages and Portable Text rendering components, and inject HTML into public pages. They install via a code change plus a deploy, and run from npm rather than the marketplace.
 
 If you're installing a plugin someone else built, you almost always want sandboxed. If you're building one yourself, see [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/).
 

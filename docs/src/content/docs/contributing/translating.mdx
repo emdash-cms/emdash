@@ -13,9 +13,9 @@ See the [translation dashboard](https://i18n.emdashcms.com) for current progress
 
 ## Who can translate
 
-Translations must come from **native or fluent speakers**. We don't accept machine-generated translations. If you use AI tools to assist, you must review every string by hand and test the result in context (see [Testing your translations](#testing-your-translations) below).
+Every translation must be supervised by a **native or fluent speaker**. AI-generated translations are accepted, but only when a fluent speaker reviews every string and previews it in the running admin panel before submitting. Unsupervised machine output is not accepted. See [AI-assisted translations](#ai-assisted-translations) and [Testing your translations](#testing-your-translations) below.
 
-We'd rather have no translation for a string than a bad one. A wrong translation is worse than showing the English fallback — it actively misleads users.
+Leaving a string untranslated is better than translating it wrongly. A wrong translation misleads users; the English fallback only inconveniences them.
 
 ## File structure
 
@@ -149,7 +149,7 @@ If your language doesn't have a PO file yet:
    ];
    ```
 
-   This is the single source of truth — `lingui.config.ts`, `lunaria.config.ts` and the admin runtime all derive their locale lists from this file. Set `enabled: false` unless your translations have 100% coverage — we'll enable it once the translation reaches sufficient coverage.
+   This is the single source of truth — `lingui.config.ts`, `lunaria.config.ts` and the admin runtime all derive their locale lists from this file. Set `enabled: false` unless your translations have 100% coverage — a maintainer enables it once the translation reaches sufficient coverage.
 
 2. **Run extraction** to generate the empty PO file:
 
@@ -179,12 +179,12 @@ The admin UI uses a direct, professional tone. Match that in your language — a
 
 ### AI-assisted translations
 
-You may use AI tools to draft translations, but:
+You may generate translations with AI tools, including a full first pass, but a fluent speaker must supervise the result:
 
-- You **must** review every string yourself. AI tools make subtle errors that only a fluent speaker would catch — wrong register, unnatural phrasing, incorrect technical terms.
-- You **must** test the result in the running admin UI. AI tools have no awareness of layout constraints or UI context.
+- A fluent speaker **must** review every string. AI tools make subtle errors only a fluent speaker catches — wrong register, unnatural phrasing, incorrect technical terms.
+- A fluent speaker **must** preview the translations in the running admin UI. AI tools have no awareness of layout constraints or UI context.
 - Disclose AI usage in your PR description.
-- PRs with obvious unreviewed machine translations will be closed.
+- PRs with unsupervised machine translations will be closed.
 
 ## Partial translations
 

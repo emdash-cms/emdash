@@ -147,6 +147,14 @@ export default defineConfig({
 					collapsed: true,
 					items: [
 						{ label: "Contributor Guide", slug: "contributing" },
+						{
+							label: "Architecture (internals)",
+							slug: "contributing/architecture",
+						},
+						{
+							label: "Documentation Style Guide",
+							slug: "contributing/docs-style-guide",
+						},
 						{ label: "Translating EmDash", slug: "contributing/translating" },
 					],
 				},
