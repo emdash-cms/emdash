@@ -137,11 +137,7 @@ describe("POST /_emdash/api/settings/site-url", () => {
 		// XSS-vector schemes must never be writable here -- this value gets
 		// interpolated into outgoing email content.
 		const res = await postSiteUrl(
-			buildContext(
-				db,
-				buildRequest({ siteUrl: "javascript:alert(1)" }),
-				ADMIN_USER,
-			),
+			buildContext(db, buildRequest({ siteUrl: "javascript:alert(1)" }), ADMIN_USER),
 		);
 		expect(res.status).toBe(400);
 
@@ -154,22 +150,14 @@ describe("POST /_emdash/api/settings/site-url", () => {
 		// `/_emdash` on read. A pre-pended path would produce double-pathed
 		// links in transactional emails.
 		const res = await postSiteUrl(
-			buildContext(
-				db,
-				buildRequest({ siteUrl: "https://example.com/admin" }),
-				ADMIN_USER,
-			),
+			buildContext(db, buildRequest({ siteUrl: "https://example.com/admin" }), ADMIN_USER),
 		);
 		expect(res.status).toBe(400);
 	});
 
 	it("rejects values that include a query string", async () => {
 		const res = await postSiteUrl(
-			buildContext(
-				db,
-				buildRequest({ siteUrl: "https://example.com?x=1" }),
-				ADMIN_USER,
-			),
+			buildContext(db, buildRequest({ siteUrl: "https://example.com?x=1" }), ADMIN_USER),
 		);
 		expect(res.status).toBe(400);
 	});
@@ -184,11 +172,7 @@ describe("POST /_emdash/api/settings/site-url", () => {
 	it("rejects callers without settings:manage", async () => {
 		// Editors have settings:read but not settings:manage.
 		const res = await postSiteUrl(
-			buildContext(
-				db,
-				buildRequest({ siteUrl: "https://new.example" }),
-				EDITOR_USER,
-			),
+			buildContext(db, buildRequest({ siteUrl: "https://new.example" }), EDITOR_USER),
 		);
 		expect(res.status).toBe(403);
 	});

@@ -110,11 +110,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		}
 
 		if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-			return apiError(
-				"INVALID_SITE_URL",
-				"Site URL must use the http or https scheme",
-				400,
-			);
+			return apiError("INVALID_SITE_URL", "Site URL must use the http or https scheme", 400);
 		}
 
 		// Allow trailing-slash-only path so users pasting `https://example.com/`
