@@ -7,18 +7,20 @@ import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
 Hooks let plugins run code in response to events. All hooks receive an event object and the plugin context, and they're declared at plugin definition time — there's no dynamic registration at runtime.
 
-This page covers sandboxed (standard-format) plugins. Hooks work identically in native plugins; the only difference is that native plugins can also register `page:fragments`, which sandboxed plugins can't.
+This page covers sandboxed plugins. Hooks work identically in native plugins; native plugins can additionally register `page:fragments`.
 
 ## Hook signature
 
 Every hook handler takes two arguments:
 
 ```typescript
-async (event: EventType, ctx: PluginContext) => ReturnType;
+async (event, ctx) => ReturnType;
 ```
 
 - `event` — data about what just happened (content being saved, media uploaded, lifecycle transition, etc.)
 - `ctx` — the [`PluginContext`](/plugins/creating-plugins/your-first-plugin/) with storage, KV, logging, and capability-gated APIs
+
+`satisfies SandboxedPlugin` on the default export infers `event` from the hook name (the full canonical event type) and `ctx` as `PluginContext`, so handlers need no parameter annotations. To reference an event type by name in a helper, import it from `emdash/plugin`.
 
 ## Hook configuration
 

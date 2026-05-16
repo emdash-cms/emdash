@@ -88,6 +88,7 @@ export default defineConfig({
 					items: [
 						{ label: "Plugin Overview", slug: "plugins/overview" },
 						{ label: "Installing Plugins", slug: "plugins/installing" },
+						{ label: "Upgrading Plugins", slug: "plugins/upgrading-sites" },
 						{ label: "Field Kit", slug: "plugins/field-kit" },
 					],
 				},
@@ -102,6 +103,14 @@ export default defineConfig({
 							label: "Your First Plugin",
 							slug: "plugins/creating-plugins/your-first-plugin",
 						},
+						{
+							label: "The Manifest",
+							slug: "plugins/creating-plugins/manifest",
+						},
+						{
+							label: "The Plugin CLI",
+							slug: "plugins/creating-plugins/cli",
+						},
 						{ label: "Hooks", slug: "plugins/creating-plugins/hooks" },
 						{ label: "API Routes", slug: "plugins/creating-plugins/api-routes" },
 						{ label: "Storage", slug: "plugins/creating-plugins/storage" },
@@ -114,6 +123,10 @@ export default defineConfig({
 						{
 							label: "Bundling & Publishing",
 							slug: "plugins/creating-plugins/publishing",
+						},
+						{
+							label: "Migrating to the CLI",
+							slug: "plugins/creating-plugins/migrating-to-the-cli",
 						},
 					],
 				},

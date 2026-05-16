@@ -1,0 +1,118 @@
+---
+title: The emdash-plugin CLI
+description: init, build, dev, bundle, validate, publish — the plugin authoring toolchain.
+---
+
+import { Steps } from "@astrojs/starlight/components";
+
+`@emdash-cms/plugin-cli` is the authoring toolchain: scaffold, build, watch, validate, bundle, publish, plus identity and discovery. The binary is `emdash-plugin`.
+
+## Commands
+
+The CLI provides the following commands:
+
+```text
+emdash-plugin init [name]                    Scaffold a new sandboxed plugin
+emdash-plugin build                          Build dist/ (plugin.mjs, manifest.json, index.mjs)
+emdash-plugin dev                            Watch sources and rebuild on change
+emdash-plugin bundle                         Pack dist/ + assets into a registry tarball
+emdash-plugin validate [path]                Validate emdash-plugin.jsonc against the schema
+emdash-plugin publish --url <url>            Publish a release pointing at a hosted tarball
+emdash-plugin login <handle-or-did>          Sign in with your Atmosphere account
+emdash-plugin logout [--did <did>]           Revoke the active session
+emdash-plugin whoami                         Show stored sessions
+emdash-plugin switch <did>                   Switch the active publisher session
+emdash-plugin search <query>                 Free-text registry search
+emdash-plugin info <handle-or-did> <slug>    Show package details
+```
+
+All commands accept `--json`. Discovery commands (`search`, `info`) accept `--aggregator <url>` (or `EMDASH_REGISTRY_URL`).
+
+The following example shows the two scripts most plugins add to `package.json`:
+
+```json title="package.json"
+{
+	"scripts": {
+		"build": "emdash-plugin build",
+		"dev": "emdash-plugin dev"
+	}
+}
+```
+
+## `init`
+
+Create a new plugin with `init`:
+
+```sh
+npx @emdash-cms/plugin-cli init my-plugin
+```
+
+This scaffolds a self-contained plugin: `emdash-plugin.jsonc`, `src/plugin.ts` (one example route in the `satisfies SandboxedPlugin` shape), `package.json`, `tsconfig.json`, a test, a README, and `.gitignore`. A scaffold created from just a slug is a valid starting point. The manifest carries `TODO:` comments for the few fields you must fill in — publisher, author, and security contact — before the plugin will load or publish. `init` never requires extra flags to succeed.
+
+## `build`
+
+`build` reads `emdash-plugin.jsonc`, `src/plugin.ts`, and an optional sibling `package.json`, and emits the following files:
+
+| Artifact                                  | What it is                                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `dist/plugin.mjs` (+ `dist/plugin.d.mts`) | The hooks and routes. Loaded in-process (`plugins: []`) and by the sandbox loader (`sandboxed: []`). |
+| `dist/manifest.json`                      | The plugin's manifest, including the hooks and routes read from `src/plugin.ts`. `bundle` includes this file as-is; npm consumers read it without parsing the JSONC source. |
+| `dist/index.mjs` (+ `dist/index.d.mts`)   | The descriptor module a site imports in `astro.config.mjs`. Emitted only when a sibling `package.json` exists; registry-only plugins skip it, since nothing imports it. |
+
+`dist/` is build output. Do not commit it. The scaffold's `.gitignore` excludes it, and installs rebuild it.
+
+## `dev`
+
+Watches `src/**`, `emdash-plugin.jsonc`, and `package.json`, debouncing rebuilds at 150 ms. Rebuilds are serialised. On a **failed** rebuild it leaves the last good `dist/` in place, so a site importing the plugin via a workspace/file link keeps working until the next successful build. Ctrl-C drains cleanly.
+
+Develop against a real site by running `pnpm dev` here and `pnpm add file:../path/to/this` in the site, then importing the plugin's default export into `emdash({ sandboxed: [...] })`.
+
+## `validate`
+
+```sh
+emdash-plugin validate          # ./emdash-plugin.jsonc
+emdash-plugin validate path/    # a specific directory
+```
+
+Offline schema check with `tsc`-style `file:line:column` diagnostics, including the manifest's cross-field rules. No network. Good as a pre-commit or CI gate. See [the manifest reference](/plugins/creating-plugins/manifest/).
+
+## `bundle`
+
+`bundle` is a thin packaging step on top of `build`:
+
+<Steps>
+
+1. Runs `build` to produce `dist/`.
+2. Validates the bundle: no Node-builtin imports, no oversized files, capability sanity.
+3. Collects optional assets — README, icon, screenshots.
+4. Tarballs. Inside the tarball, `plugin.mjs` is packed as `backend.js` to match the registry's wire-side filename. The output is `dist/<slug>-<version>.tar.gz`.
+
+</Steps>
+
+`--validate-only` skips tarball creation but still produces the `dist/` artifacts — "validate" implies "build first".
+
+## `publish`
+
+The CLI does not host artifacts; you do, anywhere public.
+
+```sh
+emdash-plugin login           # if not already logged in
+emdash-plugin bundle          # produces dist/<slug>-<version>.tar.gz
+# upload that tarball to a public URL, then:
+emdash-plugin publish --url https://your-host/my-plugin-1.0.0.tar.gz
+```
+
+`publish` reads the manifest for profile fields and enforces [publisher pinning](/plugins/creating-plugins/manifest/#publisher-pinning). On first publish, pass `--license` and a security contact (or keep them in the manifest). Explicit flags override manifest values, which is useful in CI; `--no-manifest` opts out entirely.
+
+Full walkthrough: [Bundling and publishing](/plugins/creating-plugins/publishing/).
+
+## Programmatic API
+
+```ts
+import { buildPlugin, bundlePlugin } from "@emdash-cms/plugin-cli";
+
+await buildPlugin({ dir: "./my-plugin" });
+const result = await bundlePlugin({ dir: "./my-plugin" });
+```
+
+For discovery and credential helpers, import from `@emdash-cms/registry-client`.

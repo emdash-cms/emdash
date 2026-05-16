@@ -1,0 +1,192 @@
+---
+title: The plugin manifest
+description: Reference for emdash-plugin.jsonc — identity, trust contract, profile fields, and publisher pinning.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Every sandboxed plugin has an `emdash-plugin.jsonc` next to its `package.json`. It is hand-edited and holds the plugin's identity, its trust contract (capabilities, hosts, storage), and the profile fields the registry shows. `emdash-plugin init` scaffolds one; the CLI reads `./emdash-plugin.jsonc` automatically for `build`, `dev`, `validate`, `bundle`, and `publish`.
+
+The file is **JSONC**: comments and trailing commas are allowed.
+
+The following example shows a complete manifest for an image-gallery plugin:
+
+```jsonc title="emdash-plugin.jsonc"
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "gallery",
+	"publisher": "did:plc:abc123def456",
+
+	"license": "MIT",
+	"author": { "name": "Jane Doe", "url": "https://example.com" },
+	"security": { "email": "security@example.com" },
+
+	// Optional profile
+	"name": "Gallery",
+	"description": "Image gallery block for EmDash.",
+	"keywords": ["gallery", "images"],
+	"repo": "https://github.com/example/plugin-gallery",
+
+	// Trust contract
+	"capabilities": ["content:read"],
+	"allowedHosts": [],
+	"storage": {}
+}
+```
+
+<Aside type="tip" title="$schema gives you IDE completion">
+	The bundled JSON Schema drives hover hints and validation in editors that
+	honour `$schema` (VS Code, JetBrains). Keep the `$schema` line; the CLI
+	strips it before validating. The editor check is looser than
+	`emdash-plugin validate`, which is the authoritative check.
+</Aside>
+
+## Identity
+
+| Field       | Required | Notes                                                                                          |
+| ----------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `slug`      | Yes      | URL-safe id within the publisher's namespace. `/^[a-z][a-z0-9_-]*$/`, max 64 chars. |
+| `publisher` | Yes      | Your [Atmosphere account](/plugins/creating-plugins/publishing/#your-atmosphere-account)'s DID or handle. See [Publisher pinning](#publisher-pinning). |
+| `version`   | No       | Semver 2.0 without build-metadata. Usually omit it — see below.                                |
+
+`slug` and `publisher` together are the package's identity. The registry derives the package's full identifier from them; you never write it by hand.
+
+### `version` lives in `package.json`
+
+The build reconciles the manifest's `version` against `package.json#version`:
+
+- Both set and equal → fine.
+- Both set and different → hard error.
+- One set → that value wins.
+- Neither set → hard error.
+
+The recommended pattern for an npm-distributed plugin is to **omit `version` from the manifest** and let `package.json` be the single source of truth (your release tooling already bumps it there). Registry-only plugins with no `package.json` must set `version` in the manifest — there is nowhere else for it to live.
+
+## Profile
+
+These feed the registry listing. `license` and a security contact are required; the rest are optional.
+
+| Field                      | Required | Notes                                                              |
+| -------------------------- | -------- | ------------------------------------------------------------------ |
+| `license`                  | Yes      | SPDX expression (`"MIT"`, `"Apache-2.0"`, `"MIT OR Apache-2.0"`). Used on first publish; the existing profile wins on later publishes. |
+| `author` / `authors`       | Yes      | One of the two. `author: { name, url?, email? }` for a single author; `authors: [...]` (≤ 32) for several. Setting both is an error. |
+| `security` / `securityContacts` | Yes | One of the two. Each contact needs at least one of `email` or `url`. `securityContacts: [...]` (≤ 8) for several. Setting both is an error. |
+| `name`                     | No       | Display name. Defaults to the slug.                                |
+| `description`              | No       | Keep it short (around 140 characters). Long values may be truncated in lists. |
+| `keywords`                 | No       | ≤ 5 entries.                                                       |
+| `repo`                     | No       | `https://` URL of the source repo.                                 |
+
+Use the singular `author` / `security` form unless you genuinely have multiple — it is the common case and the scaffold emits it.
+
+## Trust contract
+
+The trust contract is `capabilities`, `allowedHosts`, and `storage`. All three default to empty, so a plugin that needs no extra privileges can omit them entirely.
+
+```jsonc
+{
+	"capabilities": ["network:request", "content:read"],
+	"allowedHosts": ["api.example.com", "*.cdn.example.com"],
+	"storage": {
+		"events": { "indexes": ["timestamp"] },
+		"submissions": { "indexes": ["email"], "uniqueIndexes": ["token"] }
+	}
+}
+```
+
+<Aside type="caution" title="Changing the trust contract requires a version bump">
+	Installed sites consented to the capabilities, hosts, and storage of the
+	version they have. Changing any of these without bumping `version` would
+	let new behaviour slip past that consent. Bump **major** for a broadened
+	trust contract.
+</Aside>
+
+### Capabilities
+
+The recognised names:
+
+| Capability                          | Grants                                              |
+| ----------------------------------- | --------------------------------------------------- |
+| `content:read` / `content:write`    | Read / mutate site content via `ctx`.               |
+| `media:read` / `media:write`        | Read / write media.                                 |
+| `users:read`                        | Read user records.                                  |
+| `email:send`                        | Send email via `ctx`.                               |
+| `network:request`                   | Outbound HTTP via `ctx.http`, restricted to `allowedHosts`. |
+| `network:request:unrestricted`      | Outbound HTTP to any host. Used instead of `network:request`. |
+| `hooks.email-transport:register`    | Register an email transport hook.                   |
+| `hooks.email-events:register`       | Register email lifecycle hooks.                     |
+| `hooks.page-fragments:register`     | Register a `page:fragments` hook (native only).     |
+
+Two cross-field rules the CLI enforces (the editor's JSON-Schema check does not — run `emdash-plugin validate`):
+
+- `network:request` **requires** a non-empty `allowedHosts`. If the plugin really must reach any host, use `network:request:unrestricted` instead.
+- `network:request:unrestricted` **requires** `allowedHosts` to be empty — the unrestricted capability already grants every host, so a list would contradict it.
+
+Host patterns are bare hostnames (no scheme, path, or whitespace). A leading `*.` allows subdomains: `*.cdn.example.com`.
+
+### Storage
+
+A map of collection name → index config. Collection names follow the same `/^[a-z][a-z0-9_]*$/` rule (the runtime uses the name as a SQL table suffix). Indexes are field names or composite arrays; `uniqueIndexes` are queryable too — don't also list them in `indexes`.
+
+```jsonc
+"storage": {
+	"events": { "indexes": ["timestamp", ["collection", "timestamp"]] }
+}
+```
+
+## Admin surface
+
+Optional. Sandboxed plugins render admin pages and dashboard widgets through [Block Kit](/plugins/creating-plugins/block-kit/); the manifest only declares where they appear. Omit the `admin` key entirely if the plugin has no admin UI.
+
+```jsonc
+"admin": {
+	"pages": [{ "path": "/gallery", "label": "Gallery", "icon": "image" }],
+	"widgets": [{ "id": "recent-uploads", "title": "Recent uploads", "size": "half" }]
+}
+```
+
+A plugin that declares `admin.pages` or `admin.widgets` must also serve an `admin` route in `src/plugin.ts` that renders the Block Kit content — the schema can't enforce that (route names are probed from source, not the manifest), but the runtime checks it.
+
+## Publisher pinning
+
+`publisher` pins the publishing identity so you can't accidentally publish a plugin under the wrong account.
+
+On your **first successful publish**, if the manifest's `publisher` matches the active session, it stays as written. If you scaffolded with `emdash-plugin init` and left it blank, the CLI writes the active session's DID back into the manifest.
+
+The following example shows the line the CLI writes, with the resolved handle added as a comment for readability:
+
+```jsonc title="emdash-plugin.jsonc"
+"publisher": "did:plc:abc123def456", // jane.example.com
+```
+
+On **every subsequent publish**, the CLI resolves the active session and the pinned `publisher` to DIDs and compares them. A mismatch fails immediately with `MANIFEST_PUBLISHER_MISMATCH` — there is no override flag. Resolve it deliberately:
+
+- Wrong session: `emdash-plugin switch <did>`, then publish again.
+- Genuinely transferring the plugin to a new publisher: edit `publisher` in the manifest.
+
+<Aside type="note" title="Prefer a DID over a handle">
+	You can pin a handle (`"publisher": "example.com"`) instead of a DID. The
+	CLI resolves it to a DID before comparing, so it works as a friendlier
+	alias. Handles can change owners, though: if the handle later points
+	somewhere else, publishing refuses. Pin a `did:plc:...` for long-lived
+	plugins.
+</Aside>
+
+## Validate without publishing
+
+```sh
+emdash-plugin validate          # ./emdash-plugin.jsonc
+emdash-plugin validate path/    # a specific directory
+```
+
+Offline schema check with `tsc`-style `file:line:column` diagnostics, including the cross-field rules. Suitable for a pre-commit hook or CI step. Duplicate keys and unknown keys are errors (strict mode catches `"licens"` typos).
+
+## CLI flags still win
+
+Explicit flags (`--license`, `--author-name`, …) override manifest values when both are set — useful for CI overrides. `--no-manifest` skips the manifest entirely (and warns if one exists at the default path, so the publisher-pin safety story stays visible).
+
+## Next
+
+- [The `emdash-plugin` CLI](/plugins/creating-plugins/cli/)
+- [Bundling and publishing](/plugins/creating-plugins/publishing/)
+- [Capabilities and security](/plugins/creating-plugins/capabilities/)
