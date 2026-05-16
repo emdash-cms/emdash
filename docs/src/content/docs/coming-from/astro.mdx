@@ -69,6 +69,8 @@ EmDash requires two configuration files.
 
 ### Astro Integration
 
+The following configuration registers EmDash as an Astro integration in server output mode:
+
 ```ts title="astro.config.mjs"
 import { defineConfig } from "astro/config";
 import emdash, { local } from "emdash/astro";
@@ -90,6 +92,8 @@ export default defineConfig({
 
 ### Live Collections Loader
 
+The following file registers EmDash as a live content source:
+
 ```ts title="src/live.config.ts"
 import { defineLiveCollection } from "astro:content";
 import { emdashLoader } from "emdash/runtime";
@@ -101,7 +105,7 @@ export const collections = {
 };
 ```
 
-This registers EmDash as a live content source. The `_emdash` collection internally routes to your content types (posts, pages, products).
+The `_emdash` collection internally routes to your content types (posts, pages, products).
 
 ## Querying Content
 
@@ -204,6 +208,8 @@ EmDash provides APIs for WordPress-style features that don't exist in Astro's co
 
 ### Navigation Menus
 
+The following layout fetches a menu by location and renders it with nested items:
+
 ```astro title="src/layouts/Base.astro"
 ---
 import { getMenu } from "emdash";
@@ -233,6 +239,8 @@ const primaryMenu = await getMenu("primary");
 
 ### Widget Areas
 
+The following layout fetches a widget area and renders each widget:
+
 ```astro title="src/layouts/BlogPost.astro"
 ---
 import { getWidgetArea } from "emdash";
@@ -256,6 +264,8 @@ const sidebar = await getWidgetArea("sidebar");
 ```
 
 ### Site Settings
+
+The following component reads global site settings and renders a logo or title:
 
 ```astro title="src/components/Header.astro"
 ---

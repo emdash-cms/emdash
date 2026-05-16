@@ -117,14 +117,14 @@ CMD ["node", "./dist/server/entry.mjs"]
 
 The seed file is read at build time and inlined into the bundle, so it does not need to be copied into the runtime image. Migrations run on the first request after a deploy; the seed applies only when the database has no collections and setup hasn't been completed — existing data is never overwritten.
 
-Build and run:
+Build the image and run the container:
 
 ```bash
 docker build -t my-emdash-site .
 docker run -p 4321:4321 -v emdash-data:/app/data my-emdash-site
 ```
 
-Or use Docker Compose:
+A Docker Compose file manages the same container with a named volume:
 
 ```yaml title="compose.yaml"
 services:
@@ -140,6 +140,8 @@ volumes:
   emdash-data:
 ```
 
+Start the stack in the background:
+
 ```bash
 docker compose up -d
 ```
@@ -152,6 +154,8 @@ docker compose up -d
 current release validates the key but does not yet use it — plugin
 secret encryption is rolling out and will start using this value
 automatically when available. Set it now so your deployment is ready.
+
+Generate a key and add the result to your environment:
 
 ```bash
 npx emdash secrets generate  # add the result to your environment

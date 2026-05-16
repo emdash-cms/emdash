@@ -7,7 +7,9 @@ import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
 
 The EmDash admin panel is a React single-page application embedded in your Astro site. It provides a complete content management interface for editors and administrators.
 
-## Architecture Overview
+## Architecture overview
+
+The following diagram shows how the admin panel sits inside the Astro shell:
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -30,9 +32,9 @@ The EmDash admin panel is a React single-page application embedded in your Astro
 └────────────────────────────────────────────────────────────────┘
 ```
 
-The admin is a "big island" React app. Astro handles the shell and authentication; all navigation and rendering inside the admin is client-side.
+The admin is a single React island. Astro handles the shell and authentication; all navigation and rendering inside the admin is client-side.
 
-## Technology Stack
+## Technology stack
 
 | Layer       | Technology            | Purpose                                  |
 | ----------- | --------------------- | ---------------------------------------- |
@@ -45,13 +47,13 @@ The admin is a "big island" React app. Astro handles the shell and authenticatio
 | **Editor**  | TipTap                | Rich text editing (Portable Text)        |
 
 <Aside type="note">
-	Kumo is Cloudflare's design system, built on Base UI primitives with Tailwind styling. It's
+	Kumo is Cloudflare's design system, built on Base UI primitives with Tailwind styling. It is
 	installed as a dependency of the admin package.
 </Aside>
 
-## Route Structure
+## Route structure
 
-The admin mounts at `/_emdash/admin/` and uses client-side routing:
+The admin mounts at `/_emdash/admin/` and uses client-side routing. The following table lists the available routes:
 
 | Path                       | Screen                      |
 | -------------------------- | --------------------------- |
@@ -72,15 +74,15 @@ The admin mounts at `/_emdash/admin/` and uses client-side routing:
 	have permission to manage.
 </Aside>
 
-## Manifest-Driven UI
+## Manifest-driven UI
 
-The admin doesn't hardcode knowledge of collections or plugins. Instead, it fetches a manifest from the server:
+The admin does not hardcode knowledge of collections or plugins. Instead, it fetches a manifest from the server with the following request:
 
 ```
 GET /_emdash/api/manifest
 ```
 
-Response:
+The server responds with the collections, plugins, and taxonomies the current user can access:
 
 ```json
 {
@@ -110,28 +112,34 @@ Response:
 }
 ```
 
-The admin builds its navigation, forms, and editors entirely from this manifest. Benefits:
+The admin builds its navigation, forms, and editors entirely from this manifest. This means:
 
-- **Schema changes appear immediately** — No admin rebuild needed
-- **Plugin UI integrates automatically** — Pages and widgets from the manifest
-- **Type safety at the boundary** — Zod schemas stay on the server
+- Schema changes appear immediately, with no admin rebuild needed.
+- Plugin pages and widgets integrate automatically from the manifest.
+- Zod schemas stay on the server, keeping type safety at the boundary.
 
-## Data Flow
+## Data flow
+
+A request through the admin follows these steps:
 
 <Steps>
-	1. **Admin SPA loads** — TanStack Router initializes 2. **Fetch manifest** — TanStack Query caches
-	collection/plugin metadata 3. **Build navigation** — Sidebar generated from manifest 4. **User
-	navigates** — Client-side routing, no page reload 5. **Fetch data** — TanStack Query requests
-	content from REST APIs 6. **Render forms** — Field editors generated from manifest field
-	descriptors 7. **Submit changes** — Mutations via TanStack Query, optimistic updates 8. **Server
-	validates** — Zod schemas on the server, errors returned as JSON
+1. The admin SPA loads and TanStack Router initializes.
+2. TanStack Query fetches and caches the manifest's collection and plugin metadata.
+3. The sidebar navigation is generated from the manifest.
+4. The user navigates with client-side routing, with no page reload.
+5. TanStack Query fetches content from the REST APIs.
+6. Field editors are generated from the manifest's field descriptors.
+7. Changes are submitted as TanStack Query mutations with optimistic updates.
+8. The server validates against Zod schemas and returns any errors as JSON.
 </Steps>
 
-## REST API Endpoints
+## REST API endpoints
 
-The admin communicates exclusively through REST APIs:
+The admin communicates exclusively through REST APIs.
 
 ### Content APIs
+
+The content APIs handle entry CRUD, revisions, and preview URLs:
 
 | Method   | Endpoint                                   | Purpose              |
 | -------- | ------------------------------------------ | -------------------- |
@@ -144,6 +152,8 @@ The admin communicates exclusively through REST APIs:
 | `POST`   | `/api/content/:collection/:id/preview-url` | Generate preview URL |
 
 ### Schema APIs
+
+The schema APIs manage collections and fields:
 
 | Method   | Endpoint                                      | Purpose            |
 | -------- | --------------------------------------------- | ------------------ |
@@ -158,6 +168,8 @@ The admin communicates exclusively through REST APIs:
 
 ### Media APIs
 
+The media APIs handle uploads and the media library:
+
 | Method   | Endpoint                 | Purpose                 |
 | -------- | ------------------------ | ----------------------- |
 | `GET`    | `/api/media`             | List media items        |
@@ -167,6 +179,8 @@ The admin communicates exclusively through REST APIs:
 | `GET`    | `/api/media/file/:key`   | Serve media file        |
 
 ### Other APIs
+
+Settings, menus, widgets, taxonomies, and plugin state use these endpoints:
 
 | Endpoint               | Purpose                  |
 | ---------------------- | ------------------------ |
@@ -178,7 +192,7 @@ The admin communicates exclusively through REST APIs:
 
 ## Pagination
 
-All list endpoints use cursor-based pagination:
+All list endpoints use cursor-based pagination. A list response includes the items and an optional cursor for the next page:
 
 ```json
 {
@@ -187,7 +201,7 @@ All list endpoints use cursor-based pagination:
 }
 ```
 
-Fetch the next page:
+To fetch the next page, pass the cursor back as a query parameter:
 
 ```
 GET /api/content/posts?cursor=eyJpZCI6IjAxSjEyMzQ1NiJ9
@@ -198,12 +212,11 @@ GET /api/content/posts?cursor=eyJpZCI6IjAxSjEyMzQ1NiJ9
 	requests.
 </Aside>
 
-## Plugin Admin UI
+## Plugin admin UI
 
-Plugins can extend the admin with pages and dashboard widgets. The integration generates a virtual module with static imports:
+Plugins can extend the admin with pages and dashboard widgets. The integration generates a virtual module with static imports for each plugin's admin entry point:
 
-```ts
-// virtual:emdash/plugin-admins (generated)
+```ts title="virtual:emdash/plugin-admins (generated)"
 import * as pluginAdmin0 from "@emdash-cms/plugin-seo/admin";
 import * as pluginAdmin1 from "@emdash-cms/plugin-analytics/admin";
 
@@ -213,12 +226,11 @@ export const pluginAdmins = {
 };
 ```
 
-### Plugin Pages
+### Plugin pages
 
-Plugin pages mount under `/_emdash/admin/plugins/:pluginId/*`:
+Plugin pages mount under `/_emdash/admin/plugins/:pluginId/*`. A plugin exports its pages from its admin entry point:
 
-```tsx
-// @emdash-cms/plugin-seo/src/admin.tsx
+```tsx title="@emdash-cms/plugin-seo/src/admin.tsx"
 export const pages = [
 	{
 		path: "settings",
@@ -228,11 +240,11 @@ export const pages = [
 ];
 ```
 
-Renders at: `/_emdash/admin/plugins/seo/settings`
+The example above renders at `/_emdash/admin/plugins/seo/settings`.
 
-### Dashboard Widgets
+### Dashboard widgets
 
-Plugins can add widgets to the dashboard:
+Plugins can add widgets to the dashboard by exporting a `widgets` array:
 
 ```tsx
 export const widgets = [
@@ -252,10 +264,9 @@ export const widgets = [
 
 ## Authentication
 
-The admin shell route enforces authentication via Astro middleware:
+The admin shell route enforces authentication via Astro middleware. The following simplified middleware redirects unauthenticated requests to the login page:
 
 ```ts
-// Simplified middleware logic
 export async function onRequest({ request, locals }, next) {
 	const session = await getSession(request);
 
@@ -270,9 +281,9 @@ export async function onRequest({ request, locals }, next) {
 }
 ```
 
-The admin SPA itself doesn't handle login—that's an Astro page that sets a session cookie.
+The admin SPA itself does not handle login. Login is an Astro page that sets a session cookie.
 
-## Role-Based Access
+## Role-based access
 
 Different roles see different parts of the admin:
 
@@ -284,12 +295,11 @@ Different roles see different parts of the admin:
 
 The manifest endpoint filters collections and features based on the requesting user's role.
 
-## Content Editor
+## Content editor
 
-The content editor generates forms dynamically based on field definitions:
+The content editor generates forms dynamically based on field definitions. The following simplified component renders one widget per field:
 
 ```tsx
-// Simplified editor rendering
 function ContentEditor({ collection, fields }) {
 	return (
 		<form>
@@ -307,7 +317,7 @@ function ContentEditor({ collection, fields }) {
 }
 ```
 
-Each field type has a corresponding widget:
+Each field type has a corresponding widget, as listed below:
 
 | Field Type     | Widget           |
 | -------------- | ---------------- |
@@ -322,18 +332,18 @@ Each field type has a corresponding widget:
 | `image`        | Media picker     |
 | `reference`    | Entry picker     |
 
-## Rich Text Editor
+## Rich text editor
 
-Portable Text fields use TipTap (ProseMirror) for editing:
+Portable Text fields use TipTap (ProseMirror) for editing. Content is converted between formats at the load and save boundaries:
 
 ```
 User types → TipTap (ProseMirror JSON) → Save → Portable Text (DB)
 Load → Portable Text (DB) → TipTap (ProseMirror JSON) → Display
 ```
 
-Conversion happens at load/save boundaries via `portableTextToProsemirror()` and `prosemirrorToPortableText()`.
+Conversion happens via `portableTextToProsemirror()` and `prosemirrorToPortableText()`.
 
-Supported blocks:
+The editor supports these blocks:
 
 - Paragraphs, headings (H1-H6)
 - Bullet and numbered lists
@@ -343,27 +353,28 @@ Supported blocks:
 
 Unknown blocks from plugins or imports are preserved as read-only placeholders.
 
-## Media Library
+## Media library
 
 The media library provides:
 
 - Grid and list views
-- Search and filter by type, date
+- Search and filter by type and date
 - Drag-and-drop upload
 - Image preview with metadata
 - Bulk selection and delete
 
-Uploads use signed URLs for direct client-to-storage upload:
+Uploads use signed URLs for direct client-to-storage upload, following these steps:
 
 <Steps>
-	1. **Request upload URL** — `POST /api/media/upload-url` 2. **Upload directly** — Client PUTs file
-	to signed URL (R2/S3) 3. **Confirm upload** — `POST /api/media/:id/confirm` 4. **Server extracts
-	metadata** — Dimensions, MIME type, etc.
+1. The client requests an upload URL with `POST /api/media/upload-url`.
+2. The client uploads the file directly to the signed URL (R2 or S3).
+3. The client confirms the upload with `POST /api/media/:id/confirm`.
+4. The server extracts metadata such as dimensions and MIME type.
 </Steps>
 
-This approach bypasses Workers body size limits and provides real upload progress.
+This approach bypasses Workers body size limits and provides accurate upload progress.
 
-## Next Steps
+## Next steps
 
 <CardGrid>
 	<Card title="Getting Started" icon="rocket">

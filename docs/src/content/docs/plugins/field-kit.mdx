@@ -13,13 +13,15 @@ Field Kit widgets store **clean JSON**: removing the plugin leaves valid data in
 
 ## Installation
 
+Install the package from npm:
+
 ```bash
 npm i @emdash-cms/plugin-field-kit
 ```
 
-Register the plugin in `astro.config.mjs`:
+The following configuration registers the plugin:
 
-```typescript
+```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
 import emdash from "emdash";
 import { fieldKitPlugin } from "@emdash-cms/plugin-field-kit";
@@ -33,7 +35,7 @@ export default defineConfig({
 });
 ```
 
-Then attach a widget to any `json` field by setting `widget` to `field-kit:<name>`:
+Attach a widget to any `json` field by setting `widget` to `field-kit:<name>`. The following field definition uses the `list` widget:
 
 ```json
 {
@@ -57,7 +59,7 @@ If a widget is missing its required `options` (e.g. `fields` for `object-form`/`
 
 ### object-form
 
-Renders a group of typed sub-fields that store as a single JSON object. Good for fixed-shape structured data like nutrition facts or contact info.
+Renders a group of typed sub-fields that store as a single JSON object. Good for fixed-shape structured data like nutrition facts or contact info. The following field definition configures a nutrition object:
 
 ```json
 {
@@ -86,7 +88,7 @@ Stored value: `{ "calories": 250, "protein": 12.5, "fat": 8, "carbs": 30 }`.
 
 ### list
 
-An ordered array editor with add, remove, and reorder controls. Each row is a JSON object whose shape is defined by `fields`. The row header shows a summary rendered from a Mustache-style template.
+An ordered array editor with add, remove, and reorder controls. Each row is a JSON object whose shape is defined by `fields`. The row header shows a summary rendered from a Mustache-style template. The following field definition configures an ingredients list:
 
 ```json
 {
@@ -108,7 +110,7 @@ An ordered array editor with add, remove, and reorder controls. Each row is a JS
 }
 ```
 
-Stored value:
+The stored value is an array of row objects:
 
 ```json
 [
@@ -129,7 +131,7 @@ Stored value:
 
 ### grid
 
-A two-dimensional matrix of rows × columns. Each cell can be a toggle, text input, number input, or select. Useful for matrices like seasonal availability, price tables, or feature comparisons.
+A two-dimensional matrix of rows × columns. Each cell can be a toggle, text input, number input, or select. Useful for matrices like seasonal availability, price tables, or feature comparisons. The following field definition configures a seasonal availability grid:
 
 ```json
 {
@@ -153,7 +155,7 @@ A two-dimensional matrix of rows × columns. Each cell can be a toggle, text inp
 }
 ```
 
-Stored value:
+The stored value is an object keyed by row, then by column:
 
 ```json
 {
@@ -173,7 +175,7 @@ Stored value:
 
 ### tags
 
-A chip-style input for arrays of strings. Supports a fixed `suggestions` list, free-form custom values (toggleable), case transforms, and an optional `max`.
+A chip-style input for arrays of strings. Supports a fixed `suggestions` list, free-form custom values (toggleable), case transforms, and an optional `max`. The following field definition configures a keywords tag input:
 
 ```json
 {
@@ -222,7 +224,7 @@ Common props on every sub-field: `required`, `helpText`, `defaultValue`.
 
 ## Summary templates
 
-The `list` widget renders each collapsed row using a Mustache-style template in `options.summary`. `{{key}}` is replaced with the row's value for that key (coerced to a string). Falsy values fall back to `"{itemLabel} {n}"`.
+The `list` widget renders each collapsed row using a Mustache-style template in `options.summary`. `{{key}}` is replaced with the row's value for that key (coerced to a string). Falsy values fall back to `"{itemLabel} {n}"`. The following template combines two keys:
 
 ```
 "summary": "{{name}} — {{amount}}"

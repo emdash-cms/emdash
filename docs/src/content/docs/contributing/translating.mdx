@@ -13,9 +13,9 @@ See the [translation dashboard](https://i18n.emdashcms.com) for current progress
 
 ## Who can translate
 
-Translations must come from **native or fluent speakers**. We don't accept machine-generated translations. If you use AI tools to assist, you must review every string by hand and test the result in context (see [Testing your translations](#testing-your-translations) below).
+Translations must come from **native or fluent speakers**. Machine-generated translations are not accepted. If you use AI tools to assist, you must review every string by hand and test the result in context (see [Testing your translations](#testing-your-translations) below).
 
-We'd rather have no translation for a string than a bad one. A wrong translation is worse than showing the English fallback — it actively misleads users.
+No translation is better than a bad one. A wrong translation is worse than showing the English fallback — it actively misleads users.
 
 ## File structure
 
@@ -149,7 +149,7 @@ If your language doesn't have a PO file yet:
    ];
    ```
 
-   This is the single source of truth — `lingui.config.ts`, `lunaria.config.ts` and the admin runtime all derive their locale lists from this file. Set `enabled: false` unless your translations have 100% coverage — we'll enable it once the translation reaches sufficient coverage.
+   This is the single source of truth — `lingui.config.ts`, `lunaria.config.ts` and the admin runtime all derive their locale lists from this file. Set `enabled: false` unless your translations have 100% coverage — a maintainer enables it once the translation reaches sufficient coverage.
 
 2. **Run extraction** to generate the empty PO file:
 

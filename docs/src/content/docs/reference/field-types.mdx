@@ -9,6 +9,8 @@ EmDash supports 14 field types for defining content schemas. Each type maps to a
 
 ## Overview
 
+The following table lists every field type and its SQLite column:
+
 | Type           | SQLite Column | Description                |
 | -------------- | ------------- | -------------------------- |
 | `string`       | TEXT          | Short text input           |
@@ -242,7 +244,7 @@ Rich text content using Portable Text format. Supports headings, lists, links, i
 }
 ```
 
-Stored as JSON array of Portable Text blocks:
+The value is stored as a JSON array of Portable Text blocks, for example:
 
 ```json
 [
@@ -282,7 +284,7 @@ Reference to an uploaded image. Includes metadata like dimensions and alt text.
 
 - `showPreview` — Show image preview in admin (default: true)
 
-**Stored value:**
+The value is stored as an object with the media reference and its metadata:
 
 ```json
 {
@@ -296,7 +298,7 @@ Reference to an uploaded image. Includes metadata like dimensions and alt text.
 
 ### `file`
 
-Reference to an uploaded file (documents, PDFs, etc.).
+Reference to an uploaded file such as a document or PDF.
 
 ```ts
 {
@@ -306,7 +308,7 @@ Reference to an uploaded file (documents, PDFs, etc.).
 }
 ```
 
-**Stored value:**
+The value is stored as an object with the file reference and its metadata:
 
 ```json
 {
@@ -341,13 +343,13 @@ Reference to another content entry.
 - `collection` — Target collection slug (required)
 - `allowMultiple` — Allow multiple references (default: false)
 
-**Single reference stored value:**
+A single reference is stored as the target entry ID:
 
 ```json
 "01HXK5MZSN..."
 ```
 
-**Multiple references stored value:**
+Multiple references are stored as an array of entry IDs:
 
 ```json
 ["01HXK5MZSN...", "01HXK6NATS..."]
@@ -371,7 +373,7 @@ Stored as-is in SQLite JSON column.
 
 <Aside type="caution">JSON fields have no validation. Use sparingly for truly dynamic data.</Aside>
 
-## Field Properties
+## Field properties
 
 All fields support these common properties:
 
@@ -388,7 +390,7 @@ All fields support these common properties:
 | `options`      | `object`    | Widget configuration                |
 | `sortOrder`    | `number`    | Display order in admin              |
 
-## Reserved Field Slugs
+## Reserved field slugs
 
 These slugs are reserved and cannot be used:
 
@@ -402,9 +404,9 @@ These slugs are reserved and cannot be used:
 - `deleted_at`
 - `version`
 
-## TypeScript Types
+## TypeScript types
 
-Import field types for programmatic use:
+Import the field type definitions for programmatic use:
 
 ```ts
 import type { FieldType, Field, CreateFieldInput } from "emdash";

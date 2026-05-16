@@ -683,9 +683,13 @@ MCP clients that support OAuth 2.1 can automatically discover how to authenticat
 
 ### Protected Resource Metadata
 
+Request the protected resource metadata at the following endpoint:
+
 ```http
 GET /.well-known/oauth-protected-resource
 ```
+
+The server responds with the resource identifier, its authorization server, and supported scopes:
 
 ```json
 {
@@ -705,9 +709,13 @@ GET /.well-known/oauth-protected-resource
 
 ### Authorization Server Metadata
 
+Request the authorization server metadata at the following endpoint:
+
 ```http
 GET /.well-known/oauth-authorization-server/_emdash
 ```
+
+The server responds with the endpoints, scopes, and grant types it supports:
 
 ```json
 {

@@ -17,6 +17,8 @@ You can also enforce payment for all visitors, or check for payment headers with
 
 ## Installation
 
+Install the package with your package manager:
+
 <Tabs>
 <TabItem label="pnpm">
 ```bash
@@ -231,6 +233,8 @@ Solana is opt-in. Install `@x402/svm` and enable it in config:
 ```bash
 pnpm add @x402/svm
 ```
+
+Set the network to a Solana identifier and disable EVM if you only use Solana:
 
 ```js title="astro.config.mjs"
 x402({

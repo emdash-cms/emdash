@@ -9,7 +9,7 @@ EmDash exposes a REST API at `/_emdash/api/` for content management, media uploa
 
 ## Authentication
 
-API requests require authentication via Bearer token:
+API requests require authentication via a Bearer token in the `Authorization` header:
 
 ```http
 Authorization: Bearer <token>
@@ -17,18 +17,20 @@ Authorization: Bearer <token>
 
 Generate tokens through the admin interface or programmatically.
 
-## Response Format
+## Response format
 
-All responses follow a consistent format:
+All responses follow a consistent format. A successful response wraps the result in `data`:
 
 ```json
-// Success
 {
   "success": true,
   "data": { ... }
 }
+```
 
-// Error
+An error response includes a code, message, and optional details:
+
+```json
 {
   "success": false,
   "error": {

@@ -181,6 +181,8 @@ const menu = widget.type === "menu" && widget.menuName
 
 ### Recent Posts Widget
 
+The following component renders the most recent posts, with optional thumbnails and dates:
+
 ```astro title="src/components/widgets/RecentPosts.astro"
 ---
 import { getEmDashCollection } from "emdash";
@@ -217,6 +219,8 @@ const { entries: posts } = await getEmDashCollection("posts", {
 ```
 
 ### Search Widget
+
+The following component renders a search form that submits to a search page:
 
 ```astro title="src/components/widgets/SearchForm.astro"
 ---

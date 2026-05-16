@@ -7,12 +7,11 @@ import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
 
 EmDash uses a **database-first content model** where schema definitions live in the database, not in code. This is a fundamental design choice that enables runtime schema modification and non-developer-friendly setup.
 
-## Schema as Data
+## Schema as data
 
-Traditional CMSs like Strapi or Keystatic require you to define schema in code:
+Many CMSs define schema in code, where a collection's fields are declared as a code object:
 
 ```ts
-// Traditional approach - schema in code
 const posts = collection({
 	fields: {
 		title: text({ required: true }),
@@ -21,14 +20,12 @@ const posts = collection({
 });
 ```
 
-EmDash stores this same information in database tables:
+EmDash stores this same information in database tables. The following statements define an equivalent posts collection:
 
 ```sql
--- _emdash_collections table
 INSERT INTO _emdash_collections (slug, label)
 VALUES ('posts', 'Blog Posts');
 
--- _emdash_fields table
 INSERT INTO _emdash_fields (collection_id, slug, type, required)
 VALUES
   ('coll_abc', 'title', 'string', true),
@@ -37,7 +34,7 @@ VALUES
 
 Both approaches define the same content structure. The difference is where that structure lives and how it can be modified.
 
-## Why Database-First?
+## Why database-first
 
 <CardGrid>
 	<Card title="Runtime Modification" icon="pencil">
@@ -45,8 +42,7 @@ Both approaches define the same content structure. The difference is where that 
 		data model through the admin UI.
 	</Card>
 	<Card title="Real SQL Columns" icon="seti:db">
-		Unlike WordPress's EAV (Entity-Attribute-Value) model, each field gets a real column. Proper
-		indexing, foreign keys, and query optimization.
+		Each field gets a real column, with proper indexing, foreign keys, and query optimization.
 	</Card>
 	<Card title="Self-Documenting" icon="document">
 		Database tools can inspect schema directly. No need to parse code to understand the data model.
@@ -56,11 +52,13 @@ Both approaches define the same content structure. The difference is where that 
 	</Card>
 </CardGrid>
 
-## Schema Tables
+## Schema tables
 
-Two system tables define your content structure:
+Two system tables define your content structure.
 
-### Collections Table
+### Collections table
+
+The `_emdash_collections` table holds one row per collection:
 
 ```sql
 CREATE TABLE _emdash_collections (
@@ -77,7 +75,7 @@ CREATE TABLE _emdash_collections (
 );
 ```
 
-The `source` field tracks how the collection was created:
+The `source` field tracks how the collection was created, with one of these values:
 
 | Source             | Description                        |
 | ------------------ | ---------------------------------- |
@@ -86,7 +84,9 @@ The `source` field tracks how the collection was created:
 | `import:wordpress` | Imported from WordPress            |
 | `discovered`       | Auto-discovered from existing data |
 
-### Fields Table
+### Fields table
+
+The `_emdash_fields` table holds one row per field, linked to its collection:
 
 ```sql
 CREATE TABLE _emdash_fields (
@@ -108,9 +108,9 @@ CREATE TABLE _emdash_fields (
 );
 ```
 
-## Content Tables
+## Content tables
 
-Each collection gets its own table with the `ec_` prefix. When you create a "products" collection with title and price fields:
+Each collection gets its own table with the `ec_` prefix. The following table is created for a products collection with title and price fields:
 
 ```sql
 CREATE TABLE ec_products (
@@ -132,17 +132,18 @@ CREATE TABLE ec_products (
 ```
 
 <Aside type="tip">
-	System columns are automatically added to every content table. You don't define them as
-	fields—they're always present.
+	System columns are automatically added to every content table. You do not define them as
+	fields; they are always present.
 </Aside>
 
-## Runtime Schema Changes
+## Runtime schema changes
 
-When you add a field via the admin UI, EmDash:
+When you add a field through the admin UI, EmDash performs these steps:
 
 <Steps>
-	1. Inserts a record into `_emdash_fields` 2. Runs `ALTER TABLE ec_collection ADD COLUMN
-	column_name TYPE` 3. Regenerates the Zod schema for validation
+1. Inserts a record into `_emdash_fields`.
+2. Runs `ALTER TABLE ec_collection ADD COLUMN column_name TYPE`.
+3. Regenerates the Zod schema for validation.
 </Steps>
 
 SQLite supports these `ALTER TABLE` operations at runtime:
@@ -154,11 +155,11 @@ SQLite supports these `ALTER TABLE` operations at runtime:
 | Drop column        | Yes (SQLite 3.35+)          |
 | Change column type | No (requires table rebuild) |
 
-For type changes, EmDash handles the table rebuild transparently: create new table → copy data → drop old table → rename new table.
+For type changes, EmDash handles the table rebuild transparently: create a new table, copy data, drop the old table, then rename the new table.
 
-## Schema vs. Content Separation
+## Schema and content separation
 
-EmDash maintains a clear separation:
+EmDash maintains a clear separation between schema, content, media, and settings:
 
 | Concern      | Location                 | Tables                                      |
 | ------------ | ------------------------ | ------------------------------------------- |
@@ -173,12 +174,11 @@ This separation means:
 - Content can be migrated between schemas
 - System tables are never cluttered with user data
 
-## Validation at Runtime
+## Validation at runtime
 
-EmDash builds Zod schemas from database field definitions at startup:
+EmDash builds Zod schemas from database field definitions at startup. The following simplified function shows the approach:
 
 ```ts
-// Simplified example
 function buildSchema(fields: Field[]): ZodSchema {
 	const shape: Record<string, ZodType> = {};
 
@@ -202,19 +202,17 @@ function buildSchema(fields: Field[]): ZodSchema {
 
 Content is validated against these runtime schemas on every create and update operation.
 
-## TypeScript Integration
+## TypeScript integration
 
-Generate TypeScript types from your database schema:
+Generate TypeScript types from your database schema with the following command:
 
 ```bash
-# Fetch schema from database, generate types
 npx emdash types
 ```
 
-This generates `.emdash/types.ts`:
+This generates a `.emdash/types.ts` file with an interface per collection and typed query overloads:
 
-```ts
-// .emdash/types.ts (generated)
+```ts title=".emdash/types.ts (generated)"
 export interface Post {
 	title: string;
 	content: PortableTextBlock[];
@@ -246,9 +244,9 @@ declare module "emdash" {
 	dynamically-defined collections.
 </Aside>
 
-## Developer vs. Non-Developer Workflow
+## Developer and non-developer workflows
 
-**Developers** can use the CLI:
+Developers can use the CLI to generate types and export the schema:
 
 ```bash
 # Fetch schema, generate types
@@ -258,18 +256,20 @@ npx emdash types
 npx emdash export-seed > seed.json
 ```
 
-**Non-developers** use the admin UI exclusively:
+Non-developers use the admin UI instead, following these steps:
 
-1. Open **Content Types** in the admin panel
-2. Click **Add Collection**
-3. Define fields through the visual builder
-4. Start creating content immediately
+<Steps>
+1. Open **Content Types** in the admin panel.
+2. Click **Add Collection**.
+3. Define fields through the visual builder.
+4. Start creating content.
+</Steps>
 
 Both approaches modify the same underlying database tables.
 
-## Seed Files
+## Seed files
 
-Templates and exports use JSON seed files for portable schema definitions:
+Templates and exports use JSON seed files for portable schema definitions. A seed file describes collections, taxonomies, and menus:
 
 ```json
 {
@@ -292,7 +292,7 @@ Templates and exports use JSON seed files for portable schema definitions:
 }
 ```
 
-Apply seed files programmatically:
+Apply seed files programmatically with `validateSeed` and `applySeed`:
 
 ```ts
 import { applySeed, validateSeed } from "emdash/seed";
@@ -308,19 +308,11 @@ await applySeed(db, seedData, {
 });
 ```
 
-## Comparison with Other Approaches
+## Summary
 
-| Approach      | Schema Location | Runtime Modification    | Type Safety        |
-| ------------- | --------------- | ----------------------- | ------------------ |
-| **EmDash**  | Database        | Yes (full)              | Generated from DB  |
-| **WordPress** | PHP code + EAV  | Limited (meta fields)   | None               |
-| **Strapi**    | Code files      | No (rebuild required)   | Generated at build |
-| **Sanity**    | Code files      | No (schema must deploy) | Built-in           |
-| **Directus**  | Database        | Yes (full)              | Generated from DB  |
+EmDash is database-first with optional type generation. Schema lives in the database, can be modified at runtime through the admin UI or CLI, and types are generated from the live schema when you want type-safe development.
 
-EmDash follows the Directus model: database-first with optional type generation. This provides maximum flexibility while still supporting type-safe development when desired.
-
-## Next Steps
+## Next steps
 
 <CardGrid>
 	<Card title="Collections" icon="document">

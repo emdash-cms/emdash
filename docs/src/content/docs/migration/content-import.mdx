@@ -5,7 +5,7 @@ description: Import content from WordPress and other sources into EmDash.
 
 import { Aside, Card, CardGrid, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash's import system uses a pluggable source architecture. Each source knows how to probe, analyze, and fetch content from a specific platform.
+The EmDash import system is built on pluggable sources. Each source probes, analyzes, and fetches content from a specific platform.
 
 ## Import Sources
 
@@ -131,7 +131,7 @@ Each post type shows its status:
 
 Click **Create Schema & Import** to:
 
-1. Create new collections via SchemaRegistry
+1. Create new collections
 2. Add missing fields with correct column types
 3. Set up content tables with indexes
 
@@ -249,6 +249,8 @@ The import system exposes these endpoints:
 
 ### Probe URL
 
+Detect the platform behind a URL with a probe request:
+
 ```http
 POST /_emdash/api/import/probe
 Content-Type: application/json
@@ -256,9 +258,11 @@ Content-Type: application/json
 { "url": "https://example.com" }
 ```
 
-Returns detected platform and suggested action.
+The response contains the detected platform and suggested action.
 
 ### Analyze WXR
+
+Upload a WXR file to analyze its post types and schema compatibility:
 
 ```http
 POST /_emdash/api/import/wordpress/analyze
@@ -267,9 +271,11 @@ Content-Type: multipart/form-data
 file: [WordPress export .xml]
 ```
 
-Returns post type analysis with schema compatibility.
+The response contains the post type analysis with schema compatibility.
 
 ### Prepare Schema
+
+Create the collections and fields for the selected post types:
 
 ```http
 POST /_emdash/api/import/wordpress/prepare
@@ -282,9 +288,9 @@ Content-Type: application/json
 }
 ```
 
-Creates collections and fields.
-
 ### Execute Import
+
+Import the content into the mapped collections:
 
 ```http
 POST /_emdash/api/import/wordpress/execute
@@ -294,9 +300,9 @@ file: [WordPress export .xml]
 config: { "postTypeMappings": { "post": { "collection": "posts" } } }
 ```
 
-Imports content to specified collections.
-
 ### Import Media
+
+Download and store the media attachments referenced by the import:
 
 ```http
 POST /_emdash/api/import/wordpress/media
@@ -308,9 +314,11 @@ Content-Type: application/json
 }
 ```
 
-Streams NDJSON progress updates during download/upload.
+The response streams NDJSON progress updates during download and upload.
 
 ### Rewrite URLs
+
+Replace old media URLs in imported content with their stored equivalents:
 
 ```http
 POST /_emdash/api/import/wordpress/rewrite-urls
@@ -320,8 +328,6 @@ Content-Type: application/json
   "urlMap": { "https://old.com/image.jpg": "/_emdash/media/abc123" }
 }
 ```
-
-Updates Portable Text content with new media URLs.
 
 ## Error Handling
 
@@ -339,7 +345,7 @@ Updates Portable Text content with new media URLs.
 
 ### Error Report
 
-After import:
+After an import completes, EmDash shows a summary of what succeeded, what was adjusted, and what failed:
 
 ```
 Import Complete
@@ -424,4 +430,4 @@ export default defineConfig({
 ## Next Steps
 
 - **[WordPress Migration](/migration/from-wordpress/)** — Complete WordPress migration guide
-- **[Plugin Porting](/migration/plugin-porting/)** — Port WordPress plugins to EmDash
+- **[Plugin Porting](/migration/porting-plugins/)** — Port WordPress plugins to EmDash

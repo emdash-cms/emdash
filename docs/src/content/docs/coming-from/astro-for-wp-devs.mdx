@@ -41,7 +41,7 @@ WordPress themes have a flat structure with magic filenames. Astro uses explicit
 | `style.css`                 | `src/styles/`      | Global CSS         |
 | `functions.php`             | `astro.config.mjs` | Site configuration |
 
-A typical Astro project:
+The following tree shows a typical Astro project layout:
 
 ```
 src/
@@ -63,6 +63,8 @@ src/
 
 1. **Frontmatter** (between `---` fences) — Server-side code, like PHP at the top of a template
 2. **Template** — HTML with expressions, like the rest of a PHP template
+
+The following component declares typed props in the frontmatter and renders them in the template:
 
 ```astro title="src/components/PostCard.astro"
 ---
@@ -183,7 +185,7 @@ const { title, featured = false } = Astro.props;
 </article>
 ```
 
-Usage:
+The following markup uses that component, passing the default slot and a named `footer` slot:
 
 ```astro
 <Card title="Hello" featured>
@@ -249,7 +251,7 @@ The difference: slots receive child elements at the call site, while WordPress h
 
 ## Layouts
 
-Layouts wrap pages with common HTML structure—the `<head>`, header, footer, and anything shared across pages. This replaces `header.php` + `footer.php`.
+Layouts wrap pages with common HTML structure—the `<head>`, header, footer, and anything shared across pages. This replaces `header.php` + `footer.php`. The following layout defines that shared shell and exposes a slot for page content:
 
 ```astro title="src/layouts/Base.astro"
 ---
@@ -402,9 +404,9 @@ For simple interactions, add a `<script>` tag:
 
 Scripts are bundled and deduplicated automatically. If this component appears twice on a page, the script runs once.
 
-### Advanced: Interactive Components
+### Advanced interactive components
 
-For more complex interactivity, Astro can load JavaScript components (React, Vue, Svelte) on demand. This is optional—most sites work fine with just `<script>` tags.
+For more complex interactivity, Astro can load JavaScript components (React, Vue, Svelte) on demand. This is optional—most sites work fine with just `<script>` tags. The following page loads a component only when it scrolls into view:
 
 ```astro title="src/pages/index.astro"
 ---

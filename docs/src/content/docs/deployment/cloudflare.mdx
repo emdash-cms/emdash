@@ -126,7 +126,7 @@ storage: r2({
 
 ## Cloudflare Access Authentication
 
-If your organization uses Cloudflare Access, you can use it as your authentication provider instead of passkeys. This provides SSO with your existing identity provider.
+If your organization uses Cloudflare Access, you can use it as the authentication provider instead of passkeys, giving single sign-on through your existing identity provider. The following configuration enables it:
 
 ```js title="astro.config.mjs"
 emdash({
@@ -158,6 +158,8 @@ it now so your deployment is ready.
 The key is provided by you and never stored in the database; only
 encrypted ciphertext is. Losing it means losing every secret encrypted
 with it.
+
+Generate a key and store it as a Worker secret with the following commands:
 
 ```bash
 npx emdash secrets generate

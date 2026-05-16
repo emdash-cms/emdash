@@ -7,13 +7,13 @@ import { Aside } from "@astrojs/starlight/components";
 
 EmDash exports functions for querying content, managing media, and working with the database.
 
-## Content Queries
+## Content queries
 
 EmDash's query functions follow Astro's [live content collections](https://docs.astro.build/en/reference/experimental-flags/live-content-collections/) pattern, returning `{ entries, error }` or `{ entry, error }` for graceful error handling.
 
 ### `getEmDashCollection()`
 
-Fetch all entries from a collection.
+Fetch all entries from a collection. The following example loads all posts and checks for an error:
 
 ```ts
 import { getEmDashCollection } from "emdash";
@@ -34,6 +34,8 @@ if (error) {
 
 #### Options
 
+The `options` parameter accepts the following filter:
+
 ```ts
 interface CollectionFilter {
 	status?: "draft" | "published" | "archived";
@@ -44,6 +46,8 @@ interface CollectionFilter {
 
 #### Returns
 
+The function resolves to a `CollectionResult`:
+
 ```ts
 interface CollectionResult<T> {
 	entries: ContentEntry<T>[]; // Empty array if error or none found
@@ -52,6 +56,8 @@ interface CollectionResult<T> {
 ```
 
 #### Examples
+
+The following examples filter by status and taxonomy, limit results, and handle errors:
 
 ```ts
 // Get all published posts
@@ -80,7 +86,7 @@ if (error) {
 
 ### `getEmDashEntry()`
 
-Fetch a single entry by slug or ID.
+Fetch a single entry by slug or ID. The following example loads a post and redirects when it is missing:
 
 ```ts
 import { getEmDashEntry } from "emdash";
@@ -103,6 +109,8 @@ Preview mode is handled automatically — the middleware detects `_preview` toke
 
 #### Returns
 
+The function resolves to an `EntryResult`:
+
 ```ts
 interface EntryResult<T> {
 	entry: ContentEntry<T> | null; // null if not found
@@ -112,6 +120,8 @@ interface EntryResult<T> {
 ```
 
 #### Examples
+
+The following examples fetch by slug and ID, read preview state, and distinguish errors from not-found:
 
 ```ts
 // Get by slug
@@ -132,11 +142,11 @@ if (!entry) {
 }
 ```
 
-## Content Types
+## Content types
 
 ### `ContentEntry`
 
-The entry returned by query functions:
+Query functions return entries in the following shape:
 
 ```ts
 interface ContentEntry<T = Record<string, unknown>> {
@@ -158,11 +168,11 @@ The `data` object contains all content fields plus system fields:
 - `publishedAt` - ISO timestamp or null
 - Plus all custom fields defined in your collection schema
 
-## Database Functions
+## Database functions
 
 ### `createDatabase()`
 
-Create a database connection.
+Create a database connection. The following example connects to a local SQLite file:
 
 ```ts
 import { createDatabase } from "emdash";
@@ -176,7 +186,7 @@ const db = createDatabase({ url: "file:./data.db" });
 
 ### `runMigrations()`
 
-Run pending database migrations.
+Run pending database migrations. The following example applies migrations and logs the count:
 
 ```ts
 import { createDatabase, runMigrations } from "emdash";
@@ -188,7 +198,7 @@ console.log(`Applied ${applied.length} migrations`);
 
 ### `getMigrationStatus()`
 
-Check migration status.
+Check which migrations have been applied and which are pending:
 
 ```ts
 import { createDatabase, getMigrationStatus } from "emdash";
@@ -203,6 +213,8 @@ const status = await getMigrationStatus(db);
 Low-level data access through repositories.
 
 ### `ContentRepository`
+
+The following example shows the full set of `ContentRepository` operations:
 
 ```ts
 import { ContentRepository, createDatabase } from "emdash";
@@ -238,6 +250,8 @@ await repo.delete("posts", "01HXK5MZSN...");
 
 ### `MediaRepository`
 
+The following example lists, fetches, and records media:
+
 ```ts
 import { MediaRepository, createDatabase } from "emdash";
 
@@ -259,9 +273,9 @@ const newMedia = await repo.create({
 });
 ```
 
-## Schema Registry
+## Schema registry
 
-Programmatic schema management.
+Programmatic schema management. The following example lists collections, then creates a collection and a field:
 
 ```ts
 import { SchemaRegistry, createDatabase } from "emdash";
@@ -292,11 +306,11 @@ await registry.createField("products", {
 });
 ```
 
-## Preview System
+## Preview system
 
 ### `generatePreviewToken()`
 
-Generate a preview token for draft content.
+Generate a preview token for draft content. The following example creates a token that expires in one hour:
 
 ```ts
 import { generatePreviewToken } from "emdash";
@@ -310,7 +324,7 @@ const token = await generatePreviewToken({
 
 ### `verifyPreviewToken()`
 
-Verify a preview token.
+Verify a preview token and read its payload:
 
 ```ts
 import { verifyPreviewToken } from "emdash";
@@ -328,7 +342,7 @@ if (result.valid) {
 
 ### `isPreviewRequest()`
 
-Check if a request includes a preview token.
+Check whether a request includes a preview token, then read it:
 
 ```ts
 import { isPreviewRequest, getPreviewToken } from "emdash";
@@ -339,9 +353,9 @@ if (isPreviewRequest(Astro.request)) {
 }
 ```
 
-## Content Converters
+## Content converters
 
-Convert between Portable Text and ProseMirror formats.
+Convert between Portable Text and ProseMirror formats:
 
 ```ts
 import { prosemirrorToPortableText, portableTextToProsemirror } from "emdash";
@@ -353,7 +367,9 @@ const portableText = prosemirrorToPortableText(prosemirrorDoc);
 const prosemirrorDoc = portableTextToProsemirror(portableText);
 ```
 
-## Site Settings
+## Site settings
+
+Read site-wide settings with `getSiteSettings` and `getSiteSetting`:
 
 ```ts
 import { getSiteSettings, getSiteSetting } from "emdash";
@@ -368,6 +384,8 @@ const title = await getSiteSetting("siteTitle");
 Settings are read-only from the runtime API. Use the admin API to update them.
 
 ## Menus
+
+Fetch navigation menus and iterate their items, including nested children:
 
 ```ts
 import { getMenu, getMenus } from "emdash";
@@ -389,6 +407,8 @@ if (primaryMenu) {
 
 ## Taxonomies
 
+Fetch taxonomy terms, a single term, an entry's terms, or entries by term:
+
 ```ts
 import { getTaxonomyTerms, getTerm, getEntryTerms, getEntriesByTerm } from "emdash";
 
@@ -405,7 +425,9 @@ const postCategories = await getEntryTerms("posts", "post-123", "category");
 const newsPosts = await getEntriesByTerm("posts", "category", "news");
 ```
 
-## Widget Areas
+## Widget areas
+
+Fetch widget areas and the widgets they contain:
 
 ```ts
 import { getWidgetArea, getWidgetAreas } from "emdash";
@@ -424,6 +446,8 @@ if (sidebar) {
 ```
 
 ## Sections
+
+Fetch sections, filter them, and read their categories:
 
 ```ts
 import { getSection, getSections, getSectionCategories } from "emdash";
@@ -444,6 +468,8 @@ const categories = await getSectionCategories();
 ```
 
 ## Search
+
+Run a global search or a collection-specific search. Results include highlighted snippets:
 
 ```ts
 import { search, searchCollection } from "emdash";
@@ -468,9 +494,9 @@ const posts = await searchCollection("posts", "typescript", {
 });
 ```
 
-## Error Handling
+## Error handling
 
-EmDash exports error classes for handling specific failures:
+EmDash exports error classes for handling specific failures. The following example catches validation and schema errors:
 
 ```ts
 import {

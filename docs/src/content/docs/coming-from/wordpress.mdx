@@ -113,6 +113,8 @@ where: { category: "news" },
 
 ### Getting a Single Entry
 
+The following examples fetch one entry by identifier and render it, in WordPress and in EmDash:
+
 <Tabs>
 	<TabItem label="WordPress">
 ```php title="single.php"
@@ -134,7 +136,8 @@ import { PortableText } from "emdash/ui";
 const { slug } = Astro.params;
 const { entry: post } = await getEmDashEntry("posts", slug);
 
-## if (!post) return Astro.redirect("/404");
+if (!post) return Astro.redirect("/404");
+---
 
 <article>
   <h1>{post.data.title}</h1>
@@ -198,6 +201,8 @@ const { post } = Astro.props;
 </article>
 ```
 
+The following page imports that component and renders it for each post:
+
 ```astro title="src/pages/index.astro"
 ---
 import PostCard from "../components/PostCard.astro";
@@ -233,7 +238,8 @@ wp_nav_menu([
 ---
 import { getMenu } from "emdash";
 
-## const menu = await getMenu("primary");
+const menu = await getMenu("primary");
+---
 
 <nav>
   <ul>
@@ -270,7 +276,8 @@ Widget areas work like sidebars in WordPress:
 import { getWidgetArea } from "emdash";
 import { PortableText } from "emdash/ui";
 
-## const sidebar = await getWidgetArea("sidebar");
+const sidebar = await getWidgetArea("sidebar");
+---
 
 {sidebar && (
 
@@ -298,6 +305,8 @@ Site options and customizer settings map to `getSiteSetting()`:
 | `get_custom_logo()`         | `getSiteSetting("logo")`       |
 | `get_option('date_format')` | `getSiteSetting("dateFormat")` |
 | `home_url()`                | `Astro.site`                   |
+
+The following example reads individual settings with `getSiteSetting()`:
 
 ```ts
 import { getSiteSetting } from "emdash";
