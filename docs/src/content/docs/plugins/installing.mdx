@@ -18,13 +18,14 @@ To install marketplace plugins, your site needs:
 1. **Sandbox runner configured** — Marketplace plugins run in an isolated runtime, which requires the sandbox runner. The following configuration enables it:
 
    ```typescript title="astro.config.mjs"
-   import { emdash } from "emdash/astro";
+   import { defineConfig } from "astro/config";
+   import emdash from "emdash/astro";
 
    export default defineConfig({
      integrations: [
        emdash({
          marketplace: "https://marketplace.emdashcms.com",
-         sandboxRunner: true,
+         sandboxRunner: "@emdash-cms/sandbox-cloudflare",
        }),
      ],
    });
@@ -101,7 +102,7 @@ Native plugins — your own code, or packages installed via npm — are added di
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
-import { emdash } from "emdash/astro";
+import emdash from "emdash/astro";
 import seoPlugin from "@emdash-cms/plugin-seo";
 
 export default defineConfig({

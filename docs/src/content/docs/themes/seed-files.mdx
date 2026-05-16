@@ -648,7 +648,7 @@ warnings.forEach((w) => console.warn(w));
 Validation checks that:
 
 - Required fields are present
-- Slugs follow naming conventions (lowercase, underscores)
+- Slugs are valid for their type (collection and field slugs allow lowercase letters, digits, and underscores; other slugs also allow hyphens)
 - Field types are valid
 - References point to existing content
 - Hierarchical term parents exist
