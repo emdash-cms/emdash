@@ -144,15 +144,13 @@ function pnpmWorkspaceYaml(template) {
 allowBuilds:
 ${allowBuilds}
 
-# Supply-chain hardening. chokidar@4.0.3 is the lone trust exclusion --
-# Astro pins that provenance-dropped release; self-expires on its next bump.
+# Supply-chain hardening: cooldown on brand-new releases (EmDash exempt)
+# and no non-registry transitive sources. (No trustPolicy: no-downgrade --
+# it trips on upstream provenance regressions we don't control.)
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - emdash
   - "@emdash-cms/*"
-trustPolicy: no-downgrade
-trustPolicyExclude:
-  - "chokidar@4.0.3"
 blockExoticSubdeps: true
 `;
 }
