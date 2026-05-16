@@ -267,6 +267,15 @@ describe("renderReadme", () => {
 		const source = renderReadme(FULL_INPUTS);
 		expect(source.split("\n")[0]).toBe("# gallery");
 	});
+
+	it("camel-cases the import binding so hyphenated slugs produce valid JS", () => {
+		const source = renderReadme({ ...FULL_INPUTS, slug: "my-plugin" });
+		// The import specifier is the slug as-is; the binding must be a
+		// legal JS identifier (`myPlugin`, not `my-plugin`).
+		expect(source).toContain('import myPlugin from "my-plugin"');
+		expect(source).toContain("sandboxed: [myPlugin]");
+		expect(source).not.toContain('import my-plugin');
+	});
 });
 
 // ──────────────────────────────────────────────────────────────────────────

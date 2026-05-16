@@ -32,6 +32,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Coerce a content `id` to a string for use as a cache key or storage
+ * lookup. Accepts strings and numbers (the canonical ID types);
+ * everything else (objects, nulls, undefineds) becomes an empty string
+ * so the caller's existence check (`if (contentId)`) skips the entry.
+ */
+function stringifyId(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (typeof value === "number" && Number.isFinite(value)) return String(value);
+	return "";
+}
+
 function isAuditEntry(value: unknown): value is AuditEntry {
 	return (
 		isRecord(value) &&
@@ -68,9 +80,8 @@ export default {
 
 		"content:beforeSave": {
 			handler: async (event, ctx) => {
-				if (!event.isNew && event.content.id) {
-					const contentId =
-						typeof event.content.id === "string" ? event.content.id : String(event.content.id);
+				const contentId = stringifyId(event.content.id);
+				if (!event.isNew && contentId) {
 					try {
 						if (ctx.content) {
 							const existing = await ctx.content.get(event.collection, contentId);
@@ -88,8 +99,7 @@ export default {
 
 		"content:afterSave": {
 			handler: async (event, ctx) => {
-				const contentId =
-					typeof event.content.id === "string" ? event.content.id : String(event.content.id ?? "");
+				const contentId = stringifyId(event.content.id);
 				const cacheKey = `${event.collection}:${contentId}`;
 				const before = beforeSaveCache.get(cacheKey);
 				beforeSaveCache.delete(cacheKey);

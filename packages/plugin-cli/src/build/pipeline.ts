@@ -296,7 +296,13 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 	}
 
 	const pluginModule = (await import(probeOutputPath)) as Record<string, unknown>;
-	const definition = (pluginModule.default ?? {}) as Record<string, unknown>;
+	if (pluginModule.default === undefined) {
+		throw new BuildPipelineError(
+			"INVALID_PLUGIN_FORMAT",
+			`${entries.pluginEntry} has no \`default\` export. Sandboxed plugins must \`export default { hooks, routes } satisfies SandboxedPlugin\` from "emdash/plugin". A named-only export (e.g. \`export const plugin = ...\`) produces an empty bundle.`,
+		);
+	}
+	const definition = pluginModule.default as Record<string, unknown>;
 	if (typeof definition !== "object" || definition === null || Array.isArray(definition)) {
 		throw new BuildPipelineError(
 			"INVALID_PLUGIN_FORMAT",

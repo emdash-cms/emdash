@@ -288,7 +288,12 @@ export function renderGitignore(): string {
  * marketing copy.
  */
 export function renderReadme(input: ScaffoldInputs): string {
+	// The slug is the package title in headings + the import specifier,
+	// but it can contain hyphens (e.g. `my-plugin`) which aren't legal
+	// JS identifiers. Derive a camelCase binding name for the import +
+	// integration call.
 	const title = input.slug;
+	const importBinding = toCamelCase(input.slug);
 	return `# ${title}
 
 A sandboxed plugin for [EmDash CMS](https://emdashcms.com).
@@ -303,8 +308,8 @@ pnpm test
 
 To test against a running EmDash site, run \`pnpm dev\` in this
 directory (rebuilds on save) and \`pnpm add file:../path/to/this\`
-in the site. Then \`import ${title} from "${input.slug}"\` and pass
-it into \`emdash({ sandboxed: [${title}] })\`.
+in the site. Then \`import ${importBinding} from "${input.slug}"\` and pass
+it into \`emdash({ sandboxed: [${importBinding}] })\`.
 
 ## Publish
 
@@ -376,4 +381,16 @@ function makeTestContext() {
  */
 function jsonString(value: string): string {
 	return JSON.stringify(value);
+}
+
+const SLUG_SEPARATOR_RE = /[-_]([a-z0-9])/g;
+
+/**
+ * Convert a plugin slug (`my-plugin`, `my_plugin`) into a JS identifier
+ * for use as an import binding. Slugs are validated to start with a
+ * letter (see `PLUGIN_SLUG_RE`), so the result is always a legal
+ * identifier.
+ */
+function toCamelCase(slug: string): string {
+	return slug.replace(SLUG_SEPARATOR_RE, (_, ch: string) => ch.toUpperCase());
 }
