@@ -243,6 +243,7 @@ catalogs:
 
 overrides:
   '@astrojs/telemetry': 3.3.0
+  '@ungap/structured-clone': ^1.3.1
 
 importers:
 
@@ -2390,7 +2391,7 @@ packages:
       wrangler: ^4.61.1
 
   '@astrojs/cloudflare@https://pkg.pr.new/@astrojs/cloudflare@94d342d':
-    resolution: {tarball: https://pkg.pr.new/@astrojs/cloudflare@94d342d}
+    resolution: {integrity: sha512-Bt+G512Dr1SqYdsza6HOLP2azfHg0m5UE0s6SBGX77g+ThFV95Nai5boyM8HO3jVpqwVPPh+5ycMptjrtzv7Yg==, tarball: https://pkg.pr.new/@astrojs/cloudflare@94d342d}
     version: 13.1.10
     peerDependencies:
       astro: ^6.0.0
@@ -3929,7 +3930,7 @@ packages:
     resolution: {integrity: sha512-yTCCjuQapvRz6S30B8DyqHu1WYsbYRCww6uNsmbQU4GQVf5gJzJSB60qUHj+qBSxReLtRL/mhmhYhrIc9jVFTw==}
 
   '@lunariajs/core@https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc':
-    resolution: {tarball: https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc}
+    resolution: {integrity: sha512-k8sHBM7S10HBa39fxsJcOGYMGrbru5UZ9vMS4kmCa9o6dJTUP6rt3zKVEs7uEsHAYasoXyiC6wre2Jiqs3X+zQ==, tarball: https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc}
     version: 0.1.1
     engines: {node: '>=18.17.0'}
 
@@ -6192,9 +6193,8 @@ packages:
     resolution: {integrity: sha512-TZ/0Tv954jRpn5IHQJZQF0gaNmw//ZTvkgr3nC2H8u9t4GxUhIk5vfAHVFgdl8JnNGbl7gZks37FVsEwXjdHqg==}
     hasBin: true
 
-  '@ungap/structured-clone@1.3.0':
-    resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
-    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
+  '@ungap/structured-clone@1.3.1':
+    resolution: {integrity: sha512-mUFwbeTqrVgDQxFveS+df2yfap6iuP20NAKAsBt5jDEoOTDew+zwLAOilHCeQJOVSvmgCX4ogqIrA0mnyr08yQ==}
 
   '@unpic/placeholder@0.1.2':
     resolution: {integrity: sha512-O++tS97biojo5sqn5TeTt+jUjl5gWOdIQuOXe8YluTJWq4L0GM6VuTkaspNpsmxHfioJw/6YBirzOpG4t87l8Q==}
@@ -6530,7 +6530,7 @@ packages:
     hasBin: true
 
   astro@https://pkg.pr.new/astro@94d342d:
-    resolution: {tarball: https://pkg.pr.new/astro@94d342d}
+    resolution: {integrity: sha512-1XlhRGRCQP4L5KPZUgSRCKOD28aKiGYQ8TBAxBIJvFV/HUuct3eHvc7sY/krhhCAju81JMlvbWU+1XVzltgZTQ==, tarball: https://pkg.pr.new/astro@94d342d}
     version: 6.1.7
     engines: {node: '>=22.12.0', npm: '>=9.6.5', pnpm: '>=7.1.0'}
     hasBin: true
@@ -14652,7 +14652,7 @@ snapshots:
       '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260213.1
       '@typescript/native-preview-win32-x64': 7.0.0-dev.20260213.1
 
-  '@ungap/structured-clone@1.3.0': {}
+  '@ungap/structured-clone@1.3.1': {}
 
   '@unpic/placeholder@0.1.2':
     dependencies:
@@ -16675,7 +16675,7 @@ snapshots:
     dependencies:
       '@types/hast': 3.0.4
       '@types/unist': 3.0.3
-      '@ungap/structured-clone': 1.3.0
+      '@ungap/structured-clone': 1.3.1
       hast-util-from-parse5: 8.0.3
       hast-util-to-parse5: 8.0.1
       html-void-elements: 3.0.0
@@ -17464,7 +17464,7 @@ snapshots:
     dependencies:
       '@types/hast': 3.0.4
       '@types/mdast': 4.0.4
-      '@ungap/structured-clone': 1.3.0
+      '@ungap/structured-clone': 1.3.1
       devlop: 1.1.0
       micromark-util-sanitize-uri: 2.0.1
       trim-lines: 3.0.1

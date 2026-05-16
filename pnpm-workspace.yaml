@@ -1,8 +1,13 @@
-# Supply-chain hardening. allowBuilds/trustPolicyExclude policy: CONTRIBUTING.md
+# Supply-chain hardening.
 minimumReleaseAge: 1440
+# rolldown (vite 8's bundler) exact-pins these to its rc version, so the
+# cooldown has no mature alternative to fall back to and the install dies.
+# Scoped to the binaries/runtime only -- @rolldown/pluginutils etc. stay
+# under the cooldown.
 minimumReleaseAgeExclude:
-  - "@rolldown/*"
-  - "@emnapi/*"
+  - "@rolldown/binding-*"
+  - "@emnapi/core"
+  - "@emnapi/runtime"
 trustPolicy: no-downgrade
 strictDepBuilds: true
 dangerouslyAllowAllBuilds: false
@@ -25,10 +30,12 @@ trustPolicyExclude:
   - "@portabletext/toolkit@3.0.3" # provenance -> none (old pinned release)
   - "reselect@5.1.1" # provenance -> none (old pinned util)
 
-# Required by blockExoticSubdeps while infra/cache-demo uses the pkg.pr.new
-# Astro preview. Remove only when that preview pin is gone.
 overrides:
+  # blockExoticSubdeps: infra/cache-demo's pkg.pr.new Astro preview pulls
+  # this via URL. Remove when that preview pin is gone.
   "@astrojs/telemetry": "3.3.0"
+  # 1.3.0 is deprecated (CWE-502); pin the patched line.
+  "@ungap/structured-clone": "^1.3.1"
 
 enablePrePostScripts: true
 
