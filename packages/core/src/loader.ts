@@ -408,6 +408,61 @@ function buildCursorCondition(
 	return sql`(${sql.ref(primary.field)} > ${orderValue} OR (${sql.ref(primary.field)} = ${orderValue} AND ${sql.ref(idField)} > ${cursorId}))`;
 }
 
+/** Type guard: is the where value a range object (not a string or array)? */
+function isWhereRange(value: WhereValue): value is WhereRange {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Build AND conditions for non-taxonomy field filters.
+ * Returns an array of sql fragments; empty if no field filters apply.
+ * Field names are validated against FIELD_NAME_PATTERN to prevent injection.
+ */
+function buildFieldConditions(
+	fields: Record<string, WhereValue>,
+	tablePrefix?: string,
+): ReturnType<typeof sql>[] {
+	const conditions: ReturnType<typeof sql>[] = [];
+
+	for (const [key, value] of Object.entries(fields)) {
+		if (!FIELD_NAME_PATTERN.test(key)) continue;
+		const ref = tablePrefix ? sql.ref(`${tablePrefix}.${key}`) : sql.ref(key);
+
+		if (isWhereRange(value)) {
+			if (value.gt !== undefined) conditions.push(sql`${ref} > ${value.gt}`);
+			if (value.gte !== undefined) conditions.push(sql`${ref} >= ${value.gte}`);
+			if (value.lt !== undefined) conditions.push(sql`${ref} < ${value.lt}`);
+			if (value.lte !== undefined) conditions.push(sql`${ref} <= ${value.lte}`);
+		} else if (Array.isArray(value)) {
+			if (value.length > 0) {
+				conditions.push(sql`${ref} IN (${sql.join(value.map((v) => sql`${v}`))})`);
+			}
+		} else {
+			conditions.push(sql`${ref} = ${value}`);
+		}
+	}
+
+	return conditions;
+}
+
+/**
+ * Range filter for comparison operators on field values.
+ * Values are compared as strings in the database. This works correctly for
+ * ISO 8601 dates (e.g. "2024-01-01T00:00:00Z") because lexicographic ordering
+ * matches chronological ordering. Ensure date values use a consistent format.
+ */
+export interface WhereRange {
+	gt?: string;
+	gte?: string;
+	lt?: string;
+	lte?: string;
+}
+
+/**
+ * A where clause value: exact match, multi-value match, or range comparison.
+ */
+export type WhereValue = string | string[] | WhereRange;
+
 /**
  * Filter for loadCollection - type is required
  */
@@ -423,7 +478,7 @@ export interface CollectionFilter {
 	/**
 	 * Filter by field values or taxonomy terms
 	 */
-	where?: Record<string, string | string[]>;
+	where?: Record<string, WhereValue>;
 	/**
 	 * Order results by field(s)
 	 * @default { created_at: "desc" }
@@ -538,7 +593,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const status = filter?.status || "published";
 				const limit = filter?.limit;
 				const cursor = filter?.cursor;
-				const where = filter?.where;
+				const where = filter?.where as Record<string, WhereValue> | undefined;
 				const orderBy = filter?.orderBy;
 				const locale = filter?.locale;
 
@@ -551,79 +606,78 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					? buildCursorCondition(cursor, orderBy, tableName)
 					: null;
 
-				// Check if we need taxonomy filtering
+				// Separate taxonomy filters from field filters
 				let result: { rows: Record<string, unknown>[] };
+				let taxonomyFilter: { name: string; slugs: string[] } | null = null;
+				const fieldFilters: Record<string, WhereValue> = {};
 
 				if (where && Object.keys(where).length > 0) {
-					// Get taxonomy names to detect taxonomy filters
 					const taxNames = await getTaxonomyNames(db);
-					const taxonomyFilters: Record<string, string | string[]> = {};
 
 					for (const [key, value] of Object.entries(where)) {
-						if (taxNames.has(key)) {
-							taxonomyFilters[key] = value;
+						if (taxNames.has(key) && !isWhereRange(value)) {
+							// Only one taxonomy JOIN is supported per query;
+							// additional taxonomy keys are ignored.
+							if (!taxonomyFilter) {
+								const slugs = Array.isArray(value) ? value : [value];
+								taxonomyFilter = { name: key, slugs };
+							}
+						} else {
+							fieldFilters[key] = value;
 						}
 					}
+				}
 
-					// If we have taxonomy filters, use JOIN
-					if (Object.keys(taxonomyFilters).length > 0) {
-						// Build query with taxonomy JOIN
-						// For now, support single taxonomy filter (can extend later for multiple)
-						const [taxName, termSlugs] = Object.entries(taxonomyFilters)[0];
-						const slugs = Array.isArray(termSlugs) ? termSlugs : [termSlugs];
-						const orderByClause = buildOrderByClause(orderBy, tableName);
+				if (taxonomyFilter) {
+					const orderByClause = buildOrderByClause(orderBy, tableName);
+					const statusCondition = buildStatusCondition(db, status, tableName);
+					const localeCondition = locale
+						? sql`AND ${sql.ref(tableName)}.locale = ${locale}`
+						: sql``;
+					const cursorCond = cursorConditionPrefixed
+						? sql`AND ${cursorConditionPrefixed}`
+						: sql``;
+					const fieldConds = buildFieldConditions(fieldFilters, tableName);
+					const fieldCondsSQL =
+						fieldConds.length > 0
+							? sql`${sql.join(fieldConds, sql` AND `)}`
+							: null;
 
-						const statusCondition = buildStatusCondition(db, status, tableName);
-						const localeCondition = locale
-							? sql`AND ${sql.ref(tableName)}.locale = ${locale}`
-							: sql``;
-						const cursorCond = cursorConditionPrefixed
-							? sql`AND ${cursorConditionPrefixed}`
-							: sql``;
-						result = await sql<Record<string, unknown>>`
-							SELECT DISTINCT ${sql.ref(tableName)}.* FROM ${sql.ref(tableName)}
-							INNER JOIN content_taxonomies ct
-								ON ct.collection = ${type}
-								AND ct.entry_id = ${sql.ref(tableName)}.id
-							INNER JOIN taxonomies t
-								ON t.id = ct.taxonomy_id
-							WHERE ${sql.ref(tableName)}.deleted_at IS NULL
-								AND ${statusCondition}
-								${localeCondition}
-								${cursorCond}
-								AND t.name = ${taxName}
-								AND t.slug IN (${sql.join(slugs.map((s) => sql`${s}`))})
-							${orderByClause}
-							${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
-						`.execute(db);
-					} else {
-						// No taxonomy filters, use simple query
-						const orderByClause = buildOrderByClause(orderBy);
-						const statusCondition = buildStatusCondition(db, status);
-						const localeFilter = locale ? sql`AND locale = ${locale}` : sql``;
-						const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
-						result = await sql<Record<string, unknown>>`
-							SELECT * FROM ${sql.ref(tableName)}
-							WHERE deleted_at IS NULL
+					result = await sql<Record<string, unknown>>`
+						SELECT DISTINCT ${sql.ref(tableName)}.* FROM ${sql.ref(tableName)}
+						INNER JOIN content_taxonomies ct
+							ON ct.collection = ${type}
+							AND ct.entry_id = ${sql.ref(tableName)}.id
+						INNER JOIN taxonomies t
+							ON t.id = ct.taxonomy_id
+						WHERE ${sql.ref(tableName)}.deleted_at IS NULL
 							AND ${statusCondition}
-							${localeFilter}
+							${localeCondition}
 							${cursorCond}
-							${orderByClause}
-							${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
-						`.execute(db);
-					}
+							AND t.name = ${taxonomyFilter.name}
+							AND t.slug IN (${sql.join(taxonomyFilter.slugs.map((s) => sql`${s}`))})
+							${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
+						${orderByClause}
+						${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
+					`.execute(db);
 				} else {
-					// No where clause, use simple query
 					const orderByClause = buildOrderByClause(orderBy);
 					const statusCondition = buildStatusCondition(db, status);
 					const localeFilter = locale ? sql`AND locale = ${locale}` : sql``;
 					const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
+					const fieldConds = buildFieldConditions(fieldFilters);
+					const fieldCondsSQL =
+						fieldConds.length > 0
+							? sql`${sql.join(fieldConds, sql` AND `)}`
+							: null;
+
 					result = await sql<Record<string, unknown>>`
 						SELECT * FROM ${sql.ref(tableName)}
 						WHERE deleted_at IS NULL
 						AND ${statusCondition}
 						${localeFilter}
 						${cursorCond}
+						${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
 						${orderByClause}
 						${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
 					`.execute(db);
