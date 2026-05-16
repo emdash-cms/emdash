@@ -52,7 +52,7 @@
 		"prettier-plugin-astro": "^0.14.1",
 		"typescript": "6.0.0-beta"
 	},
-	"packageManager": "pnpm@10.28.0",
+	"packageManager": "pnpm@11.1.2",
 	"engines": {
 		"node": ">=22"
 	},
