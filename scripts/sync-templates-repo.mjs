@@ -150,6 +150,10 @@ ${allowBuilds}
 #   24h, so a compromised release has time to be caught. EmDash's own
 #   packages are exempt so new EmDash releases install immediately.
 # - trustPolicy: never install a package whose trust level has dropped.
+#   chokidar@4.0.3 (Astro's pinned file watcher) is the one documented
+#   benign exception -- its publish-provenance metadata legitimately
+#   changed across releases. Pinned to the exact version so the exception
+#   stays narrow; revisit if Astro bumps its chokidar dependency.
 # - blockExoticSubdeps: transitive deps must come from the registry,
 #   workspace, or local paths -- no git/tarball sub-dependencies.
 minimumReleaseAge: 1440
@@ -157,6 +161,8 @@ minimumReleaseAgeExclude:
   - emdash
   - "@emdash-cms/*"
 trustPolicy: no-downgrade
+trustPolicyExclude:
+  - "chokidar@4.0.3"
 blockExoticSubdeps: true
 `;
 }
