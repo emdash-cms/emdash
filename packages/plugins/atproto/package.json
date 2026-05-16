@@ -35,7 +35,7 @@
 		"vitest": "catalog:"
 	},
 	"scripts": {
-		"build": "emdash-plugin build",
+		"build": "node node_modules/@emdash-cms/plugin-cli/dist/index.mjs build",
 		"dev": "emdash-plugin dev",
 		"test": "vitest run",
 		"typecheck": "tsgo --noEmit"

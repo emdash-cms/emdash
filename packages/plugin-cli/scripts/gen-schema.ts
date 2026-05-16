@@ -6,7 +6,7 @@
  * to `schemas/emdash-plugin.schema.json` and shipped in the package's
  * `files` array so users can reference it via:
  *
- *     "$schema": "./node_modules/@emdash-cms/registry-cli/schemas/emdash-plugin.schema.json"
+ *     "$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json"
  *
  * Drift between the Zod schema and the committed JSON Schema is caught
  * by the snapshot test in `tests/schema.test.ts`.
