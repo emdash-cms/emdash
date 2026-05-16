@@ -24,12 +24,7 @@
 	},
 	"routes": [
 		{
-			"pattern": "emdashcms.com",
-			"zone_name": "emdashcms.com",
-			"custom_domain": true,
-		},
-		{
-			"pattern": "www.emdashcms.com",
+			"pattern": "try.emdashcms.com",
 			"zone_name": "emdashcms.com",
 			"custom_domain": true,
 		},

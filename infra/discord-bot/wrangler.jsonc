@@ -1,0 +1,35 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-discord-bot",
+	"main": "src/index.ts",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-04-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"kv_namespaces": [
+		{
+			"binding": "KV",
+			"id": "2a5c0ec09f364546a10f2fa49e1ebaf4",
+		},
+	],
+	"vars": {
+		"GITHUB_OWNER_LOGIN": "ascorbic",
+		"GITHUB_REPO": "emdash-cms/emdash",
+	},
+	"secrets": {
+		"required": [
+			"DISCORD_APP_ID",
+			"DISCORD_PUBLIC_KEY",
+			"DISCORD_BOT_TOKEN",
+			"DISCORD_GUILD_ID",
+			"DISCORD_CONTRIBUTOR_ROLE_ID",
+			"DISCORD_CHANNEL_ID",
+			"GITHUB_CLIENT_ID",
+			"GITHUB_CLIENT_SECRET",
+			"GITHUB_WEBHOOK_SECRET",
+			"PUBLIC_URL",
+		],
+	},
+	"observability": {
+		"enabled": true,
+	},
+}

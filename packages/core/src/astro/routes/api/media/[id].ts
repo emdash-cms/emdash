@@ -135,7 +135,8 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 			}
 		}
 
-		// Delete from database
+		// Delete from database — site-settings cache invalidation happens
+		// in `EmDashRuntime.handleMediaDelete` so MCP/plugin paths inherit it.
 		const result = await emdash.handleMediaDelete(id);
 
 		return unwrapResult(result);

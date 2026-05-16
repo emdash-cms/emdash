@@ -1,0 +1,204 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://emdashcms.com/schemas/emdash-plugin.schema.json",
+	"title": "EmDash plugin manifest",
+	"description": "Hand-authored manifest for publishing a plugin to the EmDash plugin registry. Lives next to the plugin's `package.json` as `emdash-plugin.jsonc`.",
+	"type": "object",
+	"properties": {
+		"$schema": {
+			"$ref": "#/$defs/__schema0"
+		},
+		"license": {
+			"$ref": "#/$defs/__schema1"
+		},
+		"publisher": {
+			"$ref": "#/$defs/__schema2"
+		},
+		"author": {
+			"$ref": "#/$defs/__schema3"
+		},
+		"authors": {
+			"$ref": "#/$defs/__schema8"
+		},
+		"security": {
+			"$ref": "#/$defs/__schema9"
+		},
+		"securityContacts": {
+			"$ref": "#/$defs/__schema13"
+		},
+		"name": {
+			"$ref": "#/$defs/__schema14"
+		},
+		"description": {
+			"$ref": "#/$defs/__schema15"
+		},
+		"keywords": {
+			"$ref": "#/$defs/__schema16"
+		},
+		"repo": {
+			"$ref": "#/$defs/__schema18"
+		}
+	},
+	"required": [
+		"license"
+	],
+	"additionalProperties": false,
+	"$defs": {
+		"__schema0": {
+			"type": "string",
+			"description": "Path or URL to the JSON Schema describing this file. Editors use this for completion and validation."
+		},
+		"__schema1": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 256,
+			"title": "License",
+			"description": "SPDX license expression (e.g. \"MIT\", \"Apache-2.0\", \"MIT OR Apache-2.0\"). Required on first publish; ignored on subsequent publishes (the existing profile wins).",
+			"examples": [
+				"MIT",
+				"Apache-2.0",
+				"MIT OR Apache-2.0"
+			]
+		},
+		"__schema2": {
+			"type": "string",
+			"title": "Publisher",
+			"description": "Atproto DID or handle of the publishing identity. Pinned on first publish to prevent accidental publishes from a different account. DIDs are recommended (durable); handles work but are mutable.",
+			"examples": [
+				"did:plc:abc123def456",
+				"example.com"
+			]
+		},
+		"__schema3": {
+			"$ref": "#/$defs/__schema4"
+		},
+		"__schema4": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"$ref": "#/$defs/__schema5"
+				},
+				"url": {
+					"$ref": "#/$defs/__schema6"
+				},
+				"email": {
+					"$ref": "#/$defs/__schema7"
+				}
+			},
+			"required": [
+				"name"
+			],
+			"additionalProperties": false,
+			"title": "Author",
+			"description": "A single author entry. Mirrors the lexicon's author shape."
+		},
+		"__schema5": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 256,
+			"description": "Display name."
+		},
+		"__schema6": {
+			"type": "string",
+			"maxLength": 1024,
+			"format": "uri",
+			"description": "Author's homepage or profile URL. Either this or `email` is recommended."
+		},
+		"__schema7": {
+			"type": "string",
+			"maxLength": 256,
+			"format": "email",
+			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+			"description": "Author's contact email. Either this or `url` is recommended."
+		},
+		"__schema8": {
+			"minItems": 1,
+			"maxItems": 32,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema4"
+			},
+			"title": "Authors (multiple)",
+			"description": "Multi-author form. Mutually exclusive with `author`. Use the singular `author` if there is only one."
+		},
+		"__schema9": {
+			"$ref": "#/$defs/__schema10"
+		},
+		"__schema10": {
+			"type": "object",
+			"properties": {
+				"url": {
+					"$ref": "#/$defs/__schema11"
+				},
+				"email": {
+					"$ref": "#/$defs/__schema12"
+				}
+			},
+			"additionalProperties": false,
+			"title": "Security contact",
+			"description": "A single security contact. At least one of `url` or `email` must be present."
+		},
+		"__schema11": {
+			"type": "string",
+			"maxLength": 1024,
+			"format": "uri",
+			"description": "Security disclosure URL (e.g. a security.txt or vulnerability-reporting page). Either this or `email` is required."
+		},
+		"__schema12": {
+			"type": "string",
+			"maxLength": 256,
+			"format": "email",
+			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+			"description": "Security contact email. Either this or `url` is required."
+		},
+		"__schema13": {
+			"minItems": 1,
+			"maxItems": 8,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema10"
+			},
+			"title": "Security contacts (multiple)",
+			"description": "Multi-contact form. Mutually exclusive with `security`. Use the singular `security` if there is only one."
+		},
+		"__schema14": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 1024,
+			"title": "Display name",
+			"description": "Human-readable name shown in directory listings. Defaults to the plugin's `id` when omitted."
+		},
+		"__schema15": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 1024,
+			"title": "Description",
+			"description": "Short description (<= 140 graphemes by FAIR convention). Aggregators may truncate longer values when displaying in compact lists."
+		},
+		"__schema16": {
+			"maxItems": 5,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema17"
+			},
+			"title": "Keywords",
+			"description": "Search keywords (<= 5 entries, FAIR convention)."
+		},
+		"__schema17": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 128
+		},
+		"__schema18": {
+			"type": "string",
+			"maxLength": 1024,
+			"format": "uri",
+			"pattern": "^https:\\/\\/",
+			"title": "Source repository",
+			"description": "HTTPS URL of the plugin's source repository. Surfaced in registry listings.",
+			"examples": [
+				"https://github.com/emdash-cms/plugin-gallery"
+			]
+		}
+	}
+}

@@ -2,6 +2,9 @@
  * Redirects API client
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export interface Redirect {
@@ -105,7 +108,7 @@ export async function deleteRedirect(id: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/redirects/${encodeURIComponent(id)}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete redirect");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete redirect`));
 }
 
 /**

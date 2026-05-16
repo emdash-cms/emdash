@@ -63,7 +63,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
+	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
 
 	return unwrapResult(result);
 };
@@ -95,7 +95,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
+	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
 
 	return unwrapResult(result);
 };

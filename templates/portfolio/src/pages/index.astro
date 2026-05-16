@@ -14,7 +14,7 @@ const [settings, { entries: featuredProjects, cacheHint }] = await Promise.all([
 	}),
 ]);
 
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
 <Base>

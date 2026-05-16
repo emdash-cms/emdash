@@ -1,3 +1,4 @@
+/// <reference types="astro/client" />
 /**
  * Query functions for EmDash content
  *
@@ -10,6 +11,17 @@
  * Preview mode is handled implicitly via ALS request context —
  * no parameters needed. The middleware verifies the preview token
  * and sets the context; query functions read it automatically.
+ *
+ * The triple-slash directive above pulls in the ambient declaration for
+ * `astro:content` (used by the dynamic imports below) so this source
+ * file typechecks even when reached transitively by a sibling package
+ * whose tsconfig doesn't list `astro/client` in `compilerOptions.types`.
+ *
+ * Note: the directive is stripped from the compiled output (`dist/*`)
+ * by tsdown, so it does not propagate to downstream consumers of the
+ * published package. Consumers are Astro sites and already provide their
+ * own `astro/client` ambient surface anyway, so the runtime dynamic
+ * import resolves there at typecheck time without our help.
  */
 
 import { encodeCursor } from "./database/repositories/types.js";

@@ -6,10 +6,10 @@ import {
 	Input,
 	InputArea,
 	Label,
+	LinkButton,
 	Loader,
 	Select,
 	Switch,
-	buttonVariants,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -17,13 +17,15 @@ import {
 	Eye,
 	Image as ImageIcon,
 	MagnifyingGlass,
+	Paperclip,
 	X,
 	Trash,
 	ArrowsInSimple,
 	ArrowsOutSimple,
 	ArrowSquareOut,
+	ImageBroken,
 } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -37,14 +39,16 @@ import type {
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
+import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
-import { contentUrl } from "../lib/url.js";
+import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -72,14 +76,15 @@ import {
 } from "./PortableTextEditor";
 import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
-import { SeoImageField } from "./SeoImageField";
 import { SeoPanel } from "./SeoPanel";
 import { TaxonomySidebar } from "./TaxonomySidebar";
+import { TranslationsPanel } from "./TranslationsPanel.js";
 
 // Editor role level (40) from @emdash-cms/auth
 const ROLE_EDITOR = 40;
 
 export interface FieldDescriptor {
+	id?: string;
 	kind: string;
 	label?: string;
 	required?: boolean;
@@ -224,6 +229,7 @@ export function ContentEditor({
 	manifest,
 }: ContentEditorProps) {
 	const { t } = useLingui();
+	const navigate = useNavigate();
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
@@ -556,32 +562,29 @@ export function ContentEditor({
 				isDistractionFree && "fixed inset-0 z-50 bg-kumo-base p-8 overflow-auto",
 			)}
 		>
-			{/* Header - sticky to keep Save / Publish in view while users scroll
-			    long forms. Becomes a hover-revealed overlay in distraction-free
-			    mode. Negative margins cancel <main>'s p-6 so the header bg
-			    spans edge-to-edge of the scroll container.
-			    See packages/admin/src/components/EditorHeader.tsx for the
-			    standalone sticky-header pattern used by other editor pages. */}
+			{/* Header. In distraction-free mode this becomes a hover-revealed
+			    overlay so the chrome stays out of the way while writing. In
+			    normal mode it's a regular block; the form also renders a
+			    Save button at the bottom so save is reachable without
+			    scrolling back up. */}
 			<div
 				className={cn(
 					"flex flex-wrap items-center justify-between gap-y-2",
-					!isDistractionFree &&
-						"sticky top-0 z-30 -mx-6 -mt-6 px-6 pt-6 pb-3 mb-3 border-b border-kumo-line bg-kumo-base/95 supports-[backdrop-filter]:bg-kumo-base/80 backdrop-blur",
 					isDistractionFree &&
 						"opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-4 z-10",
 				)}
 			>
 				<div className="flex items-center space-x-4">
 					{!isDistractionFree && (
-						<Link
+						<RouterLinkButton
 							to="/content/$collection"
 							params={{ collection }}
 							search={{ locale: undefined }}
 							aria-label={t`Back to ${collectionLabel} list`}
-							className={buttonVariants({ variant: "ghost", shape: "square" })}
-						>
-							<ArrowPrev className="h-5 w-5" aria-hidden="true" />
-						</Link>
+							variant="ghost"
+							shape="square"
+							icon={<ArrowPrev />}
+						/>
 					)}
 					{isDistractionFree && (
 						<Button
@@ -608,7 +611,7 @@ export function ContentEditor({
 						<div
 							className="flex items-center text-xs text-kumo-subtle"
 							role="status"
-							aria-label="Autosave status"
+							aria-label={t`Autosave status`}
 							aria-live="polite"
 						>
 							{isAutosaving ? (
@@ -654,7 +657,7 @@ export function ContentEditor({
 								<Dialog.Root>
 									<Dialog.Trigger
 										render={(p) => (
-											<Button {...p} type="button" variant="outline" size="sm" icon={<X />}>
+											<Button {...p} type="button" variant="outline" icon={<X />}>
 												{t`Discard changes`}
 											</Button>
 										)}
@@ -703,15 +706,14 @@ export function ContentEditor({
 								</Button>
 							)}
 							{isLive && item?.slug && (
-								<a
+								<LinkButton
 									href={contentUrl(collection, item.slug, urlPattern)}
-									target="_blank"
-									rel="noopener noreferrer"
-									className={buttonVariants({ variant: "outline" })}
+									external
+									variant="outline"
+									icon={<ArrowSquareOut />}
 								>
-									<ArrowSquareOut className="me-2 h-4 w-4" aria-hidden="true" />
 									{t`Live View`}
-								</a>
+								</LinkButton>
 							)}
 						</>
 					)}
@@ -765,29 +767,19 @@ export function ContentEditor({
 										manifest={manifest}
 									/>
 								);
-								if (
-									name === "featured_image" &&
-									field.kind === "image" &&
-									hasSeo &&
-									!isNew &&
-									onSeoChange
-								) {
-									return (
-										<div
-											key={`${fieldKey}-with-seo`}
-											className="grid grid-cols-1 gap-6 md:grid-cols-2"
-										>
-											<div>{fieldEl}</div>
-											<div>
-												<SeoImageField seo={item?.seo} onChange={onSeoChange} />
-											</div>
-										</div>
-									);
-								}
 								return fieldEl;
 							})}
 						</div>
 					</div>
+
+					{/* Save action at the bottom of the main column so users hit it
+					    naturally when they finish editing, without needing to scroll
+					    past the entire sidebar. */}
+					{!isDistractionFree && (
+						<div className="flex justify-end">
+							<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+						</div>
+					)}
 				</div>
 
 				{/* Sidebar - hidden in distraction-free mode */}
@@ -986,55 +978,19 @@ export function ContentEditor({
 							{/* Translations sidebar - shown when i18n is enabled */}
 							{i18n && item && !isNew && (
 								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">{t`Translations`}</h3>
-									<div className="space-y-2">
-										{i18n.locales.map((locale) => {
-											const translation = translations?.find((tr) => tr.locale === locale);
-											const isCurrent = locale === item.locale;
-											return (
-												<div
-													key={locale}
-													className={cn(
-														"flex items-center justify-between rounded-md px-3 py-2 text-sm",
-														isCurrent
-															? "bg-kumo-brand/10 font-medium"
-															: translation
-																? "hover:bg-kumo-tint/50"
-																: "text-kumo-subtle",
-													)}
-												>
-													<div className="flex items-center gap-2">
-														<span className="text-xs font-semibold uppercase">{locale}</span>
-														{locale === i18n.defaultLocale && (
-															<span className="text-[10px] text-kumo-subtle">{t` (default)`}</span>
-														)}
-														{isCurrent && (
-															<span className="text-[10px] text-kumo-brand">{t`current`}</span>
-														)}
-													</div>
-													{translation && !isCurrent ? (
-														<Link
-															to="/content/$collection/$id"
-															params={{ collection, id: translation.id }}
-															className="text-xs text-kumo-brand hover:underline"
-														>
-															{t`Edit`}
-														</Link>
-													) : !translation && onTranslate ? (
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															className="h-auto px-2 py-1 text-xs"
-															onClick={() => onTranslate(locale)}
-														>
-															{t`Translate`}
-														</Button>
-													) : null}
-												</div>
-											);
-										})}
-									</div>
+									<TranslationsPanel
+										locales={i18n.locales}
+										defaultLocale={i18n.defaultLocale}
+										currentLocale={item.locale ?? undefined}
+										translations={translations ?? []}
+										onOpen={(tr) =>
+											navigate({
+												to: "/content/$collection/$id",
+												params: { collection, id: tr.id },
+											})
+										}
+										onCreate={onTranslate}
+									/>
 								</div>
 							)}
 
@@ -1338,6 +1294,36 @@ function FieldRenderer({
 					value={imageValue}
 					onChange={handleChange}
 					required={field.required}
+					allowedMimeTypes={
+						Array.isArray(field.validation?.allowedMimeTypes)
+							? (field.validation.allowedMimeTypes as string[])
+							: undefined
+					}
+					fieldId={field.id}
+				/>
+			);
+		}
+
+		case "file": {
+			// value is either a FileFieldValue object or undefined.
+			// The file field type was unusable before this PR (rendered as a text input
+			// that produced raw strings nobody could meaningfully save), so there is no
+			// "legacy string" data to preserve here.
+			const fileValue =
+				value != null && typeof value === "object" ? (value as FileFieldValue) : undefined;
+			return (
+				<FileFieldRenderer
+					id={id}
+					label={label}
+					value={fileValue}
+					onChange={handleChange}
+					required={field.required}
+					allowedMimeTypes={
+						Array.isArray(field.validation?.allowedMimeTypes)
+							? (field.validation.allowedMimeTypes as string[])
+							: undefined
+					}
+					fieldId={field.id}
 				/>
 			);
 		}
@@ -1573,6 +1559,8 @@ interface ImageFieldRendererProps {
 	value: ImageFieldValue | string | undefined;
 	onChange: (value: ImageFieldValue | null) => void;
 	required?: boolean;
+	allowedMimeTypes?: string[];
+	fieldId?: string;
 }
 
 function ImageFieldRenderer({
@@ -1582,9 +1570,12 @@ function ImageFieldRenderer({
 	value,
 	onChange,
 	required,
+	allowedMimeTypes,
+	fieldId,
 }: ImageFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const [imageBroken, setImageBroken] = React.useState(false);
 	// Normalize value to get display URL (handles both object and legacy string)
 	// Prefer previewUrl for admin display, fall back to src, then derive from storageKey/id
 	const displayUrl =
@@ -1595,6 +1586,10 @@ function ImageFieldRenderer({
 				(value && (!value.provider || value.provider === "local")
 					? `/_emdash/api/media/file/${typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id}`
 					: undefined);
+
+	React.useEffect(() => {
+		setImageBroken(false);
+	}, [displayUrl]);
 
 	const handleSelect = (item: MediaItem) => {
 		const isLocalProvider = !item.provider || item.provider === "local";
@@ -1620,24 +1615,63 @@ function ImageFieldRenderer({
 		<div id={id}>
 			<Label>{label}</Label>
 			{displayUrl ? (
-				<div className="mt-2 relative group">
-					<img src={displayUrl} alt="" className="max-h-48 rounded-lg border object-cover" />
-					<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							{t`Change`}
-						</Button>
-						<Button
-							type="button"
-							shape="square"
-							variant="destructive"
-							className="h-8 w-8"
-							onClick={handleRemove}
-							aria-label={t`Remove image`}
-						>
-							<X className="h-4 w-4" />
-						</Button>
+				imageBroken ? (
+					<div className="mt-2 relative group">
+						<div className="min-h-20 rounded-lg border bg-kumo-muted flex items-center justify-center gap-2 text-kumo-subtle">
+							<ImageBroken className="h-5 w-5" />
+							<span className="text-sm">{t`Image not found`}</span>
+						</div>
+						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => setPickerOpen(true)}
+							>
+								{t`Change`}
+							</Button>
+							<Button
+								type="button"
+								shape="square"
+								variant="destructive"
+								className="h-8 w-8"
+								onClick={handleRemove}
+								aria-label={t`Remove image`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
 					</div>
-				</div>
+				) : (
+					<div className="mt-2 relative group">
+						<img
+							src={displayUrl}
+							alt=""
+							className="max-h-48 min-h-20 rounded-lg border object-cover"
+							onError={() => setImageBroken(true)}
+						/>
+						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => setPickerOpen(true)}
+							>
+								{t`Change`}
+							</Button>
+							<Button
+								type="button"
+								shape="square"
+								variant="destructive"
+								className="h-8 w-8"
+								onClick={handleRemove}
+								aria-label={t`Remove image`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
+					</div>
+				)
 			) : (
 				<Button
 					type="button"
@@ -1655,11 +1689,187 @@ function ImageFieldRenderer({
 				open={pickerOpen}
 				onOpenChange={setPickerOpen}
 				onSelect={handleSelect}
-				mimeTypeFilter="image/"
+				mimeTypeFilters={
+					allowedMimeTypes && allowedMimeTypes.length > 0 ? allowedMimeTypes : ["image/"]
+				}
+				fieldId={fieldId}
 				title={t`Select ${label}`}
 			/>
 			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
 			{required && !displayUrl && (
+				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
+			)}
+		</div>
+	);
+}
+
+/**
+ * File field value — matches the "file" shape validated by the Zod generator:
+ * { id, provider?, src?, filename?, mimeType?, size?, meta? }
+ */
+interface FileFieldValue {
+	id: string;
+	/** Provider ID (e.g., "local", "s3") */
+	provider?: string;
+	/** Direct URL for non-local media */
+	src?: string;
+	filename?: string;
+	mimeType?: string;
+	size?: number;
+	/** Provider-specific metadata */
+	meta?: Record<string, unknown>;
+}
+
+interface FileFieldRendererProps {
+	id?: string;
+	label: string;
+	value: FileFieldValue | undefined;
+	onChange: (value: FileFieldValue | null) => void;
+	required?: boolean;
+	allowedMimeTypes?: string[];
+	fieldId?: string;
+}
+
+/**
+ * File field with media picker
+ *
+ * Like ImageFieldRenderer but for arbitrary file types. Shows a mime-type-appropriate
+ * icon, filename, and size instead of an image preview.
+ */
+function FileFieldRenderer({
+	id,
+	label,
+	value,
+	onChange,
+	required,
+	allowedMimeTypes,
+	fieldId,
+}: FileFieldRendererProps) {
+	const { t } = useLingui();
+	const [pickerOpen, setPickerOpen] = React.useState(false);
+
+	// Normalize value to derive display info.
+	// For local files, prefer meta.storageKey; fall back to value.src when it's an
+	// internal media path; finally fall back to value.id so local files remain
+	// clickable even when metadata is sparse. For external providers, use value.src
+	// but only when it's an http(s) URL — a hostile provider plugin could otherwise
+	// return a data: or javascript: URL that gets rendered as a clickable link.
+	const normalized = React.useMemo(() => {
+		if (!value) return null;
+		const isLocal = !value.provider || value.provider === "local";
+		const storageKey =
+			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
+		const localSrc =
+			typeof value.src === "string" && value.src.startsWith("/_emdash/") ? value.src : undefined;
+		// Storage keys come from server-controlled paths today, but the Zod schema
+		// now lets clients write arbitrary `meta.storageKey` strings via the content
+		// API. Encode before interpolating so attacker-shaped values can't escape
+		// the path with `?` or `#`.
+		const localUrl = isLocal
+			? storageKey
+				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`
+				: (localSrc ?? `/_emdash/api/media/file/${encodeURIComponent(value.id)}`)
+			: undefined;
+		const externalUrl = !isLocal && value.src && isSafeUrl(value.src) ? value.src : undefined;
+		return {
+			displayUrl: localUrl ?? externalUrl,
+			filename: value.filename || t`Untitled file`,
+			mimeType: value.mimeType || "",
+			size: value.size,
+		};
+	}, [value, t]);
+
+	const handleSelect = (item: MediaItem) => {
+		const isLocalProvider = !item.provider || item.provider === "local";
+		onChange({
+			id: item.id,
+			provider: item.provider || "local",
+			src: isLocalProvider ? undefined : item.url,
+			filename: item.filename,
+			mimeType: item.mimeType,
+			size: item.size,
+			meta: isLocalProvider ? { ...item.meta, storageKey: item.storageKey } : item.meta,
+		});
+	};
+
+	const handleRemove = () => {
+		onChange(null);
+	};
+
+	const hasMime = !!normalized?.mimeType;
+	const size = typeof normalized?.size === "number" ? normalized.size : undefined;
+	const hasSize = size !== undefined;
+
+	return (
+		<div id={id}>
+			<Label>{label}</Label>
+			{normalized ? (
+				<div className="mt-2 flex items-center gap-3 rounded-lg border p-3">
+					<span className="text-3xl" aria-hidden="true">
+						{getFileIcon(normalized.mimeType)}
+					</span>
+					<div className="flex-1 min-w-0">
+						{normalized.displayUrl ? (
+							<a
+								href={normalized.displayUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-sm font-medium truncate block hover:underline"
+							>
+								{normalized.filename}
+							</a>
+						) : (
+							<p className="text-sm font-medium truncate">{normalized.filename}</p>
+						)}
+						{(hasMime || hasSize) && (
+							<p className="text-xs text-kumo-subtle">
+								{hasMime ? normalized.mimeType : null}
+								{hasMime && hasSize ? " • " : null}
+								{hasSize ? formatFileSize(size) : null}
+							</p>
+						)}
+					</div>
+					<div className="flex gap-1">
+						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
+							{t`Change`}
+						</Button>
+						<Button
+							type="button"
+							shape="square"
+							variant="destructive"
+							className="h-8 w-8"
+							onClick={handleRemove}
+							aria-label={t`Remove ${label}`}
+						>
+							<X className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+			) : (
+				<Button
+					type="button"
+					variant="outline"
+					className="mt-2 w-full h-32 border-dashed"
+					onClick={() => setPickerOpen(true)}
+					aria-label={t`Select ${label}`}
+				>
+					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
+						<Paperclip className="h-8 w-8" />
+						<span>{t`Select file`}</span>
+					</div>
+				</Button>
+			)}
+			<MediaPickerModal
+				open={pickerOpen}
+				onOpenChange={setPickerOpen}
+				onSelect={handleSelect}
+				mimeTypeFilters={allowedMimeTypes ?? []}
+				fieldId={fieldId}
+				hideUrlInput
+				mediaKind="file"
+				title={t`Select ${label}`}
+			/>
+			{required && !normalized && (
 				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
 			)}
 		</div>
@@ -1742,18 +1952,16 @@ function BylineCreditsEditor({
 	return (
 		<div className="space-y-3">
 			<div className="flex gap-2">
-				<select
+				<Select
 					value={selectedBylineId}
-					onChange={(e) => setSelectedBylineId(e.target.value)}
-					className="w-full rounded border bg-kumo-base px-3 py-2 text-sm"
-				>
-					<option value="">{t`Select byline...`}</option>
-					{availableToAdd.map((b) => (
-						<option key={b.id} value={b.id}>
-							{b.displayName}
-						</option>
-					))}
-				</select>
+					onValueChange={(v) => setSelectedBylineId(v ?? "")}
+					items={{
+						"": t`Select byline...`,
+						...Object.fromEntries(availableToAdd.map((b) => [b.id, b.displayName])),
+					}}
+					aria-label={t`Select byline`}
+					className="w-full"
+				/>
 				<Button
 					type="button"
 					variant="secondary"

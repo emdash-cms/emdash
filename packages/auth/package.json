@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/auth",
-  "version": "0.9.0",
+  "version": "0.12.0",
   "description": "Passkey-first authentication for EmDash",
   "type": "module",
   "main": "dist/index.mjs",
@@ -42,7 +42,7 @@
     "@oslojs/encoding": "catalog:",
     "@oslojs/webauthn": "catalog:",
     "ulidx": "^2.4.1",
-    "zod": "^4.3.5"
+    "zod": "catalog:"
   },
   "peerDependencies": {
     "astro": ">=6.0.0-beta.0",

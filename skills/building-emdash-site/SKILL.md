@@ -59,11 +59,7 @@ Read **[references/site-features.md](references/site-features.md)** for site set
 
 ### 5. Create the seed file
 
-Write `seed/seed.json` with collections, fields, taxonomies, menus, widgets, and sample content. Validate with:
-
-```bash
-npx emdash seed seed/seed.json --validate
-```
+Write `seed/seed.json` with collections, fields, taxonomies, menus, widgets, and sample content.
 
 ### 6. Run and verify
 

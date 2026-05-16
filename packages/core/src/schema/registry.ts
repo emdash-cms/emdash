@@ -526,6 +526,10 @@ export class SchemaRegistry {
 			);
 		}
 
+		// `input.validation === undefined` means "no change" (keep existing);
+		// an explicit `null` clears the column.
+		const nextValidation = input.validation === undefined ? field.validation : input.validation;
+
 		return withTransaction(this.db, async (trx) => {
 			await trx
 				.updateTable("_emdash_fields")
@@ -550,11 +554,7 @@ export class SchemaRegistry {
 							: field.defaultValue !== undefined
 								? JSON.stringify(field.defaultValue)
 								: null,
-					validation: input.validation
-						? JSON.stringify(input.validation)
-						: field.validation
-							? JSON.stringify(field.validation)
-							: null,
+					validation: nextValidation ? JSON.stringify(nextValidation) : null,
 					widget: input.widget ?? field.widget ?? null,
 					options: input.options
 						? JSON.stringify(input.options)

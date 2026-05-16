@@ -16,7 +16,7 @@ if (!project) {
 	return Astro.redirect("/404");
 }
 
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 // Related projects: order by date in the DB and request a small lookahead
 // so we can drop the current entry without re-querying. Avoids loading

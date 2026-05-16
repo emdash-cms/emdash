@@ -374,68 +374,55 @@ after(async () => {
 
 ### Admin UI: Use Kumo Components
 
-The admin UI is built on [Kumo](https://github.com/cloudflare/kumo) (Cloudflare's design system). Use Kumo components for all standard UI elements -- never roll your own buttons, inputs, dialogs, selects, etc. This gives us consistent styling, dark mode, accessibility, and RTL support for free.
+The admin UI is built on [Kumo](https://github.com/cloudflare/kumo) (Cloudflare's design system). Never roll your own buttons, inputs, dialogs, selects, etc. -- use Kumo. This gives consistent styling, dark mode, accessibility, and RTL support for free.
 
-**Look up component docs from the CLI** -- don't guess at props:
+**Always look up component docs from the CLI before reaching for an element**:
 
 ```bash
 npx @cloudflare/kumo doc Button    # docs for a specific component
-npx @cloudflare/kumo ls            # list all available components
-npx @cloudflare/kumo docs          # docs for everything
+npx @cloudflare/kumo ls            # list all components
 ```
 
-Key components (all from `@cloudflare/kumo`):
+Common imports: `Button`, `LinkButton`, `Dialog`, `Input`, `InputArea`, `Select`, `Checkbox`, `Switch`, `Loader`, `Badge`, `Toast`/`Toasty`, `Popover`, `Dropdown`, `Tooltip`, `Label`, `CommandPalette`. For confirm/cancel modals use our `ConfirmDialog` wrapper, not raw `Dialog`.
 
-- **`Button`** -- all clickable actions. Supports `variant`, `size`, `icon`, and `loading`.
-- **`LinkButton`** -- anchor styled as a button. Use for navigation, never `<a>` with manual styling. Supports `external` prop for new-tab links.
-- **`Dialog`** -- all modals. Use `ConfirmDialog` (ours) for simple confirm/cancel flows.
-- **`Input`**, **`InputArea`**, **`Select`**, **`Checkbox`**, **`Switch`** -- form controls.
-- **`Toast`** / **`Toasty`** -- notifications.
-- **`Loader`** -- loading spinners.
-- **`Badge`** -- status labels, counts.
-- **`Popover`**, **`Dropdown`**, **`Tooltip`** -- overlays.
-- **`CommandPalette`** -- the admin command palette.
-- **`Label`** -- form labels (pairs with inputs).
+#### Buttons and links: pick the right component
 
-```typescript
+| Need                                      | Component                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------ |
+| In-place action (submit, toggle, open)    | `Button`                                                           |
+| External link styled as a button          | `LinkButton href="..." external`                                   |
+| Internal router-aware link as a button    | `RouterLinkButton to="..."` (in `components/`)                     |
+| Non-button element needing button classes | `buttonVariants(...)` (e.g. file-upload `<span>` inside `<label>`) |
+
+`RouterLinkButton` is our wrapper around TanStack Router's `<Link>` styled with Kumo button classes. Use it for any internal navigation that should look like a button -- typed `to`/`params`/`search`/`preload` props pass through. Never write `<Link><Button>...</Button></Link>` (renders invalid `<a><button>` HTML, breaks a11y). Never write `<a>` with hand-rolled button styling.
+
+```tsx
 import { Button, LinkButton, Loader } from "@cloudflare/kumo";
+import { RouterLinkButton } from "./RouterLinkButton.js"; // path varies by file location
 
-// loading prop -- shows spinner and disables interaction automatically
-<Button variant="primary" loading={mutation.isPending}>
-	{t`Save`}
-</Button>
-
-// icon prop with conditional Loader -- use when the icon itself changes per state
-// (e.g. different icons for idle/pending/done -- see SaveButton.tsx for the full pattern)
-<Button
-	variant={isSaved ? "secondary" : "primary"}
-	icon={isSaving ? <Loader size="sm" /> : isSaved ? <Check /> : <FloppyDisk />}
-	disabled={isSaving || isSaved}
-	aria-busy={isSaving}
->
-	{isSaving ? t`Saving...` : isSaved ? t`Saved` : t`Save`}
-</Button>
-
-// icon prop -- pass a Phosphor icon component or React element
+// In-place actions
+<Button variant="primary" loading={mutation.isPending}>{t`Save`}</Button>
 <Button variant="secondary" icon={PlusIcon}>{t`Add item`}</Button>
-
-// icon-only buttons require shape + aria-label
 <Button shape="square" icon={TrashIcon} aria-label={t`Delete`} variant="ghost" />
 
-// LinkButton for navigation -- never use <a> with manual button classes
-<LinkButton href="/_emdash/admin" variant="ghost" icon={HouseIcon}>
-	{t`Dashboard`}
-</LinkButton>
+// Internal navigation
+<RouterLinkButton to="/settings" variant="ghost" shape="square"
+  aria-label={t`Back to settings`} icon={<ArrowPrev />} />
+<RouterLinkButton to="/posts/$id" params={{ id }} variant="primary">
+  {t`Edit post`}
+</RouterLinkButton>
 
-// external links open in new tab with rel="noopener noreferrer"
+// External link
 <LinkButton href="https://docs.example.com" external>{t`Docs`}</LinkButton>
 ```
 
-**Styling rules:**
+For state-dependent icons (idle/pending/done), pass a conditional element to `icon`. See `SaveButton.tsx` for the canonical pattern.
 
-- **Use semantic color tokens**, not raw Tailwind colors. `bg-kumo-brand` not `bg-blue-500`. `text-kumo-subtle` not `text-gray-500`. The full token list is in the Kumo styles.
-- **Never use `dark:` prefixes.** Kumo's semantic tokens use CSS `light-dark()` to handle dark mode automatically. If you're writing `dark:bg-something`, you're bypassing the design system.
-- Don't reach for raw HTML elements or Tailwind-only solutions when a Kumo component exists. If you need a button, use `Button`. If you need a link that looks like a button, use `LinkButton`. If you need `buttonVariants()` classes on a non-button element, import `buttonVariants` from `@cloudflare/kumo`.
+#### Styling rules
+
+- **Use semantic tokens**: `bg-kumo-brand`, `text-kumo-subtle`, etc. Never raw Tailwind colors like `bg-blue-500`.
+- **Never use `dark:` prefixes.** Kumo's tokens use CSS `light-dark()` -- writing `dark:bg-something` bypasses the design system.
+- **Never duplicate component styles.** If you find yourself writing `bg-kumo-brand text-white rounded-md px-3 py-2` on a `<button>`, you're recreating Kumo's `Button` -- use the component instead.
 
 ### Admin UI: Localization (Lingui)
 

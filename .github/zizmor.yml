@@ -1,0 +1,47 @@
+# Configuration for zizmor (static analysis for GitHub Actions).
+# https://docs.zizmor.sh/configuration/
+#
+# Findings ignored here are *deliberate* design choices, not "TODOs we never
+# got to". Anything new or unexpected should land as a finding in the Security
+# tab and be triaged before merge. Add an entry here only with a comment
+# explaining why the finding is acceptable.
+
+rules:
+  # `pull_request_target` and `workflow_run` are inherently dangerous, but we
+  # use them in workflows that have been written defensively: they either
+  # don't run untrusted code from the PR head, or they isolate untrusted state
+  # into clearly-marked steps. Each entry below has a one-line justification.
+  dangerous-triggers:
+    ignore:
+      # CLA assistant must comment on PRs from forks; runs a pinned third-party
+      # action and does not execute any code from the PR.
+      - cla.yml
+      # Auto-format runs against trusted same-repo branches only (gated by
+      # `github.event.pull_request.head.repo.full_name == github.repository`
+      # downstream). Fork PRs are routed through format-command instead.
+      - auto-format.yml
+      # Lunaria only reads localized content and posts a status comment; does
+      # not execute PR-controlled code.
+      - lunaria.yml
+      # pr-compliance and pr-triage only inspect PR metadata (title, labels,
+      # author) via github-script. They never check out PR code.
+      - pr-compliance.yml
+      - pr-triage.yml
+      # query-counts-apply uses workflow_run to apply snapshot updates that
+      # were computed in the untrusted `query-counts` workflow. The trusted
+      # workflow only consumes the artifact JSON, verifies the head SHA, and
+      # pushes back via an app token. See workflow comments for the full
+      # threat model.
+      - query-counts-apply.yml
+      # query-counts-label labels PRs based on path filters; it does not
+      # check out PR code.
+      - query-counts-label.yml
+
+  # The CLA assistant action (contributor-assistant/github-action) requires
+  # write access to actions, contents (cla-signatures branch), issues, PRs,
+  # and statuses. The workflow has only one job that uses these permissions,
+  # so workflow-level vs job-level scoping makes no real difference. A future
+  # PR may split the `label` job to a separate file with narrower permissions.
+  excessive-permissions:
+    ignore:
+      - cla.yml

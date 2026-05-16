@@ -48,8 +48,12 @@ export function requestCached<T>(key: string, fn: () => Promise<T>): Promise<T> 
 	}
 
 	const existing = cache.get(key);
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- heterogeneous cache; key namespacing guarantees the stored promise resolves to T
-	if (existing) return existing as Promise<T>;
+	if (existing) {
+		if (ctx.metrics) ctx.metrics.cacheHits += 1;
+		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- heterogeneous cache; key namespacing guarantees the stored promise resolves to T
+		return existing as Promise<T>;
+	}
+	if (ctx.metrics) ctx.metrics.cacheMisses += 1;
 
 	const promise = Promise.resolve()
 		.then(fn)

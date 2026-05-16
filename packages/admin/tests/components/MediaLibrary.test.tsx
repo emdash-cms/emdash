@@ -182,4 +182,40 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("Media Library")).toBeInTheDocument();
 		});
 	});
+
+	describe("load more pagination", () => {
+		it("renders Load More button when hasMore is true", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, hasMore: true, onLoadMore: vi.fn() });
+			await expect.element(screen.getByRole("button", { name: "Load More" })).toBeInTheDocument();
+		});
+
+		it("does not render Load More button when hasMore is false", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, hasMore: false, onLoadMore: vi.fn() });
+			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
+		});
+
+		it("invokes onLoadMore when Load More button is clicked", async () => {
+			const onLoadMore = vi.fn();
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, hasMore: true, onLoadMore });
+			await screen.getByRole("button", { name: "Load More" }).click();
+			expect(onLoadMore).toHaveBeenCalled();
+		});
+
+		it("keeps already-loaded items visible while fetching the next page (isLoading=true with items)", async () => {
+			// Reproduces the Copilot review concern: when isLoading flips true
+			// during a Load-More fetch, the grid must not be blanked out into a
+			// centered spinner — already-rendered items should remain visible.
+			const items = [makeMediaItem({ id: "1", filename: "first-page.jpg" })];
+			const screen = await renderLibrary({
+				items,
+				isLoading: true,
+				hasMore: true,
+				onLoadMore: vi.fn(),
+			});
+			await expect.element(screen.getByAltText("first-page.jpg")).toBeInTheDocument();
+		});
+	});
 });

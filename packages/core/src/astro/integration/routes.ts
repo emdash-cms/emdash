@@ -314,6 +314,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/taxonomies/[name]/terms/[slug]/translations",
+		entrypoint: resolveRoute("api/taxonomies/[name]/terms/[slug]/translations.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/terms/[taxonomy]",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/terms/[taxonomy].ts"),
 	});
@@ -358,6 +363,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/admin/plugins/marketplace/[id]/install",
 		entrypoint: resolveRoute("api/admin/plugins/marketplace/[id]/install.ts"),
+	});
+
+	// Experimental registry routes (see RFC 0001)
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/install",
+		entrypoint: resolveRoute("api/admin/plugins/registry/install.ts"),
 	});
 
 	injectRoute({
@@ -551,8 +562,18 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/menus/[name]/items/[id]",
+		entrypoint: resolveRoute("api/menus/[name]/items/[id].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/menus/[name]/reorder",
 		entrypoint: resolveRoute("api/menus/[name]/reorder.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/menus/[name]/translations",
+		entrypoint: resolveRoute("api/menus/[name]/translations.ts"),
 	});
 
 	// Widget area routes

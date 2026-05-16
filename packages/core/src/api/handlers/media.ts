@@ -26,7 +26,7 @@ export async function handleMediaList(
 	params: {
 		cursor?: string;
 		limit?: number;
-		mimeType?: string;
+		mimeType?: string | readonly string[];
 	},
 ): Promise<ApiResult<MediaListResponse>> {
 	try {

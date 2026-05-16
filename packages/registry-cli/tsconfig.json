@@ -1,0 +1,11 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"rootDir": "./src",
+		"lib": ["es2023", "esnext.typedarrays"],
+		"types": ["node"]
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "tests", "bin"]
+}

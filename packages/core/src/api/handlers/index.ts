@@ -168,3 +168,10 @@ export {
 	type MarketplaceUpdateCheck,
 	type MarketplaceUninstallResult,
 } from "./marketplace.js";
+
+// Registry handlers (experimental)
+export {
+	handleRegistryInstall,
+	type RegistryInstallInput,
+	type RegistryInstallResult,
+} from "./registry.js";
