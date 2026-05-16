@@ -148,6 +148,10 @@ export default defineConfig({
 					items: [
 						{ label: "Contributor Guide", slug: "contributing" },
 						{
+							label: "Architecture (internals)",
+							slug: "contributing/architecture",
+						},
+						{
 							label: "Documentation Style Guide",
 							slug: "contributing/docs-style-guide",
 						},

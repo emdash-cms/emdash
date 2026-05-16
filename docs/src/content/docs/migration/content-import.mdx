@@ -182,67 +182,6 @@ After content, optionally import media:
 
 Media import uses content hashing (xxHash64) for deduplication. The same image used in multiple posts is stored once.
 
-## Source Interface
-
-Import sources implement a standard interface:
-
-```typescript
-interface ImportSource {
-	/** Unique identifier */
-	id: string;
-
-	/** Display name */
-	name: string;
-
-	/** Probe a URL (optional) */
-	probe?(url: string): Promise<SourceProbeResult | null>;
-
-	/** Analyze content from this source */
-	analyze(input: SourceInput, context: ImportContext): Promise<ImportAnalysis>;
-
-	/** Stream content items */
-	fetchContent(input: SourceInput, options: FetchOptions): AsyncGenerator<NormalizedItem>;
-}
-```
-
-### Input Types
-
-Sources accept different input types:
-
-```typescript
-// File upload (WXR)
-{ type: "file", file: File }
-
-// URL with optional token (REST API)
-{ type: "url", url: string, token?: string }
-
-// OAuth connection (WordPress.com)
-{ type: "oauth", url: string, accessToken: string }
-```
-
-### Normalized Output
-
-All sources produce the same normalized format:
-
-```typescript
-interface NormalizedItem {
-	sourceId: string | number;
-	postType: string;
-	status: "publish" | "draft" | "pending" | "private" | "future";
-	slug: string;
-	title: string;
-	content: PortableTextBlock[];
-	excerpt?: string;
-	date: Date;
-	author?: string;
-	authors?: string[];
-	categories?: string[];
-	tags?: string[];
-	meta?: Record<string, unknown>;
-	featuredImage?: string;
-}
-```
-
 ## API Endpoints
 
 The import system exposes these endpoints:
@@ -364,54 +303,9 @@ Import Complete
 
 Failed items are saved as drafts with original content in `_importError` for review.
 
-## Building Custom Sources
+## Custom sources
 
-Create a source for other platforms:
-
-```typescript title="src/import/custom-source.ts"
-import type { ImportSource } from "emdash/import";
-
-export const mySource: ImportSource = {
-	id: "my-platform",
-	name: "My Platform",
-	description: "Import from My Platform",
-	icon: "globe",
-	canProbe: true,
-
-	async probe(url) {
-		// Check if URL matches your platform
-		const response = await fetch(`${url}/api/info`);
-		if (!response.ok) return null;
-
-		return {
-			sourceId: "my-platform",
-			confidence: "definite",
-			detected: { platform: "my-platform" },
-			// ...
-		};
-	},
-
-	async analyze(input, context) {
-		// Parse and analyze content
-		// Return ImportAnalysis
-	},
-
-	async *fetchContent(input, options) {
-		// Yield NormalizedItem for each content piece
-		for (const item of items) {
-			yield {
-				sourceId: item.id,
-				postType: "post",
-				title: item.title,
-				content: convertToPortableText(item.body),
-				// ...
-			};
-		}
-	},
-};
-```
-
-Register the source in your EmDash configuration:
+To import from a platform the built-in sources do not cover, implement the `ImportSource` interface and register it on the integration:
 
 ```typescript title="astro.config.mjs"
 import { mySource } from "./src/import/custom-source";
@@ -419,13 +313,13 @@ import { mySource } from "./src/import/custom-source";
 export default defineConfig({
 	integrations: [
 		emdash({
-			import: {
-				sources: [mySource],
-			},
+			import: { sources: [mySource] },
 		}),
 	],
 });
 ```
+
+The interface (`probe`, `analyze`, `fetchContent`) and the normalized output shape are documented in [Architecture (internals)](/contributing/architecture/#extending-the-content-importer).
 
 ## Next Steps
 

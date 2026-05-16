@@ -267,21 +267,13 @@ const { collection, id } = parseContentId("posts:my-draft-post");
 // { collection: "posts", id: "my-draft-post" }
 ```
 
-## Token Format
+## Token security
 
-Preview tokens use a compact format: `base64url(payload).base64url(signature)`
-
-The payload contains:
-
-- `cid` — Content ID in format `collection:id`
-- `exp` — Expiry timestamp (seconds since epoch)
-- `iat` — Issued-at timestamp (seconds since epoch)
-
-Tokens are signed with HMAC-SHA256 using your preview secret.
+Preview tokens are signed and time-limited. The CLI and the helper functions generate and verify them for you; you do not construct or parse them by hand. A token identifies one entry and stops working after it expires.
 
 <Aside type="caution">
-	Keep your `EMDASH_PREVIEW_SECRET` secure. Anyone with this secret can generate valid preview tokens for
-	any content.
+	Keep your `EMDASH_PREVIEW_SECRET` secret. Anyone who has it can generate a
+	valid preview token for any content.
 </Aside>
 
 ## Complete Example
