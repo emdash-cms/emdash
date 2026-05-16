@@ -50,7 +50,7 @@ The following example shows a complete manifest for an image-gallery plugin:
 | `publisher` | Yes      | Your [Atmosphere account](/plugins/creating-plugins/publishing/#your-atmosphere-account)'s DID or handle. See [Publisher pinning](#publisher-pinning). |
 | `version`   | No       | Semver 2.0 without build-metadata. Usually omit it — see below.                                |
 
-`slug` and `publisher` together are the package's identity. The registry derives the package's full identifier from them; you never write it by hand.
+`slug` and `publisher` together are the package's identity. EmDash derives the package's full identifier from them automatically.
 
 ### `version` lives in `package.json`
 

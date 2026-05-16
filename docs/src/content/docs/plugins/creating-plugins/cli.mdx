@@ -47,7 +47,7 @@ Create a new plugin with `init`:
 npx @emdash-cms/plugin-cli init my-plugin
 ```
 
-This scaffolds a self-contained plugin: `emdash-plugin.jsonc`, `src/plugin.ts` (one example route in the `satisfies SandboxedPlugin` shape), `package.json`, `tsconfig.json`, a test, a README, and `.gitignore`. A scaffold created from just a slug is a valid starting point. The manifest carries `TODO:` comments for the few fields you must fill in — publisher, author, and security contact — before the plugin will load or publish. `init` never requires extra flags to succeed.
+This scaffolds a self-contained plugin: `emdash-plugin.jsonc`, `src/plugin.ts` (one example route in the `satisfies SandboxedPlugin` shape), `package.json`, `tsconfig.json`, a test, a README, and `.gitignore`. A slug is the only required input. A scaffold created from just a slug is a valid starting point: the manifest carries `TODO:` comments for the few fields to fill in — publisher, author, and security contact — before the plugin will load or publish.
 
 ## `build`
 
@@ -85,7 +85,7 @@ Offline schema check with `tsc`-style `file:line:column` diagnostics, including 
 1. Runs `build` to produce `dist/`.
 2. Validates the bundle: no Node-builtin imports, no oversized files, capability sanity.
 3. Collects optional assets — README, icon, screenshots.
-4. Tarballs. Inside the tarball, `plugin.mjs` is packed as `backend.js` to match the registry's wire-side filename. The output is `dist/<slug>-<version>.tar.gz`.
+4. Tarballs. Inside the tarball, `plugin.mjs` is packed as `backend.js` (the filename the registry expects). The output is `dist/<slug>-<version>.tar.gz`.
 
 </Steps>
 

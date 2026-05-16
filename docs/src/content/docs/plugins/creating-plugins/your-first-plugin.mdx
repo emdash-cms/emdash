@@ -22,7 +22,7 @@ A sandboxed plugin is:
 1. **`emdash-plugin.jsonc`** — a hand-edited [manifest](/plugins/creating-plugins/manifest/): identity, the trust contract (capabilities, hosts, storage), and profile fields. No code.
 2. **`src/plugin.ts`** — the runtime: hooks and routes. Type-only imports from `emdash/plugin`; no runtime `emdash` import.
 
-`emdash-plugin build` reads both and emits the `dist/` artifacts a site consumes. You do not write a descriptor or a build script.
+`emdash-plugin build` reads both and emits the `dist/` artifacts a site consumes.
 
 The following example shows the file layout of a complete plugin:
 
@@ -70,7 +70,7 @@ my-plugin/
    }
    ```
 
-   `"."` is the auto-generated descriptor a site imports. `"./sandbox"` is the built runtime file. The build produces both, so you never hand-write either.
+   `"."` is the generated descriptor a site imports; `"./sandbox"` is the built runtime file. `emdash-plugin build` generates both.
 
 2. Add a `tsconfig.json`:
 
@@ -125,7 +125,7 @@ Notes on this manifest:
 
 ## Write the runtime
 
-`src/plugin.ts` default-exports a bare object annotated with `satisfies SandboxedPlugin`. The import from `emdash/plugin` is type-only, so the `emdash` runtime does not enter the plugin bundle.
+`src/plugin.ts` default-exports a bare object annotated with `satisfies SandboxedPlugin`. `emdash/plugin` provides only types, so a sandboxed plugin has no runtime dependency on `emdash`.
 
 The following example logs every content save to plugin storage and exposes a `recent` route that returns the last ten saves:
 

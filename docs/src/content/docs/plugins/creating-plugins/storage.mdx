@@ -274,7 +274,7 @@ export default {
 } satisfies SandboxedPlugin;
 ```
 
-Both imports are type-only, so the bundler erases them — no `emdash` runtime enters the plugin bundle.
+Both imports are type-only, so a sandboxed plugin has no runtime dependency on `emdash`.
 
 ## Storage vs content vs KV
 
