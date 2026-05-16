@@ -12,6 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 SKILLS_DIR="$ROOT_DIR/skills"
 TEMPLATES_DIR="$ROOT_DIR/templates"
+AGENTS_BASE="$SCRIPT_DIR/agents-base.md"
 
 # Skills to sync into templates
 SKILLS=(
@@ -58,10 +59,29 @@ sync_skills() {
 	ln -s ../.agents/skills "$symlink"
 	echo "  Linked: .claude/skills -> ../.agents/skills"
 
-	# Copy AGENTS.md from starter template (canonical source for standalone sites)
-	local agents_md="$TEMPLATES_DIR/starter/AGENTS.md"
-	if [[ -f "$agents_md" ]]; then
-		cp "$agents_md" "$template_dir/AGENTS.md"
+	# Generate AGENTS.md = shared base + per-template body.
+	# Per-template body lives in AGENTS-template.md inside the template (or in the
+	# base variant for *-cloudflare templates, which don't carry their own body).
+	if [[ -f "$AGENTS_BASE" ]]; then
+		local template_body="$template_dir/AGENTS-template.md"
+		if [[ ! -f "$template_body" ]]; then
+			# Fall back to the base template body for *-cloudflare variants.
+			local base_name="${template_name%-cloudflare}"
+			if [[ "$base_name" != "$template_name" ]]; then
+				template_body="$TEMPLATES_DIR/$base_name/AGENTS-template.md"
+			fi
+		fi
+
+		if [[ -f "$template_body" ]]; then
+			cat "$AGENTS_BASE" > "$template_dir/AGENTS.md"
+			printf "\n" >> "$template_dir/AGENTS.md"
+			cat "$template_body" >> "$template_dir/AGENTS.md"
+			echo "  Generated: AGENTS.md (base + $(basename "$(dirname "$template_body")")/AGENTS-template.md)"
+		else
+			cp "$AGENTS_BASE" "$template_dir/AGENTS.md"
+			echo "  Generated: AGENTS.md (base only, no AGENTS-template.md)"
+		fi
+
 		# Create CLAUDE.md symlink
 		local claude_md="$template_dir/CLAUDE.md"
 		if [[ -L "$claude_md" ]]; then
@@ -70,7 +90,7 @@ sync_skills() {
 			rm "$claude_md"
 		fi
 		ln -s AGENTS.md "$claude_md"
-		echo "  Copied: AGENTS.md + CLAUDE.md symlink"
+		echo "  Linked: CLAUDE.md -> AGENTS.md"
 	fi
 }
 
