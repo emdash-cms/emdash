@@ -6,44 +6,23 @@
 
 This affects anyone _writing_ a sandboxed plugin. Sites that _use_ plugins are unaffected (see the per-plugin changesets for the import-shape change in published plugins).
 
-**Before:**
+```diff
++ import type { SandboxedPlugin } from "emdash/plugin";
+- import { definePlugin, type ContentHookEvent, type PluginContext } from "emdash";
 
-```ts
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
-
-interface ContentSaveEvent {
-	content: Record<string, unknown>;
-	collection: string;
-	isNew: boolean;
-}
-
-export default definePlugin({
-	hooks: {
-		"content:beforeSave": {
-			handler: async (event: ContentSaveEvent, ctx: PluginContext) => {
-				// ...
-				return event.content;
-			},
-		},
-	},
-});
-```
-
-**After:**
-
-```ts
-import type { SandboxedPlugin } from "emdash/plugin";
-
-export default {
-	hooks: {
-		"content:beforeSave": async (event, ctx) => {
-			// event: ContentHookEvent, ctx: PluginContext — both inferred.
-			// ...
-			return event.content;
-		},
-	},
-} satisfies SandboxedPlugin;
+- export default definePlugin({
++ export default {
+     hooks: {
+         "content:beforeSave": {
+-			handler: async (event: ContentHookEvent, ctx: PluginContext) => {
++			handler: async (event, ctx) => {
+                 // ...
+                 return event.content;
+             },
+         },
+     },
+- });
++ } satisfies SandboxedPlugin;
 ```
 
 Three changes:
@@ -60,12 +39,12 @@ The trade-off: previously you could narrow an event type locally (e.g. `interfac
 
 ```ts
 export default {
-	routes: {
-		health: async (routeCtx, ctx) => {
-			// routeCtx: SandboxedRouteContext, ctx: PluginContext — both inferred.
-			return new Response("ok");
-		},
-	},
+    routes: {
+        health: async (routeCtx, ctx) => {
+            // routeCtx: SandboxedRouteContext, ctx: PluginContext — both inferred.
+            return new Response("ok");
+        },
+    },
 } satisfies SandboxedPlugin;
 ```
 
