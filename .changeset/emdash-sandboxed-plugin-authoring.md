@@ -7,8 +7,8 @@
 This affects anyone _writing_ a sandboxed plugin. Sites that _use_ plugins are unaffected (see the per-plugin changesets for the import-shape change in published plugins).
 
 ```diff
-+ import type { SandboxedPlugin } from "emdash/plugin";
 - import { definePlugin, type ContentHookEvent, type PluginContext } from "emdash";
++ import type { SandboxedPlugin } from "emdash/plugin";
 
 - export default definePlugin({
 + export default {
