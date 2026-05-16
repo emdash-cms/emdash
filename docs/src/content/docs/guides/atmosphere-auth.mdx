@@ -42,7 +42,7 @@ export default defineConfig({
 
 That's enough to put **Sign in with Atmosphere** on the login page and the setup wizard. With no allowlist configured, the first user becomes Admin and self-signup is closed for everyone after that — see [allowlists](#allowlists) to open it up.
 
-No environment variables, client secret, or OAuth-app registration is required. The provider is a public OAuth client and serves its own metadata document at `/.well-known/atproto-client-metadata.json`.
+The provider is a public OAuth client and serves its own metadata document at `/.well-known/atproto-client-metadata.json`, so it works with the configuration above alone — no environment variables, client secret, or OAuth-app registration to set up.
 
 ## Configuration
 
@@ -127,7 +127,7 @@ Then open `http://127.0.0.1:4321/_emdash/admin` for the whole flow.
 
 ## Production
 
-There's nothing extra to configure for production. The provider serves its own client metadata at:
+The same configuration works in production. The provider serves its own client metadata at:
 
 ```
 https://your-site.example.com/.well-known/atproto-client-metadata.json

@@ -348,29 +348,27 @@ WordPress hooks (`add_action`, `add_filter`) become EmDash plugin hooks:
 
 <CardGrid>
 	<Card title="Type Safety" icon="seti:typescript">
-		TypeScript throughout. Collections, queries, and components are fully typed. No more guessing
-		field names or return types.
+		TypeScript throughout. Collections, queries, and components are fully typed, so field names and
+		return types autocomplete and are checked at build time.
 	</Card>
 	<Card title="Performance" icon="rocket">
-		No PHP overhead. Static generation by default. Server rendering when needed. Edge deployment
-		ready.
+		Static generation by default, with server rendering when needed. Edge deployment ready.
 	</Card>
 	<Card title="Modern DX" icon="laptop">
 		Hot module replacement. Component-based architecture. Modern tooling (Vite, TypeScript, ESLint).
 	</Card>
 	<Card title="Git-based Deployments" icon="github">
-		Code and templates in git. Content in the database. No FTP, no file permissions, no hacked
-		sites.
+		Code and templates live in git; content lives in the database. Deploy by pushing code.
 	</Card>
 </CardGrid>
 
 ### Preview Links
 
-EmDash generates secure preview URLs with HMAC-signed tokens. Content editors can preview drafts without logging into production—share a link, not credentials.
+EmDash generates secure preview URLs with HMAC-signed tokens. Content editors share a preview link to show a draft, so reviewers can see it without a production login.
 
-### No Plugin Conflicts
+### Isolated Plugins
 
-WordPress plugin conflicts disappear. EmDash plugins run in isolated contexts with explicit APIs. No global state pollution.
+EmDash plugins run in isolated contexts with explicit APIs. Each plugin reaches only the APIs it declares, so plugins do not share or overwrite each other's global state.
 
 ## Content Editor Experience
 

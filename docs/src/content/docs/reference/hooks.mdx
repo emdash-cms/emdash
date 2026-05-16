@@ -331,7 +331,7 @@ interface CronEvent {
 
 ## Email Hooks
 
-Email hooks form a pipeline: `email:beforeSend` → `email:deliver` → `email:afterSend`.
+Email hooks run in order: `email:beforeSend`, then `email:deliver`, then `email:afterSend`.
 
 ### `email:beforeSend`
 
@@ -404,7 +404,7 @@ hooks: {
 
 ## Comment Hooks
 
-Comment hooks form a pipeline: `comment:beforeCreate` → `comment:moderate` → `comment:afterCreate`. The `comment:afterModerate` hook fires separately when an admin changes a comment's status.
+Comment hooks run in order: `comment:beforeCreate`, then `comment:moderate`, then `comment:afterCreate`. The `comment:afterModerate` hook fires separately when an admin changes a comment's status.
 
 ### `comment:beforeCreate`
 

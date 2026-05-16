@@ -11,7 +11,7 @@ Each translation is a full, independent content entry with its own slug, status,
 
 ## Configuration
 
-Enable i18n by adding an `i18n` block to your Astro config. EmDash reads this configuration automatically — there is no separate locale setup in EmDash.
+Enable i18n by adding an `i18n` block to your Astro config. EmDash reads this same configuration for its locale list, default locale, and fallback chain.
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -56,7 +56,7 @@ This design means:
 - **Per-locale slugs** — `/blog/my-post` and `/fr/blog/mon-article` work naturally
 - **Per-locale publishing** — publish the English version while keeping French in draft
 - **Per-locale revisions** — each translation has its own revision history
-- **No cross-locale query complexity** — list queries return entries for one locale only
+- **Single-locale queries** — list queries return entries for one locale only
 
 ## Querying Translated Content
 
@@ -89,7 +89,7 @@ When no content exists for the requested locale, EmDash follows the fallback cha
 2. Try the fallback locale (`en`)
 3. Try the default locale
 
-Fallback only applies to single-entry queries. List queries return entries for the requested locale only — no cross-locale mixing.
+Fallback only applies to single-entry queries. List queries return entries for the requested locale only.
 
 <Aside>
   When a fallback is used, the response metadata includes `fallbackLocale` so your template can display a "this content is not yet translated" notice.

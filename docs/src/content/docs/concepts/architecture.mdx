@@ -38,7 +38,7 @@ You define collections and fields — in the admin panel or with the CLI — and
 		Add, rename, remove, or retype collections and fields whenever you need
 		to. Changes take effect immediately.
 	</Card>
-	<Card title="No developer required" icon="seti:plan">
+	<Card title="Editor-designed" icon="seti:plan">
 		A content editor can design the whole model through the admin UI.
 	</Card>
 	<Card title="Typed" icon="approve-check">
@@ -55,7 +55,7 @@ See the [content model](/concepts/content-model/) for how to define, change, typ
 
 ## Content is live
 
-EmDash serves content through Astro's Live Collections, so changes an editor makes are visible immediately without a static rebuild. You read content with two functions:
+EmDash serves content through Astro's Live Collections at runtime, so changes an editor makes are visible immediately. You read content with two functions:
 
 ```ts title="src/pages/blog.astro"
 import { getEmDashCollection, getEmDashEntry } from "emdash";

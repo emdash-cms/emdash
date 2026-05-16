@@ -5,9 +5,9 @@ description: Add WordPress-style CMS features to your Astro site with EmDash
 
 import { Aside, Card, CardGrid, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash is a CMS built specifically for Astro—not a generic headless CMS with an Astro adapter. It extends your Astro site with database-backed content, a polished admin UI, and WordPress-style features (menus, widgets, taxonomies) while preserving the developer experience you expect.
+EmDash is a CMS built specifically for Astro. It extends your Astro site with database-backed content, a polished admin UI, and WordPress-style features (menus, widgets, taxonomies) while preserving the developer experience you expect.
 
-Everything you know about Astro still applies. EmDash enhances your site; it doesn't replace your workflow.
+Everything you know about Astro still applies. EmDash adds content management on top of your existing Astro workflow.
 
 ## What EmDash Adds
 
@@ -26,8 +26,8 @@ EmDash provides the content management features that file-based Astro sites lack
 | **Revisions**        | Content version history                              |
 
 <Aside type="tip">
-	Content changes appear immediately without rebuilding your site. EmDash sites run in SSR mode by
-	default.
+	EmDash sites run in SSR mode by default, so content is served at runtime and changes appear
+	immediately.
 </Aside>
 
 ## Astro Collections vs EmDash
@@ -330,7 +330,7 @@ export default definePlugin({
 
 ## Server Rendering
 
-EmDash sites run in SSR mode. Content changes appear immediately without rebuilds.
+EmDash sites run in SSR mode, so content is served at runtime and changes appear immediately.
 
 For static pages with `getStaticPaths`, content is fetched at build time:
 

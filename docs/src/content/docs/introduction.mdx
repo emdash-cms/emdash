@@ -20,22 +20,22 @@ EmDash is a CMS built specifically for [Astro](https://astro.build). It uses Ast
 
 ## What EmDash Is Not
 
-- **Not a headless CMS** — EmDash is tightly integrated with Astro. It's not a separate service you call via API.
-- **Not WordPress-compatible** — No PHP, no WordPress plugins running directly. But WordPress content and concepts migrate cleanly.
-- **Not a page builder** — EmDash focuses on structured content. For visual page building, use Astro components.
+- **Not a headless CMS** — EmDash is tightly integrated with Astro and runs in the same deployment, rather than as a separate service you call over an API.
+- **Not WordPress-compatible** — It does not run PHP or WordPress plugins. WordPress content and concepts migrate to EmDash equivalents.
+- **Not a page builder** — EmDash manages structured content. Build visual layouts with Astro components.
 
 ## Who EmDash Is For
 
 <CardGrid>
 	<Card title="Agency developers" icon="laptop">
-		Spin up client sites quickly with reusable plugins and themes. No PHP security updates, no
-		plugin conflicts.
+		Spin up client sites quickly with reusable plugins and themes. Plugins run in isolated contexts
+		with explicit APIs.
 	</Card>
 	<Card title="Solo developers" icon="seti:todo">
-		Full-stack framework with CMS built in. No separate headless CMS to manage.
+		Content management is part of the Astro site, deployed and managed as one project.
 	</Card>
 	<Card title="Content editors" icon="pencil">
-		Intuitive admin panel. Create and edit content without touching code.
+		Create and edit content in the admin panel.
 	</Card>
 	<Card title="WordPress users" icon="right-arrow">
 		Migration path for content and plugins. Modern tooling, familiar concepts.
@@ -60,7 +60,7 @@ The following diagram shows how EmDash sits inside an Astro site, connecting the
 │  │                                                       │  │
 │  │  ┌───────────────────────────────────────────────────┐│  │
 │  │  │                  Data Layer                       ││  │
-│  │  │    SQLite/D1      ←→  Kysely  ←→  R2/S3/Local    ││  │
+│  │  │   Database (SQLite/D1)   +   Storage (R2/S3/local)││  │
 │  │  └───────────────────────────────────────────────────┘│  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                             │

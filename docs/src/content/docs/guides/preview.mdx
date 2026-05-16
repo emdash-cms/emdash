@@ -14,13 +14,13 @@ EmDash's preview system lets editors view unpublished content through secure, ti
 3. EmDash's middleware automatically verifies the token and sets up the request context
 4. Your template code calls `getEmDashEntry()` as normal — draft content is served automatically
 
-Preview is **implicit**. Your template code doesn't need to handle tokens or pass preview options — the middleware and query functions handle everything via `AsyncLocalStorage`.
+Preview is **implicit**. The middleware verifies the token and the query functions read it through `AsyncLocalStorage`, so the same template code serves draft content during a preview and published content otherwise.
 
 ## Setting Up Preview
 
-Preview works out of the box — EmDash auto-generates a per-site preview
-secret on first use and stores it in the database. No env vars required
-for the common case.
+Preview works as soon as EmDash is installed. On first use, EmDash
+generates a per-site preview secret and stores it in the database, so
+the common case needs no configuration.
 
 Set `EMDASH_PREVIEW_SECRET` in your environment only if you need to:
 

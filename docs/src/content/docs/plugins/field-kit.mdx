@@ -5,7 +5,7 @@ description: Composable field widgets for json fields, configured through seed o
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash's `json` field type stores arbitrary structured data, but the default editor is a single-line text input where you have to type raw JSON by hand. **Field Kit** is a first-party plugin that ships four composable widgets for `json` fields, configured entirely through seed `options` — no React required from site builders.
+EmDash's `json` field type stores arbitrary structured data, edited by default through a single-line text input that takes raw JSON. **Field Kit** is a first-party plugin that ships four composable widgets for `json` fields, configured entirely through seed `options` so site builders can use them with seed schema alone.
 
 <Aside type="tip">
 Field Kit widgets store **clean JSON**: the stored value is plain content data, so removing the plugin leaves valid content behind.
@@ -234,7 +234,7 @@ Renders rows like `Flour — 500g`. The template is plain string substitution �
 
 ## Data durability
 
-Field Kit widgets store plain JSON in the field's existing column. There are no plugin-specific tables, no foreign keys, no schema mutation. If you remove `@emdash-cms/plugin-field-kit` from your config, the data stays valid — only the editing UI changes back to the default `json` text input.
+Field Kit widgets store plain JSON in the field's existing column, using only that column. If you remove `@emdash-cms/plugin-field-kit` from your config, the data stays valid — the field reverts to the default `json` text input.
 
 This applies even when you change the widget shape: unknown keys on stored objects are preserved on the next write, so you can evolve a schema without losing data captured under an older field set.
 

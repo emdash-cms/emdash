@@ -5,9 +5,9 @@ description: Build a native EmDash plugin with the descriptor + createPlugin pat
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-This guide walks through building a native plugin from scratch. Native plugins run in the same process as your Astro site — no sandbox boundary, full access to the runtime, and access to features the sandbox can't provide (React admin pages, Portable Text components, page fragments).
+This guide walks through building a native plugin from scratch. Native plugins run in the same process as your Astro site with full access to the runtime, including React admin pages, Portable Text components, and page fragments.
 
-If you haven't decided yet whether you want a native plugin instead of a sandboxed one, read [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) first. The native path is for the cases where the sandbox genuinely can't do what you need.
+If you haven't decided yet whether you want a native plugin instead of a sandboxed one, read [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) first. Native is the format for plugins that need React admin pages, Portable Text rendering components, or page fragments.
 
 ## Two pieces, in one or two files
 
@@ -145,7 +145,7 @@ export default createPlugin;
 
 Key details of this configuration:
 
-- **`format: "native"` is required.** The default would otherwise be `"native"` too — but being explicit on every descriptor makes it easy to spot which format you're working with.
+- **`format: "native"` is required.** `"native"` is also the default, but stating it explicitly on every descriptor makes the format easy to spot.
 - **`entrypoint` is the package's main export.** EmDash imports it at runtime and calls the default export to construct the resolved plugin.
 - **`options` flow descriptor → `createPlugin`.** Anything the user passes when registering the plugin (`analyticsPlugin({ enabled: false })`) is preserved on the descriptor and forwarded to `createPlugin`. Sandboxed plugins don't have this surface — they read settings from KV instead.
 - **`id`, `version`, and `capabilities` appear twice.** Once on the descriptor, once on `definePlugin()`. They should match. The descriptor's copy is what `astro.config.mjs` sees at build time; the `definePlugin()` copy is what runs at request time.

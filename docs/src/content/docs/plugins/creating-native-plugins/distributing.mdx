@@ -5,7 +5,7 @@ description: Package and ship a native plugin via npm.
 
 import { Aside } from "@astrojs/starlight/components";
 
-Native plugins distribute via npm, not the marketplace. There's no bundler, no manifest, no security audit step — just a regular npm package that exports a descriptor factory plus `createPlugin`. Site operators install it with `npm install` and register it in `astro.config.mjs`.
+Native plugins distribute via npm. A native plugin is a regular npm package that exports a descriptor factory plus `createPlugin`. Site operators install it with `npm install` and register it in `astro.config.mjs`.
 
 ## Package layout
 
