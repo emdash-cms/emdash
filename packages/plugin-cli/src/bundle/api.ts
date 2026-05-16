@@ -30,17 +30,8 @@ import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, stat } from "node:fs/p
 import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
 
-import {
-	buildPlugin,
-	BuildError,
-	type BuildLogger,
-	type BuildResult,
-} from "../build/api.js";
-import {
-	CAPABILITY_RENAMES,
-	isDeprecatedCapability,
-	type PluginManifest,
-} from "./types.js";
+import { buildPlugin, BuildError, type BuildLogger, type BuildResult } from "../build/api.js";
+import { CAPABILITY_RENAMES, isDeprecatedCapability, type PluginManifest } from "./types.js";
 import {
 	collectBundleEntries,
 	createTarball,
@@ -388,4 +379,3 @@ async function collectAssets(ctx: CollectAssetsContext): Promise<void> {
 		}
 	}
 }
-

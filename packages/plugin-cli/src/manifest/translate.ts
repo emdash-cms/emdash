@@ -150,10 +150,7 @@ export function resolvePluginVersion(
  * `package.json` — in that case the manifest's `version` is used
  * directly (and is required, by the same `resolvePluginVersion` rules).
  */
-export function normaliseManifest(
-	manifest: Manifest,
-	packageVersion?: string,
-): NormalisedManifest {
+export function normaliseManifest(manifest: Manifest, packageVersion?: string): NormalisedManifest {
 	const authors = manifest.authors ?? (manifest.author ? [manifest.author] : []);
 	const securityContacts =
 		manifest.securityContacts ?? (manifest.security ? [manifest.security] : []);

@@ -339,9 +339,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	consola.info(
 		`The aggregator will pick this up from the firehose. To verify discovery once it's indexed:`,
 	);
-	console.log(
-		`  ${pc.cyan(`emdash-plugin info ${session.handle ?? session.did} ${result.slug}`)}`,
-	);
+	console.log(`  ${pc.cyan(`emdash-plugin info ${session.handle ?? session.did} ${result.slug}`)}`);
 }
 
 /**
@@ -508,7 +506,11 @@ async function readSiblingPackageVersion(manifestDir: string): Promise<string | 
 		source = await readFile(packageJsonPath, "utf-8");
 	} catch (error) {
 		// ENOENT is the registry-only path; surface anything else.
-		if (error instanceof Error && "code" in error && (error as { code: unknown }).code === "ENOENT") {
+		if (
+			error instanceof Error &&
+			"code" in error &&
+			(error as { code: unknown }).code === "ENOENT"
+		) {
 			return undefined;
 		}
 		throw new CliError(

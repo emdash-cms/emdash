@@ -26,7 +26,6 @@ import { defineCommand, runMain } from "citty";
 
 import { buildCommand } from "./build/command.js";
 import { bundleCommand } from "./bundle/command.js";
-import { devCommand } from "./dev/command.js";
 import { infoCommand } from "./commands/info.js";
 import { initCommand } from "./commands/init.js";
 import { loginCommand } from "./commands/login.js";
@@ -36,6 +35,7 @@ import { searchCommand } from "./commands/search.js";
 import { switchCommand } from "./commands/switch.js";
 import { validateCommand } from "./commands/validate.js";
 import { whoamiCommand } from "./commands/whoami.js";
+import { devCommand } from "./dev/command.js";
 
 const main = defineCommand({
 	meta: {

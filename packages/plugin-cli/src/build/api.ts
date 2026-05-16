@@ -37,6 +37,9 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
+import type { PluginManifest, ResolvedPlugin } from "../bundle/types.js";
+import { extractManifest } from "../bundle/utils.js";
+import type { NormalisedManifest } from "../manifest/translate.js";
 import {
 	buildRuntime,
 	probeAndAssemble,
@@ -46,9 +49,6 @@ import {
 	type PipelineLogger,
 	type ResolvedSources,
 } from "./pipeline.js";
-import { extractManifest } from "../bundle/utils.js";
-import type { PluginManifest, ResolvedPlugin } from "../bundle/types.js";
-import type { NormalisedManifest } from "../manifest/translate.js";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Public types
@@ -179,11 +179,7 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
 
 		// ── 3. Write dist/manifest.json (wire shape) ──
 		const manifestJson = join(outDir, "manifest.json");
-		await writeFile(
-			manifestJson,
-			`${JSON.stringify(wireManifest, null, 2)}\n`,
-			"utf-8",
-		);
+		await writeFile(manifestJson, `${JSON.stringify(wireManifest, null, 2)}\n`, "utf-8");
 		log.success?.("Wrote manifest.json");
 
 		// ── 4. Generate dist/index.mjs (+ .d.mts) — descriptor module ──

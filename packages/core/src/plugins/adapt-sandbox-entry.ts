@@ -57,9 +57,7 @@ const DEFAULT_ERROR_POLICY = "abort" as const;
 /**
  * Check if a hook entry is the config form (has a `handler` property).
  */
-function isHookConfig(
-	entry: AnyHookEntry,
-): entry is Exclude<AnyHookEntry, AnyHookHandler> {
+function isHookConfig(entry: AnyHookEntry): entry is Exclude<AnyHookEntry, AnyHookHandler> {
 	return typeof entry === "object" && entry !== null && "handler" in entry;
 }
 
@@ -73,10 +71,7 @@ function isHookConfig(
  * so the handler is compatible as-is — we just normalise the
  * surrounding config (priority, timeout, etc.) to its defaults.
  */
-function resolveSandboxedHook(
-	entry: AnyHookEntry,
-	pluginId: string,
-): ResolvedHook<AnyHookHandler> {
+function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHook<AnyHookHandler> {
 	if (isHookConfig(entry)) {
 		return {
 			priority: entry.priority ?? DEFAULT_PRIORITY,
@@ -156,10 +151,7 @@ export function adaptSandboxEntry(
 			// We store it as the generic type and let HookPipeline's typed dispatch
 			// methods handle the type narrowing at call time.
 			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- bridging untyped map to typed interface
-			(resolvedHooks as Record<string, unknown>)[hookName] = resolveSandboxedHook(
-				entry,
-				pluginId,
-			);
+			(resolvedHooks as Record<string, unknown>)[hookName] = resolveSandboxedHook(entry, pluginId);
 		}
 	}
 
@@ -178,12 +170,8 @@ export function adaptSandboxEntry(
 			const handler = isConfig
 				? (rawEntry as { handler: (...args: unknown[]) => Promise<unknown> }).handler
 				: (rawEntry as (...args: unknown[]) => Promise<unknown>);
-			const publicFlag = isConfig
-				? (rawEntry as { public?: boolean }).public
-				: undefined;
-			const inputSchema = isConfig
-				? (rawEntry as { input?: unknown }).input
-				: undefined;
+			const publicFlag = isConfig ? (rawEntry as { public?: boolean }).public : undefined;
+			const inputSchema = isConfig ? (rawEntry as { input?: unknown }).input : undefined;
 			resolvedRoutes[routeName] = {
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- route entry.input is intentionally loosely typed; callers validate at runtime
 				input: inputSchema as PluginRoute["input"],
@@ -204,9 +192,7 @@ export function adaptSandboxEntry(
 									headers[name] = value;
 								});
 							} else {
-								for (const [name, value] of Object.entries(
-									h as Record<string, string>,
-								)) {
+								for (const [name, value] of Object.entries(h as Record<string, string>)) {
 									headers[name] = value;
 								}
 							}

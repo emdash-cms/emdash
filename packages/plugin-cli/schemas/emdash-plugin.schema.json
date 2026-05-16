@@ -57,14 +57,7 @@
 			"$ref": "#/$defs/__schema42"
 		}
 	},
-	"required": [
-		"slug",
-		"license",
-		"publisher",
-		"capabilities",
-		"allowedHosts",
-		"storage"
-	],
+	"required": ["slug", "license", "publisher", "capabilities", "allowedHosts", "storage"],
 	"additionalProperties": false,
 	"$defs": {
 		"__schema0": {
@@ -78,11 +71,7 @@
 			"pattern": "^[a-z][a-z0-9_-]*$",
 			"title": "Slug",
 			"description": "URL-safe plugin identifier within the publisher's namespace. ASCII letter then letters/digits/hyphens/underscores, max 64 characters. Combined with the publisher DID, this is the registry's primary key.",
-			"examples": [
-				"gallery",
-				"image-resizer",
-				"my-plugin"
-			]
+			"examples": ["gallery", "image-resizer", "my-plugin"]
 		},
 		"__schema2": {
 			"type": "string",
@@ -91,11 +80,7 @@
 			"pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$",
 			"title": "Version",
 			"description": "Plugin version. Semver 2.0 subset; build-metadata `+...` is disallowed (the atproto record-key alphabet has no `+`). Bumped on every release.",
-			"examples": [
-				"0.1.0",
-				"1.2.3",
-				"1.0.0-rc.1"
-			]
+			"examples": ["0.1.0", "1.2.3", "1.0.0-rc.1"]
 		},
 		"__schema3": {
 			"type": "string",
@@ -103,20 +88,13 @@
 			"maxLength": 256,
 			"title": "License",
 			"description": "SPDX license expression (e.g. \"MIT\", \"Apache-2.0\", \"MIT OR Apache-2.0\"). Required on first publish; ignored on subsequent publishes (the existing profile wins).",
-			"examples": [
-				"MIT",
-				"Apache-2.0",
-				"MIT OR Apache-2.0"
-			]
+			"examples": ["MIT", "Apache-2.0", "MIT OR Apache-2.0"]
 		},
 		"__schema4": {
 			"type": "string",
 			"title": "Publisher",
 			"description": "Atproto DID or handle of the publishing identity. Pinned on first publish to prevent accidental publishes from a different account. DIDs are recommended (durable); handles work but are mutable.",
-			"examples": [
-				"did:plc:abc123def456",
-				"example.com"
-			]
+			"examples": ["did:plc:abc123def456", "example.com"]
 		},
 		"__schema5": {
 			"default": [],
@@ -141,12 +119,7 @@
 			},
 			"title": "Allowed hosts",
 			"description": "Allow-list of outbound host patterns when `network:request` is declared. Subdomain wildcards use a leading `*.`. Required (non-empty) when `network:request` is declared without `network:request:unrestricted`.",
-			"examples": [
-				[
-					"api.example.com",
-					"*.cdn.example.com"
-				]
-			]
+			"examples": [["api.example.com", "*.cdn.example.com"]]
 		},
 		"__schema8": {
 			"type": "string",
@@ -180,9 +153,7 @@
 					"$ref": "#/$defs/__schema14"
 				}
 			},
-			"required": [
-				"indexes"
-			],
+			"required": ["indexes"],
 			"additionalProperties": false,
 			"title": "Storage collection",
 			"description": "Index configuration for a single storage collection. Indexes are either single field names or composite (array of field names)."
@@ -265,10 +236,7 @@
 					"$ref": "#/$defs/__schema21"
 				}
 			},
-			"required": [
-				"path",
-				"label"
-			],
+			"required": ["path", "label"],
 			"additionalProperties": false,
 			"title": "Admin page",
 			"description": "A single admin page declaration. The plugin's `admin` route handler is responsible for rendering Block Kit content for this path."
@@ -309,9 +277,7 @@
 					"$ref": "#/$defs/__schema26"
 				}
 			},
-			"required": [
-				"id"
-			],
+			"required": ["id"],
 			"additionalProperties": false,
 			"title": "Admin widget",
 			"description": "A single dashboard widget declaration."
@@ -329,11 +295,7 @@
 		},
 		"__schema26": {
 			"type": "string",
-			"enum": [
-				"full",
-				"half",
-				"third"
-			]
+			"enum": ["full", "half", "third"]
 		},
 		"__schema27": {
 			"$ref": "#/$defs/__schema28"
@@ -351,9 +313,7 @@
 					"$ref": "#/$defs/__schema31"
 				}
 			},
-			"required": [
-				"name"
-			],
+			"required": ["name"],
 			"additionalProperties": false,
 			"title": "Author",
 			"description": "A single author entry. Mirrors the lexicon's author shape."
@@ -462,9 +422,7 @@
 			"pattern": "^https:\\/\\/",
 			"title": "Source repository",
 			"description": "HTTPS URL of the plugin's source repository. Surfaced in registry listings.",
-			"examples": [
-				"https://github.com/emdash-cms/plugin-gallery"
-			]
+			"examples": ["https://github.com/emdash-cms/plugin-gallery"]
 		}
 	}
 }

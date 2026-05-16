@@ -18,10 +18,10 @@ A typical plugin `package.json`:
 
 ```json
 {
-  "scripts": {
-    "build": "emdash-plugin build",
-    "dev": "emdash-plugin dev"
-  }
+	"scripts": {
+		"build": "emdash-plugin build",
+		"dev": "emdash-plugin dev"
+	}
 }
 ```
 

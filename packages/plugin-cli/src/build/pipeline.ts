@@ -37,6 +37,8 @@
 import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
+import type { ResolvedPlugin } from "../bundle/types.js";
+import { fileExists } from "../bundle/utils.js";
 import {
 	ManifestError,
 	MANIFEST_FILENAME,
@@ -48,8 +50,6 @@ import {
 	VersionMismatchError,
 	type NormalisedManifest,
 } from "../manifest/translate.js";
-import type { ResolvedPlugin } from "../bundle/types.js";
-import { fileExists } from "../bundle/utils.js";
 
 const PLUGIN_ENTRY_PATH = "src/plugin.ts";
 const PACKAGE_JSON_PATH = "package.json";
@@ -192,10 +192,7 @@ async function readPackageMeta(packageJsonPath: string): Promise<PackageMeta> {
 	try {
 		parsed = JSON.parse(source);
 	} catch {
-		throw new BuildPipelineError(
-			"PACKAGE_JSON_INVALID",
-			`${packageJsonPath} is not valid JSON.`,
-		);
+		throw new BuildPipelineError("PACKAGE_JSON_INVALID", `${packageJsonPath} is not valid JSON.`);
 	}
 	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
 		throw new BuildPipelineError(
@@ -349,7 +346,9 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			}
 			if (
 				config.timeout !== undefined &&
-				(typeof config.timeout !== "number" || !Number.isFinite(config.timeout) || config.timeout < 0)
+				(typeof config.timeout !== "number" ||
+					!Number.isFinite(config.timeout) ||
+					config.timeout < 0)
 			) {
 				throw new BuildPipelineError(
 					"INVALID_PLUGIN_FORMAT",

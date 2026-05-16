@@ -81,7 +81,7 @@ export function definePlugin<TStorage extends PluginStorageConfig>(
 			`definePlugin() requires \`id\` (got ${typeof definition.id}). ` +
 				"For native plugins, make sure your definition has both `id` and " +
 				"`version`. For sandboxed plugins, drop `definePlugin()` entirely " +
-				'and `export default { hooks, routes } satisfies SandboxedPlugin` ' +
+				"and `export default { hooks, routes } satisfies SandboxedPlugin` " +
 				'from "emdash/plugin" — identity comes from `emdash-plugin.jsonc`.',
 		);
 	}

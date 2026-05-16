@@ -9,8 +9,8 @@
 import { describe, it, expect, vi } from "vitest";
 
 import type { PluginDescriptor } from "../../../src/astro/integration/runtime.js";
-import { adaptSandboxEntry } from "../../../src/plugins/adapt-sandbox-entry.js";
 import type { SandboxedPlugin } from "../../../src/plugin-types.js";
+import { adaptSandboxEntry } from "../../../src/plugins/adapt-sandbox-entry.js";
 
 /**
  * Create a mock hook handler with a loose signature. The strict
