@@ -8,7 +8,7 @@ import { Aside } from "@astrojs/starlight/components";
 EmDash's `json` field type stores arbitrary structured data, but the default editor is a single-line text input where you have to type raw JSON by hand. **Field Kit** is a first-party plugin that ships four composable widgets for `json` fields, configured entirely through seed `options` — no React required from site builders.
 
 <Aside type="tip">
-Field Kit widgets store **clean JSON**: removing the plugin leaves valid data in the database. No shape mutation, no new columns, no migration.
+Field Kit widgets store **clean JSON**: the stored value is plain content data, so removing the plugin leaves valid content behind.
 </Aside>
 
 ## Installation

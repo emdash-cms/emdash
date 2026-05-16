@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: The mental model for building with EmDash — an Astro integration with database-first content and live queries.
+description: The mental model for building with EmDash — an Astro integration with a live, editable content model.
 ---
 
 import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
@@ -29,31 +29,29 @@ EmDash is an Astro integration. You add it to `astro.config.mjs`, choose a datab
 
 You write pages and components as normal. EmDash provides the content, an admin panel for editing it, and the database and storage behind it. Editors work in the admin panel; your pages read the same content through query functions.
 
-## Database-first content
+## Your content model
 
-Your content model lives in the database, not in code. When someone adds a `products` collection with `title` and `price` in the admin panel, EmDash creates a real `products` table with real `title` and `price` columns.
-
-This is the decision that shapes everything else:
+You define collections and fields — in the admin panel or with the CLI — and EmDash stores content against them.
 
 <CardGrid>
-	<Card title="Change the model at runtime" icon="pencil">
-		Add or edit collections and fields in the admin panel. No code change, no
-		rebuild, no migration to write.
+	<Card title="Change it anytime" icon="pencil">
+		Add, rename, remove, or retype collections and fields whenever you need
+		to. Changes take effect immediately.
 	</Card>
-	<Card title="Set up without a developer" icon="seti:plan">
-		A non-developer can design the content model through the admin UI.
+	<Card title="No developer required" icon="seti:plan">
+		A content editor can design the whole model through the admin UI.
 	</Card>
-	<Card title="Real SQL underneath" icon="seti:db">
-		Each field is a real column with proper indexing and queries — useful if
-		you ever query the database directly.
+	<Card title="Typed" icon="approve-check">
+		Generate TypeScript types from the current model for autocomplete from
+		query to template.
 	</Card>
 	<Card title="Portable" icon="right-arrow">
-		Export the schema as a JSON seed file for version control, and apply it in
+		Export the model as a JSON seed file for version control, and apply it in
 		another environment.
 	</Card>
 </CardGrid>
 
-The trade-off you accept is that the source of truth for your schema is the database. Use [type generation](/concepts/content-model/#typescript-types) and [seed files](/themes/seed-files/) to keep that manageable in a code workflow.
+See the [content model](/concepts/content-model/) for how to define, change, type, and seed it.
 
 ## Content is live
 
@@ -107,7 +105,7 @@ See the [plugin overview](/plugins/overview/) to choose and install plugins, or 
 		Define [content collections and field types](/concepts/collections/).
 	</Card>
 	<Card title="Content Model" icon="open-book">
-		Understand the [database-first content model](/concepts/content-model/).
+		Understand the [content model](/concepts/content-model/).
 	</Card>
 	<Card title="Admin Panel" icon="setting">
 		See what the [admin panel](/concepts/admin-panel/) offers editors and admins.

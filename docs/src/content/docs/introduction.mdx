@@ -9,12 +9,12 @@ EmDash is an **Astro-native content management system**. It brings familiar CMS 
 
 ## What EmDash Is
 
-EmDash is a CMS built specifically for [Astro](https://astro.build). It uses Astro 6's Live Content Collections to serve content at runtime without rebuilds. Content is stored in SQLite-compatible databases (D1, libSQL, local SQLite) and media in S3-compatible storage (R2, local filesystem).
+EmDash is a CMS built specifically for [Astro](https://astro.build). It uses Astro 6's Live Content Collections to serve content at runtime, so edits appear immediately. Content is stored in SQLite-compatible databases (D1, libSQL, local SQLite) and media in S3-compatible storage (R2, local filesystem).
 
 **Key characteristics:**
 
-- **Database-first schema** — Collections and fields are defined in the database, not code. Create and modify content types from the admin UI.
-- **Live Collections** — Content changes are immediately available. No static rebuilds needed.
+- **Visual content modelling** — Define and change collections and fields from the admin UI; changes take effect immediately.
+- **Live Collections** — Content is served at runtime, so edits appear immediately.
 - **Plugin system** — WordPress-inspired hooks, storage, settings, and admin UI extensions.
 - **Cloud-portable** — Runs on Cloudflare (Workers + D1 + R2), Node.js, local SQLite, and any S3-compatible storage.
 

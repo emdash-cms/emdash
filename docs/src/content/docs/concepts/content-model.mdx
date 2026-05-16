@@ -1,65 +1,37 @@
 ---
 title: Content Model
-description: How EmDash's database-first content model works for you — runtime schema changes, type generation, and seed files.
+description: How you shape and evolve your content model in EmDash — collections, fields, runtime changes, types, and seeds.
 ---
 
 import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
 
-EmDash is **database-first**: your content model lives in the database, not in a code file. This page covers what that means for how you set up and evolve a site. For the table layouts and validation internals, see [Architecture (internals)](/contributing/architecture/#database-first-schema).
+Your content model is the set of collections and fields your site stores. You define it in the admin panel or with the CLI, change it whenever you need to, and optionally generate TypeScript types from it. This page covers how to work with it.
 
-## Schema as data
+## Collections and fields
 
-In many CMSs you declare a collection's fields in code:
+A **collection** is a type of content (posts, products, authors). Each collection has **fields** you define (a title, a body, a price). Every entry also has system fields EmDash manages for you.
 
-```ts
-const posts = collection({
-	fields: {
-		title: text({ required: true }),
-		content: richText(),
-	},
-});
-```
-
-EmDash stores that same structure in the database instead. You define collections and fields in the admin panel or with the CLI, and EmDash turns them into real tables and columns. The structure is the same; what changes is where it lives and how you modify it.
-
-## Why this matters
-
-<CardGrid>
-	<Card title="Change the model at runtime" icon="pencil">
-		Add, rename, or remove collections and fields whenever you need to. No
-		code change, no rebuild, no migration to write.
-	</Card>
-	<Card title="Set up without a developer" icon="seti:plan">
-		A content editor can design the whole data model through the admin UI.
-	</Card>
-	<Card title="Real SQL columns" icon="seti:db">
-		Each field is a real column with proper indexing and queries.
-	</Card>
-	<Card title="Portable" icon="right-arrow">
-		Export the schema as a JSON seed file for version control, and apply it in
-		another environment.
-	</Card>
-</CardGrid>
+You create and edit collections and fields visually in the admin panel under **Content Types**, or with the CLI. Changes take effect immediately, and a non-developer can do it.
 
 ## System fields
 
-Every entry has a set of fields EmDash manages for you, in addition to the fields you define. You do not declare these; they are always present:
+In addition to the fields you define, every entry has these, always present:
 
-| Field          | Purpose                                  |
-| -------------- | ---------------------------------------- |
-| `id`           | Stable unique identifier                 |
-| `slug`         | URL-safe identifier, unique per locale   |
-| `status`       | `draft`, `published`, or `scheduled`     |
-| `author_id`    | The user who created the entry           |
-| `created_at` / `updated_at` / `published_at` | Timestamps             |
-| `deleted_at`   | Set on soft delete; the row is kept      |
-| `version`      | Increments on each save                  |
+| Field                                        | Purpose                                |
+| -------------------------------------------- | -------------------------------------- |
+| `id`                                         | Stable unique identifier               |
+| `slug`                                       | URL-safe identifier, unique per locale |
+| `status`                                     | `draft`, `published`, or `scheduled`   |
+| `author_id`                                  | The user who created the entry         |
+| `created_at` / `updated_at` / `published_at` | Timestamps                             |
+| `deleted_at`                                 | Set on soft delete; the row is kept    |
+| `version`                                    | Increments on each save                |
 
-A deleted entry is soft-deleted: the row stays, with `deleted_at` set, so it can be restored.
+Deleting an entry is a soft delete: it can be restored.
 
-## Changing the model at runtime
+## Changing the model anytime
 
-You can add, rename, or remove a field on a live collection at any time, through the admin panel or the CLI. Existing content is preserved. Changing a field's type is also supported; EmDash handles the underlying data move for you.
+You can add, rename, remove, or retype a field on a live collection at any time, through the admin panel or the CLI. Existing content is preserved.
 
 <Aside type="tip">
 	Adding a field is always safe. Removing one drops its data. Rename rather
@@ -68,7 +40,7 @@ You can add, rename, or remove a field on a live collection at any time, through
 
 ## TypeScript types
 
-Type generation is optional but recommended. Generate types from the live schema:
+Type generation is optional but recommended. Generate types from your current model:
 
 ```bash
 npx emdash types
@@ -90,11 +62,11 @@ declare module "emdash" {
 }
 ```
 
-Re-run the command after changing the schema to keep types in sync.
+Re-run the command after changing the model to keep types in sync.
 
-## Developer and non-developer workflows
+## Workflows
 
-Both workflows modify the same content model.
+Both workflows change the same model.
 
 A non-developer uses the admin panel:
 
@@ -107,11 +79,11 @@ A non-developer uses the admin panel:
 
 </Steps>
 
-A developer can use the CLI to generate types and move the schema between environments:
+A developer can use the CLI to generate types and move the model between environments:
 
 ```bash
-npx emdash types               # generate TypeScript types
-npx emdash export-seed > seed.json   # export the schema as a seed file
+npx emdash types                     # generate TypeScript types
+npx emdash export-seed > seed.json   # export the model as a seed file
 ```
 
 ## Seed files
