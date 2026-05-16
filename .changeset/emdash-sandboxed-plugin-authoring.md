@@ -39,12 +39,12 @@ The trade-off: previously you could narrow an event type locally (e.g. `interfac
 
 ```ts
 export default {
-    routes: {
-        health: async (routeCtx, ctx) => {
-            // routeCtx: SandboxedRouteContext, ctx: PluginContext — both inferred.
-            return new Response("ok");
-        },
-    },
+	routes: {
+		health: async (routeCtx, ctx) => {
+			// routeCtx: SandboxedRouteContext, ctx: PluginContext — both inferred.
+			return new Response("ok");
+		},
+	},
 } satisfies SandboxedPlugin;
 ```
 
