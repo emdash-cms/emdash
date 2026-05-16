@@ -274,7 +274,7 @@ describe("renderReadme", () => {
 		// legal JS identifier (`myPlugin`, not `my-plugin`).
 		expect(source).toContain('import myPlugin from "my-plugin"');
 		expect(source).toContain("sandboxed: [myPlugin]");
-		expect(source).not.toContain('import my-plugin');
+		expect(source).not.toContain("import my-plugin");
 	});
 });
 
