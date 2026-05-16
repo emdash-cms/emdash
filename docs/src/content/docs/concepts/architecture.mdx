@@ -72,9 +72,8 @@ You pass a database and a storage backend to the integration. Everything else ha
 
 ```ts title="astro.config.mjs"
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
+import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
-import { local } from "emdash/storage";
 
 export default defineConfig({
 	integrations: [

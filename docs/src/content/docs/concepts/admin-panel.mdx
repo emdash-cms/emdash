@@ -27,15 +27,9 @@ Navigation is generated from your collections and installed plugins, so a schema
 
 ## Roles
 
-What a user sees depends on their role:
+What a user sees depends on their role. EmDash has five roles, from least to most access: Subscriber, Contributor, Author, Editor, Admin. See [User roles](/guides/authentication/#user-roles) for the full definitions.
 
-| Role      | Can access                                              |
-| --------- | ------------------------------------------------------- |
-| Editor    | Dashboard, assigned collections, media                  |
-| Admin     | The above, plus all collections, content types, settings |
-| Developer | The above, plus CLI access and generated types          |
-
-Editors only see the content they have permission to manage. The schema builder at `/content-types` is administrator-only.
+In the admin, lower roles see only the content they have permission to manage. The schema builder at `/content-types` and the settings screens are Admin-only. Type generation and the CLI are available to developers working on the project regardless of admin role.
 
 <Aside type="note">
 	The admin requires a signed-in user. Login is a separate page that

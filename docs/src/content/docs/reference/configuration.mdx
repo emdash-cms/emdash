@@ -13,8 +13,8 @@ Configure EmDash as an Astro integration in `astro.config.mjs`:
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
-import emdash, { local, r2, s3 } from "emdash/astro";
-import { sqlite, libsql, d1 } from "emdash/db";
+import emdash, { local, s3 } from "emdash/astro";
+import { sqlite, libsql } from "emdash/db";
 
 export default defineConfig({
 	integrations: [
@@ -114,7 +114,7 @@ emdash({
 })
 ```
 
-The available scripts are `arabic`, `armenian`, `bengali`, `chinese-simplified`, `chinese-traditional`, `chinese-hongkong`, `devanagari`, `ethiopic`, `georgian`, `gujarati`, `gurmukhi`, `hebrew`, `japanese`, `kannada`, `khmer`, `korean`, `lao`, `malayalam`, `myanmar`, `oriya`, `sinhala`, `tamil`, `telugu`, `thai`, and `tibetan`.
+The available scripts are `arabic`, `armenian`, `bengali`, `chinese-simplified`, `chinese-traditional`, `chinese-hongkong`, `devanagari`, `ethiopic`, `farsi`, `georgian`, `gujarati`, `gurmukhi`, `hebrew`, `japanese`, `kannada`, `khmer`, `korean`, `lao`, `malayalam`, `myanmar`, `oriya`, `sinhala`, `tamil`, `telugu`, `thai`, and `tibetan`.
 
 Each script maps to the corresponding Noto Sans variant on Google Fonts (e.g. `"arabic"` loads Noto Sans Arabic). All font faces share a single `font-family` name and use `unicode-range` so the browser only downloads the files it needs for the characters on the page.
 
@@ -407,7 +407,7 @@ Uploads that exceed the configured limit are rejected with a `413 Payload Too La
 Import the adapters from `emdash/db`:
 
 ```js
-import { sqlite, libsql, postgres, d1 } from "emdash/db";
+import { sqlite, libsql, postgres } from "emdash/db";
 ```
 
 ### `sqlite(config)`
@@ -488,10 +488,11 @@ When `session` is `"auto"` or `"primary-first"`, EmDash uses the D1 Sessions API
 
 ## Storage adapters
 
-Import the adapters from `emdash/astro`:
+Import `local` and `s3` from `emdash/astro`. The `r2` adapter is imported from `@emdash-cms/cloudflare`:
 
 ```js
-import emdash, { local, r2, s3 } from "emdash/astro";
+import emdash, { local, s3 } from "emdash/astro";
+import { r2 } from "@emdash-cms/cloudflare";
 ```
 
 ### `local(config)`
@@ -589,10 +590,10 @@ export const collections = {
 
 ### Loader options
 
-The `emdashLoader()` function accepts an optional configuration object, reserved for future use:
+The `emdashLoader()` function takes no arguments:
 
 ```ts
-emdashLoader({});
+emdashLoader();
 ```
 
 ## Environment variables

@@ -202,9 +202,11 @@ List sections with optional filters.
 
 **Parameters:**
 - `options.source` — Filter by source: `"theme"`, `"user"`, or `"import"`
-- `options.search` — Search title and keywords
+- `options.search` — Search title, description, and keywords
+- `options.limit` — Page size (default 50, max 100)
+- `options.cursor` — Pagination cursor from a previous `nextCursor`
 
-**Returns:** `Promise<Section[]>`
+**Returns:** `Promise<{ items: Section[]; nextCursor?: string }>`
 
 ## REST API
 

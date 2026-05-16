@@ -556,8 +556,18 @@ hooks: {
 type PageMetadataContribution =
 	| { kind: "meta"; name: string; content: string; key?: string }
 	| { kind: "property"; property: string; content: string; key?: string }
-	| { kind: "link"; rel: string; href: string; hreflang?: string; key?: string }
-	| { kind: "jsonld"; id?: string; graph: Record<string, unknown> };
+	| {
+			kind: "link";
+			rel: "canonical" | "alternate" | "author" | "license" | "nlweb" | "site.standard.document";
+			href: string;
+			hreflang?: string;
+			key?: string;
+	  }
+	| {
+			kind: "jsonld";
+			id?: string;
+			graph: Record<string, unknown> | Array<Record<string, unknown>>;
+	  };
 ```
 
 The `key` field deduplicates contributions — only the last contribution with a given key is used.

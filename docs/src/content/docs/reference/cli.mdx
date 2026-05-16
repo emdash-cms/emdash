@@ -212,13 +212,15 @@ cat post.json | npx emdash content create posts --stdin
 
 | Option     | Description                    |
 | ---------- | ------------------------------ |
-| `--data`   | JSON string with content data  |
-| `--file`   | Read data from a JSON file     |
-| `--stdin`  | Read data from stdin           |
-| `--slug`   | Content slug                   |
-| `--status` | Initial status (draft, published) |
+| `--data`            | JSON string with content data                          |
+| `--file`            | Read data from a JSON file                             |
+| `--stdin`           | Read data from stdin                                   |
+| `--slug`            | Content slug                                           |
+| `--locale`          | Content locale                                         |
+| `--translation-of`  | ID of a content item to link this as a translation of  |
+| `--draft`           | Keep as draft instead of auto-publishing               |
 
-Provide data via exactly one of `--data`, `--file`, or `--stdin`.
+Provide data via exactly one of `--data`, `--file`, or `--stdin`. New items are auto-published unless `--draft` is set.
 
 #### `content update <collection> <id>`
 

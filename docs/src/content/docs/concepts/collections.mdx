@@ -52,7 +52,7 @@ The following collection enables all four features:
 
 ## Field types
 
-EmDash supports 14 field types that map to SQLite column types.
+EmDash supports 16 field types that map to SQLite column types.
 
 ### Text fields
 
@@ -213,7 +213,7 @@ Every field supports these properties:
 | -------------- | ----------- | -------------------------------------------- |
 | `slug`         | `string`    | Column name in the database                  |
 | `label`        | `string`    | Display label in admin UI                    |
-| `type`         | `FieldType` | One of the 14 field types                    |
+| `type`         | `FieldType` | One of the 16 field types                    |
 | `required`     | `boolean`   | Whether the field must have a value          |
 | `unique`       | `boolean`   | Whether values must be unique across entries |
 | `defaultValue` | `unknown`   | Default value for new entries                |
@@ -225,7 +225,7 @@ Every field supports these properties:
 <Aside type="caution">
 	Some field slugs are reserved and cannot be used: `id`, `slug`, `status`, `author_id`,
 	`primary_byline_id`, `created_at`, `updated_at`, `published_at`, `scheduled_at`, `deleted_at`,
-	`version`, `live_revision_id`, `draft_revision_id`.
+	`version`, `live_revision_id`, `draft_revision_id`, `terms`, `bylines`, `byline`.
 </Aside>
 
 ## Validation rules
@@ -355,6 +355,7 @@ Field types map to SQLite column types as follows:
 | `string`       | `TEXT`      |                       |
 | `text`         | `TEXT`      |                       |
 | `slug`         | `TEXT`      |                       |
+| `url`          | `TEXT`      |                       |
 | `number`       | `REAL`      | 64-bit floating point |
 | `integer`      | `INTEGER`   | 64-bit signed integer |
 | `boolean`      | `INTEGER`   | 0 or 1                |
@@ -366,6 +367,7 @@ Field types map to SQLite column types as follows:
 | `file`         | `TEXT`      | Media ID              |
 | `reference`    | `TEXT`      | Entry ID              |
 | `json`         | `JSON`      | Arbitrary JSON        |
+| `repeater`     | `JSON`      | Array of sub-fields   |
 
 ## Next steps
 

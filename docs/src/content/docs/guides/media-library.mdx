@@ -79,7 +79,8 @@ Files are stored in the `./uploads` directory. Suitable for development and sing
   <TabItem label="Cloudflare R2">
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
-import emdash, { r2 } from "emdash/astro";
+import emdash from "emdash/astro";
+import { r2 } from "@emdash-cms/cloudflare";
 
 export default defineConfig({
   integrations: [

@@ -207,7 +207,7 @@ const { entries: posts } = await getEmDashCollection("posts", {
       {showThumbnails && post.data.featured_image && (
         <img src={post.data.featured_image} alt="" class="thumbnail" />
       )}
-      <a href={`/posts/${post.slug}`}>{post.data.title}</a>
+      <a href={`/posts/${post.data.slug}`}>{post.data.title}</a>
       {showDate && post.data.publishedAt && (
         <time datetime={post.data.publishedAt.toISOString()}>
           {post.data.publishedAt.toLocaleDateString()}

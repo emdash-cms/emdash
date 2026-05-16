@@ -104,8 +104,9 @@ if (!post) {
 | ------------ | -------- | ---------------- |
 | `collection` | `string` | Collection slug  |
 | `slugOrId`   | `string` | Entry slug or ID |
+| `options`    | `{ locale?: string }` | Optional. Locale for slug resolution |
 
-Preview mode is handled automatically — the middleware detects `_preview` tokens and serves draft content via `AsyncLocalStorage`. No options parameter is needed.
+Preview mode is handled automatically — the middleware detects `_preview` tokens and serves draft content via `AsyncLocalStorage`. The optional `options` parameter only accepts a `locale` for slug resolution; preview state requires no parameter.
 
 #### Returns
 
@@ -347,8 +348,8 @@ Check whether a request includes a preview token, then read it:
 ```ts
 import { isPreviewRequest, getPreviewToken } from "emdash";
 
-if (isPreviewRequest(Astro.request)) {
-	const token = getPreviewToken(Astro.request);
+if (isPreviewRequest(Astro.url)) {
+	const token = getPreviewToken(Astro.url);
 	// Verify and show preview content
 }
 ```
@@ -378,7 +379,7 @@ import { getSiteSettings, getSiteSetting } from "emdash";
 const settings = await getSiteSettings();
 
 // Get single setting
-const title = await getSiteSetting("siteTitle");
+const title = await getSiteSetting("title");
 ```
 
 Settings are read-only from the runtime API. Use the admin API to update them.
@@ -447,25 +448,23 @@ if (sidebar) {
 
 ## Sections
 
-Fetch sections, filter them, and read their categories:
+Fetch sections and filter them:
 
 ```ts
-import { getSection, getSections, getSectionCategories } from "emdash";
+import { getSection, getSections } from "emdash";
 
-// Get all sections
-const sections = await getSections();
+// Get all sections (paginated)
+const { items, nextCursor } = await getSections();
 
 // Filter sections
-const heroes = await getSections({ category: "hero" });
-const themeSections = await getSections({ source: "theme" });
-const results = await getSections({ search: "newsletter" });
+const { items: themeSections } = await getSections({ source: "theme" });
+const { items: results } = await getSections({ search: "newsletter" });
 
-// Get single section
+// Get a single section by slug
 const cta = await getSection("newsletter-cta");
-
-// Get categories
-const categories = await getSectionCategories();
 ```
+
+`getSections(options?)` returns `{ items: Section[]; nextCursor?: string }`. Options are `source` (`"theme" | "user" | "import"`), `search`, `limit` (default 50, max 100), and `cursor`.
 
 ## Search
 
@@ -481,8 +480,8 @@ const results = await search("hello world", {
 	limit: 20,
 });
 
-// Results include snippets with highlights
-results.forEach(result => {
+// search() resolves to { items, nextCursor? }
+results.items.forEach(result => {
 	console.log(result.title);
 	console.log(result.snippet); // Contains <mark> tags
 	console.log(result.score);

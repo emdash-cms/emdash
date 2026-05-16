@@ -5,7 +5,7 @@ description: Complete reference for all EmDash field types.
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash supports 14 field types for defining content schemas. Each type maps to a SQLite column type and provides appropriate admin UI.
+EmDash supports 16 field types for defining content schemas. Each type maps to a SQLite column type and provides appropriate admin UI.
 
 ## Overview
 
@@ -15,6 +15,7 @@ The following table lists every field type and its SQLite column:
 | -------------- | ------------- | -------------------------- |
 | `string`       | TEXT          | Short text input           |
 | `text`         | TEXT          | Multi-line text            |
+| `url`          | TEXT          | URL value                  |
 | `number`       | REAL          | Decimal number             |
 | `integer`      | INTEGER       | Whole number               |
 | `boolean`      | INTEGER       | True/false                 |
@@ -27,6 +28,7 @@ The following table lists every field type and its SQLite column:
 | `reference`    | TEXT          | Reference to another entry |
 | `json`         | JSON          | Arbitrary JSON data        |
 | `slug`         | TEXT          | URL-safe identifier        |
+| `repeater`     | JSON          | Repeating group of fields  |
 
 ## Text Types
 
@@ -398,11 +400,18 @@ These slugs are reserved and cannot be used:
 - `slug`
 - `status`
 - `author_id`
+- `primary_byline_id`
 - `created_at`
 - `updated_at`
 - `published_at`
+- `scheduled_at`
 - `deleted_at`
 - `version`
+- `live_revision_id`
+- `draft_revision_id`
+- `terms`
+- `bylines`
+- `byline`
 
 ## TypeScript types
 
@@ -414,6 +423,7 @@ import type { FieldType, Field, CreateFieldInput } from "emdash";
 const fieldTypes: FieldType[] = [
 	"string",
 	"text",
+	"url",
 	"number",
 	"integer",
 	"boolean",
@@ -426,5 +436,6 @@ const fieldTypes: FieldType[] = [
 	"reference",
 	"json",
 	"slug",
+	"repeater",
 ];
 ```
