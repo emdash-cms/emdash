@@ -6,9 +6,9 @@ Start here if you want full control from the beginning -- no schema or design de
 
 ## Pages
 
-| Page | Path | What it shows                              |
-| ---- | ---- | ------------------------------------------ |
-| Home | `/`  | A single Astro page with EmDash wiring     |
+| Page | Path | What it shows                          |
+| ---- | ---- | -------------------------------------- |
+| Home | `/`  | A single Astro page with EmDash wiring |
 
 ## Schema
 

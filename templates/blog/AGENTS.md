@@ -48,16 +48,16 @@ A blog with posts, pages, categories, tags, full-text search, and RSS. Designed 
 
 ## Pages
 
-| Page         | Path             | What it shows                                                |
-| ------------ | ---------------- | ------------------------------------------------------------ |
-| Home         | `/`              | Featured post hero (large image + excerpt), latest posts grid |
-| All posts    | `/posts`         | Article count, full post list with excerpts and tag chips    |
-| Post detail  | `/posts/[slug]`  | Featured image, title, body, left meta column (authors + date), right TOC + search + categories gutter |
-| Search       | `/search`        | Full-text search UI                                          |
-| Page         | `/pages/[slug]`  | Static page content (Portable Text)                          |
-| Category     | `/category/[slug]` | Posts filtered by category                                 |
-| Tag          | `/tag/[slug]`    | Posts filtered by tag                                        |
-| RSS          | `/rss.xml`       | Generated feed                                               |
+| Page        | Path               | What it shows                                                                                          |
+| ----------- | ------------------ | ------------------------------------------------------------------------------------------------------ |
+| Home        | `/`                | Featured post hero (large image + excerpt), latest posts grid                                          |
+| All posts   | `/posts`           | Article count, full post list with excerpts and tag chips                                              |
+| Post detail | `/posts/[slug]`    | Featured image, title, body, left meta column (authors + date), right TOC + search + categories gutter |
+| Search      | `/search`          | Full-text search UI                                                                                    |
+| Page        | `/pages/[slug]`    | Static page content (Portable Text)                                                                    |
+| Category    | `/category/[slug]` | Posts filtered by category                                                                             |
+| Tag         | `/tag/[slug]`      | Posts filtered by tag                                                                                  |
+| RSS         | `/rss.xml`         | Generated feed                                                                                         |
 
 ## Schema
 

@@ -6,11 +6,11 @@ Bolder than the blog and portfolio templates: vibrant gradient accents, isometri
 
 ## Pages
 
-| Page    | Path        | What it shows                                                |
-| ------- | ----------- | ------------------------------------------------------------ |
-| Home    | `/`         | Marketing blocks in any order (hero, features, testimonials, pricing, FAQ) authored as a Portable Text document on the Home page |
-| Pricing | `/pricing`  | Same block-driven editor -- "Simple, transparent pricing" page using the `pricing` block |
-| Contact | `/contact`  | Left column with contact methods (Email / Support / Sales, each with a gradient icon), right column with a form |
+| Page    | Path       | What it shows                                                                                                                    |
+| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Home    | `/`        | Marketing blocks in any order (hero, features, testimonials, pricing, FAQ) authored as a Portable Text document on the Home page |
+| Pricing | `/pricing` | Same block-driven editor -- "Simple, transparent pricing" page using the `pricing` block                                         |
+| Contact | `/contact` | Left column with contact methods (Email / Support / Sales, each with a gradient icon), right column with a form                  |
 
 There is no posts collection. Content is entirely authored as marketing blocks inside `pages`.
 
@@ -26,13 +26,13 @@ Site settings have `title` and `tagline`. Title renders in the header; tagline i
 
 This template ships a local plugin at `src/plugins/marketing-blocks/` that registers five Portable Text block types. Editors insert them in the admin's Portable Text editor; they render via `src/components/blocks/{Hero,Features,Testimonials,Pricing,FAQ}.astro` (dispatched from `MarketingBlocks.astro`).
 
-| Block                  | Fields                                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------------------------- |
-| `marketing.hero`       | `headline`, `subheadline`, `primaryCtaLabel`, `primaryCtaUrl`, `secondaryCtaLabel`, `secondaryCtaUrl`, `centered` (toggle) |
-| `marketing.features`   | `headline`, `subheadline`, repeater of `{ icon, title, description }`                             |
-| `marketing.testimonials` | `headline`, repeater of `{ quote, author, role, company, avatar (URL) }`                        |
-| `marketing.pricing`    | `headline`, repeater of `{ name, price, period, description, features (newline-separated string), ctaLabel, ctaUrl, highlighted }` |
-| `marketing.faq`        | `headline`, repeater of `{ question, answer }`                                                    |
+| Block                    | Fields                                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `marketing.hero`         | `headline`, `subheadline`, `primaryCtaLabel`, `primaryCtaUrl`, `secondaryCtaLabel`, `secondaryCtaUrl`, `centered` (toggle)         |
+| `marketing.features`     | `headline`, `subheadline`, repeater of `{ icon, title, description }`                                                              |
+| `marketing.testimonials` | `headline`, repeater of `{ quote, author, role, company, avatar (URL) }`                                                           |
+| `marketing.pricing`      | `headline`, repeater of `{ name, price, period, description, features (newline-separated string), ctaLabel, ctaUrl, highlighted }` |
+| `marketing.faq`          | `headline`, repeater of `{ question, answer }`                                                                                     |
 
 Constraints worth remembering:
 
@@ -82,7 +82,7 @@ To re-brand, the highest-leverage moves are:
 
 - Don't write stock SaaS copy: "Build products people actually want", "Elevate your workflow", "The all-in-one platform for modern teams". These are placeholder. Write what the product actually does, for whom, with one specific outcome.
 - Don't ship more than three pricing tiers. Three is the default for a reason -- more makes choice harder, not easier.
-- Don't use icon and stock photo combos that fight each other. Pick illustration *or* photography, not both.
+- Don't use icon and stock photo combos that fight each other. Pick illustration _or_ photography, not both.
 - Don't enable the gradient on every interactive element. The CTA gradient is the signal; if it's on every button, it stops signalling.
 - Don't add a hero block followed immediately by another hero block. One hero, then features / testimonials / pricing / FAQ in some order.
 - Don't replace the `marketing.pricing` block with a hand-coded table. The block is the data shape downstream renderers expect.

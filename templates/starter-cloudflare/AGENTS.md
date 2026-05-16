@@ -50,14 +50,14 @@ There is intentionally no `theme.css`, no custom font configuration, no styled l
 
 ## Pages
 
-| Page         | Path                | What it shows                                  |
-| ------------ | ------------------- | ---------------------------------------------- |
-| Home         | `/`                 | Site title + tagline, links into Posts / About |
-| All posts    | `/posts`            | Post list                                      |
-| Post detail  | `/posts/[slug]`     | Post content                                   |
-| Page         | `/[slug]`           | Static page content (e.g. `/about`)            |
-| Category     | `/category/[slug]`  | Posts filtered by category                     |
-| Tag          | `/tag/[slug]`       | Posts filtered by tag                          |
+| Page        | Path               | What it shows                                  |
+| ----------- | ------------------ | ---------------------------------------------- |
+| Home        | `/`                | Site title + tagline, links into Posts / About |
+| All posts   | `/posts`           | Post list                                      |
+| Post detail | `/posts/[slug]`    | Post content                                   |
+| Page        | `/[slug]`          | Static page content (e.g. `/about`)            |
+| Category    | `/category/[slug]` | Posts filtered by category                     |
+| Tag         | `/tag/[slug]`      | Posts filtered by tag                          |
 
 ## Schema
 

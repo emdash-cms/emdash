@@ -50,13 +50,13 @@ The design is intentionally restrained. Don't pile on colour, gradients, or deco
 
 ## Pages
 
-| Page              | Path              | What it shows                                  |
-| ----------------- | ----------------- | ---------------------------------------------- |
-| Home              | `/`               | Centred serif title + tagline, "Selected Work" grid |
-| Work index        | `/work`           | Heading + summary, tag filter chips, full grid |
-| Project detail    | `/work/[slug]`    | Project meta line, big serif title, summary, featured image, Portable Text body, optional gallery, URL |
-| About             | `/about`          | Page content (Portable Text)                   |
-| Contact           | `/contact`        | Form + email / location / social column        |
+| Page           | Path           | What it shows                                                                                          |
+| -------------- | -------------- | ------------------------------------------------------------------------------------------------------ |
+| Home           | `/`            | Centred serif title + tagline, "Selected Work" grid                                                    |
+| Work index     | `/work`        | Heading + summary, tag filter chips, full grid                                                         |
+| Project detail | `/work/[slug]` | Project meta line, big serif title, summary, featured image, Portable Text body, optional gallery, URL |
+| About          | `/about`       | Page content (Portable Text)                                                                           |
+| Contact        | `/contact`     | Form + email / location / social column                                                                |
 
 ## Schema
 
