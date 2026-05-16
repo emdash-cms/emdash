@@ -634,14 +634,10 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					const localeCondition = locale
 						? sql`AND ${sql.ref(tableName)}.locale = ${locale}`
 						: sql``;
-					const cursorCond = cursorConditionPrefixed
-						? sql`AND ${cursorConditionPrefixed}`
-						: sql``;
+					const cursorCond = cursorConditionPrefixed ? sql`AND ${cursorConditionPrefixed}` : sql``;
 					const fieldConds = buildFieldConditions(fieldFilters, tableName);
 					const fieldCondsSQL =
-						fieldConds.length > 0
-							? sql`${sql.join(fieldConds, sql` AND `)}`
-							: null;
+						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
 
 					result = await sql<Record<string, unknown>>`
 						SELECT DISTINCT ${sql.ref(tableName)}.* FROM ${sql.ref(tableName)}
@@ -667,9 +663,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
 					const fieldConds = buildFieldConditions(fieldFilters);
 					const fieldCondsSQL =
-						fieldConds.length > 0
-							? sql`${sql.join(fieldConds, sql` AND `)}`
-							: null;
+						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
 
 					result = await sql<Record<string, unknown>>`
 						SELECT * FROM ${sql.ref(tableName)}
