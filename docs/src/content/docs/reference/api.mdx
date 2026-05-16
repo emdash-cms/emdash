@@ -5,7 +5,7 @@ description: Programmatic API for querying and managing EmDash content.
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash exports functions for querying content, managing media, and working with the database.
+EmDash exports functions for querying content and working with preview, settings, menus, taxonomies, widget areas, sections, and search.
 
 ## Content queries
 
@@ -169,144 +169,6 @@ The `data` object contains all content fields plus system fields:
 - `publishedAt` - ISO timestamp or null
 - Plus all custom fields defined in your collection schema
 
-## Database functions
-
-### `createDatabase()`
-
-Create a database connection. The following example connects to a local SQLite file:
-
-```ts
-import { createDatabase } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-```
-
-<Aside type="caution">
-	Direct database access is for advanced use cases. Prefer the query functions for content access.
-</Aside>
-
-### `runMigrations()`
-
-Run pending database migrations. The following example applies migrations and logs the count:
-
-```ts
-import { createDatabase, runMigrations } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-const { applied } = await runMigrations(db);
-console.log(`Applied ${applied.length} migrations`);
-```
-
-### `getMigrationStatus()`
-
-Check which migrations have been applied and which are pending:
-
-```ts
-import { createDatabase, getMigrationStatus } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-const status = await getMigrationStatus(db);
-// { applied: ["0001_core", ...], pending: [] }
-```
-
-## Repositories
-
-Low-level data access through repositories.
-
-### `ContentRepository`
-
-The following example shows the full set of `ContentRepository` operations:
-
-```ts
-import { ContentRepository, createDatabase } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-const repo = new ContentRepository(db);
-
-// Find many
-const { items, nextCursor } = await repo.findMany("posts", {
-	limit: 10,
-	where: { status: "published" },
-});
-
-// Find by ID
-const post = await repo.findById("posts", "01HXK5MZSN...");
-
-// Create
-const newPost = await repo.create({
-	type: "posts",
-	slug: "new-post",
-	data: { title: "New Post", content: [] },
-	status: "draft",
-});
-
-// Update
-const updated = await repo.update("posts", "01HXK5MZSN...", {
-	data: { title: "Updated Title" },
-});
-
-// Delete
-await repo.delete("posts", "01HXK5MZSN...");
-```
-
-### `MediaRepository`
-
-The following example lists, fetches, and records media:
-
-```ts
-import { MediaRepository, createDatabase } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-const repo = new MediaRepository(db);
-
-// List media
-const { items } = await repo.findMany({ limit: 20 });
-
-// Get by ID
-const media = await repo.findById("01HXK5MZSN...");
-
-// Create (after upload)
-const newMedia = await repo.create({
-	filename: "photo.jpg",
-	mimeType: "image/jpeg",
-	size: 12345,
-	storageKey: "uploads/photo.jpg",
-});
-```
-
-## Schema registry
-
-Programmatic schema management. The following example lists collections, then creates a collection and a field:
-
-```ts
-import { SchemaRegistry, createDatabase } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-const registry = new SchemaRegistry(db);
-
-// List collections
-const collections = await registry.listCollections();
-
-// Get collection with fields
-const postsSchema = await registry.getCollectionWithFields("posts");
-
-// Create collection
-await registry.createCollection({
-	slug: "products",
-	label: "Products",
-	labelSingular: "Product",
-	supports: ["drafts", "revisions"],
-});
-
-// Add field
-await registry.createField("products", {
-	slug: "price",
-	label: "Price",
-	type: "number",
-	required: true,
-});
-```
-
 ## Preview system
 
 ### `generatePreviewToken()`
@@ -468,12 +330,11 @@ const cta = await getSection("newsletter-cta");
 
 ## Search
 
-Run a global search or a collection-specific search. Results include highlighted snippets:
+Run a global search across collections. Results include highlighted snippets:
 
 ```ts
-import { search, searchCollection } from "emdash";
+import { search } from "emdash";
 
-// Global search across collections
 const results = await search("hello world", {
 	collections: ["posts", "pages"],
 	status: "published",
@@ -485,11 +346,6 @@ results.items.forEach(result => {
 	console.log(result.title);
 	console.log(result.snippet); // Contains <mark> tags
 	console.log(result.score);
-});
-
-// Collection-specific search
-const posts = await searchCollection("posts", "typescript", {
-	limit: 10,
 });
 ```
 

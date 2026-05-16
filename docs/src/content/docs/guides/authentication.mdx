@@ -260,44 +260,13 @@ Each user can have up to 10 passkeys registered.
 	log in.
 </Aside>
 
-## Self-Signup
+## Letting a group sign in without invites
 
-For team sites, you can enable self-signup for specific email domains:
+To let a group sign in without inviting each user, configure a [login provider](#login-providers) with an allowlist. The Atmosphere provider accepts `allowedHandles` and `allowedDIDs` (see [Atmosphere login](/guides/atmosphere-auth/)); the [Cloudflare Access](#cloudflare-access) adapter provisions users from your identity provider via `autoProvision` and `roleMapping`. Any configured provider can also create the initial admin account.
 
-```js title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
+## Sessions
 
-export default defineConfig({
-	integrations: [
-		emdash({
-			auth: {
-				selfSignup: {
-					domains: ["example.com"],
-					defaultRole: "contributor",
-				},
-			},
-		}),
-	],
-});
-```
-
-Users with matching email domains can sign up without an invite. They'll receive a verification email and register a passkey to complete signup.
-
-## Session Configuration
-
-Sessions use secure HttpOnly cookies with sensible defaults:
-
-```js title="astro.config.mjs"
-emdash({
-	auth: {
-		session: {
-			maxAge: 30 * 24 * 60 * 60, // 30 days (default)
-			sliding: true, // Reset expiry on activity
-		},
-	},
-});
-```
+Sessions use secure, HttpOnly, SameSite=Lax cookies and last 30 days with sliding expiration — the expiry resets on activity.
 
 ## Security Notes
 

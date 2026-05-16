@@ -130,62 +130,38 @@ The admin CSS uses the `--font-emdash` CSS variable. This is set automatically b
 
 ### `auth`
 
-**Optional.** Authentication configuration. The following example shows self-signup, sessions, and Cloudflare Access together:
+**Optional.** An authentication adapter. EmDash's built-in login is passkeys; setting `auth` replaces them with an external provider. The Cloudflare Access adapter, `access()`, is provided by `@emdash-cms/cloudflare`:
 
 ```js
-import { github } from "emdash/auth/providers/github";
-import { google } from "emdash/auth/providers/google";
-import { atproto } from "@emdash-cms/auth-atproto";
+import { access } from "@emdash-cms/cloudflare";
 
 emdash({
-	auth: {
-		// Self-signup configuration
-		selfSignup: {
-			domains: ["example.com"],
-			defaultRole: 20, // Contributor
+	auth: access({
+		teamDomain: "myteam.cloudflareaccess.com",
+		audience: "your-app-audience-tag",
+		roleMapping: {
+			Admins: 50,
+			Editors: 40,
 		},
-
-		// Session configuration
-		session: {
-			maxAge: 30 * 24 * 60 * 60, // 30 days
-			sliding: true, // Reset expiry on activity
-		},
-
-		// OR use Cloudflare Access (exclusive mode)
-		cloudflareAccess: {
-			teamDomain: "myteam.cloudflareaccess.com",
-			audience: "your-app-audience-tag",
-			autoProvision: true,
-			defaultRole: 30,
-			syncRoles: false,
-			roleMapping: {
-				Admins: 50,
-				Editors: 40,
-			},
-		},
-	},
-	// Pluggable login providers (top-level, not nested under `auth`)
-	authProviders: [github(), google(), atproto()],
+	}),
 });
 ```
 
-#### `auth.selfSignup`
+Options for `access()`:
 
-Allow users to self-register if their email domain is allowed.
+| Option           | Type      | Default                | Description                                                                                  |
+| ---------------- | --------- | ---------------------- | -------------------------------------------------------------------------------------------- |
+| `teamDomain`     | `string`  | required               | Your Cloudflare Access team domain                                                           |
+| `audience`       | `string`  | —                      | Application Audience (AUD) tag. On Workers, prefer `audienceEnvVar`.                          |
+| `audienceEnvVar` | `string`  | `"CF_ACCESS_AUDIENCE"` | Environment variable to read the audience tag from at runtime                                |
+| `autoProvision`  | `boolean` | `true`                 | Create an EmDash user on first login                                                         |
+| `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)) |
+| `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
+| `roleMapping`    | `object`  | —                      | Map IdP group names to EmDash role levels; first match wins                                  |
 
-| Option        | Type       | Default | Description               |
-| ------------- | ---------- | ------- | ------------------------- |
-| `domains`     | `string[]` | `[]`    | Allowed email domains     |
-| `defaultRole` | `number`   | `20`    | Role for self-signups     |
-
-The following example allows two domains and assigns the Contributor role:
-
-```js
-selfSignup: {
-  domains: ["example.com", "acme.org"],
-  defaultRole: 20, // Contributor
-}
-```
+<Aside>
+	When an auth adapter is configured it becomes the only auth method: passkeys are disabled.
+</Aside>
 
 ### `authProviders`
 
@@ -208,33 +184,6 @@ Built-in providers:
 - `atproto()` — Atmosphere account login (Bluesky and the wider AT Protocol network). No env vars needed. Accepts `{ allowedDIDs, allowedHandles, defaultRole }`. See the [Atmosphere login guide](/guides/atmosphere-auth/).
 
 Third-party packages can register their own providers using the same `AuthProviderDescriptor` shape — see [Login Providers](/guides/authentication/#login-providers).
-
-#### `auth.session`
-
-Session configuration.
-
-| Option    | Type      | Default           | Description                    |
-| --------- | --------- | ----------------- | ------------------------------ |
-| `maxAge`  | `number`  | `2592000` (30d)   | Session lifetime in seconds    |
-| `sliding` | `boolean` | `true`            | Reset expiry on activity       |
-
-#### `auth.cloudflareAccess`
-
-Use Cloudflare Access as the authentication provider instead of passkeys.
-
-| Option          | Type      | Default  | Description                    |
-| --------------- | --------- | -------- | ------------------------------ |
-| `teamDomain`    | `string`  | required | Your Access team domain        |
-| `audience`      | `string`  | required | Application Audience (AUD) tag |
-| `autoProvision` | `boolean` | `true`   | Create users on first login    |
-| `defaultRole`   | `number`  | `30`     | Default role for new users     |
-| `syncRoles`     | `boolean` | `false`  | Update role on each login      |
-| `roleMapping`   | `object`  | —        | Map IdP groups to roles        |
-
-<Aside>
-	When `cloudflareAccess` is configured, it becomes the exclusive auth method. Passkeys, OAuth,
-	magic links, and self-signup are disabled.
-</Aside>
 
 ### `siteUrl`
 
@@ -625,10 +574,8 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 {
 	"emdash": {
 		"label": "My Blog Template",
-		"description": "A clean, minimal blog template",
 		"seed": ".emdash/seed.json",
-		"url": "https://my-site.pages.dev",
-		"preview": "https://emdash-blog.pages.dev"
+		"url": "https://my-site.pages.dev"
 	}
 }
 ```
@@ -636,10 +583,8 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 | Option        | Description                        |
 | ------------- | ---------------------------------- |
 | `label`       | Template name for display          |
-| `description` | Template description               |
 | `seed`        | Path to seed JSON file             |
 | `url`         | Remote URL for schema sync         |
-| `preview`     | Demo site URL for template preview |
 
 ## TypeScript configuration
 

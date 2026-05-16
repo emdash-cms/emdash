@@ -362,21 +362,15 @@ Use `getRelativeLocaleUrl` from `astro:i18n` to build correct URLs regardless of
 
 ## Importing Multilingual Content
 
-### WordPress with WPML or Polylang
+Import WordPress content through the admin migration tool — see [Content Import](/migration/content-import/) and [Migrate from WordPress](/migration/from-wordpress/). A WXR export does not carry the locale and translation-group structure that WPML or Polylang add, so imported content lands in your default locale.
 
-The WordPress plugin import source detects WPML and Polylang automatically. When detected, imported content includes locale and translation group metadata, preserving the multilingual structure.
-
-### WXR files
-
-WXR exports do not include WPML/Polylang metadata. Import as a single locale and create translations manually, or use the `--locale` flag to assign a locale to all imported items:
+To build translations from imported content, create the translated entry and link it to the original:
 
 ```bash
-# Import a French WXR export
-emdash import wordpress export-fr.xml --execute --locale fr
-
-# Match against existing English content by slug
-emdash import wordpress export-fr.xml --execute --locale fr --translation-of-locale en
+emdash content create posts --locale fr --translation-of 01ABC...
 ```
+
+This is the same `--locale` / `--translation-of` workflow shown in [Seeding multilingual content](#seeding-multilingual-content) above, applied after the import completes.
 
 ## Next Steps
 
