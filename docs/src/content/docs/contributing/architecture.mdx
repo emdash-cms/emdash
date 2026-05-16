@@ -146,7 +146,7 @@ function buildSchema(fields: Field[]): ZodSchema {
 
 ## Data layer
 
-EmDash uses [Kysely](https://kysely.dev) for type-safe SQL across every supported database (SQLite, Cloudflare D1, libSQL). The dialect is selected by `virtual:emdash/dialect` from the configuration the site passes to the integration.
+EmDash uses [Kysely](https://kysely.dev) for type-safe SQL across every supported database (SQLite, libSQL, Cloudflare D1, and PostgreSQL). The dialect is selected by `virtual:emdash/dialect` from the configuration the site passes to the integration.
 
 ## Live Collections loader
 

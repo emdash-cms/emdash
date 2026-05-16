@@ -22,7 +22,7 @@ EmDash is an Astro integration. You add it to `astro.config.mjs`, choose a datab
 │   │  (your data)  │◄────►│ /_emdash/admin │   │
 │   └───────────────┘      └────────────────┘   │
 │        │                                      │
-│   Database (SQLite / D1 / libSQL)             │
+│   Database (SQLite / libSQL / D1 / Postgres)  │
 │   Media storage (local / R2 / S3)             │
 └──────────────────────────────────────────────┘
 ```
@@ -85,7 +85,7 @@ export default defineConfig({
 });
 ```
 
-- **Database**: SQLite for local development, Cloudflare D1, or libSQL. See [Database options](/deployment/database/).
+- **Database**: SQLite (local or libSQL), Cloudflare D1, or PostgreSQL. See [Database options](/deployment/database/).
 - **Storage**: the local filesystem, Cloudflare R2, or any S3-compatible storage for media. See [Storage options](/deployment/storage/).
 
 ## Extending with plugins

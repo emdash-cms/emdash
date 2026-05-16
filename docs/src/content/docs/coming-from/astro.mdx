@@ -16,7 +16,7 @@ EmDash provides the content management features that file-based Astro sites lack
 | Feature              | Description                                          |
 | -------------------- | ---------------------------------------------------- |
 | **Admin UI**         | Full WYSIWYG editing interface at `/_emdash/admin` |
-| **Database storage** | Content stored in SQLite, libSQL, or Cloudflare D1   |
+| **Database storage** | Content stored in SQLite, libSQL, Cloudflare D1, or PostgreSQL |
 | **Media library**    | Upload, organize, and serve images and files         |
 | **Navigation menus** | Drag-and-drop menu management with nesting           |
 | **Widget areas**     | Dynamic sidebars and footer regions                  |
@@ -36,7 +36,7 @@ Astro's `astro:content` collections are file-based and resolved at build time. E
 
 |                    | Astro Collections                    | EmDash Collections                 |
 | ------------------ | ------------------------------------ | ------------------------------------ |
-| **Storage**        | Markdown/MDX files in `src/content/` | SQLite/D1 database                   |
+| **Storage**        | Markdown/MDX files in `src/content/` | SQL database (SQLite, libSQL, D1, or Postgres) |
 | **Editing**        | Code editor                          | Admin UI                             |
 | **Content format** | Markdown with frontmatter            | Portable Text (structured JSON)      |
 | **Updates**        | Requires rebuild                     | Instant (SSR)                        |

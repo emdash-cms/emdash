@@ -35,8 +35,8 @@ EmDash is purpose-built for Astro. This tight integration enables type-safe quer
 		Built on Astro's Live Content Collections. Content changes appear instantly.
 	</Card>
 	<Card title="Cloud-Portable" icon="setting">
-		Runs on Cloudflare Workers with D1 and R2, and also works with Node.js, SQLite, and any
-		S3-compatible storage.
+		Runs on Cloudflare Workers with D1 and R2, and on Node.js with SQLite, libSQL, or
+		PostgreSQL and any S3-compatible storage.
 	</Card>
 </CardGrid>
 
@@ -55,7 +55,7 @@ Different CMS approaches suit different needs:
 
 ## Cloudflare Deployment
 
-EmDash runs on any platform with SQLite and S3-compatible storage. It also supports Cloudflare-specific features:
+EmDash runs on any platform with a supported SQL database (SQLite, libSQL, or PostgreSQL) and S3-compatible storage. It also supports Cloudflare-specific features:
 
 - **D1** — SQLite at the edge with automatic replication
 - **R2** — S3-compatible storage with no egress fees
