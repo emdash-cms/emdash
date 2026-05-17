@@ -301,7 +301,10 @@ export const wordpressPluginSource: ImportSource = {
 		if (!response.ok) {
 			const body: unknown = await response.json().catch(() => undefined);
 			const message =
-				typeof body === "object" && body !== null && "message" in body && typeof body.message === "string"
+				typeof body === "object" &&
+				body !== null &&
+				"message" in body &&
+				typeof body.message === "string"
 					? body.message
 					: "";
 			throw new Error(message || `Failed to analyze site: ${response.statusText}`);
