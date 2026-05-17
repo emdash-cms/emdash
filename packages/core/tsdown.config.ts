@@ -113,20 +113,23 @@ export default defineConfig({
 		"src/plugins/adapt-sandbox-entry.ts",
 		// Public source-exported subpaths -- compiled so consumers never
 		// type-check our raw .ts (avoids the dual-package identity hazard).
-		// `./ui` and `./ui/search` stay source: they bridge into `.astro`
-		// components, which must be processed by the consumer's Astro build.
+		// `./ui`, `./ui/search` and the `*-admin.tsx` providers stay source:
+		// they bridge runtimes the consumer supplies (Astro components,
+		// the admin's React + @cloudflare/kumo), which their own build
+		// must process.
 		"src/api/route-utils.ts",
 		"src/api/schemas/index.ts",
 		"src/auth/providers/github.ts",
-		"src/auth/providers/github-admin.tsx",
 		"src/auth/providers/google.ts",
-		"src/auth/providers/google-admin.tsx",
 		// Injected API/page routes are added via inputOptions below (their
 		// `[param]` filenames are hostile to tsdown's glob-based `entry`).
 	],
 	format: "esm",
 	dts: true,
 	clean: true,
+	// Deps are externalized via `external` + package.json deps; nothing is
+	// unintentionally bundled. Suppress tsdown's advisory (CI escalates it).
+	inlineOnly: false,
 	inputOptions: (options) => {
 		// tsdown has already normalized the `entry` array into an input record
 		// by this hook; we only augment it with the route map.
@@ -150,8 +153,13 @@ export default defineConfig({
 		// Dialect-specific packages
 		"@libsql/kysely-libsql",
 		"pg",
+		// Optional S3 storage deps -- resolved at runtime only when used
+		/^@aws-sdk\//,
 		// Build tooling (CLI-time dependency with native bindings)
 		"tsdown",
+		// Self-import: compiled route entrypoints `import ... from "emdash"`,
+		// resolved at the consumer's runtime where the package is installed.
+		"emdash",
 		// Astro virtual modules (astro:assets, astro:middleware, astro:content, ...)
 		/^astro:/,
 		// .astro components/pages -- compiled by the consumer's Astro build

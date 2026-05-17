@@ -32,12 +32,14 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pkgPath = resolve(repoRoot, "packages/core/package.json");
 
 /**
- * Export keys allowed to ship raw source because they bridge into `.astro`
- * components the consumer's Astro build must process (same class as the
- * `.astro` targets themselves). Keep this list short and justified.
+ * Export keys allowed to ship raw source because they bridge a runtime the
+ * consumer supplies and whose own build must process them -- the same class
+ * as the `.astro` targets. Keep this list short and justified.
  */
-const ASTRO_COUPLED = new Set([
+const RUNTIME_COUPLED = new Set([
 	"./ui", // src/ui.ts -- re-exports Astro <Image>/<PortableText> components
+	"./auth/providers/github-admin", // .tsx -- admin React + @cloudflare/kumo
+	"./auth/providers/google-admin", // .tsx -- admin React + @cloudflare/kumo
 ]);
 
 // `.ts`/`.tsx` source, but NOT `.d.ts` declarations (those are the desired
@@ -54,7 +56,7 @@ function targets(value) {
 const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 const offenders = [];
 for (const [key, value] of Object.entries(pkg.exports ?? {})) {
-	if (ASTRO_COUPLED.has(key)) continue;
+	if (RUNTIME_COUPLED.has(key)) continue;
 	for (const target of targets(value)) {
 		if (RAW_SOURCE.test(target)) offenders.push(`${key} -> ${target}`);
 	}
@@ -65,8 +67,8 @@ if (offenders.length > 0) {
 		"[public-source-guard] FAIL -- subpath export(s) ship raw .ts/.tsx source.\n" +
 			"Raw source is type-checked by strict consumers and reintroduces the\n" +
 			"dual-package identity hazard (#1053). Compile these to dist (.mjs +\n" +
-			".d.mts) via tsdown, or -- only if they bridge into .astro -- add the\n" +
-			"key to ASTRO_COUPLED in this script with a justification.\n",
+			".d.mts) via tsdown, or -- only if they bridge a consumer-supplied\n" +
+			"runtime -- add the key to RUNTIME_COUPLED with a justification.\n",
 	);
 	for (const o of offenders) console.error("  " + o);
 	process.exit(1);
@@ -74,5 +76,5 @@ if (offenders.length > 0) {
 
 console.log(
 	`[public-source-guard] OK -- no subpath export ships raw .ts/.tsx ` +
-		`(${ASTRO_COUPLED.size} documented .astro-coupled exception(s)).`,
+		`(${RUNTIME_COUPLED.size} documented runtime-coupled exception(s)).`,
 );

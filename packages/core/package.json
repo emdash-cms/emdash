@@ -61,18 +61,12 @@
       "types": "./dist/auth/providers/github.d.mts",
       "default": "./dist/auth/providers/github.mjs"
     },
-    "./auth/providers/github-admin": {
-      "types": "./dist/auth/providers/github-admin.d.mts",
-      "default": "./dist/auth/providers/github-admin.mjs"
-    },
+    "./auth/providers/github-admin": "./src/auth/providers/github-admin.tsx",
     "./auth/providers/google": {
       "types": "./dist/auth/providers/google.d.mts",
       "default": "./dist/auth/providers/google.mjs"
     },
-    "./auth/providers/google-admin": {
-      "types": "./dist/auth/providers/google-admin.d.mts",
-      "default": "./dist/auth/providers/google-admin.mjs"
-    },
+    "./auth/providers/google-admin": "./src/auth/providers/google-admin.tsx",
     "./db": {
       "types": "./dist/db/index.d.mts",
       "default": "./dist/db/index.mjs"
