@@ -1,0 +1,16 @@
+{
+	"name": "@emdash-cms/fixture-public-types",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"emdash": "workspace:*"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "catalog:",
+		"@types/react": "catalog:",
+		"@types/sax": "^1.2.7",
+		"astro": "catalog:",
+		"typescript": "catalog:"
+	}
+}

@@ -1,0 +1,9 @@
+{
+	"extends": "astro/tsconfigs/strict",
+	"compilerOptions": {
+		"types": ["@cloudflare/workers-types"],
+		"noUncheckedSideEffectImports": true,
+		"noEmit": true
+	},
+	"include": ["env.d.ts", "shims.d.ts", ".generated/entry.ts"]
+}
