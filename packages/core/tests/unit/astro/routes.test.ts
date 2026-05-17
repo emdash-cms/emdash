@@ -42,6 +42,25 @@ describe("core media route injection", () => {
 	});
 });
 
+describe("core menu item path-style route injection", () => {
+	it("registers /_emdash/api/menus/[name]/items/[id] so PUT/DELETE by id are reachable", () => {
+		const routes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => {
+			routes.push({
+				...route,
+				entrypoint: route.entrypoint.replaceAll("\\", "/"),
+			});
+		});
+
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				pattern: "/_emdash/api/menus/[name]/items/[id]",
+				entrypoint: expect.stringContaining("api/menus/[name]/items/[id].ts"),
+			}),
+		);
+	});
+});
+
 describe("media file catch-all route", () => {
 	it("passes slash-containing keys through to storage.download", async () => {
 		const { context, download } = mockMediaContext("nested/path/file.png");
