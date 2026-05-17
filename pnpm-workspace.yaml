@@ -90,7 +90,7 @@ catalog:
   react: 19.2.4
   react-dom: 19.2.4
   tsdown: 0.20.3
-  typescript: ^5.9.3
+  typescript: ^6.0.3
   vite: ^8.0.11
   vitest: ^4.1.5
   wrangler: ^4.83.0
