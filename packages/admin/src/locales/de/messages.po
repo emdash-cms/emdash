@@ -6395,7 +6395,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:956
 msgid "This will move the item to trash. You can restore it later from the trash."
-msgstr "Dies verschiebt das Element in den Papierkorb. Sie können es später von dort wiederherstellen."
+msgstr "Dies verschiebt das Element in den Papierkorb. Du kannst es später von dort wiederherstellen."
 
 #. placeholder {0}: deleteTarget?.label
 #: packages/admin/src/components/TaxonomyManager.tsx:882
