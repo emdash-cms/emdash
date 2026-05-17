@@ -1,8 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Onest:wght@100..900&family=Source+Sans+3:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Onest:wght@100..900&family=Source+Sans+3:wght@300..700&display=swap');
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Onest', 'Source Sans 3', 'Segoe UI', sans-serif;
+  --font-sans: 'Inter', 'Source Sans 3', 'Segoe UI', sans-serif;
   --font-display: 'Bebas Neue', 'Oswald', sans-serif;
 }
 
@@ -14,25 +14,42 @@
   --site-accent: var(--brand-primary);
   --site-text-light: #f2f1ee;
 
-  --admin-shell-bg: color-mix(in oklab, var(--brand-secondary) 7%, white);
-  --admin-chrome-bg: color-mix(in oklab, white 96%, transparent);
+  --admin-shell-bg: #f5f7fa;
+  --admin-sidebar-bg: #f8fafc;
+  --admin-workspace-bg: #ffffff;
+  --admin-chrome-bg: color-mix(in oklab, #ffffff 96%, transparent);
   --admin-panel-bg: #ffffff;
-  --admin-panel-border: color-mix(in oklab, var(--brand-secondary) 15%, white);
-  --admin-text-strong: var(--brand-secondary);
-  --admin-text-soft: color-mix(in oklab, var(--brand-secondary) 52%, white);
-  --admin-btn-bg: var(--brand-secondary);
-  --admin-btn-border: var(--brand-secondary);
+  --admin-panel-border: #e5e7eb;
+  --admin-text-strong: #111827;
+  --admin-text-soft: #6b7280;
+  --admin-accent: #243b67;
+  --admin-btn-bg: var(--admin-accent);
+  --admin-btn-border: var(--admin-accent);
   --admin-btn-text: #ffffff;
-  --admin-active-bg: #ffffff;
-  --admin-active-border: color-mix(in oklab, var(--brand-primary) 72%, var(--brand-secondary));
+  --admin-active-bg: color-mix(in oklab, var(--admin-accent) 13%, #ffffff);
+  --admin-active-border: color-mix(in oklab, var(--admin-accent) 22%, #ffffff);
   --admin-field-bg: #ffffff;
-  --admin-field-border: color-mix(in oklab, var(--brand-secondary) 18%, white);
-  --admin-field-border-strong: color-mix(in oklab, var(--brand-secondary) 25%, white);
-  --admin-field-text: color-mix(in oklab, var(--brand-secondary) 92%, black);
-  --admin-row-bg: color-mix(in oklab, var(--brand-secondary) 4%, white);
-  --admin-nav-text: color-mix(in oklab, var(--brand-secondary) 88%, white);
-  --admin-nav-bg-hover: color-mix(in oklab, var(--brand-primary) 16%, white);
-  --admin-nav-bg-active: color-mix(in oklab, var(--brand-primary) 28%, white);
+  --admin-field-border: #e5e7eb;
+  --admin-field-border-strong: #d1d5db;
+  --admin-field-text: #111827;
+  --admin-row-bg: #f8fafc;
+  --admin-nav-text: #374151;
+  --admin-nav-bg-hover: color-mix(in oklab, var(--admin-accent) 7%, #ffffff);
+  --admin-nav-bg-active: color-mix(in oklab, var(--admin-accent) 12%, #ffffff);
+  --admin-focus-ring: color-mix(in oklab, var(--admin-accent) 24%, #ffffff);
+  --admin-success: #2f6f49;
+  --admin-warning: #8a6620;
+  --admin-danger: #9b3b3b;
+  --admin-success-bg: #edf8f1;
+  --admin-warning-bg: #fff7e8;
+  --admin-danger-bg: #fdf1f1;
+  --admin-radius-sm: 8px;
+  --admin-radius-btn: 10px;
+  --admin-radius-input: 10px;
+  --admin-radius-textarea: 12px;
+  --admin-radius-card: 14px;
+  --admin-radius-panel: 16px;
+  --admin-radius-chip: 999px;
 }
 
 @layer base {
@@ -118,35 +135,54 @@
   }
 
   .admin-panel {
-    @apply rounded-2xl border p-4;
+    /*@apply pb-4;*/
+    border-radius: var(--admin-radius-card);
     background: var(--admin-panel-bg);
-    /*border-color: var(--admin-panel-border);*/
-    border-color: transparent;
-    box-shadow: 0 1px 0 rgba(16, 24, 40, 0.02);
+    padding-bottom: 1rem;
+    /*border-color: var(--admin-panel-border);
+    box-shadow: 0 1px 1px rgba(17, 24, 39, 0.03);*/
   }
 
   .admin-pill {
-    @apply inline-flex min-h-10 items-center rounded-xl border px-4 py-2 text-sm font-medium;
+    @apply inline-flex items-center justify-center border px-4 py-2 text-sm font-semibold;
+    min-height: 40px;
+    border-radius: var(--admin-radius-btn);
     border-color: var(--admin-btn-border);
     background: var(--admin-btn-bg);
     color: var(--admin-btn-text);
   }
 
   .admin-pill-ghost {
-    @apply inline-flex min-h-10 items-center rounded-xl border px-4 py-2 text-sm font-medium;
-    background: transparent;
-    border-color: var(--admin-panel-border);
-    color: var(--admin-text-soft);
+    @apply inline-flex items-center justify-center border px-4 py-2 text-sm font-semibold;
+    min-height: 40px;
+    border-radius: var(--admin-radius-btn);
+    background: #ffffff;
+    border-color: var(--admin-field-border-strong);
+    color: var(--admin-text-strong);
   }
 
   .admin-input,
   .admin-textarea,
   .admin-select {
-    @apply w-full rounded-xl border px-3 py-2;
+    @apply w-full border px-3 py-2;
+    min-height: 44px;
+    border-radius: var(--admin-radius-input);
     border-color: var(--admin-field-border-strong);
     background: var(--admin-field-bg);
     color: var(--admin-field-text);
-    box-shadow: inset 0 1px 1px color-mix(in oklab, var(--brand-secondary) 18%, transparent);
+    box-shadow: inset 0 1px 1px color-mix(in oklab, #111827 6%, transparent);
+  }
+
+  .admin-textarea {
+    border-radius: var(--admin-radius-textarea);
+    padding: 0.7rem 0.85rem;
+  }
+
+  .admin-input:focus,
+  .admin-textarea:focus,
+  .admin-select:focus {
+    outline: 2px solid var(--admin-focus-ring);
+    outline-offset: 1px;
   }
 
   .admin-label {
@@ -155,7 +191,8 @@
   }
 
   .admin-list-item {
-    @apply grid w-full gap-0.5 rounded-md border px-3 py-2 text-left;
+    @apply grid w-full gap-0.5 border px-3 py-2 text-left;
+    border-radius: var(--admin-radius-sm);
     border-color: var(--admin-field-border);
     background: var(--admin-field-bg);
     color: var(--admin-field-text);
@@ -172,20 +209,21 @@
 
   .admin-icon-danger {
     @apply inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition;
-    border-color: #d9a9ad;
-    color: #b37075;
+    border-color: color-mix(in oklab, var(--admin-danger) 30%, #ffffff);
+    color: var(--admin-danger);
     background: #fff;
   }
 
   .admin-icon-danger:hover {
-    border-color: #c67a80;
-    color: #a33f47;
-    background: #fff5f6;
+    border-color: color-mix(in oklab, var(--admin-danger) 46%, #ffffff);
+    color: color-mix(in oklab, var(--admin-danger) 86%, #000000);
+    background: var(--admin-danger-bg);
   }
 
   .admin-sidebar {
     @apply flex h-screen flex-col;
     border-color: var(--admin-panel-border);
+    /*background: var(--admin-sidebar-bg);*/
   }
 
   .admin-side-label {
@@ -194,7 +232,8 @@
   }
 
   .admin-side-link {
-    @apply flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-[16px] font-medium transition;
+    @apply flex w-full items-center gap-3 px-4 py-2.5 text-left text-[16px] font-medium transition;
+    border-radius: 11px;
     color: var(--admin-nav-text);
   }
 
@@ -204,11 +243,179 @@
 
   .admin-side-link.active {
     background: var(--admin-nav-bg-active);
-    color: var(--brand-secondary);
+    color: var(--admin-text-strong);
+    box-shadow: inset 0 0 0 1px var(--admin-active-border);
   }
 
   .admin-side-icon {
     @apply h-[18px] w-[18px] shrink-0 opacity-80;
-    stroke-width: 2.2;
+    stroke-width: 2;
+  }
+
+  .admin-save-state {
+    @apply inline-flex items-center border px-2.5 py-1 text-xs font-semibold;
+    border-radius: var(--admin-radius-chip);
+    border-color: color-mix(in oklab, var(--admin-success) 26%, #ffffff);
+    color: var(--admin-success);
+    background: var(--admin-success-bg);
+  }
+
+  .admin-main-title {
+    font-family: 'Onest', 'Inter', 'Segoe UI', sans-serif;
+  }
+
+  .admin-content {
+    font-family: 'Inter', 'Source Sans 3', 'Segoe UI', sans-serif;
+  }
+
+  .ds-card {
+    @apply border bg-white p-4;
+    border-color: var(--admin-panel-border);
+    border-radius: var(--admin-radius-card);
+  }
+
+  .ds-button {
+    @apply inline-flex items-center justify-center border px-4 py-2 text-sm font-semibold;
+    min-height: 40px;
+    border-radius: var(--admin-radius-btn);
+    border-color: var(--admin-btn-border);
+    background: var(--admin-btn-bg);
+    color: var(--admin-btn-text);
+  }
+
+  .ds-icon-button {
+    @apply inline-flex h-10 w-10 items-center justify-center border;
+    border-radius: var(--admin-radius-btn);
+    border-color: var(--admin-field-border-strong);
+    background: #ffffff;
+    color: var(--admin-text-strong);
+  }
+
+  .ds-input,
+  .ds-select {
+    @apply w-full border px-3 py-2 text-sm;
+    min-height: 44px;
+    border-radius: var(--admin-radius-input);
+    border-color: var(--admin-field-border-strong);
+    background: var(--admin-field-bg);
+    color: var(--admin-field-text);
+  }
+
+  .ds-textarea {
+    @apply w-full border px-3 py-2 text-sm;
+    min-height: 44px;
+    border-radius: var(--admin-radius-textarea);
+    border-color: var(--admin-field-border-strong);
+    background: var(--admin-field-bg);
+    color: var(--admin-field-text);
+  }
+
+  .ds-checkbox,
+  .ds-radio {
+    @apply h-4 w-4 border;
+    border-color: var(--admin-field-border-strong);
+    accent-color: var(--admin-accent);
+  }
+
+  .ds-switch {
+    @apply relative inline-flex h-6 w-11 items-center rounded-full border;
+    border-color: var(--admin-field-border-strong);
+    background: var(--admin-row-bg);
+  }
+
+  .ds-switch::after {
+    content: '';
+    @apply absolute left-0.5 h-5 w-5 rounded-full;
+    background: #ffffff;
+    box-shadow: 0 1px 1px rgba(17, 24, 39, 0.12);
+  }
+
+  .ds-tabs {
+    @apply inline-flex gap-1 border p-1;
+    border-radius: var(--admin-radius-btn);
+    border-color: var(--admin-panel-border);
+    background: var(--admin-row-bg);
+  }
+
+  .ds-tab {
+    @apply px-3 py-1.5 text-sm font-medium;
+    border-radius: var(--admin-radius-sm);
+    color: var(--admin-text-soft);
+  }
+
+  .ds-tab.active {
+    background: #ffffff;
+    color: var(--admin-text-strong);
+    box-shadow: inset 0 0 0 1px var(--admin-panel-border);
+  }
+
+  .ds-badge {
+    @apply inline-flex items-center px-2.5 py-1 text-xs font-semibold;
+    border-radius: var(--admin-radius-chip);
+    border: 1px solid var(--admin-panel-border);
+    color: var(--admin-text-soft);
+    background: var(--admin-row-bg);
+  }
+
+  .ds-badge.success {
+    border-color: color-mix(in oklab, var(--admin-success) 26%, #ffffff);
+    color: var(--admin-success);
+    background: var(--admin-success-bg);
+  }
+
+  .ds-badge.warning {
+    border-color: color-mix(in oklab, var(--admin-warning) 30%, #ffffff);
+    color: var(--admin-warning);
+    background: var(--admin-warning-bg);
+  }
+
+  .ds-badge.danger {
+    border-color: color-mix(in oklab, var(--admin-danger) 30%, #ffffff);
+    color: var(--admin-danger);
+    background: var(--admin-danger-bg);
+  }
+
+  .ds-toast,
+  .ds-tooltip,
+  .ds-dropdown,
+  .ds-modal,
+  .ds-confirm-dialog,
+  .ds-empty-state,
+  .ds-file-upload,
+  .ds-stats-card,
+  .ds-nav-item {
+    @apply border bg-white;
+    border-color: var(--admin-panel-border);
+  }
+
+  .ds-toast,
+  .ds-tooltip,
+  .ds-dropdown,
+  .ds-empty-state,
+  .ds-file-upload,
+  .ds-stats-card,
+  .ds-nav-item {
+    border-radius: var(--admin-radius-card);
+  }
+
+  .ds-modal,
+  .ds-confirm-dialog {
+    border-radius: var(--admin-radius-panel);
+  }
+
+  .ds-table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .ds-table th {
+    @apply border-b px-3 py-2 text-left font-semibold;
+    border-color: var(--admin-panel-border);
+    color: var(--admin-text-strong);
+  }
+
+  .ds-table td {
+    @apply border-b px-3 py-2;
+    border-color: var(--admin-panel-border);
+    color: var(--admin-text-soft);
   }
 }

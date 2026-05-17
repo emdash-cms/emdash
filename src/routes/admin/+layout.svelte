@@ -88,7 +88,7 @@
         {/each}
       </div>
       <div class="px-4 pb-4">
-        <button class="w-full rounded-2xl border p-3 text-left" style={`border-color: var(--admin-panel-border); background: #f0f2f6;`}>
+        <button class="w-full border p-3 text-left" style={`border-color: var(--admin-panel-border); background: #f0f2f6; border-radius: 14px;`}>
           <p class="m-0 text-sm font-semibold text-[var(--admin-text-strong)]">Your Symballo Account</p>
           <p class="m-0 mt-1 text-sm text-[var(--admin-text-strong)]">Account Settings</p>
         </button>
@@ -98,7 +98,7 @@
     <section class="admin-panel m-3 flex min-w-0 flex-col overflow-hidden p-0">
       <header class="flex items-center justify-between border-b px-5 py-3" style={`border-color: var(--admin-panel-border);`}>
 
-        <h2 class="m-0 text-3xl font-semibold text-[var(--admin-text-strong)]">{routeTitle}</h2>
+        <h2 class="admin-main-title m-0 text-3xl font-semibold text-[var(--admin-text-strong)]">{routeTitle}</h2>
         <div class="flex items-center gap-2">
             <button class="admin-pill-ghost"><CircleHelp class="mr-2 inline-block h-4 w-4" />View Guide</button>
             {#if currentPath !== '/admin'}
@@ -107,7 +107,7 @@
           </div>
       </header>
 
-      <div class="min-h-0 flex-1 overflow-auto px-5 py-4">
+      <div class="admin-content min-h-0 flex-1 overflow-auto px-5 py-4">
         <header class="mb-4 flex flex-wrap items-start justify-between gap-3 border-b-transparent pb-4" style={`border-color: var(--admin-panel-border);`}>
           <div>
             <p class="mt-1 text-[18px] text-[var(--admin-text-soft)]">

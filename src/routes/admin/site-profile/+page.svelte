@@ -1,7 +1,7 @@
 <section class="admin-panel grid gap-0">
   <div class="flex items-start justify-between gap-3">
 
-    <p class="m-0 mt-1 text-sm font-medium text-emerald-600">Saved</p>
+    <p class="admin-save-state m-0 mt-1 text-emerald-600">Saved</p>
   </div>
 
   <div class="flex items-end gap-5 border-b-transparent pb-0.5" style={`border-color: var(--admin-panel-border);`}>
@@ -61,6 +61,6 @@
   </div>
 
   <div class="flex justify-end">
-    <button class="admin-pill">Save Changes</button>
+    <button class="admin-pill mt-6">Save Changes</button>
   </div>
 </section>
