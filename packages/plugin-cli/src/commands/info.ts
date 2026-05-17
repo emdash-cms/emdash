@@ -73,7 +73,7 @@ export const infoCommand = defineCommand({
 		// blindly print whatever an aggregator (or a malicious publisher)
 		// stuffed into it.
 		const parsed = safeParse(PackageProfile.mainSchema, result.profile);
-		const profile: PackageProfile.Main | null = parsed.ok ? parsed.value : null;
+		const profile = parsed.ok ? parsed.value : null;
 		if (!profile) {
 			consola.warn(
 				`Profile record at ${result.uri} doesn't match the lexicon; printing what we have anyway.`,
