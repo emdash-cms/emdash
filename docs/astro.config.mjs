@@ -248,5 +248,5 @@ export default defineConfig({
 		}),
 	],
 
-	adapter: cloudflare(),
+	adapter: cloudflare({ remoteBindings: false, prerenderEnvironment: "node" }),
 });
