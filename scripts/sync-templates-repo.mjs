@@ -49,7 +49,18 @@ const TEMPLATES = [
 	"starter-cloudflare",
 ];
 
-const EXCLUDE = new Set(["node_modules", "dist", ".astro", ".emdash", "CHANGELOG.md"]);
+const EXCLUDE = new Set([
+	"node_modules",
+	"dist",
+	".astro",
+	".emdash",
+	"CHANGELOG.md",
+	// AGENTS-template.md is the canonical per-template body that the
+	// sync-template-skills.sh script concatenates with scripts/agents-base.md
+	// to produce the final AGENTS.md. The public templates repo only needs
+	// the generated AGENTS.md.
+	"AGENTS-template.md",
+]);
 
 const RE_NON_WHITESPACE_START = /^\S/;
 const RE_CATALOG_ENTRY = /^\s+"?([^"]+)"?:\s+(.+)$/;

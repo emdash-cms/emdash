@@ -8,6 +8,10 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { routeArtifactName } from "./route-naming.js";
+
+const TS_EXT = /\.tsx?$/;
+
 /**
  * Resolve path to a route file in the package
  * Uses Node.js APIs - only call at build time
@@ -18,12 +22,19 @@ function resolveRoute(route: string): string {
 	const require = createRequire(import.meta.url);
 	const __dirname = dirname(fileURLToPath(import.meta.url));
 
+	// .astro routes ship as source (the consumer's Astro build processes them);
+	// .ts/.tsx routes are compiled, exported extensionless via emdash/routes/*.
+	const isAstro = route.endsWith(".astro");
+	const specifier = isAstro ? route : routeArtifactName(route.replace(TS_EXT, ""));
+
 	try {
 		// Try to resolve as package export
-		return require.resolve(`emdash/routes/${route}`);
+		return require.resolve(`emdash/routes/${specifier}`);
 	} catch {
-		// Fallback to relative path (for development)
-		return resolve(__dirname, "../routes", route);
+		// Fallback for development (e.g. dist not yet built).
+		return isAstro
+			? resolve(__dirname, "../routes", route)
+			: resolve(__dirname, "../routes", `${specifier}.mjs`);
 	}
 }
 
