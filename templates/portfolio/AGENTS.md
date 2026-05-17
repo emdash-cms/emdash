@@ -60,12 +60,14 @@ The design is intentionally restrained. Don't pile on colour, gradients, or deco
 
 ## Schema
 
-- `projects` collection: `title`, `featured_image`, `client`, `year`, `summary` (text), `content` (Portable Text), `gallery` (json -- optional array of image objects), `url`.
+- `projects` collection: `title`, `featured_image`, `client`, `year`, `summary` (text), `content` (Portable Text), `gallery` (json -- optional array of `{ url, alt? }` records, see below), `url`.
 - `pages` collection: `title`, `content` (Portable Text). Used for `/about`.
 - Taxonomies: `category`, `tag`. Used for filtering on the work index.
 - Single `primary` menu.
 
 Site settings have `title` and `tagline` -- both render on the home page (title as the centred serif heading, tagline as italic subtitle).
+
+The `gallery` field on `projects` is a JSON field, not an EmDash image field. It expects a literal array of `{ url: string, alt?: string }` records (a flat external URL plus optional alt text), and is rendered as-is by `src/pages/work/[slug].astro`. Do NOT confuse it with EmDash image fields like `featured_image`, which take `{ id, provider, alt }` objects from the media library. If you need media-library images in a gallery in the future, the right fix is to change the field type and renderer together.
 
 ## Visual character
 
