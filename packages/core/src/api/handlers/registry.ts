@@ -126,7 +126,7 @@ const MULTIHASH_SHA256_LENGTH = 0x20;
 /**
  * Compute the multibase-multihash sha2-256 checksum of `bytes`, in the
  * same `b<base32>` shape the registry CLI publishes
- * (`packages/registry-cli/src/multihash.ts`). Returns a 56-character
+ * (`packages/plugin-cli/src/multihash.ts`). Returns a 56-character
  * string starting with `b`.
  *
  * The trust contract is: if both sides produce the same string for
@@ -157,7 +157,7 @@ async function sha256MultibaseMultihash(bytes: Uint8Array): Promise<string> {
  *     publishers / tools that emit hex rather than multibase.
  *   - Multibase-multihash with the `b` (base32) prefix and sha2-256.
  *     This is the format RFC 0001 mandates and the registry CLI emits
- *     (see `packages/registry-cli/src/multihash.ts`).
+ *     (see `packages/plugin-cli/src/multihash.ts`).
  *
  * Hash functions other than sha2-256 are out of scope for this
  * initial release; the install fails closed.

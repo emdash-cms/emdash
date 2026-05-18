@@ -241,7 +241,7 @@ export function MenuEditor() {
 		// Update sort orders
 		const reorderedItems = newItems.map((item, i) => ({
 			id: item.id,
-			parentId: item.parent_id,
+			parentId: item.parentId,
 			sortOrder: i,
 		}));
 
@@ -418,10 +418,10 @@ export function MenuEditor() {
 								<div className="font-medium">{item.label}</div>
 								<div className="text-sm text-kumo-subtle">
 									{item.type === "custom" ? (
-										item.custom_url
+										item.customUrl
 									) : (
 										<span className="inline-flex items-center rounded-full bg-kumo-brand/10 px-2 py-0.5 text-xs font-medium text-kumo-brand">
-											{item.reference_collection ?? item.type}
+											{item.referenceCollection ?? item.type}
 										</span>
 									)}
 									{item.target === "_blank" && t` (opens in new window)`}
@@ -504,7 +504,7 @@ export function MenuEditor() {
 									required
 									pattern="(https?://.+|/.*)"
 									title={t`Enter a URL (https://…) or a relative path (/…)`}
-									defaultValue={editingItem.custom_url || ""}
+									defaultValue={editingItem.customUrl || ""}
 								/>
 							)}
 							<Select

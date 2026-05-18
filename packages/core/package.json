@@ -22,6 +22,9 @@
       "types": "./dist/astro/index.d.mts",
       "default": "./dist/astro/index.mjs"
     },
+    "./plugin": {
+      "types": "./dist/plugin-types.d.mts"
+    },
     "./middleware": {
       "types": "./dist/astro/middleware.d.mts",
       "default": "./dist/astro/middleware.mjs"
@@ -44,12 +47,28 @@
       "types": "./dist/cli/index.d.mts",
       "default": "./dist/cli/index.mjs"
     },
-    "./routes/*": "./src/astro/routes/*",
-    "./api/route-utils": "./src/api/route-utils.ts",
-    "./api/schemas": "./src/api/schemas/index.ts",
-    "./auth/providers/github": "./src/auth/providers/github.ts",
+    "./routes/*.astro": "./src/astro/routes/*.astro",
+    "./routes/*": {
+      "types": "./dist/astro/routes/*.d.mts",
+      "default": "./dist/astro/routes/*.mjs"
+    },
+    "./api/route-utils": {
+      "types": "./dist/api/route-utils.d.mts",
+      "default": "./dist/api/route-utils.mjs"
+    },
+    "./api/schemas": {
+      "types": "./dist/api/schemas/index.d.mts",
+      "default": "./dist/api/schemas/index.mjs"
+    },
+    "./auth/providers/github": {
+      "types": "./dist/auth/providers/github.d.mts",
+      "default": "./dist/auth/providers/github.mjs"
+    },
     "./auth/providers/github-admin": "./src/auth/providers/github-admin.tsx",
-    "./auth/providers/google": "./src/auth/providers/google.ts",
+    "./auth/providers/google": {
+      "types": "./dist/auth/providers/google.d.mts",
+      "default": "./dist/auth/providers/google.mjs"
+    },
     "./auth/providers/google-admin": "./src/auth/providers/google-admin.tsx",
     "./db": {
       "types": "./dist/db/index.d.mts",

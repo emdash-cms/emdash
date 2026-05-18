@@ -10,34 +10,25 @@
 			"import": "./dist/index.mjs",
 			"types": "./dist/index.d.mts"
 		},
-		"./sandbox": "./dist/sandbox-entry.mjs"
+		"./sandbox": "./dist/plugin.mjs"
 	},
-	"files": [
-		"dist"
-	],
+	"files": ["dist", "emdash-plugin.jsonc"],
 	"scripts": {
-		"build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
-		"dev": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --watch",
+		"build": "node node_modules/@emdash-cms/plugin-cli/dist/index.mjs build",
+		"dev": "emdash-plugin dev",
 		"typecheck": "tsgo --noEmit"
 	},
-	"keywords": [
-		"emdash",
-		"cms",
-		"plugin",
-		"test",
-		"sandbox"
-	],
+	"keywords": ["emdash", "cms", "plugin", "test", "sandbox"],
 	"author": "Matt Kane",
 	"license": "MIT",
 	"dependencies": {
 		"emdash": "workspace:*"
 	},
 	"devDependencies": {
+		"@emdash-cms/plugin-cli": "workspace:*",
 		"tsdown": "catalog:",
 		"typescript": "catalog:"
 	},
-	"peerDependencies": {},
-	"optionalDependencies": {},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/emdash-cms/emdash.git",

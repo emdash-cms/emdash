@@ -5,7 +5,7 @@ description: Deploy EmDash to any Node.js hosting platform.
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash runs on any Node.js 22+ hosting platform. This guide covers deployment to common providers using SQLite and local or S3-compatible storage.
+EmDash runs on any Node.js 22+ hosting platform. This guide uses SQLite with local or S3-compatible storage; libSQL and PostgreSQL work the same way on Node.js — see [Database Options](/deployment/database/).
 
 ## Prerequisites
 
@@ -117,14 +117,14 @@ CMD ["node", "./dist/server/entry.mjs"]
 
 The seed file is read at build time and inlined into the bundle, so it does not need to be copied into the runtime image. Migrations run on the first request after a deploy; the seed applies only when the database has no collections and setup hasn't been completed — existing data is never overwritten.
 
-Build and run:
+Build the image and run the container:
 
 ```bash
 docker build -t my-emdash-site .
 docker run -p 4321:4321 -v emdash-data:/app/data my-emdash-site
 ```
 
-Or use Docker Compose:
+A Docker Compose file manages the same container with a named volume:
 
 ```yaml title="compose.yaml"
 services:
@@ -140,6 +140,8 @@ volumes:
   emdash-data:
 ```
 
+Start the stack in the background:
+
 ```bash
 docker compose up -d
 ```
@@ -148,10 +150,12 @@ docker compose up -d
 
 ### Recommended: encryption key
 
-`EMDASH_ENCRYPTION_KEY` is used to encrypt plugin secrets at rest. The
-current release validates the key but does not yet use it — plugin
-secret encryption is rolling out and will start using this value
-automatically when available. Set it now so your deployment is ready.
+`EMDASH_ENCRYPTION_KEY` is the key for encrypting plugin secrets at
+rest. The key is validated on startup; plugin secret encryption uses
+it once enabled. Set it on every deployment so secrets are protected
+without a later config change.
+
+Generate a key and add the result to your environment:
 
 ```bash
 npx emdash secrets generate  # add the result to your environment
@@ -173,7 +177,7 @@ process needs to share a secret with your main site.
 | -------- | ----------- |
 | `EMDASH_PREVIEW_SECRET` | Override for the auto-generated preview HMAC secret. |
 | `EMDASH_IP_SALT` | Override for the auto-generated commenter-IP hash salt. |
-| `EMDASH_AUTH_SECRET` | Legacy. No longer required. If set, used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which wins) so existing installs keep stable commenter-IP hashes across the upgrade. New installs should ignore this. |
+| `EMDASH_AUTH_SECRET` | Optional. If set, used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which takes precedence), keeping commenter-IP hashes stable for installs that already rely on it. Leave it unset for a new deployment. |
 
 ### Database and Storage
 

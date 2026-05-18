@@ -9,34 +9,25 @@
 			"import": "./dist/index.mjs",
 			"types": "./dist/index.d.mts"
 		},
-		"./sandbox": "./dist/sandbox-entry.mjs"
+		"./sandbox": "./dist/plugin.mjs"
 	},
-	"files": [
-		"dist"
-	],
-	"keywords": [
-		"emdash",
-		"cms",
-		"plugin",
-		"webhook",
-		"notifications",
-		"integration"
-	],
+	"files": ["dist", "emdash-plugin.jsonc"],
+	"keywords": ["emdash", "cms", "plugin", "webhook", "notifications", "integration"],
 	"author": "Matt Kane",
 	"license": "MIT",
 	"peerDependencies": {
 		"emdash": "workspace:>=0.10.0"
 	},
 	"devDependencies": {
+		"@emdash-cms/plugin-cli": "workspace:*",
 		"tsdown": "catalog:",
 		"typescript": "catalog:"
 	},
 	"scripts": {
-		"build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
-		"dev": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --watch",
+		"build": "node node_modules/@emdash-cms/plugin-cli/dist/index.mjs build",
+		"dev": "emdash-plugin dev",
 		"typecheck": "tsgo --noEmit"
 	},
-	"optionalDependencies": {},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/emdash-cms/emdash.git",

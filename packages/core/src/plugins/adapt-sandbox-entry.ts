@@ -11,12 +11,10 @@
  */
 
 import type { PluginDescriptor } from "../astro/integration/runtime.js";
+import type { SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
 import { normalizeCapabilities } from "./types.js";
 import type {
-	StandardPluginDefinition,
-	StandardHookEntry,
-	StandardHookHandler,
 	ResolvedPlugin,
 	ResolvedPluginHooks,
 	ResolvedHook,
@@ -27,6 +25,29 @@ import type {
 } from "./types.js";
 
 /**
+ * Loose per-hook entry shape used inside the adapter's iteration loop.
+ *
+ * `SandboxedPlugin.hooks` is a mapped type keyed by hook name, so each
+ * entry's type depends on the key. When the adapter iterates with
+ * `Object.entries`, the key is `string` (TypeScript can't see the
+ * narrowing), so we need a *union* type that covers every hook entry
+ * shape — bare handler or config form. This is that union, kept local
+ * because it has no use outside the adapter.
+ */
+// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event types across all hook names
+type AnyHookHandler = (...args: any[]) => Promise<any>;
+type AnyHookEntry =
+	| AnyHookHandler
+	| {
+			handler: AnyHookHandler;
+			priority?: number;
+			timeout?: number;
+			dependencies?: string[];
+			errorPolicy?: "continue" | "abort";
+			exclusive?: boolean;
+	  };
+
+/**
  * Default hook configuration values
  */
 const DEFAULT_PRIORITY = 100;
@@ -34,27 +55,23 @@ const DEFAULT_TIMEOUT = 5000;
 const DEFAULT_ERROR_POLICY = "abort" as const;
 
 /**
- * Check if a standard hook entry is a config object (has a `handler` property)
+ * Check if a hook entry is the config form (has a `handler` property).
  */
-function isHookConfig(
-	entry: StandardHookEntry,
-): entry is Exclude<StandardHookEntry, StandardHookHandler> {
+function isHookConfig(entry: AnyHookEntry): entry is Exclude<AnyHookEntry, AnyHookHandler> {
 	return typeof entry === "object" && entry !== null && "handler" in entry;
 }
 
 /**
- * Resolve a single standard hook entry to a ResolvedHook.
+ * Resolve a single hook entry to a ResolvedHook.
  *
- * Standard-format hooks use the sandbox entry convention:
- *   handler(event, ctx) -- two args
+ * Sandboxed-format hooks use the standard two-arg convention:
+ *   handler(event, ctx)
  *
  * The HookPipeline dispatch methods also call handlers with (event, ctx),
- * so the handler is compatible as-is. We just need to wrap it for type safety.
+ * so the handler is compatible as-is — we just normalise the
+ * surrounding config (priority, timeout, etc.) to its defaults.
  */
-function resolveStandardHook(
-	entry: StandardHookEntry,
-	pluginId: string,
-): ResolvedHook<StandardHookHandler> {
+function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHook<AnyHookHandler> {
 	if (isHookConfig(entry)) {
 		return {
 			priority: entry.priority ?? DEFAULT_PRIORITY,
@@ -84,27 +101,46 @@ const VALID_CAPABILITIES_SET = new Set<string>(PLUGIN_CAPABILITIES);
 const VALID_HOOK_NAMES_SET = new Set<string>(HOOK_NAMES);
 
 /**
- * Adapt a standard-format plugin definition into a ResolvedPlugin.
+ * Adapt a sandboxed plugin's default export into a ResolvedPlugin.
  *
- * This is the core of the unified plugin format. It takes the `{ hooks, routes }`
- * export from a standard plugin and produces a ResolvedPlugin that can enter the
- * HookPipeline alongside native plugins.
+ * This is the in-process side of sandboxed-format plugins: it takes
+ * the `{ hooks, routes }` default export of a sandboxed plugin and
+ * produces a `ResolvedPlugin` that enters the HookPipeline alongside
+ * native plugins. The descriptor supplies identity (id, version) and
+ * the trust contract (capabilities, allowedHosts, storage); the
+ * definition supplies behaviour.
  *
- * @param definition - The standard plugin definition (from definePlugin() or raw export)
+ * @param definition - The plugin's default export (matching `SandboxedPlugin` from `emdash/plugin`).
  * @param descriptor - The plugin descriptor with id, version, capabilities, etc.
- * @returns A ResolvedPlugin compatible with HookPipeline
+ * @returns A ResolvedPlugin compatible with HookPipeline.
  */
 export function adaptSandboxEntry(
-	definition: StandardPluginDefinition,
+	definition: SandboxedPlugin,
 	descriptor: PluginDescriptor,
 ): ResolvedPlugin {
 	const pluginId = descriptor.id;
 	const version = descriptor.version;
 
-	// Resolve hooks
+	// A null / array / non-object `definition` would throw a generic
+	// `TypeError: Cannot read properties of null` further down the
+	// loop without the plugin id; surface a useful error first.
+	if (typeof definition !== "object" || definition === null || Array.isArray(definition)) {
+		throw new Error(
+			`Plugin "${pluginId}" default export must be an object with ` +
+				`\`hooks\` and/or \`routes\` (got ${
+					Array.isArray(definition) ? "array" : typeof definition
+				}). Did you forget \`export default {...} satisfies SandboxedPlugin\`?`,
+		);
+	}
+
+	// Resolve hooks. `SandboxedPlugin.hooks` is keyed by hook name with
+	// per-key entry types; iterating with `Object.entries` collapses
+	// keys to `string`, so we treat each entry as the union `AnyHookEntry`
+	// for the duration of the loop.
 	const resolvedHooks: ResolvedPluginHooks = {};
 	if (definition.hooks) {
-		for (const [hookName, entry] of Object.entries(definition.hooks)) {
+		const hookMap = definition.hooks as Record<string, AnyHookEntry>;
+		for (const [hookName, entry] of Object.entries(hookMap)) {
 			if (!VALID_HOOK_NAMES_SET.has(hookName)) {
 				throw new Error(
 					`Plugin "${pluginId}" declares unknown hook "${hookName}". ` +
@@ -115,33 +151,73 @@ export function adaptSandboxEntry(
 			// We store it as the generic type and let HookPipeline's typed dispatch
 			// methods handle the type narrowing at call time.
 			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- bridging untyped map to typed interface
-			(resolvedHooks as Record<string, unknown>)[hookName] = resolveStandardHook(entry, pluginId);
+			(resolvedHooks as Record<string, unknown>)[hookName] = resolveSandboxedHook(entry, pluginId);
 		}
 	}
 
-	// Resolve routes: standard format uses (routeCtx, pluginCtx) two-arg pattern.
-	// Native format uses (ctx: RouteContext) single-arg pattern where RouteContext
-	// extends PluginContext with { input, request, requestMeta }.
-	// We wrap standard route handlers to merge the two args into one.
+	// Resolve routes: sandboxed format uses (routeCtx, pluginCtx) two-arg
+	// pattern. Native format uses (ctx: RouteContext) single-arg pattern
+	// where RouteContext extends PluginContext with
+	// { input, request, requestMeta }. We wrap sandboxed route handlers
+	// to merge the two args into one.
+	//
+	// Route entries can be bare functions or `{ handler, public?, input? }`
+	// config objects; normalise to the config shape inside the loop.
 	const resolvedRoutes: Record<string, PluginRoute> = {};
 	if (definition.routes) {
-		for (const [routeName, routeEntry] of Object.entries(definition.routes)) {
-			const standardHandler = routeEntry.handler;
+		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
+			const isConfig = typeof rawEntry === "object" && rawEntry !== null && "handler" in rawEntry;
+			const handler = isConfig
+				? (rawEntry as { handler: (...args: unknown[]) => Promise<unknown> }).handler
+				: (rawEntry as (...args: unknown[]) => Promise<unknown>);
+			const publicFlag = isConfig ? (rawEntry as { public?: boolean }).public : undefined;
+			const inputSchema = isConfig ? (rawEntry as { input?: unknown }).input : undefined;
 			resolvedRoutes[routeName] = {
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- StandardRouteEntry.input is intentionally loosely typed; callers validate at runtime
-				input: routeEntry.input as PluginRoute["input"],
-				public: routeEntry.public,
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- route entry.input is intentionally loosely typed; callers validate at runtime
+				input: inputSchema as PluginRoute["input"],
+				public: publicFlag,
 				handler: async (ctx) => {
-					// Build the routeCtx shape that standard handlers expect
+					// In-process, `ctx.request` is a real WHATWG `Request`
+					// with a `Headers` object. The author-facing
+					// `SandboxedRequest` type promises a plain
+					// `Record<string, string>` (the shape the sandbox's
+					// serialised form delivers). Normalise so handlers
+					// behave the same in-process and in-isolate.
+					const headers: Record<string, string> = {};
+					if (ctx.request && typeof ctx.request === "object") {
+						const h: unknown = (ctx.request as { headers?: unknown }).headers;
+						if (h && typeof h === "object") {
+							if (typeof (h as Headers).forEach === "function") {
+								(h as Headers).forEach((value, name) => {
+									headers[name] = value;
+								});
+							} else {
+								for (const [name, value] of Object.entries(h as Record<string, string>)) {
+									headers[name] = value;
+								}
+							}
+						}
+					}
+					const requestShape = {
+						url:
+							(ctx.request as { url?: unknown } | undefined)?.url &&
+							typeof (ctx.request as { url: unknown }).url === "string"
+								? (ctx.request as { url: string }).url
+								: "",
+						method:
+							(ctx.request as { method?: unknown } | undefined)?.method &&
+							typeof (ctx.request as { method: unknown }).method === "string"
+								? (ctx.request as { method: string }).method
+								: "GET",
+						headers,
+					};
 					const routeCtx = {
 						input: ctx.input,
-						request: ctx.request,
+						request: requestShape,
 						requestMeta: ctx.requestMeta,
 					};
-					// Pass only the PluginContext portion (without input/request/requestMeta)
-					// to match what sandboxed handlers receive.
 					const { input: _, request: __, requestMeta: ___, ...pluginCtx } = ctx;
-					return standardHandler(routeCtx, pluginCtx);
+					return handler(routeCtx, pluginCtx);
 				},
 			};
 		}

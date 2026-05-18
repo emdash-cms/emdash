@@ -2,7 +2,7 @@
 	"name": "@emdash-cms/plugin-marketplace-test",
 	"private": true,
 	"version": "0.1.2",
-	"description": "Test plugin for end-to-end marketplace publishing and audit workflow testing",
+	"description": "Test plugin for end-to-end registry publishing and audit workflow testing",
 	"type": "module",
 	"main": "dist/index.mjs",
 	"exports": {
@@ -10,29 +10,22 @@
 			"import": "./dist/index.mjs",
 			"types": "./dist/index.d.mts"
 		},
-		"./sandbox": "./dist/sandbox-entry.mjs"
+		"./sandbox": "./dist/plugin.mjs"
 	},
-	"files": [
-		"dist"
-	],
+	"files": ["dist", "emdash-plugin.jsonc"],
 	"scripts": {
-		"build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
-		"dev": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --watch",
+		"build": "node node_modules/@emdash-cms/plugin-cli/dist/index.mjs build",
+		"dev": "emdash-plugin dev",
 		"typecheck": "tsgo --noEmit"
 	},
-	"keywords": [
-		"emdash",
-		"cms",
-		"plugin",
-		"test",
-		"marketplace"
-	],
+	"keywords": ["emdash", "cms", "plugin", "test", "marketplace"],
 	"author": "Matt Kane",
 	"license": "MIT",
 	"dependencies": {
 		"emdash": "workspace:*"
 	},
 	"devDependencies": {
+		"@emdash-cms/plugin-cli": "workspace:*",
 		"tsdown": "catalog:",
 		"typescript": "catalog:"
 	},

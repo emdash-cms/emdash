@@ -184,7 +184,7 @@ describe("menu_get", () => {
 		expect(result.isError, extractText(result)).toBeFalsy();
 		const menu = extractJson<{
 			name: string;
-			items: Array<{ label: string; sort_order: number }>;
+			items: Array<{ label: string; sortOrder: number }>;
 		}>(result);
 		expect(menu.name).toBe("main");
 		expect(menu.items).toHaveLength(3);
@@ -504,7 +504,7 @@ describe("menu mutations (bug #15 / F6 / F12)", () => {
 			arguments: { name: "main" },
 		});
 		const menu = extractJson<{
-			items: Array<{ id: string; label: string; parent_id: string | null; sort_order: number }>;
+			items: Array<{ id: string; label: string; parentId: string | null; sortOrder: number }>;
 		}>(get);
 		expect(menu.items).toHaveLength(3);
 
@@ -512,9 +512,9 @@ describe("menu mutations (bug #15 / F6 / F12)", () => {
 		const root = byLabel.get("Root");
 		const child = byLabel.get("Child");
 		const grand = byLabel.get("Grandchild");
-		expect(root?.parent_id).toBeNull();
-		expect(child?.parent_id).toBe(root?.id);
-		expect(grand?.parent_id).toBe(child?.id);
+		expect(root?.parentId).toBeNull();
+		expect(child?.parentId).toBe(root?.id);
+		expect(grand?.parentId).toBe(child?.id);
 	});
 
 	it("menu_set_items rejects parentIndex >= i (must be earlier)", async () => {

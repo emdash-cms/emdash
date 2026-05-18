@@ -9,6 +9,8 @@ Seed files are JSON documents that bootstrap EmDash sites. They define collectio
 
 ## Root Structure
 
+A seed file has the following top-level shape:
+
 ```json
 {
 	"$schema": "https://emdashcms.com/seed.schema.json",
@@ -43,7 +45,7 @@ Seed files are JSON documents that bootstrap EmDash sites. They define collectio
 
 ## Meta
 
-Optional metadata about the seed:
+The `meta` object holds optional descriptive metadata about the seed:
 
 ```json
 {
@@ -57,7 +59,7 @@ Optional metadata about the seed:
 
 ## Settings
 
-Site-wide configuration values:
+The `settings` object holds site-wide configuration values:
 
 ```json
 {
@@ -74,7 +76,7 @@ Settings are applied to the `options` table with the `site:` prefix. The Setup W
 
 ## Collections
 
-Collection definitions create content types in the database:
+Each collection definition creates a content type in the database:
 
 ```json
 {
@@ -157,7 +159,7 @@ Collection definitions create content types in the database:
 
 ## Taxonomies
 
-Classification systems for content:
+Taxonomies are classification systems for content:
 
 ```json
 {
@@ -211,7 +213,7 @@ Classification systems for content:
 
 ## Menus
 
-Navigation menus editable from the admin:
+The `menus` array defines navigation menus that are editable from the admin:
 
 ```json
 {
@@ -292,7 +294,7 @@ Byline profiles are separate from ownership (`author_id`). Define reusable bylin
 
 ## Redirects
 
-Redirect rules to preserve legacy URLs after migration:
+The `redirects` array defines redirect rules that preserve legacy URLs after migration:
 
 ```json
 {
@@ -325,7 +327,7 @@ Redirect rules to preserve legacy URLs after migration:
 
 ## Widget Areas
 
-Configurable content regions:
+The `widgetAreas` array defines configurable content regions:
 
 ```json
 {
@@ -383,7 +385,7 @@ Configurable content regions:
 
 ## Sections
 
-Reusable content blocks that editors can insert into Portable Text fields via the `/section` slash command:
+Sections are reusable content blocks that editors insert into Portable Text fields via the `/section` slash command:
 
 ```json
 {
@@ -426,7 +428,7 @@ Sections from seed files are marked `source: "theme"` and cannot be deleted from
 
 ## Content
 
-Sample content organized by collection:
+The `content` object holds sample content entries organized by collection:
 
 ```json
 {
@@ -643,10 +645,10 @@ if (!valid) {
 warnings.forEach((w) => console.warn(w));
 ```
 
-Validation checks:
+Validation checks that:
 
 - Required fields are present
-- Slugs follow naming conventions (lowercase, underscores)
+- Slugs are valid for their type (collection and field slugs allow lowercase letters, digits, and underscores; other slugs also allow hyphens)
 - Field types are valid
 - References point to existing content
 - Hierarchical term parents exist

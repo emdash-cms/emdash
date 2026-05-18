@@ -84,12 +84,15 @@ describe("definePlugin", () => {
 		});
 
 		it("rejects empty ID", () => {
+			// Empty id is treated as "no id" — same code path as the
+			// sandboxed-shape rejection, with a pointer at the new
+			// `satisfies SandboxedPlugin` authoring flow.
 			expect(() =>
 				definePlugin({
 					id: "",
 					version: "1.0.0",
 				}),
-			).toThrow(INVALID_PLUGIN_ID_PATTERN);
+			).toThrow(/requires `id`/);
 		});
 
 		it("rejects invalid scoped ID (missing name)", () => {
