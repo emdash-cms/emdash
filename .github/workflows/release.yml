@@ -88,6 +88,8 @@ jobs:
     if: >-
       needs.release.outputs.published == 'true' ||
       inputs.publish-only
+    permissions:
+      contents: read
     uses: ./.github/workflows/sync-templates.yml
     # Pass only the secrets sync-templates actually uses, not the full set
     # available to this release workflow.
