@@ -32,9 +32,8 @@ import {
 	Book,
 	GraduationCap,
 	Wrench,
-	Lightbulb,
-	CaretRight,
-} from "@phosphor-icons/react";
+		Lightbulb,
+	} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
@@ -148,8 +147,6 @@ interface NavItem {
 	minRole?: number;
 	/** Optional badge count (e.g., pending comments) */
 	badge?: number;
-	/** Child items for nested submenu (max 1 level) */
-	children?: NavItem[];
 }
 
 interface NavGroup {
@@ -224,82 +221,6 @@ function resolveItemPath(item: NavItem): string {
 		}
 	}
 	return path;
-}
-
-/**
- * Expandable nav item with children (submenu).
- * The parent item is not navigable — clicking toggles the children.
- */
-function NavSubMenu({ item, currentPath }: { item: NavItem; currentPath: string }) {
-	const { state } = useSidebar();
-	const [expanded, setExpanded] = React.useState(false);
-	const Icon = item.icon;
-
-	const hasActiveChild =
-		item.children?.some((child) => {
-			const childPath = resolveItemPath(child);
-			return isItemActive(childPath, currentPath);
-		}) ?? false;
-
-	React.useEffect(() => {
-		if (hasActiveChild) setExpanded(true);
-	}, [hasActiveChild]);
-
-	return (
-		<KumoSidebar.MenuItem>
-			<button
-				type="button"
-				onClick={() => setExpanded((v) => !v)}
-				aria-expanded={expanded}
-				data-sidebar="menu-button"
-				className={cn(
-					"emdash-nav-link group/menu-button flex w-full min-w-0 items-center gap-2.5 rounded-md outline-none cursor-pointer",
-					"min-h-[36px] px-3 py-1.5 text-[13px]",
-					"transition-all duration-200 ease-out",
-					"text-white/70 hover:text-white hover:bg-white/8",
-					"focus-visible:ring-2 focus-visible:ring-kumo-brand/50",
-				)}
-			>
-				<Icon
-					className={cn(
-						"emdash-nav-icon size-[18px] shrink-0 transition-colors duration-200",
-						"text-white/60 group-hover/menu-button:text-white/90",
-					)}
-					aria-hidden="true"
-				/>
-				<span className="emdash-nav-label flex flex-1 items-center min-w-0 text-start overflow-hidden">
-					{item.label}
-				</span>
-				<CaretRight
-					className={cn(
-						"size-3 shrink-0 transition-transform duration-200 text-white/40",
-						expanded && "rotate-90",
-						"rtl:-scale-x-100",
-					)}
-					aria-hidden="true"
-				/>
-			</button>
-			{expanded && item.children && (
-				<div className="ms-4 border-s border-white/10 ps-2 mt-1 space-y-0.5">
-					{item.children.map((child, idx) => {
-						const childPath = resolveItemPath(child);
-						const childActive = isItemActive(childPath, currentPath);
-						return (
-							<KumoSidebar.MenuItem key={`${child.to}-${idx}`}>
-								{state === "collapsed" ? (
-									<Tooltip content={child.label} side="right" asChild>
-										<NavMenuLink item={child} isActive={childActive} />
-									</Tooltip>
-								) : (
-									<NavMenuLink item={child} isActive={childActive} />
-								)}
-							</KumoSidebar.MenuItem>
-						);
-					})}
-				</div>
-			)}
-		</KumoSidebar.MenuItem>
-	);
 }
 
 /** Checks if a nav item is active based on the current router path. */
@@ -499,9 +420,6 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	function renderNavItems(items: NavItem[]) {
 		return items.map((item, index) => {
-			if (item.children && item.children.length > 0) {
-				return <NavSubMenu key={`${item.to}-${index}`} item={item} currentPath={currentPath} />;
-			}
 			const itemPath = resolveItemPath(item);
 			const active = isItemActive(itemPath, currentPath);
 			return <NavMenuLink key={`${item.to}-${index}`} item={item} isActive={active} />;
