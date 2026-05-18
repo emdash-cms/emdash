@@ -103,6 +103,23 @@ describe("migration 039: rebuild FTS5 triggers", () => {
 		await up(db as unknown as Kysely<unknown>);
 	}
 
+	/**
+	 * Count FTS5 matches for a single term. We use raw SQL (rather than
+	 * `searchWithDb`) because the corruption test inspects the inverted
+	 * index directly to prove stale tokens are gone after migration.
+	 */
+	async function fts5Matches(
+		conn: Kysely<Database>,
+		ftsTable: string,
+		term: string,
+	): Promise<number> {
+		const result = await sql<{ count: number }>`
+			SELECT COUNT(*) as count FROM ${sql.ref(ftsTable)}
+			WHERE ${sql.ref(ftsTable)} MATCH ${term}
+		`.execute(conn);
+		return Number(result.rows[0]?.count ?? 0);
+	}
+
 	it("is a no-op on databases with no search-enabled collections", async () => {
 		// Empty DB — just the system tables, no `_emdash_collections` rows
 		// with a `search_config`. Migration must not throw.
@@ -167,30 +184,53 @@ describe("migration 039: rebuild FTS5 triggers", () => {
 			slug: "corrupt-me",
 			status: "published",
 			publishedAt: new Date().toISOString(),
-			data: { title: "Corrupt me", body: "Original body." },
+			data: { title: "Corrupt me", body: "Original aardvark body." },
 		});
 
 		// Install the broken triggers and then *fire them* by issuing the
 		// kind of UPDATE the publish path does. The broken trigger's
 		// `DELETE FROM fts WHERE rowid = OLD.rowid` on an external-content
-		// table reads NEW values from the content table and corrupts the
-		// inverted index. On vanilla SQLite this throws SQLITE_CORRUPT_VTAB
-		// directly; some builds let one bad update through silently and
-		// throw on the next. We accept both outcomes — the assertion is
-		// that the migration recovers the database either way.
+		// table reads NEW values from the content table when removing
+		// tokens, so the OLD tokens are left behind in the inverted index
+		// even though the content table no longer holds them. The result
+		// is a stale-token leak: searches for words from the OLD body
+		// keep matching the (now updated) row, and segment metadata
+		// drifts out of sync until SQLite eventually surfaces it as
+		// SQLITE_CORRUPT_VTAB.
 		await installPreFixTriggers("pages", ["title", "body"]);
+
+		// Sanity check: the OLD content's unique token is indexed before
+		// the corrupting UPDATE.
+		const preUpdateOldTokenMatches = await fts5Matches(db, "_emdash_fts_pages", "aardvark");
+		expect(preUpdateOldTokenMatches).toBe(1);
+
 		try {
 			await sql`
-				UPDATE ec_pages SET title = 'Updated', body = 'Updated body.' WHERE id = ${created.id}
+				UPDATE ec_pages SET title = 'Updated', body = 'Updated zebra body.' WHERE id = ${created.id}
 			`.execute(db);
 		} catch {
-			// Expected on some SQLite builds — the corruption surfaces immediately.
+			// Expected on some SQLite builds -- the corruption surfaces immediately.
 		}
+
+		// After the broken UPDATE on an external-content table, the OLD
+		// token ("aardvark", no longer present in the row) is still in
+		// the inverted index. This is the stale-token leak the migration
+		// must fix; assert it exists before running the migration so the
+		// post-migration assertion has teeth.
+		const postUpdateOldTokenMatches = await fts5Matches(db, "_emdash_fts_pages", "aardvark");
+		expect(postUpdateOldTokenMatches).toBe(1);
 
 		// Run the migration. This must succeed regardless of the corrupt state.
 		await runMigration039();
 
-		// After the migration the index is consistent.
+		// After the migration the index is consistent: stale OLD token is
+		// gone, NEW token from the current row is present.
+		const repairedOldTokenMatches = await fts5Matches(db, "_emdash_fts_pages", "aardvark");
+		expect(repairedOldTokenMatches).toBe(0);
+		const repairedNewTokenMatches = await fts5Matches(db, "_emdash_fts_pages", "zebra");
+		expect(repairedNewTokenMatches).toBe(1);
+
+		// And the index itself is structurally clean.
 		await expect(
 			sql
 				.raw(`INSERT INTO _emdash_fts_pages(_emdash_fts_pages) VALUES('integrity-check')`)

@@ -177,9 +177,16 @@ async function rebuildIndex(
 
 	await dropFtsObjects(db, collectionSlug);
 
+	// `IF NOT EXISTS` on all CREATE statements so two isolates running
+	// the migration concurrently (D1 has no advisory lock, so this can
+	// happen on cold starts of a fresh deploy) don't fail each other
+	// with "table already exists" / "trigger already exists" errors.
+	// The drop-then-create sequence is benign across isolates: FTS5
+	// silently dedupes duplicate-rowid INSERTs via the docsize shadow
+	// table, so a double populate ends with one row per content row.
 	await sql
 		.raw(`
-		CREATE VIRTUAL TABLE "${ftsTable}" USING fts5(
+		CREATE VIRTUAL TABLE IF NOT EXISTS "${ftsTable}" USING fts5(
 			${columnList},
 			content='${contentTable}',
 			content_rowid='rowid',
@@ -191,7 +198,7 @@ async function rebuildIndex(
 	// Insert trigger -- only index non-deleted content.
 	await sql
 		.raw(`
-		CREATE TRIGGER "${ftsTable}_insert"
+		CREATE TRIGGER IF NOT EXISTS "${ftsTable}_insert"
 		AFTER INSERT ON "${contentTable}"
 		WHEN NEW.deleted_at IS NULL
 		BEGIN
@@ -206,7 +213,7 @@ async function rebuildIndex(
 	// rowid that was never indexed.
 	await sql
 		.raw(`
-		CREATE TRIGGER "${ftsTable}_update"
+		CREATE TRIGGER IF NOT EXISTS "${ftsTable}_update"
 		AFTER UPDATE ON "${contentTable}"
 		BEGIN
 			INSERT INTO "${ftsTable}"("${ftsTable}", rowid, id, locale, ${fieldList})
@@ -222,7 +229,7 @@ async function rebuildIndex(
 	// Delete trigger -- same corruption-safe form, same gate.
 	await sql
 		.raw(`
-		CREATE TRIGGER "${ftsTable}_delete"
+		CREATE TRIGGER IF NOT EXISTS "${ftsTable}_delete"
 		AFTER DELETE ON "${contentTable}"
 		BEGIN
 			INSERT INTO "${ftsTable}"("${ftsTable}", rowid, id, locale, ${fieldList})
@@ -232,7 +239,11 @@ async function rebuildIndex(
 	`)
 		.execute(db);
 
-	// Populate from existing content (non-deleted rows only).
+	// Populate from existing content (non-deleted rows only). Concurrent
+	// re-population is safe -- FTS5 INSERT into an external-content table
+	// dedupes by rowid; a second pass over the same content rows leaves
+	// the index with one entry per row, matching what we'd get from a
+	// single populate.
 	await sql
 		.raw(`
 		INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
