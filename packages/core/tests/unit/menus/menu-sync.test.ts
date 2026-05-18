@@ -202,6 +202,49 @@ describe("Menu Sync", () => {
 			}
 		});
 
+		it("preserves sparse collection sortOrder values when inserting missing items", async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts", sortOrder: 0 });
+			await registry.createCollection({ slug: "pages", label: "Pages", sortOrder: 10 });
+			await registry.createCollection({ slug: "products", label: "Products", sortOrder: 20 });
+
+			await db
+				.insertInto("_emdash_menu_items")
+				.values([
+					{
+						id: ulid(),
+						menu_id: menuId,
+						type: "collection",
+						reference_collection: "posts",
+						label: "Posts",
+						sort_order: 0,
+					},
+					{
+						id: ulid(),
+						menu_id: menuId,
+						type: "collection",
+						reference_collection: "products",
+						label: "Products",
+						sort_order: 1,
+					},
+				])
+				.execute();
+
+			const result = await computeMenuSyncDiff(db, "primary");
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.toAdd).toEqual(
+					expect.arrayContaining([
+						expect.objectContaining({ referenceCollection: "pages", sortOrder: 10 }),
+					]),
+				);
+				expect(result.data.toReorder).toEqual(
+					expect.arrayContaining([
+						expect.objectContaining({ sortOrder: 20 }),
+					]),
+				);
+			}
+		});
+
 		it("identifies collections to add when not in menu", async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts", sortOrder: 0 });
 			await registry.createCollection({ slug: "products", label: "Products", sortOrder: 1 });

@@ -63,11 +63,11 @@ export async function computeMenuSyncDiff(
 		// Collections in sidebar but not in menu -> add
 		const toAdd = collections
 			.filter((c) => !menuCollectionSlugs.has(c.slug))
-			.map((c, i) => ({
+			.map((c) => ({
 				menuName,
 				label: c.label,
 				referenceCollection: c.slug,
-				sortOrder: menuItems.length + i,
+				sortOrder: c.sort_order,
 			}));
 
 		// Menu items referencing deleted collections -> remove
@@ -76,7 +76,7 @@ export async function computeMenuSyncDiff(
 			.map((item) => item.id);
 
 		// Items that exist in both but have wrong sort order -> reorder
-		const sortOrderMap = new Map(collections.map((c, i) => [c.slug, i]));
+		const sortOrderMap = new Map(collections.map((c) => [c.slug, c.sort_order]));
 		const toReorder = menuItems
 			.filter((item) => sidebarSlugs.has(item.reference_collection!))
 			.map((item) => ({
