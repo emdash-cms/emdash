@@ -29,7 +29,7 @@
 		"build": "tsdown",
 		"dev": "tsdown --watch",
 		"prepublishOnly": "node --run build",
-		"typecheck": "tsgo --noEmit",
+		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution"
 	},

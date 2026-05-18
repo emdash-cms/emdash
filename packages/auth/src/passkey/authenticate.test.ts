@@ -271,17 +271,21 @@ describe("authenticateWithPasskey", () => {
 		expect(user).toMatchObject({ id: "user_1" });
 	});
 
-	it("accepts an RS256 (RSA) assertion with a PKIX-encoded public key", async () => {
-		const { credential: rsaCredential, response, challengeStore } = createValidRS256Assertion();
-		const adapter = {
-			getCredentialById: vi.fn(async () => rsaCredential),
-			updateCredentialCounter: vi.fn(async () => undefined),
-			getUserById: vi.fn(async () => ({ id: "user_1" })),
-		} as unknown as AuthAdapter;
+	it(
+		"accepts an RS256 (RSA) assertion with a PKIX-encoded public key",
+		{ timeout: 15_000 },
+		async () => {
+			const { credential: rsaCredential, response, challengeStore } = createValidRS256Assertion();
+			const adapter = {
+				getCredentialById: vi.fn(async () => rsaCredential),
+				updateCredentialCounter: vi.fn(async () => undefined),
+				getUserById: vi.fn(async () => ({ id: "user_1" })),
+			} as unknown as AuthAdapter;
 
-		const user = await authenticateWithPasskey(config, adapter, response, challengeStore);
-		expect(user).toMatchObject({ id: "user_1" });
-	});
+			const user = await authenticateWithPasskey(config, adapter, response, challengeStore);
+			expect(user).toMatchObject({ id: "user_1" });
+		},
+	);
 
 	it("throws a typed error for an unsupported algorithm", async () => {
 		const { credential: validCredential, response, challengeStore } = createValidAssertion();

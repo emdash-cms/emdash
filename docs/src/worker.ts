@@ -22,11 +22,7 @@ function buildMcpServer(env: Env): McpServer {
 				description:
 					"Search the EmDash CMS documentation. This endpoint is not configured in this environment.",
 				inputSchema: {
-					query: z
-						.string()
-						.min(1)
-						.max(1000)
-						.describe("Query to run against docs indexing."),
+					query: z.string().min(1).max(1000).describe("Query to run against docs indexing."),
 					max_results: z
 						.number()
 						.int()
