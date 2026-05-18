@@ -40,7 +40,7 @@ Use a persistent left sidebar and a main workspace.
 │ Sidebar      │ Main workspace                     │
 │ Navigation   │ Page header + content/forms/cards  │
 └──────────────┴────────────────────────────────────┘
-````
+```
 
 ### Sidebar
 
@@ -76,11 +76,11 @@ Account Settings
 
 Rules:
 
-* Business identity is primary.
-* Symballo branding is secondary.
-* Active nav item uses a subtle rounded rectangle.
-* Sidebar background is slightly different from the main workspace.
-* Icons should be simple outline icons.
+- Business identity is primary.
+- Symballo branding is secondary.
+- Active nav item uses a subtle rounded rectangle.
+- Sidebar background is slightly different from the main workspace.
+- Icons should be simple outline icons.
 
 ---
 
@@ -88,12 +88,12 @@ Rules:
 
 The interface should be:
 
-* white-space driven
-* typography-forward
-* restrained
-* low-noise
-* consistent
-* trustworthy
+- white-space driven
+- typography-forward
+- restrained
+- low-noise
+- consistent
+- trustworthy
 
 Use subtle borders instead of heavy shadows.
 
@@ -141,24 +141,24 @@ Color should support hierarchy, not decorate the UI.
 
 Use:
 
-* **Inter** for interface text
-* **Onest** for page titles and business identity
+- **Inter** for interface text
+- **Onest** for page titles and business identity
 
 Inter:
 
-* labels
-* inputs
-* buttons
-* navigation
-* metrics
-* tables
-* helper text
+- labels
+- inputs
+- buttons
+- navigation
+- metrics
+- tables
+- helper text
 
 Onest:
 
-* app/page titles
-* business name
-* major section headings only
+- app/page titles
+- business name
+- major section headings only
 
 Suggested sizes:
 
@@ -190,10 +190,10 @@ Badges/chips:     999px
 
 Rules:
 
-* Do not make primary buttons pill-shaped.
-* Active nav items are rounded rectangles, not bubbles.
-* Badges may be fully rounded.
-* Keep geometry disciplined and consistent.
+- Do not make primary buttons pill-shaped.
+- Active nav items are rounded rectangles, not bubbles.
+- Badges may be fully rounded.
+- Keep geometry disciplined and consistent.
 
 ---
 
@@ -226,12 +226,12 @@ not large filled red unless confirming destructive action
 
 Button labels should be clear:
 
-* Save Changes
-* New Post
-* Preview
-* Publish
-* Replace
-* Remove
+- Save Changes
+- New Post
+- Preview
+- Publish
+- Replace
+- Remove
 
 Avoid vague labels like “Submit.”
 
@@ -258,12 +258,12 @@ padding: 14–16px
 
 Rules:
 
-* Use visible labels.
-* Helper text goes below fields.
-* Validation errors appear near the field.
-* Forms should feel spacious, not dense.
-* Prefer two-column forms on desktop.
-* Collapse to one column on mobile.
+- Use visible labels.
+- Helper text goes below fields.
+- Validation errors appear near the field.
+- Forms should feel spacious, not dense.
+- Prefer two-column forms on desktop.
+- Collapse to one column on mobile.
 
 ---
 
@@ -299,8 +299,8 @@ General | SEO | Social | Tracking
 
 Tabs should have:
 
-* clear active underline or subtle active state
-* no heavy pill styling unless using segmented controls intentionally
+- clear active underline or subtle active state
+- no heavy pill styling unless using segmented controls intentionally
 
 ---
 
@@ -310,12 +310,12 @@ Use badges for system state.
 
 Examples:
 
-* Saved
-* Draft
-* Published
-* Scheduled
-* Active
-* Expired
+- Saved
+- Draft
+- Published
+- Scheduled
+- Active
+- Expired
 
 Saved badge:
 
@@ -328,10 +328,10 @@ fully rounded
 
 Save states:
 
-* Saved
-* Saving…
-* Unsaved changes
-* Failed to save changes
+- Saved
+- Saving…
+- Unsaved changes
+- Failed to save changes
 
 Users should never wonder whether their changes are live.
 
@@ -366,11 +366,11 @@ Open site
 
 Rules:
 
-* Keep labels short.
-* Keep icons muted.
-* Active item uses subtle background and border.
-* Do not over-brand Symballo.
-* Client business name should remain visually prominent.
+- Keep labels short.
+- Keep icons muted.
+- Active item uses subtle background and border.
+- Do not over-brand Symballo.
+- Client business name should remain visually prominent.
 
 ---
 
@@ -382,29 +382,29 @@ Use these meanings consistently.
 
 Things customers directly see and that owners update often:
 
-* Posts
-* Promotions
-* Menu / Services
-* Hours
+- Posts
+- Promotions
+- Menu / Services
+- Hours
 
 ### Site
 
 Foundational site setup:
 
-* Site Profile
-* Pages
-* Appearance
-* Media Library
-* Settings & SEO
+- Site Profile
+- Pages
+- Appearance
+- Media Library
+- Settings & SEO
 
 ### Workspace
 
 Relationship with Symballo:
 
-* Account
-* Guide
-* Support
-* Open site
+- Account
+- Guide
+- Support
+- Open site
 
 ---
 
@@ -427,9 +427,9 @@ Primary save action should be easy to find.
 
 For long forms:
 
-* place Save Changes at bottom-right
-* consider sticky save bar later
-* show save status near the form or button
+- place Save Changes at bottom-right
+- consider sticky save bar later
+- show save status near the form or button
 
 Avoid floating save indicators disconnected from the current form.
 
@@ -451,9 +451,9 @@ filename.png
 
 Rules:
 
-* media upload is handled through Media Library or inline selectors
-* logo/favicon references belong in Site Profile or Appearance
-* content images belong to their content module
+- media upload is handled through Media Library or inline selectors
+- logo/favicon references belong in Site Profile or Appearance
+- content images belong to their content module
 
 ---
 
@@ -461,24 +461,24 @@ Rules:
 
 Dashboard should show what a local business owner cares about:
 
-* visitors
-* page views
-* top pages
-* call clicks
-* direction clicks
-* menu views
-* promo views
-* recent posts
-* site health
+- visitors
+- page views
+- top pages
+- call clicks
+- direction clicks
+- menu views
+- promo views
+- recent posts
+- site health
 
 Avoid analytics jargon.
 
 Do not prioritize:
 
-* bounce rate
-* funnel analysis
-* UTM breakdowns
-* cohort analysis
+- bounce rate
+- funnel analysis
+- UTM breakdowns
+- cohort analysis
 
 ---
 
@@ -512,14 +512,14 @@ Follow WCAG 2.1 AA.
 
 Requirements:
 
-* visible focus states
-* keyboard navigation
-* real labels for inputs
-* real buttons for actions
-* real links for navigation
-* sufficient contrast
-* destructive actions require confirmation
-* status changes should be announced where appropriate
+- visible focus states
+- keyboard navigation
+- real labels for inputs
+- real buttons for actions
+- real links for navigation
+- sufficient contrast
+- destructive actions require confirmation
+- status changes should be announced where appropriate
 
 ---
 
@@ -546,15 +546,15 @@ When generating UI:
 
 The CMS feels successful when a non-technical business owner can:
 
-* understand where they are
-* update business information
-* update hours
-* create a post
-* create a promotion
-* update menu items
-* upload/select images
-* save confidently
-* avoid breaking the public website
+- understand where they are
+- update business information
+- update hours
+- create a post
+- create a promotion
+- update menu items
+- upload/select images
+- save confidently
+- avoid breaking the public website
 
 The product should feel like:
 

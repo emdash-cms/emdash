@@ -7,13 +7,13 @@ import * as React from "react";
  * callback identity changes.
  */
 export function useStableCallback<Args extends unknown[], Return>(
-	callback: (...args: Args) => Return,
+  callback: (...args: Args) => Return,
 ): (...args: Args) => Return {
-	const ref = React.useRef(callback);
-	React.useLayoutEffect(() => {
-		ref.current = callback;
-	});
-	return React.useCallback((...args: Args) => ref.current(...args), []);
+  const ref = React.useRef(callback);
+  React.useLayoutEffect(() => {
+    ref.current = callback;
+  });
+  return React.useCallback((...args: Args) => ref.current(...args), []);
 }
 
 /**
@@ -22,10 +22,10 @@ export function useStableCallback<Args extends unknown[], Return>(
  * inputs that trigger API calls.
  */
 export function useDebouncedValue<T>(value: T, delay: number): T {
-	const [debouncedValue, setDebouncedValue] = React.useState(value);
-	React.useEffect(() => {
-		const timer = setTimeout(setDebouncedValue, delay, value);
-		return () => clearTimeout(timer);
-	}, [value, delay]);
-	return debouncedValue;
+  const [debouncedValue, setDebouncedValue] = React.useState(value);
+  React.useEffect(() => {
+    const timer = setTimeout(setDebouncedValue, delay, value);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
 }

@@ -1,7 +1,7 @@
 {
   "name": "symballo-starter",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite dev --host 0.0.0.0 --port 4321",
@@ -13,6 +13,10 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "quality": "pnpm run format:check && pnpm run check && pnpm run lint && pnpm run build"
+  },
+  "dependencies": {
+    "@tabler/icons-svelte": "^3.44.0",
+    "lucide-svelte": "^0.468.0"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.4",
@@ -35,9 +39,5 @@
     "typescript": "^5.9.0",
     "typescript-eslint": "^8.58.1",
     "vite": "^7.1.0"
-  },
-  "dependencies": {
-    "@tabler/icons-svelte": "^3.44.0",
-    "lucide-svelte": "^0.468.0"
   }
 }

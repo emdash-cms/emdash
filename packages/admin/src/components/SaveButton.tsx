@@ -16,32 +16,32 @@ import * as React from "react";
 import { cn } from "../lib/utils";
 
 export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "children" | "shape"> {
-	/** Whether there are unsaved changes */
-	isDirty: boolean;
-	/** Whether currently saving */
-	isSaving: boolean;
+  /** Whether there are unsaved changes */
+  isDirty: boolean;
+  /** Whether currently saving */
+  isSaving: boolean;
 }
 
 /**
  * Button that reflects save state
  */
 export function SaveButton({ isDirty, isSaving, className, disabled, ...props }: SaveButtonProps) {
-	const { t } = useLingui();
-	const isSaved = !isDirty && !isSaving;
+  const { t } = useLingui();
+  const isSaved = !isDirty && !isSaving;
 
-	return (
-		<Button
-			className={cn("min-w-[100px] transition-all", className)}
-			disabled={disabled || isSaving || isSaved}
-			variant={isSaved ? "secondary" : "primary"}
-			icon={isSaving ? <Loader size="sm" /> : isSaved ? <Check /> : <FloppyDisk />}
-			aria-live="polite"
-			aria-busy={isSaving}
-			{...props}
-		>
-			{isSaving ? t`Saving...` : isSaved ? t`Saved` : t`Save`}
-		</Button>
-	);
+  return (
+    <Button
+      className={cn("min-w-[100px] transition-all", className)}
+      disabled={disabled || isSaving || isSaved}
+      variant={isSaved ? "secondary" : "primary"}
+      icon={isSaving ? <Loader size="sm" /> : isSaved ? <Check /> : <FloppyDisk />}
+      aria-live="polite"
+      aria-busy={isSaving}
+      {...props}
+    >
+      {isSaving ? t`Saving...` : isSaved ? t`Saved` : t`Save`}
+    </Button>
+  );
 }
 
 export default SaveButton;

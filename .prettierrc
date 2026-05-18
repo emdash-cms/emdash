@@ -1,4 +1,4 @@
 {
-	"useTabs": true,
-	"plugins": ["prettier-plugin-astro"]
+  "useTabs": true,
+  "plugins": ["prettier-plugin-astro"]
 }

@@ -1,4 +1,4 @@
-import { readCmsData } from '$lib/server/cms-store';
+import { readCmsData } from "$lib/server/cms-store";
 
 function dateAtStart(value: string): Date {
   return new Date(`${value}T00:00:00`);
@@ -26,8 +26,8 @@ export async function load() {
           title: bannerPost.title,
           excerpt: bannerPost.excerpt,
           startDate: bannerPost.bannerStartDate,
-          endDate: bannerPost.bannerEndDate
+          endDate: bannerPost.bannerEndDate,
         }
-      : null
+      : null,
   };
 }

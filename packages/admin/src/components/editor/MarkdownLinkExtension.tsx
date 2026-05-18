@@ -23,9 +23,9 @@ const MARKDOWN_LINK_PASTE_REGEX = /\[([^\]]+)\]\(([^)]+)\)/g;
 
 /** Shared handler context — InputRule and PasteRule use the same shape. */
 interface RuleMatch {
-	state: EditorState;
-	range: { from: number; to: number };
-	match: RegExpMatchArray;
+  state: EditorState;
+  range: { from: number; to: number };
+  match: RegExpMatchArray;
 }
 
 /**
@@ -36,17 +36,17 @@ interface RuleMatch {
  * for InputRule and PasteRule is identical.
  */
 function handleMarkdownLink({ state, range, match }: RuleMatch): null | void {
-	const linkType = state.schema.marks["link"];
-	const linkText = match[1];
-	const href = match[2]?.trim();
+  const linkType = state.schema.marks["link"];
+  const linkText = match[1];
+  const href = match[2]?.trim();
 
-	if (!linkType || !linkText || !href || !isAllowedUri(href)) return null;
+  if (!linkType || !linkText || !href || !isAllowedUri(href)) return null;
 
-	const { tr } = state;
-	const mark = linkType.create({ href });
+  const { tr } = state;
+  const mark = linkType.create({ href });
 
-	tr.replaceWith(range.from, range.to, state.schema.text(linkText, [mark]));
-	tr.removeStoredMark(linkType);
+  tr.replaceWith(range.from, range.to, state.schema.text(linkText, [mark]));
+  tr.removeStoredMark(linkType);
 }
 
 /**
@@ -66,23 +66,23 @@ function handleMarkdownLink({ state, range, match }: RuleMatch): null | void {
  * dependencies required.
  */
 export const MarkdownLinkExtension = Extension.create({
-	name: "markdownLink",
+  name: "markdownLink",
 
-	addInputRules() {
-		return [
-			new InputRule({
-				find: MARKDOWN_LINK_INPUT_REGEX,
-				handler: handleMarkdownLink,
-			}),
-		];
-	},
+  addInputRules() {
+    return [
+      new InputRule({
+        find: MARKDOWN_LINK_INPUT_REGEX,
+        handler: handleMarkdownLink,
+      }),
+    ];
+  },
 
-	addPasteRules() {
-		return [
-			new PasteRule({
-				find: MARKDOWN_LINK_PASTE_REGEX,
-				handler: handleMarkdownLink,
-			}),
-		];
-	},
+  addPasteRules() {
+    return [
+      new PasteRule({
+        find: MARKDOWN_LINK_PASTE_REGEX,
+        handler: handleMarkdownLink,
+      }),
+    ];
+  },
 });

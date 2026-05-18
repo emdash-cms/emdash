@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Onest:wght@100..900&family=Source+Sans+3:wght@300..700&display=swap');
-@import 'tailwindcss';
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Onest:wght@100..900&family=Source+Sans+3:wght@300..700&display=swap");
+@import "tailwindcss";
 
 @theme {
-  --font-sans: 'Inter', 'Source Sans 3', 'Segoe UI', sans-serif;
-  --font-display: 'Bebas Neue', 'Oswald', sans-serif;
+  --font-sans: "Inter", "Source Sans 3", "Segoe UI", sans-serif;
+  --font-display: "Bebas Neue", "Oswald", sans-serif;
 }
 
 :root {
@@ -261,11 +261,11 @@
   }
 
   .admin-main-title {
-    font-family: 'Onest', 'Inter', 'Segoe UI', sans-serif;
+    font-family: "Onest", "Inter", "Segoe UI", sans-serif;
   }
 
   .admin-content {
-    font-family: 'Inter', 'Source Sans 3', 'Segoe UI', sans-serif;
+    font-family: "Inter", "Source Sans 3", "Segoe UI", sans-serif;
   }
 
   .ds-card {
@@ -324,7 +324,7 @@
   }
 
   .ds-switch::after {
-    content: '';
+    content: "";
     @apply absolute left-0.5 h-5 w-5 rounded-full;
     background: #ffffff;
     box-shadow: 0 1px 1px rgba(17, 24, 39, 0.12);

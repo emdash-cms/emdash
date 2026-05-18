@@ -35,6 +35,7 @@ The user should never feel like they are designing a website. They should feel l
 The interface should feel polished and capable, but never dense or intimidating.
 
 Prefer:
+
 - plain labels
 - obvious buttons
 - guided sections
@@ -42,6 +43,7 @@ Prefer:
 - constrained controls
 
 Avoid:
+
 - technical terminology
 - exposed implementation details
 - excessive settings
@@ -80,6 +82,7 @@ Avoid developer/CMS language like:
 The CMS should prevent bad outcomes.
 
 Users should not be able to:
+
 - change layout
 - break spacing
 - choose arbitrary colors
@@ -88,6 +91,7 @@ Users should not be able to:
 - publish malformed content
 
 The system should provide:
+
 - good defaults
 - generated slugs
 - generated SEO text
@@ -102,11 +106,13 @@ The system should provide:
 The app should feel like it belongs to the client’s business.
 
 Primary identity:
+
 - Client business name
 - Client logo/icon
 - Location
 
 Secondary identity:
+
 - “Powered by Symballo”
 - Symballo account area
 - Billing/support references
@@ -124,27 +130,27 @@ Desktop layout uses a three-region app shell:
 │ Left Sidebar   │ Main Content                     │ Right Panel      │
 │ Navigation     │ Page workspace                   │ Account/context  │
 └────────────────┴──────────────────────────────────┴──────────────────┘
-````
+```
 
 ### Left Sidebar
 
 Purpose:
 
-* Primary navigation
-* Business identity
-* Quick access to Symballo account
-* Help/support
-* Subtle Symballo branding
+- Primary navigation
+- Business identity
+- Quick access to Symballo account
+- Help/support
+- Subtle Symballo branding
 
 Width:
 
-* Approximately 240px on desktop
+- Approximately 240px on desktop
 
 Behavior:
 
-* Fixed on desktop
-* Collapsible or hidden behind menu button on tablet/mobile
-* Navigation item for current page should be visibly active
+- Fixed on desktop
+- Collapsible or hidden behind menu button on tablet/mobile
+- Navigation item for current page should be visibly active
 
 Recommended sidebar structure:
 
@@ -183,15 +189,15 @@ Powered by Symballo
 
 Purpose:
 
-* Global utility actions only
+- Global utility actions only
 
 Desktop top bar should include:
 
-* Sidebar toggle/menu icon
-* Light/dark toggle
-* Guide
-* Support
-* Open site
+- Sidebar toggle/menu icon
+- Light/dark toggle
+- Guide
+- Support
+- Open site
 
 Save actions should usually belong to the current page header or editor area, not the global top bar, unless the current screen is a full-page editor.
 
@@ -201,13 +207,13 @@ Save actions should usually belong to the current page header or editor area, no
 
 Purpose:
 
-* Primary workspace
-* Lists
-* Forms
-* Editors
-* Dashboards
-* Tables
-* Preview controls
+- Primary workspace
+- Lists
+- Forms
+- Editors
+- Dashboards
+- Tables
+- Preview controls
 
 The main area should be fluid and use available space efficiently.
 
@@ -226,31 +232,31 @@ Publish updates, news, announcements, events, and more.
 
 Purpose:
 
-* Account context
-* Billing
-* Plan information
-* Contextual helpers
-* Optional secondary tools
+- Account context
+- Billing
+- Plan information
+- Contextual helpers
+- Optional secondary tools
 
 Width:
 
-* Approximately 300–340px on desktop
+- Approximately 300–340px on desktop
 
 Behavior:
 
-* Fixed or sticky on large desktop
-* Collapsible
-* Hidden behind an account button on mobile
+- Fixed or sticky on large desktop
+- Collapsible
+- Hidden behind an account button on mobile
 
 The right panel is appropriate for:
 
-* Account plan
-* Billing information
-* Payment history
-* Customer since date
-* Site count
-* Referral prompt
-* Contextual publishing hints
+- Account plan
+- Billing information
+- Payment history
+- Customer since date
+- Site count
+- Referral prompt
+- Contextual publishing hints
 
 Do not put primary editing controls only in the right panel.
 
@@ -298,22 +304,22 @@ It should be useful to a local business owner, not an analytics professional.
 
 Recommended widgets:
 
-* Website visitors
-* Page views
-* Top action clicks
-* Promo/banner views
-* Visitors over time
-* Top traffic sources
-* Most visited pages
-* Top action clicks:
+- Website visitors
+- Page views
+- Top action clicks
+- Promo/banner views
+- Visitors over time
+- Top traffic sources
+- Most visited pages
+- Top action clicks:
+  - Call us
+  - Get directions
+  - View menu
+  - Reserve
+  - Order online
 
-  * Call us
-  * Get directions
-  * View menu
-  * Reserve
-  * Order online
-* Recent posts
-* Site health
+- Recent posts
+- Site health
 
 Tone should be plain:
 
@@ -324,10 +330,10 @@ No issues found.
 
 Avoid jargon:
 
-* bounce rate
-* conversion funnel
-* UTM breakdown
-* acquisition channel analysis
+- bounce rate
+- conversion funnel
+- UTM breakdown
+- acquisition channel analysis
 
 Those can exist later, but should not dominate v1.
 
@@ -340,28 +346,28 @@ Allow owners to publish updates, announcements, news, events, and short articles
 
 Desktop layout:
 
-* Left column: post list
-* Right column: editor
+- Left column: post list
+- Right column: editor
 
 Post list should include:
 
-* Title
-* Date
-* Status badge
-* Overflow menu
+- Title
+- Date
+- Status badge
+- Overflow menu
 
 Editor should include:
 
-* Title
-* Slug
-* Date
-* Excerpt
-* Main content
-* Optional image
-* Draft/publish controls
-* Preview button
-* Sitewide banner toggle
-* Collapsible SEO settings
+- Title
+- Slug
+- Date
+- Excerpt
+- Main content
+- Optional image
+- Draft/publish controls
+- Preview button
+- Sitewide banner toggle
+- Collapsible SEO settings
 
 Default editor flow:
 
@@ -384,22 +390,22 @@ Allow owners to create limited-time offers or recurring promotions.
 
 Promotion fields:
 
-* Title
-* Description
-* Start date
-* End date
-* Optional recurring schedule
-* CTA text
-* CTA link
-* Show as banner
-* Active/inactive status
+- Title
+- Description
+- Start date
+- End date
+- Optional recurring schedule
+- CTA text
+- CTA link
+- Show as banner
+- Active/inactive status
 
 Promotion list should clearly show:
 
-* Active
-* Scheduled
-* Expired
-* No end date
+- Active
+- Scheduled
+- Expired
+- No end date
 
 Use plain language:
 
@@ -416,31 +422,31 @@ Allow restaurants and food businesses to update menu categories, items, prices, 
 
 Desktop layout:
 
-* Left column: categories
-* Right column: items in selected category
+- Left column: categories
+- Right column: items in selected category
 
 Category fields:
 
-* Name
-* Display order
-* Active/inactive
+- Name
+- Display order
+- Active/inactive
 
 Item fields:
 
-* Name
-* Description
-* Price
-* Photo
-* Category
-* Available/unavailable
-* Featured item
+- Name
+- Description
+- Price
+- Photo
+- Category
+- Available/unavailable
+- Featured item
 
 Important:
 
-* Photo should be optional
-* Price should support “market price” or blank price
-* Availability toggle should be very easy to use
-* Menu edits should not break the public layout
+- Photo should be optional
+- Price should support “market price” or blank price
+- Availability toggle should be very easy to use
+- Menu edits should not break the public layout
 
 ---
 
@@ -451,23 +457,23 @@ Allow non-restaurant businesses to list services instead of menu items.
 
 Service fields:
 
-* Service name
-* Category
-* Short description
-* Starting price or “Request quote”
-* Featured status
-* Published/draft status
+- Service name
+- Category
+- Short description
+- Starting price or “Request quote”
+- Featured status
+- Published/draft status
 
 Examples:
 
-* Dine-in
-* Takeout
-* Catering
-* Private Events
-* Lawn Care
-* Roof Repair
-* Sunday Service
-* Youth Ministry
+- Dine-in
+- Takeout
+- Catering
+- Private Events
+- Lawn Care
+- Roof Repair
+- Sunday Service
+- Youth Ministry
 
 Use this section for churches as “Ministries” if the site type is church.
 
@@ -480,31 +486,31 @@ Allow owners to keep regular hours and exceptions accurate.
 
 Sections:
 
-* Regular Hours
-* Special Hours
-* Holiday Hours
-* Closed Dates
+- Regular Hours
+- Special Hours
+- Holiday Hours
+- Closed Dates
 
 Regular hours fields:
 
-* Day of week
-* Open/closed toggle
-* Opening time
-* Closing time
-* Optional second time range
+- Day of week
+- Open/closed toggle
+- Opening time
+- Closing time
+- Optional second time range
 
 Special hours fields:
 
-* Date
-* Opening time
-* Closing time
-* Note
+- Date
+- Opening time
+- Closing time
+- Note
 
 Closed dates:
 
-* Date
-* Reason/note
-* Optional sitewide notice
+- Date
+- Reason/note
+- Optional sitewide notice
 
 Important:
 Changes to regular hours may publish immediately. If so, state that clearly.
@@ -524,22 +530,22 @@ Allow users to upload and manage images used across the site.
 
 Media screen should include:
 
-* Image grid
-* Search
-* Filter by type/usage
-* Upload button
-* File name
-* Upload date
-* File size
-* Image actions
+- Image grid
+- Search
+- Filter by type/usage
+- Upload button
+- File name
+- Upload date
+- File size
+- Image actions
 
 Image actions:
 
-* Replace
-* Remove
-* Copy URL
-* Edit alt text
-* Set as hero image if applicable
+- Replace
+- Remove
+- Copy URL
+- Edit alt text
+- Set as hero image if applicable
 
 Upload area should state accepted formats:
 
@@ -558,36 +564,36 @@ Manage the core business information displayed across the site.
 
 Sections:
 
-* Business Information
-* Contact & Location
-* Hours
-* Social Links
-* SEO Settings
+- Business Information
+- Contact & Location
+- Hours
+- Social Links
+- SEO Settings
 
 Business information:
 
-* Business name
-* Tagline
-* Short description
-* Logo
-* Favicon
+- Business name
+- Tagline
+- Short description
+- Logo
+- Favicon
 
 Contact/location:
 
-* Phone
-* Email
-* Address
-* Google Maps link
-* Preferred CTA
+- Phone
+- Email
+- Address
+- Google Maps link
+- Preferred CTA
 
 Social links:
 
-* Facebook
-* Instagram
-* YouTube
-* TikTok
-* X/Twitter
-* Other
+- Facebook
+- Instagram
+- YouTube
+- TikTok
+- X/Twitter
+- Other
 
 ---
 
@@ -598,36 +604,36 @@ Control site-level metadata and preferences.
 
 Sections:
 
-* General
-* SEO
-* Social
-* Tracking
+- General
+- SEO
+- Social
+- Tracking
 
 General:
 
-* Site title
-* Tagline
-* Language
-* Time zone
-* Show/hide sitewide banner when active
+- Site title
+- Tagline
+- Language
+- Time zone
+- Show/hide sitewide banner when active
 
 SEO:
 
-* Default SEO title
-* Default meta description
-* Indexing toggle
+- Default SEO title
+- Default meta description
+- Indexing toggle
 
 Social:
 
-* Default social sharing image
-* Social title
-* Social description
+- Default social sharing image
+- Social title
+- Social description
 
 Tracking:
 
-* Analytics provider status
-* Tracking enabled/disabled
-* Custom events enabled/disabled
+- Analytics provider status
+- Tracking enabled/disabled
+- Custom events enabled/disabled
 
 Advanced SEO fields should be available but not visually dominant.
 
@@ -648,23 +654,23 @@ Your Symballo Account
 
 Account features:
 
-* Current plan
-* Monthly price
-* Next billing date
-* Manage plan
-* Payment information
-* Billing history
-* Download receipts
-* Download payment history CSV
-* Account details
-* Password
-* Logout
+- Current plan
+- Monthly price
+- Next billing date
+- Manage plan
+- Payment information
+- Billing history
+- Download receipts
+- Download payment history CSV
+- Account details
+- Password
+- Logout
 
 Account data belongs in:
 
-* sidebar account card
-* right account panel
-* dedicated account settings page
+- sidebar account card
+- right account panel
+- dedicated account settings page
 
 Do not place billing settings under “Site Profile,” because Site Profile is about the public business website.
 
@@ -678,11 +684,11 @@ Use cards for grouped content.
 
 Card style:
 
-* White background
-* 1px light border
-* 10–14px border radius
-* Soft shadow or no shadow
-* Generous internal padding
+- White background
+- 1px light border
+- 10–14px border radius
+- Soft shadow or no shadow
+- Generous internal padding
 
 Cards should feel calm and lightweight.
 
@@ -692,38 +698,38 @@ Cards should feel calm and lightweight.
 
 Primary button:
 
-* Used for save, publish, create, upload
-* Solid green or blue
-* Clear label
+- Used for save, publish, create, upload
+- Solid green or blue
+- Clear label
 
 Secondary button:
 
-* Used for preview, cancel, guide, open site
-* White background
-* Light border
+- Used for preview, cancel, guide, open site
+- White background
+- Light border
 
 Danger button:
 
-* Used for delete/logout destructive actions
-* Red text or red outline
-* Avoid large filled red buttons unless confirming a destructive action
+- Used for delete/logout destructive actions
+- Red text or red outline
+- Avoid large filled red buttons unless confirming a destructive action
 
 Button labels should be action-oriented:
 
 Good:
 
-* Save Changes
-* New Post
-* Preview
-* Publish
-* Upload Images
-* Manage Plan
+- Save Changes
+- New Post
+- Preview
+- Publish
+- Upload Images
+- Manage Plan
 
 Avoid:
 
-* Submit
-* Confirm
-* Execute
+- Submit
+- Confirm
+- Execute
 
 ---
 
@@ -733,16 +739,16 @@ Form fields should be large, readable, and well-spaced.
 
 Each field should have:
 
-* visible label
-* useful placeholder only if needed
-* helper text when the consequence is not obvious
-* validation message near the field
+- visible label
+- useful placeholder only if needed
+- helper text when the consequence is not obvious
+- validation message near the field
 
 Preferred layout:
 
-* Two columns on desktop when fields are short
-* Single column on mobile
-* Full-width textareas for long content
+- Two columns on desktop when fields are short
+- Single column on mobile
+- Full-width textareas for long content
 
 Example:
 
@@ -762,18 +768,18 @@ Use tables only when comparison across rows matters.
 
 Use card/list rows for:
 
-* posts
-* promotions
-* menu items
-* services
-* events
+- posts
+- promotions
+- menu items
+- services
+- events
 
 Rows should show:
 
-* primary label
-* secondary detail
-* status badge
-* overflow actions
+- primary label
+- secondary detail
+- status badge
+- overflow actions
 
 ---
 
@@ -783,20 +789,20 @@ Use badges for content state.
 
 Common states:
 
-* Published
-* Draft
-* Scheduled
-* Active
-* Expired
-* Hidden
-* Unavailable
+- Published
+- Draft
+- Scheduled
+- Active
+- Expired
+- Hidden
+- Unavailable
 
 Badge style:
 
-* rounded pill
-* subtle background
-* readable text
-* color-coded but not color-only
+- rounded pill
+- subtle background
+- readable text
+- color-coded but not color-only
 
 ---
 
@@ -806,11 +812,11 @@ Use accordions for advanced or optional sections.
 
 Good accordion sections:
 
-* SEO Settings
-* Banner Settings
-* Social Sharing
-* Advanced Options
-* Tracking Settings
+- SEO Settings
+- Banner Settings
+- Social Sharing
+- Advanced Options
+- Tracking Settings
 
 Advanced sections should be collapsed by default.
 
@@ -862,11 +868,11 @@ font-family:
 
 Typography scale:
 
-* Page title: 28–32px, 700 weight
-* Section title: 18–22px, 600–700 weight
-* Body: 14–16px, 400–500 weight
-* Helper text: 12–14px, muted color
-* Labels: 13–14px, 500–600 weight
+- Page title: 28–32px, 700 weight
+- Section title: 18–22px, 600–700 weight
+- Body: 14–16px, 400–500 weight
+- Helper text: 12–14px, muted color
+- Labels: 13–14px, 500–600 weight
 
 Avoid tiny text for primary workflows.
 
@@ -878,27 +884,27 @@ Use an 8px spacing system.
 
 Common spacing:
 
-* 4px
-* 8px
-* 12px
-* 16px
-* 24px
-* 32px
-* 40px
-* 48px
-* 64px
+- 4px
+- 8px
+- 12px
+- 16px
+- 24px
+- 32px
+- 40px
+- 48px
+- 64px
 
 Desktop page padding:
 
-* 24–32px
+- 24–32px
 
 Card padding:
 
-* 16–24px
+- 16–24px
 
 Form field gap:
 
-* 16–24px
+- 16–24px
 
 ---
 
@@ -908,10 +914,10 @@ Use rounded corners consistently.
 
 Recommended:
 
-* Small controls: 6px
-* Inputs/buttons: 8px
-* Cards/panels: 12px
-* Pills/badges: 999px
+- Small controls: 6px
+- Inputs/buttons: 8px
+- Cards/panels: 12px
+- Pills/badges: 999px
 
 ---
 
@@ -921,16 +927,16 @@ Use simple outline icons.
 
 Icon style:
 
-* 1.5–2px stroke
-* rounded line caps
-* consistent size
-* avoid filled decorative icons in navigation
+- 1.5–2px stroke
+- rounded line caps
+- consistent size
+- avoid filled decorative icons in navigation
 
 Common icon size:
 
-* 16px inline
-* 20px navigation
-* 24px feature cards
+- 16px inline
+- 20px navigation
+- 24px feature cards
 
 Icons should support labels, not replace them on desktop.
 
@@ -942,13 +948,13 @@ Every editable screen should clearly show save state.
 
 States:
 
-* Saved
-* Unsaved changes
-* Saving
-* Failed to save changes
-* Published
-* Draft
-* Scheduled
+- Saved
+- Unsaved changes
+- Saving
+- Failed to save changes
+- Published
+- Draft
+- Scheduled
 
 Save feedback should be visible but calm.
 
@@ -962,14 +968,14 @@ Failed to save changes
 
 For draft/publish content:
 
-* Save Draft
-* Preview
-* Publish
-* Schedule
+- Save Draft
+- Preview
+- Publish
+- Schedule
 
 For immediate settings:
 
-* Save Changes
+- Save Changes
 
 Do not make users guess whether changes are live.
 
@@ -981,10 +987,10 @@ Preview should show what the public website will look like before publishing.
 
 Preview can be implemented as:
 
-* in-admin preview route
-* modal preview
-* new tab preview
-* temporary signed preview URL
+- in-admin preview route
+- modal preview
+- new tab preview
+- temporary signed preview URL
 
 Preview should clearly indicate when content is not yet public.
 
@@ -1010,20 +1016,20 @@ Left sidebar + main content + optional right panel
 
 Use:
 
-* collapsible sidebar
-* main content full width
-* right panel hidden behind account button or drawer
+- collapsible sidebar
+- main content full width
+- right panel hidden behind account button or drawer
 
 ### Mobile: below 768px
 
 Use:
 
-* top mobile header
-* bottom navigation or slide-out menu
-* single-column forms
-* full-width buttons
-* list-first navigation
-* detail screens instead of side-by-side list/editor
+- top mobile header
+- bottom navigation or slide-out menu
+- single-column forms
+- full-width buttons
+- list-first navigation
+- detail screens instead of side-by-side list/editor
 
 Mobile should not try to preserve the desktop split-pane editor.
 
@@ -1036,7 +1042,7 @@ Menu categories → Tap category → Item list → Tap item → Edit item
 
 Minimum touch target:
 
-* 44px by 44px
+- 44px by 44px
 
 ---
 
@@ -1044,20 +1050,20 @@ Minimum touch target:
 
 Mobile primary nav should include the most common actions:
 
-* Dashboard
-* Posts
-* Menu or Services
-* More
+- Dashboard
+- Posts
+- Menu or Services
+- More
 
 The “More” screen can contain:
 
-* Promotions
-* Hours
-* Photos
-* Site Profile
-* Settings
-* Account
-* Support
+- Promotions
+- Hours
+- Photos
+- Site Profile
+- Settings
+- Account
+- Support
 
 ---
 
@@ -1067,15 +1073,15 @@ Follow WCAG 2.1 AA.
 
 Requirements:
 
-* keyboard navigable controls
-* visible focus states
-* sufficient color contrast
-* labels connected to inputs
-* buttons use real button elements
-* links use real anchor elements
-* status changes announced where appropriate
-* modals trap focus
-* destructive actions require confirmation
+- keyboard navigable controls
+- visible focus states
+- sufficient color contrast
+- labels connected to inputs
+- buttons use real button elements
+- links use real anchor elements
+- status changes announced where appropriate
+- modals trap focus
+- destructive actions require confirmation
 
 Do not rely on color alone to indicate status.
 
@@ -1131,11 +1137,11 @@ This image is too large. Upload a JPG, PNG, or WEBP under 10MB.
 
 Require confirmation for destructive actions:
 
-* delete post
-* delete menu item
-* remove image
-* delete promotion
-* log out if unsaved changes exist
+- delete post
+- delete menu item
+- remove image
+- delete promotion
+- log out if unsaved changes exist
 
 Confirmation copy should name the item.
 
@@ -1152,17 +1158,17 @@ This cannot be undone.
 
 Client branding:
 
-* primary in sidebar
-* business logo/avatar
-* business name
-* location
+- primary in sidebar
+- business logo/avatar
+- business name
+- location
 
 Symballo branding:
 
-* subtle sidebar footer
-* account card
-* billing/account panel
-* support/guide experience
+- subtle sidebar footer
+- account card
+- billing/account panel
+- support/guide experience
 
 Use:
 
@@ -1178,10 +1184,10 @@ Do not let Symballo visually overpower the client’s business identity.
 
 Tone:
 
-* calm
-* plain
-* helpful
-* confident
+- calm
+- plain
+- helpful
+- confident
 
 Prefer:
 
@@ -1215,11 +1221,11 @@ This field controls frontend rendering behavior.
 
 Use for:
 
-* Posts
-* Promotions
-* Menu Items
-* Services
-* Events
+- Posts
+- Promotions
+- Menu Items
+- Services
+- Events
 
 Desktop:
 
@@ -1243,10 +1249,10 @@ List screen → Detail/edit screen
 
 Use for:
 
-* Site Profile
-* Hours
-* Settings & SEO
-* Account
+- Site Profile
+- Hours
+- Settings & SEO
+- Account
 
 Desktop:
 
@@ -1284,17 +1290,17 @@ The dashboard should not require analytics knowledge to understand.
 
 Do not expose these in v1:
 
-* drag-and-drop page builder
-* arbitrary color picker
-* font picker
-* custom CSS
-* layout editor
-* plugin marketplace
-* complex roles
-* advanced analytics terminology
-* ecommerce flows
-* booking flows
-* customer accounts
+- drag-and-drop page builder
+- arbitrary color picker
+- font picker
+- custom CSS
+- layout editor
+- plugin marketplace
+- complex roles
+- advanced analytics terminology
+- ecommerce flows
+- booking flows
+- customer accounts
 
 The product should remain focused.
 
@@ -1305,23 +1311,21 @@ The product should remain focused.
 When creating new screens or components:
 
 1. Use the existing app shell:
-
-   * left sidebar
-   * top utility bar
-   * main content area
-   * optional right panel
+   - left sidebar
+   - top utility bar
+   - main content area
+   - optional right panel
 
 2. Prefer reusable primitives:
-
-   * `Card`
-   * `Button`
-   * `Input`
-   * `Textarea`
-   * `Select`
-   * `Badge`
-   * `Accordion`
-   * `EmptyState`
-   * `ConfirmDialog`
+   - `Card`
+   - `Button`
+   - `Input`
+   - `Textarea`
+   - `Select`
+   - `Badge`
+   - `Accordion`
+   - `EmptyState`
+   - `ConfirmDialog`
 
 3. Do not create one-off visual styles unless necessary.
 
@@ -1336,9 +1340,8 @@ When creating new screens or components:
 8. Use Symballo branding only in account/support/billing contexts.
 
 9. Preserve responsive behavior:
-
-   * split-pane on desktop
-   * list-to-detail flow on mobile
+   - split-pane on desktop
+   - list-to-detail flow on mobile
 
 10. Do not add visual editing controls.
 
@@ -1348,14 +1351,14 @@ When creating new screens or components:
 
 The design is successful if a non-technical owner can:
 
-* log in and understand where they are
-* update hours in under one minute
-* create a post or promotion without help
-* add or edit a menu item safely
-* preview content before publishing
-* know whether changes are saved or live
-* access billing/account settings without confusion
-* avoid breaking the public website design
+- log in and understand where they are
+- update hours in under one minute
+- create a post or promotion without help
+- add or edit a menu item safely
+- preview content before publishing
+- know whether changes are saved or live
+- access billing/account settings without confusion
+- avoid breaking the public website design
 
 The CMS should feel like:
 

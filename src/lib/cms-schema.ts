@@ -48,51 +48,51 @@ export type CmsData = {
 };
 
 export const defaultWeeklyHours: BusinessHoursEntry[] = [
-  { label: 'Monday', opens: '11:00', closes: '21:00', closed: false },
-  { label: 'Tuesday', opens: '11:00', closes: '21:00', closed: false },
-  { label: 'Wednesday', opens: '11:00', closes: '21:00', closed: false },
-  { label: 'Thursday', opens: '11:00', closes: '21:00', closed: false },
-  { label: 'Friday', opens: '11:00', closes: '22:00', closed: false },
-  { label: 'Saturday', opens: '11:00', closes: '22:00', closed: false },
-  { label: 'Sunday', opens: '10:00', closes: '20:00', closed: false }
+  { label: "Monday", opens: "11:00", closes: "21:00", closed: false },
+  { label: "Tuesday", opens: "11:00", closes: "21:00", closed: false },
+  { label: "Wednesday", opens: "11:00", closes: "21:00", closed: false },
+  { label: "Thursday", opens: "11:00", closes: "21:00", closed: false },
+  { label: "Friday", opens: "11:00", closes: "22:00", closed: false },
+  { label: "Saturday", opens: "11:00", closes: "22:00", closed: false },
+  { label: "Sunday", opens: "10:00", closes: "20:00", closed: false },
 ];
 
 export const defaultCmsData: CmsData = {
   site: {
-    title: 'Symballo Brasserie',
-    tagline: 'Regional ingredients. Memorable evenings.',
-    phone: '(555) 123-4567',
-    email: 'hello@symballo.agency',
-    address: '123 Main Street, Your Town, ST 00000',
+    title: "Symballo Brasserie",
+    tagline: "Regional ingredients. Memorable evenings.",
+    phone: "(555) 123-4567",
+    email: "hello@symballo.agency",
+    address: "123 Main Street, Your Town, ST 00000",
     hours: defaultWeeklyHours,
-    facebookUrl: 'https://facebook.com',
-    instagramUrl: 'https://instagram.com'
+    facebookUrl: "https://facebook.com",
+    instagramUrl: "https://instagram.com",
   },
   posts: [
     {
-      slug: 'welcome',
-      title: 'Welcome to Symballo Brasserie',
-      excerpt: 'A quick intro to the template and how to update it.',
-      publishedAt: '2026-04-21',
-      body: 'Replace this post content with your business updates, events, or announcements.',
-      seoTitle: 'Welcome to Symballo Brasserie',
-      seoDescription: 'A quick intro to the template and how to update it.',
-      seoKeywords: 'local business, brasserie, restaurant',
+      slug: "welcome",
+      title: "Welcome to Symballo Brasserie",
+      excerpt: "A quick intro to the template and how to update it.",
+      publishedAt: "2026-04-21",
+      body: "Replace this post content with your business updates, events, or announcements.",
+      seoTitle: "Welcome to Symballo Brasserie",
+      seoDescription: "A quick intro to the template and how to update it.",
+      seoKeywords: "local business, brasserie, restaurant",
       seoNoIndex: false,
       bannerEnabled: false,
-      bannerStartDate: '',
-      bannerEndDate: ''
-    }
+      bannerStartDate: "",
+      bannerEndDate: "",
+    },
   ],
   pages: [
     {
-      slug: 'contact',
-      title: 'Contact',
-      body: 'Add your booking details, map, and contact form instructions here.',
-      seoTitle: 'Contact',
-      seoDescription: 'Get in touch and plan your next visit.',
-      seoKeywords: 'contact, reservations, location',
-      seoNoIndex: false
-    }
-  ]
+      slug: "contact",
+      title: "Contact",
+      body: "Add your booking details, map, and contact form instructions here.",
+      seoTitle: "Contact",
+      seoDescription: "Get in touch and plan your next visit.",
+      seoKeywords: "contact, reservations, location",
+      seoNoIndex: false,
+    },
+  ],
 };

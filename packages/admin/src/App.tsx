@@ -22,24 +22,24 @@ import { createAdminRouter } from "./router";
 
 // Create a query client
 const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: {
-			staleTime: 1000 * 60, // 1 minute
-			retry: 1,
-		},
-	},
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60, // 1 minute
+      retry: 1,
+    },
+  },
 });
 
 // Create the router with query client context
 const router = createAdminRouter(queryClient);
 
 export interface AdminAppProps {
-	/** Plugin admin modules keyed by plugin ID */
-	pluginAdmins?: PluginAdmins;
-	/** Active locale code */
-	locale?: string;
-	/** Compiled Lingui messages for the active locale */
-	messages?: Messages;
+  /** Plugin admin modules keyed by plugin ID */
+  pluginAdmins?: PluginAdmins;
+  /** Active locale code */
+  locale?: string;
+  /** Compiled Lingui messages for the active locale */
+  messages?: Messages;
 }
 
 /**
@@ -48,33 +48,33 @@ export interface AdminAppProps {
 const EMPTY_PLUGINS: PluginAdmins = {};
 
 export function AdminApp({
-	pluginAdmins = EMPTY_PLUGINS,
-	locale = "en",
-	messages = {},
+  pluginAdmins = EMPTY_PLUGINS,
+  locale = "en",
+  messages = {},
 }: AdminAppProps) {
-	React.useEffect(() => {
-		document.getElementById("emdash-boot-loader")?.remove();
-	}, []);
+  React.useEffect(() => {
+    document.getElementById("emdash-boot-loader")?.remove();
+  }, []);
 
-	const i18nInitialized = React.useRef(false);
-	if (!i18nInitialized.current) {
-		i18n.loadAndActivate({ locale, messages });
-		i18nInitialized.current = true;
-	}
+  const i18nInitialized = React.useRef(false);
+  if (!i18nInitialized.current) {
+    i18n.loadAndActivate({ locale, messages });
+    i18nInitialized.current = true;
+  }
 
-	return (
-		<ThemeProvider>
-			<I18nProvider i18n={i18n}>
-				<Toasty>
-					<PluginAdminProvider pluginAdmins={pluginAdmins}>
-						<QueryClientProvider client={queryClient}>
-							<RouterProvider router={router} />
-						</QueryClientProvider>
-					</PluginAdminProvider>
-				</Toasty>
-			</I18nProvider>
-		</ThemeProvider>
-	);
+  return (
+    <ThemeProvider>
+      <I18nProvider i18n={i18n}>
+        <Toasty>
+          <PluginAdminProvider pluginAdmins={pluginAdmins}>
+            <QueryClientProvider client={queryClient}>
+              <RouterProvider router={router} />
+            </QueryClientProvider>
+          </PluginAdminProvider>
+        </Toasty>
+      </I18nProvider>
+    </ThemeProvider>
+  );
 }
 
 export default AdminApp;

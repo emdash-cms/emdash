@@ -2,11 +2,25 @@
   "name": "@emdash-cms/admin",
   "version": "0.3.0",
   "description": "Admin UI for EmDash CMS",
-  "type": "module",
-  "main": "dist/index.js",
+  "keywords": [
+    "admin",
+    "astro",
+    "cms",
+    "react"
+  ],
+  "homepage": "https://github.com/emdash-cms/emdash",
+  "license": "MIT",
+  "author": "Matt Kane",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emdash-cms/emdash.git",
+    "directory": "packages/admin"
+  },
   "files": [
     "dist"
   ],
+  "type": "module",
+  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -93,19 +107,5 @@
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/emdash-cms/emdash.git",
-    "directory": "packages/admin"
-  },
-  "homepage": "https://github.com/emdash-cms/emdash",
-  "keywords": [
-    "astro",
-    "cms",
-    "admin",
-    "react"
-  ],
-  "author": "Matt Kane",
-  "license": "MIT"
+  }
 }

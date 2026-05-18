@@ -11,8 +11,8 @@ const srcDir = join(__dirname, "..", "src", "locales");
 const distDir = join(__dirname, "..", "dist", "locales");
 
 for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
-	if (!entry.isDirectory()) continue;
-	const destDir = join(distDir, entry.name);
-	mkdirSync(destDir, { recursive: true });
-	copyFileSync(join(srcDir, entry.name, "messages.mjs"), join(destDir, "messages.mjs"));
+  if (!entry.isDirectory()) continue;
+  const destDir = join(distDir, entry.name);
+  mkdirSync(destDir, { recursive: true });
+  copyFileSync(join(srcDir, entry.name, "messages.mjs"), join(destDir, "messages.mjs"));
 }

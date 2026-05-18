@@ -30,62 +30,62 @@
  * Applied via data-theme="classic" on <html> so portals inherit too.
  */
 [data-theme="classic"] {
-	/* Primary brand blue */
-	--color-kumo-brand: #2271b1;
-	--color-kumo-brand-hover: #135e96;
-	--text-color-kumo-brand: #2271b1;
+  /* Primary brand blue */
+  --color-kumo-brand: #2271b1;
+  --color-kumo-brand-hover: #135e96;
+  --text-color-kumo-brand: #2271b1;
 
-	/* Surfaces */
-	--color-kumo-base: #ffffff;
-	--color-kumo-elevated: #f0f0f1;
-	--color-kumo-recessed: #dcdcde;
-	--color-kumo-overlay: #ffffff;
-	--color-kumo-control: #ffffff;
-	--color-kumo-tint: #f0f0f1;
-	--color-kumo-fill: #dcdcde;
-	--color-kumo-fill-hover: #c3c4c7;
-	--color-kumo-contrast: #1d2327;
-	--color-kumo-interact: #c3c4c7;
+  /* Surfaces */
+  --color-kumo-base: #ffffff;
+  --color-kumo-elevated: #f0f0f1;
+  --color-kumo-recessed: #dcdcde;
+  --color-kumo-overlay: #ffffff;
+  --color-kumo-control: #ffffff;
+  --color-kumo-tint: #f0f0f1;
+  --color-kumo-fill: #dcdcde;
+  --color-kumo-fill-hover: #c3c4c7;
+  --color-kumo-contrast: #1d2327;
+  --color-kumo-interact: #c3c4c7;
 
-	/* Borders */
-	--color-kumo-line: #c3c4c7;
-	--color-kumo-ring: #2271b1;
+  /* Borders */
+  --color-kumo-line: #c3c4c7;
+  --color-kumo-ring: #2271b1;
 
-	/* Text hierarchy */
-	--text-color-kumo-default: #1d2327;
-	--text-color-kumo-strong: #50575e;
-	--text-color-kumo-subtle: #787c82;
-	--text-color-kumo-inactive: #a7aaad;
-	--text-color-kumo-link: #2271b1;
+  /* Text hierarchy */
+  --text-color-kumo-default: #1d2327;
+  --text-color-kumo-strong: #50575e;
+  --text-color-kumo-subtle: #787c82;
+  --text-color-kumo-inactive: #a7aaad;
+  --text-color-kumo-link: #2271b1;
 
-	/* Semantic colors */
-	--color-kumo-info: #72aee6;
-	--color-kumo-info-tint: #e7f4fe;
-	--color-kumo-success: #00a32a;
-	--color-kumo-success-tint: #edfaef;
-	--color-kumo-warning: #dba617;
-	--color-kumo-warning-tint: #fcf9e8;
-	--color-kumo-danger: #d63638;
-	--color-kumo-danger-tint: #fcf0f1;
-	--text-color-kumo-success: #00a32a;
-	--text-color-kumo-danger: #d63638;
-	--text-color-kumo-warning: #dba617;
+  /* Semantic colors */
+  --color-kumo-info: #72aee6;
+  --color-kumo-info-tint: #e7f4fe;
+  --color-kumo-success: #00a32a;
+  --color-kumo-success-tint: #edfaef;
+  --color-kumo-warning: #dba617;
+  --color-kumo-warning-tint: #fcf9e8;
+  --color-kumo-danger: #d63638;
+  --color-kumo-danger-tint: #fcf0f1;
+  --text-color-kumo-success: #00a32a;
+  --text-color-kumo-danger: #d63638;
+  --text-color-kumo-warning: #dba617;
 }
 
 /* Base styles */
 * {
-	border-color: var(--color-kumo-line);
+  border-color: var(--color-kumo-line);
 }
 
 body {
-	background-color: var(--color-kumo-elevated);
-	color: var(--text-color-kumo-default);
+  background-color: var(--color-kumo-elevated);
+  color: var(--text-color-kumo-default);
 }
 
 /* Fix text selection contrast */
 ::selection {
-	background-color: var(--color-kumo-interact);
-	color: var(--text-color-kumo-default);
+  background-color: var(--color-kumo-interact);
+  color: var(--text-color-kumo-default);
 }
 
 /**
@@ -95,114 +95,114 @@ body {
 /* Remove decorative backticks from inline code in editor */
 .prose code::before,
 .prose code::after {
-	content: none !important;
+  content: none !important;
 }
 
 /* Tighter list spacing for editor */
 .prose li {
-	margin-top: 0.25em !important;
-	margin-bottom: 0.25em !important;
+  margin-top: 0.25em !important;
+  margin-bottom: 0.25em !important;
 }
 
 .prose li p {
-	margin-top: 0 !important;
-	margin-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 /**
  * Prose typography colors — uses kumo token vars so theme overrides flow through.
  */
 .prose {
-	--tw-prose-body: var(--text-color-kumo-default);
-	--tw-prose-headings: var(--text-color-kumo-default);
-	--tw-prose-links: var(--text-color-kumo-link);
-	--tw-prose-bold: var(--text-color-kumo-default);
-	--tw-prose-counters: var(--text-color-kumo-subtle);
-	--tw-prose-bullets: var(--text-color-kumo-subtle);
-	--tw-prose-hr: var(--color-kumo-line);
-	--tw-prose-quotes: var(--text-color-kumo-default);
-	--tw-prose-quote-borders: var(--color-kumo-line);
-	--tw-prose-code: var(--text-color-kumo-default);
-	--tw-prose-pre-code: var(--text-color-kumo-subtle);
-	--tw-prose-pre-bg: var(--color-kumo-contrast);
+  --tw-prose-body: var(--text-color-kumo-default);
+  --tw-prose-headings: var(--text-color-kumo-default);
+  --tw-prose-links: var(--text-color-kumo-link);
+  --tw-prose-bold: var(--text-color-kumo-default);
+  --tw-prose-counters: var(--text-color-kumo-subtle);
+  --tw-prose-bullets: var(--text-color-kumo-subtle);
+  --tw-prose-hr: var(--color-kumo-line);
+  --tw-prose-quotes: var(--text-color-kumo-default);
+  --tw-prose-quote-borders: var(--color-kumo-line);
+  --tw-prose-code: var(--text-color-kumo-default);
+  --tw-prose-pre-code: var(--text-color-kumo-subtle);
+  --tw-prose-pre-bg: var(--color-kumo-contrast);
 }
 
 /**
  * TipTap placeholder styles
  */
 .tiptap p.is-empty::before {
-	color: var(--text-color-kumo-subtle);
-	content: attr(data-placeholder);
-	float: left;
-	height: 0;
-	pointer-events: none;
+  color: var(--text-color-kumo-subtle);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
 }
 
 /**
  * Spotlight mode dims non-focused blocks in the editor
  */
 .spotlight-mode .ProseMirror > *:not(.has-focus) {
-	opacity: 0.3;
-	transition: opacity 0.2s ease;
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
 }
 
 .spotlight-mode .ProseMirror > .has-focus {
-	opacity: 1;
-	transition: opacity 0.2s ease;
+  opacity: 1;
+  transition: opacity 0.2s ease;
 }
 
 /* Add left padding to accommodate block handles */
 .ProseMirror {
-	padding-left: 2.5rem;
+  padding-left: 2.5rem;
 }
 
 /* Block dragging styles */
 .ProseMirror .dragging {
-	opacity: 0.5;
+  opacity: 0.5;
 }
 
 /* Drop cursor styling - auto-fade to handle cleanup issues */
 .ProseMirror-dropcursor {
-	border-color: #3b82f6 !important;
-	border-width: 2px !important;
-	animation: dropcursor-fade 2s forwards;
+  border-color: #3b82f6 !important;
+  border-width: 2px !important;
+  animation: dropcursor-fade 2s forwards;
 }
 
 @keyframes dropcursor-fade {
-	0%,
-	90% {
-		opacity: 1;
-	}
-	100% {
-		opacity: 0;
-	}
+  0%,
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /*
  * Reduce margins in editor to minimize drag preview offset.
  */
 .ProseMirror.prose > h1 {
-	margin-top: 0.5em !important;
-	margin-bottom: 0.5em !important;
+  margin-top: 0.5em !important;
+  margin-bottom: 0.5em !important;
 }
 
 .ProseMirror.prose > h2 {
-	margin-top: 0.4em !important;
-	margin-bottom: 0.4em !important;
+  margin-top: 0.4em !important;
+  margin-bottom: 0.4em !important;
 }
 
 .ProseMirror.prose > h3 {
-	margin-top: 0.3em !important;
-	margin-bottom: 0.3em !important;
+  margin-top: 0.3em !important;
+  margin-bottom: 0.3em !important;
 }
 
 .ProseMirror.prose > p {
-	margin-top: 0.25em !important;
-	margin-bottom: 0.25em !important;
+  margin-top: 0.25em !important;
+  margin-bottom: 0.25em !important;
 }
 
 .ProseMirror.prose > *:first-child {
-	margin-top: 0 !important;
+  margin-top: 0 !important;
 }
 
 /**
@@ -211,17 +211,17 @@ body {
  * which overrides max-width in CSS. We need to cap min-width too.
  */
 @media (max-width: 639px) {
-	[role="dialog"] {
-		min-width: 0 !important;
-		max-width: calc(100vw - 2rem);
-	}
+  [role="dialog"] {
+    min-width: 0 !important;
+    max-width: calc(100vw - 2rem);
+  }
 }
 
 /**
  * Isolate the admin root's stacking context.
  */
 #admin-root {
-	isolation: isolate;
+  isolation: isolate;
 }
 
 /**
@@ -229,5 +229,5 @@ body {
  * Override so toasts appear above modals.
  */
 [role="region"][aria-label="Notifications"] {
-	z-index: 10000 !important;
+  z-index: 10000 !important;
 }

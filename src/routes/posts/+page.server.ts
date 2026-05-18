@@ -1,4 +1,4 @@
-import { readCmsData } from '$lib/server/cms-store';
+import { readCmsData } from "$lib/server/cms-store";
 
 export async function load() {
   const cms = await readCmsData();

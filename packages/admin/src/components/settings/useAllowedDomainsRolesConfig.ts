@@ -11,24 +11,24 @@ const MAX_SELF_SIGNUP_DEFAULT_ROLE = 40;
  * Built on {@link useRolesConfig}; keeps the filter + `Select` `items` shape in one place.
  */
 export function useAllowedDomainsRolesConfig(): {
-	getRoleLabel: (level: number) => string;
-	signupRoles: readonly RolesSelectRow[];
-	signupRoleItems: Record<string, string>;
+  getRoleLabel: (level: number) => string;
+  signupRoles: readonly RolesSelectRow[];
+  signupRoleItems: Record<string, string>;
 } {
-	const { roleLabels, getRoleLabel, roles } = useRolesConfig();
+  const { roleLabels, getRoleLabel, roles } = useRolesConfig();
 
-	const signupRoles = React.useMemo(
-		() => roles.filter((r) => r.value <= MAX_SELF_SIGNUP_DEFAULT_ROLE),
-		[roles],
-	);
+  const signupRoles = React.useMemo(
+    () => roles.filter((r) => r.value <= MAX_SELF_SIGNUP_DEFAULT_ROLE),
+    [roles],
+  );
 
-	const signupRoleItems = React.useMemo(() => {
-		const entries: [string, string][] = signupRoles.map((r) => {
-			const label = roleLabels[String(r.value)];
-			return [String(r.value), label ?? getRoleLabel(r.value)];
-		});
-		return Object.fromEntries(entries) as Record<string, string>;
-	}, [signupRoles, roleLabels, getRoleLabel]);
+  const signupRoleItems = React.useMemo(() => {
+    const entries: [string, string][] = signupRoles.map((r) => {
+      const label = roleLabels[String(r.value)];
+      return [String(r.value), label ?? getRoleLabel(r.value)];
+    });
+    return Object.fromEntries(entries) as Record<string, string>;
+  }, [signupRoles, roleLabels, getRoleLabel]);
 
-	return { getRoleLabel, signupRoles, signupRoleItems };
+  return { getRoleLabel, signupRoles, signupRoleItems };
 }

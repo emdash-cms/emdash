@@ -8,18 +8,18 @@
  */
 
 export function isWebAuthnSecureContext(): boolean {
-	return typeof window !== "undefined" && window.isSecureContext;
+  return typeof window !== "undefined" && window.isSecureContext;
 }
 
 export function isPublicKeyCredentialConstructorAvailable(): boolean {
-	return (
-		typeof window !== "undefined" &&
-		window.PublicKeyCredential !== undefined &&
-		typeof window.PublicKeyCredential === "function"
-	);
+  return (
+    typeof window !== "undefined" &&
+    window.PublicKeyCredential !== undefined &&
+    typeof window.PublicKeyCredential === "function"
+  );
 }
 
 /** True when the page can use `navigator.credentials` for passkeys. */
 export function isPasskeyEnvironmentUsable(): boolean {
-	return isWebAuthnSecureContext() && isPublicKeyCredentialConstructorAvailable();
+  return isWebAuthnSecureContext() && isPublicKeyCredentialConstructorAvailable();
 }

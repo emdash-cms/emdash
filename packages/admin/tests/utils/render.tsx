@@ -6,13 +6,13 @@ import { render as baseRender, type ComponentRenderOptions } from "vitest-browse
 type RenderWrapper = ComponentRenderOptions["wrapper"];
 
 const I18nWrapper = (InnerWrapper: RenderWrapper = React.Fragment) => {
-	return ({ children }: React.PropsWithChildren) => (
-		<I18nProvider i18n={i18n}>
-			<InnerWrapper>{children}</InnerWrapper>
-		</I18nProvider>
-	);
+  return ({ children }: React.PropsWithChildren) => (
+    <I18nProvider i18n={i18n}>
+      <InnerWrapper>{children}</InnerWrapper>
+    </I18nProvider>
+  );
 };
 
 export const render: typeof baseRender = (ui, { wrapper: UserWrapper, ...options } = {}) => {
-	return baseRender(ui, { ...options, wrapper: I18nWrapper(UserWrapper) });
+  return baseRender(ui, { ...options, wrapper: I18nWrapper(UserWrapper) });
 };

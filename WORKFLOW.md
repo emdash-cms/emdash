@@ -31,7 +31,6 @@ hooks:
     pnpm run lint
     pnpm run build
 
-
 agent:
   max_concurrent_agents: 1
   max_turns: 3
@@ -43,18 +42,19 @@ ollama:
   read_timeout_ms: 300000
   stall_timeout_ms: 1800000
 
-
 server:
   port: 4321
 ---
+
 You are working on a Linear ticket `{{ issue.identifier }}`.
 
 {% if attempt %}
 Continuation context:
+
 - This is retry attempt #{{ attempt }} because the ticket is still in an active state.
 - Resume from current workspace state; do not restart from scratch.
 - Do not repeat already-completed investigation unless needed for new changes.
-{% endif %}
+  {% endif %}
 
 Issue context:
 ID: {{ issue.id }}
@@ -79,29 +79,34 @@ Instructions:
    - If truly blocked (missing auth/secrets/permissions/external dependency), leave a blocker comment and move the issue to `Canceled`.
 3. Use the `linear_graphql` tool for state changes:
    - Query states:
-    ```graphql
-    query GetWorkflowStates {
-      workflowStates {
-        nodes { id name }
-      }
-    }
-    ```
+   ```graphql
+   query GetWorkflowStates {
+     workflowStates {
+       nodes {
+         id
+         name
+       }
+     }
+   }
+   ```
+
    - Move issue:
-    ```graphql
-    mutation MoveIssue($id: String!, $stateId: String!) {
-      issueUpdate(id: $id, input: { stateId: $stateId }) {
-        success
-      }
-    }
-    ```
+   ```graphql
+   mutation MoveIssue($id: String!, $stateId: String!) {
+     issueUpdate(id: $id, input: { stateId: $stateId }) {
+       success
+     }
+   }
+   ```
+
    - Add comment:
-    ```graphql
-    mutation CommentIssue($issueId: String!, $body: String!) {
-      commentCreate(input: { issueId: $issueId, body: $body }) {
-        success
-      }
-    }
-    ```
+   ```graphql
+   mutation CommentIssue($issueId: String!, $body: String!) {
+     commentCreate(input: { issueId: $issueId, body: $body }) {
+       success
+     }
+   }
+   ```
 4. Work only in the provided repository copy. Do not touch any other path.
 5. Keep changes scoped to this ticket. Prefer small, direct edits.
 6. Do not introduce new dependencies unless clearly required by the ticket.
@@ -113,13 +118,15 @@ Instructions:
 10. Before ending, ensure formatting and production build succeed.
 11. Final response must not include speculative future work.
 12. Linear comment requirements are mandatory. Use `linear_graphql` to add comments in these cases:
-   - Blocked run:
-     - Include blocker type (missing secret/permission/dependency/tool failure), exact failing command(s), short error output, and what was attempted.
-     - Then move the issue to `Canceled`.
-   - Successful run:
-     - Include files changed, commands run, check/test results, and remaining risks (if any).
-   - State transition:
-     - Whenever you move state (for example `In Progress` or `Completed`), post a short reason comment.
+
+- Blocked run:
+  - Include blocker type (missing secret/permission/dependency/tool failure), exact failing command(s), short error output, and what was attempted.
+  - Then move the issue to `Canceled`.
+- Successful run:
+  - Include files changed, commands run, check/test results, and remaining risks (if any).
+- State transition:
+  - Whenever you move state (for example `In Progress` or `Completed`), post a short reason comment.
+
 13. Reuse the GraphQL operations defined in step 3 for all state transitions and comments.
 14. For comments, always use `issueId = {{ issue.id }}`.
 15. Final response must include: files changed, commands run, checks passed, blockers (if any), and confirmation that a Linear comment was posted.
