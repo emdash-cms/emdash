@@ -5,7 +5,7 @@ description: Expose REST endpoints from your sandboxed plugin for the admin UI a
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Plugins can expose API routes for their admin UI and external integrations. Routes are mounted under `/_emdash/api/plugins/<plugin-id>/<route-name>` and run inside the sandbox runtime with the same `PluginContext` that hooks receive.
+Plugins can expose API routes for their admin UI and external integrations. Routes are mounted under `/_emdash/api/plugins/<slug>/<route-name>` (the `<slug>` is the plugin's `slug` field from `emdash-plugin.jsonc` — exposed at runtime as `ctx.plugin.id`) and run inside the sandbox runtime with the same `PluginContext` that hooks receive.
 
 This page covers sandboxed plugins. The API surface for native plugins is the same; the only difference is the handler signature — see the note in [Native plugins](/plugins/creating-native-plugins/your-first-native-plugin/) for details.
 
@@ -55,7 +55,7 @@ export default {
 
 ## Route URLs
 
-Routes mount at `/_emdash/api/plugins/<plugin-id>/<route-name>`. Route names can include slashes for nested paths.
+Routes mount at `/_emdash/api/plugins/<slug>/<route-name>`. Route names can include slashes for nested paths.
 
 | Plugin id     | Route name      | URL                                            |
 | ------------- | --------------- | ---------------------------------------------- |
@@ -65,7 +65,7 @@ Routes mount at `/_emdash/api/plugins/<plugin-id>/<route-name>`. Route names can
 | `analytics`   | `events/recent` | `/_emdash/api/plugins/analytics/events/recent` |
 
 <Aside type="caution">
-	The plugin's `slug` (in `emdash-plugin.jsonc`) must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The `pluginId` segment in the route is a single Astro path segment, so anything outside that pattern (scoped names, leading digits, dots, slashes) won't route, and storage-index provisioning rejects it too. Pair an unscoped `slug` with a scoped npm package name, the way first-party plugins do (`slug: "field-kit"`, package `@emdash-cms/plugin-field-kit`).
+	The plugin's `slug` (in `emdash-plugin.jsonc`) must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The slug fills a single Astro path segment in the route URL, so anything outside that pattern (scoped names, leading digits, dots, slashes) won't route, and storage-index provisioning rejects it too. Pair an unscoped `slug` with a scoped npm package name, the way first-party plugins do (`slug: "field-kit"`, package `@emdash-cms/plugin-field-kit`).
 </Aside>
 
 ## Authentication and CSRF
@@ -355,8 +355,8 @@ interface SandboxedRequest {
 	headers: Record<string, string>; // lowercased keys
 }
 
-interface SandboxedRouteContext<TInput = unknown> {
-	input: TInput;
+interface SandboxedRouteContext {
+	input: unknown; // narrow with the `input` Zod schema at the route level
 	request: SandboxedRequest;
 	requestMeta?: unknown;
 }
