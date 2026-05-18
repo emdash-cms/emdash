@@ -1,5 +1,133 @@
 # emdash
 
+## 0.13.0
+
+### Minor Changes
+
+- [#1057](https://github.com/emdash-cms/emdash/pull/1057) [`c0ce915`](https://github.com/emdash-cms/emdash/commit/c0ce915c555b8658245d465255e2ec89b361c57f) Thanks [@ascorbic](https://github.com/ascorbic)! - **BREAKING (plugin authors):** Reworks how sandboxed plugins are defined. The `definePlugin()` helper is removed for sandboxed-format plugins; the new shape is a bare default export with a `satisfies SandboxedPlugin` annotation. A new type-only subpath `emdash/plugin` provides the types.
+
+  This affects anyone _writing_ a sandboxed plugin. Sites that _use_ plugins are unaffected (see the per-plugin changesets for the import-shape change in published plugins).
+
+  ```diff
+  - import { definePlugin, type ContentHookEvent, type PluginContext } from "emdash";
+  + import type { SandboxedPlugin } from "emdash/plugin";
+
+  - export default definePlugin({
+  + export default {
+       hooks: {
+           "content:beforeSave": {
+  -			handler: async (event: ContentHookEvent, ctx: PluginContext) => {
+  +			handler: async (event, ctx) => {
+                   // ...
+                   return event.content;
+               },
+           },
+       },
+  - });
+  + } satisfies SandboxedPlugin;
+  ```
+
+  Three changes:
+  1. **Drop `import { definePlugin } from "emdash"`** and the `definePlugin(...)` wrapping call. Sandboxed plugins now default-export the bare object.
+  2. **`import type { SandboxedPlugin } from "emdash/plugin"`** and add `satisfies SandboxedPlugin` to the default export. The `emdash/plugin` subpath is type-only — the bundler erases the import, so no runtime resolution of `emdash` is needed (and the heavy `emdash` runtime no longer enters the plugin bundle).
+  3. **Drop handler parameter annotations** like `event: ContentSaveEvent, ctx: PluginContext`. The strict mapped type on `SandboxedPlugin` infers them per hook name, with the full canonical event type. If you need to reference an event type by name (e.g. in a helper function), `emdash/plugin` re-exports them: `import type { ContentHookEvent, PluginContext } from "emdash/plugin"`.
+
+  **Why:** the old `definePlugin` was an identity function whose only job was to alias `emdash` to a Proxy shim at build time so the import would resolve. With the new shape, sandboxed plugins have _no_ runtime `emdash` import — only type-only imports from `emdash/plugin`. The bundler doesn't need to alias anything; the build pipeline is simpler; and authors get strict per-hook event/return type inference for free.
+
+  The trade-off: previously you could narrow an event type locally (e.g. `interface ContentSaveEvent { content: ... & { id: string } }`). Under the strict mapped type, the canonical event type wins (TypeScript's contravariance on function parameters means narrowing isn't assignable). Authors validate fields at runtime with `typeof` / `isRecord` checks instead — which is the right pattern for input that comes from outside the type system anyway.
+
+  **Routes** follow the same simplification. The two-arg `(routeCtx, ctx)` shape is unchanged; only the annotations disappear:
+
+  ```ts
+  export default {
+  	routes: {
+  		health: async (routeCtx, ctx) => {
+  			// routeCtx: SandboxedRouteContext, ctx: PluginContext — both inferred.
+  			return new Response("ok");
+  		},
+  	},
+  } satisfies SandboxedPlugin;
+  ```
+
+  `SandboxedRouteContext` exposes `{ input, request, requestMeta? }`. `request` is typed as `SandboxedRequest` — a `{ url, method, headers }` record that's portable across in-process and isolate execution (Worker Loader can't pass real `Request` objects across the boundary).
+
+  **Native plugins are unaffected.** This change applies only to sandboxed-format plugins. Native plugins continue to use `definePlugin()` from `emdash` and the existing `PluginDefinition` shape.
+
+  **Type rename:** `SandboxedPlugin` on the `emdash` package now refers to the new author-facing source-shape type. The runtime-side handle type (returned by `SandboxRunner.load`, held in the runtime's plugin cache) is renamed to `SandboxedPluginInstance`. If you import `SandboxedPlugin` from `emdash` to type a sandbox runner implementation or hold runtime plugin handles, update those imports to `SandboxedPluginInstance`. Public consumers of this type are mostly limited to `@emdash-cms/cloudflare` and other sandbox runner adapters; standard plugin / site code is unaffected.
+
+  **Removed types:** `StandardPluginDefinition`, `StandardHookHandler`, `StandardHookEntry`, `StandardRouteHandler`, `StandardRouteEntry` are no longer exported from `emdash`. These were authoring-helper aliases under the old permissive `definePlugin` standard overload. Use `SandboxedPlugin` from `emdash/plugin` for the same purpose under the new shape.
+
+  **Removed function:** `isStandardPluginDefinition` is gone. There's no equivalent — sandboxed plugins are identified by structure (`{ hooks?, routes? }`) and you should treat the default export as already typed via `satisfies SandboxedPlugin`.
+
+- [#1052](https://github.com/emdash-cms/emdash/pull/1052) [`0d5843f`](https://github.com/emdash-cms/emdash/commit/0d5843fc3378936667ab81c56001349198028ebb) Thanks [@Rimander](https://github.com/Rimander)! - Fixes menu REST API consistency:
+  - **`POST /menus/:name/items` no longer accepts unknown keys silently.** Sending `custom_url` (snake_case) or `url` used to return 201 with `custom_url: null` because Zod's default `.strip()` quietly dropped them. The schemas now use `.strict()` and return **400 `VALIDATION_ERROR`** with `Unrecognized key: "custom_url"`. The documented camelCase keys (`customUrl`, `sortOrder`, `referenceCollection`, etc.) are unchanged and persist as before. The `type` field is now validated against the canonical enum (`"custom" | "page" | "post" | "taxonomy" | "collection"`); previously any string passed.
+  - **Moves per-item writes to `PUT` and `DELETE /menus/:name/items/:id` (path-style).** Every other EmDash resource (`content`, `taxonomies`, `redirects`, `sections`, `widget-areas`) addresses items by URL path; menus were the lone outlier requiring `?id=<id>` in the query string. The legacy query-string form is **removed** (it was undocumented and only used by the admin, which is updated in this PR). Callers should use `PUT /menus/:name/items/:id` / `DELETE /menus/:name/items/:id`.
+  - **Menu and menu-item API responses are now camelCase**, aligning with the rest of EmDash's REST surface (`content`, `taxonomies`, `redirects`, …). `created_at` → `createdAt`, `updated_at` → `updatedAt`, `menu_id` → `menuId`, `parent_id` → `parentId`, `sort_order` → `sortOrder`, `reference_collection` → `referenceCollection`, `reference_id` → `referenceId`, `custom_url` → `customUrl`, `title_attr` → `titleAttr`, `css_classes` → `cssClasses`, `translation_group` → `translationGroup`. **Breaking** for direct REST consumers that depend on snake_case keys in the response body. The admin UI is already updated.
+  - **Refactors menus to the standard repository pattern.** Adds `MenuRepository` next to `ContentRepository`, `TaxonomyRepository`, `RedirectRepository`, `MediaRepository`, `CommentRepository`. Handlers become thin orchestrators; the repository is now the single place where snake_case rows become camelCase entities.
+
+  These changes do not touch any database schema or migration. Existing data is preserved.
+
+- [#1011](https://github.com/emdash-cms/emdash/pull/1011) [`dbaea9c`](https://github.com/emdash-cms/emdash/commit/dbaea9ccaef6ac48dda14b77c6b2adbe0dc0ff38) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds experimental support for the decentralized plugin registry (see RFC #694). Configure with `experimental.registry.aggregatorUrl` in `astro.config.mjs`; the admin UI then uses the registry instead of the centralized marketplace for browse and install. Marketplace behavior is unchanged when the option is not set.
+
+  The experimental config accepts a `policy.minimumReleaseAge` duration (e.g. `"48h"`) that holds back releases below that age from install and update prompts, with a `policy.minimumReleaseAgeExclude` allowlist for trusted publishers or specific packages. The minimum-release-age check is enforced both client-side (for UX) and server-side (in the install endpoint), so stale browser tabs and deep links still hit the gate.
+
+### Patch Changes
+
+- [#1076](https://github.com/emdash-cms/emdash/pull/1076) [`6e62b90`](https://github.com/emdash-cms/emdash/commit/6e62b90e14615a2012a5885849e6b1d1062e7c0b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes spurious TypeScript errors in strict projects that consume EmDash. Several subpaths (`emdash/routes/*`, `emdash/api/route-utils`, `emdash/api/schemas`, `emdash/auth/providers/github`, `emdash/auth/providers/google`) previously shipped raw source, so your `tsc` and editor type-checked EmDash's internals against your config and could report errors that weren't yours. These now ship compiled type declarations instead. The `*-admin` providers and `emdash/ui` stay source because they bridge the admin React/Astro runtime your own build processes. Import paths and runtime behaviour are unchanged.
+
+- [#1086](https://github.com/emdash-cms/emdash/pull/1086) [`23597d0`](https://github.com/emdash-cms/emdash/commit/23597d017360673cf95eee8e5d24c873137fc215) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes silent data loss in migration 036 on Cloudflare D1 (#1021). D1 ignores `PRAGMA foreign_keys = OFF` and its replacement `defer_foreign_keys` only defers constraint validation, it doesn't suppress CASCADE actions, so dropping any table during the i18n rebuild fired its child cascades. Three FK relationships were affected:
+  - `content_taxonomies.taxonomy_id -> taxonomies(id) ON DELETE CASCADE` wiped all post-taxonomy associations.
+  - `taxonomies.parent_id -> taxonomies(id) ON DELETE SET NULL` flattened taxonomy hierarchies.
+  - `_emdash_menu_items.menu_id -> _emdash_menus(id) ON DELETE CASCADE` wiped every menu item on the install (along with `parent_id -> _emdash_menu_items(id) ON DELETE CASCADE` mopping up nested items).
+
+  The migration now physically removes those FK relationships before any drop. `content_taxonomies` and `_emdash_menu_items` are rebuilt without their parent FKs as the first steps of up(), and the new `taxonomies` self-FK targets its temporary name (`taxonomies_new`) which SQLite rebinds on RENAME. The FKs from migration 005 on `_emdash_menu_items` are not restored on rollback either: the runtime always deleted child rows explicitly, so the cascade was redundant and reinstating it would only re-create the #1021 hazard on any future migration that drops `_emdash_menus`. Rollback also refuses to run when `content_taxonomies` has rows referencing translation groups with no surviving `taxonomies` row, surfacing dangling data before any destructive work, and the `idx_content_taxonomies_term` index from migration 015 is restored after each rebuild.
+
+  This is forward-fix only. Installs that already lost data when running 036 will need to restore from D1 Time Travel.
+
+- [#1088](https://github.com/emdash-cms/emdash/pull/1088) [`883b75b`](https://github.com/emdash-cms/emdash/commit/883b75b992854a4e339d3896bbd73bec36180b9b) Thanks [@MA2153](https://github.com/MA2153)! - Fixes `EmDashClient.terms()` returning `{ terms }` instead of `{ items }`, which caused `page.items` to be `undefined` for any caller that iterated the result. The API handler returns `{ terms: TermWithCount[] }` but the client was typed and advertised as `ListResult<Term>` — the key name mismatch is now mapped correctly.
+
+- [#751](https://github.com/emdash-cms/emdash/pull/751) [`05440b1`](https://github.com/emdash-cms/emdash/commit/05440b11ef5df609ad7f800143fa96019da22101) Thanks [@edrpls](https://github.com/edrpls)! - Fix the admin collection list pagination denominator so it no longer grows in increments of 5 as the user pages forward.
+
+  The `GET /_emdash/api/content/{collection}` response now includes a `total` field with the full filtered row count (independent of `limit`). The admin uses it as the pagination denominator, so a 143-entry collection reads `1/8` on page 1 instead of `1/5 → 5/10 → 10/15 → …` as successive API pages load.
+
+  The `total` field is optional; pre-upgrade clients that ignore it still work, and the admin falls back to the loaded-item count when an older server doesn't return it.
+
+  Also handles the edge case where the current page exceeds `totalPages` after filtering or deletion — the admin clamps the active page so the table doesn't render empty while waiting for a refetch.
+
+- [#1000](https://github.com/emdash-cms/emdash/pull/1000) [`94fb50b`](https://github.com/emdash-cms/emdash/commit/94fb50b0338d21037a6623de7f350a1621b1b811) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes invite passkey registration behind a TLS-terminating reverse proxy. The invite `register-options` endpoint now resolves the public origin via `getPublicOrigin(url, emdash.config)` before calling `getPasskeyConfig`, matching every other passkey endpoint. Previously the WebAuthn RP ID fell back to `url.hostname` (e.g. `localhost`), causing the browser to reject the registration with "Security error" when the public origin differed from the upstream host.
+
+- [#1013](https://github.com/emdash-cms/emdash/pull/1013) [`0cd8c6d`](https://github.com/emdash-cms/emdash/commit/0cd8c6d4e0f0dc126d66f953afcfdc3d6201d00b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the slash command menu's initial selection getting overridden when the menu opens under a stationary pointer. The menu items previously reacted to `mouseenter` unconditionally, so an item rendered beneath the cursor would steal selection from the keyboard default before any user interaction. Mouse-hover-selects still works, but only after the user actually moves the pointer over the menu.
+
+- [#1087](https://github.com/emdash-cms/emdash/pull/1087) [`878a0b6`](https://github.com/emdash-cms/emdash/commit/878a0b689b9475e501f809d81d0fe494a040bfe4) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes two data-loss bugs in the WordPress WXR import path (admin UI Settings, Import, WordPress, i.e. `POST /_emdash/api/import/wordpress/execute`).
+
+  Per-post taxonomy assignments parsed from `<wp:category>`, `<wp:tag>`, `<wp:term>`, and per-item `<category domain="...">` blocks (#1061) are now persisted. The HTTP execute handler previously extracted this data and silently discarded it before any taxonomy or pivot rows were written. Terms are created idempotently in EmDash's seeded `category` and `tag` taxonomies; custom taxonomies such as `genre` are matched against existing EmDash definitions via the runtime's locale fallback chain (`resolveLocaleChain`), so imports against a non-default-locale site reuse defs seeded at the default locale instead of false-failing. Unknown custom taxonomies surface in a new `result.taxonomies.missingTaxonomies` field instead of being silently dropped, so the admin can prompt the user to create the missing definition. Assignments respect each taxonomy definition's `collections` array.
+
+  WPML and Polylang translations (#1080) are now imported under their own per-post locale and linked via `translation_group`. Previously the entire upload shared one `config.locale` and the second post of any translation pair was rejected by the `UNIQUE(slug, locale)` constraint introduced in migration 019. The parser promotes per-post locale from `_icl_lang_code` (WPML), `trid` (WPML's translation group id), `_locale` (Polylang), the `language` taxonomy, or `_translations` postmeta. Terms are mirrored into each translation's locale so per-locale lookups (`getTermsForEntry(..., locale)`) resolve correctly on every translation row. Per-translation taxonomy assignments override anchor-inherited ones per-taxonomy when the translator picked different terms, matching WPML "Translate Independently" mode. Taxonomies the translation did not touch keep their inherited assignments, matching WPML "Sync" mode and Polylang's default.
+
+  Adds `result.taxonomies` to the import response (additive). Existing consumers continue to work unchanged.
+
+  Scope note: this fixes the HTTP import path, which is what the admin UI calls. The standalone `emdash import wordpress` CLI command writes JSON files to disk and has its own slug-only output path that does not carry locale, so it can still clobber two translations with the same `post_name`. That is a separate fix and not addressed here.
+
+- [#768](https://github.com/emdash-cms/emdash/pull/768) [`121f173`](https://github.com/emdash-cms/emdash/commit/121f1735f06520468d1532efd9f9fba88ff5d295) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes `SQLITE_CORRUPT_VTAB` (`database disk image is malformed`) when editing or publishing content on collections that have search enabled, and on restore-from-trash, permanent-delete, and edit-while-trashed flows.
+
+  The FTS5 sync triggers used the contentless-table form (`DELETE FROM fts WHERE rowid = OLD.rowid`) on what is actually an external-content FTS5 table. After an UPDATE on `ec_<collection>`, FTS5 then read NEW column values from the (already updated) content table while trying to remove OLD tokens from the inverted index, drifting the index out of sync until SQLite refused further reads. Rewrites the triggers to use the documented external-content-safe `INSERT INTO fts(fts, rowid, ...) VALUES('delete', OLD.rowid, OLD.col1, ...)` pattern, gated on `OLD.deleted_at IS NULL` so we don't try to remove rows that were never indexed (which would itself raise `SQLITE_CORRUPT_VTAB` on restore-from-trash and permanent-delete).
+
+  Adds migration `039_fix_fts5_triggers` that rebuilds the FTS index for every search-enabled collection on upgrade, replacing the broken triggers and recovering from any latent index corruption left behind by earlier mutations. The migration runs once at startup before the first request can hit the affected paths, so upgrading sites get the fix on their next deploy without depending on a search-endpoint visit to trigger lazy auto-repair.
+
+- [#1077](https://github.com/emdash-cms/emdash/pull/1077) [`f4a9711`](https://github.com/emdash-cms/emdash/commit/f4a9711d7e715b6f71129bf60665113052a52d60) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes `Astro.locals.emdash` typing. The shipped type declaration referenced a build artifact that does not exist, so `locals.emdash` silently fell back to `any` in every EmDash site — losing autocomplete and type-checking on the handlers API in your pages and endpoints. It is now correctly typed as `EmDashHandlers`.
+
+- [#1019](https://github.com/emdash-cms/emdash/pull/1019) [`5681eb2`](https://github.com/emdash-cms/emdash/commit/5681eb2e43fbe57c535e5f828c1c8eba06b3eb89) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes a Zod type-incompatibility between trusted plugins and core. Without a workspace-level pin, emdash's `zod: ^4.3.5` could resolve to a different patch than Astro's bundled Zod, and Zod 4 embeds the version in the type — so schemas imported via `astro/zod` in trusted plugins (e.g. `@emdash-cms/plugin-forms`) were not assignable to `definePlugin`'s `PluginRoute<TInput>['input']`. Pins Zod in the pnpm catalog so the entire workspace dedupes on one instance.
+
+- [#1074](https://github.com/emdash-cms/emdash/pull/1074) [`ed917d9`](https://github.com/emdash-cms/emdash/commit/ed917d9d534751241dafb9126fd0beddbd5ed593) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes stored config sharing when the runtime module is loaded as both compiled `dist` and raw `src` in the same process (Vite SSR / dual-package). The integration config is now keyed on a global `Symbol.for` registry entry instead of a typed `globalThis` var, matching the existing isolate-singleton pattern, so `getStoredConfig()` resolves consistently across both module copies.
+
+- [#1076](https://github.com/emdash-cms/emdash/pull/1076) [`6e62b90`](https://github.com/emdash-cms/emdash/commit/6e62b90e14615a2012a5885849e6b1d1062e7c0b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes a type error in the shipped WordPress-plugin import source: the analyze-endpoint error body from `response.json()` is `unknown` under `@cloudflare/workers-types` and was read without narrowing. This file ships as raw source via the `emdash/routes/*` export, so the error surfaced in strict consumer typechecks (issue #1053). The body is now typed before `.message` is read; runtime behaviour is unchanged.
+
+- Updated dependencies [[`05440b1`](https://github.com/emdash-cms/emdash/commit/05440b11ef5df609ad7f800143fa96019da22101), [`484e7ab`](https://github.com/emdash-cms/emdash/commit/484e7ab66a9d7910bcb56b3385babb28a8ff0986), [`0d5843f`](https://github.com/emdash-cms/emdash/commit/0d5843fc3378936667ab81c56001349198028ebb), [`0cd8c6d`](https://github.com/emdash-cms/emdash/commit/0cd8c6d4e0f0dc126d66f953afcfdc3d6201d00b), [`d014b48`](https://github.com/emdash-cms/emdash/commit/d014b483e438a52fb27fcfa47ed6ef64a24e21df), [`dbaea9c`](https://github.com/emdash-cms/emdash/commit/dbaea9ccaef6ac48dda14b77c6b2adbe0dc0ff38), [`5681eb2`](https://github.com/emdash-cms/emdash/commit/5681eb2e43fbe57c535e5f828c1c8eba06b3eb89)]:
+  - @emdash-cms/admin@0.13.0
+  - @emdash-cms/auth@0.13.0
+  - @emdash-cms/auth-atproto@0.2.6
+  - @emdash-cms/gutenberg-to-portable-text@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

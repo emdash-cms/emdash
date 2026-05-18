@@ -1,5 +1,71 @@
 # @emdash-cms/registry-cli
 
+## 0.2.0
+
+### Minor Changes
+
+- [#1040](https://github.com/emdash-cms/emdash/pull/1040) [`e6f7311`](https://github.com/emdash-cms/emdash/commit/e6f731163d7595a99b12105652aa0459e4dc8c7f) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `emdash-plugin.jsonc` manifest support. Plugin authors can now declare profile fields (license, author, security contact, name, description, keywords, repo) once in a hand-edited JSONC file instead of passing them as flags on every publish. The CLI loads `./emdash-plugin.jsonc` automatically; explicit flags still win for CI use.
+
+  New `emdash-plugin validate` command checks a manifest against the schema offline with `tsc`-style file:line:column diagnostics.
+
+  The manifest's optional `publisher` field pins the publishing identity. On first successful publish, the CLI writes the active session's DID back to the manifest. Subsequent publishes verify the active session matches the pinned publisher and refuse on mismatch to prevent accidental cross-account publishes.
+
+  JSON Schema for IDE completion ships in the package at `schemas/emdash-plugin.schema.json`; reference it via `"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json"`.
+
+- [#1057](https://github.com/emdash-cms/emdash/pull/1057) [`c0ce915`](https://github.com/emdash-cms/emdash/commit/c0ce915c555b8658245d465255e2ec89b361c57f) Thanks [@ascorbic](https://github.com/ascorbic)! - Renames `@emdash-cms/registry-cli` to `@emdash-cms/plugin-cli` and the binary from `emdash-registry` to `emdash-plugin`. The package's job has outgrown the original name — `init`, `build`, `dev`, `bundle`, `publish`, `search`, `info`, `login`, `logout`, `whoami`, and `switch` cover plugin authoring + identity + discovery, not just registry interaction. Adopt the new name on first install; the old package is no longer published.
+
+  This release also adds `emdash-plugin build` and `emdash-plugin dev` and consolidates the build pipeline so `bundle` is a thin packaging step on top of `build`.
+
+  **`emdash-plugin build`** reads `emdash-plugin.jsonc` and `src/plugin.ts`, then emits:
+  - `dist/plugin.mjs` (+ `dist/plugin.d.mts`) — runtime bytes (hooks + routes). The same artifact is consumed both in-process (when the plugin is in `plugins: []`) and by the sandbox loader (when in `sandboxed: []`).
+  - `dist/manifest.json` — wire-shape `PluginManifest` including hooks + routes harvested from probing `src/plugin.ts`. `bundle` packs this verbatim into the registry tarball; on the npm path it's metadata that consumers can read without parsing JSONC.
+  - `dist/index.mjs` (+ `dist/index.d.mts`) — descriptor module that default-exports a bare `PluginDescriptor` object. Emitted only when a sibling `package.json` exists (registry-only plugins skip this, since nothing would import it).
+
+  **`emdash-plugin dev`** watches `src/**`, `emdash-plugin.jsonc`, and `package.json`, debouncing rebuilds at 150ms. On a failed rebuild it leaves the last good `dist/` in place so a downstream site importing the plugin keeps working until the next successful build. Stop with Ctrl-C.
+
+  A typical plugin `package.json`:
+
+  ```json
+  {
+  	"scripts": {
+  		"build": "emdash-plugin build",
+  		"dev": "emdash-plugin dev"
+  	}
+  }
+  ```
+
+  **`version` in `emdash-plugin.jsonc` is now optional.** The build reconciles the manifest's `version` with `package.json#version`:
+  - Both set and matching → fine.
+  - Both set and different → hard error.
+  - One set → that value wins.
+  - Neither set → hard error.
+
+  The recommended pattern for npm-distributed plugins is to omit `version` from the manifest and let `package.json` be the source of truth. Registry-only plugins (no `package.json`) must set `version` in the manifest.
+
+  **`emdash-plugin bundle`** has been reduced to a packaging step: it now calls `build` to produce `dist/`, validates the bundle contents (no Node-builtin imports, no oversized files, capability sanity), collects optional assets (README, icon, screenshots), and tarballs. Inside the tarball, `plugin.mjs` is renamed to `backend.js` to match the registry's wire-side filename. `validateOnly` still skips tarball creation but now produces the `dist/` artifacts (since "validate" implies "build first").
+
+### Patch Changes
+
+- [#1091](https://github.com/emdash-cms/emdash/pull/1091) [`6725e91`](https://github.com/emdash-cms/emdash/commit/6725e914319dc0f0e6a4b0442694fa9e9757e4af) Thanks [@ascorbic](https://github.com/ascorbic)! - Renames the multi-word flags on `build`, `dev`, and `bundle` from camelCase to kebab-case for consistency with `publish` and standard Unix CLI convention.
+  - `--outDir` -> `--out-dir`
+  - `--validateOnly` -> `--validate-only`
+
+  The short alias `-o` for `--out-dir` is unchanged.
+
+- [#1092](https://github.com/emdash-cms/emdash/pull/1092) [`6788829`](https://github.com/emdash-cms/emdash/commit/67888292c85c56dda3b39450a020353fb0f17cc8) Thanks [@ascorbic](https://github.com/ascorbic)! - Renames the `--aggregator` flag on `search` and `info` to `--registry-url` for consistency with the `EMDASH_REGISTRY_URL` env var and the rest of the user-facing surface. Internally the override still selects the aggregator service to query — the rename only affects what users type.
+
+  Old:
+
+  ```sh
+  emdash-plugin search "image" --aggregator https://registry.example.com
+  ```
+
+  New:
+
+  ```sh
+  emdash-plugin search "image" --registry-url https://registry.example.com
+  ```
+
 ## 0.1.0
 
 ### Minor Changes
