@@ -12,9 +12,6 @@ import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import type { SearchConfig } from "./types.js";
 
-/** Regex character escape pattern for embedding strings in a RegExp source. */
-const REGEX_ESCAPE = /[.*+?^${}()|[\]\\]/g;
-
 /**
  * FTS5 Manager
  *
@@ -432,64 +429,15 @@ export class FTSManager {
 	}
 
 	/**
-	 * Detect FTS sync triggers created by a pre-fix version of EmDash.
+	 * Verify FTS index integrity and rebuild if drift is detected.
 	 *
-	 * Versions prior to the SQLITE_CORRUPT_VTAB fix used the contentless-table
-	 * sync pattern (`DELETE FROM "<fts>" WHERE rowid = OLD.rowid`) on what is
-	 * actually an external-content FTS5 table. That pattern silently corrupts
-	 * the inverted index over time. Sites upgrading across the fix have
-	 * already-corrupt indexes plus the still-installed broken triggers, so
-	 * we look at the trigger source directly to decide whether to rebuild.
+	 * Cheap belt-and-braces check, run lazily on the first search request
+	 * per isolate. The expensive cases (corrupted indexes from pre-fix
+	 * EmDash versions, broken legacy triggers) are handled at boot time by
+	 * migration `039_fix_fts5_triggers`, not here. This routine sticks to:
 	 *
-	 * Returns true if any of the FTS triggers contain the legacy unsafe
-	 * `DELETE FROM "<fts>" WHERE rowid = OLD.rowid` pattern.
-	 */
-	private async hasLegacyTriggers(collectionSlug: string): Promise<boolean> {
-		if (!isSqlite(this.db)) return false;
-		const ftsTable = this.getFtsTableName(collectionSlug);
-		// Match exact trigger names rather than a LIKE pattern -- ftsTable
-		// contains underscores, which are SQL LIKE wildcards, and could
-		// otherwise produce false positives against unrelated triggers.
-		const insertTrigger = `${ftsTable}_insert`;
-		const updateTrigger = `${ftsTable}_update`;
-		const deleteTrigger = `${ftsTable}_delete`;
-
-		const result = await sql<{ sql: string | null }>`
-			SELECT sql FROM sqlite_master
-			WHERE type = 'trigger'
-			AND tbl_name = ${this.getContentTableName(collectionSlug)}
-			AND name IN (${insertTrigger}, ${updateTrigger}, ${deleteTrigger})
-		`.execute(this.db);
-
-		// Match the legacy unsafe pattern with whitespace-tolerant regex --
-		// older shipped versions may have differed slightly in formatting
-		// (e.g. line breaks, extra spaces) and we don't want to miss any.
-		// Pattern: DELETE FROM "<fts>" WHERE rowid = OLD.rowid
-		const escaped = ftsTable.replace(REGEX_ESCAPE, "\\$&");
-		const legacyPattern = new RegExp(
-			`DELETE\\s+FROM\\s+"?${escaped}"?\\s+WHERE\\s+rowid\\s*=\\s*OLD\\.rowid`,
-			"i",
-		);
-		for (const row of result.rows) {
-			if (row.sql && legacyPattern.test(row.sql)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Verify FTS index integrity and rebuild if corrupted.
-	 *
-	 * Checks, in order:
-	 *   1. FTS table is missing -> rebuild.
-	 *   2. Sync triggers were created by a pre-fix EmDash version (use the
-	 *      unsafe `DELETE FROM ... WHERE rowid = OLD.rowid` pattern that
-	 *      causes `SQLITE_CORRUPT_VTAB`) -> rebuild to install fixed
-	 *      triggers and a clean index.
-	 *   3. Row count mismatch between content table and FTS docsize ->
-	 *      rebuild.
-	 *   4. FTS5 `'integrity-check'` reports corruption -> rebuild.
+	 *   1. FTS table missing while config says search is enabled -> rebuild.
+	 *   2. Row count mismatch between content table and FTS docsize -> rebuild.
 	 *
 	 * Returns true if the index was rebuilt, false if it was healthy.
 	 */
@@ -512,27 +460,15 @@ export class FTSManager {
 			return true;
 		}
 
-		// Check: legacy/broken triggers from a pre-fix install. These corrupt
-		// the index on every UPDATE/DELETE, so any site that has them needs a
-		// rebuild even if the row counts happen to match right now.
-		if (fields.length > 0 && (await this.hasLegacyTriggers(collectionSlug))) {
-			console.warn(
-				`FTS index for "${collectionSlug}" has legacy sync triggers from a pre-fix EmDash version. Rebuilding to install corruption-safe triggers.`,
-			);
-			await this.rebuildIndex(collectionSlug, fields, config?.weights);
-			return true;
-		}
-
-		// Check: Row count mismatch
+		// Row count parity check. For external-content FTS tables, COUNT(*)
+		// on the virtual table is answered from the backing content table
+		// (including soft-deleted rows), so we use the docsize shadow table
+		// which tracks rows actually present in the full-text index.
 		const contentCount = await sql<{ count: number }>`
 			SELECT COUNT(*) as count FROM ${sql.ref(contentTable)}
 			WHERE deleted_at IS NULL
 		`.execute(this.db);
 
-		// For external-content FTS tables, COUNT(*) on the virtual table is
-		// answered from the backing content table, including soft-deleted rows.
-		// The docsize shadow table tracks the rows actually present in the
-		// full-text index, which is what we need for repair decisions.
 		const ftsCount = await sql<{ count: number }>`
 			SELECT COUNT(*) as count FROM "${sql.raw(ftsDocsizeTable)}"
 		`.execute(this.db);
@@ -543,29 +479,6 @@ export class FTSManager {
 		if (contentRows !== ftsRows) {
 			console.warn(
 				`FTS index for "${collectionSlug}" has ${ftsRows} rows but content table has ${contentRows}. Rebuilding.`,
-			);
-			if (fields.length > 0) {
-				await this.rebuildIndex(collectionSlug, fields, config?.weights);
-			}
-			return true;
-		}
-
-		// Check: FTS5 integrity-check. This catches corruption that the row
-		// count check misses (e.g. orphaned tokens in segments where the
-		// docsize entry exists but points to garbage). Throws on a corrupt
-		// index; treat the throw itself as the signal to rebuild.
-		try {
-			await sql
-				.raw(`INSERT INTO "${ftsTable}"("${ftsTable}") VALUES('integrity-check')`)
-				.execute(this.db);
-		} catch (err) {
-			const code =
-				err && typeof err === "object" && "code" in err && typeof err.code === "string"
-					? err.code
-					: undefined;
-			const message = err instanceof Error ? err.message : String(err);
-			console.warn(
-				`FTS integrity-check failed for "${collectionSlug}" (${code ?? "unknown"}: ${message}). Rebuilding.`,
 			);
 			if (fields.length > 0) {
 				await this.rebuildIndex(collectionSlug, fields, config?.weights);

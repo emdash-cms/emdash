@@ -137,55 +137,8 @@ describe("FTS corruption on publish (SQLITE_CORRUPT_VTAB)", () => {
 		expect(docsize.rows[0]?.count).toBe(1);
 	});
 
-	it("auto-repairs sites that have legacy unsafe triggers from a pre-fix version", async () => {
-		// Recreate the broken trigger pattern that previously shipped (the
-		// contentless-table sync form, applied to an external-content FTS5
-		// table). This is what every site that ran a pre-fix EmDash version
-		// has in `sqlite_master` today.
-		await sql.raw(`DROP TRIGGER IF EXISTS "_emdash_fts_pages_update"`).execute(db);
-		await sql.raw(`DROP TRIGGER IF EXISTS "_emdash_fts_pages_delete"`).execute(db);
-		await sql
-			.raw(`
-			CREATE TRIGGER "_emdash_fts_pages_update"
-			AFTER UPDATE ON "ec_pages"
-			BEGIN
-				DELETE FROM "_emdash_fts_pages" WHERE rowid = OLD.rowid;
-				INSERT INTO "_emdash_fts_pages"(rowid, id, locale, title, content)
-				SELECT NEW.rowid, NEW.id, NEW.locale, NEW.title, NEW.content
-				WHERE NEW.deleted_at IS NULL;
-			END
-		`)
-			.execute(db);
-		await sql
-			.raw(`
-			CREATE TRIGGER "_emdash_fts_pages_delete"
-			AFTER DELETE ON "ec_pages"
-			BEGIN
-				DELETE FROM "_emdash_fts_pages" WHERE rowid = OLD.rowid;
-			END
-		`)
-			.execute(db);
-
-		// `verifyAndRepairAll` should detect the legacy triggers and rebuild
-		// the index, replacing them with the corruption-safe form.
-		await expect(ftsManager.verifyAndRepairAll()).resolves.toBe(1);
-
-		// After repair, edit + publish must not corrupt the index.
-		const created = await repo.create({
-			type: "pages",
-			slug: "post-repair",
-			status: "draft",
-			data: { title: "Hello", content: [] },
-		});
-		await repo.publish("pages", created.id);
-		await repo.update("pages", created.id, { data: { title: "Hello v2" } });
-
-		await expect(
-			sql
-				.raw(`INSERT INTO _emdash_fts_pages(_emdash_fts_pages) VALUES('integrity-check')`)
-				.execute(db),
-		).resolves.toBeDefined();
-	});
+	// Upgrade-from-pre-fix-version is covered by the migration test:
+	// `tests/unit/database/migrations/039_fix_fts5_triggers.test.ts`.
 
 	it("survives the full trash lifecycle (soft-delete -> restore -> integrity-check)", async () => {
 		// The INSERT trigger only indexes rows where `deleted_at IS NULL`, so
