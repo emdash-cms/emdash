@@ -238,9 +238,7 @@ describe("Menu Sync", () => {
 					]),
 				);
 				expect(result.data.toReorder).toEqual(
-					expect.arrayContaining([
-						expect.objectContaining({ sortOrder: 20 }),
-					]),
+					expect.arrayContaining([expect.objectContaining({ sortOrder: 20 })]),
 				);
 			}
 		});
