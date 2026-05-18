@@ -5,15 +5,15 @@ description: Programmatic API for querying and managing EmDash content.
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash exports functions for querying content, managing media, and working with the database.
+EmDash exports functions for querying content and working with preview, settings, menus, taxonomies, widget areas, sections, and search.
 
-## Content Queries
+## Content queries
 
 EmDash's query functions follow Astro's [live content collections](https://docs.astro.build/en/reference/experimental-flags/live-content-collections/) pattern, returning `{ entries, error }` or `{ entry, error }` for graceful error handling.
 
 ### `getEmDashCollection()`
 
-Fetch all entries from a collection.
+Fetch all entries from a collection. The following example loads all posts and checks for an error:
 
 ```ts
 import { getEmDashCollection } from "emdash";
@@ -34,6 +34,8 @@ if (error) {
 
 #### Options
 
+The `options` parameter accepts the following filter:
+
 ```ts
 interface CollectionFilter {
 	status?: "draft" | "published" | "archived";
@@ -44,6 +46,8 @@ interface CollectionFilter {
 
 #### Returns
 
+The function resolves to a `CollectionResult`:
+
 ```ts
 interface CollectionResult<T> {
 	entries: ContentEntry<T>[]; // Empty array if error or none found
@@ -52,6 +56,8 @@ interface CollectionResult<T> {
 ```
 
 #### Examples
+
+The following examples filter by status and taxonomy, limit results, and handle errors:
 
 ```ts
 // Get all published posts
@@ -80,7 +86,7 @@ if (error) {
 
 ### `getEmDashEntry()`
 
-Fetch a single entry by slug or ID.
+Fetch a single entry by slug or ID. The following example loads a post and redirects when it is missing:
 
 ```ts
 import { getEmDashEntry } from "emdash";
@@ -98,10 +104,13 @@ if (!post) {
 | ------------ | -------- | ---------------- |
 | `collection` | `string` | Collection slug  |
 | `slugOrId`   | `string` | Entry slug or ID |
+| `options`    | `{ locale?: string }` | Optional. Locale for slug resolution |
 
-Preview mode is handled automatically — the middleware detects `_preview` tokens and serves draft content via `AsyncLocalStorage`. No options parameter is needed.
+Preview mode is handled automatically — the middleware detects `_preview` tokens and serves draft content via `AsyncLocalStorage`. The optional `options` parameter only accepts a `locale` for slug resolution; preview state requires no parameter.
 
 #### Returns
+
+The function resolves to an `EntryResult`:
 
 ```ts
 interface EntryResult<T> {
@@ -112,6 +121,8 @@ interface EntryResult<T> {
 ```
 
 #### Examples
+
+The following examples fetch by slug and ID, read preview state, and distinguish errors from not-found:
 
 ```ts
 // Get by slug
@@ -132,11 +143,11 @@ if (!entry) {
 }
 ```
 
-## Content Types
+## Content types
 
 ### `ContentEntry`
 
-The entry returned by query functions:
+Query functions return entries in the following shape:
 
 ```ts
 interface ContentEntry<T = Record<string, unknown>> {
@@ -158,145 +169,11 @@ The `data` object contains all content fields plus system fields:
 - `publishedAt` - ISO timestamp or null
 - Plus all custom fields defined in your collection schema
 
-## Database Functions
-
-### `createDatabase()`
-
-Create a database connection.
-
-```ts
-import { createDatabase } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-```
-
-<Aside type="caution">
-	Direct database access is for advanced use cases. Prefer the query functions for content access.
-</Aside>
-
-### `runMigrations()`
-
-Run pending database migrations.
-
-```ts
-import { createDatabase, runMigrations } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-const { applied } = await runMigrations(db);
-console.log(`Applied ${applied.length} migrations`);
-```
-
-### `getMigrationStatus()`
-
-Check migration status.
-
-```ts
-import { createDatabase, getMigrationStatus } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-const status = await getMigrationStatus(db);
-// { applied: ["0001_core", ...], pending: [] }
-```
-
-## Repositories
-
-Low-level data access through repositories.
-
-### `ContentRepository`
-
-```ts
-import { ContentRepository, createDatabase } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-const repo = new ContentRepository(db);
-
-// Find many
-const { items, nextCursor } = await repo.findMany("posts", {
-	limit: 10,
-	where: { status: "published" },
-});
-
-// Find by ID
-const post = await repo.findById("posts", "01HXK5MZSN...");
-
-// Create
-const newPost = await repo.create({
-	type: "posts",
-	slug: "new-post",
-	data: { title: "New Post", content: [] },
-	status: "draft",
-});
-
-// Update
-const updated = await repo.update("posts", "01HXK5MZSN...", {
-	data: { title: "Updated Title" },
-});
-
-// Delete
-await repo.delete("posts", "01HXK5MZSN...");
-```
-
-### `MediaRepository`
-
-```ts
-import { MediaRepository, createDatabase } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-const repo = new MediaRepository(db);
-
-// List media
-const { items } = await repo.findMany({ limit: 20 });
-
-// Get by ID
-const media = await repo.findById("01HXK5MZSN...");
-
-// Create (after upload)
-const newMedia = await repo.create({
-	filename: "photo.jpg",
-	mimeType: "image/jpeg",
-	size: 12345,
-	storageKey: "uploads/photo.jpg",
-});
-```
-
-## Schema Registry
-
-Programmatic schema management.
-
-```ts
-import { SchemaRegistry, createDatabase } from "emdash";
-
-const db = createDatabase({ url: "file:./data.db" });
-const registry = new SchemaRegistry(db);
-
-// List collections
-const collections = await registry.listCollections();
-
-// Get collection with fields
-const postsSchema = await registry.getCollectionWithFields("posts");
-
-// Create collection
-await registry.createCollection({
-	slug: "products",
-	label: "Products",
-	labelSingular: "Product",
-	supports: ["drafts", "revisions"],
-});
-
-// Add field
-await registry.createField("products", {
-	slug: "price",
-	label: "Price",
-	type: "number",
-	required: true,
-});
-```
-
-## Preview System
+## Preview system
 
 ### `generatePreviewToken()`
 
-Generate a preview token for draft content.
+Generate a preview token for draft content. The following example creates a token that expires in one hour:
 
 ```ts
 import { generatePreviewToken } from "emdash";
@@ -310,7 +187,7 @@ const token = await generatePreviewToken({
 
 ### `verifyPreviewToken()`
 
-Verify a preview token.
+Verify a preview token and read its payload:
 
 ```ts
 import { verifyPreviewToken } from "emdash";
@@ -328,20 +205,20 @@ if (result.valid) {
 
 ### `isPreviewRequest()`
 
-Check if a request includes a preview token.
+Check whether a request includes a preview token, then read it:
 
 ```ts
 import { isPreviewRequest, getPreviewToken } from "emdash";
 
-if (isPreviewRequest(Astro.request)) {
-	const token = getPreviewToken(Astro.request);
+if (isPreviewRequest(Astro.url)) {
+	const token = getPreviewToken(Astro.url);
 	// Verify and show preview content
 }
 ```
 
-## Content Converters
+## Content converters
 
-Convert between Portable Text and ProseMirror formats.
+Convert between Portable Text and ProseMirror formats:
 
 ```ts
 import { prosemirrorToPortableText, portableTextToProsemirror } from "emdash";
@@ -353,7 +230,9 @@ const portableText = prosemirrorToPortableText(prosemirrorDoc);
 const prosemirrorDoc = portableTextToProsemirror(portableText);
 ```
 
-## Site Settings
+## Site settings
+
+Read site-wide settings with `getSiteSettings` and `getSiteSetting`:
 
 ```ts
 import { getSiteSettings, getSiteSetting } from "emdash";
@@ -362,12 +241,14 @@ import { getSiteSettings, getSiteSetting } from "emdash";
 const settings = await getSiteSettings();
 
 // Get single setting
-const title = await getSiteSetting("siteTitle");
+const title = await getSiteSetting("title");
 ```
 
 Settings are read-only from the runtime API. Use the admin API to update them.
 
 ## Menus
+
+Fetch navigation menus and iterate their items, including nested children:
 
 ```ts
 import { getMenu, getMenus } from "emdash";
@@ -389,6 +270,8 @@ if (primaryMenu) {
 
 ## Taxonomies
 
+Fetch taxonomy terms, a single term, an entry's terms, or entries by term:
+
 ```ts
 import { getTaxonomyTerms, getTerm, getEntryTerms, getEntriesByTerm } from "emdash";
 
@@ -405,7 +288,9 @@ const postCategories = await getEntryTerms("posts", "post-123", "category");
 const newsPosts = await getEntriesByTerm("posts", "category", "news");
 ```
 
-## Widget Areas
+## Widget areas
+
+Fetch widget areas and the widgets they contain:
 
 ```ts
 import { getWidgetArea, getWidgetAreas } from "emdash";
@@ -425,52 +310,48 @@ if (sidebar) {
 
 ## Sections
 
-```ts
-import { getSection, getSections, getSectionCategories } from "emdash";
+Fetch sections and filter them:
 
-// Get all sections
-const sections = await getSections();
+```ts
+import { getSection, getSections } from "emdash";
+
+// Get all sections (paginated)
+const { items, nextCursor } = await getSections();
 
 // Filter sections
-const heroes = await getSections({ category: "hero" });
-const themeSections = await getSections({ source: "theme" });
-const results = await getSections({ search: "newsletter" });
+const { items: themeSections } = await getSections({ source: "theme" });
+const { items: results } = await getSections({ search: "newsletter" });
 
-// Get single section
+// Get a single section by slug
 const cta = await getSection("newsletter-cta");
-
-// Get categories
-const categories = await getSectionCategories();
 ```
+
+`getSections(options?)` returns `{ items: Section[]; nextCursor?: string }`. Options are `source` (`"theme" | "user" | "import"`), `search`, `limit` (default 50, max 100), and `cursor`.
 
 ## Search
 
-```ts
-import { search, searchCollection } from "emdash";
+Run a global search across collections. Results include highlighted snippets:
 
-// Global search across collections
+```ts
+import { search } from "emdash";
+
 const results = await search("hello world", {
 	collections: ["posts", "pages"],
 	status: "published",
 	limit: 20,
 });
 
-// Results include snippets with highlights
-results.forEach(result => {
+// search() resolves to { items, nextCursor? }
+results.items.forEach(result => {
 	console.log(result.title);
 	console.log(result.snippet); // Contains <mark> tags
 	console.log(result.score);
 });
-
-// Collection-specific search
-const posts = await searchCollection("posts", "typescript", {
-	limit: 10,
-});
 ```
 
-## Error Handling
+## Error handling
 
-EmDash exports error classes for handling specific failures:
+EmDash exports error classes for handling specific failures. The following example catches validation and schema errors:
 
 ```ts
 import {

@@ -518,12 +518,16 @@ export interface EmDashConfig {
 	};
 }
 
+const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");
+const configHolder = globalThis as Record<symbol, unknown>;
+
 /**
  * Get stored config from global
  * This is set by the virtual module at build time
  */
 export function getStoredConfig(): EmDashConfig | null {
-	return globalThis.__emdashConfig || null;
+	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern (see request-context.ts)
+	return (configHolder[STORED_CONFIG_KEY] as EmDashConfig | undefined) ?? null;
 }
 
 /**
@@ -531,11 +535,5 @@ export function getStoredConfig(): EmDashConfig | null {
  * Called by the integration at config time
  */
 export function setStoredConfig(config: EmDashConfig): void {
-	globalThis.__emdashConfig = config;
-}
-
-// Declare global type
-declare global {
-	// eslint-disable-next-line no-var
-	var __emdashConfig: EmDashConfig | undefined;
+	configHolder[STORED_CONFIG_KEY] = config;
 }

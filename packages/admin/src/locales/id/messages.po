@@ -72,7 +72,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, other {# koleksi}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1133
+#: packages/admin/src/router.tsx:1139
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0} komentar diperbarui"
 
@@ -90,11 +90,6 @@ msgstr "{0, plural, other {# kesalahan konten}}"
 #: packages/admin/src/components/WordPressImport.tsx:2056
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, other {# item konten diimpor}}"
-
-#. placeholder {0}: filteredItems.length
-#: packages/admin/src/components/ContentList.tsx:291
-msgid "{0, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr "{0, plural, other {# item cocok dengan \"{searchQuery}\"}}"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: menu.itemCount ?? 0
@@ -152,13 +147,6 @@ msgstr "{0, plural, other {# dilewati (sudah ada)}}"
 #: packages/admin/src/components/Dashboard.tsx:128
 msgid "{0, plural, one {# user} other {# users}}"
 msgstr "{0, plural, other {# pengguna}}"
-
-#. placeholder {0}: filteredItems.length
-#. placeholder {1}: hasMore ? "+" : ""
-#. placeholder {2}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:295
-msgid "{0, plural, one {#{1} item} other {#{2} items}}"
-msgstr "{0, plural, one {#{1} item} other {#{2} item}}"
 
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:576
@@ -274,6 +262,16 @@ msgstr "{count, plural, other {# item}}"
 msgid "{current} of {total}"
 msgstr "{current} dari {total}"
 
+#: packages/admin/src/components/ContentList.tsx:506
+msgid "{filteredCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
+msgstr ""
+
+#. placeholder {0}: hasMore ? "+" : ""
+#. placeholder {1}: hasMore ? "+" : ""
+#: packages/admin/src/components/ContentList.tsx:517
+msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
+msgstr ""
+
 #: packages/admin/src/components/LocaleSwitcher.tsx:107
 msgid "{label} — no translation"
 msgstr "{label} — belum diterjemahkan"
@@ -305,6 +303,10 @@ msgstr "{pluginName} meminta izin tambahan:"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:77
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} memerlukan izin berikut:"
+
+#: packages/admin/src/components/ContentList.tsx:512
+msgid "{total, plural, one {# item} other {# items}}"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:149
 msgid "{total, plural, one {# total} other {# total}}"
@@ -468,7 +470,7 @@ msgstr "Terima & Perbarui"
 msgid "Accept Invite"
 msgstr "Terima Undangan"
 
-#: packages/admin/src/router.tsx:1153
+#: packages/admin/src/router.tsx:1159
 msgid "Access Denied"
 msgstr "Akses Ditolak"
 
@@ -494,8 +496,8 @@ msgid "Account Info"
 msgstr "Info Akun"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:299
-#: packages/admin/src/components/ContentList.tsx:235
-#: packages/admin/src/components/ContentList.tsx:349
+#: packages/admin/src/components/ContentList.tsx:262
+#: packages/admin/src/components/ContentList.tsx:373
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:431
 #: packages/admin/src/components/TaxonomyManager.tsx:821
@@ -508,7 +510,7 @@ msgid "Active"
 msgstr "Aktif"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
-#: packages/admin/src/components/ContentEditor.tsx:1930
+#: packages/admin/src/components/ContentEditor.tsx:1975
 #: packages/admin/src/components/MenuEditor.tsx:354
 #: packages/admin/src/components/TaxonomyManager.tsx:360
 #: packages/admin/src/components/TaxonomyManager.tsx:812
@@ -603,7 +605,7 @@ msgstr "Tambah tautan untuk membangun menu navigasi Anda"
 msgid "Add MIME type or extension"
 msgstr "Tambah tipe MIME atau ekstensi"
 
-#: packages/admin/src/components/ContentList.tsx:159
+#: packages/admin/src/components/ContentList.tsx:186
 msgid "Add New"
 msgstr "Tambah Baru"
 
@@ -691,7 +693,7 @@ msgstr "Rata Kiri"
 msgid "Align Right"
 msgstr "Rata Kanan"
 
-#: packages/admin/src/components/ContentList.tsx:186
+#: packages/admin/src/components/ContentList.tsx:213
 msgid "All"
 msgstr "Semua"
 
@@ -788,19 +790,19 @@ msgstr "Alternatifnya, ekspor dari WordPress (Alat → Ekspor) dan unggah fileny
 #: packages/admin/src/router.tsx:356
 #: packages/admin/src/router.tsx:370
 #: packages/admin/src/router.tsx:384
-#: packages/admin/src/router.tsx:704
-#: packages/admin/src/router.tsx:735
-#: packages/admin/src/router.tsx:751
-#: packages/admin/src/router.tsx:767
-#: packages/admin/src/router.tsx:786
-#: packages/admin/src/router.tsx:804
-#: packages/admin/src/router.tsx:822
-#: packages/admin/src/router.tsx:852
-#: packages/admin/src/router.tsx:872
-#: packages/admin/src/router.tsx:1098
-#: packages/admin/src/router.tsx:1114
-#: packages/admin/src/router.tsx:1139
-#: packages/admin/src/router.tsx:1597
+#: packages/admin/src/router.tsx:710
+#: packages/admin/src/router.tsx:741
+#: packages/admin/src/router.tsx:757
+#: packages/admin/src/router.tsx:773
+#: packages/admin/src/router.tsx:792
+#: packages/admin/src/router.tsx:810
+#: packages/admin/src/router.tsx:828
+#: packages/admin/src/router.tsx:858
+#: packages/admin/src/router.tsx:878
+#: packages/admin/src/router.tsx:1104
+#: packages/admin/src/router.tsx:1120
+#: packages/admin/src/router.tsx:1145
+#: packages/admin/src/router.tsx:1603
 msgid "An error occurred"
 msgstr "Terjadi kesalahan"
 
@@ -860,7 +862,7 @@ msgstr "Disetujui"
 msgid "Arbitrary JSON data"
 msgstr "Data JSON bebas"
 
-#: packages/admin/src/components/ContentList.tsx:670
+#: packages/admin/src/components/ContentList.tsx:731
 msgid "archived"
 msgstr "diarsipkan"
 
@@ -964,11 +966,11 @@ msgstr "Setujui otomatis pengguna terautentikasi"
 msgid "Auto-generated from name (you can edit)"
 msgstr "Dibuat otomatis dari nama (dapat diedit)"
 
-#: packages/admin/src/router.tsx:734
+#: packages/admin/src/router.tsx:740
 msgid "Autosave failed"
 msgstr "Penyimpanan otomatis gagal"
 
-#: packages/admin/src/components/ContentEditor.tsx:613
+#: packages/admin/src/components/ContentEditor.tsx:614
 msgid "Autosave status"
 msgstr "Status penyimpanan otomatis"
 
@@ -991,7 +993,7 @@ msgstr "Widget Tersedia"
 msgid "Back"
 msgstr "Kembali"
 
-#: packages/admin/src/components/ContentEditor.tsx:582
+#: packages/admin/src/components/ContentEditor.tsx:583
 msgid "Back to {collectionLabel} list"
 msgstr "Kembali ke daftar {collectionLabel}"
 
@@ -1087,7 +1089,7 @@ msgstr "Jelajahi tema dan pratinjau dengan konten Anda sendiri."
 msgid "Bullet List"
 msgstr "Daftar Poin"
 
-#: packages/admin/src/components/ContentEditor.tsx:966
+#: packages/admin/src/components/ContentEditor.tsx:967
 #: packages/admin/src/components/Sidebar.tsx:206
 msgid "Bylines"
 msgstr "Byline"
@@ -1110,13 +1112,13 @@ msgstr "Dapat melihat konten"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 #: packages/admin/src/components/ConfirmDialog.tsx:57
-#: packages/admin/src/components/ContentEditor.tsx:675
-#: packages/admin/src/components/ContentEditor.tsx:880
-#: packages/admin/src/components/ContentEditor.tsx:932
-#: packages/admin/src/components/ContentEditor.tsx:2033
-#: packages/admin/src/components/ContentEditor.tsx:2086
-#: packages/admin/src/components/ContentList.tsx:558
-#: packages/admin/src/components/ContentList.tsx:629
+#: packages/admin/src/components/ContentEditor.tsx:676
+#: packages/admin/src/components/ContentEditor.tsx:881
+#: packages/admin/src/components/ContentEditor.tsx:933
+#: packages/admin/src/components/ContentEditor.tsx:2078
+#: packages/admin/src/components/ContentEditor.tsx:2131
+#: packages/admin/src/components/ContentList.tsx:619
+#: packages/admin/src/components/ContentList.tsx:690
 #: packages/admin/src/components/ContentPickerModal.tsx:248
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/editor/ImageNode.tsx:223
@@ -1194,9 +1196,11 @@ msgstr "Kategori"
 msgid "Categories ({0})"
 msgstr "Kategori ({0})"
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:68
-#: packages/admin/src/components/ContentEditor.tsx:1616
-#: packages/admin/src/components/ContentEditor.tsx:1789
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
+#: packages/admin/src/components/ContentEditor.tsx:1631
+#: packages/admin/src/components/ContentEditor.tsx:1660
+#: packages/admin/src/components/ContentEditor.tsx:1834
 #: packages/admin/src/components/FieldEditor.tsx:402
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
@@ -1221,7 +1225,7 @@ msgstr "Ubah Gambar"
 msgid "Change Logo"
 msgstr "Ubah Logo"
 
-#: packages/admin/src/router.tsx:779
+#: packages/admin/src/router.tsx:785
 msgid "Changes discarded"
 msgstr "Perubahan dibatalkan"
 
@@ -1462,7 +1466,7 @@ msgstr "Kesalahan Konten ({0})"
 msgid "Content found:"
 msgstr "Konten ditemukan:"
 
-#: packages/admin/src/router.tsx:798
+#: packages/admin/src/router.tsx:804
 msgid "Content has been scheduled for publishing"
 msgstr "Konten telah dijadwalkan untuk diterbitkan"
 
@@ -1474,7 +1478,7 @@ msgstr "Konten telah diperbarui ke revisi yang dipilih."
 msgid "Content ID:"
 msgstr "ID Konten:"
 
-#: packages/admin/src/router.tsx:746
+#: packages/admin/src/router.tsx:752
 msgid "Content is now live"
 msgstr "Konten sekarang tayang"
 
@@ -1486,11 +1490,11 @@ msgstr "item konten"
 msgid "Content Read"
 msgstr "Baca Konten"
 
-#: packages/admin/src/router.tsx:762
+#: packages/admin/src/router.tsx:768
 msgid "Content removed from public view"
 msgstr "Konten dihapus dari tampilan publik"
 
-#: packages/admin/src/router.tsx:816
+#: packages/admin/src/router.tsx:822
 msgid "Content reverted to draft"
 msgstr "Konten dikembalikan ke draf"
 
@@ -1585,7 +1589,7 @@ msgstr "Tidak dapat memetakan \"{draft}\" ke tipe MIME. Ketik MIME secara langsu
 msgid "Count"
 msgstr "Jumlah"
 
-#: packages/admin/src/components/ContentEditor.tsx:2057
+#: packages/admin/src/components/ContentEditor.tsx:2102
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/Redirects.tsx:184
 #: packages/admin/src/components/Sections.tsx:212
@@ -1621,7 +1625,7 @@ msgstr "Buat Akun"
 msgid "Create an account"
 msgstr "Buat akun"
 
-#: packages/admin/src/components/ContentEditor.tsx:2005
+#: packages/admin/src/components/ContentEditor.tsx:2050
 #: packages/admin/src/routes/bylines.tsx:247
 msgid "Create byline"
 msgstr "Buat kredit penulis"
@@ -1704,7 +1708,7 @@ msgstr "Buat akun Anda"
 msgid "Create your first navigation menu to get started"
 msgstr "Buat menu navigasi pertama Anda untuk memulai"
 
-#: packages/admin/src/components/ContentList.tsx:259
+#: packages/admin/src/components/ContentList.tsx:286
 #: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "Create your first one"
 msgstr "Buat yang pertama"
@@ -1747,7 +1751,7 @@ msgid "Created {0}"
 msgstr "Dibuat {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:846
+#: packages/admin/src/router.tsx:852
 msgid "Created {0} translation"
 msgstr "{0} terjemahan dibuat"
 
@@ -1756,7 +1760,7 @@ msgid "Created At"
 msgstr "Dibuat Pada"
 
 #. placeholder {0}: new Date(item.createdAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:900
+#: packages/admin/src/components/ContentEditor.tsx:901
 msgid "Created: {0}"
 msgstr "Dibuat: {0}"
 
@@ -1764,7 +1768,7 @@ msgstr "Dibuat: {0}"
 msgid "Creating collections and fields..."
 msgstr "Membuat koleksi dan field..."
 
-#: packages/admin/src/components/ContentEditor.tsx:2057
+#: packages/admin/src/components/ContentEditor.tsx:2102
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/Redirects.tsx:181
 #: packages/admin/src/components/Sections.tsx:212
@@ -1815,7 +1819,7 @@ msgid "Dashboard"
 msgstr "Dasbor"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:296
-#: packages/admin/src/components/ContentList.tsx:232
+#: packages/admin/src/components/ContentList.tsx:259
 msgid "Date"
 msgstr "Tanggal"
 
@@ -1967,11 +1971,11 @@ msgid "Delete permanently"
 msgstr "Hapus permanen"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:640
+#: packages/admin/src/components/ContentList.tsx:701
 msgid "Delete Permanently"
 msgstr "Hapus Permanen"
 
-#: packages/admin/src/components/ContentList.tsx:620
+#: packages/admin/src/components/ContentList.tsx:681
 msgid "Delete Permanently?"
 msgstr "Hapus Permanen?"
 
@@ -2004,7 +2008,7 @@ msgstr "Hapus tabel"
 msgid "Delete Widget Area?"
 msgstr "Hapus Area Widget?"
 
-#: packages/admin/src/components/ContentList.tsx:346
+#: packages/admin/src/components/ContentList.tsx:370
 msgid "Deleted"
 msgstr "Dihapus"
 
@@ -2144,12 +2148,12 @@ msgstr "Menonaktifkan <0>{0}</0> akan mencegah mereka login hingga diaktifkan ke
 msgid "Disabling..."
 msgstr "Menonaktifkan..."
 
-#: packages/admin/src/components/ContentEditor.tsx:660
-#: packages/admin/src/components/ContentEditor.tsx:682
+#: packages/admin/src/components/ContentEditor.tsx:661
+#: packages/admin/src/components/ContentEditor.tsx:683
 msgid "Discard changes"
 msgstr "Buang perubahan"
 
-#: packages/admin/src/components/ContentEditor.tsx:666
+#: packages/admin/src/components/ContentEditor.tsx:667
 msgid "Discard draft changes?"
 msgstr "Buang perubahan draf?"
 
@@ -2162,8 +2166,8 @@ msgstr "Abaikan"
 msgid "Display a navigation menu"
 msgstr "Tampilkan menu navigasi"
 
-#: packages/admin/src/components/ContentEditor.tsx:2008
-#: packages/admin/src/components/ContentEditor.tsx:2070
+#: packages/admin/src/components/ContentEditor.tsx:2053
+#: packages/admin/src/components/ContentEditor.tsx:2115
 #: packages/admin/src/routes/bylines.tsx:252
 msgid "Display name"
 msgstr "Nama tampilan"
@@ -2182,7 +2186,7 @@ msgstr "Ukuran Tampilan"
 msgid "Displayed below the image as a visible caption."
 msgstr "Ditampilkan di bawah gambar sebagai keterangan."
 
-#: packages/admin/src/components/ContentEditor.tsx:636
+#: packages/admin/src/components/ContentEditor.tsx:637
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Mode bebas gangguan (⌘⇧\\)"
 
@@ -2219,7 +2223,7 @@ msgstr "Belum punya akun? <0>Daftar</0>"
 msgid "Done"
 msgstr "Selesai"
 
-#: packages/admin/src/components/ContentEditor.tsx:1951
+#: packages/admin/src/components/ContentEditor.tsx:1996
 msgid "Down"
 msgstr "Turun"
 
@@ -2227,11 +2231,11 @@ msgstr "Turun"
 msgid "Downloading"
 msgstr "Mengunduh"
 
-#: packages/admin/src/components/ContentList.tsx:666
+#: packages/admin/src/components/ContentList.tsx:727
 msgid "draft"
 msgstr "draf"
 
-#: packages/admin/src/components/ContentEditor.tsx:831
+#: packages/admin/src/components/ContentEditor.tsx:832
 #: packages/admin/src/components/ContentPickerModal.tsx:212
 msgid "Draft"
 msgstr "Draf"
@@ -2288,7 +2292,7 @@ msgstr "Letakkan file ekspor WordPress Anda di sini"
 msgid "Duplicate"
 msgstr "Duplikat"
 
-#: packages/admin/src/components/ContentList.tsx:531
+#: packages/admin/src/components/ContentList.tsx:592
 msgid "Duplicate {title}"
 msgstr "Duplikasi {title}"
 
@@ -2308,7 +2312,7 @@ msgstr "mis., Pipeline CI/CD"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "mis., MacBook Pro, iPhone"
 
-#: packages/admin/src/components/ContentEditor.tsx:1960
+#: packages/admin/src/components/ContentEditor.tsx:2005
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:450
@@ -2335,15 +2339,15 @@ msgstr "Sunting {0}"
 msgid "Edit {0} field"
 msgstr "Sunting bidang {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:599
+#: packages/admin/src/components/ContentEditor.tsx:600
 msgid "Edit {collectionLabel}"
 msgstr "Sunting {collectionLabel}"
 
-#: packages/admin/src/components/ContentList.tsx:523
+#: packages/admin/src/components/ContentList.tsx:584
 msgid "Edit {title}"
 msgstr "Sunting {title}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2067
+#: packages/admin/src/components/ContentEditor.tsx:2112
 msgid "Edit byline"
 msgstr "Sunting byline"
 
@@ -2480,7 +2484,7 @@ msgid "Enabled"
 msgstr "Diaktifkan"
 
 #. placeholder {0}: label.toLowerCase()
-#: packages/admin/src/components/ContentEditor.tsx:1191
+#: packages/admin/src/components/ContentEditor.tsx:1192
 msgid "Enter {0}..."
 msgstr "Masukkan {0}..."
 
@@ -2489,7 +2493,7 @@ msgstr "Masukkan {0}..."
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Masukkan URL (https://…) atau jalur relatif (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1439
+#: packages/admin/src/components/ContentEditor.tsx:1440
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Masukkan URL yang valid (mis. https://contoh.com)"
 
@@ -2497,7 +2501,7 @@ msgstr "Masukkan URL yang valid (mis. https://contoh.com)"
 msgid "Enter credentials manually"
 msgstr "Masukkan kredensial secara manual"
 
-#: packages/admin/src/components/ContentEditor.tsx:635
+#: packages/admin/src/components/ContentEditor.tsx:636
 msgid "Enter distraction-free mode"
 msgstr "Masuk mode bebas gangguan"
 
@@ -2505,7 +2509,7 @@ msgstr "Masuk mode bebas gangguan"
 msgid "Enter email"
 msgstr "Masukkan email"
 
-#: packages/admin/src/components/ContentEditor.tsx:1213
+#: packages/admin/src/components/ContentEditor.tsx:1214
 msgid "Enter markdown content..."
 msgstr "Masukkan konten markdown..."
 
@@ -2539,7 +2543,7 @@ msgstr "Masukkan URL situs WordPress Anda"
 #: packages/admin/src/components/MenuEditor.tsx:179
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
-#: packages/admin/src/router.tsx:1778
+#: packages/admin/src/router.tsx:1784
 msgid "Error"
 msgstr "Kesalahan"
 
@@ -2563,7 +2567,7 @@ msgstr "Gagal memperbarui widget"
 msgid "Exists"
 msgstr "Ada"
 
-#: packages/admin/src/components/ContentEditor.tsx:593
+#: packages/admin/src/components/ContentEditor.tsx:594
 msgid "Exit distraction-free mode"
 msgstr "Keluar mode bebas gangguan"
 
@@ -2628,7 +2632,7 @@ msgstr "Gagal berkomunikasi dengan plugin"
 msgid "Failed to create admin"
 msgstr "Gagal membuat admin"
 
-#: packages/admin/src/components/ContentEditor.tsx:2051
+#: packages/admin/src/components/ContentEditor.tsx:2096
 msgid "Failed to create byline"
 msgstr "Gagal membuat kredit penulis"
 
@@ -2640,13 +2644,13 @@ msgstr "Gagal membuat beberapa koleksi"
 msgid "Failed to create term"
 msgstr "Gagal membuat istilah"
 
-#: packages/admin/src/router.tsx:851
+#: packages/admin/src/router.tsx:857
 msgid "Failed to create translation"
 msgstr "Gagal membuat terjemahan"
 
 #: packages/admin/src/router.tsx:340
 #: packages/admin/src/router.tsx:369
-#: packages/admin/src/router.tsx:871
+#: packages/admin/src/router.tsx:877
 msgid "Failed to delete"
 msgstr "Gagal menghapus"
 
@@ -2663,7 +2667,7 @@ msgid "Failed to delete collection"
 msgstr "Gagal menghapus koleksi"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1113
+#: packages/admin/src/router.tsx:1119
 msgid "Failed to delete comment"
 msgstr "Gagal menghapus komentar"
 
@@ -2723,7 +2727,7 @@ msgstr "Gagal menonaktifkan plugin"
 msgid "Failed to disable user"
 msgstr "Gagal menonaktifkan pengguna"
 
-#: packages/admin/src/router.tsx:785
+#: packages/admin/src/router.tsx:791
 msgid "Failed to discard changes"
 msgstr "Gagal membatalkan perubahan"
 
@@ -2756,7 +2760,7 @@ msgstr "Gagal mengambil koleksi"
 msgid "Failed to fetch entry terms"
 msgstr "Gagal mengambil istilah entri"
 
-#: packages/admin/src/lib/api/client.ts:203
+#: packages/admin/src/lib/api/client.ts:208
 msgid "Failed to fetch manifest"
 msgstr "Gagal mengambil manifes"
 
@@ -2780,8 +2784,8 @@ msgstr "Gagal mengambil istilah"
 
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:644
-#: packages/admin/src/router.tsx:1044
+#: packages/admin/src/router.tsx:650
+#: packages/admin/src/router.tsx:1050
 msgid "Failed to fetch user"
 msgstr "Gagal mengambil pengguna"
 
@@ -2874,7 +2878,7 @@ msgstr "Gagal memuat pengguna: {0}"
 msgid "Failed to load widget"
 msgstr "Gagal memuat widget"
 
-#: packages/admin/src/router.tsx:1138
+#: packages/admin/src/router.tsx:1144
 msgid "Failed to perform bulk action"
 msgstr "Gagal menjalankan aksi massal"
 
@@ -2886,7 +2890,7 @@ msgstr "Gagal menghapus konten secara permanen"
 msgid "Failed to prepare import"
 msgstr "Gagal menyiapkan impor"
 
-#: packages/admin/src/router.tsx:750
+#: packages/admin/src/router.tsx:756
 msgid "Failed to publish"
 msgstr "Gagal menerbitkan"
 
@@ -2932,8 +2936,8 @@ msgstr "Gagal mencabut token API"
 msgid "Failed to rewrite URLs"
 msgstr "Gagal menulis ulang URL"
 
-#: packages/admin/src/router.tsx:703
-#: packages/admin/src/router.tsx:1596
+#: packages/admin/src/router.tsx:709
+#: packages/admin/src/router.tsx:1602
 msgid "Failed to save"
 msgstr "Gagal menyimpan"
 
@@ -2943,7 +2947,7 @@ msgstr "Gagal menyimpan"
 msgid "Failed to save settings"
 msgstr "Gagal menyimpan pengaturan"
 
-#: packages/admin/src/router.tsx:803
+#: packages/admin/src/router.tsx:809
 msgid "Failed to schedule"
 msgstr "Gagal menjadwalkan"
 
@@ -2972,11 +2976,11 @@ msgstr "Gagal mengatur istilah entri"
 msgid "Failed to uninstall plugin"
 msgstr "Gagal mencopot plugin"
 
-#: packages/admin/src/router.tsx:766
+#: packages/admin/src/router.tsx:772
 msgid "Failed to unpublish"
 msgstr "Gagal membatalkan penerbitan"
 
-#: packages/admin/src/router.tsx:821
+#: packages/admin/src/router.tsx:827
 msgid "Failed to unschedule"
 msgstr "Gagal membatalkan penjadwalan"
 
@@ -2985,7 +2989,7 @@ msgstr "Gagal membatalkan penjadwalan"
 msgid "Failed to update {0}"
 msgstr "Gagal memperbarui {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2101
+#: packages/admin/src/components/ContentEditor.tsx:2146
 msgid "Failed to update byline"
 msgstr "Gagal memperbarui kredit penulis"
 
@@ -2997,7 +3001,7 @@ msgstr "Gagal memperbarui domain"
 msgid "Failed to update plugin"
 msgstr "Gagal memperbarui plugin"
 
-#: packages/admin/src/router.tsx:1097
+#: packages/admin/src/router.tsx:1103
 msgid "Failed to update status"
 msgstr "Gagal memperbarui status"
 
@@ -3154,7 +3158,7 @@ msgid "Give this passkey a name to help you identify it later."
 msgstr "Beri passkey ini nama untuk mengidentifikasinya nanti."
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
-#: packages/admin/src/router.tsx:1798
+#: packages/admin/src/router.tsx:1804
 msgid "Go to Dashboard"
 msgstr "Buka Dasbor"
 
@@ -3271,6 +3275,11 @@ msgstr "Gambar"
 #: packages/admin/src/components/FieldEditor.tsx:205
 msgid "Image from media library"
 msgstr "Gambar dari pustaka media"
+
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
+#: packages/admin/src/components/ContentEditor.tsx:1622
+msgid "Image not found"
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageNode.tsx:179
 #: packages/admin/src/components/editor/ImageNode.tsx:180
@@ -3490,7 +3499,7 @@ msgstr "Bilangan Bulat"
 msgid "Invalid invite link"
 msgstr "Tautan undangan tidak valid"
 
-#: packages/admin/src/components/ContentEditor.tsx:1508
+#: packages/admin/src/components/ContentEditor.tsx:1509
 msgid "Invalid JSON"
 msgstr "JSON Tidak Valid"
 
@@ -3675,7 +3684,7 @@ msgstr "Tautan"
 msgid "List view"
 msgstr "Tampilan daftar"
 
-#: packages/admin/src/components/ContentEditor.tsx:714
+#: packages/admin/src/components/ContentEditor.tsx:715
 msgid "Live View"
 msgstr "Tampilan Langsung"
 
@@ -3687,8 +3696,8 @@ msgstr "Tampilan Langsung"
 msgid "Load more"
 msgstr "Muat lebih"
 
-#: packages/admin/src/components/ContentList.tsx:330
-#: packages/admin/src/components/ContentList.tsx:387
+#: packages/admin/src/components/ContentList.tsx:354
+#: packages/admin/src/components/ContentList.tsx:411
 #: packages/admin/src/components/MediaLibrary.tsx:478
 #: packages/admin/src/components/MediaPickerModal.tsx:708
 #: packages/admin/src/components/users/UserList.tsx:169
@@ -3703,7 +3712,7 @@ msgstr "Memuat koleksi..."
 msgid "Loading comments..."
 msgstr "Memuat komentar..."
 
-#: packages/admin/src/router.tsx:1767
+#: packages/admin/src/router.tsx:1773
 msgid "Loading configuration..."
 msgstr "Memuat konfigurasi..."
 
@@ -3754,10 +3763,10 @@ msgstr "Memuat istilah..."
 msgid "Loading widgets..."
 msgstr "Memuat widget..."
 
-#: packages/admin/src/components/ContentList.tsx:245
-#: packages/admin/src/components/ContentList.tsx:330
-#: packages/admin/src/components/ContentList.tsx:359
-#: packages/admin/src/components/ContentList.tsx:387
+#: packages/admin/src/components/ContentList.tsx:272
+#: packages/admin/src/components/ContentList.tsx:354
+#: packages/admin/src/components/ContentList.tsx:383
+#: packages/admin/src/components/ContentList.tsx:411
 #: packages/admin/src/components/ContentPickerModal.tsx:233
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/MediaLibrary.tsx:478
@@ -3776,7 +3785,7 @@ msgstr "Memuat widget..."
 msgid "Loading..."
 msgstr "Memuat..."
 
-#: packages/admin/src/components/ContentList.tsx:225
+#: packages/admin/src/components/ContentList.tsx:252
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "Bahasa"
@@ -4050,11 +4059,11 @@ msgstr "Ubah skema koleksi"
 msgid "Most Popular"
 msgstr "Terpopuler"
 
-#: packages/admin/src/components/ContentList.tsx:552
+#: packages/admin/src/components/ContentList.tsx:613
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "Pindahkan \"{title}\" ke tempat sampah? Anda dapat memulihkannya nanti."
 
-#: packages/admin/src/components/ContentList.tsx:543
+#: packages/admin/src/components/ContentList.tsx:604
 msgid "Move {title} to trash"
 msgstr "Pindahkan {title} ke tempat sampah"
 
@@ -4062,14 +4071,14 @@ msgstr "Pindahkan {title} ke tempat sampah"
 msgid "Move down"
 msgstr "Turunkan"
 
-#: packages/admin/src/components/ContentEditor.tsx:917
-#: packages/admin/src/components/ContentEditor.tsx:939
-#: packages/admin/src/components/ContentList.tsx:565
+#: packages/admin/src/components/ContentEditor.tsx:918
+#: packages/admin/src/components/ContentEditor.tsx:940
+#: packages/admin/src/components/ContentList.tsx:626
 msgid "Move to Trash"
 msgstr "Pindahkan ke Tempat Sampah"
 
-#: packages/admin/src/components/ContentEditor.tsx:923
-#: packages/admin/src/components/ContentList.tsx:550
+#: packages/admin/src/components/ContentEditor.tsx:924
+#: packages/admin/src/components/ContentList.tsx:611
 msgid "Move to Trash?"
 msgstr "Pindahkan ke Tempat Sampah?"
 
@@ -4122,7 +4131,7 @@ msgstr "Navigasi"
 msgid "Never"
 msgstr "Tidak Pernah"
 
-#: packages/admin/src/router.tsx:846
+#: packages/admin/src/router.tsx:852
 msgid "new"
 msgstr "baru"
 
@@ -4139,7 +4148,7 @@ msgstr "BARU"
 msgid "New {0}"
 msgstr "{0} Baru"
 
-#: packages/admin/src/components/ContentEditor.tsx:599
+#: packages/admin/src/components/ContentEditor.tsx:600
 msgid "New {collectionLabel}"
 msgstr "{collectionLabel} Baru"
 
@@ -4190,7 +4199,7 @@ msgid "Next"
 msgstr "Berikutnya"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:371
-#: packages/admin/src/components/ContentList.tsx:318
+#: packages/admin/src/components/ContentList.tsx:342
 msgid "Next page"
 msgstr "Halaman berikutnya"
 
@@ -4208,7 +4217,7 @@ msgid "No {0} available."
 msgstr "Tidak ada {0} tersedia."
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:252
+#: packages/admin/src/components/ContentList.tsx:279
 msgid "No {0} yet."
 msgstr "Belum ada {0}."
 
@@ -4238,7 +4247,7 @@ msgstr "Belum ada komentar disetujui."
 msgid "No bylines found"
 msgstr "Tidak ada byline ditemukan"
 
-#: packages/admin/src/components/ContentEditor.tsx:1992
+#: packages/admin/src/components/ContentEditor.tsx:2037
 msgid "No bylines selected."
 msgstr "Tidak ada kredit penulis yang dipilih."
 
@@ -4408,7 +4417,7 @@ msgstr "Tidak ada hasil"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "Tidak ada hasil untuk \"{debouncedQuery}\". Coba istilah pencarian lain."
 
-#: packages/admin/src/components/ContentList.tsx:266
+#: packages/admin/src/components/ContentList.tsx:293
 msgid "No results for \"{searchQuery}\""
 msgstr "Tidak ada hasil untuk \"{searchQuery}\""
 
@@ -4585,7 +4594,7 @@ msgstr "Kerangka"
 msgid "Overrides the page title in search engine results"
 msgstr "Mengganti judul halaman di hasil mesin pencari"
 
-#: packages/admin/src/components/ContentEditor.tsx:954
+#: packages/admin/src/components/ContentEditor.tsx:955
 msgid "Ownership"
 msgstr "Kepemilikan"
 
@@ -4593,7 +4602,7 @@ msgstr "Kepemilikan"
 msgid "Package"
 msgstr "Paket"
 
-#: packages/admin/src/router.tsx:1793
+#: packages/admin/src/router.tsx:1799
 msgid "Page Not Found"
 msgstr "Halaman Tidak Ditemukan"
 
@@ -4699,7 +4708,7 @@ msgid "PDF"
 msgstr "PDF"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
-#: packages/admin/src/components/ContentList.tsx:689
+#: packages/admin/src/components/ContentList.tsx:750
 msgid "pending"
 msgstr "tertunda"
 
@@ -4707,15 +4716,15 @@ msgstr "tertunda"
 msgid "Pending"
 msgstr "Tertunda"
 
-#: packages/admin/src/components/ContentEditor.tsx:829
+#: packages/admin/src/components/ContentEditor.tsx:830
 msgid "Pending changes"
 msgstr "Perubahan tertunda"
 
-#: packages/admin/src/components/ContentList.tsx:623
+#: packages/admin/src/components/ContentList.tsx:684
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "Hapus permanen \"{title}\"? Ini tidak dapat dibatalkan."
 
-#: packages/admin/src/components/ContentList.tsx:612
+#: packages/admin/src/components/ContentList.tsx:673
 msgid "Permanently delete {title}"
 msgstr "Hapus {title} secara permanen"
 
@@ -4836,7 +4845,7 @@ msgstr "Menyiapkan pengunduhan file dari WordPress..."
 msgid "Preparing..."
 msgstr "Menyiapkan..."
 
-#: packages/admin/src/components/ContentEditor.tsx:649
+#: packages/admin/src/components/ContentEditor.tsx:650
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaLibrary.tsx:427
 msgid "Preview"
@@ -4846,7 +4855,7 @@ msgstr "Pratinjau"
 msgid "Preview content before publishing"
 msgstr "Pratinjau konten sebelum dipublikasikan"
 
-#: packages/admin/src/components/ContentEditor.tsx:649
+#: packages/admin/src/components/ContentEditor.tsx:650
 msgid "Preview draft"
 msgstr "Pratinjau draf"
 
@@ -4855,7 +4864,7 @@ msgid "Previous"
 msgstr "Sebelumnya"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:352
-#: packages/admin/src/components/ContentList.tsx:306
+#: packages/admin/src/components/ContentList.tsx:330
 msgid "Previous page"
 msgstr "Halaman sebelumnya"
 
@@ -4871,23 +4880,23 @@ msgstr "Navigasi Utama"
 msgid "Provider:"
 msgstr "Penyedia:"
 
-#: packages/admin/src/components/ContentEditor.tsx:704
-#: packages/admin/src/components/ContentEditor.tsx:810
+#: packages/admin/src/components/ContentEditor.tsx:705
+#: packages/admin/src/components/ContentEditor.tsx:811
 msgid "Publish"
 msgstr "Publikasikan"
 
-#: packages/admin/src/components/ContentEditor.tsx:694
+#: packages/admin/src/components/ContentEditor.tsx:695
 msgid "Publish changes"
 msgstr "Publikasikan perubahan"
 
-#: packages/admin/src/components/ContentList.tsx:664
+#: packages/admin/src/components/ContentList.tsx:725
 msgid "published"
 msgstr "dipublikasikan"
 
-#: packages/admin/src/components/ContentEditor.tsx:825
+#: packages/admin/src/components/ContentEditor.tsx:826
 #: packages/admin/src/components/ContentPickerModal.tsx:209
 #: packages/admin/src/components/Dashboard.tsx:187
-#: packages/admin/src/router.tsx:746
+#: packages/admin/src/router.tsx:752
 msgid "Published"
 msgstr "Dipublikasikan"
 
@@ -4904,7 +4913,7 @@ msgstr "Dipublikasikan Pada"
 msgid "Published by"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2000
+#: packages/admin/src/components/ContentEditor.tsx:2045
 msgid "Quick create byline"
 msgstr "Buat kredit penulis cepat"
 
@@ -5022,8 +5031,9 @@ msgstr "Pendaftaran dibatalkan atau waktu telah habis. Silakan coba lagi."
 msgid "Release is too new to install"
 msgstr ""
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
-#: packages/admin/src/components/ContentEditor.tsx:1969
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
+#: packages/admin/src/components/ContentEditor.tsx:2014
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
 #: packages/admin/src/components/PortableTextEditor.tsx:2974
 #: packages/admin/src/components/settings/GeneralSettings.tsx:217
@@ -5045,7 +5055,7 @@ msgstr "Hapus {0}"
 msgid "Remove {entry}"
 msgstr "Hapus {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1797
+#: packages/admin/src/components/ContentEditor.tsx:1842
 msgid "Remove {label}"
 msgstr "Hapus {label}"
 
@@ -5057,7 +5067,8 @@ msgstr "Hapus Domain"
 msgid "Remove Domain?"
 msgstr "Hapus Domain?"
 
-#: packages/admin/src/components/ContentEditor.tsx:1624
+#: packages/admin/src/components/ContentEditor.tsx:1639
+#: packages/admin/src/components/ContentEditor.tsx:1668
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr "Hapus gambar"
@@ -5179,7 +5190,7 @@ msgstr "Setel ulang ke asli"
 msgid "Restore"
 msgstr "Pulihkan"
 
-#: packages/admin/src/components/ContentList.tsx:600
+#: packages/admin/src/components/ContentList.tsx:661
 msgid "Restore {title}"
 msgstr "Pulihkan {title}"
 
@@ -5207,7 +5218,7 @@ msgstr "Memulihkan..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:1781
+#: packages/admin/src/router.tsx:1787
 msgid "Retry"
 msgstr "Coba Lagi"
 
@@ -5215,7 +5226,7 @@ msgstr "Coba Lagi"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Blok konten yang dapat digunakan kembali yang dapat Anda sisipkan ke konten apa pun"
 
-#: packages/admin/src/router.tsx:780
+#: packages/admin/src/router.tsx:786
 msgid "Reverted to published version"
 msgstr "Dikembalikan ke versi terbit"
 
@@ -5276,7 +5287,7 @@ msgstr "Peran"
 msgid "Role {role}"
 msgstr "Peran {role}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1974
+#: packages/admin/src/components/ContentEditor.tsx:2019
 msgid "Role label"
 msgstr "Label peran"
 
@@ -5287,7 +5298,7 @@ msgstr "Label peran"
 msgid "Same window"
 msgstr "Jendela sama"
 
-#: packages/admin/src/components/ContentEditor.tsx:2107
+#: packages/admin/src/components/ContentEditor.tsx:2152
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/editor/ImageNode.tsx:235
@@ -5337,13 +5348,13 @@ msgstr "Simpan Pengaturan"
 msgid "Save Social Links"
 msgstr "Simpan Tautan Sosial"
 
-#: packages/admin/src/components/ContentEditor.tsx:624
+#: packages/admin/src/components/ContentEditor.tsx:625
 #: packages/admin/src/components/SaveButton.tsx:42
 msgid "Saved"
 msgstr "Tersimpan"
 
-#: packages/admin/src/components/ContentEditor.tsx:619
-#: packages/admin/src/components/ContentEditor.tsx:2107
+#: packages/admin/src/components/ContentEditor.tsx:620
+#: packages/admin/src/components/ContentEditor.tsx:2152
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 #: packages/admin/src/components/FieldEditor.tsx:659
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
@@ -5363,29 +5374,29 @@ msgstr "Tersimpan"
 msgid "Saving..."
 msgstr "Menyimpan..."
 
-#: packages/admin/src/components/ContentEditor.tsx:869
+#: packages/admin/src/components/ContentEditor.tsx:870
 msgid "Schedule"
 msgstr "Jadwalkan"
 
-#: packages/admin/src/components/ContentEditor.tsx:855
+#: packages/admin/src/components/ContentEditor.tsx:856
 msgid "Schedule for"
 msgstr "Jadwalkan untuk"
 
-#: packages/admin/src/components/ContentEditor.tsx:892
+#: packages/admin/src/components/ContentEditor.tsx:893
 msgid "Schedule for later"
 msgstr "Jadwalkan nanti"
 
-#: packages/admin/src/components/ContentList.tsx:668
+#: packages/admin/src/components/ContentList.tsx:729
 msgid "scheduled"
 msgstr "terjadwal"
 
-#: packages/admin/src/components/ContentEditor.tsx:832
-#: packages/admin/src/router.tsx:797
+#: packages/admin/src/components/ContentEditor.tsx:833
+#: packages/admin/src/router.tsx:803
 msgid "Scheduled"
 msgstr "Terjadwal"
 
 #. placeholder {0}: formatScheduledDate(item.scheduledAt)
-#: packages/admin/src/components/ContentEditor.tsx:842
+#: packages/admin/src/components/ContentEditor.tsx:843
 msgid "Scheduled for: {0}"
 msgstr "Terjadwal untuk: {0}"
 
@@ -5446,12 +5457,12 @@ msgid "Search"
 msgstr "Cari"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:170
+#: packages/admin/src/components/ContentList.tsx:197
 msgid "Search {0}"
 msgstr "Cari {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:169
+#: packages/admin/src/components/ContentList.tsx:196
 msgid "Search {0}..."
 msgstr "Cari {0}..."
 
@@ -5623,10 +5634,10 @@ msgstr "Pengaturan Keamanan"
 msgid "Select"
 msgstr "Pilih"
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:100
-#: packages/admin/src/components/ContentEditor.tsx:1651
-#: packages/admin/src/components/ContentEditor.tsx:1809
-#: packages/admin/src/components/ContentEditor.tsx:1825
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
+#: packages/admin/src/components/ContentEditor.tsx:1696
+#: packages/admin/src/components/ContentEditor.tsx:1854
+#: packages/admin/src/components/ContentEditor.tsx:1870
 msgid "Select {label}"
 msgstr "Pilih {label}"
 
@@ -5642,11 +5653,11 @@ msgstr "Pilih menu..."
 msgid "Select all"
 msgstr "Pilih semua"
 
-#: packages/admin/src/components/ContentEditor.tsx:1917
+#: packages/admin/src/components/ContentEditor.tsx:1962
 msgid "Select byline"
 msgstr "Pilih byline"
 
-#: packages/admin/src/components/ContentEditor.tsx:1914
+#: packages/admin/src/components/ContentEditor.tsx:1959
 msgid "Select byline..."
 msgstr "Pilih kredit penulis..."
 
@@ -5668,7 +5679,7 @@ msgstr "Pilih Gambar Sosial Bawaan"
 msgid "Select Favicon"
 msgstr "Pilih Favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:1813
+#: packages/admin/src/components/ContentEditor.tsx:1858
 msgid "Select file"
 msgstr "Pilih file"
 
@@ -5676,7 +5687,7 @@ msgstr "Pilih file"
 msgid "Select File"
 msgstr "Pilih File"
 
-#: packages/admin/src/components/ContentEditor.tsx:1639
+#: packages/admin/src/components/ContentEditor.tsx:1684
 msgid "Select image"
 msgstr "Pilih gambar"
 
@@ -5692,7 +5703,7 @@ msgstr "Pilih Gambar"
 msgid "Select Logo"
 msgstr "Pilih Logo"
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:91
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:131
 msgid "Select media"
 msgstr "Pilih media"
 
@@ -5760,7 +5771,7 @@ msgstr "Kirim Email Uji"
 msgid "Sending..."
 msgstr "Mengirim..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1008
+#: packages/admin/src/components/ContentEditor.tsx:1009
 #: packages/admin/src/components/ContentTypeEditor.tsx:474
 #: packages/admin/src/components/Settings.tsx:81
 msgid "SEO"
@@ -5943,9 +5954,9 @@ msgstr "Lewati Impor Media"
 msgid "Skipped"
 msgstr "Dilewati"
 
-#: packages/admin/src/components/ContentEditor.tsx:813
-#: packages/admin/src/components/ContentEditor.tsx:2016
-#: packages/admin/src/components/ContentEditor.tsx:2078
+#: packages/admin/src/components/ContentEditor.tsx:814
+#: packages/admin/src/components/ContentEditor.tsx:2061
+#: packages/admin/src/components/ContentEditor.tsx:2123
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:404
 #: packages/admin/src/components/ContentTypeList.tsx:97
@@ -6037,8 +6048,8 @@ msgstr "Spreadsheet"
 msgid "Start Import"
 msgstr "Mulai Impor"
 
-#: packages/admin/src/components/ContentEditor.tsx:819
-#: packages/admin/src/components/ContentList.tsx:218
+#: packages/admin/src/components/ContentEditor.tsx:820
+#: packages/admin/src/components/ContentList.tsx:245
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:445
 #: packages/admin/src/components/users/UserList.tsx:104
@@ -6194,7 +6205,7 @@ msgstr "Menu telah dihapus."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Nama situs Anda, digunakan di header dan metadata"
 
-#: packages/admin/src/router.tsx:1795
+#: packages/admin/src/router.tsx:1801
 msgid "The page you're looking for doesn't exist."
 msgstr "Halaman yang Anda cari tidak ada."
 
@@ -6252,8 +6263,8 @@ msgstr "Koleksi ini didefinisikan dalam kode. Beberapa pengaturan tidak dapat di
 msgid "This field does not accept {sniffedMime} files."
 msgstr "Bidang ini tidak menerima file {sniffedMime}."
 
-#: packages/admin/src/components/ContentEditor.tsx:1655
-#: packages/admin/src/components/ContentEditor.tsx:1828
+#: packages/admin/src/components/ContentEditor.tsx:1700
+#: packages/admin/src/components/ContentEditor.tsx:1873
 msgid "This field is required"
 msgstr "Field ini wajib diisi"
 
@@ -6309,7 +6320,7 @@ msgstr "Ini akan menghapus area widget dan semua widget-nya. Tindakan ini tidak 
 msgid "This will grant CLI access with your permissions."
 msgstr "Ini akan memberikan akses CLI dengan izin Anda."
 
-#: packages/admin/src/components/ContentEditor.tsx:926
+#: packages/admin/src/components/ContentEditor.tsx:927
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Ini akan memindahkan item ke tempat sampah. Anda dapat memulihkannya nanti."
 
@@ -6331,7 +6342,7 @@ msgstr "Ini akan menghapus permanen komentar ini. Tindakan ini tidak dapat dibat
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Ini akan menghapus plugin dan bundelnya dari situs Anda."
 
-#: packages/admin/src/components/ContentEditor.tsx:669
+#: packages/admin/src/components/ContentEditor.tsx:670
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Ini akan kembali ke versi yang dipublikasikan. Perubahan draf Anda akan hilang."
 
@@ -6347,8 +6358,8 @@ msgstr "Zona Waktu"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "Zona waktu untuk menampilkan tanggal (mis., Asia/Jakarta)"
 
-#: packages/admin/src/components/ContentList.tsx:212
-#: packages/admin/src/components/ContentList.tsx:343
+#: packages/admin/src/components/ContentList.tsx:239
+#: packages/admin/src/components/ContentList.tsx:367
 #: packages/admin/src/components/SectionEditor.tsx:236
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:811
@@ -6425,7 +6436,7 @@ msgstr "Menerjemahkan..."
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:756
-#: packages/admin/src/router.tsx:845
+#: packages/admin/src/router.tsx:851
 msgid "Translation created"
 msgstr "Terjemahan dibuat"
 
@@ -6441,11 +6452,11 @@ msgstr "tempat sampah"
 #: packages/admin/src/components/comments/CommentInbox.tsx:216
 #: packages/admin/src/components/comments/CommentInbox.tsx:257
 #: packages/admin/src/components/comments/CommentInbox.tsx:513
-#: packages/admin/src/components/ContentList.tsx:192
+#: packages/admin/src/components/ContentList.tsx:219
 msgid "Trash"
 msgstr "Tempat Sampah"
 
-#: packages/admin/src/components/ContentList.tsx:366
+#: packages/admin/src/components/ContentList.tsx:390
 msgid "Trash is empty"
 msgstr "Tempat sampah kosong"
 
@@ -6516,8 +6527,8 @@ msgstr "Ketidakcocokan tipe ({0})"
 msgid "Unable to reach marketplace"
 msgstr "Tidak dapat menjangkau marketplace"
 
-#: packages/admin/src/components/ContentEditor.tsx:2121
-#: packages/admin/src/components/ContentEditor.tsx:2136
+#: packages/admin/src/components/ContentEditor.tsx:2166
+#: packages/admin/src/components/ContentEditor.tsx:2181
 msgid "Unassigned"
 msgstr "Tidak Ditetapkan"
 
@@ -6581,11 +6592,11 @@ msgstr "Buka kunci rasio aspek"
 msgid "Unnamed passkey"
 msgstr "Passkey tanpa nama"
 
-#: packages/admin/src/components/ContentEditor.tsx:698
+#: packages/admin/src/components/ContentEditor.tsx:699
 msgid "Unpublish"
 msgstr "Batal Publikasikan"
 
-#: packages/admin/src/router.tsx:762
+#: packages/admin/src/router.tsx:768
 msgid "Unpublished"
 msgstr "Tidak diterbitkan"
 
@@ -6593,11 +6604,11 @@ msgstr "Tidak diterbitkan"
 msgid "Unregistered Content Tables Found"
 msgstr "Tabel Konten Tidak Terdaftar Ditemukan"
 
-#: packages/admin/src/components/ContentEditor.tsx:844
+#: packages/admin/src/components/ContentEditor.tsx:845
 msgid "Unschedule"
 msgstr "Batal Jadwalkan"
 
-#: packages/admin/src/router.tsx:815
+#: packages/admin/src/router.tsx:821
 msgid "Unscheduled"
 msgstr "Tidak dijadwalkan"
 
@@ -6610,7 +6621,7 @@ msgstr "Tipe elemen widget tidak didukung: {0}"
 msgid "Untitled"
 msgstr "Tanpa Judul"
 
-#: packages/admin/src/components/ContentEditor.tsx:1731
+#: packages/admin/src/components/ContentEditor.tsx:1776
 msgid "Untitled file"
 msgstr "File tanpa judul"
 
@@ -6623,7 +6634,7 @@ msgstr "Widget Tanpa Judul"
 msgid "Unverified publisher"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1948
+#: packages/admin/src/components/ContentEditor.tsx:1993
 msgid "Up"
 msgstr "Naik"
 
@@ -6663,7 +6674,7 @@ msgid "Updated At"
 msgstr "Diperbarui Pada"
 
 #. placeholder {0}: new Date(item.updatedAt).toLocaleString()
-#: packages/admin/src/components/ContentEditor.tsx:901
+#: packages/admin/src/components/ContentEditor.tsx:902
 msgid "Updated: {0}"
 msgstr "Diperbarui: {0}"
 
@@ -6811,7 +6822,7 @@ msgstr "Digunakan sebagai gambar Open Graph cadangan saat halaman tidak memiliki
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Digunakan sebagai pengenal. Hanya huruf kecil, angka, dan garis bawah."
 
-#: packages/admin/src/components/ContentEditor.tsx:1290
+#: packages/admin/src/components/ContentEditor.tsx:1291
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Digunakan sebagai visual utama pos ini di halaman daftar dan di atas pos"
 
@@ -6915,7 +6926,7 @@ msgstr "Lihat di Marketplace"
 msgid "View mode"
 msgstr "Mode lihat"
 
-#: packages/admin/src/components/ContentList.tsx:516
+#: packages/admin/src/components/ContentList.tsx:577
 msgid "View published {title}"
 msgstr "Lihat {title} yang dipublikasikan"
 
@@ -7103,7 +7114,7 @@ msgstr "Anda tidak dapat mengubah peran Anda sendiri"
 msgid "You have full access to manage this site, including users, settings, and all content."
 msgstr "Anda memiliki akses penuh untuk mengelola situs ini, termasuk pengguna, pengaturan, dan semua konten."
 
-#: packages/admin/src/router.tsx:1154
+#: packages/admin/src/router.tsx:1160
 msgid "You need Editor permissions to moderate comments."
 msgstr "Anda memerlukan izin Editor untuk memoderasi komentar."
 

@@ -23,6 +23,7 @@ import {
 	ArrowsInSimple,
 	ArrowsOutSimple,
 	ArrowSquareOut,
+	ImageBroken,
 } from "@phosphor-icons/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -1574,6 +1575,7 @@ function ImageFieldRenderer({
 }: ImageFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const [imageBroken, setImageBroken] = React.useState(false);
 	// Normalize value to get display URL (handles both object and legacy string)
 	// Prefer previewUrl for admin display, fall back to src, then derive from storageKey/id
 	const displayUrl =
@@ -1584,6 +1586,10 @@ function ImageFieldRenderer({
 				(value && (!value.provider || value.provider === "local")
 					? `/_emdash/api/media/file/${typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id}`
 					: undefined);
+
+	React.useEffect(() => {
+		setImageBroken(false);
+	}, [displayUrl]);
 
 	const handleSelect = (item: MediaItem) => {
 		const isLocalProvider = !item.provider || item.provider === "local";
@@ -1609,24 +1615,63 @@ function ImageFieldRenderer({
 		<div id={id}>
 			<Label>{label}</Label>
 			{displayUrl ? (
-				<div className="mt-2 relative group">
-					<img src={displayUrl} alt="" className="max-h-48 rounded-lg border object-cover" />
-					<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							{t`Change`}
-						</Button>
-						<Button
-							type="button"
-							shape="square"
-							variant="destructive"
-							className="h-8 w-8"
-							onClick={handleRemove}
-							aria-label={t`Remove image`}
-						>
-							<X className="h-4 w-4" />
-						</Button>
+				imageBroken ? (
+					<div className="mt-2 relative group">
+						<div className="min-h-20 rounded-lg border bg-kumo-muted flex items-center justify-center gap-2 text-kumo-subtle">
+							<ImageBroken className="h-5 w-5" />
+							<span className="text-sm">{t`Image not found`}</span>
+						</div>
+						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => setPickerOpen(true)}
+							>
+								{t`Change`}
+							</Button>
+							<Button
+								type="button"
+								shape="square"
+								variant="destructive"
+								className="h-8 w-8"
+								onClick={handleRemove}
+								aria-label={t`Remove image`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
 					</div>
-				</div>
+				) : (
+					<div className="mt-2 relative group">
+						<img
+							src={displayUrl}
+							alt=""
+							className="max-h-48 min-h-20 rounded-lg border object-cover"
+							onError={() => setImageBroken(true)}
+						/>
+						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => setPickerOpen(true)}
+							>
+								{t`Change`}
+							</Button>
+							<Button
+								type="button"
+								shape="square"
+								variant="destructive"
+								className="h-8 w-8"
+								onClick={handleRemove}
+								aria-label={t`Remove image`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
+					</div>
+				)
 			) : (
 				<Button
 					type="button"

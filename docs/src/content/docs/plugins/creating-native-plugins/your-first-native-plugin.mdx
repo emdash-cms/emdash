@@ -5,9 +5,9 @@ description: Build a native EmDash plugin with the descriptor + createPlugin pat
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-This guide walks through building a native plugin from scratch. Native plugins run in the same process as your Astro site — no sandbox boundary, full access to the runtime, and access to features the sandbox can't provide (React admin pages, Portable Text components, page fragments).
+This guide walks through building a native plugin from scratch. Native plugins run in the same process as your Astro site with full access to the runtime, including React admin pages, Portable Text components, and page fragments.
 
-If you haven't decided yet whether you want a native plugin instead of a sandboxed one, read [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) first. The native path is for the cases where the sandbox genuinely can't do what you need.
+If you haven't decided yet whether you want a native plugin instead of a sandboxed one, read [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) first. Native is the format for plugins that need React admin pages, Portable Text rendering components, or page fragments.
 
 ## Two pieces, in one or two files
 
@@ -30,6 +30,8 @@ my-native-plugin/
 ```
 
 ## Set up the package
+
+The following `package.json` declares the entrypoints and peer dependencies a native plugin needs:
 
 ```json title="package.json"
 {
@@ -58,6 +60,8 @@ my-native-plugin/
 Keep `emdash` and `react` as peer dependencies so the host site provides the actual versions and you don't ship duplicates.
 
 ## Write the descriptor and runtime
+
+The following `src/index.ts` defines the descriptor factory and the `createPlugin` runtime in one file:
 
 ```typescript title="src/index.ts"
 import { definePlugin } from "emdash";
@@ -139,9 +143,9 @@ export function createPlugin(options: AnalyticsOptions = {}) {
 export default createPlugin;
 ```
 
-A few details worth knowing:
+Key details of this configuration:
 
-- **`format: "native"` is required.** The default would otherwise be `"native"` too — but being explicit on every descriptor makes it easy to spot which format you're working with.
+- **`format: "native"` is required.** `"native"` is also the default, but stating it explicitly on every descriptor makes the format easy to spot.
 - **`entrypoint` is the package's main export.** EmDash imports it at runtime and calls the default export to construct the resolved plugin.
 - **`options` flow descriptor → `createPlugin`.** Anything the user passes when registering the plugin (`analyticsPlugin({ enabled: false })`) is preserved on the descriptor and forwarded to `createPlugin`. Sandboxed plugins don't have this surface — they read settings from KV instead.
 - **`id`, `version`, and `capabilities` appear twice.** Once on the descriptor, once on `definePlugin()`. They should match. The descriptor's copy is what `astro.config.mjs` sees at build time; the `definePlugin()` copy is what runs at request time.
@@ -149,7 +153,7 @@ A few details worth knowing:
 
 ## Plugin id rules
 
-The `id` field must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The id is used as a single path segment in plugin route URLs and as part of generated SQL identifiers for plugin storage indexes, so anything outside that pattern fails at runtime.
+The `id` field must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The id is used as a single path segment in plugin route URLs and as part of generated SQL identifiers for plugin storage indexes, so anything outside that pattern fails at runtime. The following values show which ids are accepted:
 
 ```typescript
 // Valid
@@ -169,7 +173,7 @@ Pair an unscoped `id` with a scoped npm package name in `entrypoint` — the pac
 
 ## Version format
 
-Use semantic versioning:
+Use semantic versioning. The following values show which version strings are accepted:
 
 ```typescript
 version: "1.0.0";       // valid
@@ -215,7 +219,9 @@ Field types: `string`, `number`, `boolean`, `select`, `secret`, `url`, `email`. 
 
 For richer settings UI than `settingsSchema` provides, ship custom React pages — see [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/).
 
-## Complete example: audit log plugin
+## Complete example — audit log plugin
+
+The following plugin records every content create, update, and delete to indexed storage and exposes a recent-activity route:
 
 ```typescript title="src/index.ts"
 import { definePlugin } from "emdash";

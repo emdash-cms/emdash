@@ -64,6 +64,8 @@ Admin pages are React components that mount under `/_emdash/admin/plugins/<plugi
 
 ### Page definition
 
+Declare each page under `admin.pages` with a path, label, and icon:
+
 ```typescript
 admin: {
 	pages: [
@@ -82,6 +84,8 @@ admin: {
 ```
 
 ### Page component
+
+The following component reads and saves settings through the plugin API hook:
 
 ```typescript title="src/components/SettingsPage.tsx"
 import { useState, useEffect } from "react";
@@ -145,6 +149,8 @@ Widgets appear on the admin dashboard and provide at-a-glance information.
 
 ### Widget definition
 
+Declare each widget under `admin.widgets` with an id, title, and size:
+
 ```typescript
 admin: {
 	widgets: [
@@ -158,6 +164,8 @@ admin: {
 ```
 
 ### Widget component
+
+The following component fetches its data on mount and renders a compact summary:
 
 ```typescript title="src/components/SEOWidget.tsx"
 import { useState, useEffect } from "react";
@@ -264,7 +272,7 @@ EmDash generates a settings page automatically. Reach for custom React pages onl
 
 ## Navigation
 
-Plugin pages appear in the admin sidebar under the plugin's name. The order matches the `admin.pages` array.
+Plugin pages appear in the admin sidebar under the plugin's name. The order matches the `admin.pages` array, as shown below:
 
 ```typescript
 admin: {
@@ -278,7 +286,7 @@ admin: {
 
 ## Build configuration
 
-Admin components need a separate build entry point. Configure your bundler:
+Admin components need a separate build entry point. The following bundler configuration builds both the server and admin entrypoints:
 
 <Tabs>
 <TabItem label="tsdown">
@@ -324,6 +332,8 @@ const enabled = await ctx.kv.get<boolean>("_emdash:enabled");
 ```
 
 ## Complete example
+
+The following plugin defines a dashboard page, a settings page, and a widget, with the runtime and admin entrypoints in separate files. The `src/index.ts` file holds the descriptor and runtime:
 
 ```typescript title="src/index.ts"
 import { definePlugin } from "emdash";
@@ -385,6 +395,8 @@ export function createPlugin() {
 
 export default createPlugin;
 ```
+
+The `src/admin.tsx` file maps page paths and widget ids to their React components:
 
 ```typescript title="src/admin.tsx"
 import { EventsWidget } from "./components/EventsWidget";

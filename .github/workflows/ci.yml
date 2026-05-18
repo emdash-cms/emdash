@@ -32,6 +32,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm run --filter emdash-demo --filter @emdash-cms/demo-cloudflare typecheck
       - run: pnpm typecheck:templates
+      - run: node scripts/typecheck-public-source.mjs
 
   lint:
     name: Lint

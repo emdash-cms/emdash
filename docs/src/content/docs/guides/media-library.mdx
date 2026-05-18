@@ -79,7 +79,8 @@ Files are stored in the `./uploads` directory. Suitable for development and sing
   <TabItem label="Cloudflare R2">
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
-import emdash, { r2 } from "emdash/astro";
+import emdash from "emdash/astro";
+import { r2 } from "@emdash-cms/cloudflare";
 
 export default defineConfig({
   integrations: [
@@ -231,10 +232,6 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 
 For responsive images, use Astro's Image component with external URLs:
 
-### Responsive Images
-
-For responsive images, use Astro's Image component with external URLs:
-
 ```astro
 ---
 import { Image } from "astro:assets";
@@ -256,7 +253,7 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 <Aside type="tip">
 Configure allowed image domains in `astro.config.mjs` to use the Image component with external URLs:
 
-```js
+```js title="astro.config.mjs"
 export default defineConfig({
 	image: {
 		domains: ["media.example.com"],
@@ -295,7 +292,7 @@ Authorization: Bearer YOUR_API_TOKEN
 file=<binary file data>
 ```
 
-Response:
+A successful upload returns the stored media item:
 
 ```json
 {
@@ -315,12 +312,16 @@ Response:
 
 ### List Media
 
+The following request lists media under a prefix:
+
 ```bash
 GET /_emdash/api/media?prefix=images/&limit=20
 Authorization: Bearer YOUR_API_TOKEN
 ```
 
 ### Delete Media
+
+The following request deletes a stored file:
 
 ```bash
 DELETE /_emdash/api/media/images/hero.jpg
@@ -467,7 +468,7 @@ Media fields store a `MediaValue` object containing provider information:
 interface MediaValue {
   provider?: string;    // Provider ID, defaults to "local"
   id: string;           // Provider-specific ID
-  src?: string;         // Direct URL (for local media or legacy data)
+  src?: string;         // Direct URL (for local media or plain-string values)
   previewUrl?: string;  // Preview URL for admin display (external providers)
   filename?: string;    // Original filename
   mimeType?: string;    // MIME type
