@@ -18,7 +18,7 @@ When you publish, the CLI records the release to your own [Atmosphere account](#
 
 ## Prerequisites
 
-- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, and a security contact. Run `emdash-plugin validate` to confirm.
+- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author (`author` or `authors`), and a security contact (`security` or `securityContacts`). Run `emdash-plugin validate` to confirm.
 - A `version` (in `package.json`, or the manifest for registry-only plugins).
 - An [Atmosphere account](#your-atmosphere-account) to publish under.
 
@@ -68,14 +68,14 @@ emdash-plugin publish --url https://your-host/<slug>-<version>.tar.gz
 The command accepts the following flags:
 
 ```sh
-emdash-plugin bundle [--dir <path>] [--outDir|-o <path>] [--validateOnly]
+emdash-plugin bundle [--dir <path>] [--out-dir|-o <path>] [--validate-only]
 ```
 
 | Flag             | Default           | Description                                            |
 | ---------------- | ----------------- | ------------------------------------------------------ |
 | `--dir`          | Current directory | Plugin source directory.                               |
-| `--outDir`, `-o` | `dist`            | Output directory for the tarball.                      |
-| `--validateOnly` | `false`           | Skip the tarball, but still produce `dist/` artifacts. |
+| `--out-dir`, `-o` | `dist`            | Output directory for the tarball.                      |
+| `--validate-only` | `false`           | Skip the tarball, but still produce `dist/` artifacts. |
 
 ### Tarball contents
 
@@ -89,7 +89,7 @@ emdash-plugin bundle [--dir <path>] [--outDir|-o <path>] [--validateOnly]
 
 ### Validation
 
-`bundle` (and `--validateOnly`) check:
+`bundle` (and `--validate-only`) check:
 
 - **Size caps (RFC 0001, decompressed):** total ≤ 256 KB, per-file ≤ 128 KB, ≤ 20 files. The gzipped tarball is a fraction of that.
 - **No Node built-ins in `backend.js`** — sandbox code can't import `fs`, `path`, `child_process`, etc. Use Web APIs, or move that logic to a native plugin.
