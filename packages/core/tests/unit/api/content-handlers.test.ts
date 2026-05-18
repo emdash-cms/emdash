@@ -97,17 +97,10 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 
 		it("should leave slug null when no title or name is present", async () => {
+			// `data: {}` — no title, no name. Slug source isn't there, so the
+			// auto-generator has nothing to work with.
 			const result = await handleContentCreate(db, "post", {
-				data: { content: [{ _type: "block", children: [{ _type: "span", text: "hi" }] }] },
-			});
-
-			expect(result.success).toBe(true);
-			expect(result.data?.item.slug).toBeNull();
-		});
-
-		it("should leave slug null when title is not a string", async () => {
-			const result = await handleContentCreate(db, "post", {
-				data: { title: 42 },
+				data: {},
 			});
 
 			expect(result.success).toBe(true);
@@ -310,5 +303,33 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(updated.success).toBe(true);
 			expect(updated.data?.item.createdAt).toBe(originalCreated);
 		});
+	});
+});
+
+describe("Content Handlers — list total", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		// Seed enough items that limit-based pagination kicks in and we can
+		// assert total > items.length.
+		for (let i = 0; i < 8; i++) {
+			const result = await handleContentCreate(db, "post", {
+				data: { title: `Post ${i}` },
+			});
+			if (!result.success) throw new Error("seed failed");
+		}
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("returns total independent of limit", async () => {
+		const result = await handleContentList(db, "post", { limit: 2 });
+
+		expect(result.success).toBe(true);
+		expect(result.data?.items).toHaveLength(2);
+		expect(result.data?.total).toBe(8);
 	});
 });

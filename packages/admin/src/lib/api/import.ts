@@ -2,6 +2,9 @@
  * WordPress import and source probing APIs
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 // =============================================================================
@@ -250,7 +253,7 @@ export async function importWxrMedia(
 		body: JSON.stringify({ attachments, stream: !!onProgress }),
 	});
 
-	if (!response.ok) await throwResponseError(response, "Failed to import media");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to import media`));
 
 	// If no progress callback, just parse as JSON (non-streaming mode)
 	// Note: streaming NDJSON responses are excluded from the { data } envelope

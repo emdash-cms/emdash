@@ -11,7 +11,11 @@ import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
-import { PortableTextEditor } from "../../src/components/PortableTextEditor";
+import {
+	_buildPluginBlockFormValues,
+	_hasPluginBlockFormData,
+	PortableTextEditor,
+} from "../../src/components/PortableTextEditor";
 import { render } from "../utils/render";
 
 // ---------------------------------------------------------------------------
@@ -173,7 +177,123 @@ function textBlock(
 }
 
 // =============================================================================
-// 1. Portable Text ↔ ProseMirror Conversion (via component)
+// 1. Plugin block helpers
+// =============================================================================
+
+describe("plugin block helpers", () => {
+	it("builds form state from field initial_value defaults", () => {
+		const block: PluginBlockDef = {
+			type: "readingTime",
+			pluginId: "reading-time",
+			label: "Reading Time",
+			fields: [
+				{
+					type: "select",
+					action_id: "variant",
+					label: "Style",
+					options: [
+						{ label: "Inline", value: "inline" },
+						{ label: "Compact", value: "compact" },
+					],
+					initial_value: "inline",
+				},
+				{
+					type: "toggle",
+					action_id: "includeHeadings",
+					label: "Include headings",
+					initial_value: true,
+				},
+			],
+		};
+
+		expect(_buildPluginBlockFormValues(block)).toEqual({
+			variant: "inline",
+			includeHeadings: true,
+		});
+		expect(_hasPluginBlockFormData(_buildPluginBlockFormValues(block))).toBe(true);
+	});
+
+	it("merges existing block data over defaults when editing", () => {
+		const block: PluginBlockDef = {
+			type: "readingTime",
+			pluginId: "reading-time",
+			label: "Reading Time",
+			fields: [
+				{
+					type: "select",
+					action_id: "variant",
+					label: "Style",
+					options: [
+						{ label: "Inline", value: "inline" },
+						{ label: "Compact", value: "compact" },
+					],
+					initial_value: "inline",
+				},
+				{
+					type: "toggle",
+					action_id: "includeHeadings",
+					label: "Include headings",
+					initial_value: true,
+				},
+			],
+		};
+
+		expect(
+			_buildPluginBlockFormValues(block, {
+				variant: "compact",
+				customLabel: "Custom label",
+				includeHeadings: false,
+			}),
+		).toEqual({
+			variant: "compact",
+			customLabel: "Custom label",
+			includeHeadings: false,
+		});
+	});
+
+	it("keeps explicit existing values over defaults", () => {
+		const block: PluginBlockDef = {
+			type: "readingTime",
+			pluginId: "reading-time",
+			label: "Reading Time",
+			fields: [
+				{
+					type: "number_input",
+					action_id: "minutes",
+					label: "Minutes",
+					initial_value: 5,
+				},
+				{
+					type: "text_input",
+					action_id: "label",
+					label: "Label",
+					initial_value: "Default label",
+				},
+				{
+					type: "toggle",
+					action_id: "includeHeadings",
+					label: "Include headings",
+					initial_value: true,
+				},
+			],
+		};
+
+		expect(
+			_buildPluginBlockFormValues(block, {
+				minutes: 0,
+				label: "",
+				includeHeadings: false,
+			}),
+		).toEqual({
+			minutes: 0,
+			label: "",
+			includeHeadings: false,
+		});
+	});
+});
+
+// =============================================================================
+// 2. Portable Text ↔ ProseMirror Conversion (via component)
 // =============================================================================
 
 describe("Portable Text ↔ ProseMirror conversion", () => {
@@ -448,6 +568,27 @@ describe("Editor component behaviour", () => {
 		expect(editorArg).toBeTruthy();
 		expect(typeof editorArg.getJSON).toBe("function");
 		expect(typeof editorArg.chain).toBe("function");
+	});
+
+	it("calls onEditorReady with null on unmount so consumers can clear stale references", async () => {
+		// Without this cleanup, ContentEditor's `portableTextEditor` slot keeps
+		// pointing at a destroyed TipTap instance during the brief remount window
+		// when switching translations (FieldRenderer is re-keyed by item.id),
+		// causing DocumentOutline to render against a destroyed editor.
+		const onEditorReady = vi.fn();
+		const screen = await render(
+			<PortableTextEditor onEditorReady={onEditorReady} value={[textBlock("Mount/unmount")]} />,
+		);
+		await waitForEditor();
+
+		await vi.waitFor(() => expect(onEditorReady).toHaveBeenCalledTimes(1), { timeout: 2000 });
+		expect(onEditorReady.mock.calls[0]![0]).toBeTruthy();
+
+		// Unmount and verify the cleanup fires onEditorReady(null).
+		await screen.unmount();
+
+		await vi.waitFor(() => expect(onEditorReady).toHaveBeenCalledTimes(2), { timeout: 2000 });
+		expect(onEditorReady.mock.calls[1]![0]).toBeNull();
 	});
 
 	it("shows word count and character count in footer", async () => {

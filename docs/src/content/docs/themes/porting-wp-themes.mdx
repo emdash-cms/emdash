@@ -8,10 +8,9 @@ import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 WordPress themes can be systematically converted to EmDash. The visual design, content structure, and dynamic features all transfer using a three-phase approach.
 
 <Aside type="tip" title="AI-Assisted Porting">
-	AI coding agents excel at mechanical conversions like template porting. Feed the agent your
-	WordPress theme files along with the concept mapping tables in this guide, and it can generate a
-	solid first draft of Astro components. Review and refine the output—the agent handles the tedious
-	parts while you focus on quality.
+	Template porting is a mechanical conversion that AI coding agents handle well. Provide the agent
+	with the WordPress theme files and the concept mapping tables in this guide to generate a first
+	draft of the Astro components. Review and refine the output before shipping.
 </Aside>
 
 ## Three-Phase Approach
@@ -373,7 +372,7 @@ const { images } = Astro.props;
 </div>
 ```
 
-Register with PortableText:
+Register the component with `PortableText`:
 
 ```astro
 <PortableText value={content} components={{ gallery: Gallery }} />
@@ -448,7 +447,7 @@ WordPress 5.9+ block themes use `theme.json` for design tokens and `templates/*.
 
 ### Page Builders
 
-Content built with Elementor, Divi, or similar is stored in post meta, not theme files. This content imports via WXR, not theme porting. Focus theme porting on the shell—page builder content renders through Portable Text after import.
+Content built with Elementor, Divi, or similar is stored in post meta, not theme files. This content imports via WXR, not theme porting. Focus theme porting on the shell. Page builder content renders through Portable Text after import.
 
 ## Next Steps
 

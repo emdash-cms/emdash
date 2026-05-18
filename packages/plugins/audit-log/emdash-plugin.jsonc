@@ -1,0 +1,25 @@
+{
+	"$schema": "../../plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "audit-log",
+	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6", // plugins.emdashcms.com
+
+	"license": "MIT",
+	"author": { "name": "Matt Kane" },
+	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
+	"description": "Tracks content and media changes (create / update / delete) for compliance and debugging.",
+
+	// Trust contract. Reads content to capture before-state in
+	// update audit entries; declares the `entries` storage collection
+	// where audit log lives. No outbound network.
+	"capabilities": ["content:read"],
+	"allowedHosts": [],
+	"storage": {
+		"entries": { "indexes": ["timestamp", "action", "resourceType", "collection"] },
+	},
+
+	"admin": {
+		"pages": [{ "path": "/history", "label": "Audit History", "icon": "history" }],
+		"widgets": [{ "id": "recent-activity", "title": "Recent Activity", "size": "half" }],
+	},
+}

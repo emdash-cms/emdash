@@ -4,7 +4,8 @@
  * Defines all admin routes and their components.
  */
 
-import { Loader, Toast } from "@cloudflare/kumo";
+import { Button, Loader, Toast } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,7 +23,7 @@ import * as React from "react";
 
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
-import { ContentList } from "./components/ContentList";
+import { ContentList, type ContentListSort } from "./components/ContentList";
 import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
@@ -36,6 +37,8 @@ import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
 import { PluginManager } from "./components/PluginManager";
 import { Redirects } from "./components/Redirects";
+import { RegistryBrowse } from "./components/RegistryBrowse";
+import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
 import { Sections } from "./components/Sections";
@@ -225,6 +228,7 @@ if (typeof window !== "undefined" && typeof window.requestIdleCallback === "unde
 }
 
 function RootComponent() {
+	const { t } = useLingui();
 	const {
 		data: manifest,
 		isLoading,
@@ -239,7 +243,7 @@ function RootComponent() {
 	}
 
 	if (error || !manifest) {
-		return <ErrorScreen error={error?.message || "Failed to load admin"} />;
+		return <ErrorScreen error={error?.message ?? t`Failed to load admin`} />;
 	}
 
 	// Plugin admin components are passed via props and available through PluginAdminContext
@@ -279,6 +283,7 @@ const contentListRoute = createRoute({
 });
 
 function ContentListPage() {
+	const { t } = useLingui();
 	const { collection } = useParams({ from: "/_admin/content/$collection" });
 	const { locale: localeParam } = useSearch({ from: "/_admin/content/$collection" });
 	const queryClient = useQueryClient();
@@ -295,14 +300,23 @@ function ContentListPage() {
 	// Default to defaultLocale when i18n is enabled and no locale specified
 	const activeLocale = i18n ? (localeParam ?? i18n.defaultLocale) : undefined;
 
+	// Controlled sort state — passed to the list, and included in the query
+	// key so changing direction invalidates the current cursor chain.
+	const [sort, setSort] = React.useState<ContentListSort>({
+		field: "updatedAt",
+		direction: "desc",
+	});
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["content", collection, { locale: activeLocale }],
+			queryKey: ["content", collection, { locale: activeLocale, sort }],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
 					cursor: pageParam,
 					limit: 100,
+					orderBy: sort.field,
+					order: sort.direction,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -323,8 +337,8 @@ function ContentListPage() {
 		},
 		onError: (mutationError) => {
 			toastManager.add({
-				title: "Failed to delete",
-				description: mutationError instanceof Error ? mutationError.message : "An error occurred",
+				title: t`Failed to delete`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -338,8 +352,8 @@ function ContentListPage() {
 		},
 		onError: (mutationError) => {
 			toastManager.add({
-				title: "Failed to restore",
-				description: mutationError instanceof Error ? mutationError.message : "An error occurred",
+				title: t`Failed to restore`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -352,8 +366,8 @@ function ContentListPage() {
 		},
 		onError: (mutationError) => {
 			toastManager.add({
-				title: "Failed to delete",
-				description: mutationError instanceof Error ? mutationError.message : "An error occurred",
+				title: t`Failed to delete`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -366,8 +380,8 @@ function ContentListPage() {
 		},
 		onError: (mutationError) => {
 			toastManager.add({
-				title: "Failed to duplicate",
-				description: mutationError instanceof Error ? mutationError.message : "An error occurred",
+				title: t`Failed to duplicate`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -376,6 +390,11 @@ function ContentListPage() {
 	const items = React.useMemo(() => {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
+
+	// Server returns `total` on every page; the first page is authoritative
+	// because filters don't change within a fetch cycle. Fall back to the
+	// loaded count so old servers (pre-total) still render a denominator.
+	const total = data?.pages[0]?.total ?? items.length;
 
 	if (!manifest) {
 		return <LoadingScreen />;
@@ -419,6 +438,9 @@ function ContentListPage() {
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
+			sort={sort}
+			onSortChange={setSort}
+			total={total}
 		/>
 	);
 }
@@ -543,6 +565,7 @@ const contentEditRoute = createRoute({
 const ROLE_EDITOR = 40;
 
 function ContentEditPage() {
+	const { t } = useLingui();
 	const { collection, id } = useParams({
 		from: "/_admin/content/$collection/$id",
 	});
@@ -624,7 +647,7 @@ function ContentEditPage() {
 		queryKey: ["currentUser"],
 		queryFn: async (): Promise<{ id: string; role: number }> => {
 			const response = await apiFetch("/_emdash/api/auth/me");
-			return parseApiResponse<{ id: string; role: number }>(response, "Failed to fetch user");
+			return parseApiResponse<{ id: string; role: number }>(response, t`Failed to fetch user`);
 		},
 		staleTime: 5 * 60 * 1000,
 	});
@@ -683,8 +706,8 @@ function ContentEditPage() {
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to save",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to save`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -714,8 +737,8 @@ function ContentEditPage() {
 		},
 		onError: (err) => {
 			toastManager.add({
-				title: "Autosave failed",
-				description: err instanceof Error ? err.message : "An error occurred",
+				title: t`Autosave failed`,
+				description: err instanceof Error ? err.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -726,12 +749,12 @@ function ContentEditPage() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
-			toastManager.add({ title: "Published", description: "Content is now live" });
+			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to publish",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to publish`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -742,12 +765,12 @@ function ContentEditPage() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
-			toastManager.add({ title: "Unpublished", description: "Content removed from public view" });
+			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to unpublish",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to unpublish`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -759,14 +782,14 @@ function ContentEditPage() {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({
-				title: "Changes discarded",
-				description: "Reverted to published version",
+				title: t`Changes discarded`,
+				description: t`Reverted to published version`,
 			});
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to discard changes",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to discard changes`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -777,14 +800,14 @@ function ContentEditPage() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			toastManager.add({
-				title: "Scheduled",
-				description: "Content has been scheduled for publishing",
+				title: t`Scheduled`,
+				description: t`Content has been scheduled for publishing`,
 			});
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to schedule",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to schedule`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -795,14 +818,14 @@ function ContentEditPage() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			toastManager.add({
-				title: "Unscheduled",
-				description: "Content reverted to draft",
+				title: t`Unscheduled`,
+				description: t`Content reverted to draft`,
 			});
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to unschedule",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to unschedule`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -825,14 +848,14 @@ function ContentEditPage() {
 				params: { collection, id: result.id },
 			});
 			toastManager.add({
-				title: "Translation created",
-				description: `Created ${result.locale?.toUpperCase() ?? "new"} translation`,
+				title: t`Translation created`,
+				description: t`Created ${result.locale?.toUpperCase() ?? t`new`} translation`,
 			});
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to create translation",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to create translation`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -851,8 +874,8 @@ function ContentEditPage() {
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to delete",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to delete`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -953,10 +976,17 @@ const mediaRoute = createRoute({
 function MediaPage() {
 	const queryClient = useQueryClient();
 
-	const { data, isLoading, error } = useQuery({
-		queryKey: ["media"],
-		queryFn: () => fetchMediaList(),
-	});
+	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
+		useInfiniteQuery({
+			queryKey: ["media"],
+			queryFn: ({ pageParam }) =>
+				fetchMediaList({
+					cursor: pageParam as string | undefined,
+					limit: 100,
+				}),
+			initialPageParam: undefined as string | undefined,
+			getNextPageParam: (lastPage) => lastPage.nextCursor,
+		});
 
 	const uploadMutation = useMutation({
 		mutationFn: (file: File) => uploadMedia(file),
@@ -972,14 +1002,20 @@ function MediaPage() {
 		},
 	});
 
+	const items = React.useMemo(() => {
+		return data?.pages.flatMap((page) => page.items) || [];
+	}, [data]);
+
 	if (error) {
 		return <ErrorScreen error={error.message} />;
 	}
 
 	return (
 		<MediaLibrary
-			items={data?.items || []}
-			isLoading={isLoading}
+			items={items}
+			isLoading={isLoading || isFetchingNextPage}
+			hasMore={!!hasNextPage}
+			onLoadMore={() => void fetchNextPage()}
 			onUpload={(file) => uploadMutation.mutate(file)}
 			onDelete={(id) => deleteMutation.mutate(id)}
 		/>
@@ -997,6 +1033,7 @@ const commentsRoute = createRoute({
 const ROLE_ADMIN = 50;
 
 function CommentsPage() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 
@@ -1010,7 +1047,7 @@ function CommentsPage() {
 		queryKey: ["currentUser"],
 		queryFn: async (): Promise<{ id: string; role: number }> => {
 			const response = await apiFetch("/_emdash/api/auth/me");
-			return parseApiResponse<{ id: string; role: number }>(response, "Failed to fetch user");
+			return parseApiResponse<{ id: string; role: number }>(response, t`Failed to fetch user`);
 		},
 		staleTime: 5 * 60 * 1000,
 	});
@@ -1063,8 +1100,8 @@ function CommentsPage() {
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to update status",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to update status`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -1079,8 +1116,8 @@ function CommentsPage() {
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to delete comment",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to delete comment`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -1099,13 +1136,13 @@ function CommentsPage() {
 			void queryClient.invalidateQueries({ queryKey: ["comments"] });
 			void queryClient.invalidateQueries({ queryKey: ["commentCounts"] });
 			toastManager.add({
-				title: `${result.affected} comment${result.affected !== 1 ? "s" : ""} updated`,
+				title: plural(result.affected, { one: "# comment updated", other: "# comments updated" }),
 			});
 		},
 		onError: (error) => {
 			toastManager.add({
-				title: "Failed to perform bulk action",
-				description: error instanceof Error ? error.message : "An error occurred",
+				title: t`Failed to perform bulk action`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -1119,8 +1156,8 @@ function CommentsPage() {
 		return (
 			<div className="flex items-center justify-center min-h-[50vh]">
 				<div className="text-center">
-					<h1 className="text-2xl font-bold">Access Denied</h1>
-					<p className="mt-2 text-kumo-subtle">You need Editor permissions to moderate comments.</p>
+					<h1 className="text-2xl font-bold">{t`Access Denied`}</h1>
+					<p className="mt-2 text-kumo-subtle">{t`You need Editor permissions to moderate comments.`}</p>
 				</div>
 			</div>
 		);
@@ -1236,6 +1273,11 @@ const marketplaceBrowseRoute = createRoute({
 });
 
 function MarketplaceBrowsePage() {
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
 	const { data: plugins } = useQuery({
 		queryKey: ["plugins"],
 		queryFn: async () => {
@@ -1248,6 +1290,26 @@ function MarketplaceBrowsePage() {
 		if (!plugins) return new Set<string>();
 		return new Set(plugins.map((p) => p.id));
 	}, [plugins]);
+
+	// When `experimental.registry` is configured, the registry browse
+	// replaces the centralized marketplace browse on this route. Existing
+	// sidebar / deep links stay valid; users see the registry without any
+	// path change.
+	if (manifest?.registry) {
+		// Map installed registry plugins to their AT URIs for the
+		// "Installed" badge on browse cards.
+		const installedRegistryUris = new Set<string>(
+			(plugins ?? [])
+				.filter((p) => p.source === "registry" && p.registryPublisherDid && p.registrySlug)
+				.map(
+					(p) =>
+						`at://${p.registryPublisherDid}/com.emdashcms.experimental.package.profile/${p.registrySlug}`,
+				),
+		);
+		return (
+			<RegistryBrowse config={manifest.registry} installedRegistryUris={installedRegistryUris} />
+		);
+	}
 
 	return <MarketplaceBrowse installedPluginIds={installedIds} />;
 }
@@ -1262,6 +1324,11 @@ const marketplaceDetailRoute = createRoute({
 function MarketplaceDetailPage() {
 	const { pluginId } = useParams({ from: "/_admin/plugins/marketplace/$pluginId" });
 
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
 	const { data: plugins } = useQuery({
 		queryKey: ["plugins"],
 		queryFn: async () => {
@@ -1274,6 +1341,17 @@ function MarketplaceDetailPage() {
 		if (!plugins) return new Set<string>();
 		return new Set(plugins.map((p) => p.id));
 	}, [plugins]);
+
+	// Discriminate by param shape, not by the manifest flag. A registry
+	// pluginId is always `${handle}/${slug}` and contains exactly one `/`;
+	// a marketplace pluginId is a single segment with no `/`. This keeps
+	// deep links to marketplace-installed plugins working on sites that
+	// later opt into the registry, instead of unconditionally routing
+	// every visit to RegistryPluginDetail.
+	const looksLikeRegistryId = pluginId.includes("/");
+	if (manifest?.registry && looksLikeRegistryId) {
+		return <RegistryPluginDetail pluginId={pluginId} config={manifest.registry} />;
+	}
 
 	return <MarketplacePluginDetail pluginId={pluginId} installedPluginIds={installedIds} />;
 }
@@ -1315,6 +1393,11 @@ const menuEditorRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/menus/$name",
 	component: MenuEditor,
+	validateSearch: (search: Record<string, unknown>) => {
+		return {
+			locale: typeof search.locale === "string" ? search.locale : undefined,
+		};
+	},
 });
 
 // Taxonomy manager route
@@ -1682,43 +1765,43 @@ declare module "@tanstack/react-router" {
 // Shared components
 
 function LoadingScreen() {
+	const { t } = useLingui();
 	return (
 		<div className="flex items-center justify-center min-h-screen">
 			<div className="text-center">
 				<Loader />
-				<p className="mt-4 text-kumo-subtle">Loading configuration...</p>
+				<p className="mt-4 text-kumo-subtle">{t`Loading configuration...`}</p>
 			</div>
 		</div>
 	);
 }
 
 function ErrorScreen({ error }: { error: string }) {
+	const { t } = useLingui();
 	return (
 		<div className="flex items-center justify-center min-h-screen">
 			<div className="text-center">
-				<h1 className="text-xl font-bold text-kumo-danger">Error</h1>
+				<h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1>
 				<p className="mt-2 text-kumo-subtle">{error}</p>
-				<button
-					onClick={() => window.location.reload()}
-					className="mt-4 px-4 py-2 bg-kumo-brand text-white rounded-md"
-				>
-					Retry
-				</button>
+				<Button onClick={() => window.location.reload()} className="mt-4">
+					{t`Retry`}
+				</Button>
 			</div>
 		</div>
 	);
 }
 
 function NotFoundPage({ message }: { message?: string }) {
+	const { t } = useLingui();
 	return (
 		<div className="flex items-center justify-center min-h-[50vh]">
 			<div className="text-center">
-				<h1 className="text-2xl font-bold">Page Not Found</h1>
+				<h1 className="text-2xl font-bold">{t`Page Not Found`}</h1>
 				<p className="mt-2 text-kumo-subtle">
-					{message || "The page you're looking for doesn't exist."}
+					{message ?? t`The page you're looking for doesn't exist.`}
 				</p>
 				<Link to="/" className="mt-4 inline-block text-kumo-brand">
-					Go to Dashboard
+					{t`Go to Dashboard`}
 				</Link>
 			</div>
 		</div>

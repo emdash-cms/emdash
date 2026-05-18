@@ -2,6 +2,9 @@
  * Plugin management APIs
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export interface PluginInfo {
@@ -18,10 +21,14 @@ export interface PluginInfo {
 	installedAt?: string;
 	activatedAt?: string;
 	deactivatedAt?: string;
-	/** Plugin source: 'config' (declared in astro.config) or 'marketplace' */
-	source?: "config" | "marketplace";
+	/** Plugin source: 'config' (declared in astro.config), 'marketplace', or 'registry' */
+	source?: "config" | "marketplace" | "registry";
 	/** Installed marketplace version (set when source = 'marketplace') */
 	marketplaceVersion?: string;
+	/** Publisher DID, for registry-source plugins. */
+	registryPublisherDid?: string;
+	/** Publisher slug, for registry-source plugins. */
+	registrySlug?: string;
 	/** Description of what the plugin does */
 	description?: string;
 	/** URL to the plugin icon (marketplace plugins use the icon proxy) */
@@ -49,9 +56,12 @@ export async function fetchPlugin(pluginId: string): Promise<PluginInfo> {
 		if (response.status === 404) {
 			throw new Error(`Plugin "${pluginId}" not found`);
 		}
-		await throwResponseError(response, "Failed to fetch plugin");
+		await throwResponseError(response, i18n._(msg`Failed to fetch plugin`));
 	}
-	const result = await parseApiResponse<{ item: PluginInfo }>(response, "Failed to fetch plugin");
+	const result = await parseApiResponse<{ item: PluginInfo }>(
+		response,
+		i18n._(msg`Failed to fetch plugin`),
+	);
 	return result.item;
 }
 

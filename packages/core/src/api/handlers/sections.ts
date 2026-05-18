@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { FindManyResult } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import {
@@ -36,7 +37,13 @@ export async function handleSectionList(
 		});
 
 		return { success: true, data: result };
-	} catch {
+	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
 		return {
 			success: false,
 			error: { code: "SECTION_LIST_ERROR", message: "Failed to fetch sections" },

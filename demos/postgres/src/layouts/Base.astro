@@ -1,5 +1,5 @@
 ---
-import { getMenu, getEmDashCollection } from "emdash";
+import { getMenu, getEmDashCollection, getSiteSettings } from "emdash";
 import {
 	WidgetArea,
 	EmDashHead,
@@ -7,8 +7,9 @@ import {
 	EmDashBodyEnd,
 } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
-import { Font } from "astro:assets";
 import LiveSearch from "emdash/ui/search";
+import { Font } from "astro:assets";
+import { resolveBlogSiteIdentity } from "../utils/site-identity";
 import "../styles/theme.css";
 
 interface Props {
@@ -39,12 +40,17 @@ const {
 	author,
 	content,
 } = Astro.props;
-const siteTitle = "My Blog";
+const { siteTitle, siteTagline, siteLogo } = resolveBlogSiteIdentity(await getSiteSettings());
 // If title already includes site title (from getSeoMeta), use as-is
 const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
 
 // Fetch primary menu defined in seed
 const menu = await getMenu("primary");
+
+// Optional "social" menu. If a site defines a `social` menu in its seed,
+// it'll render in the footer's "Connect" column. Otherwise that column
+// just shows RSS, avoiding duplication with the "Navigate" column above.
+const socialMenu = await getMenu("social");
 
 // Fetch pages for footer
 const { entries: pages } = await getEmDashCollection("pages");
@@ -97,7 +103,12 @@ const isLoggedIn = !!Astro.locals.user;
 		<EmDashBodyStart page={pageCtx} />
 		<header class="site-header">
 			<nav class="nav">
-				<a href="/" class="site-title">{siteTitle}</a>
+				<a href="/" class="site-title">
+					{siteLogo
+						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
+						: siteTitle
+					}
+				</a>
 				<div class="nav-right">
 					<LiveSearch
 						placeholder="Search..."
@@ -135,8 +146,13 @@ const isLoggedIn = !!Astro.locals.user;
 			<div class="footer-inner">
 				<div class="footer-grid">
 					<div class="footer-brand">
-						<a href="/" class="footer-logo">{siteTitle}</a>
-						<p class="footer-tagline">Thoughts, stories, and ideas.</p>
+						<a href="/" class="footer-logo">
+							{siteLogo
+								? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="footer-logo-img" />
+								: siteTitle
+							}
+						</a>
+						<p class="footer-tagline">{siteTagline}</p>
 					</div>
 					<div class="footer-nav">
 						<h4 class="footer-heading">Navigate</h4>
@@ -158,7 +174,7 @@ const isLoggedIn = !!Astro.locals.user;
 						<h4 class="footer-heading">Connect</h4>
 						<ul class="footer-links">
 							{
-								menu?.items.map((item) => (
+								socialMenu?.items.map((item) => (
 									<li>
 										<a
 											href={item.url}
@@ -331,145 +347,168 @@ const isLoggedIn = !!Astro.locals.user;
 		</script>
 
 		<style is:global>
-			*:where(:not([class*="emdash"]):not([class*="ec-"])),
-			*:where(:not([class*="emdash"]):not([class*="ec-"]))::before,
-			*:where(:not([class*="emdash"]):not([class*="ec-"]))::after {
-				box-sizing: border-box;
-			}
+			/*
+			 * Establish layer order: "base" has lower priority than unlayered
+			 * styles, so theme.css overrides always win regardless of source
+			 * order in the bundled CSS.
+			 */
+			@layer base;
 
-			body,
-			h1,
-			h2,
-			h3,
-			h4,
-			h5,
-			h6,
-			p,
-			ul,
-			ol,
-			figure,
-			blockquote,
-			dl,
-			dd {
-				margin: 0;
-			}
+			@layer base {
+				*:where(:not([class*="emdash"]):not([class*="ec-"])),
+				*:where(:not([class*="emdash"]):not([class*="ec-"]))::before,
+				*:where(:not([class*="emdash"]):not([class*="ec-"]))::after {
+					box-sizing: border-box;
+				}
 
-			ul,
-			ol {
-				padding: 0;
-			}
+				body,
+				h1,
+				h2,
+				h3,
+				h4,
+				h5,
+				h6,
+				p,
+				ul,
+				ol,
+				figure,
+				blockquote,
+				dl,
+				dd {
+					margin: 0;
+				}
 
-			:root {
-				/* Colors - Light mode (default) */
-				--color-bg: #ffffff;
-				--color-bg-subtle: #fafafa;
-				--color-text: #1a1a1a;
-				--color-text-secondary: #525252;
-				--color-muted: #8b8b8b;
-				--color-border: #e5e5e5;
-				--color-border-subtle: #f0f0f0;
-				--color-surface: #f7f7f7;
-				--color-accent: #0066cc;
-				--color-accent-hover: #0052a3;
-				--color-on-accent: white;
-				--color-accent-ring: color-mix(
-					in srgb,
-					var(--color-accent) 25%,
-					transparent
-				);
+				ul,
+				ol {
+					padding: 0;
+				}
 
-				/* EmDash search theming */
-				--emdash-search-bg: var(--color-bg);
-				--emdash-search-text: var(--color-text);
-				--emdash-search-muted: var(--color-muted);
-				--emdash-search-border: var(--color-border);
-				--emdash-search-hover: var(--color-surface);
-				--emdash-search-highlight: var(--color-text);
+				:root {
+					/* Colors - Light mode (default) */
+					--color-bg: #ffffff;
+					--color-bg-subtle: #fafafa;
+					--color-text: #1a1a1a;
+					--color-text-secondary: #525252;
+					--color-muted: #8b8b8b;
+					--color-border: #e5e5e5;
+					--color-border-subtle: #f0f0f0;
+					--color-surface: #f7f7f7;
+					--color-accent: #0066cc;
+					--color-accent-hover: #0052a3;
+					--color-on-accent: white;
+					--color-accent-ring: color-mix(
+						in srgb,
+						var(--color-accent) 25%,
+						transparent
+					);
 
-				/* Type scale - more refined */
-				--font-size-xs: 0.8125rem;
-				--font-size-sm: 0.875rem;
-				--font-size-base: 1rem;
-				--font-size-lg: 1.125rem;
-				--font-size-xl: 1.25rem;
-				--font-size-2xl: 1.5rem;
-				--font-size-3xl: 2rem;
-				--font-size-4xl: 2.5rem;
-				--font-size-5xl: 3.5rem;
+					/* EmDash search theming */
+					--emdash-search-bg: var(--color-bg);
+					--emdash-search-text: var(--color-text);
+					--emdash-search-muted: var(--color-muted);
+					--emdash-search-border: var(--color-border);
+					--emdash-search-hover: var(--color-surface);
+					--emdash-search-highlight: var(--color-text);
 
-				/* Line heights */
-				--leading-tight: 1.15;
-				--leading-snug: 1.3;
-				--leading-normal: 1.5;
-				--leading-relaxed: 1.7;
+					/* Type scale - more refined */
+					--font-size-xs: 0.8125rem;
+					--font-size-sm: 0.875rem;
+					--font-size-base: 1rem;
+					--font-size-lg: 1.125rem;
+					--font-size-xl: 1.25rem;
+					--font-size-2xl: 1.5rem;
+					--font-size-3xl: 2rem;
+					--font-size-4xl: 2.5rem;
+					--font-size-5xl: 3.5rem;
 
-				/* Spacing - more generous */
-				--spacing-1: 0.25rem;
-				--spacing-2: 0.5rem;
-				--spacing-3: 0.75rem;
-				--spacing-4: 1rem;
-				--spacing-5: 1.25rem;
-				--spacing-6: 1.5rem;
-				--spacing-8: 2rem;
-				--spacing-10: 2.5rem;
-				--spacing-12: 3rem;
-				--spacing-16: 4rem;
-				--spacing-20: 5rem;
-				--spacing-24: 6rem;
+					/* Line heights */
+					--leading-tight: 1.15;
+					--leading-snug: 1.3;
+					--leading-normal: 1.5;
+					--leading-relaxed: 1.7;
 
-				/* Legacy spacing aliases */
-				--spacing-xs: var(--spacing-1);
-				--spacing-sm: var(--spacing-2);
-				--spacing-md: var(--spacing-4);
-				--spacing-lg: var(--spacing-6);
-				--spacing-xl: var(--spacing-8);
-				--spacing-2xl: var(--spacing-12);
-				--spacing-3xl: var(--spacing-16);
+					/* Spacing - more generous */
+					--spacing-1: 0.25rem;
+					--spacing-2: 0.5rem;
+					--spacing-3: 0.75rem;
+					--spacing-4: 1rem;
+					--spacing-5: 1.25rem;
+					--spacing-6: 1.5rem;
+					--spacing-8: 2rem;
+					--spacing-10: 2.5rem;
+					--spacing-12: 3rem;
+					--spacing-16: 4rem;
+					--spacing-20: 5rem;
+					--spacing-24: 6rem;
 
-				/* Layout - wider for three-column */
-				--content-width: 680px;
-				--wide-width: 1200px;
-				--max-width: var(--content-width);
-				--gutter-width: 200px;
-				--radius: 4px;
-				--radius-lg: 8px;
+					/* Legacy spacing aliases */
+					--spacing-xs: var(--spacing-1);
+					--spacing-sm: var(--spacing-2);
+					--spacing-md: var(--spacing-4);
+					--spacing-lg: var(--spacing-6);
+					--spacing-xl: var(--spacing-8);
+					--spacing-2xl: var(--spacing-12);
+					--spacing-3xl: var(--spacing-16);
 
-				/* Transitions */
-				--transition-fast: 120ms ease;
-				--transition-base: 180ms ease;
+					/* Layout - wider for three-column */
+					--content-width: 680px;
+					--wide-width: 1200px;
+					--max-width: var(--content-width);
+					--gutter-width: 200px;
+					--radius: 4px;
+					--radius-lg: 8px;
 
-				/* Nav */
-				--nav-height: 64px;
+					/* Transitions */
+					--transition-fast: 120ms ease;
+					--transition-base: 180ms ease;
 
-				/* Search */
-				--search-input-width: 180px;
+					/* Nav */
+					--nav-height: 64px;
 
-				/* Article layout */
-				--meta-col-width: 180px;
+					/* Search */
+					--search-input-width: 180px;
 
-				/* Avatar sizes */
-				--avatar-size-xs: 18px;
-				--avatar-size-sm: 20px;
-				--avatar-size-md: 24px;
-				--avatar-size-lg: 32px;
+					/* Article layout */
+					--meta-col-width: 180px;
 
-				/* Letter spacing */
-				--tracking-tight: -0.03em;
-				--tracking-snug: -0.02em;
-				--tracking-wide: 0.06em;
-				--tracking-wider: 0.08em;
+					/* Avatar sizes */
+					--avatar-size-xs: 18px;
+					--avatar-size-sm: 20px;
+					--avatar-size-md: 24px;
+					--avatar-size-lg: 32px;
 
-				/* Tag pill */
-				--tag-padding-y: 2px;
+					/* Letter spacing */
+					--tracking-tight: -0.03em;
+					--tracking-snug: -0.02em;
+					--tracking-wide: 0.06em;
+					--tracking-wider: 0.08em;
 
-				/* Shadows */
-				--shadow-dropdown: 0 8px 30px rgba(0, 0, 0, 0.12);
-				--shadow-btn-active: 0 1px 2px rgba(0, 0, 0, 0.05);
-			}
+					/* Tag pill */
+					--tag-padding-y: 2px;
 
-			/* Dark mode via system preference (when no explicit class) */
-			@media (prefers-color-scheme: dark) {
-				:root:not(.light) {
+					/* Shadows */
+					--shadow-dropdown: 0 8px 30px rgba(0, 0, 0, 0.12);
+					--shadow-btn-active: 0 1px 2px rgba(0, 0, 0, 0.05);
+				}
+
+				/* Dark mode via system preference (when no explicit class) */
+				@media (prefers-color-scheme: dark) {
+					:root:not(.light) {
+						--color-bg: #0d0d0d;
+						--color-bg-subtle: #141414;
+						--color-text: #ededed;
+						--color-text-secondary: #a0a0a0;
+						--color-muted: #6b6b6b;
+						--color-border: #2a2a2a;
+						--color-border-subtle: #1f1f1f;
+						--color-surface: #181818;
+						--color-accent: #4d9fff;
+						--color-accent-hover: #6eb0ff;
+					}
+				}
+
+				/* Explicit dark mode */
+				:root.dark {
 					--color-bg: #0d0d0d;
 					--color-bg-subtle: #141414;
 					--color-text: #ededed;
@@ -481,73 +520,59 @@ const isLoggedIn = !!Astro.locals.user;
 					--color-accent: #4d9fff;
 					--color-accent-hover: #6eb0ff;
 				}
-			}
 
-			/* Explicit dark mode */
-			:root.dark {
-				--color-bg: #0d0d0d;
-				--color-bg-subtle: #141414;
-				--color-text: #ededed;
-				--color-text-secondary: #a0a0a0;
-				--color-muted: #6b6b6b;
-				--color-border: #2a2a2a;
-				--color-border-subtle: #1f1f1f;
-				--color-surface: #181818;
-				--color-accent: #4d9fff;
-				--color-accent-hover: #6eb0ff;
-			}
+				html {
+					scroll-behavior: smooth;
+				}
 
-			html {
-				scroll-behavior: smooth;
-			}
+				body {
+					font-family: var(--font-sans);
+					font-size: var(--font-size-base);
+					line-height: var(--leading-relaxed);
+					color: var(--color-text);
+					background: var(--color-bg);
+					-webkit-font-smoothing: antialiased;
+					-moz-osx-font-smoothing: grayscale;
+					min-height: 100vh;
+				}
 
-			body {
-				font-family: var(--font-sans);
-				font-size: var(--font-size-base);
-				line-height: var(--leading-relaxed);
-				color: var(--color-text);
-				background: var(--color-bg);
-				-webkit-font-smoothing: antialiased;
-				-moz-osx-font-smoothing: grayscale;
-				min-height: 100vh;
-			}
+				a:where(:not([class*="emdash"]):not([class*="ec-"])) {
+					color: var(--color-accent);
+					text-decoration: none;
+					transition: color var(--transition-fast);
+				}
 
-			a:where(:not([class*="emdash"]):not([class*="ec-"])) {
-				color: var(--color-accent);
-				text-decoration: none;
-				transition: color var(--transition-fast);
-			}
+				a:where(:not([class*="emdash"]):not([class*="ec-"])):hover {
+					color: var(--color-accent-hover);
+				}
 
-			a:where(:not([class*="emdash"]):not([class*="ec-"])):hover {
-				color: var(--color-accent-hover);
-			}
+				img {
+					max-width: 100%;
+					height: auto;
+					display: block;
+				}
 
-			img {
-				max-width: 100%;
-				height: auto;
-				display: block;
-			}
+				h1,
+				h2,
+				h3,
+				h4,
+				h5,
+				h6 {
+					font-family: var(--font-sans);
+					line-height: var(--leading-tight);
+					font-weight: 600;
+					letter-spacing: var(--tracking-snug);
+				}
 
-			h1,
-			h2,
-			h3,
-			h4,
-			h5,
-			h6 {
-				font-family: var(--font-sans);
-				line-height: var(--leading-tight);
-				font-weight: 600;
-				letter-spacing: var(--tracking-snug);
-			}
+				h1 {
+					font-weight: 700;
+					letter-spacing: var(--tracking-tight);
+				}
 
-			h1 {
-				font-weight: 700;
-				letter-spacing: var(--tracking-tight);
-			}
-
-			::selection {
-				background: var(--color-accent);
-				color: white;
+				::selection {
+					background: var(--color-accent);
+					color: white;
+				}
 			}
 		</style>
 
@@ -584,6 +609,13 @@ const isLoggedIn = !!Astro.locals.user;
 				color: var(--color-accent);
 			}
 
+			.site-logo-img {
+				height: 48px;
+				width: auto;
+				display: block;
+				margin: -8px 0;
+			}
+
 			.nav-right {
 				display: flex;
 				align-items: center;
@@ -608,14 +640,13 @@ const isLoggedIn = !!Astro.locals.user;
 
 			.nav-admin {
 				font-size: var(--font-size-sm);
-				color: var(--color-muted);
+				color: var(--color-text-secondary);
 				text-decoration: none;
-				opacity: 0.5;
-				transition: opacity var(--transition-fast);
+				transition: color var(--transition-fast);
 			}
 
 			.nav-admin:hover {
-				opacity: 1;
+				color: var(--color-text);
 			}
 
 			/* Search styling */
@@ -754,6 +785,11 @@ const isLoggedIn = !!Astro.locals.user;
 				color: var(--color-text);
 				text-decoration: none;
 				letter-spacing: var(--tracking-snug);
+			}
+
+			.footer-logo-img {
+				height: 24px;
+				width: auto;
 			}
 
 			.footer-tagline {

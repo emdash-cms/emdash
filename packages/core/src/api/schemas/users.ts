@@ -10,7 +10,7 @@ export const usersListQuery = z
 	.object({
 		search: z.string().optional(),
 		role: z.string().optional(),
-		cursor: z.string().optional(),
+		cursor: z.string().max(2048).optional(),
 		limit: z.coerce.number().int().min(1).max(100).optional().default(50),
 	})
 	.meta({ id: "UsersListQuery" });

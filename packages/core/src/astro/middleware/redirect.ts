@@ -17,10 +17,11 @@
 import { defineMiddleware } from "astro:middleware";
 
 import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { getDb } from "../../loader.js";
 import {
-	getCachedPatternRules,
+	getCachedRedirects,
 	matchCachedPatterns,
-	setCachedPatternRules,
+	setCachedRedirects,
 } from "../../redirects/cache.js";
 
 /** Paths that should never be intercepted by redirects */
@@ -46,16 +47,34 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		return next();
 	}
 
-	const { emdash } = context.locals;
-	if (!emdash?.db) {
-		return next();
+	// Public visitors hit the runtime's anonymous fast path, which intentionally
+	// omits `db` from `locals.emdash` to keep the public render boundary minimal
+	// (issue #808). Fall back to `getDb()`, which transparently returns the
+	// per-request scoped db (set in ALS by the runtime middleware) or the
+	// singleton — same path the loader and template helpers use.
+	let db = context.locals.emdash?.db;
+	if (!db) {
+		try {
+			db = await getDb();
+		} catch {
+			return next();
+		}
 	}
 
 	try {
-		const repo = new RedirectRepository(emdash.db);
+		const repo = new RedirectRepository(db);
 
-		// 1. Exact match (fast, indexed)
-		const exact = await repo.findExactMatch(pathname);
+		// One query loads both exact and pattern rules into the cache; warm
+		// requests issue zero queries. Empty-redirect sites cache an empty
+		// Map + array, so the next request returns immediately without probing.
+		let cached = getCachedRedirects();
+		if (!cached) {
+			const all = await repo.findAllEnabled();
+			cached = setCachedRedirects(all);
+		}
+
+		// 1. Exact match (O(1) Map lookup)
+		const exact = cached.exact.get(pathname);
 		if (exact) {
 			const dest = exact.destination;
 			if (dest.startsWith("//") || dest.startsWith("/\\")) return next();
@@ -64,14 +83,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			return context.redirect(dest, code);
 		}
 
-		// 2. Pattern match (cached: compile once, match every request)
-		let rules = getCachedPatternRules();
-		if (!rules) {
-			const patterns = await repo.findEnabledPatternRules();
-			rules = setCachedPatternRules(patterns);
-		}
-
-		const patternMatch = matchCachedPatterns(rules, pathname);
+		// 2. Pattern match (compile once, match every request)
+		const patternMatch = matchCachedPatterns(cached.patterns, pathname);
 		if (patternMatch) {
 			const { redirect, destination } = patternMatch;
 			if (destination.startsWith("//") || destination.startsWith("/\\")) return next();

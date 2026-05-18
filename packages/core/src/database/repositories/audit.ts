@@ -143,14 +143,12 @@ export class AuditRepository {
 
 		if (query.cursor) {
 			const decoded = decodeCursor(query.cursor);
-			if (decoded) {
-				q = q.where((eb) =>
-					eb.or([
-						eb("timestamp", "<", decoded.orderValue),
-						eb.and([eb("timestamp", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
-					]),
-				);
-			}
+			q = q.where((eb) =>
+				eb.or([
+					eb("timestamp", "<", decoded.orderValue),
+					eb.and([eb("timestamp", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
+				]),
+			);
 		}
 
 		const rows = await q.execute();

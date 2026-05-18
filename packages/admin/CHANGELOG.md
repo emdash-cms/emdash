@@ -1,5 +1,182 @@
 # @emdash-cms/admin
 
+## 0.12.0
+
+### Minor Changes
+
+- [#997](https://github.com/emdash-cms/emdash/pull/997) [`7b45cba`](https://github.com/emdash-cms/emdash/commit/7b45cba66143c3a75bbd880abff85303c1fd6072) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds support for a site-wide default Open Graph image. The setting is exposed in the admin SEO settings page (Settings -> SEO -> Default Social Image), resolved to a URL on read by `getSiteSettings()`, and automatically emitted as `og:image` / `twitter:image` (and BlogPosting JSON-LD `image`) by `EmDashHead.astro` whenever a page has no image of its own. Per-page images still take precedence.
+
+  This wires up an existing data model that was previously defined in the schema and MCP tools but never used: stored values were not resolved and no template path read the setting.
+
+  Emitted URLs are absolutized using `SiteSettings.url`, the page's `siteUrl`, or the request origin so crawlers and JSON-LD consumers that reject relative URLs work correctly.
+
+  Also adds a `localOnly` prop to `MediaPickerModal` that suppresses the "Insert from URL" input and external provider tabs. Used by SEO settings to ensure the picker only returns locally-stored media (since the setting only persists a local `mediaId`).
+
+  Media metadata updates and deletes now invalidate the worker-scoped site-settings cache, so resolved logo/favicon/default-social-image URLs and dimensions stay in sync with the underlying media row.
+
+### Patch Changes
+
+- [#996](https://github.com/emdash-cms/emdash/pull/996) [`19576be`](https://github.com/emdash-cms/emdash/commit/19576be43134359596ca7705f84fd645bd2f3824) Thanks [@r2sake](https://github.com/r2sake)! - Fix media library admin page and the media picker modal (used by the rich text editor and image fields when embedding media into content) to support libraries larger than 50 items by wiring up cursor-based infinite scroll (mirrors the content list fix from #135)
+
+- [#1004](https://github.com/emdash-cms/emdash/pull/1004) [`35791ff`](https://github.com/emdash-cms/emdash/commit/35791ff9f68c10c6d3ff15ee0ab407baef09c2aa) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes a stale ref race in the slash command menu's keyboard handlers. The state ref was synced via `useEffect` (post-commit), so TipTap's Suggestion plugin could read stale state when invoking `onKeyDown` synchronously -- causing Enter to occasionally fail to execute commands and arrow navigation to skip selections on slower runs.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.12.0
+
+## 0.11.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.11.1
+
+## 0.11.0
+
+### Minor Changes
+
+- [#942](https://github.com/emdash-cms/emdash/pull/942) [`7c536e5`](https://github.com/emdash-cms/emdash/commit/7c536e59b005a79925dd0ecab46404d9d34196b8) Thanks [@MA2153](https://github.com/MA2153)! - Adds per-field allowed MIME types for `file` and `image` fields. Field-level `allowedTypes` is now honored end-to-end: it filters the media picker, widens upload acceptance for that field (so e.g. a zip-only field can accept zip uploads even though the global allowlist excludes them), and validates referenced media against the destination field on content save. The schema editor in admin gains an "Allowed types" control with curated presets and freeform entry.
+
+  Behavior change: the `image` builder's `allowedTypes` option was previously accepted but read by nothing. It is now load-bearing — a code-first schema that already passed `allowedTypes` (e.g. `["image/png"]`) will now actually narrow the picker and gate uploads. Most users will see no change; if you set this option intending the old (silent) behavior, drop it.
+
+  Behavior change: updating a field via the admin schema editor now explicitly clears its validation when the form contains no validation settings, instead of leaving an existing `validation` value intact. This only affects fields with pre-existing validation that is not expressible in the editor UI.
+
+- [#921](https://github.com/emdash-cms/emdash/pull/921) [`530b013`](https://github.com/emdash-cms/emdash/commit/530b013000e0547bc01f252113cff77c1e26e485) Thanks [@jcheese1](https://github.com/jcheese1)! - Adds table support to the PortableText editor. Users can now insert and edit tables via the slash command menu (/table) or toolbar button. Tables support header rows, column/row insertion and deletion, and include a bubble menu for quick editing.
+
+### Patch Changes
+
+- [#958](https://github.com/emdash-cms/emdash/pull/958) [`7f6b6ea`](https://github.com/emdash-cms/emdash/commit/7f6b6ead417f3b495843a4da5653531cf735aae4) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes admin lists, tables and info cards rendering as transparent against the page background. Card containers in the content list, content type list, content type editor, media library, comments, users and device authorization views now have an explicit `bg-kumo-base` surface so they're visually distinct from the body.
+
+  Also fixes column header labels in content list tables ("Title", "Status", etc.) rendering pale because of an undefined Tailwind class (`text-kumo-fg`) -- they now use the default text color and rely on the sort indicator icon to signal active state.
+
+- [#952](https://github.com/emdash-cms/emdash/pull/952) [`131bea6`](https://github.com/emdash-cms/emdash/commit/131bea68b7f580e353716a1a1934f2a6fec3b3e7) Thanks [@ascorbic](https://github.com/ascorbic)! - Replaces 20 raw `<input type="checkbox">` elements across the admin UI with Kumo's `Switch` and `Checkbox` components. Single-boolean toggles (SEO, Enable comments, Required, etc.) become `Switch`; multi-select / list-context checkboxes (collection multi-select, term tree nodes) become `Checkbox`. Drops manual styling and label markup that duplicated what the Kumo components provide built-in.
+
+- [#956](https://github.com/emdash-cms/emdash/pull/956) [`54b5aa1`](https://github.com/emdash-cms/emdash/commit/54b5aa1c189d7ebd8d34e02a9b3c3a560b5f263f) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Fixes broken checkboxes on the comments moderation page (`/_emdash/admin/comments`). Selecting a comment threw a JavaScript error and did not select the row.
+
+- [#934](https://github.com/emdash-cms/emdash/pull/934) [`c630e31`](https://github.com/emdash-cms/emdash/commit/c630e31d1362a275c95324f4bbc1e92d0a4646cf) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes button and link inconsistencies across the admin UI. Standardises on Kumo's `Button` `icon` prop and `LinkButton` (with `external` for new-tab links) instead of manual icon spacing and raw anchor styling, removes a `<Link><Button>` invalid HTML nesting in the plugin manager, and translates two stray English strings in the user list empty state.
+
+- [#949](https://github.com/emdash-cms/emdash/pull/949) [`7aa1897`](https://github.com/emdash-cms/emdash/commit/7aa189782946bb99397ea909cac50fc1109b27b9) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes invalid `<a><button>` HTML produced by `<Link><Button>...</Button></Link>` patterns across the admin UI. Introduces a `RouterLinkButton` component that wraps TanStack Router's `<Link>` with Kumo button styling (`variant`, `size`, `shape`, `icon` props), and migrates all existing `<Link className={buttonVariants(...)}>` usages to use it. Extracts the duplicated "Back to settings" header link into a shared `BackToSettingsLink` component.
+
+- [#940](https://github.com/emdash-cms/emdash/pull/940) [`0b8a319`](https://github.com/emdash-cms/emdash/commit/0b8a319e7afb247b1ebacd60aeb6052bec5560d5) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the long tail of untranslated English strings in the admin UI: settings panels, marketplace, sandboxed-plugin host, auth flows, taxonomy/menu management, and lib/api fallback messages. After this PR, EmDash admin UI is fully localizable across all known surfaces.
+
+- [#957](https://github.com/emdash-cms/emdash/pull/957) [`13ff061`](https://github.com/emdash-cms/emdash/commit/13ff061517ede4b29608de0120283914b43e6b76) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the OG image picker in the content editor only appearing for collections with a field literally named `featured_image`. The OG image control now lives in the SEO sidebar panel alongside the other SEO fields, so any collection with `seo` enabled can set a social preview image regardless of whether it has a featured image field.
+
+- [#955](https://github.com/emdash-cms/emdash/pull/955) [`49b66d9`](https://github.com/emdash-cms/emdash/commit/49b66d910c80b87b2632ad34e923695c9a302a05) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes the sticky editor header from content / content-type / section / settings pages. The sticky implementation had transparency artifacts (backdrop-blur over varied content), layout fragility (negative margins canceling parent padding), z-index conflicts with the app bar, and ~85px of permanent vertical chrome. Each editor now renders a Save button at the bottom of the form so users can save without scrolling back to the top header. The distraction-free hover-overlay header in the content editor is preserved.
+
+- [#966](https://github.com/emdash-cms/emdash/pull/966) [`1b2fa77`](https://github.com/emdash-cms/emdash/commit/1b2fa77d0c1455f9478908234f45e9d91847e044) Thanks [@ahliweb](https://github.com/ahliweb)! - i18n(id): complete Indonesian translation (320 strings)
+
+- [#937](https://github.com/emdash-cms/emdash/pull/937) [`af15975`](https://github.com/emdash-cms/emdash/commit/af15975b1c8daf6bdef216ac56693568d448a112) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes ~250 untranslated English strings in the admin UI's most-used screens (router toasts, content type editor, widgets, byline and user routes, invite-accept flow, portable text editor toolbar, image and embed editor nodes, user list). All `title=`, `aria-label=`, `placeholder=`, and toast messages in these areas now flow through Lingui.
+
+- [#950](https://github.com/emdash-cms/emdash/pull/950) [`a4968c1`](https://github.com/emdash-cms/emdash/commit/a4968c105741ca008035d1f33e55851b52a7d2d6) Thanks [@ascorbic](https://github.com/ascorbic)! - Replaces raw `<select>` and `<input type="search">` elements across the admin UI with Kumo's `Select` and `Input` components. This gives consistent styling, proper focus rings, accessibility (label association via the Field wrapper), and dark-mode handling for free instead of relying on hand-rolled Tailwind classes that bypassed the design system.
+
+- [#973](https://github.com/emdash-cms/emdash/pull/973) [`f80fb58`](https://github.com/emdash-cms/emdash/commit/f80fb58ca5906d65e7f1a38d91267ce511d2bef2) Thanks [@ahliweb](https://github.com/ahliweb)! - Translates the remaining untranslated string in the Indonesian locale, bringing it to 100% coverage.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.11.0
+
+## 0.10.0
+
+### Patch Changes
+
+- [#719](https://github.com/emdash-cms/emdash/pull/719) [`2e2b8e9`](https://github.com/emdash-cms/emdash/commit/2e2b8e90c099f3422808f0e1da9c83a9ec533b64) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the `file` field type rendering as a plain text input in the content editor. Adds a `FileFieldRenderer` that opens the media picker (with mime filter disabled) so any file type can be attached. Also adds a `hideUrlInput` prop to `MediaPickerModal` so non-image pickers can hide the image-specific "Insert from URL" input.
+
+  Aligns the Zod schema and generated TypeScript types for `image` and `file` fields with the shape the admin actually stores: `provider?`, `meta?` (for both), and `previewUrl?` (for image). Previously these fields were stripped on validation and missing from generated types, so site code could not reliably resolve local media URLs from `meta.storageKey`.
+
+- Updated dependencies [[`5eb4318`](https://github.com/emdash-cms/emdash/commit/5eb431876cbfb69a961735fbb6ab09c9de937f28)]:
+  - @emdash-cms/blocks@0.10.0
+
+## 0.9.0
+
+### Minor Changes
+
+- [#731](https://github.com/emdash-cms/emdash/pull/731) [`9dfc65c`](https://github.com/emdash-cms/emdash/commit/9dfc65c42c04c41088e0c8f5a8ca4347643e2fea) Thanks [@drudge](https://github.com/drudge)! - Adds a `media_picker` Block Kit element: a thumbnail preview with a modal library picker and mime-type filter. Usable in plugin block forms and in Block Kit field widgets. The stored value is the selected asset's URL string, so it is value-compatible with a plain `text_input` — existing content continues to work after swapping. The `mime_type_filter` is restricted to image MIME types (`image/` or `image/<subtype>`); wildcards and non-image types are rejected.
+
+- [#809](https://github.com/emdash-cms/emdash/pull/809) [`e7df21f`](https://github.com/emdash-cms/emdash/commit/e7df21f0adca795cdb233d6e64cd543ead7e2347) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds an optional `category` field to `PortableTextBlockConfig` for plugin-contributed block types. Plugins can now choose how their blocks are grouped in the admin slash menu (e.g. "Sections", "Marketing", "Media", "Layout") instead of always falling under "Embeds". Existing plugins that omit the field continue to render under "Embeds" exactly as before.
+
+- [#814](https://github.com/emdash-cms/emdash/pull/814) [`a838000`](https://github.com/emdash-cms/emdash/commit/a83800068678daf6391e02bba8acf27ff4db0e19) Thanks [@arashackdev](https://github.com/arashackdev)! - rtl srtyle improvements and LTR/RTL compatible arrow/caret icons
+
+- [#854](https://github.com/emdash-cms/emdash/pull/854) [`491aeec`](https://github.com/emdash-cms/emdash/commit/491aeec5a66e2f764eb9d8ed8425e9d402ada4a7) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Adds consistently-placed sticky Save buttons across editor pages so unsaved changes are always visible. The Content editor, Section editor, Content Type editor, and Settings sub-pages (General, SEO, Social Links) now render their primary save action in a sticky top-right header that stays visible while users scroll long forms. The existing bottom-of-form save buttons are preserved so keyboard and screen-reader users still hit a save action as the last interactive control on the page (DOM order is unchanged). Introduces a shared `EditorHeader` component for editor pages that want the same sticky-header pattern. Fixes #233.
+
+### Patch Changes
+
+- [#849](https://github.com/emdash-cms/emdash/pull/849) [`d6754ae`](https://github.com/emdash-cms/emdash/commit/d6754ae7746b0f9035d2c5e390ece7199762b094) Thanks [@drudge](https://github.com/drudge)! - Fixes the `datetime` field widget so existing values display in the editor and new values pass server validation. The widget passed raw ISO 8601 (`YYYY-MM-DDTHH:mm:ss.sssZ`) into `<input type="datetime-local">`, which silently rendered empty, and emitted `YYYY-MM-DDTHH:mm` on save, which the field's zod schema rejected. Strips the suffix for display, appends `:00.000Z` on save, and normalizes date-only stored values to UTC midnight for the input. Applies to the top-level `datetime` widget in the content editor and the `datetime` sub-field type inside `RepeaterField`.
+
+- [#702](https://github.com/emdash-cms/emdash/pull/702) [`0ee372a`](https://github.com/emdash-cms/emdash/commit/0ee372a7f33eecce7d90e12624923d2d9c132adf) Thanks [@ilicfilip](https://github.com/ilicfilip)! - Adds `@emdash-cms/plugin-field-kit` — composable field widgets for `json` fields. Four widgets (`object-form`, `list`, `grid`, `tags`) are configured entirely through seed `options` so site builders don't need to write React to get a usable editing UI. Widgets store clean JSON (no nesting, no mutation of shape), so removing the plugin leaves valid data in the database. See discussion #571 for background.
+
+  Widens `FieldDescriptor.options` to `Array<{ value: string; label: string }> | Record<string, unknown>` so plugin widgets can accept arbitrary widget config (not only enum choices). The array shape for `select` / `multiSelect` continues to work unchanged.
+
+- [#856](https://github.com/emdash-cms/emdash/pull/856) [`ef3f076`](https://github.com/emdash-cms/emdash/commit/ef3f076c8112e9dffc2a87c019e5521e823f5e86) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes `npm install` peer dependency conflicts (#819) by removing `react` and `react-dom` from `dependencies`. They were declared in both `dependencies` and `peerDependencies`, which made npm think the admin package required an exact pinned React version and conflicted with the host Astro app's React. They remain `peerDependencies` (`^18.0.0 || ^19.0.0`), and the host app supplies React.
+
+- [#821](https://github.com/emdash-cms/emdash/pull/821) [`8d0feb3`](https://github.com/emdash-cms/emdash/commit/8d0feb3eece62b01075260bbb79188984a8631b8) Thanks [@r2sake](https://github.com/r2sake)! - Fixes the Settings (gear) icon on the Plugin Manager so it links to the plugin's primary admin page instead of a non-existent `/settings` sub-route.
+
+- [#862](https://github.com/emdash-cms/emdash/pull/862) [`8354088`](https://github.com/emdash-cms/emdash/commit/83540887936a87a6c99230b21d2afe3fe424218c) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Fixes slug-style `<input pattern="...">` attributes so HTML form validation works in current browsers. The patterns used `[a-z0-9-]+`, which is rejected as `Invalid character class` when compiled with the `v` (unicode-sets) flag — the mode browsers now use for the `pattern` attribute. The dangling `-` is now escaped (`[a-z0-9\-]+`), restoring slug validation in the Sections list/edit, Menus list, and Widgets create-area dialogs. Resolves #845.
+
+- [#887](https://github.com/emdash-cms/emdash/pull/887) [`254a443`](https://github.com/emdash-cms/emdash/commit/254a443684ec3bddfc2706b349d6ccce901987af) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes stale content shown in the Portable Text editor when switching between translations of the same content. Previously, navigating from one locale's editor to another (e.g. from the English version of a post to the French version) kept the previous locale's body in the editor, and any subsequent edit would silently overwrite the new translation's content. The form now resets synchronously when the underlying content item changes, and field editors are keyed by item id so they remount cleanly on a translation switch.
+
+- [#885](https://github.com/emdash-cms/emdash/pull/885) [`25128b2`](https://github.com/emdash-cms/emdash/commit/25128b2444853e3301af7ff09d21a3f5883a599f) Thanks [@ahliweb](https://github.com/ahliweb)! - Fixes malformed ICU plural syntax in Indonesian (id) locale — ContentList item count now renders correctly
+
+- [#872](https://github.com/emdash-cms/emdash/pull/872) [`ab45916`](https://github.com/emdash-cms/emdash/commit/ab45916e8561678ccddf7d6184a7d56729ea03cc) Thanks [@ahliweb](https://github.com/ahliweb)! - Enables Indonesian (Bahasa Indonesia) locale in the admin UI
+
+- [#807](https://github.com/emdash-cms/emdash/pull/807) [`0913a39`](https://github.com/emdash-cms/emdash/commit/0913a39a23538c96bfa62fe7da37bf332d18bb46) Thanks [@ascorbic](https://github.com/ascorbic)! - Sizes the plugin block edit modal based on field complexity so Block Kit forms have room to breathe. Simple URL embeds keep the previous compact dialog; forms with several fields get a wider one, and forms containing a repeater open at the largest size. Inputs inside the dialog now fill the available width.
+
+- [#815](https://github.com/emdash-cms/emdash/pull/815) [`ddbf808`](https://github.com/emdash-cms/emdash/commit/ddbf8088e1bcfa07d6347a953bb1995295e8f8fd) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes content list loading state showing `No results for ""` instead of a loader while items are being fetched. The trash tab gets the same treatment.
+
+- [#870](https://github.com/emdash-cms/emdash/pull/870) [`1c958fb`](https://github.com/emdash-cms/emdash/commit/1c958fb484387cd8cce7fab53ff4eddfe0dbb7f6) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Fixes the image-settings icon in the Section editor so it actually opens `<ImageDetailPanel>` in the sidebar.
+
+- [#816](https://github.com/emdash-cms/emdash/pull/816) [`d4be24f`](https://github.com/emdash-cms/emdash/commit/d4be24f478a0c8d0a7bba3c299e11105bba3ed94) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Unifies plugin capability names under a single `<resource>[.<sub-resource>]:<verb>[:<qualifier>]` formula so capabilities read like RBAC permissions, separates hook-registration permissions from data-access ones for clearer audits, and replaces the overloaded `:any` qualifier with the more conspicuous `:unrestricted`. Old names are still accepted with `@deprecated` warnings; `emdash plugin bundle` and `emdash plugin validate` warn for each deprecated name and `emdash plugin publish` refuses manifests that still use them.
+
+  The Cloudflare sandbox bridge and HTTP fetch helper now enforce canonical names (`content:read`, `content:write`, `media:read`, `media:write`, `users:read`, `network:request`, `network:request:unrestricted`). Manifests that still declare legacy names continue to work — the runner normalizes capabilities before passing them into the bridge, so installed plugins with `read:content` resolve to `content:read` and reach the same code path.
+
+  | Old                 | New                              |
+  | ------------------- | -------------------------------- |
+  | `read:content`      | `content:read`                   |
+  | `write:content`     | `content:write`                  |
+  | `read:media`        | `media:read`                     |
+  | `write:media`       | `media:write`                    |
+  | `read:users`        | `users:read`                     |
+  | `network:fetch`     | `network:request`                |
+  | `network:fetch:any` | `network:request:unrestricted`   |
+  | `email:provide`     | `hooks.email-transport:register` |
+  | `email:intercept`   | `hooks.email-events:register`    |
+  | `page:inject`       | `hooks.page-fragments:register`  |
+
+  Existing installs keep working — manifests are normalized at every external boundary and `diffCapabilities` normalizes both sides so version upgrades that only rename do not trigger a "capability changed" prompt. Deprecated names will be removed in the next minor.
+
+- Updated dependencies [[`7b8d496`](https://github.com/emdash-cms/emdash/commit/7b8d4964c619821937d1a738cbd6f81e98095a91), [`9dfc65c`](https://github.com/emdash-cms/emdash/commit/9dfc65c42c04c41088e0c8f5a8ca4347643e2fea), [`a838000`](https://github.com/emdash-cms/emdash/commit/a83800068678daf6391e02bba8acf27ff4db0e19)]:
+  - @emdash-cms/blocks@0.9.0
+
+## 0.8.0
+
+### Minor Changes
+
+- [#679](https://github.com/emdash-cms/emdash/pull/679) [`493e317`](https://github.com/emdash-cms/emdash/commit/493e3172d4539d8e041e6d2bf2d7d2dc89b2a10d) Thanks [@drudge](https://github.com/drudge)! - Adds a `repeater` Block Kit element: array-of-objects with scalar sub-fields, drag-to-reorder, and collapsible item cards. Plugin block forms can now capture repeating data (FAQ rows, carousel slides, card grids) inline in the portable-text editor.
+
+- [#779](https://github.com/emdash-cms/emdash/pull/779) [`e402890`](https://github.com/emdash-cms/emdash/commit/e402890fcd8647fdfe847bb34aa9f9e7094473dd) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `settings_get` and `settings_update` MCP tools so agents can read and update site-wide settings (title, tagline, logo, favicon, URL, posts-per-page, date format, timezone, social, SEO). `settings_get` resolves media references (logo/favicon/seo.defaultOgImage) to URLs; `settings_update` is a partial update that preserves omitted fields. New `settings:read` (EDITOR+) and `settings:manage` (ADMIN) API token scopes back the tools, with matching options in the personal API token settings UI.
+
+- [#398](https://github.com/emdash-cms/emdash/pull/398) [`31333dc`](https://github.com/emdash-cms/emdash/commit/31333dc593e2b9128113e4e923455209f11853fd) Thanks [@simnaut](https://github.com/simnaut)! - Adds pluggable auth provider system with AT Protocol as the first plugin-based provider. Refactors GitHub and Google OAuth from hardcoded buttons into the same `AuthProviderDescriptor` interface. All auth methods (passkey, AT Protocol, GitHub, Google) are equal options on the login page and setup wizard.
+
+### Patch Changes
+
+- [#611](https://github.com/emdash-cms/emdash/pull/611) [`86b26f6`](https://github.com/emdash-cms/emdash/commit/86b26f6c1067efb28d8f7cb447be23da99d2e38e) Thanks [@drudge](https://github.com/drudge)! - Wires up the block configuration sidebar inside `WidgetEditor`. `PortableTextEditor` now receives `onBlockSidebarOpen`/`onBlockSidebarClose` callbacks that hold the active `BlockSidebarPanel` in local state, and renders `ImageDetailPanel` when the panel type is `"image"` — mirroring the content-entry editor. Without this, clicking a block's settings button or the media picker inside widget content had no visible effect.
+
+- [#786](https://github.com/emdash-cms/emdash/pull/786) [`e998083`](https://github.com/emdash-cms/emdash/commit/e998083115b3c5a6e27707a940dfac557ea72458) Thanks [@smart-cau](https://github.com/smart-cau)! - Adds Korean translations for 21 admin UI strings that previously fell back to English. Korean (ko) coverage is now complete.
+
+- [#670](https://github.com/emdash-cms/emdash/pull/670) [`37ada52`](https://github.com/emdash-cms/emdash/commit/37ada52a62e94f4f0581f4356ba55dc978863f49) Thanks [@segmentationfaulter](https://github.com/segmentationfaulter)! - Change text direction of input fields and tiptap editor depending upon the language entered
+
+- [#720](https://github.com/emdash-cms/emdash/pull/720) [`acab807`](https://github.com/emdash-cms/emdash/commit/acab8071e72a29751a55e923473cd4749e34fefd) Thanks [@Pouf5](https://github.com/Pouf5)! - Fix taxonomies not nesting correctly in a RTL layout
+
+- [#750](https://github.com/emdash-cms/emdash/pull/750) [`0ecd3b4`](https://github.com/emdash-cms/emdash/commit/0ecd3b4901eb721825b36eb4812506032e43da14) Thanks [@edrpls](https://github.com/edrpls)! - Make the admin collection list column headers sortable. `Title`, `Status`, `Locale`, and `Date` are now clickable buttons that toggle direction; the current sort state is exposed via `aria-sort` on the `<th>` so screen readers announce it correctly.
+
+  The server's `orderBy` field whitelist now accepts `status`, `locale`, and `name` alongside the existing date fields — unchanged from a security standpoint, the repo still rejects unknown field names to prevent column enumeration.
+
+  Callers of `<ContentList>` that don't pass `onSortChange` render the previous static-label headers, so legacy integrations (e.g. the content picker) are unaffected.
+
+- [#184](https://github.com/emdash-cms/emdash/pull/184) [`4c9f04d`](https://github.com/emdash-cms/emdash/commit/4c9f04d9506a9a79cec2425ccb71785a6948843a) Thanks [@masonjames](https://github.com/masonjames)! - Fixes plugin block defaults so initial values are seeded without overriding later edits.
+
+- [#700](https://github.com/emdash-cms/emdash/pull/700) [`ed4d880`](https://github.com/emdash-cms/emdash/commit/ed4d88057e9b26d497181655eecf3e06e12a1001) Thanks [@dcardosods](https://github.com/dcardosods)! - Prefill site title and tagline in Setup Wizard from seed file
+
+- Updated dependencies [[`6e0e921`](https://github.com/emdash-cms/emdash/commit/6e0e9215e00f6f2e84ade30447e4c30b1812dbf5), [`493e317`](https://github.com/emdash-cms/emdash/commit/493e3172d4539d8e041e6d2bf2d7d2dc89b2a10d)]:
+  - @emdash-cms/blocks@1.0.0
+
 ## 0.7.0
 
 ### Minor Changes

@@ -115,10 +115,67 @@ const INCLUDE_IN_DATA: Record<string, string> = {
 /** System date columns that should be converted to Date objects */
 const DATE_COLUMNS = new Set(["created_at", "updated_at", "published_at", "scheduled_at"]);
 
+/**
+ * Hidden, symbol-keyed property on each mapped data record carrying the raw
+ * DB string for every date column. Lets cursor encoders downstream reproduce
+ * the loader's exact `nextCursor` format without round-tripping through
+ * `new Date()`, which loses precision for stored values that aren't already
+ * ISO-with-milliseconds (e.g. `2026-01-01T00:00:00Z` becomes
+ * `2026-01-01T00:00:00.000Z`).
+ */
+export const CURSOR_RAW_VALUES: unique symbol = Symbol("emdash:cursorRawValues");
+
+const LOCAL_MEDIA_FILE_PREFIX = "/_emdash/api/media/file/";
+const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+\-.]*:/;
+
 /** Safely extract a string value from a record, returning fallback if not a string */
 function rowStr(row: Record<string, unknown>, key: string, fallback = ""): string {
 	const val = row[key];
 	return typeof val === "string" ? val : fallback;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isBareMediaKey(src: string): boolean {
+	return !src.startsWith("/") && !URL_SCHEME_PATTERN.test(src);
+}
+
+function normalizeLocalMediaValue(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		return value.map(normalizeLocalMediaValue);
+	}
+
+	if (!isRecord(value)) {
+		return value;
+	}
+
+	const normalized: Record<string, unknown> = {};
+	for (const [key, child] of Object.entries(value)) {
+		normalized[key] = normalizeLocalMediaValue(child);
+	}
+
+	if (
+		normalized.provider === "local" &&
+		typeof normalized.src === "string" &&
+		normalized.src.length > 0
+	) {
+		const src = normalized.src;
+		if (src.startsWith(LOCAL_MEDIA_FILE_PREFIX)) {
+			const id = src.slice(LOCAL_MEDIA_FILE_PREFIX.length);
+			if (!normalized.id && id) {
+				normalized.id = id;
+			}
+		} else if (isBareMediaKey(src)) {
+			if (!normalized.id) {
+				normalized.id = src;
+			}
+			normalized.src = `${LOCAL_MEDIA_FILE_PREFIX}${src}`;
+		}
+	}
+
+	return normalized;
 }
 
 /**
@@ -128,13 +185,19 @@ function rowStr(row: Record<string, unknown>, key: string, fallback = ""): strin
  */
 function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
 	const data: Record<string, unknown> = {};
+	const rawDateValues: Record<string, string> = {};
 
 	for (const [key, value] of Object.entries(row)) {
 		// Include certain system columns (mapped to camelCase where needed)
 		if (key in INCLUDE_IN_DATA) {
 			// Convert date columns from ISO strings to Date objects
 			if (DATE_COLUMNS.has(key)) {
-				data[INCLUDE_IN_DATA[key]] = typeof value === "string" ? new Date(value) : null;
+				if (typeof value === "string") {
+					rawDateValues[key] = value;
+					data[INCLUDE_IN_DATA[key]] = new Date(value);
+				} else {
+					data[INCLUDE_IN_DATA[key]] = null;
+				}
 			} else {
 				data[INCLUDE_IN_DATA[key]] = value;
 			}
@@ -148,7 +211,7 @@ function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
 			try {
 				// Only parse if it looks like JSON (starts with { or [)
 				if (value.startsWith("{") || value.startsWith("[")) {
-					data[key] = JSON.parse(value);
+					data[key] = normalizeLocalMediaValue(JSON.parse(value));
 				} else {
 					data[key] = value;
 				}
@@ -159,6 +222,13 @@ function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
 			data[key] = value;
 		}
 	}
+
+	Object.defineProperty(data, CURSOR_RAW_VALUES, {
+		value: rawDateValues,
+		enumerable: false,
+		configurable: false,
+		writable: false,
+	});
 
 	return data;
 }
@@ -171,7 +241,7 @@ function mapRevisionData(data: Record<string, unknown>): Record<string, unknown>
 	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(data)) {
 		if (key.startsWith("_")) continue; // revision metadata
-		result[key] = value;
+		result[key] = normalizeLocalMediaValue(value);
 	}
 	return result;
 }
@@ -318,16 +388,17 @@ function buildOrderByClause(
 /**
  * Build a cursor WHERE condition for keyset pagination.
  * Uses the primary sort field + id as tiebreaker for stable ordering.
+ *
+ * Throws `InvalidCursorError` if the cursor is malformed; callers should
+ * let this propagate so users see a real error rather than silently
+ * falling back to the first page.
  */
 function buildCursorCondition(
 	cursor: string,
 	orderBy: OrderBySpec | undefined,
 	tablePrefix?: string,
-): ReturnType<typeof sql> | null {
-	const decoded = decodeCursor(cursor);
-	if (!decoded) return null;
-
-	const { orderValue, id: cursorId } = decoded;
+): ReturnType<typeof sql> {
+	const { orderValue, id: cursorId } = decodeCursor(cursor);
 	const primary = getPrimarySort(orderBy, tablePrefix);
 	const idField = tablePrefix ? `${tablePrefix}.id` : "id";
 

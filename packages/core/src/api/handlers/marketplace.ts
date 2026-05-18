@@ -24,6 +24,7 @@ import {
 } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import { normalizeCapabilities } from "../../plugins/types.js";
 import type { PluginManifest } from "../../plugins/types.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
@@ -95,11 +96,17 @@ function diffCapabilities(
 	oldCaps: string[],
 	newCaps: string[],
 ): { added: string[]; removed: string[] } {
-	const oldSet = new Set(oldCaps);
-	const newSet = new Set(newCaps);
+	// Normalize both sides before diffing so that an installed v1 manifest
+	// declaring `read:content` and an upgrade v2 manifest declaring
+	// `content:read` produces an empty diff — users should not see a
+	// spurious "capability changed" prompt for a pure rename.
+	const oldNorm = normalizeCapabilities(oldCaps);
+	const newNorm = normalizeCapabilities(newCaps);
+	const oldSet = new Set(oldNorm);
+	const newSet = new Set(newNorm);
 	return {
-		added: newCaps.filter((c) => !oldSet.has(c)),
-		removed: oldCaps.filter((c) => !newSet.has(c)),
+		added: newNorm.filter((c) => !oldSet.has(c)),
+		removed: oldNorm.filter((c) => !newSet.has(c)),
 	};
 }
 
@@ -186,15 +193,27 @@ function validateBundleIdentity(
 }
 
 /** Store a plugin bundle's files in site-local R2 storage */
-async function storeBundleInR2(
+/**
+ * Storage source for an installed plugin bundle. Determines the R2
+ * key prefix and is used to keep marketplace and registry installs
+ * cleanly separated in object listings.
+ */
+export type PluginBundleSource = "marketplace" | "registry";
+
+function bundlePrefix(source: PluginBundleSource, pluginId: string, version: string): string {
+	return `${source}/${pluginId}/${version}`;
+}
+
+export async function storeBundleInR2(
 	storage: Storage,
 	pluginId: string,
 	version: string,
 	bundle: PluginBundle,
+	source: PluginBundleSource = "marketplace",
 ): Promise<void> {
 	validatePluginIdentifier(pluginId, "plugin ID");
 	validateVersion(version);
-	const prefix = `marketplace/${pluginId}/${version}`;
+	const prefix = bundlePrefix(source, pluginId, version);
 
 	// Store manifest
 	await storage.upload({
@@ -225,15 +244,23 @@ async function streamToText(stream: ReadableStream<Uint8Array>): Promise<string>
 	return new Response(stream).text();
 }
 
-/** Load a plugin bundle from site-local R2 storage */
+/**
+ * Load a plugin bundle from site-local R2 storage.
+ *
+ * `source` selects the R2 key prefix: marketplace plugins are stored
+ * under `marketplace/<id>/<version>/`, registry plugins under
+ * `registry/<id>/<version>/`. Defaults to `"marketplace"` for
+ * backwards compatibility with pre-registry call sites.
+ */
 export async function loadBundleFromR2(
 	storage: Storage,
 	pluginId: string,
 	version: string,
+	source: PluginBundleSource = "marketplace",
 ): Promise<{ manifest: PluginManifest; backendCode: string; adminCode?: string } | null> {
 	validatePluginIdentifier(pluginId, "plugin ID");
 	validateVersion(version);
-	const prefix = `marketplace/${pluginId}/${version}`;
+	const prefix = bundlePrefix(source, pluginId, version);
 
 	try {
 		const manifestResult = await storage.download(`${prefix}/manifest.json`);
@@ -265,14 +292,15 @@ export async function loadBundleFromR2(
 }
 
 /** Delete a plugin bundle from site-local R2 storage */
-async function deleteBundleFromR2(
+export async function deleteBundleFromR2(
 	storage: Storage,
 	pluginId: string,
 	version: string,
+	source: PluginBundleSource = "marketplace",
 ): Promise<void> {
 	validatePluginIdentifier(pluginId, "plugin ID");
 	validateVersion(version);
-	const prefix = `marketplace/${pluginId}/${version}`;
+	const prefix = bundlePrefix(source, pluginId, version);
 	const files = ["manifest.json", "backend.js", "admin.js"];
 
 	for (const file of files) {

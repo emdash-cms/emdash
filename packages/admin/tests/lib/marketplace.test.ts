@@ -256,10 +256,20 @@ describe("describeCapability", () => {
 describe("CAPABILITY_LABELS", () => {
 	it("has entries for all known capabilities", () => {
 		expect(Object.keys(CAPABILITY_LABELS)).toEqual([
+			// Canonical
+			"content:read",
+			"content:write",
+			"media:read",
+			"media:write",
+			"users:read",
+			"network:request",
+			"network:request:unrestricted",
+			// Legacy aliases
 			"read:content",
 			"write:content",
 			"read:media",
 			"write:media",
+			"read:users",
 			"network:fetch",
 			"network:fetch:any",
 		]);

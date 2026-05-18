@@ -8,18 +8,8 @@ import { Button, Checkbox, Input, Loader, Select } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-	ArrowLeft,
-	Copy,
-	Eye,
-	EyeSlash,
-	Key,
-	Plus,
-	Trash,
-	WarningCircle,
-} from "@phosphor-icons/react";
+import { Copy, Eye, EyeSlash, Key, Plus, Trash, WarningCircle } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
@@ -31,6 +21,7 @@ import {
 	type ApiTokenScopeValue,
 } from "../../lib/api/api-tokens.js";
 import { getMutationError } from "../DialogError.js";
+import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
 // =============================================================================
 // Expiry options
@@ -78,6 +69,26 @@ const API_TOKEN_SCOPE_VALUES: {
 		scope: API_TOKEN_SCOPES.SchemaWrite,
 		label: msg`Schema Write`,
 		description: msg`Modify collection schemas`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.TaxonomiesManage,
+		label: msg`Taxonomies Manage`,
+		description: msg`Create, update, and delete taxonomy terms`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.MenusManage,
+		label: msg`Menus Manage`,
+		description: msg`Create, update, and delete navigation menus`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.SettingsRead,
+		label: msg`Settings Read`,
+		description: msg`Read site settings`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.SettingsManage,
+		label: msg`Settings Manage`,
+		description: msg`Update site settings`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.Admin,
@@ -167,11 +178,7 @@ export function ApiTokenSettings() {
 		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex items-center gap-3">
-				<Link to="/settings">
-					<Button variant="ghost" shape="square" aria-label={t(msg`Back to settings`)}>
-						<ArrowLeft className="h-4 w-4" />
-					</Button>
-				</Link>
+				<BackToSettingsLink />
 				<div>
 					<h1 className="text-2xl font-bold">{t(msg`API Tokens`)}</h1>
 					<p className="text-sm text-kumo-subtle">

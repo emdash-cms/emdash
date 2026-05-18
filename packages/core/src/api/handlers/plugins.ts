@@ -16,8 +16,12 @@ export interface PluginInfo {
 	package?: string;
 	enabled: boolean;
 	status: PluginStatus;
-	source?: "config" | "marketplace";
+	source?: "config" | "marketplace" | "registry";
 	marketplaceVersion?: string;
+	/** Publisher DID, for registry-source plugins */
+	registryPublisherDid?: string;
+	/** Publisher slug, for registry-source plugins */
+	registrySlug?: string;
 	capabilities: string[];
 	hasAdminPages: boolean;
 	hasDashboardWidgets: boolean;
@@ -65,6 +69,8 @@ function buildPluginInfo(
 		status,
 		source: state?.source ?? "config",
 		marketplaceVersion: state?.marketplaceVersion ?? undefined,
+		registryPublisherDid: state?.registryPublisherDid ?? undefined,
+		registrySlug: state?.registrySlug ?? undefined,
 		capabilities: plugin.capabilities,
 		hasAdminPages: (plugin.admin.pages?.length ?? 0) > 0,
 		hasDashboardWidgets: (plugin.admin.widgets?.length ?? 0) > 0,
@@ -98,9 +104,10 @@ export async function handlePluginList(
 			return buildPluginInfo(plugin, state, marketplaceUrl);
 		});
 
-		// Include marketplace-installed plugins that aren't in the configured plugins list
+		// Include runtime-installed plugins (marketplace or registry) that
+		// aren't in the configured plugins list.
 		for (const state of allStates) {
-			if (state.source !== "marketplace") continue;
+			if (state.source !== "marketplace" && state.source !== "registry") continue;
 			if (configuredIds.has(state.pluginId)) continue;
 
 			items.push({
@@ -109,8 +116,10 @@ export async function handlePluginList(
 				version: state.marketplaceVersion ?? state.version,
 				enabled: state.status === "active",
 				status: state.status,
-				source: "marketplace",
+				source: state.source,
 				marketplaceVersion: state.marketplaceVersion ?? undefined,
+				registryPublisherDid: state.registryPublisherDid ?? undefined,
+				registrySlug: state.registrySlug ?? undefined,
 				capabilities: [],
 				hasAdminPages: false,
 				hasDashboardWidgets: false,
@@ -119,7 +128,10 @@ export async function handlePluginList(
 				activatedAt: state.activatedAt?.toISOString() ?? undefined,
 				deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
 				description: state.description ?? undefined,
-				iconUrl: marketplaceUrl ? marketplaceIconUrl(marketplaceUrl, state.pluginId) : undefined,
+				iconUrl:
+					state.source === "marketplace" && marketplaceUrl
+						? marketplaceIconUrl(marketplaceUrl, state.pluginId)
+						: undefined,
 			});
 		}
 
@@ -178,6 +190,38 @@ export async function handlePluginGet(
 }
 
 /**
+ * Build a minimal `PluginInfo` for a plugin that exists only as a
+ * `_plugin_state` row (marketplace or registry install), with no
+ * matching `configuredPlugins` entry. Runtime-installed plugins don't
+ * have ResolvedPlugin metadata until they're loaded into the sandbox,
+ * so the enable/disable response surfaces the state-row view as a
+ * stable shape the admin UI already understands.
+ */
+function buildStateOnlyPluginInfo(
+	state: NonNullable<Awaited<ReturnType<PluginStateRepository["get"]>>>,
+): PluginInfo {
+	return {
+		id: state.pluginId,
+		name: state.displayName || state.pluginId,
+		version: state.marketplaceVersion ?? state.version,
+		enabled: state.status === "active",
+		status: state.status,
+		source: state.source,
+		marketplaceVersion: state.marketplaceVersion ?? undefined,
+		registryPublisherDid: state.registryPublisherDid ?? undefined,
+		registrySlug: state.registrySlug ?? undefined,
+		capabilities: [],
+		hasAdminPages: false,
+		hasDashboardWidgets: false,
+		hasHooks: false,
+		installedAt: state.installedAt?.toISOString(),
+		activatedAt: state.activatedAt?.toISOString() ?? undefined,
+		deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
+		description: state.description ?? undefined,
+	};
+}
+
+/**
  * Enable a plugin
  */
 export async function handlePluginEnable(
@@ -186,24 +230,27 @@ export async function handlePluginEnable(
 	pluginId: string,
 ): Promise<ApiResult<PluginResponse>> {
 	try {
+		const stateRepo = new PluginStateRepository(db);
 		const plugin = configuredPlugins.find((p) => p.id === pluginId);
-		if (!plugin) {
-			return {
-				success: false,
-				error: {
-					code: "NOT_FOUND",
-					message: `Plugin not found: ${pluginId}`,
-				},
-			};
+
+		// Configured plugin: use its version as the source of truth.
+		if (plugin) {
+			const state = await stateRepo.enable(pluginId, plugin.version);
+			return { success: true, data: { item: buildPluginInfo(plugin, state) } };
 		}
 
-		const stateRepo = new PluginStateRepository(db);
-		const state = await stateRepo.enable(pluginId, plugin.version);
-
-		return {
-			success: true,
-			data: { item: buildPluginInfo(plugin, state) },
-		};
+		// Runtime-installed plugin (marketplace or registry): only
+		// addressable through the state row. Fall back to the existing
+		// version recorded there.
+		const existing = await stateRepo.get(pluginId);
+		if (!existing || (existing.source !== "marketplace" && existing.source !== "registry")) {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: `Plugin not found: ${pluginId}` },
+			};
+		}
+		const enabled = await stateRepo.enable(pluginId, existing.version);
+		return { success: true, data: { item: buildStateOnlyPluginInfo(enabled) } };
 	} catch {
 		return {
 			success: false,
@@ -224,24 +271,23 @@ export async function handlePluginDisable(
 	pluginId: string,
 ): Promise<ApiResult<PluginResponse>> {
 	try {
+		const stateRepo = new PluginStateRepository(db);
 		const plugin = configuredPlugins.find((p) => p.id === pluginId);
-		if (!plugin) {
-			return {
-				success: false,
-				error: {
-					code: "NOT_FOUND",
-					message: `Plugin not found: ${pluginId}`,
-				},
-			};
+
+		if (plugin) {
+			const state = await stateRepo.disable(pluginId, plugin.version);
+			return { success: true, data: { item: buildPluginInfo(plugin, state) } };
 		}
 
-		const stateRepo = new PluginStateRepository(db);
-		const state = await stateRepo.disable(pluginId, plugin.version);
-
-		return {
-			success: true,
-			data: { item: buildPluginInfo(plugin, state) },
-		};
+		const existing = await stateRepo.get(pluginId);
+		if (!existing || (existing.source !== "marketplace" && existing.source !== "registry")) {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: `Plugin not found: ${pluginId}` },
+			};
+		}
+		const disabled = await stateRepo.disable(pluginId, existing.version);
+		return { success: true, data: { item: buildStateOnlyPluginInfo(disabled) } };
 	} catch {
 		return {
 			success: false,

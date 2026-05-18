@@ -53,6 +53,7 @@ export interface RegistrationResponse {
 export interface VerifiedRegistration {
 	credentialId: string;
 	publicKey: Uint8Array;
+	algorithm: number;
 	counter: number;
 	deviceType: DeviceType;
 	backedUp: boolean;
@@ -116,5 +117,11 @@ export interface ChallengeData {
 export interface PasskeyConfig {
 	rpName: string;
 	rpId: string;
-	origin: string;
+	/**
+	 * Accepted client-data origins. The first entry is the canonical/preferred
+	 * origin; verification accepts any entry. Multiple entries support
+	 * deployments where the same RP is reachable under several hostnames
+	 * sharing `rpId` (e.g. apex + preview subdomain).
+	 */
+	origins: string[];
 }

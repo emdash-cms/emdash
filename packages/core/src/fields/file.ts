@@ -5,13 +5,10 @@ import type { FieldDefinition, FieldUIHints, FileValue } from "./types.js";
 export interface FileOptions {
 	required?: boolean;
 	maxSize?: number; // In bytes
-	allowedTypes?: string[]; // MIME types
+	allowedTypes?: string[]; // MIME types — exact (image/png) or prefix (image/)
 	helpText?: string;
 }
 
-/**
- * File field - file upload
- */
 export function file(options: FileOptions = {}): FieldDefinition<FileValue> {
 	const fileObjSchema = z.object({
 		id: z.string(),
@@ -21,15 +18,18 @@ export function file(options: FileOptions = {}): FieldDefinition<FileValue> {
 		size: z.number(),
 	});
 
-	// Optional vs required
 	const schema: z.ZodTypeAny = options.required ? fileObjSchema : fileObjSchema.optional();
 
 	const ui: FieldUIHints = {
 		widget: "file",
 		helpText: options.helpText,
 		maxSize: options.maxSize,
-		allowedTypes: options.allowedTypes,
 	};
+
+	const validation =
+		options.allowedTypes && options.allowedTypes.length > 0
+			? { allowedMimeTypes: [...options.allowedTypes] }
+			: undefined;
 
 	return {
 		type: "file",
@@ -37,5 +37,6 @@ export function file(options: FileOptions = {}): FieldDefinition<FileValue> {
 		schema,
 		options,
 		ui,
+		validation,
 	};
 }

@@ -1,13 +1,15 @@
 ---
 title: Authentication
-description: Passkey-first authentication for your EmDash site.
+description: Passkey-first authentication with pluggable providers for GitHub, Google, and the Atmosphere.
 ---
 
 import { Aside, Steps, Tabs, TabItem, Code } from "@astrojs/starlight/components";
 
 EmDash uses passkey authentication as its primary login method. Passkeys are phishing-resistant, don't require passwords, and work across devices through your browser or password manager.
 
-For Cloudflare deployments, you can optionally use [Cloudflare Access](#cloudflare-access) as an alternative authentication provider.
+Beyond passkeys, you can add **pluggable login providers** — GitHub, Google, and [the Atmosphere](/guides/atmosphere-auth/) (AT Protocol) ship out of the box, and the same provider interface is open for third-party packages. Any configured provider can be used to create the first admin account, log in, or link to an existing user.
+
+For Cloudflare deployments, [Cloudflare Access](#cloudflare-access) is also available as an exclusive auth method that takes over the entire login flow.
 
 ## How It Works
 
@@ -87,11 +89,121 @@ If you can't use your passkey (e.g., lost device), magic links provide an altern
 	Magic links are single-use and expire after 15 minutes. Request a new link if yours has expired.
 </Aside>
 
-## OAuth Login
+## Login Providers
 
-EmDash supports OAuth login with GitHub and Google when configured. Users can link their accounts after initial passkey setup.
+In addition to passkeys, EmDash supports pluggable login providers that appear on the login page and in the setup wizard. GitHub, Google, and Atmosphere providers ship in the box; third-party packages can register their own using the same interface.
 
-See the [Configuration guide](/reference/configuration#oauth) for setup instructions.
+Providers are additive — passkeys keep working when providers are enabled, and users can link a provider to an existing passkey-only account. The first user can also be created through any configured provider, so a fresh install can skip passkeys entirely if you prefer.
+
+### Configuring providers
+
+Pass providers to the `authProviders` array on the EmDash integration. The following example enables GitHub, Google, and Atmosphere:
+
+```js title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash/astro";
+import { github } from "emdash/auth/providers/github";
+import { google } from "emdash/auth/providers/google";
+import { atproto } from "@emdash-cms/auth-atproto";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			authProviders: [github(), google(), atproto()],
+		}),
+	],
+});
+```
+
+Order matters for the login page: providers render in the order you list them, with compact button-only providers first and providers that need a custom form (like Atmosphere, which asks for a handle) shown after.
+
+### GitHub
+
+The following example enables the GitHub provider:
+
+```js
+import { github } from "emdash/auth/providers/github";
+
+emdash({ authProviders: [github()] });
+```
+
+Set credentials via environment variables. EmDash checks the prefixed names first and falls back to the unprefixed ones:
+
+| Variable                                                      | Purpose                |
+| ------------------------------------------------------------- | ---------------------- |
+| `EMDASH_OAUTH_GITHUB_CLIENT_ID` / `GITHUB_CLIENT_ID`          | OAuth app client ID    |
+| `EMDASH_OAUTH_GITHUB_CLIENT_SECRET` / `GITHUB_CLIENT_SECRET`  | OAuth app secret       |
+
+Configure your GitHub OAuth app's callback URL as `https://your-site.example.com/_emdash/api/auth/oauth/github/callback`.
+
+### Google
+
+The following example enables the Google provider:
+
+```js
+import { google } from "emdash/auth/providers/google";
+
+emdash({ authProviders: [google()] });
+```
+
+Set credentials via environment variables. EmDash checks the prefixed names first and falls back to the unprefixed ones:
+
+| Variable                                                      | Purpose                |
+| ------------------------------------------------------------- | ---------------------- |
+| `EMDASH_OAUTH_GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_ID`          | OAuth app client ID    |
+| `EMDASH_OAUTH_GOOGLE_CLIENT_SECRET` / `GOOGLE_CLIENT_SECRET`  | OAuth app secret       |
+
+Configure your Google OAuth client's redirect URI as `https://your-site.example.com/_emdash/api/auth/oauth/google/callback`.
+
+### Atmosphere (AT Protocol)
+
+For sites where contributors already have an [Atmosphere account](/guides/atmosphere-auth/) — the user-owned identity behind Bluesky and the wider AT Protocol network — install the Atmosphere provider:
+
+```bash
+pnpm add @emdash-cms/auth-atproto
+```
+
+The following example enables the Atmosphere provider with a handle allowlist:
+
+```js
+import { atproto } from "@emdash-cms/auth-atproto";
+
+emdash({
+	authProviders: [
+		atproto({
+			allowedHandles: ["*.example.com"],
+		}),
+	],
+});
+```
+
+No client secret or environment variable is needed. See the [Atmosphere login guide](/guides/atmosphere-auth/) for handle/DID allowlists, role mapping, and the local-development setup that the AT Protocol OAuth profile requires.
+
+### Building your own provider
+
+A provider is just an `AuthProviderDescriptor` — an `id`, a human label, and any combination of admin-side React components, route handlers, public route prefixes, and storage collections. The shape is exported from `emdash`:
+
+```ts
+import type { AuthProviderDescriptor } from "emdash";
+
+export function myProvider(): AuthProviderDescriptor {
+	return {
+		id: "my-provider",
+		label: "My Provider",
+		adminEntry: "my-provider/admin", // exports LoginButton / LoginForm / SetupStep
+		routes: [
+			{ pattern: "/_emdash/api/auth/my-provider/login", entrypoint: "my-provider/routes/login.ts" },
+			{ pattern: "/_emdash/api/auth/my-provider/callback", entrypoint: "my-provider/routes/callback.ts" },
+		],
+		publicRoutes: ["/_emdash/api/auth/my-provider/"],
+		storage: {
+			sessions: {},
+		},
+	};
+}
+```
+
+The Atmosphere package (`@emdash-cms/auth-atproto`) is the most complete real-world reference for a provider that needs a custom login form, OAuth route handlers, and persistent storage.
 
 ## User Roles
 
@@ -148,44 +260,13 @@ Each user can have up to 10 passkeys registered.
 	log in.
 </Aside>
 
-## Self-Signup
+## Letting a group sign in without invites
 
-For team sites, you can enable self-signup for specific email domains:
+To let a group sign in without inviting each user, configure a [login provider](#login-providers) with an allowlist. The Atmosphere provider accepts `allowedHandles` and `allowedDIDs` (see [Atmosphere login](/guides/atmosphere-auth/)); the [Cloudflare Access](#cloudflare-access) adapter provisions users from your identity provider via `autoProvision` and `roleMapping`. Any configured provider can also create the initial admin account.
 
-```js title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
+## Sessions
 
-export default defineConfig({
-	integrations: [
-		emdash({
-			auth: {
-				selfSignup: {
-					domains: ["example.com"],
-					defaultRole: "contributor",
-				},
-			},
-		}),
-	],
-});
-```
-
-Users with matching email domains can sign up without an invite. They'll receive a verification email and register a passkey to complete signup.
-
-## Session Configuration
-
-Sessions use secure HttpOnly cookies with sensible defaults:
-
-```js title="astro.config.mjs"
-emdash({
-	auth: {
-		session: {
-			maxAge: 30 * 24 * 60 * 60, // 30 days (default)
-			sliding: true, // Reset expiry on activity
-		},
-	},
-});
-```
+Sessions use secure, HttpOnly, SameSite=Lax cookies and last 30 days with sliding expiration — the expiry resets on activity.
 
 ## Security Notes
 
@@ -228,7 +309,7 @@ When deploying to Cloudflare, you can use [Cloudflare Access](https://developers
 	Passkeys, OAuth, magic links, and self-signup are all disabled.
 </Aside>
 
-### Why Use Cloudflare Access?
+### Why Use Cloudflare Access
 
 - **Single Sign-On** — Users authenticate with your company's IdP
 - **Centralized access control** — Manage who can access the admin in the Cloudflare dashboard

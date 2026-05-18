@@ -1,264 +1,112 @@
 ---
 title: Architecture
-description: How EmDash works under the hood—database-first schema, Live Collections, plugin system, and admin panel.
+description: The mental model for building with EmDash — an Astro integration with a live, editable content model.
 ---
 
-import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
+import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
 
-EmDash integrates deeply with Astro to provide a complete CMS experience. This page explains the key architectural decisions and how the pieces fit together.
+EmDash is an Astro integration. You add it to `astro.config.mjs`, choose a database and storage, and define content collections. This page covers the model you need to build a site. For internals (table layouts, the request path, code generation), see [Architecture (internals)](/contributing/architecture/).
 
-## High-Level Overview
+## What EmDash adds to your site
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                         Your Astro Site                          │
-│                                                                  │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │                   EmDash Integration                     │  │
-│  │                                                            │  │
-│  │  ┌──────────────┐   ┌──────────────┐   ┌───────────────┐   │  │
-│  │  │   Content    │   │    Admin     │   │    Plugins    │   │  │
-│  │  │    APIs      │   │    Panel     │   │               │   │  │
-│  │  └──────────────┘   └──────────────┘   └───────────────┘   │  │
-│  │                                                            │  │
-│  │  ┌──────────────────────────────────────────────────────┐  │  │
-│  │  │                    Data Layer                        │  │  │
-│  │  │      Database (D1/SQLite)     +  Storage (R2/S3)     │  │  │
-│  │  └──────────────────────────────────────────────────────┘  │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │                    Astro Framework                         │  │
-│  │         Live Collections · Middleware · Sessions           │  │
-│  └────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│                Your Astro site                │
+│                                               │
+│   Pages and components you write              │
+│        │                                      │
+│        │  getEmDashCollection() / getEmDashEntry()
+│        ▼                                      │
+│   ┌───────────────┐      ┌────────────────┐   │
+│   │   Content     │      │  Admin panel   │   │
+│   │  (your data)  │◄────►│ /_emdash/admin │   │
+│   └───────────────┘      └────────────────┘   │
+│        │                                      │
+│   Database (SQLite / libSQL / D1 / Postgres)  │
+│   Media storage (local / R2 / S3)             │
+└──────────────────────────────────────────────┘
 ```
 
-EmDash runs as an Astro integration. It injects routes for the admin panel and REST APIs, provides a content loader for Live Collections, and manages database migrations and storage connections.
+You write pages and components as normal. EmDash provides the content, an admin panel for editing it, and the database and storage behind it. Editors work in the admin panel; your pages read the same content through query functions.
 
-## Database-First Schema
+## Your content model
 
-Unlike traditional CMSs that define schema in code, EmDash stores schema definitions in the database itself. Two system tables track your content structure:
+You define collections and fields — in the admin panel or with the CLI — and EmDash stores content against them.
 
-- `_emdash_collections` — Collection metadata (slug, label, features)
-- `_emdash_fields` — Field definitions for each collection
+<CardGrid>
+	<Card title="Change it anytime" icon="pencil">
+		Add, rename, remove, or retype collections and fields whenever you need
+		to. Changes take effect immediately.
+	</Card>
+	<Card title="Editor-designed" icon="seti:plan">
+		A content editor can design the whole model through the admin UI.
+	</Card>
+	<Card title="Typed" icon="approve-check">
+		Generate TypeScript types from the current model for autocomplete from
+		query to template.
+	</Card>
+	<Card title="Portable" icon="right-arrow">
+		Export the model as a JSON seed file for version control, and apply it in
+		another environment.
+	</Card>
+</CardGrid>
 
-When you create a "products" collection with title and price fields via the admin UI, EmDash:
+See the [content model](/concepts/content-model/) for how to define, change, type, and seed it.
 
-1. Inserts records into `_emdash_collections` and `_emdash_fields`
-2. Runs `ALTER TABLE` to create `ec_products` with the appropriate columns
+## Content is live
 
-This design enables:
+EmDash serves content through Astro's Live Collections at runtime, so changes an editor makes are visible immediately. You read content with two functions:
 
-- **Runtime schema modification** — Create and edit content types without code changes or rebuilds
-- **Non-developer-friendly setup** — Content editors can design their data model through the UI
-- **Real SQL columns** — Proper indexing, foreign keys, and query optimization
-
-<Aside type="tip">
-	Run `npx emdash types` to generate TypeScript types from the live schema. This gives you type
-	safety for dynamically-defined collections.
-</Aside>
-
-## Per-Collection Tables
-
-Each collection gets its own SQLite table with an `ec_` prefix:
-
-```sql
--- Created when "posts" collection is added
-CREATE TABLE ec_posts (
-  -- System columns (always present)
-  id TEXT PRIMARY KEY,
-  slug TEXT UNIQUE,
-  status TEXT DEFAULT 'draft',  -- draft, published, scheduled
-  author_id TEXT,
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now')),
-  published_at TEXT,
-  deleted_at TEXT,              -- Soft delete
-  version INTEGER DEFAULT 1,    -- Optimistic locking
-
-  -- Content columns (from your field definitions)
-  title TEXT NOT NULL,
-  content JSON,                 -- Portable Text
-  excerpt TEXT
-);
-```
-
-**Why per-collection tables instead of a single content table with JSON?**
-
-- Real SQL columns enable proper indexing and queries
-- Foreign keys work correctly
-- Schema is self-documenting in the database
-- No JSON parsing overhead for field access
-- Database tools can inspect schema directly
-
-## Live Collections Integration
-
-EmDash uses Astro 6's Live Collections to serve content at runtime. Content changes are immediately available without static rebuilds.
-
-The `emdashLoader()` implements Astro's `LiveLoader` interface:
-
-```ts
-// src/live.config.ts
-import { defineLiveCollection } from "astro:content";
-import { emdashLoader } from "emdash/runtime";
-
-export const collections = {
-	_emdash: defineLiveCollection({ loader: emdashLoader() }),
-};
-```
-
-<Aside type="note">
-	A single `_emdash` Astro collection wraps all your content types. The loader filters by type
-	internally when you call `getEmDashCollection("posts")`.
-</Aside>
-
-Query content using the provided wrapper functions:
-
-```ts
+```ts title="src/pages/blog.astro"
 import { getEmDashCollection, getEmDashEntry } from "emdash";
 
-// Get all published posts
 const { entries: posts } = await getEmDashCollection("posts");
-
-// Get drafts
-const { entries: drafts } = await getEmDashCollection("posts", {
-	status: "draft",
-});
-
-// Get a single entry by slug
 const { entry: post } = await getEmDashEntry("posts", "my-post-slug");
 ```
 
-## Route Injection
+See [Querying content](/guides/querying-content/) for filtering, pagination, and drafts.
 
-The EmDash integration uses Astro's `injectRoute` API to add admin and API routes:
+## What you configure
 
-| Path Pattern                          | Purpose                               |
-| ------------------------------------- | ------------------------------------- |
-| `/_emdash/admin/[...path]`          | Admin panel SPA                       |
-| `/_emdash/api/manifest`             | Admin manifest (collections, plugins) |
-| `/_emdash/api/content/[collection]` | CRUD for content entries              |
-| `/_emdash/api/media/*`              | Media library operations              |
-| `/_emdash/api/schema/*`             | Schema management                     |
-| `/_emdash/api/settings`             | Site settings                         |
-| `/_emdash/api/menus/*`              | Navigation menus                      |
-| `/_emdash/api/taxonomies/*`         | Categories, tags, custom taxonomies   |
+You pass a database and a storage backend to the integration. Everything else has a default.
 
-Routes are injected from the `emdash` package—nothing is copied into your project.
-
-## Data Layer
-
-EmDash uses [Kysely](https://kysely.dev) for type-safe SQL queries across all supported databases:
-
-<CardGrid>
-  <Card title="SQLite" icon="laptop">
-    Local development with `sqlite({ url: "file:./data.db" })`
-  </Card>
-  <Card title="D1" icon="cloudflare">
-    Cloudflare's serverless SQL with `d1({ binding: "DB" })`
-  </Card>
-  <Card title="libSQL" icon="external">
-    Remote SQLite with `libsql({ url: "...", authToken: "..." })`
-  </Card>
-</CardGrid>
-
-Database configuration is passed to the integration in `astro.config.mjs`:
-
-```ts
+```ts title="astro.config.mjs"
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
+import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
-import { local } from "emdash/storage";
 
 export default defineConfig({
 	integrations: [
 		emdash({
 			database: sqlite({ url: "file:./data.db" }),
-			storage: local({
-				directory: "./uploads",
-				baseUrl: "/_emdash/api/media/file",
-			}),
+			storage: local({ directory: "./uploads" }),
 		}),
 	],
 });
 ```
 
-## Storage Abstraction
+- **Database**: SQLite (local or libSQL), Cloudflare D1, or PostgreSQL. See [Database options](/deployment/database/).
+- **Storage**: the local filesystem, Cloudflare R2, or any S3-compatible storage for media. See [Storage options](/deployment/storage/).
 
-Media files are stored separately from the database. EmDash supports:
+## Extending with plugins
 
-- **Local filesystem** — Development and simple deployments
-- **Cloudflare R2** — S3-compatible object storage on the edge
-- **S3-compatible** — Any S3-compatible object storage
+Plugins react to content and media lifecycle events and can add admin pages, dashboard widgets, and settings. There are two formats:
 
-Uploads use signed URLs for direct client-to-storage uploads, bypassing Workers body size limits.
+- **Native plugins** run in the host environment with full access. Best for first-party and trusted plugins.
+- **Sandboxed plugins** run in an isolated runtime with capability-based permissions. Best for third-party plugins.
 
-## Plugin Architecture
+See the [plugin overview](/plugins/overview/) to choose and install plugins, or [create a plugin](/plugins/creating-plugins/choosing-a-format/).
 
-Plugins extend EmDash through a WordPress-inspired hook system:
-
-- **Content hooks** — `content:beforeSave`, `content:afterSave`, `content:beforeDelete`, `content:afterDelete`
-- **Media hooks** — `media:beforeUpload`, `media:afterUpload`
-- **Isolated storage** — Each plugin gets namespaced KV access
-- **Admin UI extensions** — Dashboard widgets, settings pages, custom field editors
-
-Plugins can run in two modes:
-
-1. **Native** — Full access to the host environment (for first-party plugins)
-2. **Sandboxed** — Run in V8 isolates with capability-based permissions (for third-party plugins on Cloudflare)
-
-```ts
-// astro.config.mjs
-import { seoPlugin } from "@emdash-cms/plugin-seo";
-
-emdash({
-	plugins: [seoPlugin({ maxTitleLength: 60 })],
-});
-```
-
-## Request Flow
-
-A typical content request follows this path:
-
-<Steps>
-	1. **Astro receives request** — Your page component runs 2. **Query content** —
-	`getEmDashCollection()` calls Astro's `getLiveCollection()` 3. **Loader executes** —
-	`emdashLoader` queries the appropriate `ec_*` table via Kysely 4. **Data returned** — Entries
-	are mapped to Astro's entry format with `id`, `slug`, and `data` 5. **Page renders** — Your
-	component receives the content and renders HTML
-</Steps>
-
-For admin requests:
-
-<Steps>
-	1. **Middleware authenticates** — Validates session token 2. **API route handles request** — CRUD
-	operations via repositories 3. **Hooks fire** — `beforeCreate`, `afterUpdate`, etc. 4. **Database
-	updates** — Kysely executes SQL 5. **Response returned** — JSON response to admin SPA
-</Steps>
-
-## Virtual Modules
-
-EmDash generates virtual modules at build time to configure the runtime:
-
-| Module                           | Purpose                             |
-| -------------------------------- | ----------------------------------- |
-| `virtual:emdash/config`        | Database and storage configuration  |
-| `virtual:emdash/dialect`       | Database dialect factory            |
-| `virtual:emdash/plugin-admins` | Static imports for plugin admin UIs |
-
-This approach ensures bundlers can properly resolve and tree-shake plugin code.
-
-## Next Steps
+## Next steps
 
 <CardGrid>
 	<Card title="Collections" icon="document">
-		Learn about [content collections and field types](/concepts/collections/).
+		Define [content collections and field types](/concepts/collections/).
 	</Card>
 	<Card title="Content Model" icon="open-book">
-		Understand the [database-first content model](/concepts/content-model/).
+		Understand the [content model](/concepts/content-model/).
 	</Card>
 	<Card title="Admin Panel" icon="setting">
-		Explore the [admin panel architecture](/concepts/admin-panel/).
+		See what the [admin panel](/concepts/admin-panel/) offers editors and admins.
 	</Card>
 </CardGrid>

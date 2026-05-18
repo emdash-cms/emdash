@@ -1,0 +1,19 @@
+{
+	"$schema": "../../plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "marketplace-test",
+	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6", // plugins.emdashcms.com
+
+	"license": "MIT",
+	"author": { "name": "Matt Kane" },
+	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
+	"description": "Test plugin for end-to-end registry publishing and audit workflow testing.",
+
+	// Trust contract. Reads and writes content; declared `events`
+	// storage collection. No outbound network.
+	"capabilities": ["content:read", "content:write"],
+	"allowedHosts": [],
+	"storage": {
+		"events": { "indexes": ["timestamp", "type"] },
+	},
+}

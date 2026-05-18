@@ -12,6 +12,8 @@ export interface TaxonomyDef {
 	labelSingular?: string; // 'Category', 'Tag'
 	hierarchical: boolean;
 	collections: string[]; // ['posts', 'pages']
+	locale: string; // e.g. 'en', 'es'
+	translationGroup: string | null; // shared id across translations of the same def
 }
 
 /**
@@ -26,6 +28,8 @@ export interface TaxonomyTerm {
 	description?: string;
 	children: TaxonomyTerm[]; // For tree structure
 	count?: number; // Entry count
+	locale: string;
+	translationGroup: string | null;
 }
 
 /**
@@ -38,6 +42,8 @@ export interface TaxonomyTermRow {
 	label: string;
 	parent_id: string | null;
 	data: string | null; // JSON
+	locale: string;
+	translation_group: string | null;
 }
 
 /**
@@ -48,6 +54,10 @@ export interface CreateTermInput {
 	label: string;
 	parentId?: string;
 	description?: string;
+	locale?: string;
+	/** When set, links the new term into an existing translation_group (sourced
+	 * from the term being translated). */
+	translationOf?: string;
 }
 
 /**

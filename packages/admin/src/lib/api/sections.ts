@@ -2,6 +2,9 @@
  * Sections API (reusable content blocks)
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export type SectionSource = "theme" | "user" | "import";
@@ -104,5 +107,5 @@ export async function deleteSection(slug: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/sections/${slug}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete section");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete section`));
 }

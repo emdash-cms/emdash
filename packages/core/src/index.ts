@@ -13,6 +13,7 @@ export {
 	ContentRepository,
 	MediaRepository,
 	EmDashValidationError,
+	InvalidCursorError,
 } from "./database/repositories/index.js";
 export type {
 	ContentItem,
@@ -26,7 +27,7 @@ export type {
 export type { MediaItem, CreateMediaInput } from "./database/repositories/media.js";
 
 // Fields
-export { portableText, image, reference } from "./fields/index.js";
+export { portableText, image, file, reference } from "./fields/index.js";
 export { normalizeMediaValue } from "./media/normalize.js";
 export { generatePlaceholder } from "./media/placeholder.js";
 export type { PlaceholderData } from "./media/placeholder.js";
@@ -163,6 +164,7 @@ export type {
 	WxrAttachment,
 	WxrCategory,
 	WxrTag,
+	WxrTerm,
 	WxrAuthor,
 } from "./cli/wxr/parser.js";
 
@@ -187,7 +189,6 @@ export { EmDashStorageError } from "./storage/types.js";
 export {
 	definePlugin,
 	adaptSandboxEntry,
-	isStandardPluginDefinition,
 	pluginManifestSchema,
 	createHookPipeline,
 	HookPipeline,
@@ -242,16 +243,9 @@ export type {
 	CollectionCommentSettings,
 	StoredComment,
 
-	// Standard plugin format
-	StandardPluginDefinition,
-	StandardHookHandler,
-	StandardHookEntry,
-	StandardRouteHandler,
-	StandardRouteEntry,
-
-	// Sandbox types
+	// Sandbox runtime types
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,
@@ -260,6 +254,15 @@ export type {
 	ValidatedPluginManifest,
 	SerializedRequest,
 } from "./plugins/index.js";
+
+// Capability normalization (legacy → canonical alias layer)
+export {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapability,
+	normalizeCapabilities,
+} from "./plugins/index.js";
+export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./plugins/index.js";
 
 // Plugin descriptor (for astro.config.mjs)
 export type { PluginDescriptor } from "./astro/integration/runtime.js";
@@ -480,11 +483,14 @@ export type {
 	SearchStats,
 } from "./search/index.js";
 
-// Auth types (for platform-specific auth providers)
+// Auth types (for platform-specific auth providers and pluggable login methods)
 export type {
 	AuthDescriptor,
+	AuthProviderDescriptor,
+	AuthProviderAdminExports,
 	AuthProviderModule,
 	AuthResult,
+	AuthRouteDescriptor,
 	ExternalAuthConfig,
 } from "./auth/types.js";
 

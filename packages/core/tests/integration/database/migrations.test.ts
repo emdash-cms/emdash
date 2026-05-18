@@ -8,6 +8,7 @@ import {
 	MIGRATION_COUNT,
 } from "../../../src/database/migrations/runner.js";
 import type { Database } from "../../../src/database/types.js";
+import { setupTestDatabaseWithCollections } from "../../utils/test-db.js";
 
 describe("Database Migrations (Integration)", () => {
 	let db: Kysely<Database>;
@@ -106,6 +107,29 @@ describe("Database Migrations (Integration)", () => {
 		expect(migrations).toHaveLength(MIGRATION_COUNT);
 	});
 
+	it("should re-run trailing migrations when schema changes were partially applied", async () => {
+		await db.destroy();
+		db = await setupTestDatabaseWithCollections();
+
+		// Kysely only re-runs trailing entries; include the latest migrations.
+		const trailing = [
+			"034_published_at_index",
+			"035_bounded_404_log",
+			"036_i18n_menus_and_taxonomies",
+			"037_credential_algorithm",
+			"038_registry_plugin_state",
+		];
+
+		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
+
+		const { applied } = await runMigrations(db);
+
+		for (const name of trailing) expect(applied).toContain(name);
+
+		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
+		expect(migrations).toHaveLength(MIGRATION_COUNT);
+	});
+
 	it("should report correct migration status", async () => {
 		const statusBefore = await getMigrationStatus(db);
 		expect(statusBefore.pending).toContain("001_initial");
@@ -132,6 +156,7 @@ describe("Database Migrations (Integration)", () => {
 				slug: "posts",
 				label: "Posts",
 				label_singular: "Post",
+				has_seo: 0,
 			})
 			.execute();
 
@@ -156,6 +181,7 @@ describe("Database Migrations (Integration)", () => {
 				id: "id1",
 				slug: "posts",
 				label: "Posts",
+				has_seo: 0,
 			})
 			.execute();
 
@@ -167,6 +193,7 @@ describe("Database Migrations (Integration)", () => {
 					id: "id2",
 					slug: "posts",
 					label: "Posts Again",
+					has_seo: 0,
 				})
 				.execute(),
 		).rejects.toThrow();
@@ -183,6 +210,7 @@ describe("Database Migrations (Integration)", () => {
 				id: collectionId,
 				slug: "posts",
 				label: "Posts",
+				has_seo: 0,
 			})
 			.execute();
 

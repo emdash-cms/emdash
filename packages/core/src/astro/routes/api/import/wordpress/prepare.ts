@@ -58,6 +58,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Zod schema output narrowed to PrepareRequest
 		const result = await prepareImport(emdash.db, body as PrepareRequest);
 
+		// Invalidate the URL pattern cache when prepare adds new collections so
+		// public routing picks up their patterns immediately. The manifest
+		// itself is built fresh per admin request, so cross-request
+		// staleness (the original failure mode in #747) is no longer
+		// possible — the execute step always reads live schema.
+		if (result.collectionsCreated.length > 0) {
+			emdash.invalidateUrlPatternCache();
+		}
+
 		return apiSuccess(result, result.success ? 200 : 400);
 	} catch (error) {
 		return handleError(error, "Failed to prepare import", "WXR_PREPARE_ERROR");

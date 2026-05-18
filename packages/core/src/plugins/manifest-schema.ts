@@ -12,7 +12,31 @@ import { z } from "zod";
 
 // ── Enum values (must stay in sync with types.ts) ───────────────
 
-export const PLUGIN_CAPABILITIES = [
+/**
+ * Current capability names — the ones authors should use going forward.
+ * See `PluginCapability` in `types.ts` for documentation of each.
+ */
+export const CURRENT_PLUGIN_CAPABILITIES = [
+	"network:request",
+	"network:request:unrestricted",
+	"content:read",
+	"content:write",
+	"media:read",
+	"media:write",
+	"users:read",
+	"email:send",
+	"hooks.email-transport:register",
+	"hooks.email-events:register",
+	"hooks.page-fragments:register",
+] as const;
+
+/**
+ * Legacy capability names accepted during the deprecation window.
+ * Normalized to current names via `normalizeCapability()` in types.ts
+ * before reaching the runtime. Plugin authors are warned at bundle/validate
+ * and hard-failed at publish.
+ */
+export const DEPRECATED_PLUGIN_CAPABILITIES = [
 	"network:fetch",
 	"network:fetch:any",
 	"read:content",
@@ -20,10 +44,21 @@ export const PLUGIN_CAPABILITIES = [
 	"read:media",
 	"write:media",
 	"read:users",
-	"email:send",
 	"email:provide",
 	"email:intercept",
 	"page:inject",
+] as const;
+
+/**
+ * Full set of accepted capability strings — current + deprecated.
+ *
+ * The manifest schema accepts both during the transition. The runtime only
+ * ever sees current names because `normalizeCapability()` rewrites legacy
+ * names at every external boundary (definePlugin, adaptSandboxEntry).
+ */
+export const PLUGIN_CAPABILITIES = [
+	...CURRENT_PLUGIN_CAPABILITIES,
+	...DEPRECATED_PLUGIN_CAPABILITIES,
 ] as const;
 
 /** Must stay in sync with FieldType in schema/types.ts */
@@ -131,6 +166,18 @@ const settingFieldSchema = z.discriminatedUnion("type", [
 		default: z.string().optional(),
 	}),
 	z.object({ ...baseSettingFields, type: z.literal("secret") }),
+	z.object({
+		...baseSettingFields,
+		type: z.literal("url"),
+		default: z.string().optional(),
+		placeholder: z.string().optional(),
+	}),
+	z.object({
+		...baseSettingFields,
+		type: z.literal("email"),
+		default: z.string().optional(),
+		placeholder: z.string().optional(),
+	}),
 ]);
 
 const adminPageSchema = z.object({

@@ -18,6 +18,7 @@ import * as React from "react";
 import { requestSignup, verifySignupToken, type SignupVerifyResult } from "../lib/api";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
 import { LogoLockup } from "./Logo.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 // ============================================================================
 // Types
@@ -265,9 +266,7 @@ function ErrorStep({ message, code, onRetry }: ErrorStepProps) {
 
 			<div className="space-y-2">
 				{code === "user_exists" ? (
-					<Link to="/login">
-						<Button className="w-full">{t`Sign in instead`}</Button>
-					</Link>
+					<RouterLinkButton to="/login" className="w-full">{t`Sign in instead`}</RouterLinkButton>
 				) : (
 					onRetry && (
 						<Button onClick={onRetry} className="w-full">
@@ -275,11 +274,11 @@ function ErrorStep({ message, code, onRetry }: ErrorStepProps) {
 						</Button>
 					)
 				)}
-				<Link to="/login">
-					<Button variant="ghost" className="w-full">
-						{t`Back to login`}
-					</Button>
-				</Link>
+				<RouterLinkButton
+					to="/login"
+					variant="ghost"
+					className="w-full"
+				>{t`Back to login`}</RouterLinkButton>
 			</div>
 		</div>
 	);
@@ -347,7 +346,7 @@ export function SignupPage() {
 			await requestSignup(submittedEmail);
 			setStep("check-email");
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to send verification email");
+			setError(err instanceof Error ? err.message : t`Failed to send verification email`);
 		} finally {
 			setIsLoading(false);
 		}

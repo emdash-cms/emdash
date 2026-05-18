@@ -99,9 +99,9 @@ function ApiTestWidget() {
 							<Icon className="h-3.5 w-3.5 text-muted-foreground" />
 							<span className="text-muted-foreground">{name}</span>
 							{ok ? (
-								<CheckCircle className="h-3.5 w-3.5 text-green-500 ml-auto" />
+								<CheckCircle className="h-3.5 w-3.5 text-green-500 ms-auto" />
 							) : (
-								<XCircle className="h-3.5 w-3.5 text-red-500 ml-auto" />
+								<XCircle className="h-3.5 w-3.5 text-red-500 ms-auto" />
 							)}
 						</div>
 					))}
@@ -119,7 +119,7 @@ function ApiTestWidget() {
 				<button
 					onClick={runTests}
 					disabled={isRunning}
-					className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 ml-auto"
+					className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 ms-auto"
 				>
 					{isRunning ? (
 						<CircleNotch className="h-3.5 w-3.5 animate-spin" />

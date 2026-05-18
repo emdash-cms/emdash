@@ -3,6 +3,8 @@
  */
 
 import type { Element } from "@emdash-cms/blocks";
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 
 export const API_BASE = "/_emdash/api";
 
@@ -40,6 +42,11 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 export interface FindManyResult<T> {
 	items: T[];
 	nextCursor?: string;
+	/**
+	 * Total number of rows matching the filters (ignoring pagination).
+	 * Optional because older servers may not return it.
+	 */
+	total?: number;
 }
 
 /**
@@ -59,11 +66,17 @@ export interface AdminManifest {
 			fields: Record<
 				string,
 				{
+					/** Database row ID (ULID) for the field. Used to widen MIME allowlists on upload/media-list calls. */
+					id?: string;
 					kind: string;
 					label?: string;
 					required?: boolean;
 					widget?: string;
-					options?: Array<{ value: string; label: string }>;
+					/**
+					 * For `select` / `multiSelect`: the list of enum choices.
+					 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
+					 */
+					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
 				}
 			>;
@@ -109,6 +122,7 @@ export interface AdminManifest {
 				description?: string;
 				placeholder?: string;
 				fields?: Element[];
+				category?: string;
 			}>;
 		}
 	>;
@@ -147,6 +161,20 @@ export interface AdminManifest {
 	 */
 	marketplace?: string;
 	/**
+	 * Experimental decentralized plugin registry. Present when
+	 * `experimental.registry` is configured in the EmDash integration.
+	 * When present, the admin UI uses the registry instead of the
+	 * centralized marketplace for browse and install.
+	 */
+	registry?: {
+		aggregatorUrl: string;
+		acceptLabelers?: string;
+		policy?: {
+			minimumReleaseAgeSeconds?: number;
+			minimumReleaseAgeExclude?: string[];
+		};
+	};
+	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.
 	 */
@@ -177,5 +205,22 @@ export async function parseApiResponse<T>(
  */
 export async function fetchManifest(): Promise<AdminManifest> {
 	const response = await apiFetch(`${API_BASE}/manifest`);
-	return parseApiResponse<AdminManifest>(response, "Failed to fetch manifest");
+	return parseApiResponse<AdminManifest>(response, i18n._(msg`Failed to fetch manifest`));
+}
+
+/**
+ * Fetch auth mode (public endpoint — works without authentication).
+ * Used by the login page to determine which login UI to render.
+ */
+export async function fetchAuthMode(): Promise<{
+	authMode: string;
+	signupEnabled?: boolean;
+	providers?: Array<{ id: string; label: string }>;
+}> {
+	const response = await apiFetch(`${API_BASE}/auth/mode`);
+	return parseApiResponse<{
+		authMode: string;
+		signupEnabled?: boolean;
+		providers?: Array<{ id: string; label: string }>;
+	}>(response, "Failed to fetch auth mode");
 }

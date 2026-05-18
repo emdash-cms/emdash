@@ -1,13 +1,15 @@
 /**
  * emdash plugin init
  *
- * Scaffold a new EmDash plugin. Generates the standard-format boilerplate:
+ * Scaffold a new EmDash plugin. Generates the sandboxed-format boilerplate:
  *   src/index.ts         -- descriptor factory
  *   src/sandbox-entry.ts -- definePlugin({ hooks, routes })
  *   package.json
  *   tsconfig.json
  *
- * Use --native to generate native-format boilerplate instead (createPlugin + React admin).
+ * Use --format=native (or --native) to generate native-format boilerplate
+ * instead (createPlugin + React admin). When neither is passed and stdout
+ * is a TTY, the user is prompted to choose.
  *
  */
 
@@ -21,6 +23,8 @@ import { fileExists } from "./bundle-utils.js";
 
 const SLUG_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const SCOPE_RE = /^@[^/]+\//;
+
+type PluginFormat = "standard" | "native";
 
 export const pluginInitCommand = defineCommand({
 	meta: {
@@ -37,15 +41,27 @@ export const pluginInitCommand = defineCommand({
 			type: "string",
 			description: "Plugin name/id (e.g. my-plugin or @org/my-plugin)",
 		},
+		format: {
+			type: "string",
+			description:
+				"Plugin format: sandboxed or native. Prompts when running interactively if not set.",
+			valueHint: "sandboxed|native",
+		},
 		native: {
 			type: "boolean",
-			description: "Generate native-format plugin (createPlugin + React admin)",
+			description: "Shortcut for --format=native",
 			default: false,
 		},
 	},
 	async run({ args }) {
 		const targetDir = resolve(args.dir);
-		const isNative = args.native;
+
+		const format = await resolveFormat(args.format, args.native);
+		if (!format) {
+			consola.info("Cancelled");
+			return;
+		}
+		const isNative = format === "native";
 
 		// Derive plugin name from --name or directory name
 		let pluginName = args.name || basename(targetDir);
@@ -71,7 +87,7 @@ export const pluginInitCommand = defineCommand({
 			process.exit(1);
 		}
 
-		consola.start(`Scaffolding ${isNative ? "native" : "standard"} plugin: ${pluginName}`);
+		consola.start(`Scaffolding ${isNative ? "native" : "sandboxed"} plugin: ${pluginName}`);
 
 		await mkdir(srcDir, { recursive: true });
 
@@ -83,22 +99,99 @@ export const pluginInitCommand = defineCommand({
 
 		consola.success(`Plugin scaffolded in ${targetDir}`);
 		consola.info("Next steps:");
-		if (args.dir !== ".") {
-			consola.info(`  1. cd ${args.dir}`);
-		}
-		consola.info(`  ${args.dir !== "." ? "2" : "1"}. pnpm install`);
-		if (isNative) {
-			consola.info(`  ${args.dir !== "." ? "3" : "2"}. Edit src/index.ts to add hooks and routes`);
-		} else {
-			consola.info(
-				`  ${args.dir !== "." ? "3" : "2"}. Edit src/sandbox-entry.ts to add hooks and routes`,
-			);
-		}
-		consola.info(`  ${args.dir !== "." ? "4" : "3"}. emdash plugin validate --dir .`);
+		const steps: string[] = [];
+		if (args.dir !== ".") steps.push(`cd ${args.dir}`);
+		steps.push("pnpm install");
+		steps.push(
+			isNative
+				? "Edit src/index.ts to add hooks and routes"
+				: "Edit src/sandbox-entry.ts to add hooks and routes",
+		);
+		steps.push("pnpm build");
+		if (!isNative) steps.push("emdash plugin validate --dir .");
+		steps.forEach((step, i) => consola.info(`  ${i + 1}. ${step}`));
 	},
 });
 
-// ── Standard format scaffolding ──────────────────────────────────
+async function resolveFormat(
+	formatArg: string | undefined,
+	nativeFlag: boolean,
+): Promise<PluginFormat | null> {
+	if (formatArg) {
+		const normalized = formatArg.toLowerCase();
+		let parsed: PluginFormat;
+		if (normalized === "native") {
+			parsed = "native";
+		} else if (normalized === "sandboxed" || normalized === "standard") {
+			parsed = "standard";
+		} else {
+			consola.error(`Invalid --format "${formatArg}". Use "sandboxed" or "native".`);
+			process.exit(1);
+		}
+		if (nativeFlag && parsed !== "native") {
+			consola.error(`Conflicting flags: --native and --format=${formatArg}. Pass only one.`);
+			process.exit(1);
+		}
+		return parsed;
+	}
+	if (nativeFlag) return "native";
+
+	if (!process.stdout.isTTY) return "standard";
+
+	const choice = await consola.prompt("Which plugin format?", {
+		type: "select",
+		initial: "standard",
+		options: [
+			{
+				label: "Sandboxed",
+				value: "standard",
+				hint: "runs in an isolated sandbox; safe to install from the marketplace",
+			},
+			{
+				label: "Native",
+				value: "native",
+				hint: "full runtime access; install from npm",
+			},
+		],
+		cancel: "null",
+	});
+	if (choice === null) return null;
+	return choice as PluginFormat;
+}
+
+function camelCase(slug: string): string {
+	return slug
+		.split("-")
+		.map((s, i) => (i === 0 ? s : s[0].toUpperCase() + s.slice(1)))
+		.join("");
+}
+
+function pascalCase(slug: string): string {
+	return slug
+		.split("-")
+		.map((s) => s[0].toUpperCase() + s.slice(1))
+		.join("");
+}
+
+const TSCONFIG = {
+	compilerOptions: {
+		target: "ES2022",
+		module: "preserve",
+		moduleResolution: "bundler",
+		strict: true,
+		esModuleInterop: true,
+		declaration: true,
+		outDir: "./dist",
+		rootDir: "./src",
+	},
+	include: ["src/**/*"],
+	exclude: ["node_modules", "dist"],
+} as const;
+
+const TSDOWN_VERSION = "^0.20.0";
+const TYPESCRIPT_VERSION = "^5.9.0";
+
+// ── Sandboxed format scaffolding ─────────────────────────────────
 
 async function scaffoldStandard(
 	targetDir: string,
@@ -106,13 +199,8 @@ async function scaffoldStandard(
 	pluginName: string,
 	slug: string,
 ): Promise<void> {
-	// Derive the camelCase function name from slug
-	const fnName = slug
-		.split("-")
-		.map((s, i) => (i === 0 ? s : s[0].toUpperCase() + s.slice(1)))
-		.join("");
+	const fnName = camelCase(slug);
 
-	// package.json
 	await writeFile(
 		join(targetDir, "package.json"),
 		JSON.stringify(
@@ -120,74 +208,98 @@ async function scaffoldStandard(
 				name: pluginName,
 				version: "0.1.0",
 				type: "module",
+				main: "./dist/index.mjs",
 				exports: {
-					".": "./src/index.ts",
-					"./sandbox": "./src/sandbox-entry.ts",
+					".": {
+						types: "./dist/index.d.mts",
+						import: "./dist/index.mjs",
+					},
+					"./sandbox": {
+						types: "./dist/sandbox-entry.d.mts",
+						import: "./dist/sandbox-entry.mjs",
+					},
 				},
-				files: ["src"],
+				files: ["dist"],
+				scripts: {
+					build: "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean",
+					dev: "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --watch",
+					typecheck: "tsc --noEmit",
+				},
+				keywords: ["emdash", "emdash-plugin"],
+				license: "MIT",
 				peerDependencies: {
 					emdash: "*",
 				},
-			},
-			null,
-			"\t",
-		) + "\n",
-	);
-
-	// tsconfig.json
-	await writeFile(
-		join(targetDir, "tsconfig.json"),
-		JSON.stringify(
-			{
-				compilerOptions: {
-					target: "ES2022",
-					module: "preserve",
-					moduleResolution: "bundler",
-					strict: true,
-					esModuleInterop: true,
-					declaration: true,
-					outDir: "./dist",
-					rootDir: "./src",
+				devDependencies: {
+					emdash: "*",
+					tsdown: TSDOWN_VERSION,
+					typescript: TYPESCRIPT_VERSION,
 				},
-				include: ["src/**/*"],
-				exclude: ["node_modules", "dist"],
 			},
 			null,
 			"\t",
 		) + "\n",
 	);
 
-	// src/index.ts -- descriptor factory
+	await writeFile(join(targetDir, "tsconfig.json"), JSON.stringify(TSCONFIG, null, "\t") + "\n");
+
 	await writeFile(
 		join(srcDir, "index.ts"),
 		`import type { PluginDescriptor } from "emdash";
 
 export function ${fnName}Plugin(): PluginDescriptor {
 \treturn {
-\t\tid: "${pluginName}",
+\t\tid: "${slug}",
 \t\tversion: "0.1.0",
 \t\tformat: "standard",
 \t\tentrypoint: "${pluginName}/sandbox",
-\t\tcapabilities: [],
+
+\t\tcapabilities: ["content:read"],
+\t\tstorage: {
+\t\t\tevents: { indexes: ["timestamp"] },
+\t\t},
 \t};
 }
 `,
 	);
 
-	// src/sandbox-entry.ts -- plugin definition
 	await writeFile(
 		join(srcDir, "sandbox-entry.ts"),
 		`import { definePlugin } from "emdash";
 import type { PluginContext } from "emdash";
 
+interface ContentSaveEvent {
+\tcollection: string;
+\tcontent: { id: string };
+\tisNew: boolean;
+}
+
 export default definePlugin({
 \thooks: {
 \t\t"content:afterSave": {
-\t\t\thandler: async (event: any, ctx: PluginContext) => {
+\t\t\thandler: async (event: ContentSaveEvent, ctx: PluginContext) => {
 \t\t\t\tctx.log.info("Content saved", {
 \t\t\t\t\tcollection: event.collection,
 \t\t\t\t\tid: event.content.id,
 \t\t\t\t});
+
+\t\t\t\tawait ctx.storage.events.put(\`save-\${Date.now()}\`, {
+\t\t\t\t\ttimestamp: new Date().toISOString(),
+\t\t\t\t\tcollection: event.collection,
+\t\t\t\t\tcontentId: event.content.id,
+\t\t\t\t});
+\t\t\t},
+\t\t},
+\t},
+
+\troutes: {
+\t\trecent: {
+\t\t\thandler: async (_routeCtx, ctx: PluginContext) => {
+\t\t\t\tconst result = await ctx.storage.events.query({
+\t\t\t\t\torderBy: { timestamp: "desc" },
+\t\t\t\t\tlimit: 10,
+\t\t\t\t});
+\t\t\t\treturn { events: result.items };
 \t\t\t},
 \t\t},
 \t},
@@ -204,12 +316,9 @@ async function scaffoldNative(
 	pluginName: string,
 	slug: string,
 ): Promise<void> {
-	const fnName = slug
-		.split("-")
-		.map((s, i) => (i === 0 ? s : s[0].toUpperCase() + s.slice(1)))
-		.join("");
+	const fnName = camelCase(slug);
+	const typeName = pascalCase(slug);
 
-	// package.json
 	await writeFile(
 		join(targetDir, "package.json"),
 		JSON.stringify(
@@ -217,69 +326,86 @@ async function scaffoldNative(
 				name: pluginName,
 				version: "0.1.0",
 				type: "module",
+				main: "./dist/index.mjs",
 				exports: {
-					".": "./src/index.ts",
+					".": {
+						types: "./dist/index.d.mts",
+						import: "./dist/index.mjs",
+					},
 				},
-				files: ["src"],
+				files: ["dist"],
+				scripts: {
+					build: "tsdown src/index.ts --format esm --dts --clean",
+					dev: "tsdown src/index.ts --format esm --dts --watch",
+					typecheck: "tsc --noEmit",
+				},
+				keywords: ["emdash", "emdash-plugin"],
+				license: "MIT",
 				peerDependencies: {
 					emdash: "*",
 				},
-			},
-			null,
-			"\t",
-		) + "\n",
-	);
-
-	// tsconfig.json
-	await writeFile(
-		join(targetDir, "tsconfig.json"),
-		JSON.stringify(
-			{
-				compilerOptions: {
-					target: "ES2022",
-					module: "preserve",
-					moduleResolution: "bundler",
-					strict: true,
-					esModuleInterop: true,
-					declaration: true,
-					outDir: "./dist",
-					rootDir: "./src",
+				devDependencies: {
+					emdash: "*",
+					tsdown: TSDOWN_VERSION,
+					typescript: TYPESCRIPT_VERSION,
 				},
-				include: ["src/**/*"],
-				exclude: ["node_modules", "dist"],
 			},
 			null,
 			"\t",
 		) + "\n",
 	);
 
-	// src/index.ts -- descriptor + createPlugin
+	await writeFile(join(targetDir, "tsconfig.json"), JSON.stringify(TSCONFIG, null, "\t") + "\n");
+
 	await writeFile(
 		join(srcDir, "index.ts"),
 		`import { definePlugin } from "emdash";
 import type { PluginDescriptor } from "emdash";
 
-export function ${fnName}Plugin(): PluginDescriptor {
+export interface ${typeName}Options {
+\tenabled?: boolean;
+}
+
+export function ${fnName}Plugin(options: ${typeName}Options = {}): PluginDescriptor<${typeName}Options> {
 \treturn {
-\t\tid: "${pluginName}",
+\t\tid: "${slug}",
 \t\tversion: "0.1.0",
 \t\tformat: "native",
 \t\tentrypoint: "${pluginName}",
-\t\toptions: {},
+\t\toptions,
 \t};
 }
 
-export function createPlugin() {
+export function createPlugin(options: ${typeName}Options = {}) {
 \treturn definePlugin({
-\t\tid: "${pluginName}",
+\t\tid: "${slug}",
 \t\tversion: "0.1.0",
+
+\t\tcapabilities: ["content:read"],
+\t\tstorage: {
+\t\t\tevents: { indexes: ["createdAt"] },
+\t\t},
 
 \t\thooks: {
 \t\t\t"content:afterSave": async (event, ctx) => {
-\t\t\t\tctx.log.info("Content saved", {
+\t\t\t\tif (options.enabled === false) return;
+\t\t\t\tawait ctx.storage.events.put(\`evt_\${Date.now()}\`, {
 \t\t\t\t\tcollection: event.collection,
-\t\t\t\t\tid: event.content.id,
+\t\t\t\t\tcontentId: event.content.id,
+\t\t\t\t\tcreatedAt: new Date().toISOString(),
 \t\t\t\t});
+\t\t\t},
+\t\t},
+
+\t\troutes: {
+\t\t\trecent: {
+\t\t\t\thandler: async (ctx) => {
+\t\t\t\t\tconst result = await ctx.storage.events.query({
+\t\t\t\t\t\torderBy: { createdAt: "desc" },
+\t\t\t\t\t\tlimit: 10,
+\t\t\t\t\t});
+\t\t\t\t\treturn { events: result.items };
+\t\t\t\t},
 \t\t\t},
 \t\t},
 \t});

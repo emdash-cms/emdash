@@ -7,7 +7,7 @@ export { NoopSandboxRunner, SandboxNotAvailableError, createNoopSandboxRunner } 
 
 export type {
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,

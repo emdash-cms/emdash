@@ -24,6 +24,10 @@ export interface MediaLibraryProps {
 	onSelect?: (item: MediaItem) => void;
 	onDelete?: (id: string) => void;
 	onItemUpdated?: () => void;
+	/** True when more local-library items can be fetched via cursor pagination */
+	hasMore?: boolean;
+	/** Triggered to fetch the next page of local-library items */
+	onLoadMore?: () => void;
 }
 
 /**
@@ -35,6 +39,8 @@ export function MediaLibrary({
 	onUpload,
 	onDelete,
 	onItemUpdated,
+	hasMore,
+	onLoadMore,
 }: MediaLibraryProps) {
 	const { t } = useLingui();
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
@@ -79,12 +85,12 @@ export function MediaLibrary({
 		if (activeProvider === "local") {
 			return {
 				id: "local",
-				name: "Library",
+				name: t`Library`,
 				capabilities: { browse: true, search: false, upload: true, delete: true },
 			} as MediaProviderInfo;
 		}
 		return providers?.find((p) => p.id === activeProvider);
-	}, [activeProvider, providers]);
+	}, [activeProvider, providers, t]);
 
 	// Update selected item when items change (e.g., after metadata update)
 	React.useEffect(() => {
@@ -199,7 +205,7 @@ export function MediaLibrary({
 	// Build provider tabs
 	const providerTabs = React.useMemo(() => {
 		const tabs: Array<{ id: string; name: string; icon?: string }> = [
-			{ id: "local", name: "Library", icon: undefined },
+			{ id: "local", name: t`Library`, icon: undefined },
 		];
 		if (providers) {
 			for (const p of providers) {
@@ -209,7 +215,7 @@ export function MediaLibrary({
 			}
 		}
 		return tabs;
-	}, [providers]);
+	}, [providers, t]);
 
 	// Get current items based on active provider
 	const currentItems = activeProvider === "local" ? items : [];
@@ -342,7 +348,13 @@ export function MediaLibrary({
 			)}
 
 			{/* Content */}
-			{currentLoading ? (
+			{/*
+			 * Gate the full-area loader on items being empty so that "Load More"
+			 * (which sets isLoading=true while fetching the next page) does not
+			 * blank out the already-rendered grid. Mirrors the ContentList
+			 * pattern from #135.
+			 */}
+			{currentLoading && currentItems.length === 0 && currentProviderItems.length === 0 ? (
 				<div className="flex items-center justify-center py-12">
 					<Loader />
 				</div>
@@ -408,7 +420,7 @@ export function MediaLibrary({
 							))}
 				</div>
 			) : (
-				<div className="rounded-md border overflow-x-auto">
+				<div className="rounded-md border bg-kumo-base overflow-x-auto">
 					<table className="w-full">
 						<thead>
 							<tr className="border-b bg-kumo-tint/50">
@@ -419,7 +431,7 @@ export function MediaLibrary({
 								<th className="px-4 py-3 text-end text-sm font-medium">{t`Actions`}</th>
 							</tr>
 						</thead>
-						<tbody>
+						<tbody className="divide-y divide-kumo-line">
 							{activeProvider === "local"
 								? currentItems.map((item) => (
 										<MediaListItem
@@ -456,6 +468,15 @@ export function MediaLibrary({
 									))}
 						</tbody>
 					</table>
+				</div>
+			)}
+
+			{/* Load more (local library only — providers handle pagination internally) */}
+			{activeProvider === "local" && hasMore && onLoadMore && (
+				<div className="flex justify-center">
+					<Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
+						{isLoading ? t`Loading...` : t`Load More`}
+					</Button>
 				</div>
 			)}
 
@@ -584,7 +605,7 @@ function MediaListItem({ item, selected, onClick }: MediaListItemProps) {
 	return (
 		<tr
 			className={cn(
-				"border-b cursor-pointer transition-colors",
+				"cursor-pointer transition-colors",
 				selected ? "bg-kumo-brand/10" : "hover:bg-kumo-tint/25",
 			)}
 			onClick={onClick}
@@ -638,7 +659,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 	return (
 		<tr
 			className={cn(
-				"border-b cursor-pointer transition-colors",
+				"cursor-pointer transition-colors",
 				selected ? "bg-kumo-brand/10" : "hover:bg-kumo-tint/25",
 			)}
 			onClick={onClick}

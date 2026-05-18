@@ -1,0 +1,46 @@
+{
+	"name": "@emdash-cms/aggregator",
+	"version": "0.0.0",
+	"private": true,
+	"description": "EmDash plugin registry aggregator. Indexes com.emdashcms.experimental.package.* records via Jetstream + PDS-verified ingest, exposes XRPC reads.",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"deploy": "vite build && wrangler deploy",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"db:migrate:local": "wrangler d1 migrations apply emdash-aggregator --local",
+		"db:migrate": "wrangler d1 migrations apply emdash-aggregator --remote"
+	},
+	"dependencies": {
+		"@atcute/atproto": "catalog:",
+		"@atcute/car": "catalog:",
+		"@atcute/cbor": "catalog:",
+		"@atcute/cid": "catalog:",
+		"@atcute/client": "catalog:",
+		"@atcute/crypto": "catalog:",
+		"@atcute/firehose": "catalog:",
+		"@atcute/identity": "catalog:",
+		"@atcute/identity-resolver": "catalog:",
+		"@atcute/jetstream": "catalog:",
+		"@atcute/lexicons": "catalog:",
+		"@atcute/mst": "catalog:",
+		"@atcute/multibase": "catalog:",
+		"@atcute/repo": "catalog:",
+		"@atcute/xrpc-server": "catalog:",
+		"@atcute/xrpc-server-cloudflare": "catalog:",
+		"@emdash-cms/registry-lexicons": "workspace:*"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "catalog:",
+		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@emdash-cms/atproto-test-utils": "workspace:*",
+		"@types/node": "catalog:",
+		"typescript": "catalog:",
+		"vite": "catalog:",
+		"vitest": "catalog:",
+		"wrangler": "catalog:"
+	}
+}

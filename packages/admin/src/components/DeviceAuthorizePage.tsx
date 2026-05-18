@@ -102,7 +102,7 @@ export function DeviceAuthorizePage() {
 				body: JSON.stringify({ user_code: trimmed, action: "approve" }),
 			});
 
-			const data = await parseApiResponse<{ authorized: boolean }>(res, "Authorization failed");
+			const data = await parseApiResponse<{ authorized: boolean }>(res, t`Authorization failed`);
 			setPageState(data.authorized ? "success" : "denied");
 		} catch (err) {
 			setErrorMessage(err instanceof Error ? err.message : "Network error");
@@ -193,7 +193,7 @@ export function DeviceAuthorizePage() {
 
 				{/* Denied state */}
 				{pageState === "denied" && (
-					<div className="rounded-lg border border-kumo-line p-6 text-center">
+					<div className="rounded-lg border border-kumo-line bg-kumo-base p-6 text-center">
 						<h2 className="font-medium">{t`Authorization denied`}</h2>
 						<p className="text-sm text-kumo-subtle mt-1">{t`The device will not be granted access.`}</p>
 						<Button

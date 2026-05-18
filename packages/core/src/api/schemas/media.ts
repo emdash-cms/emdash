@@ -6,9 +6,21 @@ import { cursorPaginationQuery } from "./common.js";
 // Media: Input schemas
 // ---------------------------------------------------------------------------
 
+/**
+ * Accepts a comma-separated string (from URL query params) or an array of
+ * strings (from JSON body or programmatic use) and normalises to string[].
+ */
+const mimeTypeFilter = z
+	.union([z.string(), z.array(z.string())])
+	.transform((v) => {
+		const arr = Array.isArray(v) ? v : v.split(",");
+		return arr.map((s) => s.trim()).filter((s) => s.length > 0);
+	})
+	.optional();
+
 export const mediaListQuery = cursorPaginationQuery
 	.extend({
-		mimeType: z.string().optional(),
+		mimeType: mimeTypeFilter,
 	})
 	.meta({ id: "MediaListQuery" });
 
@@ -30,6 +42,10 @@ export function formatFileSize(bytes: number): string {
 	return `${Math.floor(bytes / 1024 / 1024)}MB`;
 }
 
+// Matches a full MIME type (type/subtype) with an optional semicolon-delimited
+// parameter section. Forbids CR/LF to prevent header injection.
+const CONTENT_TYPE_RE = /^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]+(\s*;[^\r\n]*)?$/i;
+
 export function mediaUploadUrlBody(maxSize: number) {
 	if (!Number.isFinite(maxSize) || maxSize <= 0) {
 		throw new Error(`EmDash: maxUploadSize must be a positive finite number, got ${maxSize}`);
@@ -37,13 +53,17 @@ export function mediaUploadUrlBody(maxSize: number) {
 	return z
 		.object({
 			filename: z.string().min(1, "filename is required"),
-			contentType: z.string().min(1, "contentType is required"),
+			contentType: z
+				.string()
+				.min(1, "contentType is required")
+				.regex(CONTENT_TYPE_RE, "Invalid content type"),
 			size: z
 				.number()
 				.int()
 				.positive()
 				.max(maxSize, `File size must not exceed ${formatFileSize(maxSize)}`),
 			contentHash: z.string().optional(),
+			fieldId: z.string().optional(),
 		})
 		.meta({ id: "MediaUploadUrlBody" });
 }
@@ -59,7 +79,7 @@ export const mediaConfirmBody = z
 export const mediaProviderListQuery = cursorPaginationQuery
 	.extend({
 		query: z.string().optional(),
-		mimeType: z.string().optional(),
+		mimeType: mimeTypeFilter,
 	})
 	.meta({ id: "MediaProviderListQuery" });
 

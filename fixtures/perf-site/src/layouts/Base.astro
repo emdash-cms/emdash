@@ -39,7 +39,7 @@ const {
 	author,
 	content,
 } = Astro.props;
-const { siteTitle, siteTagline, siteLogo, siteFavicon } = resolveBlogSiteIdentity(await getSiteSettings());
+const { siteTitle, siteTagline, siteLogo } = resolveBlogSiteIdentity(await getSiteSettings());
 // If title already includes site title (from getSeoMeta), use as-is
 const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
 
@@ -76,7 +76,6 @@ const isLoggedIn = !!Astro.locals.user;
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{fullTitle}</title>
-		{siteFavicon && <link rel="icon" href={siteFavicon} />}
 		<EmDashHead page={pageCtx} />
 		<script is:inline>
 			// Apply theme immediately to prevent flash

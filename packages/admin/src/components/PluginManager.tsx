@@ -6,7 +6,7 @@
  * update/uninstall for marketplace-installed plugins.
  */
 
-import { Badge, Button, Switch, Toast } from "@cloudflare/kumo";
+import { Badge, Button, Checkbox, Switch, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	PuzzlePiece,
@@ -15,7 +15,6 @@ import {
 	SquaresFour,
 	WebhooksLogo,
 	CaretDown,
-	CaretRight,
 	ArrowsClockwise,
 	Storefront,
 	Trash,
@@ -41,8 +40,10 @@ import {
 } from "../lib/api/marketplace.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 export interface PluginManagerProps {
 	/** Admin manifest — used to check if marketplace is configured */
@@ -147,20 +148,15 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 							variant="ghost"
 							onClick={() => void refetchUpdates()}
 							disabled={isCheckingUpdates}
+							icon={<ArrowsClockwise className={cn(isCheckingUpdates && "animate-spin")} />}
 						>
-							<ArrowsClockwise
-								className={cn("me-2 h-4 w-4", isCheckingUpdates && "animate-spin")}
-							/>
 							{t`Check for updates`}
 						</Button>
 					)}
 					{hasMarketplace && (
-						<Link to="/plugins/marketplace">
-							<Button variant="ghost">
-								<Storefront className="me-2 h-4 w-4" />
-								{t`Marketplace`}
-							</Button>
-						</Link>
+						<RouterLinkButton to="/plugins/marketplace" variant="ghost" icon={<Storefront />}>
+							{t`Marketplace`}
+						</RouterLinkButton>
 					)}
 					<span className="text-sm text-kumo-subtle">{t`${plugins?.length ?? 0} plugins`}</span>
 				</div>
@@ -233,6 +229,7 @@ function PluginCard({
 	const toastManager = Toast.useToastManager();
 
 	const isMarketplace = plugin.source === "marketplace";
+	const isRegistry = plugin.source === "registry";
 	const hasUpdate = !!updateInfo && updateInfo.installed !== updateInfo.latest;
 
 	const updateMutation = useMutation({
@@ -342,7 +339,12 @@ function PluginCard({
 							{plugin.capabilities.length > 0 && (
 								<span
 									className="flex items-center gap-1"
-									title={plugin.capabilities.map((c) => CAPABILITY_LABELS[c] ?? c).join(", ")}
+									title={plugin.capabilities
+										.map((c) => {
+											const label = CAPABILITY_LABELS[c];
+											return label ? t(label) : c;
+										})
+										.join(", ")}
 								>
 									<ShieldCheck className="h-3 w-3" />
 									{t`${plugin.capabilities.length} permission${plugin.capabilities.length !== 1 ? "s" : ""}`}
@@ -365,21 +367,26 @@ function PluginCard({
 						)}
 
 						{isMarketplace && hasMarketplace && (
-							<Link to="/plugins/marketplace/$pluginId" params={{ pluginId: plugin.id }}>
-								<Button variant="ghost" size="sm">
-									<Storefront className="me-1.5 h-3.5 w-3.5" />
-									{t`View in Marketplace`}
-								</Button>
-							</Link>
+							<RouterLinkButton
+								to="/plugins/marketplace/$pluginId"
+								params={{ pluginId: plugin.id }}
+								variant="ghost"
+								size="sm"
+								icon={<Storefront />}
+							>
+								{t`View in Marketplace`}
+							</RouterLinkButton>
 						)}
 
 						{plugin.hasAdminPages && plugin.enabled && (
-							<Link to="/plugins/$pluginId/$" params={{ pluginId: plugin.id, _splat: "settings" }}>
-								<Button variant="ghost" shape="square" aria-label={t`Settings`}>
-									<Gear className="h-4 w-4" />
-									<span className="sr-only">{t`Settings`}</span>
-								</Button>
-							</Link>
+							<RouterLinkButton
+								to="/plugins/$pluginId/$"
+								params={{ pluginId: plugin.id, _splat: "" }}
+								aria-label={t`Settings`}
+								variant="ghost"
+								shape="square"
+								icon={<Gear />}
+							/>
 						)}
 
 						<Switch
@@ -396,7 +403,7 @@ function PluginCard({
 							onClick={() => setExpanded(!expanded)}
 							aria-expanded={expanded}
 						>
-							{expanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
+							{expanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
 							<span className="sr-only">
 								{expanded ? t`Collapse` : t`Expand`} {t`details`}
 							</span>
@@ -414,15 +421,19 @@ function PluginCard({
 									{t`Capabilities`}
 								</h4>
 								<div className="flex flex-wrap gap-1">
-									{plugin.capabilities.map((cap) => (
-										<span
-											key={cap}
-											className="inline-flex items-center rounded-md bg-kumo-tint px-2 py-0.5 text-xs"
-											title={CAPABILITY_LABELS[cap]}
-										>
-											{CAPABILITY_LABELS[cap] ?? cap}
-										</span>
-									))}
+									{plugin.capabilities.map((cap) => {
+										const label = CAPABILITY_LABELS[cap];
+										const text = label ? t(label) : cap;
+										return (
+											<span
+												key={cap}
+												className="inline-flex items-center rounded-md bg-kumo-tint px-2 py-0.5 text-xs"
+												title={text}
+											>
+												{text}
+											</span>
+										);
+									})}
 								</div>
 							</div>
 						)}
@@ -479,10 +490,19 @@ function PluginCard({
 									className="text-kumo-danger hover:text-kumo-danger"
 									onClick={() => setShowUninstallConfirm(true)}
 									disabled={uninstallMutation.isPending}
+									icon={<Trash />}
 								>
-									<Trash className="me-2 h-4 w-4" />
 									{t`Uninstall`}
 								</Button>
+							</div>
+						)}
+
+						{/* Registry plugins have an install path but no uninstall
+						    handler yet. Tell the admin so they don't think the
+						    plugin is permanent or fall back to editing the DB. */}
+						{isRegistry && (
+							<div className="pt-2 border-t text-xs text-kumo-subtle">
+								{t`Uninstall is not yet available for registry plugins. Disable the plugin to stop it from running; full uninstall will land in a follow-up.`}
 							</div>
 						)}
 					</div>
@@ -559,15 +579,11 @@ export function UninstallConfirmDialog({
 					<p className="text-sm text-kumo-subtle">
 						{t`This will remove the plugin and its bundle from your site.`}
 					</p>
-					<label className="flex items-center gap-2 text-sm">
-						<input
-							type="checkbox"
-							checked={deleteData}
-							onChange={(e) => setDeleteData(e.target.checked)}
-							className="rounded border"
-						/>
-						{t`Also delete plugin storage data`}
-					</label>
+					<Checkbox
+						checked={deleteData}
+						onCheckedChange={(checked) => setDeleteData(checked)}
+						label={t`Also delete plugin storage data`}
+					/>
 					<DialogError message={error} />
 				</div>
 				<div className="flex justify-end gap-3 border-t px-6 py-4">

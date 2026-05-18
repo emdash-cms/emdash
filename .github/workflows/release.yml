@@ -13,6 +13,13 @@ on:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
+# Default-deny at the workflow level. Each job scopes its own permissions:
+# - `release` declares contents/id-token/pull-requests below.
+# - `sync-templates` calls a reusable workflow whose own job-level
+#   permissions block (contents: read) takes precedence over the caller's
+#   inherited permissions.
+permissions: {}
+
 jobs:
   release:
     name: Release
@@ -26,7 +33,7 @@ jobs:
     steps:
       - name: Generate token
         id: app-token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -36,9 +43,12 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
+          # Intentional: changesets/action pushes the release PR / tags
+          # using this credential.
+          persist-credentials: true
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
 
       - name: Setup Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -53,19 +63,13 @@ jobs:
       - name: Build packages
         run: pnpm build
 
-      - name: Block accidental major releases
-        if: ${{ !inputs.publish-only }}
-        run: |
-          if pnpm changeset status 2>&1 | grep -q "Packages to be bumped at major"; then
-            echo "::error::Major version bump detected. This is blocked while in 0.x pre-release."
-            pnpm changeset status 2>&1
-            exit 1
-          fi
+      - name: Block 1.x releases (we are in 0.x)
+        run: node .github/scripts/check-no-major.mjs
 
       - name: Create Release Pull Request or Publish
         if: ${{ !inputs.publish-only }}
         id: changesets
-        uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
+        uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1.8.0
         with:
           version: pnpm run changeset:version
           publish: pnpm changeset publish
@@ -85,4 +89,8 @@ jobs:
       needs.release.outputs.published == 'true' ||
       inputs.publish-only
     uses: ./.github/workflows/sync-templates.yml
-    secrets: inherit
+    # Pass only the secrets sync-templates actually uses, not the full set
+    # available to this release workflow.
+    secrets:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
