@@ -177,13 +177,14 @@ async function rebuildIndex(
 
 	await dropFtsObjects(db, collectionSlug);
 
-	// `IF NOT EXISTS` on all CREATE statements so two isolates running
-	// the migration concurrently (D1 has no advisory lock, so this can
-	// happen on cold starts of a fresh deploy) don't fail each other
-	// with "table already exists" / "trigger already exists" errors.
-	// The drop-then-create sequence is benign across isolates: FTS5
-	// silently dedupes duplicate-rowid INSERTs via the docsize shadow
-	// table, so a double populate ends with one row per content row.
+	// `IF NOT EXISTS` on every CREATE so concurrent migrators on D1
+	// (no advisory lock, see runner.ts:264) converge instead of one
+	// failing the other. Duplicate-rowid INSERTs into an external-
+	// content FTS5 table dedupe via the docsize shadow table, so a
+	// double populate ends with one row per content row. The brief
+	// window between DROP and CREATE where another isolate could fire
+	// a trigger against a missing FTS table is pre-existing -- it also
+	// exists in FTSManager.rebuildIndex at runtime.
 	await sql
 		.raw(`
 		CREATE VIRTUAL TABLE IF NOT EXISTS "${ftsTable}" USING fts5(

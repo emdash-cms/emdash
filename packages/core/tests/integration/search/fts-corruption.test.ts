@@ -3,9 +3,10 @@
  *
  * Reproduces the corruption pattern reported in the issue: create a content
  * item, publish it, edit and publish again. The FTS5 update trigger uses the
- * external-content-safe `'delete'` command, so the index stays consistent and
- * `pragma integrity_check` (which FTS5 hooks via `'integrity-check'`) does not
- * report a malformed disk image.
+ * external-content-safe `'delete'` command, so the index stays consistent
+ * and FTS5's own `'integrity-check'` command (issued via
+ * `INSERT INTO fts(fts) VALUES('integrity-check')`, which walks the
+ * inverted index and throws on a malformed segment) reports it clean.
  */
 
 import type { Kysely } from "kysely";
