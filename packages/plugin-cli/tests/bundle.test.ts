@@ -15,7 +15,7 @@ const BAD_FIXTURE = fileURLToPath(new URL("./fixtures/bad-plugin", import.meta.u
  * directory, assert the resulting tarball + manifest match expectations.
  *
  * Each test runs the bundler at a different `outDir` under a fresh tempdir so
- * concurrent runs don't collide, and so `--outDir` resolution works as
+ * concurrent runs don't collide, and so `--out-dir` resolution works as
  * advertised (it can be either absolute or relative to `dir`).
  */
 describe("bundlePlugin", () => {

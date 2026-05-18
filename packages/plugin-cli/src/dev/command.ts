@@ -58,7 +58,7 @@ export const devCommand = defineCommand({
 			description: "Plugin directory (default: current directory)",
 			default: process.cwd(),
 		},
-		outDir: {
+		"out-dir": {
 			type: "string",
 			alias: "o",
 			description: "Output directory (default: ./dist)",
@@ -93,7 +93,7 @@ export const devCommand = defineCommand({
 			try {
 				await buildPlugin({
 					dir: args.dir,
-					outDir: args.outDir,
+					outDir: args["out-dir"],
 					logger,
 				});
 			} catch (error) {
@@ -146,10 +146,10 @@ export const devCommand = defineCommand({
 		await runBuild("initial build");
 
 		// Resolve outDir relative to the plugin dir so the ignore
-		// pattern matches whatever the user passed for `--outDir`.
+		// pattern matches whatever the user passed for `--out-dir`.
 		// chokidar wants forward-slash globs even on Windows, so
 		// normalise the platform separator (path.sep) to "/".
-		const resolvedOutDir = resolve(args.dir, args.outDir);
+		const resolvedOutDir = resolve(args.dir, args["out-dir"]);
 		const cwdAbs = resolve(args.dir);
 		const outDirRel = relative(cwdAbs, resolvedOutDir);
 		// `outDirGlob` is the ignore pattern only when outDir is

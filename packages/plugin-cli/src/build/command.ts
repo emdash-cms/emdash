@@ -30,7 +30,7 @@ export const buildCommand = defineCommand({
 			description: "Plugin directory (default: current directory)",
 			default: process.cwd(),
 		},
-		outDir: {
+		"out-dir": {
 			type: "string",
 			alias: "o",
 			description: "Output directory (default: ./dist)",
@@ -49,7 +49,7 @@ export const buildCommand = defineCommand({
 		try {
 			result = await buildPlugin({
 				dir: args.dir,
-				outDir: args.outDir,
+				outDir: args["out-dir"],
 				logger,
 			});
 		} catch (error) {

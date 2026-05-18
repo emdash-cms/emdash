@@ -26,13 +26,13 @@ export const bundleCommand = defineCommand({
 			description: "Plugin directory (default: current directory)",
 			default: process.cwd(),
 		},
-		outDir: {
+		"out-dir": {
 			type: "string",
 			alias: "o",
 			description: "Output directory for the tarball (default: ./dist)",
 			default: "dist",
 		},
-		validateOnly: {
+		"validate-only": {
 			type: "boolean",
 			description: "Run validation only, skip tarball creation",
 			default: false,
@@ -50,8 +50,8 @@ export const bundleCommand = defineCommand({
 		try {
 			result = await bundlePlugin({
 				dir: args.dir,
-				outDir: args.outDir,
-				validateOnly: args.validateOnly,
+				outDir: args["out-dir"],
+				validateOnly: args["validate-only"],
 				logger,
 			});
 		} catch (error) {
@@ -67,7 +67,7 @@ export const bundleCommand = defineCommand({
 		// hosts the artifact (GitHub release asset, R2, S3, their own server)
 		// and the registry indexes the URL. Spell out the next step so users
 		// don't have to dig for it.
-		if (!args.validateOnly && result.tarballPath) {
+		if (!args["validate-only"] && result.tarballPath) {
 			console.log();
 			consola.info("Next steps:");
 			console.log(`  1. Upload ${pc.cyan(result.tarballPath)} to a public URL.`);
