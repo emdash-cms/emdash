@@ -76,6 +76,118 @@ export interface WxrPost {
 	/** Custom taxonomy assignments beyond categories/tags */
 	customTaxonomies?: Map<string, string[]>;
 	meta: Map<string, string>;
+	/**
+	 * BCP 47 locale code extracted from a detected multilingual plugin
+	 * (WPML's `_icl_lang_code` or Polylang's per-post language taxonomy).
+	 * Absent when no per-post locale could be determined.
+	 */
+	locale?: string;
+	/**
+	 * Source-side translation group ID extracted from a detected multilingual
+	 * plugin (WPML's `trid` / `_icl_translation_id`, or a synthesized id derived
+	 * from Polylang's `_translations` meta). Posts sharing a `translationGroup`
+	 * are translations of one another. The string is opaque -- consumers use it
+	 * only as a key to link posts.
+	 */
+	translationGroup?: string;
+}
+
+/**
+ * WPML stores per-post language in postmeta as `_icl_lang_code` and the
+ * shared translation id as `_icl_translation_id` (with `trid` as a legacy
+ * fallback).
+ */
+const WPML_LOCALE_META_KEYS = ["_icl_lang_code"] as const;
+const WPML_TRID_META_KEYS = ["_icl_translation_id", "trid"] as const;
+
+/**
+ * Polylang stores per-post language in postmeta as `_locale` on newer
+ * exports. The actual language taxonomy assignment lives on
+ * `customTaxonomies.language`, which we use as a fallback. Translation
+ * grouping is encoded in `_translations` as a serialized PHP map of
+ * `{ lang_code => post_id }`; we synthesize a stable group key from the
+ * sorted IDs so every member of the group resolves to the same string.
+ */
+const POLYLANG_LOCALE_META_KEY = "_locale";
+const POLYLANG_TRANSLATIONS_META_KEY = "_translations";
+const POLYLANG_LANG_TAXONOMY = "language";
+
+/**
+ * Extract a list of post-IDs from Polylang's `_translations` PHP-serialized
+ * value. The format we care about is roughly:
+ *
+ *   a:2:{s:2:"en";i:1;s:2:"ar";i:7;}
+ *
+ * We don't need to round-trip the PHP value -- we just need a stable group
+ * key shared by every translation of the same content. Concatenating the
+ * sorted IDs gives us exactly that: every post in the group derives the
+ * same key from its own copy of `_translations`.
+ */
+const POLYLANG_TRANSLATIONS_ID_PATTERN = /i:(\d+);/g;
+
+function polylangTranslationGroupFromMeta(serialized: string): string | undefined {
+	const ids: number[] = [];
+	for (const match of serialized.matchAll(POLYLANG_TRANSLATIONS_ID_PATTERN)) {
+		const idText = match[1];
+		if (idText === undefined) continue;
+		const id = Number.parseInt(idText, 10);
+		if (Number.isFinite(id)) ids.push(id);
+	}
+	if (ids.length === 0) return undefined;
+	const sorted = [...new Set(ids)].toSorted((a, b) => a - b);
+	return `pll:${sorted.join(",")}`;
+}
+
+/**
+ * Promote multilingual-plugin metadata from `post.meta` and
+ * `post.customTaxonomies` into `post.locale` / `post.translationGroup`.
+ *
+ * Called once per `<item>` after all of its `<wp:postmeta>` and per-item
+ * `<category>` entries have been parsed. Safe to call on posts that have no
+ * multilingual metadata -- it's a no-op in that case.
+ *
+ * WPML wins over Polylang when both are present (they shouldn't co-exist on
+ * the same site, but defensive precedence avoids ambiguity).
+ */
+function promoteI18nMetadata(post: WxrPost): void {
+	// WPML
+	for (const key of WPML_LOCALE_META_KEYS) {
+		const value = post.meta.get(key);
+		if (value) {
+			post.locale = value;
+			break;
+		}
+	}
+	for (const key of WPML_TRID_META_KEYS) {
+		const value = post.meta.get(key);
+		if (value) {
+			post.translationGroup = `wpml:${value}`;
+			break;
+		}
+	}
+
+	// Polylang fallbacks (only fill what WPML didn't already provide)
+	if (!post.locale) {
+		const pllLocale = post.meta.get(POLYLANG_LOCALE_META_KEY);
+		if (pllLocale) {
+			post.locale = pllLocale;
+		} else {
+			// Polylang's primary language signal is a taxonomy assignment
+			// on the `language` custom taxonomy. The nicename is the locale
+			// code (e.g. "en", "ar").
+			const langTaxonomy = post.customTaxonomies?.get(POLYLANG_LANG_TAXONOMY);
+			const firstLang = langTaxonomy?.[0];
+			if (firstLang) post.locale = firstLang;
+		}
+	}
+
+	if (!post.translationGroup) {
+		const pllTranslations = post.meta.get(POLYLANG_TRANSLATIONS_META_KEY);
+		if (pllTranslations) {
+			const group = polylangTranslationGroupFromMeta(pllTranslations);
+			if (group) post.translationGroup = group;
+		}
+	}
 }
 
 export interface WxrAttachment {
@@ -379,6 +491,10 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 							navMenuItemPosts.push(currentItem);
 							data.posts.push(currentItem);
 						} else if (currentItem.postType !== "attachment") {
+							// Promote multilingual plugin metadata before storing.
+							// All postmeta and per-item categories are parsed by the time
+							// the closing </item> tag fires, so it's safe to inspect them.
+							promoteI18nMetadata(currentItem);
 							// Store all non-attachment post types (posts, pages, custom post types)
 							data.posts.push(currentItem);
 						}
@@ -738,6 +854,10 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 							navMenuItemPosts.push(currentItem);
 							data.posts.push(currentItem);
 						} else if (currentItem.postType !== "attachment") {
+							// Promote multilingual plugin metadata before storing.
+							// All postmeta and per-item categories are parsed by the time
+							// the closing </item> tag fires, so it's safe to inspect them.
+							promoteI18nMetadata(currentItem);
 							data.posts.push(currentItem);
 						}
 						currentItem = null;

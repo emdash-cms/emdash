@@ -164,6 +164,7 @@ export type {
 	WxrAttachment,
 	WxrCategory,
 	WxrTag,
+	WxrTerm,
 	WxrAuthor,
 } from "./cli/wxr/parser.js";
 

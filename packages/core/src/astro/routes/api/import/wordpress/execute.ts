@@ -19,7 +19,15 @@ import {
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { BylineRepository } from "#db/repositories/byline.js";
+import { TaxonomyRepository } from "#db/repositories/taxonomy.js";
 import { resolveImportByline } from "#import/utils.js";
+import {
+	attachPostTaxonomies,
+	mirrorTermsToLocales,
+	postAssignedTaxonomies,
+	preImportWxrTaxonomies,
+	type TaxonomyImportPlan,
+} from "#import/wxr-taxonomies.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
 import { slugify } from "#utils/slugify.js";
 
@@ -56,6 +64,21 @@ export interface ImportResult {
 	sections?: {
 		created: number;
 		skipped: number;
+	};
+	/** Taxonomy import results (categories, tags, custom taxonomies). */
+	taxonomies?: {
+		/** Terms newly created during this import, keyed by taxonomy name. */
+		termsCreated: Record<string, number>;
+		/** Existing terms that were re-used, keyed by taxonomy name. */
+		termsReused: Record<string, number>;
+		/** Total pivot rows (post <-> term) written to `content_taxonomies`. */
+		assignments: number;
+		/**
+		 * Custom taxonomy names from the WXR file that had no matching EmDash
+		 * definition and were therefore skipped. Lets the admin UI surface a
+		 * "create taxonomy X first" hint without re-running the import.
+		 */
+		missingTaxonomies: string[];
 	};
 }
 
@@ -107,6 +130,31 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			authorDisplayNames.set(author.login, author.displayName || author.login);
 		}
 
+		// Pre-create taxonomy terms (categories, tags, custom taxonomies) so
+		// per-post assignments can resolve to existing rows. Done before any
+		// content insert because WXR exports list terms at the top of the
+		// file but per-item assignments only reference them by slug.
+		const taxonomyPlan = await preImportWxrTaxonomies(
+			emdash.db,
+			wxr.posts,
+			wxr.categories,
+			wxr.tags,
+			wxr.terms,
+			config.locale,
+		);
+
+		// Multilingual imports (WPML / Polylang -- see #1080) need a term
+		// row at each per-post locale, all sharing the canonical term's
+		// `translation_group`. Without this, `getTermsForEntry(..., locale)`
+		// on non-canonical translations comes back empty.
+		const postLocales = new Set<string>();
+		for (const post of wxr.posts) {
+			if (post.locale) postLocales.add(post.locale);
+		}
+		if (postLocales.size > 0) {
+			await mirrorTermsToLocales(emdash.db, taxonomyPlan, postLocales, config.locale);
+		}
+
 		// Import content (locale from config scopes all items)
 		const result = await importContent(
 			wxr.posts,
@@ -116,6 +164,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			attachmentMap,
 			config.locale,
 			authorDisplayNames,
+			taxonomyPlan,
 		);
 
 		// Import reusable blocks as sections (if enabled)
@@ -138,14 +187,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 };
 
-async function importContent(
+export async function importContent(
 	posts: WxrPost[],
 	config: ImportConfig,
 	emdash: EmDashHandlers,
 	manifest: EmDashManifest,
 	attachmentMap: Map<string, string>,
-	locale?: string,
-	authorDisplayNames?: Map<string, string>,
+	locale: string | undefined,
+	authorDisplayNames: Map<string, string> | undefined,
+	taxonomyPlan: TaxonomyImportPlan,
 ): Promise<ImportResult> {
 	const result: ImportResult = {
 		success: true,
@@ -153,12 +203,24 @@ async function importContent(
 		skipped: 0,
 		errors: [],
 		byCollection: {},
+		taxonomies: {
+			termsCreated: taxonomyPlan.termsCreated,
+			termsReused: taxonomyPlan.termsReused,
+			assignments: 0,
+			missingTaxonomies: taxonomyPlan.missingTaxonomies,
+		},
 	};
 
 	// Create content repository for checking existing items
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
+	const taxonomyRepo = new TaxonomyRepository(emdash.db);
 	const bylineCache = new Map<string, string>();
+
+	// Source-side translation group ID -> the EmDash ID of the first post we
+	// imported for that group. Subsequent translations are linked via
+	// `translationOf` so they share a `translation_group` on the EmDash side.
+	const translationGroupMap = new Map<string, string>();
 
 	for (const post of posts) {
 		const postType = post.postType || "post";
@@ -190,13 +252,35 @@ async function importContent(
 			// Generate slug from post name or title
 			const slug = post.postName || slugify(post.title || `post-${post.id || Date.now()}`);
 
-			// Check if already exists (idempotency)
+			// Per-post locale: prefer the value extracted from WPML/Polylang
+			// metadata; fall back to the upload-wide locale. Two translations
+			// sharing `post_name` (e.g. /en/hello + /ar/hello) collide on the
+			// `UNIQUE(slug, locale)` constraint when they share a locale, so
+			// honouring the per-post value is what makes multilingual imports
+			// land correctly. See issue #1080.
+			const postLocale = post.locale ?? locale;
+
+			// Check if already exists (idempotency). Match against the
+			// per-post locale so the same slug in different locales doesn't
+			// false-positive as duplicate.
 			if (config.skipExisting) {
-				const existing = await contentRepo.findBySlug(collection, slug);
+				const existing = await contentRepo.findBySlug(collection, slug, postLocale);
 				if (existing) {
+					// Still record the translation group mapping so later
+					// translations can link to the existing item.
+					if (post.translationGroup) {
+						translationGroupMap.set(post.translationGroup, existing.id);
+					}
 					result.skipped++;
 					continue;
 				}
+			}
+
+			// Resolve translation group: if this post belongs to a group and
+			// we've already imported one of its translations, link to it.
+			let translationOf: string | undefined;
+			if (post.translationGroup) {
+				translationOf = translationGroupMap.get(post.translationGroup);
 			}
 
 			// Map WordPress status to EmDash status
@@ -252,7 +336,8 @@ async function importContent(
 				status,
 				authorId,
 				bylines: bylineId ? [{ bylineId }] : undefined,
-				locale,
+				locale: postLocale,
+				translationOf,
 				createdAt,
 				publishedAt,
 			});
@@ -260,6 +345,76 @@ async function importContent(
 			if (createResult.success) {
 				result.imported++;
 				result.byCollection[collection] = (result.byCollection[collection] || 0) + 1;
+
+				// `handleContentCreate` returns `data: { item, _rev? }` on
+				// success (see `ApiResult<ContentResponse>` in
+				// `api/handlers/content.ts`). `HandlerResponse.data` is
+				// typed as `unknown` to avoid coupling the route surface to
+				// internal handler types, so we narrow here.
+				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler contract documented at handleContentCreate
+				const createdItem = (createResult.data as { item: { id: string } } | undefined)?.item;
+
+				// Track translation group: the first imported post in a group
+				// becomes the anchor that later translations link to.
+				if (
+					createdItem &&
+					post.translationGroup &&
+					!translationGroupMap.has(post.translationGroup)
+				) {
+					translationGroupMap.set(post.translationGroup, createdItem.id);
+				}
+
+				// Attach taxonomy assignments parsed from the WXR's per-item
+				// <category> elements. Called for every post -- anchors and
+				// translations -- because WPML / Polylang permit per-
+				// translation term assignments.
+				//
+				// Translations created via `translationOf` inherit the
+				// anchor's pivot rows through `ContentRepository.create ->
+				// copyEntryTerms`. WPML's "Translate Independently" mode
+				// lets translators override term assignments *per
+				// taxonomy*, not per post: a translation that picks its
+				// own `category` shouldn't lose its inherited `tag` or
+				// `genre` rows. We clear the pivot only for taxonomies
+				// the translation explicitly carries, then attach from the
+				// WXR. Translations with no per-item assignments fall
+				// through with the entire inherited set intact -- matches
+				// WPML "Sync translations" mode and Polylang's default.
+				if (createdItem) {
+					try {
+						if (translationOf) {
+							const overriddenTaxonomies = postAssignedTaxonomies(post);
+							for (const taxonomyName of overriddenTaxonomies) {
+								// `setTermsForEntry(name, [])` deletes only
+								// pivot rows for this taxonomy, leaving
+								// other inherited taxonomies untouched.
+								await taxonomyRepo.setTermsForEntry(collection, createdItem.id, taxonomyName, []);
+							}
+						}
+						const written = await attachPostTaxonomies(
+							emdash.db,
+							collection,
+							createdItem.id,
+							post,
+							taxonomyPlan,
+						);
+						if (result.taxonomies) {
+							result.taxonomies.assignments += written;
+						}
+					} catch (taxError) {
+						console.error(
+							`Failed to attach taxonomies for "${post.title || "Untitled"}":`,
+							taxError,
+						);
+						result.errors.push({
+							title: post.title || "Untitled",
+							error:
+								taxError instanceof Error && taxError.message
+									? `Imported but failed to attach taxonomies: ${taxError.message}`
+									: "Imported but failed to attach taxonomies",
+						});
+					}
+				}
 			} else {
 				result.errors.push({
 					title: post.title || "Untitled",

@@ -424,4 +424,182 @@ describe("parseWxr", () => {
 		expect(result.posts[0]?.customTaxonomies?.get("genre")).toContain("dystopian");
 		expect(result.posts[0]?.customTaxonomies?.get("reading_level")).toContain("advanced");
 	});
+
+	describe("multilingual plugin metadata (issue #1080)", () => {
+		it("promotes WPML _icl_lang_code and trid to locale + translationGroup", async () => {
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Hello</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:post_name>hello</wp:post_name>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[en]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>_icl_translation_id</wp:meta_key>
+        <wp:meta_value><![CDATA[42]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+    <item>
+      <title>Mərhəba</title>
+      <wp:post_id>2</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:post_name>hello</wp:post_name>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[ar]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>_icl_translation_id</wp:meta_key>
+        <wp:meta_value><![CDATA[42]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+
+			expect(result.posts).toHaveLength(2);
+			expect(result.posts[0]?.locale).toBe("en");
+			expect(result.posts[1]?.locale).toBe("ar");
+			// Both translations share the same group key. Prefix is opaque
+			// but stable so the execute route can group on it.
+			expect(result.posts[0]?.translationGroup).toBe(result.posts[1]?.translationGroup);
+			expect(result.posts[0]?.translationGroup).toContain("42");
+		});
+
+		it("falls back to WPML legacy `trid` meta key when _icl_translation_id is absent", async () => {
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Legacy</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[fr]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>trid</wp:meta_key>
+        <wp:meta_value><![CDATA[7]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+
+			expect(result.posts[0]?.locale).toBe("fr");
+			expect(result.posts[0]?.translationGroup).toContain("7");
+		});
+
+		it("derives locale from Polylang's `language` taxonomy when WPML is absent", async () => {
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Bonjour</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="fr"><![CDATA[Français]]></category>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+
+			expect(result.posts[0]?.locale).toBe("fr");
+		});
+
+		it("derives a stable Polylang translationGroup from _translations meta", async () => {
+			// Polylang stores `_translations` as a serialized PHP map. We
+			// hash the post IDs into a stable key shared by every member of
+			// the group. The exact format isn't part of the contract -- the
+			// only guarantee is "same map -> same key".
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>EN</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="en"><![CDATA[English]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_translations</wp:meta_key>
+        <wp:meta_value><![CDATA[a:2:{s:2:"en";i:1;s:2:"fr";i:2;}]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+    <item>
+      <title>FR</title>
+      <wp:post_id>2</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="fr"><![CDATA[Français]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_translations</wp:meta_key>
+        <wp:meta_value><![CDATA[a:2:{s:2:"en";i:1;s:2:"fr";i:2;}]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+
+			expect(result.posts).toHaveLength(2);
+			expect(result.posts[0]?.locale).toBe("en");
+			expect(result.posts[1]?.locale).toBe("fr");
+			expect(result.posts[0]?.translationGroup).toBeDefined();
+			expect(result.posts[0]?.translationGroup).toBe(result.posts[1]?.translationGroup);
+		});
+
+		it("leaves locale/translationGroup undefined on monolingual exports", async () => {
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Mono</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+
+			expect(result.posts[0]?.locale).toBeUndefined();
+			expect(result.posts[0]?.translationGroup).toBeUndefined();
+		});
+
+		it("prefers WPML over Polylang when both are present", async () => {
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Conflict</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="fr"><![CDATA[Français]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[en]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+
+			expect(result.posts[0]?.locale).toBe("en");
+		});
+	});
 });
