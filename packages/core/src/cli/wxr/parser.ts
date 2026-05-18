@@ -75,6 +75,16 @@ export interface WxrPost {
 	tags: string[];
 	/** Custom taxonomy assignments beyond categories/tags */
 	customTaxonomies?: Map<string, string[]>;
+	/**
+	 * Display labels for per-item category/tag/custom-taxonomy assignments,
+	 * captured from `<category domain="..." nicename="...">Label</category>`
+	 * text content. Used by the importer to back-fill term labels when a
+	 * `<wp:category>` or `<wp:tag>` block wasn't present at the top of the
+	 * WXR (older / hand-edited exports). Keyed by
+	 * `${normalisedTaxonomy}\u0000${slug}` so categories and tags don't
+	 * collide.
+	 */
+	taxonomyLabels?: Map<string, string>;
 	meta: Map<string, string>;
 	/**
 	 * BCP 47 locale code extracted from a detected multilingual plugin
@@ -93,12 +103,19 @@ export interface WxrPost {
 }
 
 /**
- * WPML stores per-post language in postmeta as `_icl_lang_code` and the
- * shared translation id as `_icl_translation_id` (with `trid` as a legacy
- * fallback).
+ * WPML stores per-post language in postmeta as `_icl_lang_code`. The shared
+ * translation id is `trid` (this is the group ID -- every translation of the
+ * same content shares it). `_icl_translation_id` exists on some exports too
+ * but is a per-translation row id from `wp_icl_translations`, NOT the group
+ * id, so it must NOT be used as the group key. We accept it only when `trid`
+ * is absent and trust the export to be internally consistent (the only case
+ * where that's reasonable is single-post exports with no real grouping).
+ *
+ * See `wpml_element_trid` in the WPML hook docs: "the ID of the translation
+ * group".
  */
 const WPML_LOCALE_META_KEYS = ["_icl_lang_code"] as const;
-const WPML_TRID_META_KEYS = ["_icl_translation_id", "trid"] as const;
+const WPML_TRID_META_KEYS = ["trid", "_icl_translation_id"] as const;
 
 /**
  * Polylang stores per-post language in postmeta as `_locale` on newer
@@ -122,16 +139,82 @@ const POLYLANG_LANG_TAXONOMY = "language";
  * key shared by every translation of the same content. Concatenating the
  * sorted IDs gives us exactly that: every post in the group derives the
  * same key from its own copy of `_translations`.
+ *
+ * Naïve `/i:(\d+);/g` would also match `i:N;` literals embedded INSIDE
+ * string values (e.g. `s:11:"i:42;hello";`), which would silently corrupt
+ * the group key. We walk the serialized blob token-by-token instead.
+ *
+ * PHP serializes `s:LEN:"..."` with LEN counted in BYTES, not characters
+ * (UTF-8 byte length). JS string positions are UTF-16 code units, so we
+ * encode to bytes via `TextEncoder` and walk byte offsets. Single-byte-only
+ * inputs (the common case for Polylang's `_translations` which only stores
+ * ASCII locale codes) take the same path; the encoder is cheap.
  */
-const POLYLANG_TRANSLATIONS_ID_PATTERN = /i:(\d+);/g;
-
 function polylangTranslationGroupFromMeta(serialized: string): string | undefined {
+	// Operate on the UTF-8 byte view so `s:LEN:` advances the right number
+	// of bytes when the payload contains multibyte characters.
+	const encoder = new TextEncoder();
+	const bytes = encoder.encode(serialized);
+	const decoder = new TextDecoder("utf-8");
+
 	const ids: number[] = [];
-	for (const match of serialized.matchAll(POLYLANG_TRANSLATIONS_ID_PATTERN)) {
-		const idText = match[1];
-		if (idText === undefined) continue;
-		const id = Number.parseInt(idText, 10);
-		if (Number.isFinite(id)) ids.push(id);
+	let i = 0;
+	const n = bytes.length;
+	const CHAR_S = 0x73; // 's'
+	const CHAR_I = 0x69; // 'i'
+	const CHAR_COLON = 0x3a; // ':'
+	const CHAR_SEMI = 0x3b; // ';'
+	const CHAR_QUOTE = 0x22; // '"'
+
+	const indexOf = (byte: number, from: number): number => {
+		for (let k = from; k < n; k++) {
+			if (bytes[k] === byte) return k;
+		}
+		return -1;
+	};
+
+	while (i < n) {
+		const ch = bytes[i];
+		if (ch === CHAR_S && bytes[i + 1] === CHAR_COLON) {
+			// s:LEN:"...";  — skip the entire string value: the LEN digits,
+			// the opening quote, the payload of exactly LEN bytes, the
+			// closing quote, and the trailing semicolon.
+			const lenStart = i + 2;
+			const lenEnd = indexOf(CHAR_COLON, lenStart);
+			if (lenEnd === -1) break;
+			const lenText = decoder.decode(bytes.slice(lenStart, lenEnd));
+			const len = Number.parseInt(lenText, 10);
+			if (!Number.isFinite(len) || len < 0) {
+				i = lenEnd + 1;
+				continue;
+			}
+			// lenEnd+1 should be `"`. Defensively check before advancing
+			// over the payload -- a malformed input shouldn't crash the
+			// import; just skip past this token.
+			if (bytes[lenEnd + 1] !== CHAR_QUOTE) {
+				i = lenEnd + 1;
+				continue;
+			}
+			const payloadStart = lenEnd + 2;
+			const afterPayload = payloadStart + len;
+			// afterPayload should point at the closing `"`; +2 past `";`.
+			i = afterPayload + 2;
+			continue;
+		}
+		if (ch === CHAR_I && bytes[i + 1] === CHAR_COLON) {
+			const valStart = i + 2;
+			const valEnd = indexOf(CHAR_SEMI, valStart);
+			if (valEnd === -1) break;
+			const idText = decoder.decode(bytes.slice(valStart, valEnd));
+			const id = Number.parseInt(idText, 10);
+			if (Number.isFinite(id)) ids.push(id);
+			i = valEnd + 1;
+			continue;
+		}
+		// Any other token (a:LEN:{...}, b:0;, N;, {, }, :, ;, etc.) -- just
+		// advance one byte. We only care about integer literals; everything
+		// else is structural.
+		i++;
 	}
 	if (ids.length === 0) return undefined;
 	const sorted = [...new Set(ids)].toSorted((a, b) => a - b);
@@ -268,6 +351,32 @@ function attrStr(attr: string | { value: string } | undefined): string {
 	return "";
 }
 
+/**
+ * Normalise a `<category domain="...">` value to the matching EmDash
+ * taxonomy name so per-item label captures can be retrieved later using
+ * the same key.
+ */
+function normaliseDomain(domain: string): string {
+	if (domain === "post_tag") return "tag";
+	return domain;
+}
+
+/**
+ * Persist the human label of a `<category>` text body keyed by the
+ * normalised `(taxonomy, slug)` pair. Skips trivial labels that equal the
+ * slug (no information vs. just storing the slug).
+ */
+function captureItemCategoryLabel(
+	item: WxrPost,
+	pair: { domain: string; nicename: string },
+	label: string,
+): void {
+	if (!label || label === pair.nicename) return;
+	if (!item.taxonomyLabels) item.taxonomyLabels = new Map();
+	const key = `${normaliseDomain(pair.domain)}\u0000${pair.nicename}`;
+	if (!item.taxonomyLabels.has(key)) item.taxonomyLabels.set(key, label);
+}
+
 /** Type guard for complete WxrTerm (all required fields present) */
 function isCompleteWxrTerm(term: Partial<WxrTerm>): term is WxrTerm {
 	return (
@@ -306,6 +415,11 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 		let currentAuthor: WxrAuthor | null = null;
 		let currentTerm: Partial<WxrTerm> | null = null;
 		let currentMetaKey = "";
+		// Per-item category element currently open. Captured at opentag so
+		// we can pair the text body (the human label) with the slug when
+		// closetag fires. WXR per-item category elements look like:
+		//   <category domain="category" nicename="hello-world">Hello World</category>
+		let pendingItemCategory: { domain: string; nicename: string } | null = null;
 
 		// Track nav_menu_item posts for post-processing
 		const navMenuItemPosts: WxrPost[] = [];
@@ -341,8 +455,10 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 				const nicename = attrStr(node.attributes.nicename);
 				if (domain === "category" && nicename) {
 					currentItem.categories.push(nicename);
+					pendingItemCategory = { domain, nicename };
 				} else if (domain === "post_tag" && nicename) {
 					currentItem.tags.push(nicename);
+					pendingItemCategory = { domain, nicename };
 				} else if (domain && nicename && domain !== "category" && domain !== "post_tag") {
 					// Custom taxonomy (including nav_menu)
 					if (!currentItem.customTaxonomies) {
@@ -351,6 +467,7 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 					const existing = currentItem.customTaxonomies.get(domain) || [];
 					existing.push(nicename);
 					currentItem.customTaxonomies.set(domain, existing);
+					pendingItemCategory = { domain, nicename };
 				}
 			}
 		});
@@ -480,6 +597,18 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 								meta: currentItem.meta,
 							};
 						}
+						break;
+					case "category":
+						// Per-item category text body = the human label for
+						// the term (`<category nicename="hello-world">Hello
+						// World</category>`). Backfilling from per-item
+						// elements (older / hand-edited exports without top-
+						// level `<wp:category>` blocks) lands the right label
+						// instead of slug-cased nonsense.
+						if (pendingItemCategory && text) {
+							captureItemCategoryLabel(currentItem, pendingItemCategory, text);
+						}
+						pendingItemCategory = null;
 						break;
 					case "item":
 						// End of item - categorize and store
@@ -667,6 +796,9 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 		let currentAuthor: WxrAuthor | null = null;
 		let currentTerm: Partial<WxrTerm> | null = null;
 		let currentMetaKey = "";
+		// Per-item category element currently open (see streaming-parser
+		// counterpart above for rationale).
+		let pendingItemCategory: { domain: string; nicename: string } | null = null;
 
 		// Track nav_menu_item posts for post-processing
 		const navMenuItemPosts: WxrPost[] = [];
@@ -702,8 +834,10 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 				const nicename = attrStr(node.attributes.nicename);
 				if (domain === "category" && nicename) {
 					currentItem.categories.push(nicename);
+					pendingItemCategory = { domain, nicename };
 				} else if (domain === "post_tag" && nicename) {
 					currentItem.tags.push(nicename);
+					pendingItemCategory = { domain, nicename };
 				} else if (domain && nicename && domain !== "category" && domain !== "post_tag") {
 					// Custom taxonomy (including nav_menu)
 					if (!currentItem.customTaxonomies) {
@@ -712,6 +846,7 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 					const existing = currentItem.customTaxonomies.get(domain) || [];
 					existing.push(nicename);
 					currentItem.customTaxonomies.set(domain, existing);
+					pendingItemCategory = { domain, nicename };
 				}
 			}
 		};
@@ -843,6 +978,14 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 						if (currentMetaKey && currentItem.meta) {
 							currentItem.meta.set(currentMetaKey, text);
 						}
+						break;
+					case "category":
+						// Per-item category text body = human label. See
+						// streaming-parser counterpart for rationale.
+						if (pendingItemCategory && text) {
+							captureItemCategoryLabel(currentItem, pendingItemCategory, text);
+						}
+						pendingItemCategory = null;
 						break;
 					case "item":
 						// End of item - categorize and store

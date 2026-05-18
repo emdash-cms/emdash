@@ -601,5 +601,149 @@ describe("parseWxr", () => {
 
 			expect(result.posts[0]?.locale).toBe("en");
 		});
+
+		it("handles Polylang _translations payloads with multibyte string keys", async () => {
+			// PHP `s:LEN:"..."` counts BYTES of the payload, not chars. A
+			// payload like `é` (2 bytes UTF-8) would shift JS UTF-16
+			// position by 1, but the byte length is 2. The parser must
+			// advance by bytes or it will misalign and drop subsequent
+			// integer tokens.
+			//
+			// Real-world trigger: any non-ASCII locale code or label string
+			// in `_translations`. We don't expect Polylang to produce such
+			// keys, but the parser must not corrupt the group when it
+			// does.
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>A</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:postmeta>
+        <wp:meta_key>_translations</wp:meta_key>
+        <wp:meta_value><![CDATA[a:2:{s:2:"é";i:1;s:2:"fr";i:2;}]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+    <item>
+      <title>B</title>
+      <wp:post_id>2</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:postmeta>
+        <wp:meta_key>_translations</wp:meta_key>
+        <wp:meta_value><![CDATA[a:2:{s:2:"é";i:1;s:2:"fr";i:2;}]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+
+			expect(result.posts).toHaveLength(2);
+			// Both ids extracted; group key has BOTH 1 and 2, not just 2.
+			expect(result.posts[0]?.translationGroup).toBe("pll:1,2");
+			expect(result.posts[1]?.translationGroup).toBe("pll:1,2");
+		});
+
+		it("ignores `i:N;` literals embedded inside Polylang `_translations` string values", async () => {
+			// String values can contain `i:N;` text that the naive regex
+			// would erroneously match. The length-aware parser walks
+			// `s:LEN:"..."` blocks and skips their payloads exactly.
+			// The real translation IDs are `i:1;` and `i:7;`; the embedded
+			// `i:99;` inside a string value must NOT contribute.
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>A</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="en"><![CDATA[English]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_translations</wp:meta_key>
+        <wp:meta_value><![CDATA[a:2:{s:9:"junk i:99;";i:1;s:2:"ar";i:7;}]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+    <item>
+      <title>B</title>
+      <wp:post_id>2</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="ar"><![CDATA[Arabic]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_translations</wp:meta_key>
+        <wp:meta_value><![CDATA[a:2:{s:9:"junk i:99;";i:1;s:2:"ar";i:7;}]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+
+			expect(result.posts).toHaveLength(2);
+			const groupA = result.posts[0]?.translationGroup;
+			const groupB = result.posts[1]?.translationGroup;
+			expect(groupA).toBe(groupB);
+			// Group key derives from the integer post IDs, not the
+			// embedded `99` -- post-id list is `[1, 7]`.
+			expect(groupA).toBe("pll:1,7");
+		});
+
+		it("falls back to _icl_translation_id when trid is absent", async () => {
+			// `trid` is preferred (it's the shared translation group id),
+			// but legacy / partial exports may only have
+			// `_icl_translation_id`. Accept it as a fallback so single-
+			// translation exports still get a group key.
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Solo</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[en]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>_icl_translation_id</wp:meta_key>
+        <wp:meta_value><![CDATA[99]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+			expect(result.posts[0]?.locale).toBe("en");
+			expect(result.posts[0]?.translationGroup).toBe("wpml:99");
+		});
+
+		it("captures per-item category text body as a taxonomyLabels entry", async () => {
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Hello</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="category" nicename="breaking-news"><![CDATA[Breaking News]]></category>
+      <category domain="post_tag" nicename="featured"><![CDATA[Featured]]></category>
+      <category domain="genre" nicename="sci-fi"><![CDATA[Science Fiction]]></category>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+			const post = result.posts[0];
+			expect(post?.taxonomyLabels).toBeDefined();
+			// Keys are `${normalisedTaxonomy}\u0000${slug}`. `post_tag`
+			// normalises to `tag`.
+			expect(post?.taxonomyLabels?.get("category\u0000breaking-news")).toBe("Breaking News");
+			expect(post?.taxonomyLabels?.get("tag\u0000featured")).toBe("Featured");
+			expect(post?.taxonomyLabels?.get("genre\u0000sci-fi")).toBe("Science Fiction");
+		});
 	});
 });

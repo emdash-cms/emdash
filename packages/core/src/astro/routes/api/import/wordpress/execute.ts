@@ -19,13 +19,13 @@ import {
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { BylineRepository } from "#db/repositories/byline.js";
-import { TaxonomyRepository } from "#db/repositories/taxonomy.js";
 import { resolveImportByline } from "#import/utils.js";
 import {
 	attachPostTaxonomies,
+	isWxrTaxonomyConflictError,
 	mirrorTermsToLocales,
-	postAssignedTaxonomies,
 	preImportWxrTaxonomies,
+	setPostTermAssignmentsReplacing,
 	type TaxonomyImportPlan,
 } from "#import/wxr-taxonomies.js";
 import type { EmDashHandlers, EmDashManifest } from "#types";
@@ -147,12 +147,30 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// row at each per-post locale, all sharing the canonical term's
 		// `translation_group`. Without this, `getTermsForEntry(..., locale)`
 		// on non-canonical translations comes back empty.
+		//
+		// The mirror raises `WxrTaxonomyConflictError` with an operator-
+		// actionable message when an existing locale row has an
+		// incompatible group. Surface its `publicMessage` directly so the
+		// admin UI can tell the user which (taxonomy, slug, locale) needs
+		// reconciliation. Other errors (DB connectivity, unexpected
+		// repository failures) re-throw to the outer catch where
+		// `handleError` masks them with the generic "Failed to import
+		// content" -- exposing raw DB errors to clients would leak schema
+		// names and bypass the AGENTS.md "never expose error.message" rule.
 		const postLocales = new Set<string>();
 		for (const post of wxr.posts) {
 			if (post.locale) postLocales.add(post.locale);
 		}
 		if (postLocales.size > 0) {
-			await mirrorTermsToLocales(emdash.db, taxonomyPlan, postLocales, config.locale);
+			try {
+				await mirrorTermsToLocales(emdash.db, taxonomyPlan, postLocales, config.locale);
+			} catch (mirrorError) {
+				if (isWxrTaxonomyConflictError(mirrorError)) {
+					console.error("[WXR_IMPORT_TAXONOMY_CONFLICT]", mirrorError);
+					return apiError("WXR_IMPORT_TAXONOMY_CONFLICT", mirrorError.publicMessage, 409);
+				}
+				throw mirrorError;
+			}
 		}
 
 		// Import content (locale from config scopes all items)
@@ -214,7 +232,6 @@ export async function importContent(
 	// Create content repository for checking existing items
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
-	const taxonomyRepo = new TaxonomyRepository(emdash.db);
 	const bylineCache = new Map<string, string>();
 
 	// Source-side translation group ID -> the EmDash ID of the first post we
@@ -266,8 +283,16 @@ export async function importContent(
 			if (config.skipExisting) {
 				const existing = await contentRepo.findBySlug(collection, slug, postLocale);
 				if (existing) {
-					// Still record the translation group mapping so later
-					// translations can link to the existing item.
+					// Record the translation group mapping so later
+					// translations in this WXR can link to the existing
+					// item. We deliberately trust the WXR's grouping over
+					// the existing row's `translation_group`: a singleton
+					// existing row gets folded into the WXR's group when
+					// `handleContentCreate` resolves the new translation's
+					// `translationOf`. Pre-existing translations that
+					// already belong to a different group are left alone --
+					// the user is responsible for reconciling those through
+					// the admin if they don't match the WXR.
 					if (post.translationGroup) {
 						translationGroupMap.set(post.translationGroup, existing.id);
 					}
@@ -365,39 +390,38 @@ export async function importContent(
 				}
 
 				// Attach taxonomy assignments parsed from the WXR's per-item
-				// <category> elements. Called for every post -- anchors and
-				// translations -- because WPML / Polylang permit per-
-				// translation term assignments.
+				// <category> elements.
 				//
-				// Translations created via `translationOf` inherit the
-				// anchor's pivot rows through `ContentRepository.create ->
-				// copyEntryTerms`. WPML's "Translate Independently" mode
-				// lets translators override term assignments *per
-				// taxonomy*, not per post: a translation that picks its
-				// own `category` shouldn't lose its inherited `tag` or
-				// `genre` rows. We clear the pivot only for taxonomies
-				// the translation explicitly carries, then attach from the
-				// WXR. Translations with no per-item assignments fall
-				// through with the entire inherited set intact -- matches
-				// WPML "Sync translations" mode and Polylang's default.
+				// Anchors (no `translationOf`) get an additive attach -- the
+				// row is fresh, no inherited pivots to consider.
+				//
+				// Translations get per-taxonomy replace semantics. WPML's
+				// "Translate Independently" mode is per-taxonomy, not per-
+				// post: a translation that overrides `category` shouldn't
+				// lose its inherited `tag` or `genre`. The replace path
+				// only touches taxonomies the translation actually carries
+				// AND that resolve to at least one term that survives the
+				// def's `collections` filter; taxonomies with no resolved
+				// terms (missing-def, dropped by filter, or just absent
+				// from the WXR) fall through with the inherited set intact
+				// from `copyEntryTerms`.
 				if (createdItem) {
 					try {
-						if (translationOf) {
-							const overriddenTaxonomies = postAssignedTaxonomies(post);
-							for (const taxonomyName of overriddenTaxonomies) {
-								// `setTermsForEntry(name, [])` deletes only
-								// pivot rows for this taxonomy, leaving
-								// other inherited taxonomies untouched.
-								await taxonomyRepo.setTermsForEntry(collection, createdItem.id, taxonomyName, []);
-							}
-						}
-						const written = await attachPostTaxonomies(
-							emdash.db,
-							collection,
-							createdItem.id,
-							post,
-							taxonomyPlan,
-						);
+						const written = translationOf
+							? await setPostTermAssignmentsReplacing(
+									emdash.db,
+									collection,
+									createdItem.id,
+									post,
+									taxonomyPlan,
+								)
+							: await attachPostTaxonomies(
+									emdash.db,
+									collection,
+									createdItem.id,
+									post,
+									taxonomyPlan,
+								);
 						if (result.taxonomies) {
 							result.taxonomies.assignments += written;
 						}

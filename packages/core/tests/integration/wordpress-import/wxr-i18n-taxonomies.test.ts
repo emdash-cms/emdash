@@ -27,6 +27,7 @@ import type { EmDashHandlers, EmDashManifest } from "../../../src/astro/types.js
 import { parseWxrString } from "../../../src/cli/wxr/parser.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
 	mirrorTermsToLocales,
 	preImportWxrTaxonomies,
@@ -574,7 +575,10 @@ describe("WXR import: WPML translations (#1080)", () => {
 			.select(["id"])
 			.where("locale", "=", "en")
 			.executeTakeFirstOrThrow();
-		const enTerms = await repo.getTermsForEntry("post", enRow.id, "category", "ar");
+		// Resolve the English row in its own locale -- the whole point of
+		// the fix is per-locale term lookups (see HIGH #3 in the review).
+		// Querying Arabic on the English row would mask the regression.
+		const enTerms = await repo.getTermsForEntry("post", enRow.id, "category", "en");
 		const enTermSlugs = enTerms.map((t) => t.slug);
 
 		const arRow = await harness.db
@@ -756,5 +760,339 @@ describe("WXR import: taxonomy ingest (#1061)", () => {
 		);
 		expect(second.result.taxonomies?.termsCreated.category ?? 0).toBe(0);
 		expect(second.result.taxonomies?.termsReused.category).toBe(1);
+	});
+
+	it("resolves seeded taxonomy defs via locale fallback chain (#1087 review HIGH #1)", async () => {
+		// The seeded `category` def exists at `locale='en'` (per migration
+		// 006). When i18n is enabled with `defaultLocale: 'en'`, the
+		// fallback chain for any non-en locale ends with `en`, so the
+		// seeded def resolves via the chain. Without this fix the importer
+		// would report `missingTaxonomies: ['category']` and silently drop
+		// every category on every WPML/Polylang import.
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "ar"] });
+		try {
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <wp:category>
+      <wp:term_id>5</wp:term_id>
+      <wp:category_nicename><![CDATA[akhbar]]></wp:category_nicename>
+      <wp:cat_name><![CDATA[Akhbar]]></wp:cat_name>
+    </wp:category>
+    <item>
+      <title>Mərhəba</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>hello-ar</wp:post_name>
+      <category domain="category" nicename="akhbar"><![CDATA[Akhbar]]></category>
+    </item>
+  </channel>
+</rss>`;
+
+			const { result } = await runImport(harness, wxr, { locale: "ar" });
+
+			expect(result.errors).toEqual([]);
+			expect(result.taxonomies?.missingTaxonomies ?? []).not.toContain("category");
+			// The category term was created at the import locale. The mirror
+			// pass also created the canonical-locale row sharing the same
+			// translation_group.
+			const repo = new TaxonomyRepository(harness.db);
+			const arabicCategories = await repo.findByName("category", { locale: "ar" });
+			expect(arabicCategories.some((t) => t.slug === "akhbar")).toBe(true);
+		} finally {
+			setI18nConfig(null);
+		}
+	});
+
+	it("captures per-item category text body as the term label (#1087 review LOW #8)", async () => {
+		// Older / hand-edited WXR exports skip top-level <wp:category>
+		// blocks. Pass-4 backfill should use the per-item `<category>`
+		// element's text body ("Breaking News") as the label, not the slug
+		// ("breaking-news").
+		const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Hello</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>hello</wp:post_name>
+      <category domain="category" nicename="breaking-news"><![CDATA[Breaking News]]></category>
+    </item>
+  </channel>
+</rss>`;
+
+		const { result } = await runImport(harness, wxr, { locale: "en" });
+		expect(result.errors).toEqual([]);
+
+		const repo = new TaxonomyRepository(harness.db);
+		const term = await repo.findBySlug("category", "breaking-news");
+		expect(term).toBeDefined();
+		expect(term?.label).toBe("Breaking News");
+	});
+
+	it("preserves inherited taxonomy when translation's only assignment is filtered out by collections (#1087 review MEDIUM #4)", async () => {
+		// Narrow the seeded `category` def to a different collection. The
+		// anchor's category attaches fine (we updated `collections` to
+		// `["post"]` in setup, so the anchor is fine). To reproduce the
+		// bug we narrow `tag` instead and have anchor + translation
+		// disagree only on `tag`.
+		//
+		// Actually the cleaner construction: narrow `category` to
+		// ["editorials"] (a collection that doesn't exist). Anchor in
+		// `post` collection gets `category` rejected by filter (no
+		// attach). Translation in `post` collection has its own
+		// `<category nicename="events">` -- also rejected. The translation
+		// also has a `<category domain="post_tag" nicename="breaking">`
+		// inherited from anchor (which DID attach because `tag` is still
+		// `["post"]`). Bug: we'd clear all `tag` pivots because the
+		// translation "carried tag" (only resolved tag entries from
+		// resolution count, so this is a subtle interplay).
+		//
+		// Simpler reproduction: narrow `category` collections so the
+		// translation's category attach is filtered out. The translation
+		// also has `<category>` text, so `postAssignedTaxonomies` would
+		// include `category` -- the OLD code would clear inherited
+		// `category` rows. The NEW code uses `resolvePostTermAssignments`
+		// which returns an empty map for `category` (all filtered out),
+		// so `setPostTermAssignmentsReplacing` doesn't touch the
+		// inherited rows.
+		await harness.db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["editorials"]) }) // restricted to a non-existent collection
+			.where("name", "=", "category")
+			.execute();
+
+		const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <wp:category>
+      <wp:term_id>5</wp:term_id>
+      <wp:category_nicename><![CDATA[news]]></wp:category_nicename>
+      <wp:cat_name><![CDATA[News]]></wp:cat_name>
+    </wp:category>
+    <wp:category>
+      <wp:term_id>6</wp:term_id>
+      <wp:category_nicename><![CDATA[events]]></wp:category_nicename>
+      <wp:cat_name><![CDATA[Events]]></wp:cat_name>
+    </wp:category>
+    <wp:tag>
+      <wp:term_id>100</wp:term_id>
+      <wp:tag_slug><![CDATA[breaking]]></wp:tag_slug>
+      <wp:tag_name><![CDATA[Breaking]]></wp:tag_name>
+    </wp:tag>
+    <item>
+      <title>Hello</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>hello</wp:post_name>
+      <category domain="category" nicename="news"><![CDATA[News]]></category>
+      <category domain="post_tag" nicename="breaking"><![CDATA[Breaking]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[en]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>trid</wp:meta_key>
+        <wp:meta_value><![CDATA[42]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+    <item>
+      <title>Mərhəba</title>
+      <wp:post_id>2</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>hello</wp:post_name>
+      <category domain="category" nicename="events"><![CDATA[Events]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[ar]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>trid</wp:meta_key>
+        <wp:meta_value><![CDATA[42]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+		const { result } = await runImport(harness, wxr, { locale: "en" });
+		expect(result.errors).toEqual([]);
+		expect(result.imported).toBe(2);
+
+		const repo = new TaxonomyRepository(harness.db);
+		const arRow = await harness.db
+			.selectFrom("ec_post" as keyof Database)
+			.select(["id"])
+			.where("locale", "=", "ar")
+			.executeTakeFirstOrThrow();
+
+		// `category` is filtered out for the `post` collection so neither
+		// row gets one -- expected.
+		const arCategories = await repo.getTermsForEntry("post", arRow.id, "category", "ar");
+		expect(arCategories).toHaveLength(0);
+
+		// `tag` was inherited from the anchor via copyEntryTerms. The
+		// translation didn't carry its own tag, so inheritance stays
+		// intact.
+		const arTags = await repo.getTermsForEntry("post", arRow.id, "tag", "ar");
+		expect(arTags.map((t) => t.slug)).toEqual(["breaking"]);
+	});
+
+	it("fails closed when a pre-existing locale row has an incompatible translation_group", async () => {
+		// Admin pre-created `category/news` at locale 'en' (the seeded
+		// default). They then manually added a separate `category/news` at
+		// 'ar' that does NOT share the en row's translation_group --
+		// e.g. created via the admin UI before the i18n linkage feature
+		// landed. The mirror pass detects the incompatibility and refuses
+		// to import: leaving the pivots pointing at the canonical's group
+		// would resolve to nothing for the Arabic post.
+		const repo = new TaxonomyRepository(harness.db);
+
+		// Pre-populate. Create an `en` row first (canonical).
+		const enRow = await repo.create({
+			name: "category",
+			slug: "news",
+			label: "News",
+			locale: "en",
+		});
+		// Create an unrelated `ar` row WITHOUT translationOf so it gets a
+		// fresh group.
+		await repo.create({
+			name: "category",
+			slug: "news",
+			label: "Akhbar",
+			locale: "ar",
+		});
+
+		// Sanity: the two rows should have different translation_groups.
+		const en = await repo.findById(enRow.id);
+		const arRow = await repo.findBySlug("category", "news", "ar");
+		expect(en?.translationGroup).not.toBe(arRow?.translationGroup);
+
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "ar"] });
+		try {
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <wp:category>
+      <wp:term_id>5</wp:term_id>
+      <wp:category_nicename><![CDATA[news]]></wp:category_nicename>
+      <wp:cat_name><![CDATA[News]]></wp:cat_name>
+    </wp:category>
+    <item>
+      <title>Hello</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>hello</wp:post_name>
+      <category domain="category" nicename="news"><![CDATA[News]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[en]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>trid</wp:meta_key>
+        <wp:meta_value><![CDATA[42]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+    <item>
+      <title>Mərhəba</title>
+      <wp:post_id>2</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>hello-ar</wp:post_name>
+      <category domain="category" nicename="news"><![CDATA[News]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[ar]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>trid</wp:meta_key>
+        <wp:meta_value><![CDATA[42]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			// Lock in both the error type and the message. The route layer
+			// uses `isWxrTaxonomyConflictError` to distinguish actionable
+			// conflicts from other errors -- if the throw silently changes
+			// to a plain Error, the route would mask the message.
+			await expect(runImport(harness, wxr, { locale: "en" })).rejects.toMatchObject({
+				name: "WxrTaxonomyConflictError",
+				publicMessage: expect.stringMatching(/translation group/i) as unknown as string,
+			});
+		} finally {
+			setI18nConfig(null);
+		}
+	});
+
+	it("uses WPML `trid` rather than `_icl_translation_id` as the group key (#1087 review MEDIUM #2)", async () => {
+		// `trid` is WPML's shared group id (every translation of the same
+		// post shares it). `_icl_translation_id` is per-translation. Two
+		// translations sharing only `trid=42` (different
+		// `_icl_translation_id` values) should still group together.
+		const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Hello</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>hello-en</wp:post_name>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[en]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>_icl_translation_id</wp:meta_key>
+        <wp:meta_value><![CDATA[100]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>trid</wp:meta_key>
+        <wp:meta_value><![CDATA[42]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+    <item>
+      <title>Mərhəba</title>
+      <wp:post_id>2</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:status>publish</wp:status>
+      <wp:post_name>hello-ar</wp:post_name>
+      <wp:postmeta>
+        <wp:meta_key>_icl_lang_code</wp:meta_key>
+        <wp:meta_value><![CDATA[ar]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>_icl_translation_id</wp:meta_key>
+        <wp:meta_value><![CDATA[101]]></wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>trid</wp:meta_key>
+        <wp:meta_value><![CDATA[42]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+		const { result } = await runImport(harness, wxr, { locale: "en" });
+		expect(result.errors).toEqual([]);
+		expect(result.imported).toBe(2);
+
+		const rows = await harness.db
+			.selectFrom("ec_post" as keyof Database)
+			.select(["locale", "translation_group"])
+			.execute();
+		expect(rows).toHaveLength(2);
+		const groups = new Set(rows.map((r) => r.translation_group));
+		// Both posts share the same translation_group because `trid` is
+		// the shared key; before the fix they'd land in two different
+		// groups (per `_icl_translation_id`).
+		expect(groups.size).toBe(1);
 	});
 });
