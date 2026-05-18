@@ -1,3 +1,44 @@
+# Supply-chain hardening.
+minimumReleaseAge: 1440
+# rolldown (vite 8's bundler) exact-pins these to its rc version, so the
+# cooldown has no mature alternative to fall back to and the install dies.
+# Scoped to the binaries/runtime only -- @rolldown/pluginutils etc. stay
+# under the cooldown.
+minimumReleaseAgeExclude:
+  - "@rolldown/binding-*"
+  - "@emnapi/core"
+  - "@emnapi/runtime"
+trustPolicy: no-downgrade
+strictDepBuilds: true
+dangerouslyAllowAllBuilds: false
+blockExoticSubdeps: true
+verifyStoreIntegrity: true
+strictStorePkgContentCheck: true
+verifyDepsBeforeRun: error
+allowBuilds:
+  "@parcel/watcher": true
+  sharp: true
+  core-js-pure: false
+  better-sqlite3: true
+  esbuild: true
+  workerd: true
+# Reviewed benign trust downgrades (publish-method changes, not takeovers).
+trustPolicyExclude:
+  - "vite@6.4.1" # trusted-publisher -> provenance (vitejs CI change)
+  - "chokidar@4.0.3" # provenance -> none (Astro-pinned; pnpm's documented case)
+  - "semver@6.3.1" # provenance -> none (old pinned util via @babel/core)
+  - "@portabletext/toolkit@3.0.3" # provenance -> none (old pinned release)
+  - "reselect@5.1.1" # provenance -> none (old pinned util)
+
+overrides:
+  # blockExoticSubdeps: infra/cache-demo's pkg.pr.new Astro preview pulls
+  # this via URL. Remove when that preview pin is gone.
+  "@astrojs/telemetry": "3.3.0"
+  # 1.3.0 is deprecated (CWE-502); pin the patched line.
+  "@ungap/structured-clone": "^1.3.1"
+
+enablePrePostScripts: true
+
 packages:
   - packages/*
   - packages/plugins/*
@@ -9,12 +50,7 @@ packages:
   - fixtures/*
   - docs
   - i18n
-  - infra/blog-demo
-  - infra/cache-demo
-  - infra/perf-monitor
-  - infra/discord-bot
-  - infra/plugins-site
-
+  - infra/*
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
   "@astrojs/check": ^0.9.7
