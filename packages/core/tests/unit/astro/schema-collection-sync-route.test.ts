@@ -6,7 +6,7 @@ import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
-	describe("schema collection menu sync route", () => {
+describe("schema collection menu sync route", () => {
 	let db: Kysely<Database>;
 	let registry: SchemaRegistry;
 	let menuIdEn: string;

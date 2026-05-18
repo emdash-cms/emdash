@@ -42,6 +42,11 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const body = await parseBody(request, syncBody);
 	if (isParseError(body)) return body;
 
-	const result = await handleSchemaCollectionMenuSync(emdash!.db, slug, body.menuName, localeQ.locale);
+	const result = await handleSchemaCollectionMenuSync(
+		emdash!.db,
+		slug,
+		body.menuName,
+		localeQ.locale,
+	);
 	return unwrapResult(result);
 };

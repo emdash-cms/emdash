@@ -32,8 +32,8 @@ import {
 	Book,
 	GraduationCap,
 	Wrench,
-		Lightbulb,
-	} from "@phosphor-icons/react";
+	Lightbulb,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
