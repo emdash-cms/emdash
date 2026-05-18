@@ -35,9 +35,9 @@ export const infoCommand = defineCommand({
 			description: "Package slug",
 			required: true,
 		},
-		aggregator: {
+		"registry-url": {
 			type: "string",
-			description: "Override aggregator URL",
+			description: "Override registry URL",
 		},
 		json: {
 			type: "boolean",
@@ -45,7 +45,7 @@ export const infoCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
-		const aggregatorUrl = resolveAggregatorUrl(args.aggregator);
+		const aggregatorUrl = resolveAggregatorUrl(args["registry-url"]);
 		const client = new DiscoveryClient({ aggregatorUrl });
 
 		let result;

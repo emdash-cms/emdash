@@ -2,7 +2,7 @@
  * Shared config for the registry CLI.
  *
  * The aggregator URL defaults to the experimental host but can be overridden
- * per-invocation via `--aggregator <url>` or by the `EMDASH_REGISTRY_URL`
+ * per-invocation via `--registry-url <url>` or by the `EMDASH_REGISTRY_URL`
  * env var. We resolve in that order, falling back to the default.
  *
  * EXPERIMENTAL: the default host is provisional. It will be retired and

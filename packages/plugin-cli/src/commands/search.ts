@@ -36,9 +36,9 @@ export const searchCommand = defineCommand({
 			description:
 				"Continuation cursor from a previous search result (printed at the end when more results exist)",
 		},
-		aggregator: {
+		"registry-url": {
 			type: "string",
-			description: "Override aggregator URL (defaults to EMDASH_REGISTRY_URL or experimental host)",
+			description: "Override registry URL (defaults to EMDASH_REGISTRY_URL or experimental host)",
 		},
 		json: {
 			type: "boolean",
@@ -46,7 +46,7 @@ export const searchCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
-		const aggregatorUrl = resolveAggregatorUrl(args.aggregator);
+		const aggregatorUrl = resolveAggregatorUrl(args["registry-url"]);
 		const limit = clamp(parseInt(args.limit, 10) || 25, 1, 100);
 
 		const client = new DiscoveryClient({ aggregatorUrl });
