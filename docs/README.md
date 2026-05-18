@@ -9,9 +9,11 @@ pnpm dev
 ```
 
 If you're running in a remote or API-token-only environment that cannot access the
-Cloudflare AI Search instance, use the local-only Wrangler config instead:
+Cloudflare AI Search instance, keep using `pnpm dev` for local content work and
+use the local-only Wrangler config for built-worker preview checks instead:
 
 ```bash
+pnpm build
 pnpm exec wrangler dev --config wrangler.local.jsonc
 ```
 

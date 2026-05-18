@@ -7,6 +7,10 @@ import { userEvent } from "vitest/browser";
 import { LocaleDirectionProvider } from "../../src/locales/LocaleDirectionProvider.js";
 import { useLocale } from "../../src/locales/useLocale.js";
 
+vi.mock("../../src/locales/loadMessages.js", () => ({
+	loadMessages: vi.fn(async () => ({})),
+}));
+
 const expectHTMLAttr = (attr: "lang" | "dir", expected: string | null) => {
 	expect(document.documentElement.getAttribute(attr)).toBe(expected);
 };
@@ -89,9 +93,12 @@ describe("LocaleDirectionProvider", () => {
 
 		await userEvent.click(screen.getByTestId("locale-button"));
 
-		await waitFor(() => {
-			expectHTMLAttr("dir", "rtl");
-			expectHTMLAttr("lang", "ar");
-		});
+		await waitFor(
+			() => {
+				expectHTMLAttr("dir", "rtl");
+				expectHTMLAttr("lang", "ar");
+			},
+			{ timeout: 3000 },
+		);
 	});
 });

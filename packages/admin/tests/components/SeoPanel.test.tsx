@@ -274,7 +274,7 @@ describe("SeoPanel", () => {
 		expect(onChange).toHaveBeenCalledWith(expectedSeo);
 
 		await new Promise((resolve) => setTimeout(resolve, 700));
-		expect(onChange).toHaveBeenCalled();
+		expect(onChange).toHaveBeenCalledTimes(1);
 		expect(onChange.mock.lastCall?.[0]).toEqual(expectedSeo);
 	});
 });
