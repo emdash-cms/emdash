@@ -61,9 +61,18 @@ async function seedPreMigrationSchema(db: Kysely<Database>): Promise<void> {
 			title_attr TEXT,
 			target TEXT,
 			css_classes TEXT,
-			created_at TEXT DEFAULT (datetime('now'))
+			created_at TEXT DEFAULT (datetime('now')),
+			CONSTRAINT menu_items_menu_fk FOREIGN KEY (menu_id)
+				REFERENCES _emdash_menus(id) ON DELETE CASCADE,
+			CONSTRAINT menu_items_parent_fk FOREIGN KEY (parent_id)
+				REFERENCES _emdash_menu_items(id) ON DELETE CASCADE
 		)
 	`.execute(db);
+
+	await sql`CREATE INDEX idx_menu_items_menu ON _emdash_menu_items(menu_id, sort_order)`.execute(
+		db,
+	);
+	await sql`CREATE INDEX idx_menu_items_parent ON _emdash_menu_items(parent_id)`.execute(db);
 
 	await sql`
 		CREATE TABLE taxonomies (
@@ -305,6 +314,59 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			expect(Number(count.rows[0]?.count ?? 0)).toBe(1);
 		});
 
+		it("preserves _emdash_menu_items rows on D1 (regression for #1021)", async () => {
+			// Same bug class as content_taxonomies: `_emdash_menu_items.menu_id`
+			// has `ON DELETE CASCADE` to `_emdash_menus(id)` from migration 005.
+			// When `rebuildMenus()` drops the old `_emdash_menus` on D1 the
+			// cascade fires and wipes all menu items (including nested children
+			// via the self-FK on parent_id). The fix rebuilds `_emdash_menu_items`
+			// first to physically strip both FKs.
+			await db.destroy();
+			db = createD1LikeDatabase();
+			await seedPreMigrationSchema(db);
+			await sql`INSERT INTO _emdash_menus (id, name, label) VALUES ('main', 'main', 'Main')`.execute(
+				db,
+			);
+			await sql`
+				INSERT INTO _emdash_menu_items (id, menu_id, type, label)
+				VALUES ('top', 'main', 'custom', 'Top')
+			`.execute(db);
+			await sql`
+				INSERT INTO _emdash_menu_items (id, menu_id, parent_id, type, label)
+				VALUES ('child', 'main', 'top', 'custom', 'Child')
+			`.execute(db);
+
+			await up(db);
+
+			const count = await sql<{ count: number }>`
+				SELECT COUNT(*) AS count FROM _emdash_menu_items WHERE menu_id = 'main'
+			`.execute(db);
+			expect(Number(count.rows[0]?.count ?? 0)).toBe(2);
+
+			// Nested item still references its parent.
+			const child = await sql<{ parent_id: string | null }>`
+				SELECT parent_id FROM _emdash_menu_items WHERE id = 'child'
+			`.execute(db);
+			expect(child.rows[0]?.parent_id).toBe("top");
+		});
+
+		it("strips _emdash_menu_items FKs so the menus rebuild is safe", async () => {
+			// Defensive assertion: after up() runs, _emdash_menu_items must
+			// have no FKs to _emdash_menus, otherwise the down() rollback
+			// (which drops _emdash_menus before rebuilding menu_items) would
+			// re-trigger the same cascade on D1.
+			await db.destroy();
+			db = createD1LikeDatabase();
+			await seedPreMigrationSchema(db);
+
+			await up(db);
+
+			const fks = await sql<{ table: string }>`
+				PRAGMA foreign_key_list(_emdash_menu_items)
+			`.execute(db);
+			expect(fks.rows).toHaveLength(0);
+		});
+
 		it("remaps _emdash_menu_items.reference_id for content references", async () => {
 			await sql`INSERT INTO _emdash_collections (slug) VALUES ('posts')`.execute(db);
 			// Pre-existing post whose translation_group was minted by migration 019.
@@ -455,6 +517,30 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			`.execute(db);
 
 			await expect(down(db)).rejects.toThrow(/taxonomies/);
+		});
+
+		it("preserves _emdash_menu_items rows on D1 rollback (regression for #1021)", async () => {
+			// Down() drops _emdash_menus before stripping locale from
+			// _emdash_menu_items. This must not cascade — up() already
+			// removed the FK that would otherwise wipe child rows.
+			await db.destroy();
+			db = createD1LikeDatabase();
+			await seedPreMigrationSchema(db);
+			await sql`INSERT INTO _emdash_menus (id, name, label) VALUES ('main', 'main', 'Main')`.execute(
+				db,
+			);
+			await sql`
+				INSERT INTO _emdash_menu_items (id, menu_id, type, label)
+				VALUES ('top', 'main', 'custom', 'Top')
+			`.execute(db);
+			await up(db);
+
+			await down(db);
+
+			const count = await sql<{ count: number }>`
+				SELECT COUNT(*) AS count FROM _emdash_menu_items WHERE menu_id = 'main'
+			`.execute(db);
+			expect(Number(count.rows[0]?.count ?? 0)).toBe(1);
 		});
 
 		it("refuses to rollback when content_taxonomies has dangling rows", async () => {

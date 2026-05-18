@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 import { ulid } from "ulidx";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
@@ -80,44 +81,18 @@ describe("Navigation Menus", () => {
 			).rejects.toThrow();
 		});
 
-		it("should cascade delete menu items when menu is deleted", async () => {
-			const menuId = ulid();
-			const itemId = ulid();
-
-			// Create menu
-			await db
-				.insertInto("_emdash_menus")
-				.values({
-					id: menuId,
-					name: "test-menu",
-					label: "Test Menu",
-				})
-				.execute();
-
-			// Create menu item
-			await db
-				.insertInto("_emdash_menu_items")
-				.values({
-					id: itemId,
-					menu_id: menuId,
-					sort_order: 0,
-					type: "custom",
-					custom_url: "https://example.com",
-					label: "Test Link",
-				})
-				.execute();
-
-			// Delete menu
-			await db.deleteFrom("_emdash_menus").where("id", "=", menuId).execute();
-
-			// Verify item was deleted
-			const items = await db
-				.selectFrom("_emdash_menu_items")
-				.where("menu_id", "=", menuId)
-				.selectAll()
-				.execute();
-
-			expect(items).toHaveLength(0);
+		it("strips the menu_id FK so DROP TABLE _emdash_menus is safe on D1 (#1021)", async () => {
+			// Migration 036 rebuilds _emdash_menu_items without the
+			// `ON DELETE CASCADE` FKs declared in migration 005. The cascade
+			// on `menu_id` fired on D1 when the i18n migration dropped the
+			// old _emdash_menus, wiping every menu item (#1021). The
+			// application deletes children explicitly anyway
+			// (see MenuRepository.delete), so the FK is no longer
+			// load-bearing.
+			const rows = await sql<{ table: string }>`
+				PRAGMA foreign_key_list(_emdash_menu_items)
+			`.execute(db);
+			expect(rows.rows).toHaveLength(0);
 		});
 	});
 

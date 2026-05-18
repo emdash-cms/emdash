@@ -20,14 +20,23 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	const defaultLocale = getDefaultLocale();
 
 	if (isSqlite(db)) {
-		// Rebuild content_taxonomies first to drop its FK to taxonomies(id).
-		// D1 doesn't honor `PRAGMA foreign_keys = OFF`, and its replacement
-		// `PRAGMA defer_foreign_keys = ON` only defers constraint validation,
-		// not CASCADE actions — so DROP TABLE taxonomies still wipes child
-		// rows (#1021). The FK has to be physically removed before the drop.
+		// Rebuild children before parents to drop FKs that would CASCADE
+		// on D1. D1 enforces FKs but ignores `PRAGMA foreign_keys = OFF`
+		// (the standard SQLite escape), and its replacement
+		// `PRAGMA defer_foreign_keys = ON` only defers constraint
+		// validation, not CASCADE actions — so DROP TABLE <parent> still
+		// wipes child rows (#1021). The FKs have to be physically removed
+		// before the drop.
+		// - `content_taxonomies.taxonomy_id` → `taxonomies(id) ON DELETE CASCADE`
+		// - `_emdash_menu_items.menu_id` → `_emdash_menus(id) ON DELETE CASCADE`
+		// - `_emdash_menu_items.parent_id` → `_emdash_menu_items(id) ON DELETE CASCADE`
+		// Both FKs on `_emdash_menu_items` are stripped during the rebuild.
+		// The runtime (`MenuRepository.delete` / `setItems`) already
+		// performs the child-delete explicitly, so the loss of the cascade
+		// is invisible to callers.
 		await rebuildContentTaxonomies(db);
+		await rebuildMenuItems(db, defaultLocale);
 		await rebuildMenus(db, defaultLocale);
-		await addItemColumns(db, defaultLocale);
 		await rebuildTaxonomies(db, defaultLocale);
 		await rebuildTaxonomyDefs(db, defaultLocale);
 		await remapMenuItemRefs(db);
@@ -78,17 +87,62 @@ async function rebuildMenus(db: Kysely<unknown>, defaultLocale: string): Promise
 		.execute();
 }
 
-async function addItemColumns(db: Kysely<unknown>, defaultLocale: string): Promise<void> {
+async function rebuildMenuItems(db: Kysely<unknown>, defaultLocale: string): Promise<void> {
+	// Full table rebuild rather than ALTER TABLE ADD COLUMN: this strips
+	// the `menu_id` and `parent_id` FKs from migration 005 so the
+	// subsequent `DROP TABLE _emdash_menus` can't cascade-wipe menu items
+	// on D1 (#1021). The FKs were never load-bearing at runtime — D1
+	// disables FK enforcement, and `MenuRepository` always deletes
+	// children explicitly. Mirrors `rebuildContentTaxonomies` below.
 	if (await hasColumn(db, "_emdash_menu_items", "locale")) return;
+	await sql.raw(`DROP TABLE IF EXISTS "_emdash_menu_items_new"`).execute(db);
 
 	await db.schema
-		.alterTable("_emdash_menu_items")
+		.createTable("_emdash_menu_items_new")
+		.addColumn("id", "text", (c) => c.primaryKey())
+		.addColumn("menu_id", "text", (c) => c.notNull())
+		.addColumn("parent_id", "text")
+		.addColumn("sort_order", "integer", (c) => c.notNull().defaultTo(0))
+		.addColumn("type", "text", (c) => c.notNull())
+		.addColumn("reference_collection", "text")
+		.addColumn("reference_id", "text")
+		.addColumn("custom_url", "text")
+		.addColumn("label", "text", (c) => c.notNull())
+		.addColumn("title_attr", "text")
+		.addColumn("target", "text")
+		.addColumn("css_classes", "text")
+		.addColumn("created_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
 		.addColumn("locale", "text", (c) => c.notNull().defaultTo(defaultLocale))
+		.addColumn("translation_group", "text")
 		.execute();
-	await db.schema.alterTable("_emdash_menu_items").addColumn("translation_group", "text").execute();
 
-	await sql`UPDATE _emdash_menu_items SET translation_group = id`.execute(db);
+	await sql`
+		INSERT INTO _emdash_menu_items_new (
+			id, menu_id, parent_id, sort_order, type, reference_collection,
+			reference_id, custom_url, label, title_attr, target, css_classes,
+			created_at, locale, translation_group
+		)
+		SELECT
+			id, menu_id, parent_id, sort_order, type, reference_collection,
+			reference_id, custom_url, label, title_attr, target, css_classes,
+			created_at, ${defaultLocale}, id
+		FROM _emdash_menu_items
+	`.execute(db);
 
+	await db.schema.dropTable("_emdash_menu_items").execute();
+	await sql`ALTER TABLE _emdash_menu_items_new RENAME TO _emdash_menu_items`.execute(db);
+
+	// Indexes from migration 005 are dropped with the underlying table; recreate.
+	await db.schema
+		.createIndex("idx_menu_items_menu")
+		.on("_emdash_menu_items")
+		.columns(["menu_id", "sort_order"])
+		.execute();
+	await db.schema
+		.createIndex("idx_menu_items_parent")
+		.on("_emdash_menu_items")
+		.column("parent_id")
+		.execute();
 	await db.schema
 		.createIndex("idx__emdash_menu_items_locale")
 		.on("_emdash_menu_items")
@@ -317,11 +371,6 @@ function validateSystemIdent(name: string): void {
 }
 
 /**
- * down() is destructive on multi-locale installs (dropping `locale` collapses
- * translated rows onto an ambiguous unique key). Refuse to run when any row
- * sits at a locale other than the configured defaultLocale.
- */
-/**
  * down() restores the FK on content_taxonomies. Rows whose taxonomy_id doesn't
  * resolve to a (translation_group, defaultLocale) pair would fail the rebuild
  * after other tables are already stripped — leaving the user mid-rollback.
@@ -349,6 +398,11 @@ async function assertContentTaxonomiesResolve(
 	}
 }
 
+/**
+ * down() is destructive on multi-locale installs (dropping `locale` collapses
+ * translated rows onto an ambiguous unique key). Refuse to run when any row
+ * sits at a locale other than the configured defaultLocale.
+ */
 async function assertSingleLocale(db: Kysely<unknown>, defaultLocale: string): Promise<void> {
 	const tables = ["_emdash_menus", "_emdash_menu_items", "taxonomies", "_emdash_taxonomy_defs"];
 	for (const table of tables) {
@@ -383,7 +437,8 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 	];
 
 	if (isSqlite(db)) {
-		// Indexes first: a locale index blocks DROP COLUMN on _emdash_menu_items.
+		// Indexes first: the locale index on _emdash_menu_items would
+		// otherwise block its DROP COLUMN.
 		for (const t of widenedTables) {
 			await sql.raw(`DROP INDEX IF EXISTS idx_${t}_locale`).execute(db);
 			await sql.raw(`DROP INDEX IF EXISTS idx_${t}_translation_group`).execute(db);
@@ -391,15 +446,18 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 
 		// Remap content_taxonomies values back to row ids while `taxonomies`
 		// still has `translation_group` + `locale`. No FK is restored yet, so
-		// the subsequent DROP TABLE taxonomies can't cascade on D1 (#1021;
-		// D1's only PRAGMA escape, `defer_foreign_keys`, doesn't suppress
-		// CASCADE actions, only constraint validation).
+		// the subsequent DROP TABLE taxonomies can't cascade on D1 (#1021).
 		await remapContentTaxonomiesDown(db, defaultLocale);
+		// Menus first: safe because up() stripped the cascade FK from
+		// _emdash_menu_items.menu_id, so dropping _emdash_menus doesn't
+		// cascade. The FK from migration 005 is NOT restored on
+		// _emdash_menu_items: the runtime deletes children explicitly,
+		// so the only observable effect of the FK was the #1021 cascade
+		// we're trying to avoid.
 		await rebuildMenusDown(db);
 		await rebuildMenuItemsDown(db);
 		await rebuildTaxonomiesDown(db);
 		await rebuildTaxonomyDefsDown(db);
-		// Now that `taxonomies` is back to its pre-036 shape, restore the FK.
 		await restoreContentTaxonomiesFk(db);
 		return;
 	}
@@ -478,7 +536,9 @@ async function rebuildMenusDown(db: Kysely<unknown>): Promise<void> {
 }
 
 async function rebuildMenuItemsDown(db: Kysely<unknown>): Promise<void> {
-	// No UNIQUE on (locale,…) here, so DROP COLUMN is enough.
+	// No UNIQUE on (locale,…) here, so DROP COLUMN suffices. The migration-005
+	// FKs are NOT restored: up() removed them to fix #1021, and the runtime
+	// already deletes child rows explicitly so the cascade isn't needed.
 	await sql.raw(`ALTER TABLE _emdash_menu_items DROP COLUMN locale`).execute(db);
 	await sql.raw(`ALTER TABLE _emdash_menu_items DROP COLUMN translation_group`).execute(db);
 }
