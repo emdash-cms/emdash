@@ -78,6 +78,46 @@ wrangler deploy
 
 Your site is now live at `https://my-emdash-site.<your-subdomain>.workers.dev`.
 
+## Manage a deployed site via API
+
+Your deployed site exposes EmDash's API under:
+
+```text
+https://my-emdash-site.<your-subdomain>.workers.dev/_emdash/api
+```
+
+If you use a custom domain, replace the hostname and keep the `/_emdash/api` path.
+
+Recommended flow for programmatic content operations:
+
+1. In the admin UI, open **Settings > API tokens** (`/_emdash/admin/settings/api-tokens`).
+2. Create a **Personal Access Token** with the scopes your integration needs.
+3. Copy the token once (it's only shown at creation time).
+4. Call EmDash endpoints with:
+
+```http
+Authorization: Bearer <token>
+```
+
+```bash
+curl -H "Authorization: Bearer <token>" \
+	"https://my-emdash-site.<your-subdomain>.workers.dev/_emdash/api/content/posts"
+
+curl -X POST \
+	-H "Authorization: Bearer <token>" \
+	-H "Content-Type: application/json" \
+	-d '{"slug":"hello","data":{"title":"Hello from deploy"},"status":"draft"}' \
+	"https://my-emdash-site.<your-subdomain>.workers.dev/_emdash/api/content/posts"
+```
+
+For browser-based admin workflows, cookies/sessions also work when requests are made from your site, but external scripts should use tokens.
+
+Infrastructure management is separate: deploy/redeploy, bindings, KV/D1/R2 resources, DNS, and env secrets are handled through Cloudflare tooling (Workers/Pages dashboard, `wrangler`, or Cloudflare API), not EmDash.
+
+MCP clients can also use `/_emdash/api/mcp`, and CLI operations use `emdash` with `--url` and `--token`.
+
+For a full post-deploy operational checklist (smoke checks, token flow, and what stays in Cloudflare tooling), see [Cloudflare Post-Deploy Operations](/runbooks/deployment/cloudflare-post-deploy-operations).
+
 ## Read Replicas
 
 For globally distributed sites, enable D1 read replication to route read queries to nearby replicas instead of always hitting the primary database. This significantly reduces latency for visitors far from the primary region.
