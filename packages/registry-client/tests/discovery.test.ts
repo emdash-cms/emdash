@@ -32,6 +32,10 @@ function buildFetchStub(responses: Record<string, { status: number; body: unknow
 
 describe("DiscoveryClient", () => {
 	const aggregator = "https://aggregator.test";
+	// atcute validates the response envelope; `cid` must be a real DASL CID
+	// (`/^baf[ky]rei[a-z2-7]{52}$/`, 59 chars). Content is irrelevant to these
+	// tests — only the shape is.
+	const CID = `bafyrei${"a".repeat(52)}`;
 
 	it("hits the searchPackages XRPC endpoint with the right query string", async () => {
 		const { fetch, calls } = buildFetchStub({
@@ -113,8 +117,9 @@ describe("DiscoveryClient", () => {
 				status: 200,
 				body: {
 					uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
-					cid: "bafy",
+					cid: CID,
 					did: "did:plc:abc",
+					slug: "gallery",
 					indexedAt: "2026-04-01T00:00:00Z",
 					profile: {},
 				},
@@ -123,8 +128,9 @@ describe("DiscoveryClient", () => {
 				status: 200,
 				body: {
 					uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
-					cid: "bafy",
+					cid: CID,
 					did: "did:plc:abc",
+					slug: "gallery",
 					indexedAt: "2026-04-01T00:00:00Z",
 					profile: {},
 				},
@@ -137,7 +143,9 @@ describe("DiscoveryClient", () => {
 				status: 200,
 				body: {
 					uri: "at://did:plc:abc/com.emdashcms.experimental.package.release/gallery:1.0.0",
-					cid: "bafy",
+					cid: CID,
+					did: "did:plc:abc",
+					package: "gallery",
 					version: "1.0.0",
 					indexedAt: "2026-04-01T00:00:00Z",
 					release: {},
@@ -188,7 +196,7 @@ describe("DiscoveryClient", () => {
 					status: 200,
 					body: {
 						uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
-						cid: "bafy",
+						cid: CID,
 						did: "did:plc:abc",
 						slug: "gallery",
 						indexedAt: "2026-04-01T00:00:00Z",
@@ -216,7 +224,7 @@ describe("DiscoveryClient", () => {
 					status: 200,
 					body: {
 						uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/x",
-						cid: "bafy",
+						cid: CID,
 						did: "did:plc:abc",
 						slug: "x",
 						indexedAt: "2026-04-01T00:00:00Z",
@@ -230,16 +238,22 @@ describe("DiscoveryClient", () => {
 			expect(result.profile).toBeNull();
 		});
 
-		it("returns null for a non-conforming release (fail closed)", async () => {
+		it("returns null for a non-conforming release record (fail closed)", async () => {
+			// The envelope is valid and `release` is an object (lexicon
+			// `unknown` ≈ open object — a non-object is rejected earlier by
+			// envelope validation), but the record itself is missing every
+			// required package-release field, so `validateRelease` → null.
 			const { fetch } = buildFetchStub({
 				"/xrpc/com.emdashcms.experimental.aggregator.getLatestRelease": {
 					status: 200,
 					body: {
 						uri: "at://did:plc:abc/com.emdashcms.experimental.package.release/x:1.0.0",
-						cid: "bafy",
+						cid: CID,
+						did: "did:plc:abc",
+						package: "x",
 						version: "1.0.0",
 						indexedAt: "2026-04-01T00:00:00Z",
-						release: "not even an object",
+						release: { not: "a valid release record" },
 					},
 				},
 			});
@@ -257,7 +271,7 @@ describe("DiscoveryClient", () => {
 					status: 200,
 					body: {
 						uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
-						cid: "bafy",
+						cid: CID,
 						did: "did:plc:abc",
 						slug: "gallery",
 						indexedAt: "2026-04-01T00:00:00Z",
@@ -282,7 +296,7 @@ describe("DiscoveryClient", () => {
 						releases: [
 							{
 								uri: "at://did:plc:abc/com.emdashcms.experimental.package.release/gallery:1.0.0",
-								cid: "bafy",
+								cid: CID,
 								did: "did:plc:abc",
 								package: "gallery",
 								version: "1.0.0",
@@ -291,7 +305,7 @@ describe("DiscoveryClient", () => {
 							},
 							{
 								uri: "at://did:plc:abc/com.emdashcms.experimental.package.release/gallery:0.9.0",
-								cid: "bafz",
+								cid: CID,
 								did: "did:plc:abc",
 								package: "gallery",
 								version: "0.9.0",

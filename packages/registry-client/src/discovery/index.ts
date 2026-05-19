@@ -14,13 +14,14 @@
 
 import { Client, ok, simpleFetchHandler } from "@atcute/client";
 import { safeParse } from "@atcute/lexicons/validations";
-import { PackageProfile, PackageRelease } from "@emdash-cms/registry-lexicons";
-import type {
+import {
 	AggregatorGetLatestRelease,
 	AggregatorGetPackage,
 	AggregatorListReleases,
 	AggregatorResolvePackage,
 	AggregatorSearchPackages,
+	PackageProfile,
+	PackageRelease,
 } from "@emdash-cms/registry-lexicons";
 
 /**
@@ -127,10 +128,17 @@ export interface DiscoveryClientOptions {
  * `atproto-accept-labelers` header threaded through every request. Method
  * names mirror the aggregator's XRPC method names (without the NSID prefix).
  *
- * The embedded signed `profile` / `release` records are validated against
- * their lexicons at this boundary (the aggregator is an untrusted remote
- * index). A non-conforming record is surfaced as `null` rather than passed
- * through, so callers must null-check.
+ * Two layers of validation run at this boundary (the aggregator is an
+ * untrusted remote index):
+ *
+ *   - The **response envelope** (`uri`, `did`, `slug`, `labels`, …) is
+ *     validated by `@atcute/client` against the aggregator method's output
+ *     lexicon. A non-conforming envelope throws `ClientValidationError`.
+ *   - The **embedded signed `profile` / `release` records** — which the
+ *     aggregator relays verbatim and types as `unknown` — are validated
+ *     against the package lexicons here; a non-conforming record is
+ *     surfaced as `null` (callers must null-check) rather than failing the
+ *     whole call, so one bad record doesn't blank a search page.
  *
  * @example
  * ```ts
@@ -181,13 +189,12 @@ export class DiscoveryClient {
 	 * hydrated.
 	 *
 	 * Throws `ClientResponseError` (from `@atcute/client`) on a non-2xx
-	 * response. The error carries `.error`, `.description`, `.status`, and
-	 * `.headers`.
+	 * response (carrying `.error`, `.description`, `.status`, `.headers`), or
+	 * `ClientValidationError` if the aggregator returns a response whose
+	 * envelope does not match the method's output lexicon.
 	 */
 	async searchPackages(params: AggregatorSearchPackages.$params): Promise<ValidatedSearchPackages> {
-		const out = await ok(
-			this.#client.get("com.emdashcms.experimental.aggregator.searchPackages", { params }),
-		);
+		const out = await ok(this.#client.call(AggregatorSearchPackages, { params }));
 		return {
 			...out,
 			packages: out.packages.map((p) => ({ ...p, profile: validateProfile(p.profile) })),
@@ -198,9 +205,7 @@ export class DiscoveryClient {
 	 * Fetch a single package's full hydrated view by its AT URI.
 	 */
 	async getPackage(params: AggregatorGetPackage.$params): Promise<ValidatedPackageView> {
-		const out = await ok(
-			this.#client.get("com.emdashcms.experimental.aggregator.getPackage", { params }),
-		);
+		const out = await ok(this.#client.call(AggregatorGetPackage, { params }));
 		return { ...out, profile: validateProfile(out.profile) };
 	}
 
@@ -209,9 +214,7 @@ export class DiscoveryClient {
 	 * than `getPackage` when you only have human-readable identifiers.
 	 */
 	async resolvePackage(params: AggregatorResolvePackage.$params): Promise<ValidatedPackageView> {
-		const out = await ok(
-			this.#client.get("com.emdashcms.experimental.aggregator.resolvePackage", { params }),
-		);
+		const out = await ok(this.#client.call(AggregatorResolvePackage, { params }));
 		return { ...out, profile: validateProfile(out.profile) };
 	}
 
@@ -222,9 +225,7 @@ export class DiscoveryClient {
 	 * convention "give me the highest non-yanked version".
 	 */
 	async listReleases(params: AggregatorListReleases.$params): Promise<ValidatedListReleases> {
-		const out = await ok(
-			this.#client.get("com.emdashcms.experimental.aggregator.listReleases", { params }),
-		);
+		const out = await ok(this.#client.call(AggregatorListReleases, { params }));
 		return {
 			...out,
 			releases: out.releases.map((r) => ({ ...r, release: validateRelease(r.release) })),
@@ -240,9 +241,7 @@ export class DiscoveryClient {
 	async getLatestRelease(
 		params: AggregatorGetLatestRelease.$params,
 	): Promise<ValidatedReleaseView> {
-		const out = await ok(
-			this.#client.get("com.emdashcms.experimental.aggregator.getLatestRelease", { params }),
-		);
+		const out = await ok(this.#client.call(AggregatorGetLatestRelease, { params }));
 		return { ...out, release: validateRelease(out.release) };
 	}
 }
