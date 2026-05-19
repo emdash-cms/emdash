@@ -11,14 +11,14 @@ const run = (args) => execFileSync("pnpm", args, { stdio: "inherit" });
 // is not gated, so reconcile here, after the action's git work and before
 // any `pnpm changeset` call. Do not hoist this into an earlier workflow
 // step: the action's git reset runs after workflow steps and undoes it.
-// prefer-frozen avoids re-resolving deps when the lockfile is already
-// satisfiable (so published packages, which rebuild via prepublishOnly,
-// match what was tested) but falls back to a full install when it isn't.
-run(["install", "--prefer-frozen-lockfile"]);
+// Must be --no-frozen-lockfile, not --prefer-frozen-lockfile: prefer-frozen
+// can take the lockfile fast path and skip rewriting the stale deps-state
+// hash, which is the exact condition that trips the gate.
+run(["install", "--no-frozen-lockfile"]);
 
 if (mode === "version") {
 	run(["changeset", "version"]);
-	run(["install", "--prefer-frozen-lockfile"]);
+	run(["install", "--no-frozen-lockfile"]);
 } else if (mode === "publish") {
 	run(["changeset", "publish"]);
 } else {
