@@ -13,6 +13,37 @@ function buildMcpServer(env: Env): McpServer {
 		name: "emdash-docs",
 		version: "1.0.0",
 	});
+	const aiSearch = env.AI_SEARCH;
+	if (!aiSearch) {
+		server.registerTool(
+			"search_docs",
+			{
+				title: "Search EmDash documentation",
+				description:
+					"Search the EmDash CMS documentation. This endpoint is not configured in this environment.",
+				inputSchema: {
+					query: z.string().min(1).max(1000).describe("Query to run against docs indexing."),
+					max_results: z
+						.number()
+						.int()
+						.min(1)
+						.max(20)
+						.optional()
+						.describe("Maximum number of chunks to return. Defaults to 8."),
+				},
+			},
+			async () => ({
+				content: [
+					{
+						type: "text",
+						text: "Docs search is unavailable in this environment. Configure Cloudflare AI Search in the Workers binding to enable this tool.",
+					},
+				],
+			}),
+		);
+
+		return server;
+	}
 
 	server.registerTool(
 		"search_docs",
@@ -38,7 +69,7 @@ function buildMcpServer(env: Env): McpServer {
 		async ({ query, max_results }) => {
 			const limit = max_results ?? 8;
 
-			const results = await env.AI_SEARCH.search({
+			const results = await aiSearch.search({
 				messages: [{ role: "user", content: query }],
 				ai_search_options: {
 					retrieval: { max_num_results: limit },
