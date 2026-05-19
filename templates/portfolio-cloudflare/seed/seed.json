@@ -15,6 +15,7 @@
 			"slug": "projects",
 			"label": "Projects",
 			"labelSingular": "Project",
+			"urlPattern": "/work/{slug}",
 			"supports": ["drafts", "revisions", "search", "seo"],
 			"fields": [
 				{
