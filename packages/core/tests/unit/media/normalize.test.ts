@@ -58,10 +58,7 @@ describe("normalizeMediaValue", () => {
 		};
 		const local = mockProvider(providerItem);
 
-		const result = await normalizeMediaValue(
-			"01KRZKN0BK219P9HBMPYYGYRHY",
-			getProvider({ local }),
-		);
+		const result = await normalizeMediaValue("01KRZKN0BK219P9HBMPYYGYRHY", getProvider({ local }));
 
 		expect(local.get).toHaveBeenCalledWith("01KRZKN0BK219P9HBMPYYGYRHY");
 		expect(result).toEqual({
