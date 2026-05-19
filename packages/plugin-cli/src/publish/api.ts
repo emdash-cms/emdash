@@ -93,10 +93,14 @@ export interface PublishLogger {
 }
 
 /**
- * Identity fields supplied at publish time. Used only on first publish, when
- * we bootstrap the `package.profile` record. On subsequent publishes the
- * existing profile wins; any of these passed are ignored, with a warning
- * collected under `result.ignoredProfileFields`.
+ * Flat identity fields supplied at publish time.
+ *
+ * @deprecated Prefer {@link ProfileInput} via `PublishOptions.profileInput`,
+ * which mirrors the lexicon's profile block (multi-author, multi-security,
+ * name, description, keywords). This flat shape only models a single author
+ * and a single security contact and is kept for the deprecated `--author-*` /
+ * `--security-*` CLI flags and existing programmatic callers. When both
+ * `profileInput` and `profile` are passed, `profileInput` wins.
  */
 export interface ProfileBootstrap {
 	/** SPDX license expression. Required on first publish. */
@@ -106,6 +110,26 @@ export interface ProfileBootstrap {
 	authorEmail?: string;
 	securityEmail?: string;
 	securityUrl?: string;
+}
+
+/**
+ * Structured profile block, mirroring the `com.emdashcms.experimental
+ * .package.profile` lexicon. Used only on first publish, when we bootstrap
+ * the profile record. On subsequent publishes the existing profile wins; any
+ * provided fields are ignored, reported under `result.ignoredProfileFields`.
+ *
+ * `authors` / `security` are arrays (the lexicon allows 1–32 authors and
+ * 1–8 security contacts). At least one security contact carrying a `url` or
+ * `email` is required on first publish.
+ */
+export interface ProfileInput {
+	/** SPDX license expression. Required on first publish. */
+	license?: string;
+	authors?: Array<{ name: string; url?: string; email?: string }>;
+	security?: Array<{ url?: string; email?: string }>;
+	name?: string;
+	description?: string;
+	keywords?: string[];
 }
 
 export interface PublishOptions {
@@ -119,8 +143,25 @@ export interface PublishOptions {
 	checksum: string;
 	/** Public URL where the tarball is hosted. */
 	url: string;
-	/** Identity fields used when bootstrapping a new profile. */
+	/**
+	 * Structured profile block used when bootstrapping a new profile.
+	 * Preferred over `profile`; when both are set, this wins entirely.
+	 */
+	profileInput?: ProfileInput;
+	/**
+	 * Flat identity fields used when bootstrapping a new profile.
+	 *
+	 * @deprecated Pass `profileInput` instead. Retained for the deprecated
+	 * `--author-*` / `--security-*` CLI flags and existing programmatic
+	 * callers. Ignored when `profileInput` is provided.
+	 */
 	profile?: ProfileBootstrap;
+	/**
+	 * Source-repository URL for this release (`release.repo` in the
+	 * lexicon). Written to every release record when set — releases are
+	 * immutable per version, so this is not a first-publish-only field.
+	 */
+	repo?: string;
 	/**
 	 * Allow overwriting an existing release at `<slug>:<version>`. Default
 	 * is `false`, which causes publish to refuse with `RELEASE_ALREADY_PUBLISHED`.
@@ -186,6 +227,9 @@ interface PackageProfileRecordShape {
 	security: Array<{ url?: string; email?: string }>;
 	slug: string;
 	lastUpdated: string;
+	name?: string;
+	description?: string;
+	keywords?: string[];
 }
 
 interface PackageReleaseRecordShape {
@@ -199,6 +243,8 @@ interface PackageReleaseRecordShape {
 			contentType?: string;
 		};
 	};
+	/** Source-repository URL (`release.repo`). Omitted when not provided. */
+	repo?: string;
 	/**
 	 * Open-union extension container, keyed by NSID. Releases of type
 	 * `emdash-plugin` MUST include a `releaseExtension` entry carrying the
@@ -351,6 +397,9 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 			[NSID.packageReleaseExtension]: releaseExtension,
 		},
 	};
+	if (options.repo !== undefined) {
+		releaseRecord.repo = options.repo;
+	}
 
 	type WriteOp =
 		| {
@@ -380,11 +429,18 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 
 	const writes: WriteOp[] = [];
 
+	// `profileInput` (structured, mirrors the lexicon) wins over the
+	// deprecated flat `profile`. We keep the raw inputs around for the
+	// ignored-fields report so a flat-flag caller still sees flat field
+	// names in the warning.
+	const usedStructured = options.profileInput !== undefined;
+	const resolvedProfile = resolveProfileInput(options);
+
 	if (profileCreated) {
 		const profileRecord = buildProfileRecord({
 			slug,
 			profileUri,
-			profile: options.profile,
+			profile: resolvedProfile,
 		});
 		writes.push({
 			op: "create",
@@ -394,7 +450,11 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		});
 		log.info?.(`Bootstrapping profile: ${profileUri}`);
 	} else {
-		ignoredProfileFields.push(...listProvidedProfileFields(options.profile));
+		ignoredProfileFields.push(
+			...(usedStructured
+				? listProvidedProfileInputFields(options.profileInput)
+				: listProvidedProfileFields(options.profile)),
+		);
 		// Bump `lastUpdated` on the existing profile so aggregators ordering
 		// by it see this publish. The user's first-publish-only flags are
 		// still ignored (the existing profile owns identity/license/security),
@@ -716,9 +776,9 @@ function stampLastUpdated(existingValue: unknown): PackageProfileRecordShape | n
 function buildProfileRecord(input: {
 	slug: string;
 	profileUri: string;
-	profile: ProfileBootstrap | undefined;
+	profile: ProfileInput;
 }): PackageProfileRecordShape {
-	const profile = input.profile ?? {};
+	const profile = input.profile;
 	if (!profile.license) {
 		throw new PublishError(
 			"PROFILE_BOOTSTRAP_MISSING_FIELD",
@@ -726,34 +786,100 @@ function buildProfileRecord(input: {
 			{ field: "license" },
 		);
 	}
-	if (!profile.securityEmail && !profile.securityUrl) {
+
+	// Drop entries the lexicon would reject (a contact MUST carry url or
+	// email) and re-build clean objects so an undefined key never reaches
+	// the record.
+	const security: Array<{ url?: string; email?: string }> = [];
+	for (const c of profile.security ?? []) {
+		const entry: { url?: string; email?: string } = {};
+		if (c.email) entry.email = c.email;
+		if (c.url) entry.url = c.url;
+		if (entry.email || entry.url) security.push(entry);
+	}
+	if (security.length === 0) {
 		throw new PublishError(
 			"PROFILE_BOOTSTRAP_MISSING_FIELD",
-			"securityEmail or securityUrl is required on first publish. Clients refuse to install packages without a security contact.",
+			"at least one security contact with a url or email is required on first publish. Clients refuse to install packages without a security contact.",
 			{ field: "security" },
 		);
 	}
 
-	const author: { name: string; url?: string; email?: string } = {
-		name: profile.authorName ?? "unknown",
-	};
-	if (profile.authorUrl) author.url = profile.authorUrl;
-	if (profile.authorEmail) author.email = profile.authorEmail;
+	const authors: Array<{ name: string; url?: string; email?: string }> = [];
+	for (const a of profile.authors ?? []) {
+		const entry: { name: string; url?: string; email?: string } = { name: a.name };
+		if (a.url) entry.url = a.url;
+		if (a.email) entry.email = a.email;
+		authors.push(entry);
+	}
+	// The lexicon requires at least one author. A caller that supplied no
+	// authors (e.g. the deprecated flag path with no --author-* flags) gets
+	// a single placeholder, preserving prior behaviour.
+	if (authors.length === 0) authors.push({ name: "unknown" });
 
-	const securityContact: { url?: string; email?: string } = {};
-	if (profile.securityEmail) securityContact.email = profile.securityEmail;
-	if (profile.securityUrl) securityContact.url = profile.securityUrl;
-
-	return {
+	const record: PackageProfileRecordShape = {
 		$type: NSID.packageProfile,
 		id: input.profileUri,
 		type: "emdash-plugin",
 		license: profile.license,
-		authors: [author],
-		security: [securityContact],
+		authors,
+		security,
 		slug: input.slug,
 		lastUpdated: new Date().toISOString(),
 	};
+	if (profile.name !== undefined) record.name = profile.name;
+	if (profile.description !== undefined) record.description = profile.description;
+	if (profile.keywords !== undefined && profile.keywords.length > 0) {
+		record.keywords = profile.keywords;
+	}
+	return record;
+}
+
+/**
+ * Resolve the effective profile block. `profileInput` (structured, mirrors
+ * the lexicon) wins entirely when present; otherwise the deprecated flat
+ * `profile` is adapted to the same shape so the rest of the pipeline only
+ * deals with `ProfileInput`.
+ */
+function resolveProfileInput(options: PublishOptions): ProfileInput {
+	if (options.profileInput !== undefined) return options.profileInput;
+	return profileBootstrapToInput(options.profile);
+}
+
+function profileBootstrapToInput(flat: ProfileBootstrap | undefined): ProfileInput {
+	const b = flat ?? {};
+	const input: ProfileInput = {};
+	if (b.license !== undefined) input.license = b.license;
+	if (b.authorName !== undefined || b.authorUrl !== undefined || b.authorEmail !== undefined) {
+		const a: { name: string; url?: string; email?: string } = { name: b.authorName ?? "unknown" };
+		if (b.authorUrl) a.url = b.authorUrl;
+		if (b.authorEmail) a.email = b.authorEmail;
+		input.authors = [a];
+	}
+	if (b.securityEmail !== undefined || b.securityUrl !== undefined) {
+		const c: { url?: string; email?: string } = {};
+		if (b.securityEmail) c.email = b.securityEmail;
+		if (b.securityUrl) c.url = b.securityUrl;
+		input.security = [c];
+	}
+	return input;
+}
+
+/**
+ * Names of structured profile fields the caller supplied, for the
+ * ignored-on-subsequent-publish report. A field counts as provided when it
+ * is set and (for arrays) non-empty.
+ */
+function listProvidedProfileInputFields(input: ProfileInput | undefined): string[] {
+	if (!input) return [];
+	const fields: string[] = [];
+	if (input.license !== undefined) fields.push("license");
+	if (input.name !== undefined) fields.push("name");
+	if (input.description !== undefined) fields.push("description");
+	if (input.keywords !== undefined && input.keywords.length > 0) fields.push("keywords");
+	if (input.authors !== undefined && input.authors.length > 0) fields.push("authors");
+	if (input.security !== undefined && input.security.length > 0) fields.push("security");
+	return fields;
 }
 
 /**

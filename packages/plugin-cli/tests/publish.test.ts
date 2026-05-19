@@ -460,4 +460,121 @@ describe("publishRelease", () => {
 			});
 		});
 	});
+
+	describe("structured profileInput (manifest package block)", () => {
+		it("writes name, description, keywords, multi-author and multi-security on first publish", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(
+				buildOptions(pds, {
+					profile: undefined,
+					profileInput: {
+						license: "Apache-2.0",
+						name: "Acme Forms",
+						description: "Contact forms for EmDash.",
+						keywords: ["forms", "contact"],
+						authors: [
+							{ name: "Acme Co.", url: "https://acme.example" },
+							{ name: "Jane Doe", email: "jane@acme.example" },
+						],
+						security: [
+							{ email: "security@acme.example" },
+							{ url: "https://acme.example/security" },
+						],
+					},
+				}),
+			);
+
+			const profile = pds.records.get(`at://${TEST_DID}/${NSID.packageProfile}/test-plugin`);
+			const value = profile!.value as {
+				license: string;
+				name?: string;
+				description?: string;
+				keywords?: string[];
+				authors: Array<{ name: string; url?: string; email?: string }>;
+				security: Array<{ url?: string; email?: string }>;
+			};
+			expect(value.license).toBe("Apache-2.0");
+			expect(value.name).toBe("Acme Forms");
+			expect(value.description).toBe("Contact forms for EmDash.");
+			expect(value.keywords).toEqual(["forms", "contact"]);
+			expect(value.authors).toHaveLength(2);
+			expect(value.authors[1]).toMatchObject({ name: "Jane Doe", email: "jane@acme.example" });
+			expect(value.security).toHaveLength(2);
+			expect(value.security[1]).toMatchObject({ url: "https://acme.example/security" });
+		});
+
+		it("omits name, description and keywords when not provided", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(
+				buildOptions(pds, {
+					profile: undefined,
+					profileInput: {
+						license: "MIT",
+						authors: [{ name: "Solo" }],
+						security: [{ email: "s@example.com" }],
+					},
+				}),
+			);
+			const profile = pds.records.get(`at://${TEST_DID}/${NSID.packageProfile}/test-plugin`);
+			const value = profile!.value as Record<string, unknown>;
+			expect("name" in value).toBe(false);
+			expect("description" in value).toBe(false);
+			expect("keywords" in value).toBe(false);
+		});
+
+		it("hard-fails when no security contact is provided", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await expect(
+				publishRelease(
+					buildOptions(pds, {
+						profile: undefined,
+						profileInput: { license: "MIT", authors: [{ name: "A" }], security: [] },
+					}),
+				),
+			).rejects.toMatchObject({ name: "PublishError", code: "PROFILE_BOOTSTRAP_MISSING_FIELD" });
+			expect(pds.records.size).toBe(0);
+		});
+
+		it("reports structured field names as ignored on a subsequent publish", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			pds.seedRecord(NSID.packageProfile, "test-plugin", {});
+			const result = await publishRelease(
+				buildOptions(pds, {
+					profile: undefined,
+					profileInput: {
+						license: "MIT",
+						name: "Renamed",
+						authors: [{ name: "A" }],
+						security: [{ email: "s@example.com" }],
+					},
+				}),
+			);
+			expect(result.profileCreated).toBe(false);
+			expect(result.ignoredProfileFields.toSorted()).toEqual([
+				"authors",
+				"license",
+				"name",
+				"security",
+			]);
+		});
+	});
+
+	describe("release repo", () => {
+		it("writes the repo URL into the release record when provided", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(
+				buildOptions(pds, { repo: "https://github.com/acme/emdash-forms/tree/v1.0.0" }),
+			);
+			const release = pds.records.get(`at://${TEST_DID}/${NSID.packageRelease}/test-plugin:1.0.0`);
+			const value = release!.value as { repo?: string };
+			expect(value.repo).toBe("https://github.com/acme/emdash-forms/tree/v1.0.0");
+		});
+
+		it("omits repo from the release record when not provided", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(buildOptions(pds));
+			const release = pds.records.get(`at://${TEST_DID}/${NSID.packageRelease}/test-plugin:1.0.0`);
+			expect("repo" in (release!.value as Record<string, unknown>)).toBe(false);
+		});
+	});
 });

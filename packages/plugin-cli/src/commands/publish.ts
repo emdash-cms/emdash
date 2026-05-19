@@ -32,7 +32,7 @@ import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/util
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
 import { checkPublisher, PublisherCheckError, writePublisherBack } from "../manifest/publisher.js";
 import {
-	manifestToProfileBootstrap,
+	manifestToProfileInput,
 	normaliseManifest,
 	type NormalisedManifest,
 } from "../manifest/translate.js";
@@ -41,7 +41,7 @@ import { resumeSession } from "../oauth.js";
 import {
 	PublishError,
 	publishRelease,
-	type ProfileBootstrap,
+	type ProfileInput,
 	type PublishLogger,
 } from "../publish/api.js";
 
@@ -74,27 +74,30 @@ export const publishCommand = defineCommand({
 		license: {
 			type: "string",
 			description:
-				"SPDX license expression. Required on first publish; ignored thereafter (the existing profile wins)",
+				"(deprecated: set `license` in emdash-plugin.jsonc) SPDX license expression. Required on first publish; ignored thereafter (the existing profile wins). Overrides the manifest value when both are present.",
 		},
 		"author-name": {
 			type: "string",
-			description: "Author display name (first publish only)",
+			description:
+				"(deprecated: set `author`/`authors` in emdash-plugin.jsonc) Author display name (first publish only). Overrides the manifest authors when any --author-* flag is present.",
 		},
 		"author-url": {
 			type: "string",
-			description: "Author URL (first publish only)",
+			description: "(deprecated: use emdash-plugin.jsonc) Author URL (first publish only)",
 		},
 		"author-email": {
 			type: "string",
-			description: "Author email (first publish only)",
+			description: "(deprecated: use emdash-plugin.jsonc) Author email (first publish only)",
 		},
 		"security-email": {
 			type: "string",
-			description: "Security contact email. Required on first publish; ignored thereafter",
+			description:
+				"(deprecated: set `security`/`securityContacts` in emdash-plugin.jsonc) Security contact email. Required on first publish; ignored thereafter. Overrides the manifest security contacts when any --security-* flag is present.",
 		},
 		"security-url": {
 			type: "string",
-			description: "Security contact URL (first publish only)",
+			description:
+				"(deprecated: use emdash-plugin.jsonc) Security contact URL (first publish only)",
 		},
 		manifest: {
 			type: "string",
@@ -175,7 +178,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	// error: legacy flag-only invocations keep working. Only `--manifest`
 	// explicit-not-found is an error.
 	const manifestLoad = await loadManifestBootstrap(args, consola);
-	const manifestBase = manifestLoad?.bootstrap ?? null;
+	const manifestProfile = manifestLoad?.profileInput ?? null;
 
 	// Resume the active publisher session BEFORE any network access.
 	// The publisher-mismatch check below depends only on the session DID
@@ -254,22 +257,44 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		pds: session.pds,
 	});
 
-	// Build the final ProfileBootstrap. Layer ordering:
-	//   1. manifest values (if any) at the bottom
-	//   2. flag values on top (explicit caller intent wins)
-	// Each layer only writes a key when the caller provided it; missing
-	// keys remain missing so the API's "required on first publish" checks
-	// fire at the right time. Spreading `null` is a no-op, so the
-	// no-manifest path doesn't need a fallback object.
-	const profile: ProfileBootstrap = {
-		...manifestBase,
-		...(args.license !== undefined ? { license: args.license } : {}),
-		...(args["author-name"] !== undefined ? { authorName: args["author-name"] } : {}),
-		...(args["author-url"] !== undefined ? { authorUrl: args["author-url"] } : {}),
-		...(args["author-email"] !== undefined ? { authorEmail: args["author-email"] } : {}),
-		...(args["security-email"] !== undefined ? { securityEmail: args["security-email"] } : {}),
-		...(args["security-url"] !== undefined ? { securityUrl: args["security-url"] } : {}),
-	};
+	// Resolve the profile block. The manifest is the base; the deprecated
+	// flat flags override on top (explicit caller intent wins). A single
+	// --author-* / --security-* flag replaces the whole corresponding
+	// manifest list — the flat flags only ever model one entry, so merging
+	// them into a multi-entry list would be ambiguous.
+	const profileInput: ProfileInput = { ...manifestProfile };
+	if (args.license !== undefined) profileInput.license = args.license;
+	if (
+		args["author-name"] !== undefined ||
+		args["author-url"] !== undefined ||
+		args["author-email"] !== undefined
+	) {
+		const author: { name: string; url?: string; email?: string } = {
+			name: args["author-name"] ?? "unknown",
+		};
+		if (args["author-url"] !== undefined) author.url = args["author-url"];
+		if (args["author-email"] !== undefined) author.email = args["author-email"];
+		profileInput.authors = [author];
+	}
+	if (args["security-email"] !== undefined || args["security-url"] !== undefined) {
+		const contact: { url?: string; email?: string } = {};
+		if (args["security-email"] !== undefined) contact.email = args["security-email"];
+		if (args["security-url"] !== undefined) contact.url = args["security-url"];
+		profileInput.security = [contact];
+	}
+
+	const usedDeprecatedFlags =
+		args.license !== undefined ||
+		args["author-name"] !== undefined ||
+		args["author-url"] !== undefined ||
+		args["author-email"] !== undefined ||
+		args["security-email"] !== undefined ||
+		args["security-url"] !== undefined;
+	if (usedDeprecatedFlags) {
+		consola.warn(
+			"The --license / --author-* / --security-* flags are deprecated. Declare these in emdash-plugin.jsonc instead; the flags will be removed in a future release.",
+		);
+	}
 
 	const logger: PublishLogger = {
 		info: (m) => consola.info(m),
@@ -283,7 +308,8 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		manifest,
 		checksum,
 		url: args.url,
-		profile,
+		profileInput,
+		repo: manifestLoad?.manifest.repo,
 		allowOverwrite: args["allow-overwrite"],
 		logger,
 	});
@@ -308,11 +334,13 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		});
 	}
 
-	// Subsequent-publish: warn about ignored first-publish-only flags.
+	// Subsequent-publish: warn about ignored first-publish-only profile
+	// fields. These are owned by the existing profile record; a republish
+	// doesn't rewrite them.
 	if (!result.profileCreated && result.ignoredProfileFields.length > 0) {
-		const flags = result.ignoredProfileFields.map(profileFieldToFlag).join(", ");
+		const fields = result.ignoredProfileFields.join(", ");
 		consola.warn(
-			`Ignored on subsequent publish (existing profile wins): ${flags}. Profile updates aren't supported yet; edit the record directly via your PDS for now.`,
+			`Ignored on subsequent publish (existing profile wins): ${fields}. Editing an existing profile isn't supported yet (#1032); update the record directly via your PDS for now.`,
 		);
 	}
 
@@ -411,7 +439,7 @@ type PublishArgs = {
 
 /**
  * Result of resolving the manifest for `runPublish`. Surfaces both the
- * derived ProfileBootstrap (the publish API's input) and the normalised
+ * derived ProfileInput (the publish API's input) and the normalised
  * manifest itself, so downstream code can run the publisher-pin check
  * and the post-publish write-back without re-parsing the file.
  */
@@ -420,8 +448,8 @@ interface ManifestLoadOutcome {
 	path: string;
 	/** Normalised manifest (single/multi-author forms collapsed). */
 	manifest: NormalisedManifest;
-	/** Bridged ProfileBootstrap for the legacy publish-API input. */
-	bootstrap: ProfileBootstrap;
+	/** Structured profile block for the publish-API input. */
+	profileInput: ProfileInput;
 }
 
 /**
@@ -479,7 +507,7 @@ async function loadManifestBootstrap(
 		return {
 			path: resolvedPath,
 			manifest: normalised,
-			bootstrap: manifestToProfileBootstrap(normalised),
+			profileInput: manifestToProfileInput(normalised),
 		};
 	} catch (error) {
 		if (error instanceof ManifestError) {
@@ -1140,21 +1168,4 @@ function describeJsonValue(value: unknown): string {
 	if (value === null) return "null";
 	if (Array.isArray(value)) return "array";
 	return typeof value;
-}
-
-/**
- * Map a `ProfileBootstrap` field name back to the user-facing CLI flag for
- * warnings. Keeps the API-side names internal-friendly while the CLI surface
- * stays kebab-case.
- */
-function profileFieldToFlag(field: string): string {
-	const map: Record<string, string> = {
-		license: "--license",
-		authorName: "--author-name",
-		authorUrl: "--author-url",
-		authorEmail: "--author-email",
-		securityEmail: "--security-email",
-		securityUrl: "--security-url",
-	};
-	return map[field] ?? `--${field}`;
 }

@@ -159,9 +159,16 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 	// Always link by handle when we have one (cleaner URL), DID
 	// otherwise. The detail page accepts either.
 	const linkSegment = handleResult.handle ?? pkg.did;
-	// `profile` is a pass-through of the signed package profile record.
-	// We duck-type minimal display fields out of it.
-	const profile = pkg.profile as { name?: string; description?: string };
+	// `profile` is a pass-through of the signed package profile record from
+	// the aggregator (untrusted, typed `unknown`). Take only well-typed
+	// strings: a non-string `name`/`description`/`license` (object/array)
+	// would throw React's "objects are not valid as a child" and white-screen
+	// the browse grid.
+	const profileRaw = pkg.profile as Record<string, unknown> | undefined;
+	const name = typeof profileRaw?.name === "string" ? profileRaw.name : undefined;
+	const description =
+		typeof profileRaw?.description === "string" ? profileRaw.description : undefined;
+	const license = typeof profileRaw?.license === "string" ? profileRaw.license : undefined;
 	const verified = (pkg.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
 	return (
@@ -176,7 +183,7 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 				</div>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
-						<h2 className="truncate font-semibold">{profile.name ?? pkg.slug}</h2>
+						<h2 className="truncate font-semibold">{name ?? pkg.slug}</h2>
 						{verified ? (
 							<ShieldCheck
 								className="h-4 w-4 shrink-0 text-kumo-brand"
@@ -186,9 +193,10 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 					</div>
 					<PublisherHandle did={pkg.did} aggregatorHandle={pkg.handle} variant="card" />
 
-					{profile.description ? (
-						<p className="mt-2 line-clamp-2 text-sm text-kumo-default">{profile.description}</p>
+					{description ? (
+						<p className="mt-2 line-clamp-2 text-sm text-kumo-default">{description}</p>
 					) : null}
+					{license ? <p className="mt-2 text-xs text-kumo-subtle">{license}</p> : null}
 					{installed ? (
 						<div className="mt-3">
 							<Badge variant="success">{t`Installed`}</Badge>

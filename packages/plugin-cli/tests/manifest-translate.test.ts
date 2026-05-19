@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	manifestToProfileBootstrap,
+	manifestToProfileInput,
 	normaliseManifest,
 	type NormalisedManifest,
 } from "../src/manifest/translate.js";
@@ -148,5 +149,65 @@ describe("manifestToProfileBootstrap", () => {
 		};
 		const bootstrap = manifestToProfileBootstrap(normalised);
 		expect(bootstrap.authorName).toBe("First");
+	});
+});
+
+describe("manifestToProfileInput", () => {
+	it("carries the full lexicon profile block (multi-author, multi-security)", () => {
+		const normalised: NormalisedManifest = {
+			slug: "test",
+			version: "0.1.0",
+			license: "Apache-2.0",
+			publisher: "did:plc:abc",
+			authors: [
+				{ name: "Jane", url: "https://example.com" },
+				{ name: "Bob", email: "bob@example.com" },
+			],
+			securityContacts: [{ email: "s@example.com" }, { url: "https://example.com/sec" }],
+			name: "Test",
+			description: "desc",
+			keywords: ["k1", "k2"],
+			repo: "https://github.com/example/p",
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			admin: { pages: [], widgets: [] },
+		};
+		const input = manifestToProfileInput(normalised);
+		expect(input.license).toBe("Apache-2.0");
+		expect(input.authors).toEqual([
+			{ name: "Jane", url: "https://example.com" },
+			{ name: "Bob", email: "bob@example.com" },
+		]);
+		expect(input.security).toEqual([
+			{ email: "s@example.com" },
+			{ url: "https://example.com/sec" },
+		]);
+		expect(input.name).toBe("Test");
+		expect(input.description).toBe("desc");
+		expect(input.keywords).toEqual(["k1", "k2"]);
+	});
+
+	it("omits name, description and keywords when the manifest doesn't set them", () => {
+		const normalised: NormalisedManifest = {
+			slug: "test",
+			version: "0.1.0",
+			license: "MIT",
+			publisher: "did:plc:abc",
+			authors: [{ name: "Solo" }],
+			securityContacts: [{ email: "s@example.com" }],
+			name: undefined,
+			description: undefined,
+			keywords: undefined,
+			repo: undefined,
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			admin: { pages: [], widgets: [] },
+		};
+		const input = manifestToProfileInput(normalised);
+		expect("name" in input).toBe(false);
+		expect("description" in input).toBe(false);
+		expect("keywords" in input).toBe(false);
 	});
 });
