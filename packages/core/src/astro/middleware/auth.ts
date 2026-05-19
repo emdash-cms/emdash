@@ -302,7 +302,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 		const response = await next();
 		if (!import.meta.env.DEV) {
-			response.headers.set("Content-Security-Policy", buildEmDashCsp());
+			response.headers.set(
+				"Content-Security-Policy",
+				buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+			);
 		}
 		return response;
 	}
@@ -311,7 +314,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	// Set strict CSP on all /_emdash responses (prod only)
 	if (!import.meta.env.DEV) {
-		response.headers.set("Content-Security-Policy", buildEmDashCsp());
+		response.headers.set(
+			"Content-Security-Policy",
+			buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+		);
 	}
 
 	return response;
