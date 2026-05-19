@@ -112,55 +112,40 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// different permissions list than another publisher would for the
 	// same RFC-0001 fields.
 	const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
-	const releaseDoc = release?.release as
-		| {
-				extensions?: Record<string, { declaredAccess?: unknown; capabilities?: unknown }>;
-		  }
+	// `release` is lexicon-validated at the boundary; `extensions` is the
+	// lexicon's open `unknown` map, so its inner shape still needs narrowing.
+	const extensions = release?.release?.extensions as
+		| Record<string, { declaredAccess?: unknown; capabilities?: unknown }>
 		| undefined;
-	const ext = releaseDoc?.extensions?.[RELEASE_EXTENSION_NSID];
+	const ext = extensions?.[RELEASE_EXTENSION_NSID];
 
 	const capabilities: string[] = Array.isArray(ext?.capabilities)
 		? canonicalCapabilitiesForDriftCheck(ext?.capabilities)
 		: canonicalCapabilitiesForDriftCheck(declaredAccessToCapabilityList(ext?.declaredAccess));
 
-	// `profile` / `release` are pass-throughs of the signed records, typed
-	// `unknown` from the aggregator (a remote, untrusted service). Parse the
-	// fields we render defensively: a string masquerading as `authors` would
-	// pass an `?.length` check and then crash on `.map`, a non-string `name`
-	// (object/array) throws React's "objects are not valid as a child", and a
-	// `javascript:` URL in an author/repo link is stored XSS in the
-	// authenticated admin origin. Build clean, sanitised values here; the JSX
-	// only touches these.
-	const profileRaw = pkg?.profile as Record<string, unknown> | undefined;
-	const displayName = typeof profileRaw?.name === "string" ? profileRaw.name : undefined;
-	const description =
-		typeof profileRaw?.description === "string" ? profileRaw.description : undefined;
-	const licenseText = typeof profileRaw?.license === "string" ? profileRaw.license : undefined;
-	const keywordList = Array.isArray(profileRaw?.keywords)
-		? profileRaw.keywords.filter((k): k is string => typeof k === "string" && k.length > 0)
-		: [];
-	const authorList = Array.isArray(profileRaw?.authors)
-		? profileRaw.authors.flatMap((a) => {
-				if (!a || typeof a !== "object") return [];
-				const o = a as Record<string, unknown>;
-				if (typeof o.name !== "string" || o.name.length === 0) return [];
-				return [{ name: o.name, url: safeExternalHref(o.url), email: safeEmail(o.email) }];
-			})
-		: [];
-	const securityList = Array.isArray(profileRaw?.security)
-		? profileRaw.security.flatMap((c) => {
-				if (!c || typeof c !== "object") return [];
-				const o = c as Record<string, unknown>;
-				const url = safeExternalHref(o.url);
-				const email = safeEmail(o.email);
-				if (!url && !email) return [];
-				return [{ url, email }];
-			})
-		: [];
+	// `profile` / `release` are validated against their lexicons at the
+	// DiscoveryClient boundary, so the shape here is trustworthy (or `null`).
+	// URLs still need a scheme allow-list: the lexicon's `uri` format permits
+	// non-HTTP schemes (incl. `javascript:`), so an author/repo `url` going
+	// straight into an `href` would be stored XSS in the authenticated admin
+	// origin. `safeExternalHref` / `safeEmail` are that gate, not shape-parsing.
+	const pkgProfile = pkg?.profile ?? null;
+	const displayName = pkgProfile?.name;
+	const description = pkgProfile?.description;
+	const licenseText = pkgProfile?.license;
+	const keywordList = pkgProfile?.keywords ?? [];
+	const authorList = (pkgProfile?.authors ?? []).map((a) => ({
+		name: a.name,
+		url: safeExternalHref(a.url),
+		email: safeEmail(a.email),
+	}));
+	const securityList = (pkgProfile?.security ?? []).flatMap((c) => {
+		const url = safeExternalHref(c.url);
+		const email = safeEmail(c.email);
+		return url || email ? [{ url, email }] : [];
+	});
 	// `repo` is a release-level field (`release.repo`), not a profile field.
-	const repoHref = safeExternalHref(
-		(release?.release as Record<string, unknown> | undefined)?.repo,
-	);
+	const repoHref = safeExternalHref(release?.release?.repo);
 	const verified = (pkg?.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
 	const policyOk =

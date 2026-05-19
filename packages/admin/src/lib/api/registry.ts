@@ -20,6 +20,12 @@
  */
 
 import type { Did, Handle } from "@atcute/lexicons";
+import type {
+	ValidatedListReleases,
+	ValidatedPackageView,
+	ValidatedReleaseView,
+	ValidatedSearchPackages,
+} from "@emdash-cms/registry-client/discovery";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
@@ -46,39 +52,15 @@ export interface RegistryClientConfig {
 }
 
 /**
- * Lightweight aliases for the lexicon-generated types. The hooks return
- * the raw XRPC output -- callers narrow `profile` / `release` as needed
- * (they're typed as `unknown` by the lexicon because the signed records
- * are pass-through).
+ * Re-exports of the registry-client view types. `DiscoveryClient` validates
+ * the embedded signed `profile` / `release` records against their lexicons
+ * at the read-side trust boundary, so they arrive here as the typed lexicon
+ * shape or `null` when the aggregator returned a non-conforming record.
+ * Callers must null-check; they no longer need to shape-narrow.
  */
-export interface RegistryPackageView {
-	uri: string;
-	cid: string;
-	did: string;
-	handle?: string;
-	slug: string;
-	indexedAt: string;
-	latestVersion?: string;
-	profile: unknown;
-	labels?: Array<{ val: string; src?: string; uri?: string }>;
-}
-
-export interface RegistryReleaseView {
-	uri: string;
-	cid: string;
-	did: string;
-	package: string;
-	version: string;
-	indexedAt: string;
-	mirrors?: string[];
-	release: unknown;
-	labels?: Array<{ val: string; src?: string; uri?: string }>;
-}
-
-export interface RegistrySearchResult {
-	packages: RegistryPackageView[];
-	cursor?: string;
-}
+export type RegistryPackageView = ValidatedPackageView;
+export type RegistryReleaseView = ValidatedReleaseView;
+export type RegistrySearchResult = ValidatedSearchPackages;
 
 export interface RegistrySearchOpts {
 	q?: string;
@@ -110,11 +92,7 @@ interface WrappedDiscoveryClient {
 	resolvePackage: (handle: string, slug: string) => Promise<RegistryPackageView>;
 	getPackage: (did: string, slug: string) => Promise<RegistryPackageView>;
 	getLatestRelease: (did: string, slug: string) => Promise<RegistryReleaseView>;
-	listReleases: (
-		did: string,
-		slug: string,
-		cursor?: string,
-	) => Promise<{ releases: RegistryReleaseView[]; cursor?: string }>;
+	listReleases: (did: string, slug: string, cursor?: string) => Promise<ValidatedListReleases>;
 }
 
 let cachedDiscovery: {
@@ -140,45 +118,40 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 
 	const wrapped: WrappedDiscoveryClient = {
 		async searchPackages(opts: RegistrySearchOpts) {
-			const result = await discovery.searchPackages({
+			return discovery.searchPackages({
 				q: opts.q,
 				cursor: opts.cursor,
 				limit: opts.limit,
 			});
-			return result as RegistrySearchResult;
 		},
 		async resolvePackage(handle: string, slug: string) {
-			const result = await discovery.resolvePackage({
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape validated by aggregator
+			return discovery.resolvePackage({
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did/handle shape validated by aggregator
 				handle: handle as Handle,
 				slug,
 			});
-			return result as RegistryPackageView;
 		},
 		async getPackage(did: string, slug: string) {
-			const result = await discovery.getPackage({
+			return discovery.getPackage({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
 				did: did as Did,
 				slug,
 			});
-			return result as RegistryPackageView;
 		},
 		async getLatestRelease(did: string, slug: string) {
-			const result = await discovery.getLatestRelease({
+			return discovery.getLatestRelease({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
 				did: did as Did,
 				package: slug,
 			});
-			return result as RegistryReleaseView;
 		},
 		async listReleases(did: string, slug: string, cursor?: string) {
-			const result = await discovery.listReleases({
+			return discovery.listReleases({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
 				did: did as Did,
 				package: slug,
 				cursor,
 			});
-			return result as { releases: RegistryReleaseView[]; cursor?: string };
 		},
 	};
 
@@ -311,7 +284,7 @@ export async function listRegistryReleases(
 	did: string,
 	slug: string,
 	cursor?: string,
-): Promise<{ releases: RegistryReleaseView[]; cursor?: string }> {
+): Promise<ValidatedListReleases> {
 	const client = await getDiscoveryClient(config);
 	return client.listReleases(did, slug, cursor);
 }

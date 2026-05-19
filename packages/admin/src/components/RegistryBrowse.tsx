@@ -159,16 +159,12 @@ function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 	// Always link by handle when we have one (cleaner URL), DID
 	// otherwise. The detail page accepts either.
 	const linkSegment = handleResult.handle ?? pkg.did;
-	// `profile` is a pass-through of the signed package profile record from
-	// the aggregator (untrusted, typed `unknown`). Take only well-typed
-	// strings: a non-string `name`/`description`/`license` (object/array)
-	// would throw React's "objects are not valid as a child" and white-screen
-	// the browse grid.
-	const profileRaw = pkg.profile as Record<string, unknown> | undefined;
-	const name = typeof profileRaw?.name === "string" ? profileRaw.name : undefined;
-	const description =
-		typeof profileRaw?.description === "string" ? profileRaw.description : undefined;
-	const license = typeof profileRaw?.license === "string" ? profileRaw.license : undefined;
+	// `profile` is lexicon-validated at the DiscoveryClient boundary, so the
+	// shape is trustworthy (or `null`). These are plain text content
+	// (React-escaped) — no URL/href, so no scheme allow-list is needed here.
+	const name = pkg.profile?.name;
+	const description = pkg.profile?.description;
+	const license = pkg.profile?.license;
 	const verified = (pkg.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
 	return (

@@ -160,4 +160,153 @@ describe("DiscoveryClient", () => {
 			"/xrpc/com.emdashcms.experimental.aggregator.getLatestRelease",
 		]);
 	});
+
+	describe("record validation at the trust boundary", () => {
+		const validProfile = {
+			$type: "com.emdashcms.experimental.package.profile",
+			id: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
+			type: "emdash-plugin",
+			license: "MIT",
+			authors: [{ name: "Alice", url: "https://alice.example" }],
+			security: [{ email: "security@example.com" }],
+			name: "Gallery",
+			description: "An image gallery.",
+			keywords: ["images"],
+		};
+		const validRelease = {
+			$type: "com.emdashcms.experimental.package.release",
+			package: "gallery",
+			version: "1.0.0",
+			artifacts: {
+				package: { url: "https://cdn.example/gallery-1.0.0.tgz", checksum: "bciqtest" },
+			},
+		};
+
+		it("returns the typed record for a conforming profile; extra keys pass through (non-stripping)", async () => {
+			const { fetch } = buildFetchStub({
+				"/xrpc/com.emdashcms.experimental.aggregator.getPackage": {
+					status: 200,
+					body: {
+						uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
+						cid: "bafy",
+						did: "did:plc:abc",
+						slug: "gallery",
+						indexedAt: "2026-04-01T00:00:00Z",
+						profile: { ...validProfile, somethingTheAggregatorMadeUp: "ignored" },
+					},
+				},
+			});
+			const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+			const result = await client.getPackage({ did: "did:plc:abc", slug: "gallery" });
+
+			expect(result.profile).not.toBeNull();
+			expect(result.profile?.name).toBe("Gallery");
+			expect(result.profile?.authors?.[0]?.name).toBe("Alice");
+			// Contract: atcute validation is non-stripping (the lexicon objects
+			// are open). Unrecognised keys are NOT removed — they pass through
+			// inert because consumers only read the typed lexicon fields. This
+			// asserts the boundary's actual behaviour so a future change to it
+			// is a deliberate, visible decision.
+			expect(result.profile).toHaveProperty("somethingTheAggregatorMadeUp");
+		});
+
+		it("returns null for a profile that does not conform to the lexicon", async () => {
+			const { fetch } = buildFetchStub({
+				"/xrpc/com.emdashcms.experimental.aggregator.getPackage": {
+					status: 200,
+					body: {
+						uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/x",
+						cid: "bafy",
+						did: "did:plc:abc",
+						slug: "x",
+						indexedAt: "2026-04-01T00:00:00Z",
+						// Missing every required field (id/type/license/authors/security).
+						profile: { name: "Looks fine but isn't" },
+					},
+				},
+			});
+			const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+			const result = await client.getPackage({ did: "did:plc:abc", slug: "x" });
+			expect(result.profile).toBeNull();
+		});
+
+		it("returns null for a non-conforming release (fail closed)", async () => {
+			const { fetch } = buildFetchStub({
+				"/xrpc/com.emdashcms.experimental.aggregator.getLatestRelease": {
+					status: 200,
+					body: {
+						uri: "at://did:plc:abc/com.emdashcms.experimental.package.release/x:1.0.0",
+						cid: "bafy",
+						version: "1.0.0",
+						indexedAt: "2026-04-01T00:00:00Z",
+						release: "not even an object",
+					},
+				},
+			});
+			const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+			const result = await client.getLatestRelease({ did: "did:plc:abc", package: "x" });
+			expect(result.release).toBeNull();
+		});
+
+		it("does NOT sanitise URL schemes — a javascript: author url passes lexicon validation", async () => {
+			// Documents the boundary's contract: it validates *structure*, not
+			// URL safety (atproto's `uri` format permits any scheme). Consumers
+			// rendering these URLs MUST apply their own scheme allow-list.
+			const { fetch } = buildFetchStub({
+				"/xrpc/com.emdashcms.experimental.aggregator.getPackage": {
+					status: 200,
+					body: {
+						uri: "at://did:plc:abc/com.emdashcms.experimental.package.profile/gallery",
+						cid: "bafy",
+						did: "did:plc:abc",
+						slug: "gallery",
+						indexedAt: "2026-04-01T00:00:00Z",
+						profile: {
+							...validProfile,
+							authors: [{ name: "Mallory", url: "javascript:alert(document.cookie)" }],
+						},
+					},
+				},
+			});
+			const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+			const result = await client.getPackage({ did: "did:plc:abc", slug: "gallery" });
+			expect(result.profile).not.toBeNull();
+			expect(result.profile?.authors?.[0]?.url).toBe("javascript:alert(document.cookie)");
+		});
+
+		it("validates each release in a listReleases page", async () => {
+			const { fetch } = buildFetchStub({
+				"/xrpc/com.emdashcms.experimental.aggregator.listReleases": {
+					status: 200,
+					body: {
+						releases: [
+							{
+								uri: "at://did:plc:abc/com.emdashcms.experimental.package.release/gallery:1.0.0",
+								cid: "bafy",
+								did: "did:plc:abc",
+								package: "gallery",
+								version: "1.0.0",
+								indexedAt: "2026-04-01T00:00:00Z",
+								release: validRelease,
+							},
+							{
+								uri: "at://did:plc:abc/com.emdashcms.experimental.package.release/gallery:0.9.0",
+								cid: "bafz",
+								did: "did:plc:abc",
+								package: "gallery",
+								version: "0.9.0",
+								indexedAt: "2026-03-01T00:00:00Z",
+								release: { garbage: true },
+							},
+						],
+						cursor: undefined,
+					},
+				},
+			});
+			const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+			const result = await client.listReleases({ did: "did:plc:abc", package: "gallery" });
+			expect(result.releases[0]?.release?.version).toBe("1.0.0");
+			expect(result.releases[1]?.release).toBeNull();
+		});
+	});
 });

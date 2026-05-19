@@ -679,10 +679,10 @@ export async function handleRegistryInstall(
 		// publisher's record. Checksum verification only proves the bytes
 		// match the *returned* record, not that the record belongs to
 		// the package we requested.
-		const signedRelease = releaseView.release as
-			| { package?: unknown; version?: unknown }
-			| null
-			| undefined;
+		// `releaseView.release` is validated against the release lexicon by
+		// DiscoveryClient (or `null` if it didn't conform). A `null` here makes
+		// the identity checks below fail closed, which is the desired outcome.
+		const signedRelease = releaseView.release;
 		if (packageView.did !== publisherDid || packageView.slug !== slug) {
 			return {
 				success: false,
@@ -848,17 +848,13 @@ export async function handleRegistryInstall(
 		}
 
 		// Step 4: fetch the artifact bytes.
-		// The signed release record is `releaseView.release`; the lexicon
-		// types it as `unknown` so we extract the package artifact via
-		// duck-typed access. Mirrors come from the envelope (aggregator
-		// operational data, not part of the signed record).
-		const release = releaseView.release as {
-			artifacts?: {
-				package?: { url?: string; checksum?: string };
-			};
-		};
-		const declaredUrl = release.artifacts?.package?.url;
-		const declaredChecksum = release.artifacts?.package?.checksum;
+		// `releaseView.release` is lexicon-validated by DiscoveryClient (or
+		// `null`); a missing url/checksum (incl. the `null` case) fails closed
+		// below. Mirrors come from the envelope (aggregator operational data,
+		// not part of the signed record).
+		const release = releaseView.release;
+		const declaredUrl = release?.artifacts?.package?.url;
+		const declaredChecksum = release?.artifacts?.package?.checksum;
 
 		if (!declaredUrl || !declaredChecksum) {
 			return {
@@ -1021,12 +1017,13 @@ export async function handleRegistryInstall(
 		// Cleanup is best-effort; if it also fails, the row failure
 		// still surfaces to the caller and the orphan R2 bundle costs
 		// only the storage of a single checksum-verified zip.
-		const profile = packageView.profile as { name?: string; description?: string };
+		// `packageView.profile` is lexicon-validated by DiscoveryClient (or null).
+		const profile = packageView.profile;
 		try {
 			await stateRepo.upsert(pluginId, version, "active", {
 				source: "registry",
-				displayName: profile.name ?? slug,
-				description: profile.description ?? undefined,
+				displayName: profile?.name ?? slug,
+				description: profile?.description ?? undefined,
 				registryPublisherDid: publisherDid,
 				registrySlug: slug,
 			});
