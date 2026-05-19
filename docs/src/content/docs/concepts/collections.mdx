@@ -22,6 +22,7 @@ Create collections through the admin panel under **Content Types**. Each collect
 | `description`   | Optional description for editors                     |
 | `icon`          | Lucide icon name for the admin sidebar               |
 | `supports`      | Features like drafts, revisions, preview, scheduling, search, seo |
+| `urlPattern`    | URL template for public routing (e.g., `/blog/{slug}`) |
 
 <Aside type="note">
 	Some collection slugs are reserved: `content`, `media`, `users`, `revisions`, `taxonomies`,
@@ -49,6 +50,43 @@ The following collection enables all four features:
   supports: ["drafts", "revisions", "preview", "scheduling"]
 }
 ```
+
+## URL patterns
+
+The `urlPattern` property defines the public URL shape for entries in a collection. It uses `{slug}` as a placeholder for the entry's slug.
+
+```ts
+{
+  slug: "posts",
+  label: "Blog Posts",
+  urlPattern: "/blog/{slug}"
+}
+```
+
+When set, this pattern is used in:
+
+- **Menu links** — menu items referencing entries in the collection generate URLs using the pattern.
+- **Preview buttons** — the admin "View" and "Preview" links use the pattern to build public URLs.
+
+Without a `urlPattern`, URLs fallback to `/{collection}/{slug}` (e.g., `/posts/hello-world`).
+
+### Pattern syntax
+
+Patterns use the `{slug}` placeholder, which is replaced with the entry's slug. The admin UI requires `{slug}` to be present.
+
+| Pattern | Example URL |
+| ------- | ----------- |
+| `/{slug}` | `/about` |
+| `/blog/{slug}` | `/blog/hello-world` |
+| `/articles/{slug}` | `/articles/my-post` |
+
+### Auto-redirects
+
+When you change an entry's slug, EmDash creates an automatic 301 redirect from the old URL to the new one. The redirect uses the collection's `urlPattern` to compute both the old and new URLs.
+
+<Aside type="tip">
+  Re-run <code>emdash types</code> after modifying URL patterns — while the generated types don't include the pattern itself, the pattern affects how you structure your Astro routes.
+</Aside>
 
 ## Field types
 
