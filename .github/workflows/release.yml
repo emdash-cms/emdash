@@ -66,19 +66,13 @@ jobs:
       - name: Block 1.x releases (we are in 0.x)
         run: node .github/scripts/check-no-major.mjs
 
-      # Not redundant with the frozen install: frozen install does not
-      # refresh the lockfile's overrides hash, so a drifted lockfile trips
-      # verifyDepsBeforeRun on the gated changeset commands below.
-      - name: Reconcile lockfile
-        run: pnpm install --no-frozen-lockfile
-
       - name: Create Release Pull Request or Publish
         if: ${{ !inputs.publish-only }}
         id: changesets
         uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1.8.0
         with:
-          version: pnpm run changeset:version
-          publish: pnpm changeset publish
+          version: node .github/scripts/release.mjs version
+          publish: node .github/scripts/release.mjs publish
           commit: "ci: release"
           title: "ci: release"
         env:
@@ -86,7 +80,7 @@ jobs:
 
       - name: Publish (manual)
         if: ${{ inputs.publish-only }}
-        run: pnpm changeset publish
+        run: node .github/scripts/release.mjs publish
 
   sync-templates:
     name: Sync Templates
