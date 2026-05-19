@@ -19,5 +19,7 @@ if (mode === "version") {
 } else if (mode === "publish") {
 	run(["changeset", "publish"]);
 } else {
-	throw new Error(`Unknown release mode: ${JSON.stringify(mode)} (expected "version" or "publish")`);
+	throw new Error(
+		`Unknown release mode: ${JSON.stringify(mode)} (expected "version" or "publish")`,
+	);
 }
