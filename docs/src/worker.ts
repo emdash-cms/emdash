@@ -8,6 +8,22 @@ import { z } from "zod";
  * underlying transport asserts that the server is not already connected, so we
  * cannot reuse a single server instance across requests.
  */
+const searchDocsTool = {
+	title: "Search EmDash documentation",
+	description:
+		"Search the EmDash CMS documentation. Returns relevant chunks with source URLs and similarity scores.",
+	inputSchema: {
+		query: z.string().min(1).max(1000).describe("Natural-language query against the EmDash docs."),
+		max_results: z
+			.number()
+			.int()
+			.min(1)
+			.max(20)
+			.optional()
+			.describe("Maximum number of chunks to return. Defaults to 8."),
+	},
+};
+
 function buildMcpServer(env: Env): McpServer {
 	const server = new McpServer({
 		name: "emdash-docs",
@@ -17,21 +33,7 @@ function buildMcpServer(env: Env): McpServer {
 	if (!aiSearch) {
 		server.registerTool(
 			"search_docs",
-			{
-				title: "Search EmDash documentation",
-				description:
-					"Search the EmDash CMS documentation. This endpoint is not configured in this environment.",
-				inputSchema: {
-					query: z.string().min(1).max(1000).describe("Query to run against docs indexing."),
-					max_results: z
-						.number()
-						.int()
-						.min(1)
-						.max(20)
-						.optional()
-						.describe("Maximum number of chunks to return. Defaults to 8."),
-				},
-			},
+			searchDocsTool,
 			async () => ({
 				content: [
 					{
@@ -47,25 +49,7 @@ function buildMcpServer(env: Env): McpServer {
 
 	server.registerTool(
 		"search_docs",
-		{
-			title: "Search EmDash documentation",
-			description:
-				"Search the EmDash CMS documentation. Returns relevant chunks with source URLs and similarity scores.",
-			inputSchema: {
-				query: z
-					.string()
-					.min(1)
-					.max(1000)
-					.describe("Natural-language query against the EmDash docs."),
-				max_results: z
-					.number()
-					.int()
-					.min(1)
-					.max(20)
-					.optional()
-					.describe("Maximum number of chunks to return. Defaults to 8."),
-			},
-		},
+		searchDocsTool,
 		async ({ query, max_results }) => {
 			const limit = max_results ?? 8;
 
