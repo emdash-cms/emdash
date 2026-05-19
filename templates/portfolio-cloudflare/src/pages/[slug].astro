@@ -1,0 +1,100 @@
+---
+import { getEmDashEntry, getSeoMeta, decodeSlug, getSiteSettings } from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../layouts/Base.astro";
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.redirect("/404");
+}
+
+const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
+
+if (!page) {
+	return Astro.redirect("/404");
+}
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+const settings = await getSiteSettings();
+const siteTitle = settings?.title || "Studio";
+
+const seo = getSeoMeta(page, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: `/${slug}`,
+});
+---
+
+<Base
+	title={seo.title}
+	description={seo.description}
+	content={{ collection: "pages", id: page.data.id, slug }}
+>
+	<div class="page-content">
+		<header class="page-header">
+			<h1 class="page-title" {...page.edit.title}>{page.data.title}</h1>
+		</header>
+
+		<div class="page-body" {...page.edit.content}>
+			{
+				page.data.content ? (
+					<PortableText value={page.data.content} />
+				) : (
+					<p>Content coming soon.</p>
+				)
+			}
+		</div>
+	</div>
+</Base>
+
+<style>
+	.page-content {
+		max-width: var(--wide-width);
+		margin: 0 auto;
+		padding: var(--spacing-2xl) var(--spacing-lg) var(--spacing-4xl);
+	}
+
+	.page-header {
+		margin-bottom: var(--spacing-2xl);
+	}
+
+	.page-title {
+		font-family: var(--font-serif);
+		font-size: var(--font-size-4xl);
+		font-weight: 500;
+		line-height: 1.1;
+	}
+
+	.page-body {
+		font-size: var(--font-size-base);
+		line-height: 1.7;
+	}
+
+	.page-body :global(p) {
+		margin-bottom: 1.5em;
+	}
+
+	.page-body :global(h2) {
+		font-family: var(--font-serif);
+		font-size: var(--font-size-2xl);
+		font-weight: 500;
+		margin-top: 2.5em;
+		margin-bottom: 0.75em;
+	}
+
+	.page-body :global(h3) {
+		font-family: var(--font-serif);
+		font-size: var(--font-size-xl);
+		font-weight: 500;
+		margin-top: 2em;
+		margin-bottom: 0.5em;
+	}
+
+	@media (max-width: 768px) {
+		.page-title {
+			font-size: var(--font-size-3xl);
+		}
+	}
+</style>

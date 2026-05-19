@@ -6,13 +6,17 @@ import { Font } from "astro:assets";
 import "../styles/theme.css";
 
 interface Props {
-	title?: string;
-	description?: string;
-	image?: string;
+	title?: string | null;
+	pageTitle?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
 	type?: "website" | "article";
+	/** Pass content reference for plugin page contributions on content pages */
+	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, description, image, type = "website" } = Astro.props;
+const { title, pageTitle, description, image, canonical, type = "website", content } = Astro.props;
 const settings = await getSiteSettings();
 const siteTitle = settings?.title || "Studio";
 const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
@@ -24,14 +28,14 @@ const menu = await getMenu("primary");
 
 const pageCtx = createPublicPageContext({
 	Astro,
-	kind: "custom",
+	kind: content ? "content" : "custom",
 	pageType: type,
 	title: fullTitle,
-	pageTitle: title ?? siteTitle,
+	pageTitle: pageTitle ?? title ?? siteTitle,
 	description: description || siteDescription,
-	canonical: Astro.url.href,
+	canonical,
 	image,
-	seo: { ogImage: image },
+	content,
 	siteName: siteTitle,
 });
 ---
