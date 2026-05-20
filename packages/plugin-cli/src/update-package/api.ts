@@ -1,10 +1,11 @@
 /**
- * Programmatic profile-update API.
+ * Programmatic package-update API.
  *
  * Reads the publisher's existing `com.emdashcms.experimental.package.profile`
- * record, diffs the lexicon-controlled fields against a manifest-derived
- * candidate, and (when applied) writes the new record via
- * `com.atproto.repo.putRecord`.
+ * record (the per-package metadata record in the registry lexicon — distinct
+ * from the publisher's atproto profile at `app.bsky.actor.profile`), diffs
+ * the lexicon-controlled fields against a manifest-derived candidate, and
+ * (when applied) writes the new record via `com.atproto.repo.putRecord`.
  *
  * Splits cleanly from the CLI command so tests can run it against a mock
  * `PublishingClient` without going through OAuth or the filesystem.
@@ -22,15 +23,20 @@
  *
  * Failure modes:
  *
- *   - `PROFILE_NOT_FOUND`: no profile record exists at the manifest's slug.
+ *   - `PACKAGE_NOT_FOUND`: no package record exists at the manifest's slug.
  *     The user must run `publish` first to bootstrap.
- *   - `PROFILE_INVALID`: the existing record doesn't validate against the
+ *   - `PACKAGE_INVALID`: the existing record doesn't validate against the
  *     package profile lexicon. We refuse to write rather than overwrite an
  *     unknown shape with our canonical one.
  *   - `SLUG_MISMATCH`: defensive guard against the existing record's `slug`
  *     field differing from the manifest's slug. Aggregators reject records
  *     where slug doesn't match the rkey, but if a publisher hand-edited the
  *     record we want a clear refusal before we make it worse.
+ *   - `POSSIBLE_RENAME`: no record at the manifest's slug, but the publisher
+ *     already has a package at a different slug. Refused so a manifest
+ *     rename doesn't orphan releases under the old slug.
+ *   - `INVALID_INPUT`: programmatic-caller input fails the lexicon's
+ *     structural rules (e.g. empty `authors`).
  */
 
 import { ClientResponseError } from "@atcute/client";
@@ -42,20 +48,20 @@ import { NSID, PackageProfile } from "@emdash-cms/registry-lexicons";
 // Public types
 // ──────────────────────────────────────────────────────────────────────────
 
-export type UpdateProfileErrorCode =
-	| "PROFILE_NOT_FOUND"
-	| "PROFILE_INVALID"
+export type UpdatePackageErrorCode =
+	| "PACKAGE_NOT_FOUND"
+	| "PACKAGE_INVALID"
 	| "SLUG_MISMATCH"
 	| "POSSIBLE_RENAME"
 	| "INVALID_INPUT"
 	| "LEXICON_VALIDATION_FAILED";
 
-export class UpdateProfileError extends Error {
-	override readonly name = "UpdateProfileError";
-	readonly code: UpdateProfileErrorCode;
+export class UpdatePackageError extends Error {
+	override readonly name = "UpdatePackageError";
+	readonly code: UpdatePackageErrorCode;
 	readonly detail: Record<string, unknown> | undefined;
 
-	constructor(code: UpdateProfileErrorCode, message: string, detail?: Record<string, unknown>) {
+	constructor(code: UpdatePackageErrorCode, message: string, detail?: Record<string, unknown>) {
 		super(message);
 		this.code = code;
 		this.detail = detail;
@@ -63,13 +69,13 @@ export class UpdateProfileError extends Error {
 }
 
 /**
- * Profile fields the manifest controls. Mirrors the subset of
- * `ProfileInput` (from `../publish/api.js`) that update-profile actually
+ * Package metadata fields the manifest controls. Mirrors the subset of
+ * `ProfileInput` (from `../publish/api.js`) that update-package actually
  * touches. We don't re-import `ProfileInput` directly because that type
  * also covers first-publish-only fields and the contract here is "fields
  * the manifest can edit after publish".
  */
-export interface ProfileUpdateInput {
+export interface PackageUpdateInput {
 	license: string;
 	authors: Array<{ name: string; url?: string; email?: string }>;
 	security: Array<{ url?: string; email?: string }>;
@@ -83,13 +89,13 @@ export interface ProfileUpdateInput {
  * field's raw JSON values (or `undefined` if the field is absent on that
  * side). Used for both human display and dry-run JSON output.
  */
-export interface ProfileFieldDiff {
-	field: keyof ProfileUpdateInput;
+export interface PackageFieldDiff {
+	field: keyof PackageUpdateInput;
 	before: unknown;
 	after: unknown;
 }
 
-export interface UpdateProfileOptions {
+export interface UpdatePackageOptions {
 	/** Authenticated client against the publisher's PDS. */
 	publisher: PublishingClient;
 	/** Publisher DID. Used to construct AT URIs for display/output. */
@@ -97,7 +103,7 @@ export interface UpdateProfileOptions {
 	/** The plugin's slug (rkey of the profile record). */
 	slug: string;
 	/** Manifest-derived fields the user wants to apply. */
-	input: ProfileUpdateInput;
+	input: PackageUpdateInput;
 	/**
 	 * When `false` (the default), compute the diff but DO NOT write. When
 	 * `true`, apply the diff via `putRecord` and bump `lastUpdated`.
@@ -110,11 +116,11 @@ export interface UpdateProfileOptions {
 	now?: () => Date;
 }
 
-export interface UpdateProfileResult {
+export interface UpdatePackageResult {
 	/** AT URI of the profile record. */
 	profileUri: string;
 	/** Per-field diffs. Empty when the manifest matches the existing record. */
-	diffs: ProfileFieldDiff[];
+	diffs: PackageFieldDiff[];
 	/**
 	 * The candidate record body that would be (or was) written. Only the
 	 * publisher-editable fields here are sourced from the manifest; identity
@@ -140,7 +146,7 @@ export interface UpdateProfileResult {
  * across runs and matches the lexicon's reading order (identity → contacts
  * → display).
  */
-const FIELD_ORDER: ReadonlyArray<keyof ProfileUpdateInput> = [
+const FIELD_ORDER: ReadonlyArray<keyof PackageUpdateInput> = [
 	"license",
 	"name",
 	"description",
@@ -149,7 +155,7 @@ const FIELD_ORDER: ReadonlyArray<keyof ProfileUpdateInput> = [
 	"security",
 ];
 
-export async function updateProfile(options: UpdateProfileOptions): Promise<UpdateProfileResult> {
+export async function updatePackage(options: UpdatePackageOptions): Promise<UpdatePackageResult> {
 	const profileUri = `at://${options.did}/${NSID.packageProfile}/${options.slug}`;
 
 	// Validate the caller's input against the lexicon's structural rules
@@ -157,10 +163,10 @@ export async function updateProfile(options: UpdateProfileOptions): Promise<Upda
 	// enforcement layer, but the api is exported and programmatic callers
 	// can submit empty arrays (which the lexicon rejects). Surfacing
 	// `INVALID_INPUT` here gives them a useful message instead of a later
-	// `LEXICON_VALIDATION_FAILED` whose default text blames update-profile.
+	// `LEXICON_VALIDATION_FAILED` whose default text blames update-package.
 	const inputError = validateInput(options.input);
 	if (inputError) {
-		throw new UpdateProfileError("INVALID_INPUT", inputError, { slug: options.slug });
+		throw new UpdatePackageError("INVALID_INPUT", inputError, { slug: options.slug });
 	}
 
 	const existing = await fetchExistingProfile(options.publisher, options.slug);
@@ -171,14 +177,14 @@ export async function updateProfile(options: UpdateProfileOptions): Promise<Upda
 		// second profile and orphan every release under the old slug).
 		const sibling = await findSiblingProfileSlug(options.publisher, options.slug);
 		if (sibling !== null) {
-			throw new UpdateProfileError(
+			throw new UpdatePackageError(
 				"POSSIBLE_RENAME",
 				`No profile at ${profileUri}, but the publisher already has a profile at slug "${sibling}". If you renamed the plugin in your manifest, that would orphan every release under "${sibling}" — revert the slug to "${sibling}" in emdash-plugin.jsonc, or publish the rename under the new slug as a fresh package (releases under "${sibling}" stay where they are).`,
 				{ slug: options.slug, existingSlug: sibling, did: options.did },
 			);
 		}
-		throw new UpdateProfileError(
-			"PROFILE_NOT_FOUND",
+		throw new UpdatePackageError(
+			"PACKAGE_NOT_FOUND",
 			`No profile record at ${profileUri}. Run \`emdash-plugin publish\` to create one before editing.`,
 			{ slug: options.slug, did: options.did },
 		);
@@ -186,8 +192,8 @@ export async function updateProfile(options: UpdateProfileOptions): Promise<Upda
 
 	const existingValue = existing.value;
 	if (!isPlainObject(existingValue)) {
-		throw new UpdateProfileError(
-			"PROFILE_INVALID",
+		throw new UpdatePackageError(
+			"PACKAGE_INVALID",
 			`Existing profile at ${profileUri} is not a JSON object. Refusing to overwrite an unknown shape.`,
 			{ slug: options.slug },
 		);
@@ -195,8 +201,8 @@ export async function updateProfile(options: UpdateProfileOptions): Promise<Upda
 
 	const validation = safeParse(PackageProfile.mainSchema, existingValue);
 	if (!validation.ok) {
-		throw new UpdateProfileError(
-			"PROFILE_INVALID",
+		throw new UpdatePackageError(
+			"PACKAGE_INVALID",
 			`Existing profile at ${profileUri} does not match the package profile lexicon. Refusing to overwrite. Fix the record directly via your PDS or contact the EmDash team.`,
 			{ slug: options.slug, issues: validation },
 		);
@@ -204,7 +210,7 @@ export async function updateProfile(options: UpdateProfileOptions): Promise<Upda
 
 	const existingSlug = typeof existingValue.slug === "string" ? existingValue.slug : options.slug;
 	if (existingSlug !== options.slug) {
-		throw new UpdateProfileError(
+		throw new UpdatePackageError(
 			"SLUG_MISMATCH",
 			`Existing profile at ${profileUri} has slug "${existingSlug}" but the manifest's slug is "${options.slug}". The slug is the record key and cannot change after publish (it would orphan every release tied to the old slug). To rename a plugin, publish under the new slug as a fresh package.`,
 			{ existingSlug, manifestSlug: options.slug },
@@ -212,7 +218,7 @@ export async function updateProfile(options: UpdateProfileOptions): Promise<Upda
 	}
 
 	const now = (options.now ?? defaultNow)();
-	const { candidate, diffs } = buildProfileCandidate({
+	const { candidate, diffs } = buildPackageCandidate({
 		existing: existingValue,
 		input: options.input,
 		now,
@@ -232,10 +238,10 @@ export async function updateProfile(options: UpdateProfileOptions): Promise<Upda
 	// registry lexicon — so we own the validation and skip server-side.
 	// `validateInput` already gates the obvious caller-side mistakes, so a
 	// failure here genuinely indicates a record-shape regression in
-	// update-profile or in the lexicon itself.
+	// update-package or in the lexicon itself.
 	const candidateValidation = safeParse(PackageProfile.mainSchema, candidate);
 	if (!candidateValidation.ok) {
-		throw new UpdateProfileError(
+		throw new UpdatePackageError(
 			"LEXICON_VALIDATION_FAILED",
 			`Candidate profile record did not match the lexicon after merge.`,
 			{ slug: options.slug, issues: candidateValidation },
@@ -270,13 +276,13 @@ export async function updateProfile(options: UpdateProfileOptions): Promise<Upda
  * iff there are diffs; an unchanged record keeps the existing timestamp
  * so a no-op update doesn't churn the aggregator's lastUpdated ordering.
  */
-export function buildProfileCandidate(input: {
+export function buildPackageCandidate(input: {
 	existing: Record<string, unknown>;
-	input: ProfileUpdateInput;
+	input: PackageUpdateInput;
 	now: Date;
-}): { candidate: Record<string, unknown>; diffs: ProfileFieldDiff[] } {
+}): { candidate: Record<string, unknown>; diffs: PackageFieldDiff[] } {
 	const next = normaliseInput(input.input);
-	const diffs: ProfileFieldDiff[] = [];
+	const diffs: PackageFieldDiff[] = [];
 
 	const candidate: Record<string, unknown> = { ...input.existing };
 
@@ -316,9 +322,9 @@ export function buildProfileCandidate(input: {
  * through verbatim — `validateInput` already rejected empty arrays.
  */
 function normaliseInput(
-	input: ProfileUpdateInput,
-): Partial<Record<keyof ProfileUpdateInput, unknown>> {
-	const out: Partial<Record<keyof ProfileUpdateInput, unknown>> = {};
+	input: PackageUpdateInput,
+): Partial<Record<keyof PackageUpdateInput, unknown>> {
+	const out: Partial<Record<keyof PackageUpdateInput, unknown>> = {};
 	out.license = input.license;
 	out.authors = input.authors.map((a) =>
 		omitUndefined({ name: a.name, url: a.url, email: a.email }),
@@ -416,7 +422,7 @@ async function findSiblingProfileSlug(
 		}
 		return null;
 	} catch {
-		// Best-effort diagnostic: fall through to the plain PROFILE_NOT_FOUND
+		// Best-effort diagnostic: fall through to the plain PACKAGE_NOT_FOUND
 		// if the listRecords call fails (network, permission). The bug we're
 		// trying to catch is a publisher renaming their plugin; a real
 		// publisher with that situation will still get the message on retry.
@@ -440,7 +446,7 @@ function atUriRkey(uri: string): string | null {
  *
  * Returns an error message on failure, or `null` when the input is OK.
  */
-function validateInput(input: ProfileUpdateInput): string | null {
+function validateInput(input: PackageUpdateInput): string | null {
 	if (typeof input.license !== "string" || input.license.length === 0) {
 		return "license must be a non-empty SPDX expression.";
 	}

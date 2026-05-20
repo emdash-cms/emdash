@@ -1,9 +1,11 @@
 /**
- * `emdash-plugin update-profile [--manifest <path>] [--yes] [--json]`
+ * `emdash-plugin update-package [--manifest <path>] [--yes] [--json]`
  *
- * Edit an already-published profile record without cutting a new release.
+ * Edit an already-published package record without cutting a new release.
+ * Operates on the `com.emdashcms.experimental.package.profile` record — the
+ * registry's per-package metadata, not the publisher's atproto profile.
  *
- * Reads `emdash-plugin.jsonc`, fetches the existing profile from the
+ * Reads `emdash-plugin.jsonc`, fetches the existing package record from the
  * publisher's PDS, diffs the manifest's lexicon-controlled fields against
  * what's on the PDS, and (with `--yes`) writes the updated record back via
  * `com.atproto.repo.putRecord`. Without `--yes`, prints the diff and exits 0.
@@ -38,18 +40,18 @@ import { checkPublisher, PublisherCheckError } from "../manifest/publisher.js";
 import { manifestToProfileInput, normaliseManifest } from "../manifest/translate.js";
 import { resumeSession } from "../oauth.js";
 import {
-	updateProfile,
-	UpdateProfileError,
-	type ProfileFieldDiff,
-	type ProfileUpdateInput,
-	type UpdateProfileResult,
-} from "../update-profile/api.js";
+	updatePackage,
+	UpdatePackageError,
+	type PackageFieldDiff,
+	type PackageUpdateInput,
+	type UpdatePackageResult,
+} from "../update-package/api.js";
 
-export const updateProfileCommand = defineCommand({
+export const updatePackageCommand = defineCommand({
 	meta: {
-		name: "update-profile",
+		name: "update-package",
 		description:
-			"Update an already-published plugin profile without cutting a new release (license, authors, security contacts, name/description/keywords).",
+			"Update an already-published plugin's registry record without cutting a new release (license, authors, security contacts, name/description/keywords).",
 	},
 	args: {
 		manifest: {
@@ -72,10 +74,10 @@ export const updateProfileCommand = defineCommand({
 		const restoreReporters = args.json ? redirectConsolaToStderr() : null;
 		let exitCode = 0;
 		try {
-			await runUpdateProfile(args);
+			await runUpdatePackage(args);
 		} catch (error) {
 			exitCode = error instanceof CliError ? error.exitCode : 1;
-			handleUpdateProfileError(error, args.json);
+			handleUpdatePackageError(error, args.json);
 		} finally {
 			restoreReporters?.();
 		}
@@ -83,13 +85,13 @@ export const updateProfileCommand = defineCommand({
 	},
 });
 
-interface UpdateProfileArgs {
+interface UpdatePackageArgs {
 	manifest?: string;
 	yes?: boolean;
 	json?: boolean;
 }
 
-async function runUpdateProfile(args: UpdateProfileArgs): Promise<void> {
+async function runUpdatePackage(args: UpdatePackageArgs): Promise<void> {
 	const manifestPath = args.manifest ?? `./${MANIFEST_FILENAME}`;
 	const manifestLoad = await loadManifestForUpdate(manifestPath);
 
@@ -131,9 +133,9 @@ async function runUpdateProfile(args: UpdateProfileArgs): Promise<void> {
 		pds: session.pds,
 	});
 
-	const input: ProfileUpdateInput = profileUpdateInputFromManifest(manifestLoad.manifest);
+	const input: PackageUpdateInput = packageUpdateInputFromManifest(manifestLoad.manifest);
 
-	const result = await updateProfile({
+	const result = await updatePackage({
 		publisher,
 		did: session.did,
 		slug: manifestLoad.manifest.slug,
@@ -150,7 +152,7 @@ async function runUpdateProfile(args: UpdateProfileArgs): Promise<void> {
 }
 
 /**
- * Result of resolving the manifest for `runUpdateProfile`. Surfaces the
+ * Result of resolving the manifest for `runUpdatePackage`. Surfaces the
  * normalised manifest with `manifest.version` resolved against the sibling
  * `package.json` (mirrors the publish path so the two commands agree on
  * which manifest they're talking about — even though version isn't part of
@@ -190,7 +192,7 @@ async function loadManifestForUpdate(path: string): Promise<ManifestLoadOutcome>
 /**
  * Read `package.json#version` from the directory containing the manifest.
  * Mirrors the publish path. Missing or unparseable package.json is non-
- * fatal for update-profile (version isn't part of the profile record),
+ * fatal for update-package (version isn't part of the profile record),
  * but malformed JSON still surfaces so a typo doesn't pass silently.
  */
 async function readSiblingPackageVersion(manifestDir: string): Promise<string | undefined> {
@@ -234,17 +236,17 @@ async function readSiblingPackageVersion(manifestDir: string): Promise<string | 
 }
 
 /**
- * Project the manifest's profile-shaped fields into the
- * `ProfileUpdateInput` contract. We reuse `manifestToProfileInput` from
+ * Project the manifest's package-record fields into the
+ * `PackageUpdateInput` contract. We reuse `manifestToProfileInput` from
  * the publish path so the two commands agree on what comes out of the
- * manifest, then drop the first-publish-only fields that update-profile
+ * manifest, then drop the first-publish-only fields that update-package
  * doesn't touch.
  */
-function profileUpdateInputFromManifest(
+function packageUpdateInputFromManifest(
 	manifest: ReturnType<typeof normaliseManifest>,
-): ProfileUpdateInput {
+): PackageUpdateInput {
 	const profile = manifestToProfileInput(manifest);
-	const input: ProfileUpdateInput = {
+	const input: PackageUpdateInput = {
 		// license is required in the manifest schema, so it's always
 		// present in `manifestToProfileInput`'s output. The non-null
 		// assertion would be wrong if the manifest schema ever relaxes
@@ -259,21 +261,21 @@ function profileUpdateInputFromManifest(
 	return input;
 }
 
-function renderResult(result: UpdateProfileResult, applied: boolean): void {
+function renderResult(result: UpdatePackageResult, applied: boolean): void {
 	if (result.diffs.length === 0) {
-		consola.success(`Profile at ${pc.dim(result.profileUri)} is already up to date.`);
+		consola.success(`Package at ${pc.dim(result.profileUri)} is already up to date.`);
 		return;
 	}
 
 	console.log();
-	console.log(pc.bold(applied ? "Applied profile changes:" : "Profile changes (dry-run):"));
+	console.log(pc.bold(applied ? "Applied package changes:" : "Package changes (dry-run):"));
 	for (const diff of result.diffs) {
 		renderDiffLine(diff);
 	}
 	console.log();
 
 	if (applied && result.written) {
-		consola.success(`Updated profile: ${pc.dim(result.profileUri)}`);
+		consola.success(`Updated package: ${pc.dim(result.profileUri)}`);
 		if (result.cid) {
 			consola.info(`New CID: ${pc.dim(result.cid)}`);
 		}
@@ -284,7 +286,7 @@ function renderResult(result: UpdateProfileResult, applied: boolean): void {
 	}
 }
 
-function renderDiffLine(diff: ProfileFieldDiff): void {
+function renderDiffLine(diff: PackageFieldDiff): void {
 	const beforeStr = formatFieldValue(diff.before);
 	const afterStr = formatFieldValue(diff.after);
 	const removed = diff.after === undefined;
@@ -301,7 +303,7 @@ function formatFieldValue(value: unknown): string {
 	return JSON.stringify(value);
 }
 
-function formatJsonResult(result: UpdateProfileResult, applied: boolean): Record<string, unknown> {
+function formatJsonResult(result: UpdatePackageResult, applied: boolean): Record<string, unknown> {
 	const body: Record<string, unknown> = {
 		profile: result.profileUri,
 		written: result.written,
@@ -316,11 +318,11 @@ function formatJsonResult(result: UpdateProfileResult, applied: boolean): Record
 	return body;
 }
 
-function handleUpdateProfileError(error: unknown, jsonMode: boolean | undefined): void {
+function handleUpdatePackageError(error: unknown, jsonMode: boolean | undefined): void {
 	let code = "INTERNAL_ERROR";
 	let message = "Internal error";
 	let detail: Record<string, unknown> | undefined;
-	if (error instanceof UpdateProfileError) {
+	if (error instanceof UpdatePackageError) {
 		code = error.code;
 		message = error.message;
 		detail = error.detail;

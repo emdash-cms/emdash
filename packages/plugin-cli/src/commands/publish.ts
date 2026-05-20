@@ -340,7 +340,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	if (!result.profileCreated && result.ignoredProfileFields.length > 0) {
 		const fields = result.ignoredProfileFields.join(", ");
 		consola.warn(
-			`Ignored on subsequent publish (existing profile wins): ${fields}. To edit these on the existing profile, run \`emdash-plugin update-profile\` (dry-run prints the diff; pass \`--yes\` to apply).`,
+			`Ignored on subsequent publish (existing package record wins): ${fields}. To edit these on the existing package, run \`emdash-plugin update-package\` (dry-run prints the diff; pass \`--yes\` to apply).`,
 		);
 	}
 

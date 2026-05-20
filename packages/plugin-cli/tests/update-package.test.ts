@@ -1,5 +1,5 @@
 /**
- * Coverage for the programmatic `updateProfile` API.
+ * Coverage for the programmatic `updatePackage` API.
  *
  * Runs against the in-memory `MockPds` rather than a real PDS so the
  * publish/update boundary is exercised against the same atproto contract
@@ -12,11 +12,11 @@ import { NSID } from "@emdash-cms/registry-lexicons";
 import { describe, expect, it } from "vitest";
 
 import {
-	buildProfileCandidate,
-	updateProfile,
-	UpdateProfileError,
-	type ProfileUpdateInput,
-} from "../src/update-profile/api.js";
+	buildPackageCandidate,
+	updatePackage,
+	UpdatePackageError,
+	type PackageUpdateInput,
+} from "../src/update-package/api.js";
 import { MockPds } from "./mock-pds.js";
 
 const TEST_DID: Did = "did:plc:test123";
@@ -49,7 +49,7 @@ function seedProfile(
 	return record;
 }
 
-function input(overrides: Partial<ProfileUpdateInput> = {}): ProfileUpdateInput {
+function input(overrides: Partial<PackageUpdateInput> = {}): PackageUpdateInput {
 	return {
 		license: "MIT",
 		authors: [{ name: "Alice" }],
@@ -61,13 +61,13 @@ function input(overrides: Partial<ProfileUpdateInput> = {}): ProfileUpdateInput 
 const FIXED_NOW = new Date("2026-05-20T12:00:00.000Z");
 const now = () => FIXED_NOW;
 
-describe("updateProfile", () => {
+describe("updatePackage", () => {
 	describe("dry-run", () => {
 		it("returns an empty diff when manifest matches the existing profile", async () => {
 			const pds = new MockPds({ did: TEST_DID });
 			seedProfile(pds);
 
-			const result = await updateProfile({
+			const result = await updatePackage({
 				publisher: buildPublisher(pds),
 				did: TEST_DID,
 				slug: SLUG,
@@ -84,7 +84,7 @@ describe("updateProfile", () => {
 			const pds = new MockPds({ did: TEST_DID });
 			seedProfile(pds);
 
-			const result = await updateProfile({
+			const result = await updatePackage({
 				publisher: buildPublisher(pds),
 				did: TEST_DID,
 				slug: SLUG,
@@ -101,7 +101,7 @@ describe("updateProfile", () => {
 			const pds = new MockPds({ did: TEST_DID });
 			seedProfile(pds, { name: "Old Name" });
 
-			const result = await updateProfile({
+			const result = await updatePackage({
 				publisher: buildPublisher(pds),
 				did: TEST_DID,
 				slug: SLUG,
@@ -116,7 +116,7 @@ describe("updateProfile", () => {
 			const pds = new MockPds({ did: TEST_DID });
 			seedProfile(pds, { keywords: ["a", "b"] });
 
-			const result = await updateProfile({
+			const result = await updatePackage({
 				publisher: buildPublisher(pds),
 				did: TEST_DID,
 				slug: SLUG,
@@ -134,7 +134,7 @@ describe("updateProfile", () => {
 				keywords: ["one"],
 			});
 
-			const result = await updateProfile({
+			const result = await updatePackage({
 				publisher: buildPublisher(pds),
 				did: TEST_DID,
 				slug: SLUG,
@@ -155,7 +155,7 @@ describe("updateProfile", () => {
 			const pds = new MockPds({ did: TEST_DID });
 			seedProfile(pds, { description: "old description" });
 
-			const result = await updateProfile({
+			const result = await updatePackage({
 				publisher: buildPublisher(pds),
 				did: TEST_DID,
 				slug: SLUG,
@@ -174,7 +174,7 @@ describe("updateProfile", () => {
 			const pds = new MockPds({ did: TEST_DID });
 			seedProfile(pds);
 
-			const result = await updateProfile({
+			const result = await updatePackage({
 				publisher: buildPublisher(pds),
 				did: TEST_DID,
 				slug: SLUG,
@@ -210,7 +210,7 @@ describe("updateProfile", () => {
 			const pds = new MockPds({ did: TEST_DID });
 			seedProfile(pds);
 
-			const result = await updateProfile({
+			const result = await updatePackage({
 				publisher: buildPublisher(pds),
 				did: TEST_DID,
 				slug: SLUG,
@@ -230,7 +230,7 @@ describe("updateProfile", () => {
 				someFutureField: { nested: true },
 			});
 
-			await updateProfile({
+			await updatePackage({
 				publisher: buildPublisher(pds),
 				did: TEST_DID,
 				slug: SLUG,
@@ -247,18 +247,18 @@ describe("updateProfile", () => {
 	});
 
 	describe("refusals", () => {
-		it("throws PROFILE_NOT_FOUND when no record exists at the slug and no other profile is found", async () => {
+		it("throws PACKAGE_NOT_FOUND when no record exists at the slug and no other profile is found", async () => {
 			const pds = new MockPds({ did: TEST_DID });
 			await expect(
-				updateProfile({
+				updatePackage({
 					publisher: buildPublisher(pds),
 					did: TEST_DID,
 					slug: SLUG,
 					input: input(),
 				}),
 			).rejects.toMatchObject({
-				name: "UpdateProfileError",
-				code: "PROFILE_NOT_FOUND",
+				name: "UpdatePackageError",
+				code: "PACKAGE_NOT_FOUND",
 			});
 		});
 
@@ -278,7 +278,7 @@ describe("updateProfile", () => {
 
 			let caught: unknown;
 			try {
-				await updateProfile({
+				await updatePackage({
 					publisher: buildPublisher(pds),
 					did: TEST_DID,
 					slug: "new-slug",
@@ -288,9 +288,9 @@ describe("updateProfile", () => {
 				caught = error;
 			}
 
-			expect(caught).toBeInstanceOf(UpdateProfileError);
-			expect((caught as UpdateProfileError).code).toBe("POSSIBLE_RENAME");
-			expect((caught as UpdateProfileError).message).toContain("old-slug");
+			expect(caught).toBeInstanceOf(UpdatePackageError);
+			expect((caught as UpdatePackageError).code).toBe("POSSIBLE_RENAME");
+			expect((caught as UpdatePackageError).message).toContain("old-slug");
 			expect(pds.callsTo("com.atproto.repo.putRecord")).toHaveLength(0);
 		});
 
@@ -299,7 +299,7 @@ describe("updateProfile", () => {
 			seedProfile(pds);
 
 			await expect(
-				updateProfile({
+				updatePackage({
 					publisher: buildPublisher(pds),
 					did: TEST_DID,
 					slug: SLUG,
@@ -307,7 +307,7 @@ describe("updateProfile", () => {
 					apply: true,
 				}),
 			).rejects.toMatchObject({
-				name: "UpdateProfileError",
+				name: "UpdatePackageError",
 				code: "INVALID_INPUT",
 			});
 
@@ -321,7 +321,7 @@ describe("updateProfile", () => {
 			seedProfile(pds);
 
 			await expect(
-				updateProfile({
+				updatePackage({
 					publisher: buildPublisher(pds),
 					did: TEST_DID,
 					slug: SLUG,
@@ -329,25 +329,25 @@ describe("updateProfile", () => {
 					apply: true,
 				}),
 			).rejects.toMatchObject({
-				name: "UpdateProfileError",
+				name: "UpdatePackageError",
 				code: "INVALID_INPUT",
 			});
 		});
 
-		it("throws PROFILE_INVALID when the existing record fails lexicon validation", async () => {
+		it("throws PACKAGE_INVALID when the existing record fails lexicon validation", async () => {
 			const pds = new MockPds({ did: TEST_DID });
 			pds.seedRecord(NSID.packageProfile, SLUG, { incomplete: true });
 
 			await expect(
-				updateProfile({
+				updatePackage({
 					publisher: buildPublisher(pds),
 					did: TEST_DID,
 					slug: SLUG,
 					input: input(),
 				}),
 			).rejects.toMatchObject({
-				name: "UpdateProfileError",
-				code: "PROFILE_INVALID",
+				name: "UpdatePackageError",
+				code: "PACKAGE_INVALID",
 			});
 
 			// And nothing was written.
@@ -362,7 +362,7 @@ describe("updateProfile", () => {
 
 			let caught: unknown;
 			try {
-				await updateProfile({
+				await updatePackage({
 					publisher: buildPublisher(pds),
 					did: TEST_DID,
 					slug: SLUG,
@@ -373,14 +373,14 @@ describe("updateProfile", () => {
 				caught = error;
 			}
 
-			expect(caught).toBeInstanceOf(UpdateProfileError);
-			expect((caught as UpdateProfileError).code).toBe("SLUG_MISMATCH");
+			expect(caught).toBeInstanceOf(UpdatePackageError);
+			expect((caught as UpdatePackageError).code).toBe("SLUG_MISMATCH");
 			expect(pds.callsTo("com.atproto.repo.putRecord")).toHaveLength(0);
 		});
 	});
 });
 
-describe("buildProfileCandidate", () => {
+describe("buildPackageCandidate", () => {
 	it("does not bump lastUpdated when there are no diffs", () => {
 		const existing = {
 			$type: NSID.packageProfile,
@@ -391,7 +391,7 @@ describe("buildProfileCandidate", () => {
 			type: "emdash-plugin",
 			lastUpdated: "2024-01-01T00:00:00.000Z",
 		};
-		const { candidate, diffs } = buildProfileCandidate({
+		const { candidate, diffs } = buildPackageCandidate({
 			existing,
 			input: input(),
 			now: FIXED_NOW,
@@ -410,7 +410,7 @@ describe("buildProfileCandidate", () => {
 			type: "emdash-plugin",
 			lastUpdated: "2024-01-01T00:00:00.000Z",
 		};
-		const { candidate, diffs } = buildProfileCandidate({
+		const { candidate, diffs } = buildPackageCandidate({
 			existing,
 			input: input({ license: "Apache-2.0" }),
 			now: FIXED_NOW,
@@ -429,7 +429,7 @@ describe("buildProfileCandidate", () => {
 			type: "emdash-plugin",
 			lastUpdated: "2024-01-01T00:00:00.000Z",
 		};
-		const { diffs } = buildProfileCandidate({
+		const { diffs } = buildPackageCandidate({
 			existing,
 			input: input({
 				authors: [{ name: "Alice", url: "https://alice.example.com" }],

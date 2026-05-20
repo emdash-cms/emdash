@@ -16,7 +16,7 @@
  *   - dev      — watch sources and rebuild on change
  *   - bundle         — bundle a plugin source directory into a tarball
  *   - publish        — publish a release that points at a hosted tarball
- *   - update-profile — edit an already-published profile without a new release
+ *   - update-package — edit an already-published package without a new release
  *   - validate       — validate an emdash-plugin.jsonc manifest against the v1 schema
  *
  * EXPERIMENTAL: this CLI targets `com.emdashcms.experimental.*` and the
@@ -34,7 +34,7 @@ import { logoutCommand } from "./commands/logout.js";
 import { publishCommand } from "./commands/publish.js";
 import { searchCommand } from "./commands/search.js";
 import { switchCommand } from "./commands/switch.js";
-import { updateProfileCommand } from "./commands/update-profile.js";
+import { updatePackageCommand } from "./commands/update-package.js";
 import { validateCommand } from "./commands/validate.js";
 import { whoamiCommand } from "./commands/whoami.js";
 import { devCommand } from "./dev/command.js";
@@ -56,7 +56,7 @@ const main = defineCommand({
 		dev: devCommand,
 		bundle: bundleCommand,
 		publish: publishCommand,
-		"update-profile": updateProfileCommand,
+		"update-package": updatePackageCommand,
 		validate: validateCommand,
 	},
 });
