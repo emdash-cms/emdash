@@ -100,7 +100,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// 100 releases would still lose access to the oldest, but that's far past
 	// what a single plugin would ever ship in the experimental phase.
 	const { data: releasesData } = useQuery({
-		queryKey: ["registry", "releases", config.aggregatorUrl, pkg?.did, slug],
+		queryKey: ["registry", "releases", config.aggregatorUrl, config.acceptLabelers, pkg?.did, slug],
 		queryFn: () => listRegistryReleases(config, pkg!.did, slug, { limit: 100 }),
 		enabled: Boolean(pkg?.did && slug),
 	});
@@ -111,9 +111,11 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	);
 	const hasFilteredAllReleases = (releasesData?.releases.length ?? 0) > 0 && releases.length === 0;
 
-	// Default to the highest semver that also passes the policy holdback. Fall
-	// back to the highest installable record so the picker always has something
-	// selected when releases exist.
+	// Default to the highest semver that passes the policy holdback. When every
+	// release is still inside the holdback window, fall back to the highest
+	// listed version — installation stays disabled (with the holdback banner)
+	// but the picker has something selected and the per-release metadata stays
+	// visible.
 	const defaultVersion = React.useMemo(() => {
 		if (!pkg || releases.length === 0) return undefined;
 		const passes = releases.find((r) =>
@@ -131,6 +133,17 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const [prevPluginId, setPrevPluginId] = React.useState(pluginId);
 	if (prevPluginId !== pluginId) {
 		setPrevPluginId(pluginId);
+		setSelectedVersion(undefined);
+	}
+	// Reconcile when the release list changes underneath an explicit selection
+	// (the selected version got yanked between visits, the labeller config
+	// changed, etc.). Dropping back to the default avoids the Select trigger
+	// rendering a value with no matching option.
+	if (
+		selectedVersion !== undefined &&
+		releases.length > 0 &&
+		!releases.some((r) => r.version === selectedVersion)
+	) {
 		setSelectedVersion(undefined);
 	}
 
@@ -288,7 +301,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 			<BackLink />
 
 			{/* Header */}
-			<div className="flex items-start gap-4">
+			<div className="flex flex-wrap items-start gap-4">
 				<div className="rounded-xl bg-kumo-subtle p-3 text-kumo-subtle">
 					<span aria-hidden className="block h-10 w-10" />
 				</div>
@@ -315,11 +328,11 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						</div>
 					) : null}
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="flex min-w-0 flex-wrap items-center gap-2">
 					{releases.length > 1 ? (
 						<Select
 							aria-label={t`Version`}
-							className="w-[220px]"
+							className="w-full max-w-[220px]"
 							value={effectiveVersion ?? ""}
 							onValueChange={(v) => setSelectedVersion(v ?? undefined)}
 							renderValue={(v) => (typeof v === "string" ? v : "")}
@@ -591,11 +604,14 @@ const YANKED_LABEL_VALUE = "security:yanked";
  * `acceptLabelers` config includes the labeller never see yanked releases at all
  * (server filtering), but sites without it receive yanked releases interleaved
  * with installable ones — filter them out so they never reach the picker.
- * `l.neg === true` marks a label as a *negation* (an earlier yank that was
- * later retracted); a release with only a negated yank is back to installable.
+ *
+ * `neg` (negated labels) is intentionally ignored to match the server install
+ * handler, which only checks `l.val === "security:yanked"`. Diverging here would
+ * let the UI surface an install affordance the server will reject with
+ * `RELEASE_YANKED`. Honoring `neg` on both sides is a separate follow-up.
  */
 function isYanked(release: RegistryReleaseView): boolean {
-	return (release.labels ?? []).some((l) => l.val === YANKED_LABEL_VALUE && !l.neg);
+	return (release.labels ?? []).some((l) => l.val === YANKED_LABEL_VALUE);
 }
 
 function formatDate(iso: string): string {
