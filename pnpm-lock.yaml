@@ -13,8 +13,8 @@ catalogs:
       specifier: ^0.9.7
       version: 0.9.7
     '@astrojs/cloudflare':
-      specifier: 13.5.1
-      version: 13.5.1
+      specifier: ^13.5.3
+      version: 13.5.3
     '@astrojs/node':
       specifier: ^10.1.1
       version: 10.1.1
@@ -247,7 +247,6 @@ catalogs:
 overrides:
   '@astrojs/telemetry': 3.3.0
   '@ungap/structured-clone': ^1.3.1
-  picomatch: ^4.0.4
 
 importers:
 
@@ -385,7 +384,7 @@ importers:
     dependencies:
       '@astrojs/cloudflare':
         specifier: 'catalog:'
-        version: 13.5.1(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: 13.5.3(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.32.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.8.2)
@@ -422,7 +421,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
@@ -437,7 +436,7 @@ importers:
     dependencies:
       '@astrojs/cloudflare':
         specifier: 'catalog:'
-        version: 13.5.1(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: 13.5.3(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.32.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.8.2)
@@ -459,7 +458,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
@@ -554,7 +553,7 @@ importers:
     dependencies:
       '@astrojs/cloudflare':
         specifier: 'catalog:'
-        version: 13.5.1(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: 13.5.3(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.32.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.8.2)
@@ -582,7 +581,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
@@ -634,7 +633,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
 
   docs:
     dependencies:
@@ -706,7 +705,7 @@ importers:
     dependencies:
       '@astrojs/cloudflare':
         specifier: 'catalog:'
-        version: 13.5.1(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: 13.5.3(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/node':
         specifier: 'catalog:'
         version: 10.1.1(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))
@@ -737,7 +736,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
@@ -758,7 +757,7 @@ importers:
     dependencies:
       '@astrojs/cloudflare':
         specifier: 'catalog:'
-        version: 13.5.1(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: 13.5.3(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.32.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.8.2)
@@ -789,7 +788,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
@@ -801,7 +800,7 @@ importers:
     dependencies:
       '@astrojs/cloudflare':
         specifier: https://pkg.pr.new/@astrojs/cloudflare@94d342d
-        version: https://pkg.pr.new/@astrojs/cloudflare@94d342d(@types/node@24.10.13)(astro@https://pkg.pr.new/astro@94d342d(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(typescript@6.0.3)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(workerd@1.20260415.1)(wrangler@4.83.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: https://pkg.pr.new/@astrojs/cloudflare@94d342d(@types/node@24.10.13)(astro@https://pkg.pr.new/astro@94d342d(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(typescript@6.0.0-beta)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(workerd@1.20260415.1)(wrangler@4.83.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.32.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.8.2)
@@ -819,7 +818,7 @@ importers:
         version: link:../../packages/plugins/webhook-notifier
       astro:
         specifier: https://pkg.pr.new/astro@94d342d
-        version: https://pkg.pr.new/astro@94d342d(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(typescript@6.0.3)(yaml@2.8.2)
+        version: https://pkg.pr.new/astro@94d342d(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(typescript@6.0.0-beta)(yaml@2.8.2)
       emdash:
         specifier: workspace:*
         version: link:../../packages/core
@@ -832,7 +831,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
@@ -2066,7 +2065,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
 
   templates/blog:
     dependencies:
@@ -2097,13 +2096,13 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
 
   templates/blog-cloudflare:
     dependencies:
       '@astrojs/cloudflare':
         specifier: 'catalog:'
-        version: 13.5.1(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: 13.5.3(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.32.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.8.2)
@@ -2131,7 +2130,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
@@ -2171,13 +2170,13 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
 
   templates/marketing-cloudflare:
     dependencies:
       '@astrojs/cloudflare':
         specifier: 'catalog:'
-        version: 13.5.1(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: 13.5.3(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.32.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.8.2)
@@ -2205,7 +2204,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
@@ -2239,13 +2238,13 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
 
   templates/portfolio-cloudflare:
     dependencies:
       '@astrojs/cloudflare':
         specifier: 'catalog:'
-        version: 13.5.1(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: 13.5.3(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.32.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.8.2)
@@ -2267,7 +2266,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
@@ -2301,13 +2300,13 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
 
   templates/starter-cloudflare:
     dependencies:
       '@astrojs/cloudflare':
         specifier: 'catalog:'
-        version: 13.5.1(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
+        version: 13.5.3(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)
       '@astrojs/react':
         specifier: 'catalog:'
         version: 5.0.0(@types/node@24.10.13)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.6.1)(lightningcss@1.32.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.8.2)
@@ -2329,7 +2328,7 @@ importers:
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
-        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+        version: 0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
@@ -2436,14 +2435,14 @@ packages:
       astro: ^6.0.0
       wrangler: ^4.61.1
 
-  '@astrojs/cloudflare@13.5.1':
-    resolution: {integrity: sha512-5RjVHu+MFSA7qyEpjA5C6iRS0YURDUcDak1YcMeKao9oBZhIGEky5Zqkq+jcuoqiSjbvcvcM57Xfj06tFeo/QQ==}
+  '@astrojs/cloudflare@13.5.3':
+    resolution: {integrity: sha512-LChk0gvXeGlmagsWMa6Ym1H48ckBv2j3rMfYsS+zS9m6bg1TjvOb3F8r6uzsWxRvli61LE7+a1sTffG70U1NMg==}
     peerDependencies:
       astro: ^6.3.0
       wrangler: ^4.83.0
 
   '@astrojs/cloudflare@https://pkg.pr.new/@astrojs/cloudflare@94d342d':
-    resolution: {integrity: sha512-Bt+G512Dr1SqYdsza6HOLP2azfHg0m5UE0s6SBGX77g+ThFV95Nai5boyM8HO3jVpqwVPPh+5ycMptjrtzv7Yg==, tarball: https://pkg.pr.new/@astrojs/cloudflare@94d342d}
+    resolution: {tarball: https://pkg.pr.new/@astrojs/cloudflare@94d342d}
     version: 13.1.10
     peerDependencies:
       astro: ^6.0.0
@@ -4003,7 +4002,7 @@ packages:
     resolution: {integrity: sha512-yTCCjuQapvRz6S30B8DyqHu1WYsbYRCww6uNsmbQU4GQVf5gJzJSB60qUHj+qBSxReLtRL/mhmhYhrIc9jVFTw==}
 
   '@lunariajs/core@https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc':
-    resolution: {integrity: sha512-k8sHBM7S10HBa39fxsJcOGYMGrbru5UZ9vMS4kmCa9o6dJTUP6rt3zKVEs7uEsHAYasoXyiC6wre2Jiqs3X+zQ==, tarball: https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc}
+    resolution: {tarball: https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc}
     version: 0.1.1
     engines: {node: '>=18.17.0'}
 
@@ -6608,7 +6607,7 @@ packages:
     hasBin: true
 
   astro@https://pkg.pr.new/astro@94d342d:
-    resolution: {integrity: sha512-1XlhRGRCQP4L5KPZUgSRCKOD28aKiGYQ8TBAxBIJvFV/HUuct3eHvc7sY/krhhCAju81JMlvbWU+1XVzltgZTQ==, tarball: https://pkg.pr.new/astro@94d342d}
+    resolution: {tarball: https://pkg.pr.new/astro@94d342d}
     version: 6.1.7
     engines: {node: '>=22.12.0', npm: '>=9.6.5', pnpm: '>=7.1.0'}
     hasBin: true
@@ -7365,7 +7364,7 @@ packages:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
-      picomatch: ^4.0.4
+      picomatch: ^3 || ^4
     peerDependenciesMeta:
       picomatch:
         optional: true
@@ -8904,6 +8903,10 @@ packages:
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
+
+  picomatch@2.3.2:
+    resolution: {integrity: sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA==}
+    engines: {node: '>=8.6'}
 
   picomatch@4.0.4:
     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
@@ -10837,12 +10840,12 @@ snapshots:
     dependencies:
       lite-youtube-embed: 0.3.4
 
-  '@astrojs/check@0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)':
+  '@astrojs/check@0.9.7(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)':
     dependencies:
-      '@astrojs/language-server': 2.16.3(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)
+      '@astrojs/language-server': 2.16.3(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)
       chokidar: 4.0.3
       kleur: 4.1.5
-      typescript: 6.0.3
+      typescript: 6.0.0-beta
       yargs: 17.7.2
     transitivePeerDependencies:
       - prettier
@@ -10874,7 +10877,7 @@ snapshots:
       - workerd
       - yaml
 
-  '@astrojs/cloudflare@13.5.1(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)':
+  '@astrojs/cloudflare@13.5.3(@types/node@24.10.13)(astro@6.3.5(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(wrangler@4.90.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)':
     dependencies:
       '@astrojs/internal-helpers': 0.9.1
       '@astrojs/underscore-redirects': 1.0.3
@@ -10900,12 +10903,12 @@ snapshots:
       - workerd
       - yaml
 
-  '@astrojs/cloudflare@https://pkg.pr.new/@astrojs/cloudflare@94d342d(@types/node@24.10.13)(astro@https://pkg.pr.new/astro@94d342d(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(typescript@6.0.3)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(workerd@1.20260415.1)(wrangler@4.83.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)':
+  '@astrojs/cloudflare@https://pkg.pr.new/@astrojs/cloudflare@94d342d(@types/node@24.10.13)(astro@https://pkg.pr.new/astro@94d342d(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(typescript@6.0.0-beta)(yaml@2.8.2))(jiti@2.6.1)(lightningcss@1.32.0)(workerd@1.20260415.1)(wrangler@4.83.0(@cloudflare/workers-types@4.20260305.1))(yaml@2.8.2)':
     dependencies:
       '@astrojs/internal-helpers': 0.8.0
       '@astrojs/underscore-redirects': 1.0.3
       '@cloudflare/vite-plugin': 1.32.3(vite@7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.2))(workerd@1.20260415.1)(wrangler@4.83.0(@cloudflare/workers-types@4.20260305.1))
-      astro: https://pkg.pr.new/astro@94d342d(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(typescript@6.0.3)(yaml@2.8.2)
+      astro: https://pkg.pr.new/astro@94d342d(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(typescript@6.0.0-beta)(yaml@2.8.2)
       piccolore: 0.1.3
       tinyglobby: 0.2.15
       vite: 7.3.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.8.2)
@@ -10946,12 +10949,12 @@ snapshots:
     dependencies:
       picomatch: 4.0.4
 
-  '@astrojs/language-server@2.16.3(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.3)':
+  '@astrojs/language-server@2.16.3(prettier-plugin-astro@0.14.1)(prettier@3.8.3)(typescript@6.0.0-beta)':
     dependencies:
       '@astrojs/compiler': 2.13.0
       '@astrojs/yaml2ts': 0.2.2
       '@jridgewell/sourcemap-codec': 1.5.5
-      '@volar/kit': 2.4.27(typescript@6.0.3)
+      '@volar/kit': 2.4.27(typescript@6.0.0-beta)
       '@volar/language-core': 2.4.27
       '@volar/language-server': 2.4.27
       '@volar/language-service': 2.4.27
@@ -12491,8 +12494,8 @@ snapshots:
       hast-util-to-html: 9.0.5
       hast-util-to-text: 4.0.2
       hastscript: 9.0.1
-      postcss: 8.5.6
-      postcss-nested: 6.2.0(postcss@8.5.6)
+      postcss: 8.5.14
+      postcss-nested: 6.2.0(postcss@8.5.14)
       unist-util-visit: 5.1.0
       unist-util-visit-parents: 6.0.2
 
@@ -15120,12 +15123,12 @@ snapshots:
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
 
-  '@volar/kit@2.4.27(typescript@6.0.3)':
+  '@volar/kit@2.4.27(typescript@6.0.0-beta)':
     dependencies:
       '@volar/language-service': 2.4.27
       '@volar/typescript': 2.4.27
       typesafe-path: 0.2.2
-      typescript: 6.0.3
+      typescript: 6.0.0-beta
       vscode-languageserver-textdocument: 1.0.12
       vscode-uri: 3.1.0
 
@@ -15296,7 +15299,7 @@ snapshots:
   anymatch@3.1.3:
     dependencies:
       normalize-path: 3.0.0
-      picomatch: 4.0.4
+      picomatch: 2.3.2
 
   arctic@3.7.0:
     dependencies:
@@ -16025,7 +16028,7 @@ snapshots:
       - uploadthing
       - yaml
 
-  astro@https://pkg.pr.new/astro@94d342d(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(typescript@6.0.3)(yaml@2.8.2):
+  astro@https://pkg.pr.new/astro@94d342d(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.32.0)(rollup@4.55.2)(typescript@6.0.0-beta)(yaml@2.8.2):
     dependencies:
       '@astrojs/compiler': 3.0.1
       '@astrojs/internal-helpers': 0.8.0
@@ -16070,7 +16073,7 @@ snapshots:
       tinyclip: 0.1.12
       tinyexec: 1.0.4
       tinyglobby: 0.2.15
-      tsconfck: 3.1.6(typescript@6.0.3)
+      tsconfck: 3.1.6(typescript@6.0.0-beta)
       ultrahtml: 1.6.0
       unifont: 0.7.4
       unist-util-visit: 5.1.0
@@ -18242,7 +18245,7 @@ snapshots:
   micromatch@4.0.8:
     dependencies:
       braces: 3.0.3
-      picomatch: 4.0.4
+      picomatch: 2.3.2
 
   mime-db@1.52.0: {}
 
@@ -18767,6 +18770,8 @@ snapshots:
 
   picocolors@1.1.1: {}
 
+  picomatch@2.3.2: {}
+
   picomatch@4.0.4: {}
 
   pify@4.0.1: {}
@@ -18820,9 +18825,9 @@ snapshots:
 
   pofile@1.1.4: {}
 
-  postcss-nested@6.2.0(postcss@8.5.6):
+  postcss-nested@6.2.0(postcss@8.5.14):
     dependencies:
-      postcss: 8.5.6
+      postcss: 8.5.14
       postcss-selector-parser: 6.1.2
 
   postcss-selector-parser@6.0.10:
@@ -19114,7 +19119,7 @@ snapshots:
 
   readdirp@3.5.0:
     dependencies:
-      picomatch: 4.0.4
+      picomatch: 2.3.2
 
   readdirp@4.1.2: {}
 
