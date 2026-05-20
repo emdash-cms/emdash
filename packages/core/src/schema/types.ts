@@ -277,8 +277,9 @@ export interface CollectionWithFields extends Collection {
 /**
  * Reserved field slugs that cannot be used.
  *
- * Includes names reserved for runtime hydration (`terms`, `bylines`, `byline`)
- * so user-defined fields never shadow the auto-hydrated values on entry.data.
+ * Includes names reserved for runtime hydration (`terms`, `bylines`, `byline`,
+ * `seo`) so user-defined fields never shadow the auto-hydrated values on
+ * entry.data.
  */
 export const RESERVED_FIELD_SLUGS = [
 	"id",
@@ -298,6 +299,7 @@ export const RESERVED_FIELD_SLUGS = [
 	"terms",
 	"bylines",
 	"byline",
+	"seo",
 ];
 
 /**
