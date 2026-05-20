@@ -1082,7 +1082,7 @@ export async function handleRegistryInstall(
 			return {
 				success: false,
 				error: {
-					code: "AGGREGATOR_HTTP_ERROR",
+					code: err.status === 404 ? "AGGREGATOR_NOT_FOUND" : "AGGREGATOR_HTTP_ERROR",
 					message: `Aggregator returned ${err.status}: ${err.error}`,
 				},
 			};
@@ -1150,21 +1150,19 @@ export async function handleRegistryUninstall(
 		// `marketplaceVersion`). Use it verbatim for the R2 prefix.
 		const version = existing.version;
 
-		if (storage) {
-			await deleteBundleFromR2(storage, pluginId, version, "registry");
-		}
-
+		// Order: optional storage cleanup → bundle delete → state row delete.
+		// The most failure-prone step runs first so a transient DB error
+		// (deadlock, contention) cascades to the outer catch with the state
+		// row and bundle intact — admin retries safely. Bundle delete is
+		// idempotent on misses.
 		let dataDeleted = false;
 		if (opts?.deleteData) {
-			try {
-				await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
-				dataDeleted = true;
-			} catch (err) {
-				console.warn(
-					`[registry-uninstall] _plugin_storage cleanup failed for ${pluginId}; uninstall continues:`,
-					err,
-				);
-			}
+			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+			dataDeleted = true;
+		}
+
+		if (storage) {
+			await deleteBundleFromR2(storage, pluginId, version, "registry");
 		}
 
 		await stateRepo.delete(pluginId);
@@ -1500,7 +1498,7 @@ export async function handleRegistryUpdate(
 			return {
 				success: false,
 				error: {
-					code: "AGGREGATOR_HTTP_ERROR",
+					code: err.status === 404 ? "AGGREGATOR_NOT_FOUND" : "AGGREGATOR_HTTP_ERROR",
 					message: `Aggregator returned ${err.status}: ${err.error}`,
 				},
 			};
@@ -1620,7 +1618,7 @@ export async function handleRegistryUpdateCheck(
 			return {
 				success: false,
 				error: {
-					code: "AGGREGATOR_HTTP_ERROR",
+					code: err.status === 404 ? "AGGREGATOR_NOT_FOUND" : "AGGREGATOR_HTTP_ERROR",
 					message: `Aggregator returned ${err.status}: ${err.error}`,
 				},
 			};
