@@ -28,11 +28,5 @@
 		"@astrojs/check": "catalog:",
 		"@cloudflare/workers-types": "catalog:",
 		"wrangler": "^4.83.0"
-	},
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"esbuild",
-			"workerd"
-		]
 	}
 }
