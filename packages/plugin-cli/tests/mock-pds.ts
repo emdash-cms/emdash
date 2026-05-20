@@ -58,6 +58,28 @@ export interface MockPdsOptions {
 	 * that need a different one can override.
 	 */
 	did?: `did:${string}:${string}`;
+	/**
+	 * Scope embedded in the `accessJwt` payload returned by
+	 * `com.atproto.server.createSession`. Defaults to `com.atproto.appPass`, the
+	 * shape a real PDS returns for an app-password session. Tests that exercise
+	 * the publish-CLI guardrails override this — e.g. with `com.atproto.access`
+	 * to assert a full-account credential is rejected.
+	 */
+	createSessionScope?:
+		| "com.atproto.access"
+		| "com.atproto.appPass"
+		| "com.atproto.appPassPrivileged";
+	/**
+	 * DID returned by `createSession`. Defaults to {@link MockPdsOptions.did}.
+	 * Override to drive the PUBLISHER_DID_MISMATCH guard: the resolved
+	 * identifier and the logged-in account belong to different repos.
+	 */
+	createSessionDid?: `did:${string}:${string}`;
+	/**
+	 * Handle returned by `createSession`. Defaults to `mock.test`. Surfaces in
+	 * the AtpSessionData a real PDS would issue.
+	 */
+	createSessionHandle?: string;
 }
 
 const RKEY_RE = /^[a-zA-Z0-9._~:-]+$/;
@@ -70,9 +92,18 @@ export class MockPds implements FetchHandlerObject {
 	readonly did: `did:${string}:${string}`;
 	readonly records = new Map<string, StoredRecord>();
 	readonly calls: MockPdsCall[] = [];
+	readonly #createSessionScope:
+		| "com.atproto.access"
+		| "com.atproto.appPass"
+		| "com.atproto.appPassPrivileged";
+	readonly #createSessionDid: `did:${string}:${string}`;
+	readonly #createSessionHandle: string;
 
 	constructor(options: MockPdsOptions = {}) {
 		this.did = options.did ?? "did:plc:test123";
+		this.#createSessionScope = options.createSessionScope ?? "com.atproto.appPass";
+		this.#createSessionDid = options.createSessionDid ?? this.did;
+		this.#createSessionHandle = options.createSessionHandle ?? "mock.test";
 	}
 
 	async handle(pathname: string, init: RequestInit): Promise<Response> {
@@ -91,6 +122,8 @@ export class MockPds implements FetchHandlerObject {
 				return this.#listRecords(url);
 			case "/xrpc/com.atproto.repo.applyWrites":
 				return this.#applyWrites(body);
+			case "/xrpc/com.atproto.server.createSession":
+				return this.#createSession(body);
 			default:
 				return jsonResponse(404, {
 					error: "MethodNotFound",
@@ -291,6 +324,47 @@ export class MockPds implements FetchHandlerObject {
 		return jsonResponse(200, { results });
 	}
 
+	#createSession(body: unknown): Response {
+		if (!body || typeof body !== "object") {
+			return jsonResponse(400, { error: "InvalidRequest", message: "missing body" });
+		}
+		const input = body as { identifier?: unknown; password?: unknown };
+		if (typeof input.identifier !== "string" || input.identifier.length === 0) {
+			return jsonResponse(400, {
+				error: "InvalidRequest",
+				message: "identifier must be a non-empty string",
+			});
+		}
+		if (typeof input.password !== "string" || input.password.length === 0) {
+			return jsonResponse(401, {
+				error: "AuthenticationRequired",
+				message: "password must be a non-empty string",
+			});
+		}
+		const now = Math.floor(Date.now() / 1000);
+		const accessJwt = encodeUnsignedJwt({
+			scope: this.#createSessionScope,
+			sub: this.#createSessionDid,
+			iat: now,
+			exp: now + 60 * 60 * 2,
+		});
+		const refreshJwt = encodeUnsignedJwt({
+			scope: "com.atproto.refresh",
+			sub: this.#createSessionDid,
+			jti: `mock-${now}`,
+			aud: this.#createSessionDid,
+			iat: now,
+			exp: now + 60 * 60 * 24 * 90,
+		});
+		return jsonResponse(200, {
+			did: this.#createSessionDid,
+			handle: this.#createSessionHandle,
+			accessJwt,
+			refreshJwt,
+			active: true,
+		});
+	}
+
 	/**
 	 * Cross-check that every write targets this mock's repo and that the rkey
 	 * matches atproto's record-key alphabet. Real PDSes enforce both; without
@@ -338,6 +412,26 @@ function cidOf(value: unknown): string {
 		.update(JSON.stringify(value ?? null))
 		.digest("hex");
 	return `bafyreig${hash.slice(0, 52)}`;
+}
+
+/**
+ * Encode an unsigned JWT (`header.payload.<empty>`) with base64url segments.
+ * The mock PDS does not sign tokens; the publish CLI's scope guardrail decodes
+ * the payload but does not verify the signature (the real PDS enforces auth
+ * for real). Matching that shape here is all we need.
+ */
+function encodeUnsignedJwt(payload: Record<string, unknown>): string {
+	const header = base64UrlEncode(JSON.stringify({ alg: "none", typ: "JWT" }));
+	const body = base64UrlEncode(JSON.stringify(payload));
+	return `${header}.${body}.`;
+}
+
+function base64UrlEncode(input: string): string {
+	return Buffer.from(input, "utf8")
+		.toString("base64")
+		.replaceAll("+", "-")
+		.replaceAll("/", "_")
+		.replace(/=+$/, "");
 }
 
 async function readJsonBody(body: BodyInit | null | undefined): Promise<unknown> {

@@ -28,6 +28,12 @@ import { defineCommand } from "citty";
 import consola from "consola";
 import pc from "picocolors";
 
+import {
+	AppPasswordError,
+	type PublishAuth,
+	type PublisherIdentity,
+	selectPublishAuth,
+} from "../app-password.js";
 import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/utils.js";
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
 import { checkPublisher, PublisherCheckError, writePublisherBack } from "../manifest/publisher.js";
@@ -120,6 +126,11 @@ export const publishCommand = defineCommand({
 			description:
 				"Emit a single-line JSON object on stdout instead of human output. Success: {profile, release, cid, checksum, url, profileCreated, releaseOverwritten}. Failure: {error: {code, message}}. Human-readable progress goes to stderr in either mode.",
 		},
+		publisher: {
+			type: "string",
+			description:
+				"Publisher handle or DID for CI app-password auth. Falls back to EMDASH_PUBLISHER_DID / EMDASH_PUBLISHER_HANDLE. Requires EMDASH_PUBLISHER_APP_PASSWORD in the environment. Omit for interactive OAuth (emdash-plugin login).",
+		},
 	},
 	async run({ args }) {
 		// In --json mode, stdout MUST contain only the final JSON object so
@@ -137,7 +148,7 @@ export const publishCommand = defineCommand({
 		try {
 			await runPublish(args);
 		} catch (error) {
-			exitCode = error instanceof CliError ? error.exitCode : 1;
+			exitCode = exitCodeFor(error);
 			handlePublishError(error, args.json);
 		} finally {
 			restoreReporters?.();
@@ -146,11 +157,42 @@ export const publishCommand = defineCommand({
 	},
 });
 
+function exitCodeFor(error: unknown): number {
+	if (error instanceof CliError) return error.exitCode;
+	if (error instanceof AppPasswordError) return error.exitCode;
+	return 1;
+}
+
+/**
+ * Test-only options for `runPublish`. Production callers (the citty command)
+ * pass `args` only; tests substitute an explicit auth provider so the publish
+ * flow doesn't depend on the filesystem credential store, OAuth state, or a
+ * real PDS for resolution.
+ */
+export interface RunPublishOverrides {
+	/**
+	 * Auth provider to use instead of the env/flag-driven selection. When set,
+	 * `selectPublishAuth` is skipped entirely — tests pass a pre-built provider
+	 * wired to a mock PDS or a stub.
+	 */
+	auth?: PublishAuth;
+}
+
 /**
  * Inner publish flow. Throws on every failure path; the outer `run` catches
  * and renders consistently (human + JSON modes).
+ *
+ * Auth indirection: `runPublish` delegates identity + authenticated handler
+ * to a {@link PublishAuth} provider. OAuth and app-password share the same
+ * outer flow — the provider decides whether `identify()` is offline (OAuth)
+ * or a network login (app-password); either way it returns before the
+ * tarball fetch so the publisher-pin check still fails fast on wrong-account
+ * publishes.
  */
-async function runPublish(args: PublishArgs): Promise<void> {
+export async function runPublish(
+	args: PublishArgs,
+	overrides: RunPublishOverrides = {},
+): Promise<void> {
 	// Validate URL before any network access. Empty or non-https URLs are
 	// rejected so we never publish a record pointing at file:// or a private
 	// IP that consumers won't be able to fetch from.
@@ -180,21 +222,20 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	const manifestLoad = await loadManifestBootstrap(args, consola);
 	const manifestProfile = manifestLoad?.profileInput ?? null;
 
-	// Resume the active publisher session BEFORE any network access.
-	// The publisher-mismatch check below depends only on the session DID
+	// Resolve the active publisher identity BEFORE any tarball access.
+	// The publisher-mismatch check below depends only on the identity DID
 	// and the manifest's pinned publisher; running both up front means
 	// a wrong-account publish fails in milliseconds rather than after a
-	// full tarball fetch + decompress + manifest extract.
-	const credentials = new FileCredentialStore();
-	const session = await credentials.current();
-	if (!session) {
-		throw new CliError(
-			"Not logged in. Run: emdash-plugin login <handle-or-did>",
-			1,
-			"NOT_LOGGED_IN",
-		);
-	}
-	consola.info(`Publishing as ${pc.bold(session.handle ?? session.did)} (${pc.dim(session.did)})`);
+	// full tarball fetch + decompress + manifest extract. For app-password
+	// auth this is also where the network `createSession` runs — bad
+	// credentials fail before the download.
+	const auth =
+		overrides.auth ??
+		selectPublishAuth({ publisher: args.publisher }, { oauthFactory: createOAuthPublishAuth });
+	const identity = await auth.identify();
+	consola.info(
+		`Publishing as ${pc.bold(identity.handle ?? identity.did)} (${pc.dim(identity.did)})`,
+	);
 
 	// Verify the manifest's pinned publisher matches the active session
 	// before fetching the tarball. The check is offline (DID compare is
@@ -204,11 +245,11 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		try {
 			const check = await checkPublisher({
 				manifestPublisher: manifestLoad.manifest.publisher,
-				sessionDid: session.did,
+				sessionDid: identity.did,
 			});
 			if (check.kind === "mismatch") {
 				throw new CliError(
-					`Manifest pins publisher to ${pc.bold(check.pinnedDisplay)} (${check.pinnedDid}), but the active session is ${session.did}. ` +
+					`Manifest pins publisher to ${pc.bold(check.pinnedDisplay)} (${check.pinnedDid}), but the active session is ${identity.did}. ` +
 						`Either switch sessions (\`emdash-plugin switch ${check.pinnedDid}\`), or edit the manifest if you are transferring the plugin to a new publisher.`,
 					1,
 					"MANIFEST_PUBLISHER_MISMATCH",
@@ -250,11 +291,11 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		consola.success(`Local file at ${pc.dim(localPath)} matches the URL`);
 	}
 
-	const oauthSession = await resumeSession(session.did);
+	const handler = await auth.handler();
 	const publisher = PublishingClient.fromHandler({
-		handler: oauthSession,
-		did: session.did,
-		pds: session.pds,
+		handler,
+		did: identity.did,
+		pds: identity.pds,
 	});
 
 	// Resolve the profile block. The manifest is the base; the deprecated
@@ -304,7 +345,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 
 	const result = await publishRelease({
 		publisher,
-		did: session.did,
+		did: identity.did,
 		manifest,
 		checksum,
 		url: args.url,
@@ -324,11 +365,11 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	if (manifestLoad && manifestLoad.manifest.publisher === undefined) {
 		await writePublisherBack({
 			manifestPath: manifestLoad.path,
-			sessionDid: session.did,
-			// session.handle is nullable; normalise to undefined for the
+			sessionDid: identity.did,
+			// identity.handle is nullable; normalise to undefined for the
 			// optional argument so the absence-vs-empty distinction stays
 			// clean at the writePublisherBack boundary.
-			sessionHandle: session.handle ?? undefined,
+			sessionHandle: identity.handle ?? undefined,
 			onInfo: (m) => consola.info(m),
 			onWarn: (m) => consola.warn(m),
 		});
@@ -367,7 +408,44 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	consola.info(
 		`The aggregator will pick this up from the firehose. To verify discovery once it's indexed:`,
 	);
-	console.log(`  ${pc.cyan(`emdash-plugin info ${session.handle ?? session.did} ${result.slug}`)}`);
+	console.log(
+		`  ${pc.cyan(`emdash-plugin info ${identity.handle ?? identity.did} ${result.slug}`)}`,
+	);
+}
+
+/**
+ * OAuth `PublishAuth` provider. Wraps the existing `FileCredentialStore` +
+ * `resumeSession` pair behind the seam, preserving byte-for-byte the
+ * offline-`identify()` + network-`handler()` ordering the rest of the
+ * publish flow assumes.
+ *
+ * Defined here rather than in `oauth.ts` so it can throw the publish
+ * command's `CliError` for the "not logged in" path without re-introducing a
+ * circular import.
+ */
+function createOAuthPublishAuth(): PublishAuth {
+	let identity: PublisherIdentity | null = null;
+	return {
+		async identify(): Promise<PublisherIdentity> {
+			const credentials = new FileCredentialStore();
+			const session = await credentials.current();
+			if (!session) {
+				throw new CliError(
+					"Not logged in. Run: emdash-plugin login <handle-or-did>",
+					1,
+					"NOT_LOGGED_IN",
+				);
+			}
+			identity = { did: session.did, handle: session.handle, pds: session.pds };
+			return identity;
+		},
+		async handler() {
+			if (!identity) {
+				throw new Error("oauth handler() called before identify()");
+			}
+			return resumeSession(identity.did);
+		},
+	};
 }
 
 /**
@@ -389,7 +467,7 @@ function handlePublishError(error: unknown, jsonMode: boolean): void {
 				"To overwrite anyway, pass --allow-overwrite (use only when you're sure no consumers have installed this version yet).",
 			);
 		}
-	} else if (error instanceof CliError) {
+	} else if (error instanceof CliError || error instanceof AppPasswordError) {
 		code = error.code;
 		message = error.message;
 		consola.error(error.message);
@@ -435,6 +513,7 @@ type PublishArgs = {
 	"no-manifest"?: boolean;
 	"allow-overwrite"?: boolean;
 	json?: boolean;
+	publisher?: string;
 };
 
 /**

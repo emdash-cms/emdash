@@ -543,8 +543,14 @@ export function tryOpenBrowser(url: string): void {
  * Validate and narrow a user-supplied identifier (handle or DID) to the
  * `ActorIdentifier` type the OAuth library expects. Throws a CLI-shaped error
  * message if neither shape matches.
+ *
+ * Exported so the app-password auth path can share the same shape check.
+ * Rejecting non-handle/DID inputs there matters for CI: the atproto
+ * createSession endpoint accepts emails too, but we don't want to publish
+ * with email-shaped identifiers — they make the authenticated DID dependent
+ * on a remote lookup we can't sanity-check locally.
  */
-function parseActorIdentifier(input: string): ActorIdentifier {
+export function parseActorIdentifier(input: string): ActorIdentifier {
 	const trimmed = input.trim();
 	if (isDid(trimmed) || isHandle(trimmed)) {
 		return trimmed;
