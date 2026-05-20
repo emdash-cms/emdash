@@ -13,7 +13,7 @@
  * sidebar entries stay stable.
  */
 
-import { Badge, Button, LinkButton } from "@cloudflare/kumo";
+import { Badge, Button, LinkButton, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { ShieldCheck, Warning } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,12 +22,13 @@ import * as React from "react";
 
 import {
 	canonicalCapabilitiesForDriftCheck,
-	getLatestRegistryRelease,
 	getRegistryPackage,
 	installRegistryPlugin,
+	listRegistryReleases,
 	releasePassesPolicy,
 	resolveRegistryPackage,
 	type RegistryClientConfig,
+	type RegistryReleaseView,
 } from "../lib/api/registry.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
@@ -87,11 +88,58 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// DID, because that's an impersonation risk).
 	const handleResult = usePublisherHandle(pkg?.did ?? "", pkg?.handle);
 
-	const { data: release } = useQuery({
-		queryKey: ["registry", "latest-release", config.aggregatorUrl, pkg?.did, slug],
-		queryFn: () => getLatestRegistryRelease(config, pkg!.did, slug),
+	// `listReleases` returns releases in descending semver order. The aggregator
+	// strips yanked releases server-side when `acceptLabelers` includes a labeller
+	// applying the `security:yanked` label, but sites with no labeller config
+	// receive yanked releases interleaved by version. Filter them out client-side
+	// as defense in depth so the picker never offers an actively-yanked install.
+	// Lexicon-invalid records (`release === null`) are also filtered: they carry
+	// no actionable metadata and can't be installed.
+	// `limit: 100` is the lexicon ceiling; one page covers the long tail of
+	// real packages without needing cursor follow-up. Packages with more than
+	// 100 releases would still lose access to the oldest, but that's far past
+	// what a single plugin would ever ship in the experimental phase.
+	const { data: releasesData } = useQuery({
+		queryKey: ["registry", "releases", config.aggregatorUrl, pkg?.did, slug],
+		queryFn: () => listRegistryReleases(config, pkg!.did, slug, { limit: 100 }),
 		enabled: Boolean(pkg?.did && slug),
 	});
+
+	const releases = React.useMemo<RegistryReleaseView[]>(
+		() => (releasesData?.releases ?? []).filter((r) => r.release !== null && !isYanked(r)),
+		[releasesData],
+	);
+	const hasFilteredAllReleases = (releasesData?.releases.length ?? 0) > 0 && releases.length === 0;
+
+	// Default to the highest semver that also passes the policy holdback. Fall
+	// back to the highest installable record so the picker always has something
+	// selected when releases exist.
+	const defaultVersion = React.useMemo(() => {
+		if (!pkg || releases.length === 0) return undefined;
+		const passes = releases.find((r) =>
+			releasePassesPolicy(r, { did: pkg.did, slug }, config.policy),
+		);
+		return (passes ?? releases[0])?.version;
+	}, [pkg, releases, slug, config.policy]);
+
+	const [selectedVersion, setSelectedVersion] = React.useState<string | undefined>(undefined);
+	// Reset during render (not after commit) when navigating between packages —
+	// the component instance survives route changes, and an `effect` reset would
+	// let a stale selection from package A briefly resolve against package B's
+	// release list before the effect fires. Enables an "install the wrong version
+	// on a fast click after a route change" race.
+	const [prevPluginId, setPrevPluginId] = React.useState(pluginId);
+	if (prevPluginId !== pluginId) {
+		setPrevPluginId(pluginId);
+		setSelectedVersion(undefined);
+	}
+
+	const effectiveVersion = selectedVersion ?? defaultVersion;
+	const release = React.useMemo(
+		() => releases.find((r) => r.version === effectiveVersion),
+		[releases, effectiveVersion],
+	);
+	const isPreRelease = release ? isPreReleaseVersion(release.version) : false;
 
 	// `release.extensions[com.emdashcms.experimental.package.releaseExtension]`
 	// carries the structured `declaredAccess`. The EmDash bundle manifest
@@ -259,12 +307,46 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						<PublisherHandle did={pkg.did} aggregatorHandle={pkg.handle} variant="detail" />
 					</p>
 					{release ? (
-						<p className="text-xs text-kumo-subtle">
-							{t`Version ${release.version}`} · {t`indexed ${formatDate(release.indexedAt)}`}
-						</p>
+						<div className="mt-1 flex flex-wrap items-center gap-2">
+							<p className="text-xs text-kumo-subtle">
+								{t`Version ${release.version}`} · {t`indexed ${formatDate(release.indexedAt)}`}
+							</p>
+							{isPreRelease ? <Badge>{t`Pre-release`}</Badge> : null}
+						</div>
 					) : null}
 				</div>
-				<div>
+				<div className="flex items-center gap-2">
+					{releases.length > 1 ? (
+						<Select
+							aria-label={t`Version`}
+							className="w-[220px]"
+							value={effectiveVersion ?? ""}
+							onValueChange={(v) => setSelectedVersion(v ?? undefined)}
+							renderValue={(v) => (typeof v === "string" ? v : "")}
+						>
+							{releases.map((r) => {
+								const preRelease = isPreReleaseVersion(r.version);
+								const policyBlocked = !releasePassesPolicy(
+									r,
+									{ did: pkg.did, slug },
+									config.policy,
+								);
+								return (
+									<Select.Option key={r.version} value={r.version}>
+										<span className="flex items-center gap-2">
+											<span>{r.version}</span>
+											{preRelease ? (
+												<span className="text-xs text-kumo-subtle">{t`(pre-release)`}</span>
+											) : null}
+											{policyBlocked ? (
+												<span className="text-xs text-kumo-subtle">{t`(too new)`}</span>
+											) : null}
+										</span>
+									</Select.Option>
+								);
+							})}
+						</Select>
+					) : null}
 					{isInstalled ? (
 						<Button variant="secondary" disabled>
 							{t`Installed`}
@@ -301,6 +383,23 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						<p className="font-medium">{t`We couldn't verify this publisher's identity`}</p>
 						<p className="mt-1 text-sm text-kumo-default">
 							{t`This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying.`}
+						</p>
+					</div>
+				</div>
+			) : null}
+
+			{/* All releases withdrawn or malformed — the aggregator returned
+			    records but none survived the yanked + lexicon-validity filter. */}
+			{hasFilteredAllReleases ? (
+				<div
+					className="flex items-start gap-3 rounded-md border border-kumo-warning bg-kumo-warning/10 p-4 text-kumo-warning"
+					role="status"
+				>
+					<Warning className="mt-0.5 h-5 w-5 shrink-0" />
+					<div>
+						<p className="font-medium">{t`No installable releases`}</p>
+						<p className="mt-1 text-sm text-kumo-default">
+							{t`Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher.`}
 						</p>
 					</div>
 				</div>
@@ -469,6 +568,34 @@ function declaredAccessToCapabilityList(declaredAccess: unknown): string[] {
 		}
 	}
 	return out;
+}
+
+const PRE_RELEASE_VERSION_RE = /^\d+\.\d+\.\d+-/;
+
+/**
+ * Detects semver pre-release identifiers (`1.0.0-alpha.1`, `2.0.0-rc.2`). The
+ * release lexicon does not enforce semver shape, so a permissive `includes("-")`
+ * check would light up the badge for malformed values like `-1.0.0` or
+ * `abc-def`. Require a `MAJOR.MINOR.PATCH-` prefix instead.
+ */
+function isPreReleaseVersion(version: string): boolean {
+	return PRE_RELEASE_VERSION_RE.test(version);
+}
+
+const YANKED_LABEL_VALUE = "security:yanked";
+
+/**
+ * Aggregators forward labels applied by their configured labellers. `security:yanked`
+ * is a hard-enforcement label that publishers can self-apply (or that a labeller
+ * applies on their behalf) to retract a release after publication. Sites whose
+ * `acceptLabelers` config includes the labeller never see yanked releases at all
+ * (server filtering), but sites without it receive yanked releases interleaved
+ * with installable ones — filter them out so they never reach the picker.
+ * `l.neg === true` marks a label as a *negation* (an earlier yank that was
+ * later retracted); a release with only a negated yank is back to installable.
+ */
+function isYanked(release: RegistryReleaseView): boolean {
+	return (release.labels ?? []).some((l) => l.val === YANKED_LABEL_VALUE && !l.neg);
 }
 
 function formatDate(iso: string): string {
