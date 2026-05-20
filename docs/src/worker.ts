@@ -31,58 +31,50 @@ function buildMcpServer(env: Env): McpServer {
 	});
 	const aiSearch = (env as { AI_SEARCH?: Env["AI_SEARCH"] }).AI_SEARCH;
 	if (!aiSearch) {
-		server.registerTool(
-			"search_docs",
-			searchDocsTool,
-			async () => ({
-				content: [
-					{
-						type: "text",
-						text: "Docs search is unavailable in this environment. Configure Cloudflare AI Search in the Workers binding to enable this tool.",
-					},
-				],
-			}),
-		);
+		server.registerTool("search_docs", searchDocsTool, async () => ({
+			content: [
+				{
+					type: "text",
+					text: "Docs search is unavailable in this environment. Configure Cloudflare AI Search in the Workers binding to enable this tool.",
+				},
+			],
+		}));
 
 		return server;
 	}
 
-	server.registerTool(
-		"search_docs",
-		searchDocsTool,
-		async ({ query, max_results }) => {
-			const limit = max_results ?? 8;
+	server.registerTool("search_docs", searchDocsTool, async ({ query, max_results }) => {
+		const limit = max_results ?? 8;
 
-			const results = await aiSearch.search({
-				messages: [{ role: "user", content: query }],
-				ai_search_options: {
-					retrieval: { max_num_results: limit },
-				},
-			});
+		const results = await aiSearch.search({
+			messages: [{ role: "user", content: query }],
+			ai_search_options: {
+				retrieval: { max_num_results: limit },
+			},
+		});
 
-			if (!results.chunks.length) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: "No matching docs found.",
-						},
-					],
-				};
-			}
-
+		if (!results.chunks.length) {
 			return {
-				content: results.chunks.map((chunk) => {
-					const source = chunk.item.key;
-					const score = typeof chunk.score === "number" ? chunk.score.toFixed(3) : "n/a";
-					return {
-						type: "text" as const,
-						text: `<result source="${source}" score="${score}">\n${chunk.text}\n</result>`,
-					};
-				}),
+				content: [
+					{
+						type: "text",
+						text: "No matching docs found.",
+					},
+				],
 			};
-		},
-	);
+		}
+
+		return {
+			content: results.chunks.map((chunk) => {
+				const source = chunk.item.key;
+				const score = typeof chunk.score === "number" ? chunk.score.toFixed(3) : "n/a";
+				return {
+					type: "text" as const,
+					text: `<result source="${source}" score="${score}">\n${chunk.text}\n</result>`,
+				};
+			}),
+		};
+	});
 
 	return server;
 }
