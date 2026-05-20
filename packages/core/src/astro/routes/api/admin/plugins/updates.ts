@@ -2,10 +2,11 @@
  * Plugin update check endpoint
  *
  * GET /_emdash/api/admin/plugins/updates - Check for available updates
- * across every installed plugin source (marketplace + experimental registry).
- * Items are returned in a single flat list so the admin issues one query
- * regardless of source mix; consumers tell sources apart by pluginId
- * (registry ids are `r_*` per `REGISTRY_PLUGIN_ID_PATTERN`).
+ * across every installed plugin source (marketplace + experimental
+ * registry). Items are returned in a single flat list; admins correlate
+ * items to plugins by `pluginId` and read `source` from the existing
+ * `/_emdash/api/admin/plugins` list (the pluginId prefix is not a
+ * reliable discriminator on its own).
  *
  * A failure in one source does NOT blank the other — a registry-side
  * aggregator outage still returns marketplace updates and vice versa.

@@ -281,10 +281,11 @@ function PluginCard({
 
 	const handleUpdateConfirm = () => {
 		if (isRegistry) {
-			updateMutation.mutate({
-				confirmCapabilityChanges: true,
-				confirmRouteVisibilityChanges: true,
-			});
+			const opts: RegistryUpdateOpts = { confirmCapabilityChanges: true };
+			if (registryEscalation?.code === "ROUTE_VISIBILITY_ESCALATION") {
+				opts.confirmRouteVisibilityChanges = true;
+			}
+			updateMutation.mutate(opts);
 		} else {
 			updateMutation.mutate({});
 		}

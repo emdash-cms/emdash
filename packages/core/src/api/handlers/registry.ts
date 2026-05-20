@@ -1156,8 +1156,15 @@ export async function handleRegistryUninstall(
 
 		let dataDeleted = false;
 		if (opts?.deleteData) {
-			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
-			dataDeleted = true;
+			try {
+				await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+				dataDeleted = true;
+			} catch (err) {
+				console.warn(
+					`[registry-uninstall] _plugin_storage cleanup failed for ${pluginId}; uninstall continues:`,
+					err,
+				);
+			}
 		}
 
 		await stateRepo.delete(pluginId);
