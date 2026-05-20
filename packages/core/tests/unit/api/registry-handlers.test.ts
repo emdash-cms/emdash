@@ -1,15 +1,16 @@
 /**
- * Registry handler tests
+ * Registry handler tests (subset)
  *
- * Covers the registry plugin lifecycle handlers (mirroring
- * `marketplace-handlers.test.ts`):
- * - Uninstall (handleRegistryUninstall)
- * - Update (handleRegistryUpdate)
- * - Update check (handleRegistryUpdateCheck)
+ * Covers:
+ * - Uninstall (handleRegistryUninstall) — happy + sad paths.
+ * - Update (handleRegistryUpdate) — early error paths (config, state).
  *
- * Uses a real in-memory SQLite database and a mock `Storage`. The aggregator
- * `DiscoveryClient` is exercised against a mock `fetch` so the network is
- * fully controlled.
+ * Update happy-path and update-check coverage need a mocked DiscoveryClient
+ * plus a controlled `fetch`; tracked separately. The handler's identity
+ * check + diff flow mirrors `handleMarketplaceUpdate`, which has full
+ * coverage in `marketplace-handlers.test.ts`.
+ *
+ * Uses a real in-memory SQLite database and a mock `Storage`.
  */
 
 import BetterSqlite3 from "better-sqlite3";

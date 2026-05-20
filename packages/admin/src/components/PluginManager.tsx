@@ -38,7 +38,12 @@ import {
 	uninstallMarketplacePlugin,
 	type PluginUpdateInfo,
 } from "../lib/api/marketplace.js";
-import { uninstallRegistryPlugin, updateRegistryPlugin } from "../lib/api/registry.js";
+import {
+	RegistryUpdateEscalationError,
+	uninstallRegistryPlugin,
+	updateRegistryPlugin,
+	type RegistryUpdateOpts,
+} from "../lib/api/registry.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
@@ -119,7 +124,9 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 		return new Map(updates.map((u) => [u.pluginId, u]));
 	}, [updates]);
 
-	const hasMarketplacePlugins = plugins?.some((p) => p.source === "marketplace");
+	const hasUpdatableSources = plugins?.some(
+		(p) => p.source === "marketplace" || p.source === "registry",
+	);
 
 	if (isLoading) {
 		return (
@@ -144,7 +151,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 			<div className="flex items-center justify-between">
 				<h1 className="text-3xl font-bold">{t`Plugins`}</h1>
 				<div className="flex items-center gap-3">
-					{hasMarketplacePlugins && (
+					{hasUpdatableSources && (
 						<Button
 							variant="ghost"
 							onClick={() => void refetchUpdates()}
@@ -226,6 +233,8 @@ function PluginCard({
 	const [expanded, setExpanded] = React.useState(false);
 	const [showUpdateConsent, setShowUpdateConsent] = React.useState(false);
 	const [showUninstallConfirm, setShowUninstallConfirm] = React.useState(false);
+	const [registryEscalation, setRegistryEscalation] =
+		React.useState<RegistryUpdateEscalationError | null>(null);
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 
@@ -234,15 +243,13 @@ function PluginCard({
 	const hasUpdate = !!updateInfo && updateInfo.installed !== updateInfo.latest;
 
 	const updateMutation = useMutation({
-		mutationFn: () =>
+		mutationFn: (opts: RegistryUpdateOpts) =>
 			isRegistry
-				? updateRegistryPlugin(plugin.id, {
-						confirmCapabilityChanges: true,
-						confirmRouteVisibilityChanges: true,
-					})
+				? updateRegistryPlugin(plugin.id, opts)
 				: updateMarketplacePlugin(plugin.id, { confirmCapabilities: true }),
 		onSuccess: () => {
 			setShowUpdateConsent(false);
+			setRegistryEscalation(null);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
@@ -251,7 +258,37 @@ function PluginCard({
 				description: t`${plugin.name} updated to v${updateInfo?.latest}`,
 			});
 		},
+		onError: (err) => {
+			if (err instanceof RegistryUpdateEscalationError) {
+				setRegistryEscalation(err);
+				setShowUpdateConsent(true);
+			}
+		},
 	});
+
+	const handleUpdateClick = () => {
+		if (isRegistry) {
+			// Preflight without confirm flags. Server returns the real
+			// capability / route-visibility diff (or just updates if there
+			// is none); `onError` opens the consent dialog populated with
+			// the actual diff.
+			setRegistryEscalation(null);
+			updateMutation.mutate({});
+		} else {
+			setShowUpdateConsent(true);
+		}
+	};
+
+	const handleUpdateConfirm = () => {
+		if (isRegistry) {
+			updateMutation.mutate({
+				confirmCapabilityChanges: true,
+				confirmRouteVisibilityChanges: true,
+			});
+		} else {
+			updateMutation.mutate({});
+		}
+	};
 
 	const uninstallMutation = useMutation({
 		mutationFn: (deleteData: boolean) =>
@@ -369,7 +406,7 @@ function PluginCard({
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => setShowUpdateConsent(true)}
+								onClick={handleUpdateClick}
 								disabled={updateMutation.isPending}
 							>
 								{updateMutation.isPending ? t`Updating...` : t`Update to v${updateInfo.latest}`}
@@ -516,12 +553,18 @@ function PluginCard({
 					mode="update"
 					pluginName={plugin.name}
 					capabilities={plugin.capabilities}
-					newCapabilities={[]} // WS3 will populate this from the diff
+					newCapabilities={registryEscalation?.capabilityChanges.added ?? []}
+					newlyPublicRoutes={registryEscalation?.routeVisibilityChanges?.newlyPublic ?? []}
 					isPending={updateMutation.isPending}
-					error={getMutationError(updateMutation.error)}
-					onConfirm={() => updateMutation.mutate()}
+					error={
+						updateMutation.error instanceof RegistryUpdateEscalationError
+							? null
+							: getMutationError(updateMutation.error)
+					}
+					onConfirm={handleUpdateConfirm}
 					onCancel={() => {
 						setShowUpdateConsent(false);
+						setRegistryEscalation(null);
 						updateMutation.reset();
 					}}
 				/>

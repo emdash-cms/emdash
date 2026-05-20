@@ -1156,12 +1156,8 @@ export async function handleRegistryUninstall(
 
 		let dataDeleted = false;
 		if (opts?.deleteData) {
-			try {
-				await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
-				dataDeleted = true;
-			} catch {
-				// No plugin_storage rows for this plugin; nothing to delete.
-			}
+			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+			dataDeleted = true;
 		}
 
 		await stateRepo.delete(pluginId);
@@ -1500,12 +1496,6 @@ export async function handleRegistryUpdate(
 					code: "AGGREGATOR_HTTP_ERROR",
 					message: `Aggregator returned ${err.status}: ${err.error}`,
 				},
-			};
-		}
-		if (err instanceof SsrfError) {
-			return {
-				success: false,
-				error: { code: "UNSAFE_ARTIFACT_URL", message: err.message },
 			};
 		}
 		if (err instanceof EmDashStorageError) {

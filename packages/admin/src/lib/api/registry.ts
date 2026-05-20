@@ -446,26 +446,48 @@ export async function installRegistryPlugin(
 // ---------------------------------------------------------------------------
 
 export interface RegistryUpdateOpts {
-	/** Optional explicit target version; defaults to the aggregator's latest. */
 	version?: string;
-	/** Set when the user has consented to widened capabilities. */
 	confirmCapabilityChanges?: boolean;
-	/** Set when the user has consented to newly-public routes. */
 	confirmRouteVisibilityChanges?: boolean;
 }
 
 export interface RegistryUninstallOpts {
-	/** Also drop the plugin's `_plugin_storage` rows. */
 	deleteData?: boolean;
+}
+
+/**
+ * Server-side escalation gate raised by the update endpoint when the
+ * target version widens the trust contract. Carries the diff the user
+ * needs to see in the consent dialog before the call is retried with the
+ * matching `confirm*` flag.
+ */
+export class RegistryUpdateEscalationError extends Error {
+	readonly code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION";
+	readonly capabilityChanges: { added: string[]; removed: string[] };
+	readonly routeVisibilityChanges?: { newlyPublic: string[] };
+	constructor(
+		code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION",
+		message: string,
+		capabilityChanges: { added: string[]; removed: string[] },
+		routeVisibilityChanges?: { newlyPublic: string[] },
+	) {
+		super(message);
+		this.name = "RegistryUpdateEscalationError";
+		this.code = code;
+		this.capabilityChanges = capabilityChanges;
+		this.routeVisibilityChanges = routeVisibilityChanges;
+	}
 }
 
 /**
  * Update a registry-source plugin to a newer version.
  * `POST /_emdash/api/admin/plugins/registry/:id/update`
  *
- * Server returns `CAPABILITY_ESCALATION` / `ROUTE_VISIBILITY_ESCALATION`
- * carrying a diff when the new version widens permissions; re-call with
- * the corresponding `confirm*` flag after the user has consented.
+ * Called without `confirm*` flags first, this throws
+ * `RegistryUpdateEscalationError` when the target version widens
+ * permissions; the caller renders a consent dialog populated from the
+ * error's diff, then re-calls with the matching `confirm*` flag once
+ * the user agrees.
  */
 export async function updateRegistryPlugin(
 	pluginId: string,
@@ -479,7 +501,60 @@ export async function updateRegistryPlugin(
 			body: JSON.stringify(opts),
 		},
 	);
-	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to update plugin`));
+	if (response.ok) return;
+
+	const body: unknown = await response
+		.clone()
+		.json()
+		.catch(() => undefined);
+	const escalation = parseEscalation(body);
+	if (escalation) throw escalation;
+	await throwResponseError(response, i18n._(msg`Failed to update plugin`));
+}
+
+function parseEscalation(body: unknown): RegistryUpdateEscalationError | null {
+	if (!body || typeof body !== "object" || !("error" in body)) return null;
+	const error = body.error;
+	if (!error || typeof error !== "object" || !("code" in error)) return null;
+	const code = error.code;
+	if (code !== "CAPABILITY_ESCALATION" && code !== "ROUTE_VISIBILITY_ESCALATION") return null;
+	const details =
+		"details" in error && error.details && typeof error.details === "object" ? error.details : {};
+	const capabilityChanges = normaliseCapabilityChanges(
+		"capabilityChanges" in details ? details.capabilityChanges : undefined,
+	);
+	const routeVisibilityChanges = normaliseRouteVisibilityChanges(
+		"routeVisibilityChanges" in details ? details.routeVisibilityChanges : undefined,
+	);
+	const message =
+		"message" in error && typeof error.message === "string"
+			? error.message
+			: i18n._(msg`Plugin update requires re-consent`);
+	return new RegistryUpdateEscalationError(
+		code,
+		message,
+		capabilityChanges,
+		routeVisibilityChanges,
+	);
+}
+
+function normaliseCapabilityChanges(value: unknown): { added: string[]; removed: string[] } {
+	if (!value || typeof value !== "object") return { added: [], removed: [] };
+	const v = value as { added?: unknown; removed?: unknown };
+	return {
+		added: Array.isArray(v.added) ? v.added.filter((s): s is string => typeof s === "string") : [],
+		removed: Array.isArray(v.removed)
+			? v.removed.filter((s): s is string => typeof s === "string")
+			: [],
+	};
+}
+
+function normaliseRouteVisibilityChanges(value: unknown): { newlyPublic: string[] } | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const v = value as { newlyPublic?: unknown };
+	if (!Array.isArray(v.newlyPublic)) return undefined;
+	const newlyPublic = v.newlyPublic.filter((s): s is string => typeof s === "string");
+	return newlyPublic.length > 0 ? { newlyPublic } : undefined;
 }
 
 /**
