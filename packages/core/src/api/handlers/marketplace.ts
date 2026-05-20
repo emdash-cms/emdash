@@ -92,7 +92,7 @@ function getClient(
 	return createMarketplaceClient(marketplaceUrl, siteOrigin);
 }
 
-function diffCapabilities(
+export function diffCapabilities(
 	oldCaps: string[],
 	newCaps: string[],
 ): { added: string[]; removed: string[] } {
@@ -114,7 +114,7 @@ function diffCapabilities(
  * Diff route visibility between two manifests.
  * Returns routes that changed from private to public (newly exposed).
  */
-function diffRouteVisibility(
+export function diffRouteVisibility(
 	oldManifest: PluginManifest | undefined,
 	newManifest: PluginManifest,
 ): { newlyPublic: string[] } {

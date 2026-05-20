@@ -38,6 +38,7 @@ import {
 	uninstallMarketplacePlugin,
 	type PluginUpdateInfo,
 } from "../lib/api/marketplace.js";
+import { uninstallRegistryPlugin, updateRegistryPlugin } from "../lib/api/registry.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
@@ -233,7 +234,13 @@ function PluginCard({
 	const hasUpdate = !!updateInfo && updateInfo.installed !== updateInfo.latest;
 
 	const updateMutation = useMutation({
-		mutationFn: () => updateMarketplacePlugin(plugin.id, { confirmCapabilities: true }),
+		mutationFn: () =>
+			isRegistry
+				? updateRegistryPlugin(plugin.id, {
+						confirmCapabilityChanges: true,
+						confirmRouteVisibilityChanges: true,
+					})
+				: updateMarketplacePlugin(plugin.id, { confirmCapabilities: true }),
 		onSuccess: () => {
 			setShowUpdateConsent(false);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
@@ -247,7 +254,10 @@ function PluginCard({
 	});
 
 	const uninstallMutation = useMutation({
-		mutationFn: (deleteData: boolean) => uninstallMarketplacePlugin(plugin.id, { deleteData }),
+		mutationFn: (deleteData: boolean) =>
+			isRegistry
+				? uninstallRegistryPlugin(plugin.id, { deleteData })
+				: uninstallMarketplacePlugin(plugin.id, { deleteData }),
 		onSuccess: () => {
 			setShowUninstallConfirm(false);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
@@ -482,8 +492,8 @@ function PluginCard({
 							)}
 						</div>
 
-						{/* Uninstall button for marketplace plugins */}
-						{isMarketplace && (
+						{/* Uninstall button for any sandboxed source (marketplace + registry). */}
+						{(isMarketplace || isRegistry) && (
 							<div className="pt-2 border-t">
 								<Button
 									variant="ghost"
@@ -494,15 +504,6 @@ function PluginCard({
 								>
 									{t`Uninstall`}
 								</Button>
-							</div>
-						)}
-
-						{/* Registry plugins have an install path but no uninstall
-						    handler yet. Tell the admin so they don't think the
-						    plugin is permanent or fall back to editing the DB. */}
-						{isRegistry && (
-							<div className="pt-2 border-t text-xs text-kumo-subtle">
-								{t`Uninstall is not yet available for registry plugins. Disable the plugin to stop it from running; full uninstall will land in a follow-up.`}
 							</div>
 						)}
 					</div>

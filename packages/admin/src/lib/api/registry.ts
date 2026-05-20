@@ -440,3 +440,67 @@ export async function installRegistryPlugin(
 	const json = (await response.json()) as { data: RegistryInstallResult };
 	return json.data;
 }
+
+// ---------------------------------------------------------------------------
+// Lifecycle: update + uninstall
+// ---------------------------------------------------------------------------
+
+export interface RegistryUpdateOpts {
+	/** Optional explicit target version; defaults to the aggregator's latest. */
+	version?: string;
+	/** Set when the user has consented to widened capabilities. */
+	confirmCapabilityChanges?: boolean;
+	/** Set when the user has consented to newly-public routes. */
+	confirmRouteVisibilityChanges?: boolean;
+}
+
+export interface RegistryUninstallOpts {
+	/** Also drop the plugin's `_plugin_storage` rows. */
+	deleteData?: boolean;
+}
+
+/**
+ * Update a registry-source plugin to a newer version.
+ * `POST /_emdash/api/admin/plugins/registry/:id/update`
+ *
+ * Server returns `CAPABILITY_ESCALATION` / `ROUTE_VISIBILITY_ESCALATION`
+ * carrying a diff when the new version widens permissions; re-call with
+ * the corresponding `confirm*` flag after the user has consented.
+ */
+export async function updateRegistryPlugin(
+	pluginId: string,
+	opts: RegistryUpdateOpts = {},
+): Promise<void> {
+	const response = await apiFetch(
+		`${API_BASE}/admin/plugins/registry/${encodeURIComponent(pluginId)}/update`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(opts),
+		},
+	);
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to update plugin`));
+}
+
+/**
+ * Uninstall a registry-source plugin.
+ * `POST /_emdash/api/admin/plugins/registry/:id/uninstall`
+ *
+ * The server refuses to uninstall non-registry sources, so calling this
+ * with a marketplace or config plugin id is a no-op error rather than a
+ * destructive cross-source action.
+ */
+export async function uninstallRegistryPlugin(
+	pluginId: string,
+	opts: RegistryUninstallOpts = {},
+): Promise<void> {
+	const response = await apiFetch(
+		`${API_BASE}/admin/plugins/registry/${encodeURIComponent(pluginId)}/uninstall`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(opts),
+		},
+	);
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to uninstall plugin`));
+}
