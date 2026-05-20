@@ -1,5 +1,19 @@
 # @emdash-cms/admin
 
+## 0.14.0
+
+### Minor Changes
+
+- [#1112](https://github.com/emdash-cms/emdash/pull/1112) [`3756168`](https://github.com/emdash-cms/emdash/commit/37561682224447c7280648dc770ab408afc4186a) Thanks [@ascorbic](https://github.com/ascorbic)! - Renders the full registry package profile in the admin. The plugin detail page now shows the license (linked to spdx.org for single SPDX identifiers), keywords, all authors, all security contacts, and a link to the source repository. The browse cards show the license alongside the description.
+
+### Patch Changes
+
+- [#1101](https://github.com/emdash-cms/emdash/pull/1101) [`e539731`](https://github.com/emdash-cms/emdash/commit/e539731451994206bf60824a31815a8a925c7252) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes experimental registry navigation and allows the configured registry aggregator through the admin CSP.
+
+- Updated dependencies [[`3756168`](https://github.com/emdash-cms/emdash/commit/37561682224447c7280648dc770ab408afc4186a)]:
+  - @emdash-cms/registry-client@0.1.0
+  - @emdash-cms/blocks@0.14.0
+
 ## 0.13.0
 
 ### Minor Changes

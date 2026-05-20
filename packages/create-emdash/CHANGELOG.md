@@ -1,5 +1,11 @@
 # create-emdash
 
+## 0.14.0
+
+### Patch Changes
+
+- [#1115](https://github.com/emdash-cms/emdash/pull/1115) [`792f73c`](https://github.com/emdash-cms/emdash/commit/792f73c12c32e9119c4bdab52dad705638d11ae9) Thanks [@ascorbic](https://github.com/ascorbic)! - Pins `packageManager` for pnpm-scaffolded sites so a recent enough pnpm is used (settings-only `pnpm-workspace.yaml` requires pnpm 10.5+). For npm, yarn, or bun selections the field is stripped so corepack doesn't force pnpm on a non-pnpm user.
+
 ## 0.13.0
 
 ## 0.12.0

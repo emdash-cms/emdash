@@ -1,5 +1,18 @@
 # @emdash-cms/registry-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [#1112](https://github.com/emdash-cms/emdash/pull/1112) [`3756168`](https://github.com/emdash-cms/emdash/commit/37561682224447c7280648dc770ab408afc4186a) Thanks [@ascorbic](https://github.com/ascorbic)! - Publishes the full profile block from `emdash-plugin.jsonc`. First publish now writes `name`, `description`, `keywords`, multiple authors, and multiple security contacts to the package profile record, plus the source `repo` URL to the release record — previously only `license` and a single author/security contact were sent.
+
+  Deprecates the `--license`, `--author-*`, and `--security-*` flags in favour of declaring these in `emdash-plugin.jsonc`. The flags still work and override the manifest when both are present; a deprecation warning is printed when they are used.
+
+### Patch Changes
+
+- Updated dependencies [[`3756168`](https://github.com/emdash-cms/emdash/commit/37561682224447c7280648dc770ab408afc4186a)]:
+  - @emdash-cms/registry-client@0.1.0
+
 ## 0.2.0
 
 ### Minor Changes
