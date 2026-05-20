@@ -340,7 +340,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	if (!result.profileCreated && result.ignoredProfileFields.length > 0) {
 		const fields = result.ignoredProfileFields.join(", ");
 		consola.warn(
-			`Ignored on subsequent publish (existing profile wins): ${fields}. Editing an existing profile isn't supported yet (#1032); update the record directly via your PDS for now.`,
+			`Ignored on subsequent publish (existing profile wins): ${fields}. To edit these on the existing profile, run \`emdash-plugin update-profile\` (dry-run prints the diff; pass \`--yes\` to apply).`,
 		);
 	}
 
