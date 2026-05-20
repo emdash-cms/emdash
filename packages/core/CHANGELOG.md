@@ -1,5 +1,28 @@
 # emdash
 
+## 0.14.0
+
+### Patch Changes
+
+- [#1100](https://github.com/emdash-cms/emdash/pull/1100) [`f753dba`](https://github.com/emdash-cms/emdash/commit/f753dba340dca791d4cf34a78c29ed6a0d552cd4) Thanks [@jcheese1](https://github.com/jcheese1)! - Resolve bare local media IDs in media fields before falling back to external URLs.
+
+- [#1101](https://github.com/emdash-cms/emdash/pull/1101) [`e539731`](https://github.com/emdash-cms/emdash/commit/e539731451994206bf60824a31815a8a925c7252) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes experimental registry navigation and allows the configured registry aggregator through the admin CSP.
+
+- [#1112](https://github.com/emdash-cms/emdash/pull/1112) [`3756168`](https://github.com/emdash-cms/emdash/commit/37561682224447c7280648dc770ab408afc4186a) Thanks [@ascorbic](https://github.com/ascorbic)! - Validates aggregator responses at the read-side trust boundary in `DiscoveryClient`. Two layers run:
+  - **Response envelope** (`uri`, `cid`, `did`, `slug`, `version`, …): `DiscoveryClient` now routes every call through `@atcute/client`'s schema-validating `.call()` against the aggregator method's output lexicon. Request params are validated too. A non-conforming envelope throws `ClientValidationError`.
+  - **Embedded signed `profile` / `release` records** (typed `unknown` by the aggregator lexicon because they are relayed verbatim from publisher repos under a different lexicon namespace): now `safeParse`'d against `com.emdashcms.experimental.package.profile` / `release`. A conforming record is returned as the typed lexicon shape; a non-conforming one is surfaced as `null` so one bad record doesn't fail an entire search page.
+
+  Refines the return types from `unknown` to `PackageProfile.Main | null` / `PackageRelease.Main | null` (new exported `ValidatedPackageView` / `ValidatedReleaseView` / `ValidatedSearchPackages` / `ValidatedListReleases` types). Callers must null-check. The registry install handler now fails closed when the aggregator returns a release record that does not conform to its lexicon.
+
+  Validation is structural only — the lexicon's `uri` format permits non-HTTP schemes, so UI rendering these URLs still applies its own scheme allow-list.
+
+- Updated dependencies [[`cf85941`](https://github.com/emdash-cms/emdash/commit/cf85941c1c631d355ca4df216e790ecf75420bbe), [`3756168`](https://github.com/emdash-cms/emdash/commit/37561682224447c7280648dc770ab408afc4186a), [`3756168`](https://github.com/emdash-cms/emdash/commit/37561682224447c7280648dc770ab408afc4186a)]:
+  - @emdash-cms/admin@0.14.0
+  - @emdash-cms/registry-client@0.1.0
+  - @emdash-cms/auth@0.14.0
+  - @emdash-cms/gutenberg-to-portable-text@0.14.0
+  - @emdash-cms/auth-atproto@0.2.7
+
 ## 0.13.0
 
 ### Minor Changes
