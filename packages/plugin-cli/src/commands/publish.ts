@@ -29,6 +29,7 @@ import consola from "consola";
 import pc from "picocolors";
 
 import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/utils.js";
+import { redirectConsolaToStderr } from "../cli-output.js";
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
 import { checkPublisher, PublisherCheckError, writePublisherBack } from "../manifest/publisher.js";
 import {
@@ -576,37 +577,6 @@ async function readSiblingPackageVersion(manifestDir: string): Promise<string | 
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-
-/**
- * Reroute every consola log call to stderr. Used by `--json` mode so the
- * structured JSON object on stdout is the only thing a pipe consumer sees.
- *
- * Returns a restore function that puts the previous reporter set back. The
- * outer `run` calls it in a finally so a wrapper script that runs publish
- * in-process and then continues with other commands gets its consola back.
- *
- * We replace the global reporter (rather than constructing a separate
- * instance) so downstream helpers that import the default `consola`
- * singleton are also redirected.
- */
-function redirectConsolaToStderr(): () => void {
-	// `consola.options.reporters` is the public way to read the active set.
-	const previous = consola.options.reporters?.slice() ?? [];
-	consola.setReporters([
-		{
-			log(logObj) {
-				const level = logObj.type ?? "info";
-				const tag = logObj.tag ? `[${logObj.tag}] ` : "";
-				const args = logObj.args ?? [];
-				const message = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
-				process.stderr.write(`${level}: ${tag}${message}\n`);
-			},
-		},
-	]);
-	return () => {
-		consola.setReporters(previous);
-	};
-}
 
 /**
  * Validate the publish URL before any network access. Returns an error message

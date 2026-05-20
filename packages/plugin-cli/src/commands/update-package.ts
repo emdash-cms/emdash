@@ -35,6 +35,7 @@ import { defineCommand } from "citty";
 import consola from "consola";
 import pc from "picocolors";
 
+import { redirectConsolaToStderr } from "../cli-output.js";
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
 import { checkPublisher, PublisherCheckError } from "../manifest/publisher.js";
 import { manifestToProfileInput, normaliseManifest } from "../manifest/translate.js";
@@ -67,7 +68,7 @@ export const updatePackageCommand = defineCommand({
 		json: {
 			type: "boolean",
 			description:
-				"Emit a single-line JSON object on stdout instead of human output. Success: {profile, diffs, written, cid?}. Failure: {error: {code, message}}. Human-readable progress goes to stderr.",
+				"Emit a single-line JSON object on stdout instead of human output. Success: {profile, written, applied, diffs, cid?}. Failure: {error: {code, message, detail?}}. Human-readable progress goes to stderr.",
 		},
 	},
 	async run({ args }) {
@@ -137,7 +138,6 @@ async function runUpdatePackage(args: UpdatePackageArgs): Promise<void> {
 
 	const result = await updatePackage({
 		publisher,
-		did: session.did,
 		slug: manifestLoad.manifest.slug,
 		input,
 		apply: args.yes ?? false,
@@ -354,27 +354,4 @@ class CliError extends Error {
 	) {
 		super(message);
 	}
-}
-
-/**
- * Reroute consola to stderr so stdout stays clean for `--json` consumers.
- * Returns a restore function. Mirrors the publish command's helper so the
- * two share a contract for json-mode pipe consumers.
- */
-function redirectConsolaToStderr(): () => void {
-	const previous = consola.options.reporters?.slice() ?? [];
-	consola.setReporters([
-		{
-			log(logObj) {
-				const level = logObj.type ?? "info";
-				const tag = logObj.tag ? `[${logObj.tag}] ` : "";
-				const args = logObj.args ?? [];
-				const message = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
-				process.stderr.write(`${level}: ${tag}${message}\n`);
-			},
-		},
-	]);
-	return () => {
-		consola.setReporters(previous);
-	};
 }

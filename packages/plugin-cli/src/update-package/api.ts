@@ -14,17 +14,28 @@
  * -----
  *
  * Only fields the manifest controls are eligible for update: `license`,
- * `authors`, `security`, `name`, `description`, `keywords`. Identity fields
- * (`$type`, `id`, `slug`, `type`) are preserved verbatim from the existing
- * record. `lastUpdated` is auto-set to now whenever there are changes to
- * apply. Unknown fields (e.g. `sections` from a future lexicon revision)
- * pass through unchanged so a CLI from an older revision doesn't silently
- * drop forward-compatible data on a write-back.
+ * `authors`, `security`, `name`, `description`, `keywords`. Required fields
+ * are diffed and written; optional fields (`name`, `description`,
+ * `keywords`) follow a "manifest absent = no change" policy so removing a
+ * manifest key doesn't silently wipe a published value. Identity fields
+ * (`$type`, `id`, `slug`, `type`) are preserved verbatim. `lastUpdated` is
+ * auto-set to now whenever there are changes to apply. Unknown fields
+ * (e.g. `sections` from a future lexicon revision) pass through unchanged
+ * so a CLI from an older revision doesn't silently drop forward-compatible
+ * data on a write-back.
+ *
+ * Concurrency: the read-then-write uses atproto's `swapRecord` CID-based
+ * CAS precondition. Concurrent writes between read and write surface as
+ * `STALE_RECORD` rather than silently overwriting the other writer.
  *
  * Failure modes:
  *
- *   - `PACKAGE_NOT_FOUND`: no package record exists at the manifest's slug.
- *     The user must run `publish` first to bootstrap.
+ *   - `PACKAGE_NOT_FOUND`: no package record exists at the manifest's slug
+ *     and the publisher has no other packages either. The user must run
+ *     `publish` first to bootstrap.
+ *   - `POSSIBLE_RENAME`: no record at the manifest's slug, but the publisher
+ *     already has one or more packages at other slugs. Refused so a manifest
+ *     rename doesn't orphan releases under the old slug.
  *   - `PACKAGE_INVALID`: the existing record doesn't validate against the
  *     package profile lexicon. We refuse to write rather than overwrite an
  *     unknown shape with our canonical one.
@@ -32,16 +43,18 @@
  *     field differing from the manifest's slug. Aggregators reject records
  *     where slug doesn't match the rkey, but if a publisher hand-edited the
  *     record we want a clear refusal before we make it worse.
- *   - `POSSIBLE_RENAME`: no record at the manifest's slug, but the publisher
- *     already has a package at a different slug. Refused so a manifest
- *     rename doesn't orphan releases under the old slug.
- *   - `INVALID_INPUT`: programmatic-caller input fails the lexicon's
- *     structural rules (e.g. empty `authors`).
+ *   - `INVALID_INPUT`: caller input fails the structural checks
+ *     `validateInput` enforces (empty arrays, missing contact details).
+ *   - `STALE_RECORD`: the record was modified between our read and write.
+ *     The caller should re-run to recompute the diff against latest state.
+ *   - `LEXICON_VALIDATION_FAILED`: the merged candidate failed the lexicon
+ *     check (usually because the caller exceeded a length/grapheme cap not
+ *     covered by `validateInput`).
  */
 
 import { ClientResponseError } from "@atcute/client";
 import { safeParse } from "@atcute/lexicons/validations";
-import type { Did, PublishingClient } from "@emdash-cms/registry-client";
+import type { PublishingClient } from "@emdash-cms/registry-client";
 import { NSID, PackageProfile } from "@emdash-cms/registry-lexicons";
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -54,6 +67,7 @@ export type UpdatePackageErrorCode =
 	| "SLUG_MISMATCH"
 	| "POSSIBLE_RENAME"
 	| "INVALID_INPUT"
+	| "STALE_RECORD"
 	| "LEXICON_VALIDATION_FAILED";
 
 export class UpdatePackageError extends Error {
@@ -96,10 +110,13 @@ export interface PackageFieldDiff {
 }
 
 export interface UpdatePackageOptions {
-	/** Authenticated client against the publisher's PDS. */
+	/**
+	 * Authenticated client against the publisher's PDS. The publisher DID
+	 * (used to construct AT URIs for display/output) is read from
+	 * `publisher.did`; we don't accept it as a separate field to avoid the
+	 * disagree-with-publisher footgun.
+	 */
 	publisher: PublishingClient;
-	/** Publisher DID. Used to construct AT URIs for display/output. */
-	did: Did;
 	/** The plugin's slug (rkey of the profile record). */
 	slug: string;
 	/** Manifest-derived fields the user wants to apply. */
@@ -156,7 +173,8 @@ const FIELD_ORDER: ReadonlyArray<keyof PackageUpdateInput> = [
 ];
 
 export async function updatePackage(options: UpdatePackageOptions): Promise<UpdatePackageResult> {
-	const profileUri = `at://${options.did}/${NSID.packageProfile}/${options.slug}`;
+	const did = options.publisher.did;
+	const profileUri = `at://${did}/${NSID.packageProfile}/${options.slug}`;
 
 	// Validate the caller's input against the lexicon's structural rules
 	// before any network access. The CLI's manifest schema is the primary
@@ -173,20 +191,24 @@ export async function updatePackage(options: UpdatePackageOptions): Promise<Upda
 	if (existing === null) {
 		// Distinguish a fresh slug (publisher should run `publish` to
 		// bootstrap) from a likely rename (the publisher already has a
-		// profile at a different slug; running `publish` would create a
-		// second profile and orphan every release under the old slug).
-		const sibling = await findSiblingProfileSlug(options.publisher, options.slug);
-		if (sibling !== null) {
+		// package at a different slug; running `publish` would create a
+		// second package and orphan every release under the old slug).
+		// We list every sibling rather than singling one out — a publisher
+		// with several plugins shouldn't see a misleading "you might have
+		// renamed plugin X" pointer at an unrelated package.
+		const siblings = await findSiblingPackageSlugs(options.publisher, options.slug);
+		if (siblings.length > 0) {
+			const list = siblings.map((s) => `"${s}"`).join(", ");
 			throw new UpdatePackageError(
 				"POSSIBLE_RENAME",
-				`No profile at ${profileUri}, but the publisher already has a profile at slug "${sibling}". If you renamed the plugin in your manifest, that would orphan every release under "${sibling}" — revert the slug to "${sibling}" in emdash-plugin.jsonc, or publish the rename under the new slug as a fresh package (releases under "${sibling}" stay where they are).`,
-				{ slug: options.slug, existingSlug: sibling, did: options.did },
+				`No package at ${profileUri}. The publisher already has package(s) at: ${list}. If you renamed the plugin in your manifest, publishing under the new slug would orphan every release under the old one — revert the slug in emdash-plugin.jsonc, or accept that a rename starts a fresh package and the old releases stay where they are.`,
+				{ slug: options.slug, existingSlugs: siblings, did },
 			);
 		}
 		throw new UpdatePackageError(
 			"PACKAGE_NOT_FOUND",
-			`No profile record at ${profileUri}. Run \`emdash-plugin publish\` to create one before editing.`,
-			{ slug: options.slug, did: options.did },
+			`No package record at ${profileUri}. Run \`emdash-plugin publish\` to create one before editing.`,
+			{ slug: options.slug, did },
 		);
 	}
 
@@ -236,24 +258,45 @@ export async function updatePackage(options: UpdatePackageOptions): Promise<Upda
 	// Local validation before the round-trip. The PDS will reject malformed
 	// records via `validate: true`, but it doesn't know the experimental
 	// registry lexicon — so we own the validation and skip server-side.
-	// `validateInput` already gates the obvious caller-side mistakes, so a
-	// failure here genuinely indicates a record-shape regression in
-	// update-package or in the lexicon itself.
+	// `validateInput` covers the empty-arrays / missing-required cases, but
+	// the lexicon also caps maxLength / maxGraphemes on most fields; a
+	// programmatic caller exceeding those lands here. The error message
+	// names both possible causes so the failure isn't auto-attributed to
+	// update-package's own bookkeeping.
 	const candidateValidation = safeParse(PackageProfile.mainSchema, candidate);
 	if (!candidateValidation.ok) {
 		throw new UpdatePackageError(
 			"LEXICON_VALIDATION_FAILED",
-			`Candidate profile record did not match the lexicon after merge.`,
+			`Candidate package record did not pass lexicon validation. This is usually caller-supplied input exceeding a lexicon limit (e.g. license max 256 chars, description max 140 graphemes, keywords max 5 entries, author/contact url max 1024 chars). If the input shape is well within those limits, this may indicate a lexicon regression in update-package — please report it. See \`detail.issues\` for the failed checks.`,
 			{ slug: options.slug, issues: candidateValidation },
 		);
 	}
 
-	const put = await options.publisher.unsafePutRecord({
-		collection: NSID.packageProfile,
-		rkey: options.slug,
-		record: candidate,
-		skipValidation: true,
-	});
+	// swapRecord is atproto's CID-based CAS precondition: the write fails
+	// if the record on the PDS no longer matches the bytes we read at the
+	// top of this function. Without it, a concurrent edit (another
+	// update-package invocation, a manual PDS write) between our read and
+	// our write would silently lose its changes. With it, we surface
+	// `STALE_RECORD` and the user can re-run.
+	let put: { uri: string; cid: string };
+	try {
+		put = await options.publisher.unsafePutRecord({
+			collection: NSID.packageProfile,
+			rkey: options.slug,
+			record: candidate,
+			skipValidation: true,
+			swapRecord: existing.cid,
+		});
+	} catch (error) {
+		if (error instanceof ClientResponseError && error.error === "InvalidSwap") {
+			throw new UpdatePackageError(
+				"STALE_RECORD",
+				`The package record at ${profileUri} was modified by another writer between read and write. Re-run \`emdash-plugin update-package\` to recompute the diff against the latest state and try again.`,
+				{ slug: options.slug, expectedCid: existing.cid },
+			);
+		}
+		throw error;
+	}
 
 	return {
 		profileUri,
@@ -269,12 +312,26 @@ export async function updatePackage(options: UpdatePackageOptions): Promise<Upda
 // ──────────────────────────────────────────────────────────────────────────
 
 /**
- * Build the candidate profile record body and diff it against the
+ * Build the candidate package record body and diff it against the
  * existing record. Identity fields (`$type`, `id`, `slug`, `type`) and
  * any unknown fields on the existing record are carried over verbatim.
- * Editable fields are taken from `input`. `lastUpdated` is set to `now`
- * iff there are diffs; an unchanged record keeps the existing timestamp
- * so a no-op update doesn't churn the aggregator's lastUpdated ordering.
+ *
+ * Field-update semantics, mirroring `publish` so users get one mental
+ * model across both commands:
+ *
+ *   - Required-in-manifest fields (`license`, `authors`, `security`):
+ *     always written from `input`; diffed against existing.
+ *   - Optional-in-manifest fields (`name`, `description`, `keywords`):
+ *     when the manifest sets them, diff and apply. When the manifest
+ *     omits them, the existing value is preserved verbatim — a missing
+ *     manifest key is NOT a request to delete. Removing a manifest key
+ *     by accident shouldn't wipe a value the publisher put there
+ *     deliberately. Clearing a value needs a dedicated mechanism (not
+ *     yet implemented).
+ *
+ * `lastUpdated` is set to `now` iff there are diffs; an unchanged record
+ * keeps the existing timestamp so a no-op update doesn't churn the
+ * aggregator's lastUpdated ordering.
  */
 export function buildPackageCandidate(input: {
 	existing: Record<string, unknown>;
@@ -290,12 +347,9 @@ export function buildPackageCandidate(input: {
 		const before = input.existing[field];
 		const after = next[field];
 		if (after === undefined) {
-			// User cleared the field. Drop it from the candidate if it was
-			// present before.
-			if (before !== undefined) {
-				delete candidate[field];
-				diffs.push({ field, before, after: undefined });
-			}
+			// Manifest didn't supply this field. Preserve the existing
+			// value verbatim — see the docstring's "no missing-equals-
+			// delete" rule.
 			continue;
 		}
 		if (!deepEqual(before, after)) {
@@ -317,9 +371,10 @@ export function buildPackageCandidate(input: {
  * shape we'd write. Strips `undefined` keys from author/contact entries so
  * the structural equality check matches the cleaned PDS form (PDS reads
  * never return `undefined` values, but a programmatic caller's input may).
- * Drops `keywords` when empty so "no keywords" maps to "field absent" the
- * way the lexicon stores it. `authors` and `security` arrays are passed
- * through verbatim — `validateInput` already rejected empty arrays.
+ * Optional fields (`name`, `description`, `keywords`) only land in the
+ * output map when the caller actually supplied them; their absence is a
+ * "leave the existing value alone" signal, not a "clear" signal.
+ * `authors` and `security` are required and always present.
  */
 function normaliseInput(
 	input: PackageUpdateInput,
@@ -399,35 +454,63 @@ async function fetchExistingProfile(
 	}
 }
 
+/** Max number of sibling slugs to list in the POSSIBLE_RENAME diagnostic. */
+const POSSIBLE_RENAME_MAX_SIBLINGS = 10;
+
 /**
- * When no profile is found at the requested slug, scan the publisher's
- * packageProfile collection for any other profile so we can warn that a
- * manifest rename would orphan it. Returns the first sibling slug found,
- * or `null` when the collection is empty.
+ * When no package is found at the requested slug, scan the publisher's
+ * packageProfile collection for any other packages so we can warn that a
+ * manifest rename would orphan them. Returns the slugs in document order,
+ * capped at {@link POSSIBLE_RENAME_MAX_SIBLINGS}.
  *
- * The scan caps at one page (the OAuth permission, not the publisher's
- * profile count, is the natural limit here): a publisher with hundreds of
- * plugins is theoretically possible, but the diagnostic only needs ONE
- * example to make its point.
+ * Auth/permission failures are RE-THROWN so the user sees the real cause
+ * (e.g. "re-login") rather than a misleading `PACKAGE_NOT_FOUND` that
+ * never actually ran the rename check. Transient network errors are
+ * swallowed — the rename diagnostic is best-effort and a retry will hit
+ * the same path anyway.
  */
-async function findSiblingProfileSlug(
+async function findSiblingPackageSlugs(
 	publisher: PublishingClient,
 	missingSlug: string,
-): Promise<string | null> {
+): Promise<string[]> {
+	let page: Awaited<ReturnType<PublishingClient["listRecords"]>>;
 	try {
-		const page = await publisher.listRecords({ collection: NSID.packageProfile, limit: 100 });
-		for (const record of page.records) {
-			const rkey = atUriRkey(record.uri);
-			if (rkey && rkey !== missingSlug) return rkey;
+		page = await publisher.listRecords({ collection: NSID.packageProfile, limit: 100 });
+	} catch (error) {
+		if (error instanceof ClientResponseError && isAuthFailure(error.error)) {
+			// Surface auth/permission errors so the caller sees the real
+			// cause instead of a misleading PACKAGE_NOT_FOUND from the
+			// rename-check having silently no-op'd.
+			throw error;
 		}
-		return null;
-	} catch {
-		// Best-effort diagnostic: fall through to the plain PACKAGE_NOT_FOUND
-		// if the listRecords call fails (network, permission). The bug we're
-		// trying to catch is a publisher renaming their plugin; a real
-		// publisher with that situation will still get the message on retry.
-		return null;
+		// Transient network / PDS-down / unknown — degrade to "no
+		// siblings" and let PACKAGE_NOT_FOUND fire. A retry will hit
+		// the same path.
+		return [];
 	}
+	const siblings: string[] = [];
+	for (const record of page.records) {
+		const rkey = atUriRkey(record.uri);
+		if (rkey && rkey !== missingSlug) siblings.push(rkey);
+		if (siblings.length >= POSSIBLE_RENAME_MAX_SIBLINGS) break;
+	}
+	return siblings;
+}
+
+/**
+ * atproto error codes that indicate the session can't authenticate
+ * against the PDS. Surfaced rather than swallowed so failure messages
+ * point the user at re-login rather than the wrong diagnostic.
+ */
+function isAuthFailure(code: string): boolean {
+	return (
+		code === "AuthenticationRequired" ||
+		code === "AuthRequired" ||
+		code === "InvalidToken" ||
+		code === "ExpiredToken" ||
+		code === "AccountTakedown" ||
+		code === "Forbidden"
+	);
 }
 
 /** Extract the rkey from an `at://did/nsid/rkey` URI. Returns null on bad shape. */

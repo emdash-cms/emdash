@@ -69,7 +69,6 @@ describe("updatePackage", () => {
 
 			const result = await updatePackage({
 				publisher: buildPublisher(pds),
-				did: TEST_DID,
 				slug: SLUG,
 				input: input(),
 				now,
@@ -86,7 +85,6 @@ describe("updatePackage", () => {
 
 			const result = await updatePackage({
 				publisher: buildPublisher(pds),
-				did: TEST_DID,
 				slug: SLUG,
 				input: input({ license: "Apache-2.0" }),
 				now,
@@ -103,7 +101,6 @@ describe("updatePackage", () => {
 
 			const result = await updatePackage({
 				publisher: buildPublisher(pds),
-				did: TEST_DID,
 				slug: SLUG,
 				input: input({ name: "New Name" }),
 				now,
@@ -118,7 +115,6 @@ describe("updatePackage", () => {
 
 			const result = await updatePackage({
 				publisher: buildPublisher(pds),
-				did: TEST_DID,
 				slug: SLUG,
 				input: input({ keywords: ["b", "a"] }),
 				now,
@@ -136,7 +132,6 @@ describe("updatePackage", () => {
 
 			const result = await updatePackage({
 				publisher: buildPublisher(pds),
-				did: TEST_DID,
 				slug: SLUG,
 				input: input({
 					description: "new description",
@@ -151,21 +146,23 @@ describe("updatePackage", () => {
 			expect(fields).toEqual(["authors", "description", "keywords"]);
 		});
 
-		it("treats clearing an optional field as a diff", async () => {
+		it("preserves an optional field that the manifest omits (no silent deletion)", async () => {
+			// Mirrors publish semantics: a missing-from-manifest key isn't a
+			// request to delete. Without this, accidentally removing the
+			// `description` line in emdash-plugin.jsonc would silently wipe
+			// a value the publisher put on the record.
 			const pds = new MockPds({ did: TEST_DID });
 			seedProfile(pds, { description: "old description" });
 
 			const result = await updatePackage({
 				publisher: buildPublisher(pds),
-				did: TEST_DID,
 				slug: SLUG,
 				input: input(),
 				now,
 			});
 
-			expect(result.diffs).toEqual([
-				{ field: "description", before: "old description", after: undefined },
-			]);
+			expect(result.diffs).toEqual([]);
+			expect((result.candidate as { description?: string }).description).toBe("old description");
 		});
 	});
 
@@ -176,7 +173,6 @@ describe("updatePackage", () => {
 
 			const result = await updatePackage({
 				publisher: buildPublisher(pds),
-				did: TEST_DID,
 				slug: SLUG,
 				input: input({ license: "Apache-2.0" }),
 				apply: true,
@@ -192,11 +188,17 @@ describe("updatePackage", () => {
 				rkey: string;
 				record: Record<string, unknown>;
 				validate?: boolean;
+				swapRecord?: string;
 			};
 			expect(body.repo).toBe(TEST_DID);
 			expect(body.collection).toBe(NSID.packageProfile);
 			expect(body.rkey).toBe(SLUG);
 			expect(body.validate).toBe(false);
+			// Optimistic concurrency: the write carries the CID we read,
+			// so a concurrent edit between read and write surfaces as
+			// STALE_RECORD instead of silently winning.
+			expect(typeof body.swapRecord).toBe("string");
+			expect(body.swapRecord).not.toBe("");
 			expect(body.record.license).toBe("Apache-2.0");
 			expect(body.record.lastUpdated).toBe(FIXED_NOW.toISOString());
 			// Identity fields preserved verbatim.
@@ -212,7 +214,6 @@ describe("updatePackage", () => {
 
 			const result = await updatePackage({
 				publisher: buildPublisher(pds),
-				did: TEST_DID,
 				slug: SLUG,
 				input: input(),
 				apply: true,
@@ -232,7 +233,6 @@ describe("updatePackage", () => {
 
 			await updatePackage({
 				publisher: buildPublisher(pds),
-				did: TEST_DID,
 				slug: SLUG,
 				input: input({ license: "Apache-2.0" }),
 				apply: true,
@@ -252,7 +252,6 @@ describe("updatePackage", () => {
 			await expect(
 				updatePackage({
 					publisher: buildPublisher(pds),
-					did: TEST_DID,
 					slug: SLUG,
 					input: input(),
 				}),
@@ -262,25 +261,29 @@ describe("updatePackage", () => {
 			});
 		});
 
-		it("throws POSSIBLE_RENAME when the slug is missing but a different-slug profile exists", async () => {
+		it("throws POSSIBLE_RENAME listing every other package when the slug is missing", async () => {
 			const pds = new MockPds({ did: TEST_DID });
-			// Publisher already has a profile under a different slug.
-			pds.seedRecord(NSID.packageProfile, "old-slug", {
-				$type: NSID.packageProfile,
-				id: `at://${TEST_DID}/${NSID.packageProfile}/old-slug`,
-				type: "emdash-plugin",
-				license: "MIT",
-				authors: [{ name: "Alice" }],
-				security: [{ email: "security@example.com" }],
-				slug: "old-slug",
-				lastUpdated: "2024-01-01T00:00:00.000Z",
-			});
+			// Publisher already has THREE packages under other slugs. The
+			// diagnostic should list all of them — a publisher with multiple
+			// plugins shouldn't see a misleading "you might have renamed X"
+			// pointer at an unrelated package.
+			for (const slug of ["alpha", "beta", "gamma"]) {
+				pds.seedRecord(NSID.packageProfile, slug, {
+					$type: NSID.packageProfile,
+					id: `at://${TEST_DID}/${NSID.packageProfile}/${slug}`,
+					type: "emdash-plugin",
+					license: "MIT",
+					authors: [{ name: "Alice" }],
+					security: [{ email: "security@example.com" }],
+					slug,
+					lastUpdated: "2024-01-01T00:00:00.000Z",
+				});
+			}
 
 			let caught: unknown;
 			try {
 				await updatePackage({
 					publisher: buildPublisher(pds),
-					did: TEST_DID,
 					slug: "new-slug",
 					input: input(),
 				});
@@ -289,9 +292,75 @@ describe("updatePackage", () => {
 			}
 
 			expect(caught).toBeInstanceOf(UpdatePackageError);
-			expect((caught as UpdatePackageError).code).toBe("POSSIBLE_RENAME");
-			expect((caught as UpdatePackageError).message).toContain("old-slug");
+			const err = caught as UpdatePackageError;
+			expect(err.code).toBe("POSSIBLE_RENAME");
+			expect(err.message).toContain("alpha");
+			expect(err.message).toContain("beta");
+			expect(err.message).toContain("gamma");
+			expect(err.detail).toMatchObject({
+				existingSlugs: expect.arrayContaining(["alpha", "beta", "gamma"]),
+			});
 			expect(pds.callsTo("com.atproto.repo.putRecord")).toHaveLength(0);
+		});
+
+		it("rethrows auth failures from the sibling scan instead of degrading to PACKAGE_NOT_FOUND", async () => {
+			// Mock a PDS that returns AuthRequired on listRecords. The
+			// rename-detection path should surface the real cause so the
+			// user is prompted to re-login rather than seeing a confusing
+			// PACKAGE_NOT_FOUND that didn't actually check.
+			const pds = new MockPds({ did: TEST_DID });
+			const wrappedHandle = pds.handle.bind(pds);
+			pds.handle = async (pathname, init) => {
+				if (pathname.includes("listRecords")) {
+					return new Response(
+						JSON.stringify({ error: "AuthRequired", message: "session expired" }),
+						{ status: 401, headers: { "content-type": "application/json" } },
+					);
+				}
+				return wrappedHandle(pathname, init);
+			};
+
+			await expect(
+				updatePackage({
+					publisher: buildPublisher(pds),
+					slug: SLUG,
+					input: input(),
+				}),
+			).rejects.toMatchObject({ error: "AuthRequired" });
+		});
+
+		it("throws STALE_RECORD when the record changes between read and write", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			seedProfile(pds);
+			// Intercept putRecord to simulate a concurrent edit having
+			// changed the record's CID. A real PDS returns InvalidSwap in
+			// this case.
+			const wrappedHandle = pds.handle.bind(pds);
+			pds.handle = async (pathname, init) => {
+				if (pathname.includes("putRecord")) {
+					return new Response(
+						JSON.stringify({
+							error: "InvalidSwap",
+							message: "Record was modified",
+						}),
+						{ status: 400, headers: { "content-type": "application/json" } },
+					);
+				}
+				return wrappedHandle(pathname, init);
+			};
+
+			await expect(
+				updatePackage({
+					publisher: buildPublisher(pds),
+					slug: SLUG,
+					input: input({ license: "Apache-2.0" }),
+					apply: true,
+					now,
+				}),
+			).rejects.toMatchObject({
+				name: "UpdatePackageError",
+				code: "STALE_RECORD",
+			});
 		});
 
 		it("throws INVALID_INPUT when authors is empty", async () => {
@@ -301,7 +370,6 @@ describe("updatePackage", () => {
 			await expect(
 				updatePackage({
 					publisher: buildPublisher(pds),
-					did: TEST_DID,
 					slug: SLUG,
 					input: input({ authors: [] }),
 					apply: true,
@@ -323,7 +391,6 @@ describe("updatePackage", () => {
 			await expect(
 				updatePackage({
 					publisher: buildPublisher(pds),
-					did: TEST_DID,
 					slug: SLUG,
 					input: input({ security: [{}] }),
 					apply: true,
@@ -341,7 +408,6 @@ describe("updatePackage", () => {
 			await expect(
 				updatePackage({
 					publisher: buildPublisher(pds),
-					did: TEST_DID,
 					slug: SLUG,
 					input: input(),
 				}),
@@ -364,7 +430,6 @@ describe("updatePackage", () => {
 			try {
 				await updatePackage({
 					publisher: buildPublisher(pds),
-					did: TEST_DID,
 					slug: SLUG,
 					input: input({ license: "Apache-2.0" }),
 					apply: true,
