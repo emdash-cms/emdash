@@ -30,7 +30,6 @@ export interface BackingServiceHandler {
 export function createBackingServiceHandler(runner: WorkerdSandboxRunner): BackingServiceHandler {
 	// Cache bridge handlers per pluginId to avoid re-creation
 	const handlerCache = new Map<string, (request: Request) => Promise<Response>>();
-	const tokenToPluginId = new Map<string, string>();
 
 	const handler = async (req: IncomingMessage, res: ServerResponse) => {
 		try {
@@ -68,7 +67,6 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 					storage: runner.mediaStorage,
 				});
 				handlerCache.set(cacheKey, bridgeHandler);
-				tokenToPluginId.set(token, cacheKey);
 			}
 
 			// Convert Node request to web Request
@@ -101,11 +99,6 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 		handler,
 		removePlugin(pluginId: string) {
 			handlerCache.delete(pluginId);
-			for (const [token, id] of tokenToPluginId) {
-				if (id === pluginId) {
-					tokenToPluginId.delete(token);
-				}
-			}
 		},
 	};
 }
