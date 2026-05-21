@@ -264,13 +264,13 @@ msgstr "{current} dari {total}"
 
 #: packages/admin/src/components/ContentList.tsx:506
 msgid "{filteredCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr ""
+msgstr "{filteredCount, plural, other {#{1} item cocok dengan \"{searchQuery}\"}}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
 #: packages/admin/src/components/ContentList.tsx:517
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
-msgstr ""
+msgstr "{filteredCount, plural, other {#{1} item}}"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:107
 msgid "{label} — no translation"
@@ -306,7 +306,7 @@ msgstr "{pluginName} memerlukan izin berikut:"
 
 #: packages/admin/src/components/ContentList.tsx:512
 msgid "{total, plural, one {# item} other {# items}}"
-msgstr ""
+msgstr "{total, plural, other {# item}}"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:149
 msgid "{total, plural, one {# total} other {# total}}"
@@ -952,7 +952,7 @@ msgstr "Mengotorisasi..."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:346
 msgid "Authors"
-msgstr ""
+msgstr "Penulis"
 
 #: packages/admin/src/components/Redirects.tsx:495
 msgid "auto"
@@ -1020,7 +1020,7 @@ msgstr "Kembali ke marketplace"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:447
 msgid "Back to plugins"
-msgstr ""
+msgstr "Kembali ke plugin"
 
 #: packages/admin/src/components/SectionEditor.tsx:73
 #: packages/admin/src/components/SectionEditor.tsx:174
@@ -1068,7 +1068,7 @@ msgstr "Ringkasan singkat di bawah judul di hasil pencarian"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:71
 msgid "Browse and install plugins published to the decentralized registry."
-msgstr ""
+msgstr "Jelajahi dan pasang plugin yang diterbitkan di registri terdesentralisasi."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:88
 msgid "Browse and install plugins to extend your site."
@@ -1846,7 +1846,7 @@ msgstr "Angka desimal"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:411
 msgid "Declared permissions"
-msgstr ""
+msgstr "Izin yang dinyatakan"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:327
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:389
@@ -2859,7 +2859,7 @@ msgstr "Gagal memuat plugin: {0}"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:95
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
-msgstr ""
+msgstr "Gagal memuat plugin. Agregator registri mungkin tidak dapat dijangkau."
 
 #: packages/admin/src/components/RevisionHistory.tsx:180
 msgid "Failed to load revisions"
@@ -3285,7 +3285,7 @@ msgstr "Gambar dari pustaka media"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
 #: packages/admin/src/components/ContentEditor.tsx:1622
 msgid "Image not found"
-msgstr ""
+msgstr "Gambar tidak ditemukan"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:179
 #: packages/admin/src/components/editor/ImageNode.tsx:180
@@ -3399,7 +3399,7 @@ msgstr "Tidak Kompatibel"
 #. placeholder {0}: formatDate(release.indexedAt)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:263
 msgid "indexed {0}"
-msgstr ""
+msgstr "diindeks {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2821
 msgid "Inline Code"
@@ -4169,7 +4169,7 @@ msgstr "Tipe Konten Baru"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:116
 msgid "New public routes"
-msgstr ""
+msgstr "Rute publik baru"
 
 #: packages/admin/src/components/Redirects.tsx:102
 #: packages/admin/src/components/Redirects.tsx:336
@@ -4400,11 +4400,11 @@ msgstr "Tidak ada plugin yang ditemukan"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:117
 msgid "No plugins have been published to this registry yet."
-msgstr ""
+msgstr "Belum ada plugin yang diterbitkan di registri ini."
 
 #: packages/admin/src/components/RegistryBrowse.tsx:116
 msgid "No plugins match \"{debouncedQuery}\"."
-msgstr ""
+msgstr "Tidak ada plugin yang cocok dengan \"{debouncedQuery}\"."
 
 #: packages/admin/src/components/Sections.tsx:343
 msgid "No preview"
@@ -4794,7 +4794,7 @@ msgstr "Plugin tidak ditemukan"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:232
 msgid "Plugin not found. The publisher handle or slug may be incorrect."
-msgstr ""
+msgstr "Plugin tidak ditemukan. Handle atau slug penerbit mungkin salah."
 
 #: packages/admin/src/components/WordPressImport.tsx:1048
 msgid "plugin on your WordPress site."
@@ -4806,7 +4806,7 @@ msgstr "Izin Plugin"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:70
 msgid "Plugin Registry"
-msgstr ""
+msgstr "Registri Plugin"
 
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginPage.tsx:40
@@ -4819,7 +4819,7 @@ msgstr "Plugin dihapus"
 
 #: packages/admin/src/lib/api/registry.ts:532
 msgid "Plugin update requires re-consent"
-msgstr ""
+msgstr "Pembaruan plugin memerlukan persetujuan ulang"
 
 #: packages/admin/src/components/PluginManager.tsx:257
 msgid "Plugin updated"
@@ -4925,7 +4925,7 @@ msgstr "Dipublikasikan Pada"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:258
 msgid "Published by"
-msgstr ""
+msgstr "Diterbitkan oleh"
 
 #: packages/admin/src/components/ContentEditor.tsx:2045
 msgid "Quick create byline"
@@ -5043,11 +5043,11 @@ msgstr "Pendaftaran dibatalkan atau waktu telah habis. Silakan coba lagi."
 
 #: packages/admin/src/components/Sidebar.tsx:221
 msgid "Registry"
-msgstr ""
+msgstr "Registri"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:317
 msgid "Release is too new to install"
-msgstr ""
+msgstr "Rilis terlalu baru untuk dipasang"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
@@ -5638,7 +5638,7 @@ msgstr "Audit keamanan lulus"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:379
 msgid "Security contacts"
-msgstr ""
+msgstr "Kontak keamanan"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:272
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:275
@@ -6316,7 +6316,7 @@ msgstr "Plugin ini tidak memerlukan izin khusus."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:303
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
-msgstr ""
+msgstr "Penerbit ini mengklaim nama yang tidak dapat mereka buktikan kepemilikannya — mungkin meniru orang lain. Pemasangan dinonaktifkan. Jika Anda mengenal penerbit ini dan mempercayainya, minta mereka memperbaiki pengaturan identitasnya sebelum mencoba lagi."
 
 #: packages/admin/src/components/Redirects.tsx:551
 msgid "This redirect rule will be permanently removed."
@@ -6336,7 +6336,7 @@ msgstr "Bagian ini diimpor dari sistem lain."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:119
 msgid "This update exposes the following routes without authentication:"
-msgstr ""
+msgstr "Pembaruan ini membuka rute berikut tanpa autentikasi:"
 
 #: packages/admin/src/components/Widgets.tsx:635
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
@@ -6654,7 +6654,7 @@ msgstr "Widget Tanpa Judul"
 
 #: packages/admin/src/components/PublisherHandle.tsx:145
 msgid "Unverified publisher"
-msgstr ""
+msgstr "Penerbit belum diverifikasi"
 
 #: packages/admin/src/components/ContentEditor.tsx:1993
 msgid "Up"
@@ -6908,7 +6908,7 @@ msgstr "Validasi"
 #: packages/admin/src/components/RegistryBrowse.tsx:186
 #: packages/admin/src/components/RegistryPluginDetail.tsx:253
 msgid "Verified publisher"
-msgstr ""
+msgstr "Penerbit terverifikasi"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:194
 msgid "Verifying your invite..."
@@ -6930,7 +6930,7 @@ msgstr "Versi"
 #. placeholder {0}: release.version
 #: packages/admin/src/components/RegistryPluginDetail.tsx:263
 msgid "Version {0}"
-msgstr ""
+msgstr "Versi {0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Video"
@@ -6958,11 +6958,11 @@ msgstr "Lihat Situs"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:337
 msgid "View source"
-msgstr ""
+msgstr "Lihat sumber"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:538
 msgid "View the {license} license on spdx.org"
-msgstr ""
+msgstr "Lihat lisensi {license} di spdx.org"
 
 #: packages/admin/src/components/Redirects.tsx:422
 msgid "Visitors hitting these paths will see an error."
@@ -6984,7 +6984,7 @@ msgstr "Kami tidak dapat terhubung ke situs WordPress di {0}. Ini bisa berarti s
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:301
 msgid "We couldn't verify this publisher's identity"
-msgstr ""
+msgstr "Kami tidak dapat memverifikasi identitas penerbit ini"
 
 #: packages/admin/src/components/WordPressImport.tsx:926
 msgid "We'll check what import options are available for your site."
@@ -7242,7 +7242,7 @@ msgstr "Peran Anda"
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:319
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
-msgstr ""
+msgstr "Situs Anda mengharuskan rilis berusia minimal {0} sebelum dapat dipasang. Rilis ini akan dapat dipasang nanti."
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:135
 msgid "Your Twitter/X handle (e.g., @username)"
