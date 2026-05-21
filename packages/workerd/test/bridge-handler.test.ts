@@ -461,4 +461,75 @@ describe("Bridge Handler Conformance", () => {
 			expect(result.result).toBeNull();
 		});
 	});
+
+	// ── Batch transactionality ────────────────────────────────────────────
+
+	describe("batch operations are transactional", () => {
+		beforeEach(async () => {
+			await db.schema
+				.createTable("ec_atomic_posts")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("slug", "text", (col) => col.unique())
+				.addColumn("status", "text", (col) => col.defaultTo("draft"))
+				.addColumn("title", "text")
+				.addColumn("created_at", "text")
+				.addColumn("updated_at", "text")
+				.addColumn("deleted_at", "text")
+				.addColumn("version", "integer", (col) => col.defaultTo(1))
+				.addColumn("author_id", "text")
+				.execute();
+		});
+
+		it("contentCreateMany rolls back when a mid-batch insert fails", async () => {
+			const handler = makeHandler({ capabilities: ["write:content"] });
+			// Pre-insert a row that will collide with item index 2's slug.
+			await call(handler, "content/create", {
+				collection: "atomic_posts",
+				data: { slug: "conflict", title: "existing" },
+			});
+
+			const before = await db
+				.selectFrom("ec_atomic_posts" as any)
+				.selectAll()
+				.execute();
+			expect(before).toHaveLength(1);
+
+			const result = await call(handler, "content/createMany", {
+				collection: "atomic_posts",
+				items: [
+					{ slug: "a", title: "ok 1" },
+					{ slug: "b", title: "ok 2" },
+					{ slug: "conflict", title: "should fail" },
+					{ slug: "d", title: "would be ok" },
+				],
+			});
+			expect(result.error).toBeDefined();
+
+			// After the failed batch, only the pre-existing row should remain.
+			const after = await db
+				.selectFrom("ec_atomic_posts" as any)
+				.selectAll()
+				.execute();
+			expect(after).toHaveLength(1);
+			expect((after[0] as any).slug).toBe("conflict");
+		});
+
+		it("contentCreateMany commits all when no item fails", async () => {
+			const handler = makeHandler({ capabilities: ["write:content"] });
+			const result = await call(handler, "content/createMany", {
+				collection: "atomic_posts",
+				items: [
+					{ slug: "x1", title: "1" },
+					{ slug: "x2", title: "2" },
+					{ slug: "x3", title: "3" },
+				],
+			});
+			expect(result.result).toBeDefined();
+			const rows = await db
+				.selectFrom("ec_atomic_posts" as any)
+				.selectAll()
+				.execute();
+			expect(rows).toHaveLength(3);
+		});
+	});
 });

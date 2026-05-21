@@ -663,11 +663,13 @@ async function contentCreateMany(
 	if (items.length > MAX_BATCH_SIZE) {
 		throw new Error(`Batch size ${items.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
 	}
-	const results = [];
-	for (const data of items) {
-		results.push(await contentCreate(db, collection, data));
-	}
-	return results;
+	return db.transaction().execute(async (trx) => {
+		const results = [];
+		for (const data of items) {
+			results.push(await contentCreate(trx, collection, data));
+		}
+		return results;
+	});
 }
 
 async function contentUpdateMany(
@@ -686,11 +688,13 @@ async function contentUpdateMany(
 	if (items.length > MAX_BATCH_SIZE) {
 		throw new Error(`Batch size ${items.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
 	}
-	const results = [];
-	for (const item of items) {
-		results.push(await contentUpdate(db, collection, item.id, item.data));
-	}
-	return results;
+	return db.transaction().execute(async (trx) => {
+		const results = [];
+		for (const item of items) {
+			results.push(await contentUpdate(trx, collection, item.id, item.data));
+		}
+		return results;
+	});
 }
 
 async function contentDeleteMany(
@@ -701,12 +705,14 @@ async function contentDeleteMany(
 	if (ids.length > MAX_BATCH_SIZE) {
 		throw new Error(`Batch size ${ids.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
 	}
-	let count = 0;
-	for (const id of ids) {
-		const deleted = await contentDelete(db, collection, id);
-		if (deleted) count++;
-	}
-	return count;
+	return db.transaction().execute(async (trx) => {
+		let count = 0;
+		for (const id of ids) {
+			const deleted = await contentDelete(trx, collection, id);
+			if (deleted) count++;
+		}
+		return count;
+	});
 }
 
 // ── Media Operations ─────────────────────────────────────────────────────
