@@ -246,9 +246,10 @@ function createContext() {
 			} else if (init.body instanceof URLSearchParams) {
 				out.bodyType = "string";
 				out.body = init.body.toString();
-				out.headers = out.headers || {};
-				if (!out.headers["content-type"] && !out.headers["Content-Type"]) {
-					out.headers["content-type"] = "application/x-www-form-urlencoded";
+				if (!Array.isArray(out.headers)) out.headers = [];
+				const hasContentType = out.headers.some(([k]) => k.toLowerCase() === "content-type");
+				if (!hasContentType) {
+					out.headers.push(["content-type", "application/x-www-form-urlencoded"]);
 				}
 			} else {
 				// Fall back to JSON for plain objects
