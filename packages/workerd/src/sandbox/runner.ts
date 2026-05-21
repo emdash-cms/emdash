@@ -126,6 +126,30 @@ interface LoadedPlugin {
 }
 
 /**
+ * Probe every plugin's `/__ready` endpoint in parallel. Returns true iff
+ * every plugin responds with `ok`. Exported for testing; not re-exported
+ * from the package barrel.
+ */
+export async function probeAllReady(
+	plugins: Iterable<{ port: number }>,
+	invokeToken: string,
+	perProbeTimeoutMs = 1000,
+): Promise<boolean> {
+	const targets = [...plugins];
+	if (targets.length === 0) return true;
+	const checks = targets.map((p) =>
+		fetch(`http://127.0.0.1:${p.port}/__ready`, {
+			signal: AbortSignal.timeout(perProbeTimeoutMs),
+			headers: { Authorization: `Bearer ${invokeToken}` },
+		})
+			.then((r) => r.ok)
+			.catch(() => false),
+	);
+	const results = await Promise.all(checks);
+	return results.every(Boolean);
+}
+
+/**
  * Workerd sandbox runner for Node.js deployments.
  *
  * Manages a workerd child process and a backing service HTTP server.
@@ -587,29 +611,20 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	}
 
 	/**
-	 * Wait for workerd to be ready by polling plugin ports.
+	 * Wait for workerd to be ready by polling every plugin port.
 	 */
 	private async waitForReady(): Promise<void> {
 		const startTime = Date.now();
 		const timeout = 10_000;
 
+		if (this.plugins.size === 0) {
+			this.healthy = true;
+			return;
+		}
+
 		while (Date.now() - startTime < timeout) {
-			try {
-				// Try to reach the first plugin
-				const firstPlugin = this.plugins.values().next().value;
-				if (!firstPlugin) {
-					this.healthy = true;
-					return;
-				}
-				const res = await fetch(`http://127.0.0.1:${firstPlugin.port}/__ready`, {
-					signal: AbortSignal.timeout(1000),
-					headers: { Authorization: `Bearer ${this.invokeToken}` },
-				});
-				if (res.ok) {
-					return;
-				}
-			} catch {
-				// Not ready yet
+			if (await probeAllReady(this.plugins.values(), this.invokeToken)) {
+				return;
 			}
 			await new Promise((r) => setTimeout(r, 100));
 		}
