@@ -482,7 +482,7 @@ async function contentList(
 	hasMore: boolean;
 }> {
 	validateCollectionName(collection);
-	const limit = Math.min(Number(opts.limit) || 50, 100);
+	const limit = Math.max(1, Math.min(Number(opts.limit) || 50, 100));
 	try {
 		let query = db
 			.selectFrom(`ec_${collection}` as keyof Database)
@@ -766,7 +766,7 @@ async function mediaList(
 	cursor?: string;
 	hasMore: boolean;
 }> {
-	const limit = Math.min(Number(opts.limit) || 50, 100);
+	const limit = Math.max(1, Math.min(Number(opts.limit) || 50, 100));
 
 	// Only return ready items (matching Cloudflare bridge)
 	let query = db
@@ -1154,7 +1154,8 @@ async function storageQuery(
 	const result = await repo.query({
 		where: queryOpts.where as never,
 		orderBy: queryOpts.orderBy as Record<string, "asc" | "desc"> | undefined,
-		limit: typeof queryOpts.limit === "number" ? Math.min(queryOpts.limit, 100) : undefined,
+		limit:
+			typeof queryOpts.limit === "number" ? Math.max(1, Math.min(queryOpts.limit, 100)) : undefined,
 		cursor: typeof queryOpts.cursor === "string" ? queryOpts.cursor : undefined,
 	});
 	return {

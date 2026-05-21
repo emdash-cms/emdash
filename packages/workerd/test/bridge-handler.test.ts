@@ -345,6 +345,109 @@ describe("Bridge Handler Conformance", () => {
 		});
 	});
 
+	// ── Limit clamping ────────────────────────────────────────────────────
+
+	describe("list endpoints clamp negative limit", () => {
+		it("content/list clamps negative limit to 1", async () => {
+			await db.schema
+				.createTable("ec_posts")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("deleted_at", "text")
+				.addColumn("title", "text")
+				.execute();
+			for (const id of ["post-1", "post-2", "post-3"]) {
+				await db
+					.insertInto("ec_posts" as any)
+					.values({ id, deleted_at: null, title: `Title ${id}` })
+					.execute();
+			}
+
+			const handler = makeHandler({ capabilities: ["read:content"] });
+			const result = await call(handler, "content/list", {
+				collection: "posts",
+				limit: -5,
+			});
+			expect(result.error).toBeUndefined();
+			const list = result.result as { items: unknown[] };
+			expect(list.items.length).toBeGreaterThanOrEqual(1);
+			expect(list.items.length).toBeLessThanOrEqual(1);
+		});
+
+		it("media/list clamps negative limit to 1", async () => {
+			await db.schema
+				.createTable("media")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("filename", "text", (col) => col.notNull())
+				.addColumn("mime_type", "text", (col) => col.notNull())
+				.addColumn("size", "integer")
+				.addColumn("storage_key", "text", (col) => col.notNull())
+				.addColumn("status", "text", (col) => col.notNull().defaultTo("ready"))
+				.addColumn("created_at", "text", (col) => col.notNull())
+				.execute();
+			for (const id of ["m-1", "m-2", "m-3"]) {
+				await db
+					.insertInto("media" as any)
+					.values({
+						id,
+						filename: `${id}.png`,
+						mime_type: "image/png",
+						size: 100,
+						storage_key: `keys/${id}`,
+						status: "ready",
+						created_at: new Date().toISOString(),
+					})
+					.execute();
+			}
+
+			const handler = makeHandler({ capabilities: ["read:media"] });
+			const result = await call(handler, "media/list", { limit: -5 });
+			expect(result.error).toBeUndefined();
+			const list = result.result as { items: unknown[] };
+			expect(list.items.length).toBeGreaterThanOrEqual(1);
+			expect(list.items.length).toBeLessThanOrEqual(1);
+		});
+
+		it("storage/query clamps negative limit to 1", async () => {
+			const handler = makeHandler({ storageCollections: ["logs"] });
+			for (const id of ["log-1", "log-2", "log-3"]) {
+				await call(handler, "storage/put", {
+					collection: "logs",
+					id,
+					data: { message: id },
+				});
+			}
+
+			const result = await call(handler, "storage/query", {
+				collection: "logs",
+				where: {},
+				limit: -5,
+			});
+			expect(result.error).toBeUndefined();
+			const list = result.result as { items: unknown[] };
+			expect(list.items.length).toBeGreaterThanOrEqual(1);
+			expect(list.items.length).toBeLessThanOrEqual(1);
+		});
+
+		it("storage/query without limit returns all rows (undefined passthrough)", async () => {
+			const handler = makeHandler({ storageCollections: ["logs"] });
+			for (const id of ["log-1", "log-2", "log-3"]) {
+				await call(handler, "storage/put", {
+					collection: "logs",
+					id,
+					data: { message: id },
+				});
+			}
+
+			const result = await call(handler, "storage/query", {
+				collection: "logs",
+				where: {},
+			});
+			expect(result.error).toBeUndefined();
+			const list = result.result as { items: unknown[] };
+			expect(list.items.length).toBe(3);
+		});
+	});
+
 	// ── Logging ───────────────────────────────────────────────────────────
 
 	describe("logging", () => {
