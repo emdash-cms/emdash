@@ -59,6 +59,36 @@ const SAFE_ID_RE = /[^a-z0-9_-]/gi;
 const EMDASH_SHIM = "export const definePlugin = (d) => d;\n";
 const EMDASH_SHIM_FILE = "emdash-shim.js";
 
+/**
+ * Build the minimal env for spawning workerd. Passing the full
+ * process.env risks leaking host secrets (DATABASE_URL, API keys, etc.)
+ * to plugins via workerd's nodejs_compat process.env polyfill, even
+ * though plugin code is otherwise isolated. Keep this list as small as
+ * possible.
+ *
+ * Operators who need additional vars in the workerd child can list
+ * them in EMDASH_WORKERD_PASSTHROUGH_ENV (comma-separated).
+ */
+export function minimalWorkerdEnv(): NodeJS.ProcessEnv {
+	const env: NodeJS.ProcessEnv = {};
+	// Vars workerd / its dependencies might need to start:
+	const ALLOW = ["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL"];
+	for (const k of ALLOW) {
+		const v = process.env[k];
+		if (v !== undefined) env[k] = v;
+	}
+	const passthrough = process.env.EMDASH_WORKERD_PASSTHROUGH_ENV;
+	if (passthrough) {
+		for (const k of passthrough.split(",")) {
+			const trimmed = k.trim();
+			if (!trimmed) continue;
+			const v = process.env[trimmed];
+			if (v !== undefined) env[trimmed] = v;
+		}
+	}
+	return env;
+}
+
 /** Use Unix domain sockets for the backing service (lower latency than TCP).
  * Falls back to TCP on Windows where Unix sockets are not available. */
 const USE_UNIX_SOCKET = process.platform !== "win32";
@@ -665,7 +695,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		const workerdBin = this.resolveWorkerdBinary();
 		const proc = spawn(workerdBin, ["serve", configPath], {
 			stdio: ["ignore", "pipe", "pipe"],
-			env: { ...process.env },
+			env: minimalWorkerdEnv(),
 		});
 		this.workerdProcess = proc;
 
