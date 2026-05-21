@@ -165,12 +165,12 @@ msgid "{0} detected"
 msgstr "{0} terdeteksi"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:104
+#: packages/admin/src/components/PluginManager.tsx:110
 msgid "{0} has been deactivated"
 msgstr "{0} telah dinonaktifkan"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:257
+#: packages/admin/src/components/PluginManager.tsx:305
 msgid "{0} has been removed"
 msgstr "{0} telah dihapus"
 
@@ -180,7 +180,7 @@ msgid "{0} installs"
 msgstr "{0} instalasi"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:85
+#: packages/admin/src/components/PluginManager.tsx:91
 msgid "{0} is now active"
 msgstr "{0} sekarang aktif"
 
@@ -197,12 +197,12 @@ msgstr "{0} item akan diimpor"
 
 #. placeholder {0}: plugin.capabilities.length
 #. placeholder {1}: plugin.capabilities.length !== 1 ? "s" : ""
-#: packages/admin/src/components/PluginManager.tsx:350
+#: packages/admin/src/components/PluginManager.tsx:398
 msgid "{0} permission{1}"
 msgstr "{0} izin{1}"
 
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:161
+#: packages/admin/src/components/PluginManager.tsx:169
 msgid "{0} plugins"
 msgstr "{0} plugin"
 
@@ -225,7 +225,7 @@ msgstr "{0} diperbarui"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:244
+#: packages/admin/src/components/PluginManager.tsx:258
 msgid "{0} updated to v{1}"
 msgstr "{0} diperbarui ke v{1}"
 
@@ -296,11 +296,11 @@ msgstr "{needsNewCollections, plural, other {# koleksi baru akan dibuat}}"
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, other {Field akan ditambahkan ke # koleksi yang ada}}"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:76
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} meminta izin tambahan:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:77
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:80
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} memerlukan izin berikut:"
 
@@ -458,11 +458,11 @@ msgstr "Spanduk hero lebar penuh dengan judul, teks, dan tombol CTA"
 msgid "A short description of your site"
 msgstr "Deskripsi singkat situs Anda"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:148
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:170
 msgid "Accept & Install"
 msgstr "Terima & Pasang"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:147
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:169
 msgid "Accept & Update"
 msgstr "Terima & Perbarui"
 
@@ -622,7 +622,7 @@ msgstr "Tambah tag meta noindex"
 msgid "Add Passkey"
 msgstr "Tambah Passkey"
 
-#: packages/admin/src/components/PluginManager.tsx:197
+#: packages/admin/src/components/PluginManager.tsx:205
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "Tambah plugin ke astro.config.mjs untuk memperluas fungsionalitas EmDash."
 
@@ -758,7 +758,7 @@ msgstr "Tipe yang diizinkan"
 msgid "Already have an account?"
 msgstr "Sudah punya akun?"
 
-#: packages/admin/src/components/PluginManager.tsx:585
+#: packages/admin/src/components/PluginManager.tsx:630
 msgid "Also delete plugin storage data"
 msgstr "Juga hapus data penyimpanan plugin"
 
@@ -782,8 +782,8 @@ msgid "Alternatively, you can export from WordPress (Tools → Export) and uploa
 msgstr "Alternatifnya, ekspor dari WordPress (Alat → Ekspor) dan unggah filenya."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
-#: packages/admin/src/components/PluginManager.tsx:91
-#: packages/admin/src/components/PluginManager.tsx:110
+#: packages/admin/src/components/PluginManager.tsx:97
+#: packages/admin/src/components/PluginManager.tsx:116
 #: packages/admin/src/components/TaxonomySidebar.tsx:321
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:341
@@ -1079,7 +1079,7 @@ msgstr "Jelajahi dan pasang plugin untuk memperluas situs Anda."
 msgid "Browse Files"
 msgstr "Jelajahi File"
 
-#: packages/admin/src/components/PluginManager.tsx:190
+#: packages/admin/src/components/PluginManager.tsx:198
 msgid "Browse the"
 msgstr "Jelajahi"
 
@@ -1114,7 +1114,7 @@ msgstr "Dapat mempublikasikan konten sendiri"
 msgid "Can view content"
 msgstr "Dapat melihat konten"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:139
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:161
 #: packages/admin/src/components/ConfirmDialog.tsx:57
 #: packages/admin/src/components/ContentEditor.tsx:676
 #: packages/admin/src/components/ContentEditor.tsx:881
@@ -1134,7 +1134,7 @@ msgstr "Dapat melihat konten"
 #: packages/admin/src/components/MenuEditor.tsx:351
 #: packages/admin/src/components/MenuEditor.tsx:522
 #: packages/admin/src/components/MenuList.tsx:172
-#: packages/admin/src/components/PluginManager.tsx:591
+#: packages/admin/src/components/PluginManager.tsx:636
 #: packages/admin/src/components/PortableTextEditor.tsx:2962
 #: packages/admin/src/components/Redirects.tsx:175
 #: packages/admin/src/components/SectionPickerModal.tsx:130
@@ -1173,11 +1173,11 @@ msgstr "Tidak dapat menentukan tipe MIME dari URL. Gunakan URL yang diakhiri eks
 msgid "Canonical URL"
 msgstr "URL Kanonis"
 
-#: packages/admin/src/components/PluginManager.tsx:421
+#: packages/admin/src/components/PluginManager.tsx:469
 msgid "Capabilities"
 msgstr "Kapabilitas"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:62
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:65
 msgid "Capability consent"
 msgstr "Persetujuan kapabilitas"
 
@@ -1237,7 +1237,7 @@ msgstr "Perubahan dibatalkan"
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Karakter antara judul halaman dan nama situs (mis., \"Pos Saya | Situs Saya\")"
 
-#: packages/admin/src/components/PluginManager.tsx:153
+#: packages/admin/src/components/PluginManager.tsx:161
 msgid "Check for updates"
 msgstr "Periksa pembaruan"
 
@@ -1357,11 +1357,11 @@ msgstr "Kode"
 msgid "Code Block"
 msgstr "Blok Kode"
 
-#: packages/admin/src/components/PluginManager.tsx:408
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "Collapse"
 msgstr "Ciutkan"
 
-#: packages/admin/src/components/PluginManager.tsx:402
+#: packages/admin/src/components/PluginManager.tsx:450
 msgid "Collapse details"
 msgstr "Ciutkan detail"
 
@@ -2084,7 +2084,7 @@ msgstr "Tujuan"
 msgid "Destination path"
 msgstr "Jalur tujuan"
 
-#: packages/admin/src/components/PluginManager.tsx:408
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "details"
 msgstr "detail"
 
@@ -2116,7 +2116,7 @@ msgstr "Dimensi:"
 msgid "Disable"
 msgstr "Nonaktifkan"
 
-#: packages/admin/src/components/PluginManager.tsx:396
+#: packages/admin/src/components/PluginManager.tsx:444
 msgid "Disable plugin"
 msgstr "Nonaktifkan plugin"
 
@@ -2132,14 +2132,14 @@ msgstr "Nonaktifkan Pengguna"
 msgid "Disable User?"
 msgstr "Nonaktifkan Pengguna?"
 
-#: packages/admin/src/components/PluginManager.tsx:305
+#: packages/admin/src/components/PluginManager.tsx:353
 #: packages/admin/src/components/Redirects.tsx:392
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
 msgstr "Dinonaktifkan"
 
-#: packages/admin/src/components/PluginManager.tsx:479
+#: packages/admin/src/components/PluginManager.tsx:527
 msgid "Disabled:"
 msgstr "Dinonaktifkan:"
 
@@ -2474,7 +2474,7 @@ msgstr "Aktifkan komentar"
 msgid "Enable full-text search on this collection"
 msgstr "Aktifkan pencarian teks lengkap di koleksi ini"
 
-#: packages/admin/src/components/PluginManager.tsx:396
+#: packages/admin/src/components/PluginManager.tsx:444
 msgid "Enable plugin"
 msgstr "Aktifkan plugin"
 
@@ -2579,11 +2579,11 @@ msgstr "Keluar mode bebas gangguan"
 msgid "Exit Spotlight Mode"
 msgstr "Keluar dari Mode Sorotan"
 
-#: packages/admin/src/components/PluginManager.tsx:408
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "Expand"
 msgstr "Perluas"
 
-#: packages/admin/src/components/PluginManager.tsx:402
+#: packages/admin/src/components/PluginManager.tsx:450
 msgid "Expand details"
 msgstr "Perluas detail"
 
@@ -2723,7 +2723,7 @@ msgstr "Gagal menghapus widget"
 msgid "Failed to delete widget area"
 msgstr "Gagal menghapus area widget"
 
-#: packages/admin/src/components/PluginManager.tsx:109
+#: packages/admin/src/components/PluginManager.tsx:115
 msgid "Failed to disable plugin"
 msgstr "Gagal menonaktifkan plugin"
 
@@ -2743,7 +2743,7 @@ msgstr "Gagal menutup sambutan"
 msgid "Failed to duplicate"
 msgstr "Gagal menduplikasi"
 
-#: packages/admin/src/components/PluginManager.tsx:90
+#: packages/admin/src/components/PluginManager.tsx:96
 msgid "Failed to enable plugin"
 msgstr "Gagal mengaktifkan plugin"
 
@@ -2853,7 +2853,7 @@ msgid "Failed to load plugin"
 msgstr "Gagal memuat plugin"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:136
+#: packages/admin/src/components/PluginManager.tsx:144
 msgid "Failed to load plugins: {0}"
 msgstr "Gagal memuat plugin: {0}"
 
@@ -2977,6 +2977,7 @@ msgid "Failed to set entry terms"
 msgstr "Gagal mengatur istilah entri"
 
 #: packages/admin/src/lib/api/marketplace.ts:192
+#: packages/admin/src/lib/api/registry.ts:580
 msgid "Failed to uninstall plugin"
 msgstr "Gagal mencopot plugin"
 
@@ -3002,6 +3003,7 @@ msgid "Failed to update domain"
 msgstr "Gagal memperbarui domain"
 
 #: packages/admin/src/lib/api/marketplace.ts:176
+#: packages/admin/src/lib/api/registry.ts:512
 msgid "Failed to update plugin"
 msgstr "Gagal memperbarui plugin"
 
@@ -3242,7 +3244,7 @@ msgstr "Beranda"
 msgid "Homepage"
 msgstr "Halaman Utama"
 
-#: packages/admin/src/components/PluginManager.tsx:336
+#: packages/admin/src/components/PluginManager.tsx:384
 msgid "Hooks"
 msgstr "Hook"
 
@@ -3482,15 +3484,15 @@ msgid "Installed"
 msgstr "Terpasang"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:496
 msgid "Installed from marketplace (v{0})"
 msgstr "Terpasang dari marketplace (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:467
+#: packages/admin/src/components/PluginManager.tsx:515
 msgid "Installed:"
 msgstr "Terpasang:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:145
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:167
 msgid "Installing..."
 msgstr "Memasang..."
 
@@ -3598,7 +3600,7 @@ msgstr "Bahasa"
 msgid "Large section heading"
 msgstr "Judul bagian besar"
 
-#: packages/admin/src/components/PluginManager.tsx:473
+#: packages/admin/src/components/PluginManager.tsx:521
 msgid "Last enabled:"
 msgstr "Terakhir diaktifkan:"
 
@@ -3736,7 +3738,7 @@ msgstr "Memuat menu..."
 msgid "Loading menus..."
 msgstr "Memuat menu..."
 
-#: packages/admin/src/components/PluginManager.tsx:127
+#: packages/admin/src/components/PluginManager.tsx:135
 msgid "Loading plugins..."
 msgstr "Memuat plugin..."
 
@@ -3855,7 +3857,7 @@ msgstr "Kelola {0} untuk {1}"
 msgid "Manage content widgets in your widget areas"
 msgstr "Kelola widget konten di area widget Anda"
 
-#: packages/admin/src/components/PluginManager.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:174
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "Kelola plugin yang terpasang. Aktifkan atau nonaktifkan plugin untuk mengontrol fungsinya."
 
@@ -3888,13 +3890,13 @@ msgstr "Petakan pengguna WordPress {0} ke pengguna EmDash"
 msgid "Mark as spam"
 msgstr "Tandai sebagai spam"
 
-#: packages/admin/src/components/PluginManager.tsx:192
+#: packages/admin/src/components/PluginManager.tsx:200
 msgid "marketplace"
 msgstr "marketplace"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:158
-#: packages/admin/src/components/PluginManager.tsx:306
+#: packages/admin/src/components/PluginManager.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:354
 #: packages/admin/src/components/Sidebar.tsx:228
 msgid "Marketplace"
 msgstr "Marketplace"
@@ -4143,7 +4145,7 @@ msgstr "baru"
 msgid "New"
 msgstr "Baru"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:103
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:106
 msgid "NEW"
 msgstr "BARU"
 
@@ -4164,6 +4166,10 @@ msgstr "Koleksi baru"
 #: packages/admin/src/components/ContentTypeList.tsx:44
 msgid "New Content Type"
 msgstr "Tipe Konten Baru"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:116
+msgid "New public routes"
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:102
 #: packages/admin/src/components/Redirects.tsx:336
@@ -4384,7 +4390,7 @@ msgstr "Tidak ada passkey terdaftar"
 msgid "No passkeys registered yet."
 msgstr "Belum ada passkey terdaftar."
 
-#: packages/admin/src/components/PluginManager.tsx:186
+#: packages/admin/src/components/PluginManager.tsx:194
 msgid "No plugins configured"
 msgstr "Tidak ada plugin yang dikonfigurasi"
 
@@ -4602,7 +4608,7 @@ msgstr "Mengganti judul halaman di hasil mesin pencari"
 msgid "Ownership"
 msgstr "Kepemilikan"
 
-#: packages/admin/src/components/PluginManager.tsx:457
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "Package"
 msgstr "Paket"
 
@@ -4610,7 +4616,7 @@ msgstr "Paket"
 msgid "Page Not Found"
 msgstr "Halaman Tidak Ditemukan"
 
-#: packages/admin/src/components/PluginManager.tsx:324
+#: packages/admin/src/components/PluginManager.tsx:372
 #: packages/admin/src/components/WordPressImport.tsx:1167
 msgid "Pages"
 msgstr "Halaman"
@@ -4765,11 +4771,11 @@ msgstr "Masukkan URL yang valid"
 msgid "Plugin"
 msgstr "Plugin"
 
-#: packages/admin/src/components/PluginManager.tsx:103
+#: packages/admin/src/components/PluginManager.tsx:109
 msgid "Plugin disabled"
 msgstr "Plugin dinonaktifkan"
 
-#: packages/admin/src/components/PluginManager.tsx:84
+#: packages/admin/src/components/PluginManager.tsx:90
 msgid "Plugin enabled"
 msgstr "Plugin diaktifkan"
 
@@ -4794,7 +4800,7 @@ msgstr ""
 msgid "plugin on your WordPress site."
 msgstr "plugin di situs WordPress Anda."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:72
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:75
 msgid "Plugin Permissions"
 msgstr "Izin Plugin"
 
@@ -4807,18 +4813,22 @@ msgstr ""
 msgid "Plugin responded with {0}: {text}"
 msgstr "Plugin merespons dengan {0}: {text}"
 
-#: packages/admin/src/components/PluginManager.tsx:256
+#: packages/admin/src/components/PluginManager.tsx:304
 msgid "Plugin uninstalled"
 msgstr "Plugin dihapus"
 
-#: packages/admin/src/components/PluginManager.tsx:243
+#: packages/admin/src/lib/api/registry.ts:532
+msgid "Plugin update requires re-consent"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:257
 msgid "Plugin updated"
 msgstr "Plugin diperbarui"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:219
-#: packages/admin/src/components/PluginManager.tsx:126
-#: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/components/PluginManager.tsx:144
+#: packages/admin/src/components/PluginManager.tsx:134
+#: packages/admin/src/components/PluginManager.tsx:143
+#: packages/admin/src/components/PluginManager.tsx:152
 #: packages/admin/src/components/Sidebar.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:466
 msgid "Plugins"
@@ -5242,7 +5252,7 @@ msgstr "Dikembalikan ke versi terbit"
 msgid "Review"
 msgstr "Tinjau"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:72
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:75
 msgid "Review New Permissions"
 msgstr "Tinjau Izin Baru"
 
@@ -5614,11 +5624,11 @@ msgstr "Audit keamanan gagal"
 msgid "Security audit flagged concerns"
 msgstr "Audit keamanan menandai kekhawatiran"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:126
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:148
 msgid "Security audit flagged potential concerns with this plugin."
 msgstr "Audit keamanan menandai potensi kekhawatiran dengan plugin ini."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:127
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:149
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "Audit keamanan menandai plugin ini berpotensi tidak aman."
 
@@ -5826,7 +5836,7 @@ msgstr "Mengatur..."
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
 #: packages/admin/src/components/ContentTypeEditor.tsx:383
 #: packages/admin/src/components/Header.tsx:93
-#: packages/admin/src/components/PluginManager.tsx:385
+#: packages/admin/src/components/PluginManager.tsx:433
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:245
 #: packages/admin/src/components/WordPressImport.tsx:1647
@@ -6028,7 +6038,7 @@ msgstr "Urutkan tema"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:215
-#: packages/admin/src/components/PluginManager.tsx:445
+#: packages/admin/src/components/PluginManager.tsx:493
 #: packages/admin/src/components/Redirects.tsx:440
 #: packages/admin/src/components/SectionEditor.tsx:279
 msgid "Source"
@@ -6324,6 +6334,10 @@ msgstr "Bagian ini disediakan oleh tema. Mengedit akan membuat salinan kustom ya
 msgid "This section was imported from another system."
 msgstr "Bagian ini diimpor dari sistem lain."
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:119
+msgid "This update exposes the following routes without authentication:"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:635
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Ini akan menghapus area widget dan semua widget-nya. Tindakan ini tidak dapat dibatalkan."
@@ -6350,7 +6364,7 @@ msgstr "Ini akan menghapus permanen \"{0}\". Tindakan ini tidak dapat dibatalkan
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Ini akan menghapus permanen komentar ini. Tindakan ini tidak dapat dibatalkan."
 
-#: packages/admin/src/components/PluginManager.tsx:580
+#: packages/admin/src/components/PluginManager.tsx:625
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Ini akan menghapus plugin dan bundelnya dari situs Anda."
 
@@ -6391,7 +6405,7 @@ msgstr "Pemisah Judul"
 msgid "to close"
 msgstr "untuk menutup"
 
-#: packages/admin/src/components/PluginManager.tsx:194
+#: packages/admin/src/components/PluginManager.tsx:202
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr "untuk memasang plugin, atau tambahkan ke astro.config.mjs Anda."
 
@@ -6554,24 +6568,20 @@ msgid "Undo"
 msgstr "Batalkan"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:495
-#: packages/admin/src/components/PluginManager.tsx:594
+#: packages/admin/src/components/PluginManager.tsx:543
+#: packages/admin/src/components/PluginManager.tsx:639
 msgid "Uninstall"
 msgstr "Hapus"
 
-#: packages/admin/src/components/PluginManager.tsx:578
+#: packages/admin/src/components/PluginManager.tsx:623
 msgid "Uninstall {pluginName}?"
 msgstr "Hapus {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:573
+#: packages/admin/src/components/PluginManager.tsx:618
 msgid "Uninstall confirmation"
 msgstr "Konfirmasi penghapusan"
 
-#: packages/admin/src/components/PluginManager.tsx:505
-msgid "Uninstall is not yet available for registry plugins. Disable the plugin to stop it from running; full uninstall will land in a follow-up."
-msgstr ""
-
-#: packages/admin/src/components/PluginManager.tsx:594
+#: packages/admin/src/components/PluginManager.tsx:639
 msgid "Uninstalling..."
 msgstr "Menghapus..."
 
@@ -6677,7 +6687,7 @@ msgid "Update this redirect rule."
 msgstr "Perbarui aturan pengalihan ini."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:365
+#: packages/admin/src/components/PluginManager.tsx:413
 msgid "Update to v{0}"
 msgstr "Perbarui ke v{0}"
 
@@ -6694,8 +6704,8 @@ msgstr "Diperbarui: {0}"
 msgid "Updating content URLs..."
 msgstr "Memperbarui URL konten..."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:144
-#: packages/admin/src/components/PluginManager.tsx:365
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:413
 msgid "Updating..."
 msgstr "Memperbarui..."
 
@@ -6886,7 +6896,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Pengguna dengan alamat email dari domain ini dapat mendaftar tanpa undangan. Mereka akan otomatis diberi peran yang ditentukan."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:309
+#: packages/admin/src/components/PluginManager.tsx:357
 msgid "v{0} available"
 msgstr "v{0} tersedia"
 
@@ -6930,7 +6940,7 @@ msgstr "Video"
 msgid "View email provider status and send test emails"
 msgstr "Lihat status penyedia email dan kirim email uji"
 
-#: packages/admin/src/components/PluginManager.tsx:377
+#: packages/admin/src/components/PluginManager.tsx:425
 msgid "View in Marketplace"
 msgstr "Lihat di Marketplace"
 
@@ -7072,7 +7082,7 @@ msgid "Widget updated"
 msgstr "Widget diperbarui"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
-#: packages/admin/src/components/PluginManager.tsx:330
+#: packages/admin/src/components/PluginManager.tsx:378
 #: packages/admin/src/components/Sidebar.tsx:200
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"

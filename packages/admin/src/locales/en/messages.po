@@ -165,12 +165,12 @@ msgid "{0} detected"
 msgstr "{0} detected"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:104
+#: packages/admin/src/components/PluginManager.tsx:110
 msgid "{0} has been deactivated"
 msgstr "{0} has been deactivated"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:257
+#: packages/admin/src/components/PluginManager.tsx:305
 msgid "{0} has been removed"
 msgstr "{0} has been removed"
 
@@ -180,7 +180,7 @@ msgid "{0} installs"
 msgstr "{0} installs"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:85
+#: packages/admin/src/components/PluginManager.tsx:91
 msgid "{0} is now active"
 msgstr "{0} is now active"
 
@@ -197,12 +197,12 @@ msgstr "{0} items will be imported"
 
 #. placeholder {0}: plugin.capabilities.length
 #. placeholder {1}: plugin.capabilities.length !== 1 ? "s" : ""
-#: packages/admin/src/components/PluginManager.tsx:350
+#: packages/admin/src/components/PluginManager.tsx:398
 msgid "{0} permission{1}"
 msgstr "{0} permission{1}"
 
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:161
+#: packages/admin/src/components/PluginManager.tsx:169
 msgid "{0} plugins"
 msgstr "{0} plugins"
 
@@ -225,7 +225,7 @@ msgstr "{0} updated"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:244
+#: packages/admin/src/components/PluginManager.tsx:258
 msgid "{0} updated to v{1}"
 msgstr "{0} updated to v{1}"
 
@@ -296,11 +296,11 @@ msgstr "{needsNewCollections, plural, one {# new collection will be created} oth
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:76
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} is requesting additional permissions:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:77
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:80
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} requires the following permissions:"
 
@@ -458,11 +458,11 @@ msgstr "A full-width hero banner with heading, text, and CTA button"
 msgid "A short description of your site"
 msgstr "A short description of your site"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:148
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:170
 msgid "Accept & Install"
 msgstr "Accept & Install"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:147
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:169
 msgid "Accept & Update"
 msgstr "Accept & Update"
 
@@ -622,7 +622,7 @@ msgstr "Add noindex meta tag"
 msgid "Add Passkey"
 msgstr "Add Passkey"
 
-#: packages/admin/src/components/PluginManager.tsx:197
+#: packages/admin/src/components/PluginManager.tsx:205
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "Add plugins to your astro.config.mjs to extend EmDash functionality."
 
@@ -758,7 +758,7 @@ msgstr "Allowed types"
 msgid "Already have an account?"
 msgstr "Already have an account?"
 
-#: packages/admin/src/components/PluginManager.tsx:585
+#: packages/admin/src/components/PluginManager.tsx:630
 msgid "Also delete plugin storage data"
 msgstr "Also delete plugin storage data"
 
@@ -782,8 +782,8 @@ msgid "Alternatively, you can export from WordPress (Tools → Export) and uploa
 msgstr "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
-#: packages/admin/src/components/PluginManager.tsx:91
-#: packages/admin/src/components/PluginManager.tsx:110
+#: packages/admin/src/components/PluginManager.tsx:97
+#: packages/admin/src/components/PluginManager.tsx:116
 #: packages/admin/src/components/TaxonomySidebar.tsx:321
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:341
@@ -1079,7 +1079,7 @@ msgstr "Browse and install plugins to extend your site."
 msgid "Browse Files"
 msgstr "Browse Files"
 
-#: packages/admin/src/components/PluginManager.tsx:190
+#: packages/admin/src/components/PluginManager.tsx:198
 msgid "Browse the"
 msgstr "Browse the"
 
@@ -1114,7 +1114,7 @@ msgstr "Can publish own content"
 msgid "Can view content"
 msgstr "Can view content"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:139
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:161
 #: packages/admin/src/components/ConfirmDialog.tsx:57
 #: packages/admin/src/components/ContentEditor.tsx:676
 #: packages/admin/src/components/ContentEditor.tsx:881
@@ -1134,7 +1134,7 @@ msgstr "Can view content"
 #: packages/admin/src/components/MenuEditor.tsx:351
 #: packages/admin/src/components/MenuEditor.tsx:522
 #: packages/admin/src/components/MenuList.tsx:172
-#: packages/admin/src/components/PluginManager.tsx:591
+#: packages/admin/src/components/PluginManager.tsx:636
 #: packages/admin/src/components/PortableTextEditor.tsx:2962
 #: packages/admin/src/components/Redirects.tsx:175
 #: packages/admin/src/components/SectionPickerModal.tsx:130
@@ -1173,11 +1173,11 @@ msgstr "Cannot determine MIME type from URL. Use a URL ending in a recognized im
 msgid "Canonical URL"
 msgstr "Canonical URL"
 
-#: packages/admin/src/components/PluginManager.tsx:421
+#: packages/admin/src/components/PluginManager.tsx:469
 msgid "Capabilities"
 msgstr "Capabilities"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:62
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:65
 msgid "Capability consent"
 msgstr "Capability consent"
 
@@ -1237,7 +1237,7 @@ msgstr "Changes discarded"
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Character between page title and site name (e.g., \"My Post | My Site\")"
 
-#: packages/admin/src/components/PluginManager.tsx:153
+#: packages/admin/src/components/PluginManager.tsx:161
 msgid "Check for updates"
 msgstr "Check for updates"
 
@@ -1357,11 +1357,11 @@ msgstr "Code"
 msgid "Code Block"
 msgstr "Code Block"
 
-#: packages/admin/src/components/PluginManager.tsx:408
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "Collapse"
 msgstr "Collapse"
 
-#: packages/admin/src/components/PluginManager.tsx:402
+#: packages/admin/src/components/PluginManager.tsx:450
 msgid "Collapse details"
 msgstr "Collapse details"
 
@@ -2084,7 +2084,7 @@ msgstr "Destination"
 msgid "Destination path"
 msgstr "Destination path"
 
-#: packages/admin/src/components/PluginManager.tsx:408
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "details"
 msgstr "details"
 
@@ -2116,7 +2116,7 @@ msgstr "Dimensions:"
 msgid "Disable"
 msgstr "Disable"
 
-#: packages/admin/src/components/PluginManager.tsx:396
+#: packages/admin/src/components/PluginManager.tsx:444
 msgid "Disable plugin"
 msgstr "Disable plugin"
 
@@ -2132,14 +2132,14 @@ msgstr "Disable User"
 msgid "Disable User?"
 msgstr "Disable User?"
 
-#: packages/admin/src/components/PluginManager.tsx:305
+#: packages/admin/src/components/PluginManager.tsx:353
 #: packages/admin/src/components/Redirects.tsx:392
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
 msgstr "Disabled"
 
-#: packages/admin/src/components/PluginManager.tsx:479
+#: packages/admin/src/components/PluginManager.tsx:527
 msgid "Disabled:"
 msgstr "Disabled:"
 
@@ -2474,7 +2474,7 @@ msgstr "Enable comments"
 msgid "Enable full-text search on this collection"
 msgstr "Enable full-text search on this collection"
 
-#: packages/admin/src/components/PluginManager.tsx:396
+#: packages/admin/src/components/PluginManager.tsx:444
 msgid "Enable plugin"
 msgstr "Enable plugin"
 
@@ -2579,11 +2579,11 @@ msgstr "Exit distraction-free mode"
 msgid "Exit Spotlight Mode"
 msgstr "Exit Spotlight Mode"
 
-#: packages/admin/src/components/PluginManager.tsx:408
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "Expand"
 msgstr "Expand"
 
-#: packages/admin/src/components/PluginManager.tsx:402
+#: packages/admin/src/components/PluginManager.tsx:450
 msgid "Expand details"
 msgstr "Expand details"
 
@@ -2723,7 +2723,7 @@ msgstr "Failed to delete widget"
 msgid "Failed to delete widget area"
 msgstr "Failed to delete widget area"
 
-#: packages/admin/src/components/PluginManager.tsx:109
+#: packages/admin/src/components/PluginManager.tsx:115
 msgid "Failed to disable plugin"
 msgstr "Failed to disable plugin"
 
@@ -2743,7 +2743,7 @@ msgstr "Failed to dismiss welcome"
 msgid "Failed to duplicate"
 msgstr "Failed to duplicate"
 
-#: packages/admin/src/components/PluginManager.tsx:90
+#: packages/admin/src/components/PluginManager.tsx:96
 msgid "Failed to enable plugin"
 msgstr "Failed to enable plugin"
 
@@ -2853,7 +2853,7 @@ msgid "Failed to load plugin"
 msgstr "Failed to load plugin"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:136
+#: packages/admin/src/components/PluginManager.tsx:144
 msgid "Failed to load plugins: {0}"
 msgstr "Failed to load plugins: {0}"
 
@@ -2977,6 +2977,7 @@ msgid "Failed to set entry terms"
 msgstr "Failed to set entry terms"
 
 #: packages/admin/src/lib/api/marketplace.ts:192
+#: packages/admin/src/lib/api/registry.ts:580
 msgid "Failed to uninstall plugin"
 msgstr "Failed to uninstall plugin"
 
@@ -3002,6 +3003,7 @@ msgid "Failed to update domain"
 msgstr "Failed to update domain"
 
 #: packages/admin/src/lib/api/marketplace.ts:176
+#: packages/admin/src/lib/api/registry.ts:512
 msgid "Failed to update plugin"
 msgstr "Failed to update plugin"
 
@@ -3242,7 +3244,7 @@ msgstr "Home"
 msgid "Homepage"
 msgstr "Homepage"
 
-#: packages/admin/src/components/PluginManager.tsx:336
+#: packages/admin/src/components/PluginManager.tsx:384
 msgid "Hooks"
 msgstr "Hooks"
 
@@ -3482,15 +3484,15 @@ msgid "Installed"
 msgstr "Installed"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:496
 msgid "Installed from marketplace (v{0})"
 msgstr "Installed from marketplace (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:467
+#: packages/admin/src/components/PluginManager.tsx:515
 msgid "Installed:"
 msgstr "Installed:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:145
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:167
 msgid "Installing..."
 msgstr "Installing..."
 
@@ -3598,7 +3600,7 @@ msgstr "Language"
 msgid "Large section heading"
 msgstr "Large section heading"
 
-#: packages/admin/src/components/PluginManager.tsx:473
+#: packages/admin/src/components/PluginManager.tsx:521
 msgid "Last enabled:"
 msgstr "Last enabled:"
 
@@ -3736,7 +3738,7 @@ msgstr "Loading menu..."
 msgid "Loading menus..."
 msgstr "Loading menus..."
 
-#: packages/admin/src/components/PluginManager.tsx:127
+#: packages/admin/src/components/PluginManager.tsx:135
 msgid "Loading plugins..."
 msgstr "Loading plugins..."
 
@@ -3855,7 +3857,7 @@ msgstr "Manage {0} for {1}"
 msgid "Manage content widgets in your widget areas"
 msgstr "Manage content widgets in your widget areas"
 
-#: packages/admin/src/components/PluginManager.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:174
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "Manage installed plugins. Enable or disable plugins to control their functionality."
 
@@ -3888,13 +3890,13 @@ msgstr "Map WordPress user {0} to EmDash user"
 msgid "Mark as spam"
 msgstr "Mark as spam"
 
-#: packages/admin/src/components/PluginManager.tsx:192
+#: packages/admin/src/components/PluginManager.tsx:200
 msgid "marketplace"
 msgstr "marketplace"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:158
-#: packages/admin/src/components/PluginManager.tsx:306
+#: packages/admin/src/components/PluginManager.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:354
 #: packages/admin/src/components/Sidebar.tsx:228
 msgid "Marketplace"
 msgstr "Marketplace"
@@ -4143,7 +4145,7 @@ msgstr "new"
 msgid "New"
 msgstr "New"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:103
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:106
 msgid "NEW"
 msgstr "NEW"
 
@@ -4164,6 +4166,10 @@ msgstr "New collection"
 #: packages/admin/src/components/ContentTypeList.tsx:44
 msgid "New Content Type"
 msgstr "New Content Type"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:116
+msgid "New public routes"
+msgstr "New public routes"
 
 #: packages/admin/src/components/Redirects.tsx:102
 #: packages/admin/src/components/Redirects.tsx:336
@@ -4384,7 +4390,7 @@ msgstr "No passkeys registered"
 msgid "No passkeys registered yet."
 msgstr "No passkeys registered yet."
 
-#: packages/admin/src/components/PluginManager.tsx:186
+#: packages/admin/src/components/PluginManager.tsx:194
 msgid "No plugins configured"
 msgstr "No plugins configured"
 
@@ -4602,7 +4608,7 @@ msgstr "Overrides the page title in search engine results"
 msgid "Ownership"
 msgstr "Ownership"
 
-#: packages/admin/src/components/PluginManager.tsx:457
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "Package"
 msgstr "Package"
 
@@ -4610,7 +4616,7 @@ msgstr "Package"
 msgid "Page Not Found"
 msgstr "Page Not Found"
 
-#: packages/admin/src/components/PluginManager.tsx:324
+#: packages/admin/src/components/PluginManager.tsx:372
 #: packages/admin/src/components/WordPressImport.tsx:1167
 msgid "Pages"
 msgstr "Pages"
@@ -4765,11 +4771,11 @@ msgstr "Please enter a valid URL"
 msgid "Plugin"
 msgstr "Plugin"
 
-#: packages/admin/src/components/PluginManager.tsx:103
+#: packages/admin/src/components/PluginManager.tsx:109
 msgid "Plugin disabled"
 msgstr "Plugin disabled"
 
-#: packages/admin/src/components/PluginManager.tsx:84
+#: packages/admin/src/components/PluginManager.tsx:90
 msgid "Plugin enabled"
 msgstr "Plugin enabled"
 
@@ -4794,7 +4800,7 @@ msgstr "Plugin not found. The publisher handle or slug may be incorrect."
 msgid "plugin on your WordPress site."
 msgstr "plugin on your WordPress site."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:72
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:75
 msgid "Plugin Permissions"
 msgstr "Plugin Permissions"
 
@@ -4807,18 +4813,22 @@ msgstr "Plugin Registry"
 msgid "Plugin responded with {0}: {text}"
 msgstr "Plugin responded with {0}: {text}"
 
-#: packages/admin/src/components/PluginManager.tsx:256
+#: packages/admin/src/components/PluginManager.tsx:304
 msgid "Plugin uninstalled"
 msgstr "Plugin uninstalled"
 
-#: packages/admin/src/components/PluginManager.tsx:243
+#: packages/admin/src/lib/api/registry.ts:532
+msgid "Plugin update requires re-consent"
+msgstr "Plugin update requires re-consent"
+
+#: packages/admin/src/components/PluginManager.tsx:257
 msgid "Plugin updated"
 msgstr "Plugin updated"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:219
-#: packages/admin/src/components/PluginManager.tsx:126
-#: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/components/PluginManager.tsx:144
+#: packages/admin/src/components/PluginManager.tsx:134
+#: packages/admin/src/components/PluginManager.tsx:143
+#: packages/admin/src/components/PluginManager.tsx:152
 #: packages/admin/src/components/Sidebar.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:466
 msgid "Plugins"
@@ -5242,7 +5252,7 @@ msgstr "Reverted to published version"
 msgid "Review"
 msgstr "Review"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:72
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:75
 msgid "Review New Permissions"
 msgstr "Review New Permissions"
 
@@ -5614,11 +5624,11 @@ msgstr "Security audit failed"
 msgid "Security audit flagged concerns"
 msgstr "Security audit flagged concerns"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:126
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:148
 msgid "Security audit flagged potential concerns with this plugin."
 msgstr "Security audit flagged potential concerns with this plugin."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:127
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:149
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "Security audit flagged this plugin as potentially unsafe."
 
@@ -5826,7 +5836,7 @@ msgstr "Setting up..."
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
 #: packages/admin/src/components/ContentTypeEditor.tsx:383
 #: packages/admin/src/components/Header.tsx:93
-#: packages/admin/src/components/PluginManager.tsx:385
+#: packages/admin/src/components/PluginManager.tsx:433
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:245
 #: packages/admin/src/components/WordPressImport.tsx:1647
@@ -6028,7 +6038,7 @@ msgstr "Sort themes"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:215
-#: packages/admin/src/components/PluginManager.tsx:445
+#: packages/admin/src/components/PluginManager.tsx:493
 #: packages/admin/src/components/Redirects.tsx:440
 #: packages/admin/src/components/SectionEditor.tsx:279
 msgid "Source"
@@ -6324,6 +6334,10 @@ msgstr "This section is provided by the theme. Editing will create a custom copy
 msgid "This section was imported from another system."
 msgstr "This section was imported from another system."
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:119
+msgid "This update exposes the following routes without authentication:"
+msgstr "This update exposes the following routes without authentication:"
+
 #: packages/admin/src/components/Widgets.tsx:635
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "This will delete the widget area and all its widgets. This action cannot be undone."
@@ -6350,7 +6364,7 @@ msgstr "This will permanently delete \"{0}\". This action cannot be undone."
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "This will permanently delete this comment. This action cannot be undone."
 
-#: packages/admin/src/components/PluginManager.tsx:580
+#: packages/admin/src/components/PluginManager.tsx:625
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "This will remove the plugin and its bundle from your site."
 
@@ -6391,7 +6405,7 @@ msgstr "Title Separator"
 msgid "to close"
 msgstr "to close"
 
-#: packages/admin/src/components/PluginManager.tsx:194
+#: packages/admin/src/components/PluginManager.tsx:202
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr "to install plugins, or add them to your astro.config.mjs."
 
@@ -6554,24 +6568,20 @@ msgid "Undo"
 msgstr "Undo"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:495
-#: packages/admin/src/components/PluginManager.tsx:594
+#: packages/admin/src/components/PluginManager.tsx:543
+#: packages/admin/src/components/PluginManager.tsx:639
 msgid "Uninstall"
 msgstr "Uninstall"
 
-#: packages/admin/src/components/PluginManager.tsx:578
+#: packages/admin/src/components/PluginManager.tsx:623
 msgid "Uninstall {pluginName}?"
 msgstr "Uninstall {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:573
+#: packages/admin/src/components/PluginManager.tsx:618
 msgid "Uninstall confirmation"
 msgstr "Uninstall confirmation"
 
-#: packages/admin/src/components/PluginManager.tsx:505
-msgid "Uninstall is not yet available for registry plugins. Disable the plugin to stop it from running; full uninstall will land in a follow-up."
-msgstr "Uninstall is not yet available for registry plugins. Disable the plugin to stop it from running; full uninstall will land in a follow-up."
-
-#: packages/admin/src/components/PluginManager.tsx:594
+#: packages/admin/src/components/PluginManager.tsx:639
 msgid "Uninstalling..."
 msgstr "Uninstalling..."
 
@@ -6677,7 +6687,7 @@ msgid "Update this redirect rule."
 msgstr "Update this redirect rule."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:365
+#: packages/admin/src/components/PluginManager.tsx:413
 msgid "Update to v{0}"
 msgstr "Update to v{0}"
 
@@ -6694,8 +6704,8 @@ msgstr "Updated: {0}"
 msgid "Updating content URLs..."
 msgstr "Updating content URLs..."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:144
-#: packages/admin/src/components/PluginManager.tsx:365
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:413
 msgid "Updating..."
 msgstr "Updating..."
 
@@ -6886,7 +6896,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Users with email addresses from these domains can sign up without an invite. They will be assigned the specified role automatically."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:309
+#: packages/admin/src/components/PluginManager.tsx:357
 msgid "v{0} available"
 msgstr "v{0} available"
 
@@ -6930,7 +6940,7 @@ msgstr "Video"
 msgid "View email provider status and send test emails"
 msgstr "View email provider status and send test emails"
 
-#: packages/admin/src/components/PluginManager.tsx:377
+#: packages/admin/src/components/PluginManager.tsx:425
 msgid "View in Marketplace"
 msgstr "View in Marketplace"
 
@@ -7072,7 +7082,7 @@ msgid "Widget updated"
 msgstr "Widget updated"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
-#: packages/admin/src/components/PluginManager.tsx:330
+#: packages/admin/src/components/PluginManager.tsx:378
 #: packages/admin/src/components/Sidebar.tsx:200
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"

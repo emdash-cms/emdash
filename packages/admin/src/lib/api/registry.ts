@@ -440,3 +440,142 @@ export async function installRegistryPlugin(
 	const json = (await response.json()) as { data: RegistryInstallResult };
 	return json.data;
 }
+
+// ---------------------------------------------------------------------------
+// Lifecycle: update + uninstall
+// ---------------------------------------------------------------------------
+
+export interface RegistryUpdateOpts {
+	version?: string;
+	confirmCapabilityChanges?: boolean;
+	confirmRouteVisibilityChanges?: boolean;
+}
+
+export interface RegistryUninstallOpts {
+	deleteData?: boolean;
+}
+
+/**
+ * Server-side escalation gate raised by the update endpoint when the
+ * target version widens the trust contract. Carries the diff the user
+ * needs to see in the consent dialog before the call is retried with the
+ * matching `confirm*` flag.
+ */
+export class RegistryUpdateEscalationError extends Error {
+	readonly code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION";
+	readonly capabilityChanges: { added: string[]; removed: string[] };
+	readonly routeVisibilityChanges?: { newlyPublic: string[] };
+	constructor(
+		code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION",
+		message: string,
+		capabilityChanges: { added: string[]; removed: string[] },
+		routeVisibilityChanges?: { newlyPublic: string[] },
+	) {
+		super(message);
+		this.name = "RegistryUpdateEscalationError";
+		this.code = code;
+		this.capabilityChanges = capabilityChanges;
+		this.routeVisibilityChanges = routeVisibilityChanges;
+	}
+}
+
+/**
+ * Update a registry-source plugin to a newer version.
+ * `POST /_emdash/api/admin/plugins/registry/:id/update`
+ *
+ * Called without `confirm*` flags first, this throws
+ * `RegistryUpdateEscalationError` when the target version widens
+ * permissions; the caller renders a consent dialog populated from the
+ * error's diff, then re-calls with the matching `confirm*` flag once
+ * the user agrees.
+ */
+export async function updateRegistryPlugin(
+	pluginId: string,
+	opts: RegistryUpdateOpts = {},
+): Promise<void> {
+	const response = await apiFetch(
+		`${API_BASE}/admin/plugins/registry/${encodeURIComponent(pluginId)}/update`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(opts),
+		},
+	);
+	if (response.ok) return;
+
+	const body: unknown = await response
+		.clone()
+		.json()
+		.catch(() => undefined);
+	const escalation = parseEscalation(body);
+	if (escalation) throw escalation;
+	await throwResponseError(response, i18n._(msg`Failed to update plugin`));
+}
+
+function parseEscalation(body: unknown): RegistryUpdateEscalationError | null {
+	if (!body || typeof body !== "object" || !("error" in body)) return null;
+	const error = body.error;
+	if (!error || typeof error !== "object" || !("code" in error)) return null;
+	const code = error.code;
+	if (code !== "CAPABILITY_ESCALATION" && code !== "ROUTE_VISIBILITY_ESCALATION") return null;
+	const details =
+		"details" in error && error.details && typeof error.details === "object" ? error.details : {};
+	const capabilityChanges = normaliseCapabilityChanges(
+		"capabilityChanges" in details ? details.capabilityChanges : undefined,
+	);
+	const routeVisibilityChanges = normaliseRouteVisibilityChanges(
+		"routeVisibilityChanges" in details ? details.routeVisibilityChanges : undefined,
+	);
+	const message =
+		"message" in error && typeof error.message === "string"
+			? error.message
+			: i18n._(msg`Plugin update requires re-consent`);
+	return new RegistryUpdateEscalationError(
+		code,
+		message,
+		capabilityChanges,
+		routeVisibilityChanges,
+	);
+}
+
+function normaliseCapabilityChanges(value: unknown): { added: string[]; removed: string[] } {
+	if (!value || typeof value !== "object") return { added: [], removed: [] };
+	const v = value as { added?: unknown; removed?: unknown };
+	return {
+		added: Array.isArray(v.added) ? v.added.filter((s): s is string => typeof s === "string") : [],
+		removed: Array.isArray(v.removed)
+			? v.removed.filter((s): s is string => typeof s === "string")
+			: [],
+	};
+}
+
+function normaliseRouteVisibilityChanges(value: unknown): { newlyPublic: string[] } | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const v = value as { newlyPublic?: unknown };
+	if (!Array.isArray(v.newlyPublic)) return undefined;
+	const newlyPublic = v.newlyPublic.filter((s): s is string => typeof s === "string");
+	return newlyPublic.length > 0 ? { newlyPublic } : undefined;
+}
+
+/**
+ * Uninstall a registry-source plugin.
+ * `POST /_emdash/api/admin/plugins/registry/:id/uninstall`
+ *
+ * The server refuses to uninstall non-registry sources, so calling this
+ * with a marketplace or config plugin id is a no-op error rather than a
+ * destructive cross-source action.
+ */
+export async function uninstallRegistryPlugin(
+	pluginId: string,
+	opts: RegistryUninstallOpts = {},
+): Promise<void> {
+	const response = await apiFetch(
+		`${API_BASE}/admin/plugins/registry/${encodeURIComponent(pluginId)}/uninstall`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(opts),
+		},
+	);
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to uninstall plugin`));
+}

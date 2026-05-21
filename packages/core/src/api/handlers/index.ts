@@ -172,6 +172,12 @@ export {
 // Registry handlers (experimental)
 export {
 	handleRegistryInstall,
+	handleRegistryUninstall,
+	handleRegistryUpdate,
+	handleRegistryUpdateCheck,
 	type RegistryInstallInput,
 	type RegistryInstallResult,
+	type RegistryUninstallResult,
+	type RegistryUpdateCheck,
+	type RegistryUpdateResult,
 } from "./registry.js";

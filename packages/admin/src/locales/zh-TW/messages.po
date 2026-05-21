@@ -165,12 +165,12 @@ msgid "{0} detected"
 msgstr "檢測到 {0}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:104
+#: packages/admin/src/components/PluginManager.tsx:110
 msgid "{0} has been deactivated"
 msgstr "{0} 已停用"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:257
+#: packages/admin/src/components/PluginManager.tsx:305
 msgid "{0} has been removed"
 msgstr "{0} 已移除"
 
@@ -180,7 +180,7 @@ msgid "{0} installs"
 msgstr "{0} 次安裝"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:85
+#: packages/admin/src/components/PluginManager.tsx:91
 msgid "{0} is now active"
 msgstr "{0} 現已激活"
 
@@ -197,12 +197,12 @@ msgstr "將導入 {0} 個項目"
 
 #. placeholder {0}: plugin.capabilities.length
 #. placeholder {1}: plugin.capabilities.length !== 1 ? "s" : ""
-#: packages/admin/src/components/PluginManager.tsx:350
+#: packages/admin/src/components/PluginManager.tsx:398
 msgid "{0} permission{1}"
 msgstr "{0} 個權限{1}"
 
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:161
+#: packages/admin/src/components/PluginManager.tsx:169
 msgid "{0} plugins"
 msgstr "{0} 個插件"
 
@@ -225,7 +225,7 @@ msgstr "{0} 已更新"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:244
+#: packages/admin/src/components/PluginManager.tsx:258
 msgid "{0} updated to v{1}"
 msgstr "{0} 已更新至 v{1}"
 
@@ -296,11 +296,11 @@ msgstr "{needsNewCollections, plural, one {將創建 # 個新合集} other {將�
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {字段將添加到 # 個現有合集} other {字段將添加到 # 個現有合集}}"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:76
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} 正在請求額外權限："
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:77
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:80
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} 需要以下權限："
 
@@ -458,11 +458,11 @@ msgstr ""
 msgid "A short description of your site"
 msgstr "您網站的簡短描述"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:148
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:170
 msgid "Accept & Install"
 msgstr "接受並安裝"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:147
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:169
 msgid "Accept & Update"
 msgstr "接受並更新"
 
@@ -622,7 +622,7 @@ msgstr "添加 noindex 元標籤"
 msgid "Add Passkey"
 msgstr "添加通行密鑰"
 
-#: packages/admin/src/components/PluginManager.tsx:197
+#: packages/admin/src/components/PluginManager.tsx:205
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "在 astro.config.mjs 中添加插件以擴展 EmDash 功能。"
 
@@ -758,7 +758,7 @@ msgstr ""
 msgid "Already have an account?"
 msgstr "已經有帳戶了？"
 
-#: packages/admin/src/components/PluginManager.tsx:585
+#: packages/admin/src/components/PluginManager.tsx:630
 msgid "Also delete plugin storage data"
 msgstr "同時刪除插件存儲數據"
 
@@ -782,8 +782,8 @@ msgid "Alternatively, you can export from WordPress (Tools → Export) and uploa
 msgstr "或者，您可以從 WordPress 導出（工具 → 導出）並上傳文件。"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
-#: packages/admin/src/components/PluginManager.tsx:91
-#: packages/admin/src/components/PluginManager.tsx:110
+#: packages/admin/src/components/PluginManager.tsx:97
+#: packages/admin/src/components/PluginManager.tsx:116
 #: packages/admin/src/components/TaxonomySidebar.tsx:321
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:341
@@ -1079,7 +1079,7 @@ msgstr "瀏覽並安裝插件以擴展您的網站。"
 msgid "Browse Files"
 msgstr "瀏覽文件"
 
-#: packages/admin/src/components/PluginManager.tsx:190
+#: packages/admin/src/components/PluginManager.tsx:198
 msgid "Browse the"
 msgstr "瀏覽"
 
@@ -1114,7 +1114,7 @@ msgstr "可以發佈自己的內容"
 msgid "Can view content"
 msgstr "可以查看內容"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:139
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:161
 #: packages/admin/src/components/ConfirmDialog.tsx:57
 #: packages/admin/src/components/ContentEditor.tsx:676
 #: packages/admin/src/components/ContentEditor.tsx:881
@@ -1134,7 +1134,7 @@ msgstr "可以查看內容"
 #: packages/admin/src/components/MenuEditor.tsx:351
 #: packages/admin/src/components/MenuEditor.tsx:522
 #: packages/admin/src/components/MenuList.tsx:172
-#: packages/admin/src/components/PluginManager.tsx:591
+#: packages/admin/src/components/PluginManager.tsx:636
 #: packages/admin/src/components/PortableTextEditor.tsx:2962
 #: packages/admin/src/components/Redirects.tsx:175
 #: packages/admin/src/components/SectionPickerModal.tsx:130
@@ -1173,11 +1173,11 @@ msgstr ""
 msgid "Canonical URL"
 msgstr "規範 URL"
 
-#: packages/admin/src/components/PluginManager.tsx:421
+#: packages/admin/src/components/PluginManager.tsx:469
 msgid "Capabilities"
 msgstr "權限"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:62
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:65
 msgid "Capability consent"
 msgstr "權限同意"
 
@@ -1237,7 +1237,7 @@ msgstr ""
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "頁面標題和網站名稱之間的分隔符（例如，\"My Post | My Site\"）"
 
-#: packages/admin/src/components/PluginManager.tsx:153
+#: packages/admin/src/components/PluginManager.tsx:161
 msgid "Check for updates"
 msgstr "檢查更新"
 
@@ -1357,11 +1357,11 @@ msgstr "代碼"
 msgid "Code Block"
 msgstr "代碼塊"
 
-#: packages/admin/src/components/PluginManager.tsx:408
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "Collapse"
 msgstr "收起"
 
-#: packages/admin/src/components/PluginManager.tsx:402
+#: packages/admin/src/components/PluginManager.tsx:450
 msgid "Collapse details"
 msgstr "收起詳情"
 
@@ -2084,7 +2084,7 @@ msgstr "目標"
 msgid "Destination path"
 msgstr "目標路徑"
 
-#: packages/admin/src/components/PluginManager.tsx:408
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "details"
 msgstr "詳情"
 
@@ -2116,7 +2116,7 @@ msgstr "尺寸："
 msgid "Disable"
 msgstr "禁用"
 
-#: packages/admin/src/components/PluginManager.tsx:396
+#: packages/admin/src/components/PluginManager.tsx:444
 msgid "Disable plugin"
 msgstr "禁用插件"
 
@@ -2132,14 +2132,14 @@ msgstr ""
 msgid "Disable User?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:305
+#: packages/admin/src/components/PluginManager.tsx:353
 #: packages/admin/src/components/Redirects.tsx:392
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
 msgstr "已禁用"
 
-#: packages/admin/src/components/PluginManager.tsx:479
+#: packages/admin/src/components/PluginManager.tsx:527
 msgid "Disabled:"
 msgstr "已禁用："
 
@@ -2474,7 +2474,7 @@ msgstr ""
 msgid "Enable full-text search on this collection"
 msgstr "在此合集上啓用全文搜索"
 
-#: packages/admin/src/components/PluginManager.tsx:396
+#: packages/admin/src/components/PluginManager.tsx:444
 msgid "Enable plugin"
 msgstr "啓用插件"
 
@@ -2579,11 +2579,11 @@ msgstr "退出無干擾模式"
 msgid "Exit Spotlight Mode"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:408
+#: packages/admin/src/components/PluginManager.tsx:456
 msgid "Expand"
 msgstr "展開"
 
-#: packages/admin/src/components/PluginManager.tsx:402
+#: packages/admin/src/components/PluginManager.tsx:450
 msgid "Expand details"
 msgstr "展開詳情"
 
@@ -2723,7 +2723,7 @@ msgstr ""
 msgid "Failed to delete widget area"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:109
+#: packages/admin/src/components/PluginManager.tsx:115
 msgid "Failed to disable plugin"
 msgstr "禁用插件失敗"
 
@@ -2743,7 +2743,7 @@ msgstr ""
 msgid "Failed to duplicate"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:90
+#: packages/admin/src/components/PluginManager.tsx:96
 msgid "Failed to enable plugin"
 msgstr "啓用插件失敗"
 
@@ -2853,7 +2853,7 @@ msgid "Failed to load plugin"
 msgstr "加載插件失敗"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:136
+#: packages/admin/src/components/PluginManager.tsx:144
 msgid "Failed to load plugins: {0}"
 msgstr "加載插件失敗：{0}"
 
@@ -2977,6 +2977,7 @@ msgid "Failed to set entry terms"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:192
+#: packages/admin/src/lib/api/registry.ts:580
 msgid "Failed to uninstall plugin"
 msgstr ""
 
@@ -3002,6 +3003,7 @@ msgid "Failed to update domain"
 msgstr "更新域名失敗"
 
 #: packages/admin/src/lib/api/marketplace.ts:176
+#: packages/admin/src/lib/api/registry.ts:512
 msgid "Failed to update plugin"
 msgstr ""
 
@@ -3242,7 +3244,7 @@ msgstr "首頁"
 msgid "Homepage"
 msgstr "主頁"
 
-#: packages/admin/src/components/PluginManager.tsx:336
+#: packages/admin/src/components/PluginManager.tsx:384
 msgid "Hooks"
 msgstr "鉤子"
 
@@ -3482,15 +3484,15 @@ msgid "Installed"
 msgstr "已安裝"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:496
 msgid "Installed from marketplace (v{0})"
 msgstr "已從市場安裝 (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:467
+#: packages/admin/src/components/PluginManager.tsx:515
 msgid "Installed:"
 msgstr "已安裝："
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:145
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:167
 msgid "Installing..."
 msgstr "正在安裝..."
 
@@ -3598,7 +3600,7 @@ msgstr "語言"
 msgid "Large section heading"
 msgstr "大章節標題"
 
-#: packages/admin/src/components/PluginManager.tsx:473
+#: packages/admin/src/components/PluginManager.tsx:521
 msgid "Last enabled:"
 msgstr "最後啓用："
 
@@ -3736,7 +3738,7 @@ msgstr "正在加載菜單..."
 msgid "Loading menus..."
 msgstr "正在加載菜單..."
 
-#: packages/admin/src/components/PluginManager.tsx:127
+#: packages/admin/src/components/PluginManager.tsx:135
 msgid "Loading plugins..."
 msgstr "正在加載插件..."
 
@@ -3855,7 +3857,7 @@ msgstr "管理 {1} 的 {0}"
 msgid "Manage content widgets in your widget areas"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:174
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "管理已安裝的插件。啓用或禁用插件以控制其功能。"
 
@@ -3888,13 +3890,13 @@ msgstr ""
 msgid "Mark as spam"
 msgstr "標記爲垃圾"
 
-#: packages/admin/src/components/PluginManager.tsx:192
+#: packages/admin/src/components/PluginManager.tsx:200
 msgid "marketplace"
 msgstr "市場"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:158
-#: packages/admin/src/components/PluginManager.tsx:306
+#: packages/admin/src/components/PluginManager.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:354
 #: packages/admin/src/components/Sidebar.tsx:228
 msgid "Marketplace"
 msgstr "市場"
@@ -4143,7 +4145,7 @@ msgstr ""
 msgid "New"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:103
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:106
 msgid "NEW"
 msgstr "新"
 
@@ -4164,6 +4166,10 @@ msgstr "新合集"
 #: packages/admin/src/components/ContentTypeList.tsx:44
 msgid "New Content Type"
 msgstr "新內容類型"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:116
+msgid "New public routes"
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:102
 #: packages/admin/src/components/Redirects.tsx:336
@@ -4384,7 +4390,7 @@ msgstr "未註冊通行密鑰"
 msgid "No passkeys registered yet."
 msgstr "暫無已註冊的通行密鑰。"
 
-#: packages/admin/src/components/PluginManager.tsx:186
+#: packages/admin/src/components/PluginManager.tsx:194
 msgid "No plugins configured"
 msgstr "未配置插件"
 
@@ -4599,7 +4605,7 @@ msgstr "覆蓋搜索引擎結果中的頁面標題"
 msgid "Ownership"
 msgstr "所有權"
 
-#: packages/admin/src/components/PluginManager.tsx:457
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "Package"
 msgstr "包"
 
@@ -4607,7 +4613,7 @@ msgstr "包"
 msgid "Page Not Found"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:324
+#: packages/admin/src/components/PluginManager.tsx:372
 #: packages/admin/src/components/WordPressImport.tsx:1167
 msgid "Pages"
 msgstr "頁面"
@@ -4762,11 +4768,11 @@ msgstr "請輸入有效的 URL"
 msgid "Plugin"
 msgstr "插件"
 
-#: packages/admin/src/components/PluginManager.tsx:103
+#: packages/admin/src/components/PluginManager.tsx:109
 msgid "Plugin disabled"
 msgstr "插件已禁用"
 
-#: packages/admin/src/components/PluginManager.tsx:84
+#: packages/admin/src/components/PluginManager.tsx:90
 msgid "Plugin enabled"
 msgstr "插件已啓用"
 
@@ -4791,7 +4797,7 @@ msgstr ""
 msgid "plugin on your WordPress site."
 msgstr "在您的 WordPress 站點上的插件。"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:72
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:75
 msgid "Plugin Permissions"
 msgstr "插件權限"
 
@@ -4804,18 +4810,22 @@ msgstr ""
 msgid "Plugin responded with {0}: {text}"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:256
+#: packages/admin/src/components/PluginManager.tsx:304
 msgid "Plugin uninstalled"
 msgstr "插件已卸載"
 
-#: packages/admin/src/components/PluginManager.tsx:243
+#: packages/admin/src/lib/api/registry.ts:532
+msgid "Plugin update requires re-consent"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:257
 msgid "Plugin updated"
 msgstr "插件已更新"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:219
-#: packages/admin/src/components/PluginManager.tsx:126
-#: packages/admin/src/components/PluginManager.tsx:135
-#: packages/admin/src/components/PluginManager.tsx:144
+#: packages/admin/src/components/PluginManager.tsx:134
+#: packages/admin/src/components/PluginManager.tsx:143
+#: packages/admin/src/components/PluginManager.tsx:152
 #: packages/admin/src/components/Sidebar.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:466
 msgid "Plugins"
@@ -5239,7 +5249,7 @@ msgstr ""
 msgid "Review"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:72
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:75
 msgid "Review New Permissions"
 msgstr "查看新權限"
 
@@ -5611,11 +5621,11 @@ msgstr "安全審計失敗"
 msgid "Security audit flagged concerns"
 msgstr "安全審計標記了問題"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:126
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:148
 msgid "Security audit flagged potential concerns with this plugin."
 msgstr "安全審計標記了此插件的潛在問題。"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:127
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:149
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "安全審計標記此插件爲可能不安全。"
 
@@ -5823,7 +5833,7 @@ msgstr "正在設置..."
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
 #: packages/admin/src/components/ContentTypeEditor.tsx:383
 #: packages/admin/src/components/Header.tsx:93
-#: packages/admin/src/components/PluginManager.tsx:385
+#: packages/admin/src/components/PluginManager.tsx:433
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:245
 #: packages/admin/src/components/WordPressImport.tsx:1647
@@ -6025,7 +6035,7 @@ msgstr "排序主題"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:215
-#: packages/admin/src/components/PluginManager.tsx:445
+#: packages/admin/src/components/PluginManager.tsx:493
 #: packages/admin/src/components/Redirects.tsx:440
 #: packages/admin/src/components/SectionEditor.tsx:279
 msgid "Source"
@@ -6321,6 +6331,10 @@ msgstr "此區塊由主題提供。編輯將創建一個自定義副本以覆蓋
 msgid "This section was imported from another system."
 msgstr "此區塊是從另一個系統導入的。"
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:119
+msgid "This update exposes the following routes without authentication:"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:635
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr ""
@@ -6347,7 +6361,7 @@ msgstr "這將永久刪除「{0}」。此操作無法撤銷。"
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "這將永久刪除此評論。此操作無法撤銷。"
 
-#: packages/admin/src/components/PluginManager.tsx:580
+#: packages/admin/src/components/PluginManager.tsx:625
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "這將從您的站點移除插件及其包。"
 
@@ -6388,7 +6402,7 @@ msgstr "標題分隔符"
 msgid "to close"
 msgstr "關閉"
 
-#: packages/admin/src/components/PluginManager.tsx:194
+#: packages/admin/src/components/PluginManager.tsx:202
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr "以安裝插件，或將它們添加到您的 astro.config.mjs。"
 
@@ -6551,24 +6565,20 @@ msgid "Undo"
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:495
-#: packages/admin/src/components/PluginManager.tsx:594
+#: packages/admin/src/components/PluginManager.tsx:543
+#: packages/admin/src/components/PluginManager.tsx:639
 msgid "Uninstall"
 msgstr "卸載"
 
-#: packages/admin/src/components/PluginManager.tsx:578
+#: packages/admin/src/components/PluginManager.tsx:623
 msgid "Uninstall {pluginName}?"
 msgstr "卸載 {pluginName}？"
 
-#: packages/admin/src/components/PluginManager.tsx:573
+#: packages/admin/src/components/PluginManager.tsx:618
 msgid "Uninstall confirmation"
 msgstr "卸載確認"
 
-#: packages/admin/src/components/PluginManager.tsx:505
-msgid "Uninstall is not yet available for registry plugins. Disable the plugin to stop it from running; full uninstall will land in a follow-up."
-msgstr ""
-
-#: packages/admin/src/components/PluginManager.tsx:594
+#: packages/admin/src/components/PluginManager.tsx:639
 msgid "Uninstalling..."
 msgstr "卸載中..."
 
@@ -6674,7 +6684,7 @@ msgid "Update this redirect rule."
 msgstr "更新此重定向規則。"
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:365
+#: packages/admin/src/components/PluginManager.tsx:413
 msgid "Update to v{0}"
 msgstr "更新至 v{0}"
 
@@ -6691,8 +6701,8 @@ msgstr "更新於：{0}"
 msgid "Updating content URLs..."
 msgstr "正在更新內容 URL..."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:144
-#: packages/admin/src/components/PluginManager.tsx:365
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:413
 msgid "Updating..."
 msgstr "更新中..."
 
@@ -6883,7 +6893,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "來自這些域名的郵箱地址的用戶可以無需邀請即可註冊。他們將自動被分配指定的角色。"
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:309
+#: packages/admin/src/components/PluginManager.tsx:357
 msgid "v{0} available"
 msgstr "v{0} 可用"
 
@@ -6927,7 +6937,7 @@ msgstr ""
 msgid "View email provider status and send test emails"
 msgstr "查看郵件提供商狀態並發送測試郵件"
 
-#: packages/admin/src/components/PluginManager.tsx:377
+#: packages/admin/src/components/PluginManager.tsx:425
 msgid "View in Marketplace"
 msgstr "在市場查看"
 
@@ -7069,7 +7079,7 @@ msgid "Widget updated"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
-#: packages/admin/src/components/PluginManager.tsx:330
+#: packages/admin/src/components/PluginManager.tsx:378
 #: packages/admin/src/components/Sidebar.tsx:200
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
