@@ -197,6 +197,34 @@ export function makeWorkerdExitHandler(
 }
 
 /**
+ * Send SIGTERM and resolve when the process exits, escalating to SIGKILL
+ * after `timeoutMs` if it ignores the term signal.
+ *
+ * The fallback timer is cleared on clean exit so it does not keep the Node
+ * event loop alive past termination -- previously a stale timer would
+ * delay `terminateAll()` and process shutdown by up to 5 seconds. Exported
+ * for testing.
+ */
+export function waitForProcessExit(proc: ChildProcess, timeoutMs = 5000): Promise<void> {
+	let killTimer: ReturnType<typeof setTimeout> | null = null;
+	const exitPromise = new Promise<void>((resolve) => {
+		proc.once("exit", () => {
+			if (killTimer !== null) {
+				clearTimeout(killTimer);
+				killTimer = null;
+			}
+			resolve();
+		});
+	});
+	proc.kill("SIGTERM");
+	killTimer = setTimeout(() => {
+		killTimer = null;
+		if (proc.exitCode === null) proc.kill("SIGKILL");
+	}, timeoutMs);
+	return exitPromise;
+}
+
+/**
  * Workerd sandbox runner for Node.js deployments.
  *
  * Manages a workerd child process and a backing service HTTP server.
@@ -692,23 +720,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			return;
 		}
 
-		return new Promise((resolve) => {
-			let exited = false;
-			proc.on("exit", () => {
-				exited = true;
-				resolve();
-			});
-			proc.kill("SIGTERM");
-			// Force kill after 5 seconds if SIGTERM was ignored.
-			// Use the local `exited` flag (not proc.killed, which flips
-			// to true as soon as a signal is queued, not when the process
-			// actually exits).
-			setTimeout(() => {
-				if (!exited) {
-					proc.kill("SIGKILL");
-				}
-			}, 5000);
-		});
+		// Force kill after 5 seconds if SIGTERM was ignored. The fallback
+		// timer is cleared on clean exit so it doesn't keep the Node event
+		// loop alive for up to 5s past termination.
+		return waitForProcessExit(proc);
 	}
 
 	/**
