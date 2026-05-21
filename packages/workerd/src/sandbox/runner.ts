@@ -438,7 +438,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		if (this.eagerStartTimer) clearTimeout(this.eagerStartTimer);
 		this.eagerStartTimer = setTimeout(() => {
 			this.eagerStartTimer = null;
-			void this.ensureRunning();
+			this.ensureRunning().catch((err) => {
+				console.error("[emdash:workerd] eager start failed:", err);
+				this.scheduleRestart();
+			});
 		}, 50);
 	}
 
