@@ -8,7 +8,7 @@
  * - Demo + repository links
  */
 
-import { Badge, Button } from "@cloudflare/kumo";
+import { Badge, Button, LinkButton } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowSquareOut,
@@ -138,18 +138,14 @@ export function ThemeMarketplaceDetail({ themeId }: ThemeMarketplaceDetailProps)
 						variant="primary"
 						onClick={() => previewMutation.mutate()}
 						disabled={previewMutation.isPending}
+						icon={<Eye />}
 					>
-						<Eye className="me-2 h-4 w-4" />
 						{previewMutation.isPending ? t`Loading...` : t`Try with my data`}
 					</Button>
 					{theme.demoUrl && isSafeUrl(theme.demoUrl) && (
-						<Button
-							variant="outline"
-							onClick={() => window.open(theme.demoUrl!, "_blank", "noopener")}
-						>
-							<ArrowSquareOut className="me-2 h-4 w-4" />
+						<LinkButton href={theme.demoUrl} external variant="outline" icon={<ArrowSquareOut />}>
 							{t`Demo`}
-						</Button>
+						</LinkButton>
 					)}
 				</div>
 			</div>

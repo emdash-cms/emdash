@@ -165,6 +165,53 @@ describe("BlockKitMediaPickerField", () => {
 		});
 	});
 
+	describe("broken image", () => {
+		it("shows a broken-image placeholder when the img fails to load", async () => {
+			const { screen } = await renderField({
+				value: "/_emdash/api/media/file/missing.png",
+			});
+
+			// Image should render initially
+			const img = await waitForImg();
+			expect(img.getAttribute("src")).toBe("/_emdash/api/media/file/missing.png");
+
+			// Simulate image load failure
+			img.dispatchEvent(new Event("error"));
+
+			// Broken-image placeholder should appear
+			await expect.element(screen.getByText("Image not found")).toBeInTheDocument();
+		});
+
+		it("keeps Change and Remove buttons accessible when the image is broken", async () => {
+			const { screen } = await renderField({
+				value: "/_emdash/api/media/file/missing.png",
+			});
+
+			const img = await waitForImg();
+			img.dispatchEvent(new Event("error"));
+
+			// Both action buttons must remain in the DOM and accessible
+			await expect.element(screen.getByLabelText("Remove")).toBeInTheDocument();
+			await expect.element(screen.getByText("Change")).toBeInTheDocument();
+		});
+
+		it("maintains a minimum height so the container does not collapse", async () => {
+			const { screen } = await renderField({
+				value: "/_emdash/api/media/file/missing.png",
+			});
+
+			const img = await waitForImg();
+			img.dispatchEvent(new Event("error"));
+
+			// The broken-image placeholder should be visible (its presence confirms
+			// the container didn't collapse — a zero-height container can't show text)
+			await expect.element(screen.getByText("Image not found")).toBeInTheDocument();
+
+			// The remove button must remain accessible via label
+			await expect.element(screen.getByLabelText("Remove")).toBeInTheDocument();
+		});
+	});
+
 	describe("remove", () => {
 		it("clears the value when Remove is clicked", async () => {
 			const onChange = vi.fn();

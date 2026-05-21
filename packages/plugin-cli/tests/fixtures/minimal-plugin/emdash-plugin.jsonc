@@ -1,0 +1,9 @@
+{
+	"slug": "fixture-minimal",
+	"publisher": "fixture.example.com",
+	"license": "MIT",
+	"author": { "name": "Test Author" },
+	"security": { "email": "security@example.com" },
+	"capabilities": ["content:read"],
+	"allowedHosts": ["api.example.com"],
+}

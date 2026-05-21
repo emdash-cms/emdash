@@ -1,4 +1,13 @@
-import { Badge, Button, Input, LinkButton, Loader, buttonVariants } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	Input,
+	LinkButton,
+	Loader,
+	Select,
+	Switch,
+	buttonVariants,
+} from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -199,6 +208,8 @@ export function WordPressImport() {
 		}
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+	const { t } = useLingui();
+
 	// Probe mutation
 	const probeMutation = useMutation({
 		mutationFn: probeImportUrl,
@@ -262,7 +273,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
-			setPrepareError(error instanceof Error ? error.message : "Failed to prepare import");
+			setPrepareError(error instanceof Error ? error.message : t`Failed to prepare import`);
 			setStep("review");
 		},
 	});
@@ -281,7 +292,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
-			setImportError(error instanceof Error ? error.message : "Failed to execute import");
+			setImportError(error instanceof Error ? error.message : t`Failed to execute import`);
 			setStep("review");
 		},
 	});
@@ -305,7 +316,7 @@ export function WordPressImport() {
 		},
 		onError: (error) => {
 			setMediaProgress(null);
-			setMediaError(error instanceof Error ? error.message : "Failed to import media");
+			setMediaError(error instanceof Error ? error.message : t`Failed to import media`);
 			setStep("media");
 		},
 	});
@@ -318,7 +329,7 @@ export function WordPressImport() {
 			setStep("complete");
 		},
 		onError: (error) => {
-			setMediaError(error instanceof Error ? error.message : "Failed to rewrite URLs");
+			setMediaError(error instanceof Error ? error.message : t`Failed to rewrite URLs`);
 			setStep("complete");
 		},
 	});
@@ -353,7 +364,7 @@ export function WordPressImport() {
 			setStep("review");
 		},
 		onError: (error) => {
-			setImportError(error instanceof Error ? error.message : "Failed to analyze WordPress site");
+			setImportError(error instanceof Error ? error.message : t`Failed to analyze WordPress site`);
 			setStep("plugin-auth");
 		},
 	});
@@ -372,7 +383,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
-			setImportError(error instanceof Error ? error.message : "Failed to import from WordPress");
+			setImportError(error instanceof Error ? error.message : t`Failed to import from WordPress`);
 			setStep("review");
 		},
 	});
@@ -600,8 +611,6 @@ export function WordPressImport() {
 	// Check if we're using the plugin source
 	const isPluginSource = importSource?.type === "wordpress-plugin";
 
-	const { t } = useLingui();
-
 	return (
 		<div className="space-y-6">
 			<div>
@@ -615,7 +624,7 @@ export function WordPressImport() {
 			<div className="flex items-center gap-2 text-sm flex-wrap">
 				<StepIndicator
 					number={1}
-					label="Connect"
+					label={t`Connect`}
 					active={
 						step === "choose" ||
 						step === "probing" ||
@@ -638,7 +647,7 @@ export function WordPressImport() {
 				<div className="h-px w-8 bg-kumo-line" />
 				<StepIndicator
 					number={2}
-					label="Review"
+					label={t`Review`}
 					active={step === "review" || step === "authors"}
 					complete={
 						step === "preparing" ||
@@ -652,7 +661,7 @@ export function WordPressImport() {
 				<div className="h-px w-8 bg-kumo-line" />
 				<StepIndicator
 					number={3}
-					label="Import"
+					label={t`Import`}
 					active={step === "preparing" || step === "importing"}
 					complete={
 						step === "media" ||
@@ -666,7 +675,7 @@ export function WordPressImport() {
 						<div className="h-px w-8 bg-kumo-line" />
 						<StepIndicator
 							number={4}
-							label="Media"
+							label={t`Media`}
 							active={step === "media" || step === "importing-media" || step === "rewriting"}
 							complete={step === "complete"}
 						/>
@@ -1015,9 +1024,9 @@ function FeatureComparison() {
 							<th className="text-center p-3 font-medium whitespace-nowrap">{t`Plugin`}</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody className="divide-y divide-kumo-line">
 						{FEATURE_COMPARISON.map((item) => (
-							<tr key={item.feature} className="border-b last:border-0">
+							<tr key={item.feature}>
 								<td className="p-3 text-kumo-subtle">{item.feature}</td>
 								<td className="p-3 text-center">
 									<FeatureStatus status={item.wxr} note={item.wxrNote} />
@@ -1359,10 +1368,10 @@ function PluginAuthStep({
 							href={`${siteUrl}/wp-admin/profile.php#application-passwords-section`}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="mt-2 inline-flex items-center gap-1 text-blue-600 hover:underline"
+							className="mt-2 inline-flex items-center gap-1 text-kumo-brand hover:underline"
 						>
 							{t`Open WordPress Profile`}
-							<ArrowSquareOut className="h-3 w-3" />
+							<ArrowSquareOut className="h-3 w-3" aria-hidden="true" />
 						</a>
 					</div>
 				</div>
@@ -1585,15 +1594,10 @@ function ReviewStep({
 					<div className="divide-y">
 						{/* Menus */}
 						<div className="p-4">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-3">
-									<input
-										type="checkbox"
-										checked={importMenus}
-										onChange={(e) => onImportMenusChange(e.target.checked)}
-										className="h-4 w-4 rounded border-gray-300"
-										aria-label={t`Import navigation menus`}
-									/>
+							<Switch
+								checked={importMenus}
+								onCheckedChange={(checked) => onImportMenusChange(checked)}
+								label={
 									<div className="flex items-center gap-2">
 										<List className="h-4 w-4 text-kumo-subtle" />
 										<div>
@@ -1603,43 +1607,31 @@ function ReviewStep({
 											</p>
 										</div>
 									</div>
-								</div>
-							</div>
+								}
+							/>
 						</div>
 
 						{/* Categories count */}
 						{analysis.categories > 0 && (
 							<div className="p-4">
-								<div className="flex items-center gap-3">
-									<input
-										type="checkbox"
-										checked={true}
-										disabled
-										className="h-4 w-4 rounded border-gray-300"
-										aria-label={t`Categories will be imported`}
-									/>
-									<div>
-										<p className="font-medium">{t`Categories (${analysis.categories})`}</p>
-									</div>
-								</div>
+								<Switch
+									checked={true}
+									onCheckedChange={() => {}}
+									disabled
+									label={<p className="font-medium">{t`Categories (${analysis.categories})`}</p>}
+								/>
 							</div>
 						)}
 
 						{/* Tags count */}
 						{analysis.tags > 0 && (
 							<div className="p-4">
-								<div className="flex items-center gap-3">
-									<input
-										type="checkbox"
-										checked={true}
-										disabled
-										className="h-4 w-4 rounded border-gray-300"
-										aria-label={t`Tags will be imported`}
-									/>
-									<div>
-										<p className="font-medium">{t`Tags (${analysis.tags})`}</p>
-									</div>
-								</div>
+								<Switch
+									checked={true}
+									onCheckedChange={() => {}}
+									disabled
+									label={<p className="font-medium">{t`Tags (${analysis.tags})`}</p>}
+								/>
 							</div>
 						)}
 					</div>
@@ -1661,53 +1653,36 @@ function ReviewStep({
 					<div className="divide-y">
 						{/* Site title & tagline */}
 						<div className="p-4">
-							<div className="flex items-center gap-3">
-								<input
-									type="checkbox"
-									checked={importSiteTitle}
-									onChange={(e) => onImportSiteTitleChange(e.target.checked)}
-									className="h-4 w-4 rounded border-gray-300"
-									aria-label={t`Import site title and tagline`}
-								/>
-								<div>
-									<p className="font-medium">{t`Site title & tagline`}</p>
-								</div>
-							</div>
+							<Switch
+								checked={importSiteTitle}
+								onCheckedChange={(checked) => onImportSiteTitleChange(checked)}
+								label={<p className="font-medium">{t`Site title & tagline`}</p>}
+							/>
 						</div>
 
 						{/* Logo & favicon */}
 						<div className="p-4">
-							<div className="flex items-center gap-3">
-								<input
-									type="checkbox"
-									checked={importLogo}
-									onChange={(e) => onImportLogoChange(e.target.checked)}
-									className="h-4 w-4 rounded border-gray-300"
-									aria-label={t`Import logo and favicon`}
-								/>
-								<div>
-									<p className="font-medium">{t`Logo & favicon`}</p>
-								</div>
-							</div>
+							<Switch
+								checked={importLogo}
+								onCheckedChange={(checked) => onImportLogoChange(checked)}
+								label={<p className="font-medium">{t`Logo & favicon`}</p>}
+							/>
 						</div>
 
 						{/* SEO settings */}
 						<div className="p-4">
-							<div className="flex items-center gap-3">
-								<input
-									type="checkbox"
-									checked={importSeo}
-									onChange={(e) => onImportSeoChange(e.target.checked)}
-									className="h-4 w-4 rounded border-gray-300"
-									aria-label={t`Import SEO settings`}
-								/>
-								<div>
-									<p className="font-medium">{t`SEO settings (Yoast)`}</p>
-									<p className="text-sm text-kumo-subtle">
-										{t`Meta titles, descriptions, and social images`}
-									</p>
-								</div>
-							</div>
+							<Switch
+								checked={importSeo}
+								onCheckedChange={(checked) => onImportSeoChange(checked)}
+								label={
+									<div>
+										<p className="font-medium">{t`SEO settings (Yoast)`}</p>
+										<p className="text-sm text-kumo-subtle">
+											{t`Meta titles, descriptions, and social images`}
+										</p>
+									</div>
+								}
+							/>
 						</div>
 					</div>
 				</div>
@@ -1812,12 +1787,10 @@ function PostTypeRow({
 		<div className="p-4">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
-					<input
-						type="checkbox"
+					<Switch
 						checked={selection?.enabled ?? false}
 						disabled={!canImport}
-						onChange={(e) => onToggleEnabled(e.target.checked)}
-						className="h-4 w-4 rounded border-gray-300"
+						onCheckedChange={(checked) => onToggleEnabled(checked)}
 						aria-label={t`Import ${postType.name}`}
 					/>
 					<button
@@ -2323,18 +2296,18 @@ function AuthorMappingStep({
 							</div>
 							<div className="flex items-center gap-2">
 								<span className="text-kumo-subtle">→</span>
-								<select
+								<Select
 									value={mapping.emdashUserId || ""}
-									onChange={(e) => onMappingChange(mapping.wpLogin, e.target.value || null)}
-									className="w-48 px-3 py-2 rounded-md border bg-kumo-base text-sm"
-								>
-									<option value="">{t`Leave unassigned`}</option>
-									{emdashUsers.map((user) => (
-										<option key={user.id} value={user.id}>
-											{user.name || user.email}
-										</option>
-									))}
-								</select>
+									onValueChange={(v) => onMappingChange(mapping.wpLogin, v || null)}
+									items={{
+										"": t`Leave unassigned`,
+										...Object.fromEntries(
+											emdashUsers.map((user) => [user.id, user.name || user.email]),
+										),
+									}}
+									aria-label={t`Map WordPress user ${mapping.wpLogin} to EmDash user`}
+									className="w-48"
+								/>
 							</div>
 						</div>
 					))}

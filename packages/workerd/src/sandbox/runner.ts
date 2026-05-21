@@ -29,7 +29,7 @@ import { join } from "node:path";
 
 import type {
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxEmailSendCallback,
 	SandboxOptions,
 	SandboxRunnerFactory,
@@ -451,7 +451,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * Adds the plugin to the configuration and restarts workerd
 	 * to pick up the new nanoservice.
 	 */
-	async load(manifest: PluginManifest, code: string): Promise<SandboxedPlugin> {
+	async load(manifest: PluginManifest, code: string): Promise<SandboxedPluginInstance> {
 		const pluginId = `${manifest.id}:${manifest.version}`;
 
 		// Return cached plugin if already loaded

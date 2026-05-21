@@ -189,8 +189,7 @@ export function MarketplacePluginDetail({
 							<span className="text-xs text-kumo-danger">{t`Failed security audit`}</span>
 						</div>
 					) : (
-						<Button onClick={() => setShowConsent(true)}>
-							<DownloadSimple className="me-2 h-4 w-4" />
+						<Button onClick={() => setShowConsent(true)} icon={<DownloadSimple />}>
 							{t`Install`}
 						</Button>
 					)}

@@ -13,7 +13,7 @@ import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
 import type { Storage } from "../storage/types.js";
-import type { SiteSettings, SiteSettingKey, MediaReference } from "./types.js";
+import type { SiteSettings, SiteSettingKey, MediaReference, SeoSettings } from "./types.js";
 
 /** Prefix for site settings in the options table */
 const SETTINGS_PREFIX = "site:";
@@ -178,6 +178,19 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
 		return resolved as SiteSettings[K] | undefined;
 	}
 
+	if (key === "seo" && value && typeof value === "object") {
+		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- TS can't narrow generic K from key equality
+		const seo = value as SeoSettings;
+		if (seo.defaultOgImage) {
+			const resolved = {
+				...seo,
+				defaultOgImage: await resolveMediaReference(seo.defaultOgImage, db, storage),
+			};
+			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- TS can't narrow generic K from key equality
+			return resolved as SiteSettings[K] | undefined;
+		}
+	}
+
 	return value;
 }
 
@@ -247,6 +260,12 @@ export async function getSiteSettingsWithDb(
 	}
 	if (typedSettings.favicon) {
 		typedSettings.favicon = await resolveMediaReference(typedSettings.favicon, db, storage);
+	}
+	if (typedSettings.seo?.defaultOgImage) {
+		typedSettings.seo = {
+			...typedSettings.seo,
+			defaultOgImage: await resolveMediaReference(typedSettings.seo.defaultOgImage, db, storage),
+		};
 	}
 
 	return typedSettings;

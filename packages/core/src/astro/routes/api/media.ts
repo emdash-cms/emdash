@@ -12,9 +12,11 @@ import { ulid } from "ulidx";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
+import { GLOBAL_UPLOAD_ALLOWLIST, resolveFieldAllowlist } from "#api/handlers/media-allowlist.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, formatFileSize, mediaListQuery } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
+import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
 import { generatePlaceholder } from "#media/placeholder.js";
 import { computeContentHash } from "#utils/hash.js";
 
@@ -106,9 +108,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			return apiError("NO_FILE", "No file provided", 400);
 		}
 
-		// Validate file type
-		const allowedTypes = ["image/", "video/", "audio/", "application/pdf"];
-		if (!allowedTypes.some((type) => file.type.startsWith(type))) {
+		// Validate file type — widen the allowlist when a field-specific list is configured
+		const fieldIdEntry = formData.get("fieldId");
+		const fieldId =
+			typeof fieldIdEntry === "string" && fieldIdEntry.length > 0 ? fieldIdEntry : null;
+
+		const fieldAllowlist = fieldId ? await resolveFieldAllowlist(emdash.db, fieldId) : null;
+		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
+
+		if (!matchesMimeAllowlist(file.type, allowlist)) {
 			return apiError("INVALID_TYPE", "File type not allowed", 400);
 		}
 
@@ -174,7 +182,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Create media record
 		const result = await emdash.handleMediaCreate({
 			filename: file.name,
-			mimeType: file.type,
+			mimeType: normalizeMime(file.type),
 			size: file.size,
 			width,
 			height,

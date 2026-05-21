@@ -11,8 +11,6 @@
     "build": "astro build",
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
-    "bootstrap": "emdash init && emdash seed",
-    "seed": "emdash seed",
     "typecheck": "astro check"
   },
   "dependencies": {
@@ -22,6 +20,7 @@
     "@emdash-cms/plugin-atproto": "workspace:*",
     "@emdash-cms/plugin-audit-log": "workspace:*",
     "@emdash-cms/plugin-color": "workspace:*",
+    "@emdash-cms/plugin-cli": "workspace:*",
     "astro": "catalog:",
     "better-sqlite3": "catalog:",
     "emdash": "workspace:*",
@@ -30,7 +29,5 @@
   },
   "devDependencies": {
     "@astrojs/check": "catalog:"
-  },
-  "peerDependencies": {},
-  "optionalDependencies": {}
+  }
 }

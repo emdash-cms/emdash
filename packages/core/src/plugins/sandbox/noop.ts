@@ -7,7 +7,7 @@
  */
 
 import type { PluginManifest } from "../types.js";
-import type { SandboxRunner, SandboxedPlugin, SandboxOptions } from "./types.js";
+import type { SandboxRunner, SandboxedPluginInstance, SandboxOptions } from "./types.js";
 
 /**
  * Error thrown when attempting to use sandboxing on an unsupported platform.
@@ -56,7 +56,7 @@ export class NoopSandboxRunner implements SandboxRunner {
 		_manifest: PluginManifest,
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		_code: string,
-	): Promise<SandboxedPlugin> {
+	): Promise<SandboxedPluginInstance> {
 		throw new SandboxNotAvailableError();
 	}
 

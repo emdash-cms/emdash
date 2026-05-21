@@ -21,6 +21,7 @@ import {
 	SsrfError,
 	stripCredentialHeaders,
 } from "../import/ssrf.js";
+import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import { CronAccessImpl } from "./cron.js";
 import type { EmailPipeline } from "./email.js";
@@ -502,7 +503,16 @@ export function createMediaAccessWithWrite(
 		},
 
 		async delete(id: string): Promise<boolean> {
-			return mediaRepo.delete(id);
+			const deleted = await mediaRepo.delete(id);
+			// Plugins can delete media that's referenced by site settings
+			// (`logo`, `favicon`, `seo.defaultOgImage`); the worker-scoped
+			// resolved-URL cache must be dropped or it will keep serving
+			// 404s. Matches the invalidation in
+			// `EmDashRuntime.handleMediaDelete`.
+			if (deleted) {
+				invalidateSiteSettingsCache();
+			}
+			return deleted;
 		},
 	};
 }

@@ -44,7 +44,7 @@ import * as api from "../../src/lib/api";
 // ---------------------------------------------------------------------------
 
 const MAIN_MENU_ITEMS_REGEX = /main.*3 items/;
-const FOOTER_MENU_ITEMS_REGEX = /footer.*1 items/;
+const FOOTER_MENU_ITEMS_REGEX = /footer.*1 item(?!s)/;
 const DELETE_MENU_CONFIRMATION_REGEX = /Are you sure you want to delete this menu/;
 const CREATE_MENU_REGEX = /Create Menu/;
 

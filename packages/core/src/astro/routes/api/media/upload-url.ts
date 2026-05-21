@@ -15,8 +15,10 @@ import { ulid } from "ulidx";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { GLOBAL_UPLOAD_ALLOWLIST, resolveFieldAllowlist } from "#api/handlers/media-allowlist.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaUploadUrlBody } from "#api/schemas.js";
+import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
 
 export const prerender = false;
 
@@ -70,9 +72,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, mediaUploadUrlBody(maxSize));
 		if (isParseError(body)) return body;
 
-		// Validate content type
-		const allowedTypes = ["image/", "video/", "audio/", "application/pdf"];
-		if (!allowedTypes.some((type) => body.contentType.startsWith(type))) {
+		// Validate content type (field-aware widening)
+		const fieldAllowlist = body.fieldId
+			? await resolveFieldAllowlist(emdash.db, body.fieldId)
+			: null;
+		const allowlist = fieldAllowlist ?? [...GLOBAL_UPLOAD_ALLOWLIST];
+
+		if (!matchesMimeAllowlist(body.contentType, allowlist)) {
 			return apiError("INVALID_TYPE", "File type not allowed", 400);
 		}
 
@@ -100,7 +106,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Create pending media record with content hash
 		const mediaItem = await repo.createPending({
 			filename: body.filename,
-			mimeType: body.contentType,
+			mimeType: normalizeMime(body.contentType),
 			size: body.size,
 			storageKey,
 			contentHash: body.contentHash,

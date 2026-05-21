@@ -1,0 +1,27 @@
+{
+	"$schema": "../../plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "sandboxed-test",
+	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6", // plugins.emdashcms.com
+
+	"license": "MIT",
+	"author": { "name": "Matt Kane" },
+	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
+	"description": "Test plugin exercising sandboxed-plugin enforcement and feature surface.",
+
+	// Trust contract. Reads content + a single declared storage
+	// collection. Outbound HTTP restricted to httpbin.org so the
+	// adversarial-fetch tests have a real allowed host to contrast
+	// with the disallowed ones.
+	"capabilities": ["content:read", "network:request"],
+	"allowedHosts": ["httpbin.org"],
+	"storage": {
+		"events": { "indexes": ["timestamp", "type"] },
+	},
+
+	// Admin surface — rendered by the `admin` route handler via Block Kit.
+	"admin": {
+		"pages": [{ "path": "/sandbox", "label": "Sandbox Tests", "icon": "shield" }],
+		"widgets": [{ "id": "sandbox-status", "title": "Sandbox Status", "size": "half" }],
+	},
+}

@@ -4,7 +4,9 @@
  * Browse, create, and manage reusable content sections (block patterns).
  */
 
-import { Button, Dialog, Input, InputArea, Toast } from "@cloudflare/kumo";
+import { Button, Dialog, Input, InputArea, Select, Toast } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -39,10 +41,10 @@ const sourceIcons: Record<SectionSource, React.ElementType> = {
 	import: FileArrowDown,
 };
 
-const sourceLabels: Record<SectionSource, string> = {
-	theme: "Theme",
-	user: "Custom",
-	import: "Imported",
+const sourceLabels: Record<SectionSource, MessageDescriptor> = {
+	theme: msg`Theme`,
+	user: msg`Custom`,
+	import: msg`Imported`,
 };
 
 export function Sections() {
@@ -175,7 +177,7 @@ export function Sections() {
 									}
 								}}
 								required
-								placeholder="Hero Banner"
+								placeholder={t`Hero Banner`}
 							/>
 							<div>
 								<Input
@@ -198,7 +200,7 @@ export function Sections() {
 								label={t`Description`}
 								value={createDescription}
 								onChange={(e) => setCreateDescription(e.target.value)}
-								placeholder="A full-width hero banner with heading, text, and CTA button"
+								placeholder={t`A full-width hero banner with heading, text, and CTA button`}
 								rows={3}
 							/>
 							<DialogError message={createError || getMutationError(createMutation.error)} />
@@ -229,19 +231,19 @@ export function Sections() {
 				</div>
 
 				{/* Source filter */}
-				<select
-					value={selectedSource || ""}
-					onChange={(e) => {
-						const val = e.target.value;
-						setSelectedSource(val === "theme" || val === "user" || val === "import" ? val : null);
+				<Select
+					value={selectedSource ?? ""}
+					onValueChange={(v) => {
+						setSelectedSource(v === "theme" || v === "user" || v === "import" ? v : null);
 					}}
-					className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2"
-				>
-					<option value="">{t`All Sources`}</option>
-					<option value="theme">{t`Theme`}</option>
-					<option value="user">{t`Custom`}</option>
-					<option value="import">{t`Imported`}</option>
-				</select>
+					items={{
+						"": t`All Sources`,
+						...Object.fromEntries(
+							Object.entries(sourceLabels).map(([key, label]) => [key, t(label)]),
+						),
+					}}
+					aria-label={t`Filter by source`}
+				/>
 			</div>
 
 			{/* Section Grid */}
@@ -351,10 +353,10 @@ function SectionCard({
 					</div>
 					<div
 						className="flex items-center gap-1 text-xs text-kumo-subtle"
-						title={sourceLabels[section.source]}
+						title={t(sourceLabels[section.source])}
 					>
 						<SourceIcon className="h-3 w-3" />
-						<span>{sourceLabels[section.source]}</span>
+						<span>{t(sourceLabels[section.source])}</span>
 					</div>
 				</div>
 

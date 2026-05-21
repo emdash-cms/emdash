@@ -87,10 +87,13 @@ export interface SandboxOptions {
 }
 
 /**
- * A sandboxed plugin instance.
- * Provides methods to invoke hooks and routes in the isolated environment.
+ * Handle to a sandboxed plugin running inside an isolate. Returned
+ * by `SandboxRunner.load` and held by the runtime's cache so hooks /
+ * routes can be invoked across the isolate boundary. Distinct from
+ * the author-facing `SandboxedPlugin` type in `emdash/plugin`, which
+ * describes the source-level shape of a plugin's default export.
  */
-export interface SandboxedPlugin {
+export interface SandboxedPluginInstance {
 	/** Unique identifier: `${manifest.id}:${manifest.version}` */
 	readonly id: string;
 
@@ -159,7 +162,7 @@ export interface SandboxRunner {
 	 * @returns A sandboxed plugin instance
 	 * @throws If sandboxing is not available or plugin can't be loaded
 	 */
-	load(manifest: PluginManifest, code: string): Promise<SandboxedPlugin>;
+	load(manifest: PluginManifest, code: string): Promise<SandboxedPluginInstance>;
 
 	/**
 	 * Set the email send callback for sandboxed plugins.

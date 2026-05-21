@@ -1,7 +1,7 @@
 /**
  * SEO Panel for Content Editor Sidebar
  *
- * Shows SEO metadata fields (title, description, OG image, canonical URL,
+ * Shows SEO metadata fields (OG image, title, description, canonical URL,
  * noIndex) when the collection has `hasSeo` enabled. Changes are sent
  * alongside content updates via the `seo` field on the update body.
  */
@@ -11,6 +11,7 @@ import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import type { ContentSeo, ContentSeoInput } from "../lib/api";
+import { SeoImageField } from "./SeoImageField";
 
 export interface SeoPanelProps {
 	contentKey: string;
@@ -147,6 +148,8 @@ export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
 
 	return (
 		<div className="space-y-3">
+			<SeoImageField key={contentKey} seo={seo} onChange={onChange} />
+
 			<Input
 				label={t`SEO Title`}
 				description={t`Overrides the page title in search engine results`}

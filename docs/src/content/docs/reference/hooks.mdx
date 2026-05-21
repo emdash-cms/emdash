@@ -7,7 +7,9 @@ import { Aside } from "@astrojs/starlight/components";
 
 Hooks allow plugins to intercept and modify EmDash behavior at specific points in the content, media, email, comment, and page lifecycle.
 
-## Hook Overview
+## Hook overview
+
+The following table lists every hook, what triggers it, what it can modify, and whether it is exclusive:
 
 | Hook                    | Trigger                               | Can Modify        | Exclusive |
 | ----------------------- | ------------------------------------- | ----------------- | --------- |
@@ -329,7 +331,7 @@ interface CronEvent {
 
 ## Email Hooks
 
-Email hooks form a pipeline: `email:beforeSend` → `email:deliver` → `email:afterSend`.
+Email hooks run in order: `email:beforeSend`, then `email:deliver`, then `email:afterSend`.
 
 ### `email:beforeSend`
 
@@ -402,7 +404,7 @@ hooks: {
 
 ## Comment Hooks
 
-Comment hooks form a pipeline: `comment:beforeCreate` → `comment:moderate` → `comment:afterCreate`. The `comment:afterModerate` hook fires separately when an admin changes a comment's status.
+Comment hooks run in order: `comment:beforeCreate`, then `comment:moderate`, then `comment:afterCreate`. The `comment:afterModerate` hook fires separately when an admin changes a comment's status.
 
 ### `comment:beforeCreate`
 
@@ -554,8 +556,18 @@ hooks: {
 type PageMetadataContribution =
 	| { kind: "meta"; name: string; content: string; key?: string }
 	| { kind: "property"; property: string; content: string; key?: string }
-	| { kind: "link"; rel: string; href: string; hreflang?: string; key?: string }
-	| { kind: "jsonld"; id?: string; graph: Record<string, unknown> };
+	| {
+			kind: "link";
+			rel: "canonical" | "alternate" | "author" | "license" | "nlweb" | "site.standard.document";
+			href: string;
+			hreflang?: string;
+			key?: string;
+	  }
+	| {
+			kind: "jsonld";
+			id?: string;
+			graph: Record<string, unknown> | Array<Record<string, unknown>>;
+	  };
 ```
 
 The `key` field deduplicates contributions — only the last contribution with a given key is used.

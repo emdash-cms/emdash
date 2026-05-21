@@ -8,7 +8,7 @@ export { SandboxUnavailableError } from "./types.js";
 
 export type {
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,

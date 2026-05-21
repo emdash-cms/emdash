@@ -23,7 +23,7 @@ const [{ entries: sortedProjects, cacheHint }, tags] = await Promise.all([
 	getTaxonomyTerms("tag"),
 ]);
 
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 // Single batched JOIN for the tag pills shown on each card, instead of
 // one getEntryTerms() round-trip per card.

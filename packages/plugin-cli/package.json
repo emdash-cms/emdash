@@ -1,0 +1,76 @@
+{
+	"name": "@emdash-cms/plugin-cli",
+	"version": "0.3.0",
+	"description": "CLI for authoring, building, and publishing EmDash plugins. Covers init / build / dev / bundle / publish plus registry search and identity. Atproto OAuth, FAIR-shaped records, sandboxed-plugin-only.",
+	"type": "module",
+	"main": "dist/api.mjs",
+	"exports": {
+		".": {
+			"types": "./dist/api.d.mts",
+			"default": "./dist/api.mjs"
+		}
+	},
+	"bin": {
+		"emdash-plugin": "./dist/index.mjs"
+	},
+	"files": [
+		"dist",
+		"schemas"
+	],
+	"scripts": {
+		"build": "node --run gen-schema && tsdown",
+		"dev": "tsdown --watch",
+		"gen-schema": "node --no-warnings --experimental-strip-types scripts/gen-schema.ts",
+		"prepublishOnly": "node --run build",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"check": "publint"
+	},
+	"dependencies": {
+		"@atcute/client": "catalog:",
+		"@atcute/identity-resolver": "catalog:",
+		"@atcute/lexicons": "catalog:",
+		"@atcute/multibase": "catalog:",
+		"@atcute/oauth-node-client": "catalog:",
+		"@clack/prompts": "^1.4.0",
+		"@emdash-cms/plugin-types": "workspace:*",
+		"@emdash-cms/registry-client": "workspace:*",
+		"@emdash-cms/registry-lexicons": "workspace:*",
+		"@oslojs/crypto": "catalog:",
+		"chokidar": "catalog:",
+		"citty": "^0.1.6",
+		"consola": "^3.4.2",
+		"image-size": "^2.0.2",
+		"jsonc-parser": "catalog:",
+		"modern-tar": "^0.7.5",
+		"picocolors": "^1.1.1",
+		"tsdown": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"@types/node": "catalog:",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"plugin-cli",
+		"plugin-registry",
+		"atproto",
+		"fair",
+		"cli"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugin-cli"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash"
+}

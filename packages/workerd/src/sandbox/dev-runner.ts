@@ -18,7 +18,7 @@ import { createRequire } from "node:module";
 
 import type {
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxEmailSendCallback,
 	SandboxOptions,
 	SerializedRequest,
@@ -102,7 +102,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 		this.emailSendCallback = callback;
 	}
 
-	async load(manifest: PluginManifest, code: string): Promise<SandboxedPlugin> {
+	async load(manifest: PluginManifest, code: string): Promise<SandboxedPluginInstance> {
 		const pluginId = `${manifest.id}:${manifest.version}`;
 		this.plugins.set(pluginId, { manifest, code });
 
@@ -230,7 +230,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 /**
  * A plugin running in a miniflare dev isolate.
  */
-class MiniflareDevPlugin implements SandboxedPlugin {
+class MiniflareDevPlugin implements SandboxedPluginInstance {
 	readonly id: string;
 	private manifest: PluginManifest;
 	private runner: MiniflareDevRunner;

@@ -9,13 +9,12 @@ import { Button, Input, Label } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { FloppyDisk, CheckCircle, WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
-import { ArrowPrev } from "../ArrowIcons.js";
 import { EditorHeader } from "../EditorHeader";
 import { MediaPickerModal } from "../MediaPickerModal";
+import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
 export function GeneralSettings() {
 	const { t } = useLingui();
@@ -98,11 +97,7 @@ export function GeneralSettings() {
 		return (
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
-					<Link to="/settings">
-						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowPrev className="h-4 w-4" />
-						</Button>
-					</Link>
+					<BackToSettingsLink />
 					<h1 className="text-2xl font-bold">{t`General Settings`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
@@ -119,13 +114,7 @@ export function GeneralSettings() {
 			    below so the natural last-control DOM order works for keyboard
 			    and screen-reader users. */}
 			<EditorHeader
-				leading={
-					<Link to="/settings">
-						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowPrev className="h-4 w-4" />
-						</Button>
-					</Link>
-				}
+				leading={<BackToSettingsLink />}
 				actions={
 					<Button
 						type="submit"
@@ -183,16 +172,31 @@ export function GeneralSettings() {
 							description={t`The public URL of your site (used for canonical links and sitemaps)`}
 						/>
 
-						{/* Logo Picker */}
+						{/* Logo Picker --
+						    "configured" gates on `mediaId`, not `url`, so an orphaned
+						    reference (media row deleted, or a stale provider id stored
+						    pre-localOnly fix) still renders Remove. Otherwise the user
+						    would see "Select Logo" and silently re-save the dangling
+						    `mediaId` on any unrelated change. */}
 						<div>
 							<Label>{t`Logo`}</Label>
-							{formData.logo?.url ? (
+							{formData.logo?.mediaId ? (
 								<div className="mt-2 space-y-2">
-									<img
-										src={formData.logo.url}
-										alt={formData.logo.alt || t`Logo`}
-										className="h-16 rounded border bg-kumo-tint object-contain p-2"
-									/>
+									{formData.logo.url ? (
+										<img
+											src={formData.logo.url}
+											alt={formData.logo.alt || t`Logo`}
+											className="h-16 rounded border bg-kumo-tint object-contain p-2"
+										/>
+									) : (
+										<div
+											className="flex min-h-16 items-center gap-2 rounded border border-dashed bg-kumo-tint px-3 py-2 text-sm text-kumo-subtle"
+											role="status"
+										>
+											<WarningCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+											<span>{t`The referenced logo is no longer available. Pick a new one or remove the reference.`}</span>
+										</div>
+									)}
 									<div className="flex gap-2">
 										<Button
 											type="button"
@@ -227,16 +231,26 @@ export function GeneralSettings() {
 							)}
 						</div>
 
-						{/* Favicon Picker */}
+						{/* Favicon Picker — see Logo Picker for the orphan-state rationale. */}
 						<div>
 							<Label>{t`Favicon`}</Label>
-							{formData.favicon?.url ? (
+							{formData.favicon?.mediaId ? (
 								<div className="mt-2 space-y-2">
-									<img
-										src={formData.favicon.url}
-										alt={t`Favicon`}
-										className="h-8 w-8 rounded border bg-kumo-tint object-contain p-1"
-									/>
+									{formData.favicon.url ? (
+										<img
+											src={formData.favicon.url}
+											alt={t`Favicon`}
+											className="h-8 w-8 rounded border bg-kumo-tint object-contain p-1"
+										/>
+									) : (
+										<div
+											className="flex min-h-8 items-center gap-2 rounded border border-dashed bg-kumo-tint px-2 py-1 text-xs text-kumo-subtle"
+											role="status"
+										>
+											<WarningCircle className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+											<span>{t`Referenced favicon unavailable.`}</span>
+										</div>
+									)}
 									<div className="flex gap-2">
 										<Button
 											type="button"
@@ -309,12 +323,16 @@ export function GeneralSettings() {
 				</div>
 			</form>
 
-			{/* Media Picker Modals */}
+			{/* Media Picker Modals --
+			    localOnly: site settings only persist a local `mediaId`. URL/provider
+			    selections would be stripped on save, leaving an unresolvable reference.
+			    See MediaPickerModalProps.localOnly. */}
 			<MediaPickerModal
 				open={logoPickerOpen}
 				onOpenChange={setLogoPickerOpen}
 				onSelect={handleLogoSelect}
 				mimeTypeFilter="image/"
+				localOnly
 				title={t`Select Logo`}
 			/>
 			<MediaPickerModal
@@ -322,6 +340,7 @@ export function GeneralSettings() {
 				onOpenChange={setFaviconPickerOpen}
 				onSelect={handleFaviconSelect}
 				mimeTypeFilter="image/"
+				localOnly
 				title={t`Select Favicon`}
 			/>
 		</div>

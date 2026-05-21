@@ -1,4 +1,4 @@
-import { Badge, Button, buttonVariants, Dialog, Input, Loader, Tabs } from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, LinkButton, Loader, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -21,6 +21,7 @@ import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /** Sortable content list columns. Maps to the server's order field whitelist. */
 export type ContentListSortField = "title" | "status" | "locale" | "updatedAt";
@@ -61,6 +62,12 @@ export interface ContentListProps {
 	 */
 	sort?: ContentListSort;
 	onSortChange?: (sort: ContentListSort) => void;
+	/**
+	 * Total rows matching the current filters (ignoring pagination). When
+	 * set, the pagination denominator reflects this stable count instead of
+	 * growing as more API pages are fetched.
+	 */
+	total?: number;
 }
 
 type ViewTab = "all" | "trash";
@@ -103,6 +110,7 @@ export function ContentList({
 	urlPattern,
 	sort,
 	onSortChange,
+	total,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
@@ -121,17 +129,37 @@ export function ContentList({
 		return items.filter((item) => getItemTitle(item).toLowerCase().includes(query));
 	}, [items, searchQuery]);
 
-	const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
-	const paginatedItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+	// When the server reports a total, it's the source of truth for the
+	// denominator. Otherwise fall back to the size of the (possibly partial)
+	// client list, matching pre-refactor behavior. Client-side search always
+	// defers to `filteredItems` because `total` reflects the unfiltered set.
+	const effectiveTotal = typeof total === "number" && !searchQuery ? total : filteredItems.length;
+	const totalPages = Math.max(1, Math.ceil(effectiveTotal / PAGE_SIZE));
 
-	// Auto-fetch next API page when user reaches the last client-side page.
-	// skip when a search query is active
-	// filteredItems shrinking would otherwise collapse totalPages to 1 and trigger a spurious fetch
+	// Clamp the current page in case filters collapse the count (user was on
+	// page 5 of 10, then typed a query narrowing to 1 page). Without clamping
+	// we'd render an empty table until the next refetch.
+	const clampedPage = Math.min(page, totalPages - 1);
+	const paginatedItems = filteredItems.slice(
+		clampedPage * PAGE_SIZE,
+		(clampedPage + 1) * PAGE_SIZE,
+	);
+
+	// Auto-fetch the next API page when the user is on a client page whose
+	// items haven't been loaded yet. Skip during client-side search because
+	// filtering can collapse `filteredItems` below the loaded count and
+	// trigger a spurious fetch.
+	//
+	// Safety: relies on `onLoadMore` being deduped against concurrent calls.
+	// The router wires this to TanStack Query's `fetchNextPage`, which is
+	// idempotent while a fetch is in flight.
 	React.useEffect(() => {
-		if (page >= totalPages - 1 && hasMore && onLoadMore && !searchQuery) {
+		if (!hasMore || !onLoadMore || searchQuery) return;
+		const loadedPages = Math.ceil(filteredItems.length / PAGE_SIZE);
+		if (clampedPage >= loadedPages - 1) {
 			onLoadMore();
 		}
-	}, [page, totalPages, hasMore, onLoadMore, searchQuery]);
+	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, searchQuery]);
 
 	return (
 		<div className="space-y-4">
@@ -149,15 +177,14 @@ export function ContentList({
 						/>
 					)}
 				</div>
-				<Link
+				<RouterLinkButton
 					to="/content/$collection/new"
 					params={{ collection }}
 					search={{ locale: activeLocale }}
-					className={buttonVariants()}
+					icon={<Plus />}
 				>
-					<Plus className="me-2 h-4 w-4" aria-hidden="true" />
 					{t`Add New`}
-				</Link>
+				</RouterLinkButton>
 			</div>
 
 			{/* Search */}
@@ -201,7 +228,7 @@ export function ContentList({
 			{activeTab === "all" ? (
 				<>
 					{/* Table */}
-					<div className="rounded-md border overflow-x-auto">
+					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
@@ -236,7 +263,7 @@ export function ContentList({
 									</th>
 								</tr>
 							</thead>
-							<tbody>
+							<tbody className="divide-y divide-kumo-line">
 								{isLoading && items.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
@@ -287,34 +314,31 @@ export function ContentList({
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
-								{searchQuery
-									? plural(filteredItems.length, {
-											one: `# item matching "${searchQuery}"`,
-											other: `# items matching "${searchQuery}"`,
-										})
-									: plural(filteredItems.length, {
-											one: `#${hasMore ? "+" : ""} item`,
-											other: `#${hasMore ? "+" : ""} items`,
-										})}
+								{renderItemCount({
+									searchQuery,
+									filteredCount: filteredItems.length,
+									total,
+									hasMore,
+								})}
 							</span>
 							<div className="flex items-center gap-2">
 								<Button
 									variant="outline"
 									shape="square"
-									disabled={page === 0}
-									onClick={() => setPage(page - 1)}
+									disabled={clampedPage === 0}
+									onClick={() => setPage(clampedPage - 1)}
 									aria-label={t`Previous page`}
 								>
 									<CaretPrev className="h-4 w-4" aria-hidden="true" />
 								</Button>
 								<span className="text-sm">
-									{page + 1} / {totalPages}
+									{clampedPage + 1} / {totalPages}
 								</span>
 								<Button
 									variant="outline"
 									shape="square"
-									disabled={page >= totalPages - 1}
-									onClick={() => setPage(page + 1)}
+									disabled={clampedPage >= totalPages - 1}
+									onClick={() => setPage(clampedPage + 1)}
 									aria-label={t`Next page`}
 								>
 									<CaretNext className="h-4 w-4" aria-hidden="true" />
@@ -335,7 +359,7 @@ export function ContentList({
 			) : (
 				<>
 					{/* Trash Table */}
-					<div className="rounded-md border overflow-x-auto">
+					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
@@ -350,7 +374,7 @@ export function ContentList({
 									</th>
 								</tr>
 							</thead>
-							<tbody>
+							<tbody className="divide-y divide-kumo-line">
 								{isTrashedLoading && trashedItems.length === 0 ? (
 									<tr>
 										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
@@ -448,9 +472,8 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 				type="button"
 				onClick={handleClick}
 				className={cn(
-					"inline-flex items-center gap-1 rounded hover:text-kumo-brand",
+					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-brand",
 					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
-					isActive ? "text-kumo-fg" : "text-kumo-subtle",
 				)}
 			>
 				<span>{label}</span>
@@ -458,6 +481,43 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 			</button>
 		</th>
 	);
+}
+
+/**
+ * Render the row-count line above pagination. The rules are:
+ * - A search query always wins — say how many matches there are.
+ * - When the server reported a total, use it (no `+` suffix needed —
+ *   we know the count).
+ * - Otherwise fall back to the pre-refactor behavior: loaded count,
+ *   with `+` when there are more pages the user hasn't fetched yet.
+ */
+function renderItemCount({
+	searchQuery,
+	filteredCount,
+	total,
+	hasMore,
+}: {
+	searchQuery: string;
+	filteredCount: number;
+	total: number | undefined;
+	hasMore: boolean | undefined;
+}): string {
+	if (searchQuery) {
+		return plural(filteredCount, {
+			one: `# item matching "${searchQuery}"`,
+			other: `# items matching "${searchQuery}"`,
+		});
+	}
+	if (typeof total === "number") {
+		return plural(total, {
+			one: `# item`,
+			other: `# items`,
+		});
+	}
+	return plural(filteredCount, {
+		one: `#${hasMore ? "+" : ""} item`,
+		other: `#${hasMore ? "+" : ""} items`,
+	});
 }
 
 interface ContentListItemProps {
@@ -482,7 +542,7 @@ function ContentListItem({
 	const date = new Date(item.updatedAt || item.createdAt);
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
 				<Link
 					to="/content/$collection/$id"
@@ -509,24 +569,23 @@ function ContentListItem({
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (
-						<a
+						<LinkButton
 							href={contentUrl(collection, item.slug, urlPattern)}
-							target="_blank"
-							rel="noopener noreferrer"
+							external
+							variant="ghost"
+							shape="square"
 							aria-label={t`View published ${title}`}
-							className={buttonVariants({ variant: "ghost", shape: "square" })}
-						>
-							<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
-						</a>
+							icon={<ArrowSquareOut />}
+						/>
 					)}
-					<Link
+					<RouterLinkButton
 						to="/content/$collection/$id"
 						params={{ collection, id: item.id }}
 						aria-label={t`Edit ${title}`}
-						className={buttonVariants({ variant: "ghost", shape: "square" })}
-					>
-						<Pencil className="h-4 w-4" aria-hidden="true" />
-					</Link>
+						variant="ghost"
+						shape="square"
+						icon={<Pencil />}
+					/>
 					<Button
 						variant="ghost"
 						shape="square"
@@ -589,7 +648,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 	const deletedDate = new Date(item.deletedAt);
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
 				<span className="font-medium text-kumo-subtle">{title}</span>
 			</td>

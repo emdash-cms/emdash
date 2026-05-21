@@ -1,0 +1,13 @@
+{
+	"name": "@emdash-cms/plugins-site",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy"
+	},
+	"devDependencies": {
+		"wrangler": "catalog:"
+	}
+}

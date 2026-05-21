@@ -10,7 +10,7 @@ import type { Kysely } from "kysely";
 import type { Database } from "../database/types.js";
 
 export type PluginStatus = "active" | "inactive";
-export type PluginSource = "config" | "marketplace";
+export type PluginSource = "config" | "marketplace" | "registry";
 
 function toPluginStatus(value: string): PluginStatus {
 	if (value === "active") return "active";
@@ -19,6 +19,7 @@ function toPluginStatus(value: string): PluginStatus {
 
 function toPluginSource(value: string | undefined | null): PluginSource {
 	if (value === "marketplace") return "marketplace";
+	if (value === "registry") return "registry";
 	return "config";
 }
 
@@ -33,6 +34,21 @@ export interface PluginState {
 	marketplaceVersion: string | null;
 	displayName: string | null;
 	description: string | null;
+	/**
+	 * Publisher DID this plugin was published under. Populated only when
+	 * `source === "registry"`; null otherwise.
+	 */
+	registryPublisherDid: string | null;
+	/**
+	 * Slug under which the plugin was published in the publisher's repo
+	 * (the rkey of the `pm.fair.package.profile` record). Populated only
+	 * when `source === "registry"`; null otherwise.
+	 *
+	 * The opaque `pluginId` for registry installs is derived from
+	 * `(registryPublisherDid, registrySlug)` -- see
+	 * `packages/core/src/registry/plugin-id.ts`.
+	 */
+	registrySlug: string | null;
 }
 
 /**
@@ -53,18 +69,7 @@ export class PluginStateRepository {
 
 		if (!row) return null;
 
-		return {
-			pluginId: row.plugin_id,
-			status: toPluginStatus(row.status),
-			version: row.version,
-			installedAt: new Date(row.installed_at),
-			activatedAt: row.activated_at ? new Date(row.activated_at) : null,
-			deactivatedAt: row.deactivated_at ? new Date(row.deactivated_at) : null,
-			source: toPluginSource(row.source),
-			marketplaceVersion: row.marketplace_version ?? null,
-			displayName: row.display_name ?? null,
-			description: row.description ?? null,
-		};
+		return rowToPluginState(row);
 	}
 
 	/**
@@ -72,19 +77,7 @@ export class PluginStateRepository {
 	 */
 	async getAll(): Promise<PluginState[]> {
 		const rows = await this.db.selectFrom("_plugin_state").selectAll().execute();
-
-		return rows.map((row) => ({
-			pluginId: row.plugin_id,
-			status: toPluginStatus(row.status),
-			version: row.version,
-			installedAt: new Date(row.installed_at),
-			activatedAt: row.activated_at ? new Date(row.activated_at) : null,
-			deactivatedAt: row.deactivated_at ? new Date(row.deactivated_at) : null,
-			source: toPluginSource(row.source),
-			marketplaceVersion: row.marketplace_version ?? null,
-			displayName: row.display_name ?? null,
-			description: row.description ?? null,
-		}));
+		return rows.map(rowToPluginState);
 	}
 
 	/**
@@ -96,19 +89,22 @@ export class PluginStateRepository {
 			.selectAll()
 			.where("source", "=", "marketplace")
 			.execute();
+		return rows.map(rowToPluginState);
+	}
 
-		return rows.map((row) => ({
-			pluginId: row.plugin_id,
-			status: toPluginStatus(row.status),
-			version: row.version,
-			installedAt: new Date(row.installed_at),
-			activatedAt: row.activated_at ? new Date(row.activated_at) : null,
-			deactivatedAt: row.deactivated_at ? new Date(row.deactivated_at) : null,
-			source: toPluginSource(row.source),
-			marketplaceVersion: row.marketplace_version ?? null,
-			displayName: row.display_name ?? null,
-			description: row.description ?? null,
-		}));
+	/**
+	 * Get all registry-installed plugin states.
+	 *
+	 * The runtime's registry sync path uses this to discover which
+	 * registry plugins should be loaded into the sandbox on this worker.
+	 */
+	async getRegistryPlugins(): Promise<PluginState[]> {
+		const rows = await this.db
+			.selectFrom("_plugin_state")
+			.selectAll()
+			.where("source", "=", "registry")
+			.execute();
+		return rows.map(rowToPluginState);
 	}
 
 	/**
@@ -123,6 +119,8 @@ export class PluginStateRepository {
 			marketplaceVersion?: string;
 			displayName?: string;
 			description?: string;
+			registryPublisherDid?: string;
+			registrySlug?: string;
 		},
 	): Promise<PluginState> {
 		const now = new Date().toISOString();
@@ -151,6 +149,12 @@ export class PluginStateRepository {
 			if (opts?.description !== undefined) {
 				updates.description = opts.description;
 			}
+			if (opts?.registryPublisherDid !== undefined) {
+				updates.registry_publisher_did = opts.registryPublisherDid;
+			}
+			if (opts?.registrySlug !== undefined) {
+				updates.registry_slug = opts.registrySlug;
+			}
 
 			await this.db
 				.updateTable("_plugin_state")
@@ -173,6 +177,8 @@ export class PluginStateRepository {
 					marketplace_version: opts?.marketplaceVersion ?? null,
 					display_name: opts?.displayName ?? null,
 					description: opts?.description ?? null,
+					registry_publisher_did: opts?.registryPublisherDid ?? null,
+					registry_slug: opts?.registrySlug ?? null,
 				})
 				.execute();
 		}
@@ -205,4 +211,44 @@ export class PluginStateRepository {
 
 		return (result.numDeletedRows ?? 0) > 0;
 	}
+}
+
+/**
+ * Internal: map a `_plugin_state` row to the public `PluginState` shape.
+ *
+ * Kept at module scope so the three select paths (`get`, `getAll`,
+ * `getMarketplacePlugins`, `getRegistryPlugins`) stay byte-identical in
+ * their handling of nullable columns -- adding a new column to the table
+ * means changing this function and nothing else.
+ */
+interface PluginStateRow {
+	plugin_id: string;
+	status: string;
+	version: string;
+	installed_at: string;
+	activated_at: string | null;
+	deactivated_at: string | null;
+	source: string;
+	marketplace_version: string | null;
+	display_name: string | null;
+	description: string | null;
+	registry_publisher_did: string | null;
+	registry_slug: string | null;
+}
+
+function rowToPluginState(row: PluginStateRow): PluginState {
+	return {
+		pluginId: row.plugin_id,
+		status: toPluginStatus(row.status),
+		version: row.version,
+		installedAt: new Date(row.installed_at),
+		activatedAt: row.activated_at ? new Date(row.activated_at) : null,
+		deactivatedAt: row.deactivated_at ? new Date(row.deactivated_at) : null,
+		source: toPluginSource(row.source),
+		marketplaceVersion: row.marketplace_version ?? null,
+		displayName: row.display_name ?? null,
+		description: row.description ?? null,
+		registryPublisherDid: row.registry_publisher_did ?? null,
+		registrySlug: row.registry_slug ?? null,
+	};
 }

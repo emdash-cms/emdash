@@ -14,6 +14,7 @@ import type { Kysely } from "kysely";
 import { MediaRepository } from "../database/repositories/media.js";
 import type { Database } from "../database/types.js";
 import type { Storage } from "../index.js";
+import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type {
 	CreateMediaProviderFn,
 	MediaProvider,
@@ -120,6 +121,12 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 			}
 
 			await repo.delete(id);
+
+			// If this row was referenced by `logo`, `favicon`, or
+			// `seo.defaultOgImage`, the worker-scoped settings cache now
+			// holds a stale URL. The provider routes (and any future caller)
+			// bypass `handleMediaDelete`, so we invalidate here too.
+			invalidateSiteSettingsCache();
 		},
 
 		getEmbed(value: MediaValue, _options?: EmbedOptions): EmbedResult {

@@ -28,7 +28,7 @@ import type { ContentItem as ContentItemInternal } from "./database/repositories
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
-import type { SandboxedPlugin, SandboxRunner } from "./plugins/sandbox/types.js";
+import type { SandboxedPluginInstance, SandboxRunner } from "./plugins/sandbox/types.js";
 import type {
 	ResolvedPlugin,
 	MediaItem,
@@ -161,9 +161,11 @@ import { NodeCronScheduler } from "./plugins/scheduler/node.js";
 import { PiggybackScheduler } from "./plugins/scheduler/piggyback.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
+import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { FTSManager } from "./search/fts-manager.js";
+import { invalidateSiteSettingsCache } from "./settings/index.js";
 
 /**
  * Map schema field types to editor field kinds
@@ -279,7 +281,7 @@ export interface EmDashRuntimeParts {
 	db: Kysely<Database>;
 	storage: Storage | null;
 	configuredPlugins: ResolvedPlugin[];
-	sandboxedPlugins: Map<string, SandboxedPlugin>;
+	sandboxedPlugins: Map<string, SandboxedPluginInstance>;
 	sandboxedPluginEntries: SandboxedPluginEntry[];
 	hooks: HookPipeline;
 	enabledPlugins: Set<string>;
@@ -312,9 +314,20 @@ function contentItemToRecord(item: ContentItemInternal): Record<string, unknown>
 const dbCache = new Map<string, Kysely<Database>>();
 let dbInitPromise: Promise<Kysely<Database>> | null = null;
 const storageCache = new Map<string, Storage>();
-const sandboxedPluginCache = new Map<string, SandboxedPlugin>();
+const sandboxedPluginCache = new Map<string, SandboxedPluginInstance>();
+/**
+ * Per-tier sets of `${pluginId}:${version}` keys present in
+ * `sandboxedPluginCache`. Used during sync to know which entries belong
+ * to which install source so we can invalidate only what belongs to the
+ * tier currently being synced.
+ */
 const marketplacePluginKeys = new Set<string>();
-/** Manifest metadata for marketplace plugins: pluginId -> manifest admin config */
+const registryPluginKeys = new Set<string>();
+/**
+ * Manifest metadata for runtime-installed sandboxed plugins (marketplace
+ * and registry both). Keyed by `pluginId`; readers don't care which
+ * source the plugin came from. Named `marketplace*` for legacy reasons.
+ */
 const marketplaceManifestCache = new Map<
 	string,
 	{
@@ -339,7 +352,7 @@ export class EmDashRuntime {
 	private readonly _db: Kysely<Database>;
 	readonly storage: Storage | null;
 	readonly configuredPlugins: ResolvedPlugin[];
-	readonly sandboxedPlugins: Map<string, SandboxedPlugin>;
+	readonly sandboxedPlugins: Map<string, SandboxedPluginInstance>;
 	readonly sandboxedPluginEntries: SandboxedPluginEntry[];
 	readonly schemaRegistry: SchemaRegistry;
 	private _hooks!: HookPipeline;
@@ -525,7 +538,7 @@ export class EmDashRuntime {
 	 * current worker: loads newly active plugins and removes uninstalled ones.
 	 */
 	async syncMarketplacePlugins(): Promise<void> {
-		if (!this.config.marketplace || !this.storage) return;
+		if (!this.config.marketplace) return;
 
 		// In sandbox bypass mode (sandbox: false), the noop runner reports
 		// unavailable but we still want admin metadata for newly installed
@@ -537,14 +550,45 @@ export class EmDashRuntime {
 			return;
 		}
 
+		await this.syncSandboxedSourcePlugins("marketplace");
+	}
+
+	/**
+	 * Synchronize registry plugin runtime state with DB + storage.
+	 *
+	 * Mirrors {@link syncMarketplacePlugins} for plugins installed via the
+	 * experimental decentralized plugin registry. Called after install,
+	 * update, and uninstall handlers complete.
+	 */
+	async syncRegistryPlugins(): Promise<void> {
+		if (!this.config.experimental?.registry) return;
+		await this.syncSandboxedSourcePlugins("registry");
+	}
+
+	/**
+	 * Internal: reconcile in-memory sandboxed-plugin state with the
+	 * `_plugin_state` table for the given source tier. Shared
+	 * implementation behind {@link syncMarketplacePlugins} and
+	 * {@link syncRegistryPlugins}.
+	 *
+	 * Each source tier has its own key set in `${source}PluginKeys` so a
+	 * sync for one tier doesn't invalidate the other.
+	 */
+	private async syncSandboxedSourcePlugins(source: "marketplace" | "registry"): Promise<void> {
+		if (!this.storage) return;
 		if (!sandboxRunner || !sandboxRunner.isAvailable()) return;
+
+		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
 
 		try {
 			const stateRepo = new PluginStateRepository(this.db);
-			const marketplaceStates = await stateRepo.getMarketplacePlugins();
+			const states =
+				source === "marketplace"
+					? await stateRepo.getMarketplacePlugins()
+					: await stateRepo.getRegistryPlugins();
 
 			const desired = new Map<string, string>();
-			for (const state of marketplaceStates) {
+			for (const state of states) {
 				this.pluginStates.set(state.pluginId, state.status);
 				if (state.status === "active") {
 					this.enabledPlugins.add(state.pluginId);
@@ -552,12 +596,16 @@ export class EmDashRuntime {
 					this.enabledPlugins.delete(state.pluginId);
 				}
 				if (state.status !== "active") continue;
-				desired.set(state.pluginId, state.marketplaceVersion ?? state.version);
+				// Marketplace plugins use `marketplaceVersion` when present;
+				// registry plugins always use `version`.
+				const desiredVersion =
+					source === "marketplace" ? (state.marketplaceVersion ?? state.version) : state.version;
+				desired.set(state.pluginId, desiredVersion);
 			}
 
-			// Remove uninstalled or no-longer-active marketplace plugins from memory.
+			// Remove uninstalled or no-longer-active plugins from memory.
 			const keysToRemove: string[] = [];
-			for (const key of marketplacePluginKeys) {
+			for (const key of keySet) {
 				const [pluginId] = key.split(":");
 				if (!pluginId) continue;
 				const desiredVersion = desired.get(pluginId);
@@ -585,31 +633,31 @@ export class EmDashRuntime {
 
 				sandboxedPluginCache.delete(key);
 				this.sandboxedPlugins.delete(key);
-				marketplacePluginKeys.delete(key);
+				keySet.delete(key);
 				if (pluginId) {
 					sandboxedRouteMetaCache.delete(pluginId);
 					marketplaceManifestCache.delete(pluginId);
 				}
 			}
 
-			// Load newly active marketplace plugins.
+			// Load newly active plugins.
 			for (const [pluginId, version] of desired) {
 				const key = `${pluginId}:${version}`;
 				if (sandboxedPluginCache.has(key)) {
-					marketplacePluginKeys.add(key);
+					keySet.add(key);
 					continue;
 				}
 
-				const bundle = await loadBundleFromR2(this.storage, pluginId, version);
+				const bundle = await loadBundleFromR2(this.storage, pluginId, version, source);
 				if (!bundle) {
-					console.warn(`EmDash: Marketplace plugin ${pluginId}@${version} not found in R2`);
+					console.warn(`EmDash: ${source} plugin ${pluginId}@${version} not found in R2`);
 					continue;
 				}
 
 				const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
 				sandboxedPluginCache.set(key, loaded);
 				this.sandboxedPlugins.set(key, loaded);
-				marketplacePluginKeys.add(key);
+				keySet.add(key);
 
 				// Cache manifest admin config for getManifest()
 				marketplaceManifestCache.set(pluginId, {
@@ -631,7 +679,7 @@ export class EmDashRuntime {
 				}
 			}
 		} catch (error) {
-			console.error("EmDash: Failed to sync marketplace plugins:", error);
+			console.error(`EmDash: Failed to sync ${source} plugins:`, error);
 		}
 	}
 
@@ -998,7 +1046,26 @@ export class EmDashRuntime {
 		// the sandbox runner. In bypass mode this was already handled above.
 		if (deps.config.marketplace && storage && !deps.sandboxBypassed) {
 			await phase("rt.market", "Marketplace plugins", () =>
-				EmDashRuntime.loadMarketplacePlugins(db, storage, deps, sandboxedPlugins),
+				EmDashRuntime.loadInstalledSandboxedPlugins(
+					"marketplace",
+					db,
+					storage,
+					deps,
+					sandboxedPlugins,
+				),
+			);
+		}
+
+		// Cold-start: load registry-installed plugins from site R2
+		if (deps.config.experimental?.registry && storage) {
+			await phase("rt.registry", "Registry plugins", () =>
+				EmDashRuntime.loadInstalledSandboxedPlugins(
+					"registry",
+					db,
+					storage,
+					deps,
+					sandboxedPlugins,
+				),
 			);
 		}
 
@@ -1370,7 +1437,7 @@ export class EmDashRuntime {
 		deps: RuntimeDependencies,
 		db: Kysely<Database>,
 		mediaStorage?: Storage | null,
-	): Promise<Map<string, SandboxedPlugin>> {
+	): Promise<Map<string, SandboxedPluginInstance>> {
 		// Return cached plugins if already loaded
 		if (sandboxedPluginCache.size > 0) {
 			return sandboxedPluginCache;
@@ -1465,11 +1532,20 @@ export class EmDashRuntime {
 	 * Queries _plugin_state for source='marketplace' rows, fetches each bundle
 	 * from R2, and loads via SandboxRunner.
 	 */
-	private static async loadMarketplacePlugins(
+	/**
+	 * Cold-start load of all active sandboxed plugins for one install
+	 * tier (marketplace or registry) from site-local R2.
+	 *
+	 * Mirrors {@link syncSandboxedSourcePlugins} but runs once at runtime
+	 * creation, before request traffic arrives; the sync method runs on
+	 * demand after install / update / uninstall handlers.
+	 */
+	private static async loadInstalledSandboxedPlugins(
+		source: "marketplace" | "registry",
 		db: Kysely<Database>,
 		storage: Storage,
 		deps: RuntimeDependencies,
-		cache: Map<string, SandboxedPlugin>,
+		cache: Map<string, SandboxedPluginInstance>,
 	): Promise<void> {
 		// Ensure sandbox runner exists with media storage wired up.
 		// (storage here is the media Storage adapter from the runtime.)
@@ -1495,31 +1571,37 @@ export class EmDashRuntime {
 			return;
 		}
 
+		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
+
 		try {
 			const stateRepo = new PluginStateRepository(db);
-			const marketplacePlugins = await stateRepo.getMarketplacePlugins();
+			const plugins =
+				source === "marketplace"
+					? await stateRepo.getMarketplacePlugins()
+					: await stateRepo.getRegistryPlugins();
 
-			for (const plugin of marketplacePlugins) {
+			for (const plugin of plugins) {
 				if (plugin.status !== "active") continue;
 
-				const version = plugin.marketplaceVersion ?? plugin.version;
+				// Marketplace plugins record the live version in
+				// `marketplaceVersion`; registry plugins use `version` directly.
+				const version =
+					source === "marketplace" ? (plugin.marketplaceVersion ?? plugin.version) : plugin.version;
 				const pluginKey = `${plugin.pluginId}:${version}`;
 
 				// Skip if already loaded (shouldn't happen, but guard)
 				if (cache.has(pluginKey)) continue;
 
 				try {
-					const bundle = await loadBundleFromR2(storage, plugin.pluginId, version);
+					const bundle = await loadBundleFromR2(storage, plugin.pluginId, version, source);
 					if (!bundle) {
-						console.warn(
-							`EmDash: Marketplace plugin ${plugin.pluginId}@${version} not found in R2`,
-						);
+						console.warn(`EmDash: ${source} plugin ${plugin.pluginId}@${version} not found in R2`);
 						continue;
 					}
 
 					const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
 					cache.set(pluginKey, loaded);
-					marketplacePluginKeys.add(pluginKey);
+					keySet.add(pluginKey);
 
 					// Cache manifest admin config for getManifest()
 					marketplaceManifestCache.set(plugin.pluginId, {
@@ -1539,10 +1621,10 @@ export class EmDashRuntime {
 					}
 
 					console.log(
-						`EmDash: Loaded marketplace plugin ${pluginKey} with capabilities: [${bundle.manifest.capabilities.join(", ")}]`,
+						`EmDash: Loaded ${source} plugin ${pluginKey} with capabilities: [${bundle.manifest.capabilities.join(", ")}]`,
 					);
 				} catch (error) {
-					console.error(`EmDash: Failed to load marketplace plugin ${plugin.pluginId}:`, error);
+					console.error(`EmDash: Failed to load ${source} plugin ${plugin.pluginId}:`, error);
 				}
 			}
 		} catch {
@@ -1748,6 +1830,8 @@ export class EmDashRuntime {
 						// or arbitrary `Record<string, unknown>` for plugin field widgets that
 						// need per-field config (e.g. a checkbox grid receiving its column defs).
 						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
+						id?: string;
+						validation?: Record<string, unknown>;
 					}
 				> = {};
 
@@ -1757,6 +1841,9 @@ export class EmDashRuntime {
 						label: field.label,
 						required: field.required,
 					};
+					// Always include the field's database ID so the admin can forward it
+					// to upload/media-list API calls for MIME allowlist widening.
+					entry.id = field.id;
 					if (field.widget) entry.widget = field.widget;
 					// Plugin field widgets read their per-field config from `field.options`,
 					// which the seed schema types as `Record<string, unknown>`. Pass it
@@ -1773,8 +1860,12 @@ export class EmDashRuntime {
 						}));
 					}
 					// Include full validation for repeater fields (subFields, minItems, maxItems)
-					if (field.type === "repeater" && field.validation) {
-						(entry as Record<string, unknown>).validation = field.validation;
+					// and for file/image fields (allowedMimeTypes).
+					if (
+						(field.type === "repeater" || field.type === "file" || field.type === "image") &&
+						field.validation
+					) {
+						entry.validation = { ...field.validation };
 					}
 					fields[field.slug] = entry;
 				}
@@ -1937,6 +2028,12 @@ export class EmDashRuntime {
 				? { defaultLocale: i18nConfig.defaultLocale, locales: i18nConfig.locales }
 				: undefined;
 
+		// Normalize the experimental registry config for browser consumption.
+		// Validation errors here surface as 500s from the manifest endpoint
+		// rather than being silently dropped -- a misconfigured registry
+		// should be loud, not invisible.
+		const registry = normalizeRegistryConfig(this.config.experimental?.registry) ?? undefined;
+
 		return {
 			version: VERSION,
 			commit: COMMIT,
@@ -1947,6 +2044,7 @@ export class EmDashRuntime {
 			authMode: authModeValue,
 			i18n,
 			marketplace: !!this.config.marketplace,
+			registry,
 		};
 	}
 
@@ -2441,7 +2539,11 @@ export class EmDashRuntime {
 	// Media Handlers
 	// =========================================================================
 
-	async handleMediaList(params: { cursor?: string; limit?: number; mimeType?: string }) {
+	async handleMediaList(params: {
+		cursor?: string;
+		limit?: number;
+		mimeType?: string | readonly string[];
+	}) {
 		return handleMediaList(this.db, params);
 	}
 
@@ -2503,11 +2605,29 @@ export class EmDashRuntime {
 		id: string,
 		input: { alt?: string; caption?: string; width?: number; height?: number },
 	) {
-		return handleMediaUpdate(this.db, id, input);
+		const result = await handleMediaUpdate(this.db, id, input);
+		// Resolved media references in site settings (`logo`, `favicon`,
+		// `seo.defaultOgImage`) bake in the media row's `contentType`,
+		// `width`, and `height`. A metadata edit invalidates that snapshot
+		// for every entry point: REST routes, MCP tools, plugin code, and
+		// any future caller of `handleMediaUpdate`. Cross-isolate staleness
+		// remains bounded by isolate lifetime.
+		if (result.success) {
+			invalidateSiteSettingsCache();
+		}
+		return result;
 	}
 
 	async handleMediaDelete(id: string) {
-		return handleMediaDelete(this.db, id);
+		const result = await handleMediaDelete(this.db, id);
+		// Same reasoning as `handleMediaUpdate`: if the deleted media row
+		// was referenced by a setting, the cached resolved URL now points
+		// at a 404. Invalidation is unconditional on success — cheaper than
+		// querying which settings reference the id.
+		if (result.success) {
+			invalidateSiteSettingsCache();
+		}
+		return result;
 	}
 
 	// =========================================================================
@@ -2693,7 +2813,7 @@ export class EmDashRuntime {
 	// Sandboxed Plugin Helpers
 	// =========================================================================
 
-	private findSandboxedPlugin(pluginId: string): SandboxedPlugin | undefined {
+	private findSandboxedPlugin(pluginId: string): SandboxedPluginInstance | undefined {
 		for (const [key, plugin] of this.sandboxedPlugins) {
 			if (key.startsWith(pluginId + ":")) {
 				return plugin;
@@ -2906,7 +3026,7 @@ export class EmDashRuntime {
 	}
 
 	private async handleSandboxedRoute(
-		plugin: SandboxedPlugin,
+		plugin: SandboxedPluginInstance,
 		path: string,
 		request: Request,
 	): Promise<{

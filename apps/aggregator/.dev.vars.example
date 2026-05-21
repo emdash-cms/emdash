@@ -1,0 +1,8 @@
+# Local-dev secrets for the aggregator Worker. Copy to `.dev.vars` (which is
+# gitignored) and customise. `wrangler dev` reads this file and binds the
+# values into `env`. Production secrets are managed via
+# `wrangler secret put <NAME>` and never appear in the repo.
+
+# Bearer token for the /_admin/* routes. Any non-empty string works locally;
+# pick something you'd recognise in `wrangler tail` logs.
+ADMIN_TOKEN=dev-only-not-for-production

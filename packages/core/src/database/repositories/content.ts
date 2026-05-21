@@ -518,12 +518,16 @@ export class ContentRepository {
 			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
 			.limit(limit + 1);
 
-		const rows = await query.execute();
+		// Run the page fetch and the unbounded count together — the UI needs
+		// both to render a stable denominator, and issuing them in parallel
+		// on SQLite is essentially free.
+		const [rows, total] = await Promise.all([query.execute(), this.count(type, options.where)]);
 		const hasMore = rows.length > limit;
 		const items = rows.slice(0, limit);
 
 		const mappedResult: FindManyResult<ContentItem> = {
 			items: items.map((row) => this.mapRow(type, row as Record<string, unknown>)),
+			total,
 		};
 
 		if (hasMore && items.length > 0) {
@@ -637,12 +641,23 @@ export class ContentRepository {
 	/**
 	 * Permanently delete content (cannot be undone)
 	 */
+	/**
+	 * Permanently delete a soft-deleted content row.
+	 *
+	 * Returns `true` only when a soft-deleted (trashed) row was removed.
+	 * Returns `false` when no row exists OR when the row exists but is live —
+	 * the caller is responsible for distinguishing these cases (typically via
+	 * a follow-up `findByIdOrSlugIncludingTrashed` to surface NOT_FOUND vs
+	 * NOT_TRASHED). The `AND deleted_at IS NOT NULL` clause is the safety net
+	 * that prevents permanent delete from bypassing the trash workflow.
+	 */
 	async permanentDelete(type: string, id: string): Promise<boolean> {
 		const tableName = getTableName(type);
 
 		const result = await sql`
 			DELETE FROM ${sql.ref(tableName)}
 			WHERE id = ${id}
+			AND deleted_at IS NOT NULL
 		`.execute(this.db);
 
 		return (result.numAffectedRows ?? 0n) > 0n;

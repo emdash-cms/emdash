@@ -2,6 +2,9 @@
  * User management, passkeys, and allowed domains APIs
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import {
 	API_BASE,
 	apiFetch,
@@ -82,10 +85,13 @@ export async function fetchUser(id: string): Promise<UserDetail> {
 		if (response.status === 404) {
 			throw new Error(`User not found: ${id}`);
 		}
-		await throwResponseError(response, "Failed to fetch user");
+		await throwResponseError(response, i18n._(msg`Failed to fetch user`));
 	}
 
-	const data = await parseApiResponse<{ item: UserDetail }>(response, "Failed to fetch user");
+	const data = await parseApiResponse<{ item: UserDetail }>(
+		response,
+		i18n._(msg`Failed to fetch user`),
+	);
 	return data.item;
 }
 
@@ -109,7 +115,7 @@ export async function disableUser(id: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/admin/users/${id}/disable`, {
 		method: "POST",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to disable user");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to disable user`));
 }
 
 /**
@@ -119,7 +125,7 @@ export async function sendRecoveryLink(id: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/admin/users/${id}/send-recovery`, {
 		method: "POST",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to send recovery link");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to send recovery link`));
 }
 
 /**
@@ -129,7 +135,7 @@ export async function enableUser(id: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/admin/users/${id}/enable`, {
 		method: "POST",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to enable user");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to enable user`));
 }
 
 /** Invite response -- includes inviteUrl when no email provider is configured */
@@ -247,7 +253,7 @@ export async function deletePasskey(id: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/auth/passkey/${id}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete passkey");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete passkey`));
 }
 
 // =============================================================================
@@ -335,7 +341,8 @@ export async function deleteAllowedDomain(domain: string): Promise<void> {
 			method: "DELETE",
 		},
 	);
-	if (!response.ok) await throwResponseError(response, "Failed to delete allowed domain");
+	if (!response.ok)
+		await throwResponseError(response, i18n._(msg`Failed to delete allowed domain`));
 }
 
 // =============================================================================

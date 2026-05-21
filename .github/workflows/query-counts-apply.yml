@@ -126,7 +126,7 @@ jobs:
       - name: Generate app token
         if: steps.download.outputs.found == 'true'
         id: app-token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
@@ -139,6 +139,9 @@ jobs:
         with:
           ref: ${{ steps.pr.outputs.sha }}
           token: ${{ steps.app-token.outputs.token }}
+          # Intentional: the same-repo push step below pushes the
+          # updated snapshots back to the PR branch using this credential.
+          persist-credentials: true
 
       # --- Fork PRs: checkout the fork at the pinned SHA so we can push back ---
 

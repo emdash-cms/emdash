@@ -15,7 +15,7 @@ import { env, exports } from "cloudflare:workers";
 import {
 	normalizeCapabilities,
 	type SandboxRunner,
-	type SandboxedPlugin,
+	type SandboxedPluginInstance,
 	type SandboxEmailSendCallback,
 	type SandboxOptions,
 	type SandboxRunnerFactory,
@@ -26,8 +26,6 @@ import {
 import { setEmailSendCallback } from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
-
-const EMDASH_SHIM = "export const definePlugin = (d) => d;\n";
 
 /**
  * Default resource limits for sandboxed plugins.
@@ -144,7 +142,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	 * @param manifest - Plugin manifest with capabilities and storage declarations
 	 * @param code - The bundled plugin JavaScript code
 	 */
-	async load(manifest: PluginManifest, code: string): Promise<SandboxedPlugin> {
+	async load(manifest: PluginManifest, code: string): Promise<SandboxedPluginInstance> {
 		const pluginId = `${manifest.id}:${manifest.version}`;
 
 		// Return cached plugin if available
@@ -197,7 +195,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
  * We must create fresh stubs for each invocation to avoid I/O isolation errors:
  * "Cannot perform I/O on behalf of a different request"
  */
-class CloudflareSandboxedPlugin implements SandboxedPlugin {
+class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 	readonly id: string;
 	readonly manifest: PluginManifest;
 	private loader: WorkerLoader;
@@ -282,7 +280,6 @@ class CloudflareSandboxedPlugin implements SandboxedPlugin {
 			modules: {
 				"plugin.js": { js: this.wrapperCode! },
 				"sandbox-plugin.js": { js: this.code },
-				emdash: { js: EMDASH_SHIM },
 			},
 			// Block direct network access - plugins must use ctx.http via bridge
 			globalOutbound: null,

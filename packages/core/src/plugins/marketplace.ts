@@ -376,7 +376,26 @@ class MarketplaceClientImpl implements MarketplaceClient {
  *
  * We use a minimal tar parser since we only need to read a few small files.
  */
-async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBundle> {
+/**
+ * Exported so the experimental registry install handler can reuse the
+ * same parse / validate / hash primitive. Despite the file name, this
+ * function predates the marketplace-vs-registry split and is generic
+ * over plugin bundle tarballs regardless of distribution channel.
+ */
+// Aligns with RFC 0001 §"Bundle size limits" (256 KiB decompressed,
+// 20 files). Matches `MAX_BUNDLE_SIZE` in cli/commands/bundle-utils.ts
+// (the publish-side cap). We don't import that constant to keep this
+// runtime module independent of the CLI; the two values are
+// load-bearing identical and must stay in sync.
+//
+// Tar adds per-file headers (~512 bytes each) plus directory entries,
+// so the entry count cap is set comfortably above RFC's 20-file limit.
+// Going over either is a strong signal the bundle isn't a legitimate
+// sandboxed plugin.
+const MAX_DECOMPRESSED_BUNDLE_BYTES = 256 * 1024;
+const MAX_BUNDLE_TAR_ENTRIES = 32;
+
+export async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBundle> {
 	// Decompress fully into memory first, then parse the tar.
 	// Passing a pipeThrough() stream directly to unpackTar causes a backpressure
 	// deadlock in workerd: the tar decoder's body-stream pull() needs more
@@ -389,9 +408,42 @@ async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBundle> {
 		},
 	}).pipeThrough(createGzipDecoder());
 
-	// Collect decompressed bytes fully before parsing
-	const decompressedBuf = await new Response(decompressedStream).arrayBuffer();
-	const decompressedBytes = new Uint8Array(decompressedBuf);
+	// Collect decompressed bytes with a hard cap. A gzip-bomb -- a small
+	// tarball that decompresses to gigabytes -- otherwise exhausts
+	// worker / Node memory before we know to reject it. The cap matches
+	// RFC 0001's publish-time bundle size limit (MAX_DECOMPRESSED_BUNDLE_BYTES);
+	// anything past that isn't a legitimate sandboxed plugin.
+	const reader = decompressedStream.getReader();
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		if (!value) continue;
+		total += value.byteLength;
+		if (total > MAX_DECOMPRESSED_BUNDLE_BYTES) {
+			try {
+				await reader.cancel();
+			} catch {
+				// nothing to do
+			}
+			throw new MarketplaceError(
+				`Bundle decompressed size exceeds limit (${MAX_DECOMPRESSED_BUNDLE_BYTES} bytes)`,
+				undefined,
+				"INVALID_BUNDLE",
+			);
+		}
+		chunks.push(value);
+	}
+	const decompressedBytes = new Uint8Array(total);
+	{
+		let offset = 0;
+		for (const chunk of chunks) {
+			decompressedBytes.set(chunk, offset);
+			offset += chunk.byteLength;
+		}
+	}
+
 	const decompressed = new ReadableStream<Uint8Array>({
 		start(controller) {
 			controller.enqueue(decompressedBytes);
@@ -400,6 +452,13 @@ async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBundle> {
 	});
 
 	const entries = await unpackTar(decompressed);
+	if (entries.length > MAX_BUNDLE_TAR_ENTRIES) {
+		throw new MarketplaceError(
+			`Bundle has too many tar entries (${entries.length} > ${MAX_BUNDLE_TAR_ENTRIES})`,
+			undefined,
+			"INVALID_BUNDLE",
+		);
+	}
 
 	const decoder = new TextDecoder();
 	const files = new Map<string, string>();

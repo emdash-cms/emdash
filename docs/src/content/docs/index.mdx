@@ -16,16 +16,15 @@ hero:
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
 
-## Why EmDash?
+## Why EmDash
 
 <CardGrid stagger>
 	<Card title="Astro-Native" icon="astro">
-		Built on Astro 6's Live Content Collections. No rebuilds needed—content updates instantly at
-		runtime.
+		Built on Astro 6's Live Content Collections. Content updates appear instantly at runtime.
 	</Card>
 	<Card title="Type-Safe" icon="setting">
-		Schema defined in the database, TypeScript types generated automatically. Full type safety from
-		database to template.
+		Generate TypeScript types from your content model for full type safety and
+		autocomplete, from query to template.
 	</Card>
 	<Card title="Plugin Ecosystem" icon="puzzle">
 		WordPress-inspired plugin system with hooks, storage, and admin UI extensions. Agent-portable
@@ -35,14 +34,11 @@ import { Card, CardGrid } from "@astrojs/starlight/components";
 
 ## Quick Start
 
+The following commands create a new EmDash site and start the development server. The admin UI is then available at `http://localhost:4321/_emdash/admin`.
+
 ```bash
-# Create a new EmDash site
 npm create astro@latest -- --template @emdash-cms/template-blog
-
-# Start the dev server
 npm run dev
-
-# Visit the admin at http://localhost:4321/_emdash/admin
 ```
 
 ## Features

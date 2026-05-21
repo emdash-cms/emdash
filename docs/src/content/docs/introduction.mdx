@@ -9,33 +9,33 @@ EmDash is an **Astro-native content management system**. It brings familiar CMS 
 
 ## What EmDash Is
 
-EmDash is a CMS built specifically for [Astro](https://astro.build). It uses Astro 6's Live Content Collections to serve content at runtime without rebuilds. Content is stored in SQLite-compatible databases (D1, libSQL, local SQLite) and media in S3-compatible storage (R2, local filesystem).
+EmDash is a CMS built specifically for [Astro](https://astro.build). It uses Astro 6's Live Content Collections to serve content at runtime, so edits appear immediately. Content is stored in a SQL database — SQLite, libSQL, Cloudflare D1, or PostgreSQL — and media in S3-compatible storage (R2 or the local filesystem).
 
 **Key characteristics:**
 
-- **Database-first schema** — Collections and fields are defined in the database, not code. Create and modify content types from the admin UI.
-- **Live Collections** — Content changes are immediately available. No static rebuilds needed.
+- **Visual content modelling** — Define and change collections and fields from the admin UI; changes take effect immediately.
+- **Live Collections** — Content is served at runtime, so edits appear immediately.
 - **Plugin system** — WordPress-inspired hooks, storage, settings, and admin UI extensions.
-- **Cloud-portable** — Runs on Cloudflare (Workers + D1 + R2), Node.js, local SQLite, and any S3-compatible storage.
+- **Cloud-portable** — Runs on Cloudflare (Workers + D1 + R2) or Node.js, with SQLite, libSQL, or PostgreSQL and any S3-compatible storage.
 
 ## What EmDash Is Not
 
-- **Not a headless CMS** — EmDash is tightly integrated with Astro. It's not a separate service you call via API.
-- **Not WordPress-compatible** — No PHP, no WordPress plugins running directly. But WordPress content and concepts migrate cleanly.
-- **Not a page builder** — EmDash focuses on structured content. For visual page building, use Astro components.
+- **Not a headless CMS** — EmDash is tightly integrated with Astro and runs in the same deployment, rather than as a separate service you call over an API.
+- **Not WordPress-compatible** — It does not run PHP or WordPress plugins. WordPress content and concepts migrate to EmDash equivalents.
+- **Not a page builder** — EmDash manages structured content. Build visual layouts with Astro components.
 
 ## Who EmDash Is For
 
 <CardGrid>
 	<Card title="Agency developers" icon="laptop">
-		Spin up client sites quickly with reusable plugins and themes. No PHP security updates, no
-		plugin conflicts.
+		Spin up client sites quickly with reusable plugins and themes. Plugins run in isolated contexts
+		with explicit APIs.
 	</Card>
 	<Card title="Solo developers" icon="seti:todo">
-		Full-stack framework with CMS built in. No separate headless CMS to manage.
+		Content management is part of the Astro site, deployed and managed as one project.
 	</Card>
 	<Card title="Content editors" icon="pencil">
-		Intuitive admin panel. Create and edit content without touching code.
+		Create and edit content in the admin panel.
 	</Card>
 	<Card title="WordPress users" icon="right-arrow">
 		Migration path for content and plugins. Modern tooling, familiar concepts.
@@ -43,6 +43,8 @@ EmDash is a CMS built specifically for [Astro](https://astro.build). It uses Ast
 </CardGrid>
 
 ## Architecture at a Glance
+
+The following diagram shows how EmDash sits inside an Astro site, connecting the content engine, admin panel, and plugins to the data layer.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -58,7 +60,7 @@ EmDash is a CMS built specifically for [Astro](https://astro.build). It uses Ast
 │  │                                                       │  │
 │  │  ┌───────────────────────────────────────────────────┐│  │
 │  │  │                  Data Layer                       ││  │
-│  │  │    SQLite/D1      ←→  Kysely  ←→  R2/S3/Local    ││  │
+│  │  │Database (SQLite/libSQL/D1/Postgres) + media store ││  │
 │  │  └───────────────────────────────────────────────────┘│  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                             │
@@ -70,13 +72,13 @@ EmDash is a CMS built specifically for [Astro](https://astro.build). It uses Ast
 ```
 
 <Aside type="tip">
-	EmDash is Astro-native and cloud-portable. It runs on Cloudflare (D1 + R2 + Workers), Node.js,
-	local SQLite, and any S3-compatible storage.
+	EmDash is Astro-native and cloud-portable. It runs on Cloudflare (D1 + R2 + Workers) or Node.js,
+	with SQLite, libSQL, or PostgreSQL and any S3-compatible storage.
 </Aside>
 
 ## Core Concepts
 
-Before diving in, familiarize yourself with these key concepts:
+These are the key concepts used throughout the documentation:
 
 - **Collections** — Content types defined in the database (posts, pages, products, etc.)
 - **Fields** — The properties of a collection (title, content, price, etc.)
