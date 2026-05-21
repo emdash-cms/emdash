@@ -272,6 +272,13 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	/** Next available port for plugin nanoservices */
 	private nextPluginPort = 18788;
 
+	/**
+	 * Ports freed by unloadPlugin(), preferred over nextPluginPort on the
+	 * next load() so install/uninstall churn (marketplace updates, dev
+	 * watcher reloads) doesn't leak the port range upward toward 65535.
+	 */
+	private freePorts: number[] = [];
+
 	/** Whether workerd is currently healthy */
 	private healthy = false;
 
@@ -423,8 +430,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			return new WorkerdSandboxedPlugin(pluginId, manifest, existing.port, this.limits, this);
 		}
 
-		// Assign port and generate auth token
-		const port = this.nextPluginPort++;
+		// Assign port and generate auth token. Reuse a freed port if one is
+		// available, otherwise allocate the next sequential port.
+		const port = this.freePorts.pop() ?? this.nextPluginPort++;
 		const token = this.generatePluginToken(manifest);
 
 		this.plugins.set(pluginId, { manifest, code, port, token });
@@ -447,14 +455,18 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * before loading the new version, and back-to-back restarts are wasteful.
 	 */
 	unloadPlugin(pluginId: string): void {
-		if (this.plugins.delete(pluginId)) {
-			this.backingService?.removePlugin(pluginId);
-			if (this.plugins.size === 0) {
-				void this.stopWorkerd();
-			} else {
-				this.needsRestart = true;
-				this.scheduleEagerStart();
-			}
+		// Read the entry before delete() -- Map.delete returns a boolean,
+		// not the removed value, so we need the port for the free-port pool.
+		const entry = this.plugins.get(pluginId);
+		if (!entry) return;
+		this.plugins.delete(pluginId);
+		this.freePorts.push(entry.port);
+		this.backingService?.removePlugin(pluginId);
+		if (this.plugins.size === 0) {
+			void this.stopWorkerd();
+		} else {
+			this.needsRestart = true;
+			this.scheduleEagerStart();
 		}
 	}
 
