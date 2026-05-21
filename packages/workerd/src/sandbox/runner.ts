@@ -150,6 +150,53 @@ export async function probeAllReady(
 }
 
 /**
+ * Minimal shape of the runner that the exit handler needs. Pulled out so
+ * the handler can be built and tested in isolation -- the identity guard
+ * (`host.workerdProcess !== proc`) is the load-bearing piece.
+ */
+export type ExitHandlerHost = {
+	workerdProcess: ChildProcess | null;
+	healthy: boolean;
+	shuttingDown: boolean;
+	intentionalStop: boolean;
+	scheduleRestart(): void;
+};
+
+/**
+ * Build an exit handler bound to a specific spawned workerd process.
+ *
+ * The handler short-circuits if the host has already moved on to a newer
+ * workerd (`host.workerdProcess !== proc`), which would otherwise let a
+ * late exit from a prior process clobber the live one's handle and mark
+ * it unhealthy. Exported for testing; not re-exported from the package
+ * barrel.
+ */
+export function makeWorkerdExitHandler(
+	host: ExitHandlerHost,
+	proc: ChildProcess,
+): (code: number | null, signal: NodeJS.Signals | null) => void {
+	return (code, signal) => {
+		if (host.workerdProcess !== proc) return; // stale handler from a prior workerd
+		host.healthy = false;
+		host.workerdProcess = null;
+		if (host.shuttingDown) return;
+		// Skip crash recovery for intentional stops (e.g., reload via
+		// stopWorkerd() during restart()). Reset the flag so the next
+		// exit, if it happens unexpectedly, is treated as a real crash.
+		if (host.intentionalStop) {
+			host.intentionalStop = false;
+			return;
+		}
+		// Restart on non-zero exit code OR signal-based termination (OOM, kill)
+		if ((code !== 0 && code !== null) || signal) {
+			const reason = signal ? `signal ${signal}` : `code ${code}`;
+			console.error(`[emdash:workerd] workerd exited with ${reason}`);
+			host.scheduleRestart();
+		}
+	};
+}
+
+/**
  * Workerd sandbox runner for Node.js deployments.
  *
  * Manages a workerd child process and a backing service HTTP server.
@@ -568,42 +615,31 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		const configPath = join(this.configDir, "workerd.capnp");
 		await writeFile(configPath, capnpConfig);
 
-		// Spawn workerd using resolved binary (not npx)
+		// Spawn workerd using resolved binary (not npx). Capture into a local
+		// `proc` immediately so the exit handler closure can gate on identity
+		// and ignore late exits from a previous workerd if another restart()
+		// has already reassigned this.workerdProcess.
 		const workerdBin = this.resolveWorkerdBinary();
-		this.workerdProcess = spawn(workerdBin, ["serve", configPath], {
+		const proc = spawn(workerdBin, ["serve", configPath], {
 			stdio: ["ignore", "pipe", "pipe"],
 			env: { ...process.env },
 		});
+		this.workerdProcess = proc;
 
 		this.epoch++;
 
 		// Drain stdout/stderr to prevent pipe buffer deadlock
-		this.workerdProcess.stdout?.on("data", (chunk: Buffer) => {
+		proc.stdout?.on("data", (chunk: Buffer) => {
 			process.stdout.write(`[emdash:workerd] ${chunk.toString()}`);
 		});
-		this.workerdProcess.stderr?.on("data", (chunk: Buffer) => {
+		proc.stderr?.on("data", (chunk: Buffer) => {
 			process.stderr.write(`[emdash:workerd] ${chunk.toString()}`);
 		});
 
-		// Handle workerd exit with auto-restart on crash
-		this.workerdProcess.on("exit", (code, signal) => {
-			this.healthy = false;
-			this.workerdProcess = null;
-			if (this.shuttingDown) return;
-			// Skip crash recovery for intentional stops (e.g., reload via
-			// stopWorkerd() during restart()). Reset the flag so the next
-			// exit, if it happens unexpectedly, is treated as a real crash.
-			if (this.intentionalStop) {
-				this.intentionalStop = false;
-				return;
-			}
-			// Restart on non-zero exit code OR signal-based termination (OOM, kill)
-			if ((code !== 0 && code !== null) || signal) {
-				const reason = signal ? `signal ${signal}` : `code ${code}`;
-				console.error(`[emdash:workerd] workerd exited with ${reason}`);
-				this.scheduleRestart();
-			}
-		});
+		// Handle workerd exit with auto-restart on crash. Gate on identity
+		// so a late exit from a prior workerd cannot null out a newer one.
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- runner satisfies ExitHandlerHost structurally; cast bypasses TS's nominal handling of private members
+		proc.on("exit", makeWorkerdExitHandler(this as unknown as ExitHandlerHost, proc));
 
 		// Wait for workerd to be ready
 		await this.waitForReady();
