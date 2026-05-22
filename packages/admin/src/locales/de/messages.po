@@ -5480,12 +5480,12 @@ msgstr "Schema bearbeiten"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
 msgid "Scopes"
-msgstr "Berechtigungen"
+msgstr "Bereiche"
 
 #. placeholder {0}: token.scopes.join(", ")
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:284
 msgid "Scopes: {0}"
-msgstr "Berechtigungen: {0}"
+msgstr "Bereiche: {0}"
 
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
