@@ -28,7 +28,7 @@
 		"ulidx": "^2.4.1"
 	},
 	"peerDependencies": {
-		"kysely": ">=0.27.0",
+		"kysely": ">=0.29.0",
 		"workerd": ">=1.0.0"
 	},
 	"optionalDependencies": {
@@ -37,7 +37,7 @@
 	"devDependencies": {
 		"@types/better-sqlite3": "catalog:",
 		"better-sqlite3": "catalog:",
-		"kysely": "^0.27.0",
+		"kysely": "catalog:",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "catalog:"
