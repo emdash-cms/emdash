@@ -237,6 +237,26 @@ function jsonResult(data: unknown): SuccessEnvelope {
 	return respondData(data);
 }
 
+function fallbackPluginToolInputSchema(): z.ZodType<Record<string, unknown>> {
+	return z.record(z.string(), z.unknown());
+}
+
+function safeJsonSchemaObjectToZod(
+	schema: Parameters<typeof jsonSchemaObjectToZod>[0],
+	pluginId: string,
+	toolName: string,
+): z.ZodType<Record<string, unknown>> {
+	try {
+		return jsonSchemaObjectToZod(schema);
+	} catch (error) {
+		console.warn(
+			`[emdash] Ignoring invalid MCP inputSchema for plugin tool ${pluginId}/${toolName}:`,
+			error,
+		);
+		return fallbackPluginToolInputSchema();
+	}
+}
+
 function normalizePluginToolRoute(route: string): string {
 	return route.replace(LEADING_SLASH_PATTERN, "");
 }
@@ -461,8 +481,8 @@ export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 				inputSchema:
 					tool.input ??
 					(tool.inputSchema
-						? jsonSchemaObjectToZod(tool.inputSchema)
-						: z.record(z.string(), z.unknown())),
+						? safeJsonSchemaObjectToZod(tool.inputSchema, tool.pluginId, tool.name)
+						: fallbackPluginToolInputSchema()),
 			},
 			async (args: Record<string, unknown>, extra) => {
 				requireScope(extra, "admin");

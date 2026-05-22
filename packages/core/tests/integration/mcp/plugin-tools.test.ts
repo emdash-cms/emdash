@@ -114,6 +114,31 @@ function createPluginWithJsonInputSchema(): ResolvedPlugin {
 	});
 }
 
+function createPluginWithInvalidJsonInputSchema(): ResolvedPlugin {
+	return definePlugin({
+		id: "invalid-json-schema-plugin",
+		version: "1.0.0",
+		capabilities: ["mcp:tools"],
+		routes: {
+			summarize: {
+				handler: async ({ input }) => {
+					return { input };
+				},
+			},
+		},
+		mcpTools: {
+			summarize: {
+				title: "Summarize Text",
+				description: "Summarize text with the test plugin.",
+				route: "summarize",
+				inputSchema: {
+					type: "definitely-not-valid",
+				} as unknown as NonNullable<ResolvedPlugin["mcpTools"]>[string]["inputSchema"],
+			},
+		},
+	});
+}
+
 describe("plugin MCP tools", () => {
 	let harness: McpHarness | undefined;
 	let dbCleanup: (() => Promise<void>) | undefined;
@@ -244,6 +269,22 @@ describe("plugin MCP tools", () => {
 		expect(isErrorResult(result)).toBe(true);
 		expect(extractText(result)).toContain("Input validation error");
 		expect(extractText(result)).toContain("text");
+	});
+
+	it("falls back when a trusted plugin provides an invalid JSON input schema", async () => {
+		const connected = await connectWithPlugins([createPluginWithInvalidJsonInputSchema()]);
+		const name = pluginToolName("invalid-json-schema-plugin", "summarize");
+
+		const tools = await connected.client.listTools();
+		expect(tools.tools.map((tool) => tool.name)).toContain(name);
+
+		const result = await connected.client.callTool({
+			name,
+			arguments: { text: "hello" },
+		});
+
+		expect(result.isError).toBeFalsy();
+		expect(extractJson(result)).toEqual({ input: { text: "hello" } });
 	});
 
 	it("does not list sandboxed plugin tools when the plugin is not loaded", async () => {

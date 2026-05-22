@@ -357,6 +357,13 @@ async function main() {
 			const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 			pkg.name = projectName;
 
+			// Templates ship with `packageManager: "pnpm@X"` baked in by the
+			// sync script. Drop it when the user picked a different PM so
+			// corepack doesn't force pnpm on yarn/npm/bun users.
+			if (pm !== "pnpm") {
+				delete pkg.packageManager;
+			}
+
 			// Add emdash config if template has seed data
 			const seedPath = resolve(projectDir, "seed", "seed.json");
 			if (existsSync(seedPath)) {

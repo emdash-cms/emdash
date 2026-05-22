@@ -20,10 +20,16 @@
  */
 
 import type { Did, Handle } from "@atcute/lexicons";
+import type {
+	ValidatedListReleases,
+	ValidatedPackageView,
+	ValidatedReleaseView,
+	ValidatedSearchPackages,
+} from "@emdash-cms/registry-client/discovery";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
-import { API_BASE, apiFetch, throwResponseError } from "./client.js";
+import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export type { Did, Handle };
 
@@ -46,39 +52,15 @@ export interface RegistryClientConfig {
 }
 
 /**
- * Lightweight aliases for the lexicon-generated types. The hooks return
- * the raw XRPC output -- callers narrow `profile` / `release` as needed
- * (they're typed as `unknown` by the lexicon because the signed records
- * are pass-through).
+ * Re-exports of the registry-client view types. `DiscoveryClient` validates
+ * the embedded signed `profile` / `release` records against their lexicons
+ * at the read-side trust boundary, so they arrive here as the typed lexicon
+ * shape or `null` when the aggregator returned a non-conforming record.
+ * Callers must null-check; they no longer need to shape-narrow.
  */
-export interface RegistryPackageView {
-	uri: string;
-	cid: string;
-	did: string;
-	handle?: string;
-	slug: string;
-	indexedAt: string;
-	latestVersion?: string;
-	profile: unknown;
-	labels?: Array<{ val: string; src?: string; uri?: string }>;
-}
-
-export interface RegistryReleaseView {
-	uri: string;
-	cid: string;
-	did: string;
-	package: string;
-	version: string;
-	indexedAt: string;
-	mirrors?: string[];
-	release: unknown;
-	labels?: Array<{ val: string; src?: string; uri?: string }>;
-}
-
-export interface RegistrySearchResult {
-	packages: RegistryPackageView[];
-	cursor?: string;
-}
+export type RegistryPackageView = ValidatedPackageView;
+export type RegistryReleaseView = ValidatedReleaseView;
+export type RegistrySearchResult = ValidatedSearchPackages;
 
 export interface RegistrySearchOpts {
 	q?: string;
@@ -110,11 +92,7 @@ interface WrappedDiscoveryClient {
 	resolvePackage: (handle: string, slug: string) => Promise<RegistryPackageView>;
 	getPackage: (did: string, slug: string) => Promise<RegistryPackageView>;
 	getLatestRelease: (did: string, slug: string) => Promise<RegistryReleaseView>;
-	listReleases: (
-		did: string,
-		slug: string,
-		cursor?: string,
-	) => Promise<{ releases: RegistryReleaseView[]; cursor?: string }>;
+	listReleases: (did: string, slug: string, cursor?: string) => Promise<ValidatedListReleases>;
 }
 
 let cachedDiscovery: {
@@ -140,45 +118,40 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 
 	const wrapped: WrappedDiscoveryClient = {
 		async searchPackages(opts: RegistrySearchOpts) {
-			const result = await discovery.searchPackages({
+			return discovery.searchPackages({
 				q: opts.q,
 				cursor: opts.cursor,
 				limit: opts.limit,
 			});
-			return result as RegistrySearchResult;
 		},
 		async resolvePackage(handle: string, slug: string) {
-			const result = await discovery.resolvePackage({
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape validated by aggregator
+			return discovery.resolvePackage({
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did/handle shape validated by aggregator
 				handle: handle as Handle,
 				slug,
 			});
-			return result as RegistryPackageView;
 		},
 		async getPackage(did: string, slug: string) {
-			const result = await discovery.getPackage({
+			return discovery.getPackage({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
 				did: did as Did,
 				slug,
 			});
-			return result as RegistryPackageView;
 		},
 		async getLatestRelease(did: string, slug: string) {
-			const result = await discovery.getLatestRelease({
+			return discovery.getLatestRelease({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
 				did: did as Did,
 				package: slug,
 			});
-			return result as RegistryReleaseView;
 		},
 		async listReleases(did: string, slug: string, cursor?: string) {
-			const result = await discovery.listReleases({
+			return discovery.listReleases({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
 				did: did as Did,
 				package: slug,
 				cursor,
 			});
-			return result as { releases: RegistryReleaseView[]; cursor?: string };
 		},
 	};
 
@@ -311,14 +284,14 @@ export async function listRegistryReleases(
 	did: string,
 	slug: string,
 	cursor?: string,
-): Promise<{ releases: RegistryReleaseView[]; cursor?: string }> {
+): Promise<ValidatedListReleases> {
 	const client = await getDiscoveryClient(config);
 	return client.listReleases(did, slug, cursor);
 }
 
 /**
  * Resolve a publisher DID to its claimed handle using the same
- * `LocalActorResolver` pattern as `@emdash-cms/registry-cli` and
+ * `LocalActorResolver` pattern as `@emdash-cms/plugin-cli` and
  * `@emdash-cms/auth-atproto`. Bidirectional verification (handle's
  * domain points back to the same DID) is part of the resolver --
  * `LocalActorResolver` returns the sentinel `"handle.invalid"` when
@@ -386,13 +359,24 @@ interface CachedResolution {
 	expiresAt: number;
 }
 
+function isCachedResolution(value: unknown): value is CachedResolution {
+	if (typeof value !== "object" || value === null) return false;
+	// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; field shapes validated below
+	const candidate = value as Record<string, unknown>;
+	return (
+		typeof candidate.expiresAt === "number" &&
+		typeof candidate.resolution === "object" &&
+		candidate.resolution !== null
+	);
+}
+
 function readHandleCache(did: string): DidHandleResolution | null {
 	if (typeof localStorage === "undefined") return null;
 	try {
 		const raw = localStorage.getItem(`${HANDLE_CACHE_KEY_PREFIX}${did}`);
 		if (!raw) return null;
-		const parsed = JSON.parse(raw) as CachedResolution;
-		if (!parsed || typeof parsed.expiresAt !== "number" || parsed.expiresAt < Date.now()) {
+		const parsed: unknown = JSON.parse(raw);
+		if (!isCachedResolution(parsed) || parsed.expiresAt < Date.now()) {
 			return null;
 		}
 		return parsed.resolution;
@@ -463,7 +447,144 @@ export async function installRegistryPlugin(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body),
 	});
-	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to install plugin`));
-	const json = (await response.json()) as { data: RegistryInstallResult };
-	return json.data;
+	return parseApiResponse<RegistryInstallResult>(response, i18n._(msg`Failed to install plugin`));
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle: update + uninstall
+// ---------------------------------------------------------------------------
+
+export interface RegistryUpdateOpts {
+	version?: string;
+	confirmCapabilityChanges?: boolean;
+	confirmRouteVisibilityChanges?: boolean;
+}
+
+export interface RegistryUninstallOpts {
+	deleteData?: boolean;
+}
+
+/**
+ * Server-side escalation gate raised by the update endpoint when the
+ * target version widens the trust contract. Carries the diff the user
+ * needs to see in the consent dialog before the call is retried with the
+ * matching `confirm*` flag.
+ */
+export class RegistryUpdateEscalationError extends Error {
+	readonly code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION";
+	readonly capabilityChanges: { added: string[]; removed: string[] };
+	readonly routeVisibilityChanges?: { newlyPublic: string[] };
+	constructor(
+		code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION",
+		message: string,
+		capabilityChanges: { added: string[]; removed: string[] },
+		routeVisibilityChanges?: { newlyPublic: string[] },
+	) {
+		super(message);
+		this.name = "RegistryUpdateEscalationError";
+		this.code = code;
+		this.capabilityChanges = capabilityChanges;
+		this.routeVisibilityChanges = routeVisibilityChanges;
+	}
+}
+
+/**
+ * Update a registry-source plugin to a newer version.
+ * `POST /_emdash/api/admin/plugins/registry/:id/update`
+ *
+ * Called without `confirm*` flags first, this throws
+ * `RegistryUpdateEscalationError` when the target version widens
+ * permissions; the caller renders a consent dialog populated from the
+ * error's diff, then re-calls with the matching `confirm*` flag once
+ * the user agrees.
+ */
+export async function updateRegistryPlugin(
+	pluginId: string,
+	opts: RegistryUpdateOpts = {},
+): Promise<void> {
+	const response = await apiFetch(
+		`${API_BASE}/admin/plugins/registry/${encodeURIComponent(pluginId)}/update`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(opts),
+		},
+	);
+	if (response.ok) return;
+
+	const body: unknown = await response
+		.clone()
+		.json()
+		.catch(() => undefined);
+	const escalation = parseEscalation(body);
+	if (escalation) throw escalation;
+	await throwResponseError(response, i18n._(msg`Failed to update plugin`));
+}
+
+function parseEscalation(body: unknown): RegistryUpdateEscalationError | null {
+	if (!body || typeof body !== "object" || !("error" in body)) return null;
+	const error = body.error;
+	if (!error || typeof error !== "object" || !("code" in error)) return null;
+	const code = error.code;
+	if (code !== "CAPABILITY_ESCALATION" && code !== "ROUTE_VISIBILITY_ESCALATION") return null;
+	const details =
+		"details" in error && error.details && typeof error.details === "object" ? error.details : {};
+	const capabilityChanges = normaliseCapabilityChanges(
+		"capabilityChanges" in details ? details.capabilityChanges : undefined,
+	);
+	const routeVisibilityChanges = normaliseRouteVisibilityChanges(
+		"routeVisibilityChanges" in details ? details.routeVisibilityChanges : undefined,
+	);
+	const message =
+		"message" in error && typeof error.message === "string"
+			? error.message
+			: i18n._(msg`Plugin update requires re-consent`);
+	return new RegistryUpdateEscalationError(
+		code,
+		message,
+		capabilityChanges,
+		routeVisibilityChanges,
+	);
+}
+
+function normaliseCapabilityChanges(value: unknown): { added: string[]; removed: string[] } {
+	if (!value || typeof value !== "object") return { added: [], removed: [] };
+	const v = value as { added?: unknown; removed?: unknown };
+	return {
+		added: Array.isArray(v.added) ? v.added.filter((s): s is string => typeof s === "string") : [],
+		removed: Array.isArray(v.removed)
+			? v.removed.filter((s): s is string => typeof s === "string")
+			: [],
+	};
+}
+
+function normaliseRouteVisibilityChanges(value: unknown): { newlyPublic: string[] } | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const v = value as { newlyPublic?: unknown };
+	if (!Array.isArray(v.newlyPublic)) return undefined;
+	const newlyPublic = v.newlyPublic.filter((s): s is string => typeof s === "string");
+	return newlyPublic.length > 0 ? { newlyPublic } : undefined;
+}
+
+/**
+ * Uninstall a registry-source plugin.
+ * `POST /_emdash/api/admin/plugins/registry/:id/uninstall`
+ *
+ * The server refuses to uninstall non-registry sources, so calling this
+ * with a marketplace or config plugin id is a no-op error rather than a
+ * destructive cross-source action.
+ */
+export async function uninstallRegistryPlugin(
+	pluginId: string,
+	opts: RegistryUninstallOpts = {},
+): Promise<void> {
+	const response = await apiFetch(
+		`${API_BASE}/admin/plugins/registry/${encodeURIComponent(pluginId)}/uninstall`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(opts),
+		},
+	);
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to uninstall plugin`));
 }

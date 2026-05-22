@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.12.0",
+  "version": "0.14.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -21,6 +21,9 @@
     "./astro": {
       "types": "./dist/astro/index.d.mts",
       "default": "./dist/astro/index.mjs"
+    },
+    "./plugin": {
+      "types": "./dist/plugin-types.d.mts"
     },
     "./middleware": {
       "types": "./dist/astro/middleware.d.mts",
@@ -44,12 +47,28 @@
       "types": "./dist/cli/index.d.mts",
       "default": "./dist/cli/index.mjs"
     },
-    "./routes/*": "./src/astro/routes/*",
-    "./api/route-utils": "./src/api/route-utils.ts",
-    "./api/schemas": "./src/api/schemas/index.ts",
-    "./auth/providers/github": "./src/auth/providers/github.ts",
+    "./routes/*.astro": "./src/astro/routes/*.astro",
+    "./routes/*": {
+      "types": "./dist/astro/routes/*.d.mts",
+      "default": "./dist/astro/routes/*.mjs"
+    },
+    "./api/route-utils": {
+      "types": "./dist/api/route-utils.d.mts",
+      "default": "./dist/api/route-utils.mjs"
+    },
+    "./api/schemas": {
+      "types": "./dist/api/schemas/index.d.mts",
+      "default": "./dist/api/schemas/index.mjs"
+    },
+    "./auth/providers/github": {
+      "types": "./dist/auth/providers/github.d.mts",
+      "default": "./dist/auth/providers/github.mjs"
+    },
     "./auth/providers/github-admin": "./src/auth/providers/github-admin.tsx",
-    "./auth/providers/google": "./src/auth/providers/google.ts",
+    "./auth/providers/google": {
+      "types": "./dist/auth/providers/google.d.mts",
+      "default": "./dist/auth/providers/google.mjs"
+    },
     "./auth/providers/google-admin": "./src/auth/providers/google-admin.tsx",
     "./db": {
       "types": "./dist/db/index.d.mts",
@@ -203,7 +222,7 @@
     "image-size": "^2.0.2",
     "jose": "^6.1.3",
     "jpeg-js": "^0.4.4",
-    "kysely": "^0.27.0",
+    "kysely": "^0.29.0",
     "mime": "^4.1.0",
     "modern-tar": "^0.7.5",
     "picocolors": "^1.1.1",
@@ -211,7 +230,8 @@
     "sax": "^1.4.1",
     "ulidx": "^2.4.1",
     "upng-js": "^2.1.0",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@atcute/client": "catalog:"
   },
   "optionalDependencies": {
     "@libsql/kysely-libsql": "^0.4.0",
@@ -219,7 +239,7 @@
   },
   "peerDependencies": {
     "@astrojs/react": ">=5.0.0-beta.0",
-    "@emdash-cms/auth-atproto": "workspace:>=0.2.5",
+    "@emdash-cms/auth-atproto": "workspace:>=0.2.7",
     "astro": ">=6.0.0-beta.0",
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"

@@ -1,277 +1,96 @@
 ---
 title: Content Model
-description: EmDash's database-first content model—how schema is stored, modified at runtime, and queried.
+description: How you shape and evolve your content model in EmDash — collections, fields, runtime changes, types, and seeds.
 ---
 
 import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
 
-EmDash uses a **database-first content model** where schema definitions live in the database, not in code. This is a fundamental design choice that enables runtime schema modification and non-developer-friendly setup.
+Your content model is the set of collections and fields your site stores. You define it in the admin panel or with the CLI, change it whenever you need to, and optionally generate TypeScript types from it. This page covers how to work with it.
 
-## Schema as Data
+## Collections and fields
 
-Traditional CMSs like Strapi or Keystatic require you to define schema in code:
+A **collection** is a type of content (posts, products, authors). Each collection has **fields** you define (a title, a body, a price). Every entry also has system fields EmDash manages for you.
 
-```ts
-// Traditional approach - schema in code
-const posts = collection({
-	fields: {
-		title: text({ required: true }),
-		content: richText(),
-	},
-});
-```
+You create and edit collections and fields visually in the admin panel under **Content Types**, or with the CLI. Changes take effect immediately, and a non-developer can do it.
 
-EmDash stores this same information in database tables:
+## System fields
 
-```sql
--- _emdash_collections table
-INSERT INTO _emdash_collections (slug, label)
-VALUES ('posts', 'Blog Posts');
+In addition to the fields you define, every entry has these, always present:
 
--- _emdash_fields table
-INSERT INTO _emdash_fields (collection_id, slug, type, required)
-VALUES
-  ('coll_abc', 'title', 'string', true),
-  ('coll_abc', 'content', 'portableText', false);
-```
+| Field                                        | Purpose                                |
+| -------------------------------------------- | -------------------------------------- |
+| `id`                                         | Stable unique identifier               |
+| `slug`                                       | URL-safe identifier, unique per locale |
+| `status`                                     | `draft`, `published`, or `scheduled`   |
+| `author_id`                                  | The user who created the entry         |
+| `created_at` / `updated_at` / `published_at` | Timestamps                             |
+| `deleted_at`                                 | Set on soft delete; the row is kept    |
+| `version`                                    | Increments on each save                |
 
-Both approaches define the same content structure. The difference is where that structure lives and how it can be modified.
+Deleting an entry is a soft delete: it can be restored.
 
-## Why Database-First?
+## Changing the model anytime
 
-<CardGrid>
-	<Card title="Runtime Modification" icon="pencil">
-		Create and edit content types without code changes or rebuilds. Non-developers can design their
-		data model through the admin UI.
-	</Card>
-	<Card title="Real SQL Columns" icon="seti:db">
-		Unlike WordPress's EAV (Entity-Attribute-Value) model, each field gets a real column. Proper
-		indexing, foreign keys, and query optimization.
-	</Card>
-	<Card title="Self-Documenting" icon="document">
-		Database tools can inspect schema directly. No need to parse code to understand the data model.
-	</Card>
-	<Card title="Migration Path" icon="right-arrow">
-		Export schema as JSON for version control. Import schema in new environments.
-	</Card>
-</CardGrid>
-
-## Schema Tables
-
-Two system tables define your content structure:
-
-### Collections Table
-
-```sql
-CREATE TABLE _emdash_collections (
-  id TEXT PRIMARY KEY,
-  slug TEXT UNIQUE NOT NULL,        -- "posts", "products"
-  label TEXT NOT NULL,              -- "Blog Posts"
-  label_singular TEXT,              -- "Post"
-  description TEXT,
-  icon TEXT,                        -- Lucide icon name
-  supports JSON,                    -- ["drafts", "revisions", "preview"]
-  source TEXT,                      -- How it was created
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT
-);
-```
-
-The `source` field tracks how the collection was created:
-
-| Source             | Description                        |
-| ------------------ | ---------------------------------- |
-| `manual`           | Created via admin UI               |
-| `template:blog`    | Created by a template's seed file  |
-| `import:wordpress` | Imported from WordPress            |
-| `discovered`       | Auto-discovered from existing data |
-
-### Fields Table
-
-```sql
-CREATE TABLE _emdash_fields (
-  id TEXT PRIMARY KEY,
-  collection_id TEXT REFERENCES _emdash_collections(id),
-  slug TEXT NOT NULL,               -- Column name: "title", "price"
-  label TEXT NOT NULL,              -- Display label
-  type TEXT NOT NULL,               -- Field type
-  column_type TEXT NOT NULL,        -- SQLite type: TEXT, REAL, INTEGER, JSON
-  required INTEGER DEFAULT 0,
-  unique_field INTEGER DEFAULT 0,
-  default_value TEXT,               -- JSON-encoded default
-  validation JSON,                  -- Validation rules
-  widget TEXT,                      -- Custom widget identifier
-  options JSON,                     -- Widget options
-  sort_order INTEGER,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(collection_id, slug)
-);
-```
-
-## Content Tables
-
-Each collection gets its own table with the `ec_` prefix. When you create a "products" collection with title and price fields:
-
-```sql
-CREATE TABLE ec_products (
-  -- System columns (always present)
-  id TEXT PRIMARY KEY,
-  slug TEXT UNIQUE,
-  status TEXT DEFAULT 'draft',
-  author_id TEXT,
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now')),
-  published_at TEXT,
-  deleted_at TEXT,                  -- Soft delete
-  version INTEGER DEFAULT 1,        -- Optimistic locking
-
-  -- Content columns (from field definitions)
-  title TEXT NOT NULL,
-  price REAL
-);
-```
+You can add, rename, remove, or retype a field on a live collection at any time, through the admin panel or the CLI. Existing content is preserved.
 
 <Aside type="tip">
-	System columns are automatically added to every content table. You don't define them as
-	fields—they're always present.
+	Adding a field is always safe. Removing one drops its data. Rename rather
+	than remove-and-recreate when you want to keep existing values.
 </Aside>
 
-## Runtime Schema Changes
+## TypeScript types
 
-When you add a field via the admin UI, EmDash:
-
-<Steps>
-	1. Inserts a record into `_emdash_fields` 2. Runs `ALTER TABLE ec_collection ADD COLUMN
-	column_name TYPE` 3. Regenerates the Zod schema for validation
-</Steps>
-
-SQLite supports these `ALTER TABLE` operations at runtime:
-
-| Operation          | Supported                   |
-| ------------------ | --------------------------- |
-| Add column         | Yes                         |
-| Rename column      | Yes                         |
-| Drop column        | Yes (SQLite 3.35+)          |
-| Change column type | No (requires table rebuild) |
-
-For type changes, EmDash handles the table rebuild transparently: create new table → copy data → drop old table → rename new table.
-
-## Schema vs. Content Separation
-
-EmDash maintains a clear separation:
-
-| Concern      | Location                 | Tables                                      |
-| ------------ | ------------------------ | ------------------------------------------- |
-| **Schema**   | System tables            | `_emdash_collections`, `_emdash_fields` |
-| **Content**  | Per-collection tables    | `ec_posts`, `ec_products`, etc.             |
-| **Media**    | Separate table + storage | `media` table + R2/S3                       |
-| **Settings** | Options table            | `options` with `site:` prefix               |
-
-This separation means:
-
-- Schema can be exported without content
-- Content can be migrated between schemas
-- System tables are never cluttered with user data
-
-## Validation at Runtime
-
-EmDash builds Zod schemas from database field definitions at startup:
-
-```ts
-// Simplified example
-function buildSchema(fields: Field[]): ZodSchema {
-	const shape: Record<string, ZodType> = {};
-
-	for (const field of fields) {
-		let zodType = fieldTypeToZod(field.type);
-
-		if (field.required) {
-			zodType = zodType.required();
-		}
-
-		if (field.validation?.min !== undefined) {
-			zodType = zodType.min(field.validation.min);
-		}
-
-		shape[field.slug] = zodType;
-	}
-
-	return z.object(shape);
-}
-```
-
-Content is validated against these runtime schemas on every create and update operation.
-
-## TypeScript Integration
-
-Generate TypeScript types from your database schema:
+Type generation is optional but recommended. Generate types from your current model:
 
 ```bash
-# Fetch schema from database, generate types
 npx emdash types
 ```
 
-This generates `.emdash/types.ts`:
+This writes `.emdash/types.ts` with an interface per collection and typed query overloads, so `getEmDashCollection("posts")` returns fully typed entries:
 
-```ts
-// .emdash/types.ts (generated)
+```ts title=".emdash/types.ts (generated)"
 export interface Post {
 	title: string;
 	content: PortableTextBlock[];
 	excerpt?: string;
-	featuredImage?: string;
 }
 
-export interface Product {
-	title: string;
-	price: number;
-	quantity: number;
-}
-
-// Typed overloads for query functions
 declare module "emdash" {
 	export function getEmDashCollection(
 		type: "posts",
 	): Promise<{ entries: ContentEntry<Post>[]; error?: Error }>;
-
-	export function getEmDashEntry(
-		type: "products",
-		id: string,
-	): Promise<{ entry: ContentEntry<Product> | null; error?: Error; isPreview: boolean }>;
 }
 ```
 
-<Aside type="note">
-	Type generation is optional but recommended. It gives you autocomplete and type checking for your
-	dynamically-defined collections.
-</Aside>
+Re-run the command after changing the model to keep types in sync.
 
-## Developer vs. Non-Developer Workflow
+## Workflows
 
-**Developers** can use the CLI:
+Both workflows change the same model.
+
+A non-developer uses the admin panel:
+
+<Steps>
+
+1. Open **Content Types** in the admin panel.
+2. Click **Add Collection**.
+3. Define fields with the visual builder.
+4. Start creating content.
+
+</Steps>
+
+A developer can use the CLI to generate types and move the model between environments:
 
 ```bash
-# Fetch schema, generate types
-npx emdash types
-
-# Export schema as JSON
-npx emdash export-seed > seed.json
+npx emdash types                     # generate TypeScript types
+npx emdash export-seed > seed.json   # export the model as a seed file
 ```
 
-**Non-developers** use the admin UI exclusively:
+## Seed files
 
-1. Open **Content Types** in the admin panel
-2. Click **Add Collection**
-3. Define fields through the visual builder
-4. Start creating content immediately
+A seed file is a JSON description of collections, taxonomies, and menus. Templates ship one, and you can export your own for version control or to set up another environment.
 
-Both approaches modify the same underlying database tables.
-
-## Seed Files
-
-Templates and exports use JSON seed files for portable schema definitions:
-
-```json
+```json title=".emdash/seed.json"
 {
 	"version": "1",
 	"collections": [
@@ -282,8 +101,7 @@ Templates and exports use JSON seed files for portable schema definitions:
 			"supports": ["drafts", "revisions", "preview"],
 			"fields": [
 				{ "slug": "title", "type": "string", "required": true },
-				{ "slug": "content", "type": "portableText" },
-				{ "slug": "featuredImage", "type": "image" }
+				{ "slug": "content", "type": "portableText" }
 			]
 		}
 	],
@@ -292,42 +110,26 @@ Templates and exports use JSON seed files for portable schema definitions:
 }
 ```
 
-Apply seed files programmatically:
+Applying a seed is idempotent, so it is safe to re-run:
 
 ```ts
 import { applySeed, validateSeed } from "emdash/seed";
 import seedData from "./.emdash/seed.json";
 
-// Validate first
 const { valid, errors } = validateSeed(seedData);
-
-// Apply (idempotent - safe to re-run)
-await applySeed(db, seedData, {
-	includeContent: true,
-	onConflict: "skip", // 'skip' | 'update' | 'error'
-});
+await applySeed(db, seedData, { includeContent: true, onConflict: "skip" });
 ```
 
-## Comparison with Other Approaches
+See [Seed file format](/themes/seed-files/) for the full schema.
 
-| Approach      | Schema Location | Runtime Modification    | Type Safety        |
-| ------------- | --------------- | ----------------------- | ------------------ |
-| **EmDash**  | Database        | Yes (full)              | Generated from DB  |
-| **WordPress** | PHP code + EAV  | Limited (meta fields)   | None               |
-| **Strapi**    | Code files      | No (rebuild required)   | Generated at build |
-| **Sanity**    | Code files      | No (schema must deploy) | Built-in           |
-| **Directus**  | Database        | Yes (full)              | Generated from DB  |
-
-EmDash follows the Directus model: database-first with optional type generation. This provides maximum flexibility while still supporting type-safe development when desired.
-
-## Next Steps
+## Next steps
 
 <CardGrid>
 	<Card title="Collections" icon="document">
-		Learn about [field types and validation](/concepts/collections/).
+		Define [field types and validation](/concepts/collections/).
 	</Card>
 	<Card title="Admin Panel" icon="setting">
-		Explore the [admin architecture](/concepts/admin-panel/).
+		See the [admin panel](/concepts/admin-panel/).
 	</Card>
 	<Card title="Seeding" icon="open-book">
 		Set up sites with [seed files](/themes/seed-files/).

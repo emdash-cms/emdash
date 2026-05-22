@@ -1,4 +1,5 @@
-import { type Kysely, type Migration, type MigrationProvider, Migrator, sql } from "kysely";
+import { type Kysely, sql } from "kysely";
+import { type Migration, type MigrationProvider, Migrator } from "kysely/migration";
 
 import type { Database } from "../types.js";
 // Import migrations statically for bundling
@@ -39,6 +40,7 @@ import * as m035 from "./035_bounded_404_log.js";
 import * as m036 from "./036_i18n_menus_and_taxonomies.js";
 import * as m037 from "./037_credential_algorithm.js";
 import * as m038 from "./038_registry_plugin_state.js";
+import * as m039 from "./039_fix_fts5_triggers.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -78,6 +80,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"036_i18n_menus_and_taxonomies": m036,
 	"037_credential_algorithm": m037,
 	"038_registry_plugin_state": m038,
+	"039_fix_fts5_triggers": m039,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */

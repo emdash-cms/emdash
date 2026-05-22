@@ -12,7 +12,7 @@
 import type { Element } from "@emdash-cms/blocks";
 // The plugin capability vocabulary, the legacy-rename map, and the manifest
 // shape are authored once in @emdash-cms/plugin-types and shared between core
-// (the manifest reader at install/runtime) and @emdash-cms/registry-cli (the
+// (the manifest reader at install/runtime) and @emdash-cms/plugin-cli (the
 // manifest writer at bundle/publish time).
 //
 // We import-and-re-export here so existing internal callers keep working
@@ -112,7 +112,7 @@ export interface ManifestMcpToolEntry extends SharedManifestMcpToolEntry {
 //
 // `StorageCollectionConfig` and `PluginStorageConfig` are re-exported above
 // from `@emdash-cms/plugin-types`. The manifest carries these shapes
-// verbatim; both this package (reader) and registry-cli (writer) agree on
+// verbatim; both this package (reader) and plugin-cli (writer) agree on
 // the same types via the shared package.
 
 /**
@@ -1388,92 +1388,6 @@ export interface ResolvedPluginHooks {
 	"comment:afterModerate"?: ResolvedHook<CommentAfterModerateHandler>;
 	"page:metadata"?: ResolvedHook<PageMetadataHandler>;
 	"page:fragments"?: ResolvedHook<PageFragmentHandler>;
-}
-
-// =============================================================================
-// Standard Plugin Format (Unified Plugin Format)
-// =============================================================================
-
-/**
- * Standard plugin hook handler -- same as sandbox entry format.
- * Receives the event as the first argument and a PluginContext as the second.
- *
- * Plugin authors annotate their event parameters with specific types for IDE
- * support. At the type level, we accept any function with compatible arity.
- */
-// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event types
-export type StandardHookHandler = (...args: any[]) => Promise<any>;
-
-/**
- * Standard plugin hook entry -- either a bare handler or a config object.
- */
-export type StandardHookEntry =
-	| StandardHookHandler
-	| {
-			handler: StandardHookHandler;
-			priority?: number;
-			timeout?: number;
-			dependencies?: string[];
-			errorPolicy?: "continue" | "abort";
-			exclusive?: boolean;
-	  };
-
-/**
- * Standard plugin route handler -- takes (routeCtx, pluginCtx) like sandbox entries.
- * The routeCtx contains input and request info; pluginCtx is the full plugin context.
- *
- * Uses `any` for routeCtx to allow plugins to access properties like
- * `routeCtx.request.url` without needing exact type matches across
- * trusted (Request object) and sandboxed (plain object) modes.
- */
-// eslint-disable-next-line typescript-eslint/no-explicit-any -- see above
-export type StandardRouteHandler = (routeCtx: any, ctx: PluginContext) => Promise<unknown>;
-
-/**
- * Standard plugin route entry -- either a config object with handler, or just a handler.
- */
-export interface StandardRouteEntry {
-	handler: StandardRouteHandler;
-	input?: unknown;
-	public?: boolean;
-}
-
-export interface StandardMcpToolEntry {
-	title?: string;
-	description: string;
-	route: string;
-	input?: unknown;
-	inputSchema?: ManifestJsonObjectSchema;
-}
-
-/**
- * Standard plugin definition -- the sandbox entry format.
- * Used by standard plugins that work in both trusted and sandboxed modes.
- * No id/version/capabilities -- those come from the descriptor.
- *
- * This is the input to definePlugin() for standard-format plugins.
- *
- * The hooks and routes use permissive types (Record<string, any>) so that
- * plugin authors can annotate their handlers with specific event types
- * without type errors from strictFunctionTypes contravariance.
- */
-export interface StandardPluginDefinition {
-	// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event/route types
-	hooks?: Record<string, any>;
-	// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event/route types
-	routes?: Record<string, any>;
-	mcpTools?: Record<string, StandardMcpToolEntry>;
-}
-
-/**
- * Check if a value is a StandardPluginDefinition (has hooks/routes but no id/version).
- */
-export function isStandardPluginDefinition(value: unknown): value is StandardPluginDefinition {
-	if (typeof value !== "object" || value === null) return false;
-	// Standard format: has hooks or routes, but NOT id+version (which are on PluginDefinition)
-	const hasPluginShape = "hooks" in value || "routes" in value;
-	const hasNativeShape = "id" in value && "version" in value;
-	return hasPluginShape && !hasNativeShape;
 }
 
 // =============================================================================

@@ -9,7 +9,7 @@ EmDash exposes a REST API at `/_emdash/api/` for content management, media uploa
 
 ## Authentication
 
-API requests require authentication via Bearer token:
+API requests require authentication via a Bearer token in the `Authorization` header:
 
 ```http
 Authorization: Bearer <token>
@@ -17,18 +17,20 @@ Authorization: Bearer <token>
 
 Generate tokens through the admin interface or programmatically.
 
-## Response Format
+## Response format
 
-All responses follow a consistent format:
+All responses follow a consistent format. A successful response wraps the result in `data`:
 
 ```json
-// Success
 {
   "success": true,
   "data": { ... }
 }
+```
 
-// Error
+An error response includes a code, message, and optional details:
+
+```json
 {
   "success": false,
   "error": {
@@ -380,7 +382,7 @@ Content-Type: application/json
 ### Update Collection
 
 ```http
-PATCH /_emdash/api/schema/collections/:slug
+PUT /_emdash/api/schema/collections/:slug
 Content-Type: application/json
 ```
 
@@ -426,7 +428,7 @@ Content-Type: application/json
 ### Update Field
 
 ```http
-PATCH /_emdash/api/schema/collections/:collectionSlug/fields/:fieldSlug
+PUT /_emdash/api/schema/collections/:collectionSlug/fields/:fieldSlug
 Content-Type: application/json
 ```
 
@@ -474,25 +476,25 @@ Returns TypeScript interfaces for all collections.
 ### List Plugins
 
 ```http
-GET /_emdash/api/plugins
+GET /_emdash/api/admin/plugins
 ```
 
 ### Get Plugin
 
 ```http
-GET /_emdash/api/plugins/:pluginId
+GET /_emdash/api/admin/plugins/:id
 ```
 
 ### Enable Plugin
 
 ```http
-POST /_emdash/api/plugins/:pluginId/enable
+POST /_emdash/api/admin/plugins/:id/enable
 ```
 
 ### Disable Plugin
 
 ```http
-POST /_emdash/api/plugins/:pluginId/disable
+POST /_emdash/api/admin/plugins/:id/disable
 ```
 
 ## Error Codes
@@ -509,8 +511,8 @@ POST /_emdash/api/plugins/:pluginId/disable
 | `CONTENT_DELETE_ERROR` | 500         | Failed to delete content |
 | `MEDIA_LIST_ERROR`     | 500         | Failed to list media     |
 | `MEDIA_CREATE_ERROR`   | 500         | Failed to create media   |
-| `SCHEMA_ERROR`         | 400         | Schema operation failed  |
-| `DUPLICATE_SLUG`       | 409         | Slug already exists      |
+| `SCHEMA_CREATE_ERROR`  | 500         | Schema operation failed  |
+| `SLUG_CONFLICT`        | 409         | Slug already exists      |
 | `RESERVED_SLUG`        | 400         | Slug is reserved         |
 
 ## Search Endpoints
@@ -535,17 +537,21 @@ GET /_emdash/api/search?q=hello+world
 
 ```json
 {
-  "results": [
-    {
-      "collection": "posts",
-      "id": "01HXK5MZSN...",
-      "slug": "hello-world",
-      "title": "Hello World",
-      "snippet": "...this is a <mark>hello</mark> <mark>world</mark> example...",
-      "score": 0.95
-    }
-  ],
-  "nextCursor": "eyJvZmZzZXQiOjIwfQ"
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "collection": "posts",
+        "id": "01HXK5MZSN...",
+        "slug": "hello-world",
+        "locale": "en",
+        "title": "Hello World",
+        "snippet": "...this is a <mark>hello</mark> <mark>world</mark> example...",
+        "score": 0.95
+      }
+    ],
+    "nextCursor": "eyJvZmZzZXQiOjIwfQ"
+  }
 }
 ```
 
@@ -857,7 +863,7 @@ GET /_emdash/api/admin/users/:id
 ### Update User
 
 ```http
-PATCH /_emdash/api/admin/users/:id
+PUT /_emdash/api/admin/users/:id
 Content-Type: application/json
 
 {

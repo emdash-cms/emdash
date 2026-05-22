@@ -87,12 +87,15 @@ describe("definePlugin", () => {
 		});
 
 		it("rejects empty ID", () => {
+			// Empty id is treated as "no id" — same code path as the
+			// sandboxed-shape rejection, with a pointer at the new
+			// `satisfies SandboxedPlugin` authoring flow.
 			expect(() =>
 				definePlugin({
 					id: "",
 					version: "1.0.0",
 				}),
-			).toThrow(INVALID_PLUGIN_ID_PATTERN);
+			).toThrow(/requires `id`/);
 		});
 
 		it("rejects invalid scoped ID (missing name)", () => {
@@ -512,40 +515,22 @@ describe("definePlugin", () => {
 	});
 
 	describe("MCP tools", () => {
-		it("validates standard-format MCP tool names", () => {
-			expect(() =>
-				definePlugin({
-					routes: {
-						summarize: {
-							handler: async () => ({ ok: true }),
-						},
+		it("rejects sandboxed-format MCP tool declarations passed to definePlugin", () => {
+			const sandboxedDefinition = {
+				routes: {
+					summarize: {
+						handler: async () => ({ ok: true }),
 					},
-					mcpTools: {
-						bad__name: {
-							description: "Summarize text.",
-							route: "summarize",
-						},
+				},
+				mcpTools: {
+					summarize: {
+						description: "Summarize text.",
+						route: "summarize",
 					},
-				}),
-			).toThrow(INVALID_MCP_TOOL_NAME_PATTERN);
-		});
+				},
+			} as unknown as Parameters<typeof definePlugin>[0];
 
-		it("validates standard-format MCP tool routes", () => {
-			expect(() =>
-				definePlugin({
-					routes: {
-						other: {
-							handler: async () => ({ ok: true }),
-						},
-					},
-					mcpTools: {
-						summarize: {
-							description: "Summarize text.",
-							route: "summarize",
-						},
-					},
-				}),
-			).toThrow(INVALID_MCP_TOOL_ROUTE_PATTERN);
+			expect(() => definePlugin(sandboxedDefinition)).toThrow(/requires `id`/);
 		});
 
 		it("preserves MCP tool definitions", () => {

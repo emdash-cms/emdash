@@ -50,11 +50,11 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR. Key rules:
 
 ### Before Starting
 
-1. Run `pnpm --silent lint:json | jq '.diagnostics | length'` and fix any issues. Non-negotiable.
+1. Run `pnpm lint:json | jq '.diagnostics | length'` and fix any issues. Non-negotiable.
 
 ### During Work
 
-- Run `pnpm --silent lint:quick` after every edit -- takes less than a second. Returns JSON with stderr redirected to /dev/null, so it won't break parsers. Fix any issues immediately.
+- Run `pnpm lint:quick` after every edit -- takes less than a second. The `$ command` echo goes to stderr in pnpm 11, so JSON pipes cleanly without needing `--silent`. Fix any issues immediately.
 - Run `pnpm typecheck` (packages) or `pnpm typecheck:demos` (Astro demos) after each round of edits.
 - Format regularly. pnpm format in the root uses oxfmt with tabs for indentation and is very fast. Don't let formatting pile up.
 - Commit regularly, and always format and quick lint beforehand.
@@ -90,7 +90,7 @@ See [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets) for full guidanc
 ### PR Flow
 
 1. All tests pass: `pnpm test`
-2. Full lint suite clean: `pnpm --silent lint:json | jq '.diagnostics | length'`. Returns JSON with stderr piped to /dev/null, so it won't break parsers. Fix any issues.
+2. Full lint suite clean: `pnpm lint:json | jq '.diagnostics | length'`. The `$ command` echo goes to stderr in pnpm 11, so the JSON pipes cleanly. Fix any issues.
 3. Format with `pnpm format` (oxfmt with tabs for indentation, configured in `.prettierrc`).
 4. Add a changeset if the change affects a published package: `pnpm changeset`.
 5. Open the PR (via `gh pr create` or the GitHub UI). Fill out every section of the PR template -- copy `.github/PULL_REQUEST_TEMPLATE.md` into the body if using the API/CLI. Check the AI disclosure box if any code was AI-generated and name the model/tool you used.

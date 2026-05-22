@@ -50,7 +50,13 @@
 	},
 	"overrides": [
 		{
-			"files": ["**/*.test.ts", "**/*.test.tsx", "**/tests/**/*.ts", "**/tests/**/*.tsx"],
+			"files": [
+				"**/*.test.ts",
+				"**/*.test.tsx",
+				"**/tests/**/*.ts",
+				"**/tests/**/*.tsx",
+				"packages/atproto-test-utils/**/*.ts"
+			],
 			"rules": {
 				"typescript/no-unsafe-type-assertion": "off",
 				"typescript/no-unnecessary-type-assertion": "off",
@@ -68,13 +74,13 @@
 				"**/client/transport.ts",
 				"**/client/portable-text.ts",
 				"**/cli/**/*.ts",
-				"packages/registry-cli/src/bundle/api.ts",
-				"packages/registry-cli/src/bundle/utils.ts",
-				"packages/registry-cli/src/bundle/command.ts",
-				"packages/registry-cli/src/bundle/types.ts",
-				"packages/registry-cli/src/oauth.ts",
-				"packages/registry-cli/src/publish/api.ts",
-				"packages/registry-cli/src/commands/publish.ts",
+				"packages/plugin-cli/src/bundle/api.ts",
+				"packages/plugin-cli/src/bundle/utils.ts",
+				"packages/plugin-cli/src/bundle/command.ts",
+				"packages/plugin-cli/src/bundle/types.ts",
+				"packages/plugin-cli/src/oauth.ts",
+				"packages/plugin-cli/src/publish/api.ts",
+				"packages/plugin-cli/src/commands/publish.ts",
 				"packages/registry-client/src/publishing/index.ts",
 				"**/api/handlers/api-tokens.ts",
 				"**/api/handlers/device-flow.ts",

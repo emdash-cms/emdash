@@ -12,6 +12,9 @@ export type {
 export {
 	ContentRepository,
 	MediaRepository,
+	PluginStorageRepository,
+	UserRepository,
+	OptionsRepository,
 	EmDashValidationError,
 	InvalidCursorError,
 } from "./database/repositories/index.js";
@@ -164,6 +167,7 @@ export type {
 	WxrAttachment,
 	WxrCategory,
 	WxrTag,
+	WxrTerm,
 	WxrAuthor,
 } from "./cli/wxr/parser.js";
 
@@ -188,7 +192,6 @@ export { EmDashStorageError } from "./storage/types.js";
 export {
 	definePlugin,
 	adaptSandboxEntry,
-	isStandardPluginDefinition,
 	pluginManifestSchema,
 	createHookPipeline,
 	HookPipeline,
@@ -198,7 +201,11 @@ export {
 	// Sandbox
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
+	SandboxUnavailableError,
 	createNoopSandboxRunner,
+	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
+	createHttpAccess,
+	createUnrestrictedHttpAccess,
 } from "./plugins/index.js";
 export type {
 	PluginDefinition,
@@ -245,16 +252,9 @@ export type {
 	CollectionCommentSettings,
 	StoredComment,
 
-	// Standard plugin format
-	StandardPluginDefinition,
-	StandardHookHandler,
-	StandardHookEntry,
-	StandardRouteHandler,
-	StandardRouteEntry,
-
-	// Sandbox types
+	// Sandbox runtime types
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,

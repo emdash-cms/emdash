@@ -39,18 +39,20 @@ Both are available for the posts collection by default.
   </TabItem>
   <TabItem label="Content Editor">
 
-5. Open a content entry in the editor
+1. Open a content entry in the editor
 
-6. Find the taxonomy panel in the sidebar
+2. Find the taxonomy panel in the sidebar
 
-7. For categories: check the boxes for applicable terms, or click **+ Add New**
+3. For categories, check the boxes for applicable terms, or click **+ Add New**
 
-8. For tags: type tag names separated by commas
+4. For tags, type tag names separated by commas
 
-9. Save the content
+5. Save the content
 
   </TabItem>
   <TabItem label="API">
+
+The following request creates a term in the `category` taxonomy:
 
 ```bash
 POST /_emdash/api/taxonomies/category/terms
@@ -126,6 +128,8 @@ interface TaxonomyTerm {
 
 ### Get a Single Term
 
+The following example fetches one term by taxonomy and slug:
+
 ```ts
 import { getTerm } from "emdash";
 
@@ -134,6 +138,8 @@ const category = await getTerm("category", "news");
 ```
 
 ### Get Terms for an Entry
+
+The following example retrieves the categories and tags assigned to a single entry:
 
 ```ts
 import { getEntryTerms } from "emdash";
@@ -440,6 +446,8 @@ Taxonomies specify which collections they apply to:
 | `/_emdash/api/taxonomies/:name/terms/:slug` | DELETE | Delete term               |
 
 ### Assign Terms to Content
+
+The following request assigns category terms to a post:
 
 ```bash
 POST /_emdash/api/content/posts/post-123/terms/category

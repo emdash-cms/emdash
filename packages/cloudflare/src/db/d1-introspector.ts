@@ -7,7 +7,7 @@
  * This introspector queries tables individually instead.
  */
 
-import type { DatabaseIntrospector, DatabaseMetadata, SchemaMetadata, TableMetadata } from "kysely";
+import type { DatabaseIntrospector, SchemaMetadata, TableMetadata } from "kysely";
 import { sql } from "kysely";
 
 // Kysely's default migration table names
@@ -98,6 +98,8 @@ export class D1Introspector implements DatabaseIntrospector {
 			result.push({
 				name: tableName,
 				isView: tableType === "view",
+				// D1/SQLite has no concept of foreign tables (FDW); always false.
+				isForeign: false,
 				columns: columns.rows.map((col) => ({
 					name: col.name,
 					dataType: col.type,
@@ -110,11 +112,5 @@ export class D1Introspector implements DatabaseIntrospector {
 		}
 
 		return result;
-	}
-
-	async getMetadata(options?: { withInternalKyselyTables?: boolean }): Promise<DatabaseMetadata> {
-		return {
-			tables: await this.getTables(options),
-		};
 	}
 }

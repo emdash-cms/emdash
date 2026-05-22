@@ -5,7 +5,7 @@ description: Let editors choose different layouts for individual pages using a t
 
 import { Aside } from '@astrojs/starlight/components';
 
-WordPress has "Page Templates" — a dropdown in the editor that lets you pick a layout per page (e.g. Default, Full Width, Landing Page). EmDash supports the same pattern using a `select` field.
+Let editors pick a layout per page (e.g. Default, Full Width, Landing Page) from a dropdown in the editor, using a `select` field mapped to layout components in your page route.
 
 ## How it works
 
@@ -13,7 +13,7 @@ WordPress has "Page Templates" — a dropdown in the editor that lets you pick a
 2. Create layout components for each option
 3. Map the field value to a layout in your page route
 
-No special system is needed — this uses EmDash's existing select field and Astro's component model.
+This uses EmDash's select field and Astro's component model.
 
 ## Add the field
 
@@ -134,7 +134,7 @@ Use human-readable option names like "Full Width" rather than slugs like "full-w
 
 ## Adding more layouts
 
-Common choices from WordPress themes:
+Common layout choices:
 
 - **Default** — narrow content column, good for reading
 - **Full Width** — wider content area, no sidebar

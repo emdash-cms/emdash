@@ -389,10 +389,12 @@ export class MenuRepository {
 	}
 
 	/**
-	 * Delete a menu. Items are deleted explicitly first because D1 disables
-	 * FK enforcement at the database level, so `ON DELETE CASCADE` declared in
-	 * migration 005 cannot be relied on. On SQLite/Postgres the cascade also
-	 * fires, making the explicit delete a no-op there.
+	 * Delete a menu. Items are deleted explicitly to avoid relying on the
+	 * `ON DELETE CASCADE` FK declared in migration 005, which migration 036
+	 * removed: that FK is what made #1021 destructive on D1 (the cascade
+	 * fired when the i18n migration dropped `_emdash_menus`), so dropping
+	 * the FK was the fix. The explicit delete keeps the runtime working
+	 * the same way before and after the migration.
 	 */
 	async delete(id: string): Promise<boolean> {
 		const existing = await this.findById(id);
@@ -563,10 +565,11 @@ export class MenuRepository {
 			// Re-check menu existence INSIDE the transaction. The handler
 			// resolved by (name, locale) before this call; if a concurrent
 			// menu_delete landed in between, inserting new items would
-			// silently orphan them on D1 (where FK enforcement is off, so
-			// the migration's ON DELETE CASCADE never fires). Throw a
-			// MenuGoneError so the rollback fires and the handler returns
-			// NOT_FOUND with the original menu name in the message.
+			// silently orphan them. The FK from migration 005 was removed
+			// by migration 036 (#1021) and not restored, so nothing at the
+			// schema level stops the orphans. Throw a MenuGoneError so the
+			// rollback fires and the handler returns NOT_FOUND with the
+			// original menu name in the message.
 			const stillThere = await trx
 				.selectFrom("_emdash_menus")
 				.select("id")

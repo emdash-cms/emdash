@@ -1,378 +1,88 @@
 ---
 title: Admin Panel
-description: The EmDash admin panel—a React SPA with TanStack Router, TanStack Query, and Kumo components.
+description: What the EmDash admin panel offers editors, administrators, and developers.
 ---
 
-import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
+import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
 
-The EmDash admin panel is a React single-page application embedded in your Astro site. It provides a complete content management interface for editors and administrators.
+The admin panel is the content management interface for your site. It is served at `/_emdash/admin/` inside your Astro site, and it adapts automatically to your collections, plugins, and the signed-in user's role. For how it is built, see [Architecture (internals)](/contributing/architecture/#admin-panel-internals).
 
-## Architecture Overview
+## Screens
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    Astro Shell                                 │
-│  /_emdash/admin/[...path].astro                              │
-│                                                                │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                    React SPA                             │  │
-│  │                                                          │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐   │  │
-│  │  │  TanStack   │  │  TanStack   │  │     Kumo        │   │  │
-│  │  │   Router    │  │   Query     │  │   Components    │   │  │
-│  │  └─────────────┘  └─────────────┘  └─────────────────┘   │  │
-│  │                                                          │  │
-│  │  ┌────────────────────────────────────────────────────┐  │  │
-│  │  │              REST API Client                       │  │  │
-│  │  │           /_emdash/api/*                         │  │  │
-│  │  └────────────────────────────────────────────────────┘  │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────────────┘
-```
+| Path                       | Screen                          |
+| -------------------------- | ------------------------------- |
+| `/`                        | Dashboard                       |
+| `/content/:collection`     | Content list                    |
+| `/content/:collection/:id` | Content editor                  |
+| `/content/:collection/new` | New entry                       |
+| `/media`                   | Media library                   |
+| `/content-types`           | Schema builder (administrators) |
+| `/menus`                   | Navigation menus                |
+| `/widgets`                 | Widget areas                    |
+| `/taxonomies`              | Categories and tags             |
+| `/settings`                | Site settings                   |
+| `/plugins/:pluginId/*`     | Plugin pages                    |
 
-The admin is a "big island" React app. Astro handles the shell and authentication; all navigation and rendering inside the admin is client-side.
+Navigation is generated from your collections and installed plugins, so a schema or plugin change appears in the admin immediately.
 
-## Technology Stack
+## Roles
 
-| Layer       | Technology            | Purpose                                  |
-| ----------- | --------------------- | ---------------------------------------- |
-| **Routing** | TanStack Router       | Type-safe client-side routing            |
-| **Data**    | TanStack Query        | Server state, caching, mutations         |
-| **UI**      | Kumo                  | Accessible components (Base UI + Tailwind) |
-| **Tables**  | TanStack Table        | Sorting, filtering, pagination             |
-| **Forms**   | React Hook Form + Zod | Validation matching server schema          |
-| **Icons**   | Phosphor              | Consistent iconography                     |
-| **Editor**  | TipTap                | Rich text editing (Portable Text)        |
+What a user sees depends on their role. EmDash has five roles, from least to most access: Subscriber, Contributor, Author, Editor, Admin. See [User roles](/guides/authentication/#user-roles) for the full definitions.
+
+In the admin, lower roles see only the content they have permission to manage. The schema builder at `/content-types` and the settings screens are Admin-only. Type generation and the CLI are available to developers working on the project regardless of admin role.
 
 <Aside type="note">
-	Kumo is Cloudflare's design system, built on Base UI primitives with Tailwind styling. It's
-	installed as a dependency of the admin package.
+	The admin requires a signed-in user. Login is a separate page that
+	establishes a session; see [Authentication](/guides/authentication/).
 </Aside>
 
-## Route Structure
+## Content editor
 
-The admin mounts at `/_emdash/admin/` and uses client-side routing:
+The content editor builds a form from a collection's fields. Each field type uses a matching input:
 
-| Path                       | Screen                      |
-| -------------------------- | --------------------------- |
-| `/`                        | Dashboard                   |
-| `/content/:collection`     | Content list                |
-| `/content/:collection/:id` | Content editor              |
-| `/content/:collection/new` | New entry                   |
-| `/media`                   | Media library               |
-| `/content-types`           | Schema builder (admin only) |
-| `/menus`                   | Navigation menus            |
-| `/widgets`                 | Widget areas                |
-| `/taxonomies`              | Category/tag management     |
-| `/settings`                | Site settings               |
-| `/plugins/:pluginId/*`     | Plugin pages                |
+| Field type     | Editor            |
+| -------------- | ----------------- |
+| `string`       | Text input        |
+| `text`         | Textarea          |
+| `number`       | Number input      |
+| `boolean`      | Toggle            |
+| `datetime`     | Date/time picker  |
+| `select`       | Dropdown          |
+| `multiSelect`  | Multi-select      |
+| `portableText` | Rich text editor  |
+| `image`        | Media picker      |
+| `reference`    | Entry picker      |
 
-<Aside type="tip">
-	The `/content-types` route is only visible to administrators. Editors see only the content they
-	have permission to manage.
-</Aside>
+Rich text fields edit as formatted content — headings, lists, quotes, code, links, and images from the media library. Content from plugins or imports that the editor does not recognise is preserved untouched.
 
-## Manifest-Driven UI
+Lists are paginated and stay consistent even when content changes between pages.
 
-The admin doesn't hardcode knowledge of collections or plugins. Instead, it fetches a manifest from the server:
+## Media library
 
-```
-GET /_emdash/api/manifest
-```
-
-Response:
-
-```json
-{
-	"collections": [
-		{
-			"slug": "posts",
-			"label": "Blog Posts",
-			"labelSingular": "Post",
-			"icon": "file-text",
-			"supports": ["drafts", "revisions", "preview"],
-			"fields": [
-				{ "slug": "title", "type": "string", "required": true },
-				{ "slug": "content", "type": "portableText" }
-			]
-		}
-	],
-	"plugins": [
-		{
-			"id": "audit-log",
-			"label": "Audit Log",
-			"adminPages": [{ "path": "history", "label": "Audit History" }],
-			"widgets": [{ "id": "recent-activity", "title": "Recent Activity" }]
-		}
-	],
-	"taxonomies": [{ "name": "category", "label": "Categories", "hierarchical": true }],
-	"version": "abc123"
-}
-```
-
-The admin builds its navigation, forms, and editors entirely from this manifest. Benefits:
-
-- **Schema changes appear immediately** — No admin rebuild needed
-- **Plugin UI integrates automatically** — Pages and widgets from the manifest
-- **Type safety at the boundary** — Zod schemas stay on the server
-
-## Data Flow
-
-<Steps>
-	1. **Admin SPA loads** — TanStack Router initializes 2. **Fetch manifest** — TanStack Query caches
-	collection/plugin metadata 3. **Build navigation** — Sidebar generated from manifest 4. **User
-	navigates** — Client-side routing, no page reload 5. **Fetch data** — TanStack Query requests
-	content from REST APIs 6. **Render forms** — Field editors generated from manifest field
-	descriptors 7. **Submit changes** — Mutations via TanStack Query, optimistic updates 8. **Server
-	validates** — Zod schemas on the server, errors returned as JSON
-</Steps>
-
-## REST API Endpoints
-
-The admin communicates exclusively through REST APIs:
-
-### Content APIs
-
-| Method   | Endpoint                                   | Purpose              |
-| -------- | ------------------------------------------ | -------------------- |
-| `GET`    | `/api/content/:collection`                 | List entries         |
-| `POST`   | `/api/content/:collection`                 | Create entry         |
-| `GET`    | `/api/content/:collection/:id`             | Get entry            |
-| `PUT`    | `/api/content/:collection/:id`             | Update entry         |
-| `DELETE` | `/api/content/:collection/:id`             | Soft delete entry    |
-| `GET`    | `/api/content/:collection/:id/revisions`   | List revisions       |
-| `POST`   | `/api/content/:collection/:id/preview-url` | Generate preview URL |
-
-### Schema APIs
-
-| Method   | Endpoint                                      | Purpose            |
-| -------- | --------------------------------------------- | ------------------ |
-| `GET`    | `/api/schema`                                 | Export full schema |
-| `GET`    | `/api/schema/collections`                     | List collections   |
-| `POST`   | `/api/schema/collections`                     | Create collection  |
-| `PUT`    | `/api/schema/collections/:slug`               | Update collection  |
-| `DELETE` | `/api/schema/collections/:slug`               | Delete collection  |
-| `POST`   | `/api/schema/collections/:slug/fields`        | Add field          |
-| `PUT`    | `/api/schema/collections/:slug/fields/:field` | Update field       |
-| `DELETE` | `/api/schema/collections/:slug/fields/:field` | Delete field       |
-
-### Media APIs
-
-| Method   | Endpoint                 | Purpose                 |
-| -------- | ------------------------ | ----------------------- |
-| `GET`    | `/api/media`             | List media items        |
-| `POST`   | `/api/media/upload-url`  | Get signed upload URL   |
-| `POST`   | `/api/media/:id/confirm` | Confirm upload complete |
-| `DELETE` | `/api/media/:id`         | Delete media item       |
-| `GET`    | `/api/media/file/:key`   | Serve media file        |
-
-### Other APIs
-
-| Endpoint               | Purpose                  |
-| ---------------------- | ------------------------ |
-| `/api/settings`        | Site settings (GET/POST) |
-| `/api/menus/*`         | Navigation menus         |
-| `/api/widget-areas/*`  | Widget management        |
-| `/api/taxonomies/*`    | Taxonomy terms           |
-| `/api/admin/plugins/*` | Plugin state             |
-
-## Pagination
-
-All list endpoints use cursor-based pagination:
-
-```json
-{
-  "items": [...],
-  "nextCursor": "eyJpZCI6IjAxSjEyMzQ1NiJ9"
-}
-```
-
-Fetch the next page:
-
-```
-GET /api/content/posts?cursor=eyJpZCI6IjAxSjEyMzQ1NiJ9
-```
-
-<Aside type="note">
-	Cursor pagination provides consistent results even when content is added or removed between
-	requests.
-</Aside>
-
-## Plugin Admin UI
-
-Plugins can extend the admin with pages and dashboard widgets. The integration generates a virtual module with static imports:
-
-```ts
-// virtual:emdash/plugin-admins (generated)
-import * as pluginAdmin0 from "@emdash-cms/plugin-seo/admin";
-import * as pluginAdmin1 from "@emdash-cms/plugin-analytics/admin";
-
-export const pluginAdmins = {
-	seo: pluginAdmin0,
-	analytics: pluginAdmin1,
-};
-```
-
-### Plugin Pages
-
-Plugin pages mount under `/_emdash/admin/plugins/:pluginId/*`:
-
-```tsx
-// @emdash-cms/plugin-seo/src/admin.tsx
-export const pages = [
-	{
-		path: "settings",
-		component: SEOSettingsPage,
-		label: "SEO Settings",
-	},
-];
-```
-
-Renders at: `/_emdash/admin/plugins/seo/settings`
-
-### Dashboard Widgets
-
-Plugins can add widgets to the dashboard:
-
-```tsx
-export const widgets = [
-	{
-		id: "seo-overview",
-		component: SEOWidget,
-		title: "SEO Overview",
-		size: "half", // "full" | "half" | "third"
-	},
-];
-```
-
-<Aside type="caution">
-	Plugins can only mount pages under their own namespace (`/plugins/:pluginId/*`). They cannot
-	override core admin routes.
-</Aside>
-
-## Authentication
-
-The admin shell route enforces authentication via Astro middleware:
-
-```ts
-// Simplified middleware logic
-export async function onRequest({ request, locals }, next) {
-	const session = await getSession(request);
-
-	if (request.url.includes("/_emdash/admin")) {
-		if (!session?.user) {
-			return redirect("/_emdash/admin/login");
-		}
-		locals.user = session.user;
-	}
-
-	return next();
-}
-```
-
-The admin SPA itself doesn't handle login—that's an Astro page that sets a session cookie.
-
-## Role-Based Access
-
-Different roles see different parts of the admin:
-
-| Role          | Visible Sections                           |
-| ------------- | ------------------------------------------ |
-| **Editor**    | Dashboard, assigned collections, media     |
-| **Admin**     | + Content Types, all collections, settings |
-| **Developer** | + CLI access, generated types              |
-
-The manifest endpoint filters collections and features based on the requesting user's role.
-
-## Content Editor
-
-The content editor generates forms dynamically based on field definitions:
-
-```tsx
-// Simplified editor rendering
-function ContentEditor({ collection, fields }) {
-	return (
-		<form>
-			{fields.map((field) => (
-				<FieldWidget
-					key={field.slug}
-					type={field.type}
-					label={field.label}
-					required={field.required}
-					options={field.options}
-				/>
-			))}
-		</form>
-	);
-}
-```
-
-Each field type has a corresponding widget:
-
-| Field Type     | Widget           |
-| -------------- | ---------------- |
-| `string`       | Text input       |
-| `text`         | Textarea         |
-| `number`       | Number input     |
-| `boolean`      | Toggle switch    |
-| `datetime`     | Date/time picker |
-| `select`       | Dropdown         |
-| `multiSelect`  | Multi-select     |
-| `portableText` | TipTap editor    |
-| `image`        | Media picker     |
-| `reference`    | Entry picker     |
-
-## Rich Text Editor
-
-Portable Text fields use TipTap (ProseMirror) for editing:
-
-```
-User types → TipTap (ProseMirror JSON) → Save → Portable Text (DB)
-Load → Portable Text (DB) → TipTap (ProseMirror JSON) → Display
-```
-
-Conversion happens at load/save boundaries via `portableTextToProsemirror()` and `prosemirrorToPortableText()`.
-
-Supported blocks:
-
-- Paragraphs, headings (H1-H6)
-- Bullet and numbered lists
-- Blockquotes, code blocks
-- Images (from media library)
-- Links
-
-Unknown blocks from plugins or imports are preserved as read-only placeholders.
-
-## Media Library
-
-The media library provides:
+The media library supports:
 
 - Grid and list views
-- Search and filter by type, date
+- Search and filter by type and date
 - Drag-and-drop upload
 - Image preview with metadata
 - Bulk selection and delete
 
-Uploads use signed URLs for direct client-to-storage upload:
+Uploads go directly from the browser to your storage backend, so large files are not limited by request size.
 
-<Steps>
-	1. **Request upload URL** — `POST /api/media/upload-url` 2. **Upload directly** — Client PUTs file
-	to signed URL (R2/S3) 3. **Confirm upload** — `POST /api/media/:id/confirm` 4. **Server extracts
-	metadata** — Dimensions, MIME type, etc.
-</Steps>
+## Plugin pages and widgets
 
-This approach bypasses Workers body size limits and provides real upload progress.
+A plugin can add pages and dashboard widgets to the admin. Plugin pages appear under `/_emdash/admin/plugins/:pluginId/`, and a plugin can only mount under its own namespace — it cannot override core admin screens. See [installing plugins](/plugins/installing/).
 
-## Next Steps
+## Next steps
 
 <CardGrid>
 	<Card title="Getting Started" icon="rocket">
 		[Set up your first EmDash site](/getting-started/).
 	</Card>
-	<Card title="Plugin Development" icon="puzzle">
-		[Build admin UI extensions](/plugins/creating-native-plugins/react-admin/).
+	<Card title="REST API" icon="puzzle">
+		The admin uses the [REST API](/reference/rest-api/); you can call it too.
 	</Card>
 	<Card title="Architecture" icon="open-book">
-		Review the full [system architecture](/concepts/architecture/).
+		Review the [content model](/concepts/content-model/).
 	</Card>
 </CardGrid>

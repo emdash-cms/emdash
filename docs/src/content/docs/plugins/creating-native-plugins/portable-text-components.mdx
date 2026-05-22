@@ -97,4 +97,4 @@ If you want a plugin to be sandboxed but still ship a default rendering experien
 2. Ship a separate companion native package on npm that provides the Astro rendering components.
 3. Document both: end users install the sandboxed plugin from the marketplace and `npm install` the companion package for rendering.
 
-This trades one-step install for keeping the editor side sandboxed. Most plugin authors prefer to just go native when block rendering is involved — but the option exists.
+This trades a one-step install for keeping the editor side sandboxed. Going fully native is simpler when block rendering is involved, but this split remains an option.

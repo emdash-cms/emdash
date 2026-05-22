@@ -5,9 +5,9 @@ description: Per-plugin configuration through the KV store, exposed in the admin
 
 import { Aside } from "@astrojs/starlight/components";
 
-Sandboxed plugins store their settings in the per-plugin **KV store** and render the editing UI as a [Block Kit](/plugins/creating-plugins/block-kit/) page. The auto-generated `admin.settingsSchema` form that native plugins can use isn't available in the sandbox — instead, you describe the form in JSON and serve it from a route.
+Sandboxed plugins store their settings in the per-plugin **KV store** and render the editing UI as a [Block Kit](/plugins/creating-plugins/block-kit/) page: you describe the form in JSON and serve it from a route.
 
-It's a bit more work than `settingsSchema`, but everything happens through the same machinery the plugin already uses for hooks and routes — there's nothing extra to learn.
+Everything happens through the same machinery the plugin already uses for hooks and routes — there's nothing extra to learn.
 
 ## The KV store
 
@@ -67,9 +67,8 @@ await ctx.kv.set("url", url);
 
 Sandboxed plugins describe their settings page as Block Kit. The admin sends a `page_load` interaction to a route on your plugin (conventionally `routes.admin`), and the plugin returns a JSON description of the form. When the user clicks Save, the admin sends a `block_action` or `form_submit` interaction back; the plugin writes to KV and returns updated blocks.
 
-```typescript title="src/sandbox-entry.ts"
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
+```typescript title="src/plugin.ts"
+import type { PluginContext, SandboxedPlugin } from "emdash/plugin";
 
 interface BlockInteraction {
 	type: "page_load" | "block_action" | "form_submit";
@@ -78,10 +77,10 @@ interface BlockInteraction {
 	values?: Record<string, unknown>;
 }
 
-export default definePlugin({
+export default {
 	routes: {
 		admin: {
-			handler: async (routeCtx, ctx: PluginContext) => {
+			handler: async (routeCtx, ctx) => {
 				const interaction = routeCtx.input as BlockInteraction;
 
 				if (interaction.type === "page_load" && interaction.page === "/settings") {
@@ -100,7 +99,7 @@ export default definePlugin({
 			},
 		},
 	},
-});
+} satisfies SandboxedPlugin;
 
 async function renderSettings(ctx: PluginContext) {
 	const apiKey = (await ctx.kv.get<string>("settings:apiKey")) ?? "";
@@ -150,10 +149,12 @@ async function saveSettings(ctx: PluginContext, values: Record<string, unknown>)
 }
 ```
 
-To wire the settings page into the admin sidebar, declare it on the descriptor:
+To wire the settings page into the admin sidebar, declare it in the manifest:
 
-```typescript title="src/index.ts"
-adminPages: [{ path: "/settings", label: "Settings", icon: "settings" }],
+```jsonc title="emdash-plugin.jsonc"
+"admin": {
+	"pages": [{ "path": "/settings", "label": "Settings", "icon": "settings" }]
+}
 ```
 
 EmDash routes `page_load` interactions for that path to your `admin` route automatically.

@@ -67,11 +67,12 @@ export type { PluginManagerOptions, PluginState } from "./manager.js";
 export {
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
+	SandboxUnavailableError,
 	createNoopSandboxRunner,
 } from "./sandbox/index.js";
 export type {
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,
@@ -186,15 +187,7 @@ export type {
 	ResolvedPlugin,
 	PluginManifest,
 	ManifestMcpToolEntry,
-
-	// Standard plugin format
-	StandardPluginDefinition,
-	StandardHookHandler,
-	StandardHookEntry,
-	StandardRouteHandler,
-	StandardRouteEntry,
 } from "./types.js";
-export { isStandardPluginDefinition } from "./types.js";
 
 // Capability normalization (legacy → canonical alias layer)
 export {
