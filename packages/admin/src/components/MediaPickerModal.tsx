@@ -212,7 +212,7 @@ export function MediaPickerModal({
 		queryFn: ({ pageParam }) =>
 			fetchMediaList({
 				mimeType: filters,
-				cursor: pageParam as string | undefined,
+				cursor: pageParam,
 				limit: 100,
 			}),
 		initialPageParam: undefined as string | undefined,

@@ -19,7 +19,7 @@
 
 import mime from "mime/lite";
 
-import type { PortableTextBlock, FieldSchema } from "./portable-text.js";
+import type { FieldSchema } from "./portable-text.js";
 import { convertDataForRead, convertDataForWrite } from "./portable-text.js";
 import type { Interceptor } from "./transport.js";
 import {

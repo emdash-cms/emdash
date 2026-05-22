@@ -34,7 +34,7 @@ function cfRequest(url: string, body: unknown): Request {
 		},
 		body: JSON.stringify(body),
 	});
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- test harness
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- test harness
 	(req as unknown as { cf: Record<string, unknown> }).cf = { country: "US" };
 	return req;
 }
@@ -65,7 +65,7 @@ function ctx(opts: {
 				email: opts.email,
 			},
 		},
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub for tests
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
 	} as unknown as APIContext;
 }
 
@@ -131,7 +131,7 @@ describe("POST /auth/signup/request rate limiting", () => {
 				},
 				body: JSON.stringify({ email: addr }),
 			});
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- test harness
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- test harness
 			(r as unknown as { cf: Record<string, unknown> }).cf = { country: "US" };
 			return r;
 		}
@@ -140,7 +140,7 @@ describe("POST /auth/signup/request rate limiting", () => {
 			return {
 				request,
 				locals: { emdash: { db, email } },
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub
 			} as unknown as APIContext;
 		}
 

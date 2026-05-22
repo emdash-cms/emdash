@@ -92,7 +92,7 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 
 	const link = (
 		<Link
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- TanStack Router requires literal route types
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- TanStack Router requires literal route types
 			to={item.to as "/"}
 			params={item.params}
 			aria-current={isActive ? "page" : undefined}

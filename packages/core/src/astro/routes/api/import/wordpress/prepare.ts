@@ -20,7 +20,7 @@ import { capitalize, sanitizeSlug, singularize, type ImportFieldDef } from "./an
 
 /** Validate that a string is a known FieldType, returning undefined if not */
 function asFieldType(value: string): FieldType | undefined {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- validated by includes check
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated by includes check
 	return (FIELD_TYPES as readonly string[]).includes(value) ? (value as FieldType) : undefined;
 }
 
@@ -55,7 +55,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, wpPrepareBody);
 		if (isParseError(body)) return body;
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Zod schema output narrowed to PrepareRequest
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Zod schema output narrowed to PrepareRequest
 		const result = await prepareImport(emdash.db, body as PrepareRequest);
 
 		// Invalidate the URL pattern cache when prepare adds new collections so

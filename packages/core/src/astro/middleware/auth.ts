@@ -475,11 +475,11 @@ async function handleExternalAuth(
 		const authResult = await virtualAuthenticate(request, authMode.config);
 
 		// Get external auth config for auto-provision settings
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
 		const externalConfig = authMode.config as ExternalAuthConfig;
 
 		// Find or create user
-		const adapter = createKyselyAdapter(emdash!.db);
+		const adapter = createKyselyAdapter(emdash.db);
 		let user = await adapter.getUserByEmail(authResult.email);
 
 		if (!user) {
@@ -492,9 +492,9 @@ async function handleExternalAuth(
 			}
 
 			// Check if this is the first user (they become admin)
-			const userCount = await emdash!.db
+			const userCount = await emdash.db
 				.selectFrom("users")
-				.select(emdash!.db.fn.count("id").as("count"))
+				.select(emdash.db.fn.count("id").as("count"))
 				.executeTakeFirst();
 
 			const isFirstUser = Number(userCount?.count ?? 0) === 0;
@@ -512,7 +512,7 @@ async function handleExternalAuth(
 				updated_at: now,
 			};
 
-			await emdash!.db.insertInto("users").values(newUser).execute();
+			await emdash.db.insertInto("users").values(newUser).execute();
 
 			user = await adapter.getUserByEmail(authResult.email);
 
@@ -539,7 +539,7 @@ async function handleExternalAuth(
 
 			if (Object.keys(updates).length > 0) {
 				updates.updated_at = new Date().toISOString();
-				await emdash!.db.updateTable("users").set(updates).where("id", "=", user.id).execute();
+				await emdash.db.updateTable("users").set(updates).where("id", "=", user.id).execute();
 
 				user = {
 					...user,
@@ -665,7 +665,7 @@ async function handlePasskeyAuth(
 		}
 
 		// Get full user from database
-		const adapter = createKyselyAdapter(emdash!.db);
+		const adapter = createKyselyAdapter(emdash.db);
 		const user = await adapter.getUserById(sessionUser.id);
 
 		if (!user) {

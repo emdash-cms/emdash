@@ -159,10 +159,23 @@ export class MockPds implements FetchHandlerObject {
 			collection: string;
 			rkey: string;
 			record: unknown;
+			swapRecord?: string;
 		};
 		const guard = this.#validateWriteTarget(input.repo, input.collection, input.rkey);
 		if (guard) return guard;
 		const uri = `at://${input.repo}/${input.collection}/${input.rkey}`;
+		// swapRecord is atproto's CID-based CAS precondition. Enforce it so
+		// tests can exercise the stale-write race a real PDS would catch.
+		if (input.swapRecord !== undefined) {
+			const current = this.records.get(uri);
+			const currentCid = current?.cid ?? "";
+			if (currentCid !== input.swapRecord) {
+				return jsonResponse(400, {
+					error: "InvalidSwap",
+					message: `swapRecord mismatch: expected ${input.swapRecord}, current ${currentCid}`,
+				});
+			}
+		}
 		const stored: StoredRecord = {
 			uri,
 			cid: cidOf(input.record),

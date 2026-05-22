@@ -50,6 +50,12 @@ import {
 	VersionMismatchError,
 	type NormalisedManifest,
 } from "../manifest/translate.js";
+import {
+	ProbedDefaultSchema,
+	type ProbedDefault,
+	type ProbedHookEntry,
+	type ProbedRouteEntry,
+} from "./probe-schema.js";
 
 const PLUGIN_ENTRY_PATH = "src/plugin.ts";
 const PACKAGE_JSON_PATH = "package.json";
@@ -295,102 +301,184 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 		);
 	}
 
-	const pluginModule = (await import(probeOutputPath)) as Record<string, unknown>;
+	const pluginModule: unknown = await import(probeOutputPath);
+	if (!isObjectRecord(pluginModule)) {
+		throw new BuildPipelineError(
+			"INVALID_PLUGIN_FORMAT",
+			`${entries.pluginEntry} did not produce a module object on probe (got ${describeShape(pluginModule)}).`,
+		);
+	}
 	if (pluginModule.default === undefined) {
 		throw new BuildPipelineError(
 			"INVALID_PLUGIN_FORMAT",
 			`${entries.pluginEntry} has no \`default\` export. Sandboxed plugins must \`export default { hooks, routes } satisfies SandboxedPlugin\` from "emdash/plugin". A named-only export (e.g. \`export const plugin = ...\`) produces an empty bundle.`,
 		);
 	}
-	const definition = pluginModule.default as Record<string, unknown>;
-	if (typeof definition !== "object" || definition === null || Array.isArray(definition)) {
+	const definition = pluginModule.default;
+	if (!isObjectRecord(definition)) {
 		throw new BuildPipelineError(
 			"INVALID_PLUGIN_FORMAT",
 			`${entries.pluginEntry} must default-export an object with \`hooks\` and/or \`routes\` (sandboxed plugin shape: \`export default { hooks, routes } satisfies SandboxedPlugin\` from "emdash/plugin"). Got ${describeShape(definition)}.`,
 		);
 	}
 
-	const hooks = definition.hooks as Record<string, unknown> | undefined;
-	const routes = definition.routes as Record<string, unknown> | undefined;
+	const parsed = parseProbedDefault(entries.pluginEntry, definition);
 
-	if (hooks) {
-		for (const hookName of Object.keys(hooks)) {
-			const hookEntry = hooks[hookName];
-			const handler = extractHookHandler(hookEntry);
-			if (!handler) {
-				throw new BuildPipelineError(
-					"INVALID_PLUGIN_FORMAT",
-					`${entries.pluginEntry}: hook "${hookName}" must be a function or { handler: function, ... }. Got ${describeShape(hookEntry)}.`,
-				);
-			}
-			const config: Record<string, unknown> =
-				typeof hookEntry === "object" && hookEntry !== null
-					? (hookEntry as Record<string, unknown>)
-					: {};
-			// Re-validate hook config values at build time. The strict
-			// `SandboxedPlugin` type rejects these at compile time;
-			// this catches authors who bypass typecheck (untyped JS,
-			// dynamic config).
-			if (
-				config.errorPolicy !== undefined &&
-				config.errorPolicy !== "continue" &&
-				config.errorPolicy !== "abort"
-			) {
-				throw new BuildPipelineError(
-					"INVALID_PLUGIN_FORMAT",
-					`${entries.pluginEntry}: hook "${hookName}" has invalid errorPolicy ${JSON.stringify(config.errorPolicy)} (must be "continue" or "abort").`,
-				);
-			}
-			if (
-				config.priority !== undefined &&
-				(typeof config.priority !== "number" || !Number.isFinite(config.priority))
-			) {
-				throw new BuildPipelineError(
-					"INVALID_PLUGIN_FORMAT",
-					`${entries.pluginEntry}: hook "${hookName}" has invalid priority ${JSON.stringify(config.priority)} (must be a finite number).`,
-				);
-			}
-			if (
-				config.timeout !== undefined &&
-				(typeof config.timeout !== "number" ||
-					!Number.isFinite(config.timeout) ||
-					config.timeout < 0)
-			) {
-				throw new BuildPipelineError(
-					"INVALID_PLUGIN_FORMAT",
-					`${entries.pluginEntry}: hook "${hookName}" has invalid timeout ${JSON.stringify(config.timeout)} (must be a non-negative finite number).`,
-				);
-			}
-			resolvedPlugin.hooks[hookName] = {
-				handler,
-				priority: (config.priority as number | undefined) ?? 100,
-				timeout: (config.timeout as number | undefined) ?? 5000,
-				dependencies: (config.dependencies as string[] | undefined) ?? [],
-				errorPolicy: (config.errorPolicy as string | undefined) ?? "abort",
-				exclusive: (config.exclusive as boolean | undefined) ?? false,
-				pluginId: resolvedPlugin.id,
-			};
+	if (parsed.hooks) {
+		for (const [hookName, hookEntry] of Object.entries(parsed.hooks)) {
+			resolvedPlugin.hooks[hookName] = assembleHook(hookEntry, resolvedPlugin.id);
 		}
 	}
-	if (routes) {
-		for (const [name, route] of Object.entries(routes)) {
-			const handler = extractRouteHandler(route);
-			if (!handler) {
-				throw new BuildPipelineError(
-					"INVALID_PLUGIN_FORMAT",
-					`${entries.pluginEntry}: route "${name}" must be a function or { handler: function, ... }. Got ${describeShape(route)}.`,
-				);
-			}
-			const routeObj: Record<string, unknown> =
-				typeof route === "object" && route !== null ? (route as Record<string, unknown>) : {};
-			resolvedPlugin.routes[name] = {
-				handler,
-				public: routeObj.public as boolean | undefined,
-			};
+	if (parsed.routes) {
+		for (const [routeName, routeEntry] of Object.entries(parsed.routes)) {
+			resolvedPlugin.routes[routeName] = assembleRoute(routeEntry);
 		}
 	}
 
 	return resolvedPlugin;
+}
+
+/**
+ * Validate the probed default export against `ProbedDefaultSchema` and
+ * translate any Zod issue into a `BuildPipelineError`. The first issue
+ * wins so authors see one focused message rather than an issue tree.
+ *
+ * Path-keyed dispatch: an issue at `["hooks", "X"]` produces the
+ * "must be a function or { handler, ... }" message; an issue at
+ * `["hooks", "X", "field", ...]` produces the "has invalid FIELD VALUE"
+ * message. Anything else falls back to a generic path-prefixed message.
+ *
+ * Exported so tests can lock in the error-message contract without
+ * spinning up a real probe build.
+ */
+export function parseProbedDefault(pluginEntry: string, definition: unknown): ProbedDefault {
+	let result: ReturnType<typeof ProbedDefaultSchema.safeParse>;
+	try {
+		result = ProbedDefaultSchema.safeParse(definition);
+	} catch (error) {
+		// Defensive: Zod 4 has been observed to throw `TypeError` when an
+		// entry is an exotic shape it doesn't expect. The schema's
+		// `normaliseEntry` preprocess catches the cases we know about,
+		// but wrap `safeParse` so any future surprise still surfaces as a
+		// `BuildPipelineError` rather than a raw stack trace.
+		const message = error instanceof Error ? error.message : String(error);
+		throw new BuildPipelineError(
+			"INVALID_PLUGIN_FORMAT",
+			`${pluginEntry}: probed default export could not be validated (${message}). Check for entries with unusual shapes (Promises, class instances, etc.).`,
+		);
+	}
+	if (result.success) return result.data;
+
+	const issue = result.error.issues[0];
+	if (!issue) {
+		throw new BuildPipelineError(
+			"INVALID_PLUGIN_FORMAT",
+			`${pluginEntry}: probed default export failed validation.`,
+		);
+	}
+
+	const [collection, entryName, ...rest] = issue.path;
+	if ((collection === "hooks" || collection === "routes") && typeof entryName === "string") {
+		const kind = collection === "hooks" ? "hook" : "route";
+		const entry = getProperty(getProperty(definition, collection), entryName);
+		if (rest.length === 0) {
+			throw new BuildPipelineError(
+				"INVALID_PLUGIN_FORMAT",
+				`${pluginEntry}: ${kind} "${entryName}" must be a function or { handler: function, ... }. Got ${describeShape(entry)}.`,
+			);
+		}
+		// Per-field issue (errorPolicy, priority, timeout, dependencies,
+		// public, …). The displayed value is the field as a whole, not
+		// the deeper element the path points at; the Zod message
+		// describes the actual fault.
+		const field = formatFieldPath(rest);
+		const fieldValue = typeof rest[0] === "string" ? getProperty(entry, rest[0]) : undefined;
+		throw new BuildPipelineError(
+			"INVALID_PLUGIN_FORMAT",
+			`${pluginEntry}: ${kind} "${entryName}" has invalid ${field} ${safeStringify(fieldValue)} (${issue.message}).`,
+		);
+	}
+
+	throw new BuildPipelineError(
+		"INVALID_PLUGIN_FORMAT",
+		`${pluginEntry}: ${issue.message} (at ${issue.path.join(".") || "<root>"}).`,
+	);
+}
+
+/**
+ * Render an issue path inside a hook/route entry as `field`,
+ * `field[index]`, or `field.sub`. Used for human-readable error
+ * messages only; never fed back into property lookups.
+ */
+function formatFieldPath(path: readonly PropertyKey[]): string {
+	let out = "";
+	for (const segment of path) {
+		if (typeof segment === "number") {
+			out += `[${segment}]`;
+		} else if (out === "") {
+			out += String(segment);
+		} else {
+			out += `.${String(segment)}`;
+		}
+	}
+	return out || "<unknown>";
+}
+
+/**
+ * Read a property off an `unknown` value, returning `undefined` for any
+ * non-object input. Used only to recover the original user-supplied
+ * value back off the definition for error-message formatting, never to
+ * drive control flow. Exotic objects (Array, Map, Date, class
+ * instances) return whatever the runtime gives them — harmless for
+ * an error-message helper.
+ */
+function getProperty(value: unknown, key: string): unknown {
+	if (value === null || typeof value !== "object") return undefined;
+	// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- error-message helper; widening to Record<string,unknown> for plain-object lookup is intentional, exotic objects return harmless results
+	return (value as Record<string, unknown>)[key];
+}
+
+/**
+ * `JSON.stringify` that survives values it can't serialise (`BigInt`,
+ * cyclic structures, `undefined`, functions, symbols) by falling back
+ * to `describeShape`. Used only to embed user-supplied values in
+ * `BuildPipelineError` messages.
+ */
+function safeStringify(value: unknown): string {
+	try {
+		const json = JSON.stringify(value, (_key, v) =>
+			typeof v === "bigint" ? `${v.toString()}n` : v,
+		);
+		// `JSON.stringify(undefined)` is `undefined` (not a string). Fall
+		// through to the shape description in that case.
+		if (json === undefined) return describeShape(value);
+		return json;
+	} catch {
+		return describeShape(value);
+	}
+}
+
+function assembleHook(entry: ProbedHookEntry, pluginId: string): ResolvedPlugin["hooks"][string] {
+	// `preprocess` in `probe-schema.ts` normalises the bare-function form
+	// into `{ handler }` before validation, so every entry that reaches
+	// here is in the config form.
+	return {
+		handler: entry.handler,
+		priority: entry.priority ?? 100,
+		timeout: entry.timeout ?? 5000,
+		dependencies: entry.dependencies ?? [],
+		errorPolicy: entry.errorPolicy ?? "abort",
+		exclusive: entry.exclusive ?? false,
+		pluginId,
+	};
+}
+
+function assembleRoute(entry: ProbedRouteEntry): ResolvedPlugin["routes"][string] {
+	return { handler: entry.handler, public: entry.public };
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -469,24 +557,6 @@ export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFil
 // ──────────────────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────
-
-function extractHookHandler(entry: unknown): unknown {
-	if (typeof entry === "function") return entry;
-	if (entry && typeof entry === "object" && "handler" in entry) {
-		const handler = (entry as { handler: unknown }).handler;
-		if (typeof handler === "function") return handler;
-	}
-	return undefined;
-}
-
-function extractRouteHandler(entry: unknown): unknown {
-	if (typeof entry === "function") return entry;
-	if (entry && typeof entry === "object" && "handler" in entry) {
-		const handler = (entry as { handler: unknown }).handler;
-		if (typeof handler === "function") return handler;
-	}
-	return undefined;
-}
 
 function describeShape(value: unknown): string {
 	if (value === null) return "null";
