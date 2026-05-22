@@ -48,6 +48,6 @@
 		"@atcute/identity-resolver": "^1.2.2",
 		"@atcute/oauth-node-client": "^1.1.0",
 		"@emdash-cms/auth": "workspace:*",
-    "kysely": "^0.29.0"
+    "kysely": "catalog:"
 	}
 }
