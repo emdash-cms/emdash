@@ -363,8 +363,8 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			}
 			resolvedPlugin.hooks[hookName] = {
 				handler,
-				priority: (config.priority as number | undefined) ?? 100,
-				timeout: (config.timeout as number | undefined) ?? 5000,
+				priority: config.priority ?? 100,
+				timeout: config.timeout ?? 5000,
 				dependencies: (config.dependencies as string[] | undefined) ?? [],
 				errorPolicy: (config.errorPolicy as string | undefined) ?? "abort",
 				exclusive: (config.exclusive as boolean | undefined) ?? false,
