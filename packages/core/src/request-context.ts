@@ -99,7 +99,7 @@ export interface EmDashRequestContext {
 const ALS_KEY = Symbol.for("emdash:request-context");
 
 const storage: AsyncLocalStorage<EmDashRequestContext> =
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
 	((globalThis as Record<symbol, unknown>)[ALS_KEY] as
 		| AsyncLocalStorage<EmDashRequestContext>
 		| undefined) ??

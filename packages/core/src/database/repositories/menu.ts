@@ -463,7 +463,7 @@ export class MenuRepository {
 				.where("menu_id", "=", menuId)
 				.where("parent_id", "is", input.parentId ?? null)
 				.executeTakeFirst();
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely fn.max returns unknown; always a number for sort_order column
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely fn.max returns unknown; always a number for sort_order column
 			sortOrder = ((maxOrder?.max as number) ?? -1) + 1;
 		}
 

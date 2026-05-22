@@ -121,7 +121,7 @@ export class LocalStorage implements Storage {
 			// Convert Node.js stream to web ReadableStream
 			// Readable.toWeb returns ReadableStream (which is ReadableStream<unknown>),
 			// but Node ReadStreams produce Buffer/Uint8Array chunks
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Readable.toWeb returns ReadableStream<unknown>; Node ReadStreams produce Uint8Array chunks
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Readable.toWeb returns ReadableStream<unknown>; Node ReadStreams produce Uint8Array chunks
 			const webStream: ReadableStream<Uint8Array> = Readable.toWeb(
 				nodeStream,
 			) as ReadableStream<Uint8Array>;

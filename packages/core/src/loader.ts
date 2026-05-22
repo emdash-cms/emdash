@@ -471,7 +471,7 @@ export async function getDb(): Promise<Kysely<Database>> {
 	// Per-request DB override via ALS (normal mode)
 	const ctx = getRequestContext();
 	if (ctx?.db) {
-		return ctx.db as Kysely<Database>; // eslint-disable-line typescript-eslint(no-unsafe-type-assertion) -- db is typed as unknown in RequestContext to avoid circular deps
+		return ctx.db as Kysely<Database>; // eslint-disable-line typescript/no-unsafe-type-assertion -- db is typed as unknown in RequestContext to avoid circular deps
 	}
 
 	if (!dbInstance) {

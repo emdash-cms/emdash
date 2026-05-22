@@ -49,7 +49,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm lint:json
+      - run: pnpm lint
 
   version-check:
     name: Version Check

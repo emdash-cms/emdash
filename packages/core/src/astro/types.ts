@@ -427,6 +427,10 @@ export interface EmDashHandlers {
 	// Sandbox runner (for marketplace plugin install/update)
 	getSandboxRunner: () => import("../plugins/sandbox/types.js").SandboxRunner | null;
 
+	// Whether sandbox bypass mode (sandbox: false) is active. Marketplace
+	// install/update routes use this to skip the SANDBOX_NOT_AVAILABLE gate.
+	isSandboxBypassed: () => boolean;
+
 	// Sync marketplace plugin states (after install/update/uninstall)
 	syncMarketplacePlugins: () => Promise<void>;
 
