@@ -380,7 +380,11 @@ function convertPMNode(node: {
 	}
 }
 
-function convertList(items: unknown[], listItem: "bullet" | "number"): PortableTextTextBlock[] {
+function convertList(
+	items: unknown[],
+	listItem: "bullet" | "number",
+	level = 1,
+): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
 	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
 
@@ -399,11 +403,15 @@ function convertList(items: unknown[], listItem: "bullet" | "number"): PortableT
 							_key: generateKey(),
 							style: "normal",
 							listItem,
-							level: 1,
+							level,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
 					}
+				} else if (child.type === "bulletList") {
+					blocks.push(...convertList(child.content || [], "bullet", level + 1));
+				} else if (child.type === "orderedList") {
+					blocks.push(...convertList(child.content || [], "number", level + 1));
 				}
 			}
 		}
