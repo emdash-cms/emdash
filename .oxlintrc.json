@@ -50,7 +50,13 @@
 	},
 	"overrides": [
 		{
-			"files": ["**/*.test.ts", "**/*.test.tsx", "**/tests/**/*.ts", "**/tests/**/*.tsx"],
+			"files": [
+				"**/*.test.ts",
+				"**/*.test.tsx",
+				"**/tests/**/*.ts",
+				"**/tests/**/*.tsx",
+				"packages/atproto-test-utils/**/*.ts"
+			],
 			"rules": {
 				"typescript/no-unsafe-type-assertion": "off",
 				"typescript/no-unnecessary-type-assertion": "off",

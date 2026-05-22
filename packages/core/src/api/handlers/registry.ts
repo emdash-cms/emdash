@@ -371,7 +371,7 @@ export async function assertSafeArtifactUrl(urlString: string): Promise<URL> {
 		return await resolveAndValidateExternalUrl(url.href);
 	} catch (err) {
 		if (err instanceof SsrfError) {
-			throw new Error(`Artifact URL rejected: ${err.message}`);
+			throw new Error(`Artifact URL rejected: ${err.message}`, { cause: err });
 		}
 		throw err;
 	}

@@ -241,8 +241,8 @@ export function ContentTypeEditor({
 	const handleSingularLabelChange = (value: string) => {
 		setLabelSingular(value);
 		if (isNew) {
-			const plural = value ? `${value}s` : "";
-			handleLabelChange(plural);
+			const pluralLabel = value ? `${value}s` : "";
+			handleLabelChange(pluralLabel);
 		}
 	};
 

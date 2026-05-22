@@ -65,8 +65,8 @@ test.describe("Bylines", () => {
 			return body.data.id as string;
 		};
 
-		const firstBylineId = await createByline(primaryName, `primary-writer-${unique}`);
-		const secondBylineId = await createByline(secondaryName, `secondary-writer-${unique}`);
+		const _firstBylineId = await createByline(primaryName, `primary-writer-${unique}`);
+		const _secondBylineId = await createByline(secondaryName, `secondary-writer-${unique}`);
 
 		await admin.goToNewContent("posts");
 		await admin.waitForLoading();
