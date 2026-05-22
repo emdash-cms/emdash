@@ -24,6 +24,16 @@ export interface BackingServiceHandler {
 	removePlugin: (pluginId: string) => void;
 }
 
+/** Error carrying an HTTP status code, used to surface request-level failures. */
+class HttpError extends Error {
+	constructor(
+		message: string,
+		readonly statusCode: number,
+	) {
+		super(message);
+	}
+}
+
 /**
  * Create an HTTP request handler for the backing service.
  */
@@ -59,9 +69,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 					capabilities: claims.capabilities,
 					allowedHosts: claims.allowedHosts,
 					storageCollections: claims.storageCollections,
-					storageConfig: runner.getPluginStorageConfig(claims.pluginId, claims.version) as
-						| Record<string, { indexes?: Array<string | string[]> }>
-						| undefined,
+					storageConfig: runner.getPluginStorageConfig(claims.pluginId, claims.version),
 					db: runner.db,
 					emailSend: () => runner.emailSend,
 					storage: runner.mediaStorage,
@@ -85,10 +93,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 			res.writeHead(webResponse.status, { "Content-Type": "application/json" });
 			res.end(responseBody);
 		} catch (error) {
-			const statusCode =
-				error instanceof Error && "statusCode" in error
-					? (error as Error & { statusCode: number }).statusCode
-					: 500;
+			const statusCode = error instanceof HttpError ? error.statusCode : 500;
 			const message = error instanceof Error ? error.message : "Internal error";
 			res.writeHead(statusCode, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: message }));
@@ -105,18 +110,31 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 
 const MAX_BRIDGE_BODY_BYTES = 10 * 1024 * 1024;
 
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+	// IncomingMessage is a Node Readable; async-iteration yields chunks typed
+	// as `any`. Validate each chunk is a Buffer (the runtime guarantee for
+	// non-object-mode streams) so we can compose them safely.
 	const chunks: Buffer[] = [];
 	let totalBytes = 0;
 	for await (const chunk of req) {
-		totalBytes += (chunk as Buffer).length;
-		if (totalBytes > MAX_BRIDGE_BODY_BYTES) {
-			const err = new Error("Request body too large");
-			(err as Error & { statusCode: number }).statusCode = 413;
-			throw err;
+		if (!Buffer.isBuffer(chunk)) {
+			throw new HttpError("Request body has unexpected chunk type", 400);
 		}
-		chunks.push(chunk as Buffer);
+		totalBytes += chunk.length;
+		if (totalBytes > MAX_BRIDGE_BODY_BYTES) {
+			throw new HttpError("Request body too large", 413);
+		}
+		chunks.push(chunk);
 	}
 	const raw = Buffer.concat(chunks).toString();
-	return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+	if (!raw) return {};
+	const parsed: unknown = JSON.parse(raw);
+	if (!isJsonObject(parsed)) {
+		throw new HttpError("Request body must be a JSON object", 400);
+	}
+	return parsed;
 }
