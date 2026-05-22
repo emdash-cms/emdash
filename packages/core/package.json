@@ -297,5 +297,8 @@
     "wordpress"
   ],
   "author": "Matt Kane",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  }
 }
