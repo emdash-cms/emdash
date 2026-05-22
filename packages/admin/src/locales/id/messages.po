@@ -264,7 +264,7 @@ msgstr "{current} dari {total}"
 
 #: packages/admin/src/components/ContentList.tsx:506
 msgid "{filteredCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr "{filteredCount, plural, other {#{1} item cocok dengan \"{searchQuery}\"}}"
+msgstr "{filteredCount, plural, other {# item cocok dengan \"{searchQuery}\"}}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
