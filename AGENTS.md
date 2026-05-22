@@ -32,7 +32,7 @@ EmDash is an Astro-native CMS on Cloudflare (D1 + R2 + Workers) or Node + SQLite
 
 - **Schema in the database.** `_emdash_collections` and `_emdash_fields` are the source of truth. Each collection gets a real SQL table (`ec_posts`, `ec_products`) with typed columns -- not EAV.
 - **Middleware chain:** runtime init -> setup check -> auth -> request context (ALS). Auth middleware checks authentication only; routes check authorization.
-- **Handler layer** (`packages/core/src/api/handlers/*.ts`) holds business logic and returns `ApiResult<T>` (`{ success: true, data } | { success: false, error: { code, message } }`). Route files are thin wrappers.
+- **Handler layer** (`packages/core/src/api/handlers/*.ts`) holds business logic and returns `ApiResult<T>` (`{ success: true, data } | { success: false, error: { code, message, details? } }`). Route files are thin wrappers.
 - **Storage abstraction:** `Storage` interface with `upload/download/delete/exists/list/getSignedUploadUrl`. `LocalStorage` for dev, `S3Storage` for R2/AWS. Access via `emdash.storage` from locals.
 
 Key files:
