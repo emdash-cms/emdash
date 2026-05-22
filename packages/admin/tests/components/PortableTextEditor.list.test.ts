@@ -29,15 +29,11 @@ describe("ProseMirror → PortableText: nested list level", () => {
 					content: [
 						{
 							type: "listItem",
-							content: [
-								{ type: "paragraph", content: [{ type: "text", text: "Item one" }] },
-							],
+							content: [{ type: "paragraph", content: [{ type: "text", text: "Item one" }] }],
 						},
 						{
 							type: "listItem",
-							content: [
-								{ type: "paragraph", content: [{ type: "text", text: "Item two" }] },
-							],
+							content: [{ type: "paragraph", content: [{ type: "text", text: "Item two" }] }],
 						},
 					],
 				},
