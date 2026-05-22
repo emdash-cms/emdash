@@ -537,7 +537,7 @@ const configHolder = globalThis as Record<symbol, unknown>;
  * This is set by the virtual module at build time
  */
 export function getStoredConfig(): EmDashConfig | null {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern (see request-context.ts)
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
 	return (configHolder[STORED_CONFIG_KEY] as EmDashConfig | undefined) ?? null;
 }
 

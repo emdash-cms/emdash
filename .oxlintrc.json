@@ -17,7 +17,6 @@
 			}
 		],
 		"unicorn/filename-case": "off",
-		"unicorn/prevent-abbreviations": "off",
 		"unicorn/no-null": "off",
 		"unicorn/prefer-add-event-listener": "off",
 		"typescript/no-unsafe-type-assertion": "warn",

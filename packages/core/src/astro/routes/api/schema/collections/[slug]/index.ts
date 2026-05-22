@@ -56,7 +56,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const result = await handleSchemaCollectionUpdate(
 		emdash!.db,
 		slug,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- parseBody validates via Zod
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- parseBody validates via Zod
 		body as UpdateCollectionInput,
 	);
 	emdash!.invalidateUrlPatternCache();

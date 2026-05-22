@@ -50,7 +50,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const body = await parseBody(request, updateFieldBody);
 	if (isParseError(body)) return body;
 
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- body is Zod-validated via parseBody(request, updateFieldBody) above
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- body is Zod-validated via parseBody(request, updateFieldBody) above
 	const result = await handleSchemaFieldUpdate(
 		emdash!.db,
 		collectionSlug,

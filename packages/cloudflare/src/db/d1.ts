@@ -160,7 +160,7 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	const session = binding.withSession(constraint);
 	// kysely-d1 only touches .prepare() and .batch() on the database argument,
 	// both of which D1DatabaseSession implements.
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- session is structurally compatible with the subset D1Dialect uses
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- session is structurally compatible with the subset D1Dialect uses
 	const sessionAsDatabase = session as unknown as D1Database;
 	const db = new Kysely<any>({
 		dialect: new EmDashD1Dialect({ database: sessionAsDatabase }),
@@ -190,7 +190,7 @@ function isSessionEnabled(config: D1Config): boolean {
 }
 
 function getBinding(config: D1Config): D1Database | null {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Worker binding accessed from untyped env object
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding accessed from untyped env object
 	const db = (env as Record<string, unknown>)[config.binding] as D1Database | undefined;
 	return db ?? null;
 }

@@ -365,7 +365,7 @@ export class MediaRepository {
 			contentHash: row.content_hash,
 			blurhash: row.blurhash,
 			dominantColor: row.dominant_color,
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- DB stores string; validated at insert but linter can't follow
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- DB stores string; validated at insert but linter can't follow
 			status: row.status as MediaStatus,
 			createdAt: row.created_at,
 			authorId: row.author_id,

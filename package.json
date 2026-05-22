@@ -45,8 +45,8 @@
 		"emdash": "workspace:*",
 		"knip": "^5.84.1",
 		"oxfmt": "^0.34.0",
-		"oxlint": "^1.49.0",
-		"oxlint-tsgolint": "^0.15.0",
+		"oxlint": "^1.66.0",
+		"oxlint-tsgolint": "^0.23.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-astro": "^0.14.1",
 		"typescript": "6.0.0-beta"

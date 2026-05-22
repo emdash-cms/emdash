@@ -48,7 +48,7 @@ function buildContext({ pathname, emdashDb }: BuildContextOpts): {
 		locals,
 		redirect,
 	};
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal Astro-shaped object for the middleware under test
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal Astro-shaped object for the middleware under test
 	return { context: ctx as unknown as MiddlewareContext, redirect };
 }
 

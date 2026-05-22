@@ -59,7 +59,7 @@ export interface PluginBridgeProps {
  * Get the Worker Loader binding from env
  */
 function getLoader(): WorkerLoader | null {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Worker Loader binding accessed from untyped env object
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker Loader binding accessed from untyped env object
 	return (env as Record<string, unknown>).LOADER as WorkerLoader | null;
 }
 
@@ -67,7 +67,7 @@ function getLoader(): WorkerLoader | null {
  * Get the PluginBridge from exports (loopback binding)
  */
 function getPluginBridge(): ((opts: { props: PluginBridgeProps }) => PluginBridgeBinding) | null {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- PluginBridge accessed from untyped cloudflare:workers exports
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- PluginBridge accessed from untyped cloudflare:workers exports
 	return (exports as Record<string, unknown>).PluginBridge as
 		| ((opts: { props: PluginBridgeProps }) => PluginBridgeBinding)
 		| null;
