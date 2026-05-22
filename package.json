@@ -10,7 +10,7 @@
 		"typecheck:templates": "pnpm run --workspace-concurrency=1 --filter {./templates/*} typecheck",
 		"check": "pnpm run typecheck && pnpm run --filter {./packages/*} check",
 		"test": "pnpm run --filter {./packages/*} test",
-		"test:unit": "pnpm run --filter emdash --filter @emdash-cms/auth --filter @emdash-cms/blocks --filter @emdash-cms/gutenberg-to-portable-text --filter @emdash-cms/marketplace --filter @emdash-cms/plugin-forms --filter @emdash-cms/plugin-types --filter @emdash-cms/registry-cli --filter @emdash-cms/registry-client --filter @emdash-cms/registry-lexicons test",
+		"test:unit": "pnpm run --filter emdash --filter @emdash-cms/auth --filter @emdash-cms/blocks --filter @emdash-cms/gutenberg-to-portable-text --filter @emdash-cms/marketplace --filter @emdash-cms/plugin-cli --filter @emdash-cms/plugin-forms --filter @emdash-cms/plugin-types --filter @emdash-cms/registry-client --filter @emdash-cms/registry-lexicons test",
 		"test:browser": "pnpm run --filter @emdash-cms/admin test",
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
@@ -28,8 +28,7 @@
 		"screenshots": "node scripts/screenshot-all-templates.mjs",
 		"query-counts": "node scripts/query-counts.mjs",
 		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
-		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile",
-		"changeset:version": "pnpm changeset version && pnpm install --no-frozen-lockfile"
+		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile"
 	},
 	"keywords": [],
 	"author": "Matt Kane",
@@ -42,7 +41,7 @@
 		"@lunariajs/core": "https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc",
 		"@playwright/test": "^1.58.0",
 		"@types/node": "catalog:",
-		"@typescript/native-preview": "^7.0.0-dev",
+		"@typescript/native-preview": "7.0.0-dev.20260421.2",
 		"emdash": "workspace:*",
 		"knip": "^5.84.1",
 		"oxfmt": "^0.34.0",
@@ -52,15 +51,8 @@
 		"prettier-plugin-astro": "^0.14.1",
 		"typescript": "6.0.0-beta"
 	},
-	"packageManager": "pnpm@10.28.0",
+	"packageManager": "pnpm@11.1.3+sha512.c85357fe17ca12dd23dd7071822666dfd7e3cb76fe214e3370b5ea2fb34f2a231185509b63e717f3cd0acb38dd3f8d82bcd5e8172400ae678b70ea4fbed0896d",
 	"engines": {
 		"node": ">=22"
-	},
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"better-sqlite3",
-			"esbuild",
-			"workerd"
-		]
 	}
 }

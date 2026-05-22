@@ -8,6 +8,6 @@
 		"**/package.json",
 		"**/emdash-env.d.ts",
 		"packages/registry-lexicons/src/generated/**",
-		"packages/registry-cli/schemas/**"
+		"packages/plugin-cli/schemas/**"
 	]
 }

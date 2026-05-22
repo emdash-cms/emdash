@@ -1,0 +1,26 @@
+{
+	"$schema": "../../plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "webhook-notifier",
+	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6", // plugins.emdashcms.com
+
+	"license": "MIT",
+	"author": { "name": "Matt Kane" },
+	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
+	"description": "Posts to user-configured external URLs when content or media changes.",
+
+	// Trust contract. Outbound HTTP is unrestricted because the
+	// webhook URLs are user-supplied at runtime — there's no fixed
+	// allow-list we could pin at publish time. Declares the
+	// `deliveries` storage collection for audit + retry state.
+	"capabilities": ["network:request:unrestricted"],
+	"allowedHosts": [],
+	"storage": {
+		"deliveries": { "indexes": ["timestamp", "webhookUrl", "status"] },
+	},
+
+	"admin": {
+		"pages": [{ "path": "/settings", "label": "Webhook Settings", "icon": "send" }],
+		"widgets": [{ "id": "status", "title": "Webhooks", "size": "third" }],
+	},
+}

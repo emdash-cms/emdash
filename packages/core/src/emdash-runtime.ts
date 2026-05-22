@@ -28,7 +28,7 @@ import type { ContentItem as ContentItemInternal } from "./database/repositories
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
-import type { SandboxedPlugin, SandboxRunner } from "./plugins/sandbox/types.js";
+import type { SandboxedPluginInstance, SandboxRunner } from "./plugins/sandbox/types.js";
 import type {
 	ResolvedPlugin,
 	MediaItem,
@@ -271,7 +271,7 @@ export interface EmDashRuntimeParts {
 	db: Kysely<Database>;
 	storage: Storage | null;
 	configuredPlugins: ResolvedPlugin[];
-	sandboxedPlugins: Map<string, SandboxedPlugin>;
+	sandboxedPlugins: Map<string, SandboxedPluginInstance>;
 	sandboxedPluginEntries: SandboxedPluginEntry[];
 	hooks: HookPipeline;
 	enabledPlugins: Set<string>;
@@ -304,7 +304,7 @@ function contentItemToRecord(item: ContentItemInternal): Record<string, unknown>
 const dbCache = new Map<string, Kysely<Database>>();
 let dbInitPromise: Promise<Kysely<Database>> | null = null;
 const storageCache = new Map<string, Storage>();
-const sandboxedPluginCache = new Map<string, SandboxedPlugin>();
+const sandboxedPluginCache = new Map<string, SandboxedPluginInstance>();
 /**
  * Per-tier sets of `${pluginId}:${version}` keys present in
  * `sandboxedPluginCache`. Used during sync to know which entries belong
@@ -342,7 +342,7 @@ export class EmDashRuntime {
 	private readonly _db: Kysely<Database>;
 	readonly storage: Storage | null;
 	readonly configuredPlugins: ResolvedPlugin[];
-	readonly sandboxedPlugins: Map<string, SandboxedPlugin>;
+	readonly sandboxedPlugins: Map<string, SandboxedPluginInstance>;
 	readonly sandboxedPluginEntries: SandboxedPluginEntry[];
 	readonly schemaRegistry: SchemaRegistry;
 	private _hooks!: HookPipeline;
@@ -1121,7 +1121,7 @@ export class EmDashRuntime {
 	private static async loadSandboxedPlugins(
 		deps: RuntimeDependencies,
 		db: Kysely<Database>,
-	): Promise<Map<string, SandboxedPlugin>> {
+	): Promise<Map<string, SandboxedPluginInstance>> {
 		// Return cached plugins if already loaded
 		if (sandboxedPluginCache.size > 0) {
 			return sandboxedPluginCache;
@@ -1199,7 +1199,7 @@ export class EmDashRuntime {
 		db: Kysely<Database>,
 		storage: Storage,
 		deps: RuntimeDependencies,
-		cache: Map<string, SandboxedPlugin>,
+		cache: Map<string, SandboxedPluginInstance>,
 	): Promise<void> {
 		// Ensure sandbox runner exists
 		if (!sandboxRunner && deps.createSandboxRunner) {
@@ -2352,7 +2352,7 @@ export class EmDashRuntime {
 	// Sandboxed Plugin Helpers
 	// =========================================================================
 
-	private findSandboxedPlugin(pluginId: string): SandboxedPlugin | undefined {
+	private findSandboxedPlugin(pluginId: string): SandboxedPluginInstance | undefined {
 		for (const [key, plugin] of this.sandboxedPlugins) {
 			if (key.startsWith(pluginId + ":")) {
 				return plugin;
@@ -2565,7 +2565,7 @@ export class EmDashRuntime {
 	}
 
 	private async handleSandboxedRoute(
-		plugin: SandboxedPlugin,
+		plugin: SandboxedPluginInstance,
 		path: string,
 		request: Request,
 	): Promise<{

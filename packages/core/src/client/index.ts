@@ -737,10 +737,11 @@ export class EmDashClient {
 		if (options?.cursor) params.set("cursor", options.cursor);
 
 		const qs = params.toString();
-		return this.request<ListResult<Term>>(
+		const data = await this.request<{ terms: Term[] }>(
 			"GET",
 			`/taxonomies/${encodeURIComponent(taxonomy)}/terms${qs ? `?${qs}` : ""}`,
 		);
+		return { items: data.terms };
 	}
 
 	/** Create a taxonomy term */

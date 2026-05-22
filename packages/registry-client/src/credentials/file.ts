@@ -157,7 +157,7 @@ export class FileCredentialStore implements CredentialStore {
 		// their CLI or remove the file manually.
 		if (!Number.isInteger(parsed.version) || parsed.version < 1 || parsed.version > FILE_VERSION) {
 			throw new Error(
-				`credential store at ${this.path} has version ${parsed.version}; this CLI understands versions 1..${FILE_VERSION}. Upgrade emdash-registry or remove the file manually.`,
+				`credential store at ${this.path} has version ${parsed.version}; this CLI understands versions 1..${FILE_VERSION}. Upgrade emdash-plugin or remove the file manually.`,
 			);
 		}
 		// Future: branch on parsed.version < FILE_VERSION for migrations.

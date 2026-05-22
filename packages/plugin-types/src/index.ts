@@ -8,9 +8,9 @@
  *   - **`emdash` (core)** reads `manifest.json` at install time and again at
  *     runtime when gating a sandboxed plugin's access to capabilities. Core
  *     is the contract reader.
- *   - **`@emdash-cms/registry-cli`** writes `manifest.json` during bundling
+ *   - **`@emdash-cms/plugin-cli`** writes `manifest.json` during bundling
  *     (extracted from the plugin author's source) and publishes the resulting
- *     records via atproto. registry-cli is the contract writer.
+ *     records via atproto. plugin-cli is the contract writer.
  *
  * Anything that has to round-trip cleanly between writer and reader belongs
  * here: the capability vocabulary, the manifest shape, the hook/route entry

@@ -13,7 +13,7 @@
  * sidebar entries stay stable.
  */
 
-import { Badge, Button } from "@cloudflare/kumo";
+import { Badge, Button, LinkButton } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { ShieldCheck, Warning } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -112,18 +112,40 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// different permissions list than another publisher would for the
 	// same RFC-0001 fields.
 	const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
-	const releaseDoc = release?.release as
-		| {
-				extensions?: Record<string, { declaredAccess?: unknown; capabilities?: unknown }>;
-		  }
+	// `release` is lexicon-validated at the boundary; `extensions` is the
+	// lexicon's open `unknown` map, so its inner shape still needs narrowing.
+	const extensions = release?.release?.extensions as
+		| Record<string, { declaredAccess?: unknown; capabilities?: unknown }>
 		| undefined;
-	const ext = releaseDoc?.extensions?.[RELEASE_EXTENSION_NSID];
+	const ext = extensions?.[RELEASE_EXTENSION_NSID];
 
 	const capabilities: string[] = Array.isArray(ext?.capabilities)
 		? canonicalCapabilitiesForDriftCheck(ext?.capabilities)
 		: canonicalCapabilitiesForDriftCheck(declaredAccessToCapabilityList(ext?.declaredAccess));
 
-	const profile = pkg?.profile as { name?: string; description?: string } | undefined;
+	// `profile` / `release` are validated against their lexicons at the
+	// DiscoveryClient boundary, so the shape here is trustworthy (or `null`).
+	// URLs still need a scheme allow-list: the lexicon's `uri` format permits
+	// non-HTTP schemes (incl. `javascript:`), so an author/repo `url` going
+	// straight into an `href` would be stored XSS in the authenticated admin
+	// origin. `safeExternalHref` / `safeEmail` are that gate, not shape-parsing.
+	const pkgProfile = pkg?.profile ?? null;
+	const displayName = pkgProfile?.name;
+	const description = pkgProfile?.description;
+	const licenseText = pkgProfile?.license;
+	const keywordList = pkgProfile?.keywords ?? [];
+	const authorList = (pkgProfile?.authors ?? []).map((a) => ({
+		name: a.name,
+		url: safeExternalHref(a.url),
+		email: safeEmail(a.email),
+	}));
+	const securityList = (pkgProfile?.security ?? []).flatMap((c) => {
+		const url = safeExternalHref(c.url);
+		const email = safeEmail(c.email);
+		return url || email ? [{ url, email }] : [];
+	});
+	// `repo` is a release-level field (`release.repo`), not a profile field.
+	const repoHref = safeExternalHref(release?.release?.repo);
 	const verified = (pkg?.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
 	const policyOk =
@@ -224,7 +246,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				</div>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
-						<h1 className="truncate text-3xl font-bold">{profile?.name ?? slug}</h1>
+						<h1 className="truncate text-3xl font-bold">{displayName ?? slug}</h1>
 						{verified ? (
 							<ShieldCheck
 								className="h-5 w-5 shrink-0 text-kumo-brand"
@@ -301,8 +323,86 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 			) : null}
 
 			{/* Description */}
-			{profile?.description ? (
-				<p className="text-base text-kumo-default">{profile.description}</p>
+			{description ? <p className="text-base text-kumo-default">{description}</p> : null}
+
+			{/* License / keywords / repository */}
+			{licenseText || repoHref || keywordList.length > 0 ? (
+				<section className="flex flex-wrap items-center gap-2">
+					{licenseText ? <LicenseBadge license={licenseText} /> : null}
+					{keywordList.map((k) => (
+						<Badge key={k}>{k}</Badge>
+					))}
+					{repoHref ? (
+						<LinkButton href={repoHref} external variant="secondary">
+							{t`View source`}
+						</LinkButton>
+					) : null}
+				</section>
+			) : null}
+
+			{/* Authors */}
+			{authorList.length > 0 ? (
+				<section>
+					<h2 className="text-sm font-semibold text-kumo-subtle">{t`Authors`}</h2>
+					<ul className="mt-2 space-y-1">
+						{authorList.map((a, i) => (
+							<li
+								// eslint-disable-next-line react/no-array-index-key -- authors have no stable id; index is stable within a render
+								key={`${a.name}-${i}`}
+								className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+							>
+								<span className="font-medium text-kumo-default">{a.name}</span>
+								{a.url ? (
+									<a
+										href={a.url}
+										target="_blank"
+										rel="noreferrer"
+										className="text-kumo-brand hover:underline"
+									>
+										{t`Website`}
+									</a>
+								) : null}
+								{a.email ? (
+									<a href={`mailto:${a.email}`} className="text-kumo-brand hover:underline">
+										{a.email}
+									</a>
+								) : null}
+							</li>
+						))}
+					</ul>
+				</section>
+			) : null}
+
+			{/* Security contacts */}
+			{securityList.length > 0 ? (
+				<section>
+					<h2 className="text-sm font-semibold text-kumo-subtle">{t`Security contacts`}</h2>
+					<ul className="mt-2 space-y-1">
+						{securityList.map((c, i) => (
+							<li
+								// eslint-disable-next-line react/no-array-index-key -- contacts have no stable id; index is stable within a render
+								key={`${c.email ?? c.url ?? "contact"}-${i}`}
+								className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+							>
+								{c.email ? (
+									<a href={`mailto:${c.email}`} className="text-kumo-brand hover:underline">
+										{c.email}
+									</a>
+								) : null}
+								{c.url ? (
+									<a
+										href={c.url}
+										target="_blank"
+										rel="noreferrer"
+										className="text-kumo-brand hover:underline"
+									>
+										{c.url}
+									</a>
+								) : null}
+							</li>
+						))}
+					</ul>
+				</section>
 			) : null}
 
 			{/* Capabilities preview */}
@@ -321,7 +421,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 			{showConsent && release ? (
 				<CapabilityConsentDialog
 					mode="install"
-					pluginName={profile?.name ?? slug}
+					pluginName={displayName ?? slug}
 					capabilities={capabilities}
 					isPending={installMutation.isPending}
 					error={getMutationError(installMutation.error)}
@@ -377,6 +477,70 @@ function formatDate(iso: string): string {
 	} catch {
 		return iso;
 	}
+}
+
+/**
+ * SPDX page URL for a license, or `null` when the value isn't a single
+ * SPDX identifier (compound expressions like "MIT OR Apache-2.0" and the
+ * literal "proprietary" have no canonical spdx.org page).
+ */
+/**
+ * Validate an untrusted aggregator-supplied URL for use in an `href`.
+ * Returns the normalised URL only when it is an absolute `http(s)` URL;
+ * everything else (relative, `javascript:`, `data:`, garbage, non-string)
+ * returns `null`. The profile/release records are pass-throughs from a
+ * remote service, so an unsanitised `href` is stored XSS in the
+ * authenticated admin origin.
+ */
+function safeExternalHref(value: unknown): string | null {
+	if (typeof value !== "string" || value.length === 0) return null;
+	let parsed: URL;
+	try {
+		parsed = new URL(value);
+	} catch {
+		return null;
+	}
+	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+	return parsed.href;
+}
+
+// Conservative email shape: forbids whitespace (so no CRLF), the
+// characters that could break out of a `mailto:` href, and the
+// `mailto:` query delimiters (`? & = % /`) so a value like
+// `victim@x.com?bcc=attacker@evil` can't smuggle cc/bcc/subject/body.
+const EMAIL_RE = /^[^\s@<>()[\]\\,;:"?&=%/]+@[^\s@<>()[\]\\,;:"?&=%/]+\.[^\s@<>()[\]\\,;:"?&=%/]+$/;
+
+function safeEmail(value: unknown): string | null {
+	if (typeof value !== "string") return null;
+	const email = value.trim();
+	if (email.length === 0 || email.length > 320) return null;
+	return EMAIL_RE.test(email) ? email : null;
+}
+
+const SPDX_SINGLE_ID_RE = /^[A-Za-z0-9.+-]+$/;
+
+function spdxLicenseHref(license: string): string | null {
+	const id = license.trim();
+	if (!SPDX_SINGLE_ID_RE.test(id)) return null;
+	if (id.toLowerCase() === "proprietary") return null;
+	return `https://spdx.org/licenses/${id}.html`;
+}
+
+function LicenseBadge({ license }: { license: string }) {
+	const { t } = useLingui();
+	const href = spdxLicenseHref(license);
+	if (!href) return <Badge>{license}</Badge>;
+	return (
+		<a
+			href={href}
+			target="_blank"
+			rel="noreferrer"
+			aria-label={t`View the ${license} license on spdx.org`}
+			className="hover:opacity-80"
+		>
+			<Badge>{license}</Badge>
+		</a>
+	);
 }
 
 function formatHoldback(seconds: number): string {
