@@ -137,19 +137,14 @@ export async function getEntryBylines(
 		return explicit.map((c) => ({ ...c, source: "explicit" as const }));
 	}
 
-	// Explicit editorial intent at any locale beats inferred author
-	// fallback: if the entry has any junction rows (even at another
-	// locale), don't infer from authorId. The credit is preserved in
-	// storage; it simply doesn't render at this locale until a sibling
-	// is created.
-	if (await repo.hasContentBylines(collection, entryId)) return [];
+	// `primary_byline_id` is the explicit-credit sentinel: non-null
+	// suppresses author fallback even when the credit doesn't resolve
+	// at this locale.
+	const ctx = await getEntryContext(db, collection, entryId);
+	if (ctx.primaryBylineId) return [];
 
-	// Fallback: look up user-linked byline from author_id. Same strict-locale
-	// rule applies — a user-linked byline surfaces only when a sibling
-	// exists at the requested locale.
-	const authorId = await getAuthorId(db, collection, entryId);
-	if (authorId) {
-		const fallback = await repo.findByUserId(authorId, localeOpt);
+	if (ctx.authorId) {
+		const fallback = await repo.findByUserId(ctx.authorId, localeOpt);
 		if (fallback) {
 			return [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
 		}
@@ -159,20 +154,17 @@ export async function getEntryBylines(
 }
 
 /**
- * An entry reference for batch byline lookups.
+ * Entry reference for batch byline lookups. Passing `authorId`,
+ * `primaryBylineId`, and `locale` in directly avoids a per-entry
+ * `SELECT` against the content table during hydration.
  *
- * `authorId` is read directly from the row when computing the inferred-byline
- * fallback — passing it in avoids a redundant `SELECT id, author_id` against
- * the content table after every list/entry fetch.
- *
- * `locale` is the entry's own locale (from the `locale` column on the
- * content row). Required for the strict per-locale byline join — entries at
- * different locales are bucketed and queried separately so each one resolves
- * against its own locale's byline rows.
+ * `primaryBylineId` is the explicit-credit sentinel — non-null suppresses
+ * author fallback. `locale` drives the strict per-locale join.
  */
 export interface BylineEntry {
 	id: string;
 	authorId: string | null;
+	primaryBylineId?: string | null;
 	locale?: string | null;
 }
 
@@ -249,18 +241,13 @@ export async function getBylinesForEntries(
 		}
 	}
 
-	// For entries with no resolved credits at their locale: check
-	// locale-agnostically whether they have *any* junction rows. Entries
-	// with explicit credits (even at another locale) get no inferred
-	// fallback — explicit editorial intent at any locale beats inferred.
+	// Only entries without an explicit credit (primaryBylineId null) are
+	// eligible for author fallback.
 	const fallbackByEntry = new Map<string, BylineSummary>();
 	if (entriesNeedingAuthorCheck.length > 0) {
-		const idsToCheck = entriesNeedingAuthorCheck.map((e) => e.id);
-		const hasJunctions = await repo.hasContentBylinesMany(collection, idsToCheck);
-
 		const authorBuckets = new Map<string | null, BylineEntry[]>();
 		for (const entry of entriesNeedingAuthorCheck) {
-			if (hasJunctions.has(entry.id)) continue;
+			if (entry.primaryBylineId) continue;
 			const key = entry.locale ?? null;
 			const bucket = authorBuckets.get(key);
 			if (bucket) bucket.push(entry);
@@ -300,23 +287,27 @@ export async function getBylinesForEntries(
 	return result;
 }
 
-/**
- * Look up the author_id for a single content entry.
- * Uses raw SQL since we need dynamic table names.
- */
-async function getAuthorId(
+/** Reads `author_id` + `primary_byline_id` for one entry in a single query. */
+async function getEntryContext(
 	db: Awaited<ReturnType<typeof getDb>>,
 	collection: string,
 	entryId: string,
-): Promise<string | null> {
+): Promise<{ authorId: string | null; primaryBylineId: string | null }> {
 	validateIdentifier(collection, "collection");
 	const tableName = `ec_${collection}`;
 
-	const result = await sql<{ author_id: string | null }>`
-		SELECT author_id FROM ${sql.ref(tableName)}
+	const result = await sql<{
+		author_id: string | null;
+		primary_byline_id: string | null;
+	}>`
+		SELECT author_id, primary_byline_id FROM ${sql.ref(tableName)}
 		WHERE id = ${entryId}
 		LIMIT 1
 	`.execute(db);
 
-	return result.rows[0]?.author_id ?? null;
+	const row = result.rows[0];
+	return {
+		authorId: row?.author_id ?? null,
+		primaryBylineId: row?.primary_byline_id ?? null,
+	};
 }

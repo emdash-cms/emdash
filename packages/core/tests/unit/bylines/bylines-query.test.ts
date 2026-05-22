@@ -206,6 +206,75 @@ describe("Byline query functions", () => {
 		});
 	});
 
+	describe("getEntryBylines — explicit credit sentinel", () => {
+		it("suppresses author fallback for cross-locale explicit credits with no i18n config", async () => {
+			setI18nConfig(null);
+
+			const userRepo = new UserRepository(db);
+			const author = await userRepo.create({
+				email: "cross-locale-no-i18n@example.com",
+				displayName: "Author Account",
+				role: "editor",
+			});
+			await bylineRepo.create({
+				slug: "author-en",
+				displayName: "Author EN",
+				userId: author.id,
+				locale: "en",
+			});
+
+			const credited = await bylineRepo.create({
+				slug: "credited",
+				displayName: "Credited FR",
+				locale: "fr",
+			});
+
+			const enPost = await contentRepo.create({
+				type: "post",
+				slug: "en-post-cross-locale",
+				data: { title: "Hello" },
+				locale: "en",
+				authorId: author.id,
+			});
+			await bylineRepo.setContentBylines("post", enPost.id, [{ bylineId: credited.id }]);
+
+			const result = await getEntryBylines("post", enPost.id, { locale: "en" });
+			expect(result).toEqual([]);
+		});
+
+		it("does not run a probe query against _emdash_content_bylines", async () => {
+			setI18nConfig(null);
+
+			const userRepo = new UserRepository(db);
+			const author = await userRepo.create({
+				email: "no-probe@example.com",
+				displayName: "Author",
+				role: "editor",
+			});
+			await bylineRepo.create({
+				slug: "no-probe-author",
+				displayName: "Author Byline",
+				userId: author.id,
+			});
+
+			const post = await contentRepo.create({
+				type: "post",
+				slug: "no-probe-post",
+				data: { title: "No explicit credits" },
+				authorId: author.id,
+			});
+
+			const single = vi.spyOn(BylineRepository.prototype, "hasContentBylines");
+			const batch = vi.spyOn(BylineRepository.prototype, "hasContentBylinesMany");
+			await getEntryBylines("post", post.id);
+			await getBylinesForEntries("post", [
+				{ id: post.id, authorId: author.id, primaryBylineId: null },
+			]);
+			expect(single).not.toHaveBeenCalled();
+			expect(batch).not.toHaveBeenCalled();
+		});
+	});
+
 	describe("getBylinesForEntries", () => {
 		it("batch-fetches byline credits for multiple entries", async () => {
 			const author1 = await bylineRepo.create({
@@ -492,11 +561,6 @@ describe("Byline query functions", () => {
 		});
 
 		it("does not infer from authorId when entry has explicit credits at another locale", async () => {
-			// Bug 1 regression at the runtime path. Entry credits an en-only
-			// byline; same entry's author has a fr byline. At fr locale,
-			// strict hydration returns []; we must NOT fall back to the
-			// author byline because the editor explicitly named someone
-			// else.
 			const userRepo = new UserRepository(db);
 			const user = await userRepo.create({
 				email: "runtime-fallback@example.com",
@@ -525,13 +589,18 @@ describe("Byline query functions", () => {
 			});
 			await bylineRepo.setContentBylines("post", frPost.id, [{ bylineId: explicit.id }]);
 
-			// Single-entry path.
+			const refreshed = await contentRepo.findById("post", frPost.id);
+
 			const single = await getEntryBylines("post", frPost.id, { locale: "fr" });
 			expect(single).toEqual([]);
 
-			// Batch path.
 			const batch = await getBylinesForEntries("post", [
-				{ id: frPost.id, authorId: frPost.authorId, locale: "fr" },
+				{
+					id: frPost.id,
+					authorId: frPost.authorId,
+					primaryBylineId: refreshed?.primaryBylineId ?? null,
+					locale: "fr",
+				},
 			]);
 			expect(batch.get(frPost.id)).toEqual([]);
 		});

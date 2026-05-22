@@ -156,6 +156,8 @@ export interface ContentEditorProps {
 	onAuthorChange?: (authorId: string | null) => void;
 	/** Available byline profiles */
 	availableBylines?: BylineSummary[];
+	/** Whether the parent's byline picker query has resolved. Suppresses the empty-state flash before first fetch. */
+	availableBylinesLoaded?: boolean;
 	/** Selected byline credits (controlled for new entries) */
 	selectedBylines?: BylineCreditInput[];
 	/** Callback when byline credits are changed */
@@ -222,6 +224,7 @@ export function ContentEditor({
 	users,
 	onAuthorChange,
 	availableBylines,
+	availableBylinesLoaded,
 	selectedBylines,
 	onBylinesChange,
 	onQuickCreateByline,
@@ -246,10 +249,10 @@ export function ContentEditor({
 		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
 			[],
 	);
-	// Only send `bylines` when the user actually touched the editor. Strict
-	// per-locale hydration can return `item.bylines = []` for entries with
-	// copied credits at other locales — sending `[]` on every save would
-	// silently wipe them. Mirrors the `slugTouched` pattern above.
+	// Gates whether `bylines` is included in the save payload. Untouched
+	// edits must not ship `[]` — strict per-locale hydration can return
+	// empty for entries with credits at other locales, and sending `[]`
+	// would wipe them.
 	const [bylinesTouched, setBylinesTouched] = React.useState(false);
 
 	// Track portableText editor for document outline. Only the "content"
@@ -994,6 +997,7 @@ export function ContentEditor({
 									<BylineCreditsEditor
 										credits={activeBylines}
 										bylines={availableBylines ?? []}
+										bylinesLoaded={availableBylinesLoaded}
 										onChange={handleBylinesChange}
 										onQuickCreate={onQuickCreateByline}
 										onQuickEdit={onQuickEditByline}
@@ -1933,6 +1937,8 @@ interface BylineCreditsEditorProps {
 	entryLocale?: string | null;
 	/** i18n config from the manifest. When set with >1 locales, the editor renders the locale-scoped empty-state. */
 	i18n?: { defaultLocale: string; locales: string[] } | null;
+	/** Suppresses the empty-state until the picker query resolves. Defaults to true. */
+	bylinesLoaded?: boolean;
 }
 
 function BylineCreditsEditor({
@@ -1943,6 +1949,7 @@ function BylineCreditsEditor({
 	onQuickEdit,
 	entryLocale,
 	i18n,
+	bylinesLoaded = true,
 }: BylineCreditsEditorProps) {
 	const { t } = useLingui();
 	const [selectedBylineId, setSelectedBylineId] = React.useState("");
@@ -1990,14 +1997,12 @@ function BylineCreditsEditor({
 		setEditError(null);
 	};
 
-	// Multi-locale install with no bylines available at the entry's locale:
-	// show an honest empty-state CTA pointing the editor at the byline
-	// manager, scoped to this locale. The picker stays rendered (the
-	// editor can still quick-create) but is empty until a per-locale
-	// variant exists. Mirrors the strict per-locale model from migration
-	// 040 — the picker only offers bylines that will actually hydrate.
+	// Multi-locale install with no bylines at the entry's locale: show a
+	// CTA to the byline manager, scoped to that locale. Quick-create
+	// still works inline.
 	const isMultiLocale = !!i18n && i18n.locales.length > 1;
-	const showLocaleEmptyState = isMultiLocale && bylines.length === 0 && !!entryLocale;
+	const showLocaleEmptyState =
+		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
 
 	return (
 		<div className="space-y-3">

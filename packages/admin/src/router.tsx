@@ -497,7 +497,7 @@ function ContentNewPage() {
 	// strict per-locale model from migration 040). Locale is part of the
 	// query key so switching locales fetches a fresh slice rather than
 	// reusing a stale cache.
-	const { data: bylinesData } = useQuery({
+	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
 		queryKey: ["bylines", "picker", pickerLocale ?? null],
 		queryFn: () => fetchBylines({ locale: pickerLocale, limit: 100 }),
 		enabled: !!manifest,
@@ -552,6 +552,7 @@ function ContentNewPage() {
 			onSave={handleSave}
 			pluginBlocks={pluginBlocks}
 			availableBylines={bylinesData?.items}
+			availableBylinesLoaded={bylinesLoaded}
 			selectedBylines={selectedBylines}
 			onBylinesChange={setSelectedBylines}
 			onQuickCreateByline={async (input) => {
@@ -684,7 +685,7 @@ function ContentEditPage() {
 	// transient `undefined` doesn't populate the cache with default-locale
 	// data.
 	const itemLocale = rawItem?.locale ?? undefined;
-	const { data: bylinesData } = useQuery({
+	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
 		queryKey: ["bylines", "picker", itemLocale ?? null],
 		queryFn: () => fetchBylines({ locale: itemLocale, limit: 100 }),
 		enabled: !!itemLocale,
@@ -978,6 +979,7 @@ function ContentEditPage() {
 			hasSeo={collectionConfig.hasSeo}
 			onSeoChange={handleSeoChange}
 			availableBylines={bylinesData?.items}
+			availableBylinesLoaded={bylinesLoaded}
 			onQuickCreateByline={async (input) => {
 				const created = await createBylineMutation.mutateAsync(input);
 				return created;

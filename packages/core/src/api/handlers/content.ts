@@ -130,14 +130,10 @@ async function hydrateBylines(
 		return;
 	}
 
-	// Honor explicit editorial intent: if the entry has any junction row
-	// (even at a different locale), the editor has made an explicit
-	// assignment. Do NOT fall back to author-linked inference, even if the
-	// explicit credit's translation_group has no sibling at this locale.
-	// The credit is preserved in storage; it simply doesn't render until a
-	// sibling is created. Author inference only fires when no junction
-	// rows exist at all.
-	if (await bylineRepo.hasContentBylines(collection, item.id)) {
+	// `primaryBylineId` is set iff junction rows exist; non-null
+	// suppresses author fallback even when the credit doesn't resolve
+	// at this locale.
+	if (item.primaryBylineId) {
 		item.bylines = [];
 		item.byline = null;
 		return;
@@ -206,21 +202,13 @@ async function hydrateBylinesMany(
 		}
 	}
 
-	// 3. For items with no resolved credits at their locale: check
-	//    locale-agnostically whether they have *any* junction rows. Items
-	//    with explicit credits (even at another locale) get no inferred
-	//    fallback. Items with zero junctions are eligible.
+	// 3. Author fallback applies only when no explicit credit exists
+	//    (primaryBylineId null).
 	const fallbackByItem = new Map<string, BylineSummary>();
 	if (itemsNeedingAuthorCheck.length > 0) {
-		const idsToCheck = itemsNeedingAuthorCheck.map((i) => i.id);
-		const hasJunctions = await bylineRepo.hasContentBylinesMany(collection, idsToCheck);
-
-		// Rebucket the eligible items by locale for the author-byline
-		// fallback fetch (strict per locale: a user-linked byline
-		// surfaces only when a sibling exists at the entry's locale).
 		const authorBuckets = new Map<string | null, ContentItem[]>();
 		for (const item of itemsNeedingAuthorCheck) {
-			if (hasJunctions.has(item.id)) continue;
+			if (item.primaryBylineId) continue;
 			const key = item.locale ?? null;
 			const bucket = authorBuckets.get(key);
 			if (bucket) bucket.push(item);

@@ -682,6 +682,38 @@ describe("ContentEditor", () => {
 			expect(payload).not.toHaveProperty("bylines");
 		});
 
+		it("suppresses the locale empty-state CTA until the picker query resolves", async () => {
+			const item = makeItem({ data: { title: "Hello", body: "" }, locale: "fr-fr" });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				currentUser: { id: "u-1", role: 50 },
+				i18n: { defaultLocale: "en", locales: ["en", "fr-fr"] },
+				entryLocale: "fr-fr",
+				availableBylines: [],
+				availableBylinesLoaded: false,
+			});
+
+			await expect
+				.element(screen.getByText(/No bylines available/), { timeout: 100 })
+				.not.toBeInTheDocument();
+		});
+
+		it("shows the locale empty-state CTA once the picker query resolves empty", async () => {
+			const item = makeItem({ data: { title: "Hello", body: "" }, locale: "fr-fr" });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				currentUser: { id: "u-1", role: 50 },
+				i18n: { defaultLocale: "en", locales: ["en", "fr-fr"] },
+				entryLocale: "fr-fr",
+				availableBylines: [],
+				availableBylinesLoaded: true,
+			});
+
+			await expect.element(screen.getByText(/No bylines available/)).toBeInTheDocument();
+		});
+
 		it("includes bylines: [] in save payload for new entries even when untouched", async () => {
 			const onSave = vi.fn();
 			const screen = await renderEditor({ isNew: true, onSave });
