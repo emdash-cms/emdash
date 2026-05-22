@@ -67,6 +67,7 @@ export type { PluginManagerOptions, PluginState } from "./manager.js";
 export {
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
+	SandboxUnavailableError,
 	createNoopSandboxRunner,
 } from "./sandbox/index.js";
 export type {

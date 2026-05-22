@@ -192,6 +192,9 @@ catalogs:
     '@tiptap/suggestion':
       specifier: ^3.20.0
       version: 3.20.0
+    '@types/better-sqlite3':
+      specifier: ^7.6.12
+      version: 7.6.13
     '@types/node':
       specifier: 24.10.13
       version: 24.10.13
@@ -725,8 +728,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core
       kysely:
-        specifier: ^0.27.0
-        version: 0.27.6
+        specifier: ^0.29.0
+        version: 0.29.2
       react:
         specifier: 'catalog:'
         version: 19.2.4
@@ -1123,8 +1126,8 @@ importers:
         specifier: 'catalog:'
         version: 1.0.0
       kysely:
-        specifier: ^0.27.0
-        version: 0.27.6
+        specifier: ^0.29.0
+        version: 0.29.2
       ulidx:
         specifier: ^2.4.1
         version: 2.4.1
@@ -1172,8 +1175,8 @@ importers:
         specifier: workspace:>=0.14.0
         version: link:../core
       kysely:
-        specifier: ^0.27.6
-        version: 0.27.6
+        specifier: ^0.29.0
+        version: 0.29.2
       react:
         specifier: '>=18'
         version: 19.2.4
@@ -1301,11 +1304,11 @@ importers:
         specifier: ^6.1.3
         version: 6.1.3
       kysely:
-        specifier: '>=0.27.0'
-        version: 0.27.6
+        specifier: '>=0.28.17'
+        version: 0.29.2
       kysely-d1:
         specifier: ^0.4.0
-        version: 0.4.0(kysely@0.27.6)
+        version: 0.4.0(kysely@0.29.2)
       ulidx:
         specifier: ^2.4.1
         version: 2.4.1
@@ -1471,8 +1474,8 @@ importers:
         specifier: ^0.4.4
         version: 0.4.4
       kysely:
-        specifier: ^0.27.0
-        version: 0.27.6
+        specifier: ^0.29.0
+        version: 0.29.2
       mime:
         specifier: ^4.1.0
         version: 4.1.0
@@ -1552,7 +1555,7 @@ importers:
     optionalDependencies:
       '@libsql/kysely-libsql':
         specifier: ^0.4.0
-        version: 0.4.1(kysely@0.27.6)
+        version: 0.4.1(kysely@0.29.2)
       pg:
         specifier: ^8.0.0
         version: 8.18.0
@@ -1623,7 +1626,7 @@ importers:
         version: 3.25.76
     devDependencies:
       '@types/better-sqlite3':
-        specifier: ^7.6.13
+        specifier: 'catalog:'
         version: 7.6.13
       '@types/node':
         specifier: 'catalog:'
@@ -2009,6 +2012,41 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.1.5)(@vitest/ui@4.1.5)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
+
+  packages/workerd:
+    dependencies:
+      emdash:
+        specifier: workspace:*
+        version: link:../core
+      ulidx:
+        specifier: ^2.4.1
+        version: 2.4.1
+      workerd:
+        specifier: '>=1.0.0'
+        version: 1.20260507.1
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: 'catalog:'
+        version: 7.6.13
+      better-sqlite3:
+        specifier: 'catalog:'
+        version: 12.8.0
+      kysely:
+        specifier: ^0.27.0
+        version: 0.27.6
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260421.2)(oxc-resolver@11.16.4)(publint@0.3.17)(typescript@6.0.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.1.5)(@vitest/ui@4.1.5)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.8.2))
+    optionalDependencies:
+      miniflare:
+        specifier: ^4.20250408.0
+        version: 4.20260507.1
 
   packages/x402:
     dependencies:
@@ -7916,9 +7954,9 @@ packages:
     peerDependencies:
       kysely: '*'
 
-  kysely@0.27.6:
-    resolution: {integrity: sha512-FIyV/64EkKhJmjgC0g2hygpBv5RNWVPyNCqSAD7eTCv6eFWNIi4PN1UvdSJGicN/o35bnevgis4Y0UDC0qi8jQ==}
-    engines: {node: '>=14.0.0'}
+  kysely@0.29.2:
+    resolution: {integrity: sha512-s6WVJyEZrbm6jhBpiKHsGHyePMrVQKJ85wZCFCr9W4QHv6WTjWIrdvTmO9hDEA3bNK0xkrE2DqrHsXMLWuZpQg==}
+    engines: {node: '>=22.0.0'}
 
   layerr@3.0.0:
     resolution: {integrity: sha512-tv754Ki2dXpPVApOrjTyRo4/QegVb9eVFq4mjqp4+NM5NaX7syQvN5BBNfV/ZpAHCEHV24XdUVrBAoka4jt3pA==}
@@ -12766,10 +12804,10 @@ snapshots:
       - utf-8-validate
     optional: true
 
-  '@libsql/kysely-libsql@0.4.1(kysely@0.27.6)':
+  '@libsql/kysely-libsql@0.4.1(kysely@0.29.2)':
     dependencies:
       '@libsql/client': 0.8.1
-      kysely: 0.27.6
+      kysely: 0.29.2
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -17525,11 +17563,11 @@ snapshots:
       typescript: 6.0.0-beta
       zod: 4.4.1
 
-  kysely-d1@0.4.0(kysely@0.27.6):
+  kysely-d1@0.4.0(kysely@0.29.2):
     dependencies:
-      kysely: 0.27.6
+      kysely: 0.29.2
 
-  kysely@0.27.6: {}
+  kysely@0.29.2: {}
 
   layerr@3.0.0: {}
 

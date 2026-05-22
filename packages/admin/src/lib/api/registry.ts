@@ -29,7 +29,7 @@ import type {
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
-import { API_BASE, apiFetch, throwResponseError } from "./client.js";
+import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export type { Did, Handle };
 
@@ -359,13 +359,24 @@ interface CachedResolution {
 	expiresAt: number;
 }
 
+function isCachedResolution(value: unknown): value is CachedResolution {
+	if (typeof value !== "object" || value === null) return false;
+	// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; field shapes validated below
+	const candidate = value as Record<string, unknown>;
+	return (
+		typeof candidate.expiresAt === "number" &&
+		typeof candidate.resolution === "object" &&
+		candidate.resolution !== null
+	);
+}
+
 function readHandleCache(did: string): DidHandleResolution | null {
 	if (typeof localStorage === "undefined") return null;
 	try {
 		const raw = localStorage.getItem(`${HANDLE_CACHE_KEY_PREFIX}${did}`);
 		if (!raw) return null;
-		const parsed = JSON.parse(raw) as CachedResolution;
-		if (!parsed || typeof parsed.expiresAt !== "number" || parsed.expiresAt < Date.now()) {
+		const parsed: unknown = JSON.parse(raw);
+		if (!isCachedResolution(parsed) || parsed.expiresAt < Date.now()) {
 			return null;
 		}
 		return parsed.resolution;
@@ -436,9 +447,7 @@ export async function installRegistryPlugin(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body),
 	});
-	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to install plugin`));
-	const json = (await response.json()) as { data: RegistryInstallResult };
-	return json.data;
+	return parseApiResponse<RegistryInstallResult>(response, i18n._(msg`Failed to install plugin`));
 }
 
 // ---------------------------------------------------------------------------

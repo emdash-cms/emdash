@@ -11,7 +11,7 @@
  */
 
 import type { PluginDescriptor } from "../astro/integration/runtime.js";
-import type { SandboxedPlugin } from "../plugin-types.js";
+import type { RouteEntry, RouteHandler, SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
 import { normalizeCapabilities } from "./types.js";
 import type {
@@ -96,6 +96,31 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
 	};
 }
 
+/**
+ * Normalise a `RouteEntry` (bare handler or `{ handler, public?, input? }`
+ * config) to the config form. The `input` schema is intentionally typed
+ * `unknown` in `RouteEntry` — sandboxed plugins describe it loosely
+ * because the strict `z.ZodType<TInput>` constraint of the runtime's
+ * `PluginRoute` only narrows once the route is wired into the router.
+ * The wider type flows through to the runtime which validates at
+ * invocation time.
+ */
+function normalizeRouteEntry(entry: RouteEntry): {
+	handler: RouteHandler;
+	public?: boolean;
+	input?: PluginRoute["input"];
+} {
+	if (typeof entry === "function") {
+		return { handler: entry };
+	}
+	return {
+		handler: entry.handler,
+		public: entry.public,
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- RouteEntry.input is intentionally `unknown` (sandboxed plugins) and validated by the runtime at invocation time
+		input: entry.input as PluginRoute["input"],
+	};
+}
+
 const VALID_CAPABILITIES_SET = new Set<string>(PLUGIN_CAPABILITIES);
 
 const VALID_HOOK_NAMES_SET = new Set<string>(HOOK_NAMES);
@@ -136,9 +161,13 @@ export function adaptSandboxEntry(
 	// Resolve hooks. `SandboxedPlugin.hooks` is keyed by hook name with
 	// per-key entry types; iterating with `Object.entries` collapses
 	// keys to `string`, so we treat each entry as the union `AnyHookEntry`
-	// for the duration of the loop.
+	// for the duration of the loop. The widening from the strict mapped
+	// type to a plain record is sound because each entry still matches
+	// one of the bare-handler / config-object shapes captured by
+	// `AnyHookEntry`.
 	const resolvedHooks: ResolvedPluginHooks = {};
 	if (definition.hooks) {
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- widening the strict mapped type to a string-keyed record for iteration; entries still match AnyHookEntry
 		const hookMap = definition.hooks as Record<string, AnyHookEntry>;
 		for (const [hookName, entry] of Object.entries(hookMap)) {
 			if (!VALID_HOOK_NAMES_SET.has(hookName)) {
@@ -166,49 +195,25 @@ export function adaptSandboxEntry(
 	const resolvedRoutes: Record<string, PluginRoute> = {};
 	if (definition.routes) {
 		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
-			const isConfig = typeof rawEntry === "object" && rawEntry !== null && "handler" in rawEntry;
-			const handler = isConfig
-				? (rawEntry as { handler: (...args: unknown[]) => Promise<unknown> }).handler
-				: (rawEntry as (...args: unknown[]) => Promise<unknown>);
-			const publicFlag = isConfig ? (rawEntry as { public?: boolean }).public : undefined;
-			const inputSchema = isConfig ? (rawEntry as { input?: unknown }).input : undefined;
+			const normalized = normalizeRouteEntry(rawEntry);
+			const { handler, public: publicFlag, input: inputSchema } = normalized;
 			resolvedRoutes[routeName] = {
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- route entry.input is intentionally loosely typed; callers validate at runtime
-				input: inputSchema as PluginRoute["input"],
+				input: inputSchema,
 				public: publicFlag,
 				handler: async (ctx) => {
-					// In-process, `ctx.request` is a real WHATWG `Request`
-					// with a `Headers` object. The author-facing
-					// `SandboxedRequest` type promises a plain
-					// `Record<string, string>` (the shape the sandbox's
-					// serialised form delivers). Normalise so handlers
-					// behave the same in-process and in-isolate.
+					// `ctx.request` is a real WHATWG `Request` (this is the
+					// in-process adapter; the worker-sandbox adapter handles
+					// the serialised case). Flatten `Headers` to the plain
+					// `Record<string, string>` shape that author-facing
+					// `SandboxedRequest` promises so handler bodies are
+					// identical across both adapters.
 					const headers: Record<string, string> = {};
-					if (ctx.request && typeof ctx.request === "object") {
-						const h: unknown = (ctx.request as { headers?: unknown }).headers;
-						if (h && typeof h === "object") {
-							if (typeof (h as Headers).forEach === "function") {
-								(h as Headers).forEach((value, name) => {
-									headers[name] = value;
-								});
-							} else {
-								for (const [name, value] of Object.entries(h as Record<string, string>)) {
-									headers[name] = value;
-								}
-							}
-						}
-					}
+					ctx.request.headers.forEach((value, name) => {
+						headers[name] = value;
+					});
 					const requestShape = {
-						url:
-							(ctx.request as { url?: unknown } | undefined)?.url &&
-							typeof (ctx.request as { url: unknown }).url === "string"
-								? (ctx.request as { url: string }).url
-								: "",
-						method:
-							(ctx.request as { method?: unknown } | undefined)?.method &&
-							typeof (ctx.request as { method: unknown }).method === "string"
-								? (ctx.request as { method: string }).method
-								: "GET",
+						url: ctx.request.url,
+						method: ctx.request.method,
 						headers,
 					};
 					const routeCtx = {
