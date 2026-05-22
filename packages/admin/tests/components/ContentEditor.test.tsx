@@ -660,6 +660,41 @@ describe("ContentEditor", () => {
 			await expect.element(savedBtn).toBeDisabled();
 		});
 
+		// Strict per-locale hydration (migration 040) can return
+		// `item.bylines = []` even when junction rows exist at other
+		// locales (e.g. an FR post that inherited an EN-only byline via
+		// copyContentBylines). Sending `bylines: []` on every save would
+		// silently wipe the copied credit. The editor must omit `bylines`
+		// from the payload unless the user actually touched the editor.
+		it("omits bylines from save payload when the user did not touch the byline editor", async () => {
+			const onSave = vi.fn();
+			const item = makeItem({ data: { title: "Hello", body: "" } });
+			const screen = await renderEditor({ isNew: false, item, onSave });
+
+			const titleInput = screen.getByLabelText("Title");
+			await titleInput.fill("Changed");
+
+			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
+			await saveBtn.click();
+
+			expect(onSave).toHaveBeenCalledTimes(1);
+			const payload = onSave.mock.calls[0]?.[0] as Record<string, unknown>;
+			expect(payload).not.toHaveProperty("bylines");
+		});
+
+		it("includes bylines: [] in save payload for new entries even when untouched", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({ isNew: true, onSave });
+
+			const titleInput = screen.getByLabelText("Title");
+			await titleInput.fill("Brand new");
+
+			const saveBtn = screen.getByRole("button", { name: "Save" }).first();
+			await saveBtn.click();
+
+			expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ bylines: [] }));
+		});
+
 		it("keeps edited values after autosave completes without queuing another autosave", async () => {
 			vi.useFakeTimers();
 

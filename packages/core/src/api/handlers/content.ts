@@ -15,6 +15,8 @@ import { SeoRepository } from "../../database/repositories/seo.js";
 import {
 	EmDashValidationError,
 	InvalidCursorError,
+	type BylineSummary,
+	type ContentBylineCredit,
 	type ContentItem,
 	type ContentSeo,
 	type ContentSeoInput,
@@ -22,7 +24,7 @@ import {
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
-import { isI18nEnabled } from "../../i18n/config.js";
+import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
@@ -116,7 +118,11 @@ async function hydrateBylines(
 	item: ContentItem,
 ): Promise<void> {
 	const bylineRepo = new BylineRepository(db);
-	const bylines = await bylineRepo.getContentBylines(collection, item.id);
+	// Strict per-locale (migration 040): a credit at locale X renders iff a
+	// byline row exists at locale X in the credited translation_group. The
+	// junction itself spans translations; rendering does not fall back.
+	const localeOpt = item.locale ? { locale: item.locale } : undefined;
+	const bylines = await bylineRepo.getContentBylines(collection, item.id, localeOpt);
 
 	if (bylines.length > 0) {
 		item.bylines = bylines.map((c) => ({ ...c, source: "explicit" as const }));
@@ -124,13 +130,25 @@ async function hydrateBylines(
 		return;
 	}
 
-	// Defensive: if primaryBylineId is set but no junction rows exist, it's orphaned
-	if (item.primaryBylineId) {
-		item.primaryBylineId = null;
+	// Honor explicit editorial intent: if the entry has any junction row
+	// (even at a different locale), the editor has made an explicit
+	// assignment. Do NOT fall back to author-linked inference, even if the
+	// explicit credit's translation_group has no sibling at this locale.
+	// The credit is preserved in storage; it simply doesn't render until a
+	// sibling is created. Author inference only fires when no junction
+	// rows exist at all.
+	if (await bylineRepo.hasContentBylines(collection, item.id)) {
+		item.bylines = [];
+		item.byline = null;
+		return;
 	}
 
 	if (item.authorId) {
-		const fallback = await bylineRepo.findByUserId(item.authorId);
+		// Same strict-locale rule as explicit credits: a user-linked byline
+		// renders on the entry only when a sibling exists at the entry's
+		// locale. Without this we'd silently surface the default-locale
+		// row, which contradicts the per-locale model.
+		const fallback = await bylineRepo.findByUserId(item.authorId, localeOpt);
 		if (fallback) {
 			item.bylines = [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
 			item.byline = fallback;
@@ -144,6 +162,11 @@ async function hydrateBylines(
 
 /**
  * Batch-hydrate bylines for multiple items using two bulk queries instead of N+1.
+ *
+ * Items may live at different locales (e.g. a list endpoint returning the
+ * translations of an entry). Group by `item.locale` and call the strict
+ * per-locale repo method once per group so each item resolves against its
+ * own locale's byline rows.
  */
 async function hydrateBylinesMany(
 	db: Kysely<Database>,
@@ -154,43 +177,84 @@ async function hydrateBylinesMany(
 
 	const bylineRepo = new BylineRepository(db);
 
-	// 1. Batch fetch all explicit byline credits
-	const contentIds = items.map((i) => i.id);
-	const bylinesMap = await bylineRepo.getContentBylinesMany(collection, contentIds);
-
-	// 2. Collect authorIds that need fallback lookup
-	const fallbackAuthorIds: string[] = [];
+	// 1. Bucket items by locale so we can call the strict-locale repo
+	//    once per bucket. Items with a null/undefined locale (pre-i18n
+	//    rows on a single-locale install) share an "unscoped" bucket.
+	const localeBuckets = new Map<string | null, ContentItem[]>();
 	for (const item of items) {
-		if (!bylinesMap.has(item.id) && item.authorId) {
-			fallbackAuthorIds.push(item.authorId);
+		const key = item.locale ?? null;
+		const bucket = localeBuckets.get(key);
+		if (bucket) bucket.push(item);
+		else localeBuckets.set(key, [item]);
+	}
+
+	// 2. Per-locale: fetch explicit credits. Items whose credits don't
+	//    resolve at this locale go through a locale-agnostic "has any
+	//    junction" check before being considered for author inference —
+	//    explicit editorial intent at any locale beats inferred fallback.
+	const bylinesByItem = new Map<string, ContentBylineCredit[]>();
+	const itemsNeedingAuthorCheck: ContentItem[] = [];
+	for (const [locale, bucket] of localeBuckets) {
+		const localeOpt = locale ? { locale } : undefined;
+		const ids = bucket.map((i) => i.id);
+		const credits = await bylineRepo.getContentBylinesMany(collection, ids, localeOpt);
+		for (const [id, list] of credits) bylinesByItem.set(id, list);
+
+		for (const item of bucket) {
+			if (credits.has(item.id) && credits.get(item.id)!.length > 0) continue;
+			if (item.authorId) itemsNeedingAuthorCheck.push(item);
 		}
 	}
 
-	// 3. Batch fetch user-linked bylines for fallback
-	const uniqueAuthorIds = [...new Set(fallbackAuthorIds)];
-	const authorBylineMap = await bylineRepo.findByUserIds(uniqueAuthorIds);
+	// 3. For items with no resolved credits at their locale: check
+	//    locale-agnostically whether they have *any* junction rows. Items
+	//    with explicit credits (even at another locale) get no inferred
+	//    fallback. Items with zero junctions are eligible.
+	const fallbackByItem = new Map<string, BylineSummary>();
+	if (itemsNeedingAuthorCheck.length > 0) {
+		const idsToCheck = itemsNeedingAuthorCheck.map((i) => i.id);
+		const hasJunctions = await bylineRepo.hasContentBylinesMany(collection, idsToCheck);
 
-	// 4. Assign to each item
+		// Rebucket the eligible items by locale for the author-byline
+		// fallback fetch (strict per locale: a user-linked byline
+		// surfaces only when a sibling exists at the entry's locale).
+		const authorBuckets = new Map<string | null, ContentItem[]>();
+		for (const item of itemsNeedingAuthorCheck) {
+			if (hasJunctions.has(item.id)) continue;
+			const key = item.locale ?? null;
+			const bucket = authorBuckets.get(key);
+			if (bucket) bucket.push(item);
+			else authorBuckets.set(key, [item]);
+		}
+
+		for (const [locale, bucket] of authorBuckets) {
+			const localeOpt = locale ? { locale } : undefined;
+			const authorIds = bucket.map((i) => i.authorId).filter((id): id is string => id !== null);
+			const uniqueAuthorIds = [...new Set(authorIds)];
+			if (uniqueAuthorIds.length === 0) continue;
+			const authorMap = await bylineRepo.findByUserIds(uniqueAuthorIds, localeOpt);
+			for (const item of bucket) {
+				if (!item.authorId) continue;
+				const f = authorMap.get(item.authorId);
+				if (f) fallbackByItem.set(item.id, f);
+			}
+		}
+	}
+
+	// 4. Assign to each item.
 	for (const item of items) {
-		const explicit = bylinesMap.get(item.id);
+		const explicit = bylinesByItem.get(item.id);
 		if (explicit && explicit.length > 0) {
 			item.bylines = explicit.map((c) => ({ ...c, source: "explicit" as const }));
 			item.byline = explicit[0]?.byline ?? null;
 			continue;
 		}
 
-		// Defensive: if primaryBylineId is set but no junction rows exist, it's orphaned
-		if (item.primaryBylineId) {
-			item.primaryBylineId = null;
-		}
-
-		if (item.authorId) {
-			const fallback = authorBylineMap.get(item.authorId);
-			if (fallback) {
-				item.bylines = [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
-				item.byline = fallback;
-				continue;
-			}
+		const fallback = fallbackByItem.get(item.id);
+		if (fallback) {
+			item.bylines = [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
+			item.byline = fallback;
+			continue;
 		}
 
 		item.bylines = [];
@@ -454,12 +518,16 @@ export async function handleContentCreate(
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
 
-			// Auto-generate slug from title/name if not explicitly provided
+			// Default to the configured site locale rather than the repo's
+			// hard-coded "en" — otherwise non-English default-locale sites
+			// silently create entries in a locale the editor never chose.
+			const effectiveLocale = body.locale ?? getI18nConfig()?.defaultLocale;
+
 			let slug: string | null | undefined = body.slug;
 			if (!slug) {
 				const slugSource = getSlugSource(body.data);
 				if (slugSource) {
-					slug = await repo.generateUniqueSlug(collection, slugSource, body.locale);
+					slug = await repo.generateUniqueSlug(collection, slugSource, effectiveLocale);
 				}
 			}
 
@@ -469,28 +537,50 @@ export async function handleContentCreate(
 				data: body.data,
 				status: body.status || "draft",
 				authorId: body.authorId,
-				locale: body.locale,
+				locale: effectiveLocale,
 				translationOf: body.translationOf,
 				createdAt: body.createdAt,
 				publishedAt: body.publishedAt,
 			});
 
 			if (body.bylines !== undefined) {
-				await bylineRepo.setContentBylines(collection, created.id, body.bylines);
-				created.primaryBylineId = body.bylines[0]?.bylineId ?? null;
+				const credits = await bylineRepo.setContentBylines(collection, created.id, body.bylines);
+				// `setContentBylines` translates wire row ids to their
+				// `translation_group` before writing. The response-shape
+				// `primaryBylineId` must match what's now in the DB, so read
+				// it from the returned credit (whose `byline` came from a
+				// hydration round-trip).
+				created.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
-			await hydrateBylines(trx, collection, created);
 
-			// When this row is a translation of an existing item, inherit the
-			// source's taxonomy assignments. The pivot stores translation_groups
-			// so the copied rows apply to every locale of the translation group
-			// (existing per-locale assignments still resolve correctly in
-			// `getEntryTerms` because the join picks the locale-specific row).
+			// When this row is a translation of an existing item, inherit
+			// the source's taxonomy assignments AND byline credits. Both
+			// pivots store translation_groups (taxonomies post-mig 036,
+			// bylines post-mig 040), so a copied row applies across every
+			// locale of the credited identity — and the locale-strict
+			// hydration below renders the variant that matches the entry's
+			// locale (or nothing if no variant exists yet at this locale,
+			// which is the documented Phase 4 behaviour).
+			//
+			// Explicit `body.bylines` wins — `copyContentBylines` no-ops
+			// when the target already has credits, but the cleaner guard
+			// is to skip the call entirely.
 			if (body.translationOf) {
 				const { TaxonomyRepository } = await import("../../database/repositories/taxonomy.js");
 				const taxRepo = new TaxonomyRepository(trx);
 				await taxRepo.copyEntryTerms(collection, body.translationOf, created.id);
+
+				if (body.bylines === undefined) {
+					await bylineRepo.copyContentBylines(collection, body.translationOf, created.id);
+					// `copyContentBylines` writes the source's primary
+					// pointer onto the new row; reflect it in-memory so the
+					// response includes it before hydrateBylines runs.
+					const source = await repo.findById(collection, body.translationOf);
+					if (source) created.primaryBylineId = source.primaryBylineId;
+				}
 			}
+
+			await hydrateBylines(trx, collection, created);
 
 			// Side-write SEO data if provided
 			if (body.seo && hasSeo) {
@@ -648,8 +738,12 @@ export async function handleContentUpdate(
 			});
 
 			if (body.bylines !== undefined) {
-				await bylineRepo.setContentBylines(collection, resolvedId, body.bylines);
-				updated.primaryBylineId = body.bylines[0]?.bylineId ?? null;
+				const credits = await bylineRepo.setContentBylines(collection, resolvedId, body.bylines);
+				// `setContentBylines` translates wire row ids to their
+				// `translation_group` before writing. Read the in-memory
+				// pointer from the persisted credit so the response shape
+				// matches the DB. See the matching block in handleContentCreate.
+				updated.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
 			// Create auto-redirect when slug changes

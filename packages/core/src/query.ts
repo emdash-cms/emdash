@@ -715,9 +715,21 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 			.map((e) => {
 				const data = entryData(e);
 				const id = dataStr(data, "id");
-				return id ? { id, authorId: dataStr(data, "authorId") || null } : null;
+				if (!id) return null;
+				return {
+					id,
+					authorId: dataStr(data, "authorId") || null,
+					// Read locale from the row so byline hydration matches the
+					// entry's own locale (post-migration 040 — strict per
+					// locale, no read-time fallback). On single-locale installs
+					// the row may not have a locale field, in which case the
+					// downstream bucket uses no `WHERE locale = ?` filter.
+					locale: dataStr(data, "locale") || null,
+				};
 			})
-			.filter((r): r is { id: string; authorId: string | null } => r !== null);
+			.filter(
+				(r): r is { id: string; authorId: string | null; locale: string | null } => r !== null,
+			);
 		if (refs.length === 0) return;
 
 		const bylinesMap = await getBylinesForEntries(type, refs);

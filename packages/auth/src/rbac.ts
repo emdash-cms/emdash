@@ -50,6 +50,10 @@ export const Permissions = {
 	"menus:read": Role.SUBSCRIBER,
 	"menus:manage": Role.EDITOR,
 
+	// Bylines
+	"bylines:read": Role.SUBSCRIBER,
+	"bylines:manage": Role.EDITOR,
+
 	// Widgets
 	"widgets:read": Role.SUBSCRIBER,
 	"widgets:manage": Role.EDITOR,

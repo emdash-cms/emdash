@@ -63,6 +63,19 @@ export interface BylineSummary {
 	isGuest: boolean;
 	createdAt: string;
 	updatedAt: string;
+	/**
+	 * Locale this byline row is presented in. Added by migration 040.
+	 * `(slug, locale)` is unique; a single slug can repeat across locales.
+	 */
+	locale: string;
+	/**
+	 * Shared across translations of the same byline. Added by migration 040.
+	 * `_emdash_content_bylines.byline_id` and `ec_*.primary_byline_id` store
+	 * this value, so a credit spans every locale variant of a byline.
+	 * Nullable in storage for backwards compatibility; new rows always
+	 * populate it.
+	 */
+	translationGroup: string | null;
 }
 
 export interface ContentBylineCredit {
