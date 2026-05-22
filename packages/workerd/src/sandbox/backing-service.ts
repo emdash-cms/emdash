@@ -132,7 +132,13 @@ async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> 
 	}
 	const raw = Buffer.concat(chunks).toString();
 	if (!raw) return {};
-	const parsed: unknown = JSON.parse(raw);
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Invalid JSON";
+		throw new HttpError(`Invalid JSON: ${message}`, 400);
+	}
 	if (!isJsonObject(parsed)) {
 		throw new HttpError("Request body must be a JSON object", 400);
 	}
