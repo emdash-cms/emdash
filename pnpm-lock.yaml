@@ -7954,6 +7954,10 @@ packages:
     peerDependencies:
       kysely: '*'
 
+  kysely@0.27.6:
+    resolution: {integrity: sha512-FIyV/64EkKhJmjgC0g2hygpBv5RNWVPyNCqSAD7eTCv6eFWNIi4PN1UvdSJGicN/o35bnevgis4Y0UDC0qi8jQ==}
+    engines: {node: '>=14.0.0'}
+
   kysely@0.29.2:
     resolution: {integrity: sha512-s6WVJyEZrbm6jhBpiKHsGHyePMrVQKJ85wZCFCr9W4QHv6WTjWIrdvTmO9hDEA3bNK0xkrE2DqrHsXMLWuZpQg==}
     engines: {node: '>=22.0.0'}
@@ -17566,6 +17570,8 @@ snapshots:
   kysely-d1@0.4.0(kysely@0.29.2):
     dependencies:
       kysely: 0.29.2
+
+  kysely@0.27.6: {}
 
   kysely@0.29.2: {}
 
