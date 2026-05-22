@@ -22,7 +22,7 @@ import {
 	injectAuthProviderRoutes,
 	injectMcpRoute,
 } from "./routes.js";
-import type { EmDashConfig, PluginDescriptor } from "./runtime.js";
+import type { EmDashConfig } from "./runtime.js";
 import { createViteConfig } from "./vite-config.js";
 
 // Re-export runtime types and functions

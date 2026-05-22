@@ -19,7 +19,7 @@
 		"format": "oxfmt --ignore-path .gitignore && prettier --write .",
 		"format:check": "oxfmt --ignore-path .gitignore --check && prettier --check .",
 		"format:astro": "prettier --write .",
-		"lint": "oxlint --type-aware",
+		"lint": "oxlint --type-aware --deny-warnings",
 		"lint:quick": "oxlint -f json",
 		"lint:json": "oxlint --type-aware -f json",
 		"lint:fix": "oxlint --type-aware --fix",

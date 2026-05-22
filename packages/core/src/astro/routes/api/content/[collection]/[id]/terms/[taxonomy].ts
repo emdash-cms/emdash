@@ -34,7 +34,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	if (dbErr) return dbErr;
 
 	try {
-		const repo = new TaxonomyRepository(emdash!.db);
+		const repo = new TaxonomyRepository(emdash.db);
 		const terms = await repo.getTermsForEntry(collection, id, taxonomy);
 
 		return apiSuccess({
@@ -68,12 +68,12 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
 
-	if (!emdash!.handleContentGet) {
+	if (!emdash.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
 	// Verify the content exists before modifying its terms
-	const existing = await emdash!.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGet(collection, id);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "NOT_FOUND",
@@ -107,7 +107,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		if (isParseError(body)) return body;
 		const { termIds } = body;
 
-		const repo = new TaxonomyRepository(emdash!.db);
+		const repo = new TaxonomyRepository(emdash.db);
 
 		// Verify all term IDs exist and belong to the correct taxonomy
 		for (const termId of termIds) {
