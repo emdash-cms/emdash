@@ -65,8 +65,10 @@ test.describe("Bylines", () => {
 			return body.data.id as string;
 		};
 
-		const _firstBylineId = await createByline(primaryName, `primary-writer-${unique}`);
-		const _secondBylineId = await createByline(secondaryName, `secondary-writer-${unique}`);
+		// Create two bylines for the test post. IDs aren't needed downstream;
+		// the test selects them by name via the bylines combobox.
+		await createByline(primaryName, `primary-writer-${unique}`);
+		await createByline(secondaryName, `secondary-writer-${unique}`);
 
 		await admin.goToNewContent("posts");
 		await admin.waitForLoading();
