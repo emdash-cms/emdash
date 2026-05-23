@@ -264,13 +264,13 @@ msgstr "{current} / {total}"
 
 #: packages/admin/src/components/ContentList.tsx:506
 msgid "{filteredCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr ""
+msgstr "{filteredCount, plural, one {# 个项目匹配\"{searchQuery}\"} other {# 个项目匹配\"{searchQuery}\"}}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
 #: packages/admin/src/components/ContentList.tsx:517
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
-msgstr ""
+msgstr "{filteredCount, plural, one {#{0} 个项目} other {#{1} 个项目}}"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:107
 msgid "{label} — no translation"
@@ -306,7 +306,7 @@ msgstr "{pluginName} 需要以下权限："
 
 #: packages/admin/src/components/ContentList.tsx:512
 msgid "{total, plural, one {# item} other {# items}}"
-msgstr ""
+msgstr "{total, plural, one {# 个项目} other {# 个项目}}"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:149
 msgid "{total, plural, one {# total} other {# total}}"
@@ -952,7 +952,7 @@ msgstr "授权中..."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:346
 msgid "Authors"
-msgstr ""
+msgstr "作者"
 
 #: packages/admin/src/components/Redirects.tsx:495
 msgid "auto"
@@ -4169,7 +4169,7 @@ msgstr "新内容类型"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:116
 msgid "New public routes"
-msgstr ""
+msgstr "新增公共路由"
 
 #: packages/admin/src/components/Redirects.tsx:102
 #: packages/admin/src/components/Redirects.tsx:336
@@ -4819,7 +4819,7 @@ msgstr "插件已卸载"
 
 #: packages/admin/src/lib/api/registry.ts:541
 msgid "Plugin update requires re-consent"
-msgstr ""
+msgstr "插件更新需要重新授权"
 
 #: packages/admin/src/components/PluginManager.tsx:257
 msgid "Plugin updated"
@@ -5043,7 +5043,7 @@ msgstr "注册已取消或超时。请重试。"
 
 #: packages/admin/src/components/Sidebar.tsx:221
 msgid "Registry"
-msgstr ""
+msgstr "插件仓库"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:317
 msgid "Release is too new to install"
@@ -5638,7 +5638,7 @@ msgstr "安全审计通过"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:379
 msgid "Security contacts"
-msgstr ""
+msgstr "安全联系方式"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:272
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:275
@@ -6336,7 +6336,7 @@ msgstr "此区块是从另一个系统导入的。"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:119
 msgid "This update exposes the following routes without authentication:"
-msgstr ""
+msgstr "此更新暴露了以下无需身份验证的路由："
 
 #: packages/admin/src/components/Widgets.tsx:635
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
@@ -6958,11 +6958,11 @@ msgstr "查看站点"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:337
 msgid "View source"
-msgstr ""
+msgstr "查看源码"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:538
 msgid "View the {license} license on spdx.org"
-msgstr ""
+msgstr "在 spdx.org 上查看 {license} 许可证"
 
 #: packages/admin/src/components/Redirects.tsx:422
 msgid "Visitors hitting these paths will see an error."
