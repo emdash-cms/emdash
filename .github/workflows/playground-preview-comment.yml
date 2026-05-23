@@ -2,8 +2,8 @@ name: Playground Preview
 
 # Workers Builds runs `wrangler preview` for the playground demo (it can't use
 # the standard preview-URL flow because the playground has a Durable Object).
-# These are a private beta feature, and don't currently supported automatic PR 
-# comments with the preview URL. 
+# These are a private beta feature, and don't currently support automatic PR
+# comments with the preview URL.
 # The cloudflare-workers-and-pages bot posts a "build successful" comment when
 # the build finishes, but it doesn't include the preview URL (preview URLs are
 # a `wrangler versions upload` concept, not `wrangler preview`).
@@ -68,7 +68,7 @@ jobs:
       pull-requests: write # read PR body and update it with the playground block; no PR code is checked out
     steps:
       - name: Update PR description with playground link
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           BOT_COMMENT_BODY: ${{ github.event.comment.body }}
           PR_NUMBER: ${{ github.event.issue.number }}
@@ -95,15 +95,24 @@ jobs:
             });
             const branch = pr.head.ref;
 
-            // Slug rules (from SPEC: Worker Previews): lowercase, and
-            // /, ., +, =, _ get replaced with -. Trailing/leading hyphens trimmed.
+            // Slug rules (from SPEC: Worker Previews): lowercase, with /, .,
+            // +, =, _ replaced by -. We widen this to any non-DNS-safe char
+            // (handles Renovate-style `@`, unusual community branches, etc.):
+            // anything outside [a-z0-9-] becomes -, repeated -- collapsed,
+            // leading/trailing - trimmed. If we end up with an empty slug
+            // (e.g. branch was all special chars), bail rather than emit a
+            // broken URL.
             const slug = branch
               .toLowerCase()
-              .replace(/[/.+=_]/g, "-")
+              .replace(/[^a-z0-9-]+/g, "-")
+              .replace(/-+/g, "-")
               .replace(/^-+|-+$/g, "");
+            if (!slug) {
+              core.warning(`Branch "${branch}" produced an empty slug; skipping.`);
+              return;
+            }
 
             const url = `https://${slug}-emdash-playground.emdash-cms.workers.dev`;
-            const shortSha = pr.head.sha.slice(0, 7);
 
             const START = "<!-- emdash:playground-preview:start -->";
             const END = "<!-- emdash:playground-preview:end -->";
@@ -122,7 +131,7 @@ jobs:
               "",
               `A full working EmDash site, deployed from this branch. Each visit gets its own session-scoped sandbox: no login needed and no shared state. Try the admin, edit content, hit the public site.`,
               "",
-              `<sub>Branch deploy tracking \`${branch}\` @ \`${shortSha}\`. Updated automatically when the playground redeploys.</sub>`,
+              `<sub>Tracks \`${branch}\`. Updated automatically when the playground redeploys.</sub>`,
               "",
               END,
             ].join("\n");
