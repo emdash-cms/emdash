@@ -10,9 +10,7 @@
  */
 
 import { isDid, isHandle } from "@atcute/lexicons/syntax";
-import { safeParse } from "@atcute/lexicons/validations";
 import { DiscoveryClient } from "@emdash-cms/registry-client";
-import { PackageProfile } from "@emdash-cms/registry-lexicons";
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import pc from "picocolors";
@@ -68,28 +66,19 @@ export const infoCommand = defineCommand({
 			return;
 		}
 
-		// `result.profile` is the publisher-supplied record; `unknown` per the
-		// lexicon. Validate against the package profile schema so we don't
-		// blindly print whatever an aggregator (or a malicious publisher)
-		// stuffed into it.
-		const parsed = safeParse(PackageProfile.mainSchema, result.profile);
-		const profile: PackageProfile.Main | null = parsed.ok ? parsed.value : null;
+		// `result.profile` is validated against the package profile lexicon by
+		// DiscoveryClient (the read-side trust boundary), or `null` when the
+		// aggregator returned a non-conforming record.
+		const profile = result.profile;
 		if (!profile) {
 			consola.warn(
-				`Profile record at ${result.uri} doesn't match the lexicon; printing what we have anyway.`,
+				`Profile record at ${result.uri} doesn't match the lexicon; showing the slug only.`,
 			);
 		}
 
-		const fallback = result.profile as { name?: unknown; description?: unknown; license?: unknown };
-		const name =
-			profile?.name ??
-			(typeof fallback.name === "string" ? fallback.name : undefined) ??
-			result.slug;
-		const description =
-			profile?.description ??
-			(typeof fallback.description === "string" ? fallback.description : undefined);
-		const license =
-			profile?.license ?? (typeof fallback.license === "string" ? fallback.license : undefined);
+		const name = profile?.name ?? result.slug;
+		const description = profile?.description;
+		const license = profile?.license;
 
 		console.log();
 		console.log(pc.bold(name));

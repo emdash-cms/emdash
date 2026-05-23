@@ -44,7 +44,7 @@ interface SiteSettingsHolder {
 const SITE_SETTINGS_CACHE_KEY = Symbol.for("emdash:site-settings");
 const g = globalThis as Record<symbol, unknown>;
 const holder: SiteSettingsHolder =
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern (see request-context.ts)
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
 	(g[SITE_SETTINGS_CACHE_KEY] as SiteSettingsHolder | undefined) ??
 	(() => {
 		const h: SiteSettingsHolder = { version: 0, cached: null, cachedVersion: -1 };
@@ -174,19 +174,19 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
 	// We use the non-generic getSiteSettingsWithDb for media resolution instead.
 	if ((key === "logo" || key === "favicon") && isMediaReference(value)) {
 		const resolved = await resolveMediaReference(value, db, storage);
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- TS can't narrow generic K from key equality; resolved type is correct
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- TS can't narrow generic K from key equality; resolved type is correct
 		return resolved as SiteSettings[K] | undefined;
 	}
 
 	if (key === "seo" && value && typeof value === "object") {
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- TS can't narrow generic K from key equality
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- TS can't narrow generic K from key equality
 		const seo = value as SeoSettings;
 		if (seo.defaultOgImage) {
 			const resolved = {
 				...seo,
 				defaultOgImage: await resolveMediaReference(seo.defaultOgImage, db, storage),
 			};
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- TS can't narrow generic K from key equality
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- TS can't narrow generic K from key equality
 			return resolved as SiteSettings[K] | undefined;
 		}
 	}

@@ -141,12 +141,15 @@ export {
 export {
 	type BylineSummary,
 	type BylineInput,
+	type BylineTranslationInput,
 	type BylineCreditInput,
 	fetchBylines,
 	fetchByline,
 	createByline,
 	updateByline,
 	deleteByline,
+	fetchBylineTranslations,
+	createBylineTranslation,
 } from "./bylines.js";
 
 // Menus

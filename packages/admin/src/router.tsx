@@ -467,12 +467,20 @@ function ContentNewPage() {
 		queryFn: fetchManifest,
 	});
 
+	// Locale the picker should scope to. URL `?locale=` wins; otherwise
+	// fall back to the configured defaultLocale. Single-locale installs
+	// resolve to `defaultLocale` too — the server treats that as "use the
+	// configured default" so behaviour matches pre-i18n in that case.
+	const pickerLocale = locale ?? manifest?.i18n?.defaultLocale;
+
+	// Send the resolved picker locale so the new entry's locale matches
+	// the locale the byline picker was scoped to.
 	const createMutation = useMutation({
 		mutationFn: (data: {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
-		}) => createContent(collection, { ...data, locale }),
+		}) => createContent(collection, { ...data, locale: pickerLocale }),
 		onSuccess: (result) => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
 			void navigate({
@@ -484,14 +492,20 @@ function ContentNewPage() {
 
 	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
-	const { data: bylinesData } = useQuery({
-		queryKey: ["bylines"],
-		queryFn: () => fetchBylines({ limit: 100 }),
+	// The picker is locale-pinned to the entry being created so editors
+	// only see bylines that will actually hydrate at this locale (per the
+	// strict per-locale model from migration 040). Locale is part of the
+	// query key so switching locales fetches a fresh slice rather than
+	// reusing a stale cache.
+	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
+		queryKey: ["bylines", "picker", pickerLocale ?? null],
+		queryFn: () => fetchBylines({ locale: pickerLocale, limit: 100 }),
+		enabled: !!manifest,
 	});
 
 	const createBylineMutation = useMutation({
 		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true }),
+			createByline({ ...input, isGuest: true, locale: pickerLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -532,10 +546,13 @@ function ContentNewPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			fields={collectionConfig.fields}
 			isNew
+			entryLocale={pickerLocale}
+			i18n={manifest?.i18n}
 			isSaving={createMutation.isPending}
 			onSave={handleSave}
 			pluginBlocks={pluginBlocks}
 			availableBylines={bylinesData?.items}
+			availableBylinesLoaded={bylinesLoaded}
 			selectedBylines={selectedBylines}
 			onBylinesChange={setSelectedBylines}
 			onQuickCreateByline={async (input) => {
@@ -660,14 +677,23 @@ function ContentEditPage() {
 		staleTime: 5 * 60 * 1000,
 	});
 
-	const { data: bylinesData } = useQuery({
-		queryKey: ["bylines"],
-		queryFn: () => fetchBylines({ limit: 100 }),
+	// Picker is locale-pinned to the entry being edited. The credit
+	// hydration server-side is strict per locale (migration 040), so the
+	// picker must show only bylines that will actually render at this
+	// locale — otherwise the editor adds a credit that silently vanishes
+	// after autosave. Query disabled until `rawItem.locale` resolves so a
+	// transient `undefined` doesn't populate the cache with default-locale
+	// data.
+	const itemLocale = rawItem?.locale ?? undefined;
+	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
+		queryKey: ["bylines", "picker", itemLocale ?? null],
+		queryFn: () => fetchBylines({ locale: itemLocale, limit: 100 }),
+		enabled: !!itemLocale,
 	});
 
 	const createBylineMutation = useMutation({
 		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true }),
+			createByline({ ...input, isGuest: true, locale: itemLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -953,6 +979,7 @@ function ContentEditPage() {
 			hasSeo={collectionConfig.hasSeo}
 			onSeoChange={handleSeoChange}
 			availableBylines={bylinesData?.items}
+			availableBylinesLoaded={bylinesLoaded}
 			onQuickCreateByline={async (input) => {
 				const created = await createBylineMutation.mutateAsync(input);
 				return created;
@@ -981,7 +1008,7 @@ function MediaPage() {
 			queryKey: ["media"],
 			queryFn: ({ pageParam }) =>
 				fetchMediaList({
-					cursor: pageParam as string | undefined,
+					cursor: pageParam,
 					limit: 100,
 				}),
 			initialPageParam: undefined as string | undefined,
@@ -1446,10 +1473,25 @@ const usersRoute = createRoute({
 });
 
 // Bylines route
+//
+// `validateSearch` rejects empty-string locale (`?locale=`) — left as `""`
+// it would land in component state and silently drop the locale filter
+// from `fetchBylines`, fetching every locale's rows while the UI thinks
+// it's scoped to one.
+export function parseBylinesLocaleSearch(search: Record<string, unknown>): {
+	locale: string | undefined;
+} {
+	if (typeof search.locale === "string" && search.locale.length > 0) {
+		return { locale: search.locale };
+	}
+	return { locale: undefined };
+}
+
 const bylinesRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/bylines",
 	component: BylinesPage,
+	validateSearch: parseBylinesLocaleSearch,
 });
 
 // Content Types routes

@@ -23,11 +23,5 @@
     "@astrojs/check": "catalog:"
   },
   "peerDependencies": {},
-  "optionalDependencies": {},
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3",
-      "esbuild"
-    ]
-  }
+  "optionalDependencies": {}
 }

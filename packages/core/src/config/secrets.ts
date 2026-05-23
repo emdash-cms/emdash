@@ -381,7 +381,7 @@ interface SecretsCacheHolder {
 }
 
 function getSecretsCache(): WeakMap<Kysely<Database>, Promise<ResolvedSecrets>> {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
 	const holder = globalThis as Record<symbol, SecretsCacheHolder | undefined>;
 	let entry = holder[SECRETS_CACHE_KEY];
 	if (!entry) {
@@ -419,7 +419,7 @@ export function resolveSecretsCached(db: Kysely<Database>): Promise<ResolvedSecr
  * @internal
  */
 export function _clearSecretsCacheForTesting(): void {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
 	const holder = globalThis as Record<symbol, SecretsCacheHolder | undefined>;
 	holder[SECRETS_CACHE_KEY] = undefined;
 }
@@ -513,7 +513,7 @@ function decodeBase64urlStrict(input: string): Uint8Array | null {
  * shared-with-CLI exception.
  */
 function readDefaultEnv(): SecretsEnv {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- import.meta.env is loose by design
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- import.meta.env is loose by design
 	const meta = (import.meta.env ?? {}) as Record<string, string | undefined>;
 	const proc = typeof process !== "undefined" && process.env ? process.env : {};
 

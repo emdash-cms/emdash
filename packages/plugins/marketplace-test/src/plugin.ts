@@ -24,7 +24,7 @@ export default {
 
 				// Record execution in storage so the registry's install
 				// audit can verify the hook actually ran post-install.
-				await ctx.storage.events!.put(`hook-${Date.now()}`, {
+				await ctx.storage.events.put(`hook-${Date.now()}`, {
 					timestamp: new Date().toISOString(),
 					type: "content:beforeSave",
 					collection: event.collection,
@@ -47,7 +47,7 @@ export default {
 
 		events: {
 			handler: async (_routeCtx, ctx) => {
-				const result = await ctx.storage.events!.query({ limit: 10 });
+				const result = await ctx.storage.events.query({ limit: 10 });
 				return { count: result.items.length, items: result.items };
 			},
 		},

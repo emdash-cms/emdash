@@ -38,6 +38,7 @@
  *     mitigated by the artifact checksum but not detected.
  */
 
+import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
 import type { Kysely } from "kysely";
 
@@ -59,7 +60,13 @@ import { resolveAndValidateExternalUrl, SsrfError } from "../../security/ssrf.js
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
-import { deleteBundleFromR2, storeBundleInR2 } from "./marketplace.js";
+import {
+	deleteBundleFromR2,
+	diffCapabilities,
+	diffRouteVisibility,
+	loadBundleFromR2,
+	storeBundleInR2,
+} from "./marketplace.js";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -162,7 +169,7 @@ async function sha256MultibaseMultihash(bytes: Uint8Array): Promise<string> {
  * Hash functions other than sha2-256 are out of scope for this
  * initial release; the install fails closed.
  */
-async function verifyChecksum(bytes: Uint8Array, checksum: string): Promise<boolean> {
+export async function verifyChecksum(bytes: Uint8Array, checksum: string): Promise<boolean> {
 	if (SHA256_HEX_PATTERN.test(checksum)) {
 		const actual = await sha256Hex(bytes);
 		return checksum.toLowerCase() === actual;
@@ -314,7 +321,7 @@ function isLocalhostHostname(hostname: string): boolean {
  * `import.meta.env.DEV` is a Vite/Astro compile-time constant, so
  * production bundles cannot enable the dev escape hatch at runtime.
  */
-async function assertSafeArtifactUrl(urlString: string): Promise<URL> {
+export async function assertSafeArtifactUrl(urlString: string): Promise<URL> {
 	let url: URL;
 	try {
 		url = new URL(urlString);
@@ -364,7 +371,7 @@ async function assertSafeArtifactUrl(urlString: string): Promise<URL> {
 		return await resolveAndValidateExternalUrl(url.href);
 	} catch (err) {
 		if (err instanceof SsrfError) {
-			throw new Error(`Artifact URL rejected: ${err.message}`);
+			throw new Error(`Artifact URL rejected: ${err.message}`, { cause: err });
 		}
 		throw err;
 	}
@@ -679,10 +686,10 @@ export async function handleRegistryInstall(
 		// publisher's record. Checksum verification only proves the bytes
 		// match the *returned* record, not that the record belongs to
 		// the package we requested.
-		const signedRelease = releaseView.release as
-			| { package?: unknown; version?: unknown }
-			| null
-			| undefined;
+		// `releaseView.release` is validated against the release lexicon by
+		// DiscoveryClient (or `null` if it didn't conform). A `null` here makes
+		// the identity checks below fail closed, which is the desired outcome.
+		const signedRelease = releaseView.release;
 		if (packageView.did !== publisherDid || packageView.slug !== slug) {
 			return {
 				success: false,
@@ -848,17 +855,13 @@ export async function handleRegistryInstall(
 		}
 
 		// Step 4: fetch the artifact bytes.
-		// The signed release record is `releaseView.release`; the lexicon
-		// types it as `unknown` so we extract the package artifact via
-		// duck-typed access. Mirrors come from the envelope (aggregator
-		// operational data, not part of the signed record).
-		const release = releaseView.release as {
-			artifacts?: {
-				package?: { url?: string; checksum?: string };
-			};
-		};
-		const declaredUrl = release.artifacts?.package?.url;
-		const declaredChecksum = release.artifacts?.package?.checksum;
+		// `releaseView.release` is lexicon-validated by DiscoveryClient (or
+		// `null`); a missing url/checksum (incl. the `null` case) fails closed
+		// below. Mirrors come from the envelope (aggregator operational data,
+		// not part of the signed record).
+		const release = releaseView.release;
+		const declaredUrl = release?.artifacts?.package?.url;
+		const declaredChecksum = release?.artifacts?.package?.checksum;
 
 		if (!declaredUrl || !declaredChecksum) {
 			return {
@@ -1021,12 +1024,13 @@ export async function handleRegistryInstall(
 		// Cleanup is best-effort; if it also fails, the row failure
 		// still surfaces to the caller and the orphan R2 bundle costs
 		// only the storage of a single checksum-verified zip.
-		const profile = packageView.profile as { name?: string; description?: string };
+		// `packageView.profile` is lexicon-validated by DiscoveryClient (or null).
+		const profile = packageView.profile;
 		try {
 			await stateRepo.upsert(pluginId, version, "active", {
 				source: "registry",
-				displayName: profile.name ?? slug,
-				description: profile.description ?? undefined,
+				displayName: profile?.name ?? slug,
+				description: profile?.description ?? undefined,
 				registryPublisherDid: publisherDid,
 				registrySlug: slug,
 			});
@@ -1065,6 +1069,24 @@ export async function handleRegistryInstall(
 			},
 		};
 	} catch (err) {
+		if (err instanceof ClientValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "AGGREGATOR_RESPONSE_INVALID",
+					message: `Aggregator returned a response that does not conform to its lexicon (${err.target})`,
+				},
+			};
+		}
+		if (err instanceof ClientResponseError) {
+			return {
+				success: false,
+				error: {
+					code: err.status === 404 ? "AGGREGATOR_NOT_FOUND" : "AGGREGATOR_HTTP_ERROR",
+					message: `Aggregator returned ${err.status}: ${err.error}`,
+				},
+			};
+		}
 		if (err instanceof EmDashStorageError) {
 			return {
 				success: false,
@@ -1081,6 +1103,530 @@ export async function handleRegistryInstall(
 				code: "INSTALL_FAILED",
 				message: err instanceof Error ? err.message : "Failed to install plugin from registry",
 			},
+		};
+	}
+}
+
+// ── Uninstall ──────────────────────────────────────────────────────
+
+export interface RegistryUninstallResult {
+	pluginId: string;
+	/** True when `_plugin_storage` rows were also deleted (opts.deleteData). */
+	dataDeleted: boolean;
+}
+
+/**
+ * Uninstall a registry-source plugin. Deletes the R2 bundle under
+ * `registry/<pluginId>/<version>/`, optionally drops the plugin's
+ * `_plugin_storage` rows, and removes the `_plugin_state` row. The
+ * sandbox runtime is reconciled by the route's `syncRegistryPlugins`
+ * call after this returns.
+ *
+ * Refuses to uninstall plugins whose `source` is not `"registry"` to
+ * avoid trashing a marketplace/config plugin that happens to share the
+ * pluginId namespace.
+ */
+export async function handleRegistryUninstall(
+	db: Kysely<Database>,
+	storage: Storage | null,
+	pluginId: string,
+	opts?: { deleteData?: boolean },
+): Promise<ApiResult<RegistryUninstallResult>> {
+	try {
+		const stateRepo = new PluginStateRepository(db);
+		const existing = await stateRepo.get(pluginId);
+		if (!existing || existing.source !== "registry") {
+			return {
+				success: false,
+				error: {
+					code: "NOT_FOUND",
+					message: `No registry plugin found: ${pluginId}`,
+				},
+			};
+		}
+
+		// `_plugin_state.version` carries the installed version directly for
+		// registry-source rows (there's no shadow column like marketplace's
+		// `marketplaceVersion`). Use it verbatim for the R2 prefix.
+		const version = existing.version;
+
+		// Order: optional storage cleanup → bundle delete → state row delete.
+		// The most failure-prone step runs first so a transient DB error
+		// (deadlock, contention) cascades to the outer catch with the state
+		// row and bundle intact — admin retries safely. Bundle delete is
+		// idempotent on misses.
+		let dataDeleted = false;
+		if (opts?.deleteData) {
+			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+			dataDeleted = true;
+		}
+
+		if (storage) {
+			await deleteBundleFromR2(storage, pluginId, version, "registry");
+		}
+
+		await stateRepo.delete(pluginId);
+
+		return { success: true, data: { pluginId, dataDeleted } };
+	} catch (err) {
+		console.error("[registry-uninstall] Failed:", err);
+		return {
+			success: false,
+			error: {
+				code: "UNINSTALL_FAILED",
+				message: "Failed to uninstall plugin",
+			},
+		};
+	}
+}
+
+// ── Update ─────────────────────────────────────────────────────────
+
+export interface RegistryUpdateResult {
+	pluginId: string;
+	oldVersion: string;
+	newVersion: string;
+	capabilityChanges: { added: string[]; removed: string[] };
+	/** Set only when `newlyPublic` is non-empty, mirroring marketplace. */
+	routeVisibilityChanges?: { newlyPublic: string[] };
+}
+
+/**
+ * Update a registry-source plugin to a newer release. Mirrors
+ * `handleMarketplaceUpdate`: resolves the target version via the aggregator,
+ * re-runs the artifact fetch / checksum / extract pipeline, diffs capabilities
+ * and route visibility against the currently installed bundle, and gates
+ * escalations behind `confirmCapabilityChanges` / `confirmRouteVisibilityChanges`
+ * so the admin re-consents to widened permissions.
+ *
+ * Refuses non-registry sources. Refuses when the stored state row is missing
+ * the `(publisherDid, slug)` it needs to resolve against the aggregator.
+ */
+export async function handleRegistryUpdate(
+	db: Kysely<Database>,
+	storage: Storage | null,
+	sandboxRunner: SandboxRunner | null,
+	registryConfigInput: RegistryConfigInput | undefined,
+	pluginId: string,
+	opts?: {
+		version?: string;
+		confirmCapabilityChanges?: boolean;
+		confirmRouteVisibilityChanges?: boolean;
+	},
+): Promise<ApiResult<RegistryUpdateResult>> {
+	const registryConfig = coerceRegistryConfig(registryConfigInput);
+	if (!registryConfig) {
+		return {
+			success: false,
+			error: { code: "REGISTRY_NOT_CONFIGURED", message: "Registry is not configured" },
+		};
+	}
+	if (!storage) {
+		return {
+			success: false,
+			error: {
+				code: "STORAGE_NOT_CONFIGURED",
+				message: "Storage is required for registry plugin updates",
+			},
+		};
+	}
+	if (!sandboxRunner || !sandboxRunner.isAvailable()) {
+		return {
+			success: false,
+			error: { code: "SANDBOX_NOT_AVAILABLE", message: "Sandbox runner is required" },
+		};
+	}
+	try {
+		validateAggregatorUrl(registryConfig.aggregatorUrl);
+	} catch (err) {
+		return {
+			success: false,
+			error: {
+				code: "REGISTRY_NOT_CONFIGURED",
+				message: err instanceof Error ? err.message : "Invalid aggregator URL",
+			},
+		};
+	}
+
+	try {
+		const stateRepo = new PluginStateRepository(db);
+		const existing = await stateRepo.get(pluginId);
+		if (!existing || existing.source !== "registry") {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: `No registry plugin found: ${pluginId}` },
+			};
+		}
+		if (!existing.registryPublisherDid || !existing.registrySlug) {
+			return {
+				success: false,
+				error: {
+					code: "INVALID_STATE",
+					message: `Registry plugin ${pluginId} is missing publisher DID or slug in state`,
+				},
+			};
+		}
+		const oldVersion = existing.version;
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- existing.registryPublisherDid is a DID string written by the install handler
+		const publisherDid = existing.registryPublisherDid as Did;
+		const slug = existing.registrySlug;
+
+		const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
+		const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
+		const discovery = new DiscoveryClient({
+			aggregatorUrl: registryConfig.aggregatorUrl,
+			acceptLabelers: registryConfig.acceptLabelers,
+			fetch: timedFetch(aggregatorDeadline),
+		});
+
+		// Resolve target release. Explicit version → paginate listReleases;
+		// otherwise getLatestRelease (aggregator applies its own filters).
+		const MAX_LIST_PAGES = 20;
+		const releaseView = await (async () => {
+			if (!opts?.version) {
+				return discovery.getLatestRelease({ did: publisherDid, package: slug });
+			}
+			let cursor: string | undefined;
+			const seenCursors = new Set<string>();
+			for (let page = 0; page < MAX_LIST_PAGES; page++) {
+				if (cursor !== undefined) {
+					if (seenCursors.has(cursor)) break;
+					seenCursors.add(cursor);
+				}
+				const result = await discovery.listReleases({
+					did: publisherDid,
+					package: slug,
+					cursor,
+					limit: 50,
+				});
+				for (const r of result.releases) {
+					if (r.version === opts.version) return r;
+				}
+				if (!result.cursor) break;
+				cursor = result.cursor;
+			}
+			return undefined;
+		})();
+
+		if (!releaseView) {
+			return {
+				success: false,
+				error: {
+					code: "NO_VERSION",
+					message: opts?.version
+						? `Version ${opts.version} not found for ${publisherDid}/${slug}`
+						: `No installable release found for ${publisherDid}/${slug}`,
+				},
+			};
+		}
+
+		// Identity cross-check. A buggy/compromised aggregator must not
+		// trick us into installing a record signed for a different
+		// (did, slug, version) under this plugin's pluginId.
+		const signedRelease = releaseView.release;
+		if (
+			releaseView.did !== publisherDid ||
+			releaseView.package !== slug ||
+			signedRelease?.package !== slug ||
+			(opts?.version !== undefined && releaseView.version !== opts.version) ||
+			signedRelease?.version !== releaseView.version
+		) {
+			return {
+				success: false,
+				error: {
+					code: "AGGREGATOR_IDENTITY_MISMATCH",
+					message:
+						"Aggregator returned a release view that does not match the requested package or version.",
+				},
+			};
+		}
+
+		const newVersion = releaseView.version;
+		if (newVersion === oldVersion) {
+			return {
+				success: false,
+				error: {
+					code: "ALREADY_UP_TO_DATE",
+					message: "Plugin is already at the requested version",
+				},
+			};
+		}
+
+		// Yanked label check (mirrors install).
+		const releaseYanked = (releaseView.labels ?? []).some(
+			(l: { val?: string }) => l.val === "security:yanked",
+		);
+		if (releaseYanked) {
+			return {
+				success: false,
+				error: { code: "YANKED", message: "Release has been yanked by a trusted labeller" },
+			};
+		}
+
+		const declaredUrl = signedRelease.artifacts?.package?.url;
+		const declaredChecksum = signedRelease.artifacts?.package?.checksum;
+		if (!declaredUrl || !declaredChecksum) {
+			return {
+				success: false,
+				error: {
+					code: "INVALID_RELEASE",
+					message: "Release record is missing artifact url or checksum",
+				},
+			};
+		}
+
+		// SSRF check on declared URL + each mirror.
+		await assertSafeArtifactUrl(declaredUrl);
+		const rawMirrors = releaseView.mirrors ?? [];
+		const mirrors = rawMirrors.slice(0, MAX_MIRRORS);
+		for (const mirror of mirrors) {
+			await assertSafeArtifactUrl(mirror);
+		}
+
+		// `fetchArtifact` derives its own per-call deadline internally.
+		const artifactBytes = await fetchArtifact(mirrors, declaredUrl);
+		if (!(await verifyChecksum(artifactBytes, declaredChecksum))) {
+			return {
+				success: false,
+				error: {
+					code: "CHECKSUM_MISMATCH",
+					message: "Artifact bytes do not match the release's published checksum",
+				},
+			};
+		}
+
+		const bundle: PluginBundle = await extractBundle(artifactBytes);
+
+		if (bundle.manifest.version !== newVersion) {
+			return {
+				success: false,
+				error: {
+					code: "BUNDLE_VERSION_MISMATCH",
+					message: `Bundle manifest version (${bundle.manifest.version}) does not match release version (${newVersion})`,
+				},
+			};
+		}
+		if (bundle.manifest.id !== slug) {
+			return {
+				success: false,
+				error: {
+					code: "BUNDLE_IDENTITY_MISMATCH",
+					message: `Bundle manifest id (${bundle.manifest.id}) does not match registry slug (${slug})`,
+				},
+			};
+		}
+
+		// Rewrite manifest.id to the opaque pluginId so the sandbox loader
+		// and R2 layout stay in sync across install and update.
+		bundle.manifest = { ...bundle.manifest, id: pluginId };
+
+		// Diff capabilities + route visibility against the currently
+		// installed bundle. Loading from R2 keeps us honest: the diff is
+		// against the bytes the sandbox is actually running, not whatever
+		// the state row claims.
+		const oldBundle = await loadBundleFromR2(storage, pluginId, oldVersion, "registry");
+		const oldCaps = oldBundle?.manifest.capabilities ?? [];
+		const capabilityChanges = diffCapabilities(oldCaps, bundle.manifest.capabilities);
+		const hasEscalation = capabilityChanges.added.length > 0;
+		if (hasEscalation && !opts?.confirmCapabilityChanges) {
+			return {
+				success: false,
+				error: {
+					code: "CAPABILITY_ESCALATION",
+					message: "Plugin update requires new capabilities",
+					details: { capabilityChanges },
+				},
+			};
+		}
+
+		const routeVisibilityChanges = diffRouteVisibility(oldBundle?.manifest, bundle.manifest);
+		const hasNewPublicRoutes = routeVisibilityChanges.newlyPublic.length > 0;
+		if (hasNewPublicRoutes && !opts?.confirmRouteVisibilityChanges) {
+			return {
+				success: false,
+				error: {
+					code: "ROUTE_VISIBILITY_ESCALATION",
+					message: "Plugin update exposes new public (unauthenticated) routes",
+					details: { routeVisibilityChanges, capabilityChanges },
+				},
+			};
+		}
+
+		// Store new bundle. R2 prefix is deterministic per (pluginId, version),
+		// so a retry of the same update is idempotent.
+		await storeBundleInR2(storage, pluginId, newVersion, bundle, "registry");
+
+		// Update state. Preserve publisher/slug; refresh displayName /
+		// description from the install handler's seeded values (we don't
+		// re-fetch the profile here — that's a separate `getPackage` round
+		// trip and the install-time values are still authoritative for
+		// the same package identity).
+		await stateRepo.upsert(pluginId, newVersion, "active", {
+			source: "registry",
+			registryPublisherDid: publisherDid,
+			registrySlug: slug,
+			displayName: existing.displayName ?? slug,
+			description: existing.description ?? undefined,
+		});
+
+		// Best-effort cleanup of the old bundle. Failures here don't roll
+		// back the upgrade (the new bundle is already stored and committed
+		// in the state row); the orphan is just storage we'll pay for.
+		deleteBundleFromR2(storage, pluginId, oldVersion, "registry").catch(() => {});
+
+		return {
+			success: true,
+			data: {
+				pluginId,
+				oldVersion,
+				newVersion,
+				capabilityChanges,
+				routeVisibilityChanges: hasNewPublicRoutes ? routeVisibilityChanges : undefined,
+			},
+		};
+	} catch (err) {
+		if (err instanceof ClientValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "AGGREGATOR_RESPONSE_INVALID",
+					message: `Aggregator returned a response that does not conform to its lexicon (${err.target})`,
+				},
+			};
+		}
+		if (err instanceof ClientResponseError) {
+			return {
+				success: false,
+				error: {
+					code: err.status === 404 ? "AGGREGATOR_NOT_FOUND" : "AGGREGATOR_HTTP_ERROR",
+					message: `Aggregator returned ${err.status}: ${err.error}`,
+				},
+			};
+		}
+		if (err instanceof EmDashStorageError) {
+			return {
+				success: false,
+				error: {
+					code: err.code ?? "STORAGE_ERROR",
+					message: "Storage error while updating plugin",
+				},
+			};
+		}
+		console.error("[registry-update] Failed:", err);
+		return {
+			success: false,
+			error: {
+				code: "UPDATE_FAILED",
+				message: err instanceof Error ? err.message : "Failed to update plugin",
+			},
+		};
+	}
+}
+
+// ── Update check ───────────────────────────────────────────────────
+
+export interface RegistryUpdateCheck {
+	pluginId: string;
+	installed: string;
+	latest: string;
+	hasUpdate: boolean;
+	/**
+	 * Both diff fields are `false` here by design: computing them at
+	 * update-check time would require downloading both bundles (or
+	 * extracting from the signed release extension and the installed
+	 * R2 bundle), which is too expensive for a bulk preview. The actual
+	 * escalation gate runs at update time in `handleRegistryUpdate`.
+	 * Mirrors marketplace's `hasRouteVisibilityChanges: false`.
+	 */
+	hasCapabilityChanges: boolean;
+	hasRouteVisibilityChanges: boolean;
+}
+
+/**
+ * Bulk update check across every installed registry plugin. Queries the
+ * aggregator for each plugin's latest release and reports `hasUpdate`
+ * based on the version comparison. Plugins whose aggregator lookup fails
+ * (unreachable, delisted, malformed) are skipped silently — one bad
+ * publisher must not blank the whole admin Updates list.
+ */
+export async function handleRegistryUpdateCheck(
+	db: Kysely<Database>,
+	registryConfigInput: RegistryConfigInput | undefined,
+): Promise<ApiResult<{ items: RegistryUpdateCheck[] }>> {
+	const registryConfig = coerceRegistryConfig(registryConfigInput);
+	if (!registryConfig) {
+		return {
+			success: false,
+			error: { code: "REGISTRY_NOT_CONFIGURED", message: "Registry is not configured" },
+		};
+	}
+
+	try {
+		const stateRepo = new PluginStateRepository(db);
+		const registryPlugins = await stateRepo.getRegistryPlugins();
+		if (registryPlugins.length === 0) {
+			return { success: true, data: { items: [] } };
+		}
+
+		const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
+		const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
+		const discovery = new DiscoveryClient({
+			aggregatorUrl: registryConfig.aggregatorUrl,
+			acceptLabelers: registryConfig.acceptLabelers,
+			fetch: timedFetch(aggregatorDeadline),
+		});
+
+		const items: RegistryUpdateCheck[] = [];
+		for (const plugin of registryPlugins) {
+			if (!plugin.registryPublisherDid || !plugin.registrySlug) continue;
+			try {
+				const releaseView = await discovery.getLatestRelease({
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- DID string was validated by the install handler
+					did: plugin.registryPublisherDid as Did,
+					package: plugin.registrySlug,
+				});
+				const latest = releaseView.version;
+				if (!latest) continue;
+				const installed = plugin.version;
+				items.push({
+					pluginId: plugin.pluginId,
+					installed,
+					latest,
+					hasUpdate: latest !== installed,
+					hasCapabilityChanges: false,
+					hasRouteVisibilityChanges: false,
+				});
+			} catch (err) {
+				// Skip plugins that can't be checked. Don't fail the whole
+				// list because one aggregator query went wrong.
+				console.warn(`[registry-update-check] Skipped ${plugin.pluginId}:`, err);
+			}
+		}
+
+		return { success: true, data: { items } };
+	} catch (err) {
+		if (err instanceof ClientValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "AGGREGATOR_RESPONSE_INVALID",
+					message: `Aggregator returned a response that does not conform to its lexicon (${err.target})`,
+				},
+			};
+		}
+		if (err instanceof ClientResponseError) {
+			return {
+				success: false,
+				error: {
+					code: err.status === 404 ? "AGGREGATOR_NOT_FOUND" : "AGGREGATOR_HTTP_ERROR",
+					message: `Aggregator returned ${err.status}: ${err.error}`,
+				},
+			};
+		}
+		console.error("[registry-update-check] Failed:", err);
+		return {
+			success: false,
+			error: { code: "UPDATE_CHECK_FAILED", message: "Failed to check for registry updates" },
 		};
 	}
 }

@@ -233,7 +233,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 			// Generate sandbox runner module
 			if (id === RESOLVED_VIRTUAL_SANDBOX_RUNNER_ID) {
-				return generateSandboxRunnerModule(resolvedConfig.sandboxRunner);
+				return generateSandboxRunnerModule(resolvedConfig.sandboxRunner, resolvedConfig.sandbox);
 			}
 			// Generate sandboxed plugins config module
 			if (id === RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID) {
@@ -346,7 +346,7 @@ export function createViteConfig(
 				{ find: "use-sync-external-store/shim", replacement: "use-sync-external-store" },
 			],
 		},
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
 			createVirtualModulesPlugin(options),
 			// In dev mode with source alias, compile Lingui macros on the fly

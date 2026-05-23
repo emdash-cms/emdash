@@ -8,7 +8,7 @@
 
 import type { PluginCapability, PluginStorageConfig } from "@emdash-cms/plugin-types";
 
-import type { ProfileBootstrap } from "../publish/api.js";
+import type { ProfileBootstrap, ProfileInput } from "../publish/api.js";
 import type { Manifest, ManifestAuthor, ManifestSecurityContact } from "./schema.js";
 
 /**
@@ -187,16 +187,37 @@ export function normaliseManifest(manifest: Manifest, packageVersion?: string): 
 }
 
 /**
- * Convert a normalised manifest into the `ProfileBootstrap` shape that
- * `publishRelease` consumes. For multi-author manifests, the first
- * author wins (the publish lexicon supports an array, but
- * `ProfileBootstrap` doesn't model that yet).
+ * Convert a normalised manifest into the structured `ProfileInput` that
+ * `publishRelease` consumes. Carries the full lexicon profile block:
+ * multi-author, multi-security, name, description, keywords. `repo` is a
+ * release-level field and is passed separately (see `NormalisedManifest.repo`).
+ */
+export function manifestToProfileInput(manifest: NormalisedManifest): ProfileInput {
+	const input: ProfileInput = {
+		license: manifest.license,
+		authors: manifest.authors.map((a) => ({
+			name: a.name,
+			...(a.url !== undefined ? { url: a.url } : {}),
+			...(a.email !== undefined ? { email: a.email } : {}),
+		})),
+		security: manifest.securityContacts.map((c) => ({
+			...(c.url !== undefined ? { url: c.url } : {}),
+			...(c.email !== undefined ? { email: c.email } : {}),
+		})),
+	};
+	if (manifest.name !== undefined) input.name = manifest.name;
+	if (manifest.description !== undefined) input.description = manifest.description;
+	if (manifest.keywords !== undefined) input.keywords = manifest.keywords;
+	return input;
+}
+
+/**
+ * Convert a normalised manifest into the deprecated flat `ProfileBootstrap`
+ * shape. For multi-author manifests, the first author wins (the flat shape
+ * models only one author and one security contact).
  *
- * `name`, `description`, `keywords`, and `repo` are accepted by the
- * manifest schema but not wired through here. They land in publish in a
- * follow-up issue alongside the broader profile-fields work. The fields
- * are not silently lost — the manifest is the source of truth and we'll
- * read them again when the publish API accepts them.
+ * @deprecated Use {@link manifestToProfileInput}. Retained for callers still
+ * on the flat publish path.
  */
 export function manifestToProfileBootstrap(manifest: NormalisedManifest): ProfileBootstrap {
 	const author = manifest.authors[0];

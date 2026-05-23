@@ -164,7 +164,7 @@ function ctx(opts: {
 			emdash: opts.emdash,
 		},
 		cache: { enabled: false, invalidate: vi.fn() },
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub for tests
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
 	} as unknown as APIContext;
 }
 

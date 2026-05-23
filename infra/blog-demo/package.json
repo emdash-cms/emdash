@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/perf-demo-site",
-	"version": "0.0.8",
+	"version": "0.0.10",
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -28,11 +28,5 @@
 		"@astrojs/check": "catalog:",
 		"@cloudflare/workers-types": "catalog:",
 		"wrangler": "catalog:"
-	},
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"esbuild",
-			"workerd"
-		]
 	}
 }

@@ -448,6 +448,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/admin/bylines/[id]/translations",
+		entrypoint: resolveRoute("api/admin/bylines/[id]/translations.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/admin/users/[id]",
 		entrypoint: resolveRoute("api/admin/users/[id]/index.ts"),
 	});

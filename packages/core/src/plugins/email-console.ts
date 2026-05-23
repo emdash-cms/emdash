@@ -33,7 +33,7 @@ export interface StoredEmail {
 const GLOBAL_KEY = Symbol.for("emdash:dev-emails");
 const g = globalThis as Record<symbol, unknown>;
 const storedEmails: StoredEmail[] = (() => {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern (see request-context.ts)
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
 	const existing = g[GLOBAL_KEY] as StoredEmail[] | undefined;
 	if (existing) return existing;
 	const fresh: StoredEmail[] = [];

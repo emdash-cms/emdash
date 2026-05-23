@@ -19,7 +19,7 @@
 		"format": "oxfmt --ignore-path .gitignore && prettier --write .",
 		"format:check": "oxfmt --ignore-path .gitignore --check && prettier --check .",
 		"format:astro": "prettier --write .",
-		"lint": "oxlint --type-aware",
+		"lint": "oxlint --type-aware --deny-warnings",
 		"lint:quick": "oxlint -f json",
 		"lint:json": "oxlint --type-aware -f json",
 		"lint:fix": "oxlint --type-aware --fix",
@@ -28,8 +28,7 @@
 		"screenshots": "node scripts/screenshot-all-templates.mjs",
 		"query-counts": "node scripts/query-counts.mjs",
 		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
-		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile",
-		"changeset:version": "pnpm changeset version && pnpm install --no-frozen-lockfile"
+		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile"
 	},
 	"keywords": [],
 	"author": "Matt Kane",
@@ -46,13 +45,13 @@
 		"emdash": "workspace:*",
 		"knip": "^5.84.1",
 		"oxfmt": "^0.34.0",
-		"oxlint": "^1.49.0",
-		"oxlint-tsgolint": "^0.15.0",
+		"oxlint": "^1.66.0",
+		"oxlint-tsgolint": "^0.23.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-astro": "^0.14.1",
 		"typescript": "6.0.0-beta"
 	},
-	"packageManager": "pnpm@10.28.0",
+	"packageManager": "pnpm@11.1.3+sha512.c85357fe17ca12dd23dd7071822666dfd7e3cb76fe214e3370b5ea2fb34f2a231185509b63e717f3cd0acb38dd3f8d82bcd5e8172400ae678b70ea4fbed0896d",
 	"engines": {
 		"node": ">=22"
 	}

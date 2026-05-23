@@ -119,6 +119,7 @@ describe("Database Migrations (Integration)", () => {
 			"037_credential_algorithm",
 			"038_registry_plugin_state",
 			"039_fix_fts5_triggers",
+			"040_byline_i18n",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

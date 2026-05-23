@@ -71,8 +71,8 @@ jobs:
         id: changesets
         uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1.8.0
         with:
-          version: pnpm run changeset:version
-          publish: pnpm changeset publish
+          version: node .github/scripts/release.mjs version
+          publish: node .github/scripts/release.mjs publish
           commit: "ci: release"
           title: "ci: release"
         env:
@@ -80,7 +80,7 @@ jobs:
 
       - name: Publish (manual)
         if: ${{ inputs.publish-only }}
-        run: pnpm changeset publish
+        run: node .github/scripts/release.mjs publish
 
   sync-templates:
     name: Sync Templates

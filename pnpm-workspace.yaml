@@ -8,6 +8,12 @@ minimumReleaseAgeExclude:
   - "@rolldown/binding-*"
   - "@emnapi/core"
   - "@emnapi/runtime"
+  # TEMPORARY: astro 6.3.6 + @astrojs/cloudflare 13.5.3 ship the upstream
+  # revert (withastro/astro#16801) of the broken frontmatter-scan plugin
+  # from 13.5.2 that we need this PR to pick up. Remove these exclusions
+  # once the 24h cooldown passes.
+  - astro
+  - "@astrojs/cloudflare"
 trustPolicy: no-downgrade
 strictDepBuilds: true
 dangerouslyAllowAllBuilds: false
@@ -54,8 +60,8 @@ packages:
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
   "@astrojs/check": ^0.9.7
-  "@astrojs/cloudflare": ^13.1.7
-  "@astrojs/node": ^10.0.0
+  "@astrojs/cloudflare": ^13.5.3
+  "@astrojs/node": ^10.1.1
   "@astrojs/react": ^5.0.0
   "@atcute/atproto": ^3.1.11
   "@atcute/car": ^6.0.0
@@ -116,13 +122,15 @@ catalog:
   "@tiptap/starter-kit": ^3.20.0
   "@tiptap/suggestion": ^3.20.0
   "@types/node": 24.10.13
+  "@types/better-sqlite3": ^7.6.12
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
-  astro: ^6.0.1
+  astro: ^6.3.0
   astro-iconset: ^0.0.4
   better-sqlite3: ^12.8.0
   chokidar: ^5.0.0
   jsonc-parser: ^3.3.1
+  kysely: ^0.29.0
   publint: 0.3.17
   react: 19.2.4
   react-dom: 19.2.4

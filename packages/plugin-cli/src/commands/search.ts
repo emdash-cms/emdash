@@ -69,9 +69,10 @@ export const searchCommand = defineCommand({
 
 		console.log();
 		for (const pkg of result.packages) {
-			const profile = pkg.profile as { name?: string; description?: string };
-			console.log(`${pc.bold(profile.name ?? pkg.slug)} ${pc.dim(`(${pkg.slug})`)}`);
-			if (profile.description) console.log(`  ${profile.description}`);
+			// `pkg.profile` is lexicon-validated by DiscoveryClient (or null).
+			const profile = pkg.profile;
+			console.log(`${pc.bold(profile?.name ?? pkg.slug)} ${pc.dim(`(${pkg.slug})`)}`);
+			if (profile?.description) console.log(`  ${profile.description}`);
 			console.log(`  ${pc.dim(pkg.uri)}`);
 			console.log();
 		}

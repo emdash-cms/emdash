@@ -12,13 +12,22 @@
 		},
 		"./sandbox": "./dist/plugin.mjs"
 	},
-	"files": ["dist", "emdash-plugin.jsonc"],
+	"files": [
+		"dist",
+		"emdash-plugin.jsonc"
+	],
 	"scripts": {
 		"build": "node node_modules/@emdash-cms/plugin-cli/dist/index.mjs build",
 		"dev": "emdash-plugin dev",
 		"typecheck": "tsgo --noEmit"
 	},
-	"keywords": ["emdash", "cms", "plugin", "test", "sandbox"],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"test",
+		"sandbox"
+	],
 	"author": "Matt Kane",
 	"license": "MIT",
 	"dependencies": {

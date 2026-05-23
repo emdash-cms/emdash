@@ -59,6 +59,9 @@ export interface SidebarNavProps {
 		version?: string;
 		commit?: string;
 		marketplace?: string;
+		registry?: {
+			aggregatorUrl: string;
+		};
 		admin?: {
 			logo?: string;
 			siteName?: string;
@@ -89,7 +92,7 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 
 	const link = (
 		<Link
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- TanStack Router requires literal route types
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- TanStack Router requires literal route types
 			to={item.to as "/"}
 			params={item.params}
 			aria-current={isActive ? "page" : undefined}
@@ -212,16 +215,29 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		{ to: "/plugins-manager", label: t`Plugins`, icon: PuzzlePiece, minRole: ROLE_ADMIN },
 	];
 
+	if (manifest.registry) {
+		adminItems.push({
+			to: "/plugins/marketplace",
+			label: t`Registry`,
+			icon: Storefront,
+			minRole: ROLE_ADMIN,
+		});
+	} else if (manifest.marketplace) {
+		adminItems.push({
+			to: "/plugins/marketplace",
+			label: t`Marketplace`,
+			icon: Storefront,
+			minRole: ROLE_ADMIN,
+		});
+	}
+
 	if (manifest.marketplace) {
-		adminItems.push(
-			{
-				to: "/plugins/marketplace",
-				label: t`Marketplace`,
-				icon: Storefront,
-				minRole: ROLE_ADMIN,
-			},
-			{ to: "/themes/marketplace", label: t`Themes`, icon: Palette, minRole: ROLE_ADMIN },
-		);
+		adminItems.push({
+			to: "/themes/marketplace",
+			label: t`Themes`,
+			icon: Palette,
+			minRole: ROLE_ADMIN,
+		});
 	}
 
 	adminItems.push(

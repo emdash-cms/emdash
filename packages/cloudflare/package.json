@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/cloudflare",
-  "version": "0.12.0",
+  "version": "0.14.0",
   "description": "Cloudflare adapters for EmDash - D1, R2, Access, and Worker Loader sandbox",
   "type": "module",
   "main": "dist/index.mjs",
@@ -79,7 +79,7 @@
   "peerDependencies": {
     "@cloudflare/workers-types": ">=4.0.0",
     "astro": ">=6.0.0-beta.0",
-    "kysely": ">=0.27.0"
+    "kysely": ">=0.28.17"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
