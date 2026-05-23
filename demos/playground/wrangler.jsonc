@@ -19,6 +19,7 @@
 			"new_sqlite_classes": ["EmDashPreviewDB"],
 		},
 	],
+	"preview_urls": true,
 	"observability": {
 		"enabled": true,
 	},
@@ -29,14 +30,6 @@
 			"custom_domain": true,
 		},
 	],
-	// SESSION KV binding. @astrojs/cloudflare 13.2+ injects the SESSION
-	// binding into both the top-level config and `previews.kv_namespaces` for
-	// preview deploys, but with no `id`. `wrangler preview` reads from
-	// `previews.kv_namespaces` and forwards `namespace_id` verbatim -- it has
-	// no auto-provisioning path (unlike `wrangler deploy`), so a binding
-	// without `id` fails with API error 10021. The adapter's customizer skips
-	// re-injecting both fields when the user already defines them, so we
-	// declare both explicitly.
 	"kv_namespaces": [
 		{
 			"binding": "SESSION",
@@ -50,7 +43,13 @@
 				"id": "753be2785dfb4da886e837a90cd9a21a",
 			},
 		],
+		"durable_objects": {
+			"bindings": [
+				{
+					"name": "PLAYGROUND_DB",
+					"class_name": "EmDashPreviewDB",
+				},
+			],
+		},
 	},
-	// No R2 -- media uploads are blocked in playground mode
-	// No D1 -- database is inside the Durable Object
 }
