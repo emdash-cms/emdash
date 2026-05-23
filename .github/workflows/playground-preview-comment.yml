@@ -1,0 +1,164 @@
+name: Playground Preview
+
+# Workers Builds runs `wrangler preview` for the playground demo (it can't use
+# the standard preview-URL flow because the playground has a Durable Object).
+# These are a private beta feature, and don't currently supported automatic PR 
+# comments with the preview URL. 
+# The cloudflare-workers-and-pages bot posts a "build successful" comment when
+# the build finishes, but it doesn't include the preview URL (preview URLs are
+# a `wrangler versions upload` concept, not `wrangler preview`).
+# This workflow is a workaround to post the preview URL in the PR description.
+#
+# The playground is the primary "try this PR" surface for emdash: each visit
+# gets its own session-scoped Durable Object, so reviewers can poke at a full
+# working admin without signup, login, or shared state. That makes the preview
+# link the single most useful thing in the PR -- but a sticky comment posted
+# after the build would land below the fold (CF bot, pkg-pr-new, changeset-bot,
+# etc.). So instead we edit the PR description to insert a managed block.
+#
+# Trigger: the CF bot's "Deployment successful" edit, scoped to emdash-playground.
+# This means we comment when the deploy is genuinely live, not just when the
+# commit was pushed.
+#
+# The branch preview URL is fully deterministic from the branch name and the
+# worker/account names, so no Cloudflare API token is required -- only the
+# default GITHUB_TOKEN.
+#
+# Caveats:
+# - Branch slugs longer than the (private-beta, undocumented) max length get
+#   truncated server-side; collisions get a random 6-char suffix appended.
+#   In practice this is fine for emdash branch names. If the URL 404s, check
+#   the dash.
+# - issue_comment workflows run from `main`, not the PR branch. Changes to
+#   this file only take effect once merged.
+# - This won't fire for PRs from forks where the fork doesn't have the
+#   workflow file. That's fine -- the playground builds only run for the
+#   internal repo, not forks.
+
+on:
+  issue_comment:
+    types: [created, edited]
+
+permissions: {}
+
+# The Cloudflare bot edits its comment 4-5 times during a build (queued ->
+# initializing -> running -> ... -> successful). The "successful" edit is
+# usually the terminal state, but a subsequent edit could race a still-running
+# workflow that's mid-fetch. Serialize per PR; cancel in-flight runs so only
+# the latest comment state is processed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  update-body:
+    name: Update PR body
+    runs-on: ubuntu-latest
+    # Only react to:
+    # - PR comments (not issue comments)
+    # - the CF bot's comment
+    # - that mentions the playground worker
+    # - and contains the deployment-success marker
+    if: >-
+      github.event.issue.pull_request != null &&
+      github.event.comment.user.login == 'cloudflare-workers-and-pages[bot]' &&
+      contains(github.event.comment.body, 'emdash-playground') &&
+      contains(github.event.comment.body, 'Deployment successful!')
+    permissions:
+      pull-requests: write # read PR body and update it with the playground block; no PR code is checked out
+    steps:
+      - name: Update PR description with playground link
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          BOT_COMMENT_BODY: ${{ github.event.comment.body }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        with:
+          script: |
+            const { BOT_COMMENT_BODY, PR_NUMBER } = process.env;
+            const prNumber = Number(PR_NUMBER);
+
+            // Confirm the playground row itself is in the successful state.
+            // Each row in the bot's comment looks like:
+            //   | ✅ Deployment successful! ... | emdash-playground | <sha> | ... |
+            const playgroundRow = BOT_COMMENT_BODY.split("\n").find((line) =>
+              line.includes("| emdash-playground |"),
+            );
+            if (!playgroundRow || !playgroundRow.includes("✅ Deployment successful!")) {
+              core.info("Playground row not in successful state; skipping.");
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            const branch = pr.head.ref;
+
+            // Slug rules (from SPEC: Worker Previews): lowercase, and
+            // /, ., +, =, _ get replaced with -. Trailing/leading hyphens trimmed.
+            const slug = branch
+              .toLowerCase()
+              .replace(/[/.+=_]/g, "-")
+              .replace(/^-+|-+$/g, "");
+
+            const url = `https://${slug}-emdash-playground.emdash-cms.workers.dev`;
+            const shortSha = pr.head.sha.slice(0, 7);
+
+            const START = "<!-- emdash:playground-preview:start -->";
+            const END = "<!-- emdash:playground-preview:end -->";
+
+            // The managed block. Kept short and inviting -- the link is the
+            // point. Each visit to the playground gets its own session-scoped
+            // Durable Object, so reviewers can play freely.
+            const block = [
+              START,
+              "",
+              "---",
+              "",
+              `### Try this PR`,
+              "",
+              `**[Open a fresh playground →](${url})**`,
+              "",
+              `A full working EmDash site, deployed from this branch. Each visit gets its own session-scoped sandbox: no login needed and no shared state. Try the admin, edit content, hit the public site.`,
+              "",
+              `<sub>Branch deploy tracking \`${branch}\` @ \`${shortSha}\`. Updated automatically when the playground redeploys.</sub>`,
+              "",
+              END,
+            ].join("\n");
+
+            const existingBody = pr.body ?? "";
+
+            // If a block already exists, replace it in place (preserves
+            // whatever position the author or a previous run put it in).
+            // Otherwise append it to the end of the description.
+            const blockRegex = new RegExp(
+              `\\n*${escapeRegex(START)}[\\s\\S]*?${escapeRegex(END)}\\n*`,
+            );
+
+            let newBody;
+            if (blockRegex.test(existingBody)) {
+              newBody = existingBody.replace(blockRegex, `\n\n${block}\n`);
+              core.info("Replaced existing playground block in PR body.");
+            } else {
+              // Append, with a blank line separator.
+              const trimmed = existingBody.replace(/\s+$/, "");
+              newBody = trimmed.length > 0 ? `${trimmed}\n\n${block}\n` : `${block}\n`;
+              core.info("Appended playground block to PR body.");
+            }
+
+            if (newBody === existingBody) {
+              core.info("PR body unchanged; skipping update.");
+              return;
+            }
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              body: newBody,
+            });
+
+            function escapeRegex(s) {
+              return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            }
