@@ -12,7 +12,7 @@ export interface Page {
   title: string;
   content?: PortableTextBlock[];
   excerpt?: string;
-  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number };
+  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> };
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
@@ -63,7 +63,18 @@ export interface Service {
   title: string;
   content?: PortableTextBlock[];
   excerpt?: string;
-  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number };
+  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> };
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+}
+
+export interface TestType {
+  id: string;
+  slug: string | null;
+  status: string;
+  title?: string;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
@@ -77,5 +88,6 @@ declare module "emdash" {
     review: Review;
     sdfss: Sdfs;
     services: Service;
+    test_types: TestType;
   }
 }
