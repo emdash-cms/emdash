@@ -352,6 +352,7 @@ export function GeneralSettings() {
 }
 
 function CacheManagementSection() {
+	const { t } = useLingui();
 	const { clearCache } = useCacheActions();
 	const toastManager = Toast.useToastManager();
 	const [isClearing, setIsClearing] = React.useState(false);
@@ -361,13 +362,13 @@ function CacheManagementSection() {
 		try {
 			await clearCache();
 			toastManager.add({
-				title: "Cache cleared",
-				description: "Local cache has been cleared. Data will be refreshed from the server.",
+				title: t`Cache cleared`,
+				description: t`Local cache has been cleared. Data will be refreshed from the server.`,
 			});
 		} catch {
 			toastManager.add({
-				title: "Failed to clear cache",
-				description: "Could not clear the local cache. Try refreshing the page.",
+				title: t`Failed to clear cache`,
+				description: t`Could not clear the local cache. Try refreshing the page.`,
 				type: "error",
 			});
 		} finally {
@@ -377,10 +378,9 @@ function CacheManagementSection() {
 
 	return (
 		<div className="mt-8 border-t pt-6">
-			<h3 className="text-lg font-semibold mb-2">Local Cache</h3>
+			<h3 className="text-lg font-semibold mb-2">{t`Local Cache`}</h3>
 			<p className="text-sm text-kumo-subtle mb-4">
-				EmDash caches data locally for faster page loads. Clear the cache if you're experiencing
-				stale data or display issues.
+				{t`EmDash caches data locally for faster page loads. Clear the cache if you're experiencing stale data or display issues.`}
 			</p>
 			<Button
 				type="button"
@@ -389,7 +389,7 @@ function CacheManagementSection() {
 				disabled={isClearing}
 				onClick={handleClearCache}
 			>
-				{isClearing ? "Clearing..." : "Clear Local Cache"}
+				{isClearing ? t`Clearing...` : t`Clear Local Cache`}
 			</Button>
 		</div>
 	);
