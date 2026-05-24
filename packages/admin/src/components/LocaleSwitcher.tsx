@@ -7,6 +7,7 @@
  * Only renders when i18n is configured (manifest.i18n is present).
  */
 
+import { useLingui } from "@lingui/react/macro";
 import { GlobeSimple } from "@phosphor-icons/react";
 import React from "react";
 
@@ -46,6 +47,7 @@ export function LocaleSwitcher({
 	className,
 	size = "md",
 }: LocaleSwitcherProps) {
+	const { t } = useLingui();
 	return (
 		<div className={cn("flex items-center gap-1.5", className)}>
 			<GlobeSimple
@@ -55,7 +57,7 @@ export function LocaleSwitcher({
 			<select
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
-				aria-label="Locale"
+				aria-label={t`Locale`}
 				className={cn(
 					"rounded-md border bg-transparent font-medium transition-colors",
 					"focus:ring-kumo-ring focus:outline-none focus:ring-2 focus:ring-offset-1",
@@ -63,11 +65,11 @@ export function LocaleSwitcher({
 					size === "sm" ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-sm",
 				)}
 			>
-				{showAll && <option value="">All locales</option>}
+				{showAll && <option value="">{t`All locales`}</option>}
 				{locales.map((locale) => (
 					<option key={locale} value={locale}>
 						{locale.toUpperCase()}
-						{locale === defaultLocale ? " (default)" : ""}
+						{locale === defaultLocale ? t` (default)` : ""}
 					</option>
 				))}
 			</select>
@@ -88,23 +90,21 @@ export function LocaleBadges({
 	existingLocales: string[];
 	onLocaleClick?: (locale: string) => void;
 }) {
+	const { t } = useLingui();
 	const existingSet = new Set(existingLocales);
 
 	return (
 		<div className="flex items-center gap-0.5">
 			{locales.map((locale) => {
 				const exists = existingSet.has(locale);
+				const label = getLocaleLabel(locale);
 				return (
 					<button
 						key={locale}
 						type="button"
 						onClick={() => onLocaleClick?.(locale)}
 						disabled={!onLocaleClick}
-						title={
-							exists
-								? `${getLocaleLabel(locale)} \u2014 view translation`
-								: `${getLocaleLabel(locale)} \u2014 no translation`
-						}
+						title={exists ? t`${label} \u2014 view translation` : t`${label} \u2014 no translation`}
 						className={cn(
 							"rounded px-1 py-0.5 text-[10px] font-semibold uppercase leading-none transition-colors",
 							exists

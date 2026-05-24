@@ -1,0 +1,28 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"compatibility_date": "2026-03-01",
+	"routes": [
+		{
+			"pattern": "docs.emdashcms.com",
+			"custom_domain": true,
+			"zone_name": "emdashcms.com",
+		},
+	],
+	"compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
+	"name": "docs",
+	"main": "./src/worker.ts",
+	"assets": {
+		"directory": "./dist",
+		"binding": "ASSETS",
+	},
+	"ai_search": [
+		{
+			"remote": true,
+			"binding": "AI_SEARCH",
+			"instance_name": "emdash-docs",
+		},
+	],
+	"observability": {
+		"enabled": true,
+	},
+}

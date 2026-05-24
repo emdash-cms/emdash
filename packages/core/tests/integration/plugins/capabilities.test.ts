@@ -33,7 +33,8 @@ import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 // Test regex patterns
 const NOT_ALLOWED_FETCH_REGEX = /not allowed to fetch from host/;
 const NO_ALLOWED_FETCH_REGEX = /not allowed to fetch/;
-const NO_NETWORK_FETCH_REGEX = /does not have the "network:fetch" capability/;
+const NO_NETWORK_FETCH_REGEX = /does not have the "network:request" capability/;
+const SEO_NOT_ENABLED_REGEX = /does not have SEO enabled/;
 
 /**
  * Create a minimal resolved plugin for testing
@@ -129,6 +130,79 @@ describe("Capability Enforcement Integration (v2)", () => {
 				expect(result.hasMore).toBe(false);
 			});
 
+			it("narrows list results by where.status", async () => {
+				const access = createContentAccess(db);
+				const result = await access.list("posts", { where: { status: "published" } });
+
+				expect(result.items).toHaveLength(1);
+				expect(result.items[0]!.id).toBe("post-1");
+				expect(result.items[0]!.status).toBe("published");
+			});
+
+			it("narrows list results by where.locale", async () => {
+				await sql`
+					INSERT INTO ec_posts (id, slug, status, title, content, locale, translation_group)
+					VALUES ('post-3', 'bonjour', 'published', 'Bonjour', 'Contenu', 'fr', 'post-3')
+				`.execute(db);
+				const access = createContentAccess(db);
+				const result = await access.list("posts", { where: { locale: "fr" } });
+
+				expect(result.items).toHaveLength(1);
+				expect(result.items[0]!.id).toBe("post-3");
+			});
+
+			it("combines where.status and where.locale", async () => {
+				await sql`
+					INSERT INTO ec_posts (id, slug, status, title, content, locale, translation_group)
+					VALUES
+						('post-3', 'bonjour',  'published', 'Bonjour',  'Contenu', 'fr', 'post-3'),
+						('post-4', 'brouillon', 'draft',    'Brouillon', 'WIP',     'fr', 'post-4')
+				`.execute(db);
+				const access = createContentAccess(db);
+				const result = await access.list("posts", {
+					where: { status: "published", locale: "fr" },
+				});
+
+				expect(result.items).toHaveLength(1);
+				expect(result.items[0]!.id).toBe("post-3");
+			});
+
+			it("paginates consistently with where filters", async () => {
+				// Three more published posts so the total published count is 4.
+				// A limit of 2 should yield two pages: [2, 2] — never drafts.
+				await sql`
+					INSERT INTO ec_posts (id, slug, status, title, content, locale, translation_group)
+					VALUES
+						('post-3', 'a', 'published', 'A', 'a', 'en', 'post-3'),
+						('post-4', 'b', 'published', 'B', 'b', 'en', 'post-4'),
+						('post-5', 'c', 'published', 'C', 'c', 'en', 'post-5')
+				`.execute(db);
+				const access = createContentAccess(db);
+
+				const page1 = await access.list("posts", {
+					limit: 2,
+					where: { status: "published" },
+				});
+				expect(page1.items).toHaveLength(2);
+				expect(page1.hasMore).toBe(true);
+				for (const item of page1.items) expect(item.status).toBe("published");
+
+				const page2 = await access.list("posts", {
+					limit: 2,
+					cursor: page1.cursor,
+					where: { status: "published" },
+				});
+				expect(page2.items).toHaveLength(2);
+				expect(page2.hasMore).toBe(false);
+				for (const item of page2.items) expect(item.status).toBe("published");
+
+				// No overlap between pages
+				const ids = new Set([...page1.items, ...page2.items].map((i) => i.id));
+				expect(ids.size).toBe(4);
+				// Drafts never surface
+				expect(ids.has("post-2")).toBe(false);
+			});
+
 			it("returns null for non-existent content", async () => {
 				const access = createContentAccess(db);
 				const post = await access.get("posts", "non-existent");
@@ -166,6 +240,161 @@ describe("Capability Enforcement Integration (v2)", () => {
 				// Verify it was created
 				const found = await access.get("posts", created.id);
 				expect(found).not.toBeNull();
+			});
+		});
+
+		describe("SEO panel integration", () => {
+			beforeEach(async () => {
+				// Register the "posts" collection with SEO enabled so the plugin
+				// content API routes `seo` writes to the core SEO panel.
+				await sql`
+					INSERT INTO _emdash_collections (slug, label, label_singular, has_seo)
+					VALUES ('posts', 'Posts', 'Post', 1)
+				`.execute(db);
+			});
+
+			it("returns seo defaults from get() for SEO-enabled collections", async () => {
+				const access = createContentAccess(db);
+				const post = await access.get("posts", "post-1");
+
+				expect(post).not.toBeNull();
+				expect(post!.seo).toEqual({
+					title: null,
+					description: null,
+					image: null,
+					canonical: null,
+					noIndex: false,
+				});
+			});
+
+			it("omits seo from get() for collections without SEO enabled", async () => {
+				// Reset has_seo on posts so it behaves like a non-SEO collection
+				await db
+					.updateTable("_emdash_collections")
+					.set({ has_seo: 0 })
+					.where("slug", "=", "posts")
+					.execute();
+
+				const access = createContentAccess(db);
+				const post = await access.get("posts", "post-1");
+
+				expect(post).not.toBeNull();
+				expect(post!.seo).toBeUndefined();
+			});
+
+			it("update() routes `seo` to the SEO panel instead of failing on missing column", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				// Regression for #374: previously this threw
+				// "SQLite error: no such column: seo"
+				const updated = await access.update("posts", "post-1", {
+					seo: {
+						title: "Custom SEO Title",
+						description: "A better meta description",
+						canonical: "https://example.com/canonical",
+						noIndex: false,
+					},
+				});
+
+				expect(updated.seo).toEqual({
+					title: "Custom SEO Title",
+					description: "A better meta description",
+					image: null,
+					canonical: "https://example.com/canonical",
+					noIndex: false,
+				});
+
+				// Verify it persisted via a subsequent read
+				const fresh = await access.get("posts", "post-1");
+				expect(fresh!.seo?.title).toBe("Custom SEO Title");
+				expect(fresh!.seo?.description).toBe("A better meta description");
+			});
+
+			it("update() accepts field updates alongside seo in a single call", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const updated = await access.update("posts", "post-1", {
+					title: "Updated Title",
+					seo: {
+						title: "SEO Title",
+						description: "SEO Description",
+					},
+				});
+
+				expect(updated.data.title).toBe("Updated Title");
+				expect(updated.seo?.title).toBe("SEO Title");
+				expect(updated.seo?.description).toBe("SEO Description");
+			});
+
+			it("update() only overwrites explicitly-set seo fields (partial updates)", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				await access.update("posts", "post-1", {
+					seo: { title: "Initial Title", description: "Initial Description" },
+				});
+
+				const updated = await access.update("posts", "post-1", {
+					seo: { title: "Updated Title" },
+				});
+
+				expect(updated.seo?.title).toBe("Updated Title");
+				// description must not be clobbered by a partial update
+				expect(updated.seo?.description).toBe("Initial Description");
+			});
+
+			it("create() routes `seo` to the SEO panel", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", {
+					title: "New Post",
+					content: "Body",
+					seo: {
+						title: "Brand New SEO",
+						description: "New Description",
+					},
+				});
+
+				expect(created.data.title).toBe("New Post");
+				expect(created.seo?.title).toBe("Brand New SEO");
+				expect(created.seo?.description).toBe("New Description");
+
+				const fresh = await access.get("posts", created.id);
+				expect(fresh!.seo?.title).toBe("Brand New SEO");
+			});
+
+			it("update() throws when seo is provided on a collection without SEO enabled", async () => {
+				// Disable SEO on posts
+				await db
+					.updateTable("_emdash_collections")
+					.set({ has_seo: 0 })
+					.where("slug", "=", "posts")
+					.execute();
+
+				const access = createContentAccessWithWrite(db);
+
+				await expect(
+					access.update("posts", "post-1", {
+						seo: { title: "Won't work" },
+					}),
+				).rejects.toThrow(SEO_NOT_ENABLED_REGEX);
+			});
+
+			it("list() hydrates seo for each item in SEO-enabled collections", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				await access.update("posts", "post-1", {
+					seo: { title: "Post One SEO" },
+				});
+				await access.update("posts", "post-2", {
+					seo: { title: "Post Two SEO" },
+				});
+
+				const result = await access.list("posts");
+				expect(result.items).toHaveLength(2);
+
+				const byId = new Map(result.items.map((i) => [i.id, i]));
+				expect(byId.get("post-1")?.seo?.title).toBe("Post One SEO");
+				expect(byId.get("post-2")?.seo?.title).toBe("Post Two SEO");
 			});
 		});
 	});
@@ -326,7 +555,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const readOnlyPlugin = createTestPlugin({
 				id: "reader",
-				capabilities: ["read:content"],
+				capabilities: ["content:read"],
 			});
 
 			const ctx = factory.createContext(readOnlyPlugin);
@@ -343,7 +572,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const noContentPlugin = createTestPlugin({
 				id: "no-content",
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 			});
 
 			const ctx = factory.createContext(noContentPlugin);
@@ -355,7 +584,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const networkPlugin = createTestPlugin({
 				id: "network",
-				capabilities: ["network:fetch"],
+				capabilities: ["network:request"],
 				allowedHosts: ["api.example.com"],
 			});
 
@@ -381,7 +610,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const plugin = createTestPlugin({
 				id: "unrestricted-network",
-				capabilities: ["network:fetch:any", "network:fetch"],
+				capabilities: ["network:request:unrestricted", "network:request"],
 			});
 
 			const ctx = factory.createContext(plugin);
@@ -394,7 +623,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const plugin = createTestPlugin({
 				id: "both-fetch",
-				capabilities: ["network:fetch", "network:fetch:any"],
+				capabilities: ["network:request", "network:request:unrestricted"],
 				allowedHosts: ["restricted.example.com"],
 			});
 
@@ -430,7 +659,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const writePlugin = createTestPlugin({
 				id: "writer",
-				capabilities: ["write:content"],
+				capabilities: ["content:write"],
 			});
 
 			const ctx = factory.createContext(writePlugin);
@@ -471,7 +700,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const plugin = createTestPlugin({
 				id: "user-reader",
-				capabilities: ["read:users"],
+				capabilities: ["users:read"],
 			});
 
 			const ctx = factory.createContext(plugin);

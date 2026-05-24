@@ -1,8 +1,9 @@
 import { Button, Dialog, Input, Select } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { Check, Copy, X } from "@phosphor-icons/react";
 import * as React from "react";
 
-import { ROLES } from "./RoleBadge";
+import { useRolesConfig } from "./useRolesConfig.js";
 
 export interface InviteUserModalProps {
 	open: boolean;
@@ -25,6 +26,8 @@ export function InviteUserModal({
 	onOpenChange,
 	onInvite,
 }: InviteUserModalProps) {
+	const { t } = useLingui();
+	const { roles, roleLabels } = useRolesConfig();
 	const [email, setEmail] = React.useState("");
 	const [role, setRole] = React.useState(30); // Default to Author
 	const [copied, setCopied] = React.useState(false);
@@ -73,26 +76,26 @@ export function InviteUserModal({
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<div className="flex flex-col space-y-1.5">
 						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-							{inviteUrl ? "Invite Link Created" : "Invite User"}
+							{inviteUrl ? t`Invite Link Created` : t`Invite User`}
 						</Dialog.Title>
 						<Dialog.Description className="text-sm text-kumo-subtle">
 							{inviteUrl
-								? "No email provider configured. Share this link manually."
-								: "Send an invitation email to a new team member."}
+								? t`No email provider configured. Share this link manually.`
+								: t`Send an invitation email to a new team member.`}
 						</Dialog.Description>
 					</div>
 					<Dialog.Close
-						aria-label="Close"
+						aria-label={t`Close`}
 						render={(props) => (
 							<Button
 								{...props}
 								variant="ghost"
 								shape="square"
-								aria-label="Close"
-								className="absolute right-4 top-4"
+								aria-label={t`Close`}
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
-								<span className="sr-only">Close</span>
+								<span className="sr-only">{t`Close`}</span>
 							</Button>
 						)}
 					/>
@@ -103,10 +106,10 @@ export function InviteUserModal({
 					<div className="py-4 space-y-4">
 						<div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4">
 							<p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
-								Share this link with the invited user
+								{t`Share this link with the invited user`}
 							</p>
 							<p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-								This link expires in 7 days and can only be used once.
+								{t`This link expires in 7 days and can only be used once.`}
 							</p>
 						</div>
 
@@ -118,7 +121,7 @@ export function InviteUserModal({
 								variant="ghost"
 								shape="square"
 								onClick={handleCopyUrl}
-								aria-label="Copy invite link"
+								aria-label={t`Copy invite link`}
 							>
 								{copied ? (
 									<Check className="h-4 w-4 text-green-600" />
@@ -128,17 +131,17 @@ export function InviteUserModal({
 							</Button>
 						</div>
 						{copied && (
-							<p className="text-xs text-green-600 dark:text-green-400">Copied to clipboard</p>
+							<p className="text-xs text-green-600 dark:text-green-400">{t`Copied to clipboard`}</p>
 						)}
 						{copyError && (
 							<p className="text-xs text-amber-600 dark:text-amber-400">
-								Could not copy automatically. Please select the URL above and copy manually.
+								{t`Could not copy automatically. Please select the URL above and copy manually.`}
 							</p>
 						)}
 
 						<div className="flex justify-end">
 							<Button type="button" onClick={() => onOpenChange(false)}>
-								Done
+								{t`Done`}
 							</Button>
 						</div>
 					</div>
@@ -148,11 +151,11 @@ export function InviteUserModal({
 						<div className="grid gap-4 py-4">
 							{/* Email */}
 							<Input
-								label="Email address"
+								label={t`Email address`}
 								type="email"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
-								placeholder="colleague@example.com"
+								placeholder={t`colleague@example.com`}
 								required
 								autoComplete="off"
 							/>
@@ -160,12 +163,12 @@ export function InviteUserModal({
 							{/* Role */}
 							<div className="grid gap-2">
 								<Select
-									label="Role"
+									label={t`Role`}
 									value={role.toString()}
 									onValueChange={(v) => v !== null && setRole(parseInt(v, 10))}
-									items={Object.fromEntries(ROLES.map((r) => [r.value.toString(), r.label]))}
+									items={roleLabels}
 								>
-									{ROLES.map((r) => (
+									{roles.map((r) => (
 										<Select.Option key={r.value} value={r.value.toString()}>
 											<div>
 												<div>{r.label}</div>
@@ -175,7 +178,7 @@ export function InviteUserModal({
 									))}
 								</Select>
 								<p className="text-xs text-kumo-subtle">
-									The invited user will have this role once they complete registration.
+									{t`The invited user will have this role once they complete registration.`}
 								</p>
 							</div>
 
@@ -194,10 +197,10 @@ export function InviteUserModal({
 								onClick={() => onOpenChange(false)}
 								disabled={isSending}
 							>
-								Cancel
+								{t`Cancel`}
 							</Button>
 							<Button type="submit" disabled={isSending || !email}>
-								{isSending ? "Sending..." : "Send Invite"}
+								{isSending ? t`Sending...` : t`Send Invite`}
 							</Button>
 						</div>
 					</form>

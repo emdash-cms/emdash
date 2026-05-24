@@ -8,10 +8,18 @@ import node from "@astrojs/node";
 import react from "@astrojs/react";
 import { colorPlugin } from "@emdash-cms/plugin-color";
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
+import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
 const dbUrl = process.env.EMDASH_TEST_DB || "file:./test.db";
+const uploadsDir = process.env.EMDASH_TEST_UPLOADS || "./uploads";
+const _rawMaxUploadSize = process.env.EMDASH_MAX_UPLOAD_SIZE
+	? parseInt(process.env.EMDASH_MAX_UPLOAD_SIZE, 10)
+	: undefined;
+const maxUploadSize =
+	_rawMaxUploadSize !== undefined && Number.isFinite(_rawMaxUploadSize) && _rawMaxUploadSize > 0
+		? _rawMaxUploadSize
+		: undefined;
 
 export default defineConfig({
 	output: "server",
@@ -20,6 +28,8 @@ export default defineConfig({
 		react(),
 		emdash({
 			database: sqlite({ url: dbUrl }),
+			storage: local({ directory: uploadsDir, baseUrl: "/_emdash/api/media/file" }),
+			maxUploadSize,
 			plugins: [colorPlugin()],
 		}),
 	],

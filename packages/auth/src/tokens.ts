@@ -6,7 +6,9 @@
  * Tokens are opaque random values. We store only the SHA-256 hash in the database.
  */
 
-import { sha256 } from "@oslojs/crypto/sha2";
+import { hmac } from "@oslojs/crypto/hmac";
+import { sha256, SHA256 } from "@oslojs/crypto/sha2";
+import { constantTimeEqual } from "@oslojs/crypto/subtle";
 import { encodeBase64urlNoPadding, decodeBase64urlIgnorePadding } from "@oslojs/encoding";
 
 const TOKEN_BYTES = 32; // 256 bits of entropy
@@ -34,6 +36,10 @@ export const VALID_SCOPES = [
 	"media:write",
 	"schema:read",
 	"schema:write",
+	"taxonomies:manage",
+	"menus:manage",
+	"settings:read",
+	"settings:manage",
 	"admin",
 ] as const;
 
@@ -49,12 +55,39 @@ export function validateScopes(scopes: string[]): string[] {
 }
 
 /**
+ * Scope grants — when a token holds the key scope, it implicitly grants
+ * the listed scopes too. This keeps existing tokens working when more
+ * granular scopes are introduced.
+ *
+ * Specifically, `content:write` was historically the only scope we checked
+ * for menu and taxonomy mutations. After splitting those out into
+ * `menus:manage` and `taxonomies:manage`, existing PATs with `content:write`
+ * continue to work via this grant table.
+ *
+ * Lookup is one-hop — chaining (`A → B → C`) is NOT supported. If a chain
+ * is needed, expand the values explicitly. Backed by a `Map` rather than a
+ * plain object so prototype-chain keys (`__proto__`, `constructor`, etc.)
+ * can't smuggle non-array values through bracket access.
+ */
+const IMPLICIT_SCOPE_GRANTS = new Map<string, readonly string[]>([
+	["content:write", ["menus:manage", "taxonomies:manage"]],
+]);
+
+/**
  * Check if a set of scopes includes a required scope.
- * The `admin` scope grants access to everything.
+ *
+ * The `admin` scope grants access to everything. `content:write` implicitly
+ * grants `menus:manage` and `taxonomies:manage` to preserve backwards
+ * compatibility with PATs issued before those scopes were split out.
  */
 export function hasScope(scopes: string[], required: string): boolean {
 	if (scopes.includes("admin")) return true;
-	return scopes.includes(required);
+	if (scopes.includes(required)) return true;
+	for (const held of scopes) {
+		const granted = IMPLICIT_SCOPE_GRANTS.get(held);
+		if (granted?.includes(required)) return true;
+	}
+	return false;
 }
 
 /**
@@ -162,16 +195,11 @@ export function computeS256Challenge(codeVerifier: string): string {
  * Constant-time comparison to prevent timing attacks
  */
 export function secureCompare(a: string, b: string): boolean {
-	if (a.length !== b.length) return false;
+	const text = new TextEncoder();
+	const salt = crypto.getRandomValues(new Uint8Array(TOKEN_BYTES));
+	const hash = (str: string) => hmac(SHA256, salt, text.encode(str));
 
-	const aBytes = new TextEncoder().encode(a);
-	const bBytes = new TextEncoder().encode(b);
-
-	let result = 0;
-	for (let i = 0; i < aBytes.length; i++) {
-		result |= aBytes[i]! ^ bBytes[i]!;
-	}
-	return result === 0;
+	return constantTimeEqual(hash(a), hash(b));
 }
 
 // ============================================================================

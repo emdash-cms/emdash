@@ -11,8 +11,6 @@
     "build": "astro build",
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
-    "bootstrap": "emdash init && emdash seed",
-    "seed": "emdash seed",
     "typecheck": "astro check"
   },
   "dependencies": {

@@ -18,12 +18,9 @@ Combine all theme features into a seed file with sample content.
    }
    ```
 
-## 5.2 Validate Before Applying
+## 5.2 Validation
 
-```bash
-# Validate without applying
-emdash seed --validate
-```
+The seed is applied automatically on the first request when the database is empty (and no setup wizard run yet). Validation runs at apply time — errors show up in the dev server logs. Restart the dev server after fixing them.
 
 The validator catches common mistakes:
 

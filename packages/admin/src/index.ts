@@ -25,3 +25,22 @@ export {
 	type PluginAdminModule,
 	type PluginAdmins,
 } from "./lib/plugin-context";
+
+// Auth provider context (for accessing pluggable auth provider components)
+export {
+	AuthProviderProvider,
+	useAuthProviders,
+	useAuthProviderList,
+	type AuthProviderModule,
+	type AuthProviders,
+} from "./lib/auth-provider-context";
+
+// Locales
+export {
+	useLocale,
+	SUPPORTED_LOCALES,
+	SUPPORTED_LOCALE_CODES,
+	DEFAULT_LOCALE,
+	resolveLocale,
+} from "./locales/index.js";
+export type { SupportedLocale } from "./locales/index.js";

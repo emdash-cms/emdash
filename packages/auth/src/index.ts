@@ -109,9 +109,11 @@ export {
 export {
 	createAuthorizationUrl,
 	handleOAuthCallback,
+	findOrCreateOAuthUser,
 	OAuthError,
 	github,
 	google,
+	type CanSelfSignup,
 	type StateStore,
 	type OAuthConsumerConfig,
 } from "./oauth/consumer.js";

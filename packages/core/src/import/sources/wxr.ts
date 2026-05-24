@@ -288,10 +288,19 @@ function wxrPostToNormalizedItem(
 	const thumbnailId = post.meta.get("_thumbnail_id");
 	const featuredImage = thumbnailId ? attachmentMap.get(String(thumbnailId)) : undefined;
 
-	// Convert custom taxonomies Map to Record
+	// Convert custom taxonomies Map to Record.
+	// Strip Polylang's `language` taxonomy -- the parser already promoted it
+	// to `post.locale`, and exposing it as a content taxonomy here would
+	// (a) try to insert a `language` taxonomy on EmDash that doesn't exist
+	// and (b) duplicate the locale signal in two places.
 	let customTaxonomies: Record<string, string[]> | undefined;
 	if (post.customTaxonomies && post.customTaxonomies.size > 0) {
-		customTaxonomies = Object.fromEntries(post.customTaxonomies);
+		const filtered = Object.fromEntries(
+			[...post.customTaxonomies].filter(([taxonomy]) => taxonomy !== "language"),
+		);
+		if (Object.keys(filtered).length > 0) {
+			customTaxonomies = filtered;
+		}
 	}
 
 	return {
@@ -302,8 +311,8 @@ function wxrPostToNormalizedItem(
 		title: post.title || "Untitled",
 		content,
 		excerpt: post.excerpt,
-		date: post.postDate ? new Date(post.postDate) : new Date(),
-		modified: post.postModified ? new Date(post.postModified) : undefined,
+		date: parseWxrDate(post.postDateGmt, post.pubDate, post.postDate) ?? new Date(),
+		modified: parseWxrDate(post.postModifiedGmt, undefined, post.postModified),
 		author: post.creator,
 		categories: post.categories,
 		tags: post.tags,
@@ -314,7 +323,55 @@ function wxrPostToNormalizedItem(
 		menuOrder: post.menuOrder,
 		// Custom taxonomy assignments
 		customTaxonomies,
+		// Multilingual plugin metadata (WPML / Polylang) promoted by the parser.
+		// When absent, the caller (e.g. execute route) falls back to the
+		// upload-wide locale.
+		locale: post.locale,
+		translationGroup: post.translationGroup,
 	};
+}
+
+/**
+ * WordPress uses "0000-00-00 00:00:00" as a sentinel for missing GMT dates
+ * (e.g. unpublished drafts). This must be treated as absent.
+ */
+export const WXR_ZERO_DATE = "0000-00-00 00:00:00";
+
+/**
+ * Parse a WXR date with the correct fallback chain:
+ * 1. GMT date (always UTC, most reliable)
+ * 2. pubDate (RFC 2822, includes timezone offset)
+ * 3. Site-local date (MySQL datetime without timezone, imprecise but best available)
+ *
+ * Returns undefined when none of the inputs yield a valid date.
+ * Callers that need a guaranteed Date should use `?? new Date()`.
+ */
+export function parseWxrDate(
+	gmtDate: string | undefined,
+	pubDate: string | undefined,
+	localDate: string | undefined,
+): Date | undefined {
+	if (gmtDate && gmtDate !== WXR_ZERO_DATE) {
+		// GMT dates from WordPress are "YYYY-MM-DD HH:MM:SS" in UTC.
+		// Append "Z" so the JS Date constructor treats them as UTC.
+		return new Date(gmtDate.replace(" ", "T") + "Z");
+	}
+
+	if (pubDate) {
+		// RFC 2822 format includes timezone offset, JS Date parses it correctly
+		const d = new Date(pubDate);
+		if (!isNaN(d.getTime())) return d;
+	}
+
+	if (localDate) {
+		// Site-local time without timezone. Normalize to ISO-like form so
+		// runtimes that reject "YYYY-MM-DD HH:MM:SS" can still parse it as
+		// local time. If parsing still fails, return undefined.
+		const d = new Date(localDate.replace(" ", "T"));
+		if (!isNaN(d.getTime())) return d;
+	}
+
+	return undefined;
 }
 
 // Export for use in other sources

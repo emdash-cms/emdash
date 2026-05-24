@@ -16,6 +16,7 @@
 		"src/astro/**",
 		"src/components/**",
 		"src/preview/**",
-		"src/ui.ts"
+		"src/ui.ts",
+		"src/auth/providers/*-admin.tsx"
 	]
 }

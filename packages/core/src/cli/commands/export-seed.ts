@@ -32,6 +32,7 @@ import type {
 	SeedWidget,
 	SeedContentEntry,
 } from "../../seed/types.js";
+import { slugify } from "../../utils/slugify.js";
 
 const SETTINGS_PREFIX = "site:";
 
@@ -101,7 +102,7 @@ export const exportSeedCommand = defineCommand({
 /**
  * Export database to seed file format
  */
-async function exportSeed(db: Kysely<Database>, withContent?: string): Promise<SeedFile> {
+export async function exportSeed(db: Kysely<Database>, withContent?: string): Promise<SeedFile> {
 	const seed: SeedFile = {
 		$schema: "https://emdashcms.com/seed.schema.json",
 		version: "1",
@@ -212,41 +213,69 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
  * Export taxonomy definitions and terms
  */
 async function exportTaxonomies(db: Kysely<Database>): Promise<SeedTaxonomy[]> {
-	// Get taxonomy definitions
-	const defs = await db.selectFrom("_emdash_taxonomy_defs").selectAll().execute();
+	const i18nEnabled = isI18nEnabled();
+
+	// Mirrors the content export pattern: one entry per (name, locale), stable
+	// seed-local id, translations linked via `translationOf` to the anchor's id.
+	const defs = await db
+		.selectFrom("_emdash_taxonomy_defs")
+		.selectAll()
+		.orderBy(["name", "locale"])
+		.execute();
 
 	const result: SeedTaxonomy[] = [];
 	const termRepo = new TaxonomyRepository(db);
 
+	// translation_group -> seed-local id of first def we emitted in that group.
+	const defGroupToSeedId = new Map<string, string>();
+
 	for (const def of defs) {
-		// Get terms for this taxonomy
-		const terms = await termRepo.findByName(def.name);
+		const defSeedId =
+			i18nEnabled && def.locale ? `tax:${def.name}:${def.locale}` : `tax:${def.name}`;
 
-		// Build term tree for hierarchical taxonomies
-		const seedTerms: SeedTaxonomyTerm[] = [];
+		// Terms in this def's locale.
+		const terms = await termRepo.findByName(def.name, { locale: def.locale });
 
-		// First, create a map of id -> slug for parent resolution
+		// id -> slug for parent resolution within this locale.
 		const idToSlug = new Map<string, string>();
-		for (const term of terms) {
-			idToSlug.set(term.id, term.slug);
-		}
+		for (const term of terms) idToSlug.set(term.id, term.slug);
 
+		// translation_group -> seed id of the anchor term.
+		const termGroupToSeedId = new Map<string, string>();
+
+		const seedTerms: SeedTaxonomyTerm[] = [];
 		for (const term of terms) {
+			const termSeedId =
+				i18nEnabled && term.locale
+					? `term:${def.name}:${term.slug}:${term.locale}`
+					: `term:${def.name}:${term.slug}`;
+
 			const seedTerm: SeedTaxonomyTerm = {
+				id: termSeedId,
 				slug: term.slug,
 				label: term.label,
 				description: typeof term.data?.description === "string" ? term.data.description : undefined,
 			};
 
-			// Resolve parent slug
-			if (term.parentId) {
-				seedTerm.parent = idToSlug.get(term.parentId);
+			if (term.parentId) seedTerm.parent = idToSlug.get(term.parentId);
+
+			if (i18nEnabled && term.locale) {
+				seedTerm.locale = term.locale;
+				if (term.translationGroup) {
+					const anchor = termGroupToSeedId.get(term.translationGroup);
+					if (anchor) seedTerm.translationOf = anchor;
+					else termGroupToSeedId.set(term.translationGroup, termSeedId);
+				}
 			}
 
 			seedTerms.push(seedTerm);
 		}
 
+		// Anchors first so import can resolve `translationOf`.
+		seedTerms.sort((a, b) => Number(!!a.translationOf) - Number(!!b.translationOf));
+
 		const taxonomy: SeedTaxonomy = {
+			id: defSeedId,
 			name: def.name,
 			label: def.label,
 			labelSingular: def.label_singular || undefined,
@@ -254,12 +283,22 @@ async function exportTaxonomies(db: Kysely<Database>): Promise<SeedTaxonomy[]> {
 			collections: def.collections ? JSON.parse(def.collections) : [],
 		};
 
-		if (seedTerms.length > 0) {
-			taxonomy.terms = seedTerms;
+		if (i18nEnabled && def.locale) {
+			taxonomy.locale = def.locale;
+			if (def.translation_group) {
+				const anchor = defGroupToSeedId.get(def.translation_group);
+				if (anchor) taxonomy.translationOf = anchor;
+				else defGroupToSeedId.set(def.translation_group, defSeedId);
+			}
 		}
+
+		if (seedTerms.length > 0) taxonomy.terms = seedTerms;
 
 		result.push(taxonomy);
 	}
+
+	// Anchors first at def level too.
+	result.sort((a, b) => Number(!!a.translationOf) - Number(!!b.translationOf));
 
 	return result;
 }
@@ -268,13 +307,25 @@ async function exportTaxonomies(db: Kysely<Database>): Promise<SeedTaxonomy[]> {
  * Export menus with their items
  */
 async function exportMenus(db: Kysely<Database>): Promise<SeedMenu[]> {
-	// Get all menus
-	const menus = await db.selectFrom("_emdash_menus").selectAll().execute();
+	const i18nEnabled = isI18nEnabled();
+
+	const menus = await db
+		.selectFrom("_emdash_menus")
+		.selectAll()
+		.orderBy(["name", "locale"])
+		.execute();
 
 	const result: SeedMenu[] = [];
+	// translation_group -> seed-local id of the anchor menu in that group.
+	const groupToSeedId = new Map<string, string>();
+	// Shared across menus: translated items reference anchor items in sibling menus.
+	const itemGroupToSeedId = new Map<string, string>();
+	const usedItemSeedIds = new Set<string>();
 
 	for (const menu of menus) {
-		// Get menu items
+		const seedId =
+			i18nEnabled && menu.locale ? `menu:${menu.name}:${menu.locale}` : `menu:${menu.name}`;
+
 		const items = await db
 			.selectFrom("_emdash_menu_items")
 			.selectAll()
@@ -282,15 +333,35 @@ async function exportMenus(db: Kysely<Database>): Promise<SeedMenu[]> {
 			.orderBy("sort_order", "asc")
 			.execute();
 
-		// Build item tree
-		const seedItems = buildMenuItemTree(items);
+		const seedItems = buildMenuItemTree(items, {
+			i18nEnabled,
+			menuName: menu.name,
+			menuLocale: menu.locale ?? null,
+			itemGroupToSeedId,
+			usedItemSeedIds,
+		});
 
-		result.push({
+		const seedMenu: SeedMenu = {
+			id: seedId,
 			name: menu.name,
 			label: menu.label,
 			items: seedItems,
-		});
+		};
+
+		if (i18nEnabled && menu.locale) {
+			seedMenu.locale = menu.locale;
+			if (menu.translation_group) {
+				const anchor = groupToSeedId.get(menu.translation_group);
+				if (anchor) seedMenu.translationOf = anchor;
+				else groupToSeedId.set(menu.translation_group, seedId);
+			}
+		}
+
+		result.push(seedMenu);
 	}
+
+	// Anchors first so import can resolve `translationOf`.
+	result.sort((a, b) => Number(!!a.translationOf) - Number(!!b.translationOf));
 
 	return result;
 }
@@ -315,7 +386,17 @@ function buildMenuItemTree(
 		target: string | null;
 		title_attr: string | null;
 		css_classes: string | null;
+		locale?: string | null;
+		translation_group?: string | null;
 	}>,
+	i18nCtx: {
+		i18nEnabled: boolean;
+		menuName: string;
+		menuLocale: string | null;
+		// translation_group -> seed-local id of the anchor item in that group.
+		itemGroupToSeedId: Map<string, string>;
+		usedItemSeedIds: Set<string>;
+	},
 ): SeedMenuItem[] {
 	// Build parent -> children map
 	const childMap = new Map<string | null, typeof items>();
@@ -328,10 +409,28 @@ function buildMenuItemTree(
 		childMap.get(parentId)!.push(item);
 	}
 
+	function makeSeedId(item: (typeof items)[number]): string {
+		const base = slugify(item.label || "") || item.id;
+		const locale = i18nCtx.i18nEnabled ? (item.locale ?? i18nCtx.menuLocale) : null;
+		const candidate = locale
+			? `item:${i18nCtx.menuName}:${base}:${locale}`
+			: `item:${i18nCtx.menuName}:${base}`;
+		if (!i18nCtx.usedItemSeedIds.has(candidate)) {
+			i18nCtx.usedItemSeedIds.add(candidate);
+			return candidate;
+		}
+		// Collision fallback: append DB id to disambiguate duplicate labels.
+		const fallback = locale
+			? `item:${i18nCtx.menuName}:${base}:${item.id}:${locale}`
+			: `item:${i18nCtx.menuName}:${base}:${item.id}`;
+		i18nCtx.usedItemSeedIds.add(fallback);
+		return fallback;
+	}
+
 	// Recursively build tree
 	function buildLevel(parentId: string | null): SeedMenuItem[] {
 		const children = childMap.get(parentId) || [];
-		return children.map((item) => {
+		const result = children.map((item) => {
 			const seedItem: SeedMenuItem = {
 				type: item.type,
 				label: item.label || undefined,
@@ -354,6 +453,18 @@ function buildMenuItemTree(
 				seedItem.cssClasses = item.css_classes;
 			}
 
+			if (i18nCtx.i18nEnabled) {
+				const itemLocale = item.locale ?? i18nCtx.menuLocale;
+				const seedId = makeSeedId(item);
+				seedItem.id = seedId;
+				if (itemLocale) seedItem.locale = itemLocale;
+				if (item.translation_group) {
+					const anchor = i18nCtx.itemGroupToSeedId.get(item.translation_group);
+					if (anchor && anchor !== seedId) seedItem.translationOf = anchor;
+					else if (!anchor) i18nCtx.itemGroupToSeedId.set(item.translation_group, seedId);
+				}
+			}
+
 			// Add children
 			const itemChildren = buildLevel(item.id);
 			if (itemChildren.length > 0) {
@@ -362,6 +473,10 @@ function buildMenuItemTree(
 
 			return seedItem;
 		});
+
+		// Sibling order is preserved (maps to sort_order on import). Cross-menu
+		// `translationOf` already resolves because exportMenus sorts anchors first.
+		return result;
 	}
 
 	return buildLevel(null);

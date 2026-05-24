@@ -19,7 +19,7 @@
 
 import mime from "mime/lite";
 
-import type { PortableTextBlock, FieldSchema } from "./portable-text.js";
+import type { FieldSchema } from "./portable-text.js";
 import { convertDataForRead, convertDataForWrite } from "./portable-text.js";
 import type { Interceptor } from "./transport.js";
 import {
@@ -723,8 +723,8 @@ export class EmDashClient {
 
 	/** List taxonomies */
 	async taxonomies(): Promise<Taxonomy[]> {
-		const data = await this.request<{ items: Taxonomy[] }>("GET", "/taxonomies");
-		return data.items;
+		const data = await this.request<{ taxonomies: Taxonomy[] }>("GET", "/taxonomies");
+		return data.taxonomies;
 	}
 
 	/** List terms in a taxonomy */
@@ -737,10 +737,11 @@ export class EmDashClient {
 		if (options?.cursor) params.set("cursor", options.cursor);
 
 		const qs = params.toString();
-		return this.request<ListResult<Term>>(
+		const data = await this.request<{ terms: Term[] }>(
 			"GET",
 			`/taxonomies/${encodeURIComponent(taxonomy)}/terms${qs ? `?${qs}` : ""}`,
 		);
+		return { items: data.terms };
 	}
 
 	/** Create a taxonomy term */
@@ -757,8 +758,8 @@ export class EmDashClient {
 
 	/** List menus */
 	async menus(): Promise<Menu[]> {
-		const data = await this.request<{ items: Menu[] }>("GET", "/menus");
-		return data.items;
+		// Handler returns a bare array, not { items: [...] }
+		return this.request<Menu[]>("GET", "/menus");
 	}
 
 	/** Get a menu with its items */

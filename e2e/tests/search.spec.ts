@@ -186,11 +186,26 @@ test.describe("Search", () => {
 	});
 
 	test.describe("Search API", () => {
-		test("search endpoint requires authentication", async ({ serverInfo }) => {
-			// Request without auth token
+		test("search endpoint is publicly accessible", async ({ serverInfo }) => {
+			// The LiveSearch component is shipped for public-site use and calls this
+			// endpoint without credentials. The query layer hardcodes status='published',
+			// so anonymous callers can only see published content.
 			const res = await fetch(`${serverInfo.baseUrl}/_emdash/api/search?q=test`);
-			// Should be 401 or 403
-			expect([401, 403]).toContain(res.status);
+			expect(res.status).toBe(200);
+		});
+
+		test("search admin endpoints still require authentication", async ({ serverInfo }) => {
+			// Admin-only: enable, rebuild, stats must stay gated even though the
+			// read endpoint is public.
+			const stats = await fetch(`${serverInfo.baseUrl}/_emdash/api/search/stats`);
+			expect([401, 403]).toContain(stats.status);
+
+			const enable = await fetch(`${serverInfo.baseUrl}/_emdash/api/search/enable`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ collection: "posts" }),
+			});
+			expect([401, 403]).toContain(enable.status);
 		});
 
 		test("search endpoint requires a query parameter", async ({ serverInfo }) => {

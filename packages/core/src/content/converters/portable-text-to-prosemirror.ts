@@ -73,10 +73,18 @@ function isTextBlock(block: PortableTextBlock): block is PortableTextTextBlock {
 }
 
 /**
- * Type guard for image blocks
+ * Type guard for image blocks.
+ * Checks both `_type` and that `asset` is a valid object — image blocks
+ * without an `asset` wrapper (e.g. `{ _type: "image", url: "..." }`) are
+ * malformed and should not be cast to `PortableTextImageBlock`.
  */
 function isImageBlock(block: PortableTextBlock): block is PortableTextImageBlock {
-	return block._type === "image";
+	return (
+		block._type === "image" &&
+		"asset" in block &&
+		typeof block.asset === "object" &&
+		block.asset !== null
+	);
 }
 
 /**
@@ -95,6 +103,10 @@ function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
 	}
 	if (isImageBlock(block)) {
 		return convertImage(block);
+	}
+	if (block._type === "image") {
+		// Malformed image block (no asset wrapper) — extract url from top level
+		return convertMalformedImage(block);
 	}
 	if (isCodeBlock(block)) {
 		return convertCodeBlock(block);
@@ -367,6 +379,42 @@ function convertImage(block: PortableTextImageBlock): ProseMirrorNode {
 			height: block.height,
 			displayWidth: block.displayWidth,
 			displayHeight: block.displayHeight,
+		},
+	};
+}
+
+/**
+ * Convert a malformed image block (missing `asset` wrapper) to ProseMirror.
+ * Handles blocks like `{ _type: "image", url: "...", alt: "..." }` that may
+ * originate from migrations or third-party imports.
+ */
+function convertMalformedImage(block: PortableTextBlock): ProseMirrorNode {
+	// PortableTextUnknownBlock allows indexed access via [key: string]: unknown
+	const url = "url" in block && typeof block.url === "string" ? block.url : "";
+	const alt = "alt" in block && typeof block.alt === "string" ? block.alt : "";
+	const caption = "caption" in block && typeof block.caption === "string" ? block.caption : "";
+	const width = "width" in block && typeof block.width === "number" ? block.width : undefined;
+	const height = "height" in block && typeof block.height === "number" ? block.height : undefined;
+	const displayWidth =
+		"displayWidth" in block && typeof block.displayWidth === "number"
+			? block.displayWidth
+			: undefined;
+	const displayHeight =
+		"displayHeight" in block && typeof block.displayHeight === "number"
+			? block.displayHeight
+			: undefined;
+	return {
+		type: "image",
+		attrs: {
+			src: url,
+			alt,
+			title: caption,
+			mediaId: undefined,
+			provider: undefined,
+			width,
+			height,
+			displayWidth,
+			displayHeight,
 		},
 	};
 }

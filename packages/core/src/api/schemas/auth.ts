@@ -60,6 +60,13 @@ export const inviteCreateBody = z
 	})
 	.meta({ id: "InviteCreateBody" });
 
+export const inviteRegisterOptionsBody = z
+	.object({
+		token: z.string().min(1),
+		name: z.string().optional(),
+	})
+	.meta({ id: "InviteRegisterOptionsBody" });
+
 export const inviteCompleteBody = z
 	.object({
 		token: z.string().min(1),

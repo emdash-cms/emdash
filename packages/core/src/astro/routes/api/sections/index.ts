@@ -8,7 +8,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, unwrapResult } from "#api/error.js";
+import { handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleSectionCreate, handleSectionList } from "#api/handlers/sections.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createSectionBody, sectionsListQuery } from "#api/schemas.js";
@@ -17,6 +17,8 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ url, locals }) => {
 	const { emdash, user } = locals;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const db = emdash.db;
 
 	const denied = requirePerm(user, "sections:read");
@@ -35,6 +37,8 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const db = emdash.db;
 
 	const denied = requirePerm(user, "sections:manage");

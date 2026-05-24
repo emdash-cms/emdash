@@ -9,6 +9,7 @@ import { readFile } from "node:fs/promises";
 import { defineCommand } from "citty";
 import { consola } from "consola";
 
+import { convertDataForRead } from "../../client/portable-text.js";
 import { connectionArgs, createClientFromArgs } from "../client-factory.js";
 import { configureOutputMode, output } from "../output.js";
 
@@ -144,6 +145,13 @@ const getCommand = defineCommand({
 				const comparison = await client.compare(args.collection, args.id);
 				if (comparison.hasChanges && comparison.draft) {
 					item.data = comparison.draft;
+					// The comparison endpoint returns raw PT data. Apply the same
+					// PT-to-markdown conversion that `client.get` does, unless --raw.
+					if (!args.raw && item.data) {
+						const col = await client.collection(args.collection);
+						const fields = col.fields.map((f) => ({ slug: f.slug, type: f.type }));
+						item.data = convertDataForRead(item.data, fields, false);
+					}
 				}
 			}
 
@@ -278,6 +286,7 @@ const deleteCommand = defineCommand({
 		try {
 			const client = createClientFromArgs(args);
 			await client.delete(args.collection, args.id);
+			output({ success: true }, args);
 			consola.success(`Deleted ${args.collection}/${args.id}`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");
@@ -306,6 +315,7 @@ const publishCommand = defineCommand({
 		try {
 			const client = createClientFromArgs(args);
 			await client.publish(args.collection, args.id);
+			output({ success: true }, args);
 			consola.success(`Published ${args.collection}/${args.id}`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");
@@ -334,6 +344,7 @@ const unpublishCommand = defineCommand({
 		try {
 			const client = createClientFromArgs(args);
 			await client.unpublish(args.collection, args.id);
+			output({ success: true }, args);
 			consola.success(`Unpublished ${args.collection}/${args.id}`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");
@@ -367,6 +378,7 @@ const scheduleCommand = defineCommand({
 		try {
 			const client = createClientFromArgs(args);
 			await client.schedule(args.collection, args.id, { at: args.at });
+			output({ success: true }, args);
 			consola.success(`Scheduled ${args.collection}/${args.id} for ${args.at}`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");
@@ -395,6 +407,7 @@ const restoreCommand = defineCommand({
 		try {
 			const client = createClientFromArgs(args);
 			await client.restore(args.collection, args.id);
+			output({ success: true }, args);
 			consola.success(`Restored ${args.collection}/${args.id}`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");

@@ -9,7 +9,9 @@ import {
 	handleContentUpdate,
 } from "../../../src/api/index.js";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
+import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -97,17 +99,10 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 
 		it("should leave slug null when no title or name is present", async () => {
+			// `data: {}` — no title, no name. Slug source isn't there, so the
+			// auto-generator has nothing to work with.
 			const result = await handleContentCreate(db, "post", {
-				data: { content: [{ _type: "block", children: [{ _type: "span", text: "hi" }] }] },
-			});
-
-			expect(result.success).toBe(true);
-			expect(result.data?.item.slug).toBeNull();
-		});
-
-		it("should leave slug null when title is not a string", async () => {
-			const result = await handleContentCreate(db, "post", {
-				data: { title: 42 },
+				data: {},
 			});
 
 			expect(result.success).toBe(true);
@@ -144,6 +139,49 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(pageResult.success).toBe(true);
 			expect(postResult.data?.item.slug).toBe("about");
 			expect(pageResult.data?.item.slug).toBe("about");
+		});
+
+		it("preserves publishedAt and createdAt when provided — content migration use case", async () => {
+			const originalCreated = "2019-03-15T10:30:00.000Z";
+			const originalPublished = "2019-03-16T09:00:00.000Z";
+
+			const result = await handleContentCreate(db, "post", {
+				data: { title: "Migrated Post" },
+				createdAt: originalCreated,
+				publishedAt: originalPublished,
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.createdAt).toBe(originalCreated);
+			expect(result.data?.item.publishedAt).toBe(originalPublished);
+		});
+
+		// When the caller omits `locale`, the handler must defer to the
+		// configured site defaultLocale rather than falling back to the
+		// repo's hard-coded "en". Otherwise non-English default-locale
+		// sites silently create entries in a locale the editor never chose.
+		it("defaults to configured i18n defaultLocale when body.locale is omitted", async () => {
+			setI18nConfig({ defaultLocale: "es", locales: ["es", "en"] });
+			try {
+				const result = await handleContentCreate(db, "post", {
+					data: { title: "Hola" },
+				});
+
+				expect(result.success).toBe(true);
+				expect(result.data?.item.locale).toBe("es");
+			} finally {
+				setI18nConfig(null);
+			}
+		});
+
+		it("falls back to 'en' when no i18n config is set", async () => {
+			setI18nConfig(null);
+			const result = await handleContentCreate(db, "post", {
+				data: { title: "No i18n" },
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.locale).toBe("en");
 		});
 	});
 
@@ -263,5 +301,355 @@ describe("Content Handlers — auto-slug generation", () => {
 			expect(duplicated.data?.item.byline?.id).toBe(byline.id);
 			expect(duplicated.data?.item.bylines).toHaveLength(1);
 		});
+	});
+
+	describe("byline i18n (migration 040)", () => {
+		it("sets primaryBylineId to the credited byline's translation_group, not the wire row id", async () => {
+			const bylineRepo = new BylineRepository(db);
+			const anchor = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane Doe",
+				locale: "en",
+			});
+			const fr = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jeanne",
+				locale: "fr",
+				translationOf: anchor.id,
+			});
+
+			// Editor credits the fr row on a fr entry. The wire bylineId is
+			// fr.id but the server should store the translation_group (which
+			// equals anchor.id for the anchor sibling). The in-memory
+			// `primaryBylineId` on the response must match what's now in the
+			// DB column.
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Bonjour" },
+				locale: "fr",
+				bylines: [{ bylineId: fr.id }],
+			});
+
+			expect(created.success).toBe(true);
+			expect(created.data?.item.primaryBylineId).toBe(anchor.id);
+			expect(created.data?.item.primaryBylineId).toBe(anchor.translationGroup);
+			// fr post hydrates with the fr sibling.
+			expect(created.data?.item.byline?.id).toBe(fr.id);
+			expect(created.data?.item.byline?.locale).toBe("fr");
+		});
+
+		it("hydrates the locale-matching sibling on a translated entry", async () => {
+			const bylineRepo = new BylineRepository(db);
+			const anchor = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane Doe",
+				locale: "en",
+			});
+			await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jeanne",
+				locale: "fr",
+				translationOf: anchor.id,
+			});
+
+			// Credit using the anchor (en) wire id on an EN entry, then
+			// translate the entry. The fr-locale entry should hydrate the fr
+			// byline sibling, not the en one.
+			const enEntry = await handleContentCreate(db, "post", {
+				data: { title: "Hello" },
+				locale: "en",
+				bylines: [{ bylineId: anchor.id }],
+			});
+			expect(enEntry.success).toBe(true);
+			expect(enEntry.data?.item.byline?.locale).toBe("en");
+
+			const frEntry = await handleContentCreate(db, "post", {
+				data: { title: "Bonjour" },
+				locale: "fr",
+				translationOf: enEntry.data!.item.id,
+			});
+			expect(frEntry.success).toBe(true);
+			expect(frEntry.data?.item.byline?.displayName).toBe("Jeanne");
+			expect(frEntry.data?.item.byline?.locale).toBe("fr");
+		});
+
+		it("hydrates strict per locale — credit absent when no sibling exists at the entry's locale", async () => {
+			const bylineRepo = new BylineRepository(db);
+			const anchor = await bylineRepo.create({
+				slug: "marco",
+				displayName: "Marco",
+				locale: "en",
+			});
+
+			const enEntry = await handleContentCreate(db, "post", {
+				data: { title: "Hello" },
+				locale: "en",
+				bylines: [{ bylineId: anchor.id }],
+			});
+			expect(enEntry.success).toBe(true);
+
+			// Translate to fr — no fr sibling exists for marco. The credit is
+			// preserved at the DB level (`copyContentBylines` clones the
+			// junction row pointing at marco's translation_group), but
+			// rendering on the fr entry returns nothing because the byline
+			// has no fr sibling.
+			const frEntry = await handleContentCreate(db, "post", {
+				data: { title: "Bonjour" },
+				locale: "fr",
+				translationOf: enEntry.data!.item.id,
+			});
+			expect(frEntry.success).toBe(true);
+			expect(frEntry.data?.item.bylines).toEqual([]);
+			expect(frEntry.data?.item.byline).toBeNull();
+			// But the DB-level pointer is preserved — the credit will surface
+			// the moment an fr sibling of marco is created.
+			expect(frEntry.data?.item.primaryBylineId).toBe(anchor.id);
+		});
+
+		it("copyContentBylines runs on translationOf when body.bylines is omitted", async () => {
+			const bylineRepo = new BylineRepository(db);
+			const anchor = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane Doe",
+				locale: "en",
+			});
+			await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jeanne",
+				locale: "fr",
+				translationOf: anchor.id,
+			});
+
+			const enEntry = await handleContentCreate(db, "post", {
+				data: { title: "Hello" },
+				locale: "en",
+				bylines: [{ bylineId: anchor.id }],
+			});
+			expect(enEntry.success).toBe(true);
+
+			const frEntry = await handleContentCreate(db, "post", {
+				data: { title: "Bonjour" },
+				locale: "fr",
+				translationOf: enEntry.data!.item.id,
+				// No `bylines` field — copy should run.
+			});
+			expect(frEntry.success).toBe(true);
+			expect(frEntry.data?.item.bylines).toHaveLength(1);
+			expect(frEntry.data?.item.byline?.locale).toBe("fr");
+		});
+
+		it("respects explicit body.bylines on translationOf and skips copying", async () => {
+			const bylineRepo = new BylineRepository(db);
+			const a = await bylineRepo.create({ slug: "a", displayName: "A", locale: "en" });
+			const b = await bylineRepo.create({ slug: "b", displayName: "B", locale: "en" });
+			// fr sibling of `b`. The fr entry will be credited with this row.
+			const bFr = await bylineRepo.create({
+				slug: "b",
+				displayName: "B-fr",
+				locale: "fr",
+				translationOf: b.id,
+			});
+
+			const enEntry = await handleContentCreate(db, "post", {
+				data: { title: "Hello" },
+				locale: "en",
+				bylines: [{ bylineId: a.id }],
+			});
+			expect(enEntry.success).toBe(true);
+
+			// Explicit different byline on the translation — should NOT
+			// inherit from source. The fr entry should credit `b`'s fr
+			// sibling, not `a`.
+			const frEntry = await handleContentCreate(db, "post", {
+				data: { title: "Bonjour" },
+				locale: "fr",
+				translationOf: enEntry.data!.item.id,
+				bylines: [{ bylineId: bFr.id }],
+			});
+			expect(frEntry.success).toBe(true);
+			expect(frEntry.data?.item.bylines).toHaveLength(1);
+			expect(frEntry.data?.item.byline?.id).toBe(bFr.id);
+		});
+
+		it("does not fall back to author-linked byline when explicit credits exist at another locale", async () => {
+			// Bug 1 regression: strict per-locale hydration returns [] when a
+			// credit's translation_group has no sibling at the entry's
+			// locale, but the old code treated that as "no explicit
+			// credits" and inferred the author byline. The editor's intent
+			// was explicit ("credit Marco, not the article's author") —
+			// silently overriding with an inferred byline is wrong.
+			const userRepo = new UserRepository(db);
+			const author = await userRepo.create({
+				email: "fallback-test@example.com",
+				displayName: "Author Account",
+				role: "editor",
+			});
+			const bylineRepo = new BylineRepository(db);
+			// Author has a fr byline. If we incorrectly fell back, this
+			// would surface on a fr entry that has an unresolved en-only
+			// credit.
+			await bylineRepo.create({
+				slug: "author-fr",
+				displayName: "Auteur",
+				locale: "fr",
+				userId: author.id,
+			});
+
+			const marco = await bylineRepo.create({
+				slug: "marco",
+				displayName: "Marco",
+				locale: "en",
+			});
+
+			const enEntry = await handleContentCreate(db, "post", {
+				data: { title: "Hello" },
+				locale: "en",
+				authorId: author.id,
+				bylines: [{ bylineId: marco.id }],
+			});
+			expect(enEntry.success).toBe(true);
+
+			const frEntry = await handleContentCreate(db, "post", {
+				data: { title: "Bonjour" },
+				locale: "fr",
+				authorId: author.id,
+				translationOf: enEntry.data!.item.id,
+			});
+			expect(frEntry.success).toBe(true);
+			// The explicit credit was copied to the fr entry (via
+			// `copyContentBylines`). It doesn't render at fr because marco
+			// has no fr sibling. Author inference must NOT step in — the
+			// editor explicitly named marco, not the author.
+			expect(frEntry.data?.item.bylines).toEqual([]);
+			expect(frEntry.data?.item.byline).toBeNull();
+		});
+
+		it("inferred (author-linked) byline still works when the entry has no explicit credits at all", async () => {
+			// Counterpoint to the previous test: when no junction rows
+			// exist, author inference is the right thing to do — Phase 4
+			// hydration must preserve this fallback for entries that were
+			// never explicitly credited.
+			const userRepo = new UserRepository(db);
+			const author = await userRepo.create({
+				email: "implicit-author@example.com",
+				displayName: "Implicit",
+				role: "editor",
+			});
+			const bylineRepo = new BylineRepository(db);
+			await bylineRepo.create({
+				slug: "implicit",
+				displayName: "Implicit EN",
+				locale: "en",
+				userId: author.id,
+			});
+
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Hello" },
+				locale: "en",
+				authorId: author.id,
+				// No bylines field — author inference path.
+			});
+			expect(created.success).toBe(true);
+			expect(created.data?.item.bylines).toHaveLength(1);
+			expect(created.data?.item.bylines?.[0]?.source).toBe("inferred");
+			expect(created.data?.item.byline?.displayName).toBe("Implicit EN");
+		});
+
+		it("hydrateBylinesMany resolves each entry against its own locale", async () => {
+			const bylineRepo = new BylineRepository(db);
+			const anchor = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane Doe",
+				locale: "en",
+			});
+			await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jeanne",
+				locale: "fr",
+				translationOf: anchor.id,
+			});
+
+			// Two entries at different locales, both credited with the same
+			// translation_group (via the anchor wire id). A list endpoint
+			// returning both at once should hydrate each one against its own
+			// locale.
+			const enEntry = await handleContentCreate(db, "post", {
+				data: { title: "Hello" },
+				locale: "en",
+				bylines: [{ bylineId: anchor.id }],
+			});
+			const frEntry = await handleContentCreate(db, "post", {
+				data: { title: "Bonjour" },
+				locale: "fr",
+				translationOf: enEntry.data!.item.id,
+			});
+			expect(enEntry.success && frEntry.success).toBe(true);
+
+			const listed = await handleContentList(db, "post", {});
+			expect(listed.success).toBe(true);
+			const enItem = listed.data?.items.find((i) => i.id === enEntry.data!.item.id);
+			const frItem = listed.data?.items.find((i) => i.id === frEntry.data!.item.id);
+			expect(enItem?.byline?.locale).toBe("en");
+			expect(frItem?.byline?.locale).toBe("fr");
+		});
+	});
+
+	describe("handleContentUpdate — publishedAt override", () => {
+		it("persists publishedAt when provided", async () => {
+			const created = await handleContentCreate(db, "post", { data: { title: "Hi" } });
+			expect(created.success).toBe(true);
+
+			const newPublishedAt = "2019-03-16T09:00:00.000Z";
+			const updated = await handleContentUpdate(db, "post", created.data!.item.id, {
+				publishedAt: newPublishedAt,
+			});
+
+			expect(updated.success).toBe(true);
+			expect(updated.data?.item.publishedAt).toBe(newPublishedAt);
+		});
+
+		it("leaves createdAt untouched on update", async () => {
+			const originalCreated = "2019-03-15T10:30:00.000Z";
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Hi" },
+				createdAt: originalCreated,
+			});
+			expect(created.success).toBe(true);
+
+			const updated = await handleContentUpdate(db, "post", created.data!.item.id, {
+				data: { title: "Edited" },
+				publishedAt: "2020-01-01T00:00:00.000Z",
+			});
+
+			expect(updated.success).toBe(true);
+			expect(updated.data?.item.createdAt).toBe(originalCreated);
+		});
+	});
+});
+
+describe("Content Handlers — list total", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		// Seed enough items that limit-based pagination kicks in and we can
+		// assert total > items.length.
+		for (let i = 0; i < 8; i++) {
+			const result = await handleContentCreate(db, "post", {
+				data: { title: `Post ${i}` },
+			});
+			if (!result.success) throw new Error("seed failed");
+		}
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("returns total independent of limit", async () => {
+		const result = await handleContentList(db, "post", { limit: 2 });
+
+		expect(result.success).toBe(true);
+		expect(result.data?.items).toHaveLength(2);
+		expect(result.data?.total).toBe(8);
 	});
 });

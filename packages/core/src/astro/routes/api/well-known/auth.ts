@@ -45,6 +45,7 @@ export const GET: APIRoute = async ({ locals }) => {
 			methods: {
 				device_flow: !isExternal
 					? {
+							client_id: "emdash-cli",
 							device_authorization_endpoint: "/_emdash/api/oauth/device/code",
 							token_endpoint: "/_emdash/api/oauth/device/token",
 						}

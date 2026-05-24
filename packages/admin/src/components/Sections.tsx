@@ -4,7 +4,10 @@
  * Browse, create, and manage reusable content sections (block patterns).
  */
 
-import { Button, Dialog, Input, InputArea, Toast } from "@cloudflare/kumo";
+import { Button, Dialog, Input, InputArea, Select, Toast } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
 	MagnifyingGlass,
@@ -39,13 +42,14 @@ const sourceIcons: Record<SectionSource, React.ElementType> = {
 	import: FileArrowDown,
 };
 
-const sourceLabels: Record<SectionSource, string> = {
-	theme: "Theme",
-	user: "Custom",
-	import: "Imported",
+const sourceLabels: Record<SectionSource, MessageDescriptor> = {
+	theme: msg`Theme`,
+	user: msg`Custom`,
+	import: msg`Imported`,
 };
 
 export function Sections() {
+	const { t } = useLingui();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -92,7 +96,7 @@ export function Sections() {
 		onSuccess: (section) => {
 			void queryClient.invalidateQueries({ queryKey: ["sections"] });
 			setIsCreateOpen(false);
-			toastManager.add({ title: "Section created" });
+			toastManager.add({ title: t`Section created` });
 			// Navigate to edit the new section
 			void navigate({ to: "/sections/$slug", params: { slug: section.slug } });
 		},
@@ -118,7 +122,7 @@ export function Sections() {
 		},
 		onSuccess: () => {
 			setDeleteSlug(null);
-			toastManager.add({ title: "Section deleted" });
+			toastManager.add({ title: t`Section deleted` });
 		},
 		onError: (_error, _slug, context) => {
 			if (context?.previous) {
@@ -143,7 +147,7 @@ export function Sections() {
 
 	const handleCopySlug = (slug: string) => {
 		void navigator.clipboard.writeText(slug);
-		toastManager.add({ title: "Slug copied to clipboard" });
+		toastManager.add({ title: t`Slug copied to clipboard` });
 	};
 
 	const sectionToDelete = sections.find((s) => s.slug === deleteSlug);
@@ -153,43 +157,43 @@ export function Sections() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">Sections</h1>
+					<h1 className="text-3xl font-bold">{t`Sections`}</h1>
 					<p className="text-kumo-subtle">
-						Reusable content blocks you can insert into any content
+						{t`Reusable content blocks you can insert into any content`}
 					</p>
 				</div>
 				<Dialog.Root open={isCreateOpen} onOpenChange={setIsCreateOpen}>
 					<Dialog.Trigger
 						render={(props) => (
 							<Button {...props} icon={<Plus />}>
-								New Section
+								{t`New Section`}
 							</Button>
 						)}
 					/>
 					<Dialog className="p-6" size="lg">
 						<div className="flex items-start justify-between gap-4 mb-4">
 							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								Create Section
+								{t`Create Section`}
 							</Dialog.Title>
 							<Dialog.Close
-								aria-label="Close"
+								aria-label={t`Close`}
 								render={(props) => (
 									<Button
 										{...props}
 										variant="ghost"
 										shape="square"
-										aria-label="Close"
-										className="absolute right-4 top-4"
+										aria-label={t`Close`}
+										className="absolute end-4 top-4"
 									>
 										<X className="h-4 w-4" />
-										<span className="sr-only">Close</span>
+										<span className="sr-only">{t`Close`}</span>
 									</Button>
 								)}
 							/>
 						</div>
 						<form onSubmit={handleCreate} className="space-y-4">
 							<Input
-								label="Title"
+								label={t`Title`}
 								value={createTitle}
 								onChange={(e) => {
 									const title = e.target.value;
@@ -199,11 +203,11 @@ export function Sections() {
 									}
 								}}
 								required
-								placeholder="Hero Banner"
+								placeholder={t`Hero Banner`}
 							/>
 							<div>
 								<Input
-									label="Slug"
+									label={t`Slug`}
 									value={createSlug}
 									onChange={(e) => {
 										setCreateSlug(e.target.value);
@@ -211,27 +215,27 @@ export function Sections() {
 									}}
 									required
 									placeholder="hero-banner"
-									pattern="[a-z0-9-]+"
-									title="Lowercase letters, numbers, and hyphens only"
+									pattern="[a-z0-9\-]+"
+									title={t`Lowercase letters, numbers, and hyphens only`}
 								/>
 								<p className="text-xs text-kumo-subtle mt-1">
-									Used to identify this section. Lowercase letters, numbers, and hyphens only.
+									{t`Used to identify this section. Lowercase letters, numbers, and hyphens only.`}
 								</p>
 							</div>
 							<InputArea
-								label="Description"
+								label={t`Description`}
 								value={createDescription}
 								onChange={(e) => setCreateDescription(e.target.value)}
-								placeholder="A full-width hero banner with heading, text, and CTA button"
+								placeholder={t`A full-width hero banner with heading, text, and CTA button`}
 								rows={3}
 							/>
 							<DialogError message={createError || getMutationError(createMutation.error)} />
 							<div className="flex justify-end gap-2">
 								<Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-									Cancel
+									{t`Cancel`}
 								</Button>
 								<Button type="submit" disabled={createMutation.isPending}>
-									{createMutation.isPending ? "Creating..." : "Create"}
+									{createMutation.isPending ? t`Creating...` : t`Create`}
 								</Button>
 							</div>
 						</form>
@@ -243,53 +247,53 @@ export function Sections() {
 			<div className="flex items-center gap-4">
 				{/* Search */}
 				<div className="relative flex-1 max-w-md">
-					<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
-						placeholder="Search sections..."
+						placeholder={t`Search sections...`}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="pl-10"
+						className="ps-10"
 					/>
 				</div>
 
 				{/* Source filter */}
-				<select
-					value={selectedSource || ""}
-					onChange={(e) => {
-						const val = e.target.value;
-						setSelectedSource(val === "theme" || val === "user" || val === "import" ? val : null);
+				<Select
+					value={selectedSource ?? ""}
+					onValueChange={(v) => {
+						setSelectedSource(v === "theme" || v === "user" || v === "import" ? v : null);
 					}}
-					className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2"
-				>
-					<option value="">All Sources</option>
-					<option value="theme">Theme</option>
-					<option value="user">Custom</option>
-					<option value="import">Imported</option>
-				</select>
+					items={{
+						"": t`All Sources`,
+						...Object.fromEntries(
+							Object.entries(sourceLabels).map(([key, label]) => [key, t(label)]),
+						),
+					}}
+					aria-label={t`Filter by source`}
+				/>
 			</div>
 
 			{/* Section Grid */}
 			{sectionsLoading ? (
 				<div className="flex items-center justify-center h-64">
-					<div className="text-kumo-subtle">Loading sections...</div>
+					<div className="text-kumo-subtle">{t`Loading sections...`}</div>
 				</div>
 			) : sections.length === 0 ? (
 				<div className="rounded-lg border bg-kumo-base p-12 text-center">
 					{searchQuery || selectedSource ? (
 						<>
 							<MagnifyingGlass className="mx-auto h-12 w-12 text-kumo-subtle" />
-							<h3 className="mt-4 text-lg font-semibold">No sections found</h3>
-							<p className="mt-2 text-kumo-subtle">Try adjusting your search or filters.</p>
+							<h3 className="mt-4 text-lg font-semibold">{t`No sections found`}</h3>
+							<p className="mt-2 text-kumo-subtle">{t`Try adjusting your search or filters.`}</p>
 						</>
 					) : (
 						<>
 							<FolderOpen className="mx-auto h-12 w-12 text-kumo-subtle" />
-							<h3 className="mt-4 text-lg font-semibold">No sections yet</h3>
+							<h3 className="mt-4 text-lg font-semibold">{t`No sections yet`}</h3>
 							<p className="mt-2 text-kumo-subtle">
-								Create your first reusable content section to get started.
+								{t`Create your first reusable content section to get started.`}
 							</p>
 							<Button className="mt-4" icon={<Plus />} onClick={() => setIsCreateOpen(true)}>
-								Create Section
+								{t`Create Section`}
 							</Button>
 						</>
 					)}
@@ -315,21 +319,20 @@ export function Sections() {
 					setDeleteSlug(null);
 					deleteMutation.reset();
 				}}
-				title="Delete Section?"
+				title={t`Delete Section?`}
 				description={
 					sectionToDelete?.source === "theme" ? (
 						<>
-							Theme-provided sections cannot be deleted. Edit the section to create a custom copy,
-							then delete that.
+							{t`Theme-provided sections cannot be deleted. Edit the section to create a custom copy, then delete that.`}
 						</>
 					) : (
 						<>
-							This will permanently delete "{sectionToDelete?.title}". This action cannot be undone.
+							{t`This will permanently delete "${sectionToDelete?.title}". This action cannot be undone.`}
 						</>
 					)
 				}
-				confirmLabel="Delete"
-				pendingLabel="Deleting..."
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => deleteSlug && deleteMutation.mutate(deleteSlug)}
@@ -349,6 +352,7 @@ function SectionCard({
 	onDelete: () => void;
 	onCopySlug: () => void;
 }) {
+	const { t } = useLingui();
 	const SourceIcon = sourceIcons[section.source];
 
 	return (
@@ -362,7 +366,7 @@ function SectionCard({
 						className="w-full h-full object-cover"
 					/>
 				) : (
-					<div className="text-kumo-subtle text-sm">No preview</div>
+					<div className="text-kumo-subtle text-sm">{t`No preview`}</div>
 				)}
 			</div>
 
@@ -375,10 +379,10 @@ function SectionCard({
 					</div>
 					<div
 						className="flex items-center gap-1 text-xs text-kumo-subtle"
-						title={sourceLabels[section.source]}
+						title={t(sourceLabels[section.source])}
 					>
 						<SourceIcon className="h-3 w-3" />
-						<span>{sourceLabels[section.source]}</span>
+						<span>{t(sourceLabels[section.source])}</span>
 					</div>
 				</div>
 
@@ -411,14 +415,14 @@ function SectionCard({
 						onClick={onEdit}
 						className="flex-1"
 					>
-						Edit
+						{t`Edit`}
 					</Button>
 					<Button
 						variant="ghost"
 						size="sm"
 						onClick={onCopySlug}
-						title="Copy slug"
-						aria-label={`Copy ${section.slug} to clipboard`}
+						title={t`Copy slug`}
+						aria-label={t`Copy ${section.slug} to clipboard`}
 					>
 						<Copy className="h-4 w-4" />
 					</Button>
@@ -426,8 +430,8 @@ function SectionCard({
 						variant="ghost"
 						size="sm"
 						onClick={onDelete}
-						title={section.source === "theme" ? "Cannot delete theme sections" : "Delete"}
-						aria-label={`Delete ${section.title}`}
+						title={section.source === "theme" ? t`Cannot delete theme sections` : t`Delete`}
+						aria-label={t`Delete ${section.title}`}
 						disabled={section.source === "theme"}
 					>
 						<Trash className="h-4 w-4" />

@@ -97,6 +97,8 @@ This is useful when you only need one or two values and want to avoid fetching e
 
 ### Site Header
 
+The following component renders a header with the site logo and primary menu:
+
 ```astro title="src/components/Header.astro"
 ---
 import { getSiteSettings, getMenu } from "emdash";
@@ -130,6 +132,8 @@ const menu = await getMenu("primary");
 ```
 
 ### Social Links
+
+The following component renders links for each configured social platform:
 
 ```astro title="src/components/SocialLinks.astro"
 ---
@@ -167,6 +171,8 @@ const platforms = [
 
 ### SEO Meta Tags
 
+The following component builds document and Open Graph meta tags from site settings:
+
 ```astro title="src/components/SEO.astro"
 ---
 import { getSiteSettings } from "emdash";
@@ -184,16 +190,17 @@ const {
   image,
 } = Astro.props;
 
-const pageTitle = title
+const documentTitle = title
   ? `${title} | ${settings.title}`
   : settings.title;
+const ogTitle = title ?? settings.title;
 ---
 
-<title>{pageTitle}</title>
+<title>{documentTitle}</title>
 {description && <meta name="description" content={description} />}
 
 <!-- Open Graph -->
-<meta property="og:title" content={pageTitle} />
+<meta property="og:title" content={ogTitle} />
 {description && <meta property="og:description" content={description} />}
 {image && <meta property="og:image" content={image} />}
 {settings.url && <meta property="og:url" content={settings.url + Astro.url.pathname} />}
@@ -238,13 +245,13 @@ const formatted = new Intl.DateTimeFormat("en-US", {
 
 ## Admin API
 
-Fetch settings programmatically:
+Fetch settings programmatically with a GET request:
 
 ```http
 GET /_emdash/api/settings
 ```
 
-Response:
+The response is a JSON object of the settings:
 
 ```json
 {

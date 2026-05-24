@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 
 import {
-	getInstallCount,
 	getLatestVersion,
 	getPluginVersion,
 	getPluginVersions,
@@ -36,7 +35,7 @@ publicRoutes.get("/plugins", async (c) => {
 	const validSorts = new Set(["installs", "updated", "created", "name"]);
 	let sort: "installs" | "updated" | "created" | "name" | undefined;
 	if (sortParam && validSorts.has(sortParam)) {
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- validated by Set.has check above
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated by Set.has check above
 		sort = sortParam as "installs" | "updated" | "created" | "name";
 	}
 	const cursor = url.searchParams.get("cursor") ?? undefined;
@@ -100,7 +99,7 @@ publicRoutes.get("/plugins/:id", async (c) => {
 		if (!plugin) return c.json({ error: "Plugin not found" }, 404);
 
 		const latestVersion = await getLatestVersion(c.env.DB, id);
-		const installCount = await getInstallCount(c.env.DB, id);
+		const installCount = plugin.install_count ?? 0;
 
 		const capabilities = safeJsonParse<string[]>(plugin.capabilities, []);
 		const keywords = safeJsonParse<string[]>(plugin.keywords, []);
@@ -297,7 +296,7 @@ publicRoutes.get("/plugins/:id/versions/:version/image-audit", async (c) => {
 function safeJsonParse<T>(value: string | null, fallback: T): T {
 	if (!value) return fallback;
 	try {
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- caller provides type parameter
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- caller provides type parameter
 		const parsed: T = JSON.parse(value);
 		return parsed;
 	} catch {

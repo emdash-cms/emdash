@@ -5,7 +5,8 @@
  * Uses cursor pagination to allow browsing beyond the initial page.
  */
 
-import { Button, Dialog, Input, Loader } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Loader, Select } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -33,6 +34,7 @@ function getItemTitle(item: { data: Record<string, unknown>; slug: string | null
 }
 
 export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPickerModalProps) {
+	const { t } = useLingui();
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 	const [selectedCollection, setSelectedCollection] = React.useState<string>("");
@@ -109,23 +111,23 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
-			<Dialog className="p-6 w-2xl h-[80vh] flex flex-col" size="lg">
+			<Dialog className="p-6 max-w-2xl h-[80vh] flex flex-col" size="lg">
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						Select Content
+						{t`Select Content`}
 					</Dialog.Title>
 					<Dialog.Close
-						aria-label="Close"
+						aria-label={t`Close`}
 						render={(props) => (
 							<Button
 								{...props}
 								variant="ghost"
 								shape="square"
-								aria-label="Close"
-								className="absolute right-4 top-4"
+								aria-label={t`Close`}
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
-								<span className="sr-only">Close</span>
+								<span className="sr-only">{t`Close`}</span>
 							</Button>
 						)}
 					/>
@@ -134,50 +136,45 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 				{/* Search and collection filter */}
 				<div className="flex items-center gap-4 py-4 border-b">
 					<div className="relative flex-1">
-						<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+						<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 						<Input
-							placeholder="Search content..."
+							placeholder={t`Search content...`}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
-							className="pl-10"
+							className="ps-10"
 							autoFocus
 						/>
 					</div>
-					<select
+					<Select
 						value={selectedCollection}
-						onChange={(e) => {
-							setSelectedCollection(e.target.value);
+						onValueChange={(v) => {
+							setSelectedCollection(v ?? "");
 							setAllItems([]);
 							setNextCursor(undefined);
 						}}
-						className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2"
-					>
-						{collections.map((col) => (
-							<option key={col.slug} value={col.slug}>
-								{col.label}
-							</option>
-						))}
-					</select>
+						items={Object.fromEntries(collections.map((col) => [col.slug, col.label]))}
+						aria-label={t`Collection`}
+					/>
 				</div>
 
 				{/* Content list */}
 				<div className="flex-1 overflow-y-auto py-4">
 					{contentLoading ? (
 						<div className="flex items-center justify-center h-32">
-							<div className="text-kumo-subtle">Loading content...</div>
+							<div className="text-kumo-subtle">{t`Loading content...`}</div>
 						</div>
 					) : filteredItems.length === 0 ? (
 						<div className="flex flex-col items-center justify-center h-32 text-center">
 							{searchQuery ? (
 								<>
 									<MagnifyingGlass className="h-8 w-8 text-kumo-subtle mb-2" />
-									<p className="text-kumo-subtle">No content found</p>
-									<p className="text-sm text-kumo-subtle">Try adjusting your search</p>
+									<p className="text-kumo-subtle">{t`No content found`}</p>
+									<p className="text-sm text-kumo-subtle">{t`Try adjusting your search`}</p>
 								</>
 							) : (
 								<>
 									<FolderOpen className="h-8 w-8 text-kumo-subtle mb-2" />
-									<p className="text-kumo-subtle">No content in this collection</p>
+									<p className="text-kumo-subtle">{t`No content in this collection`}</p>
 								</>
 							)}
 						</div>
@@ -191,7 +188,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 										type="button"
 										onClick={() => handleSelect(item)}
 										className={cn(
-											"w-full text-left rounded-md px-3 py-2 transition-colors",
+											"w-full text-start rounded-md px-3 py-2 transition-colors",
 											"hover:bg-kumo-tint/50",
 											"focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2",
 										)}
@@ -209,10 +206,10 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 												)}
 											/>
 											{status === "published"
-												? "Published"
+												? t`Published`
 												: status === "published_with_changes"
-													? "Modified"
-													: "Draft"}
+													? t`Modified`
+													: t`Draft`}
 											{item.slug && (
 												<>
 													<span className="text-kumo-subtle/50">/</span>
@@ -233,10 +230,10 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 									>
 										{isLoadingMore ? (
 											<>
-												<Loader size="sm" /> Loading...
+												<Loader size="sm" /> {t`Loading...`}
 											</>
 										) : (
-											"Load more"
+											t`Load more`
 										)}
 									</Button>
 								</div>
@@ -248,7 +245,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 				{/* Footer */}
 				<div className="flex justify-end gap-2 pt-4 border-t">
 					<Button variant="outline" onClick={() => onOpenChange(false)}>
-						Cancel
+						{t`Cancel`}
 					</Button>
 				</div>
 			</Dialog>

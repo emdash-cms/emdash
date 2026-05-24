@@ -29,12 +29,16 @@ import {
 	useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, DotsSixVertical, Trash, CaretDown, CaretRight } from "@phosphor-icons/react";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import { Plus, DotsSixVertical, Trash, CaretDown } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import {
+	fetchManifest,
 	fetchWidgetAreas,
 	fetchWidgetComponents,
 	fetchMenus,
@@ -50,9 +54,16 @@ import {
 	type CreateWidgetInput,
 	type UpdateWidgetInput,
 } from "../lib/api";
+import { getPluginBlocks } from "../lib/pluginBlocks";
+import { CaretNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
-import { PortableTextEditor } from "./PortableTextEditor";
+import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
+import {
+	PortableTextEditor,
+	type BlockSidebarPanel,
+	type PluginBlockDef,
+} from "./PortableTextEditor";
 
 /** Palette item types that can be dragged into areas */
 interface PaletteItemData {
@@ -76,25 +87,26 @@ function isPaletteItem(data: DragItemData): data is PaletteItemData {
 /** Built-in widget types available in the palette */
 const BUILTIN_WIDGETS: Array<{
 	id: string;
-	label: string;
-	description: string;
+	label: MessageDescriptor;
+	description: MessageDescriptor;
 	input: CreateWidgetInput;
 }> = [
 	{
 		id: "palette-content",
-		label: "Content Block",
-		description: "Rich text content",
-		input: { type: "content", title: "Content Block" },
+		label: msg`Content Block`,
+		description: msg`Rich text content`,
+		input: { type: "content" },
 	},
 	{
 		id: "palette-menu",
-		label: "Menu",
-		description: "Display a navigation menu",
-		input: { type: "menu", title: "Menu" },
+		label: msg`Menu`,
+		description: msg`Display a navigation menu`,
+		input: { type: "menu" },
 	},
 ];
 
 export function Widgets() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const [isCreateAreaOpen, setIsCreateAreaOpen] = React.useState(false);
@@ -102,8 +114,24 @@ export function Widgets() {
 	const [activeId, setActiveId] = React.useState<string | null>(null);
 	const [activeDragData, setActiveDragData] = React.useState<DragItemData | null>(null);
 	const [expandedWidgets, setExpandedWidgets] = React.useState<Set<string>>(new Set());
+	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
 	// Track palette drag source across the full drag lifecycle (including drop animation)
 	const draggingFromPaletteRef = React.useRef(false);
+
+	const handleBlockSidebarOpen = React.useCallback((panel: BlockSidebarPanel) => {
+		setBlockSidebarPanel((prev) => {
+			// Close any existing panel before opening a new one so only one is ever active
+			prev?.onClose();
+			return panel;
+		});
+	}, []);
+
+	const handleBlockSidebarClose = React.useCallback(() => {
+		setBlockSidebarPanel((prev) => {
+			prev?.onClose();
+			return null;
+		});
+	}, []);
 
 	const { data: areas = [], isLoading } = useQuery({
 		queryKey: ["widget-areas"],
@@ -115,12 +143,19 @@ export function Widgets() {
 		queryFn: fetchWidgetComponents,
 	});
 
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
+	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
+
 	const createAreaMutation = useMutation({
 		mutationFn: createWidgetArea,
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
 			setIsCreateAreaOpen(false);
-			toastManager.add({ title: "Widget area created" });
+			toastManager.add({ title: t`Widget area created` });
 		},
 		onError: (error: Error) => {
 			setCreateAreaError(error.message);
@@ -132,11 +167,11 @@ export function Widgets() {
 			createWidget(areaName, input),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
-			toastManager.add({ title: "Widget added" });
+			toastManager.add({ title: t`Widget added` });
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: "Error adding widget",
+				title: t`Error adding widget`,
 				description: error.message,
 				type: "error",
 			});
@@ -197,7 +232,7 @@ export function Widgets() {
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: "Error reordering widgets",
+				title: t`Error reordering widgets`,
 				description: error.message,
 				type: "error",
 			});
@@ -272,7 +307,7 @@ export function Widgets() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-64">
-				<div className="text-kumo-subtle">Loading widgets...</div>
+				<div className="text-kumo-subtle">{t`Loading widgets...`}</div>
 			</div>
 		);
 	}
@@ -287,8 +322,8 @@ export function Widgets() {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-3xl font-bold">Widgets</h1>
-						<p className="text-kumo-subtle">Manage content widgets in your widget areas</p>
+						<h1 className="text-3xl font-bold">{t`Widgets`}</h1>
+						<p className="text-kumo-subtle">{t`Manage content widgets in your widget areas`}</p>
 					</div>
 					<Dialog.Root
 						open={isCreateAreaOpen}
@@ -300,44 +335,44 @@ export function Widgets() {
 						<Dialog.Trigger
 							render={(props) => (
 								<Button {...props} icon={<Plus />}>
-									Add Widget Area
+									{t`Add Widget Area`}
 								</Button>
 							)}
 						/>
 						<Dialog className="p-6" size="lg">
 							<div className="flex items-start justify-between gap-4 mb-4">
 								<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-									Create Widget Area
+									{t`Create Widget Area`}
 								</Dialog.Title>
 								<Dialog.Close
-									aria-label="Close"
+									aria-label={t`Close`}
 									render={(props) => (
 										<Button
 											{...props}
 											variant="ghost"
 											shape="square"
-											aria-label="Close"
-											className="absolute right-4 top-4"
+											aria-label={t`Close`}
+											className="absolute end-4 top-4"
 										>
 											<X className="h-4 w-4" />
-											<span className="sr-only">Close</span>
+											<span className="sr-only">{t`Close`}</span>
 										</Button>
 									)}
 								/>
 							</div>
 							<form onSubmit={handleCreateArea} className="space-y-4">
 								<Input
-									label="Name"
+									label={t`Name`}
 									name="name"
 									required
 									placeholder="sidebar"
-									pattern="[a-z0-9-]+"
+									pattern="[a-z0-9\-]+"
 								/>
-								<Input label="Label" name="label" required placeholder="Main Sidebar" />
+								<Input label={t`Label`} name="label" required placeholder={t`Main Sidebar`} />
 								<Input
-									label="Description"
+									label={t`Description`}
 									name="description"
-									placeholder="Appears on posts and pages"
+									placeholder={t`Appears on posts and pages`}
 								/>
 								<DialogError
 									message={createAreaError || getMutationError(createAreaMutation.error)}
@@ -348,10 +383,10 @@ export function Widgets() {
 										variant="outline"
 										onClick={() => setIsCreateAreaOpen(false)}
 									>
-										Cancel
+										{t`Cancel`}
 									</Button>
 									<Button type="submit" disabled={createAreaMutation.isPending}>
-										Create
+										{t`Create`}
 									</Button>
 								</div>
 							</form>
@@ -363,16 +398,16 @@ export function Widgets() {
 					{/* Available Widgets (draggable palette) */}
 					<div className="col-span-4">
 						<div className="rounded-lg border bg-kumo-base p-6 space-y-4">
-							<h2 className="text-xl font-semibold">Available Widgets</h2>
-							<p className="text-sm text-kumo-subtle">Drag widgets into an area to add them</p>
+							<h2 className="text-xl font-semibold">{t`Available Widgets`}</h2>
+							<p className="text-sm text-kumo-subtle">{t`Drag widgets into an area to add them`}</p>
 							<div className="space-y-2">
 								{BUILTIN_WIDGETS.map((item) => (
 									<DraggablePaletteItem
 										key={item.id}
 										id={item.id}
-										label={item.label}
-										description={item.description}
-										widgetInput={item.input}
+										label={t(item.label)}
+										description={t(item.description)}
+										widgetInput={{ ...item.input, title: t(item.label) }}
 									/>
 								))}
 								{components.map((comp) => (
@@ -396,7 +431,7 @@ export function Widgets() {
 					<div className="col-span-8 space-y-4">
 						{areas.length === 0 ? (
 							<div className="rounded-lg border bg-kumo-base p-12 text-center">
-								<p className="text-kumo-subtle">No widget areas yet. Create one to get started.</p>
+								<p className="text-kumo-subtle">{t`No widget areas yet. Create one to get started.`}</p>
 							</div>
 						) : (
 							areas.map((area) => (
@@ -407,6 +442,9 @@ export function Widgets() {
 									onToggleWidget={toggleWidget}
 									isDraggingPalette={activeDragData !== null && isPaletteItem(activeDragData)}
 									components={components}
+									pluginBlocks={pluginBlocks}
+									onBlockSidebarOpen={handleBlockSidebarOpen}
+									onBlockSidebarClose={handleBlockSidebarClose}
 								/>
 							))
 						)}
@@ -425,12 +463,31 @@ export function Widgets() {
 					<div className="rounded border bg-kumo-base p-3 shadow-lg opacity-90">
 						<div className="flex items-center gap-2">
 							<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
-							<span className="font-medium">{activeWidget.title || "Untitled Widget"}</span>
+							<span className="font-medium">{activeWidget.title || t`Untitled Widget`}</span>
 							<span className="text-xs text-kumo-subtle">({activeWidget.type})</span>
 						</div>
 					</div>
 				) : null}
 			</DragOverlay>
+
+			{/* A single block-sidebar panel for the whole page — ensures only one is ever
+			    open at a time, preventing stacked fixed overlays and duplicated window listeners. */}
+			{blockSidebarPanel?.type === "image" && (
+				<ImageDetailPanel
+					attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+					onUpdate={(attrs) =>
+						blockSidebarPanel.onUpdate(attrs as unknown as Record<string, unknown>)
+					}
+					onReplace={(attrs) =>
+						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+					}
+					onDelete={() => {
+						blockSidebarPanel.onDelete();
+						setBlockSidebarPanel(null);
+					}}
+					onClose={handleBlockSidebarClose}
+				/>
+			)}
 		</DndContext>
 	);
 }
@@ -477,13 +534,20 @@ function WidgetAreaPanel({
 	onToggleWidget,
 	isDraggingPalette,
 	components,
+	pluginBlocks,
+	onBlockSidebarOpen,
+	onBlockSidebarClose,
 }: {
 	area: WidgetArea;
 	expandedWidgets: Set<string>;
 	onToggleWidget: (id: string) => void;
 	isDraggingPalette: boolean;
 	components: WidgetComponent[];
+	pluginBlocks: PluginBlockDef[];
+	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
+	onBlockSidebarClose: () => void;
 }) {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const [deleteAreaName, setDeleteAreaName] = React.useState<string | null>(null);
@@ -498,7 +562,7 @@ function WidgetAreaPanel({
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
 			setDeleteAreaName(null);
-			toastManager.add({ title: "Widget area deleted" });
+			toastManager.add({ title: t`Widget area deleted` });
 		},
 	});
 
@@ -517,7 +581,7 @@ function WidgetAreaPanel({
 					variant="ghost"
 					size="sm"
 					onClick={() => setDeleteAreaName(area.name)}
-					aria-label={`Delete ${area.label} widget area`}
+					aria-label={t`Delete ${area.label} widget area`}
 				>
 					<Trash className="h-4 w-4" />
 				</Button>
@@ -537,6 +601,9 @@ function WidgetAreaPanel({
 								isExpanded={expandedWidgets.has(widget.id)}
 								onToggle={() => onToggleWidget(widget.id)}
 								components={components}
+								pluginBlocks={pluginBlocks}
+								onBlockSidebarOpen={onBlockSidebarOpen}
+								onBlockSidebarClose={onBlockSidebarClose}
 							/>
 						))}
 					</SortableContext>
@@ -550,11 +617,11 @@ function WidgetAreaPanel({
 								: "border-kumo-subtle/30 text-kumo-subtle"
 						}`}
 					>
-						{isOver ? "Drop to add widget" : "Drag here to add"}
+						{isOver ? t`Drop to add widget` : t`Drag here to add`}
 					</div>
 				)}
 				{!hasWidgets && !isDraggingPalette && (
-					<div className="text-center py-8 text-kumo-subtle">Drag widgets here to add them</div>
+					<div className="text-center py-8 text-kumo-subtle">{t`Drag widgets here to add them`}</div>
 				)}
 			</div>
 
@@ -564,10 +631,10 @@ function WidgetAreaPanel({
 					setDeleteAreaName(null);
 					deleteAreaMutation.reset();
 				}}
-				title="Delete Widget Area?"
-				description="This will delete the widget area and all its widgets. This action cannot be undone."
-				confirmLabel="Delete"
-				pendingLabel="Deleting..."
+				title={t`Delete Widget Area?`}
+				description={t`This will delete the widget area and all its widgets. This action cannot be undone.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
 				isPending={deleteAreaMutation.isPending}
 				error={deleteAreaMutation.error}
 				onConfirm={() => deleteAreaMutation.mutate(area.name)}
@@ -582,13 +649,20 @@ function WidgetItem({
 	isExpanded,
 	onToggle,
 	components,
+	pluginBlocks,
+	onBlockSidebarOpen,
+	onBlockSidebarClose,
 }: {
 	widget: Widget;
 	areaName: string;
 	isExpanded: boolean;
 	onToggle: () => void;
 	components: WidgetComponent[];
+	pluginBlocks: PluginBlockDef[];
+	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
+	onBlockSidebarClose: () => void;
 }) {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -608,11 +682,11 @@ function WidgetItem({
 		mutationFn: () => deleteWidget(areaName, widget.id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
-			toastManager.add({ title: "Widget deleted" });
+			toastManager.add({ title: t`Widget deleted` });
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: "Error",
+				title: t`Error`,
 				description: error.message,
 				type: "error",
 			});
@@ -623,11 +697,11 @@ function WidgetItem({
 		mutationFn: (input: UpdateWidgetInput) => updateWidget(areaName, widget.id, input),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["widget-areas"] });
-			toastManager.add({ title: "Widget updated" });
+			toastManager.add({ title: t`Widget updated` });
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: "Error updating widget",
+				title: t`Error updating widget`,
 				description: error.message,
 				type: "error",
 			});
@@ -645,14 +719,14 @@ function WidgetItem({
 					{...attributes}
 					{...listeners}
 					className="cursor-grab active:cursor-grabbing"
-					aria-label={`Drag to reorder ${widget.title || "widget"}`}
+					aria-label={t`Drag to reorder ${widget.title ?? t`widget`}`}
 				>
 					<DotsSixVertical className="h-4 w-4 text-kumo-subtle" />
 				</button>
-				<button onClick={onToggle} className="flex-1 text-left" aria-expanded={isExpanded}>
+				<button onClick={onToggle} className="flex-1 text-start" aria-expanded={isExpanded}>
 					<div className="flex items-center gap-2">
-						{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretRight className="h-4 w-4" />}
-						<span className="font-medium">{widget.title || "Untitled Widget"}</span>
+						{isExpanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
+						<span className="font-medium">{widget.title || t`Untitled Widget`}</span>
 						<span className="text-xs text-kumo-subtle">({widget.type})</span>
 					</div>
 				</button>
@@ -660,7 +734,7 @@ function WidgetItem({
 					variant="ghost"
 					size="sm"
 					onClick={() => deleteMutation.mutate()}
-					aria-label={`Delete ${widget.title || "widget"}`}
+					aria-label={t`Delete ${widget.title ?? t`widget`}`}
 				>
 					<Trash className="h-4 w-4" />
 				</Button>
@@ -670,8 +744,11 @@ function WidgetItem({
 				<WidgetEditor
 					widget={widget}
 					components={components}
+					pluginBlocks={pluginBlocks}
 					onSave={(input) => updateMutation.mutate(input)}
 					isSaving={updateMutation.isPending}
+					onBlockSidebarOpen={onBlockSidebarOpen}
+					onBlockSidebarClose={onBlockSidebarClose}
 				/>
 			)}
 		</div>
@@ -682,14 +759,21 @@ function WidgetItem({
 function WidgetEditor({
 	widget,
 	components,
+	pluginBlocks,
 	onSave,
 	isSaving,
+	onBlockSidebarOpen,
+	onBlockSidebarClose,
 }: {
 	widget: Widget;
 	components: WidgetComponent[];
+	pluginBlocks: PluginBlockDef[];
 	onSave: (input: UpdateWidgetInput) => void;
 	isSaving: boolean;
+	onBlockSidebarOpen: (panel: BlockSidebarPanel) => void;
+	onBlockSidebarClose: () => void;
 }) {
+	const { t } = useLingui();
 	const [title, setTitle] = React.useState(widget.title ?? "");
 	const [content, setContent] = React.useState<unknown[]>(
 		Array.isArray(widget.content) ? widget.content : [],
@@ -702,7 +786,7 @@ function WidgetEditor({
 
 	const { data: menus = [] } = useQuery({
 		queryKey: ["menus"],
-		queryFn: fetchMenus,
+		queryFn: () => fetchMenus(),
 		enabled: widget.type === "menu",
 	});
 
@@ -724,32 +808,35 @@ function WidgetEditor({
 	return (
 		<div className="mt-3 p-3 bg-kumo-tint rounded space-y-4">
 			<Input
-				label="Title"
+				label={t`Title`}
 				value={title}
 				onChange={(e) => setTitle(e.target.value)}
-				placeholder="Widget title"
+				placeholder={t`Widget title`}
 			/>
 
 			{widget.type === "content" && (
 				<div>
-					<Label className="text-sm font-medium mb-2 block">Content</Label>
+					<Label className="text-sm font-medium mb-2 block">{t`Content`}</Label>
 					<PortableTextEditor
 						value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
 						onChange={(value) => setContent(value as unknown[])}
 						minimal
-						placeholder="Write widget content..."
+						placeholder={t`Write widget content...`}
+						pluginBlocks={pluginBlocks}
+						onBlockSidebarOpen={onBlockSidebarOpen}
+						onBlockSidebarClose={onBlockSidebarClose}
 					/>
 				</div>
 			)}
 
 			{widget.type === "menu" && (
 				<Select
-					label="Menu"
+					label={t`Menu`}
 					value={menuName}
 					onValueChange={(v) => setMenuName(v ?? "")}
 					items={Object.fromEntries(menus.map((m) => [m.name, m.label || m.name]))}
 				>
-					<Select.Option value="">Select a menu...</Select.Option>
+					<Select.Option value="">{t`Select a menu...`}</Select.Option>
 					{menus.map((m) => (
 						<Select.Option key={m.name} value={m.name}>
 							{m.label || m.name}
@@ -761,7 +848,7 @@ function WidgetEditor({
 			{widget.type === "component" && (
 				<>
 					<Select
-						label="Component"
+						label={t`Component`}
 						value={componentId}
 						onValueChange={(v) => {
 							setComponentId(v ?? "");
@@ -781,7 +868,7 @@ function WidgetEditor({
 						}}
 						items={Object.fromEntries(components.map((c) => [c.id, c.label]))}
 					>
-						<Select.Option value="">Select a component...</Select.Option>
+						<Select.Option value="">{t`Select a component...`}</Select.Option>
 						{components.map((c) => (
 							<Select.Option key={c.id} value={c.id}>
 								{c.label}
@@ -804,7 +891,7 @@ function WidgetEditor({
 
 			<div className="flex justify-end">
 				<Button size="sm" onClick={handleSave} disabled={isSaving}>
-					{isSaving ? "Saving..." : "Save"}
+					{isSaving ? t`Saving...` : t`Save`}
 				</Button>
 			</div>
 		</div>
@@ -841,13 +928,7 @@ function ComponentPropField({
 				/>
 			);
 		case "boolean":
-			return (
-				<Switch
-					label={def.label}
-					checked={typeof value === "boolean" ? value : false}
-					onCheckedChange={onChange}
-				/>
-			);
+			return <Switch label={def.label} checked={Boolean(value)} onCheckedChange={onChange} />;
 		case "select": {
 			const items: Record<string, string> = {};
 			for (const opt of def.options ?? []) {

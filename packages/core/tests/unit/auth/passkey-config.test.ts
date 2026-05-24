@@ -2,8 +2,57 @@ import { describe, it, expect } from "vitest";
 
 import { getPasskeyConfig } from "../../../src/auth/passkey-config.js";
 
+/** URL shape from `new URL(request.url)` after trusted proxy + Astro `security.allowedDomains`. */
+function urlAfterTrustedProxy(path: string, host: string, proto: "http" | "https"): URL {
+	return new URL(path, `${proto}://${host}`);
+}
+
 describe("passkey-config", () => {
+	describe("getPasskeyConfig() via emulated reverse proxy URL", () => {
+		const internalDevUrl = "http://127.0.0.1:4321/_emdash/api/auth/passkey/register/options";
+
+		it("loopback URL alone matches Node before rewrite — rpId is not the public host", () => {
+			const url = new URL(internalDevUrl);
+			expect(getPasskeyConfig(url).rpId).toBe("127.0.0.1");
+		});
+
+		it("emits a single-element origins array by default", () => {
+			const url = new URL(internalDevUrl);
+			expect(getPasskeyConfig(url).origins).toEqual(["http://127.0.0.1:4321"]);
+		});
+
+		it("forwarded Host/Proto yield the URL handlers see; rp matches HTTP reverse-proxy edge", () => {
+			const url = urlAfterTrustedProxy(
+				"/_emdash/api/auth/passkey/register/options",
+				"emdash.local:8080",
+				"http",
+			);
+			const config = getPasskeyConfig(url, "My Site");
+			expect(config.rpId).toBe("emdash.local");
+			expect(config.rpName).toBe("My Site");
+			expect(config.origins[0]).toBe("http://emdash.local:8080");
+		});
+
+		it("HTTPS listener on proxy with HTTP upstream: siteUrl aligns origin with browser", () => {
+			const urlAstroSeesFromForwardedHttp = urlAfterTrustedProxy(
+				"/_emdash/api/setup/admin",
+				"emdash.local:8080",
+				"http",
+			);
+			const browserOrigin = "https://emdash.local:8443";
+			const config = getPasskeyConfig(urlAstroSeesFromForwardedHttp, "My Site", browserOrigin);
+			expect(config.rpId).toBe("emdash.local");
+			expect(config.rpName).toBe("My Site");
+			expect(config.origins[0]).toBe(browserOrigin);
+		});
+	});
+
 	describe("getPasskeyConfig()", () => {
+		it("throws when siteUrl is not a valid URL", () => {
+			const url = new URL("http://localhost:4321/admin");
+			expect(() => getPasskeyConfig(url, "Site", "::not-a-url")).toThrow("Invalid siteUrl");
+		});
+
 		it("extracts rpId from localhost URL", () => {
 			const url = new URL("http://localhost:4321/admin");
 			const config = getPasskeyConfig(url);
@@ -29,14 +78,14 @@ describe("passkey-config", () => {
 			const url = new URL("http://localhost:4321/admin");
 			const config = getPasskeyConfig(url);
 
-			expect(config.origin).toBe("http://localhost:4321");
+			expect(config.origins[0]).toBe("http://localhost:4321");
 		});
 
 		it("returns correct origin for https", () => {
 			const url = new URL("https://example.com/admin");
 			const config = getPasskeyConfig(url);
 
-			expect(config.origin).toBe("https://example.com");
+			expect(config.origins[0]).toBe("https://example.com");
 		});
 
 		it("handles port numbers correctly", () => {
@@ -44,7 +93,7 @@ describe("passkey-config", () => {
 			const config = getPasskeyConfig(url);
 
 			expect(config.rpId).toBe("localhost");
-			expect(config.origin).toBe("http://localhost:3000");
+			expect(config.origins[0]).toBe("http://localhost:3000");
 		});
 
 		it("handles https with non-standard port", () => {
@@ -52,7 +101,7 @@ describe("passkey-config", () => {
 			const config = getPasskeyConfig(url);
 
 			expect(config.rpId).toBe("staging.example.com");
-			expect(config.origin).toBe("https://staging.example.com:8443");
+			expect(config.origins[0]).toBe("https://staging.example.com:8443");
 		});
 
 		it("uses hostname as rpName by default", () => {
@@ -75,8 +124,102 @@ describe("passkey-config", () => {
 			const config = getPasskeyConfig(url);
 
 			// Standard https port 443 is omitted from origin
-			expect(config.origin).toBe("https://example.com");
+			expect(config.origins[0]).toBe("https://example.com");
 			expect(config.rpId).toBe("example.com");
+		});
+
+		it("documents HTTPS reverse-proxy dev pitfall: server URL scheme must match the browser", () => {
+			const serverDevUrl = new URL("http://emdash.local:8443/_emdash/api/setup/admin");
+			const browserPageOrigin = new URL("https://emdash.local:8443/_emdash/admin/setup");
+
+			const fromServer = getPasskeyConfig(serverDevUrl);
+			const fromBrowser = getPasskeyConfig(browserPageOrigin);
+
+			expect(fromServer.rpId).toBe(fromBrowser.rpId);
+			expect(fromServer.origins[0]).toBe("http://emdash.local:8443");
+			expect(fromBrowser.origins[0]).toBe("https://emdash.local:8443");
+			// verifyRegistrationResponse requires clientData.origin === config.origins[0] (see @emdash-cms/auth/passkey)
+			expect(fromServer.origins[0]).not.toBe(fromBrowser.origins[0]);
+		});
+
+		it("siteUrl overrides origin and rpId (TLS termination and loopback request URL)", () => {
+			const fromForwardedHttp = getPasskeyConfig(
+				new URL("http://emdash.local:8443/_emdash/api/setup/admin"),
+				"My Site",
+				"https://emdash.local:8443",
+			);
+			expect(fromForwardedHttp.rpName).toBe("My Site");
+			expect(fromForwardedHttp.rpId).toBe("emdash.local");
+			expect(fromForwardedHttp.origins[0]).toBe("https://emdash.local:8443");
+
+			const fromLoopback = getPasskeyConfig(
+				new URL("http://127.0.0.1:4321/_emdash/api/setup/admin"),
+				"My CMS",
+				"https://public.example:8443",
+			);
+			expect(fromLoopback.rpId).toBe("public.example");
+			expect(fromLoopback.rpName).toBe("My CMS");
+			expect(fromLoopback.origins[0]).toBe("https://public.example:8443");
+
+			const hostnameOnly = getPasskeyConfig(
+				new URL("http://127.0.0.1:4321/x"),
+				undefined,
+				"https://public.example:8443",
+			);
+			expect(hostnameOnly.rpName).toBe("public.example");
+			expect(hostnameOnly.rpId).toBe("public.example");
+		});
+	});
+
+	describe("getPasskeyConfig() multi-origin", () => {
+		it("appends allowedOrigins after the canonical origin", () => {
+			const url = new URL("http://localhost:4321/admin");
+			const config = getPasskeyConfig(url, "Site", "https://example.com", [
+				"https://preview.example.com",
+				"https://staging.example.com",
+			]);
+
+			expect(config.rpId).toBe("example.com");
+			expect(config.origins).toEqual([
+				"https://example.com",
+				"https://preview.example.com",
+				"https://staging.example.com",
+			]);
+		});
+
+		it("places the canonical origin first when no siteUrl is set", () => {
+			const url = new URL("https://preview.example.com/admin");
+			const config = getPasskeyConfig(url, undefined, undefined, ["https://example.com"]);
+
+			// rpId is preview.example.com (no siteUrl); allow apex as second origin
+			expect(config.rpId).toBe("preview.example.com");
+			expect(config.origins).toEqual(["https://preview.example.com", "https://example.com"]);
+		});
+
+		it("dedupes if allowedOrigins repeats the canonical origin", () => {
+			const url = new URL("http://localhost:4321/admin");
+			const config = getPasskeyConfig(url, undefined, "https://example.com", [
+				"https://example.com",
+				"https://preview.example.com",
+			]);
+
+			expect(config.origins).toEqual(["https://example.com", "https://preview.example.com"]);
+		});
+
+		it("ignores empty/falsy entries in allowedOrigins", () => {
+			const url = new URL("http://localhost:4321/admin");
+			const config = getPasskeyConfig(url, undefined, "https://example.com", [
+				"",
+				"https://preview.example.com",
+			]);
+
+			expect(config.origins).toEqual(["https://example.com", "https://preview.example.com"]);
+		});
+
+		it("yields a single-element origins array when allowedOrigins is empty", () => {
+			const url = new URL("http://localhost:4321/admin");
+			const config = getPasskeyConfig(url, undefined, "https://example.com", []);
+			expect(config.origins).toEqual(["https://example.com"]);
 		});
 	});
 });

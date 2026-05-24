@@ -11,11 +11,20 @@ import { Role, type RoleLevel } from "./types.js";
 export const Permissions = {
 	// Content
 	"content:read": Role.SUBSCRIBER,
+	// content:read_drafts gates non-published content (drafts, scheduled, trash)
+	// and editor-only views (revisions, compare, preview-url). Subscribers may
+	// hold content:read for member-only published content but must not see
+	// drafts.
+	"content:read_drafts": Role.CONTRIBUTOR,
 	"content:create": Role.CONTRIBUTOR,
 	"content:edit_own": Role.AUTHOR,
 	"content:edit_any": Role.EDITOR,
 	"content:delete_own": Role.AUTHOR,
 	"content:delete_any": Role.EDITOR,
+	// Permanent deletion (empty trash) is irreversible and bypasses the
+	// soft-delete safety net, so it sits at the same authorization tier as
+	// other destructive system actions (schema:manage, comments:delete).
+	"content:delete_permanent": Role.ADMIN,
 	"content:publish_own": Role.AUTHOR,
 	"content:publish_any": Role.EDITOR,
 
@@ -40,6 +49,10 @@ export const Permissions = {
 	// Menus
 	"menus:read": Role.SUBSCRIBER,
 	"menus:manage": Role.EDITOR,
+
+	// Bylines
+	"bylines:read": Role.SUBSCRIBER,
+	"bylines:manage": Role.EDITOR,
 
 	// Widgets
 	"widgets:read": Role.SUBSCRIBER,
@@ -120,7 +133,12 @@ export function canActOnOwn(
 	anyPermission: Permission,
 ): boolean {
 	if (!user) return false;
-	if (user.id === ownerId) {
+	// Defense in depth: an empty-string ownerId means "no recorded owner"
+	// (e.g. seed-imported content with `authorId: null` extracted to ""),
+	// not "owned by an unauthenticated user". If both the user.id and the
+	// ownerId are "", treating them as a match would accidentally grant
+	// edit-own — fall through to the any-permission check instead.
+	if (ownerId !== "" && user.id === ownerId) {
 		return hasPermission(user, ownPermission);
 	}
 	return hasPermission(user, anyPermission);
@@ -174,6 +192,10 @@ const SCOPE_MIN_ROLE: Record<ApiTokenScope, RoleLevel> = {
 	"media:write": Role.CONTRIBUTOR,
 	"schema:read": Role.EDITOR,
 	"schema:write": Role.ADMIN,
+	"taxonomies:manage": Role.EDITOR,
+	"menus:manage": Role.EDITOR,
+	"settings:read": Role.EDITOR,
+	"settings:manage": Role.ADMIN,
 	admin: Role.ADMIN,
 };
 
@@ -184,7 +206,7 @@ const SCOPE_MIN_ROLE: Record<ApiTokenScope, RoleLevel> = {
  * to enforce: effective_scopes = requested_scopes ∩ scopesForRole(role).
  */
 export function scopesForRole(role: RoleLevel): ApiTokenScope[] {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Object.entries loses tuple types; SCOPE_MIN_ROLE keys are ApiTokenScope by construction
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries loses tuple types; SCOPE_MIN_ROLE keys are ApiTokenScope by construction
 	const entries = Object.entries(SCOPE_MIN_ROLE) as [ApiTokenScope, RoleLevel][];
 	return entries.reduce<ApiTokenScope[]>((acc, [scope, minRole]) => {
 		if (role >= minRole) acc.push(scope);

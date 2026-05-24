@@ -1,0 +1,19 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-plugins-site",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-04-01",
+	"assets": {
+		"directory": "./public",
+		"not_found_handling": "404-page",
+	},
+	"routes": [
+		{
+			"pattern": "plugins.emdashcms.com",
+			"custom_domain": true,
+		},
+	],
+	"observability": {
+		"enabled": true,
+	},
+}

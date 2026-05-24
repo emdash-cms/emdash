@@ -1,0 +1,44 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.publisher.verification",
+	"description": "Verification claim by one DID about another's status as a trusted EmDash plugin publisher. Modeled on Bluesky's app.bsky.graph.verification shape but in EmDash's own namespace so the semantics are scoped to plugin publishing. EXPERIMENTAL: shape may change before stabilisation.",
+	"defs": {
+		"main": {
+			"type": "record",
+			"description": "A signed claim that the issuing repo's DID vouches for `subject` as a trusted publisher of EmDash plugins. The official EmDash identity publishes these as the trust root; trusted issuers may delegate by issuing further verification claims of their own. Clients consume the resulting graph via the standard atproto-accept-labelers mechanism. The record key is a TID. Verification is bound to the subject's handle and displayName at the moment of issuance: a change to either invalidates the verification until the issuer re-attests. This matches Bluesky's app.bsky.graph.verification semantics and defends against handle reuse and identity drift.",
+			"key": "tid",
+			"record": {
+				"type": "object",
+				"required": ["subject", "handle", "displayName", "createdAt"],
+				"properties": {
+					"subject": {
+						"type": "string",
+						"format": "did",
+						"description": "DID of the subject the verification applies to."
+					},
+					"handle": {
+						"type": "string",
+						"format": "handle",
+						"description": "Handle of the subject at the moment of issuance. The verification is only valid if the subject's current handle (resolved from their DID document) matches this value byte-for-byte. Any handle change invalidates the verification until the issuer re-attests."
+					},
+					"displayName": {
+						"type": "string",
+						"description": "Subject's `displayName` from their `com.emdashcms.experimental.publisher.profile` record (rkey `self`) at the moment of issuance. The verification is only valid if the subject's current publisher profile displayName matches this value byte-for-byte. A subject without a publisher profile cannot be verified: the issuer MUST require the subject to publish a publisher.profile before issuing the claim, and clients MUST reject verifications whose subject has no publisher profile resolvable at issuance check time.",
+						"maxLength": 1024,
+						"maxGraphemes": 100
+					},
+					"createdAt": {
+						"type": "string",
+						"format": "datetime",
+						"description": "When the verification was issued."
+					},
+					"expiresAt": {
+						"type": "string",
+						"format": "datetime",
+						"description": "Optional expiration timestamp. If absent, the verification has no automatic expiry. Clients SHOULD treat the verification as not in force after this time, regardless of whether the issuer has revoked it."
+					}
+				}
+			}
+		}
+	}
+}

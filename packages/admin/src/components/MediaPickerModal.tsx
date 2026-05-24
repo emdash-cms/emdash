@@ -7,9 +7,11 @@
  */
 
 import { Button, Dialog, Input, Label, Loader } from "@cloudflare/kumo";
-import { Upload, Image, Check, Globe, MagnifyingGlass } from "@phosphor-icons/react";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
+import { Upload, Image, Check, Globe, MagnifyingGlass, Paperclip } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import {
@@ -24,6 +26,7 @@ import {
 	type MediaProviderItem,
 } from "../lib/api";
 import { providerItemToMediaItem, getFileIcon } from "../lib/media-utils";
+import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
 import { DialogError } from "./DialogError.js";
 
@@ -33,6 +36,26 @@ interface SelectedMedia {
 	item: MediaItem | MediaProviderItem;
 }
 
+/**
+ * Returns true if the given MIME type matches any entry in the filters array.
+ * Each filter entry is either an exact MIME type (e.g. "image/png") or a
+ * type prefix ending with "/" (e.g. "image/").
+ */
+function matchesAnyFilter(mime: string, filters: string[] | undefined): boolean {
+	if (!filters || filters.length === 0) return true;
+	const normalizedMime = mime.toLowerCase();
+	for (const entry of filters) {
+		if (!entry || !entry.includes("/")) continue;
+		const normalizedEntry = entry.toLowerCase();
+		if (normalizedEntry.endsWith("/")) {
+			if (normalizedMime.startsWith(normalizedEntry)) return true;
+		} else if (normalizedMime === normalizedEntry) {
+			return true;
+		}
+	}
+	return false;
+}
+
 export interface MediaPickerModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -40,19 +63,50 @@ export interface MediaPickerModalProps {
 	/** Filter by mime type prefix, e.g. "image/" */
 	mimeTypeFilter?: string;
 	title?: string;
+	/**
+	 * Hide the "Insert from URL" input. Defaults to false.
+	 * The URL input probes image dimensions and is only meaningful for image pickers,
+	 * so non-image pickers (e.g. generic file pickers) should hide it.
+	 */
+	hideUrlInput?: boolean;
+	/**
+	 * What kind of media this picker is for. Drives user-facing copy
+	 * (default title, empty-state message, upload button label, empty-state icon).
+	 * Defaults to "image" — set to "file" for generic file pickers.
+	 */
+	mediaKind?: "image" | "file";
+	/** MIME allowlist — array of exact MIMEs or `type/` prefixes. */
+	mimeTypeFilters?: string[];
+	/** `_emdash_fields` row id for server-side MIME widening. */
+	fieldId?: string;
+	/**
+	 * Restrict the picker to the local Library only — hides the "Insert from URL"
+	 * input and suppresses external provider tabs.
+	 *
+	 * Use this for fields whose storage model only persists a local `mediaId`.
+	 * Selecting an external URL or provider item would return an item the
+	 * server cannot later resolve back to a URL (the `id` is either empty
+	 * for "Insert from URL" or a provider-namespaced string that won't match
+	 * a row in the `media` table). Site settings (logo, favicon,
+	 * `seo.defaultOgImage`) are the canonical callers.
+	 */
+	localOnly?: boolean;
 }
 
 /**
  * Probe image URL to get dimensions
  */
-function probeImageDimensions(url: string): Promise<{ width: number; height: number }> {
+function probeImageDimensions(
+	url: string,
+	errorMessage: string,
+): Promise<{ width: number; height: number }> {
 	return new Promise((resolve, reject) => {
 		const img = new window.Image();
 		img.onload = () => {
 			resolve({ width: img.naturalWidth, height: img.naturalHeight });
 		};
 		img.onerror = () => {
-			reject(new Error("Failed to load image"));
+			reject(new Error(errorMessage));
 		};
 		img.src = url;
 	});
@@ -63,8 +117,30 @@ export function MediaPickerModal({
 	onOpenChange,
 	onSelect,
 	mimeTypeFilter = "image/",
-	title = "Select Image",
+	mimeTypeFilters,
+	fieldId,
+	title: providedTitle,
+	hideUrlInput = false,
+	mediaKind = "image",
+	localOnly = false,
 }: MediaPickerModalProps) {
+	const { t } = useLingui();
+	const isFileKind = mediaKind === "file";
+
+	// Unified filters: mimeTypeFilters (plural array) takes precedence over the
+	// legacy mimeTypeFilter (singular string).
+	const filters = React.useMemo(() => {
+		if (mimeTypeFilters !== undefined)
+			return mimeTypeFilters.length > 0 ? mimeTypeFilters : undefined;
+		if (mimeTypeFilter && mimeTypeFilter.length > 0) return [mimeTypeFilter];
+		return undefined;
+	}, [mimeTypeFilters, mimeTypeFilter]);
+	const title = providedTitle ?? (isFileKind ? t`Select File` : t`Select Image`);
+	const emptyStateUploadHint = isFileKind
+		? t`Upload a file to get started`
+		: t`Upload an image to get started`;
+	const emptyStateUploadCta = isFileKind ? t`Upload File` : t`Upload Image`;
+	const EmptyStateIcon = isFileKind ? Paperclip : Image;
 	const queryClient = useQueryClient();
 	const [selectedItem, setSelectedItem] = React.useState<SelectedMedia | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
@@ -81,7 +157,11 @@ export function MediaPickerModal({
 		Record<string, { width: number; height: number }>
 	>({});
 
-	// Reset state when modal opens
+	// Reset state when modal opens, or when `localOnly` flips on while it's
+	// already open. Without the `localOnly` dependency a parent that toggles
+	// the prop mid-session could leave `activeProvider` on a non-local tab
+	// (the tab UI is suppressed, but the selection state and provider-media
+	// query would still target the external provider).
 	React.useEffect(() => {
 		if (open) {
 			setSelectedItem(null);
@@ -92,13 +172,16 @@ export function MediaPickerModal({
 			setUploadError(null);
 			setProviderDimensions({});
 		}
-	}, [open]);
+	}, [open, localOnly]);
 
-	// Fetch available providers
+	// Fetch available providers — skipped when `localOnly` is set since the
+	// list isn't used (provider tabs are suppressed and the active provider
+	// stays "local"). Avoids a request to /providers on every modal open
+	// when we'll just throw the result away.
 	const { data: providers } = useQuery({
 		queryKey: ["media-providers"],
 		queryFn: fetchMediaProviders,
-		enabled: open,
+		enabled: open && !localOnly,
 		// Default to just local if fetch fails
 		placeholderData: [],
 	});
@@ -116,36 +199,50 @@ export function MediaPickerModal({
 		return providers?.find((p) => p.id === activeProvider);
 	}, [activeProvider, providers]);
 
-	// Fetch local media list
-	const { data: localData, isLoading: localLoading } = useQuery({
-		queryKey: ["media", mimeTypeFilter],
-		queryFn: () =>
+	// Fetch local media list (cursor-paginated so libraries beyond the
+	// first page remain selectable from the picker, not just the first 50).
+	const {
+		data: localData,
+		isLoading: localLoading,
+		fetchNextPage: fetchNextLocalPage,
+		hasNextPage: hasNextLocalPage,
+		isFetchingNextPage: isFetchingNextLocalPage,
+	} = useInfiniteQuery({
+		queryKey: ["media", filters?.join(",") ?? ""],
+		queryFn: ({ pageParam }) =>
 			fetchMediaList({
-				mimeType: mimeTypeFilter,
-				limit: 50,
+				mimeType: filters,
+				cursor: pageParam,
+				limit: 100,
 			}),
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor,
 		enabled: open && activeProvider === "local",
 	});
 
-	// Fetch provider media list
+	// Fetch provider media list. Belt-and-suspenders: the reset effect
+	// forces `activeProvider` back to "local" when `localOnly` is true, but
+	// also gate this query directly so a stale render can't fire an
+	// external request between state updates.
 	const { data: providerData, isLoading: providerLoading } = useQuery({
-		queryKey: ["provider-media", activeProvider, mimeTypeFilter, searchQuery],
+		queryKey: ["provider-media", activeProvider, filters?.join(",") ?? "", searchQuery],
 		queryFn: () =>
 			fetchProviderMedia(activeProvider, {
-				mimeType: mimeTypeFilter,
+				mimeType: filters,
 				limit: 50,
 				query: searchQuery || undefined,
 			}),
-		enabled: open && activeProvider !== "local",
+		enabled: open && !localOnly && activeProvider !== "local",
 	});
 
-	const isLoading = activeProvider === "local" ? localLoading : providerLoading;
+	const isLoading =
+		activeProvider === "local" ? localLoading || isFetchingNextLocalPage : providerLoading;
 
 	const [uploadError, setUploadError] = React.useState<string | null>(null);
 
 	// Upload mutation for local provider
 	const uploadLocalMutation = useMutation({
-		mutationFn: (file: File) => uploadMedia(file),
+		mutationFn: (file: File) => uploadMedia(file, { fieldId }),
 		onSuccess: (item) => {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 			setSelectedItem({ providerId: "local", item });
@@ -181,12 +278,22 @@ export function MediaPickerModal({
 			updateMedia(id, { width, height }),
 		onSuccess: (_updated, { id, width, height }) => {
 			queryClient.setQueryData(
-				["media", mimeTypeFilter],
-				(old: { items: MediaItem[]; nextCursor?: string } | undefined) => {
+				["media", filters?.join(",") ?? ""],
+				(
+					old:
+						| {
+								pages: { items: MediaItem[]; nextCursor?: string }[];
+								pageParams: unknown[];
+						  }
+						| undefined,
+				) => {
 					if (!old) return old;
 					return {
 						...old,
-						items: old.items.map((item) => (item.id === id ? { ...item, width, height } : item)),
+						pages: old.pages.map((page) => ({
+							...page,
+							items: page.items.map((item) => (item.id === id ? { ...item, width, height } : item)),
+						})),
 					};
 				},
 			);
@@ -216,12 +323,11 @@ export function MediaPickerModal({
 	// Get items for current view
 	const items = React.useMemo(() => {
 		if (activeProvider === "local") {
-			const localItems = localData?.items || [];
-			if (!mimeTypeFilter) return localItems;
-			return localItems.filter((item) => item.mimeType.startsWith(mimeTypeFilter));
+			const localItems = localData?.pages.flatMap((page) => page.items) || [];
+			return localItems.filter((item) => matchesAnyFilter(item.mimeType, filters));
 		}
 		return providerData?.items || [];
-	}, [activeProvider, localData?.items, providerData?.items, mimeTypeFilter]);
+	}, [activeProvider, localData, providerData?.items, filters]);
 
 	const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const files = e.target.files;
@@ -277,7 +383,7 @@ export function MediaPickerModal({
 		try {
 			url = new URL(imageUrl.trim());
 		} catch {
-			setUrlError("Please enter a valid URL");
+			setUrlError(t`Please enter a valid URL`);
 			return;
 		}
 
@@ -285,12 +391,28 @@ export function MediaPickerModal({
 		setUrlError(null);
 
 		try {
-			const dimensions = await probeImageDimensions(url.href);
+			const sniffedMime = mimeFromUrl(url) ?? "image/unknown";
+
+			// Pre-validate against the field's allowlist so the user sees the error
+			// here rather than at content-save time (where it becomes INVALID_MIME_FOR_FIELD).
+			if (sniffedMime === "image/unknown" && filters && filters.length > 0) {
+				setUrlError(
+					t`Cannot determine MIME type from URL. Use a URL ending in a recognized image extension (e.g. .jpg, .png, .webp).`,
+				);
+				return;
+			}
+			if (filters && filters.length > 0 && !matchesMimeAllowlist(sniffedMime, filters)) {
+				setUrlError(t`This field does not accept ${sniffedMime} files.`);
+				return;
+			}
+
+			const dimensions = await probeImageDimensions(url.href, t`Failed to load image`);
 			const externalItem: MediaItem = {
 				id: "",
 				filename: url.pathname.split("/").pop() || "external-image",
-				mimeType: "image/unknown",
+				mimeType: sniffedMime,
 				url: url.href,
+				provider: "external-url",
 				size: 0,
 				width: dimensions.width,
 				height: dimensions.height,
@@ -301,7 +423,7 @@ export function MediaPickerModal({
 			onOpenChange(false);
 			setImageUrl("");
 		} catch {
-			setUrlError("Could not load image from URL");
+			setUrlError(t`Could not load image from URL`);
 		} finally {
 			setIsProbing(false);
 		}
@@ -319,12 +441,14 @@ export function MediaPickerModal({
 	const canSearch = activeProviderInfo?.capabilities.search ?? false;
 
 	// Build provider tabs - always show local first, then add external providers
-	// Filter out "local" from API response since we add it manually
+	// Filter out "local" from API response since we add it manually.
+	// When `localOnly` is set, suppress external providers entirely so the
+	// picker can only return locally-stored media (see prop docs).
 	const providerTabs = React.useMemo(() => {
 		const tabs: Array<{ id: string; name: string; icon?: string }> = [
 			{ id: "local", name: "Library", icon: undefined },
 		];
-		if (providers) {
+		if (providers && !localOnly) {
 			for (const p of providers) {
 				if (p.id !== "local") {
 					tabs.push({ id: p.id, name: p.name, icon: p.icon });
@@ -332,67 +456,71 @@ export function MediaPickerModal({
 			}
 		}
 		return tabs;
-	}, [providers]);
+	}, [providers, localOnly]);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={handleClose}>
-			<Dialog className="p-6 max-w-4xl max-h-[80vh] flex flex-col" size="xl">
+			<Dialog className="p-6 max-w-4xl max-h-[80vh] flex flex-col overflow-hidden" size="xl">
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
 						{title}
 					</Dialog.Title>
 					<Dialog.Close
-						aria-label="Close"
+						aria-label={t`Close`}
 						render={(props) => (
 							<Button
 								{...props}
 								variant="ghost"
 								shape="square"
-								aria-label="Close"
-								className="absolute right-4 top-4"
+								aria-label={t`Close`}
+								className="absolute end-4 top-4"
 							>
 								<X className="h-4 w-4" />
-								<span className="sr-only">Close</span>
+								<span className="sr-only">{t`Close`}</span>
 							</Button>
 						)}
 					/>
 				</div>
 
-				{/* URL Input */}
-				<div className="border-b pb-4">
-					<Label>Insert from URL</Label>
-					<div className="flex gap-2 mt-1.5">
-						<div className="flex-1 relative">
-							<Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
-							<Input
-								type="url"
-								placeholder="https://example.com/image.jpg"
-								aria-label="Image URL"
-								value={imageUrl}
-								onChange={(e) => {
-									setImageUrl(e.target.value);
-									setUrlError(null);
-								}}
-								onKeyDown={handleUrlKeyDown}
-								className="pl-9"
-							/>
+				{/* URL Input (image pickers only — probes image dimensions) */}
+				{!hideUrlInput && !localOnly && (
+					<>
+						<div className="border-b pb-4">
+							<Label>{t`Insert from URL`}</Label>
+							<div className="flex gap-2 mt-1.5">
+								<div className="flex-1 relative">
+									<Globe className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+									<Input
+										type="url"
+										placeholder={t`https://example.com/image.jpg`}
+										aria-label={t`Image URL`}
+										value={imageUrl}
+										onChange={(e) => {
+											setImageUrl(e.target.value);
+											setUrlError(null);
+										}}
+										onKeyDown={handleUrlKeyDown}
+										className="ps-9"
+									/>
+								</div>
+								<Button onClick={handleUrlSubmit} disabled={!imageUrl.trim() || isProbing}>
+									{isProbing ? <Loader size="sm" /> : t`Insert`}
+								</Button>
+							</div>
+							{urlError && <p className="text-sm text-kumo-danger mt-1">{urlError}</p>}
 						</div>
-						<Button onClick={handleUrlSubmit} disabled={!imageUrl.trim() || isProbing}>
-							{isProbing ? <Loader size="sm" /> : "Insert"}
-						</Button>
-					</div>
-					{urlError && <p className="text-sm text-kumo-danger mt-1">{urlError}</p>}
-				</div>
 
-				{/* Divider with "or" */}
-				<div className="relative py-2">
-					<div className="absolute inset-0 flex items-center">
-						<span className="w-full border-t" />
-					</div>
-					<div className="relative flex justify-center text-xs uppercase">
-						<span className="bg-kumo-base px-2 text-kumo-subtle">or choose from library</span>
-					</div>
-				</div>
+						{/* Divider with "or" */}
+						<div className="relative py-2">
+							<div className="absolute inset-0 flex items-center">
+								<span className="w-full border-t" />
+							</div>
+							<div className="relative flex justify-center text-xs uppercase">
+								<span className="bg-kumo-base px-2 text-kumo-subtle">{t`or choose from library`}</span>
+							</div>
+						</div>
+					</>
+				)}
 
 				{/* Provider Tabs */}
 				{providerTabs.length > 1 && (
@@ -430,19 +558,19 @@ export function MediaPickerModal({
 					{/* Search (if provider supports it) */}
 					{canSearch ? (
 						<div className="relative flex-1 max-w-xs">
-							<MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+							<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 							<Input
 								type="search"
-								placeholder="Search..."
-								aria-label="Search media"
+								placeholder={t`Search...`}
+								aria-label={t`Search media`}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
-								className="pl-9"
+								className="ps-9"
 							/>
 						</div>
 					) : (
 						<p className="text-sm text-kumo-subtle">
-							{items.length} item{items.length !== 1 ? "s" : ""}
+							{plural(items.length, { one: "# item", other: "# items" })}
 						</p>
 					)}
 
@@ -455,15 +583,19 @@ export function MediaPickerModal({
 								onClick={() => fileInputRef.current?.click()}
 								disabled={isUploading}
 							>
-								{isUploading ? "Uploading..." : "Upload"}
+								{isUploading ? t`Uploading...` : t`Upload`}
 							</Button>
 							<input
 								ref={fileInputRef}
 								type="file"
-								accept={mimeTypeFilter ? `${mimeTypeFilter}*` : undefined}
+								accept={
+									filters
+										? filters.map((f) => (f.endsWith("/") ? f + "*" : f)).join(",")
+										: undefined
+								}
 								className="sr-only"
 								onChange={handleFileSelect}
-								aria-label="Upload file"
+								aria-label={t`Upload file`}
 							/>
 						</>
 					)}
@@ -471,26 +603,32 @@ export function MediaPickerModal({
 
 				{/* Upload error */}
 				<DialogError
-					message={uploadError ? `Upload failed: ${uploadError}` : null}
+					message={uploadError ? t`Upload failed: ${uploadError}` : null}
 					className="mb-3"
 				/>
 
 				{/* Media Grid */}
-				<div className="flex-1 overflow-y-auto min-h-[300px]">
-					{isLoading ? (
+				<div className="flex-1 overflow-y-auto min-h-0">
+					{/*
+					 * Gate the centered loader on items being empty so that "Load More"
+					 * (which sets isLoading=true while fetching the next cursor page)
+					 * does not blank out already-rendered items / lose the user's
+					 * selection. Mirrors the ContentList pattern from #135.
+					 */}
+					{isLoading && items.length === 0 ? (
 						<div className="flex items-center justify-center h-full">
 							<Loader />
 						</div>
 					) : items.length === 0 ? (
 						<div className="flex flex-col items-center justify-center h-full text-center p-8">
-							<Image className="h-12 w-12 text-kumo-subtle mb-4" aria-hidden="true" />
-							<h3 className="text-lg font-medium">No media found</h3>
+							<EmptyStateIcon className="h-12 w-12 text-kumo-subtle mb-4" aria-hidden="true" />
+							<h3 className="text-lg font-medium">{t`No media found`}</h3>
 							<p className="text-sm text-kumo-subtle mt-1">
 								{canSearch && searchQuery
-									? "Try a different search term"
+									? t`Try a different search term`
 									: canUpload
-										? "Upload an image to get started"
-										: "No media available from this provider"}
+										? emptyStateUploadHint
+										: t`No media available from this provider`}
 							</p>
 							{canUpload && !searchQuery && (
 								<Button
@@ -498,7 +636,7 @@ export function MediaPickerModal({
 									icon={<Upload />}
 									onClick={() => fileInputRef.current?.click()}
 								>
-									Upload Image
+									{emptyStateUploadCta}
 								</Button>
 							)}
 						</div>
@@ -506,7 +644,7 @@ export function MediaPickerModal({
 						<ul
 							className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3 p-1"
 							role="listbox"
-							aria-label="Available media"
+							aria-label={t`Available media`}
 						>
 							{activeProvider === "local"
 								? (items as MediaItem[]).map((item) => (
@@ -557,6 +695,20 @@ export function MediaPickerModal({
 									))}
 						</ul>
 					)}
+
+					{/* Load more (local library only — providers handle pagination internally) */}
+					{activeProvider === "local" && hasNextLocalPage && (
+						<div className="flex justify-center py-3">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => void fetchNextLocalPage()}
+								disabled={isFetchingNextLocalPage}
+							>
+								{isFetchingNextLocalPage ? t`Loading...` : t`Load More`}
+							</Button>
+						</div>
+					)}
 				</div>
 
 				{/* Footer */}
@@ -564,20 +716,20 @@ export function MediaPickerModal({
 					<div className="flex-1 text-sm text-kumo-subtle">
 						{selectedItem && (
 							<span>
-								Selected: <strong>{selectedItem.item.filename}</strong>
+								{t`Selected:`} <strong>{selectedItem.item.filename}</strong>
 								{selectedItem.providerId !== "local" && (
-									<span className="ml-2 text-xs">
-										(from {providers?.find((p) => p.id === selectedItem.providerId)?.name})
+									<span className="ms-2 text-xs">
+										{t`(from ${providers?.find((p) => p.id === selectedItem.providerId)?.name})`}
 									</span>
 								)}
 							</span>
 						)}
 					</div>
 					<Button variant="outline" onClick={handleClose}>
-						Cancel
+						{t`Cancel`}
 					</Button>
 					<Button onClick={handleConfirm} disabled={!selectedItem}>
-						Insert
+						{t`Insert`}
 					</Button>
 				</div>
 			</Dialog>
@@ -600,6 +752,7 @@ function MediaPickerItem({
 	onDoubleClick,
 	onDimensionsDetected,
 }: MediaPickerItemProps) {
+	const { t } = useLingui();
 	const isImage = item.mimeType.startsWith("image/");
 	const needsDimensions = isImage && (!item.width || !item.height);
 
@@ -626,7 +779,7 @@ function MediaPickerItem({
 				)}
 				onClick={onClick}
 				onDoubleClick={onDoubleClick}
-				aria-label={`${item.filename}${selected ? " (selected)" : ""}`}
+				aria-label={t`${item.filename}${selected ? t` (selected)` : ""}`}
 			>
 				{isImage ? (
 					<img
@@ -655,7 +808,7 @@ function MediaPickerItem({
 				)}
 
 				<div
-					className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2"
+					className="absolute bottom-0 start-0 end-0 bg-gradient-to-t from-black/60 to-transparent p-2"
 					aria-hidden="true"
 				>
 					<p className="text-xs text-white truncate">{item.filename}</p>
@@ -681,6 +834,7 @@ function ProviderMediaItem({
 	onDoubleClick,
 	onDimensionsLoaded,
 }: ProviderMediaItemProps) {
+	const { t } = useLingui();
 	const isImage = item.mimeType.startsWith("image/");
 	const needsDimensions = isImage && (!item.width || !item.height);
 
@@ -707,7 +861,7 @@ function ProviderMediaItem({
 				)}
 				onClick={onClick}
 				onDoubleClick={onDoubleClick}
-				aria-label={`${item.filename}${selected ? " (selected)" : ""}`}
+				aria-label={t`${item.filename}${selected ? t` (selected)` : ""}`}
 			>
 				{isImage && item.previewUrl ? (
 					<img
@@ -736,7 +890,7 @@ function ProviderMediaItem({
 				)}
 
 				<div
-					className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2"
+					className="absolute bottom-0 start-0 end-0 bg-gradient-to-t from-black/60 to-transparent p-2"
 					aria-hidden="true"
 				>
 					<p className="text-xs text-white truncate">{item.filename}</p>

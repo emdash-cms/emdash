@@ -1,18 +1,26 @@
-import { Button, Input, InputArea, Loader, Switch } from "@cloudflare/kumo";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button, Input, InputArea, Loader, Select, Switch } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
 import { DialogError, getMutationError } from "../components/DialogError.js";
+import { LocaleSwitcher, useI18nConfig } from "../components/LocaleSwitcher.js";
+import { TranslationsPanel } from "../components/TranslationsPanel.js";
 import {
 	createByline,
+	createBylineTranslation,
 	deleteByline,
+	fetchByline,
+	fetchBylineTranslations,
 	fetchBylines,
 	fetchUsers,
 	updateByline,
 	type BylineSummary,
 	type UserListItem,
 } from "../lib/api";
+import { fetchManifest } from "../lib/api/client.js";
 import { useCachedQuery } from "../lib/cache/cached-query.js";
 
 interface BylineFormState {
@@ -22,6 +30,28 @@ interface BylineFormState {
 	websiteUrl: string;
 	userId: string | null;
 	isGuest: boolean;
+}
+
+export interface LoadMoreSnapshot {
+	search: string;
+	guestFilter: "all" | "guest" | "linked";
+	locale: string | undefined;
+	cursor: string;
+}
+
+/**
+ * True when the load-more snapshot still matches the current filter state.
+ * Used to discard appends from requests whose filters have changed mid-flight.
+ */
+export function loadMoreSnapshotMatches(
+	snapshot: LoadMoreSnapshot,
+	current: Omit<LoadMoreSnapshot, "cursor">,
+): boolean {
+	return (
+		snapshot.search === current.search &&
+		snapshot.guestFilter === current.guestFilter &&
+		snapshot.locale === current.locale
+	);
 }
 
 function toFormState(byline?: BylineSummary | null): BylineFormState {
@@ -52,7 +82,10 @@ function getUserLabel(user: UserListItem): string {
 }
 
 export function BylinesPage() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
+	const { locale: routeLocale } = useSearch({ from: "/_admin/bylines" });
 	const [search, setSearch] = React.useState("");
 	const [guestFilter, setGuestFilter] = React.useState<"all" | "guest" | "linked">("all");
 	const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -60,12 +93,38 @@ export function BylinesPage() {
 	const [allItems, setAllItems] = React.useState<BylineSummary[]>([]);
 	const [nextCursor, setNextCursor] = React.useState<string | undefined>(undefined);
 
+	// Manifest powers the locale switcher: the configured locales + default
+	// locale come from the site's emdash config, exposed on the manifest.
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+	const i18n = useI18nConfig(manifest);
+	const isMultiLocale = !!i18n && i18n.locales.length > 1;
+	// `activeLocale` is the URL search param when present, else the default.
+	// Picker on a translated post can be expected to scope to the post's
+	// locale (Phase 4 wires that up); for the bylines manager itself the
+	// active locale just filters the list and seeds new bylines.
+	const activeLocale = routeLocale ?? i18n?.defaultLocale ?? undefined;
+
+	const handleLocaleChange = (locale: string) => {
+		void navigate({
+			to: "/bylines",
+			search: { locale: locale || undefined },
+		});
+		// Switching locales invalidates the previously-selected byline (it
+		// belongs to a different list); clear selection so the editor opens
+		// in "create" mode at the new locale.
+		setSelectedId(null);
+	};
+
 	const { data, isLoading, error } = useCachedQuery({
-		queryKey: ["bylines", search, guestFilter],
+		queryKey: ["bylines", search, guestFilter, activeLocale ?? null],
 		queryFn: () =>
 			fetchBylines({
 				search: search || undefined,
 				isGuest: guestFilter === "all" ? undefined : guestFilter === "guest",
+				locale: activeLocale,
 				limit: 50,
 			}),
 		cache: {
@@ -95,32 +154,56 @@ export function BylinesPage() {
 
 	const users = usersData?.items ?? [];
 
+	// Snapshot filters at click-time and discard the response if the user
+	// changed any of them while the request was in flight — otherwise stale
+	// pages from a different filter set get appended to the visible list.
 	const loadMoreMutation = useMutation({
-		mutationFn: async () => {
-			if (!nextCursor) return null;
-			return fetchBylines({
-				search: search || undefined,
-				isGuest: guestFilter === "all" ? undefined : guestFilter === "guest",
+		mutationFn: async (snapshot: LoadMoreSnapshot) => {
+			const result = await fetchBylines({
+				search: snapshot.search || undefined,
+				isGuest: snapshot.guestFilter === "all" ? undefined : snapshot.guestFilter === "guest",
+				locale: snapshot.locale,
 				limit: 50,
-				cursor: nextCursor,
+				cursor: snapshot.cursor,
 			});
+			return { result, snapshot };
 		},
-		onSuccess: (result) => {
-			if (result) {
-				setAllItems((prev) => [...prev, ...result.items]);
-				setNextCursor(result.nextCursor);
+		onSuccess: ({ result, snapshot }) => {
+			if (!loadMoreSnapshotMatches(snapshot, { search, guestFilter, locale: activeLocale })) {
+				return;
 			}
+			setAllItems((prev) => [...prev, ...result.items]);
+			setNextCursor(result.nextCursor);
 		},
 	});
 
 	const items = allItems;
-	const selected = items.find((item) => item.id === selectedId) ?? null;
+	// The selected row may live in `allItems` (visible at the active locale)
+	// or be a sibling of the open byline reached via TranslationsPanel. Fetch
+	// directly by id so the editor stays consistent when the selection
+	// crosses locale boundaries.
+	const { data: selectedRemote } = useQuery({
+		queryKey: ["byline", selectedId],
+		queryFn: () => (selectedId ? fetchByline(selectedId) : Promise.resolve(null)),
+		enabled: !!selectedId,
+	});
+	const selected = selectedRemote ?? items.find((item) => item.id === selectedId) ?? null;
 
 	const [form, setForm] = React.useState<BylineFormState>(() => toFormState(null));
 
 	React.useEffect(() => {
 		setForm(toFormState(selected));
-	}, [selectedId, selected]);
+	}, [selected]);
+
+	// Translations: only fetched when a multi-locale install has a byline
+	// open. The panel renders one row per configured locale, with Translate
+	// or Edit buttons depending on which siblings exist.
+	const { data: translationsData } = useQuery({
+		queryKey: ["byline-translations", selectedId],
+		queryFn: () =>
+			selectedId ? fetchBylineTranslations(selectedId) : Promise.resolve({ items: [] }),
+		enabled: !!selectedId && isMultiLocale,
+	});
 
 	const createMutation = useMutation({
 		mutationFn: () =>
@@ -131,6 +214,7 @@ export function BylinesPage() {
 				websiteUrl: form.websiteUrl || null,
 				userId: form.userId,
 				isGuest: form.isGuest,
+				locale: activeLocale,
 			}),
 		onSuccess: (created) => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
@@ -152,6 +236,9 @@ export function BylinesPage() {
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
+			if (selectedId) {
+				void queryClient.invalidateQueries({ queryKey: ["byline", selectedId] });
+			}
 		},
 	});
 
@@ -167,6 +254,38 @@ export function BylinesPage() {
 		},
 	});
 
+	// Translate-this-byline action: creates a sibling row in the target locale
+	// joined to the same translation_group. We track `pendingTranslationLocale`
+	// so the TranslationsPanel can disable the right button while in flight.
+	const [pendingTranslationLocale, setPendingTranslationLocale] = React.useState<string | null>(
+		null,
+	);
+	const translateMutation = useMutation({
+		mutationFn: (targetLocale: string) => {
+			if (!selectedId) throw new Error("No byline selected");
+			setPendingTranslationLocale(targetLocale);
+			return createBylineTranslation(selectedId, { locale: targetLocale });
+		},
+		onSettled: () => {
+			setPendingTranslationLocale(null);
+		},
+		onSuccess: (created) => {
+			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
+			if (selectedId) {
+				void queryClient.invalidateQueries({
+					queryKey: ["byline-translations", selectedId],
+				});
+			}
+			// Switch the admin locale to the new sibling's locale and open it
+			// in the editor — same flow as menus/taxonomies after Translate.
+			void navigate({
+				to: "/bylines",
+				search: { locale: created.locale },
+			});
+			setSelectedId(created.id);
+		},
+	});
+
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center min-h-[30vh]">
@@ -176,164 +295,209 @@ export function BylinesPage() {
 	}
 
 	if (error) {
-		return <div className="text-kumo-danger">Failed to load bylines: {error.message}</div>;
+		return <div className="text-kumo-danger">{t`Failed to load bylines: ${error.message}`}</div>;
 	}
 
 	const isSaving = createMutation.isPending || updateMutation.isPending;
-	const mutationError = createMutation.error || updateMutation.error || deleteMutation.error;
+	const mutationError =
+		createMutation.error || updateMutation.error || deleteMutation.error || translateMutation.error;
 
 	return (
-		<div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-			<div className="rounded-lg border p-4">
-				<div className="mb-4 space-y-2">
-					<Input
-						placeholder="Search bylines"
-						value={search}
-						onChange={(e) => setSearch(e.target.value)}
-					/>
-					<div className="flex items-center gap-2">
-						<select
-							aria-label="Filter byline type"
-							value={guestFilter}
-							onChange={(e) => setGuestFilter(e.target.value as "all" | "guest" | "linked")}
-							className="w-full rounded border bg-kumo-base px-3 py-2 text-sm"
-						>
-							<option value="all">All bylines</option>
-							<option value="guest">Guest only</option>
-							<option value="linked">Linked only</option>
-						</select>
-						<Button
-							variant="secondary"
-							onClick={() => {
-								setSelectedId(null);
-								setForm(toFormState(null));
-							}}
-						>
-							New
-						</Button>
-					</div>
-				</div>
-
-				<div className="space-y-2 max-h-[70vh] overflow-auto">
-					{items.map((item) => {
-						const active = item.id === selectedId;
-						return (
-							<button
-								key={item.id}
-								type="button"
-								onClick={() => setSelectedId(item.id)}
-								className={`w-full rounded border p-3 text-left ${
-									active ? "border-kumo-brand bg-kumo-brand/10" : "border-kumo-line"
-								}`}
-							>
-								<p className="font-medium">{item.displayName}</p>
-								<p className="text-xs text-kumo-subtle">
-									{item.slug}
-									{item.isGuest ? " - Guest" : item.userId ? " - Linked" : ""}
-								</p>
-							</button>
-						);
-					})}
-					{items.length === 0 && <p className="text-sm text-kumo-subtle">No bylines found</p>}
-					{nextCursor && (
-						<Button
-							variant="secondary"
-							className="w-full mt-2"
-							onClick={() => loadMoreMutation.mutate()}
-							disabled={loadMoreMutation.isPending}
-						>
-							{loadMoreMutation.isPending ? "Loading..." : "Load more"}
-						</Button>
-					)}
-				</div>
-			</div>
-
-			<div className="rounded-lg border p-6">
-				<h2 className="text-lg font-semibold mb-4">
-					{selected ? `Edit ${selected.displayName}` : "Create byline"}
-				</h2>
-
-				<div className="space-y-4">
-					<Input
-						label="Display name"
-						value={form.displayName}
-						onChange={(e) => setForm((prev) => ({ ...prev, displayName: e.target.value }))}
-					/>
-					<Input
-						label="Slug"
-						value={form.slug}
-						onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
-					/>
-					<Input
-						label="Website URL"
-						value={form.websiteUrl}
-						onChange={(e) => setForm((prev) => ({ ...prev, websiteUrl: e.target.value }))}
-					/>
-					<InputArea
-						label="Bio"
-						value={form.bio}
-						onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
-						rows={5}
-					/>
+		<div className="space-y-4">
+			{isMultiLocale && i18n && activeLocale ? (
+				<div className="flex items-center justify-between">
 					<div>
-						<label className="text-sm font-medium">Linked user</label>
-						<select
-							value={form.userId ?? ""}
-							onChange={(e) =>
-								setForm((prev) => ({
-									...prev,
-									userId: e.target.value || null,
-									isGuest: e.target.value ? false : prev.isGuest,
-								}))
-							}
-							className="mt-1 w-full rounded border bg-kumo-base px-3 py-2 text-sm"
-						>
-							<option value="">No linked user</option>
-							{users.map((user) => (
-								<option key={user.id} value={user.id}>
-									{getUserLabel(user)}
-								</option>
-							))}
-						</select>
+						<h1 className="text-2xl font-semibold">{t`Bylines`}</h1>
 					</div>
-					<Switch
-						label="Guest byline"
-						checked={form.isGuest}
-						onCheckedChange={(checked) =>
-							setForm((prev) => ({
-								...prev,
-								isGuest: checked,
-								userId: checked ? null : prev.userId,
-							}))
-						}
+					<LocaleSwitcher
+						locales={i18n.locales}
+						defaultLocale={i18n.defaultLocale}
+						value={activeLocale}
+						onChange={handleLocaleChange}
 					/>
+				</div>
+			) : null}
 
-					<DialogError message={getMutationError(mutationError)} />
-
-					<div className="flex gap-2 pt-2">
-						<Button
-							onClick={() => {
-								if (selected) {
-									updateMutation.mutate();
-								} else {
-									createMutation.mutate();
-								}
-							}}
-							disabled={!form.displayName || !form.slug || isSaving}
-						>
-							{isSaving ? "Saving..." : selected ? "Save" : "Create"}
-						</Button>
-
-						{selected && (
+			<div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+				<div className="rounded-lg border p-4">
+					<div className="mb-4 space-y-2">
+						<Input
+							placeholder={t`Search bylines`}
+							value={search}
+							onChange={(e) => setSearch(e.target.value)}
+						/>
+						<div className="flex items-center gap-2">
+							<div className="flex-1">
+								<Select
+									aria-label={t`Filter byline type`}
+									value={guestFilter}
+									onValueChange={(v) => setGuestFilter((v as "all" | "guest" | "linked") ?? "all")}
+									items={{
+										all: t`All bylines`,
+										guest: t`Guest only`,
+										linked: t`Linked only`,
+									}}
+									className="w-full"
+								/>
+							</div>
 							<Button
-								variant="destructive"
-								onClick={() => setShowDeleteConfirm(true)}
-								disabled={deleteMutation.isPending}
+								variant="secondary"
+								onClick={() => {
+									setSelectedId(null);
+									setForm(toFormState(null));
+								}}
 							>
-								Delete
+								{t`New`}
+							</Button>
+						</div>
+					</div>
+
+					<div className="space-y-2 max-h-[70vh] overflow-auto">
+						{items.map((item) => {
+							const active = item.id === selectedId;
+							return (
+								<button
+									key={item.id}
+									type="button"
+									onClick={() => setSelectedId(item.id)}
+									className={`w-full rounded border p-3 text-start ${
+										active ? "border-kumo-brand bg-kumo-brand/10" : "border-kumo-line"
+									}`}
+								>
+									<p className="font-medium">{item.displayName}</p>
+									<p className="text-xs text-kumo-subtle">
+										{item.slug}
+										{item.isGuest ? t` - Guest` : item.userId ? t` - Linked` : ""}
+									</p>
+								</button>
+							);
+						})}
+						{items.length === 0 && (
+							<p className="text-sm text-kumo-subtle">{t`No bylines found`}</p>
+						)}
+						{nextCursor && (
+							<Button
+								variant="secondary"
+								className="w-full mt-2"
+								onClick={() =>
+									loadMoreMutation.mutate({
+										search,
+										guestFilter,
+										locale: activeLocale,
+										cursor: nextCursor,
+									})
+								}
+								disabled={loadMoreMutation.isPending}
+							>
+								{loadMoreMutation.isPending ? t`Loading...` : t`Load more`}
 							</Button>
 						)}
 					</div>
+				</div>
+
+				<div className="rounded-lg border p-6 space-y-6">
+					<h2 className="text-lg font-semibold">
+						{selected ? t`Edit ${selected.displayName}` : t`Create byline`}
+					</h2>
+
+					<div className="space-y-4">
+						<Input
+							label={t`Display name`}
+							value={form.displayName}
+							onChange={(e) => setForm((prev) => ({ ...prev, displayName: e.target.value }))}
+						/>
+						<Input
+							label={t`Slug`}
+							value={form.slug}
+							onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
+						/>
+						<Input
+							label={t`Website URL`}
+							value={form.websiteUrl}
+							onChange={(e) => setForm((prev) => ({ ...prev, websiteUrl: e.target.value }))}
+						/>
+						<InputArea
+							label={t`Bio`}
+							value={form.bio}
+							onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
+							rows={5}
+						/>
+						<Select
+							label={t`Linked user`}
+							value={form.userId ?? ""}
+							onValueChange={(v) => {
+								const val = (v as string) || null;
+								setForm((prev) => ({
+									...prev,
+									userId: val,
+									isGuest: val ? false : prev.isGuest,
+								}));
+							}}
+							items={{
+								"": t`No linked user`,
+								...Object.fromEntries(users.map((u) => [u.id, getUserLabel(u)])),
+							}}
+							className="w-full"
+						/>
+						<Switch
+							label={t`Guest byline`}
+							checked={form.isGuest}
+							onCheckedChange={(checked) =>
+								setForm((prev) => ({
+									...prev,
+									isGuest: checked,
+									userId: checked ? null : prev.userId,
+								}))
+							}
+						/>
+
+						<DialogError message={getMutationError(mutationError)} />
+
+						<div className="flex gap-2 pt-2">
+							<Button
+								onClick={() => {
+									if (selected) {
+										updateMutation.mutate();
+									} else {
+										createMutation.mutate();
+									}
+								}}
+								disabled={!form.displayName || !form.slug || isSaving}
+							>
+								{isSaving ? t`Saving...` : selected ? t`Save` : t`Create`}
+							</Button>
+
+							{selected && (
+								<Button
+									variant="destructive"
+									onClick={() => setShowDeleteConfirm(true)}
+									disabled={deleteMutation.isPending}
+								>
+									{t`Delete`}
+								</Button>
+							)}
+						</div>
+					</div>
+
+					{selected && isMultiLocale && i18n ? (
+						<div className="border-t pt-6">
+							<TranslationsPanel
+								locales={i18n.locales}
+								defaultLocale={i18n.defaultLocale}
+								currentLocale={selected.locale}
+								translations={translationsData?.items ?? []}
+								onOpen={(summary) => {
+									void navigate({
+										to: "/bylines",
+										search: { locale: summary.locale },
+									});
+									setSelectedId(summary.id);
+								}}
+								onCreate={(locale) => translateMutation.mutate(locale)}
+								pendingLocale={pendingTranslationLocale}
+							/>
+						</div>
+					) : null}
 				</div>
 			</div>
 
@@ -343,10 +507,10 @@ export function BylinesPage() {
 					setShowDeleteConfirm(false);
 					deleteMutation.reset();
 				}}
-				title="Delete Byline?"
-				description="This removes the byline profile. Content byline links are removed and lead pointers are cleared."
-				confirmLabel="Delete"
-				pendingLabel="Deleting..."
+				title={t`Delete Byline?`}
+				description={t`This removes the byline profile. Content byline links are removed and lead pointers are cleared.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => deleteMutation.mutate()}

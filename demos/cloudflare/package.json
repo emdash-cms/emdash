@@ -9,7 +9,6 @@
     "build:all": "pnpm run --filter @emdash-cms/demo-cloudflare... build",
     "preview": "astro preview",
     "deploy": "pnpm build:all && wrangler deploy",
-    "db:create": "wrangler d1 create emdash-demo",
     "db:reset:remote": "./scripts/reset-db.sh",
     "typecheck": "astro check"
   },
@@ -19,6 +18,7 @@
     "@emdash-cms/cloudflare": "workspace:*",
     "@emdash-cms/plugin-forms": "workspace:*",
     "@emdash-cms/plugin-webhook-notifier": "workspace:*",
+    "@emdash-cms/plugin-cli": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "astro": "catalog:",
@@ -34,7 +34,5 @@
   },
   "emdash": {
     "seed": "seed/seed.json"
-  },
-  "peerDependencies": {},
-  "optionalDependencies": {}
+  }
 }

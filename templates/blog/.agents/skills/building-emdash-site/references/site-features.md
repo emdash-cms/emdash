@@ -310,6 +310,7 @@ const pageCtx = createPublicPageContext({
 	kind: content ? "content" : "custom",
 	pageType: "article",
 	title: fullTitle,
+	pageTitle: post.data.title,
 	description,
 	canonical,
 	image,
@@ -360,15 +361,7 @@ Bylines are automatically attached to every entry by the query layer:
 ### Standalone query functions
 
 ```typescript
-import { getEntryBylines, getByline, getBylineBySlug, getBylinesForEntries } from "emdash";
-
-// Bylines for a single entry
-const credits = await getEntryBylines("posts", post.data.id);
-
-// Batch-fetch for a list page (avoids N+1)
-const ids = entries.map((e) => e.data.id);
-const bylinesMap = await getBylinesForEntries("posts", ids);
-// bylinesMap.get(entryId) => ContentBylineCredit[]
+import { getByline, getBylineBySlug } from "emdash";
 
 // Look up a specific byline
 const byline = await getBylineBySlug("jane-doe");
@@ -450,7 +443,7 @@ interface Props {
 	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, description, image, content } = Astro.props;
+const { title, pageTitle, description, image, content } = Astro.props;
 const menu = await getMenu("primary");
 
 const pageCtx = createPublicPageContext({
@@ -458,6 +451,7 @@ const pageCtx = createPublicPageContext({
 	kind: content ? "content" : "custom",
 	pageType: "website",
 	title,
+	pageTitle: pageTitle ?? title,
 	description,
 	image,
 	content,

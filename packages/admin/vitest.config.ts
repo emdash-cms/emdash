@@ -3,7 +3,13 @@ import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-	plugins: [react()],
+	plugins: [
+		react({
+			babel: {
+				plugins: ["@lingui/babel-plugin-lingui-macro"],
+			},
+		}),
+	],
 	test: {
 		globals: true,
 		include: ["tests/**/*.test.{ts,tsx}"],

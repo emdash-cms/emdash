@@ -12,6 +12,7 @@ import { apiError, apiSuccess, handleError, requireDb } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
 import { TaxonomyRepository } from "#db/repositories/taxonomy.js";
+import { invalidateTermCache } from "#taxonomies/index.js";
 
 export const prerender = false;
 
@@ -33,7 +34,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	if (dbErr) return dbErr;
 
 	try {
-		const repo = new TaxonomyRepository(emdash!.db);
+		const repo = new TaxonomyRepository(emdash.db);
 		const terms = await repo.getTermsForEntry(collection, id, taxonomy);
 
 		return apiSuccess({
@@ -67,12 +68,12 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
 
-	if (!emdash!.handleContentGet) {
+	if (!emdash.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
 	// Verify the content exists before modifying its terms
-	const existing = await emdash!.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGet(collection, id);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "NOT_FOUND",
@@ -84,25 +85,29 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	// Check ownership for edit permission
 	const existingData =
 		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
 				(existing.data as Record<string, unknown>)
 			: undefined;
 	// Handler returns { item, _rev } — extract the item for ownership check
 	const existingItem =
 		existingData?.item && typeof existingData.item === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
 				(existingData.item as Record<string, unknown>)
 			: existingData;
 	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
 	const editDenied = requireOwnerPerm(user, authorId, "content:edit_own", "content:edit_any");
 	if (editDenied) return editDenied;
 
+	// Resolve the canonical content ID from the handler result.
+	// The URL `id` param may be a slug; we must use the real ID for term storage.
+	const canonicalId = typeof existingItem?.id === "string" ? existingItem.id : id;
+
 	try {
 		const body = await parseBody(request, contentTermsBody);
 		if (isParseError(body)) return body;
 		const { termIds } = body;
 
-		const repo = new TaxonomyRepository(emdash!.db);
+		const repo = new TaxonomyRepository(emdash.db);
 
 		// Verify all term IDs exist and belong to the correct taxonomy
 		for (const termId of termIds) {
@@ -119,11 +124,15 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			}
 		}
 
-		// Set the terms (replaces existing)
-		await repo.setTermsForEntry(collection, id, taxonomy, termIds);
+		// Set the terms (replaces existing) using the canonical ID
+		await repo.setTermsForEntry(collection, canonicalId, taxonomy, termIds);
 
-		// Get the updated terms
-		const terms = await repo.getTermsForEntry(collection, id, taxonomy);
+		// Term assignments changed — invalidate the hasAnyTermAssignments cache
+		// so hydration on subsequent reads issues a fresh query.
+		invalidateTermCache();
+
+		// Get the updated terms using the canonical ID
+		const terms = await repo.getTermsForEntry(collection, canonicalId, taxonomy);
 
 		return apiSuccess({
 			terms: terms.map((t) => ({

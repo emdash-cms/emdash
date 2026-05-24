@@ -1,20 +1,25 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "my-portfolio-site",
+	"main": "./src/worker.ts",
 	"compatibility_date": "2026-02-24",
 	"compatibility_flags": ["nodejs_compat"],
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "my-portfolio-site",
-			// Run `wrangler d1 create my-portfolio-site` and paste the real ID here for deploy
-			"database_id": "local",
 		},
 	],
 	"r2_buckets": [
 		{
 			"binding": "MEDIA",
 			"bucket_name": "my-portfolio-media",
+		},
+	],
+	// Worker Loader for plugin sandboxing
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
 		},
 	],
 }

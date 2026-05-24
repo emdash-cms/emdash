@@ -29,13 +29,21 @@ export function cleanJsonLd(obj: Record<string, unknown>): Record<string, unknow
 /**
  * Build a BlogPosting JSON-LD graph from page context.
  * Used for article-type content pages.
+ *
+ * @param page - Page context for the current request.
+ * @param defaultOgImage - Optional site-wide fallback image URL, used when
+ *   the page has no own OG image. Matches the fallback applied to `og:image`
+ *   in `generateBaseSeoContributions`.
  */
-export function buildBlogPostingJsonLd(page: PublicPageContext): Record<string, unknown> | null {
+export function buildBlogPostingJsonLd(
+	page: PublicPageContext,
+	defaultOgImage?: string | null,
+): Record<string, unknown> | null {
 	if (page.pageType !== "article" || !page.canonical) return null;
 
-	const ogTitle = page.seo?.ogTitle || page.title;
+	const ogTitle = page.seo?.ogTitle ?? page.pageTitle ?? page.title;
 	const description = page.seo?.ogDescription || page.description;
-	const ogImage = page.seo?.ogImage || page.image;
+	const ogImage = page.seo?.ogImage || page.image || defaultOgImage || null;
 	const publishedTime = page.articleMeta?.publishedTime;
 	const modifiedTime = page.articleMeta?.modifiedTime;
 	const author = page.articleMeta?.author;
@@ -77,12 +85,16 @@ export function buildWebSiteJsonLd(page: PublicPageContext): Record<string, unkn
 	const siteName = page.siteName;
 	if (!siteName) return null;
 
-	// Use origin from the page URL for the site URL
+	// Use configured public origin, falling back to page URL origin
 	let siteUrl: string;
-	try {
-		siteUrl = new URL(page.url).origin;
-	} catch {
-		siteUrl = page.canonical || page.url;
+	if (page.siteUrl) {
+		siteUrl = page.siteUrl;
+	} else {
+		try {
+			siteUrl = new URL(page.url).origin;
+		} catch {
+			siteUrl = page.canonical || page.url;
+		}
 	}
 
 	return cleanJsonLd({

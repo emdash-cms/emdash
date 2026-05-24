@@ -14,7 +14,7 @@ import { test, expect } from "../fixtures";
 // Regex patterns
 const CONTENT_EDIT_URL_PATTERN = /\/content\/posts\/[A-Z0-9]+$/;
 const CONTENT_ID_PATTERN = /\/content\/posts\/[A-Z0-9]+$/;
-const NEW_CONTENT_URL_PATTERN = /\/content\/posts\/new$/;
+const NEW_CONTENT_URL_PATTERN = /\/content\/posts\/new(?:[?#].*)?$/;
 
 test.describe("Content CRUD", () => {
 	test.beforeEach(async ({ admin }) => {

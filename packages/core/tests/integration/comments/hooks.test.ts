@@ -308,7 +308,7 @@ describe("Comment Hooks with HookPipeline", () => {
 		const plugin = definePlugin({
 			id: "test-enricher",
 			version: "1.0.0",
-			capabilities: ["read:users"],
+			capabilities: ["users:read"],
 			hooks: {
 				"comment:beforeCreate": spy,
 			},
@@ -347,7 +347,7 @@ describe("Comment Hooks with HookPipeline", () => {
 		const plugin = definePlugin({
 			id: "test-moderator",
 			version: "1.0.0",
-			capabilities: ["read:users"],
+			capabilities: ["users:read"],
 			hooks: {
 				"comment:moderate": {
 					exclusive: true,
@@ -398,7 +398,7 @@ describe("Comment Hooks with HookPipeline", () => {
 		const plugin = definePlugin({
 			id: DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 			version: "0.0.0",
-			capabilities: ["read:users"],
+			capabilities: ["users:read"],
 			hooks: {
 				"comment:moderate": {
 					exclusive: true,
@@ -449,7 +449,7 @@ describe("Comment Hooks with HookPipeline", () => {
 		const plugin = definePlugin({
 			id: "test-after-create",
 			version: "1.0.0",
-			capabilities: ["read:users"],
+			capabilities: ["users:read"],
 			hooks: {
 				"comment:afterCreate": spy,
 			},
@@ -485,7 +485,7 @@ describe("Comment Hooks with HookPipeline", () => {
 		const plugin = definePlugin({
 			id: "test-after-moderate",
 			version: "1.0.0",
-			capabilities: ["read:users"],
+			capabilities: ["users:read"],
 			hooks: {
 				"comment:afterModerate": spy,
 			},

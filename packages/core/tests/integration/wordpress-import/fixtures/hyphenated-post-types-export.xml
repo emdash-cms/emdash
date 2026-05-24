@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  Minimal WXR fixture to reproduce emdash-cms/emdash#79:
+  WordPress import crashes on custom post types with hyphens.
+
+  Includes realistic post types from popular plugins:
+  - Elementor: elementor-hf (header/footer templates)
+  - WooCommerce: shop-order, shop-coupon
+  - ACF: acf-field-group
+-->
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>Plugin-Heavy WP Site</title>
+	<link>https://example.com</link>
+	<description>WordPress site with plugins that use hyphenated post types</description>
+	<pubDate>Mon, 07 Apr 2026 12:00:00 +0000</pubDate>
+	<language>en-US</language>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://example.com</wp:base_site_url>
+	<wp:base_blog_url>https://example.com</wp:base_blog_url>
+
+	<wp:author>
+		<wp:author_id>1</wp:author_id>
+		<wp:author_login><![CDATA[admin]]></wp:author_login>
+		<wp:author_email><![CDATA[admin@example.com]]></wp:author_email>
+		<wp:author_display_name><![CDATA[Admin]]></wp:author_display_name>
+	</wp:author>
+
+	<!-- Standard post (control — should import normally) -->
+	<item>
+		<title>Hello World</title>
+		<link>https://example.com/hello-world/</link>
+		<pubDate>Mon, 15 Jan 2025 10:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[admin]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/?p=1</guid>
+		<description></description>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>A normal blog post.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>1</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-15 10:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-15 10:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-15 10:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-15 10:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[open]]></wp:comment_status>
+		<wp:ping_status><![CDATA[open]]></wp:ping_status>
+		<wp:post_name><![CDATA[hello-world]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+	</item>
+
+	<!-- Elementor header/footer template (hyphenated post type: elementor-hf) -->
+	<item>
+		<title>Site Header</title>
+		<link>https://example.com/?p=200</link>
+		<pubDate>Tue, 16 Jan 2025 08:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[admin]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/?p=200</guid>
+		<description></description>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Elementor header template content.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>200</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-16 08:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-16 08:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-16 08:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-16 08:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[site-header]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[elementor-hf]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+	</item>
+
+	<!-- WooCommerce order (hyphenated post type: shop-order) -->
+	<item>
+		<title>Order #1001</title>
+		<link>https://example.com/?p=300</link>
+		<pubDate>Wed, 17 Jan 2025 14:30:00 +0000</pubDate>
+		<dc:creator><![CDATA[admin]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/?p=300</guid>
+		<description></description>
+		<content:encoded><![CDATA[]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>300</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-17 14:30:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-17 14:30:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-17 14:30:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-17 14:30:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[order-1001]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[shop-order]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+	</item>
+
+	<!-- WooCommerce coupon (hyphenated post type: shop-coupon) -->
+	<item>
+		<title>SUMMER20</title>
+		<link>https://example.com/?p=301</link>
+		<pubDate>Wed, 17 Jan 2025 15:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[admin]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/?p=301</guid>
+		<description></description>
+		<content:encoded><![CDATA[]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>301</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-17 15:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-17 15:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-17 15:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-17 15:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[summer20]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[shop-coupon]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+	</item>
+
+	<!-- ACF field group (hyphenated post type: acf-field-group) -->
+	<item>
+		<title>Product Details</title>
+		<link>https://example.com/?p=400</link>
+		<pubDate>Thu, 18 Jan 2025 09:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[admin]]></dc:creator>
+		<guid isPermaLink="false">https://example.com/?p=400</guid>
+		<description></description>
+		<content:encoded><![CDATA[]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>400</wp:post_id>
+		<wp:post_date><![CDATA[2025-01-18 09:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2025-01-18 09:00:00]]></wp:post_date_gmt>
+		<wp:post_modified><![CDATA[2025-01-18 09:00:00]]></wp:post_modified>
+		<wp:post_modified_gmt><![CDATA[2025-01-18 09:00:00]]></wp:post_modified_gmt>
+		<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+		<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+		<wp:post_name><![CDATA[product-details]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[acf-field-group]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+	</item>
+
+</channel>
+</rss>

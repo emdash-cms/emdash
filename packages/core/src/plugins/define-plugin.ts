@@ -1,18 +1,16 @@
 /**
  * definePlugin() Helper
  *
- * Creates a properly typed and normalized plugin definition.
- * Supports two formats:
+ * Native plugin authoring entry. Returns a fully-resolved
+ * `ResolvedPlugin` ready for the host integration to mount.
  *
- * 1. **Native format** -- full PluginDefinition with id, version, capabilities, etc.
- *    Returns a ResolvedPlugin.
- *
- * 2. **Standard format** -- just { hooks, routes }. No id/version/capabilities.
- *    Returns the same object (identity function for type inference).
- *    Metadata comes from the descriptor at config time.
- *
+ * Sandboxed plugins do NOT use this function. They default-export
+ * a bare `{ hooks?, routes? }` object with a `satisfies SandboxedPlugin`
+ * annotation from `emdash/plugin`. See the `emdash` changeset for the
+ * authoring shape.
  */
 
+import { normalizeCapabilities } from "./types.js";
 import type {
 	PluginDefinition,
 	ResolvedPlugin,
@@ -20,8 +18,8 @@ import type {
 	ResolvedPluginHooks,
 	ResolvedHook,
 	HookConfig,
+	PluginCapability,
 	PluginStorageConfig,
-	StandardPluginDefinition,
 } from "./types.js";
 
 // Plugin ID validation patterns
@@ -30,33 +28,13 @@ const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
 
 /**
- * Define an EmDash plugin.
+ * Define a native EmDash plugin.
  *
- * **Standard format** -- the canonical format for plugins that work in both
- * trusted and sandboxed modes. No id/version -- those come from the descriptor.
- *
- * @example
- * ```typescript
- * import { definePlugin } from "emdash";
- *
- * export default definePlugin({
- *   hooks: {
- *     "content:afterSave": {
- *       handler: async (event, ctx) => {
- *         await ctx.kv.set("lastSave", Date.now());
- *       },
- *     },
- *   },
- *   routes: {
- *     status: {
- *       handler: async (routeCtx, ctx) => ({ ok: true }),
- *     },
- *   },
- * });
- * ```
- *
- * **Native format** -- for plugins that need React admin, direct DB access,
- * or other capabilities not available in the sandbox.
+ * Native plugins ship as regular npm modules, get installed via
+ * `pnpm add` + an `astro.config.mjs` edit, and run in the host
+ * process. They have full access to the runtime — capabilities are
+ * still enforced by `PluginContextFactory`, but there is no isolation
+ * boundary.
  *
  * @example
  * ```typescript
@@ -65,7 +43,7 @@ const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
  * export default definePlugin({
  *   id: "my-plugin",
  *   version: "1.0.0",
- *   capabilities: ["read:content"],
+ *   capabilities: ["content:read"],
  *   hooks: {
  *     "content:beforeSave": async (event, ctx) => {
  *       ctx.log.info("Saving content", { collection: event.collection });
@@ -81,30 +59,32 @@ const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
  *   }
  * });
  * ```
+ *
+ * Sandboxed-format plugins do not use `definePlugin`. They
+ * default-export a bare `{ hooks?, routes? }` object with a
+ * `satisfies SandboxedPlugin` annotation from `emdash/plugin`. Calling
+ * `definePlugin` with an object that has no `id` throws at runtime
+ * (the type system already rejects it at compile time — this check is
+ * for callers that bypass typechecking).
  */
-// Native overload first -- PluginDefinition (with id+version) is more specific
 export function definePlugin<TStorage extends PluginStorageConfig>(
 	definition: PluginDefinition<TStorage>,
-): ResolvedPlugin<TStorage>;
-// Standard overload second -- catches { hooks, routes } without id/version
-export function definePlugin(definition: StandardPluginDefinition): StandardPluginDefinition;
-export function definePlugin<TStorage extends PluginStorageConfig>(
-	definition: PluginDefinition<TStorage> | StandardPluginDefinition,
-): ResolvedPlugin<TStorage> | StandardPluginDefinition {
-	// Standard format: has hooks/routes but no id/version
-	if (!("id" in definition) || !("version" in definition)) {
-		// Validate that the standard format has at least hooks or routes
-		if (!("hooks" in definition) && !("routes" in definition)) {
-			throw new Error(
-				"Standard plugin format requires at least `hooks` or `routes`. " +
-					"For native format, provide `id` and `version`.",
-			);
-		}
-		// Identity function -- return as-is for type inference.
-		// The adapter (adaptSandboxEntry) will convert this to a ResolvedPlugin at build time.
-		return definition;
+): ResolvedPlugin<TStorage> {
+	// Semantic check, not a structural one: `id` is what makes this a
+	// native definition. Sandboxed plugins (the only other shape that
+	// might land here at runtime) intentionally never have an `id` —
+	// identity comes from the manifest's `slug` + `publisher`, computed
+	// at install time. So "no id" is the unambiguous signal that the
+	// caller meant the sandboxed authoring flow.
+	if (typeof definition.id !== "string" || definition.id.length === 0) {
+		throw new Error(
+			`definePlugin() requires \`id\` (got ${typeof definition.id}). ` +
+				"For native plugins, make sure your definition has both `id` and " +
+				"`version`. For sandboxed plugins, drop `definePlugin()` entirely " +
+				"and `export default { hooks, routes } satisfies SandboxedPlugin` " +
+				'from "emdash/plugin" — identity comes from `emdash-plugin.jsonc`.',
+		);
 	}
-
 	return defineNativePlugin(definition);
 }
 
@@ -143,8 +123,24 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		throw new Error(`Invalid plugin version "${version}". Must be semver format (e.g., "1.0.0").`);
 	}
 
-	// Validate capabilities
-	const validCapabilities = new Set([
+	// Validate capabilities. Both current names and deprecated aliases are
+	// accepted; aliases are silently rewritten to current names below so the
+	// runtime only ever sees the canonical form. Authors are warned at
+	// bundle/validate and hard-failed at publish.
+	const validCapabilities = new Set<string>([
+		// Current names
+		"network:request",
+		"network:request:unrestricted",
+		"content:read",
+		"content:write",
+		"media:read",
+		"media:write",
+		"users:read",
+		"email:send",
+		"hooks.email-transport:register",
+		"hooks.email-events:register",
+		"hooks.page-fragments:register",
+		// Deprecated aliases
 		"network:fetch",
 		"network:fetch:any",
 		"read:content",
@@ -152,7 +148,6 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		"read:media",
 		"write:media",
 		"read:users",
-		"email:send",
 		"email:provide",
 		"email:intercept",
 		"page:inject",
@@ -163,16 +158,27 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		}
 	}
 
-	// Capability implications: broader capabilities imply narrower ones
-	const normalizedCapabilities = [...capabilities];
-	if (capabilities.includes("write:content") && !capabilities.includes("read:content")) {
-		normalizedCapabilities.push("read:content");
+	// Silent normalization: rewrite deprecated names to current names. Done
+	// before the implication pass so implications work on canonical names.
+	// `as PluginCapability[]` is safe because `normalizeCapabilities` only
+	// returns strings from the validated input plus current names from the
+	// rename map, all of which are in the union.
+	const canonical = normalizeCapabilities(capabilities) as PluginCapability[];
+
+	// Capability implications: broader capabilities imply narrower ones.
+	// Operates on canonical names only.
+	const normalizedCapabilities: PluginCapability[] = [...canonical];
+	if (canonical.includes("content:write") && !canonical.includes("content:read")) {
+		normalizedCapabilities.push("content:read");
 	}
-	if (capabilities.includes("write:media") && !capabilities.includes("read:media")) {
-		normalizedCapabilities.push("read:media");
+	if (canonical.includes("media:write") && !canonical.includes("media:read")) {
+		normalizedCapabilities.push("media:read");
 	}
-	if (capabilities.includes("network:fetch:any") && !capabilities.includes("network:fetch")) {
-		normalizedCapabilities.push("network:fetch");
+	if (
+		canonical.includes("network:request:unrestricted") &&
+		!canonical.includes("network:request")
+	) {
+		normalizedCapabilities.push("network:request");
 	}
 
 	// Normalize hooks

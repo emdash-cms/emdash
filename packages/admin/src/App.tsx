@@ -9,13 +9,18 @@
  */
 
 import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
+import type { Messages } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
 
 import { ThemeProvider } from "./components/ThemeProvider";
+import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { CacheProvider } from "./lib/cache/cache-context.js";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
+import { LocaleDirectionProvider } from "./locales/index.js";
 import { createAdminRouter } from "./router";
 
 // Create a query client
@@ -34,29 +39,53 @@ const router = createAdminRouter(queryClient);
 export interface AdminAppProps {
 	/** Plugin admin modules keyed by plugin ID */
 	pluginAdmins?: PluginAdmins;
+	/** Auth provider UI modules keyed by provider ID */
+	authProviders?: AuthProviders;
+	/** Active locale code */
+	locale?: string;
+	/** Compiled Lingui messages for the active locale */
+	messages?: Messages;
 }
 
 /**
  * Main Admin Application
  */
 const EMPTY_PLUGINS: PluginAdmins = {};
+const EMPTY_AUTH_PROVIDERS: AuthProviders = {};
 
-export function AdminApp({ pluginAdmins = EMPTY_PLUGINS }: AdminAppProps) {
+export function AdminApp({
+	pluginAdmins = EMPTY_PLUGINS,
+	authProviders = EMPTY_AUTH_PROVIDERS,
+	locale = "en",
+	messages = {},
+}: AdminAppProps) {
 	React.useEffect(() => {
 		document.getElementById("emdash-boot-loader")?.remove();
 	}, []);
 
+	const i18nInitialized = React.useRef(false);
+	if (!i18nInitialized.current) {
+		i18n.loadAndActivate({ locale, messages });
+		i18nInitialized.current = true;
+	}
+
 	return (
 		<ThemeProvider>
-			<Toasty>
-				<QueryClientProvider client={queryClient}>
-					<CacheProvider>
-						<PluginAdminProvider pluginAdmins={pluginAdmins}>
-							<RouterProvider router={router} />
-						</PluginAdminProvider>
-					</CacheProvider>
-				</QueryClientProvider>
-			</Toasty>
+			<I18nProvider i18n={i18n}>
+				<LocaleDirectionProvider>
+					<Toasty>
+						<AuthProviderProvider authProviders={authProviders}>
+							<QueryClientProvider client={queryClient}>
+								<CacheProvider>
+									<PluginAdminProvider pluginAdmins={pluginAdmins}>
+										<RouterProvider router={router} />
+									</PluginAdminProvider>
+								</CacheProvider>
+							</QueryClientProvider>
+						</AuthProviderProvider>
+					</Toasty>
+				</LocaleDirectionProvider>
+			</I18nProvider>
 		</ThemeProvider>
 	);
 }

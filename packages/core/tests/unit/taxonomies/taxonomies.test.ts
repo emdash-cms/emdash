@@ -10,6 +10,78 @@ import {
 	teardownTestDatabase,
 } from "../../utils/test-db.js";
 
+describe("taxonomy manifest loading", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("should load seeded taxonomy definitions ordered by name", async () => {
+		const rows = await db.selectFrom("_emdash_taxonomy_defs").selectAll().orderBy("name").execute();
+
+		const taxonomies = rows.map((row) => ({
+			name: row.name,
+			label: row.label,
+			labelSingular: row.label_singular ?? undefined,
+			hierarchical: row.hierarchical === 1,
+			collections: row.collections ? JSON.parse(row.collections) : [],
+		}));
+
+		expect(taxonomies).toHaveLength(2);
+		expect(taxonomies[0]).toMatchObject({
+			name: "category",
+			label: "Categories",
+			hierarchical: true,
+			collections: ["posts"],
+		});
+		expect(taxonomies[1]).toMatchObject({
+			name: "tag",
+			label: "Tags",
+			hierarchical: false,
+			collections: ["posts"],
+		});
+	});
+
+	it("should include custom taxonomy definitions in manifest", async () => {
+		await db
+			.insertInto("_emdash_taxonomy_defs")
+			.values({
+				id: "taxdef_genre",
+				name: "genre",
+				label: "Genres",
+				label_singular: "Genre",
+				hierarchical: 1,
+				collections: JSON.stringify(["posts", "pages"]),
+			})
+			.execute();
+
+		const rows = await db.selectFrom("_emdash_taxonomy_defs").selectAll().orderBy("name").execute();
+
+		const taxonomies = rows.map((row) => ({
+			name: row.name,
+			label: row.label,
+			labelSingular: row.label_singular ?? undefined,
+			hierarchical: row.hierarchical === 1,
+			collections: row.collections ? JSON.parse(row.collections) : [],
+		}));
+
+		expect(taxonomies).toHaveLength(3);
+		expect(taxonomies[0].name).toBe("category");
+		expect(taxonomies[1].name).toBe("genre");
+		expect(taxonomies[2].name).toBe("tag");
+		expect(taxonomies[1]).toMatchObject({
+			label: "Genres",
+			hierarchical: true,
+			collections: ["posts", "pages"],
+		});
+	});
+});
+
 describe("TaxonomyRepository", () => {
 	let db: Kysely<Database>;
 	let repo: TaxonomyRepository;

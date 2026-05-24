@@ -27,15 +27,22 @@ export const contentListQuery = cursorPaginationQuery
 	})
 	.meta({ id: "ContentListQuery" });
 
+/** ISO 8601 datetime for `publishedAt` / `createdAt`. Routes gate writes behind `content:publish_any`. */
+const contentDateOverride = z.iso
+	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+	.nullish();
+
 export const contentCreateBody = z
 	.object({
 		data: z.record(z.string(), z.unknown()),
 		slug: z.string().nullish(),
-		status: z.string().optional(),
+		status: z.enum(["draft"]).optional(),
 		bylines: z.array(contentBylineInputSchema).optional(),
 		locale: localeCode.optional(),
 		translationOf: z.string().optional(),
 		seo: contentSeoInput.optional(),
+		publishedAt: contentDateOverride,
+		createdAt: contentDateOverride,
 	})
 	.meta({ id: "ContentCreateBody" });
 
@@ -43,7 +50,7 @@ export const contentUpdateBody = z
 	.object({
 		data: z.record(z.string(), z.unknown()).optional(),
 		slug: z.string().nullish(),
-		status: z.string().optional(),
+		status: z.enum(["draft"]).optional(),
 		authorId: z.string().nullish(),
 		bylines: z.array(contentBylineInputSchema).optional(),
 		_rev: z
@@ -52,6 +59,7 @@ export const contentUpdateBody = z
 			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 		skipRevision: z.boolean().optional(),
 		seo: contentSeoInput.optional(),
+		publishedAt: contentDateOverride,
 	})
 	.meta({ id: "ContentUpdateBody" });
 
@@ -63,6 +71,23 @@ export const contentScheduleBody = z
 		}),
 	})
 	.meta({ id: "ContentScheduleBody" });
+
+export const contentPublishBody = z
+	.object({
+		// .optional() rather than .nullish(): publishing has no semantic
+		// meaning for `null` (you can't "clear" a publish timestamp by
+		// publishing). Tightening the schema here means callers either
+		// pass a valid datetime or omit the field, and the route doesn't
+		// have to silently drop a null that snuck through.
+		publishedAt: z.iso
+			.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+			.optional()
+			.meta({
+				description:
+					"Optional ISO 8601 datetime to backdate the publish (e.g. when migrating content). Requires content:publish_any permission. Without this, existing published_at is preserved on re-publish.",
+			}),
+	})
+	.meta({ id: "ContentPublishBody" });
 
 export const contentPreviewUrlBody = z
 	.object({
@@ -137,6 +162,7 @@ export const contentListResponseSchema = z
 	.object({
 		items: z.array(contentItemSchema),
 		nextCursor: z.string().optional(),
+		total: z.number().int().nonnegative().optional(),
 	})
 	.meta({ id: "ContentListResponse" });
 

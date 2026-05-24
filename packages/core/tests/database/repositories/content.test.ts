@@ -427,6 +427,68 @@ describe("ContentRepository", () => {
 			expect(result.items).toEqual([]);
 			expect(result.nextCursor).toBeUndefined();
 		});
+
+		describe("orderBy", () => {
+			// Regression guard for "table headers aren't sort controls": the
+			// admin now sends orderBy={field,direction} — the repo must accept
+			// the columns the UI wants to expose, not just dates.
+			it("accepts status as an order field", async () => {
+				const result = await repo.findMany("post", {
+					orderBy: { field: "status", direction: "asc" },
+				});
+
+				// alphabetical asc places 'draft' before 'published'
+				expect(result.items[0]!.status).toBe("draft");
+			});
+
+			it("accepts locale as an order field", async () => {
+				await repo.findMany("post", {
+					orderBy: { field: "locale", direction: "desc" },
+				});
+				// no throw = pass
+			});
+
+			it("rejects unknown fields to block column enumeration", async () => {
+				await expect(
+					repo.findMany("post", {
+						orderBy: { field: "password", direction: "asc" },
+					}),
+				).rejects.toThrow(EmDashValidationError);
+			});
+		});
+
+		describe("total", () => {
+			// Regression guard for the admin "denominator grows as you page
+			// forward" bug: each list response must include the full count so
+			// the UI doesn't have to reverse-engineer it from accumulated
+			// pages.
+			it("reports total rows regardless of limit", async () => {
+				const result = await repo.findMany("post", { limit: 2 });
+
+				expect(result.items).toHaveLength(2);
+				expect(result.total).toBe(5);
+			});
+
+			it("total respects the where clause", async () => {
+				const result = await repo.findMany("post", {
+					limit: 2,
+					where: { status: "published" },
+				});
+
+				expect(result.total).toBe(3);
+			});
+
+			it("total stays stable across cursor pages", async () => {
+				const page1 = await repo.findMany("post", { limit: 2 });
+				const page2 = await repo.findMany("post", {
+					limit: 2,
+					cursor: page1.nextCursor,
+				});
+
+				expect(page1.total).toBe(5);
+				expect(page2.total).toBe(5);
+			});
+		});
 	});
 
 	describe("update", () => {
@@ -511,6 +573,56 @@ describe("ContentRepository", () => {
 			await expect(repo.update("post", "non-existent", { status: "published" })).rejects.toThrow(
 				"Content not found",
 			);
+		});
+
+		it("should persist removal of array items in JSON fields (multiSelect)", async () => {
+			// Add a multiSelect (JSON) field to the post collection
+			await registry.createField("post", {
+				slug: "tags",
+				label: "Tags",
+				type: "multiSelect",
+			});
+
+			const created = await repo.create({
+				type: "post",
+				data: { title: "Test", tags: ["news", "sports", "tech"] },
+			});
+
+			expect(created.data.tags).toEqual(["news", "sports", "tech"]);
+
+			// Remove "sports" from the array (simulates unchecking a checkbox)
+			const updated = await repo.update("post", created.id, {
+				data: { title: "Test", tags: ["news", "tech"] },
+			});
+
+			expect(updated.data.tags).toEqual(["news", "tech"]);
+
+			// Verify it persists when re-reading
+			const fetched = await repo.findById("post", updated.id);
+			expect(fetched!.data.tags).toEqual(["news", "tech"]);
+		});
+
+		it("should persist empty array in JSON fields (multiSelect)", async () => {
+			await registry.createField("post", {
+				slug: "categories",
+				label: "Categories",
+				type: "multiSelect",
+			});
+
+			const created = await repo.create({
+				type: "post",
+				data: { title: "Test", categories: ["news"] },
+			});
+
+			// Uncheck all items
+			const updated = await repo.update("post", created.id, {
+				data: { title: "Test", categories: [] },
+			});
+
+			expect(updated.data.categories).toEqual([]);
+
+			const fetched = await repo.findById("post", updated.id);
+			expect(fetched!.data.categories).toEqual([]);
 		});
 
 		it("should not update soft-deleted content", async () => {

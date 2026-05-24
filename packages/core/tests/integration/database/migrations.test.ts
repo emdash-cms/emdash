@@ -2,8 +2,13 @@ import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
-import { runMigrations, getMigrationStatus } from "../../../src/database/migrations/runner.js";
+import {
+	runMigrations,
+	getMigrationStatus,
+	MIGRATION_COUNT,
+} from "../../../src/database/migrations/runner.js";
 import type { Database } from "../../../src/database/types.js";
+import { setupTestDatabaseWithCollections } from "../../utils/test-db.js";
 
 describe("Database Migrations (Integration)", () => {
 	let db: Kysely<Database>;
@@ -57,7 +62,7 @@ describe("Database Migrations (Integration)", () => {
 
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		expect(migrations).toHaveLength(31);
+		expect(migrations).toHaveLength(MIGRATION_COUNT);
 		expect(migrations[0]?.name).toBe("001_initial");
 		expect(migrations[0]?.timestamp).toBeDefined();
 		expect(migrations[1]?.name).toBe("002_media_status");
@@ -98,8 +103,33 @@ describe("Database Migrations (Integration)", () => {
 
 		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		// Should still only have thirty-one migration records
-		expect(migrations).toHaveLength(31);
+		// Should still only have the same number of migration records
+		expect(migrations).toHaveLength(MIGRATION_COUNT);
+	});
+
+	it("should re-run trailing migrations when schema changes were partially applied", async () => {
+		await db.destroy();
+		db = await setupTestDatabaseWithCollections();
+
+		// Kysely only re-runs trailing entries; include the latest migrations.
+		const trailing = [
+			"034_published_at_index",
+			"035_bounded_404_log",
+			"036_i18n_menus_and_taxonomies",
+			"037_credential_algorithm",
+			"038_registry_plugin_state",
+			"039_fix_fts5_triggers",
+			"040_byline_i18n",
+		];
+
+		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
+
+		const { applied } = await runMigrations(db);
+
+		for (const name of trailing) expect(applied).toContain(name);
+
+		const migrations = await db.selectFrom("_emdash_migrations").selectAll().execute();
+		expect(migrations).toHaveLength(MIGRATION_COUNT);
 	});
 
 	it("should report correct migration status", async () => {
@@ -128,6 +158,7 @@ describe("Database Migrations (Integration)", () => {
 				slug: "posts",
 				label: "Posts",
 				label_singular: "Post",
+				has_seo: 0,
 			})
 			.execute();
 
@@ -152,6 +183,7 @@ describe("Database Migrations (Integration)", () => {
 				id: "id1",
 				slug: "posts",
 				label: "Posts",
+				has_seo: 0,
 			})
 			.execute();
 
@@ -163,6 +195,7 @@ describe("Database Migrations (Integration)", () => {
 					id: "id2",
 					slug: "posts",
 					label: "Posts Again",
+					has_seo: 0,
 				})
 				.execute(),
 		).rejects.toThrow();
@@ -179,6 +212,7 @@ describe("Database Migrations (Integration)", () => {
 				id: collectionId,
 				slug: "posts",
 				label: "Posts",
+				has_seo: 0,
 			})
 			.execute();
 

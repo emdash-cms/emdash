@@ -193,6 +193,20 @@ describe("buildBskyPost", () => {
 		expect(post.text).toBe("https://myblog.com/my-article");
 	});
 
+	it("reads slug from content.data when building URLs", () => {
+		const post = buildBskyPost({
+			template: "{url}",
+			collection: "posts",
+			content: {
+				title: "Nested Slug",
+				data: { slug: "nested-slug" },
+			},
+			siteUrl: "https://myblog.com",
+		});
+		expect(post.text).toBe("https://myblog.com/posts/nested-slug");
+		expect(post.embed?.external.uri).toBe("https://myblog.com/posts/nested-slug");
+	});
+
 	it("skips facets when text is truncated to avoid partial URL links", () => {
 		// Create content with very long excerpt that forces truncation
 		const longExcerpt = "A".repeat(300);

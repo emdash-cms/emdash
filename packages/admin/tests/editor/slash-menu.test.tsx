@@ -12,10 +12,10 @@
 import type { Editor } from "@tiptap/react";
 import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
-import { render } from "vitest-browser-react";
 
 import type { PortableTextEditorProps } from "../../src/components/PortableTextEditor";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
+import { render } from "../utils/render";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -285,10 +285,16 @@ describe("Slash Command Menu", () => {
 		await focusEditor(pm);
 		editor.commands.insertContent("/");
 
-		const menu = await waitForSlashMenu();
-		const items = getSlashMenuItems(menu);
+		await waitForSlashMenu();
 
-		expect(isItemSelected(items[0]!)).toBe(true);
+		await vi.waitFor(
+			() => {
+				const menu = getSlashMenu()!;
+				const items = getSlashMenuItems(menu);
+				expect(isItemSelected(items[0]!)).toBe(true);
+			},
+			{ timeout: 3000 },
+		);
 	});
 
 	it("moves selection down with ArrowDown", async () => {
@@ -481,8 +487,15 @@ describe("Slash Command Menu", () => {
 		const menu = await waitForSlashMenu();
 		const items = getSlashMenuItems(menu);
 
-		// React listens for pointerenter/mouseenter on the element.
-		// Use userEvent.hover which properly dispatches pointer + mouse events.
+		// The menu gates mouseenter on a "has the user actually moved the
+		// pointer since the menu opened?" flag, to avoid jumping selection
+		// when the menu renders under a stationary pointer (which happens
+		// in CI because pointer position persists across tests). Dispatch a
+		// real pointermove on the menu first so the gate is open before we
+		// hover an item. userEvent.hover by itself only teleports the
+		// cursor to the target and fires pointerenter -- no pointermove.
+		menu.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" }));
+
 		await userEvent.hover(items[2]!);
 
 		await vi.waitFor(() => {
@@ -565,5 +578,54 @@ describe("Slash Command Menu", () => {
 		const titles = items.map((btn) => btn.querySelector(".font-medium")?.textContent ?? "");
 
 		expect(titles).toContain("YouTube Video");
+	});
+
+	it("renders plugin block commands with a custom category override", async () => {
+		// A plugin block that opts into the "Sections" category instead of the
+		// default "Embeds". The category itself isn't currently surfaced in the
+		// rendered DOM (the slash menu doesn't group by category), but providing
+		// it must not break rendering and the block must still be selectable.
+		const { editor, pm } = await renderEditor({
+			pluginBlocks: [
+				{
+					pluginId: "marketing-blocks",
+					type: "marketing.hero",
+					label: "Hero",
+					category: "Sections",
+				},
+			],
+		});
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		const items = getSlashMenuItems(menu);
+		const titles = items.map((btn) => btn.querySelector(".font-medium")?.textContent ?? "");
+
+		expect(titles).toContain("Hero");
+	});
+
+	it("renders plugin block commands without a category (default Embeds)", async () => {
+		// Existing plugins that omit `category` must continue to render under
+		// the default category. This guards against regressions in the type
+		// widening / fallback behaviour.
+		const { editor, pm } = await renderEditor({
+			pluginBlocks: [
+				{
+					pluginId: "test-plugin",
+					type: "vimeo",
+					label: "Vimeo",
+					// no category provided
+				},
+			],
+		});
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		const items = getSlashMenuItems(menu);
+		const titles = items.map((btn) => btn.querySelector(".font-medium")?.textContent ?? "");
+
+		expect(titles).toContain("Vimeo");
 	});
 });

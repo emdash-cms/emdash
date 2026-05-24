@@ -1,15 +1,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import { MediaPickerModal } from "../../src/components/MediaPickerModal";
+import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const UPLOAD_BUTTON_REGEX = /Upload/;
+// Anchored to the button's exact accessible name. Without anchors this also
+// matches the hidden file `<input aria-label="Upload file">` and trips
+// playwright's strict-mode "resolved to N elements" guard.
+const UPLOAD_BUTTON_REGEX = /^Upload$/;
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
@@ -225,6 +228,107 @@ describe("MediaPickerModal", () => {
 				{ timeout: 3000 },
 			);
 		});
+
+		it("hideUrlInput hides the URL input section (for non-image pickers)", async () => {
+			const screen = await renderModal({ hideUrlInput: true });
+
+			// "Insert from URL" label should not appear when hidden
+			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			expect(document.body.textContent).not.toContain("Insert from URL");
+			expect(document.body.textContent).not.toContain("or choose from library");
+
+			// The URL input itself should not be in the DOM
+			const urlInput = document.querySelector('input[aria-label="Image URL"]');
+			expect(urlInput).toBeNull();
+		});
+
+		it("localOnly hides the URL input section", async () => {
+			// `localOnly` is for fields whose storage model only persists a local
+			// mediaId (e.g. site `logo`, `favicon`, `seo.defaultOgImage`). Selecting
+			// an external URL would return an item the server cannot resolve later.
+			const screen = await renderModal({ localOnly: true });
+
+			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			expect(document.body.textContent).not.toContain("Insert from URL");
+
+			const urlInput = document.querySelector('input[aria-label="Image URL"]');
+			expect(urlInput).toBeNull();
+		});
+
+		it("renders external provider tabs by default (control for localOnly)", async () => {
+			// Establishes that providers DO appear without `localOnly`. Without
+			// this control assertion, the suppression test below could pass
+			// purely because the providers query hadn't resolved yet.
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaProviders as any).mockResolvedValueOnce([
+				{
+					id: "cloudflare-images",
+					name: "Cloudflare Images",
+					capabilities: { upload: true, search: false },
+				},
+			]);
+
+			const screen = await renderModal();
+			await expect.element(screen.getByText("Cloudflare Images")).toBeInTheDocument();
+		});
+
+		it("localOnly suppresses external provider tabs and skips the providers fetch", async () => {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaProviders as any).mockResolvedValueOnce([
+				{
+					id: "cloudflare-images",
+					name: "Cloudflare Images",
+					capabilities: { upload: true, search: false },
+				},
+				{
+					id: "unsplash",
+					name: "Unsplash",
+					capabilities: { upload: false, search: true },
+				},
+			]);
+
+			const screen = await renderModal({ localOnly: true });
+
+			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			// External providers must not be reachable through any tab when
+			// localOnly is set, even if the API would report them.
+			expect(document.body.textContent).not.toContain("Cloudflare Images");
+			expect(document.body.textContent).not.toContain("Unsplash");
+			// `enabled: open && !localOnly` short-circuits the query, so the
+			// fetch should never have been issued. This proves the assertion
+			// above isn't just racing the resolve.
+			expect(api.fetchMediaProviders).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("mediaKind", () => {
+		it("uses file-specific copy when mediaKind is 'file'", async () => {
+			// Use an empty media list so the empty state copy renders.
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaList as any).mockResolvedValueOnce({ items: [] });
+
+			const screen = await renderModal({ mediaKind: "file", hideUrlInput: true });
+
+			// Default title should be "Select File", not "Select Image"
+			await expect.element(screen.getByText("Select File")).toBeInTheDocument();
+			expect(document.body.textContent).not.toContain("Select Image");
+
+			// Empty-state hint and CTA should reference files, not images
+			await expect.element(screen.getByText("Upload a file to get started")).toBeInTheDocument();
+			await expect.element(screen.getByText("Upload File")).toBeInTheDocument();
+			expect(document.body.textContent).not.toContain("Upload an image to get started");
+			expect(document.body.textContent).not.toContain("Upload Image");
+		});
+
+		it("defaults to image-specific copy when mediaKind is unset", async () => {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaList as any).mockResolvedValueOnce({ items: [] });
+
+			const screen = await renderModal();
+
+			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			await expect.element(screen.getByText("Upload an image to get started")).toBeInTheDocument();
+		});
 	});
 
 	describe("cancel and close", () => {
@@ -288,6 +392,135 @@ describe("MediaPickerModal", () => {
 				.element(screen.getByRole("button", { name: UPLOAD_BUTTON_REGEX }))
 				.toBeInTheDocument();
 			await expect.element(screen.getByLabelText("Upload file")).toBeInTheDocument();
+		});
+	});
+
+	describe("load more pagination", () => {
+		it("renders Load More button when first page returns nextCursor", async () => {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaList as any).mockResolvedValueOnce({
+				items: [
+					{
+						id: "p1",
+						filename: "page1.jpg",
+						mimeType: "image/jpeg",
+						url: "/media/page1.jpg",
+						size: 1024,
+						width: 800,
+						height: 600,
+						createdAt: "2024-01-01",
+					},
+				],
+				nextCursor: "cursor-2",
+			});
+
+			const screen = await renderModal();
+			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
+			await expect.element(screen.getByRole("button", { name: "Load More" })).toBeInTheDocument();
+		});
+
+		it("does not render Load More button when no nextCursor", async () => {
+			const screen = await renderModal();
+			// Default mock returns 2 items with no nextCursor → button should be absent
+			await expect.element(screen.getByRole("option", { name: "photo.jpg" })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
+		});
+
+		it("keeps already-loaded items visible while fetching the next page", async () => {
+			// Reproduces the Copilot review concern: when the next-page fetch is
+			// in flight, the picker grid must not blank out into a centered
+			// loader — the user's prior selection / scroll context would be lost.
+			const api = await import("../../src/lib/api");
+			const mock = api.fetchMediaList as any;
+			mock.mockReset();
+			let resolveSecond: (value: unknown) => void = () => {};
+			const secondPagePromise = new Promise((resolve) => {
+				resolveSecond = resolve;
+			});
+			mock
+				.mockResolvedValueOnce({
+					items: [
+						{
+							id: "p1",
+							filename: "page1.jpg",
+							mimeType: "image/jpeg",
+							url: "/media/page1.jpg",
+							size: 1024,
+							width: 800,
+							height: 600,
+							createdAt: "2024-01-01",
+						},
+					],
+					nextCursor: "cursor-2",
+				})
+				.mockReturnValueOnce(secondPagePromise);
+
+			const screen = await renderModal();
+			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
+
+			const loadMoreBtn = [...document.querySelectorAll("button")].find(
+				(b) => b.textContent?.trim() === "Load More",
+			)!;
+			loadMoreBtn.click();
+
+			// While the second page is still pending, the first-page item must
+			// stay in the DOM (not be replaced by a centered loader).
+			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
+
+			resolveSecond({ items: [] });
+		});
+
+		it("Load More click fetches the next page with the previous cursor", async () => {
+			const api = await import("../../src/lib/api");
+			const mock = api.fetchMediaList as any;
+			mock.mockReset();
+			mock
+				.mockResolvedValueOnce({
+					items: [
+						{
+							id: "p1",
+							filename: "page1.jpg",
+							mimeType: "image/jpeg",
+							url: "/media/page1.jpg",
+							size: 1024,
+							width: 800,
+							height: 600,
+							createdAt: "2024-01-01",
+						},
+					],
+					nextCursor: "cursor-2",
+				})
+				.mockResolvedValueOnce({
+					items: [
+						{
+							id: "p2",
+							filename: "page2.jpg",
+							mimeType: "image/jpeg",
+							url: "/media/page2.jpg",
+							size: 1024,
+							width: 800,
+							height: 600,
+							createdAt: "2024-01-02",
+						},
+					],
+				});
+
+			const screen = await renderModal();
+			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
+
+			// Direct DOM click to bypass the dialog's inert overlay
+			const loadMoreBtn = [...document.querySelectorAll("button")].find(
+				(b) => b.textContent?.trim() === "Load More",
+			)!;
+			loadMoreBtn.click();
+
+			await expect.element(screen.getByRole("option", { name: "page2.jpg" })).toBeInTheDocument();
+
+			// Second call should have been made with the previous response's cursor.
+			expect(mock).toHaveBeenCalledTimes(2);
+			expect(mock.mock.calls[1][0]).toEqual(
+				expect.objectContaining({ cursor: "cursor-2", limit: 100 }),
+			);
 		});
 	});
 });

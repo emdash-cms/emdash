@@ -5,11 +5,11 @@
  * This demonstrates the embeds plugin auto-registering components
  * for YouTube, Vimeo, etc. with the PortableText renderer.
  */
-import { getEmDashEntry } from "emdash";
+import { getEmDashEntry, decodeSlug } from "emdash";
 import { PortableText } from "emdash/ui";
 import { embedComponents } from "@emdash-cms/plugin-embeds/astro";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
 
 const { entry: post } = slug
 	? await getEmDashEntry("posts", slug)

@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"target": "ES2022",
+		"target": "ES2024",
 		"module": "preserve",
 		"moduleResolution": "bundler",
 		"strict": true,
@@ -12,6 +12,7 @@
 		"esModuleInterop": true,
 		"skipLibCheck": true,
 		"noUncheckedIndexedAccess": true,
+		"noUnusedLocals": true,
 		"noImplicitOverride": true,
 		"verbatimModuleSyntax": true
 	},

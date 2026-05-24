@@ -121,11 +121,11 @@ export async function runSystemCleanup(
  * them down to REVISION_KEEP_COUNT.
  */
 async function pruneExcessiveRevisions(db: Kysely<Database>): Promise<number> {
-	const entries = await sql<{ collection: string; entry_id: string; cnt: number }>`
-		SELECT collection, entry_id, COUNT(*) as cnt
+	const entries = await sql<{ collection: string; entry_id: string }>`
+		SELECT collection, entry_id
 		FROM revisions
 		GROUP BY collection, entry_id
-		HAVING cnt > ${REVISION_PRUNE_THRESHOLD}
+		HAVING COUNT(*) > ${REVISION_PRUNE_THRESHOLD}
 	`.execute(db);
 
 	if (entries.rows.length === 0) return 0;

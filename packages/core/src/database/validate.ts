@@ -80,16 +80,6 @@ export function validateIdentifier(value: string, label = "identifier"): void {
 }
 
 /**
- * Validate that a string is a safe SQL identifier, allowing hyphens.
- *
- * Like `validateIdentifier` but also permits hyphens, which appear in
- * plugin IDs (e.g., "my-plugin"). Matches `/^[a-z][a-z0-9_-]*$/`.
- *
- * @param value - The string to validate
- * @param label - Human-readable label for error messages
- * @throws {IdentifierError} If the value is not valid
- */
-/**
  * Validate that a string is a safe JSON field name for use in json_extract paths.
  *
  * More permissive than `validateIdentifier` — allows camelCase (mixed case)
@@ -120,6 +110,16 @@ export function validateJsonFieldName(value: string, label = "JSON field name"):
 	}
 }
 
+/**
+ * Validate that a string is a safe SQL identifier, allowing hyphens.
+ *
+ * Like `validateIdentifier` but also permits hyphens, which appear in
+ * plugin IDs (e.g., "my-plugin"). Matches `/^[a-z][a-z0-9_-]*$/`.
+ *
+ * @param value - The string to validate
+ * @param label - Human-readable label for error messages
+ * @throws {IdentifierError} If the value is not valid
+ */
 export function validatePluginIdentifier(value: string, label = "plugin identifier"): void {
 	if (!value || typeof value !== "string") {
 		throw new IdentifierError(`${label} must be a non-empty string`, String(value));

@@ -65,8 +65,10 @@ test.describe("Bylines", () => {
 			return body.data.id as string;
 		};
 
-		const firstBylineId = await createByline(primaryName, `primary-writer-${unique}`);
-		const secondBylineId = await createByline(secondaryName, `secondary-writer-${unique}`);
+		// Create two bylines for the test post. IDs aren't needed downstream;
+		// the test selects them by name via the bylines combobox.
+		await createByline(primaryName, `primary-writer-${unique}`);
+		await createByline(secondaryName, `secondary-writer-${unique}`);
 
 		await admin.goToNewContent("posts");
 		await admin.waitForLoading();
@@ -83,11 +85,14 @@ test.describe("Bylines", () => {
 			.getByRole("heading", { name: "Bylines" })
 			.locator("xpath=ancestor::div[contains(@class,'p-4')]")
 			.first();
-		const bylineSelect = bylinesSidebar.locator("select").first();
-		await bylineSelect.selectOption({ value: firstBylineId });
+		// Kumo's Select renders as a combobox button + popover, not a native <select>.
+		const bylineCombobox = bylinesSidebar.getByRole("combobox").first();
+		await bylineCombobox.click();
+		await page.getByRole("option", { name: primaryName }).click();
 		await bylinesSidebar.getByRole("button", { name: "Add" }).click();
 
-		await bylineSelect.selectOption({ value: secondBylineId });
+		await bylineCombobox.click();
+		await page.getByRole("option", { name: secondaryName }).click();
 		await bylinesSidebar.getByRole("button", { name: "Add" }).click();
 
 		await page.getByLabel("Role label").nth(1).fill("Co-author");

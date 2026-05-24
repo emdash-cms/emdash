@@ -20,12 +20,14 @@ export interface TaxonomyTable {
 	label: string;
 	parent_id: string | null;
 	data: string | null; // JSON
+	locale: Generated<string>; // e.g. 'en', 'es', 'fr'
+	translation_group: string | null; // shared across translations of the same term
 }
 
 export interface ContentTaxonomyTable {
 	collection: string; // e.g., 'posts'
 	entry_id: string; // ID in the ec_* table
-	taxonomy_id: string;
+	taxonomy_id: string; // stores taxonomies.translation_group (locale-agnostic)
 }
 
 export interface TaxonomyDefTable {
@@ -36,6 +38,8 @@ export interface TaxonomyDefTable {
 	hierarchical: number; // 0 or 1 (SQLite boolean)
 	collections: string | null; // JSON array
 	created_at: Generated<string>;
+	locale: Generated<string>;
+	translation_group: string | null;
 }
 
 export interface MediaTable {
@@ -72,7 +76,8 @@ export interface UserTable {
 export interface CredentialTable {
 	id: string; // Base64url credential ID
 	user_id: string;
-	public_key: Uint8Array; // COSE public key
+	public_key: Uint8Array; // SEC1 or PKIX encoded public key
+	algorithm: number;
 	counter: number;
 	device_type: string; // 'singleDevice' | 'multiDevice'
 	backed_up: number; // 0 or 1
@@ -270,10 +275,14 @@ export interface PluginStateTable {
 	activated_at: string | null;
 	deactivated_at: string | null;
 	data: string | null; // JSON
-	source: Generated<string>; // 'config' | 'marketplace'
+	source: Generated<string>; // 'config' | 'marketplace' | 'registry'
 	marketplace_version: string | null;
 	display_name: string | null;
 	description: string | null;
+	// Registry-specific columns (added by migration 038). Always null for
+	// `source = 'config' | 'marketplace'`; populated for `source = 'registry'`.
+	registry_publisher_did: string | null;
+	registry_slug: string | null;
 }
 
 export interface PluginIndexTable {
@@ -292,6 +301,8 @@ export interface MenuTable {
 	label: string;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
+	locale: Generated<string>;
+	translation_group: string | null;
 }
 
 export interface MenuItemTable {
@@ -301,13 +312,15 @@ export interface MenuItemTable {
 	sort_order: number;
 	type: string;
 	reference_collection: string | null;
-	reference_id: string | null;
+	reference_id: string | null; // stores translation_group of referenced content/term
 	custom_url: string | null;
 	label: string;
 	title_attr: string | null;
 	target: string | null;
 	css_classes: string | null;
 	created_at: Generated<string>;
+	locale: Generated<string>;
+	translation_group: string | null;
 }
 
 // Widget Areas
@@ -466,6 +479,15 @@ export interface NotFoundLogTable {
 	referrer: string | null;
 	user_agent: string | null;
 	ip: string | null;
+	hits: number;
+	/**
+	 * Migration 035 adds this as a nullable column (SQLite can't add a
+	 * NOT NULL column with a non-constant default to an existing table).
+	 * The `log404` upsert always writes a value, so new and updated rows
+	 * always have one, but existing rows pre-migration were backfilled
+	 * without a NOT NULL constraint. Typed as nullable to match the schema.
+	 */
+	last_seen_at: string | null;
 	created_at: string;
 }
 
@@ -480,6 +502,21 @@ export interface BylineTable {
 	is_guest: number;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
+	/**
+	 * Locale this byline row is presented in. Added by migration 040. Backfilled
+	 * to the configured `defaultLocale` for pre-040 rows. `(slug, locale)` is
+	 * unique; the partial unique on `user_id` widens to `(user_id, locale)`.
+	 */
+	locale: Generated<string>;
+	/**
+	 * Shared across translations of the same byline. Added by migration 040.
+	 * Equals `id` for the anchor row; siblings inherit it from their source.
+	 * `_emdash_content_bylines.byline_id` and `ec_*.primary_byline_id` store
+	 * this value rather than a row id, so credits span every locale variant of
+	 * a byline. Nullable in the schema for backwards compatibility; new rows
+	 * always populate it.
+	 */
+	translation_group: string | null;
 }
 
 export interface ContentBylineTable {

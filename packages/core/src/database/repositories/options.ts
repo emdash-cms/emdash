@@ -1,6 +1,10 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely, type SqlBool } from "kysely";
 
 import type { Database, OptionTable } from "../types.js";
+
+function escapeLike(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
 
 /**
  * Options repository for key-value settings storage
@@ -22,7 +26,7 @@ export class OptionsRepository {
 			.executeTakeFirst();
 
 		if (!row) return null;
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns any; generic callers provide T
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
 		return JSON.parse(row.value) as T;
 	}
 
@@ -49,6 +53,31 @@ export class OptionsRepository {
 			.values(row)
 			.onConflict((oc) => oc.column("name").doUpdateSet({ value: row.value }))
 			.execute();
+	}
+
+	/**
+	 * Set an option value only if no row with that name exists. Atomic at the
+	 * database level via INSERT ... ON CONFLICT DO NOTHING, so concurrent
+	 * callers can't race past the check.
+	 *
+	 * Returns true when the row was inserted, false when a row already
+	 * existed (regardless of its value — even an empty string or null).
+	 */
+	async setIfAbsent<T = unknown>(name: string, value: T): Promise<boolean> {
+		const row: OptionTable = {
+			name,
+			value: JSON.stringify(value),
+		};
+
+		const result = await this.db
+			.insertInto("options")
+			.values(row)
+			.onConflict((oc) => oc.column("name").doNothing())
+			.executeTakeFirst();
+
+		// SQLite reports numInsertedOrUpdatedRows; Postgres reports the same.
+		// When the ON CONFLICT branch fires and does nothing, the count is 0.
+		return (result.numInsertedOrUpdatedRows ?? 0n) > 0n;
 	}
 
 	/**
@@ -87,7 +116,7 @@ export class OptionsRepository {
 
 		const result = new Map<string, T>();
 		for (const row of rows) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns any; generic callers provide T
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
 			result.set(row.name, JSON.parse(row.value) as T);
 		}
 		return result;
@@ -122,15 +151,16 @@ export class OptionsRepository {
 	 * Get all options matching a prefix
 	 */
 	async getByPrefix<T = unknown>(prefix: string): Promise<Map<string, T>> {
+		const pattern = `${escapeLike(prefix)}%`;
 		const rows = await this.db
 			.selectFrom("options")
 			.select(["name", "value"])
-			.where("name", "like", `${prefix}%`)
+			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)
 			.execute();
 
 		const result = new Map<string, T>();
 		for (const row of rows) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns any; generic callers provide T
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
 			result.set(row.name, JSON.parse(row.value) as T);
 		}
 		return result;
@@ -140,9 +170,10 @@ export class OptionsRepository {
 	 * Delete all options matching a prefix
 	 */
 	async deleteByPrefix(prefix: string): Promise<number> {
+		const pattern = `${escapeLike(prefix)}%`;
 		const result = await this.db
 			.deleteFrom("options")
-			.where("name", "like", `${prefix}%`)
+			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)
 			.executeTakeFirst();
 
 		return Number(result.numDeletedRows ?? 0);

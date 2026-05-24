@@ -58,7 +58,7 @@ export class EmDashPreviewDB extends DurableObject {
 
 		const rows: Record<string, unknown>[] = [];
 		for (const row of cursor) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- SqlStorageCursor yields record-like objects
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields record-like objects
 			rows.push(row as Record<string, unknown>);
 		}
 
@@ -141,7 +141,7 @@ export class EmDashPreviewDB extends DurableObject {
 				const gen = this.ctx.storage.sql
 					.exec("SELECT value FROM _emdash_do_meta WHERE key = 'snapshot_generated_at'")
 					.one();
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- SqlStorageCursor yields loosely-typed rows
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields loosely-typed rows
 				return { generatedAt: String(gen.value as string | number) };
 			}
 		} catch (error) {
@@ -202,21 +202,34 @@ export class EmDashPreviewDB extends DurableObject {
 	/**
 	 * Drop all user tables in the DO's SQLite database.
 	 * Preserves SQLite and Cloudflare internal tables.
+	 *
+	 * Disables foreign key enforcement before dropping to avoid cascade
+	 * errors when tables are dropped in an order that violates FK
+	 * dependencies (e.g. child dropped first, then parent's implicit
+	 * CASCADE delete references the already-dropped child table).
 	 */
 	private dropAllTables(): void {
-		const tables = [
-			...this.ctx.storage.sql.exec(
-				"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'",
-			),
-		];
-		for (const row of tables) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- SqlStorageCursor yields loosely-typed rows
-			const name = String(row.name as string);
-			if (!SAFE_IDENTIFIER.test(name)) {
-				// Skip tables with unsafe names rather than interpolating them
-				continue;
+		// Disable FK enforcement so DROP order doesn't matter.
+		// Cloudflare DO SQLite enforces foreign keys by default.
+		this.ctx.storage.sql.exec("PRAGMA foreign_keys = OFF");
+
+		try {
+			const tables = [
+				...this.ctx.storage.sql.exec(
+					"SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'",
+				),
+			];
+			for (const row of tables) {
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields loosely-typed rows
+				const name = String(row.name as string);
+				if (!SAFE_IDENTIFIER.test(name)) {
+					// Skip tables with unsafe names rather than interpolating them
+					continue;
+				}
+				this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS "${name}"`);
 			}
-			this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS "${name}"`);
+		} finally {
+			this.ctx.storage.sql.exec("PRAGMA foreign_keys = ON");
 		}
 	}
 

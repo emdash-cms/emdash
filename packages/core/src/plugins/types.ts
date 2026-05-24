@@ -10,56 +10,56 @@
  */
 
 import type { Element } from "@emdash-cms/blocks";
+// The plugin capability vocabulary, the legacy-rename map, and the manifest
+// shape are authored once in @emdash-cms/plugin-types and shared between core
+// (the manifest reader at install/runtime) and @emdash-cms/plugin-cli (the
+// manifest writer at bundle/publish time).
+//
+// We import-and-re-export here so existing internal callers keep working
+// (e.g. `import { PluginCapability } from "../plugins/types.js"`).
+import {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapabilities,
+	normalizeCapability,
+	type CurrentPluginCapability,
+	type DeprecatedPluginCapability,
+	type ManifestHookEntry,
+	type ManifestRouteEntry,
+	type PluginCapability,
+	type PluginStorageConfig,
+	type StorageCollectionConfig,
+} from "@emdash-cms/plugin-types";
 import type { JSX } from "astro/jsx-runtime";
 import type { z } from "astro/zod";
-
-import type { FieldType } from "../schema/types.js";
-
 // =============================================================================
 // Core Types
 // =============================================================================
 
-/**
- * Plugin capabilities determine what APIs are available in context
- */
-export type PluginCapability =
-	| "network:fetch" // ctx.http is available (host-restricted via allowedHosts)
-	| "network:fetch:any" // ctx.http is available (unrestricted outbound — use for user-configured URLs)
-	| "read:content" // ctx.content.get/list available
-	| "write:content" // ctx.content.create/update/delete available
-	| "read:media" // ctx.media.get/list available
-	| "write:media" // ctx.media.getUploadUrl/delete available
-	| "read:users" // ctx.users is available
-	| "email:send" // ctx.email is available (when a provider is configured)
-	| "email:provide" // can register email:deliver exclusive hook (transport provider)
-	| "email:intercept" // can register email:beforeSend / email:afterSend hooks
-	| "page:inject"; // can register page:fragments hook (inject scripts/styles into pages)
+import type { FieldType } from "../schema/types.js";
+
+export {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapabilities,
+	normalizeCapability,
+	type CurrentPluginCapability,
+	type DeprecatedPluginCapability,
+	type ManifestHookEntry,
+	type ManifestRouteEntry,
+	type PluginCapability,
+	type PluginStorageConfig,
+	type StorageCollectionConfig,
+};
 
 // =============================================================================
 // Storage Types
 // =============================================================================
-
-/**
- * Storage collection declaration in plugin definition
- */
-export interface StorageCollectionConfig {
-	/**
-	 * Fields to index for querying.
-	 * Each entry can be a single field name or an array for composite indexes.
-	 */
-	indexes: Array<string | string[]>;
-	/**
-	 * Fields with unique constraints.
-	 * Each entry can be a single field name or an array for composite unique indexes.
-	 * Unique indexes are also queryable (no need to duplicate in `indexes`).
-	 */
-	uniqueIndexes?: Array<string | string[]>;
-}
-
-/**
- * Plugin storage configuration
- */
-export type PluginStorageConfig = Record<string, StorageCollectionConfig>;
+//
+// `StorageCollectionConfig` and `PluginStorageConfig` are re-exported above
+// from `@emdash-cms/plugin-types`. The manifest carries these shapes
+// verbatim; both this package (reader) and plugin-cli (writer) agree on
+// the same types via the shared package.
 
 /**
  * Query filter operators
@@ -162,14 +162,58 @@ export interface KVAccess {
 }
 
 /**
+ * SEO metadata for a content item, as stored in the core SEO panel.
+ *
+ * Only present on items in collections with `has_seo = 1`. For collections
+ * without SEO enabled, `ContentItem.seo` is `undefined`.
+ */
+export interface ContentItemSeo {
+	title: string | null;
+	description: string | null;
+	image: string | null;
+	canonical: string | null;
+	noIndex: boolean;
+}
+
+/**
+ * SEO input accepted by content write operations.
+ *
+ * All fields are optional — only fields that are present overwrite existing
+ * values. An empty object is treated as a no-op.
+ */
+export interface ContentItemSeoInput {
+	title?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
+	noIndex?: boolean;
+}
+
+/**
  * Content item returned from content API
  */
 export interface ContentItem {
 	id: string;
 	type: string;
+	slug: string | null;
+	status: string;
+	locale: string | null;
 	data: Record<string, unknown>;
+	/**
+	 * SEO metadata, populated when the collection has SEO enabled
+	 * (`has_seo = 1`). `undefined` for non-SEO collections.
+	 */
+	seo?: ContentItemSeo;
 	createdAt: string;
 	updatedAt: string;
+	publishedAt: string | null;
+}
+
+export interface ContentListWhere {
+	/** Exact match on `status` (e.g. `"published"`, `"draft"`). */
+	status?: string;
+	/** Exact match on `locale` (e.g. `"en"`, `"fr-CA"`). */
+	locale?: string;
 }
 
 /**
@@ -179,7 +223,20 @@ export interface ContentListOptions {
 	limit?: number;
 	cursor?: string;
 	orderBy?: Record<string, "asc" | "desc">;
+	where?: ContentListWhere;
 }
+
+/**
+ * Input accepted by `content.create` / `content.update`.
+ *
+ * Most entries are field slugs mapped to their values. The reserved `seo`
+ * key is extracted and routed to the core SEO panel (the `_emdash_seo`
+ * table), matching the shape accepted by the REST API. Passing `seo` for a
+ * collection that does not have SEO enabled throws a validation error.
+ */
+export type ContentWriteInput = Record<string, unknown> & {
+	seo?: ContentItemSeoInput;
+};
 
 /**
  * Content access interface - capability-gated
@@ -190,8 +247,8 @@ export interface ContentAccess {
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
 
 	// Write operations (requires write:content) - optional on interface
-	create?(collection: string, data: Record<string, unknown>): Promise<ContentItem>;
-	update?(collection: string, id: string, data: Record<string, unknown>): Promise<ContentItem>;
+	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
 }
 
@@ -199,8 +256,8 @@ export interface ContentAccess {
  * Full content access with write operations
  */
 export interface ContentAccessWithWrite extends ContentAccess {
-	create(collection: string, data: Record<string, unknown>): Promise<ContentItem>;
-	update(collection: string, id: string, data: Record<string, unknown>): Promise<ContentItem>;
+	create(collection: string, data: ContentWriteInput): Promise<ContentItem>;
+	update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete(collection: string, id: string): Promise<boolean>;
 }
 
@@ -657,6 +714,16 @@ export interface ContentHookEvent {
 export interface ContentDeleteEvent {
 	id: string;
 	collection: string;
+	/** `true` when the content is permanently deleted (not just trashed). */
+	permanent: boolean;
+}
+
+/**
+ * Content publish state change hook event (fired after publish or unpublish)
+ */
+export interface ContentPublishStateChangeEvent {
+	content: Record<string, unknown>;
+	collection: string;
 }
 
 /**
@@ -708,6 +775,16 @@ export type ContentAfterDeleteHandler = (
 	ctx: PluginContext,
 ) => Promise<void>;
 
+export type ContentAfterPublishHandler = (
+	event: ContentPublishStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterUnpublishHandler = (
+	event: ContentPublishStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
 export type MediaBeforeUploadHandler = (
 	event: MediaUploadEvent,
 	ctx: PluginContext,
@@ -730,6 +807,17 @@ export type UninstallHandler = (event: UninstallEvent, ctx: PluginContext) => Pr
 export type PagePlacement = "head" | "body:start" | "body:end";
 
 /**
+ * A single breadcrumb trail item. Used by `PublicPageContext.breadcrumbs`
+ * so themes can publish breadcrumb trails that SEO plugins consume.
+ */
+export interface BreadcrumbItem {
+	/** Display name for this crumb (e.g. "Home", "Blog", "My Post"). */
+	name: string;
+	/** Absolute or root-relative URL for this crumb. */
+	url: string;
+}
+
+/**
  * Describes the page being rendered. Passed to page hooks so plugins
  * can decide what to contribute without fetching content themselves.
  */
@@ -739,7 +827,10 @@ export interface PublicPageContext {
 	locale: string | null;
 	kind: "content" | "custom";
 	pageType: string;
+	/** Full document title for the rendered page */
 	title: string | null;
+	/** Page-only title for OG/Twitter/JSON-LD headline output */
+	pageTitle?: string | null;
 	description: string | null;
 	canonical: string | null;
 	image: string | null;
@@ -763,6 +854,23 @@ export interface PublicPageContext {
 	};
 	/** Site name for structured data and og:site_name */
 	siteName?: string;
+	/**
+	 * Optional breadcrumb trail for this page, root first. When set,
+	 * SEO plugins should use this verbatim rather than deriving a trail
+	 * from `path`. Themes typically populate this at the point they
+	 * build the context (e.g. from a content hierarchy walk, taxonomy
+	 * lookup, or per-`pageType` routing logic).
+	 *
+	 * Semantics for consumers:
+	 *   - `undefined` — theme has no opinion; consumer falls back to
+	 *     its own derivation.
+	 *   - `[]` — this page has no breadcrumbs (e.g. homepage); consumer
+	 *     should skip `BreadcrumbList` emission entirely.
+	 *   - Non-empty array — used verbatim for `BreadcrumbList` output.
+	 */
+	breadcrumbs?: BreadcrumbItem[];
+	/** Public-facing site URL (origin) for structured data */
+	siteUrl?: string;
 }
 
 // ── page:metadata ───────────────────────────────────────────────
@@ -782,6 +890,7 @@ export type PageMetadataLinkRel =
 	| "alternate"
 	| "author"
 	| "license"
+	| "nlweb"
 	| "site.standard.document";
 
 export type PageMetadataContribution =
@@ -857,6 +966,10 @@ export interface PluginHooks {
 	"content:afterSave"?: HookConfig<ContentAfterSaveHandler> | ContentAfterSaveHandler;
 	"content:beforeDelete"?: HookConfig<ContentBeforeDeleteHandler> | ContentBeforeDeleteHandler;
 	"content:afterDelete"?: HookConfig<ContentAfterDeleteHandler> | ContentAfterDeleteHandler;
+	"content:afterPublish"?: HookConfig<ContentAfterPublishHandler> | ContentAfterPublishHandler;
+	"content:afterUnpublish"?:
+		| HookConfig<ContentAfterUnpublishHandler>
+		| ContentAfterUnpublishHandler;
 
 	// Media hooks
 	"media:beforeUpload"?: HookConfig<MediaBeforeUploadHandler> | MediaBeforeUploadHandler;
@@ -884,27 +997,14 @@ export interface PluginHooks {
 /**
  * Hook names
  */
+/**
+ * Hook name in a manifest. Core's exhaustive union of recognised hook names,
+ * derived from the `PluginHooks` registry. The serialised manifest carries
+ * these as opaque strings; this stricter type is only used for type-checking
+ * inside core. `ManifestHookEntry` is re-exported from
+ * `@emdash-cms/plugin-types` near the top of this file.
+ */
 export type HookName = keyof PluginHooks;
-
-/**
- * Hook metadata entry in a plugin manifest.
- * Replaces the plain hook name string with structured metadata.
- */
-export interface ManifestHookEntry {
-	name: string;
-	exclusive?: boolean;
-	priority?: number;
-	timeout?: number;
-}
-
-/**
- * Route metadata entry in a plugin manifest.
- * Replaces the plain route name string with structured metadata.
- */
-export interface ManifestRouteEntry {
-	name: string;
-	public?: boolean;
-}
 
 /**
  * Resolved hook with normalized config
@@ -1001,7 +1101,14 @@ export interface PluginDashboardWidget {
 /**
  * Settings field types (for admin UI generation)
  */
-export type SettingFieldType = "string" | "number" | "boolean" | "select" | "secret";
+export type SettingFieldType =
+	| "string"
+	| "number"
+	| "boolean"
+	| "select"
+	| "secret"
+	| "url"
+	| "email";
 
 export interface BaseSettingField {
 	type: SettingFieldType;
@@ -1037,12 +1144,26 @@ export interface SecretSettingField extends BaseSettingField {
 	type: "secret";
 }
 
+export interface UrlSettingField extends BaseSettingField {
+	type: "url";
+	default?: string;
+	placeholder?: string;
+}
+
+export interface EmailSettingField extends BaseSettingField {
+	type: "email";
+	default?: string;
+	placeholder?: string;
+}
+
 export type SettingField =
 	| StringSettingField
 	| NumberSettingField
 	| BooleanSettingField
 	| SelectSettingField
-	| SecretSettingField;
+	| SecretSettingField
+	| UrlSettingField
+	| EmailSettingField;
 
 /**
  * Block Kit element for block editing fields.
@@ -1067,6 +1188,15 @@ export interface PortableTextBlockConfig {
 	placeholder?: string;
 	/** Block Kit form fields for the editing UI. If declared, replaces the simple URL input. */
 	fields?: PortableTextBlockField[];
+	/**
+	 * Optional. Display category in the slash menu. Defaults to "Embeds".
+	 *
+	 * Plugin authors should pick a meaningful category that reflects what the
+	 * block actually is — e.g. "Sections", "Marketing", "Media", "Embeds",
+	 * "Layout". Blocks with the same category are grouped together in the
+	 * editor's slash menu.
+	 */
+	category?: string;
 }
 
 /**
@@ -1157,6 +1287,8 @@ export interface ResolvedPluginHooks {
 	"content:afterSave"?: ResolvedHook<ContentAfterSaveHandler>;
 	"content:beforeDelete"?: ResolvedHook<ContentBeforeDeleteHandler>;
 	"content:afterDelete"?: ResolvedHook<ContentAfterDeleteHandler>;
+	"content:afterPublish"?: ResolvedHook<ContentAfterPublishHandler>;
+	"content:afterUnpublish"?: ResolvedHook<ContentAfterUnpublishHandler>;
 	"media:beforeUpload"?: ResolvedHook<MediaBeforeUploadHandler>;
 	"media:afterUpload"?: ResolvedHook<MediaAfterUploadHandler>;
 	cron?: ResolvedHook<CronHandler>;
@@ -1169,83 +1301,6 @@ export interface ResolvedPluginHooks {
 	"comment:afterModerate"?: ResolvedHook<CommentAfterModerateHandler>;
 	"page:metadata"?: ResolvedHook<PageMetadataHandler>;
 	"page:fragments"?: ResolvedHook<PageFragmentHandler>;
-}
-
-// =============================================================================
-// Standard Plugin Format (Unified Plugin Format)
-// =============================================================================
-
-/**
- * Standard plugin hook handler -- same as sandbox entry format.
- * Receives the event as the first argument and a PluginContext as the second.
- *
- * Plugin authors annotate their event parameters with specific types for IDE
- * support. At the type level, we accept any function with compatible arity.
- */
-// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event types
-export type StandardHookHandler = (...args: any[]) => Promise<any>;
-
-/**
- * Standard plugin hook entry -- either a bare handler or a config object.
- */
-export type StandardHookEntry =
-	| StandardHookHandler
-	| {
-			handler: StandardHookHandler;
-			priority?: number;
-			timeout?: number;
-			dependencies?: string[];
-			errorPolicy?: "continue" | "abort";
-			exclusive?: boolean;
-	  };
-
-/**
- * Standard plugin route handler -- takes (routeCtx, pluginCtx) like sandbox entries.
- * The routeCtx contains input and request info; pluginCtx is the full plugin context.
- *
- * Uses `any` for routeCtx to allow plugins to access properties like
- * `routeCtx.request.url` without needing exact type matches across
- * trusted (Request object) and sandboxed (plain object) modes.
- */
-// eslint-disable-next-line typescript-eslint/no-explicit-any -- see above
-export type StandardRouteHandler = (routeCtx: any, ctx: PluginContext) => Promise<unknown>;
-
-/**
- * Standard plugin route entry -- either a config object with handler, or just a handler.
- */
-export interface StandardRouteEntry {
-	handler: StandardRouteHandler;
-	input?: unknown;
-	public?: boolean;
-}
-
-/**
- * Standard plugin definition -- the sandbox entry format.
- * Used by standard plugins that work in both trusted and sandboxed modes.
- * No id/version/capabilities -- those come from the descriptor.
- *
- * This is the input to definePlugin() for standard-format plugins.
- *
- * The hooks and routes use permissive types (Record<string, any>) so that
- * plugin authors can annotate their handlers with specific event types
- * without type errors from strictFunctionTypes contravariance.
- */
-export interface StandardPluginDefinition {
-	// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event/route types
-	hooks?: Record<string, any>;
-	// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event/route types
-	routes?: Record<string, any>;
-}
-
-/**
- * Check if a value is a StandardPluginDefinition (has hooks/routes but no id/version).
- */
-export function isStandardPluginDefinition(value: unknown): value is StandardPluginDefinition {
-	if (typeof value !== "object" || value === null) return false;
-	// Standard format: has hooks or routes, but NOT id+version (which are on PluginDefinition)
-	const hasPluginShape = "hooks" in value || "routes" in value;
-	const hasNativeShape = "id" in value && "version" in value;
-	return hasPluginShape && !hasNativeShape;
 }
 
 // =============================================================================
@@ -1267,8 +1322,16 @@ export interface PluginAdminExports {
 // =============================================================================
 
 /**
- * Plugin manifest - the metadata portion of a plugin bundle
- * Used for sandboxed plugins loaded from marketplace
+ * Plugin manifest — the metadata portion of a plugin bundle, used for
+ * sandboxed plugins loaded from the marketplace.
+ *
+ * This interface is core's stricter version of the manifest contract: it
+ * uses the exhaustive `HookName` union and core's typed `PluginAdminConfig`.
+ * The wire-shape lives in `@emdash-cms/plugin-types` as `PluginManifest`
+ * with looser types (so the registry CLI can serialise hook names it
+ * doesn't know about). Both must stay structurally compatible: every value
+ * of this type must be assignable to the shared one. The static assertion
+ * below catches any drift at compile time.
  */
 export interface PluginManifest {
 	id: string;
@@ -1282,3 +1345,29 @@ export interface PluginManifest {
 	routes: Array<ManifestRouteEntry | string>;
 	admin: PluginAdminConfig;
 }
+
+// Type-level guard: core's `PluginManifest` is intentionally a SUBTYPE of
+// the shared wire shape (`@emdash-cms/plugin-types` `PluginManifest`). The
+// wire shape uses looser types like `string` for hook names so the registry
+// CLI can serialise plugins targeting hook versions this core doesn't yet
+// know about. Core narrows `string` to `HookName` and `Record<string,
+// unknown>` to `PluginAdminConfig` because core's loader actually executes
+// against those types.
+//
+// We assert one direction at compile time: `core extends shared`. The
+// reverse direction (`shared extends core`) intentionally does NOT hold
+// because shared is wider -- a manifest written against the wire shape
+// could carry a hook name core doesn't know. That runtime narrowing is the
+// job of `manifest-schema.ts` (zod-validated, called at every JSON.parse
+// of a manifest.json), not of the type system. The static check below
+// catches the OTHER failure mode: core adding a required field or
+// non-assignable type that the wire shape doesn't allow.
+//
+// `type X = never` is itself legal as a type alias, so the assertion has to
+// be in a value position (`const _check: T = true`) for the compiler to
+// error when T resolves to `never`. Don't replace this with a bare type
+// alias.
+type _AssertManifestCompat =
+	PluginManifest extends import("@emdash-cms/plugin-types").PluginManifest ? true : never;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _MANIFEST_COMPAT: _AssertManifestCompat = true;

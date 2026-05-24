@@ -7,9 +7,14 @@
  *
  */
 
+import type { D1Database } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type { SandboxEmailSendCallback } from "emdash";
-import { ulid } from "emdash";
+import { ulid, PluginStorageRepository } from "emdash";
+import { Kysely } from "kysely";
+import { D1Dialect } from "kysely-d1";
+
+import { sandboxHttpFetch } from "./bridge-http.js";
 
 /** Regex to validate collection names (prevent SQL injection) */
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
@@ -125,6 +130,11 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	/** Per-collection storage config (matches manifest.storage entries) */
+	storageConfig?: Record<
+		string,
+		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+	>;
 }
 
 /**
@@ -139,6 +149,27 @@ export interface PluginBridgeProps {
  * 3. Plugins call bridge methods which validate and proxy to the database
  */
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
+	/**
+	 * Construct a PluginStorageRepository for the requested collection.
+	 * Uses the indexes from the plugin's storage config (if provided) so
+	 * query/count operations support WHERE/ORDER BY/cursor pagination
+	 * matching in-process and workerd sandbox plugins.
+	 */
+	private getStorageRepo(collection: string): PluginStorageRepository {
+		const { pluginId, storageConfig } = this.ctx.props;
+		const config = storageConfig?.[collection];
+		// Merge unique indexes into the indexes list since both are queryable
+		const allIndexes: Array<string | string[]> = [
+			...(config?.indexes ?? []),
+			...(config?.uniqueIndexes ?? []),
+		];
+		const db = new Kysely<unknown>({
+			dialect: new D1Dialect({ database: this.env.DB }),
+		});
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- Kysely<unknown> is compatible with PluginStorageRepository's expected db
+		return new PluginStorageRepository(db as never, pluginId, collection, allIndexes);
+	}
+
 	// =========================================================================
 	// KV Operations - scoped to plugin namespace
 	// =========================================================================
@@ -240,45 +271,45 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async storageQuery(
 		collection: string,
-		opts: { limit?: number; cursor?: string } = {},
+		opts: {
+			limit?: number;
+			cursor?: string;
+			where?: Record<string, unknown>;
+			orderBy?: Record<string, "asc" | "desc">;
+		} = {},
 	): Promise<{
 		items: Array<{ id: string; data: unknown }>;
 		hasMore: boolean;
 		cursor?: string;
 	}> {
-		const { pluginId, storageCollections } = this.ctx.props;
+		const { storageCollections } = this.ctx.props;
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
-		const limit = Math.min(opts.limit ?? 50, 1000);
-		const results = await this.env.DB.prepare(
-			"SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = ? LIMIT ?",
-		)
-			.bind(pluginId, collection, limit + 1)
-			.all<{ id: string; data: string }>();
-
-		const items = (results.results ?? []).slice(0, limit).map((row) => ({
-			id: row.id,
-			data: JSON.parse(row.data),
-		}));
+		// Delegate to PluginStorageRepository for proper WHERE/ORDER BY/cursor support
+		const repo = this.getStorageRepo(collection);
+		const result = await repo.query({
+			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
+			where: opts.where as never,
+			orderBy: opts.orderBy,
+			limit: opts.limit,
+			cursor: opts.cursor,
+		});
 		return {
-			items,
-			hasMore: (results.results ?? []).length > limit,
-			cursor: items.length > 0 ? items.at(-1)!.id : undefined,
+			items: result.items,
+			hasMore: result.hasMore,
+			cursor: result.cursor,
 		};
 	}
 
-	async storageCount(collection: string): Promise<number> {
-		const { pluginId, storageCollections } = this.ctx.props;
+	async storageCount(collection: string, where?: Record<string, unknown>): Promise<number> {
+		const { storageCollections } = this.ctx.props;
 		if (!storageCollections.includes(collection)) {
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
-		const result = await this.env.DB.prepare(
-			"SELECT COUNT(*) as count FROM _plugin_storage WHERE plugin_id = ? AND collection = ?",
-		)
-			.bind(pluginId, collection)
-			.first<{ count: number }>();
-		return result?.count ?? 0;
+		const repo = this.getStorageRepo(collection);
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
+		return repo.count(where as never);
 	}
 
 	async storageGetMany(collection: string, ids: string[]): Promise<Map<string, unknown>> {
@@ -357,8 +388,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		updatedAt: string;
 	} | null> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:content")) {
-			throw new Error("Missing capability: read:content");
+		if (!capabilities.includes("content:read")) {
+			throw new Error("Missing capability: content:read");
 		}
 		// Validate collection name to prevent SQL injection
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
@@ -394,8 +425,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		hasMore: boolean;
 	}> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:content")) {
-			throw new Error("Missing capability: read:content");
+		if (!capabilities.includes("content:read")) {
+			throw new Error("Missing capability: content:read");
 		}
 		// Validate collection name to prevent SQL injection
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
@@ -447,8 +478,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		updatedAt: string;
 	}> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("write:content")) {
-			throw new Error("Missing capability: write:content");
+		if (!capabilities.includes("content:write")) {
+			throw new Error("Missing capability: content:write");
 		}
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
@@ -519,8 +550,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		updatedAt: string;
 	}> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("write:content")) {
-			throw new Error("Missing capability: write:content");
+		if (!capabilities.includes("content:write")) {
+			throw new Error("Missing capability: content:write");
 		}
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
@@ -577,8 +608,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async contentDelete(collection: string, id: string): Promise<boolean> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("write:content")) {
-			throw new Error("Missing capability: write:content");
+		if (!capabilities.includes("content:write")) {
+			throw new Error("Missing capability: content:write");
 		}
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
@@ -607,8 +638,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		createdAt: string;
 	} | null> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:media")) {
-			throw new Error("Missing capability: read:media");
+		if (!capabilities.includes("media:read")) {
+			throw new Error("Missing capability: media:read");
 		}
 		const result = await this.env.DB.prepare("SELECT * FROM media WHERE id = ?").bind(id).first<{
 			id: string;
@@ -642,8 +673,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		hasMore: boolean;
 	}> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:media")) {
-			throw new Error("Missing capability: read:media");
+		if (!capabilities.includes("media:read")) {
+			throw new Error("Missing capability: media:read");
 		}
 		const limit = Math.min(opts.limit ?? 50, 100);
 		// Only return ready items (matching core's MediaRepository.findMany default)
@@ -709,8 +740,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		bytes: ArrayBuffer,
 	): Promise<{ mediaId: string; storageKey: string; url: string }> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("write:media")) {
-			throw new Error("Missing capability: write:media");
+		if (!capabilities.includes("media:write")) {
+			throw new Error("Missing capability: media:write");
 		}
 
 		if (!this.env.MEDIA) {
@@ -769,8 +800,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async mediaDelete(id: string): Promise<boolean> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("write:media")) {
-			throw new Error("Missing capability: write:media");
+		if (!capabilities.includes("media:write")) {
+			throw new Error("Missing capability: media:write");
 		}
 
 		// Look up the storage key before deleting
@@ -809,45 +840,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		text: string;
 	}> {
 		const { capabilities, allowedHosts } = this.ctx.props;
-		const hasUnrestricted = capabilities.includes("network:fetch:any");
-		const hasFetch = capabilities.includes("network:fetch") || hasUnrestricted;
-		if (!hasFetch) {
-			throw new Error("Missing capability: network:fetch");
-		}
-
-		if (!hasUnrestricted) {
-			const host = new URL(url).host;
-			if (allowedHosts.length === 0) {
-				throw new Error(
-					`Plugin has no allowed hosts configured. Add hosts to allowedHosts to enable HTTP requests.`,
-				);
-			}
-			const allowed = allowedHosts.some((pattern) => {
-				if (pattern.startsWith("*.")) {
-					return host.endsWith(pattern.slice(1)) || host === pattern.slice(2);
-				}
-				return host === pattern;
-			});
-			if (!allowed) {
-				throw new Error(`Host not allowed: ${host}. Allowed: ${allowedHosts.join(", ")}`);
-			}
-		}
-
-		const response = await fetch(url, init);
-		const headers: Record<string, string> = {};
-		response.headers.forEach((value, key) => {
-			headers[key] = value;
-		});
-
-		return {
-			status: response.status,
-			headers,
-			text: await response.text(),
-		};
+		return sandboxHttpFetch(url, init, { capabilities, allowedHosts });
 	}
 
 	// =========================================================================
-	// User Operations - capability-gated (read:users)
+	// User Operations - capability-gated (users:read)
 	// =========================================================================
 
 	async userGet(id: string): Promise<{
@@ -858,8 +855,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		createdAt: string;
 	} | null> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:users")) {
-			throw new Error("Missing capability: read:users");
+		if (!capabilities.includes("users:read")) {
+			throw new Error("Missing capability: users:read");
 		}
 		const result = await this.env.DB.prepare(
 			"SELECT id, email, name, role, created_at FROM users WHERE id = ?",
@@ -890,8 +887,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		createdAt: string;
 	} | null> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:users")) {
-			throw new Error("Missing capability: read:users");
+		if (!capabilities.includes("users:read")) {
+			throw new Error("Missing capability: users:read");
 		}
 		const result = await this.env.DB.prepare(
 			"SELECT id, email, name, role, created_at FROM users WHERE email = ?",
@@ -925,8 +922,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		nextCursor?: string;
 	}> {
 		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("read:users")) {
-			throw new Error("Missing capability: read:users");
+		if (!capabilities.includes("users:read")) {
+			throw new Error("Missing capability: users:read");
 		}
 		const limit = Math.max(1, Math.min(opts?.limit ?? 50, 100));
 		let sql = "SELECT id, email, name, role, created_at FROM users";

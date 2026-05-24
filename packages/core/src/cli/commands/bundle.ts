@@ -20,24 +20,28 @@ import { resolve, join, extname, basename } from "node:path";
 import { defineCommand } from "citty";
 import consola from "consola";
 
+import { CAPABILITY_RENAMES, isDeprecatedCapability } from "../../plugins/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import {
-	fileExists,
-	readImageDimensions,
-	extractManifest,
-	findNodeBuiltinImports,
-	findBuildOutput,
-	resolveSourceEntry,
-	calculateDirectorySize,
+	collectBundleEntries,
 	createTarball,
-	MAX_BUNDLE_SIZE,
+	extractManifest,
+	fileExists,
+	findBuildOutput,
+	findNodeBuiltinImports,
+	findSourceExports,
+	formatBytes,
+	ICON_SIZE,
 	MAX_SCREENSHOTS,
 	MAX_SCREENSHOT_WIDTH,
 	MAX_SCREENSHOT_HEIGHT,
-	ICON_SIZE,
+	readImageDimensions,
+	resolveSourceEntry,
+	totalBundleBytes,
+	validateBundleSize,
 } from "./bundle-utils.js";
 
-const TS_EXT_RE = /\.tsx?$/;
+const TS_EXT_RE = /\.(tsx?|[mc]?js)$/;
 const SLASH_RE = /\//g;
 const LEADING_AT_RE = /^@/;
 const emdash_SCOPE_RE = /^@emdash-cms\//;
@@ -162,6 +166,8 @@ export const bundleCommand = defineCommand({
 		const tmpDir = join(pluginDir, ".emdash-bundle-tmp");
 
 		try {
+			// Clean up any stale temp directory from a previous failed run
+			await rm(tmpDir, { recursive: true, force: true });
 			await mkdir(tmpDir, { recursive: true });
 
 			// Build main entry to extract manifest.
@@ -495,6 +501,20 @@ export const bundleCommand = defineCommand({
 			consola.start("Validating bundle...");
 			let hasErrors = false;
 
+			// Check that package.json exports point to built files, not source.
+			// Plugins published to npm with source exports will break site builds
+			// because the sandbox module generator embeds the resolved file as-is.
+			if (pkg.exports) {
+				for (const issue of findSourceExports(pkg.exports)) {
+					consola.error(
+						`Export "${issue.exportPath}" points to source (${issue.resolvedPath}). ` +
+							`Package exports must point to built files (e.g. dist/*.mjs). ` +
+							`Add a build step and update the exports map.`,
+					);
+					hasErrors = true;
+				}
+			}
+
 			// Check for Node.js builtins in backend.js
 			const backendPath = join(bundleDir, "backend.js");
 			if (await fileExists(backendPath)) {
@@ -507,18 +527,37 @@ export const bundleCommand = defineCommand({
 				}
 			}
 
-			// Check capabilities warnings
-			if (manifest.capabilities.includes("network:fetch:any")) {
+			// Check capabilities warnings — use canonical names. Deprecated
+			// names are accepted (and warned about separately below) so we
+			// also check the legacy aliases here for the duration of the
+			// deprecation window.
+			const declaresUnrestricted =
+				manifest.capabilities.includes("network:request:unrestricted") ||
+				manifest.capabilities.includes("network:fetch:any");
+			const declaresHostRestricted =
+				manifest.capabilities.includes("network:request") ||
+				manifest.capabilities.includes("network:fetch");
+			if (declaresUnrestricted) {
 				consola.warn(
-					"Plugin declares unrestricted network access (network:fetch:any) — it can make requests to any host",
+					"Plugin declares unrestricted network access (network:request:unrestricted) — it can make requests to any host",
 				);
-			} else if (
-				manifest.capabilities.includes("network:fetch") &&
-				manifest.allowedHosts.length === 0
-			) {
+			} else if (declaresHostRestricted && manifest.allowedHosts.length === 0) {
 				consola.warn(
-					"Plugin declares network:fetch capability but no allowedHosts — all fetch requests will be blocked",
+					"Plugin declares network:request capability but no allowedHosts — all requests will be blocked",
 				);
+			}
+
+			// Warn for each deprecated capability used. The warning points
+			// to the new name so the fix is mechanical. We continue (not
+			// error) here — the hard fail lives in `publish` so authors
+			// can still build and test locally.
+			const deprecatedCaps = manifest.capabilities.filter(isDeprecatedCapability);
+			if (deprecatedCaps.length > 0) {
+				consola.warn("Plugin uses deprecated capability names. Rename them before publishing:");
+				for (const cap of deprecatedCaps) {
+					const replacement = CAPABILITY_RENAMES[cap];
+					consola.warn(`  ${cap} → ${replacement}`);
+				}
 			}
 
 			// Check for features that won't work in sandboxed mode
@@ -559,15 +598,16 @@ export const bundleCommand = defineCommand({
 				}
 			}
 
-			// Calculate total bundle size
-			const totalSize = await calculateDirectorySize(bundleDir);
-			if (totalSize > MAX_BUNDLE_SIZE) {
-				const sizeMB = (totalSize / 1024 / 1024).toFixed(2);
-				consola.error(`Bundle size ${sizeMB}MB exceeds maximum of 5MB`);
+			// Bundle size caps (RFC 0001 §"Bundle size limits").
+			const bundleEntries = await collectBundleEntries(bundleDir);
+			const sizeViolations = validateBundleSize(bundleEntries);
+			if (sizeViolations.length > 0) {
+				for (const v of sizeViolations) consola.error(v);
 				hasErrors = true;
 			} else {
-				const sizeKB = (totalSize / 1024).toFixed(1);
-				consola.info(`Bundle size: ${sizeKB}KB`);
+				consola.info(
+					`Bundle size: ${formatBytes(totalBundleBytes(bundleEntries))} across ${bundleEntries.length} file${bundleEntries.length === 1 ? "" : "s"}`,
+				);
 			}
 
 			if (hasErrors) {

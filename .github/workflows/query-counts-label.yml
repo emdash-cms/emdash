@@ -1,0 +1,186 @@
+name: Query Counts — Label
+
+# Applies the "query-count changed" label when a PR's diff touches either
+# snapshot file. The label is informational — it flags that the PR alters
+# per-route DB query counts (either because the author's change regressed
+# them, or because the Apply workflow auto-updated the baseline).
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+    paths:
+      - scripts/query-counts.snapshot.sqlite.json
+      - scripts/query-counts.snapshot.d1.json
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const label = 'query-count changed';
+            // Create the label if it doesn't exist yet. Ignore 422 (already exists).
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: label,
+                color: 'fbca04',
+                description: 'PR diff modifies query-count snapshot files',
+              });
+            } catch (err) {
+              if (err.status !== 422) throw err;
+            }
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: [label],
+            });
+
+      - name: Comment query-count diff
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+            const baseRef = pr.base.sha;
+            const headRef = pr.head.sha;
+
+            // Fetch a JSON file at a given ref. Returns {} if the file
+            // doesn't exist on that ref (e.g. snapshot added in this PR).
+            async function loadSnapshot(ref, path) {
+              try {
+                const { data } = await github.rest.repos.getContent({
+                  owner,
+                  repo,
+                  ref,
+                  path,
+                });
+                if (Array.isArray(data) || data.type !== 'file' || !data.content) {
+                  return {};
+                }
+                const raw = Buffer.from(data.content, 'base64').toString('utf8');
+                return JSON.parse(raw);
+              } catch (err) {
+                if (err.status === 404) return {};
+                throw err;
+              }
+            }
+
+            function diffRows(before, after) {
+              const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+              const rows = [];
+              for (const key of [...keys].sort()) {
+                const b = before[key];
+                const a = after[key];
+                if (b === a) continue;
+                const bCell = b === undefined ? '—' : String(b);
+                const aCell = a === undefined ? '—' : String(a);
+                const delta = (a ?? 0) - (b ?? 0);
+                const deltaCell =
+                  a === undefined
+                    ? 'removed'
+                    : b === undefined
+                      ? 'added'
+                      : delta > 0
+                        ? `+${delta}`
+                        : String(delta);
+                rows.push(`| \`${key}\` | ${bCell} | ${aCell} | ${deltaCell} |`);
+              }
+              return rows;
+            }
+
+            const dialects = [
+              ['SQLite', 'scripts/query-counts.snapshot.sqlite.json'],
+              ['D1', 'scripts/query-counts.snapshot.d1.json'],
+            ];
+
+            const sections = [];
+            let totalDelta = 0;
+            let totalChanged = 0;
+
+            for (const [name, path] of dialects) {
+              const [before, after] = await Promise.all([
+                loadSnapshot(baseRef, path),
+                loadSnapshot(headRef, path),
+              ]);
+              const rows = diffRows(before, after);
+              if (rows.length === 0) continue;
+              totalChanged += rows.length;
+              for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+                const b = before[key] ?? 0;
+                const a = after[key] ?? 0;
+                if (a !== b) totalDelta += a - b;
+              }
+              sections.push(
+                [
+                  `### ${name}`,
+                  '',
+                  '| Route | Before | After | Δ |',
+                  '| --- | ---: | ---: | --- |',
+                  ...rows,
+                ].join('\n'),
+              );
+            }
+
+            const marker = '<!-- query-count-diff -->';
+
+            // Find an existing bot comment so we can upsert in place.
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pr.number,
+              per_page: 100,
+            });
+            const prior = comments.find(
+              (c) => typeof c.body === 'string' && c.body.includes(marker),
+            );
+
+            if (sections.length === 0) {
+              // Snapshot files unchanged on this run; remove any stale comment
+              // (e.g. earlier push had a delta that has since been reverted).
+              if (prior) {
+                await github.rest.issues.deleteComment({
+                  owner,
+                  repo,
+                  comment_id: prior.id,
+                });
+              }
+              return;
+            }
+
+            const sign = totalDelta > 0 ? '+' : '';
+            const summary = `**${totalChanged}** route${totalChanged === 1 ? '' : 's'} changed, total Δ ${sign}${totalDelta} quer${Math.abs(totalDelta) === 1 ? 'y' : 'ies'}.`;
+
+            const body = [
+              marker,
+              '## Query-count snapshot changes',
+              '',
+              summary,
+              '',
+              ...sections,
+              '',
+              '<sub>Comparing snapshot files between base and head. Updated automatically on each push.</sub>',
+            ].join('\n');
+
+            if (prior) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: prior.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr.number,
+                body,
+              });
+            }

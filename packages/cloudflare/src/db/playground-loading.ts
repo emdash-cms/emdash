@@ -15,6 +15,7 @@ export function renderPlaygroundLoadingPage(): string {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>EmDash Playground</title>
+<link rel="icon" href="data:image/svg+xml,<svg width='75' height='75' viewBox='0 0 75 75' fill='none' xmlns='http://www.w3.org/2000/svg'><rect x='3' y='3' width='69' height='69' rx='10.518' stroke='url(%23pb)' stroke-width='6'/><rect x='18' y='34' width='39.366' height='6.561' fill='url(%23pd)'/><defs><linearGradient id='pb' x1='-43' y1='124' x2='92.42' y2='-41.75' gradientUnits='userSpaceOnUse'><stop stop-color='%230F006B'/><stop offset='.08' stop-color='%23281A81'/><stop offset='.17' stop-color='%235D0C83'/><stop offset='.25' stop-color='%23911475'/><stop offset='.33' stop-color='%23CE2F55'/><stop offset='.42' stop-color='%23FF6633'/><stop offset='.5' stop-color='%23F6821F'/><stop offset='.58' stop-color='%23FBAD41'/><stop offset='.67' stop-color='%23FFCD89'/><stop offset='.75' stop-color='%23FFE9CB'/><stop offset='.83' stop-color='%23FFF7EC'/><stop offset='.92' stop-color='%23FFF8EE'/><stop offset='1' stop-color='white'/></linearGradient><linearGradient id='pd' x1='91.5' y1='27.5' x2='28.12' y2='54.18' gradientUnits='userSpaceOnUse'><stop stop-color='white'/><stop offset='.13' stop-color='%23FFF8EE'/><stop offset='.62' stop-color='%23FBAD41'/><stop offset='.85' stop-color='%23F6821F'/><stop offset='1' stop-color='%23FF6633'/></linearGradient></defs></svg>" />
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -38,14 +39,20 @@ export function renderPlaygroundLoadingPage(): string {
   }
 
   .pg-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
     font-size: 28px;
     font-weight: 700;
     letter-spacing: -0.02em;
     color: #fff;
   }
 
-  .pg-logo span {
-    color: #facc15;
+  .pg-logo svg {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
   }
 
   .pg-spinner-wrap {
@@ -156,7 +163,7 @@ export function renderPlaygroundLoadingPage(): string {
 </head>
 <body>
 <div class="pg-loading">
-  <div class="pg-logo">Em<span>Dash</span></div>
+  <div class="pg-logo"><svg viewBox="0 0 75 75" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="69" height="69" rx="10.518" stroke="url(#pl-b)" stroke-width="6"/><rect x="18" y="34" width="39.366" height="6.561" fill="url(#pl-d)"/><defs><linearGradient id="pl-b" x1="-43" y1="124" x2="92.42" y2="-41.75" gradientUnits="userSpaceOnUse"><stop stop-color="#0F006B"/><stop offset=".08" stop-color="#281A81"/><stop offset=".17" stop-color="#5D0C83"/><stop offset=".25" stop-color="#911475"/><stop offset=".33" stop-color="#CE2F55"/><stop offset=".42" stop-color="#FF6633"/><stop offset=".5" stop-color="#F6821F"/><stop offset=".58" stop-color="#FBAD41"/><stop offset=".67" stop-color="#FFCD89"/><stop offset=".75" stop-color="#FFE9CB"/><stop offset=".83" stop-color="#FFF7EC"/><stop offset=".92" stop-color="#FFF8EE"/><stop offset="1" stop-color="#fff"/></linearGradient><linearGradient id="pl-d" x1="91.5" y1="27.5" x2="28.12" y2="54.18" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset=".13" stop-color="#FFF8EE"/><stop offset=".62" stop-color="#FBAD41"/><stop offset=".85" stop-color="#F6821F"/><stop offset="1" stop-color="#FF6633"/></linearGradient></defs></svg>EmDash</div>
 
   <div class="pg-spinner-wrap">
     <div class="pg-spinner" id="pg-spinner"></div>

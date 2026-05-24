@@ -84,7 +84,7 @@ export interface VectorizeSearchConfig {
 function getCloudflareEnv(request: Request): CloudflareEnv | null {
 	// Access runtime.env from Astro's Cloudflare adapter
 	// This is available when running on Cloudflare Workers
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any, typescript-eslint(no-unsafe-type-assertion) -- Astro locals accessed via internal symbol; no typed API available
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any, typescript/no-unsafe-type-assertion -- Astro locals accessed via internal symbol; no typed API available
 	const locals = (request as any)[Symbol.for("astro.locals")];
 	if (locals?.runtime?.env) {
 		return locals.runtime.env;
@@ -113,7 +113,7 @@ function extractSearchableText(content: Record<string, unknown>): string {
 			if (text) parts.push(text);
 		} else if (Array.isArray(value)) {
 			// Assume Portable Text array
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any, typescript-eslint(no-unsafe-type-assertion) -- Portable Text arrays are untyped at this point; extractPlainText handles validation
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any, typescript/no-unsafe-type-assertion -- Portable Text arrays are untyped at this point; extractPlainText handles validation
 			const text = extractPlainText(value as any);
 			if (text) parts.push(text);
 		}
@@ -139,7 +139,7 @@ export function vectorizeSearch(config: VectorizeSearchConfig = {}): PluginDefin
 	return {
 		id: "vectorize-search",
 		version: "1.0.0",
-		capabilities: ["read:content"],
+		capabilities: ["content:read"],
 
 		hooks: {
 			/**

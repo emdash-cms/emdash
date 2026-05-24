@@ -49,7 +49,9 @@ export function x402(config: X402Config): AstroIntegration {
 		name: "@emdash-cms/x402",
 		hooks: {
 			"astro:config:setup": ({ addMiddleware, updateConfig }) => {
-				// Inject the virtual module that provides config to the middleware
+				// Inject the virtual module that provides config to the middleware.
+				// The middleware must be excluded from Vite's SSR dependency optimizer
+				// because esbuild cannot resolve virtual modules — only Vite plugins can.
 				updateConfig({
 					vite: {
 						plugins: [
@@ -65,6 +67,14 @@ export function x402(config: X402Config): AstroIntegration {
 								},
 							},
 						],
+						optimizeDeps: {
+							exclude: ["@emdash-cms/x402"],
+						},
+						ssr: {
+							optimizeDeps: {
+								exclude: ["@emdash-cms/x402"],
+							},
+						},
 					},
 				});
 

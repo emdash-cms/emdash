@@ -1,5 +1,6 @@
 import { sql, type Kysely } from "kysely";
 
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import type { Database } from "../types.js";
 import type { ContentSeo, ContentSeoInput } from "./types.js";
 
@@ -37,6 +38,19 @@ export class SeoRepository {
 	constructor(private db: Kysely<Database>) {}
 
 	/**
+	 * Check whether a collection has SEO enabled (`has_seo = 1`).
+	 * Returns `false` if the collection does not exist.
+	 */
+	async isEnabled(collection: string): Promise<boolean> {
+		const row = await this.db
+			.selectFrom("_emdash_collections")
+			.select("has_seo")
+			.where("slug", "=", collection)
+			.executeTakeFirst();
+		return row?.has_seo === 1;
+	}
+
+	/**
 	 * Get SEO data for a content item. Returns null defaults if no row exists.
 	 */
 	async get(collection: string, contentId: string): Promise<ContentSeo> {
@@ -61,37 +75,40 @@ export class SeoRepository {
 	}
 
 	/**
-	 * Get SEO data for multiple content items in a single query.
+	 * Get SEO data for multiple content items.
 	 * Returns a Map keyed by content_id. Items without SEO rows get defaults.
+	 *
+	 * Chunks the `content_id IN (…)` clause so the total bound-parameter count
+	 * per statement (ids + the `collection = ?` filter) stays within Cloudflare
+	 * D1's 100-variable limit regardless of how many content items are passed.
 	 */
 	async getMany(collection: string, contentIds: string[]): Promise<Map<string, ContentSeo>> {
 		const result = new Map<string, ContentSeo>();
 
 		if (contentIds.length === 0) return result;
 
-		// Batch query — single SELECT with IN clause
-		const rows = await this.db
-			.selectFrom("_emdash_seo")
-			.selectAll()
-			.where("collection", "=", collection)
-			.where("content_id", "in", contentIds)
-			.execute();
-
-		// Index fetched rows by content_id
-		const rowMap = new Map(rows.map((r) => [r.content_id, r]));
-
+		// Pre-fill with defaults so every input id has an entry even if no row exists.
 		for (const id of contentIds) {
-			const row = rowMap.get(id);
-			if (row) {
-				result.set(id, {
+			result.set(id, { ...SEO_DEFAULTS });
+		}
+
+		const uniqueContentIds = [...new Set(contentIds)];
+		for (const chunk of chunks(uniqueContentIds, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("_emdash_seo")
+				.selectAll()
+				.where("collection", "=", collection)
+				.where("content_id", "in", chunk)
+				.execute();
+
+			for (const row of rows) {
+				result.set(row.content_id, {
 					title: row.seo_title ?? null,
 					description: row.seo_description ?? null,
 					image: row.seo_image ?? null,
 					canonical: row.seo_canonical ?? null,
 					noIndex: row.seo_no_index === 1,
 				});
-			} else {
-				result.set(id, { ...SEO_DEFAULTS });
 			}
 		}
 

@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"target": "ES2022",
+		"target": "ES2024",
 		"module": "NodeNext",
 		"moduleResolution": "NodeNext",
 		"strict": true,
@@ -9,7 +9,8 @@
 		"outDir": "dist",
 		"rootDir": "src",
 		"declaration": true,
-		"declarationMap": true
+		"declarationMap": true,
+		"types": ["node"]
 	},
 	"include": ["src"]
 }

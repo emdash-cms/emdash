@@ -7,13 +7,28 @@
 		}
 	],
 	"commit": false,
-	"fixed": [],
+	"fixed": [
+		[
+			"emdash",
+			"@emdash-cms/admin",
+			"@emdash-cms/auth",
+			"@emdash-cms/blocks",
+			"@emdash-cms/cloudflare",
+			"@emdash-cms/gutenberg-to-portable-text",
+			"@emdash-cms/x402",
+			"create-emdash"
+		]
+	],
+	"___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+		"onlyUpdatePeerDependentsWhenOutOfRange": true
+	},
 	"linked": [],
 	"access": "public",
 	"baseBranch": "main",
 	"updateInternalDependencies": "minor",
 	"bumpVersionsWithWorkspaceProtocolOnly": true,
 	"ignore": [
+		"@emdash-cms/aggregator",
 		"@emdash-cms/blocks-playground",
 		"@emdash-cms/demo-cloudflare",
 		"@emdash-cms/demo-postgres",

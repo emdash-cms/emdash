@@ -9,7 +9,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, handleError, unwrapResult } from "#api/error.js";
+import { apiError, handleError, requireDb, unwrapResult } from "#api/error.js";
 import {
 	handleRedirectDelete,
 	handleRedirectGet,
@@ -17,11 +17,14 @@ import {
 } from "#api/handlers/redirects.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { updateRedirectBody } from "#api/schemas.js";
+import { invalidateRedirectCache } from "#redirects/cache.js";
 
 export const prerender = false;
 
 export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const db = emdash.db;
 	const { id } = params;
 
@@ -42,6 +45,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
 export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const db = emdash.db;
 	const { id } = params;
 
@@ -57,6 +62,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		if (isParseError(body)) return body;
 
 		const result = await handleRedirectUpdate(db, id, body);
+		invalidateRedirectCache();
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to update redirect", "REDIRECT_UPDATE_ERROR");
@@ -65,6 +71,8 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 
 export const DELETE: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const db = emdash.db;
 	const { id } = params;
 
@@ -77,6 +85,7 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 
 	try {
 		const result = await handleRedirectDelete(db, id);
+		invalidateRedirectCache();
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to delete redirect", "REDIRECT_DELETE_ERROR");

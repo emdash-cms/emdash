@@ -69,11 +69,7 @@ import GalleryComponent from "./Gallery.astro";
 import HtmlBlockComponent from "./HtmlBlock.astro";
 // Pre-configured components object for PortableText
 import ImageComponent from "./Image.astro";
-import LinkMark from "./marks/Link.astro";
-import StrikeThroughMark from "./marks/StrikeThrough.astro";
-import SubscriptMark from "./marks/Subscript.astro";
-import SuperscriptMark from "./marks/Superscript.astro";
-import UnderlineMark from "./marks/Underline.astro";
+import { emdashMarkComponents } from "./marks.js";
 import PullquoteComponent from "./Pullquote.astro";
 import TableComponent from "./Table.astro";
 
@@ -101,13 +97,7 @@ export const emdashComponents = {
 		file: FileComponent,
 		pullquote: PullquoteComponent,
 	},
-	mark: {
-		superscript: SuperscriptMark,
-		subscript: SubscriptMark,
-		underline: UnderlineMark,
-		"strike-through": StrikeThroughMark,
-		link: LinkMark,
-	},
+	mark: emdashMarkComponents,
 };
 
 // Public page contribution components

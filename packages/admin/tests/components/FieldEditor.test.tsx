@@ -1,9 +1,9 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import { FieldEditor } from "../../src/components/FieldEditor";
 import type { SchemaField } from "../../src/lib/api";
+import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -335,6 +335,49 @@ describe("FieldEditor", () => {
 			const field = makeField({ slug: "test", label: "Test" });
 			const screen = await render(<FieldEditor {...defaultProps} field={field} />);
 			await expect.element(screen.getByRole("button", { name: "Update Field" })).toBeEnabled();
+		});
+	});
+
+	describe("config step (file field)", () => {
+		const fileField = makeField({
+			slug: "attachment",
+			label: "Attachment",
+			type: "file",
+			required: false,
+			unique: false,
+			searchable: false,
+		});
+
+		it("shows AllowedTypesEditor for file type", async () => {
+			const screen = await render(<FieldEditor {...defaultProps} field={fileField} />);
+			await expect.element(screen.getByText("Allowed types")).toBeInTheDocument();
+		});
+
+		it("shows AllowedTypesEditor for image type", async () => {
+			const imageField = makeField({
+				slug: "cover",
+				label: "Cover",
+				type: "image",
+				required: false,
+				unique: false,
+				searchable: false,
+			});
+			const screen = await render(<FieldEditor {...defaultProps} field={imageField} />);
+			await expect.element(screen.getByText("Allowed types")).toBeInTheDocument();
+		});
+
+		it("pre-populates allowedMimeTypes from existing field validation", async () => {
+			const fieldWithMimes = makeField({
+				slug: "document",
+				label: "Document",
+				type: "file",
+				required: false,
+				unique: false,
+				searchable: false,
+				validation: { allowedMimeTypes: ["application/pdf"] },
+			});
+			const screen = await render(<FieldEditor {...defaultProps} field={fieldWithMimes} />);
+			await expect.element(screen.getByText("application/pdf")).toBeInTheDocument();
 		});
 	});
 

@@ -2,9 +2,9 @@ import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import { MenuEditor } from "../../src/components/MenuEditor";
+import { render } from "../utils/render.tsx";
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -24,6 +24,7 @@ vi.mock("@tanstack/react-router", async () => {
 			</a>
 		),
 		useParams: () => ({ name: "main-menu" }),
+		useSearch: () => ({}),
 		useNavigate: () => vi.fn(),
 	};
 });
@@ -48,38 +49,44 @@ const defaultMenu = {
 	id: "menu1",
 	name: "main-menu",
 	label: "Main Menu",
-	created_at: "",
-	updated_at: "",
+	createdAt: "",
+	updatedAt: "",
+	locale: "en",
+	translationGroup: "menu1",
 	items: [
 		{
 			id: "1",
-			menu_id: "menu1",
-			parent_id: null,
-			sort_order: 0,
+			menuId: "menu1",
+			parentId: null,
+			sortOrder: 0,
 			type: "custom",
-			reference_collection: null,
-			reference_id: null,
-			custom_url: "/",
+			referenceCollection: null,
+			referenceId: null,
+			customUrl: "/",
 			label: "Home",
-			title_attr: null,
+			titleAttr: null,
 			target: "_self",
-			css_classes: null,
-			created_at: "",
+			cssClasses: null,
+			createdAt: "",
+			locale: "en",
+			translationGroup: "1",
 		},
 		{
 			id: "2",
-			menu_id: "menu1",
-			parent_id: null,
-			sort_order: 1,
+			menuId: "menu1",
+			parentId: null,
+			sortOrder: 1,
 			type: "custom",
-			reference_collection: null,
-			reference_id: null,
-			custom_url: "/about",
+			referenceCollection: null,
+			referenceId: null,
+			customUrl: "/about",
 			label: "About",
-			title_attr: null,
+			titleAttr: null,
 			target: "_self",
-			css_classes: null,
-			created_at: "",
+			cssClasses: null,
+			createdAt: "",
+			locale: "en",
+			translationGroup: "2",
 		},
 	],
 };
@@ -181,5 +188,42 @@ describe("MenuEditor", () => {
 
 		await expect.element(screen.getByText("Home")).toBeInTheDocument();
 		await expect.element(screen.getByText("/about")).toBeInTheDocument();
+	});
+
+	it("URL input accepts relative paths", async () => {
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: ADD_CUSTOM_LINK_REGEX }).click();
+
+		const urlInput = screen.getByLabelText("URL");
+		await urlInput.fill("/about");
+
+		// The input should accept the value without browser validation errors
+		const inputEl = urlInput.element() as HTMLInputElement;
+		expect(inputEl.validity.valid).toBe(true);
+	});
+
+	it("URL input accepts absolute https URLs", async () => {
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: ADD_CUSTOM_LINK_REGEX }).click();
+
+		const urlInput = screen.getByLabelText("URL");
+		await urlInput.fill("https://example.com");
+
+		const inputEl = urlInput.element() as HTMLInputElement;
+		expect(inputEl.validity.valid).toBe(true);
+	});
+
+	it("URL input rejects bare domains without scheme", async () => {
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await screen.getByRole("button", { name: ADD_CUSTOM_LINK_REGEX }).click();
+
+		const urlInput = screen.getByLabelText("URL");
+		await urlInput.fill("example.com");
+
+		const inputEl = urlInput.element() as HTMLInputElement;
+		expect(inputEl.validity.valid).toBe(false);
 	});
 });

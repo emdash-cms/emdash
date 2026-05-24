@@ -1,3 +1,5 @@
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
 	Upload,
@@ -27,6 +29,7 @@ export interface DashboardProps {
  * Admin dashboard — quick actions, status, collections, recent activity.
  */
 export function Dashboard({ manifest }: DashboardProps) {
+	const { t } = useLingui();
 	const { data: stats, isLoading } = useQuery({
 		queryKey: ["dashboard-stats"],
 		queryFn: fetchDashboardStats,
@@ -36,7 +39,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 	return (
 		<div className="space-y-6">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h1 className="text-3xl font-bold">Dashboard</h1>
+				<h1 className="text-3xl font-bold">{t`Dashboard`}</h1>
 				<QuickActions manifest={manifest} />
 			</div>
 
@@ -61,6 +64,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 // --- Quick actions ---
 
 function QuickActions({ manifest }: { manifest: AdminManifest }) {
+	const { t } = useLingui();
 	const collections = Object.entries(manifest.collections);
 
 	return (
@@ -82,7 +86,7 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 				className="inline-flex items-center gap-1.5 rounded-md border bg-kumo-base px-3 py-1.5 text-sm font-medium transition-colors hover:bg-kumo-tint"
 			>
 				<Upload className="h-3.5 w-3.5" aria-hidden="true" />
-				Upload Media
+				{t`Upload Media`}
 			</Link>
 		</div>
 	);
@@ -106,22 +110,22 @@ function StatusBar({ stats, loading }: { stats?: DashboardStats; loading: boolea
 	const indicators = [
 		totalDrafts > 0 && {
 			icon: PencilSimple,
-			label: `${totalDrafts} draft${totalDrafts !== 1 ? "s" : ""}`,
+			label: plural(totalDrafts, { one: "# draft", other: "# drafts" }),
 			className: "text-amber-700 dark:text-amber-400",
 		},
 		totalScheduled > 0 && {
 			icon: CalendarBlank,
-			label: `${totalScheduled} scheduled`,
+			label: plural(totalScheduled, { one: "# scheduled", other: "# scheduled" }),
 			className: "text-blue-600 dark:text-blue-400",
 		},
 		{
 			icon: Image,
-			label: `${stats.mediaCount} media`,
+			label: plural(stats.mediaCount, { one: "# media file", other: "# media files" }),
 			className: "text-kumo-subtle",
 		},
 		{
 			icon: Users,
-			label: `${stats.userCount} user${stats.userCount !== 1 ? "s" : ""}`,
+			label: plural(stats.userCount, { one: "# user", other: "# users" }),
 			className: "text-kumo-subtle",
 		},
 	].filter(Boolean) as Array<{
@@ -153,9 +157,11 @@ function CollectionList({
 	manifest: AdminManifest;
 	loading: boolean;
 }) {
+	const { t } = useLingui();
+
 	return (
 		<div className="rounded-lg border bg-kumo-base p-4 sm:p-6">
-			<h2 className="mb-4 text-lg font-semibold">Content</h2>
+			<h2 className="mb-4 text-lg font-semibold">{t`Content`}</h2>
 			{loading ? (
 				<div className="space-y-3">
 					{[1, 2, 3].map((i) => (
@@ -163,7 +169,7 @@ function CollectionList({
 					))}
 				</div>
 			) : collections.length === 0 ? (
-				<p className="text-sm text-kumo-subtle">No collections configured</p>
+				<p className="text-sm text-kumo-subtle">{t`No collections configured`}</p>
 			) : (
 				<div className="space-y-1">
 					{collections.map((col) => {
@@ -178,8 +184,8 @@ function CollectionList({
 							>
 								<span className="font-medium">{config?.label ?? col.label}</span>
 								<span className="flex items-center gap-3 text-xs text-kumo-subtle">
-									<CountBadge icon={CheckCircle} count={col.published} title="Published" />
-									<CountBadge icon={PencilSimple} count={col.draft} title="Drafts" />
+									<CountBadge icon={CheckCircle} count={col.published} title={t`Published`} />
+									<CountBadge icon={PencilSimple} count={col.draft} title={t`Drafts`} />
 									<ArrowRight
 										className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100"
 										aria-hidden="true"
@@ -215,9 +221,11 @@ function CountBadge({
 // --- Recent activity ---
 
 function RecentActivity({ items, loading }: { items: RecentItem[]; loading: boolean }) {
+	const { t } = useLingui();
+
 	return (
 		<div className="rounded-lg border bg-kumo-base p-4 sm:p-6">
-			<h2 className="mb-4 text-lg font-semibold">Recent Activity</h2>
+			<h2 className="mb-4 text-lg font-semibold">{t`Recent Activity`}</h2>
 			{loading ? (
 				<div className="space-y-3">
 					{[1, 2, 3, 4, 5].map((i) => (
@@ -225,7 +233,7 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 					))}
 				</div>
 			) : items.length === 0 ? (
-				<p className="text-sm text-kumo-subtle">No recent activity</p>
+				<p className="text-sm text-kumo-subtle">{t`No recent activity`}</p>
 			) : (
 				<div className="space-y-1">
 					{items.map((item) => (
@@ -238,7 +246,7 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 							<div className="flex min-w-0 items-center gap-2">
 								<StatusDot status={item.status} />
 								<span className="truncate font-medium">
-									{item.title || item.slug || "Untitled"}
+									{item.title || item.slug || t`Untitled`}
 								</span>
 								<span className="hidden shrink-0 text-xs text-kumo-subtle sm:inline">
 									{item.collectionLabel}

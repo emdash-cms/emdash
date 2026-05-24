@@ -14,6 +14,9 @@ import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import {
 	EmDashValidationError,
+	InvalidCursorError,
+	type BylineSummary,
+	type ContentBylineCredit,
 	type ContentItem,
 	type ContentSeo,
 	type ContentSeoInput,
@@ -21,9 +24,28 @@ import {
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
-import { isI18nEnabled } from "../../i18n/config.js";
+import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
+import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
+import { validateMediaFields } from "./validate-media-fields.js";
+
+/**
+ * Narrow a caught error to one carrying a structured `apiError` discriminant.
+ * Used by transaction callbacks that want to surface a specific error code
+ * through the standard Error throwing path.
+ */
+function hasApiError(error: unknown): error is Error & { apiError: { code: string } } {
+	if (!(error instanceof Error) || !("apiError" in error)) return false;
+	const { apiError } = error;
+	return (
+		typeof apiError === "object" &&
+		apiError !== null &&
+		"code" in apiError &&
+		typeof apiError.code === "string"
+	);
+}
 
 /**
  * Extract a slug source (title or name) from content data.
@@ -96,7 +118,11 @@ async function hydrateBylines(
 	item: ContentItem,
 ): Promise<void> {
 	const bylineRepo = new BylineRepository(db);
-	const bylines = await bylineRepo.getContentBylines(collection, item.id);
+	// Strict per-locale (migration 040): a credit at locale X renders iff a
+	// byline row exists at locale X in the credited translation_group. The
+	// junction itself spans translations; rendering does not fall back.
+	const localeOpt = item.locale ? { locale: item.locale } : undefined;
+	const bylines = await bylineRepo.getContentBylines(collection, item.id, localeOpt);
 
 	if (bylines.length > 0) {
 		item.bylines = bylines.map((c) => ({ ...c, source: "explicit" as const }));
@@ -104,13 +130,21 @@ async function hydrateBylines(
 		return;
 	}
 
-	// Defensive: if primaryBylineId is set but no junction rows exist, it's orphaned
+	// `primaryBylineId` is set iff junction rows exist; non-null
+	// suppresses author fallback even when the credit doesn't resolve
+	// at this locale.
 	if (item.primaryBylineId) {
-		item.primaryBylineId = null;
+		item.bylines = [];
+		item.byline = null;
+		return;
 	}
 
 	if (item.authorId) {
-		const fallback = await bylineRepo.findByUserId(item.authorId);
+		// Same strict-locale rule as explicit credits: a user-linked byline
+		// renders on the entry only when a sibling exists at the entry's
+		// locale. Without this we'd silently surface the default-locale
+		// row, which contradicts the per-locale model.
+		const fallback = await bylineRepo.findByUserId(item.authorId, localeOpt);
 		if (fallback) {
 			item.bylines = [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
 			item.byline = fallback;
@@ -124,6 +158,11 @@ async function hydrateBylines(
 
 /**
  * Batch-hydrate bylines for multiple items using two bulk queries instead of N+1.
+ *
+ * Items may live at different locales (e.g. a list endpoint returning the
+ * translations of an entry). Group by `item.locale` and call the strict
+ * per-locale repo method once per group so each item resolves against its
+ * own locale's byline rows.
  */
 async function hydrateBylinesMany(
 	db: Kysely<Database>,
@@ -134,43 +173,76 @@ async function hydrateBylinesMany(
 
 	const bylineRepo = new BylineRepository(db);
 
-	// 1. Batch fetch all explicit byline credits
-	const contentIds = items.map((i) => i.id);
-	const bylinesMap = await bylineRepo.getContentBylinesMany(collection, contentIds);
-
-	// 2. Collect authorIds that need fallback lookup
-	const fallbackAuthorIds: string[] = [];
+	// 1. Bucket items by locale so we can call the strict-locale repo
+	//    once per bucket. Items with a null/undefined locale (pre-i18n
+	//    rows on a single-locale install) share an "unscoped" bucket.
+	const localeBuckets = new Map<string | null, ContentItem[]>();
 	for (const item of items) {
-		if (!bylinesMap.has(item.id) && item.authorId) {
-			fallbackAuthorIds.push(item.authorId);
+		const key = item.locale ?? null;
+		const bucket = localeBuckets.get(key);
+		if (bucket) bucket.push(item);
+		else localeBuckets.set(key, [item]);
+	}
+
+	// 2. Per-locale: fetch explicit credits. Items whose credits don't
+	//    resolve at this locale go through a locale-agnostic "has any
+	//    junction" check before being considered for author inference —
+	//    explicit editorial intent at any locale beats inferred fallback.
+	const bylinesByItem = new Map<string, ContentBylineCredit[]>();
+	const itemsNeedingAuthorCheck: ContentItem[] = [];
+	for (const [locale, bucket] of localeBuckets) {
+		const localeOpt = locale ? { locale } : undefined;
+		const ids = bucket.map((i) => i.id);
+		const credits = await bylineRepo.getContentBylinesMany(collection, ids, localeOpt);
+		for (const [id, list] of credits) bylinesByItem.set(id, list);
+
+		for (const item of bucket) {
+			if (credits.has(item.id) && credits.get(item.id)!.length > 0) continue;
+			if (item.authorId) itemsNeedingAuthorCheck.push(item);
 		}
 	}
 
-	// 3. Batch fetch user-linked bylines for fallback
-	const uniqueAuthorIds = [...new Set(fallbackAuthorIds)];
-	const authorBylineMap = await bylineRepo.findByUserIds(uniqueAuthorIds);
+	// 3. Author fallback applies only when no explicit credit exists
+	//    (primaryBylineId null).
+	const fallbackByItem = new Map<string, BylineSummary>();
+	if (itemsNeedingAuthorCheck.length > 0) {
+		const authorBuckets = new Map<string | null, ContentItem[]>();
+		for (const item of itemsNeedingAuthorCheck) {
+			if (item.primaryBylineId) continue;
+			const key = item.locale ?? null;
+			const bucket = authorBuckets.get(key);
+			if (bucket) bucket.push(item);
+			else authorBuckets.set(key, [item]);
+		}
 
-	// 4. Assign to each item
+		for (const [locale, bucket] of authorBuckets) {
+			const localeOpt = locale ? { locale } : undefined;
+			const authorIds = bucket.map((i) => i.authorId).filter((id): id is string => id !== null);
+			const uniqueAuthorIds = [...new Set(authorIds)];
+			if (uniqueAuthorIds.length === 0) continue;
+			const authorMap = await bylineRepo.findByUserIds(uniqueAuthorIds, localeOpt);
+			for (const item of bucket) {
+				if (!item.authorId) continue;
+				const f = authorMap.get(item.authorId);
+				if (f) fallbackByItem.set(item.id, f);
+			}
+		}
+	}
+
+	// 4. Assign to each item.
 	for (const item of items) {
-		const explicit = bylinesMap.get(item.id);
+		const explicit = bylinesByItem.get(item.id);
 		if (explicit && explicit.length > 0) {
 			item.bylines = explicit.map((c) => ({ ...c, source: "explicit" as const }));
 			item.byline = explicit[0]?.byline ?? null;
 			continue;
 		}
 
-		// Defensive: if primaryBylineId is set but no junction rows exist, it's orphaned
-		if (item.primaryBylineId) {
-			item.primaryBylineId = null;
-		}
-
-		if (item.authorId) {
-			const fallback = authorBylineMap.get(item.authorId);
-			if (fallback) {
-				item.bylines = [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
-				item.byline = fallback;
-				continue;
-			}
+		const fallback = fallbackByItem.get(item.id);
+		if (fallback) {
+			item.bylines = [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
+			item.byline = fallback;
+			continue;
 		}
 
 		item.bylines = [];
@@ -263,9 +335,32 @@ export async function handleContentList(
 			data: {
 				items: result.items,
 				nextCursor: result.nextCursor,
+				total: result.total,
 			},
 		};
 	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			// e.g. invalid orderBy field
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
 		console.error("Content list error:", error);
 		return {
 			success: false,
@@ -385,6 +480,8 @@ export async function handleContentCreate(
 		locale?: string;
 		translationOf?: string;
 		seo?: ContentSeoInput;
+		createdAt?: string | null;
+		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
@@ -401,17 +498,24 @@ export async function handleContentCreate(
 			};
 		}
 
+		const mimeCheck = await validateMediaFields(db, collection, body.data);
+		if (!mimeCheck.success) return mimeCheck;
+
 		// Wrap content + SEO writes in a transaction for atomicity
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
 
-			// Auto-generate slug from title/name if not explicitly provided
+			// Default to the configured site locale rather than the repo's
+			// hard-coded "en" — otherwise non-English default-locale sites
+			// silently create entries in a locale the editor never chose.
+			const effectiveLocale = body.locale ?? getI18nConfig()?.defaultLocale;
+
 			let slug: string | null | undefined = body.slug;
 			if (!slug) {
 				const slugSource = getSlugSource(body.data);
 				if (slugSource) {
-					slug = await repo.generateUniqueSlug(collection, slugSource, body.locale);
+					slug = await repo.generateUniqueSlug(collection, slugSource, effectiveLocale);
 				}
 			}
 
@@ -421,14 +525,49 @@ export async function handleContentCreate(
 				data: body.data,
 				status: body.status || "draft",
 				authorId: body.authorId,
-				locale: body.locale,
+				locale: effectiveLocale,
 				translationOf: body.translationOf,
+				createdAt: body.createdAt,
+				publishedAt: body.publishedAt,
 			});
 
 			if (body.bylines !== undefined) {
-				await bylineRepo.setContentBylines(collection, created.id, body.bylines);
-				created.primaryBylineId = body.bylines[0]?.bylineId ?? null;
+				const credits = await bylineRepo.setContentBylines(collection, created.id, body.bylines);
+				// `setContentBylines` translates wire row ids to their
+				// `translation_group` before writing. The response-shape
+				// `primaryBylineId` must match what's now in the DB, so read
+				// it from the returned credit (whose `byline` came from a
+				// hydration round-trip).
+				created.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
+
+			// When this row is a translation of an existing item, inherit
+			// the source's taxonomy assignments AND byline credits. Both
+			// pivots store translation_groups (taxonomies post-mig 036,
+			// bylines post-mig 040), so a copied row applies across every
+			// locale of the credited identity — and the locale-strict
+			// hydration below renders the variant that matches the entry's
+			// locale (or nothing if no variant exists yet at this locale,
+			// which is the documented Phase 4 behaviour).
+			//
+			// Explicit `body.bylines` wins — `copyContentBylines` no-ops
+			// when the target already has credits, but the cleaner guard
+			// is to skip the call entirely.
+			if (body.translationOf) {
+				const { TaxonomyRepository } = await import("../../database/repositories/taxonomy.js");
+				const taxRepo = new TaxonomyRepository(trx);
+				await taxRepo.copyEntryTerms(collection, body.translationOf, created.id);
+
+				if (body.bylines === undefined) {
+					await bylineRepo.copyContentBylines(collection, body.translationOf, created.id);
+					// `copyContentBylines` writes the source's primary
+					// pointer onto the new row; reflect it in-memory so the
+					// response includes it before hydrateBylines runs.
+					const source = await repo.findById(collection, body.translationOf);
+					if (source) created.primaryBylineId = source.primaryBylineId;
+				}
+			}
+
 			await hydrateBylines(trx, collection, created);
 
 			// Side-write SEO data if provided
@@ -448,6 +587,46 @@ export async function handleContentCreate(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		// SQLite UNIQUE constraint OR Postgres unique_violation — slug
+		// collisions and any other unique violations land here. Match
+		// specifically on "unique constraint failed" / "duplicate key" so we
+		// don't false-positive on NOT NULL or CHECK violations whose
+		// messages also contain "constraint failed".
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (message.includes("unique constraint failed") || message.includes("duplicate key")) {
+			// Detect slug-specific collisions by message fingerprint
+			if (message.includes("slug")) {
+				return {
+					success: false,
+					error: {
+						code: "SLUG_CONFLICT",
+						message: `Slug '${body.slug ?? "(auto-generated)"}' already exists in collection '${collection}'`,
+					},
+				};
+			}
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: "Unique constraint violation",
+				},
+			};
+		}
 		console.error("Content create error:", error);
 		return {
 			success: false,
@@ -478,6 +657,7 @@ export async function handleContentUpdate(
 		bylines?: ContentBylineInput[];
 		_rev?: string;
 		seo?: ContentSeoInput;
+		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
@@ -494,42 +674,47 @@ export async function handleContentUpdate(
 			};
 		}
 
+		if (body.data) {
+			const mimeCheck = await validateMediaFields(db, collection, body.data);
+			if (!mimeCheck.success) return mimeCheck;
+		}
+
 		const repo = new ContentRepository(db);
 
 		// Resolve slug → ID if needed
 		const resolvedId = (await resolveId(repo, collection, id)) ?? id;
 
-		// Validate _rev if provided (optimistic concurrency)
-		if (body._rev) {
-			const existing = await repo.findById(collection, resolvedId);
-			if (!existing) {
-				return {
-					success: false,
-					error: { code: "NOT_FOUND", message: `Content item not found: ${id}` },
-				};
-			}
-
-			const revCheck = validateRev(body._rev, existing);
-			if (!revCheck.valid) {
-				return {
-					success: false,
-					error: { code: "CONFLICT", message: revCheck.message },
-				};
-			}
-		}
-
-		// Wrap content + SEO writes in a transaction for atomicity
+		// Wrap content + SEO writes in a transaction for atomicity.
+		// The _rev check is inside the transaction so the read-then-write
+		// is atomic -- no concurrent write can slip between the check and update.
 		const item = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
 
+			// Read existing item once for both _rev check and old slug capture
+			const existing =
+				body._rev || body.slug ? await trxRepo.findById(collection, resolvedId) : null;
+
+			// Validate _rev if provided (optimistic concurrency)
+			if (body._rev) {
+				if (!existing) {
+					throw Object.assign(new Error(`Content item not found: ${id}`), {
+						apiError: { code: "NOT_FOUND" as const },
+					});
+				}
+
+				const revCheck = validateRev(body._rev, existing);
+				if (!revCheck.valid) {
+					throw Object.assign(new Error(revCheck.message), {
+						apiError: { code: "CONFLICT" as const },
+					});
+				}
+			}
+
 			// Capture old slug before update for auto-redirect
 			let oldSlug: string | undefined;
-			if (body.slug) {
-				const existing = await trxRepo.findById(collection, resolvedId);
-				if (existing?.slug && existing.slug !== body.slug) {
-					oldSlug = existing.slug;
-				}
+			if (body.slug && existing?.slug && existing.slug !== body.slug) {
+				oldSlug = existing.slug;
 			}
 
 			const updated = await trxRepo.update(collection, resolvedId, {
@@ -537,11 +722,16 @@ export async function handleContentUpdate(
 				slug: body.slug,
 				status: body.status,
 				authorId: body.authorId,
+				publishedAt: body.publishedAt,
 			});
 
 			if (body.bylines !== undefined) {
-				await bylineRepo.setContentBylines(collection, resolvedId, body.bylines);
-				updated.primaryBylineId = body.bylines[0]?.bylineId ?? null;
+				const credits = await bylineRepo.setContentBylines(collection, resolvedId, body.bylines);
+				// `setContentBylines` translates wire row ids to their
+				// `translation_group` before writing. Read the in-memory
+				// pointer from the persisted credit so the response shape
+				// matches the DB. See the matching block in handleContentCreate.
+				updated.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
 			// Create auto-redirect when slug changes
@@ -560,6 +750,7 @@ export async function handleContentUpdate(
 					resolvedId,
 					collectionRow?.url_pattern ?? null,
 				);
+				invalidateRedirectCache();
 			}
 
 			// Sync non-translatable fields to sibling locales in the same
@@ -594,6 +785,48 @@ export async function handleContentUpdate(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		// Handle structured errors thrown from inside the transaction
+		// (rev check failures, not-found)
+		if (hasApiError(error)) {
+			return {
+				success: false,
+				error: { code: error.apiError.code, message: error.message },
+			};
+		}
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		const message = error instanceof Error ? error.message.toLowerCase() : "";
+		if (message.includes("unique constraint failed") || message.includes("duplicate key")) {
+			if (message.includes("slug")) {
+				return {
+					success: false,
+					error: {
+						code: "SLUG_CONFLICT",
+						message: `Slug '${body.slug ?? id}' already exists in collection '${collection}'`,
+					},
+				};
+			}
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: "Unique constraint violation",
+				},
+			};
+		}
 		console.error("Content update error:", error);
 		return {
 			success: false,
@@ -784,6 +1017,9 @@ export async function handleContentPermanentDelete(
 				// Clean up comments for permanently deleted content
 				const commentRepo = new CommentRepository(trx);
 				await commentRepo.deleteByContent(collection, resolvedId);
+				// Clean up revisions for permanently deleted content
+				const revisionRepo = new RevisionRepository(trx);
+				await revisionRepo.deleteByEntry(collection, resolvedId);
 			}
 
 			return wasDeleted;
@@ -849,6 +1085,12 @@ export async function handleContentListTrashed(
 			},
 		};
 	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
 		console.error("Content list trashed error:", error);
 		return {
 			success: false,
@@ -954,6 +1196,15 @@ export async function handleContentUnschedule(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content unschedule error:", error);
 		return {
 			success: false,
@@ -976,12 +1227,13 @@ export async function handleContentPublish(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	options: { publishedAt?: string } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.publish(collection, resolvedId);
+			return repo.publish(collection, resolvedId, options.publishedAt);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -992,6 +1244,15 @@ export async function handleContentPublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content publish error:", error);
 		return {
 			success: false,
@@ -1029,6 +1290,15 @@ export async function handleContentUnpublish(
 			data: { item },
 		};
 	} catch (error) {
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error.message,
+				},
+			};
+		}
 		console.error("Content unpublish error:", error);
 		return {
 			success: false,

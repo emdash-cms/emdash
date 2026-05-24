@@ -58,8 +58,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-	await db.schema.dropIndex("idx_content_taxonomies_term").execute();
-	await db.schema.dropIndex("idx_media_mime_type").execute();
+	await db.schema.dropIndex("idx_sections_source").execute();
+	await db.schema.dropIndex("idx_sections_category").execute();
 	await db.schema.dropTable("_emdash_sections").execute();
 	await db.schema.dropTable("_emdash_section_categories").execute();
 }

@@ -3,6 +3,7 @@ import { ulid } from "ulidx";
 
 import { slugify } from "../../utils/slugify.js";
 import type { Database } from "../types.js";
+import { validateIdentifier } from "../validate.js";
 import { RevisionRepository } from "./revision.js";
 import type {
 	CreateContentInput,
@@ -41,6 +42,7 @@ const SYSTEM_COLUMNS = new Set([
  * Get the table name for a collection type
  */
 function getTableName(type: string): string {
+	validateIdentifier(type, "collection type");
 	return `ec_${type}`;
 }
 
@@ -116,6 +118,7 @@ export class ContentRepository {
 			locale,
 			translationOf,
 			publishedAt,
+			createdAt,
 		} = input;
 
 		// Validate required fields
@@ -155,7 +158,7 @@ export class ContentRepository {
 			status,
 			authorId || null,
 			primaryBylineId ?? null,
-			now,
+			createdAt || now,
 			now,
 			publishedAt || null,
 			1,
@@ -167,6 +170,7 @@ export class ContentRepository {
 		if (data && typeof data === "object") {
 			for (const [key, value] of Object.entries(data)) {
 				if (!SYSTEM_COLUMNS.has(key)) {
+					validateIdentifier(key, "content field name");
 					columns.push(key);
 					values.push(serializeValue(value));
 				}
@@ -485,27 +489,26 @@ export class ContentRepository {
 			query = query.where("locale" as any, "=", options.where.locale);
 		}
 
-		// Handle cursor pagination
+		// Handle cursor pagination — decodeCursor throws InvalidCursorError
+		// on malformed input; let it propagate so handlers surface a
+		// structured INVALID_CURSOR rather than silently returning page 1.
 		if (options.cursor) {
-			const decoded = decodeCursor(options.cursor);
-			if (decoded) {
-				const { orderValue, id: cursorId } = decoded;
+			const { orderValue, id: cursorId } = decodeCursor(options.cursor);
 
-				if (safeOrderDirection === "DESC") {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, "<", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-						]),
-					);
-				} else {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, ">", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-						]),
-					);
-				}
+			if (safeOrderDirection === "DESC") {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, "<", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
+					]),
+				);
+			} else {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, ">", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
+					]),
+				);
 			}
 		}
 
@@ -515,12 +518,16 @@ export class ContentRepository {
 			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
 			.limit(limit + 1);
 
-		const rows = await query.execute();
+		// Run the page fetch and the unbounded count together — the UI needs
+		// both to render a stable denominator, and issuing them in parallel
+		// on SQLite is essentially free.
+		const [rows, total] = await Promise.all([query.execute(), this.count(type, options.where)]);
 		const hasMore = rows.length > limit;
 		const items = rows.slice(0, limit);
 
 		const mappedResult: FindManyResult<ContentItem> = {
 			items: items.map((row) => this.mapRow(type, row as Record<string, unknown>)),
+			total,
 		};
 
 		if (hasMore && items.length > 0) {
@@ -577,6 +584,7 @@ export class ContentRepository {
 		if (input.data !== undefined && typeof input.data === "object") {
 			for (const [key, value] of Object.entries(input.data)) {
 				if (!SYSTEM_COLUMNS.has(key)) {
+					validateIdentifier(key, "content field name");
 					updates[key] = serializeValue(value);
 				}
 			}
@@ -633,12 +641,23 @@ export class ContentRepository {
 	/**
 	 * Permanently delete content (cannot be undone)
 	 */
+	/**
+	 * Permanently delete a soft-deleted content row.
+	 *
+	 * Returns `true` only when a soft-deleted (trashed) row was removed.
+	 * Returns `false` when no row exists OR when the row exists but is live —
+	 * the caller is responsible for distinguishing these cases (typically via
+	 * a follow-up `findByIdOrSlugIncludingTrashed` to surface NOT_FOUND vs
+	 * NOT_TRASHED). The `AND deleted_at IS NOT NULL` clause is the safety net
+	 * that prevents permanent delete from bypassing the trash workflow.
+	 */
 	async permanentDelete(type: string, id: string): Promise<boolean> {
 		const tableName = getTableName(type);
 
 		const result = await sql`
 			DELETE FROM ${sql.ref(tableName)}
 			WHERE id = ${id}
+			AND deleted_at IS NOT NULL
 		`.execute(this.db);
 
 		return (result.numAffectedRows ?? 0n) > 0n;
@@ -666,27 +685,24 @@ export class ContentRepository {
 			.selectAll()
 			.where("deleted_at" as never, "is not", null);
 
-		// Handle cursor pagination
+		// Handle cursor pagination — decodeCursor throws on invalid input.
 		if (options.cursor) {
-			const decoded = decodeCursor(options.cursor);
-			if (decoded) {
-				const { orderValue, id: cursorId } = decoded;
+			const { orderValue, id: cursorId } = decodeCursor(options.cursor);
 
-				if (safeOrderDirection === "DESC") {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, "<", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
-						]),
-					);
-				} else {
-					query = query.where((eb) =>
-						eb.or([
-							eb(dbField as any, ">", orderValue),
-							eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
-						]),
-					);
-				}
+			if (safeOrderDirection === "DESC") {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, "<", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", "<", cursorId)]),
+					]),
+				);
+			} else {
+				query = query.where((eb) =>
+					eb.or([
+						eb(dbField as any, ">", orderValue),
+						eb.and([eb(dbField as any, "=", orderValue), eb("id", ">", cursorId)]),
+					]),
+				);
 			}
 		}
 
@@ -765,6 +781,27 @@ export class ContentRepository {
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
+	}
+
+	// get overall statistics (total, published, draft) for a content type in a single query
+	async getStats(type: string): Promise<{ total: number; published: number; draft: number }> {
+		const tableName = getTableName(type);
+
+		const result = await this.db
+			.selectFrom(tableName as keyof Database)
+			.select((eb) => [
+				eb.fn.count("id").as("total"),
+				eb.fn.sum(eb.case().when("status", "=", "published").then(1).else(0).end()).as("published"),
+				eb.fn.sum(eb.case().when("status", "=", "draft").then(1).else(0).end()).as("draft"),
+			])
+			.where("deleted_at" as never, "is", null)
+			.executeTakeFirst();
+
+		return {
+			total: Number(result?.total || 0),
+			published: Number(result?.published || 0),
+			draft: Number(result?.draft || 0),
+		};
 	}
 
 	/**
@@ -895,8 +932,14 @@ export class ContentRepository {
 	 * Syncs the draft revision's data into the content table columns so the
 	 * content table always reflects the published version.
 	 * If no draft revision exists, creates one from current data and publishes it.
+	 *
+	 * `publishedAt` (optional) overrides the publication timestamp. If omitted,
+	 * the existing `published_at` is preserved (idempotent re-publish keeps the
+	 * original date) and falls back to the current time on first publish. Pass
+	 * an explicit value to backdate a publish (e.g. when migrating content from
+	 * another CMS).
 	 */
-	async publish(type: string, id: string): Promise<ContentItem> {
+	async publish(type: string, id: string, publishedAt?: string): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
@@ -934,17 +977,35 @@ export class ContentRepository {
 			}
 		}
 
-		await sql`
-			UPDATE ${sql.ref(tableName)}
-			SET live_revision_id = ${revisionToPublish},
-				draft_revision_id = NULL,
-				status = 'published',
-				scheduled_at = NULL,
-				published_at = COALESCE(published_at, ${now}),
-				updated_at = ${now}
-			WHERE id = ${id}
-			AND deleted_at IS NULL
-		`.execute(this.db);
+		if (publishedAt !== undefined) {
+			// Caller supplied an explicit timestamp, so we overwrite published_at
+			// directly (used to backdate a publish, e.g. for content migrations).
+			await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET live_revision_id = ${revisionToPublish},
+					draft_revision_id = NULL,
+					status = 'published',
+					scheduled_at = NULL,
+					published_at = ${publishedAt},
+					updated_at = ${now}
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+			`.execute(this.db);
+		} else {
+			// No timestamp supplied — preserve existing published_at on
+			// idempotent re-publish, fall back to `now` on first publish.
+			await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET live_revision_id = ${revisionToPublish},
+					draft_revision_id = NULL,
+					status = 'published',
+					scheduled_at = NULL,
+					published_at = COALESCE(published_at, ${now}),
+					updated_at = ${now}
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+			`.execute(this.db);
+		}
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
@@ -992,6 +1053,7 @@ export class ContentRepository {
 			UPDATE ${sql.ref(tableName)}
 			SET live_revision_id = NULL,
 				status = 'draft',
+				published_at = NULL,
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
@@ -1003,6 +1065,45 @@ export class ContentRepository {
 		}
 
 		return updated;
+	}
+
+	/**
+	 * Set the draft revision pointer for a content item.
+	 *
+	 * Used by seed/import paths that stage a new revision's data before
+	 * promoting it to live via `publish()`.
+	 *
+	 * Validates that the content item exists and is not soft-deleted, that
+	 * the revision exists, and that the revision belongs to the same
+	 * collection and entry. Without these checks, a caller could leave the
+	 * content row pointing at a missing or unrelated revision.
+	 */
+	async setDraftRevision(type: string, id: string, revisionId: string): Promise<void> {
+		const tableName = getTableName(type);
+		const now = new Date().toISOString();
+
+		const existing = await this.findById(type, id);
+		if (!existing) {
+			throw new EmDashValidationError("Content item not found");
+		}
+
+		const revisionRepo = new RevisionRepository(this.db);
+		const revision = await revisionRepo.findById(revisionId);
+		if (!revision) {
+			throw new EmDashValidationError("Revision not found");
+		}
+
+		if (revision.collection !== type || revision.entryId !== id) {
+			throw new EmDashValidationError("Revision does not belong to the specified content item");
+		}
+
+		await sql`
+			UPDATE ${sql.ref(tableName)}
+			SET draft_revision_id = ${revisionId},
+				updated_at = ${now}
+			WHERE id = ${id}
+			AND deleted_at IS NULL
+		`.execute(this.db);
 	}
 
 	/**
@@ -1057,6 +1158,7 @@ export class ContentRepository {
 		for (const [key, value] of Object.entries(data)) {
 			if (SYSTEM_COLUMNS.has(key)) continue;
 			if (key.startsWith("_")) continue; // revision metadata
+			validateIdentifier(key, "content field name");
 			updates[key] = serializeValue(value);
 		}
 
@@ -1132,7 +1234,10 @@ export class ContentRepository {
 			scheduledAt: "scheduled_at",
 			deletedAt: "deleted_at",
 			title: "title",
+			name: "name",
 			slug: "slug",
+			status: "status",
+			locale: "locale",
 		};
 
 		const mapped = mapping[field];

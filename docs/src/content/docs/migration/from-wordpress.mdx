@@ -5,7 +5,7 @@ description: Import your WordPress content into EmDash with a step-by-step guide
 
 import { Aside, Card, CardGrid, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash provides a complete migration path from WordPress. Import your posts, pages, media, and taxonomies through the admin dashboard—no CLI required.
+EmDash migrates content from WordPress. Import your posts, pages, media, and taxonomies through the admin dashboard.
 
 ## Before You Begin
 
@@ -217,22 +217,11 @@ Use this table when adapting WordPress patterns to EmDash:
 | `$wpdb`                 | `ctx.storage`                        | Direct storage access          |
 | Categories/Tags         | Taxonomies                           | Hierarchical support preserved |
 
-## CLI Import (Advanced)
+## API Import (Advanced)
 
-Developers can also import via the CLI:
+The WordPress import is available through the admin dashboard and the REST API. Use the admin dashboard import wizard for the best experience — it provides field mapping, conflict resolution, and progress tracking.
 
-```bash
-# Analyze export file
-npx emdash import wordpress export.xml --analyze
-
-# Run import
-npx emdash import wordpress export.xml --execute
-
-# With media download
-npx emdash import wordpress export.xml --execute --download-media
-```
-
-The CLI uses the same APIs as the dashboard and supports `--resume` for interrupted imports.
+The import API endpoints are under `/_emdash/api/import/wordpress/` for programmatic access.
 
 ## Troubleshooting
 
@@ -263,5 +252,5 @@ For exports over 100MB, consider:
 ## Next Steps
 
 - **[Content Import](/migration/content-import/)** — Other import sources and methods
-- **[Plugin Porting](/migration/plugin-porting/)** — Migrate WordPress plugin functionality
+- **[Plugin Porting](/migration/porting-plugins/)** — Migrate WordPress plugin functionality
 - **[Working with Content](/guides/working-with-content/)** — Query and render your imported content

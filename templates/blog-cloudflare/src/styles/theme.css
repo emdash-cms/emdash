@@ -1,9 +1,12 @@
 /*
-  theme.css — override any :root variable here to retheme the blog.
+  theme.css -- override any :root variable here to retheme the blog.
 
   This is the only file you need to edit to customize the site's visual
   appearance. All defaults are listed below as comments. Uncomment and
   change any value to override it.
+
+  Base.astro puts its defaults inside @layer base, so declarations here
+  (which are unlayered) always take priority -- no specificity tricks needed.
 
   Note: this template defines explicit dark mode colors in Base.astro.
   Overriding light-mode --color-* variables here won't affect dark mode.
@@ -25,11 +28,6 @@
 	--color-accent-hover: #0052a3;
 	--color-on-accent: white;
 	--color-accent-ring: color-mix(in srgb, var(--color-accent) 25%, transparent);
-	*/
-
-	/* --- Fonts ---
-	--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	--font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 	*/
 
 	/* --- Type scale ---

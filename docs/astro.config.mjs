@@ -1,13 +1,19 @@
+import cloudflare from "@astrojs/cloudflare";
 import starlight from "@astrojs/starlight";
 // @ts-check
 import { defineConfig } from "astro/config";
 
 // https://astro.build/config
 export default defineConfig({
+	site: "https://docs.emdashcms.com",
 	integrations: [
 		starlight({
 			title: "EmDash",
 			tagline: "The Astro-native CMS",
+			disable404Route: true,
+			components: {
+				SkipLink: "./src/components/SkipLink.astro",
+			},
 			logo: {
 				light: "./src/assets/logo-light.svg",
 				dark: "./src/assets/logo-dark.svg",
@@ -17,16 +23,11 @@ export default defineConfig({
 				{
 					icon: "github",
 					label: "GitHub",
-					href: "https://github.com/withastro/emdash",
-				},
-				{
-					icon: "discord",
-					label: "Discord",
-					href: "https://astro.build/chat",
+					href: "https://github.com/emdash-cms/emdash",
 				},
 			],
 			editLink: {
-				baseUrl: "https://github.com/withastro/emdash/edit/main/docs/",
+				baseUrl: "https://github.com/emdash-cms/emdash/tree/main/docs",
 			},
 			customCss: ["./src/styles/custom.css"],
 			sidebar: [
@@ -36,6 +37,7 @@ export default defineConfig({
 						{ label: "Introduction", slug: "introduction" },
 						{ label: "Getting Started", slug: "getting-started" },
 						{ label: "Why EmDash?", slug: "why-emdash" },
+						{ label: "Docs MCP for AI Tools", slug: "docs-mcp" },
 					],
 				},
 				{
@@ -72,6 +74,7 @@ export default defineConfig({
 						{ label: "Sections", slug: "guides/sections" },
 						{ label: "Site Settings", slug: "guides/site-settings" },
 						{ label: "Authentication", slug: "guides/authentication" },
+						{ label: "Atmosphere Login", slug: "guides/atmosphere-auth" },
 						{ label: "AI Tools", slug: "guides/ai-tools" },
 						{ label: "x402 Payments", slug: "guides/x402-payments" },
 						{ label: "Preview Mode", slug: "guides/preview" },
@@ -85,22 +88,89 @@ export default defineConfig({
 					label: "Plugins",
 					items: [
 						{ label: "Plugin Overview", slug: "plugins/overview" },
-						{ label: "Creating Plugins", slug: "plugins/creating-plugins" },
-						{ label: "Plugin Hooks", slug: "plugins/hooks" },
-						{ label: "Plugin Storage", slug: "plugins/storage" },
-						{ label: "Plugin Settings", slug: "plugins/settings" },
-						{ label: "Admin UI Extensions", slug: "plugins/admin-ui" },
-						{ label: "Block Kit", slug: "plugins/block-kit" },
-						{ label: "API Routes", slug: "plugins/api-routes" },
-						{ label: "Sandbox & Security", slug: "plugins/sandbox" },
-						{ label: "Publishing Plugins", slug: "plugins/publishing" },
 						{ label: "Installing Plugins", slug: "plugins/installing" },
+						{ label: "Upgrading Plugins", slug: "plugins/upgrading-sites" },
+						{ label: "Field Kit", slug: "plugins/field-kit" },
+					],
+				},
+				{
+					label: "Creating Sandboxed Plugins",
+					items: [
+						{
+							label: "Choosing a Plugin Format",
+							slug: "plugins/creating-plugins/choosing-a-format",
+						},
+						{
+							label: "Your First Plugin",
+							slug: "plugins/creating-plugins/your-first-plugin",
+						},
+						{
+							label: "The Manifest",
+							slug: "plugins/creating-plugins/manifest",
+						},
+						{
+							label: "The Plugin CLI",
+							slug: "plugins/creating-plugins/cli",
+						},
+						{ label: "Hooks", slug: "plugins/creating-plugins/hooks" },
+						{ label: "API Routes", slug: "plugins/creating-plugins/api-routes" },
+						{ label: "Storage", slug: "plugins/creating-plugins/storage" },
+						{ label: "Settings", slug: "plugins/creating-plugins/settings" },
+						{ label: "Block Kit", slug: "plugins/creating-plugins/block-kit" },
+						{
+							label: "Capabilities & Security",
+							slug: "plugins/creating-plugins/capabilities",
+						},
+						{
+							label: "Bundling & Publishing",
+							slug: "plugins/creating-plugins/publishing",
+						},
+						{
+							label: "Migrating to the CLI",
+							slug: "plugins/creating-plugins/migrating-to-the-cli",
+						},
+					],
+				},
+				{
+					label: "Creating Native Plugins",
+					items: [
+						{
+							label: "Your First Native Plugin",
+							slug: "plugins/creating-native-plugins/your-first-native-plugin",
+						},
+						{
+							label: "React Admin Pages & Widgets",
+							slug: "plugins/creating-native-plugins/react-admin",
+						},
+						{
+							label: "Portable Text Components",
+							slug: "plugins/creating-native-plugins/portable-text-components",
+						},
+						{
+							label: "Page Fragments",
+							slug: "plugins/creating-native-plugins/page-fragments",
+						},
+						{
+							label: "Distributing Native Plugins",
+							slug: "plugins/creating-native-plugins/distributing",
+						},
 					],
 				},
 				{
 					label: "Contributing",
 					collapsed: true,
-					items: [{ label: "Contributor Guide", slug: "contributing" }],
+					items: [
+						{ label: "Contributor Guide", slug: "contributing" },
+						{
+							label: "Architecture (internals)",
+							slug: "contributing/architecture",
+						},
+						{
+							label: "Documentation Style Guide",
+							slug: "contributing/docs-style-guide",
+						},
+						{ label: "Translating EmDash", slug: "contributing/translating" },
+					],
 				},
 
 				{
@@ -167,4 +237,6 @@ export default defineConfig({
 			],
 		}),
 	],
+
+	adapter: cloudflare({ remoteBindings: false, prerenderEnvironment: "node" }),
 });

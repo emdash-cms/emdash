@@ -13,6 +13,7 @@ import { handleSitemapData } from "../../../src/api/handlers/seo.js";
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { SeoRepository } from "../../../src/database/repositories/seo.js";
 import type { ContentItem } from "../../../src/database/repositories/types.js";
 import type { Database } from "../../../src/database/types.js";
@@ -434,6 +435,29 @@ describe("SEO", () => {
 			expect(seo.title).toBeNull();
 		});
 
+		it("should clean up revisions on permanent delete", async () => {
+			const createResult = await handleContentCreate(db, "post", {
+				data: { title: "Test Post" },
+			});
+			const id = createResult.data!.item.id;
+
+			// Create some revisions
+			const revisionRepo = new RevisionRepository(db);
+			await revisionRepo.create({ collection: "post", entryId: id, data: { title: "v1" } });
+			await revisionRepo.create({ collection: "post", entryId: id, data: { title: "v2" } });
+
+			const before = await revisionRepo.findByEntry("post", id);
+			expect(before).toHaveLength(2);
+
+			// Soft delete first, then permanent delete
+			await repo.delete("post", id);
+			await handleContentPermanentDelete(db, "post", id);
+
+			// Revisions should be gone
+			const after = await revisionRepo.findByEntry("post", id);
+			expect(after).toHaveLength(0);
+		});
+
 		it("should not hydrate SEO for collections without has_seo", async () => {
 			// Create a collection without SEO
 			await registry.createCollection({
@@ -801,6 +825,18 @@ describe("SEO", () => {
 	});
 
 	describe("handleSitemapData", () => {
+		/** Flatten the per-collection response into a flat list with collection tag. */
+		function flatEntries(data: {
+			collections: Array<{
+				collection: string;
+				entries: Array<{ id: string; slug: string | null; updatedAt: string }>;
+			}>;
+		}) {
+			return data.collections.flatMap((c) =>
+				c.entries.map((e) => ({ collection: c.collection, ...e })),
+			);
+		}
+
 		it("should return published content from SEO-enabled collections", async () => {
 			await repo.create({
 				type: "post",
@@ -819,9 +855,10 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			expect(result.success).toBe(true);
-			expect(result.data!.entries).toHaveLength(1);
-			expect(result.data!.entries[0]!.collection).toBe("post");
-			expect(result.data!.entries[0]!.identifier).toBe("published-post");
+			const entries = flatEntries(result.data!);
+			expect(entries).toHaveLength(1);
+			expect(entries[0]!.collection).toBe("post");
+			expect(entries[0]!.slug).toBe("published-post");
 		});
 
 		it("should exclude noindex content from sitemap", async () => {
@@ -845,8 +882,9 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			expect(result.success).toBe(true);
-			expect(result.data!.entries).toHaveLength(1);
-			expect(result.data!.entries[0]!.identifier).toBe("visible-post");
+			const entries = flatEntries(result.data!);
+			expect(entries).toHaveLength(1);
+			expect(entries[0]!.slug).toBe("visible-post");
 		});
 
 		it("should exclude deleted content from sitemap", async () => {
@@ -862,7 +900,8 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			expect(result.success).toBe(true);
-			expect(result.data!.entries).toHaveLength(0);
+			const entries = flatEntries(result.data!);
+			expect(entries).toHaveLength(0);
 		});
 
 		it("should include content from multiple SEO-enabled collections", async () => {
@@ -883,11 +922,12 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			expect(result.success).toBe(true);
-			expect(result.data!.entries).toHaveLength(2);
+			expect(result.data!.collections).toHaveLength(2);
 
-			const identifiers = result.data!.entries.map((e) => `${e.collection}/${e.identifier}`);
-			expect(identifiers).toContain("post/my-post");
-			expect(identifiers).toContain("page/about");
+			const entries = flatEntries(result.data!);
+			const slugs = entries.map((e) => `${e.collection}/${e.slug}`);
+			expect(slugs).toContain("post/my-post");
+			expect(slugs).toContain("page/about");
 		});
 
 		it("should exclude content from non-SEO collections", async () => {
@@ -920,11 +960,11 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			expect(result.success).toBe(true);
-			expect(result.data!.entries).toHaveLength(1);
-			expect(result.data!.entries[0]!.collection).toBe("post");
+			expect(result.data!.collections).toHaveLength(1);
+			expect(result.data!.collections[0]!.collection).toBe("post");
 		});
 
-		it("should use ID when slug is null", async () => {
+		it("should return null slug and valid id when slug is null", async () => {
 			const created = await repo.create({
 				type: "post",
 				data: { title: "No Slug Post" },
@@ -934,11 +974,13 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			expect(result.success).toBe(true);
-			expect(result.data!.entries[0]!.collection).toBe("post");
-			expect(result.data!.entries[0]!.identifier).toBe(created.id);
+			const entries = flatEntries(result.data!);
+			expect(entries[0]!.collection).toBe("post");
+			expect(entries[0]!.slug).toBeNull();
+			expect(entries[0]!.id).toBe(created.id);
 		});
 
-		it("should include updatedAt from updated_at", async () => {
+		it("should include updatedAt and lastmod", async () => {
 			await repo.create({
 				type: "post",
 				slug: "test",
@@ -948,12 +990,55 @@ describe("SEO", () => {
 
 			const result = await handleSitemapData(db);
 
-			expect(result.data!.entries[0]!.updatedAt).toBeDefined();
-			// Should be a valid date string
-			expect(new Date(result.data!.entries[0]!.updatedAt).getTime()).not.toBeNaN();
+			const col = result.data!.collections[0]!;
+			expect(col.lastmod).toBeDefined();
+			expect(new Date(col.lastmod).getTime()).not.toBeNaN();
+			expect(col.entries[0]!.updatedAt).toBeDefined();
+			expect(new Date(col.entries[0]!.updatedAt).getTime()).not.toBeNaN();
 		});
 
-		it("should return empty entries when no SEO-enabled collections exist", async () => {
+		it("should include urlPattern from collection", async () => {
+			await db
+				.updateTable("_emdash_collections")
+				.set({ url_pattern: "/blog/{slug}" })
+				.where("slug", "=", "post")
+				.execute();
+
+			await repo.create({
+				type: "post",
+				slug: "test",
+				data: { title: "Test" },
+				status: "published",
+			});
+
+			const result = await handleSitemapData(db);
+
+			expect(result.data!.collections[0]!.urlPattern).toBe("/blog/{slug}");
+		});
+
+		it("should filter by collection when collectionSlug is provided", async () => {
+			await repo.create({
+				type: "post",
+				slug: "my-post",
+				data: { title: "A Post" },
+				status: "published",
+			});
+
+			await repo.create({
+				type: "page",
+				slug: "about",
+				data: { title: "About Us" },
+				status: "published",
+			});
+
+			const result = await handleSitemapData(db, "post");
+
+			expect(result.success).toBe(true);
+			expect(result.data!.collections).toHaveLength(1);
+			expect(result.data!.collections[0]!.collection).toBe("post");
+		});
+
+		it("should return empty collections when no SEO-enabled collections exist", async () => {
 			// Disable SEO on all collections
 			await db.updateTable("_emdash_collections").set({ has_seo: 0 }).execute();
 
@@ -967,14 +1052,14 @@ describe("SEO", () => {
 			const result = await handleSitemapData(db);
 
 			expect(result.success).toBe(true);
-			expect(result.data!.entries).toEqual([]);
+			expect(result.data!.collections).toEqual([]);
 		});
 
-		it("should return empty entries for empty database", async () => {
+		it("should return empty collections for empty database", async () => {
 			const result = await handleSitemapData(db);
 
 			expect(result.success).toBe(true);
-			expect(result.data!.entries).toEqual([]);
+			expect(result.data!.collections).toEqual([]);
 		});
 	});
 

@@ -33,6 +33,21 @@ export interface DatabaseDescriptor {
 	entrypoint: string;
 	config: unknown;
 	type: DatabaseDialectType;
+	/**
+	 * When true, the adapter's runtime entrypoint MUST export a named
+	 * `createRequestScopedDb` function matching the signature declared in
+	 * `virtual:emdash/dialect`. The virtual-module generator re-exports it
+	 * by name, so a missing export becomes a build-time bundler error.
+	 *
+	 * The function is called once per request and decides — based on its own
+	 * runtime config (e.g. whether the user opted into D1 sessions) — whether
+	 * to return a per-request Kysely or null. Use this for features like D1
+	 * read-replica sessions, bookmark cookies, or any per-request DB handle.
+	 *
+	 * When false or absent, the generator emits a stub that returns null and
+	 * the middleware takes its default (singleton) path.
+	 */
+	supportsRequestScope?: boolean;
 }
 
 export interface SqliteConfig {

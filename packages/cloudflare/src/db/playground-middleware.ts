@@ -54,7 +54,7 @@ const initializedSessions = new Set<string>();
  * The database config has the binding in `config.database.config.binding`.
  */
 function getBindingName(): string {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import
 	const config = virtualConfig as { database?: { config?: { binding?: string } } } | null;
 	const binding = config?.database?.config?.binding;
 	if (!binding) {
@@ -70,16 +70,16 @@ function getBindingName(): string {
  * Get a PreviewDBStub for the given session token.
  */
 function getStub(binding: string, token: string): PreviewDBStub {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Worker binding from untyped env
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding from untyped env
 	const ns = (env as Record<string, unknown>)[binding];
 	if (!ns) {
 		throw new Error(`Playground binding "${binding}" not found in environment`);
 	}
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- DO namespace from untyped env
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- DO namespace from untyped env
 	const namespace = ns as DurableObjectNamespace<EmDashPreviewDB>;
 	const doId = namespace.idFromName(token);
 	const stub = namespace.get(doId);
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- RPC type limitation
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- RPC type limitation
 	return stub as unknown as PreviewDBStub;
 }
 
@@ -87,12 +87,12 @@ function getStub(binding: string, token: string): PreviewDBStub {
  * Get the full DO stub for direct RPC calls (e.g. setTtlAlarm).
  */
 function getFullStub(binding: string, token: string): DurableObjectStub<EmDashPreviewDB> {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Worker binding from untyped env
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding from untyped env
 	const ns = (env as Record<string, unknown>)[binding];
 	if (!ns) {
 		throw new Error(`Playground binding "${binding}" not found in environment`);
 	}
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- DO namespace from untyped env
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- DO namespace from untyped env
 	const namespace = ns as DurableObjectNamespace<EmDashPreviewDB>;
 	const doId = namespace.idFromName(token);
 	return namespace.get(doId);
@@ -292,12 +292,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 		try {
 			await initializePlayground(db, token);
+			console.log(`[playground] Session ${token} initialized`);
 			initializedSessions.add(token);
 			const fullStub = getFullStub(binding, token);
+			console.log(`[playground] Setting TTL alarm for session ${token} (${ttl} seconds)`);
 			await fullStub.setTtlAlarm(ttl);
+			console.log(`[playground] TTL alarm set for session ${token}`);
 			return Response.json({ ok: true });
 		} catch (error) {
 			console.error("Playground initialization failed:", error);
+			if (error instanceof Error) {
+				console.error(error.stack);
+			}
 			return Response.json(
 				{ error: { code: "PLAYGROUND_INIT_ERROR", message: "Failed to initialize playground" } },
 				{ status: 500 },

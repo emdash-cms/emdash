@@ -1,11 +1,12 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "vitest-browser-react";
 
 import { ContentList } from "../../src/components/ContentList";
 import type { ContentItem, TrashedContentItem } from "../../src/lib/api";
+import { render } from "../utils/render.tsx";
 
 const NO_RESULTS_PATTERN = /No results for/;
+const HAS_MORE_ITEMS_PATTERN = /21\+ items/;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -304,6 +305,52 @@ describe("ContentList", () => {
 			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
 		});
 
+		it("auto-fetches when user navigates to the last client-side page", async () => {
+			const onLoadMore = vi.fn();
+			// 21 items = 2 pages of 20; user starts on page 0 (not the last page)
+			const items = Array.from({ length: 21 }, (_, i) => makeItem({ id: `item_${i}` }));
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} hasMore={true} onLoadMore={onLoadMore} />,
+			);
+
+			// On mount, page 0 is not the last page — no fetch yet
+			expect(onLoadMore).not.toHaveBeenCalled();
+
+			// Navigate to page 2 (the last page)
+			await screen.getByRole("button", { name: "Next page" }).click();
+
+			expect(onLoadMore).toHaveBeenCalledOnce();
+		});
+
+		it("does not auto-fetch when a search query is active", async () => {
+			const onLoadMore = vi.fn();
+			// 21 items so pagination exists, but search will collapse to 1 result / 1 page
+			const items = [
+				...Array.from({ length: 20 }, (_, i) =>
+					makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),
+				),
+				makeItem({ id: "unique", data: { title: "Unique Title" } }),
+			];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} hasMore={true} onLoadMore={onLoadMore} />,
+			);
+
+			// No fetch on mount (page 0 is not the last page with 21 items)
+			expect(onLoadMore).not.toHaveBeenCalled();
+
+			// Search collapses results to 1 item — totalPages becomes 1, but should NOT fetch
+			await screen.getByRole("searchbox").fill("Unique Title");
+
+			expect(onLoadMore).not.toHaveBeenCalled();
+		});
+
+		it("shows '+' suffix on item count when hasMore is true and no search is active", async () => {
+			const items = Array.from({ length: 21 }, (_, i) => makeItem({ id: `item_${i}` }));
+			const screen = await render(<ContentList {...defaultProps} items={items} hasMore={true} />);
+
+			await expect.element(screen.getByText(HAS_MORE_ITEMS_PATTERN)).toBeInTheDocument();
+		});
+
 		it("calls onLoadMore when Load More is clicked", async () => {
 			const onLoadMore = vi.fn();
 			const items = [makeItem()];
@@ -311,9 +358,14 @@ describe("ContentList", () => {
 				<ContentList {...defaultProps} items={items} hasMore={true} onLoadMore={onLoadMore} />,
 			);
 
+			// With 1 item and hasMore=true, the auto-fetch effect fires on mount
+			// because page 0 is already the last client-side page.
+			// The button click adds a second call on top of that.
+			expect(onLoadMore).toHaveBeenCalledOnce();
+
 			await screen.getByRole("button", { name: "Load More" }).click();
 
-			expect(onLoadMore).toHaveBeenCalledOnce();
+			expect(onLoadMore).toHaveBeenCalledTimes(2);
 		});
 	});
 
@@ -402,6 +454,88 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("Post 20")).toBeInTheDocument();
 			// Post 0 should not be visible
 			expect(screen.getByText("Post 0").query()).toBeNull();
+		});
+
+		// Regression: before this change `totalPages` was derived only from
+		// loaded items, so the denominator grew in increments of 5 (API
+		// fetches 100, page size 20 → 5 client pages per fetch). When the
+		// parent supplies an authoritative `total`, the denominator must
+		// reflect it from the first render.
+		it("uses `total` as a stable denominator instead of items.length", async () => {
+			// Only the first 20 items have been loaded, but the server knows
+			// there are 143 total.
+			const items = Array.from({ length: 20 }, (_, i) =>
+				makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),
+			);
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} total={143} hasMore={true} />,
+			);
+
+			// 143 / 20 = 8 pages. The denominator should read 8, not "/5".
+			await expect.element(screen.getByText("1 / 8")).toBeInTheDocument();
+		});
+	});
+
+	describe("sortable headers", () => {
+		it("calls onSortChange when a header is clicked", async () => {
+			const onSortChange = vi.fn();
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					sort={{ field: "updatedAt", direction: "desc" }}
+					onSortChange={onSortChange}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: "Title" }).click();
+
+			expect(onSortChange).toHaveBeenCalledWith({ field: "title", direction: "desc" });
+		});
+
+		it("toggles direction when clicking the active column", async () => {
+			const onSortChange = vi.fn();
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					sort={{ field: "title", direction: "desc" }}
+					onSortChange={onSortChange}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: "Title" }).click();
+
+			expect(onSortChange).toHaveBeenCalledWith({ field: "title", direction: "asc" });
+		});
+
+		it("exposes sort state via aria-sort on the active header", async () => {
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					sort={{ field: "title", direction: "asc" }}
+					onSortChange={vi.fn()}
+				/>,
+			);
+
+			const titleHeader = screen.getByRole("columnheader", { name: "Title" });
+			const statusHeader = screen.getByRole("columnheader", { name: "Status" });
+			await expect.element(titleHeader).toHaveAttribute("aria-sort", "ascending");
+			// Inactive columns explicitly advertise "none" so the header still
+			// announces as sortable.
+			await expect.element(statusHeader).toHaveAttribute("aria-sort", "none");
+		});
+
+		it("falls back to static headers when onSortChange is not provided", async () => {
+			const items = [makeItem({ id: "1", data: { title: "Post" } })];
+			const screen = await render(<ContentList {...defaultProps} items={items} />);
+
+			// The header must not render as a button — it's just a label.
+			expect(screen.getByRole("button", { name: "Title" }).query()).toBeNull();
 		});
 	});
 });

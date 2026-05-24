@@ -7,11 +7,14 @@
  * DO NOT import Node.js-only modules here (fs, path, module, etc.)
  */
 
-import type { AuthDescriptor } from "../../auth/types.js";
+import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
+import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
+
+export type { ExperimentalConfig, RegistryConfig } from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -197,6 +200,17 @@ export interface EmDashConfig {
 	sandboxRunner?: string;
 
 	/**
+	 * Explicitly disable plugin sandboxing, even if a sandbox runner is configured.
+	 * Use this as a debugging escape hatch to determine whether a bug is in your
+	 * plugin code or in the sandbox runtime.
+	 *
+	 * When set to `false`, all plugins run in-process without isolation.
+	 *
+	 * @default true (sandboxing enabled if sandboxRunner is configured)
+	 */
+	sandbox?: boolean;
+
+	/**
 	 * Authentication configuration
 	 *
 	 * Use an auth adapter function from a platform package:
@@ -223,23 +237,35 @@ export interface EmDashConfig {
 	auth?: AuthDescriptor;
 
 	/**
-	 * Enable the MCP (Model Context Protocol) server endpoint.
+	 * Pluggable auth providers (login methods on the login page).
 	 *
-	 * When enabled, exposes an MCP Streamable HTTP server at
-	 * `/_emdash/api/mcp` that allows AI agents and tools to interact
-	 * with the CMS using the standardized MCP protocol.
-	 *
-	 * Authentication is handled by the existing EmDash auth middleware —
-	 * agents must authenticate with an API token or session cookie.
-	 *
-	 * @default false
+	 * Auth providers appear as options alongside passkey on the login page
+	 * and setup wizard. Any provider can be used to create the initial
+	 * admin account. Passkey is built-in; providers listed here are additive.
 	 *
 	 * @example
 	 * ```ts
+	 * import { atproto } from "@emdash-cms/auth-atproto";
+	 *
 	 * emdash({
-	 *   mcp: true,
+	 *   authProviders: [atproto()],
 	 * })
 	 * ```
+	 */
+	authProviders?: AuthProviderDescriptor[];
+
+	/**
+	 * MCP (Model Context Protocol) server endpoint.
+	 *
+	 * Exposes an MCP Streamable HTTP server at `/_emdash/api/mcp`
+	 * that allows AI agents and tools to interact with the CMS using
+	 * the standardized MCP protocol.
+	 *
+	 * Enabled by default. The endpoint requires bearer token auth, so
+	 * it has no effect unless the user creates an API token and
+	 * configures a client. Set to `false` to disable.
+	 *
+	 * @default true
 	 */
 	mcp?: boolean;
 
@@ -252,6 +278,10 @@ export interface EmDashConfig {
 	 * Must be an HTTPS URL in production, or localhost/127.0.0.1 in dev.
 	 * Requires `sandboxRunner` to be configured (marketplace plugins run sandboxed).
 	 *
+	 * When `registry` is also configured, the registry replaces the marketplace
+	 * for the admin UI's browse and install flows. Existing marketplace-installed
+	 * plugins continue to work; new installs and updates come from the registry.
+	 *
 	 * @example
 	 * ```ts
 	 * emdash({
@@ -261,6 +291,112 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	marketplace?: string;
+
+	/**
+	 * Experimental features.
+	 *
+	 * These options are not yet stable. Shape, defaults, and behavior may
+	 * change between minor versions. Use only if you're comfortable
+	 * tracking the release notes and updating your config when an
+	 * experimental feature graduates or changes.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   experimental: {
+	 *     registry: {
+	 *       aggregatorUrl: "https://registry.emdashcms.com",
+	 *     },
+	 *   },
+	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 * })
+	 * ```
+	 */
+	experimental?: ExperimentalConfig;
+
+	/**
+	 * Maximum allowed media file upload size in bytes.
+	 *
+	 * Applies to both direct multipart uploads and signed-URL uploads.
+	 * When unset, defaults to 52_428_800 (50 MB).
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({ maxUploadSize: 100 * 1024 * 1024 }) // 100 MB
+	 * ```
+	 */
+	maxUploadSize?: number;
+
+	/**
+	 * Public browser-facing origin for the site.
+	 *
+	 * Use when `Astro.url` / `request.url` do not match what users open — common with a
+	 * **TLS-terminating reverse proxy**: the app often sees `http://` on the internal hop
+	 * while the browser uses `https://`, which breaks WebAuthn, CSRF, OAuth, and redirect URLs.
+	 *
+	 * Set to the full origin users type in the address bar (no path), e.g.
+	 * `https://mysite.example.com`. When not set, falls back to environment variables
+	 * `EMDASH_SITE_URL` > `SITE_URL`, then to the request URL's origin.
+	 *
+	 * Replaces `passkeyPublicOrigin` (which only fixed passkeys).
+	 */
+	siteUrl?: string;
+
+	/**
+	 * Additional origins accepted by passkey verification.
+	 *
+	 * When the same EmDash deployment is reachable under several hostnames sharing
+	 * a registrable parent (e.g. `https://example.com` plus
+	 * `https://preview.example.com`), the canonical `siteUrl` defines the `rpId`
+	 * and the entries here are the *additional* origins from which assertions
+	 * are accepted. Each entry must be the same hostname as `siteUrl` or a
+	 * subdomain of it — WebAuthn requires `rpId` to be a registrable suffix of
+	 * every origin.
+	 *
+	 * Merged at runtime with the `EMDASH_ALLOWED_ORIGINS` env var (comma-separated).
+	 * Validation:
+	 *   - Config-declared entries are shape-checked at Astro startup.
+	 *   - Subdomain relationship to `siteUrl` is checked at startup when
+	 *     `siteUrl` is also config-declared, otherwise at first passkey
+	 *     verification (since `siteUrl` may come from `EMDASH_SITE_URL`).
+	 *
+	 * Mismatches throw with a source-attributed message naming
+	 * `config.allowedOrigins` or `EMDASH_ALLOWED_ORIGINS`.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   siteUrl: "https://example.com",
+	 *   allowedOrigins: ["https://preview.example.com"],
+	 * })
+	 * ```
+	 */
+	allowedOrigins?: string[];
+	/*
+	 * Headers to trust for client IP resolution when running behind a reverse
+	 * proxy. The first header in this list that is present on the request
+	 * wins. Applies to rate limiting for auth endpoints and comment
+	 * submission.
+	 *
+	 * Common values:
+	 * - `x-real-ip` — nginx, Caddy, Traefik
+	 * - `fly-client-ip` — Fly.io
+	 * - `x-forwarded-for` — generic (first entry is used)
+	 *
+	 * Only set this when you **control the reverse proxy**. Untrusted
+	 * clients can set any header they like; trusting headers from an open
+	 * network is an IP-spoofing vulnerability that defeats rate limiting.
+	 *
+	 * On Cloudflare the `cf` object on the request is used automatically —
+	 * you normally don't need to set this. Leave unset (or empty) to
+	 * preserve the default: IP is resolved only when the request came
+	 * through Cloudflare's edge.
+	 *
+	 * Falls back to `EMDASH_TRUSTED_PROXY_HEADERS` env var (comma-separated)
+	 * when this option is not set, so operators can configure at deploy
+	 * time without touching the Astro config.
+	 */
+	trustedProxyHeaders?: string[];
 
 	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.
@@ -313,14 +449,96 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	mediaProviders?: MediaProviderDescriptor[];
+
+	/**
+	 * Admin UI font configuration.
+	 *
+	 * By default, EmDash loads Noto Sans via the Astro Font API, covering
+	 * Latin, Latin Extended, Cyrillic, Cyrillic Extended, Greek, Greek
+	 * Extended, Devanagari, and Vietnamese. Fonts are downloaded from
+	 * Google at build time and self-hosted, so there are no runtime CDN
+	 * requests.
+	 *
+	 * To add support for additional writing systems (Arabic, CJK, etc.),
+	 * pass script names. EmDash resolves the matching Noto Sans variant
+	 * from Google Fonts and merges all script faces under a single
+	 * font-family, so the browser downloads only the glyphs it needs
+	 * via unicode-range.
+	 *
+	 * Set to `false` to disable font injection entirely and use system fonts.
+	 *
+	 * @example
+	 * ```ts
+	 * // Add Arabic and Japanese support
+	 * emdash({
+	 *   fonts: {
+	 *     scripts: ["arabic", "japanese"],
+	 *   },
+	 * })
+	 * ```
+	 *
+	 * @example
+	 * ```ts
+	 * // Disable web fonts entirely (use system fonts)
+	 * emdash({
+	 *   fonts: false,
+	 * })
+	 * ```
+	 */
+	fonts?:
+		| false
+		| {
+				/**
+				 * Additional Noto Sans script families to include.
+				 *
+				 * Available scripts: arabic, armenian, bengali, chinese-simplified,
+				 * chinese-traditional, chinese-hongkong, devanagari, ethiopic, farsi,
+				 * georgian, gujarati, gurmukhi, hebrew, japanese, kannada, khmer,
+				 * korean, lao, malayalam, myanmar, oriya, sinhala, tamil, telugu,
+				 * thai, tibetan.
+				 */
+				scripts?: string[];
+		  };
+
+	/**
+	 * Admin UI branding (white-labeling).
+	 *
+	 * Overrides the default EmDash logo and name in the admin panel.
+	 * Use this to white-label the CMS for agency or enterprise deployments.
+	 * These settings are separate from the public site settings (title, logo,
+	 * favicon) which remain available for SEO and front-end use.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   admin: {
+	 *     logo: "/images/agency-logo.webp",
+	 *     siteName: "AgencyX CMS",
+	 *     favicon: "/favicon.ico",
+	 *   },
+	 * })
+	 * ```
+	 */
+	admin?: {
+		/** URL or path to a custom logo image for the admin UI (login page, sidebar). */
+		logo?: string;
+		/** Custom name displayed in the admin sidebar and browser tab. */
+		siteName?: string;
+		/** URL or path to a custom favicon for the admin panel. */
+		favicon?: string;
+	};
 }
+
+const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");
+const configHolder = globalThis as Record<symbol, unknown>;
 
 /**
  * Get stored config from global
  * This is set by the virtual module at build time
  */
 export function getStoredConfig(): EmDashConfig | null {
-	return globalThis.__emdashConfig || null;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	return (configHolder[STORED_CONFIG_KEY] as EmDashConfig | undefined) ?? null;
 }
 
 /**
@@ -328,11 +546,5 @@ export function getStoredConfig(): EmDashConfig | null {
  * Called by the integration at config time
  */
 export function setStoredConfig(config: EmDashConfig): void {
-	globalThis.__emdashConfig = config;
-}
-
-// Declare global type
-declare global {
-	// eslint-disable-next-line no-var
-	var __emdashConfig: EmDashConfig | undefined;
+	configHolder[STORED_CONFIG_KEY] = config;
 }

@@ -11,8 +11,8 @@ import {
 	cloudflareStream,
 } from "@emdash-cms/cloudflare";
 import { formsPlugin } from "@emdash-cms/plugin-forms";
-import { webhookNotifierPlugin } from "@emdash-cms/plugin-webhook-notifier";
-import { defineConfig } from "astro/config";
+import webhookNotifier from "@emdash-cms/plugin-webhook-notifier";
+import { defineConfig, fontProviders } from "astro/config";
 import emdash from "emdash/astro";
 
 export default defineConfig({
@@ -74,7 +74,7 @@ export default defineConfig({
 				formsPlugin(),
 			],
 			// Sandboxed plugins (run in isolated workers)
-			sandboxed: [webhookNotifierPlugin()],
+			sandboxed: [webhookNotifier],
 			// Sandbox runner for Cloudflare
 			sandboxRunner: sandbox(),
 			// Plugin marketplace
@@ -96,5 +96,21 @@ export default defineConfig({
 			},
 		},
 	},
+	fonts: [
+		{
+			provider: fontProviders.google(),
+			name: "Inter",
+			cssVariable: "--font-sans",
+			weights: [400, 500, 600, 700],
+			fallbacks: ["sans-serif"],
+		},
+		{
+			provider: fontProviders.google(),
+			name: "JetBrains Mono",
+			cssVariable: "--font-mono",
+			weights: [400, 500],
+			fallbacks: ["monospace"],
+		},
+	],
 	devToolbar: { enabled: false },
 });

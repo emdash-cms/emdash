@@ -4,14 +4,17 @@
 
 import type { Kysely } from "kysely";
 
+import { OptionsRepository } from "../../database/repositories/options.js";
 import {
 	RedirectRepository,
 	type Redirect,
 	type NotFoundEntry,
 	type NotFoundSummary,
 } from "../../database/repositories/redirect.js";
+import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { FindManyResult } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
+import { wouldCreateLoop, detectLoops, type RedirectEdge } from "../../redirects/loops.js";
 import { validatePattern, validateDestinationParams, isPattern } from "../../redirects/patterns.js";
 import type { ApiResult } from "../types.js";
 
@@ -32,12 +35,27 @@ export async function handleRedirectList(
 		enabled?: boolean;
 		auto?: boolean;
 	},
-): Promise<ApiResult<FindManyResult<Redirect>>> {
+): Promise<ApiResult<FindManyResult<Redirect> & { loopRedirectIds?: string[] }>> {
 	try {
 		const repo = new RedirectRepository(db);
 		const result = await repo.findMany(params);
-		return { success: true, data: result };
-	} catch {
+
+		const loopRedirectIds = await getLoopRedirectIds(db);
+
+		return {
+			success: true,
+			data: {
+				...result,
+				...(loopRedirectIds.length > 0 ? { loopRedirectIds } : {}),
+			},
+		};
+	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
 		return {
 			success: false,
 			error: { code: "REDIRECT_LIST_ERROR", message: "Failed to fetch redirects" },
@@ -103,6 +121,13 @@ export async function handleRedirectCreate(
 					message: `A redirect from "${input.source}" already exists`,
 				},
 			};
+		}
+
+		// Check for redirect loops (skip if creating as disabled)
+		if (input.enabled !== false) {
+			const edges = toEdges(await repo.findAllEnabled());
+			const loopPath = wouldCreateLoop(input.source, input.destination, edges);
+			if (loopPath) return loopError(loopPath);
 		}
 
 		const redirect = await repo.create({
@@ -219,7 +244,8 @@ export async function handleRedirectUpdate(
 		}
 
 		// Validate destination params against the (possibly updated) source
-		if (isPattern(newSource)) {
+		const newSourceIsPattern = isPattern(newSource);
+		if (newSourceIsPattern) {
 			const destError = validateDestinationParams(newSource, newDest);
 			if (destError) {
 				return {
@@ -227,6 +253,13 @@ export async function handleRedirectUpdate(
 					error: { code: "VALIDATION_ERROR", message: destError },
 				};
 			}
+		}
+
+		// Check for redirect loops if source or destination changed
+		if (input.source !== undefined || input.destination !== undefined) {
+			const edges = toEdges(await repo.findAllEnabled());
+			const loopPath = wouldCreateLoop(newSource, newDest, edges, id);
+			if (loopPath) return loopError(loopPath);
 		}
 
 		const updated = await repo.update(id, {
@@ -243,6 +276,9 @@ export async function handleRedirectUpdate(
 				error: { code: "REDIRECT_UPDATE_ERROR", message: "Failed to update redirect" },
 			};
 		}
+
+		// Recompute cache — redirect was modified, so re-fetch
+		await updateLoopCache(db);
 
 		return { success: true, data: updated };
 	} catch {
@@ -271,12 +307,75 @@ export async function handleRedirectDelete(
 			};
 		}
 
+		await updateLoopCache(db);
+
 		return { success: true, data: { deleted: true } };
 	} catch {
 		return {
 			success: false,
 			error: { code: "REDIRECT_DELETE_ERROR", message: "Failed to delete redirect" },
 		};
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Loop analysis cache
+// ---------------------------------------------------------------------------
+
+function loopError(loopPath: string[]): ApiResult<never> {
+	const hops = loopPath
+		.slice(0, -1)
+		.map((p, i) => `${p} \u2192 ${loopPath[i + 1]}`)
+		.join("\n");
+	return {
+		success: false,
+		error: {
+			code: "VALIDATION_ERROR",
+			message: `This redirect would create a loop:\n${hops}`,
+		},
+	};
+}
+
+function toEdges(redirects: Redirect[]): RedirectEdge[] {
+	return redirects.map((r) => ({
+		id: r.id,
+		source: r.source,
+		destination: r.destination,
+		enabled: r.enabled,
+		isPattern: r.isPattern,
+	}));
+}
+
+const LOOP_CACHE_KEY = "_redirect_loop_ids";
+
+/**
+ * Recompute loop redirect IDs and store in the options table.
+ */
+async function updateLoopCache(db: Kysely<Database>): Promise<void> {
+	try {
+		const options = new OptionsRepository(db);
+		const edges = toEdges(await new RedirectRepository(db).findAllEnabled());
+		const loopRedirectIds = detectLoops(edges);
+		await options.set(LOOP_CACHE_KEY, loopRedirectIds);
+	} catch (error) {
+		console.error("Failed to update redirect loop cache:", error);
+	}
+}
+
+/**
+ * Get loop redirect IDs from cache, computing lazily on first access.
+ */
+async function getLoopRedirectIds(db: Kysely<Database>): Promise<string[]> {
+	try {
+		const options = new OptionsRepository(db);
+		const cached = await options.get<string[]>(LOOP_CACHE_KEY);
+		if (cached !== null) return cached;
+
+		// First access after upgrade — compute and cache
+		await updateLoopCache(db);
+		return (await options.get<string[]>(LOOP_CACHE_KEY)) ?? [];
+	} catch {
+		return [];
 	}
 }
 
@@ -295,7 +394,13 @@ export async function handleNotFoundList(
 		const repo = new RedirectRepository(db);
 		const result = await repo.find404s(params);
 		return { success: true, data: result };
-	} catch {
+	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
 		return {
 			success: false,
 			error: { code: "NOT_FOUND_LIST_ERROR", message: "Failed to fetch 404 log" },

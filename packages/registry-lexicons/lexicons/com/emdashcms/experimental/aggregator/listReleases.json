@@ -1,0 +1,68 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.aggregator.listReleases",
+	"description": "List releases for a package, scoped to (did, package) and ordered by descending semver version. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"description": "Returns a paginated list of releases for the named package. Results that are subject to a hard-enforcement label from a trusted labeller the request accepts are filtered out; other label state is hydrated on each result. Results are ordered by descending semver version.",
+			"parameters": {
+				"type": "params",
+				"required": ["did", "package"],
+				"properties": {
+					"did": {
+						"type": "string",
+						"format": "did",
+						"description": "Publisher DID."
+					},
+					"package": {
+						"type": "string",
+						"description": "Parent package slug.",
+						"minLength": 1,
+						"maxLength": 64
+					},
+					"limit": {
+						"type": "integer",
+						"description": "Max results to return.",
+						"minimum": 1,
+						"maximum": 100,
+						"default": 25
+					},
+					"cursor": {
+						"type": "string",
+						"description": "Pagination cursor from a previous response.",
+						"maxLength": 1024
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "object",
+					"required": ["releases"],
+					"properties": {
+						"releases": {
+							"type": "array",
+							"maxLength": 100,
+							"items": {
+								"type": "ref",
+								"ref": "com.emdashcms.experimental.aggregator.defs#releaseView"
+							}
+						},
+						"cursor": {
+							"type": "string",
+							"description": "Cursor to fetch the next page. Absent when there are no more results.",
+							"maxLength": 1024
+						}
+					}
+				}
+			},
+			"errors": [
+				{
+					"name": "NotFound",
+					"description": "No package indexed under the given (did, package)."
+				}
+			]
+		}
+	}
+}

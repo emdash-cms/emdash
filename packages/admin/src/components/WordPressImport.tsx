@@ -1,4 +1,15 @@
-import { Badge, Button, Input, LinkButton, Loader, buttonVariants } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	Input,
+	LinkButton,
+	Loader,
+	Select,
+	Switch,
+	buttonVariants,
+} from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	Upload,
 	Check,
@@ -9,7 +20,6 @@ import {
 	Database,
 	FileText,
 	CaretDown,
-	CaretRight,
 	Image,
 	DownloadSimple,
 	Globe,
@@ -47,6 +57,7 @@ import {
 	type UserListItem,
 } from "../lib/api";
 import { cn } from "../lib/utils";
+import { CaretNext } from "./ArrowIcons.js";
 
 // ============================================================================
 // Constants
@@ -197,6 +208,8 @@ export function WordPressImport() {
 		}
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+	const { t } = useLingui();
+
 	// Probe mutation
 	const probeMutation = useMutation({
 		mutationFn: probeImportUrl,
@@ -260,7 +273,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
-			setPrepareError(error instanceof Error ? error.message : "Failed to prepare import");
+			setPrepareError(error instanceof Error ? error.message : t`Failed to prepare import`);
 			setStep("review");
 		},
 	});
@@ -279,7 +292,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
-			setImportError(error instanceof Error ? error.message : "Failed to execute import");
+			setImportError(error instanceof Error ? error.message : t`Failed to execute import`);
 			setStep("review");
 		},
 	});
@@ -303,7 +316,7 @@ export function WordPressImport() {
 		},
 		onError: (error) => {
 			setMediaProgress(null);
-			setMediaError(error instanceof Error ? error.message : "Failed to import media");
+			setMediaError(error instanceof Error ? error.message : t`Failed to import media`);
 			setStep("media");
 		},
 	});
@@ -316,7 +329,7 @@ export function WordPressImport() {
 			setStep("complete");
 		},
 		onError: (error) => {
-			setMediaError(error instanceof Error ? error.message : "Failed to rewrite URLs");
+			setMediaError(error instanceof Error ? error.message : t`Failed to rewrite URLs`);
 			setStep("complete");
 		},
 	});
@@ -351,7 +364,7 @@ export function WordPressImport() {
 			setStep("review");
 		},
 		onError: (error) => {
-			setImportError(error instanceof Error ? error.message : "Failed to analyze WordPress site");
+			setImportError(error instanceof Error ? error.message : t`Failed to analyze WordPress site`);
 			setStep("plugin-auth");
 		},
 	});
@@ -370,7 +383,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
-			setImportError(error instanceof Error ? error.message : "Failed to import from WordPress");
+			setImportError(error instanceof Error ? error.message : t`Failed to import from WordPress`);
 			setStep("review");
 		},
 	});
@@ -601,9 +614,9 @@ export function WordPressImport() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-2xl font-bold">Import from WordPress</h1>
+				<h1 className="text-2xl font-bold">{t`Import from WordPress`}</h1>
 				<p className="text-kumo-subtle mt-1">
-					Import posts, pages, and custom post types from WordPress.
+					{t`Import posts, pages, and custom post types from WordPress.`}
 				</p>
 			</div>
 
@@ -611,7 +624,7 @@ export function WordPressImport() {
 			<div className="flex items-center gap-2 text-sm flex-wrap">
 				<StepIndicator
 					number={1}
-					label="Connect"
+					label={t`Connect`}
 					active={
 						step === "choose" ||
 						step === "probing" ||
@@ -634,7 +647,7 @@ export function WordPressImport() {
 				<div className="h-px w-8 bg-kumo-line" />
 				<StepIndicator
 					number={2}
-					label="Review"
+					label={t`Review`}
 					active={step === "review" || step === "authors"}
 					complete={
 						step === "preparing" ||
@@ -648,7 +661,7 @@ export function WordPressImport() {
 				<div className="h-px w-8 bg-kumo-line" />
 				<StepIndicator
 					number={3}
-					label="Import"
+					label={t`Import`}
 					active={step === "preparing" || step === "importing"}
 					complete={
 						step === "media" ||
@@ -662,7 +675,7 @@ export function WordPressImport() {
 						<div className="h-px w-8 bg-kumo-line" />
 						<StepIndicator
 							number={4}
-							label="Media"
+							label={t`Media`}
 							active={step === "media" || step === "importing-media" || step === "rewriting"}
 							complete={step === "complete"}
 						/>
@@ -685,7 +698,7 @@ export function WordPressImport() {
 			{step === "probing" && (
 				<div className="rounded-lg border bg-kumo-base p-12 text-center">
 					<Loader />
-					<p className="mt-4 text-kumo-subtle">Checking {urlInput}...</p>
+					<p className="mt-4 text-kumo-subtle">{t`Checking ${urlInput}...`}</p>
 				</div>
 			)}
 
@@ -719,8 +732,8 @@ export function WordPressImport() {
 			{step === "analyzing-plugin" && (
 				<div className="rounded-lg border bg-kumo-base p-12 text-center">
 					<Loader />
-					<p className="mt-4 text-kumo-subtle">Analyzing WordPress site...</p>
-					<p className="text-sm text-kumo-subtle">Fetching content from the EmDash Exporter API.</p>
+					<p className="mt-4 text-kumo-subtle">{t`Analyzing WordPress site...`}</p>
+					<p className="text-sm text-kumo-subtle">{t`Fetching content from the EmDash Exporter API.`}</p>
 				</div>
 			)}
 
@@ -796,7 +809,7 @@ export function WordPressImport() {
 			{step === "preparing" && (
 				<div className="rounded-lg border bg-kumo-base p-12 text-center">
 					<Loader />
-					<p className="mt-4 text-kumo-subtle">Creating collections and fields...</p>
+					<p className="mt-4 text-kumo-subtle">{t`Creating collections and fields...`}</p>
 				</div>
 			)}
 
@@ -804,8 +817,8 @@ export function WordPressImport() {
 			{step === "importing" && (
 				<div className="rounded-lg border bg-kumo-base p-12 text-center">
 					<Loader />
-					<p className="mt-4 text-kumo-subtle">Importing content...</p>
-					<p className="text-sm text-kumo-subtle">This may take a while for large exports.</p>
+					<p className="mt-4 text-kumo-subtle">{t`Importing content...`}</p>
+					<p className="text-sm text-kumo-subtle">{t`This may take a while for large exports.`}</p>
 				</div>
 			)}
 
@@ -828,7 +841,7 @@ export function WordPressImport() {
 			{step === "rewriting" && (
 				<div className="rounded-lg border bg-kumo-base p-12 text-center">
 					<Loader />
-					<p className="mt-4 text-kumo-subtle">Updating content URLs...</p>
+					<p className="mt-4 text-kumo-subtle">{t`Updating content URLs...`}</p>
 				</div>
 			)}
 
@@ -898,6 +911,7 @@ function ChooseStep({
 	onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
 	onDrop: (e: React.DragEvent) => void;
 }) {
+	const { t } = useLingui();
 	return (
 		<div className="space-y-6">
 			{/* URL input - primary path */}
@@ -907,9 +921,9 @@ function ChooseStep({
 						<Globe className="h-6 w-6 text-blue-600 dark:text-blue-400" />
 					</div>
 					<div className="flex-1">
-						<h3 className="text-lg font-medium">Enter your WordPress site URL</h3>
+						<h3 className="text-lg font-medium">{t`Enter your WordPress site URL`}</h3>
 						<p className="text-kumo-subtle mt-1">
-							We'll check what import options are available for your site.
+							{t`We'll check what import options are available for your site.`}
 						</p>
 						<form onSubmit={onProbeUrl} className="mt-4 flex gap-2">
 							<Input
@@ -920,7 +934,7 @@ function ChooseStep({
 								className="flex-1"
 							/>
 							<Button type="submit" disabled={!urlInput.trim()}>
-								Check Site
+								{t`Check Site`}
 							</Button>
 						</form>
 					</div>
@@ -932,7 +946,7 @@ function ChooseStep({
 					<div className="w-full border-t" />
 				</div>
 				<div className="relative flex justify-center text-xs uppercase">
-					<span className="bg-kumo-base px-2 text-kumo-subtle">or upload directly</span>
+					<span className="bg-kumo-base px-2 text-kumo-subtle">{t`or upload directly`}</span>
 				</div>
 			</div>
 
@@ -943,11 +957,13 @@ function ChooseStep({
 				onDrop={onDrop}
 			>
 				<Upload className="mx-auto h-10 w-10 text-kumo-subtle" />
-				<h3 className="mt-3 text-sm font-medium">Upload WordPress export file</h3>
-				<p className="mt-1 text-sm text-kumo-subtle">Drag and drop or click to browse (.xml)</p>
+				<h3 className="mt-3 text-sm font-medium">{t`Upload WordPress export file`}</h3>
+				<p className="mt-1 text-sm text-kumo-subtle">{t`Drag and drop or click to browse (.xml)`}</p>
 				<label className="mt-3 inline-block">
 					<input type="file" accept=".xml" className="sr-only" onChange={onFileSelect} />
-					<span className={buttonVariants({ variant: "outline", size: "sm" })}>Browse Files</span>
+					<span
+						className={buttonVariants({ variant: "outline", size: "sm" })}
+					>{t`Browse Files`}</span>
 				</label>
 			</div>
 		</div>
@@ -993,23 +1009,24 @@ const FEATURE_COMPARISON: FeatureComparisonItem[] = [
 ];
 
 function FeatureComparison() {
+	const { t } = useLingui();
 	return (
 		<div className="rounded-lg border bg-kumo-base overflow-hidden">
 			<div className="border-b p-4 bg-kumo-tint/30">
-				<h3 className="font-medium text-sm">Import Capabilities</h3>
+				<h3 className="font-medium text-sm">{t`Import Capabilities`}</h3>
 			</div>
 			<div className="overflow-x-auto">
 				<table className="w-full text-sm">
 					<thead>
 						<tr className="border-b bg-kumo-tint/20">
-							<th className="text-left p-3 font-medium">Feature</th>
-							<th className="text-center p-3 font-medium whitespace-nowrap">WXR File</th>
-							<th className="text-center p-3 font-medium whitespace-nowrap">Plugin</th>
+							<th className="text-start p-3 font-medium">{t`Feature`}</th>
+							<th className="text-center p-3 font-medium whitespace-nowrap">{t`WXR File`}</th>
+							<th className="text-center p-3 font-medium whitespace-nowrap">{t`Plugin`}</th>
 						</tr>
 					</thead>
-					<tbody>
+					<tbody className="divide-y divide-kumo-line">
 						{FEATURE_COMPARISON.map((item) => (
-							<tr key={item.feature} className="border-b last:border-0">
+							<tr key={item.feature}>
 								<td className="p-3 text-kumo-subtle">{item.feature}</td>
 								<td className="p-3 text-center">
 									<FeatureStatus status={item.wxr} note={item.wxrNote} />
@@ -1026,8 +1043,9 @@ function FeatureComparison() {
 				<div className="flex items-start gap-2 text-sm">
 					<Sparkle className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
 					<p className="text-blue-800 dark:text-blue-200">
-						For the best import experience, install the{" "}
-						<span className="font-medium">EmDash Exporter</span> plugin on your WordPress site.
+						{t`For the best import experience, install the`}{" "}
+						<span className="font-medium">{t`EmDash Exporter`}</span>{" "}
+						{t`plugin on your WordPress site.`}
 					</p>
 				</div>
 			</div>
@@ -1071,40 +1089,40 @@ function ProbeResultStep({
 	onPluginManualAuth: () => void;
 	onReset: () => void;
 }) {
+	const { t } = useLingui();
 	const bestMatch = result.bestMatch;
 	const hasPlugin = bestMatch?.sourceId === "wordpress-plugin";
 
 	if (!result.isWordPress) {
 		return (
 			<div className="space-y-6">
-				<div className="rounded-lg border-l-4 border-l-orange-500 border border-kumo-line bg-kumo-base p-6">
+				<div className="rounded-lg border-s-4 border-s-orange-500 border border-kumo-line bg-kumo-base p-6">
 					<div className="flex items-start gap-4">
 						<Warning className="h-6 w-6 text-orange-500 flex-shrink-0" />
 						<div>
-							<h3 className="font-medium">Couldn't detect WordPress</h3>
+							<h3 className="font-medium">{t`Couldn't detect WordPress`}</h3>
 							<p className="mt-1 text-sm text-kumo-subtle">
-								We couldn't connect to a WordPress site at {result.url}. This could mean the site
-								isn't WordPress, the REST API is disabled, or the site isn't accessible.
+								{t`We couldn't connect to a WordPress site at ${result.url}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible.`}
 							</p>
 						</div>
 					</div>
 				</div>
 
 				<div className="rounded-lg border bg-kumo-base p-6">
-					<h3 className="font-medium">Export from WordPress manually</h3>
+					<h3 className="font-medium">{t`Export from WordPress manually`}</h3>
 					<ol className="mt-3 space-y-2 text-sm text-kumo-subtle">
-						<li>1. Log into your WordPress admin dashboard</li>
+						<li>{t`1. Log into your WordPress admin dashboard`}</li>
 						<li>
-							2. Go to <strong>Tools → Export</strong>
+							{t`2. Go to`} <strong>{t`Tools → Export`}</strong>
 						</li>
-						<li>3. Select "All content"</li>
-						<li>4. Click "Download Export File"</li>
-						<li>5. Upload the file here</li>
+						<li>{t`3. Select "All content"`}</li>
+						<li>{t`4. Click "Download Export File"`}</li>
+						<li>{t`5. Upload the file here`}</li>
 					</ol>
 					<div className="mt-4 flex gap-2">
-						<Button onClick={onUploadFile}>Upload Export File</Button>
+						<Button onClick={onUploadFile}>{t`Upload Export File`}</Button>
 						<Button variant="outline" onClick={onReset}>
-							Try Another URL
+							{t`Try Another URL`}
 						</Button>
 					</div>
 				</div>
@@ -1116,17 +1134,17 @@ function ProbeResultStep({
 	return (
 		<div className="space-y-6">
 			{/* Detection success */}
-			<div className="rounded-lg border-l-4 border-l-green-500 border border-kumo-line bg-kumo-base p-6">
+			<div className="rounded-lg border-s-4 border-s-green-500 border border-kumo-line bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
 					<Check className="h-6 w-6 text-green-500 flex-shrink-0" />
 					<div>
 						<h3 className="font-medium">
-							{bestMatch?.detected.siteTitle || "WordPress site"} detected
+							{t`${bestMatch?.detected.siteTitle || "WordPress site"} detected`}
 						</h3>
 						<p className="mt-1 text-sm text-kumo-subtle">
 							{hasPlugin
-								? "EmDash Exporter plugin detected! You can import directly."
-								: "This is a WordPress site."}
+								? t`EmDash Exporter plugin detected! You can import directly.`
+								: t`This is a WordPress site.`}
 						</p>
 					</div>
 				</div>
@@ -1135,24 +1153,24 @@ function ProbeResultStep({
 			{/* Preview counts if available */}
 			{bestMatch?.preview && (
 				<div className="rounded-lg border bg-kumo-base p-4">
-					<h4 className="text-sm font-medium mb-3">Content found:</h4>
+					<h4 className="text-sm font-medium mb-3">{t`Content found:`}</h4>
 					<div className="grid grid-cols-3 gap-4 text-center">
 						{bestMatch.preview.posts !== undefined && (
 							<div>
 								<p className="text-2xl font-bold">{bestMatch.preview.posts}</p>
-								<p className="text-xs text-kumo-subtle">Posts</p>
+								<p className="text-xs text-kumo-subtle">{t`Posts`}</p>
 							</div>
 						)}
 						{bestMatch.preview.pages !== undefined && (
 							<div>
 								<p className="text-2xl font-bold">{bestMatch.preview.pages}</p>
-								<p className="text-xs text-kumo-subtle">Pages</p>
+								<p className="text-xs text-kumo-subtle">{t`Pages`}</p>
 							</div>
 						)}
 						{bestMatch.preview.media !== undefined && (
 							<div>
 								<p className="text-2xl font-bold">{bestMatch.preview.media}</p>
-								<p className="text-xs text-kumo-subtle">Media</p>
+								<p className="text-xs text-kumo-subtle">{t`Media`}</p>
 							</div>
 						)}
 					</div>
@@ -1164,7 +1182,7 @@ function ProbeResultStep({
 
 			{/* EmDash Exporter plugin detected - primary option */}
 			{hasPlugin && (
-				<div className="rounded-lg border-l-4 border-l-green-500 border border-kumo-line bg-kumo-base p-6">
+				<div className="rounded-lg border-s-4 border-s-green-500 border border-kumo-line bg-kumo-base p-6">
 					<div className="flex items-start gap-4">
 						<div className="p-2 rounded-full bg-green-100 dark:bg-green-900/50">
 							<svg
@@ -1182,24 +1200,23 @@ function ProbeResultStep({
 							</svg>
 						</div>
 						<div className="flex-1">
-							<h3 className="font-medium">Import via EmDash Exporter</h3>
+							<h3 className="font-medium">{t`Import via EmDash Exporter`}</h3>
 							<p className="mt-1 text-sm text-kumo-subtle">
-								Import all content directly including drafts, custom post types, ACF fields, and SEO
-								data. No file download needed.
+								{t`Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed.`}
 							</p>
 							<p className="mt-2 text-xs text-kumo-subtle">
-								You'll be redirected to WordPress to authorize the connection.
+								{t`You'll be redirected to WordPress to authorize the connection.`}
 							</p>
 							<div className="mt-3 flex items-center gap-3">
 								<Button icon={<ArrowSquareOut />} onClick={onPluginConnect}>
-									Connect with WordPress
+									{t`Connect with WordPress`}
 								</Button>
 								<button
 									type="button"
 									className="text-xs text-kumo-subtle hover:text-kumo-default underline"
 									onClick={onPluginManualAuth}
 								>
-									Enter credentials manually
+									{t`Enter credentials manually`}
 								</button>
 							</div>
 						</div>
@@ -1210,24 +1227,24 @@ function ProbeResultStep({
 			{/* File upload fallback */}
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<h3 className="font-medium">
-					{hasPlugin ? "Or upload an export file" : "Upload an export file"}
+					{hasPlugin ? t`Or upload an export file` : t`Upload an export file`}
 				</h3>
 				<p className="mt-1 text-sm text-kumo-subtle">
 					{hasPlugin
-						? "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
+						? t`Alternatively, you can export from WordPress (Tools → Export) and upload the file.`
 						: bestMatch?.capabilities.privateContent
-							? "Export your content from WordPress to import everything including drafts."
-							: "For a complete import including drafts and all content, export from WordPress."}
+							? t`Export your content from WordPress to import everything including drafts.`
+							: t`For a complete import including drafts and all content, export from WordPress.`}
 				</p>
 				{bestMatch?.suggestedAction.type === "upload" && (
 					<p className="mt-2 text-sm text-kumo-subtle">{bestMatch.suggestedAction.instructions}</p>
 				)}
 				<div className="mt-4 flex gap-2">
 					<Button variant={hasPlugin ? "outline" : "primary"} onClick={onUploadFile}>
-						Upload Export File
+						{t`Upload Export File`}
 					</Button>
 					<Button variant="outline" onClick={onReset}>
-						Try Another URL
+						{t`Try Another URL`}
 					</Button>
 				</div>
 			</div>
@@ -1256,6 +1273,7 @@ function PluginAuthStep({
 	onBack: () => void;
 	error: string | null;
 }) {
+	const { t } = useLingui();
 	return (
 		<div className="space-y-6">
 			<div className="rounded-lg border bg-kumo-base p-6">
@@ -1275,9 +1293,9 @@ function PluginAuthStep({
 						</svg>
 					</div>
 					<div className="flex-1">
-						<h3 className="text-lg font-medium">Connect to {siteTitle || "WordPress"}</h3>
+						<h3 className="text-lg font-medium">{t`Connect to ${siteTitle || "WordPress"}`}</h3>
 						<p className="text-kumo-subtle mt-1">
-							Enter your WordPress credentials to import content directly.
+							{t`Enter your WordPress credentials to import content directly.`}
 						</p>
 					</div>
 				</div>
@@ -1294,7 +1312,7 @@ function PluginAuthStep({
 				<form onSubmit={onSubmit} className="mt-6 space-y-4">
 					<div>
 						<label htmlFor="wp-username" className="block text-sm font-medium mb-1">
-							WordPress Username
+							{t`WordPress Username`}
 						</label>
 						<Input
 							id="wp-username"
@@ -1308,7 +1326,7 @@ function PluginAuthStep({
 
 					<div>
 						<label htmlFor="wp-password" className="block text-sm font-medium mb-1">
-							Application Password
+							{t`Application Password`}
 						</label>
 						<Input
 							id="wp-password"
@@ -1319,41 +1337,41 @@ function PluginAuthStep({
 							autoComplete="current-password"
 						/>
 						<p className="mt-1 text-xs text-kumo-subtle">
-							Create one in WordPress: Users → Profile → Application Passwords
+							{t`Create one in WordPress: Users → Profile → Application Passwords`}
 						</p>
 					</div>
 
 					<div className="flex gap-2 pt-2">
 						<Button type="submit" disabled={!username.trim() || !password.trim()}>
-							Connect & Analyze
+							{t`Connect & Analyze`}
 						</Button>
 						<Button type="button" variant="outline" onClick={onBack}>
-							Back
+							{t`Back`}
 						</Button>
 					</div>
 				</form>
 			</div>
 
-			<div className="rounded-lg border-l-4 border-l-blue-500 border border-kumo-line bg-kumo-base p-4">
+			<div className="rounded-lg border-s-4 border-s-blue-500 border border-kumo-line bg-kumo-base p-4">
 				<div className="flex gap-3">
 					<ArrowSquareOut className="h-5 w-5 text-blue-500 flex-shrink-0" />
 					<div className="text-sm">
-						<p className="font-medium">How to create an Application Password</p>
+						<p className="font-medium">{t`How to create an Application Password`}</p>
 						<ol className="mt-2 space-y-1 text-kumo-subtle">
-							<li>1. Log into your WordPress admin</li>
-							<li>2. Go to Users → Profile</li>
-							<li>3. Scroll to "Application Passwords"</li>
-							<li>4. Enter "EmDash" and click "Add New"</li>
-							<li>5. Copy the generated password</li>
+							<li>{t`1. Log into your WordPress admin`}</li>
+							<li>{t`2. Go to Users → Profile`}</li>
+							<li>{t`3. Scroll to "Application Passwords"`}</li>
+							<li>{t`4. Enter "EmDash" and click "Add New"`}</li>
+							<li>{t`5. Copy the generated password`}</li>
 						</ol>
 						<a
 							href={`${siteUrl}/wp-admin/profile.php#application-passwords-section`}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="mt-2 inline-flex items-center gap-1 text-blue-600 hover:underline"
+							className="mt-2 inline-flex items-center gap-1 text-kumo-brand hover:underline"
 						>
-							Open WordPress Profile
-							<ArrowSquareOut className="h-3 w-3" />
+							{t`Open WordPress Profile`}
+							<ArrowSquareOut className="h-3 w-3" aria-hidden="true" />
 						</a>
 					</div>
 				</div>
@@ -1377,6 +1395,7 @@ function UploadStep({
 	onRetry: () => void;
 	onBack?: () => void;
 }) {
+	const { t } = useLingui();
 	return (
 		<div className="space-y-4">
 			<div
@@ -1392,33 +1411,33 @@ function UploadStep({
 				{isLoading ? (
 					<div className="space-y-4">
 						<Loader />
-						<p className="text-kumo-subtle">Analyzing export file...</p>
+						<p className="text-kumo-subtle">{t`Analyzing export file...`}</p>
 					</div>
 				) : error ? (
 					<div className="space-y-4">
 						<Warning className="mx-auto h-12 w-12 text-kumo-danger" />
 						<p className="text-kumo-danger">{error.message}</p>
 						<Button variant="outline" onClick={onRetry}>
-							Try Again
+							{t`Try Again`}
 						</Button>
 					</div>
 				) : (
 					<>
 						<Upload className="mx-auto h-12 w-12 text-kumo-subtle" />
-						<h3 className="mt-4 text-lg font-medium">Drop your WordPress export file here</h3>
+						<h3 className="mt-4 text-lg font-medium">{t`Drop your WordPress export file here`}</h3>
 						<p className="mt-2 text-sm text-kumo-subtle">
-							Or click to browse. Accepts .xml files exported from WordPress.
+							{t`Or click to browse. Accepts .xml files exported from WordPress.`}
 						</p>
 						<label className="mt-4 inline-block">
 							<input type="file" accept=".xml" className="sr-only" onChange={onFileSelect} />
-							<span className={buttonVariants({ variant: "outline" })}>Browse Files</span>
+							<span className={buttonVariants({ variant: "outline" })}>{t`Browse Files`}</span>
 						</label>
 					</>
 				)}
 			</div>
 			{onBack && !isLoading && !error && (
 				<Button variant="ghost" onClick={onBack}>
-					← Back
+					{t`← Back`}
 				</Button>
 			)}
 		</div>
@@ -1497,6 +1516,7 @@ function ReviewStep({
 	onImportLogoChange: (value: boolean) => void;
 	onImportSeoChange: (value: boolean) => void;
 }) {
+	const { t } = useLingui();
 	const navMenus = getNavMenus(analysis);
 	const hasMenus = navMenus && navMenus.length > 0;
 
@@ -1515,7 +1535,7 @@ function ReviewStep({
 						<WarningCircle className="h-5 w-5 text-kumo-danger flex-shrink-0" />
 						<div>
 							<p className="font-medium text-kumo-danger">
-								{prepareError ? "Schema preparation failed" : "Import failed"}
+								{prepareError ? t`Schema preparation failed` : t`Import failed`}
 							</p>
 							<p className="mt-1 text-sm text-kumo-danger/90 font-mono">
 								{prepareError || importError}
@@ -1530,7 +1550,7 @@ function ReviewStep({
 					<div className="flex gap-3">
 						<WarningCircle className="h-5 w-5 text-kumo-danger flex-shrink-0" />
 						<div>
-							<p className="font-medium text-kumo-danger">Failed to create some collections</p>
+							<p className="font-medium text-kumo-danger">{t`Failed to create some collections`}</p>
 							<ul className="mt-2 text-sm space-y-1">
 								{prepareResult.errors.map((err, i) => (
 									<li key={i}>
@@ -1547,8 +1567,8 @@ function ReviewStep({
 			{/* Post type list */}
 			<div className="rounded-lg border bg-kumo-base">
 				<div className="border-b p-4">
-					<h3 className="font-medium">Content to Import</h3>
-					<p className="text-sm text-kumo-subtle mt-1">Select which content types to import.</p>
+					<h3 className="font-medium">{t`Content to Import`}</h3>
+					<p className="text-sm text-kumo-subtle mt-1">{t`Select which content types to import.`}</p>
 				</div>
 				<div className="divide-y">
 					{analysis.postTypes.map((pt) => (
@@ -1568,67 +1588,50 @@ function ReviewStep({
 			{hasMenus && (
 				<div className="rounded-lg border bg-kumo-base">
 					<div className="border-b p-4">
-						<h3 className="font-medium">Structure</h3>
-						<p className="text-sm text-kumo-subtle mt-1">Additional data to import.</p>
+						<h3 className="font-medium">{t`Structure`}</h3>
+						<p className="text-sm text-kumo-subtle mt-1">{t`Additional data to import.`}</p>
 					</div>
 					<div className="divide-y">
 						{/* Menus */}
 						<div className="p-4">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-3">
-									<input
-										type="checkbox"
-										checked={importMenus}
-										onChange={(e) => onImportMenusChange(e.target.checked)}
-										className="h-4 w-4 rounded border-gray-300"
-										aria-label="Import navigation menus"
-									/>
+							<Switch
+								checked={importMenus}
+								onCheckedChange={(checked) => onImportMenusChange(checked)}
+								label={
 									<div className="flex items-center gap-2">
 										<List className="h-4 w-4 text-kumo-subtle" />
 										<div>
-											<p className="font-medium">Menus ({navMenus.length})</p>
+											<p className="font-medium">{t`Menus (${navMenus.length})`}</p>
 											<p className="text-sm text-kumo-subtle">
 												{navMenus.map((m) => m.name).join(", ")}
 											</p>
 										</div>
 									</div>
-								</div>
-							</div>
+								}
+							/>
 						</div>
 
 						{/* Categories count */}
 						{analysis.categories > 0 && (
 							<div className="p-4">
-								<div className="flex items-center gap-3">
-									<input
-										type="checkbox"
-										checked={true}
-										disabled
-										className="h-4 w-4 rounded border-gray-300"
-										aria-label="Categories will be imported"
-									/>
-									<div>
-										<p className="font-medium">Categories ({analysis.categories})</p>
-									</div>
-								</div>
+								<Switch
+									checked={true}
+									onCheckedChange={() => {}}
+									disabled
+									label={<p className="font-medium">{t`Categories (${analysis.categories})`}</p>}
+								/>
 							</div>
 						)}
 
 						{/* Tags count */}
 						{analysis.tags > 0 && (
 							<div className="p-4">
-								<div className="flex items-center gap-3">
-									<input
-										type="checkbox"
-										checked={true}
-										disabled
-										className="h-4 w-4 rounded border-gray-300"
-										aria-label="Tags will be imported"
-									/>
-									<div>
-										<p className="font-medium">Tags ({analysis.tags})</p>
-									</div>
-								</div>
+								<Switch
+									checked={true}
+									onCheckedChange={() => {}}
+									disabled
+									label={<p className="font-medium">{t`Tags (${analysis.tags})`}</p>}
+								/>
 							</div>
 						)}
 					</div>
@@ -1641,62 +1644,45 @@ function ReviewStep({
 					<div className="border-b p-4">
 						<div className="flex items-center gap-2">
 							<Gear className="h-4 w-4 text-kumo-subtle" />
-							<h3 className="font-medium">Settings</h3>
+							<h3 className="font-medium">{t`Settings`}</h3>
 						</div>
 						<p className="text-sm text-kumo-subtle mt-1">
-							Import site configuration from WordPress.
+							{t`Import site configuration from WordPress.`}
 						</p>
 					</div>
 					<div className="divide-y">
 						{/* Site title & tagline */}
 						<div className="p-4">
-							<div className="flex items-center gap-3">
-								<input
-									type="checkbox"
-									checked={importSiteTitle}
-									onChange={(e) => onImportSiteTitleChange(e.target.checked)}
-									className="h-4 w-4 rounded border-gray-300"
-									aria-label="Import site title and tagline"
-								/>
-								<div>
-									<p className="font-medium">Site title & tagline</p>
-								</div>
-							</div>
+							<Switch
+								checked={importSiteTitle}
+								onCheckedChange={(checked) => onImportSiteTitleChange(checked)}
+								label={<p className="font-medium">{t`Site title & tagline`}</p>}
+							/>
 						</div>
 
 						{/* Logo & favicon */}
 						<div className="p-4">
-							<div className="flex items-center gap-3">
-								<input
-									type="checkbox"
-									checked={importLogo}
-									onChange={(e) => onImportLogoChange(e.target.checked)}
-									className="h-4 w-4 rounded border-gray-300"
-									aria-label="Import logo and favicon"
-								/>
-								<div>
-									<p className="font-medium">Logo & favicon</p>
-								</div>
-							</div>
+							<Switch
+								checked={importLogo}
+								onCheckedChange={(checked) => onImportLogoChange(checked)}
+								label={<p className="font-medium">{t`Logo & favicon`}</p>}
+							/>
 						</div>
 
 						{/* SEO settings */}
 						<div className="p-4">
-							<div className="flex items-center gap-3">
-								<input
-									type="checkbox"
-									checked={importSeo}
-									onChange={(e) => onImportSeoChange(e.target.checked)}
-									className="h-4 w-4 rounded border-gray-300"
-									aria-label="Import SEO settings"
-								/>
-								<div>
-									<p className="font-medium">SEO settings (Yoast)</p>
-									<p className="text-sm text-kumo-subtle">
-										Meta titles, descriptions, and social images
-									</p>
-								</div>
-							</div>
+							<Switch
+								checked={importSeo}
+								onCheckedChange={(checked) => onImportSeoChange(checked)}
+								label={
+									<div>
+										<p className="font-medium">{t`SEO settings (Yoast)`}</p>
+										<p className="text-sm text-kumo-subtle">
+											{t`Meta titles, descriptions, and social images`}
+										</p>
+									</div>
+								}
+							/>
 						</div>
 					</div>
 				</div>
@@ -1707,9 +1693,9 @@ function ReviewStep({
 					<div className="flex gap-3">
 						<WarningCircle className="h-5 w-5 text-kumo-danger flex-shrink-0" />
 						<div>
-							<p className="font-medium text-kumo-danger">Some content types cannot be imported</p>
+							<p className="font-medium text-kumo-danger">{t`Some content types cannot be imported`}</p>
 							<p className="text-sm text-kumo-subtle mt-1">
-								The existing collection has fields with incompatible types.
+								{t`The existing collection has fields with incompatible types.`}
 							</p>
 						</div>
 					</div>
@@ -1717,37 +1703,43 @@ function ReviewStep({
 			)}
 
 			{selectedCount > 0 && (
-				<div className="rounded-lg border-l-4 border-l-blue-500 border border-kumo-line bg-kumo-base p-4">
+				<div className="rounded-lg border-s-4 border-s-blue-500 border border-kumo-line bg-kumo-base p-4">
 					<div className="flex gap-3">
 						<Database className="h-5 w-5 text-blue-500 flex-shrink-0" />
 						<div className="space-y-2">
-							<p className="font-medium">What will happen when you import</p>
+							<p className="font-medium">{t`What will happen when you import`}</p>
 							<ul className="text-sm text-kumo-subtle space-y-1">
 								{needsNewCollections > 0 && (
 									<li className="flex items-center gap-2">
 										<Plus className="h-4 w-4" />
-										{needsNewCollections} new collection
-										{needsNewCollections > 1 ? "s" : ""} will be created
+										{plural(needsNewCollections, {
+											one: "# new collection will be created",
+											other: "# new collections will be created",
+										})}
 									</li>
 								)}
 								{needsNewFields > 0 && (
 									<li className="flex items-center gap-2">
 										<Plus className="h-4 w-4" />
-										Fields will be added to {needsNewFields} existing collection
-										{needsNewFields > 1 ? "s" : ""}
+										{plural(needsNewFields, {
+											one: "Fields will be added to # existing collection",
+											other: "Fields will be added to # existing collections",
+										})}
 									</li>
 								)}
 								<li className="flex items-center gap-2">
 									<FileText className="h-4 w-4" />
-									{analysis.postTypes
+									{t`${analysis.postTypes
 										.filter((pt) => selections[pt.name]?.enabled)
-										.reduce((sum, pt) => sum + pt.count, 0)}{" "}
-									items will be imported
+										.reduce((sum, pt) => sum + pt.count, 0)} items will be imported`}
 								</li>
 								{hasMenus && importMenus && (
 									<li className="flex items-center gap-2">
 										<List className="h-4 w-4" />
-										{navMenus.length} menu{navMenus.length > 1 ? "s" : ""} will be imported
+										{plural(navMenus.length, {
+											one: "# menu will be imported",
+											other: "# menus will be imported",
+										})}
 									</li>
 								)}
 							</ul>
@@ -1758,12 +1750,12 @@ function ReviewStep({
 
 			<div className="flex gap-3">
 				<Button variant="outline" onClick={onReset}>
-					Cancel
+					{t`Cancel`}
 				</Button>
 				<Button onClick={onStartImport} disabled={selectedCount === 0}>
 					{needsNewCollections > 0 || needsNewFields > 0
-						? "Create Schema & Import"
-						: "Start Import"}
+						? t`Create Schema & Import`
+						: t`Start Import`}
 				</Button>
 			</div>
 		</div>
@@ -1783,6 +1775,7 @@ function PostTypeRow({
 	onToggleExpand: () => void;
 	onToggleEnabled: (enabled: boolean) => void;
 }) {
+	const { t } = useLingui();
 	const { schemaStatus } = postType;
 	const canImport = schemaStatus.canImport;
 	const isNew = !schemaStatus.exists;
@@ -1794,54 +1787,52 @@ function PostTypeRow({
 		<div className="p-4">
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-3">
-					<input
-						type="checkbox"
+					<Switch
 						checked={selection?.enabled ?? false}
 						disabled={!canImport}
-						onChange={(e) => onToggleEnabled(e.target.checked)}
-						className="h-4 w-4 rounded border-gray-300"
-						aria-label={`Import ${postType.name}`}
+						onCheckedChange={(checked) => onToggleEnabled(checked)}
+						aria-label={t`Import ${postType.name}`}
 					/>
 					<button
 						onClick={onToggleExpand}
-						className="flex items-center gap-1 text-left"
+						className="flex items-center gap-1 text-start"
 						aria-expanded={expanded}
 					>
 						{expanded ? (
 							<CaretDown className="h-4 w-4 text-kumo-subtle" />
 						) : (
-							<CaretRight className="h-4 w-4 text-kumo-subtle" />
+							<CaretNext className="h-4 w-4 text-kumo-subtle" />
 						)}
 						<div>
 							<p className="font-medium">{postType.name}</p>
 							<p className="text-sm text-kumo-subtle">
-								{postType.count} items → {postType.suggestedCollection}
+								{t`${postType.count} items → ${postType.suggestedCollection}`}
 							</p>
 						</div>
 					</button>
 				</div>
 				<div className="flex items-center gap-2">
 					{!canImport ? (
-						<Badge variant="destructive">Incompatible</Badge>
+						<Badge variant="destructive">{t`Incompatible`}</Badge>
 					) : isNew ? (
-						<Badge variant="secondary">New collection</Badge>
+						<Badge variant="secondary">{t`New collection`}</Badge>
 					) : hasMissingFields ? (
-						<Badge variant="secondary">Add fields</Badge>
+						<Badge variant="secondary">{t`Add fields`}</Badge>
 					) : (
-						<Badge>Ready</Badge>
+						<Badge>{t`Ready`}</Badge>
 					)}
 				</div>
 			</div>
 
 			{expanded && (
-				<div className="mt-4 ml-8 p-3 rounded-lg bg-kumo-tint/50 text-sm">
+				<div className="mt-4 ms-8 p-3 rounded-lg bg-kumo-tint/50 text-sm">
 					{!canImport && schemaStatus.reason && (
 						<div className="mb-3 p-2 rounded bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">
-							<WarningCircle className="inline h-4 w-4 mr-1" />
+							<WarningCircle className="inline h-4 w-4 me-1" />
 							{schemaStatus.reason}
 						</div>
 					)}
-					<p className="font-medium mb-2">Required fields:</p>
+					<p className="font-medium mb-2">{t`Required fields:`}</p>
 					<div className="space-y-1">
 						{postType.requiredFields.map((field) => {
 							const status = schemaStatus.fieldStatus[field.slug];
@@ -1852,15 +1843,15 @@ function PostTypeRow({
 									</span>
 									{status?.status === "compatible" ? (
 										<span className="text-green-600 dark:text-green-400">
-											<Check className="inline h-3 w-3" /> Exists
+											<Check className="inline h-3 w-3" /> {t`Exists`}
 										</span>
 									) : status?.status === "missing" ? (
 										<span className="text-blue-600 dark:text-blue-400">
-											<Plus className="inline h-3 w-3" /> Will create
+											<Plus className="inline h-3 w-3" /> {t`Will create`}
 										</span>
 									) : status?.status === "type_mismatch" ? (
 										<span className="text-red-600 dark:text-red-400">
-											<X className="inline h-3 w-3" /> Type mismatch ({status.existingType})
+											<X className="inline h-3 w-3" /> {t`Type mismatch (${status.existingType})`}
 										</span>
 									) : null}
 								</div>
@@ -1884,6 +1875,7 @@ function MediaStep({
 	onImport: () => void;
 	onSkip: () => void;
 }) {
+	const { t } = useLingui();
 	const byType = attachments.items.reduce(
 		(acc, att) => {
 			const type = att.mimeType?.split("/")[0] || "other";
@@ -1901,9 +1893,9 @@ function MediaStep({
 						<Image className="h-6 w-6 text-blue-600 dark:text-blue-400" />
 					</div>
 					<div className="flex-1">
-						<h3 className="text-lg font-medium">Import Media Files</h3>
+						<h3 className="text-lg font-medium">{t`Import Media Files`}</h3>
 						<p className="text-kumo-subtle mt-1">
-							Your WordPress export contains {attachments.count} media files.
+							{t`Your WordPress export contains ${attachments.count} media files.`}
 						</p>
 					</div>
 				</div>
@@ -1913,7 +1905,7 @@ function MediaStep({
 						{Object.entries(byType).map(([type, count]) => (
 							<div key={type}>
 								<p className="text-kumo-subtle capitalize">{type}</p>
-								<p className="font-medium">{count} files</p>
+								<p className="font-medium">{plural(count, { one: "# file", other: "# files" })}</p>
 							</div>
 						))}
 					</div>
@@ -1928,15 +1920,15 @@ function MediaStep({
 					</div>
 				)}
 
-				<div className="mt-4 p-4 rounded-lg border-l-4 border-l-blue-500 border border-kumo-line bg-kumo-base">
+				<div className="mt-4 p-4 rounded-lg border-s-4 border-s-blue-500 border border-kumo-line bg-kumo-base">
 					<div className="flex gap-3">
 						<DownloadSimple className="h-5 w-5 text-blue-500 flex-shrink-0" />
 						<div className="text-sm">
-							<p className="font-medium">What happens when you import:</p>
+							<p className="font-medium">{t`What happens when you import:`}</p>
 							<ul className="mt-1 space-y-1 text-kumo-subtle">
-								<li>• Files are downloaded from your WordPress site</li>
-								<li>• Uploaded to your EmDash media storage</li>
-								<li>• URLs in your content are updated automatically</li>
+								<li>{t`• Files are downloaded from your WordPress site`}</li>
+								<li>{t`• Uploaded to your EmDash media storage`}</li>
+								<li>{t`• URLs in your content are updated automatically`}</li>
 							</ul>
 						</div>
 					</div>
@@ -1945,10 +1937,10 @@ function MediaStep({
 
 			<div className="flex gap-3">
 				<Button variant="outline" onClick={onSkip}>
-					Skip Media Import
+					{t`Skip Media Import`}
 				</Button>
 				<Button icon={<DownloadSimple />} onClick={onImport}>
-					Import Media
+					{t`Import Media`}
 				</Button>
 			</div>
 		</div>
@@ -1962,15 +1954,16 @@ function MediaProgressStep({
 	progress: MediaImportProgress | null;
 	total: number;
 }) {
+	const { t } = useLingui();
 	const current = progress?.current ?? 0;
 	const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
 
 	const statusLabels: Record<MediaImportProgress["status"], string> = {
-		downloading: "Downloading",
-		uploading: "Uploading",
-		done: "Done",
-		skipped: "Skipped",
-		failed: "Failed",
+		downloading: t`Downloading`,
+		uploading: t`Uploading`,
+		done: t`Done`,
+		skipped: t`Skipped`,
+		failed: t`Failed`,
 	};
 
 	return (
@@ -1979,13 +1972,11 @@ function MediaProgressStep({
 				<Loader size="lg" />
 				<p className="text-sm font-medium mt-2">{percentage}%</p>
 
-				<h3 className="mt-6 text-lg font-medium">Importing Media</h3>
+				<h3 className="mt-6 text-lg font-medium">{t`Importing Media`}</h3>
 
 				<div className="w-full max-w-md mt-4">
 					<div className="flex justify-between text-sm text-kumo-subtle mb-1">
-						<span>
-							{current} of {total}
-						</span>
+						<span>{t`${current} of ${total}`}</span>
 						<span>{percentage}%</span>
 					</div>
 					<div className="h-2 bg-kumo-tint rounded-full overflow-hidden">
@@ -2000,7 +1991,7 @@ function MediaProgressStep({
 					<div className="mt-4 p-3 rounded-lg bg-kumo-tint/50 w-full max-w-md">
 						<div className="flex items-center justify-between text-sm">
 							<span className="font-medium truncate max-w-[70%]">
-								{progress.filename || `File ${progress.current}`}
+								{progress.filename || t`File ${progress.current}`}
 							</span>
 							<span
 								className={cn(
@@ -2026,7 +2017,7 @@ function MediaProgressStep({
 
 				{!progress && (
 					<p className="mt-4 text-sm text-kumo-subtle">
-						Preparing to download files from WordPress...
+						{t`Preparing to download files from WordPress...`}
 					</p>
 				)}
 			</div>
@@ -2056,22 +2047,43 @@ function CompleteStep({
 	const wasMediaOnlyImport =
 		result.imported === 0 && result.skipped > 0 && mediaResult && mediaResult.imported.length > 0;
 
+	const { t } = useLingui();
+
 	const getSummaryMessage = () => {
 		const parts: string[] = [];
 		if (result.imported > 0) {
-			parts.push(`${result.imported} content items imported`);
+			parts.push(
+				plural(result.imported, {
+					one: "# content item imported",
+					other: "# content items imported",
+				}),
+			);
 		}
 		if (result.skipped > 0 && result.imported > 0) {
-			parts.push(`${result.skipped} skipped (already exist)`);
+			parts.push(
+				plural(result.skipped, {
+					one: "# skipped (already exists)",
+					other: "# skipped (already exist)",
+				}),
+			);
 		}
 		if (mediaResult && mediaResult.imported.length > 0) {
-			parts.push(`${mediaResult.imported.length} media files imported`);
+			parts.push(
+				plural(mediaResult.imported.length, {
+					one: "# media file imported",
+					other: "# media files imported",
+				}),
+			);
 		}
 		if (hasContentErrors) {
-			parts.push(`${result.errors.length} content errors`);
+			parts.push(
+				plural(result.errors.length, { one: "# content error", other: "# content errors" }),
+			);
 		}
 		if (hasMediaErrors) {
-			parts.push(`${mediaResult.failed.length} media errors`);
+			parts.push(
+				plural(mediaResult.failed.length, { one: "# media error", other: "# media errors" }),
+			);
 		}
 		return parts.join(" · ");
 	};
@@ -2094,35 +2106,37 @@ function CompleteStep({
 				<h3 className="mt-4 text-lg font-medium">
 					{overallSuccess
 						? wasMediaOnlyImport
-							? "Media Import Complete"
-							: "Import Complete"
-						: "Import Completed with Errors"}
+							? t`Media Import Complete`
+							: t`Import Complete`
+						: t`Import Completed with Errors`}
 				</h3>
 				<p className="mt-2 text-kumo-subtle">{getSummaryMessage()}</p>
 				{wasMediaOnlyImport && (
 					<p className="text-sm text-kumo-subtle mt-1">
-						Content was skipped because it already exists
+						{t`Content was skipped because it already exists`}
 					</p>
 				)}
-				{skippedMedia && <p className="text-sm text-kumo-subtle mt-1">Media import was skipped</p>}
+				{skippedMedia && (
+					<p className="text-sm text-kumo-subtle mt-1">{t`Media import was skipped`}</p>
+				)}
 			</div>
 
 			{prepareResult &&
 				(prepareResult.collectionsCreated.length > 0 || prepareResult.fieldsCreated.length > 0) && (
 					<div className="rounded-lg border bg-kumo-base">
 						<div className="border-b p-4">
-							<h3 className="font-medium">Schema Changes</h3>
+							<h3 className="font-medium">{t`Schema Changes`}</h3>
 						</div>
 						<div className="p-4 space-y-2 text-sm">
 							{prepareResult.collectionsCreated.length > 0 && (
 								<p>
-									<strong>Collections created:</strong>{" "}
+									<strong>{t`Collections created:`}</strong>{" "}
 									{prepareResult.collectionsCreated.join(", ")}
 								</p>
 							)}
 							{prepareResult.fieldsCreated.length > 0 && (
 								<p>
-									<strong>Fields created:</strong>{" "}
+									<strong>{t`Fields created:`}</strong>{" "}
 									{prepareResult.fieldsCreated.map((f) => `${f.collection}.${f.field}`).join(", ")}
 								</p>
 							)}
@@ -2133,13 +2147,15 @@ function CompleteStep({
 			{Object.keys(result.byCollection).length > 0 && (
 				<div className="rounded-lg border bg-kumo-base">
 					<div className="border-b p-4">
-						<h3 className="font-medium">Imported by Collection</h3>
+						<h3 className="font-medium">{t`Imported by Collection`}</h3>
 					</div>
 					<div className="divide-y">
 						{Object.entries(result.byCollection).map(([collection, count]) => (
 							<div key={collection} className="flex items-center justify-between p-4">
 								<span className="font-medium">{collection}</span>
-								<span className="text-kumo-subtle">{count} items</span>
+								<span className="text-kumo-subtle">
+									{plural(count, { one: "# item", other: "# items" })}
+								</span>
 							</div>
 						))}
 					</div>
@@ -2149,16 +2165,16 @@ function CompleteStep({
 			{mediaResult && mediaResult.imported.length > 0 && (
 				<div className="rounded-lg border bg-kumo-base">
 					<div className="border-b p-4">
-						<h3 className="font-medium">Media Import</h3>
+						<h3 className="font-medium">{t`Media Import`}</h3>
 					</div>
 					<div className="p-4 space-y-2 text-sm">
 						<p>
-							<strong>{mediaResult.imported.length}</strong> files imported
+							<strong>{mediaResult.imported.length}</strong> {t`files imported`}
 						</p>
 						{rewriteResult && rewriteResult.updated > 0 && (
 							<p>
-								<strong>{rewriteResult.urlsRewritten}</strong> image URLs updated in{" "}
-								<strong>{rewriteResult.updated}</strong> content items
+								<strong>{rewriteResult.urlsRewritten}</strong> {t`image URLs updated in`}{" "}
+								<strong>{rewriteResult.updated}</strong> {t`content items`}
 							</p>
 						)}
 					</div>
@@ -2169,7 +2185,7 @@ function CompleteStep({
 				<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10">
 					<div className="border-b border-kumo-danger/50 p-4">
 						<h3 className="font-medium text-kumo-danger">
-							Content Errors ({result.errors.length})
+							{t`Content Errors (${result.errors.length})`}
 						</h3>
 					</div>
 					<div className="divide-y divide-destructive/20 max-h-64 overflow-y-auto">
@@ -2187,7 +2203,7 @@ function CompleteStep({
 				<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/10">
 					<div className="border-b border-kumo-danger/50 p-4">
 						<h3 className="font-medium text-kumo-danger">
-							Media Errors ({mediaResult.failed.length})
+							{t`Media Errors (${mediaResult.failed.length})`}
 						</h3>
 					</div>
 					<div className="divide-y divide-destructive/20 max-h-64 overflow-y-auto">
@@ -2203,9 +2219,9 @@ function CompleteStep({
 
 			<div className="flex gap-3">
 				<Button variant="outline" onClick={onReset}>
-					Import Another File
+					{t`Import Another File`}
 				</Button>
-				<LinkButton href="/_emdash/admin">Go to Dashboard</LinkButton>
+				<LinkButton href="/_emdash/admin">{t`Go to Dashboard`}</LinkButton>
 			</div>
 		</div>
 	);
@@ -2228,6 +2244,7 @@ function AuthorMappingStep({
 	onContinue: () => void;
 	onBack: () => void;
 }) {
+	const { t } = useLingui();
 	// Count matched vs unmatched
 	const matchedCount = authorMappings.filter((m) => m.emdashUserId !== null).length;
 	const totalCount = authorMappings.length;
@@ -2240,15 +2257,14 @@ function AuthorMappingStep({
 						<User className="h-6 w-6 text-blue-600 dark:text-blue-400" />
 					</div>
 					<div>
-						<h3 className="text-lg font-medium">Map Authors</h3>
+						<h3 className="text-lg font-medium">{t`Map Authors`}</h3>
 						<p className="text-kumo-subtle mt-1">
-							Assign WordPress authors to EmDash users. Posts will be attributed to the selected
-							user.
+							{t`Assign WordPress authors to EmDash users. Posts will be attributed to the selected user.`}
 						</p>
 						{matchedCount > 0 && (
 							<p className="text-sm text-green-600 dark:text-green-400 mt-2">
-								<Check className="inline h-4 w-4 mr-1" />
-								{matchedCount} of {totalCount} authors matched by email
+								<Check className="inline h-4 w-4 me-1" />
+								{t`${matchedCount} of ${totalCount} authors matched by email`}
 							</p>
 						)}
 					</div>
@@ -2258,9 +2274,9 @@ function AuthorMappingStep({
 			<div className="rounded-lg border bg-kumo-base">
 				<div className="border-b p-4">
 					<div className="flex items-center justify-between">
-						<h3 className="font-medium">Author Mapping</h3>
+						<h3 className="font-medium">{t`Author Mapping`}</h3>
 						<span className="text-sm text-kumo-subtle">
-							{matchedCount} of {totalCount} assigned
+							{t`${matchedCount} of ${totalCount} assigned`}
 						</span>
 					</div>
 				</div>
@@ -2272,24 +2288,26 @@ function AuthorMappingStep({
 								<p className="text-sm text-kumo-subtle">
 									{mapping.wpEmail || mapping.wpLogin}
 									{mapping.postCount > 0 && (
-										<span className="ml-2">• {mapping.postCount} posts</span>
+										<span className="ms-2">
+											• {plural(mapping.postCount, { one: "# post", other: "# posts" })}
+										</span>
 									)}
 								</p>
 							</div>
 							<div className="flex items-center gap-2">
 								<span className="text-kumo-subtle">→</span>
-								<select
+								<Select
 									value={mapping.emdashUserId || ""}
-									onChange={(e) => onMappingChange(mapping.wpLogin, e.target.value || null)}
-									className="w-48 px-3 py-2 rounded-md border bg-kumo-base text-sm"
-								>
-									<option value="">Leave unassigned</option>
-									{emdashUsers.map((user) => (
-										<option key={user.id} value={user.id}>
-											{user.name || user.email}
-										</option>
-									))}
-								</select>
+									onValueChange={(v) => onMappingChange(mapping.wpLogin, v || null)}
+									items={{
+										"": t`Leave unassigned`,
+										...Object.fromEntries(
+											emdashUsers.map((user) => [user.id, user.name || user.email]),
+										),
+									}}
+									aria-label={t`Map WordPress user ${mapping.wpLogin} to EmDash user`}
+									className="w-48"
+								/>
 							</div>
 						</div>
 					))}
@@ -2297,14 +2315,13 @@ function AuthorMappingStep({
 			</div>
 
 			{emdashUsers.length === 0 && (
-				<div className="rounded-lg border-l-4 border-l-yellow-500 border border-kumo-line bg-kumo-base p-4">
+				<div className="rounded-lg border-s-4 border-s-yellow-500 border border-kumo-line bg-kumo-base p-4">
 					<div className="flex gap-3">
 						<Warning className="h-5 w-5 text-yellow-500 flex-shrink-0" />
 						<div>
-							<p className="font-medium">No EmDash users found</p>
+							<p className="font-medium">{t`No EmDash users found`}</p>
 							<p className="text-sm text-kumo-subtle mt-1">
-								All imported content will be unassigned. You can reassign authors later from the
-								content editor.
+								{t`All imported content will be unassigned. You can reassign authors later from the content editor.`}
 							</p>
 						</div>
 					</div>
@@ -2313,9 +2330,9 @@ function AuthorMappingStep({
 
 			<div className="flex gap-3">
 				<Button variant="outline" onClick={onBack}>
-					Back
+					{t`Back`}
 				</Button>
-				<Button onClick={onContinue}>Continue Import</Button>
+				<Button onClick={onContinue}>{t`Continue Import`}</Button>
 			</div>
 		</div>
 	);

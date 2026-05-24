@@ -6,6 +6,7 @@
  * Uses Astro's Image component for optimization when dimensions are available.
  */
 import { Image as AstroImage } from "astro:assets";
+import { buildRenderMediaUrl } from "../media/url.js";
 
 export interface Props {
 	node: {
@@ -39,9 +40,10 @@ if (!images.length) {
 <div class="emdash-gallery" style={`--columns: ${columns}`}>
 	{
 		images.map((image) => {
-			const src =
-				image.asset.url ||
-				`/_emdash/api/media/file/${image.asset._ref}`;
+			const src = buildRenderMediaUrl(Astro.locals.emdash?.getPublicMediaUrl, {
+				url: image.asset.url,
+				id: image.asset._ref,
+			});
 			const hasSize = image.width && image.height;
 			return (
 				<figure class="emdash-gallery-item">
@@ -81,7 +83,7 @@ if (!images.length) {
 	}
 	.emdash-gallery-item figcaption {
 		font-size: 0.75rem;
-		color: #666;
+		color: var(--emdash-caption-color, var(--color-muted, #666));
 		margin-top: 0.25rem;
 		text-align: center;
 	}

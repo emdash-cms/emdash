@@ -20,12 +20,12 @@ export const prerender = false;
 function extractOwnership(data: unknown): { authorId: string; resolvedId: string | undefined } {
 	const obj =
 		data && typeof data === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown; narrowed by typeof
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown; narrowed by typeof
 				(data as Record<string, unknown>)
 			: undefined;
 	const item =
 		obj?.item && typeof obj.item === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof
 				(obj.item as Record<string, unknown>)
 			: obj;
 	return {
@@ -63,7 +63,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
+	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
 
 	return unwrapResult(result);
 };
@@ -95,7 +95,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
+	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
 
 	return unwrapResult(result);
 };

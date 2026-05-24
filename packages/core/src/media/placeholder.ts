@@ -7,6 +7,7 @@
  */
 
 import { encode } from "blurhash";
+import { imageSize } from "image-size";
 
 export interface PlaceholderData {
 	blurhash: string;
@@ -21,6 +22,9 @@ const SUPPORTED_TYPES: Record<string, "jpeg" | "png"> = {
 
 /** Max width for blurhash input. Encode is O(w*h*components), so downsample first. */
 const MAX_ENCODE_WIDTH = 32;
+
+/** Max decoded RGBA size (32 MB). Images exceeding this skip placeholder generation. */
+const MAX_DECODED_BYTES = 32 * 1024 * 1024;
 
 interface DecodedImage {
 	width: number;
@@ -80,17 +84,44 @@ function extractDominantColor(data: Uint8Array, width: number, height: number): 
 }
 
 /**
+ * Read image dimensions from headers without decoding pixel data.
+ */
+function getImageDimensions(buffer: Uint8Array): { width: number; height: number } | null {
+	try {
+		const result = imageSize(buffer);
+		if (result.width != null && result.height != null) {
+			return { width: result.width, height: result.height };
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Generate blurhash and dominant color from an image buffer.
  * Returns null for non-image MIME types or on failure.
+ *
+ * @param dimensions - Optional pre-known dimensions. Used as a fallback when
+ *   image-size cannot parse the buffer (e.g. truncated headers). When the
+ *   decoded size (width * height * 4) exceeds MAX_DECODED_BYTES, placeholder
+ *   generation is skipped to avoid OOM on memory-constrained runtimes.
  */
 export async function generatePlaceholder(
 	buffer: Uint8Array,
 	mimeType: string,
+	dimensions?: { width: number; height: number },
 ): Promise<PlaceholderData | null> {
 	const format = SUPPORTED_TYPES[mimeType];
 	if (!format) return null;
 
 	try {
+		// Safety net: skip decode if the image would exceed the memory budget
+		const dims = getImageDimensions(buffer) ?? dimensions;
+		if (dims && dims.width * dims.height * 4 > MAX_DECODED_BYTES) {
+			return null;
+		}
+
 		const imageData = format === "jpeg" ? await decodeJpeg(buffer) : await decodePng(buffer);
 		const { width, height, data } = imageData;
 

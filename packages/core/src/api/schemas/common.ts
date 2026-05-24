@@ -22,7 +22,7 @@ export const roleLevel = z.coerce
 /** Pagination query params — cursor-based */
 export const cursorPaginationQuery = z
 	.object({
-		cursor: z.string().optional().meta({ description: "Opaque cursor for pagination" }),
+		cursor: z.string().max(2048).optional().meta({ description: "Opaque cursor for pagination" }),
 		limit: z.coerce.number().int().min(1).max(100).optional().default(50).meta({
 			description: "Maximum number of items to return (1-100, default 50)",
 		}),
@@ -58,6 +58,13 @@ export const localeCode = z
 	.string()
 	.regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code")
 	.transform((v) => v.toLowerCase());
+
+/** Shared `?locale=xx` query shape for endpoints that filter by locale. */
+export const localeFilterQuery = z
+	.object({
+		locale: z.string().min(1).optional(),
+	})
+	.meta({ id: "LocaleFilterQuery" });
 
 // ---------------------------------------------------------------------------
 // OpenAPI: Shared response schemas

@@ -19,13 +19,10 @@
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
 
 /*
- * When no data-mode is set (system preference mode), follow the OS preference.
- * Kumo's base layer sets color-scheme: light on :root — override to light dark
- * so the browser respects prefers-color-scheme until the user explicitly picks.
+ * ThemeProvider always sets data-mode to the resolved preference ("light" or "dark"),
+ * so Tailwind dark: utilities (mapped to [data-mode="dark"]) activate correctly
+ * for both explicit and system-preference themes.
  */
-:root:not([data-mode]) {
-	color-scheme: light dark;
-}
 
 /**
  * Classic theme token overrides
@@ -37,7 +34,9 @@
 	--color-kumo-brand: #2271b1;
 	--color-kumo-brand-hover: #135e96;
 	--text-color-kumo-brand: #2271b1;
+}
 
+[data-theme="classic"]:not([data-mode="dark"]) {
 	/* Surfaces */
 	--color-kumo-base: #ffffff;
 	--color-kumo-elevated: #f0f0f1;
@@ -75,6 +74,30 @@
 	--text-color-kumo-warning: #dba617;
 }
 
+/**
+ * Admin font stack
+ *
+ * --font-emdash is set by the Astro Font API (Noto Sans by default).
+ * To add extra script coverage (Arabic, CJK, etc.), configure EmDash with
+ * emdash({ fonts: { scripts: [...] } }) rather than adding another font entry
+ * that targets --font-emdash. If you need to supply your own font entry and
+ * CSS variable instead, disable EmDash-managed fonts first with fonts: false.
+ *
+ * Override Tailwind's --font-sans so all font-sans utilities use it.
+ */
+@theme {
+	--font-sans: var(
+		--font-emdash,
+		ui-sans-serif,
+		system-ui,
+		sans-serif,
+		"Apple Color Emoji",
+		"Segoe UI Emoji",
+		"Segoe UI Symbol",
+		"Noto Color Emoji"
+	);
+}
+
 /* Base styles */
 * {
 	border-color: var(--color-kumo-line);
@@ -82,6 +105,12 @@
 
 body {
 	background-color: var(--color-kumo-elevated);
+	color: var(--text-color-kumo-default);
+}
+
+/* Fix text selection contrast */
+::selection {
+	background-color: var(--color-kumo-interact);
 	color: var(--text-color-kumo-default);
 }
 
@@ -200,6 +229,59 @@ body {
 
 .ProseMirror.prose > *:first-child {
 	margin-top: 0 !important;
+}
+
+/* TipTap table styles */
+.ProseMirror table {
+	border-collapse: collapse;
+	width: 100%;
+	margin: 1rem 0;
+	table-layout: fixed;
+	overflow: hidden;
+}
+
+.ProseMirror td,
+.ProseMirror th {
+	border: 1px solid var(--color-kumo-line);
+	padding: 0.5rem 0.75rem;
+	vertical-align: top;
+	position: relative;
+	min-width: 80px;
+}
+
+.ProseMirror th {
+	background-color: var(--color-kumo-tint);
+	font-weight: 600;
+}
+
+.ProseMirror .selectedCell {
+	background-color: var(--color-kumo-info-tint);
+}
+
+.ProseMirror .column-resize-handle {
+	position: absolute;
+	right: -2px;
+	top: 0;
+	bottom: -2px;
+	width: 4px;
+	background-color: var(--color-kumo-brand);
+	pointer-events: none;
+}
+
+.ProseMirror.resize-cursor {
+	cursor: col-resize;
+}
+
+/**
+ * Prevent dialogs from overflowing the viewport on small screens.
+ * Kumo's size variants set min-width (e.g. min-w-[32rem] for "lg")
+ * which overrides max-width in CSS. We need to cap min-width too.
+ */
+@media (max-width: 639px) {
+	[role="dialog"] {
+		min-width: 0 !important;
+		max-width: calc(100vw - 2rem);
+	}
 }
 
 /**

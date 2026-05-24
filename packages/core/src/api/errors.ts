@@ -12,7 +12,9 @@ export const ErrorCode = {
 	VALIDATION_ERROR: "VALIDATION_ERROR",
 	INVALID_INPUT: "INVALID_INPUT",
 	INVALID_JSON: "INVALID_JSON",
+	INVALID_CURSOR: "INVALID_CURSOR",
 	CONFLICT: "CONFLICT",
+	SLUG_CONFLICT: "SLUG_CONFLICT",
 	NOT_CONFIGURED: "NOT_CONFIGURED",
 	UNAUTHORIZED: "UNAUTHORIZED",
 	FORBIDDEN: "FORBIDDEN",
@@ -152,6 +154,8 @@ export const ErrorCode = {
 	INVALID_CODE: "INVALID_CODE",
 	EXPIRED_CODE: "EXPIRED_CODE",
 	INSUFFICIENT_ROLE: "INSUFFICIENT_ROLE",
+	INSUFFICIENT_SCOPE: "INSUFFICIENT_SCOPE",
+	INSUFFICIENT_PERMISSIONS: "INSUFFICIENT_PERMISSIONS",
 	TOKEN_EXCHANGE_ERROR: "TOKEN_EXCHANGE_ERROR",
 	TOKEN_REFRESH_ERROR: "TOKEN_REFRESH_ERROR",
 	TOKEN_REVOKE_ERROR: "TOKEN_REVOKE_ERROR",
@@ -192,6 +196,9 @@ export const ErrorCode = {
 	INVALID_BUNDLE: "INVALID_BUNDLE",
 	BUNDLE_EXTRACT_FAILED: "BUNDLE_EXTRACT_FAILED",
 	BUNDLE_DOWNLOAD_FAILED: "BUNDLE_DOWNLOAD_FAILED",
+	AGGREGATOR_RESPONSE_INVALID: "AGGREGATOR_RESPONSE_INVALID",
+	AGGREGATOR_HTTP_ERROR: "AGGREGATOR_HTTP_ERROR",
+	AGGREGATOR_NOT_FOUND: "AGGREGATOR_NOT_FOUND",
 	CAPABILITY_ESCALATION: "CAPABILITY_ESCALATION",
 	ROUTE_VISIBILITY_ESCALATION: "ROUTE_VISIBILITY_ESCALATION",
 	INSTALL_FAILED: "INSTALL_FAILED",
@@ -214,6 +221,10 @@ export const ErrorCode = {
 	MENU_ITEM_UPDATE_ERROR: "MENU_ITEM_UPDATE_ERROR",
 	MENU_ITEM_DELETE_ERROR: "MENU_ITEM_DELETE_ERROR",
 	MENU_REORDER_ERROR: "MENU_REORDER_ERROR",
+	// Returned when a menu name resolves to multiple locale variants and
+	// the caller did not pass `locale` to disambiguate. (name, locale) is
+	// unique, so this only fires for omitted-locale lookups.
+	AMBIGUOUS_LOCALE: "AMBIGUOUS_LOCALE",
 
 	// Taxonomies
 	TAXONOMY_LIST_ERROR: "TAXONOMY_LIST_ERROR",
@@ -335,6 +346,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.VALIDATION_ERROR:
 		case ErrorCode.INVALID_INPUT:
 		case ErrorCode.INVALID_JSON:
+		case ErrorCode.INVALID_CURSOR:
 		case ErrorCode.MISSING_PARAM:
 		case ErrorCode.INVALID_REQUEST:
 		case ErrorCode.NOT_SUPPORTED:
@@ -357,6 +369,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.SELF_ROLE_CHANGE:
 		case ErrorCode.SSRF_BLOCKED:
 		case ErrorCode.UNKNOWN_ACTION:
+		case ErrorCode.AMBIGUOUS_LOCALE:
 			return 400;
 
 		// 401 Unauthorized
@@ -373,6 +386,8 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.COMMENT_REJECTED:
 		case ErrorCode.DOMAIN_NOT_ALLOWED:
 		case ErrorCode.INSUFFICIENT_ROLE:
+		case ErrorCode.INSUFFICIENT_SCOPE:
+		case ErrorCode.INSUFFICIENT_PERMISSIONS:
 		case ErrorCode.CAPABILITY_ESCALATION:
 		case ErrorCode.ROUTE_VISIBILITY_ESCALATION:
 		case ErrorCode.AUDIT_FAILED:
@@ -384,10 +399,12 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.COLLECTION_NOT_FOUND:
 		case ErrorCode.FILE_NOT_FOUND:
 		case ErrorCode.NO_VERSION:
+		case ErrorCode.AGGREGATOR_NOT_FOUND:
 			return 404;
 
 		// 409 Conflict
 		case ErrorCode.CONFLICT:
+		case ErrorCode.SLUG_CONFLICT:
 		case ErrorCode.COLLECTION_EXISTS:
 		case ErrorCode.FIELD_EXISTS:
 		case ErrorCode.CREDENTIAL_EXISTS:
@@ -427,6 +444,8 @@ export function mapErrorStatus(code: string | undefined): number {
 
 		// 502 Bad Gateway
 		case ErrorCode.BUNDLE_DOWNLOAD_FAILED:
+		case ErrorCode.AGGREGATOR_RESPONSE_INVALID:
+		case ErrorCode.AGGREGATOR_HTTP_ERROR:
 			return 502;
 
 		// 503 Service Unavailable

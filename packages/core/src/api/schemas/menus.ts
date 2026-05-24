@@ -1,58 +1,72 @@
 import { z } from "zod";
 
+import { isSafeHref } from "../../utils/url.js";
+
 // ---------------------------------------------------------------------------
 // Menus: Input schemas
 // ---------------------------------------------------------------------------
 
-const menuItemType = z.string().min(1);
+/**
+ * Allowed menu item types. `custom` uses `customUrl`; the others resolve a URL
+ * from `referenceCollection` + `referenceId` (a translation_group id).
+ */
+export const menuItemTypeEnum = z.enum(["custom", "page", "post", "taxonomy", "collection"]);
+
+const safeHref = z
+	.string()
+	.trim()
+	.refine(
+		isSafeHref,
+		"URL must use http, https, mailto, tel, a relative path, or a fragment identifier",
+	);
 
 export const createMenuBody = z
 	.object({
 		name: z.string().min(1),
 		label: z.string().min(1),
+		locale: z.string().min(1).optional(),
+		/** When set, clones the items from the source menu. The new menu joins
+		 * the source's translation_group. */
+		translationOf: z.string().min(1).optional(),
 	})
+	.strict()
 	.meta({ id: "CreateMenuBody" });
 
 export const updateMenuBody = z
 	.object({
 		label: z.string().min(1).optional(),
 	})
+	.strict()
 	.meta({ id: "UpdateMenuBody" });
 
 export const createMenuItemBody = z
 	.object({
-		type: menuItemType,
+		type: menuItemTypeEnum,
 		label: z.string().min(1),
 		referenceCollection: z.string().optional(),
 		referenceId: z.string().optional(),
-		customUrl: z.string().optional(),
+		customUrl: safeHref.optional(),
 		target: z.string().optional(),
 		titleAttr: z.string().optional(),
 		cssClasses: z.string().optional(),
 		parentId: z.string().optional(),
 		sortOrder: z.number().int().min(0).optional(),
 	})
+	.strict()
 	.meta({ id: "CreateMenuItemBody" });
 
 export const updateMenuItemBody = z
 	.object({
 		label: z.string().min(1).optional(),
-		customUrl: z.string().optional(),
+		customUrl: safeHref.optional(),
 		target: z.string().optional(),
 		titleAttr: z.string().optional(),
 		cssClasses: z.string().optional(),
 		parentId: z.string().nullish(),
 		sortOrder: z.number().int().min(0).optional(),
 	})
+	.strict()
 	.meta({ id: "UpdateMenuItemBody" });
-
-export const menuItemDeleteQuery = z.object({
-	id: z.string().min(1),
-});
-
-export const menuItemUpdateQuery = z.object({
-	id: z.string().min(1),
-});
 
 export const reorderMenuItemsBody = z
 	.object({
@@ -68,6 +82,10 @@ export const reorderMenuItemsBody = z
 
 // ---------------------------------------------------------------------------
 // Menus: Response schemas
+//
+// All responses are camelCase to align with the rest of the EmDash REST API
+// (content, taxonomies, redirects, etc.). The DB columns are snake_case;
+// handlers hydrate rows into the shapes below before returning.
 // ---------------------------------------------------------------------------
 
 export const menuSchema = z
@@ -75,28 +93,47 @@ export const menuSchema = z
 		id: z.string(),
 		name: z.string(),
 		label: z.string(),
-		created_at: z.string(),
-		updated_at: z.string(),
+		createdAt: z.string(),
+		updatedAt: z.string(),
+		locale: z.string(),
+		translationGroup: z.string().nullable(),
 	})
 	.meta({ id: "Menu" });
 
 export const menuItemSchema = z
 	.object({
 		id: z.string(),
-		menu_id: z.string(),
-		parent_id: z.string().nullable(),
-		sort_order: z.number().int(),
+		menuId: z.string(),
+		parentId: z.string().nullable(),
+		sortOrder: z.number().int(),
 		type: z.string(),
-		reference_collection: z.string().nullable(),
-		reference_id: z.string().nullable(),
-		custom_url: z.string().nullable(),
+		referenceCollection: z.string().nullable(),
+		referenceId: z.string().nullable(),
+		customUrl: z.string().nullable(),
 		label: z.string(),
-		title_attr: z.string().nullable(),
+		titleAttr: z.string().nullable(),
 		target: z.string().nullable(),
-		css_classes: z.string().nullable(),
-		created_at: z.string(),
+		cssClasses: z.string().nullable(),
+		createdAt: z.string(),
+		locale: z.string(),
+		translationGroup: z.string().nullable(),
 	})
 	.meta({ id: "MenuItem" });
+
+export const menuTranslationsSchema = z
+	.object({
+		translationGroup: z.string().nullable(),
+		translations: z.array(
+			z.object({
+				id: z.string(),
+				name: z.string(),
+				label: z.string(),
+				locale: z.string(),
+				updatedAt: z.string(),
+			}),
+		),
+	})
+	.meta({ id: "MenuTranslations" });
 
 export const menuListItemSchema = menuSchema
 	.extend({

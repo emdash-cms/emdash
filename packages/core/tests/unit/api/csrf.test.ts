@@ -113,6 +113,42 @@ describe("checkPublicCsrf", () => {
 		});
 	});
 
+	describe("dual-origin matching (reverse proxy)", () => {
+		it("accepts Origin matching public origin when behind proxy", () => {
+			const request = makeRequest("POST", {
+				Origin: "https://mysite.example.com",
+			});
+			// Internal URL is http, public is https — proxy scenario
+			const url = new URL("http://localhost:4321/_emdash/api/comments/posts/abc");
+			expect(checkPublicCsrf(request, url, "https://mysite.example.com")).toBeNull();
+		});
+
+		it("still accepts Origin matching internal origin when publicOrigin is set", () => {
+			const request = makeRequest("POST", {
+				Origin: "http://localhost:4321",
+			});
+			const url = new URL("http://localhost:4321/_emdash/api/comments/posts/abc");
+			expect(checkPublicCsrf(request, url, "https://mysite.example.com")).toBeNull();
+		});
+
+		it("rejects Origin matching neither internal nor public", () => {
+			const request = makeRequest("POST", {
+				Origin: "http://evil.com",
+			});
+			const url = new URL("http://localhost:4321/_emdash/api/comments/posts/abc");
+			const response = checkPublicCsrf(request, url, "https://mysite.example.com");
+			expect(response).not.toBeNull();
+			expect(response!.status).toBe(403);
+		});
+
+		it("unchanged behavior when publicOrigin is undefined", () => {
+			const request = makeRequest("POST", {
+				Origin: "http://example.com",
+			});
+			expect(checkPublicCsrf(request, makeUrl(), undefined)).toBeNull();
+		});
+	});
+
 	describe("allows requests without Origin header", () => {
 		it("allows POST without any Origin (non-browser client)", () => {
 			const request = makeRequest("POST");

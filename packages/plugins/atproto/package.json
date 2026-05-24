@@ -1,15 +1,19 @@
 {
 	"name": "@emdash-cms/plugin-atproto",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "AT Protocol / standard.site syndication plugin for EmDash CMS",
 	"type": "module",
-	"main": "src/index.ts",
+	"main": "dist/index.mjs",
 	"exports": {
-		".": "./src/index.ts",
-		"./sandbox": "./src/sandbox-entry.ts"
+		".": {
+			"import": "./dist/index.mjs",
+			"types": "./dist/index.d.mts"
+		},
+		"./sandbox": "./dist/plugin.mjs"
 	},
 	"files": [
-		"src"
+		"dist",
+		"emdash-plugin.jsonc"
 	],
 	"keywords": [
 		"emdash",
@@ -24,12 +28,18 @@
 	"author": "Matt Kane",
 	"license": "MIT",
 	"peerDependencies": {
-		"emdash": "workspace:*"
+		"emdash": "workspace:>=0.14.0"
 	},
 	"devDependencies": {
+		"@emdash-cms/plugin-cli": "workspace:*",
+		"jsonc-parser": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
 		"vitest": "catalog:"
 	},
 	"scripts": {
+		"build": "node node_modules/@emdash-cms/plugin-cli/dist/index.mjs build",
+		"dev": "emdash-plugin dev",
 		"test": "vitest run",
 		"typecheck": "tsgo --noEmit"
 	},

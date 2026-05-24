@@ -25,7 +25,7 @@ export const GET: APIRoute = async ({ locals }) => {
 	const denied = requirePerm(user, "schema:read");
 	if (denied) return denied;
 
-	const result = await handleSchemaCollectionList(emdash!.db);
+	const result = await handleSchemaCollectionList(emdash.db);
 	return unwrapResult(result);
 };
 
@@ -41,7 +41,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	const body = await parseBody(request, createCollectionBody);
 	if (isParseError(body)) return body;
 
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Zod schema output narrowed to CreateCollectionInput
-	const result = await handleSchemaCollectionCreate(emdash!.db, body as CreateCollectionInput);
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Zod schema output narrowed to CreateCollectionInput
+	const result = await handleSchemaCollectionCreate(emdash.db, body as CreateCollectionInput);
+	emdash.invalidateUrlPatternCache();
 	return unwrapResult(result, 201);
 };

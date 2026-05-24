@@ -2,6 +2,9 @@
  * Widget areas APIs
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export interface WidgetArea {
@@ -102,7 +105,7 @@ export async function deleteWidgetArea(name: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/widget-areas/${name}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete widget area");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete widget area`));
 }
 
 /**
@@ -140,7 +143,7 @@ export async function deleteWidget(areaName: string, widgetId: string): Promise<
 	const response = await apiFetch(`${API_BASE}/widget-areas/${areaName}/widgets/${widgetId}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete widget");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete widget`));
 }
 
 /**
@@ -152,7 +155,7 @@ export async function reorderWidgets(areaName: string, widgetIds: string[]): Pro
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ widgetIds }),
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to reorder widgets");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to reorder widgets`));
 }
 
 /**

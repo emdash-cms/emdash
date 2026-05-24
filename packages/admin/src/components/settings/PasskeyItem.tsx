@@ -3,6 +3,7 @@
  */
 
 import { Button, Input } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import { Pencil, Trash, Check, X, DeviceMobile, Cloud } from "@phosphor-icons/react";
 import * as React from "react";
 
@@ -16,10 +17,6 @@ export interface PasskeyItemProps {
 	onDelete: (id: string) => Promise<void>;
 	isDeleting?: boolean;
 	isRenaming?: boolean;
-}
-
-function formatDeviceType(type: "singleDevice" | "multiDevice"): string {
-	return type === "multiDevice" ? "Synced passkey" : "Device-bound passkey";
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -56,6 +53,7 @@ export function PasskeyItem({
 	isDeleting,
 	isRenaming,
 }: PasskeyItemProps) {
+	const { t } = useLingui();
 	const [isEditing, setIsEditing] = React.useState(false);
 	const [editName, setEditName] = React.useState(passkey.name || "");
 	const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
@@ -98,9 +96,12 @@ export function PasskeyItem({
 			await onDelete(passkey.id);
 			setShowDeleteDialog(false);
 		} catch (err) {
-			setDeleteError(err instanceof Error ? err.message : "Failed to remove passkey");
+			setDeleteError(err instanceof Error ? err.message : t`Failed to remove passkey`);
 		}
 	};
+
+	const deviceTypeLabel =
+		passkey.deviceType === "multiDevice" ? t`Synced passkey` : t`Device-bound passkey`;
 
 	return (
 		<li className="flex items-center justify-between p-4 border rounded-lg bg-kumo-base">
@@ -125,7 +126,7 @@ export function PasskeyItem({
 								onChange={(e) => setEditName(e.target.value)}
 								onKeyDown={handleKeyDown}
 								className="h-8 w-48"
-								placeholder="Passkey name"
+								placeholder={t`Passkey name`}
 								disabled={isRenaming}
 							/>
 							<Button
@@ -133,7 +134,7 @@ export function PasskeyItem({
 								variant="ghost"
 								onClick={handleSave}
 								disabled={isRenaming}
-								aria-label="Save name"
+								aria-label={t`Save name`}
 							>
 								<Check className="h-4 w-4" />
 							</Button>
@@ -142,22 +143,22 @@ export function PasskeyItem({
 								variant="ghost"
 								onClick={handleCancel}
 								disabled={isRenaming}
-								aria-label="Cancel rename"
+								aria-label={t`Cancel rename`}
 							>
 								<X className="h-4 w-4" />
 							</Button>
 						</div>
 					) : (
-						<div className="font-medium">{passkey.name || "Unnamed passkey"}</div>
+						<div className="font-medium">{passkey.name || t`Unnamed passkey`}</div>
 					)}
 					<div className="text-sm text-kumo-subtle">
-						{formatDeviceType(passkey.deviceType)}
+						{deviceTypeLabel}
 						{passkey.backedUp && (
-							<span className="text-green-600 dark:text-green-400"> (synced)</span>
+							<span className="text-green-600 dark:text-green-400"> {t`(synced)`}</span>
 						)}
 					</div>
 					<div className="text-xs text-kumo-subtle mt-1">
-						Last used {formatRelativeTime(passkey.lastUsedAt)}
+						{t`Last used`} {formatRelativeTime(passkey.lastUsedAt)}
 					</div>
 				</div>
 			</div>
@@ -172,8 +173,8 @@ export function PasskeyItem({
 							setEditName(passkey.name || "");
 							setIsEditing(true);
 						}}
-						title="Rename"
-						aria-label={`Rename ${passkey.name || "passkey"}`}
+						title={t`Rename`}
+						aria-label={passkey.name ? t`Rename ${passkey.name}` : t`Rename passkey`}
 					>
 						<Pencil className="h-4 w-4" />
 					</Button>
@@ -183,8 +184,8 @@ export function PasskeyItem({
 							size="sm"
 							onClick={() => setShowDeleteDialog(true)}
 							className="text-kumo-danger hover:text-kumo-danger"
-							title="Remove"
-							aria-label={`Remove ${passkey.name || "passkey"}`}
+							title={t`Remove`}
+							aria-label={passkey.name ? t`Remove ${passkey.name}` : t`Remove passkey`}
 						>
 							<Trash className="h-4 w-4" />
 						</Button>
@@ -199,10 +200,14 @@ export function PasskeyItem({
 					setShowDeleteDialog(false);
 					setDeleteError(null);
 				}}
-				title="Remove passkey?"
-				description={`You won't be able to use "${passkey.name || "this passkey"}" to sign in anymore. This action cannot be undone.`}
-				confirmLabel="Remove"
-				pendingLabel="Removing..."
+				title={t`Remove passkey?`}
+				description={
+					passkey.name
+						? t`You won't be able to use "${passkey.name}" to sign in anymore. This action cannot be undone.`
+						: t`You won't be able to use this passkey to sign in anymore. This action cannot be undone.`
+				}
+				confirmLabel={t`Remove`}
+				pendingLabel={t`Removing...`}
 				isPending={!!isDeleting}
 				error={deleteError}
 				onConfirm={handleDelete}

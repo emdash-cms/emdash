@@ -91,7 +91,7 @@ export async function requestSignup(
 	});
 
 	// Build verification URL
-	const url = new URL("/api/auth/signup/verify", config.baseUrl);
+	const url = new URL("/_emdash/api/auth/signup/verify", config.baseUrl);
 	url.searchParams.set("token", token);
 
 	// Send email

@@ -6,10 +6,13 @@ import { ulid } from "ulidx";
 import { currentTimestamp, listTablesLike, tableExists } from "../database/dialect-helpers.js";
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
+import { validateIdentifier } from "../database/validate.js";
 import { FTSManager } from "../search/fts-manager.js";
+import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import {
 	type Collection,
 	type CollectionSource,
+	type CollectionSupport,
 	type ColumnType,
 	type Field,
 	type CreateCollectionInput,
@@ -46,6 +49,34 @@ function isFieldType(value: string): value is FieldType {
 
 function isColumnType(value: string): value is ColumnType {
 	return COLUMN_TYPES.has(value);
+}
+
+const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport>([
+	"drafts",
+	"revisions",
+	"preview",
+	"scheduling",
+	"search",
+	"seo",
+]);
+
+function isCollectionSupport(value: unknown): value is CollectionSupport {
+	return typeof value === "string" && VALID_COLLECTION_SUPPORTS.has(value);
+}
+
+/**
+ * Parse a collection's `supports` column (stored as a JSON array of
+ * CollectionSupport keys). Unknown/invalid entries are filtered out so the
+ * runtime value matches the declared `CollectionSupport[]` type.
+ *
+ * Throws on malformed JSON so corruption surfaces loudly; returns an empty
+ * array only for explicitly null/empty values or non-array JSON.
+ */
+function parseSupports(raw: string | null | undefined): CollectionSupport[] {
+	if (!raw) return [];
+	const parsed: unknown = JSON.parse(raw);
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter(isCollectionSupport);
 }
 
 /**
@@ -114,6 +145,61 @@ export class SchemaRegistry {
 	}
 
 	/**
+	 * List every collection together with its fields in O(1) query shapes
+	 * — one for collections, then one batched query for the fields of every
+	 * returned collection — instead of the N+1 pattern of `listCollections`
+	 * + per-collection `listFields`. The fields query is chunked at
+	 * `SQL_BATCH_SIZE` to stay under D1's bound-parameter limit, so on
+	 * sites with more than `SQL_BATCH_SIZE` collections the field fetch
+	 * becomes `ceil(collectionCount / SQL_BATCH_SIZE)` queries — still
+	 * a constant factor, not N+1. Typical sites have well under
+	 * `SQL_BATCH_SIZE` collections, so this is two queries in practice.
+	 *
+	 * Used by the manifest build, which previously paid N+1 round-trips on
+	 * every admin request. Each round-trip costs ~80–150ms against the D1
+	 * primary on a busy link, so a 10-collection site spent ~1 s rebuilding
+	 * a manifest that is now built fresh per admin request (no cache).
+	 */
+	async listCollectionsWithFields(): Promise<CollectionWithFields[]> {
+		const collectionRows = await this.db
+			.selectFrom("_emdash_collections")
+			.selectAll()
+			.orderBy("slug", "asc")
+			.execute();
+
+		if (collectionRows.length === 0) return [];
+
+		const fieldsByCollection = new Map<string, Field[]>();
+		// Chunk to stay under D1's bound-parameter limit. Typical sites have
+		// well under SQL_BATCH_SIZE collections, so this is a single query
+		// in practice; on larger sites it becomes a small constant number
+		// of queries, never N+1.
+		for (const idChunk of chunks(
+			collectionRows.map((c) => c.id),
+			SQL_BATCH_SIZE,
+		)) {
+			const fieldRows = await this.db
+				.selectFrom("_emdash_fields")
+				.where("collection_id", "in", idChunk)
+				.selectAll()
+				.orderBy("collection_id", "asc")
+				.orderBy("sort_order", "asc")
+				.orderBy("created_at", "asc")
+				.execute();
+			for (const row of fieldRows) {
+				const list = fieldsByCollection.get(row.collection_id) ?? [];
+				list.push(this.mapFieldRow(row));
+				fieldsByCollection.set(row.collection_id, list);
+			}
+		}
+
+		return collectionRows.map((c) => ({
+			...this.mapCollectionRow(c),
+			fields: fieldsByCollection.get(c.id) ?? [],
+		}));
+	}
+
+	/**
 	 * Create a new collection
 	 */
 	async createCollection(input: CreateCollectionInput): Promise<Collection> {
@@ -131,11 +217,18 @@ export class SchemaRegistry {
 
 		const id = ulid();
 
+		// Default `supports` to drafts + revisions when the caller didn't
+		// specify it. Explicit empty array (`[]`) is preserved as an opt-out
+		// — only `undefined` triggers the default. This is the canonical
+		// default for new collections; the MCP and admin UI layers used to
+		// duplicate this default but now defer to the registry.
+		const supports = input.supports ?? ["drafts", "revisions"];
+
 		// Insert collection record and create content table in a transaction
 		// so a failure in table creation doesn't leave an orphaned row.
 		// Uses withTransaction for D1 compatibility (no transaction support).
 		// Derive hasSeo from supports array if not explicitly set
-		const hasSeo = input.hasSeo ?? input.supports?.includes("seo") ?? false;
+		const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
 
 		await withTransaction(this.db, async (trx) => {
 			await trx
@@ -147,7 +240,7 @@ export class SchemaRegistry {
 					label_singular: input.labelSingular ?? null,
 					description: input.description ?? null,
 					icon: input.icon ?? null,
-					supports: input.supports ? JSON.stringify(input.supports) : null,
+					supports: JSON.stringify(supports),
 					source: input.source ?? "manual",
 					has_seo: hasSeo ? 1 : 0,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
@@ -187,53 +280,69 @@ export class SchemaRegistry {
 					? supportsArray.includes("seo")
 					: existing.hasSeo;
 
-		await this.db
-			.updateTable("_emdash_collections")
-			.set({
-				label: input.label ?? existing.label,
-				label_singular: input.labelSingular ?? existing.labelSingular ?? null,
-				description: input.description ?? existing.description ?? null,
-				icon: input.icon ?? existing.icon ?? null,
-				supports: input.supports
-					? JSON.stringify(input.supports)
-					: JSON.stringify(existing.supports),
-				url_pattern:
-					input.urlPattern !== undefined
-						? (input.urlPattern ?? null)
-						: (existing.urlPattern ?? null),
-				has_seo: hasSeo ? 1 : 0,
-				comments_enabled:
-					input.commentsEnabled !== undefined
-						? input.commentsEnabled
-							? 1
-							: 0
-						: existing.commentsEnabled
-							? 1
-							: 0,
-				comments_moderation: input.commentsModeration ?? existing.commentsModeration,
-				comments_closed_after_days:
-					input.commentsClosedAfterDays !== undefined
-						? input.commentsClosedAfterDays
-						: existing.commentsClosedAfterDays,
-				comments_auto_approve_users:
-					input.commentsAutoApproveUsers !== undefined
-						? input.commentsAutoApproveUsers
-							? 1
-							: 0
-						: existing.commentsAutoApproveUsers
-							? 1
-							: 0,
-				updated_at: now,
-			})
-			.where("slug", "=", slug)
-			.execute();
+		return withTransaction(this.db, async (trx) => {
+			await trx
+				.updateTable("_emdash_collections")
+				.set({
+					label: input.label ?? existing.label,
+					label_singular: input.labelSingular ?? existing.labelSingular ?? null,
+					description: input.description ?? existing.description ?? null,
+					icon: input.icon ?? existing.icon ?? null,
+					supports: input.supports
+						? JSON.stringify(input.supports)
+						: JSON.stringify(existing.supports),
+					url_pattern:
+						input.urlPattern !== undefined
+							? (input.urlPattern ?? null)
+							: (existing.urlPattern ?? null),
+					has_seo: hasSeo ? 1 : 0,
+					comments_enabled:
+						input.commentsEnabled !== undefined
+							? input.commentsEnabled
+								? 1
+								: 0
+							: existing.commentsEnabled
+								? 1
+								: 0,
+					comments_moderation: input.commentsModeration ?? existing.commentsModeration,
+					comments_closed_after_days:
+						input.commentsClosedAfterDays !== undefined
+							? input.commentsClosedAfterDays
+							: existing.commentsClosedAfterDays,
+					comments_auto_approve_users:
+						input.commentsAutoApproveUsers !== undefined
+							? input.commentsAutoApproveUsers
+								? 1
+								: 0
+							: existing.commentsAutoApproveUsers
+								? 1
+								: 0,
+					updated_at: now,
+				})
+				.where("slug", "=", slug)
+				.execute();
 
-		const updated = await this.getCollection(slug);
-		if (!updated) {
-			throw new SchemaError("Failed to update collection", "UPDATE_FAILED");
-		}
+			const row = await trx
+				.selectFrom("_emdash_collections")
+				.where("slug", "=", slug)
+				.selectAll()
+				.executeTakeFirst();
 
-		return updated;
+			if (!row) {
+				throw new SchemaError("Failed to update collection", "UPDATE_FAILED");
+			}
+
+			// Sync FTS state when the supports array changes (e.g. search toggled on/off)
+			if (input.supports !== undefined) {
+				const hadSearch = existing.supports.includes("search");
+				const hasSearch = parseSupports(row.supports).includes("search");
+				if (hadSearch !== hasSearch) {
+					await this.syncSearchState(slug, trx);
+				}
+			}
+
+			return this.mapCollectionRow(row);
+		});
 	}
 
 	/**
@@ -256,11 +365,18 @@ export class SchemaRegistry {
 			}
 		}
 
-		// Drop the content table
-		await this.dropContentTable(slug);
+		await withTransaction(this.db, async (trx) => {
+			// Drop FTS table and triggers before dropping the content table
+			const ftsManager = new FTSManager(trx);
+			await ftsManager.dropFtsTable(slug);
 
-		// Delete the collection record (fields will cascade)
-		await this.db.deleteFrom("_emdash_collections").where("id", "=", existing.id).execute();
+			// Drop the content table
+			const tableName = this.getTableName(slug);
+			await sql`DROP TABLE IF EXISTS ${sql.ref(tableName)}`.execute(trx);
+
+			// Delete the collection record (fields will cascade)
+			await trx.deleteFrom("_emdash_collections").where("id", "=", existing.id).execute();
+		});
 	}
 
 	// ============================================
@@ -335,40 +451,63 @@ export class SchemaRegistry {
 
 		const sortOrder = input.sortOrder ?? (maxSort?.max ?? -1) + 1;
 
-		// Insert field record
-		await this.db
-			.insertInto("_emdash_fields")
-			.values({
-				id,
-				collection_id: collection.id,
-				slug: input.slug,
-				label: input.label,
-				type: input.type,
-				column_type: columnType,
-				required: input.required ? 1 : 0,
-				unique: input.unique ? 1 : 0,
-				default_value: input.defaultValue !== undefined ? JSON.stringify(input.defaultValue) : null,
-				validation: input.validation ? JSON.stringify(input.validation) : null,
-				widget: input.widget ?? null,
-				options: input.options ? JSON.stringify(input.options) : null,
-				sort_order: sortOrder,
-				searchable: input.searchable ? 1 : 0,
-				translatable: input.translatable === false ? 0 : 1,
-			})
-			.execute();
+		return withTransaction(this.db, async (trx) => {
+			// Insert field record
+			await trx
+				.insertInto("_emdash_fields")
+				.values({
+					id,
+					collection_id: collection.id,
+					slug: input.slug,
+					label: input.label,
+					type: input.type,
+					column_type: columnType,
+					required: input.required ? 1 : 0,
+					unique: input.unique ? 1 : 0,
+					default_value:
+						input.defaultValue !== undefined ? JSON.stringify(input.defaultValue) : null,
+					validation: input.validation ? JSON.stringify(input.validation) : null,
+					widget: input.widget ?? null,
+					options: input.options ? JSON.stringify(input.options) : null,
+					sort_order: sortOrder,
+					searchable: input.searchable ? 1 : 0,
+					translatable: input.translatable === false ? 0 : 1,
+				})
+				.execute();
 
-		// Add column to content table
-		await this.addColumn(collectionSlug, input.slug, input.type, {
-			required: input.required,
-			defaultValue: input.defaultValue,
+			// Add column to content table — pass trx to stay on the same connection
+			await this.addColumn(
+				collectionSlug,
+				input.slug,
+				input.type,
+				{
+					required: input.required,
+					defaultValue: input.defaultValue,
+				},
+				trx,
+			);
+
+			// Read the created field via trx (not this.db) to avoid connection mutex deadlock
+			const fieldRow = await trx
+				.selectFrom("_emdash_fields")
+				.where("collection_id", "=", collection.id)
+				.where("slug", "=", input.slug)
+				.selectAll()
+				.executeTakeFirst();
+
+			if (!fieldRow) {
+				throw new SchemaError("Failed to create field", "CREATE_FAILED");
+			}
+
+			const field = this.mapFieldRow(fieldRow);
+
+			// Sync search state if this field is searchable; support checks are handled by syncSearchState()
+			if (input.searchable) {
+				await this.syncSearchState(collectionSlug, trx);
+			}
+
+			return field;
 		});
-
-		const field = await this.getField(collectionSlug, input.slug);
-		if (!field) {
-			throw new SchemaError("Failed to create field", "CREATE_FAILED");
-		}
-
-		return field;
 	}
 
 	/**
@@ -387,84 +526,106 @@ export class SchemaRegistry {
 			);
 		}
 
-		await this.db
-			.updateTable("_emdash_fields")
-			.set({
-				label: input.label ?? field.label,
-				required: input.required !== undefined ? (input.required ? 1 : 0) : field.required ? 1 : 0,
-				unique: input.unique !== undefined ? (input.unique ? 1 : 0) : field.unique ? 1 : 0,
-				searchable:
-					input.searchable !== undefined ? (input.searchable ? 1 : 0) : field.searchable ? 1 : 0,
-				translatable:
-					input.translatable !== undefined
-						? input.translatable
-							? 1
-							: 0
-						: field.translatable
-							? 1
-							: 0,
-				default_value:
-					input.defaultValue !== undefined
-						? JSON.stringify(input.defaultValue)
-						: field.defaultValue !== undefined
-							? JSON.stringify(field.defaultValue)
+		// `input.validation === undefined` means "no change" (keep existing);
+		// an explicit `null` clears the column.
+		const nextValidation = input.validation === undefined ? field.validation : input.validation;
+
+		return withTransaction(this.db, async (trx) => {
+			await trx
+				.updateTable("_emdash_fields")
+				.set({
+					label: input.label ?? field.label,
+					required:
+						input.required !== undefined ? (input.required ? 1 : 0) : field.required ? 1 : 0,
+					unique: input.unique !== undefined ? (input.unique ? 1 : 0) : field.unique ? 1 : 0,
+					searchable:
+						input.searchable !== undefined ? (input.searchable ? 1 : 0) : field.searchable ? 1 : 0,
+					translatable:
+						input.translatable !== undefined
+							? input.translatable
+								? 1
+								: 0
+							: field.translatable
+								? 1
+								: 0,
+					default_value:
+						input.defaultValue !== undefined
+							? JSON.stringify(input.defaultValue)
+							: field.defaultValue !== undefined
+								? JSON.stringify(field.defaultValue)
+								: null,
+					validation: nextValidation ? JSON.stringify(nextValidation) : null,
+					widget: input.widget ?? field.widget ?? null,
+					options: input.options
+						? JSON.stringify(input.options)
+						: field.options
+							? JSON.stringify(field.options)
 							: null,
-				validation: input.validation
-					? JSON.stringify(input.validation)
-					: field.validation
-						? JSON.stringify(field.validation)
-						: null,
-				widget: input.widget ?? field.widget ?? null,
-				options: input.options
-					? JSON.stringify(input.options)
-					: field.options
-						? JSON.stringify(field.options)
-						: null,
-				sort_order: input.sortOrder ?? field.sortOrder,
-			})
-			.where("id", "=", field.id)
-			.execute();
+					sort_order: input.sortOrder ?? field.sortOrder,
+				})
+				.where("id", "=", field.id)
+				.execute();
 
-		const updated = await this.getField(collectionSlug, fieldSlug);
-		if (!updated) {
-			throw new SchemaError("Failed to update field", "UPDATE_FAILED");
-		}
+			// Read the updated field via trx (not this.db) to avoid connection mutex deadlock
+			const updatedRow = await trx
+				.selectFrom("_emdash_fields")
+				.where("collection_id", "=", field.collectionId)
+				.where("slug", "=", fieldSlug)
+				.selectAll()
+				.executeTakeFirst();
 
-		// If searchable changed, rebuild the FTS index for this collection
-		const searchableChanged =
-			input.searchable !== undefined && input.searchable !== field.searchable;
-		if (searchableChanged) {
-			await this.rebuildSearchIndex(collectionSlug);
-		}
+			if (!updatedRow) {
+				throw new SchemaError("Failed to update field", "UPDATE_FAILED");
+			}
 
-		return updated;
+			const updated = this.mapFieldRow(updatedRow);
+
+			// If searchable changed, sync FTS state for this collection
+			const searchableChanged =
+				input.searchable !== undefined && input.searchable !== field.searchable;
+			if (searchableChanged) {
+				await this.syncSearchState(collectionSlug, trx);
+			}
+
+			return updated;
+		});
 	}
 
 	/**
-	 * Rebuild the search index for a collection
+	 * Synchronize an existing FTS index with the collection's current state.
 	 *
-	 * Called when searchable fields change. If search is enabled for the collection,
-	 * this will rebuild the FTS table with the updated field list.
+	 * Only rebuilds or disables — never first-time enables. First-time FTS
+	 * enablement is handled by the seed's explicit enableSearch call (which
+	 * is try-caught) or the admin UI toggle.
+	 *
+	 * - FTS active + still has search support and searchable fields → rebuild
+	 * - FTS active + lost search support or no searchable fields    → disable
+	 * - FTS not active                                              → no-op
+	 *
+	 * Pass `db` when calling from within a transaction so FTS operations
+	 * participate in the same transaction and are rolled back on failure.
 	 */
-	private async rebuildSearchIndex(collectionSlug: string): Promise<void> {
-		const ftsManager = new FTSManager(this.db);
+	private async syncSearchState(collectionSlug: string, db?: Kysely<Database>): Promise<void> {
+		const conn = db ?? this.db;
+		const ftsManager = new FTSManager(conn);
 
-		// Check if search is enabled for this collection
-		const config = await ftsManager.getSearchConfig(collectionSlug);
-		if (!config?.enabled) {
-			// Search not enabled, nothing to do
-			return;
-		}
+		// Query via conn (not this.db) to avoid connection mutex deadlock when called inside a transaction
+		const row = await conn
+			.selectFrom("_emdash_collections")
+			.where("slug", "=", collectionSlug)
+			.select("supports")
+			.executeTakeFirst();
+		if (!row) return;
 
-		// Get current searchable fields
+		const wantsSearch = parseSupports(row.supports).includes("search");
 		const searchableFields = await ftsManager.getSearchableFields(collectionSlug);
+		const config = await ftsManager.getSearchConfig(collectionSlug);
+		const ftsActive = config?.enabled === true;
 
-		if (searchableFields.length === 0) {
-			// No searchable fields left, disable search
+		if (wantsSearch && searchableFields.length > 0 && ftsActive) {
+			await ftsManager.rebuildIndex(collectionSlug, searchableFields, config?.weights);
+		} else if (ftsActive && (!wantsSearch || searchableFields.length === 0)) {
 			await ftsManager.disableSearch(collectionSlug);
-		} else {
-			// Rebuild the index with updated fields
-			await ftsManager.rebuildIndex(collectionSlug, searchableFields, config.weights);
 		}
 	}
 
@@ -480,11 +641,22 @@ export class SchemaRegistry {
 			);
 		}
 
-		// Drop column from content table
-		await this.dropColumn(collectionSlug, fieldSlug);
+		await withTransaction(this.db, async (trx) => {
+			// Delete the field record first so syncSearchState sees the updated field list.
+			// This ordering matters for searchable fields: SQLite prevents dropping a column
+			// that is still referenced by a trigger. syncSearchState drops and recreates the
+			// FTS triggers based on the remaining searchable fields, clearing the dependency
+			// before we attempt the ALTER TABLE DROP COLUMN below.
+			await trx.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
 
-		// Delete field record
-		await this.db.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
+			// If the deleted field was searchable, sync FTS state (removes old triggers)
+			if (field.searchable) {
+				await this.syncSearchState(collectionSlug, trx);
+			}
+
+			// Drop column from content table — safe now because FTS triggers are gone
+			await this.dropColumn(collectionSlug, fieldSlug, trx);
+		});
 	}
 
 	/**
@@ -540,73 +712,66 @@ export class SchemaRegistry {
 
 		// Create standard indexes
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_status`)} 
-			ON ${sql.ref(tableName)} (status)
-		`.execute(conn);
-
-		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_slug`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_slug`)}
 			ON ${sql.ref(tableName)} (slug)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_created`)} 
-			ON ${sql.ref(tableName)} (created_at)
-		`.execute(conn);
-
-		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted`)} 
-			ON ${sql.ref(tableName)} (deleted_at)
-		`.execute(conn);
-
-		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_scheduled`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_scheduled`)}
 			ON ${sql.ref(tableName)} (scheduled_at)
 			WHERE scheduled_at IS NOT NULL
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_live_revision`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_live_revision`)}
 			ON ${sql.ref(tableName)} (live_revision_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_draft_revision`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_draft_revision`)}
 			ON ${sql.ref(tableName)} (draft_revision_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_author`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_author`)}
 			ON ${sql.ref(tableName)} (author_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_primary_byline`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_primary_byline`)}
 			ON ${sql.ref(tableName)} (primary_byline_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_updated`)} 
-			ON ${sql.ref(tableName)} (updated_at)
-		`.execute(conn);
-
-		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_locale`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_locale`)}
 			ON ${sql.ref(tableName)} (locale)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_translation_group`)} 
+			CREATE INDEX ${sql.ref(`idx_${tableName}_translation_group`)}
 			ON ${sql.ref(tableName)} (translation_group)
 		`.execute(conn);
-	}
 
-	/**
-	 * Drop a content table
-	 */
-	private async dropContentTable(slug: string): Promise<void> {
-		const tableName = this.getTableName(slug);
-		await sql`DROP TABLE IF EXISTS ${sql.ref(tableName)}`.execute(this.db);
+		// Composite indexes for optimized query performance (see migration 033)
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_updated_id`)}
+			ON ${sql.ref(tableName)} (deleted_at, updated_at DESC, id DESC)
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_status`)}
+			ON ${sql.ref(tableName)} (deleted_at, status)
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_created_id`)}
+			ON ${sql.ref(tableName)} (deleted_at, created_at DESC, id DESC)
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_published_id`)}
+			ON ${sql.ref(tableName)} (deleted_at, published_at DESC, id DESC)
+		`.execute(conn);
 	}
 
 	/**
@@ -617,7 +782,9 @@ export class SchemaRegistry {
 		fieldSlug: string,
 		fieldType: FieldType,
 		options?: { required?: boolean; defaultValue?: unknown },
+		db?: Kysely<Database>,
 	): Promise<void> {
+		const conn = db ?? this.db;
 		const tableName = this.getTableName(collectionSlug);
 		const columnType = FIELD_TYPE_TO_COLUMN[fieldType];
 		const columnName = this.getColumnName(fieldSlug);
@@ -627,35 +794,39 @@ export class SchemaRegistry {
 		if (options?.required && options?.defaultValue !== undefined) {
 			const defaultVal = this.formatDefaultValue(options.defaultValue, fieldType);
 			await sql`
-				ALTER TABLE ${sql.ref(tableName)} 
+				ALTER TABLE ${sql.ref(tableName)}
 				ADD COLUMN ${sql.ref(columnName)} ${sql.raw(columnType)} NOT NULL DEFAULT ${sql.raw(defaultVal)}
-			`.execute(this.db);
+			`.execute(conn);
 		} else if (options?.required) {
 			// For required fields without default, use empty string/0 as default
 			const defaultVal = this.getEmptyDefault(fieldType);
 			await sql`
-				ALTER TABLE ${sql.ref(tableName)} 
+				ALTER TABLE ${sql.ref(tableName)}
 				ADD COLUMN ${sql.ref(columnName)} ${sql.raw(columnType)} NOT NULL DEFAULT ${sql.raw(defaultVal)}
-			`.execute(this.db);
+			`.execute(conn);
 		} else {
 			await sql`
-				ALTER TABLE ${sql.ref(tableName)} 
+				ALTER TABLE ${sql.ref(tableName)}
 				ADD COLUMN ${sql.ref(columnName)} ${sql.raw(columnType)}
-			`.execute(this.db);
+			`.execute(conn);
 		}
 	}
 
 	/**
 	 * Drop a column from a content table
 	 */
-	private async dropColumn(collectionSlug: string, fieldSlug: string): Promise<void> {
+	private async dropColumn(
+		collectionSlug: string,
+		fieldSlug: string,
+		db?: Kysely<Database>,
+	): Promise<void> {
 		const tableName = this.getTableName(collectionSlug);
 		const columnName = this.getColumnName(fieldSlug);
 
 		await sql`
-			ALTER TABLE ${sql.ref(tableName)} 
+			ALTER TABLE ${sql.ref(tableName)}
 			DROP COLUMN ${sql.ref(columnName)}
-		`.execute(this.db);
+		`.execute(db ?? this.db);
 	}
 
 	// ============================================
@@ -669,7 +840,7 @@ export class SchemaRegistry {
 		const tableName = this.getTableName(slug);
 		try {
 			const result = await sql<{ count: number }>`
-				SELECT COUNT(*) as count FROM ${sql.ref(tableName)} 
+				SELECT COUNT(*) as count FROM ${sql.ref(tableName)}
 				WHERE deleted_at IS NULL
 			`.execute(this.db);
 			return (result.rows[0]?.count ?? 0) > 0;
@@ -683,6 +854,7 @@ export class SchemaRegistry {
 	 * Get table name for a collection
 	 */
 	private getTableName(slug: string): string {
+		validateIdentifier(slug, "collection slug");
 		return `ec_${slug}`;
 	}
 
@@ -690,6 +862,7 @@ export class SchemaRegistry {
 	 * Get column name for a field
 	 */
 	private getColumnName(slug: string): string {
+		validateIdentifier(slug, "field slug");
 		return slug;
 	}
 
@@ -800,7 +973,7 @@ export class SchemaRegistry {
 			labelSingular: row.label_singular ?? undefined,
 			description: row.description ?? undefined,
 			icon: row.icon ?? undefined,
-			supports: row.supports ? JSON.parse(row.supports) : [],
+			supports: parseSupports(row.supports),
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,
 			urlPattern: row.url_pattern ?? undefined,

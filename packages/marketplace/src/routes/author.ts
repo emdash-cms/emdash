@@ -64,7 +64,7 @@ async function authenticateWithGitHubToken(
 		throw new Error(`Failed to fetch GitHub user: ${userResponse.status}`);
 	}
 
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- GitHub API response
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- GitHub API response
 	const githubUser: GitHubUser = await userResponse.json();
 	const githubId = String(githubUser.id);
 
@@ -131,7 +131,7 @@ authorRoutes.post("/auth/github", async (c) => {
 			}),
 		});
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- GitHub OAuth response
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- GitHub OAuth response
 		const tokenData: {
 			access_token?: string;
 			error?: string;
@@ -252,6 +252,19 @@ authorRoutes.put("/plugins/*", authMiddleware);
 // Must stay in sync with PluginCapability in emdash core
 /** Must stay in sync with PLUGIN_CAPABILITIES in packages/core/src/plugins/manifest-schema.ts */
 const VALID_CAPABILITIES = [
+	// Current names
+	"network:request",
+	"network:request:unrestricted",
+	"content:read",
+	"content:write",
+	"media:read",
+	"media:write",
+	"users:read",
+	"email:send",
+	"hooks.email-transport:register",
+	"hooks.email-events:register",
+	"hooks.page-fragments:register",
+	// Deprecated aliases — accepted during the transition window.
 	"network:fetch",
 	"network:fetch:any",
 	"read:content",
@@ -259,9 +272,9 @@ const VALID_CAPABILITIES = [
 	"read:media",
 	"write:media",
 	"read:users",
-	"email:send",
 	"email:provide",
 	"email:intercept",
+	"page:inject",
 ] as const;
 
 const createPluginSchema = z.object({
@@ -766,6 +779,8 @@ const VALID_HOOKS = [
 	"content:afterSave",
 	"content:beforeDelete",
 	"content:afterDelete",
+	"content:afterPublish",
+	"content:afterUnpublish",
 	"media:beforeUpload",
 	"media:afterUpload",
 	"cron",
@@ -906,7 +921,7 @@ async function extractTarball(data: ArrayBuffer): Promise<Map<string, Uint8Array
 function safeJsonParse<T>(value: string | null, fallback: T): T {
 	if (!value) return fallback;
 	try {
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- caller provides type parameter
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- caller provides type parameter
 		const parsed: T = JSON.parse(value);
 		return parsed;
 	} catch {

@@ -1,25 +1,17 @@
-import { Role } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { bylineUpdateBody } from "#api/schemas.js";
+import { invalidateBylineCache } from "#bylines/index.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 
 export const prerender = false;
 
-function requireEditor(user: { role: number } | undefined): Response | null {
-	if (!user || user.role < Role.EDITOR) {
-		return apiError("FORBIDDEN", "Editor privileges required", 403);
-	}
-	return null;
-}
-
 export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
-	// Read access uses content:read so all authenticated roles can view byline data
-	const denied = requirePerm(user, "content:read");
+	const denied = requirePerm(user, "bylines:read");
 	if (denied) return denied;
 
 	if (!emdash?.db) {
@@ -38,7 +30,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
 export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
-	const denied = requireEditor(user);
+	const denied = requirePerm(user, "bylines:manage");
 	if (denied) return denied;
 
 	if (!emdash?.db) {
@@ -61,6 +53,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		});
 
 		if (!byline) return apiError("NOT_FOUND", "Byline not found", 404);
+		invalidateBylineCache();
 		return apiSuccess(byline);
 	} catch (error) {
 		return handleError(error, "Failed to update byline", "BYLINE_UPDATE_ERROR");
@@ -69,7 +62,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 
 export const DELETE: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
-	const denied = requireEditor(user);
+	const denied = requirePerm(user, "bylines:manage");
 	if (denied) return denied;
 
 	if (!emdash?.db) {
@@ -80,6 +73,7 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 		const repo = new BylineRepository(emdash.db);
 		const deleted = await repo.delete(params.id!);
 		if (!deleted) return apiError("NOT_FOUND", "Byline not found", 404);
+		invalidateBylineCache();
 		return apiSuccess({ deleted: true });
 	} catch (error) {
 		return handleError(error, "Failed to delete byline", "BYLINE_DELETE_ERROR");

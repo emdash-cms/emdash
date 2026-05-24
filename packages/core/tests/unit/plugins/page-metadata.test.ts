@@ -71,6 +71,16 @@ describe("resolvePageMetadata", () => {
 		]);
 	});
 
+	it("resolves nlweb link for agent discovery", () => {
+		const contributions: PageMetadataContribution[] = [
+			{ kind: "link", rel: "nlweb", href: "https://example.com/nlweb" },
+		];
+
+		const result = resolvePageMetadata(contributions);
+
+		expect(result.links).toEqual([{ rel: "nlweb", href: "https://example.com/nlweb" }]);
+	});
+
 	it("resolves JSON-LD", () => {
 		const graph = { "@type": "Article", name: "Test" };
 		const contributions: PageMetadataContribution[] = [{ kind: "jsonld", id: "article", graph }];

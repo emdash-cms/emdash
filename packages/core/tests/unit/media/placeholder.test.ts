@@ -78,4 +78,66 @@ describe("generatePlaceholder", () => {
 		// Blurhash string length should be reasonable (not huge from 100x100)
 		expect(result!.blurhash.length).toBeLessThan(50);
 	});
+
+	it("returns null when image dimensions from headers exceed memory budget", async () => {
+		// Minimal valid JPEG with SOF0 declaring 5000x4000 dimensions.
+		// SOF0 marker (FFC0) stores height (2 bytes) then width (2 bytes).
+		// 5000×4000×4 = 80 MB > 32 MB threshold.
+		const sof0 = new Uint8Array([
+			0xff,
+			0xd8, // SOI
+			0xff,
+			0xe0,
+			0x00,
+			0x10, // APP0 marker + length
+			0x4a,
+			0x46,
+			0x49,
+			0x46,
+			0x00, // "JFIF\0"
+			0x01,
+			0x01,
+			0x00,
+			0x00,
+			0x01,
+			0x00,
+			0x01,
+			0x00,
+			0x00, // JFIF fields
+			0xff,
+			0xc0,
+			0x00,
+			0x0b, // SOF0 marker + length
+			0x08, // precision
+			0x0f,
+			0xa0, // height = 4000
+			0x13,
+			0x88, // width = 5000
+			0x01, // number of components
+			0x01,
+			0x11,
+			0x00, // component
+		]);
+		const result = await generatePlaceholder(sof0, "image/jpeg");
+		expect(result).toBeNull();
+	});
+
+	it("returns null when fallback dimensions exceed memory budget", async () => {
+		// Unrecognizable buffer — image-size can't parse it, so fallback dims are used
+		const buffer = new Uint8Array([0x00, 0x01, 0x02, 0x03]);
+		const result = await generatePlaceholder(buffer, "image/jpeg", {
+			width: 5000,
+			height: 4000,
+		});
+		expect(result).toBeNull();
+	});
+
+	it("still generates placeholder for small images with dimensions param", async () => {
+		const result = await generatePlaceholder(new Uint8Array(JPEG_4x4), "image/jpeg", {
+			width: 4,
+			height: 4,
+		});
+		expect(result).not.toBeNull();
+		expect(result!.blurhash).toBeTruthy();
+	});
 });

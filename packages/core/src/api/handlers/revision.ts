@@ -6,6 +6,7 @@ import type { Kysely } from "kysely";
 
 import { ContentRepository } from "../../database/repositories/content.js";
 import { RevisionRepository, type Revision } from "../../database/repositories/revision.js";
+import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import type { ApiResult, ContentResponse } from "../types.js";
 
@@ -95,7 +96,6 @@ export async function handleRevisionRestore(
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const revisionRepo = new RevisionRepository(db);
-		const contentRepo = new ContentRepository(db);
 
 		// Get the revision
 		const revision = await revisionRepo.findById(revisionId);
@@ -112,22 +112,31 @@ export async function handleRevisionRestore(
 		// Extract _slug from revision data (stored as metadata, not a real column)
 		const { _slug, ...fieldData } = revision.data;
 
-		// Update the content with the revision's data
-		const item = await contentRepo.update(revision.collection, revision.entryId, {
-			data: fieldData,
-			slug: typeof _slug === "string" ? _slug : undefined,
-		});
+		// Atomically update content and create a new revision to record the restore.
+		// If either operation fails, neither is committed (on engines that support
+		// transactions; on D1, withTransaction falls back to sequential execution).
+		const item = await withTransaction(db, async (trx) => {
+			const trxContentRepo = new ContentRepository(trx);
+			const trxRevisionRepo = new RevisionRepository(trx);
 
-		// Create a new revision to record the restore, attributed to the caller
-		await revisionRepo.create({
-			collection: revision.collection,
-			entryId: revision.entryId,
-			data: revision.data,
-			authorId: callerUserId,
+			const updated = await trxContentRepo.update(revision.collection, revision.entryId, {
+				data: fieldData,
+				slug: typeof _slug === "string" ? _slug : undefined,
+			});
+
+			await trxRevisionRepo.create({
+				collection: revision.collection,
+				entryId: revision.entryId,
+				data: revision.data,
+				authorId: callerUserId,
+			});
+
+			return updated;
 		});
 
 		// Fire-and-forget: prune old revisions to prevent unbounded growth
-		void revisionRepo.pruneOldRevisions(revision.collection, revision.entryId, 50).catch(() => {});
+		const pruneRepo = new RevisionRepository(db);
+		void pruneRepo.pruneOldRevisions(revision.collection, revision.entryId, 50).catch(() => {});
 
 		return {
 			success: true,

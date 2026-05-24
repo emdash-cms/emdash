@@ -129,7 +129,7 @@ function mockManifest(id = "test-seo", version = "1.0.0"): PluginManifest {
 	return {
 		id,
 		version,
-		capabilities: ["read:content"],
+		capabilities: ["content:read"],
 		allowedHosts: [],
 		storage: {},
 		hooks: [],
@@ -339,7 +339,7 @@ describe("Marketplace handlers", () => {
 			expect(result.success).toBe(true);
 			expect(result.data?.pluginId).toBe("test-seo");
 			expect(result.data?.version).toBe("1.0.0");
-			expect(result.data?.capabilities).toEqual(["read:content"]);
+			expect(result.data?.capabilities).toEqual(["content:read"]);
 
 			// Verify state was written
 			const repo = new PluginStateRepository(db);
@@ -571,7 +571,7 @@ describe("Marketplace handlers", () => {
 			// New version has additional capability
 			const newManifest = {
 				...mockManifest("test-seo", "2.0.0"),
-				capabilities: ["read:content", "network:fetch"],
+				capabilities: ["content:read", "network:request"],
 			};
 			const bundleBytes = await createMockBundle(newManifest as PluginManifest);
 
@@ -618,7 +618,7 @@ describe("Marketplace handlers", () => {
 
 			const newManifest = {
 				...mockManifest("test-seo", "2.0.0"),
-				capabilities: ["read:content", "network:fetch"],
+				capabilities: ["content:read", "network:request"],
 			};
 			const bundleBytes = await createMockBundle(newManifest as PluginManifest);
 
@@ -639,7 +639,60 @@ describe("Marketplace handlers", () => {
 			expect(result.success).toBe(true);
 			expect(result.data?.oldVersion).toBe("1.0.0");
 			expect(result.data?.newVersion).toBe("2.0.0");
-			expect(result.data?.capabilityChanges.added).toContain("network:fetch");
+			expect(result.data?.capabilityChanges.added).toContain("network:request");
+		});
+
+		it("treats deprecated → current capability rename as no change", async () => {
+			// Installed version declared the legacy name; new version
+			// declares the canonical name. diffCapabilities normalizes
+			// both sides, so the diff should be empty — no spurious
+			// "capability changed" prompt for a pure rename.
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+
+			const encoder = new TextEncoder();
+			const oldManifest = {
+				...mockManifest("test-seo", "1.0.0"),
+				capabilities: ["read:content"],
+			};
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/manifest.json",
+				body: encoder.encode(JSON.stringify(oldManifest)),
+				contentType: "application/json",
+			});
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/backend.js",
+				body: encoder.encode("export default {};"),
+				contentType: "application/javascript",
+			});
+
+			const newManifest = {
+				...mockManifest("test-seo", "2.0.0"),
+				capabilities: ["content:read"],
+			};
+			const bundleBytes = await createMockBundle(newManifest as PluginManifest);
+
+			const detail = mockPluginDetail("test-seo", "2.0.0");
+			detail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+
+			// No `confirmCapabilityChanges` — if the diff were non-empty,
+			// this would fail with CAPABILITY_ESCALATION.
+			const result = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+
+			expect(result.success).toBe(true);
+			expect(result.data?.capabilityChanges.added).toEqual([]);
+			expect(result.data?.capabilityChanges.removed).toEqual([]);
 		});
 	});
 

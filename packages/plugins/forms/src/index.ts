@@ -21,6 +21,7 @@
 import type { PluginDescriptor, ResolvedPlugin } from "emdash";
 import { definePlugin } from "emdash";
 
+import { version } from "../package.json";
 import { handleCleanup, handleDigest } from "./handlers/cron.js";
 import {
 	formsCreateHandler,
@@ -66,12 +67,12 @@ export function formsPlugin(
 ): PluginDescriptor<FormsPluginOptions> {
 	return {
 		id: "emdash-forms",
-		version: "0.0.1",
+		version,
 		entrypoint: "@emdash-cms/plugin-forms",
 		adminEntry: "@emdash-cms/plugin-forms/admin",
 		componentsEntry: "@emdash-cms/plugin-forms/astro",
 		options,
-		capabilities: ["email:send", "write:media", "network:fetch"],
+		capabilities: ["email:send", "media:write", "network:request"],
 		allowedHosts: ["*"],
 		adminPages: [
 			{ path: "/", label: "Forms", icon: "list" },
@@ -91,8 +92,8 @@ export function formsPlugin(
 export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin {
 	return definePlugin({
 		id: "emdash-forms",
-		version: "0.0.1",
-		capabilities: ["email:send", "write:media", "network:fetch"],
+		version,
+		capabilities: ["email:send", "media:write", "network:request"],
 		allowedHosts: ["*"],
 
 		storage: FORMS_STORAGE_CONFIG,

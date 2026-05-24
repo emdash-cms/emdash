@@ -24,6 +24,7 @@ import { ulid } from "ulidx";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { escapeHtml } from "#api/escape.js";
 import { handleApiTokenCreate } from "#api/handlers/api-tokens.js";
+import { getPublicOrigin } from "#api/public-url.js";
 import { isSafeRedirect } from "#api/redirect.js";
 import { runMigrations } from "#db/migrations/runner.js";
 import { OptionsRepository } from "#db/repositories/options.js";
@@ -120,7 +121,7 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 		}
 
 		// Store canonical site URL (used by magic-link/recovery emails)
-		await options.set("emdash:site_url", url.origin);
+		await options.set("emdash:site_url", getPublicOrigin(url, emdash?.config));
 
 		// Mark setup complete
 		await options.set("emdash:setup_complete", true);

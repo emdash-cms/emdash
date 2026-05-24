@@ -63,7 +63,7 @@ export async function sendMagicLink(
 	});
 
 	// Build magic link URL
-	const url = new URL("/api/auth/magic-link/verify", config.baseUrl);
+	const url = new URL("/_emdash/api/auth/magic-link/verify", config.baseUrl);
 	url.searchParams.set("token", token);
 
 	// Send email

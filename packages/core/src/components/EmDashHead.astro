@@ -3,8 +3,11 @@
  * Renders base SEO metadata, plugin-contributed metadata, and trusted head fragments.
  *
  * Base SEO metadata (meta tags, OG, Twitter Card, canonical, JSON-LD) is generated
- * from the page context's seo/articleMeta/siteName fields. Plugin contributions
- * come after, so they can override base tags via first-wins dedup in resolvePageMetadata().
+ * from the page context's seo/articleMeta/siteName fields. Contributions are
+ * composed in the order `[...plugin, ...site, ...base]` and resolved by
+ * `resolvePageMetadata()` with first-wins dedup. Plugins sit at the front of
+ * the array, so for any given key plugin contributions override site-level
+ * ones, which override base ones.
  *
  * Usage:
  * ```astro
@@ -16,8 +19,14 @@
 import type { PublicPageContext, PageMetadataContribution } from "../plugins/types.js";
 import { resolvePageMetadata, renderPageMetadata } from "../page/metadata.js";
 import { renderFragments } from "../page/fragments.js";
-import { generateBaseSeoContributions } from "../page/seo-contributions.js";
+import {
+	generateBaseSeoContributions,
+	generateSiteSeoContributions,
+} from "../page/seo-contributions.js";
+import { renderSiteIdentity } from "../page/site-identity.js";
 import { getPageRuntime } from "../page/index.js";
+import { getSiteSettings } from "../settings/index.js";
+import { absolutizeMediaUrl } from "../page/absolute-url.js";
 
 interface Props {
 	page: PublicPageContext;
@@ -26,28 +35,61 @@ interface Props {
 const { page } = Astro.props;
 const runtime = getPageRuntime(Astro.locals as Record<string, unknown>);
 
-// Base SEO contributions from page context (always generated)
-const baseContributions: PageMetadataContribution[] = generateBaseSeoContributions(page);
-
 let metadataHtml = "";
+let siteIdentityHtml = "";
 let fragmentsHtml = "";
 
 if (runtime) {
-	// Plugin contributions come BEFORE base, so resolvePageMetadata's
-	// first-wins dedup lets plugins override base SEO defaults
-	const pluginContributions = await runtime.collectPageMetadata(page);
-	const allContributions = [...pluginContributions, ...baseContributions];
+	// Run independent async loads in parallel: site settings (SEO meta
+	// tags + favicon) and plugin page-metadata contributions. Plugin
+	// contributions come BEFORE site/base in the contribution array,
+	// so resolvePageMetadata's first-wins dedup lets plugins override
+	// defaults.
+	//
+	// `getSiteSettings()` is request-cached and worker-cached, so when
+	// a parent template has already called it (the standard pattern in
+	// `Base.astro`), this is free. Otherwise it's a single batched
+	// query that supersedes any per-key fetch this component would
+	// otherwise have done.
+	const [siteSettings, pluginContributions, fragments] = await Promise.all([
+		getSiteSettings(),
+		runtime.collectPageMetadata(page),
+		runtime.collectPageFragments(page),
+	]);
+
+	// Site-level default OG image: applied per-page in base contributions
+	// rather than emitted unconditionally, so per-content images still win.
+	// `resolveMediaReference` populates `.url` on read; only the mediaId is
+	// stored, so an empty/orphaned reference safely yields undefined here.
+	//
+	// Absolutize so `og:image` / `twitter:image` / JSON-LD `image` carry a
+	// fully-qualified URL: many social-card scrapers (Slack, LinkedIn) refuse
+	// to follow relative paths even when the rest of the page provides
+	// canonical context.
+	const defaultOgImage = absolutizeMediaUrl(
+		siteSettings.seo?.defaultOgImage?.url,
+		siteSettings.url,
+		page,
+	);
+	const baseContributions: PageMetadataContribution[] = generateBaseSeoContributions(
+		page,
+		defaultOgImage,
+	);
+
+	const siteContributions = generateSiteSeoContributions(siteSettings.seo);
+	const allContributions = [...pluginContributions, ...siteContributions, ...baseContributions];
 	const resolved = resolvePageMetadata(allContributions);
 	metadataHtml = renderPageMetadata(resolved);
-
-	const fragments = await runtime.collectPageFragments(page);
+	siteIdentityHtml = renderSiteIdentity({ favicon: siteSettings.favicon });
 	fragmentsHtml = renderFragments(fragments, "head");
 } else {
 	// No runtime (EmDash not initialized) — still render base SEO
+	const baseContributions: PageMetadataContribution[] = generateBaseSeoContributions(page);
 	const resolved = resolvePageMetadata(baseContributions);
 	metadataHtml = renderPageMetadata(resolved);
 }
 ---
 
 <Fragment set:html={metadataHtml} />
+<Fragment set:html={siteIdentityHtml} />
 <Fragment set:html={fragmentsHtml} />

@@ -9,6 +9,7 @@ import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import type { APIRoute } from "astro";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { withTransaction } from "#db/transaction.js";
 
 export const prerender = false;
 
@@ -43,20 +44,25 @@ export const POST: APIRoute = async ({ params, locals }) => {
 			return apiError("NOT_FOUND", "User not found", 404);
 		}
 
-		// Check if this would leave no active admins
-		if (targetUser.role === Role.ADMIN) {
-			const adminCount = await adapter.countAdmins();
-			if (adminCount <= 1) {
-				return apiError(
-					"VALIDATION_ERROR",
-					"Cannot disable the last admin. Promote another user first.",
-					400,
-				);
+		// Wrap admin check + disable in a transaction to prevent two
+		// concurrent requests from both passing the count check.
+		const lastAdminBlocked = await withTransaction(emdash.db, async (trx) => {
+			const trxAdapter = createKyselyAdapter(trx);
+			if (targetUser.role === Role.ADMIN) {
+				const adminCount = await trxAdapter.countAdmins();
+				if (adminCount <= 1) return true;
 			}
-		}
+			await trxAdapter.updateUser(id, { disabled: true });
+			return false;
+		});
 
-		// Disable user
-		await adapter.updateUser(id, { disabled: true });
+		if (lastAdminBlocked) {
+			return apiError(
+				"VALIDATION_ERROR",
+				"Cannot disable the last admin. Promote another user first.",
+				400,
+			);
+		}
 
 		// SEC-43: Revoke all OAuth tokens for the disabled user.
 		// Without this, existing refresh tokens remain valid for up to 90 days.

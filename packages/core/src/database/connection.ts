@@ -1,6 +1,7 @@
 import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 
+import { kyselyLogOption } from "./instrumentation.js";
 import type { Database } from "./types.js";
 
 export interface DatabaseConfig {
@@ -16,6 +17,23 @@ export class EmDashDatabaseError extends Error {
 		super(message);
 		this.name = "EmDashDatabaseError";
 	}
+}
+
+/**
+ * Returns a helpful, actionable message when better-sqlite3's native binary
+ * was compiled against a different Node.js version than the one running. This
+ * happens after upgrading Node without rebuilding native deps.
+ *
+ * Returns null if the error is not a NODE_MODULE_VERSION mismatch.
+ */
+export function formatNativeModuleVersionError(error: unknown): string | null {
+	const message = error instanceof Error ? error.message : String(error);
+	if (!message.includes("NODE_MODULE_VERSION")) return null;
+	return (
+		"better-sqlite3's native binary was compiled against a different Node.js version. " +
+		"Rebuild it with `pnpm rebuild better-sqlite3` (or `npm rebuild better-sqlite3`), " +
+		"or reinstall dependencies with your current Node.js version."
+	);
 }
 
 /**
@@ -45,7 +63,7 @@ export function createDatabase(config: DatabaseConfig): Kysely<Database> {
 				database: sqlite,
 			});
 
-			return new Kysely<Database>({ dialect });
+			return new Kysely<Database>({ dialect, log: kyselyLogOption() });
 		}
 
 		// Handle libSQL (Turso)
@@ -61,6 +79,10 @@ export function createDatabase(config: DatabaseConfig): Kysely<Database> {
 	} catch (error) {
 		if (error instanceof EmDashDatabaseError) {
 			throw error;
+		}
+		const nativeVersionHint = formatNativeModuleVersionError(error);
+		if (nativeVersionHint) {
+			throw new EmDashDatabaseError(nativeVersionHint, error);
 		}
 		throw new EmDashDatabaseError("Failed to create database", error);
 	}

@@ -92,7 +92,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 						attachments,
 						emdash.db,
 						emdash.storage,
-						request.url,
 						sendProgress,
 					);
 
@@ -117,7 +116,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			attachments,
 			emdash.db,
 			emdash.storage,
-			request.url,
 			() => {}, // No-op progress callback
 		);
 
@@ -131,12 +129,9 @@ async function importMediaWithProgress(
 	attachments: AttachmentInfo[],
 	db: NonNullable<EmDashHandlers["db"]>,
 	storage: NonNullable<EmDashHandlers["storage"]>,
-	requestUrl: string,
 	onProgress: (progress: MediaImportProgress) => void,
 ): Promise<MediaImportResult> {
 	const repo = new MediaRepository(db);
-	const url = new URL(requestUrl);
-	const baseUrl = `${url.protocol}//${url.host}`;
 	const total = attachments.length;
 
 	const result: MediaImportResult = {
@@ -237,7 +232,7 @@ async function importMediaWithProgress(
 			const existing = await repo.findByContentHash(contentHash);
 			if (existing) {
 				// Same content already exists - reuse it
-				const existingUrl = `${baseUrl}/_emdash/api/media/file/${existing.storageKey}`;
+				const existingUrl = `/_emdash/api/media/file/${existing.storageKey}`;
 				result.urlMap[attachment.url] = existingUrl;
 				result.imported.push({
 					wpId: attachment.id,
@@ -290,7 +285,7 @@ async function importMediaWithProgress(
 			});
 
 			// Build the new URL
-			const newUrl = `${baseUrl}/_emdash/api/media/file/${storageKey}`;
+			const newUrl = `/_emdash/api/media/file/${storageKey}`;
 
 			result.imported.push({
 				wpId: attachment.id,

@@ -5,6 +5,7 @@
  */
 
 import type { BlobRef } from "./atproto.js";
+import { buildContentPath, getContentString } from "./content.js";
 
 // ── Pre-compiled regexes ────────────────────────────────────────
 
@@ -52,17 +53,19 @@ export type BskyEmbed = {
  */
 export function buildBskyPost(opts: {
 	template: string;
+	collection?: string;
 	content: Record<string, unknown>;
 	siteUrl: string;
 	thumbBlob?: BlobRef;
 	langs?: string[];
 }): BskyPost {
-	const { template, content, siteUrl, thumbBlob, langs } = opts;
+	const { template, collection, content, siteUrl, thumbBlob, langs } = opts;
 
-	const title = (content.title as string) || "Untitled";
-	const slug = content.slug as string;
-	const excerpt = (content.excerpt || content.description || "") as string;
-	const url = slug ? `${stripTrailingSlash(siteUrl)}/${slug}` : siteUrl;
+	const title = getContentString(content, "title") || "Untitled";
+	const excerpt =
+		getContentString(content, "excerpt") || getContentString(content, "description") || "";
+	const path = buildContentPath(collection, content);
+	const url = path ? `${stripTrailingSlash(siteUrl)}${path}` : siteUrl;
 
 	// Apply template -- substitute before truncation so we can detect
 	// if the URL survives intact after truncation

@@ -5,18 +5,18 @@
  */
 
 import { Button, Dialog, Input, Select, Toast } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
 	Trash,
 	CaretUp,
 	CaretDown,
 	Link as LinkIcon,
-	ArrowLeft,
 	X,
 	File as FileIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
@@ -25,14 +25,23 @@ import {
 	deleteMenuItem,
 	updateMenuItem,
 	reorderMenuItems,
+	fetchMenuTranslations,
+	createMenuTranslation,
 	type MenuItem,
 } from "../lib/api";
+import { fetchManifest } from "../lib/api/client.js";
 import { useCachedQuery } from "../lib/cache/cached-query.js";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { useI18nConfig } from "./LocaleSwitcher.js";
+import { TranslationsPanel } from "./TranslationsPanel.js";
 
 export function MenuEditor() {
+	const { t } = useLingui();
 	const { name } = useParams({ from: "/_admin/menus/$name" });
+	const search = useSearch({ from: "/_admin/menus/$name" });
+	const routeLocale = search.locale;
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -43,11 +52,59 @@ export function MenuEditor() {
 	const [addError, setAddError] = React.useState<string | null>(null);
 	const [editError, setEditError] = React.useState<string | null>(null);
 
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+	const i18n = useI18nConfig(manifest);
+
 	const { data: menu, isLoading } = useCachedQuery({
-		queryKey: ["menu", name],
-		queryFn: () => fetchMenu(name),
+		queryKey: ["menu", name, routeLocale ?? null],
+		queryFn: () => fetchMenu(name, { locale: routeLocale }),
 		staleTime: Infinity,
-		cache: { store: "menus", key: name },
+		cache: { store: "menus", key: routeLocale ? `${name}:${routeLocale}` : name },
+	});
+
+	// The locale we lock mutations to: explicit URL param wins; else fall back
+	// to whatever the loaded menu row says (handles entry from the old /menus/$name
+	// URL without a locale query).
+	const menuLocale = routeLocale ?? menu?.locale;
+
+	const { data: translationsData } = useQuery({
+		queryKey: ["menu-translations", name, menuLocale ?? null],
+		queryFn: () => fetchMenuTranslations(name, { locale: menuLocale }),
+		enabled: !!menu && !!i18n && i18n.locales.length > 1,
+	});
+
+	const translateMutation = useMutation({
+		mutationFn: (targetLocale: string) =>
+			createMenuTranslation(
+				name,
+				{ locale: targetLocale, label: menu?.label },
+				{ locale: menuLocale },
+			),
+		onSuccess: (translated) => {
+			void queryClient.invalidateQueries({ queryKey: ["menus"] });
+			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
+			void queryClient.invalidateQueries({ queryKey: ["menu-translations", name] });
+			toastManager.add({
+				title: t`Translation created`,
+				description: t`Menu "${translated.label}" (${translated.locale.toUpperCase()}) created.`,
+			});
+			// Switch the editor to the new locale so the user keeps editing.
+			void navigate({
+				to: "/menus/$name",
+				params: { name },
+				search: { locale: translated.locale },
+			});
+		},
+		onError: (error: Error) => {
+			toastManager.add({
+				title: t`Error`,
+				description: error.message,
+				type: "error",
+			});
+		},
 	});
 
 	// Sync local items with fetched data
@@ -58,11 +115,12 @@ export function MenuEditor() {
 	}, [menu]);
 
 	const createMutation = useMutation({
-		mutationFn: (input: Parameters<typeof createMenuItem>[1]) => createMenuItem(name, input),
+		mutationFn: (input: Parameters<typeof createMenuItem>[1]) =>
+			createMenuItem(name, input, { locale: menuLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			setIsAddOpen(false);
-			toastManager.add({ title: "Item added", description: "Menu item has been added." });
+			toastManager.add({ title: t`Item added`, description: t`Menu item has been added.` });
 		},
 		onError: (error: Error) => {
 			setAddError(error.message);
@@ -70,17 +128,17 @@ export function MenuEditor() {
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: (itemId: string) => deleteMenuItem(name, itemId),
+		mutationFn: (itemId: string) => deleteMenuItem(name, itemId, { locale: menuLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			toastManager.add({
-				title: "Item deleted",
-				description: "Menu item has been deleted.",
+				title: t`Item deleted`,
+				description: t`Menu item has been deleted.`,
 			});
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: "Error",
+				title: t`Error`,
 				description: error.message,
 				type: "error",
 			});
@@ -94,13 +152,13 @@ export function MenuEditor() {
 		}: {
 			itemId: string;
 			input: Parameters<typeof updateMenuItem>[2];
-		}) => updateMenuItem(name, itemId, input),
+		}) => updateMenuItem(name, itemId, input, { locale: menuLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			setEditingItem(null);
 			toastManager.add({
-				title: "Item updated",
-				description: "Menu item has been updated.",
+				title: t`Item updated`,
+				description: t`Menu item has been updated.`,
 			});
 		},
 		onError: (error: Error) => {
@@ -109,17 +167,18 @@ export function MenuEditor() {
 	});
 
 	const reorderMutation = useMutation({
-		mutationFn: (input: Parameters<typeof reorderMenuItems>[1]) => reorderMenuItems(name, input),
+		mutationFn: (input: Parameters<typeof reorderMenuItems>[1]) =>
+			reorderMenuItems(name, input, { locale: menuLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["menu", name] });
 			toastManager.add({
-				title: "Order saved",
-				description: "Menu order has been updated.",
+				title: t`Order saved`,
+				description: t`Menu order has been updated.`,
 			});
 		},
 		onError: (error: Error) => {
 			toastManager.add({
-				title: "Error",
+				title: t`Error`,
 				description: error.message,
 				type: "error",
 			});
@@ -184,7 +243,7 @@ export function MenuEditor() {
 		// Update sort orders
 		const reorderedItems = newItems.map((item, i) => ({
 			id: item.id,
-			parentId: item.parent_id,
+			parentId: item.parentId,
 			sortOrder: i,
 		}));
 
@@ -195,7 +254,7 @@ export function MenuEditor() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-64">
-				<div className="text-kumo-subtle">Loading menu...</div>
+				<div className="text-kumo-subtle">{t`Loading menu...`}</div>
 			</div>
 		);
 	}
@@ -203,7 +262,7 @@ export function MenuEditor() {
 	if (!menu) {
 		return (
 			<div className="text-center py-12">
-				<p className="text-kumo-subtle">Menu not found</p>
+				<p className="text-kumo-subtle">{t`Menu not found`}</p>
 			</div>
 		);
 	}
@@ -215,14 +274,14 @@ export function MenuEditor() {
 					<Button
 						variant="ghost"
 						size="sm"
-						aria-label="Back"
+						aria-label={t`Back`}
 						onClick={() => navigate({ to: "/menus" })}
 					>
-						<ArrowLeft className="h-4 w-4" />
+						<ArrowPrev className="h-4 w-4" />
 					</Button>
 					<div>
 						<h1 className="text-3xl font-bold">{menu.label}</h1>
-						<p className="text-kumo-subtle">Edit menu items</p>
+						<p className="text-kumo-subtle">{t`Edit menu items`}</p>
 					</div>
 				</div>
 				<div className="flex gap-2">
@@ -231,7 +290,7 @@ export function MenuEditor() {
 						variant="outline"
 						onClick={() => setIsContentPickerOpen(true)}
 					>
-						Add Content
+						{t`Add Content`}
 					</Button>
 					<Dialog.Root
 						open={isAddOpen}
@@ -243,56 +302,58 @@ export function MenuEditor() {
 						<Dialog.Trigger
 							render={(props) => (
 								<Button {...props} icon={<Plus />}>
-									Add Custom Link
+									{t`Add Custom Link`}
 								</Button>
 							)}
 						/>
 						<Dialog className="p-6" size="lg">
 							<div className="flex items-start justify-between gap-4 mb-4">
 								<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-									Add Custom Link
+									{t`Add Custom Link`}
 								</Dialog.Title>
 								<Dialog.Close
-									aria-label="Close"
+									aria-label={t`Close`}
 									render={(props) => (
 										<Button
 											{...props}
 											variant="ghost"
 											shape="square"
-											aria-label="Close"
-											className="absolute right-4 top-4"
+											aria-label={t`Close`}
+											className="absolute end-4 top-4"
 										>
 											<X className="h-4 w-4" />
-											<span className="sr-only">Close</span>
+											<span className="sr-only">{t`Close`}</span>
 										</Button>
 									)}
 								/>
 							</div>
 							<form onSubmit={handleAddCustomLink} className="space-y-4">
-								<Input label="Label" name="label" required placeholder="Home" />
+								<Input label={t`Label`} name="label" required placeholder={t`Home`} />
 								<Input
-									label="URL"
+									label={t`URL`}
 									name="url"
-									type="url"
+									type="text"
 									required
-									placeholder="https://example.com"
+									pattern="(https?://.+|/.*)"
+									title={t`Enter a URL (https://…) or a relative path (/…)`}
+									placeholder={t`https://example.com or /about`}
 								/>
 								<Select
-									label="Target"
+									label={t`Target`}
 									name="target"
 									defaultValue=""
-									items={{ "": "Same window", _blank: "New window" }}
+									items={{ "": t`Same window`, _blank: t`New window` }}
 								>
-									<Select.Option value="">Same window</Select.Option>
-									<Select.Option value="_blank">New window</Select.Option>
+									<Select.Option value="">{t`Same window`}</Select.Option>
+									<Select.Option value="_blank">{t`New window`}</Select.Option>
 								</Select>
 								<DialogError message={addError || getMutationError(createMutation.error)} />
 								<div className="flex justify-end gap-2">
 									<Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
-										Cancel
+										{t`Cancel`}
 									</Button>
 									<Button type="submit" disabled={createMutation.isPending}>
-										{createMutation.isPending ? "Adding..." : "Add"}
+										{createMutation.isPending ? t`Adding...` : t`Add`}
 									</Button>
 								</div>
 							</form>
@@ -307,21 +368,47 @@ export function MenuEditor() {
 				onSelect={handleAddContent}
 			/>
 
+			{i18n && i18n.locales.length > 1 && menu ? (
+				<div className="border rounded-lg p-4">
+					<TranslationsPanel
+						locales={i18n.locales}
+						defaultLocale={i18n.defaultLocale}
+						currentLocale={menu.locale}
+						translations={
+							translationsData?.translations.map((tr) => ({ id: tr.id, locale: tr.locale })) ?? [
+								{ id: menu.id, locale: menu.locale },
+							]
+						}
+						onOpen={(tr) =>
+							navigate({
+								to: "/menus/$name",
+								params: { name },
+								search: { locale: tr.locale },
+							})
+						}
+						onCreate={(target) => translateMutation.mutate(target)}
+						pendingLocale={
+							translateMutation.isPending ? (translateMutation.variables ?? null) : null
+						}
+					/>
+				</div>
+			) : null}
+
 			{localItems.length === 0 ? (
 				<div className="border rounded-lg p-12 text-center">
 					<LinkIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" />
-					<h3 className="text-lg font-semibold mb-2">No menu items yet</h3>
-					<p className="text-kumo-subtle mb-4">Add links to build your navigation menu</p>
+					<h3 className="text-lg font-semibold mb-2">{t`No menu items yet`}</h3>
+					<p className="text-kumo-subtle mb-4">{t`Add links to build your navigation menu`}</p>
 					<div className="flex justify-center gap-2">
 						<Button
 							icon={<FileIcon />}
 							variant="outline"
 							onClick={() => setIsContentPickerOpen(true)}
 						>
-							Add Content
+							{t`Add Content`}
 						</Button>
 						<Button icon={<Plus />} onClick={() => setIsAddOpen(true)}>
-							Add Custom Link
+							{t`Add Custom Link`}
 						</Button>
 					</div>
 				</div>
@@ -333,20 +420,20 @@ export function MenuEditor() {
 								<div className="font-medium">{item.label}</div>
 								<div className="text-sm text-kumo-subtle">
 									{item.type === "custom" ? (
-										item.custom_url
+										item.customUrl
 									) : (
 										<span className="inline-flex items-center rounded-full bg-kumo-brand/10 px-2 py-0.5 text-xs font-medium text-kumo-brand">
-											{item.reference_collection ?? item.type}
+											{item.referenceCollection ?? item.type}
 										</span>
 									)}
-									{item.target === "_blank" && " (opens in new window)"}
+									{item.target === "_blank" && t` (opens in new window)`}
 								</div>
 							</div>
 							<div className="flex gap-2">
 								<Button
 									variant="ghost"
 									size="sm"
-									aria-label="Move up"
+									aria-label={t`Move up`}
 									onClick={() => moveItem(index, "up")}
 									disabled={index === 0}
 								>
@@ -355,19 +442,19 @@ export function MenuEditor() {
 								<Button
 									variant="ghost"
 									size="sm"
-									aria-label="Move down"
+									aria-label={t`Move down`}
 									onClick={() => moveItem(index, "down")}
 									disabled={index === localItems.length - 1}
 								>
 									<CaretDown className="h-4 w-4" />
 								</Button>
 								<Button variant="outline" size="sm" onClick={() => setEditingItem(item)}>
-									Edit
+									{t`Edit`}
 								</Button>
 								<Button
 									variant="outline"
 									size="sm"
-									aria-label="Delete"
+									aria-label={t`Delete`}
 									onClick={() => deleteMutation.mutate(item.id)}
 								>
 									<Trash className="h-4 w-4" />
@@ -390,52 +477,54 @@ export function MenuEditor() {
 				<Dialog className="p-6" size="lg">
 					<div className="flex items-start justify-between gap-4 mb-4">
 						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-							Edit Menu Item
+							{t`Edit Menu Item`}
 						</Dialog.Title>
 						<Dialog.Close
-							aria-label="Close"
+							aria-label={t`Close`}
 							render={(props) => (
 								<Button
 									{...props}
 									variant="ghost"
 									shape="square"
-									aria-label="Close"
-									className="absolute right-4 top-4"
+									aria-label={t`Close`}
+									className="absolute end-4 top-4"
 								>
 									<X className="h-4 w-4" />
-									<span className="sr-only">Close</span>
+									<span className="sr-only">{t`Close`}</span>
 								</Button>
 							)}
 						/>
 					</div>
 					{editingItem && (
 						<form onSubmit={handleUpdateItem} className="space-y-4">
-							<Input label="Label" name="label" required defaultValue={editingItem.label} />
+							<Input label={t`Label`} name="label" required defaultValue={editingItem.label} />
 							{editingItem.type === "custom" && (
 								<Input
-									label="URL"
+									label={t`URL`}
 									name="url"
-									type="url"
+									type="text"
 									required
-									defaultValue={editingItem.custom_url || ""}
+									pattern="(https?://.+|/.*)"
+									title={t`Enter a URL (https://…) or a relative path (/…)`}
+									defaultValue={editingItem.customUrl || ""}
 								/>
 							)}
 							<Select
-								label="Target"
+								label={t`Target`}
 								name="target"
 								defaultValue={editingItem.target || ""}
-								items={{ "": "Same window", _blank: "New window" }}
+								items={{ "": t`Same window`, _blank: t`New window` }}
 							>
-								<Select.Option value="">Same window</Select.Option>
-								<Select.Option value="_blank">New window</Select.Option>
+								<Select.Option value="">{t`Same window`}</Select.Option>
+								<Select.Option value="_blank">{t`New window`}</Select.Option>
 							</Select>
 							<DialogError message={editError || getMutationError(updateMutation.error)} />
 							<div className="flex justify-end gap-2">
 								<Button type="button" variant="outline" onClick={() => setEditingItem(null)}>
-									Cancel
+									{t`Cancel`}
 								</Button>
 								<Button type="submit" disabled={updateMutation.isPending}>
-									{updateMutation.isPending ? "Saving..." : "Save"}
+									{updateMutation.isPending ? t`Saving...` : t`Save`}
 								</Button>
 							</div>
 						</form>
