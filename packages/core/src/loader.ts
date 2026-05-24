@@ -311,10 +311,12 @@ function buildStatusCondition(
 		const scheduledAtExpr = isPostgres(db)
 			? sql`${sql.ref(scheduledAtField)}::timestamptz`
 			: sql.ref(scheduledAtField);
-		return sql`(${sql.ref(statusField)} = 'published' OR (${sql.ref(statusField)} = 'scheduled' AND ${scheduledAtExpr} <= ${currentTimestampValue(db)}))`;
+		const nowExpr = isPostgres(db)
+			? currentTimestampValue(db)
+			: sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
+		return sql`(${sql.ref(statusField)} = 'published' OR (${sql.ref(statusField)} = 'scheduled' AND ${scheduledAtExpr} <= ${nowExpr}))`;
 	}
 
-	// For other statuses (draft, archived), just match exactly
 	return sql`${sql.ref(statusField)} = ${status}`;
 }
 
