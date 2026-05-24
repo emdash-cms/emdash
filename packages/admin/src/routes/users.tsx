@@ -6,7 +6,7 @@
 
 import { useLingui } from "@lingui/react/macro";
 import { Trans } from "@lingui/react/macro";
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { ConfirmDialog } from "../components/ConfirmDialog.js";

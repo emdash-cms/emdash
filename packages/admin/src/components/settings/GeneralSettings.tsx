@@ -8,7 +8,6 @@
 import { Button, Input, Label, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	FloppyDisk,
 	CheckCircle,
 	WarningCircle,
