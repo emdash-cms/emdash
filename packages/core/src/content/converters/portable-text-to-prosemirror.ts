@@ -35,13 +35,23 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 
 		// Check for list items
 		if (isTextBlock(block) && block.listItem) {
-			// Collect consecutive list items
+			// Collect a list "run": the level=1 anchor plus everything that
+			// nests under it (level > 1, regardless of listItem type — a number
+			// child under a bullet parent is still part of the same tree). A
+			// level=1 block with a different listItem ends the run. Without the
+			// `level > 1` carve-out the run breaks on the first nested type
+			// switch and the descendant subtree leaks out as its own top-level
+			// list (e.g. `[bullet L1, number L2, bullet L1]` would render as
+			// three sibling lists instead of one bullet list with a numbered
+			// child).
 			const listBlocks: PortableTextTextBlock[] = [];
 			const listType = block.listItem;
 
 			while (i < blocks.length) {
 				const current = blocks[i];
-				if (isTextBlock(current) && current.listItem === listType) {
+				if (!isTextBlock(current) || !current.listItem) break;
+				const level = current.level || 1;
+				if (level > 1 || current.listItem === listType) {
 					listBlocks.push(current);
 					i++;
 				} else {
