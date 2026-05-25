@@ -77,14 +77,11 @@ describe("content terms endpoint — slug resolution (#1045)", () => {
 			buildContext({
 				emdash,
 				params: { collection: "post", id: "esim-pakistan", taxonomy: "tag" },
-				request: new Request(
-					"http://localhost/_emdash/api/content/post/esim-pakistan/terms/tag",
-					{
-						method: "POST",
-						headers: { "content-type": "application/json" },
-						body: JSON.stringify({ termIds: [term.id] }),
-					},
-				),
+				request: new Request("http://localhost/_emdash/api/content/post/esim-pakistan/terms/tag", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ termIds: [term.id] }),
+				}),
 			}),
 		);
 		expect(postRes.status).toBe(200);
