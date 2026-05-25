@@ -42,6 +42,11 @@ overrides:
   "@astrojs/telemetry": "3.3.0"
   # 1.3.0 is deprecated (CWE-502); pin the patched line.
   "@ungap/structured-clone": "^1.3.1"
+  "@hono/node-server": ^1.19.13
+  hono: ^4.12.22
+  qs: ^6.15.2
+  read-yaml-file>js-yaml: 3.14.2
+  simple-git: ^3.36.0
 
 enablePrePostScripts: true
 
@@ -60,9 +65,9 @@ packages:
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
   "@astrojs/check": ^0.9.7
-  "@astrojs/cloudflare": ^13.5.3
+  "@astrojs/cloudflare": ^13.5.4
   "@astrojs/node": ^10.1.1
-  "@astrojs/react": ^5.0.0
+  "@astrojs/react": ^5.0.5
   "@atcute/atproto": ^3.1.11
   "@atcute/car": ^6.0.0
   "@atcute/cbor": ^2.3.3
@@ -84,7 +89,7 @@ catalog:
   "@atproto/crypto": ^0.4.5
   "@atproto/repo": ^0.9.1
   "@cloudflare/kumo": ^1.16.0
-  "@cloudflare/vite-plugin": ^1.36.3
+  "@cloudflare/vite-plugin": ^1.38.0
   "@cloudflare/vitest-pool-workers": ^0.16.3
   "@cloudflare/workers-types": ^4.20260305.1
   "@iconify-json/ph": ^1.2.2
@@ -125,7 +130,7 @@ catalog:
   "@types/better-sqlite3": ^7.6.12
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
-  astro: ^6.3.0
+  astro: ^6.3.7
   astro-iconset: ^0.0.4
   better-sqlite3: ^12.8.0
   chokidar: ^5.0.0
@@ -136,7 +141,7 @@ catalog:
   react-dom: 19.2.4
   tsdown: 0.20.3
   typescript: ^6.0.3
-  vite: ^8.0.11
+  vite: ^8.0.14
   vitest: ^4.1.5
-  wrangler: ^4.83.0
+  wrangler: ^4.90.0
   zod: ^4.4.1

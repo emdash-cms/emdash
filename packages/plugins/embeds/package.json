@@ -31,6 +31,9 @@
 		"@emdash-cms/blocks": "workspace:*",
 		"astro-embed": "^0.12.0"
 	},
+	"devDependencies": {
+		"astro": "catalog:"
+	},
 	"scripts": {
 		"typecheck": "tsgo --noEmit"
 	},

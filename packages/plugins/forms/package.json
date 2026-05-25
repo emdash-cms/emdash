@@ -32,6 +32,7 @@
 		"@cloudflare/kumo": "catalog:"
 	},
 	"devDependencies": {
+		"astro": "catalog:",
 		"vitest": "catalog:"
 	},
 	"dependencies": {

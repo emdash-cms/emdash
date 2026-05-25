@@ -81,11 +81,12 @@
     "astro": ">=6.0.0-beta.0",
     "kysely": ">=0.28.17"
   },
-  "devDependencies": {
-    "@arethetypeswrong/cli": "catalog:",
-    "@cloudflare/workers-types": "catalog:",
-    "publint": "catalog:",
-    "tsdown": "catalog:",
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"@cloudflare/workers-types": "catalog:",
+		"astro": "catalog:",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

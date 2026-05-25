@@ -22,7 +22,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "tailwindcss": "^4.1.11",
     "typescript": "catalog:",
-    "vite": "^6.3.5",
+		"vite": "catalog:",
     "wrangler": "^4.63.0"
   },
   "peerDependencies": {},

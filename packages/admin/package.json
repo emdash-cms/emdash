@@ -67,7 +67,7 @@
     "@tiptap/starter-kit": "catalog:",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "dompurify": "^3.3.2",
+		"dompurify": "^3.4.5",
     "marked": "^17.0.3",
     "react-hotkeys-hook": "^5.2.4",
     "tailwind-merge": "^3.3.0"
@@ -92,7 +92,7 @@
     "tailwindcss": "^4.1.10",
     "tsdown": "catalog:",
     "typescript": "catalog:",
-    "vite": "^7.0.0",
+		"vite": "catalog:",
     "vitest": "catalog:",
     "vitest-browser-react": "^2.0.5"
   },
