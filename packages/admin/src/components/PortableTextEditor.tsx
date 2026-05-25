@@ -550,9 +550,14 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 			const listBlocks: PortableTextTextBlock[] = [];
 			const listType = block.listItem;
 
+			// A list "run" is a level=1 anchor block plus everything that nests
+			// under it (level > 1) or repeats it at the same root level/type.
+			// A level=1 block with a different listItem ends the run.
 			while (i < blocks.length) {
 				const current = blocks[i]!;
-				if (isTextBlock(current) && current.listItem === listType) {
+				if (!isTextBlock(current) || !current.listItem) break;
+				const level = current.level || 1;
+				if (level > 1 || current.listItem === listType) {
 					listBlocks.push(current);
 					i++;
 				} else {
@@ -741,22 +746,83 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 }
 
 function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "number"): unknown {
-	const listItems = items.map((item) => {
-		const pmContent = convertPTSpans(item.children, item.markDefs || []);
-		return {
-			type: "listItem",
-			content: [
-				{
-					type: "paragraph",
-					content: pmContent.length > 0 ? pmContent : undefined,
-				},
-			],
-		};
-	});
+	// Group items into root-level items (level === 1) and their nested
+	// descendants (level > 1). For each root item, all subsequent items with
+	// level > 1 belong to its nested subtree — recurse on them with level
+	// decremented so the inner pass sees them as its own root level.
+	const rootItems: unknown[] = [];
+	let i = 0;
+
+	while (i < items.length) {
+		const item = items[i]!;
+		const level = item.level || 1;
+
+		if (level === 1) {
+			const nestedItems: PortableTextTextBlock[] = [];
+			i++;
+			while (i < items.length && (items[i]!.level || 1) > 1) {
+				nestedItems.push(items[i]!);
+				i++;
+			}
+			rootItems.push(convertPTListItem(item, nestedItems, listType));
+		} else {
+			// Orphan nested item with no preceding level=1 anchor — treat as root
+			// so we don't drop content.
+			rootItems.push(convertPTListItem(item, [], listType));
+			i++;
+		}
+	}
 
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
-		content: listItems,
+		content: rootItems,
+	};
+}
+
+function convertPTListItem(
+	item: PortableTextTextBlock,
+	nestedItems: PortableTextTextBlock[],
+	parentListType: "bullet" | "number",
+): unknown {
+	const content: unknown[] = [];
+
+	const pmContent = convertPTSpans(item.children, item.markDefs || []);
+	content.push({
+		type: "paragraph",
+		content: pmContent.length > 0 ? pmContent : undefined,
+	});
+
+	if (nestedItems.length > 0) {
+		// A single listItem can contain multiple consecutive nested sub-lists if
+		// the type alternates (e.g. bullet → number → bullet). Group adjacent
+		// nested items by listType, then recurse with level decremented so each
+		// sub-list sees its own root level as 1.
+		let j = 0;
+		while (j < nestedItems.length) {
+			const nestedListType = nestedItems[j]!.listItem || parentListType;
+			const nestedGroup: PortableTextTextBlock[] = [];
+
+			while (
+				j < nestedItems.length &&
+				(nestedItems[j]!.listItem || parentListType) === nestedListType
+			) {
+				nestedGroup.push(nestedItems[j]!);
+				j++;
+			}
+
+			if (nestedGroup.length > 0) {
+				const adjustedGroup = nestedGroup.map((ni) => ({
+					...ni,
+					level: (ni.level || 2) - 1,
+				}));
+				content.push(convertPTList(adjustedGroup, nestedListType));
+			}
+		}
+	}
+
+	return {
+		type: "listItem",
+		content,
 	};
 }
 
