@@ -256,15 +256,15 @@ msgstr "{base} to: {0}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:337
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
-msgstr ""
+msgstr "{changedCount, plural, one {# Änderung von nächster Revision} other {# Änderungen von nächster Revision}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:1908
 msgid "{count, plural, one {# file} other {# files}}"
-msgstr ""
+msgstr "{count, plural, one {# Datei} other {# Dateien}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2157
 msgid "{count, plural, one {# item} other {# items}}"
-msgstr ""
+msgstr "{count, plural, one {# Element} other {# Elemente}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:1979
 msgid "{current} of {total}"
@@ -272,13 +272,13 @@ msgstr "{current} von {total}"
 
 #: packages/admin/src/components/ContentList.tsx:506
 msgid "{filteredCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr ""
+msgstr "{filteredCount, plural, one {# Element passend zu \"{searchQuery}\"} other {# Elemente passend zu \"{searchQuery}\"}}"
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
 #: packages/admin/src/components/ContentList.tsx:517
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
-msgstr ""
+msgstr "{filteredCount, plural, one {#{0} Element} other {#{1} Elemente}}"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:107
 msgid "{label} — no translation"
@@ -298,11 +298,11 @@ msgstr "{matchedCount} von {totalCount} Autoren erkannt durch E-Mail"
 
 #: packages/admin/src/components/WordPressImport.tsx:1715
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
-msgstr ""
+msgstr "{needsNewCollections, plural, one {# neue Kollektion wird erstellt} other {# neue Kollektionen werden erstellt}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:1724
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
-msgstr ""
+msgstr "{needsNewFields, plural, one {Felder werden zu # bestehenden Kollektion hinzuegfügt} other {Felder werden zu # bestehenden Kollektionen hinzuegfügt}}"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:79
 msgid "{pluginName} is requesting additional permissions:"
@@ -314,21 +314,21 @@ msgstr "{pluginName} benötigt die folgenden Berechtigungen:"
 
 #: packages/admin/src/components/ContentList.tsx:512
 msgid "{total, plural, one {# item} other {# items}}"
-msgstr ""
+msgstr "{total, plural, one {# Element} other {# Elemente}}"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:149
 msgid "{total, plural, one {# total} other {# total}}"
-msgstr ""
+msgstr "{total, plural, one {# insgesamt} other {# insgesamt}}"
 
 #: packages/admin/src/components/MediaLibrary.tsx:146
 #: packages/admin/src/components/MediaLibrary.tsx:182
 msgid "{total, plural, one {File uploaded} other {# files uploaded}}"
-msgstr ""
+msgstr "{total, plural, one {Datei hochgeladen} other {# Dateien hochgeladen}}"
 
 #: packages/admin/src/components/MediaLibrary.tsx:151
 #: packages/admin/src/components/MediaLibrary.tsx:187
 msgid "{total, plural, one {Upload failed} other {All # uploads failed}}"
-msgstr ""
+msgstr "{total, plural, one {Hochladen der Datei ist fehlgeschlagen} other {Hochladen von # Dateien ist fehlgeschlagen}}"
 
 #: packages/admin/src/components/Dashboard.tsx:113
 msgid "{totalDrafts, plural, one {# draft} other {# drafts}}"
@@ -340,11 +340,11 @@ msgstr "{totalScheduled, plural, one {# geplant} other {# geplant}}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:349
 msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
-msgstr ""
+msgstr "{unchangedCount, plural, one {# unverändertes Element ausblenden} other {# unveränderte Elemente ausblenden}}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:350
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
-msgstr ""
+msgstr "{unchangedCount, plural, one {# unverändertes Element einblenden} other {# unveränderte Elemente einblenden}}"
 
 #: packages/admin/src/components/MediaLibrary.tsx:156
 #: packages/admin/src/components/MediaLibrary.tsx:192
