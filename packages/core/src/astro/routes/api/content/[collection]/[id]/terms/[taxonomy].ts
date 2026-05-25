@@ -35,7 +35,14 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
 	try {
 		const repo = new TaxonomyRepository(emdash.db);
-		const terms = await repo.getTermsForEntry(collection, id, taxonomy);
+		// The URL `id` may be a slug. Term rows are keyed by the canonical
+		// content ULID — the POST handler resolves the slug and stores under
+		// that ULID, so the read must resolve it too. Without this, a request
+		// addressed by slug looks up assignments under the slug, finds none,
+		// and returns an empty list even though the term is assigned (#1045).
+		const existing = await emdash.handleContentGet(collection, id);
+		const canonicalId = existing.success ? (existing.data?.item.id ?? id) : id;
+		const terms = await repo.getTermsForEntry(collection, canonicalId, taxonomy);
 
 		return apiSuccess({
 			terms: terms.map((t) => ({
