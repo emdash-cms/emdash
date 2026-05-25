@@ -28,7 +28,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	const validSorts = new Set(["name", "created", "updated"]);
 	let sort: "name" | "created" | "updated" | undefined;
 	if (sortParam && validSorts.has(sortParam)) {
-		sort = sortParam as "name" | "created" | "updated"; // eslint-disable-line typescript-eslint(no-unsafe-type-assertion) -- validated by Set.has()
+		sort = sortParam as "name" | "created" | "updated"; // eslint-disable-line typescript/no-unsafe-type-assertion -- validated by Set.has()
 	}
 	const cursor = url.searchParams.get("cursor") ?? undefined;
 	const limitParam = url.searchParams.get("limit");

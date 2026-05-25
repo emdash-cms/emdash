@@ -135,7 +135,7 @@ export default defineConfig({
 	inputOptions: (options) => {
 		// tsdown has already normalized the `entry` array into an input record
 		// by this hook; we only augment it with the route map.
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- normalized input record at the inputOptions hook
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- normalized input record at the inputOptions hook
 		options.input = { ...(options.input as Record<string, string>), ...routeInputMap() };
 		return options;
 	},

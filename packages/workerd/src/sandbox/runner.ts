@@ -254,6 +254,34 @@ export function waitForProcessExit(proc: ChildProcess, timeoutMs = 5000): Promis
 	return exitPromise;
 }
 
+/** Decoded claims encoded in a per-plugin auth token. */
+export interface PluginTokenClaims {
+	pluginId: string;
+	version: string;
+	capabilities: string[];
+	allowedHosts: string[];
+	storageCollections: string[];
+}
+
+function isStringArray(value: unknown): value is string[] {
+	return Array.isArray(value) && value.every((v) => typeof v === "string");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isTokenClaims(value: unknown): value is PluginTokenClaims {
+	if (!isRecord(value)) return false;
+	return (
+		typeof value.pluginId === "string" &&
+		typeof value.version === "string" &&
+		isStringArray(value.capabilities) &&
+		isStringArray(value.allowedHosts) &&
+		isStringArray(value.storageCollections)
+	);
+}
+
 /**
  * Workerd sandbox runner for Node.js deployments.
  *
@@ -627,17 +655,14 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		const b = Buffer.from(expectedHmac);
 		if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
 
+		let parsed: unknown;
 		try {
-			return JSON.parse(payload) as {
-				pluginId: string;
-				version: string;
-				capabilities: string[];
-				allowedHosts: string[];
-				storageCollections: string[];
-			};
+			parsed = JSON.parse(payload);
 		} catch {
 			return null;
 		}
+		if (!isTokenClaims(parsed)) return null;
+		return parsed;
 	}
 
 	/**
@@ -860,10 +885,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * could return a stale version's storage schema after a plugin upgrade,
 	 * so we require both id and version.
 	 */
-	getPluginStorageConfig(pluginId: string, version: string): Record<string, unknown> | undefined {
+	getPluginStorageConfig(pluginId: string, version: string): PluginManifest["storage"] | undefined {
 		const plugin = this.plugins.get(`${pluginId}:${version}`);
 		if (plugin) {
-			return plugin.manifest.storage as Record<string, unknown> | undefined;
+			return plugin.manifest.storage;
 		}
 		return undefined;
 	}
@@ -877,7 +902,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 /**
  * A plugin running in a workerd V8 isolate.
  */
-class WorkerdSandboxedPlugin implements SandboxedPlugin {
+class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	readonly id: string;
 	private manifest: PluginManifest;
 	private port: number;
@@ -927,7 +952,10 @@ class WorkerdSandboxedPlugin implements SandboxedPlugin {
 				const text = await res.text();
 				throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
 			}
-			const result = (await res.json()) as { value: unknown };
+			const result: unknown = await res.json();
+			if (!isRecord(result)) {
+				throw new Error(`Plugin ${this.id} hook ${hookName} returned a non-object response`);
+			}
 			return result.value;
 		});
 	}

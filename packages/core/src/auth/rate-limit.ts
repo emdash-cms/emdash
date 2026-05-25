@@ -119,7 +119,7 @@ export function rateLimitResponse(retryAfterSeconds: number): Response {
  */
 export function getClientIp(request: Request, trustedHeaders: string[] = []): string | null {
 	const headers = request.headers;
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- CF Workers runtime shape
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- CF Workers runtime shape
 	const cf = (request as unknown as { cf?: Record<string, unknown> }).cf;
 
 	// On Cloudflare, prefer the cryptographically trustworthy headers. An

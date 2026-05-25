@@ -17,12 +17,21 @@
 			}
 		],
 		"unicorn/filename-case": "off",
-		"unicorn/prevent-abbreviations": "off",
 		"unicorn/no-null": "off",
 		"unicorn/prefer-add-event-listener": "off",
 		"typescript/no-unsafe-type-assertion": "warn",
 		"typescript/unbound-method": "off",
 		"typescript/no-unnecessary-boolean-literal-compare": "off",
+		// Noisy/stylistic rules added in newer oxlint. Disabled while we triage them
+		// (see https://github.com/emdash-cms/emdash/issues — track follow-ups before
+		// re-enabling).
+		"no-underscore-dangle": "off",
+		"typescript/consistent-return": "off",
+		"typescript/no-unnecessary-type-conversion": "off",
+		"typescript/no-unnecessary-type-parameters": "off",
+		// The rule degrades to an unactionable error on configs without
+		// strictNullChecks (the test plugins under packages/plugins/*-test/).
+		"typescript/no-useless-default-assignment": "off",
 		"import/no-named-as-default": "off",
 		"import/no-unassigned-import": [
 			"warn",

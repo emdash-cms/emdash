@@ -134,7 +134,7 @@ async function rewriteUrls(
 					if (!value || typeof value !== "string") continue;
 
 					try {
-						// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns unknown; validated by Array.isArray below
+						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns unknown; validated by Array.isArray below
 						const blocks = JSON.parse(value) as PortableTextBlock[];
 						if (!Array.isArray(blocks)) continue;
 
@@ -192,11 +192,11 @@ async function rewriteUrls(
 				if (rowUpdated) {
 					try {
 						// Build update query dynamically
-						// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely dynamic table requires type assertion
+						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely dynamic table requires type assertion
 						let query = db.updateTable(tableName as any).where("id", "=", row.id);
 
 						for (const [key, value] of Object.entries(updates)) {
-							// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely dynamic column update requires type assertion
+							// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely dynamic column update requires type assertion
 							query = query.set({ [key]: value } as any);
 						}
 

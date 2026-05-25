@@ -160,13 +160,13 @@ export function createPreviewMiddleware(config: PreviewMiddlewareConfig): Middle
 		}
 
 		// --- 2. Get DO stub ---
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Worker binding from untyped env
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding from untyped env
 		const ns = (env as Record<string, unknown>)[binding];
 		if (!ns) {
 			console.error(`Preview binding "${binding}" not found in environment`);
 			return new Response("Preview service misconfigured", { status: 500 });
 		}
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- DO namespace from untyped env
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- DO namespace from untyped env
 		const namespace = ns as DurableObjectNamespace<EmDashPreviewDB>;
 		const doId = namespace.idFromName(sessionToken);
 		const stub = namespace.get(doId);
@@ -220,7 +220,7 @@ export function createPreviewMiddleware(config: PreviewMiddlewareConfig): Middle
 
 		// --- 4. Create Kysely dialect pointing at the DO ---
 		const getStub = (): PreviewDBStub => {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- RPC type limitation
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- RPC type limitation
 			return stub as unknown as PreviewDBStub;
 		};
 		const dialect = new PreviewDODialect({ getStub });

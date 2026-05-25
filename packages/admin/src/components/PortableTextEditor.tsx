@@ -2261,17 +2261,25 @@ export function PortableTextEditor({
 			const editPos = editingBlockPosRef.current;
 
 			if (editPos !== null) {
-				// Editing an existing block — update its attributes in place
-				const { tr } = editor.state;
-				const node = tr.doc.nodeAt(editPos);
-				if (node?.type.name === "pluginBlock") {
-					tr.setNodeMarkup(editPos, undefined, {
-						...node.attrs,
-						id: typeof id === "string" ? id : node.attrs.id,
-						data,
-					});
-					editor.view.dispatch(tr);
-				}
+				// Editing an existing block — update its attributes in place.
+				// Use the chain API so TipTap's onUpdate fires reliably
+				// (raw view.dispatch may not trigger onUpdate for attribute-only
+				// changes on atom nodes in some TipTap versions).
+				editor
+					.chain()
+					.command(({ tr }) => {
+						const node = tr.doc.nodeAt(editPos);
+						if (node?.type.name === "pluginBlock") {
+							tr.setNodeMarkup(editPos, undefined, {
+								...node.attrs,
+								id: typeof id === "string" ? id : node.attrs.id,
+								data,
+							});
+							return true;
+						}
+						return false;
+					})
+					.run();
 			} else {
 				// Inserting a new block
 				editor

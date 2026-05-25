@@ -502,6 +502,21 @@ export interface BylineTable {
 	is_guest: number;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
+	/**
+	 * Locale this byline row is presented in. Added by migration 040. Backfilled
+	 * to the configured `defaultLocale` for pre-040 rows. `(slug, locale)` is
+	 * unique; the partial unique on `user_id` widens to `(user_id, locale)`.
+	 */
+	locale: Generated<string>;
+	/**
+	 * Shared across translations of the same byline. Added by migration 040.
+	 * Equals `id` for the anchor row; siblings inherit it from their source.
+	 * `_emdash_content_bylines.byline_id` and `ec_*.primary_byline_id` store
+	 * this value rather than a row id, so credits span every locale variant of
+	 * a byline. Nullable in the schema for backwards compatibility; new rows
+	 * always populate it.
+	 */
+	translation_group: string | null;
 }
 
 export interface ContentBylineTable {

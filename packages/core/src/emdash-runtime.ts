@@ -403,7 +403,7 @@ export class EmDashRuntime {
 	get db(): Kysely<Database> {
 		const ctx = getRequestContext();
 		if (ctx?.db) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- db in context is set by middleware with correct type
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- db in context is set by middleware with correct type
 			return ctx.db as Kysely<Database>;
 		}
 		return this._db;
@@ -690,9 +690,8 @@ export class EmDashRuntime {
 	private removePluginFromLists(pluginId: string): void {
 		const allIdx = this.allPipelinePlugins.findIndex((p) => p.id === pluginId);
 		if (allIdx !== -1) this.allPipelinePlugins.splice(allIdx, 1);
-		const configured = this.configuredPlugins as ResolvedPlugin[];
-		const configIdx = configured.findIndex((p) => p.id === pluginId);
-		if (configIdx !== -1) configured.splice(configIdx, 1);
+		const configIdx = this.configuredPlugins.findIndex((p) => p.id === pluginId);
+		if (configIdx !== -1) this.configuredPlugins.splice(configIdx, 1);
 	}
 
 	/**
@@ -746,6 +745,11 @@ export class EmDashRuntime {
 							const handler =
 								typeof deactivateHook === "function" ? deactivateHook : deactivateHook.handler;
 							if (typeof handler === "function") {
+								// Sandbox-bypass cleanup: the plugin context isn't constructable
+								// here (no DB binding, no media, etc.), but well-behaved
+								// deactivate hooks should be no-op safe. If a hook does require
+								// ctx, it throws and the surrounding catch logs it.
+								// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- best-effort cleanup; see comment above
 								await handler({ pluginId }, {} as never);
 							}
 						}
@@ -797,6 +801,10 @@ export class EmDashRuntime {
 
 				try {
 					const dataUrl = `data:text/javascript;base64,${Buffer.from(bundle.backendCode).toString("base64")}`;
+					// Dynamic data: import returns `any` from a base64-encoded module.
+					// We trust the bundle to be shaped like a plugin (built by plugin-cli);
+					// adaptSandboxEntry then validates fields it cares about.
+					// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- dynamic module from trusted bundle
 					const pluginModule = (await import(/* @vite-ignore */ dataUrl)) as Record<
 						string,
 						unknown
@@ -822,7 +830,7 @@ export class EmDashRuntime {
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
-					(this.configuredPlugins as ResolvedPlugin[]).push(adapted);
+					this.configuredPlugins.push(adapted);
 					this.enabledPlugins.add(adapted.id);
 				} catch (error) {
 					console.error(
@@ -1243,7 +1251,7 @@ export class EmDashRuntime {
 		// path gives us a fresh singleton instead.
 		const ctx = getRequestContext();
 		if (ctx?.dbIsIsolated && ctx.db) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- db in context is typed as unknown to avoid circular deps
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- db in context is typed as unknown to avoid circular deps
 			return ctx.db as Kysely<Database>;
 		}
 
@@ -1377,6 +1385,7 @@ export class EmDashRuntime {
 		for (const entry of entries) {
 			try {
 				const dataUrl = `data:text/javascript;base64,${Buffer.from(entry.code).toString("base64")}`;
+				// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- dynamic module from trusted bundle (built by plugin-cli); adaptSandboxEntry validates required fields.
 				const pluginModule = (await import(/* @vite-ignore */ dataUrl)) as Record<string, unknown>;
 				const pluginDef = (pluginModule.default ?? pluginModule) as Parameters<
 					typeof adaptSandboxEntry
@@ -1415,6 +1424,7 @@ export class EmDashRuntime {
 					entrypoint: "",
 					capabilities: entry.capabilities,
 					allowedHosts: entry.allowedHosts,
+					// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- adaptSandboxEntry copies storage through
 					storage: entry.storage as never,
 					adminPages,
 					adminWidgets,
@@ -1691,6 +1701,7 @@ export class EmDashRuntime {
 
 					// Evaluate the bundled ESM and adapt it as a trusted plugin
 					const dataUrl = `data:text/javascript;base64,${Buffer.from(bundle.backendCode).toString("base64")}`;
+					// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- dynamic module from trusted bundle (built by plugin-cli); adaptSandboxEntry validates required fields.
 					const pluginModule = (await import(/* @vite-ignore */ dataUrl)) as Record<
 						string,
 						unknown
@@ -2137,7 +2148,7 @@ export class EmDashRuntime {
 	 */
 	private async hydrateDraftData<T>(result: T): Promise<T> {
 		if (!result || typeof result !== "object") return result;
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- shape probed below
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape probed below
 		const r = result as {
 			success?: boolean;
 			data?: { item?: Record<string, unknown> };
@@ -2151,7 +2162,7 @@ export class EmDashRuntime {
 			if (!revision) return result;
 			const liveData =
 				item.data && typeof item.data === "object"
-					? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed to object above
+					? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to object above
 						(item.data as Record<string, unknown>)
 					: {};
 			// Strip leading-underscore keys (`_slug`, `_rev`, etc.) from the
@@ -2172,7 +2183,7 @@ export class EmDashRuntime {
 			// hydrated item without going back through `unknown`.
 			return {
 				...result,
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- shape preserved; result has been narrowed to the {success,data:{item}} envelope
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape preserved; result has been narrowed to the {success,data:{item}} envelope
 				data: {
 					...r.data,
 					item: { ...item, data: mergedData, liveData },

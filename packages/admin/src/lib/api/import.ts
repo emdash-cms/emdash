@@ -288,11 +288,11 @@ export async function importWxrMedia(
 			try {
 				const parsed: { type?: string; imported?: unknown } = JSON.parse(line);
 				if (parsed.type === "progress") {
-					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- SSE event data is parsed JSON; discriminated by type === "progress"
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SSE event data is parsed JSON; discriminated by type === "progress"
 					onProgress(parsed as MediaImportProgress);
 				} else if (parsed.type === "result" || parsed.imported) {
 					// Final result (has type: "result" or is the result object)
-					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- SSE event data is parsed JSON; discriminated by type === "result"
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SSE event data is parsed JSON; discriminated by type === "result"
 					result = parsed as MediaImportResult;
 				}
 			} catch {
@@ -307,7 +307,7 @@ export async function importWxrMedia(
 		try {
 			const parsed: { type?: string; imported?: unknown } = JSON.parse(buffer);
 			if (parsed.type === "result" || parsed.imported) {
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- SSE event data is parsed JSON; discriminated by type === "result"
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SSE event data is parsed JSON; discriminated by type === "result"
 				result = parsed as MediaImportResult;
 			}
 		} catch {

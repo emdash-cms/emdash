@@ -134,7 +134,7 @@ export class S3Storage implements Storage {
 
 		// S3ClientConfig types `credentials` as required, but the SDK accepts
 		// omitted credentials at runtime (falls back to the provider chain).
-		/* eslint-disable typescript-eslint(no-unsafe-type-assertion) -- upstream @aws-sdk/client-s3 overstates required fields */
+		/* eslint-disable typescript/no-unsafe-type-assertion -- upstream @aws-sdk/client-s3 overstates required fields */
 		const clientConfig = {
 			endpoint: config.endpoint,
 			region: config.region || "auto",
@@ -149,7 +149,7 @@ export class S3Storage implements Storage {
 					}
 				: {}),
 		} as S3ClientConfig;
-		/* eslint-enable typescript-eslint(no-unsafe-type-assertion) */
+		/* eslint-enable typescript/no-unsafe-type-assertion */
 		this.client = new S3Client(clientConfig);
 	}
 
@@ -260,7 +260,7 @@ export class S3Storage implements Storage {
 
 	async list(options: ListOptions = {}): Promise<ListResult> {
 		try {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- S3 client.send returns generic output; narrowing to ListObjectsV2Response
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- S3 client.send returns generic output; narrowing to ListObjectsV2Response
 			const response = (await this.client.send(
 				new ListObjectsV2Command({
 					Bucket: this.bucket,

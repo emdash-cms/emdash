@@ -35,7 +35,7 @@ publicRoutes.get("/plugins", async (c) => {
 	const validSorts = new Set(["installs", "updated", "created", "name"]);
 	let sort: "installs" | "updated" | "created" | "name" | undefined;
 	if (sortParam && validSorts.has(sortParam)) {
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- validated by Set.has check above
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated by Set.has check above
 		sort = sortParam as "installs" | "updated" | "created" | "name";
 	}
 	const cursor = url.searchParams.get("cursor") ?? undefined;
@@ -296,7 +296,7 @@ publicRoutes.get("/plugins/:id/versions/:version/image-audit", async (c) => {
 function safeJsonParse<T>(value: string | null, fallback: T): T {
 	if (!value) return fallback;
 	try {
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- caller provides type parameter
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- caller provides type parameter
 		const parsed: T = JSON.parse(value);
 		return parsed;
 	} catch {

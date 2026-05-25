@@ -26,7 +26,7 @@ export class OptionsRepository {
 			.executeTakeFirst();
 
 		if (!row) return null;
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns any; generic callers provide T
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
 		return JSON.parse(row.value) as T;
 	}
 
@@ -116,7 +116,7 @@ export class OptionsRepository {
 
 		const result = new Map<string, T>();
 		for (const row of rows) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns any; generic callers provide T
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
 			result.set(row.name, JSON.parse(row.value) as T);
 		}
 		return result;
@@ -160,7 +160,7 @@ export class OptionsRepository {
 
 		const result = new Map<string, T>();
 		for (const row of rows) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns any; generic callers provide T
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
 			result.set(row.name, JSON.parse(row.value) as T);
 		}
 		return result;

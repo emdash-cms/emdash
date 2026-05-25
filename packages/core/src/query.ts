@@ -715,9 +715,24 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 			.map((e) => {
 				const data = entryData(e);
 				const id = dataStr(data, "id");
-				return id ? { id, authorId: dataStr(data, "authorId") || null } : null;
+				if (!id) return null;
+				return {
+					id,
+					authorId: dataStr(data, "authorId") || null,
+					primaryBylineId: dataStr(data, "primaryBylineId") || null,
+					locale: dataStr(data, "locale") || null,
+				};
 			})
-			.filter((r): r is { id: string; authorId: string | null } => r !== null);
+			.filter(
+				(
+					r,
+				): r is {
+					id: string;
+					authorId: string | null;
+					primaryBylineId: string | null;
+					locale: string | null;
+				} => r !== null,
+			);
 		if (refs.length === 0) return;
 
 		const bylinesMap = await getBylinesForEntries(type, refs);

@@ -92,7 +92,11 @@ interface WrappedDiscoveryClient {
 	resolvePackage: (handle: string, slug: string) => Promise<RegistryPackageView>;
 	getPackage: (did: string, slug: string) => Promise<RegistryPackageView>;
 	getLatestRelease: (did: string, slug: string) => Promise<RegistryReleaseView>;
-	listReleases: (did: string, slug: string, cursor?: string) => Promise<ValidatedListReleases>;
+	listReleases: (
+		did: string,
+		slug: string,
+		opts?: { cursor?: string; limit?: number },
+	) => Promise<ValidatedListReleases>;
 }
 
 let cachedDiscovery: {
@@ -145,12 +149,13 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 				package: slug,
 			});
 		},
-		async listReleases(did: string, slug: string, cursor?: string) {
+		async listReleases(did: string, slug: string, opts?: { cursor?: string; limit?: number }) {
 			return discovery.listReleases({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
 				did: did as Did,
 				package: slug,
-				cursor,
+				cursor: opts?.cursor,
+				limit: opts?.limit,
 			});
 		},
 	};
@@ -283,10 +288,10 @@ export async function listRegistryReleases(
 	config: RegistryClientConfig,
 	did: string,
 	slug: string,
-	cursor?: string,
+	opts?: { cursor?: string; limit?: number },
 ): Promise<ValidatedListReleases> {
 	const client = await getDiscoveryClient(config);
-	return client.listReleases(did, slug, cursor);
+	return client.listReleases(did, slug, opts);
 }
 
 /**

@@ -34,7 +34,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	if (dbErr) return dbErr;
 
 	try {
-		const repo = new TaxonomyRepository(emdash!.db);
+		const repo = new TaxonomyRepository(emdash.db);
 		const terms = await repo.getTermsForEntry(collection, id, taxonomy);
 
 		return apiSuccess({
@@ -68,12 +68,12 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
 
-	if (!emdash!.handleContentGet) {
+	if (!emdash.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
 	// Verify the content exists before modifying its terms
-	const existing = await emdash!.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGet(collection, id);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "NOT_FOUND",
@@ -85,13 +85,13 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	// Check ownership for edit permission
 	const existingData =
 		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
 				(existing.data as Record<string, unknown>)
 			: undefined;
 	// Handler returns { item, _rev } — extract the item for ownership check
 	const existingItem =
 		existingData?.item && typeof existingData.item === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
 				(existingData.item as Record<string, unknown>)
 			: existingData;
 	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
@@ -107,7 +107,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		if (isParseError(body)) return body;
 		const { termIds } = body;
 
-		const repo = new TaxonomyRepository(emdash!.db);
+		const repo = new TaxonomyRepository(emdash.db);
 
 		// Verify all term IDs exist and belong to the correct taxonomy
 		for (const termId of termIds) {

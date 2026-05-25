@@ -59,11 +59,11 @@ export class D1Introspector implements DatabaseIntrospector {
 		const result: TableMetadata[] = [];
 
 		for (const table of tables) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely's DatabaseIntrospector returns untyped results
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely's DatabaseIntrospector returns untyped results
 			const tableName = table.name as string;
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely's DatabaseIntrospector returns untyped results
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely's DatabaseIntrospector returns untyped results
 			const tableType = table.type as string;
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely's DatabaseIntrospector returns untyped results
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely's DatabaseIntrospector returns untyped results
 			const tableSql = table.sql as string | null;
 
 			// Get columns for this specific table

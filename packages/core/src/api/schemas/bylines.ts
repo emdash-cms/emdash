@@ -17,6 +17,14 @@ export const bylineSummarySchema = z
 		isGuest: z.boolean(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
+		/** Locale this byline row is presented in (migration 040). */
+		locale: z.string(),
+		/**
+		 * Shared across translations of the same byline (migration 040).
+		 * Equals `id` for the anchor row; siblings inherit it from their
+		 * source. Nullable in storage for backwards compatibility.
+		 */
+		translationGroup: z.string().nullable(),
 	})
 	.meta({ id: "BylineSummary" });
 
@@ -43,6 +51,12 @@ export const bylinesListQuery = cursorPaginationQuery
 		search: z.string().optional(),
 		isGuest: z.coerce.boolean().optional(),
 		userId: z.string().optional(),
+		/**
+		 * Filter by locale (strict per-locale matching, post-migration 040).
+		 * Rejects empty strings so the picker can't silently fetch the
+		 * unfiltered list when the admin URL has `?locale=` with no value.
+		 */
+		locale: z.string().min(1).optional(),
 	})
 	.meta({ id: "BylinesListQuery" });
 
@@ -58,8 +72,40 @@ export const bylineCreateBody = z
 		websiteUrl: httpUrl.nullish(),
 		userId: z.string().nullish(),
 		isGuest: z.boolean().optional(),
+		/**
+		 * Locale this byline row belongs to. When omitted, the DB DEFAULT (the
+		 * configured `defaultLocale`) is used. Rejects empty strings — an
+		 * empty locale would create rows no resolver requests.
+		 */
+		locale: z.string().min(1).optional(),
+		/**
+		 * When set, the new row joins the source byline's translation_group
+		 * rather than minting a fresh one. Requires `locale`.
+		 */
+		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "BylineCreateBody" });
+
+export const bylineTranslationCreateBody = z
+	.object({
+		locale: z.string().min(1),
+		slug: z
+			.string()
+			.min(1)
+			.regex(bylineSlugPattern, "Slug must contain only lowercase letters, digits, and hyphens")
+			.optional(),
+		displayName: z.string().min(1).optional(),
+		bio: z.string().nullish(),
+		avatarMediaId: z.string().nullish(),
+		websiteUrl: httpUrl.nullish(),
+	})
+	.meta({ id: "BylineTranslationCreateBody" });
+
+export const bylineTranslationsResponseSchema = z
+	.object({
+		items: z.array(bylineSummarySchema),
+	})
+	.meta({ id: "BylineTranslationsResponse" });
 
 export const bylineUpdateBody = z
 	.object({
