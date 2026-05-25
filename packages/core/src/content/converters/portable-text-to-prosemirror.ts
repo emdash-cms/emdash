@@ -240,20 +240,35 @@ function convertListItem(
 
 	// Handle nested items
 	if (nestedItems.length > 0) {
-		// Group nested items by their list type
-		let j = 0;
+		// The shallowest level in `nestedItems` is the effective root of this
+		// item's nested subtree. A new sub-list only starts when we hit
+		// another block at that root level with a different `listItem` type;
+		// deeper blocks (level > minLevel) belong to the current group as
+		// descendants regardless of their own `listItem`. The previous
+		// grouping broke on any type change at any depth, so a deep mixed
+		// tree like `bullet L1 → number L2 → bullet L3 → number L2` would
+		// emit C(L3) as a sibling list under A(L1) instead of nesting it
+		// under B(L2), then degrade C to L2 on round-trip.
+		let minLevel = Infinity;
+		for (const ni of nestedItems) {
+			const level = ni.level || 2;
+			if (level < minLevel) minLevel = level;
+		}
 
+		let j = 0;
 		while (j < nestedItems.length) {
-			const nestedListType = nestedItems[j].listItem || parentListType;
+			const anchorType: "bullet" | "number" =
+				nestedItems[j].listItem || parentListType;
 			const nestedGroup: PortableTextTextBlock[] = [];
 
-			while (
-				j < nestedItems.length &&
-				(nestedItems[j].listItem || parentListType) === nestedListType
-			) {
+			do {
 				nestedGroup.push(nestedItems[j]);
 				j++;
-			}
+			} while (
+				j < nestedItems.length &&
+				((nestedItems[j].level || 2) > minLevel ||
+					(nestedItems[j].listItem || parentListType) === anchorType)
+			);
 
 			if (nestedGroup.length > 0) {
 				// Decrease level for nested conversion
@@ -261,7 +276,7 @@ function convertListItem(
 					...ni,
 					level: (ni.level || 2) - 1,
 				}));
-				content.push(convertList(adjustedGroup, nestedListType));
+				content.push(convertList(adjustedGroup, anchorType));
 			}
 		}
 	}
