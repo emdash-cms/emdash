@@ -18,6 +18,7 @@ import { contentBylineInputSchema, contentSeoInput } from "#api/schemas.js";
 
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
+import { convertDataForWrite } from "../client/portable-text.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
@@ -381,6 +382,30 @@ function extractContentId(data: unknown): string | undefined {
 	return typeof item?.id === "string" ? item.id : undefined;
 }
 
+/**
+ * Convert markdown strings in `portableText` fields to Portable Text arrays
+ * before content data reaches the write handlers.
+ *
+ * MCP callers (LLMs) reliably produce markdown but not valid Portable Text
+ * JSON — unique `_key`s, resolved `markDefs`, correct block shapes — so a
+ * field declared as `portableText` would otherwise fail validation with
+ * "expected array, received string". This mirrors what the `emdash` CLI
+ * client does in `convertDataForWrite` before POSTing. When the collection
+ * has no schema the data is returned unchanged so the handler still surfaces
+ * the real "collection not found" error. See #1005.
+ */
+async function convertContentDataForWrite(
+	emdash: EmDashHandlers,
+	collection: string,
+	data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+	const { SchemaRegistry } = await import("../schema/index.js");
+	const registry = new SchemaRegistry(emdash.db);
+	const def = await registry.getCollectionWithFields(collection);
+	if (!def) return data;
+	return convertDataForWrite(data, def.fields);
+}
+
 // ---------------------------------------------------------------------------
 // Server factory
 // ---------------------------------------------------------------------------
@@ -538,8 +563,9 @@ export function createMcpServer(): McpServer {
 			description:
 				"Create a new content item in a collection. The 'data' object should " +
 				"contain field values matching the collection's schema (use " +
-				"schema_get_collection to check). Rich text fields accept Portable Text " +
-				"JSON arrays. A slug is auto-generated if not provided. Items are created " +
+				"schema_get_collection to check). Rich text (portableText) fields accept " +
+				"either a Portable Text JSON array or a markdown string, which is converted " +
+				"automatically. A slug is auto-generated if not provided. Items are created " +
 				"as 'draft' by default — use content_publish to make them live.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
@@ -568,6 +594,7 @@ export function createMcpServer(): McpServer {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId } = getExtra(extra);
+			const data = await convertContentDataForWrite(emdash, args.collection, args.data);
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
@@ -591,7 +618,7 @@ export function createMcpServer(): McpServer {
 					);
 				}
 				const result = await emdash.handleContentCreate(args.collection, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
@@ -607,7 +634,7 @@ export function createMcpServer(): McpServer {
 
 			return unwrap(
 				await emdash.handleContentCreate(args.collection, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
@@ -698,6 +725,10 @@ export function createMcpServer(): McpServer {
 			}
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const data =
+				args.data === undefined
+					? undefined
+					: await convertContentDataForWrite(emdash, args.collection, args.data);
 
 			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
@@ -710,7 +741,7 @@ export function createMcpServer(): McpServer {
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
-						data: args.data,
+						data,
 						slug: args.slug,
 						authorId: userId,
 						seo: args.seo,
@@ -733,7 +764,7 @@ export function createMcpServer(): McpServer {
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
-						data: args.data,
+						data,
 						slug: args.slug,
 						authorId: userId,
 						seo: args.seo,
@@ -748,7 +779,7 @@ export function createMcpServer(): McpServer {
 
 			return unwrap(
 				await emdash.handleContentUpdate(args.collection, resolvedId, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					seo: args.seo,
