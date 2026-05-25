@@ -25,28 +25,18 @@ describe("getSeoMeta ogImage URL building", () => {
 			{ seo: { image: "/_emdash/api/media/file/01KS.svg" }, data: {} },
 			{ siteUrl: SITE },
 		);
-		expect(meta.ogImage).toBe(
-			"https://example.com/_emdash/api/media/file/01KS.svg",
-		);
+		expect(meta.ogImage).toBe("https://example.com/_emdash/api/media/file/01KS.svg");
 		expect(meta.ogImage).not.toContain("//_emdash");
 	});
 
 	it("returns root-relative paths as-is when no siteUrl is provided", () => {
-		const meta = getSeoMeta(
-			{ seo: { image: "/_emdash/api/media/file/01KS.svg" }, data: {} },
-			{},
-		);
+		const meta = getSeoMeta({ seo: { image: "/_emdash/api/media/file/01KS.svg" }, data: {} }, {});
 		expect(meta.ogImage).toBe("/_emdash/api/media/file/01KS.svg");
 	});
 
 	it("builds the full API path from a bare media_id", () => {
-		const meta = getSeoMeta(
-			{ seo: { image: "01KS" }, data: {} },
-			{ siteUrl: SITE },
-		);
-		expect(meta.ogImage).toBe(
-			"https://example.com/_emdash/api/media/file/01KS",
-		);
+		const meta = getSeoMeta({ seo: { image: "01KS" }, data: {} }, { siteUrl: SITE });
+		expect(meta.ogImage).toBe("https://example.com/_emdash/api/media/file/01KS");
 	});
 
 	it("strips trailing slash from siteUrl before joining a root-relative path", () => {
@@ -54,8 +44,6 @@ describe("getSeoMeta ogImage URL building", () => {
 			{ seo: { image: "/_emdash/api/media/file/01KS.svg" }, data: {} },
 			{ siteUrl: "https://example.com/" },
 		);
-		expect(meta.ogImage).toBe(
-			"https://example.com/_emdash/api/media/file/01KS.svg",
-		);
+		expect(meta.ogImage).toBe("https://example.com/_emdash/api/media/file/01KS.svg");
 	});
 });
