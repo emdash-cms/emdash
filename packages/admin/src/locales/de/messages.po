@@ -529,7 +529,7 @@ msgstr "Aktiv"
 #: packages/admin/src/components/TaxonomySidebar.tsx:439
 msgid "Add"
 msgstr ""
-#: TODO: Direct translation causes issues, e.g. Hinzufügen will render the + Add Tag button to + Hinzufügen Tag
+#: TODO: Translation causes issues, e.g. Hinzufügen will render the + Add Tag button to + Hinzufügen Tag
 
 #. placeholder {0}: field.item_label
 #: packages/admin/src/components/PortableTextEditor.tsx:1489
@@ -2349,7 +2349,7 @@ msgstr "z.B., MacBook Pro, iPhone"
 #: packages/admin/src/components/TranslationsPanel.tsx:88
 msgid "Edit"
 msgstr ""
-#: TODO: Direct translation causes issues, e.g. headline of the edit a tag modal
+#: TODO: Translation causes issues, e.g. headline of the edit a tag modal
 
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
