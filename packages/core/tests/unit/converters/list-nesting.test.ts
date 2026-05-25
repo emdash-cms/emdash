@@ -51,10 +51,7 @@ function pt(listItem: "bullet" | "number", level: number, text: string): Portabl
 
 describe("portableTextToProsemirror: list run grouping", () => {
 	it("nests level=2 bullets inside their parent listItem", () => {
-		const result = portableTextToProsemirror([
-			pt("bullet", 1, "Parent"),
-			pt("bullet", 2, "Child"),
-		]);
+		const result = portableTextToProsemirror([pt("bullet", 1, "Parent"), pt("bullet", 2, "Child")]);
 		const list = findFirstList(result);
 		expect(list?.type).toBe("bulletList");
 		expect(list?.content).toHaveLength(1);
