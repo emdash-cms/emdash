@@ -6886,7 +6886,7 @@ msgstr "Nutze [param] oder [...rest] in Pfaden für Musterabgleiche."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:366
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
-msgstr "Nutze die biometrischen Authentifizierung, den Sicherheitsschlüssel oder die PIN deines Geräts für die Anmeldung."
+msgstr "Nutze die biometrische Authentifizierung, den Sicherheitsschlüssel oder die PIN deines Geräts für die Anmeldung."
 
 #: packages/admin/src/components/LoginPage.tsx:326
 msgid "Use your registered passkey to sign in securely."
