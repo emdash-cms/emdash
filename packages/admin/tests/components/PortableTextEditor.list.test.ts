@@ -309,6 +309,48 @@ describe("PortableText → ProseMirror: nested list level", () => {
 		expect(l3?.type).toBe("bulletList");
 		expect(getParagraphText(l3!.content[0]!)).toBe("L3");
 	});
+
+	it("keeps deeper nesting under its true parent for mixed-type 3-level trees", () => {
+		// Regression for convertPTListItem's nested grouping: it used to
+		// break the group on every `listItem` change regardless of depth,
+		// so a level-3 block ended up as a sibling sub-list under the
+		// level-1 item instead of nesting under the matching level-2 item
+		// — and the round-trip would degrade level-3 to level-2.
+		const original = [
+			pt("bullet", 1, "A"),
+			pt("number", 2, "B"),
+			pt("bullet", 3, "C"),
+			pt("number", 2, "D"),
+		];
+		const pm = _portableTextToProsemirror(original);
+
+		const outer = findFirstList(pm);
+		expect(outer?.type).toBe("bulletList");
+		expect(outer?.content).toHaveLength(1);
+		expect(getParagraphText(outer!.content[0]!)).toBe("A");
+
+		const numbered = getNestedList(outer!.content[0]!);
+		expect(numbered?.type).toBe("orderedList");
+		expect(numbered?.content).toHaveLength(2);
+		expect(getParagraphText(numbered!.content[0]!)).toBe("B");
+		expect(getParagraphText(numbered!.content[1]!)).toBe("D");
+
+		const cInBullets = getNestedList(numbered!.content[0]!);
+		expect(cInBullets?.type).toBe("bulletList");
+		expect(getParagraphText(cInBullets!.content[0]!)).toBe("C");
+
+		// Round-trip must keep C at level 3, not collapse it to level 2.
+		const roundTripped = _prosemirrorToPortableText(pm).filter(
+			(b): b is (typeof original)[number] =>
+				typeof b === "object" && b !== null && (b as { _type?: string })._type === "block",
+		);
+		expect(roundTripped.map((b) => [b.listItem, b.level, b.children[0]?.text])).toEqual([
+			["bullet", 1, "A"],
+			["number", 2, "B"],
+			["bullet", 3, "C"],
+			["number", 2, "D"],
+		]);
+	});
 });
 
 describe("Round-trip: PT → PM → PT preserves nested list level", () => {
