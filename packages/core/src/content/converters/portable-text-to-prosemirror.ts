@@ -257,8 +257,7 @@ function convertListItem(
 
 		let j = 0;
 		while (j < nestedItems.length) {
-			const anchorType: "bullet" | "number" =
-				nestedItems[j].listItem || parentListType;
+			const anchorType: "bullet" | "number" = nestedItems[j].listItem || parentListType;
 			const nestedGroup: PortableTextTextBlock[] = [];
 
 			do {
