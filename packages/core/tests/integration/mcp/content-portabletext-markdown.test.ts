@@ -103,7 +103,11 @@ describe("MCP content markdown -> portableText (#1005)", () => {
 		};
 		const created = await harness.client.callTool({
 			name: "content_create",
-			arguments: { collection: "post", slug: "pt-array", data: { title: "Test", content: [block] } },
+			arguments: {
+				collection: "post",
+				slug: "pt-array",
+				data: { title: "Test", content: [block] },
+			},
 		});
 		expect(isErrorResult(created), extractText(created)).toBe(false);
 
