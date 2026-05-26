@@ -52,7 +52,7 @@ msgstr "(dari {0})"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:352
 msgid "(pre-release)"
-msgstr ""
+msgstr "(pra-rilis)"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:157
 msgid "(synced)"
@@ -60,7 +60,7 @@ msgstr "(disinkronkan)"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:355
 msgid "(too new)"
-msgstr ""
+msgstr "(terlalu baru)"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:312
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:309
@@ -2578,7 +2578,7 @@ msgstr "Gagal memperbarui widget"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:415
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
-msgstr ""
+msgstr "Setiap rilis yang dipublikasikan dari plugin ini telah ditarik atau tidak dapat diverifikasi. Periksa kembali nanti, atau hubungi penerbit."
 
 #: packages/admin/src/components/WordPressImport.tsx:1846
 msgid "Exists"
@@ -3868,7 +3868,7 @@ msgstr "Kelola {0} untuk {1}"
 
 #: packages/admin/src/components/ContentEditor.tsx:2020
 msgid "Manage bylines in {entryLocale}"
-msgstr ""
+msgstr "Kelola byline di {entryLocale}"
 
 #: packages/admin/src/components/Widgets.tsx:326
 msgid "Manage content widgets in your widget areas"
@@ -4272,7 +4272,7 @@ msgstr "Belum ada komentar disetujui."
 
 #: packages/admin/src/components/ContentEditor.tsx:2012
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
-msgstr ""
+msgstr "Tidak ada byline yang tersedia di {entryLocale}. Buat varian dari halaman Byline sebelum menambahkan satu pada entri ini."
 
 #: packages/admin/src/routes/bylines.tsx:365
 msgid "No bylines found"
@@ -4348,7 +4348,7 @@ msgstr "Tidak ada judul di dokumen"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:413
 msgid "No installable releases"
-msgstr ""
+msgstr "Tidak ada rilis yang dapat diinstal"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:159
 msgid "No invite token provided"
@@ -4873,7 +4873,7 @@ msgstr "Pos Per Halaman"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:327
 msgid "Pre-release"
-msgstr ""
+msgstr "Pra-rilis"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:170
 msgid "Preparing registration..."
