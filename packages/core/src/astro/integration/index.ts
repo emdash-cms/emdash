@@ -22,7 +22,7 @@ import {
 	injectAuthProviderRoutes,
 	injectMcpRoute,
 } from "./routes.js";
-import type { EmDashConfig, PluginDescriptor } from "./runtime.js";
+import type { EmDashConfig } from "./runtime.js";
 import { createViteConfig } from "./vite-config.js";
 
 // Re-export runtime types and functions
@@ -181,6 +181,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		auth: resolvedConfig.auth,
 		authProviders: resolvedConfig.authProviders,
 		marketplace: resolvedConfig.marketplace,
+		experimental: resolvedConfig.experimental,
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
 		maxUploadSize: resolvedConfig.maxUploadSize,

@@ -126,7 +126,7 @@ storage: r2({
 
 ## Cloudflare Access Authentication
 
-If your organization uses Cloudflare Access, you can use it as your authentication provider instead of passkeys. This provides SSO with your existing identity provider.
+If your organization uses Cloudflare Access, you can use it as the authentication provider instead of passkeys, giving single sign-on through your existing identity provider. The following configuration enables it:
 
 ```js title="astro.config.mjs"
 emdash({
@@ -149,15 +149,17 @@ See the [Authentication guide](/guides/authentication#cloudflare-access) for ful
 
 ### Recommended: encryption key
 
-`EMDASH_ENCRYPTION_KEY` is used to encrypt plugin secrets at rest
-(webhook tokens, Turnstile keys, etc.). The current release validates
-the key but does not yet use it — plugin secret encryption is rolling
-out and will start using this value automatically when available. Set
-it now so your deployment is ready.
+`EMDASH_ENCRYPTION_KEY` is the key for encrypting plugin secrets at
+rest (webhook tokens, Turnstile keys, etc.). The key is validated on
+startup; plugin secret encryption uses it once enabled. Set it on
+every deployment so secrets are protected without a later config
+change.
 
 The key is provided by you and never stored in the database; only
 encrypted ciphertext is. Losing it means losing every secret encrypted
 with it.
+
+Generate a key and store it as a Worker secret with the following commands:
 
 ```bash
 npx emdash secrets generate
@@ -182,7 +184,7 @@ needs to share the secret with your main site.
 | -------- | ------- |
 | `EMDASH_PREVIEW_SECRET` | Override for the auto-generated preview HMAC secret. |
 | `EMDASH_IP_SALT` | Override for the auto-generated commenter-IP hash salt. |
-| `EMDASH_AUTH_SECRET` | Legacy. No longer required. If set, it's used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which wins) so existing installs keep stable commenter-IP hashes across the upgrade. New installs should ignore this. |
+| `EMDASH_AUTH_SECRET` | Optional. If set, it is used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which takes precedence), keeping commenter-IP hashes stable for installs that already rely on it. Leave it unset for a new deployment. |
 
 Access environment variables in your configuration using `import.meta.env` or the Cloudflare `env` binding.
 

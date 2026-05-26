@@ -7,7 +7,7 @@ import { Aside, Steps, Tabs, TabItem, Code } from "@astrojs/starlight/components
 import postsListImg from "../../../assets/screenshots/admin-posts-list.png";
 import postEditorImg from "../../../assets/screenshots/admin-post-editor.png";
 
-This guide walks you through creating a blog with EmDash, from defining your content type to displaying posts with categories and tags.
+This guide covers creating a blog with EmDash, from defining the content type to displaying posts with categories and tags.
 
 ## Prerequisites
 
@@ -16,7 +16,7 @@ This guide walks you through creating a blog with EmDash, from defining your con
 
 ## Define the Posts Collection
 
-EmDash creates a default "posts" collection during setup. If you need to customize it, use the admin dashboard or API.
+EmDash creates a default "posts" collection during setup. Customize it from the admin dashboard or the API.
 
 The default posts collection includes:
 
@@ -48,13 +48,13 @@ The default posts collection includes:
 
 7. Click **Save**
 
-Your post is now live. No rebuild required.
+The post is now live and appears immediately.
 
 ## Display Posts on Your Site
 
 ### List All Posts
 
-Create a page that displays all published posts:
+The following page displays all published posts:
 
 ```astro title="src/pages/blog/index.astro"
 ---
@@ -91,7 +91,7 @@ const sortedPosts = posts.sort(
 
 ### Display a Single Post
 
-Create a dynamic route for individual posts:
+The following dynamic route renders an individual post:
 
 ```astro title="src/pages/blog/[slug].astro"
 ---
@@ -142,6 +142,8 @@ EmDash includes built-in category and tag taxonomies. See [Taxonomies](/guides/t
 
 ### Filter Posts by Category
 
+The following route lists posts in a single category:
+
 ```astro title="src/pages/category/[slug].astro"
 ---
 import { getEmDashCollection, getTerm, getTaxonomyTerms } from "emdash";
@@ -183,7 +185,7 @@ const { entries: posts } = await getEmDashCollection("posts", {
 
 ### Display Post Categories
 
-Show categories on individual posts:
+The following component shows the categories and tags assigned to a post:
 
 ```astro title="src/components/PostMeta.astro"
 ---
@@ -221,7 +223,7 @@ const tags = await getEntryTerms("posts", postId, "tag");
 
 ## Add Pagination
 
-For blogs with many posts, add pagination:
+For blogs with many posts, the following route paginates the post list:
 
 ```astro title="src/pages/blog/page/[page].astro"
 ---
@@ -282,7 +284,7 @@ const posts = sortedPosts.slice(start, start + POSTS_PER_PAGE);
 
 ## Add an RSS Feed
 
-Create an RSS feed for your blog:
+The following endpoint generates an RSS feed for the blog:
 
 ```ts title="src/pages/rss.xml.ts"
 import rss from "@astrojs/rss";
@@ -307,7 +309,7 @@ export async function GET(context) {
 }
 ```
 
-Install the RSS package if you haven't already:
+The feed depends on the `@astrojs/rss` package. The following command installs it:
 
 ```bash
 npm install @astrojs/rss

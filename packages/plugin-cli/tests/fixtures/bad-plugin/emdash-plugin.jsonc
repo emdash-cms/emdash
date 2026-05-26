@@ -1,0 +1,8 @@
+{
+	"slug": "bad-plugin",
+	"version": "0.1.0",
+	"publisher": "fixture.example.com",
+	"license": "MIT",
+	"author": { "name": "Test Author" },
+	"security": { "email": "security@example.com" },
+}

@@ -1416,13 +1416,17 @@ const menuPaths = {
 				...standardErrors(400, 404, 500),
 			},
 		},
+	},
+	"/_emdash/api/menus/{name}/items/{id}": {
 		put: {
 			operationId: "updateMenuItem",
 			summary: "Update a menu item",
 			tags: ["Menus"],
 			requestParams: {
-				path: z.object({ name: z.string().meta({ description: "Menu name" }) }),
-				query: z.object({ id: z.string().meta({ description: "Menu item ID" }) }),
+				path: z.object({
+					name: z.string().meta({ description: "Menu name" }),
+					id: z.string().meta({ description: "Menu item id" }),
+				}),
 			},
 			requestBody: { content: { [JSON_CONTENT]: { schema: updateMenuItemBody } } },
 			responses: {
@@ -1439,8 +1443,10 @@ const menuPaths = {
 			summary: "Delete a menu item",
 			tags: ["Menus"],
 			requestParams: {
-				path: z.object({ name: z.string().meta({ description: "Menu name" }) }),
-				query: z.object({ id: z.string().meta({ description: "Menu item ID" }) }),
+				path: z.object({
+					name: z.string().meta({ description: "Menu name" }),
+					id: z.string().meta({ description: "Menu item id" }),
+				}),
 			},
 			responses: {
 				"200": {
@@ -2373,7 +2379,7 @@ export function generateOpenApiDocument(
 			},
 		},
 		security: [{ session: [] }, { bearer: [] }],
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- readonly const paths are compatible at runtime
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- readonly const paths are compatible at runtime
 		paths: buildAllPaths(maxUploadSize) as unknown as ZodOpenApiPathsObject,
 	});
 }

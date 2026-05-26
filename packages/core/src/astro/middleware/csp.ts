@@ -8,14 +8,36 @@
  * img-src allows any HTTPS origin because the admin renders user content that
  * may reference external images (migrations, external hosting, embeds).
  * Plugin security does not rely on img-src -- plugins run in V8 isolates with
- * no DOM access, and connect-src 'self' blocks fetch-based exfiltration.
+ * no DOM access. connect-src stays at 'self' unless the experimental registry
+ * is configured, in which case the configured aggregator origin is allowed.
  */
-export function buildEmDashCsp(): string {
+import type { RegistryConfigInput } from "../../registry/types.js";
+
+function getRegistryAggregatorOrigin(
+	registry: RegistryConfigInput | undefined,
+): string | undefined {
+	const aggregatorUrl = typeof registry === "string" ? registry : registry?.aggregatorUrl;
+	if (!aggregatorUrl) return undefined;
+
+	try {
+		const url = new URL(aggregatorUrl);
+		if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+		return url.origin;
+	} catch {
+		return undefined;
+	}
+}
+
+export function buildEmDashCsp(registry?: RegistryConfigInput): string {
+	const connectSrc = ["connect-src 'self'"];
+	const registryAggregatorOrigin = getRegistryAggregatorOrigin(registry);
+	if (registryAggregatorOrigin) connectSrc.push(registryAggregatorOrigin);
+
 	return [
 		"default-src 'self'",
 		"script-src 'self' 'unsafe-inline'",
 		"style-src 'self' 'unsafe-inline'",
-		"connect-src 'self'",
+		connectSrc.join(" "),
 		"form-action 'self'",
 		"frame-ancestors 'none'",
 		"img-src 'self' https: data: blob:",

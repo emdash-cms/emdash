@@ -109,7 +109,7 @@ Type `/` to access quick insert commands:
 
 4. Click **Save**
 
-Changes to published content appear immediately on your site. No rebuild required.
+Changes to published content appear immediately on your site.
 
 ### Revision History
 
@@ -206,9 +206,11 @@ Delete content from the edit screen or content list:
 
 ## Content API
 
-For programmatic access, use the EmDash admin API:
+For programmatic access, use the EmDash admin API.
 
 ### Create Content
+
+The following request creates a draft post:
 
 ```bash
 POST /_emdash/api/content/posts
@@ -225,6 +227,8 @@ Authorization: Bearer YOUR_API_TOKEN
 
 ### Update Content
 
+The following request updates an existing post and publishes it:
+
 ```bash
 PUT /_emdash/api/content/posts/my-new-post
 Content-Type: application/json
@@ -237,6 +241,8 @@ Authorization: Bearer YOUR_API_TOKEN
 ```
 
 ### Delete Content
+
+The following request permanently deletes a post:
 
 ```bash
 DELETE /_emdash/api/content/posts/my-new-post

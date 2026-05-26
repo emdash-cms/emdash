@@ -26,6 +26,8 @@ export interface CapabilityConsentDialogProps {
 	allowedHosts?: string[];
 	/** New capabilities added in an update (highlighted differently) */
 	newCapabilities?: string[];
+	/** Routes that change from private to public in an update. */
+	newlyPublicRoutes?: string[];
 	/** Audit verdict badge */
 	auditVerdict?: "pass" | "warn" | "fail";
 	/** Whether the action is in progress */
@@ -44,6 +46,7 @@ export function CapabilityConsentDialog({
 	capabilities,
 	allowedHosts,
 	newCapabilities = [],
+	newlyPublicRoutes = [],
 	auditVerdict,
 	isPending = false,
 	error,
@@ -52,7 +55,7 @@ export function CapabilityConsentDialog({
 }: CapabilityConsentDialogProps) {
 	const { t } = useLingui();
 	const newSet = new Set(newCapabilities);
-	const isUpdate = mode === "update" || newCapabilities.length > 0;
+	const isUpdate = mode === "update" || newCapabilities.length > 0 || newlyPublicRoutes.length > 0;
 
 	return (
 		<div
@@ -105,6 +108,25 @@ export function CapabilityConsentDialog({
 							</div>
 						);
 					})}
+
+					{newlyPublicRoutes.length > 0 && (
+						<div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
+							<div className="flex items-center gap-2 font-medium text-warning">
+								<Warning className="h-4 w-4 shrink-0" />
+								{t`New public routes`}
+							</div>
+							<p className="mt-1 text-xs text-kumo-subtle">
+								{t`This update exposes the following routes without authentication:`}
+							</p>
+							<ul className="mt-2 space-y-1 ps-5 text-xs">
+								{newlyPublicRoutes.map((route) => (
+									<li key={route} className="list-disc font-mono">
+										{route}
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
 
 					{/* Audit verdict banner */}
 					{auditVerdict && auditVerdict !== "pass" && (

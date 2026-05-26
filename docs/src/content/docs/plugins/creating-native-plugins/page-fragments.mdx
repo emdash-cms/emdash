@@ -36,7 +36,7 @@ Templates that omit one of these components silently ignore fragments targeting 
 
 ## Contribution kinds
 
-Three kinds of contributions:
+A hook can return one of three contribution kinds:
 
 ```typescript
 type PageFragmentContribution =
@@ -70,7 +70,7 @@ type PageFragmentContribution =
 
 ### External script
 
-Inject a third-party tag manager:
+The following hook injects a third-party tag manager into `<head>`:
 
 ```typescript
 "page:fragments": async (event, ctx) => {
@@ -88,7 +88,7 @@ Inject a third-party tag manager:
 
 ### Inline script
 
-Run a small piece of JavaScript at the top of `<body>`:
+The following hook runs a small piece of JavaScript at the top of `<body>` on content pages:
 
 ```typescript
 "page:fragments": async (event, ctx) => {
@@ -107,7 +107,7 @@ Run a small piece of JavaScript at the top of `<body>`:
 
 ### HTML fragment
 
-Append a noscript fallback at the end of `<body>`:
+The following hook appends a noscript fallback at the end of `<body>`:
 
 ```typescript
 "page:fragments": async (event, ctx) => {
@@ -124,7 +124,7 @@ Append a noscript fallback at the end of `<body>`:
 
 ### Multiple fragments
 
-Return an array to contribute multiple fragments from a single hook:
+A hook can return an array to contribute multiple fragments at once. The following hook adds both a script and a noscript fallback:
 
 ```typescript
 "page:fragments": async (event, ctx) => {
@@ -180,4 +180,4 @@ If what you actually need is:
 - A canonical or alternate `<link>` → `page:metadata` with `kind: "link"`.
 - A JSON-LD graph → `page:metadata` with `kind: "jsonld"`.
 
-`page:metadata` works in sandboxed plugins, gets validation and deduplication for free, and avoids the trust burden of shipping raw HTML to visitors. Reach for `page:fragments` only when you genuinely need to ship JavaScript or HTML.
+`page:metadata` works in sandboxed plugins, gets validation and deduplication for free, and avoids the trust burden of shipping raw HTML to visitors. Reach for `page:fragments` only when you need to ship JavaScript or HTML.

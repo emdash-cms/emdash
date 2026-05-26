@@ -1137,7 +1137,7 @@ function InlineMediaPicker({
 				const r = await ecFetch(url);
 				const d = await r.json();
 				const raw = d.data.items ?? [];
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- API response items mapped to MediaItem shape
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- API response items mapped to MediaItem shape
 				const typedRaw = raw as Array<{
 					id: string;
 					filename?: string;

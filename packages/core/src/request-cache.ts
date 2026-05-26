@@ -22,7 +22,7 @@ type CacheStore = WeakMap<EmDashRequestContext, Map<string, Promise<unknown>>>;
 const STORE_KEY = Symbol.for("emdash:request-cache");
 const g = globalThis as Record<symbol, unknown>;
 const store: CacheStore =
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern (see request-context.ts)
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
 	(g[STORE_KEY] as CacheStore | undefined) ??
 	(() => {
 		const wm: CacheStore = new WeakMap();
@@ -50,7 +50,7 @@ export function requestCached<T>(key: string, fn: () => Promise<T>): Promise<T> 
 	const existing = cache.get(key);
 	if (existing) {
 		if (ctx.metrics) ctx.metrics.cacheHits += 1;
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- heterogeneous cache; key namespacing guarantees the stored promise resolves to T
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- heterogeneous cache; key namespacing guarantees the stored promise resolves to T
 		return existing as Promise<T>;
 	}
 	if (ctx.metrics) ctx.metrics.cacheMisses += 1;
@@ -80,7 +80,7 @@ export function peekRequestCache<T>(key: string): Promise<T> | undefined {
 	const ctx = getRequestContext();
 	if (!ctx) return undefined;
 	const cache = store.get(ctx);
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- heterogeneous cache; caller is responsible for using a T-compatible key
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- heterogeneous cache; caller is responsible for using a T-compatible key
 	return cache?.get(key) as Promise<T> | undefined;
 }
 

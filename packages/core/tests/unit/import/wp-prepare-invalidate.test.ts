@@ -51,7 +51,7 @@ describe("POST /api/import/wordpress/prepare", () => {
 		};
 
 		const ctx = buildContext(emdash);
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion)
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
 		const response = await POST(ctx as any);
 
 		expect(response.status).toBe(200);
@@ -82,7 +82,7 @@ describe("POST /api/import/wordpress/prepare", () => {
 		};
 
 		const ctx = buildContext(emdash);
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion)
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
 		const response = await POST(ctx as any);
 
 		expect(response.status).toBe(200);

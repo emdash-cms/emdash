@@ -15,7 +15,7 @@ import { env, exports } from "cloudflare:workers";
 import {
 	normalizeCapabilities,
 	type SandboxRunner,
-	type SandboxedPlugin,
+	type SandboxedPluginInstance,
 	type SandboxEmailSendCallback,
 	type SandboxOptions,
 	type SandboxRunnerFactory,
@@ -26,8 +26,6 @@ import {
 import { setEmailSendCallback } from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
-
-const EMDASH_SHIM = "export const definePlugin = (d) => d;\n";
 
 /**
  * Default resource limits for sandboxed plugins.
@@ -51,13 +49,17 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	storageConfig?: Record<
+		string,
+		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+	>;
 }
 
 /**
  * Get the Worker Loader binding from env
  */
 function getLoader(): WorkerLoader | null {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Worker Loader binding accessed from untyped env object
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker Loader binding accessed from untyped env object
 	return (env as Record<string, unknown>).LOADER as WorkerLoader | null;
 }
 
@@ -65,7 +67,7 @@ function getLoader(): WorkerLoader | null {
  * Get the PluginBridge from exports (loopback binding)
  */
 function getPluginBridge(): ((opts: { props: PluginBridgeProps }) => PluginBridgeBinding) | null {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- PluginBridge accessed from untyped cloudflare:workers exports
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- PluginBridge accessed from untyped cloudflare:workers exports
 	return (exports as Record<string, unknown>).PluginBridge as
 		| ((opts: { props: PluginBridgeProps }) => PluginBridgeBinding)
 		| null;
@@ -128,12 +130,19 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	}
 
 	/**
+	 * Worker Loader runs in-process, always healthy if available.
+	 */
+	isHealthy(): boolean {
+		return this.isAvailable();
+	}
+
+	/**
 	 * Load a sandboxed plugin.
 	 *
 	 * @param manifest - Plugin manifest with capabilities and storage declarations
 	 * @param code - The bundled plugin JavaScript code
 	 */
-	async load(manifest: PluginManifest, code: string): Promise<SandboxedPlugin> {
+	async load(manifest: PluginManifest, code: string): Promise<SandboxedPluginInstance> {
 		const pluginId = `${manifest.id}:${manifest.version}`;
 
 		// Return cached plugin if available
@@ -186,7 +195,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
  * We must create fresh stubs for each invocation to avoid I/O isolation errors:
  * "Cannot perform I/O on behalf of a different request"
  */
-class CloudflareSandboxedPlugin implements SandboxedPlugin {
+class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 	readonly id: string;
 	readonly manifest: PluginManifest;
 	private loader: WorkerLoader;
@@ -245,6 +254,15 @@ class CloudflareSandboxedPlugin implements SandboxedPlugin {
 				capabilities: normalizeCapabilities(this.manifest.capabilities || []),
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),
+				storageConfig: this.manifest.storage as
+					| Record<
+							string,
+							{
+								indexes?: Array<string | string[]>;
+								uniqueIndexes?: Array<string | string[]>;
+							}
+					  >
+					| undefined,
 			},
 		});
 
@@ -262,7 +280,6 @@ class CloudflareSandboxedPlugin implements SandboxedPlugin {
 			modules: {
 				"plugin.js": { js: this.wrapperCode! },
 				"sandbox-plugin.js": { js: this.code },
-				emdash: { js: EMDASH_SHIM },
 			},
 			// Block direct network access - plugins must use ctx.http via bridge
 			globalOutbound: null,

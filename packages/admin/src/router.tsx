@@ -37,6 +37,8 @@ import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
 import { PluginManager } from "./components/PluginManager";
 import { Redirects } from "./components/Redirects";
+import { RegistryBrowse } from "./components/RegistryBrowse";
+import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
 import { Sections } from "./components/Sections";
@@ -389,6 +391,11 @@ function ContentListPage() {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
 
+	// Server returns `total` on every page; the first page is authoritative
+	// because filters don't change within a fetch cycle. Fall back to the
+	// loaded count so old servers (pre-total) still render a denominator.
+	const total = data?.pages[0]?.total ?? items.length;
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -433,6 +440,7 @@ function ContentListPage() {
 			urlPattern={collectionConfig.urlPattern}
 			sort={sort}
 			onSortChange={setSort}
+			total={total}
 		/>
 	);
 }
@@ -459,12 +467,20 @@ function ContentNewPage() {
 		queryFn: fetchManifest,
 	});
 
+	// Locale the picker should scope to. URL `?locale=` wins; otherwise
+	// fall back to the configured defaultLocale. Single-locale installs
+	// resolve to `defaultLocale` too — the server treats that as "use the
+	// configured default" so behaviour matches pre-i18n in that case.
+	const pickerLocale = locale ?? manifest?.i18n?.defaultLocale;
+
+	// Send the resolved picker locale so the new entry's locale matches
+	// the locale the byline picker was scoped to.
 	const createMutation = useMutation({
 		mutationFn: (data: {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
-		}) => createContent(collection, { ...data, locale }),
+		}) => createContent(collection, { ...data, locale: pickerLocale }),
 		onSuccess: (result) => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
 			void navigate({
@@ -476,14 +492,20 @@ function ContentNewPage() {
 
 	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
-	const { data: bylinesData } = useQuery({
-		queryKey: ["bylines"],
-		queryFn: () => fetchBylines({ limit: 100 }),
+	// The picker is locale-pinned to the entry being created so editors
+	// only see bylines that will actually hydrate at this locale (per the
+	// strict per-locale model from migration 040). Locale is part of the
+	// query key so switching locales fetches a fresh slice rather than
+	// reusing a stale cache.
+	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
+		queryKey: ["bylines", "picker", pickerLocale ?? null],
+		queryFn: () => fetchBylines({ locale: pickerLocale, limit: 100 }),
+		enabled: !!manifest,
 	});
 
 	const createBylineMutation = useMutation({
 		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true }),
+			createByline({ ...input, isGuest: true, locale: pickerLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -524,10 +546,13 @@ function ContentNewPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			fields={collectionConfig.fields}
 			isNew
+			entryLocale={pickerLocale}
+			i18n={manifest?.i18n}
 			isSaving={createMutation.isPending}
 			onSave={handleSave}
 			pluginBlocks={pluginBlocks}
 			availableBylines={bylinesData?.items}
+			availableBylinesLoaded={bylinesLoaded}
 			selectedBylines={selectedBylines}
 			onBylinesChange={setSelectedBylines}
 			onQuickCreateByline={async (input) => {
@@ -652,14 +677,23 @@ function ContentEditPage() {
 		staleTime: 5 * 60 * 1000,
 	});
 
-	const { data: bylinesData } = useQuery({
-		queryKey: ["bylines"],
-		queryFn: () => fetchBylines({ limit: 100 }),
+	// Picker is locale-pinned to the entry being edited. The credit
+	// hydration server-side is strict per locale (migration 040), so the
+	// picker must show only bylines that will actually render at this
+	// locale — otherwise the editor adds a credit that silently vanishes
+	// after autosave. Query disabled until `rawItem.locale` resolves so a
+	// transient `undefined` doesn't populate the cache with default-locale
+	// data.
+	const itemLocale = rawItem?.locale ?? undefined;
+	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
+		queryKey: ["bylines", "picker", itemLocale ?? null],
+		queryFn: () => fetchBylines({ locale: itemLocale, limit: 100 }),
+		enabled: !!itemLocale,
 	});
 
 	const createBylineMutation = useMutation({
 		mutationFn: (input: { slug: string; displayName: string }) =>
-			createByline({ ...input, isGuest: true }),
+			createByline({ ...input, isGuest: true, locale: itemLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
 		},
@@ -945,6 +979,7 @@ function ContentEditPage() {
 			hasSeo={collectionConfig.hasSeo}
 			onSeoChange={handleSeoChange}
 			availableBylines={bylinesData?.items}
+			availableBylinesLoaded={bylinesLoaded}
 			onQuickCreateByline={async (input) => {
 				const created = await createBylineMutation.mutateAsync(input);
 				return created;
@@ -973,7 +1008,7 @@ function MediaPage() {
 			queryKey: ["media"],
 			queryFn: ({ pageParam }) =>
 				fetchMediaList({
-					cursor: pageParam as string | undefined,
+					cursor: pageParam,
 					limit: 100,
 				}),
 			initialPageParam: undefined as string | undefined,
@@ -1265,6 +1300,11 @@ const marketplaceBrowseRoute = createRoute({
 });
 
 function MarketplaceBrowsePage() {
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
 	const { data: plugins } = useQuery({
 		queryKey: ["plugins"],
 		queryFn: async () => {
@@ -1277,6 +1317,26 @@ function MarketplaceBrowsePage() {
 		if (!plugins) return new Set<string>();
 		return new Set(plugins.map((p) => p.id));
 	}, [plugins]);
+
+	// When `experimental.registry` is configured, the registry browse
+	// replaces the centralized marketplace browse on this route. Existing
+	// sidebar / deep links stay valid; users see the registry without any
+	// path change.
+	if (manifest?.registry) {
+		// Map installed registry plugins to their AT URIs for the
+		// "Installed" badge on browse cards.
+		const installedRegistryUris = new Set<string>(
+			(plugins ?? [])
+				.filter((p) => p.source === "registry" && p.registryPublisherDid && p.registrySlug)
+				.map(
+					(p) =>
+						`at://${p.registryPublisherDid}/com.emdashcms.experimental.package.profile/${p.registrySlug}`,
+				),
+		);
+		return (
+			<RegistryBrowse config={manifest.registry} installedRegistryUris={installedRegistryUris} />
+		);
+	}
 
 	return <MarketplaceBrowse installedPluginIds={installedIds} />;
 }
@@ -1291,6 +1351,11 @@ const marketplaceDetailRoute = createRoute({
 function MarketplaceDetailPage() {
 	const { pluginId } = useParams({ from: "/_admin/plugins/marketplace/$pluginId" });
 
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
 	const { data: plugins } = useQuery({
 		queryKey: ["plugins"],
 		queryFn: async () => {
@@ -1303,6 +1368,17 @@ function MarketplaceDetailPage() {
 		if (!plugins) return new Set<string>();
 		return new Set(plugins.map((p) => p.id));
 	}, [plugins]);
+
+	// Discriminate by param shape, not by the manifest flag. A registry
+	// pluginId is always `${handle}/${slug}` and contains exactly one `/`;
+	// a marketplace pluginId is a single segment with no `/`. This keeps
+	// deep links to marketplace-installed plugins working on sites that
+	// later opt into the registry, instead of unconditionally routing
+	// every visit to RegistryPluginDetail.
+	const looksLikeRegistryId = pluginId.includes("/");
+	if (manifest?.registry && looksLikeRegistryId) {
+		return <RegistryPluginDetail pluginId={pluginId} config={manifest.registry} />;
+	}
 
 	return <MarketplacePluginDetail pluginId={pluginId} installedPluginIds={installedIds} />;
 }
@@ -1397,10 +1473,25 @@ const usersRoute = createRoute({
 });
 
 // Bylines route
+//
+// `validateSearch` rejects empty-string locale (`?locale=`) — left as `""`
+// it would land in component state and silently drop the locale filter
+// from `fetchBylines`, fetching every locale's rows while the UI thinks
+// it's scoped to one.
+export function parseBylinesLocaleSearch(search: Record<string, unknown>): {
+	locale: string | undefined;
+} {
+	if (typeof search.locale === "string" && search.locale.length > 0) {
+		return { locale: search.locale };
+	}
+	return { locale: undefined };
+}
+
 const bylinesRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/bylines",
 	component: BylinesPage,
+	validateSearch: parseBylinesLocaleSearch,
 });
 
 // Content Types routes

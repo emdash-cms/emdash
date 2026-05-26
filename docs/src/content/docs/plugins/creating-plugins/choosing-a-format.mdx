@@ -15,7 +15,7 @@ Choose native only when you need a feature the sandbox can't provide.
 
 |                                     | Sandboxed                                          | Native                                |
 | ----------------------------------- | -------------------------------------------------- | ------------------------------------- |
-| `format` field on descriptor        | `"standard"`                                       | `"native"`                            |
+| Authoring shape                     | `emdash-plugin.jsonc` + `src/plugin.ts`            | `definePlugin()` descriptor           |
 | Install method                      | One-click from the admin marketplace               | `npm install` + edit `astro.config`   |
 | Runs in                             | An isolated runtime provided by a sandbox runner   | Same process as your Astro site       |
 | Capabilities                        | Enforced by the sandbox bridge                     | Enforced in-process by the same bridge |
@@ -45,7 +45,7 @@ If your plugin can do its job in the sandbox, it should.
 There are three reasons to choose native, and they're all about features that need build-time integration with the host site:
 
 1. **Custom React admin pages or widgets.** Sandboxed plugins describe their admin UI with Block Kit — a JSON schema that the admin renders on the plugin's behalf. If you need full React (custom hooks, third-party components, complex state), you need native.
-2. **Astro components for rendering Portable Text blocks on the public site.** A plugin can declare a custom block type with `format: "standard"`, but the Astro components that render it on the public site have to be loaded at build time from npm. Only native plugins can provide a `componentsEntry`.
+2. **Astro components for rendering Portable Text blocks on the public site.** A sandboxed plugin can declare a custom block type, but the Astro components that render it on the public site have to be loaded at build time from npm. Only native plugins can provide a `componentsEntry`.
 3. **Injecting raw HTML, scripts, or stylesheets into public pages.** The `page:fragments` hook ships first-party code to visitors' browsers — outside any sandbox boundary. It's restricted to native plugins. Sandboxed plugins can still contribute to public pages through the `page:metadata` hook, which covers a lot of real use cases:
 
    - `meta` tags (`name` + `content`) — SEO descriptions, robots directives, Twitter cards
@@ -71,7 +71,7 @@ The runner most sites use today is `sandbox()` from `@emdash-cms/cloudflare`, wh
 
 If no runner is configured, or if the configured runner reports as unavailable on the current platform, plugins listed under `sandboxed: []` are skipped at startup with a debug-level log.
 
-If you want a standard-format plugin to run on a platform without a sandbox runner, move it from `sandboxed: []` into the `plugins: []` array — it'll execute in-process. Capability declarations are still honoured (the same `PluginContext` factory gates `ctx.content`, `ctx.http`, and friends), but there is no isolation boundary, no resource limits, and a buggy or malicious plugin can call `fetch()` directly, read environment variables, or block the event loop. Without a sandbox runner active, treat every plugin as a native plugin for trust purposes.
+If you want a sandboxed plugin to run on a platform without a sandbox runner, move it from `sandboxed: []` into the `plugins: []` array — it'll execute in-process. Capability declarations are still honoured (the same `PluginContext` factory gates `ctx.content`, `ctx.http`, and friends), but there is no isolation boundary, no resource limits, and a buggy or malicious plugin can call `fetch()` directly, read environment variables, or block the event loop. Without a sandbox runner active, treat every plugin as a native plugin for trust purposes.
 
 ## Next
 

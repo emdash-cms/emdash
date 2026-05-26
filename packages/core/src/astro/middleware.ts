@@ -20,11 +20,8 @@ import type { RequestScopedDbOpts } from "virtual:emdash/dialect";
 import { mediaProviders as virtualMediaProviders } from "virtual:emdash/media-providers";
 // @ts-ignore - virtual module
 import { plugins as virtualPlugins } from "virtual:emdash/plugins";
-import {
-	createSandboxRunner as virtualCreateSandboxRunner,
-	sandboxEnabled as virtualSandboxEnabled,
-	// @ts-ignore - virtual module
-} from "virtual:emdash/sandbox-runner";
+// @ts-ignore - virtual module
+import * as virtualSandboxRunnerModule from "virtual:emdash/sandbox-runner";
 // @ts-ignore - virtual module
 import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sandboxed-plugins";
 // @ts-ignore - virtual module
@@ -82,11 +79,11 @@ function getConfig(): EmDashConfig | null {
 		// Initialize i18n config on first access (once per worker lifetime)
 		if (!i18nInitialized) {
 			i18nInitialized = true;
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module checked as object above
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module checked as object above
 			const config = virtualConfig as Record<string, unknown>;
 			if (config.i18n && typeof config.i18n === "object") {
 				setI18nConfig(
-					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- runtime-checked above
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- runtime-checked above
 					config.i18n as {
 						defaultLocale: string;
 						locales: string[];
@@ -98,7 +95,7 @@ function getConfig(): EmDashConfig | null {
 			}
 		}
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
 		return virtualConfig as EmDashConfig;
 	}
 	return null;
@@ -108,7 +105,7 @@ function getConfig(): EmDashConfig | null {
  * Get plugins from virtual module
  */
 function getPlugins(): ResolvedPlugin[] {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
 	return (virtualPlugins as ResolvedPlugin[]) || [];
 }
 
@@ -116,24 +113,37 @@ function getPlugins(): ResolvedPlugin[] {
  * Build runtime dependencies from virtual modules
  */
 function buildDependencies(config: EmDashConfig): RuntimeDependencies {
+	/* eslint-disable typescript-eslint/no-unsafe-type-assertion --
+	   The virtual:emdash/* imports above use @ts-ignore because tsgo/IDE
+	   resolution can't see virtual-modules.d.ts in every consumer setup,
+	   so they arrive as `any`. The casts here line each entry up with
+	   RuntimeDependencies's expected shape. The contract is enforced by
+	   the integration that populates these virtual modules. */
+	const sandboxModule = virtualSandboxRunnerModule as Record<string, unknown>;
 	return {
 		config,
 		plugins: getPlugins(),
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
-		sandboxEnabled: virtualSandboxEnabled as boolean,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
+		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
+		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
-		createSandboxRunner: virtualCreateSandboxRunner as
-			| ((opts: { db: Kysely<Database> }) => SandboxRunner)
+		createSandboxRunner: sandboxModule.createSandboxRunner as
+			| ((opts: {
+					db: Kysely<Database>;
+					mediaStorage?: {
+						upload(options: {
+							key: string;
+							body: Uint8Array;
+							contentType: string;
+						}): Promise<unknown>;
+						delete(key: string): Promise<unknown>;
+					};
+			  }) => SandboxRunner)
 			| null,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		mediaProviderEntries: (virtualMediaProviders as MediaProviderEntry[]) || [],
 	};
+	/* eslint-enable typescript-eslint/no-unsafe-type-assertion */
 }
 
 /**
@@ -255,7 +265,7 @@ function createRequestScopedDb(
 	opts: RequestScopedDbOpts,
 ): { db: Kysely<Database>; commit: () => void } | null {
 	if (typeof virtualCreateRequestScopedDb !== "function") return null;
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- adapter returns Kysely<unknown>; cast to Database since core owns that type
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- adapter returns Kysely<unknown>; cast to Database since core owns that type
 	const fn = virtualCreateRequestScopedDb as (
 		o: RequestScopedDbOpts,
 	) => { db: Kysely<Database>; commit: () => void } | null;
@@ -358,7 +368,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					try {
 						const runtime = await getRuntime(config, initSubTimings);
 						setupVerified = true;
-						// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- partial object; getPageRuntime() only checks for the page-contribution methods
+						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
@@ -523,9 +533,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Sandbox runner (for marketplace plugin install/update)
 					getSandboxRunner: runtime.getSandboxRunner.bind(runtime),
+					isSandboxBypassed: runtime.isSandboxBypassed.bind(runtime),
 
 					// Sync marketplace plugin states (after install/update/uninstall)
 					syncMarketplacePlugins: runtime.syncMarketplacePlugins.bind(runtime),
+
+					// Sync registry plugin states (after install/update/uninstall)
+					syncRegistryPlugins: runtime.syncRegistryPlugins.bind(runtime),
 
 					// Update plugin enabled/disabled status and rebuild hook pipeline
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),

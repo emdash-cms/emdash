@@ -1,36 +1,30 @@
 {
-	"name": "@emdash-cms/template-marketing",
-	"version": "0.0.3",
-	"private": true,
-	"type": "module",
-	"emdash": {
-		"seed": "seed/seed.json"
-	},
-	"scripts": {
-		"dev": "astro dev",
-		"build": "astro build",
-		"preview": "astro preview",
-		"start": "node ./dist/server/entry.mjs",
-		"typecheck": "astro check"
-	},
-	"dependencies": {
-		"@astrojs/node": "catalog:",
-		"@astrojs/react": "catalog:",
-		"@iconify-json/ph": "catalog:",
-		"astro": "catalog:",
-		"astro-iconset": "catalog:",
-		"better-sqlite3": "catalog:",
-		"emdash": "workspace:*",
-		"react": "catalog:",
-		"react-dom": "catalog:"
-	},
-	"devDependencies": {
-		"@astrojs/check": "catalog:"
-	},
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"better-sqlite3",
-			"esbuild"
-		]
-	}
+  "name": "@emdash-cms/template-marketing",
+  "version": "0.0.3",
+  "private": true,
+  "type": "module",
+  "emdash": {
+    "seed": "seed/seed.json"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "node ./dist/server/entry.mjs",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/node": "catalog:",
+    "@astrojs/react": "catalog:",
+    "@iconify-json/ph": "catalog:",
+    "astro": "catalog:",
+    "astro-iconset": "catalog:",
+    "better-sqlite3": "catalog:",
+    "emdash": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@astrojs/check": "catalog:"
+  }
 }

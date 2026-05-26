@@ -25,7 +25,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
-	const db = emdash!.db;
+	const db = emdash.db;
 	const { id } = params;
 
 	const denied = requirePerm(user, "redirects:read");
@@ -47,7 +47,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
-	const db = emdash!.db;
+	const db = emdash.db;
 	const { id } = params;
 
 	const denied = requirePerm(user, "redirects:manage");
@@ -73,7 +73,7 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
-	const db = emdash!.db;
+	const db = emdash.db;
 	const { id } = params;
 
 	const denied = requirePerm(user, "redirects:manage");
