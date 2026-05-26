@@ -92,7 +92,7 @@ function getClient(
 	return createMarketplaceClient(marketplaceUrl, siteOrigin);
 }
 
-function diffCapabilities(
+export function diffCapabilities(
 	oldCaps: string[],
 	newCaps: string[],
 ): { added: string[]; removed: string[] } {
@@ -114,7 +114,7 @@ function diffCapabilities(
  * Diff route visibility between two manifests.
  * Returns routes that changed from private to public (newly exposed).
  */
-function diffRouteVisibility(
+export function diffRouteVisibility(
 	oldManifest: PluginManifest | undefined,
 	newManifest: PluginManifest,
 ): { newlyPublic: string[] } {
@@ -193,15 +193,27 @@ function validateBundleIdentity(
 }
 
 /** Store a plugin bundle's files in site-local R2 storage */
-async function storeBundleInR2(
+/**
+ * Storage source for an installed plugin bundle. Determines the R2
+ * key prefix and is used to keep marketplace and registry installs
+ * cleanly separated in object listings.
+ */
+export type PluginBundleSource = "marketplace" | "registry";
+
+function bundlePrefix(source: PluginBundleSource, pluginId: string, version: string): string {
+	return `${source}/${pluginId}/${version}`;
+}
+
+export async function storeBundleInR2(
 	storage: Storage,
 	pluginId: string,
 	version: string,
 	bundle: PluginBundle,
+	source: PluginBundleSource = "marketplace",
 ): Promise<void> {
 	validatePluginIdentifier(pluginId, "plugin ID");
 	validateVersion(version);
-	const prefix = `marketplace/${pluginId}/${version}`;
+	const prefix = bundlePrefix(source, pluginId, version);
 
 	// Store manifest
 	await storage.upload({
@@ -232,15 +244,23 @@ async function streamToText(stream: ReadableStream<Uint8Array>): Promise<string>
 	return new Response(stream).text();
 }
 
-/** Load a plugin bundle from site-local R2 storage */
+/**
+ * Load a plugin bundle from site-local R2 storage.
+ *
+ * `source` selects the R2 key prefix: marketplace plugins are stored
+ * under `marketplace/<id>/<version>/`, registry plugins under
+ * `registry/<id>/<version>/`. Defaults to `"marketplace"` for
+ * backwards compatibility with pre-registry call sites.
+ */
 export async function loadBundleFromR2(
 	storage: Storage,
 	pluginId: string,
 	version: string,
+	source: PluginBundleSource = "marketplace",
 ): Promise<{ manifest: PluginManifest; backendCode: string; adminCode?: string } | null> {
 	validatePluginIdentifier(pluginId, "plugin ID");
 	validateVersion(version);
-	const prefix = `marketplace/${pluginId}/${version}`;
+	const prefix = bundlePrefix(source, pluginId, version);
 
 	try {
 		const manifestResult = await storage.download(`${prefix}/manifest.json`);
@@ -272,14 +292,15 @@ export async function loadBundleFromR2(
 }
 
 /** Delete a plugin bundle from site-local R2 storage */
-async function deleteBundleFromR2(
+export async function deleteBundleFromR2(
 	storage: Storage,
 	pluginId: string,
 	version: string,
+	source: PluginBundleSource = "marketplace",
 ): Promise<void> {
 	validatePluginIdentifier(pluginId, "plugin ID");
 	validateVersion(version);
-	const prefix = `marketplace/${pluginId}/${version}`;
+	const prefix = bundlePrefix(source, pluginId, version);
 	const files = ["manifest.json", "backend.js", "admin.js"];
 
 	for (const file of files) {
@@ -299,7 +320,18 @@ export async function handleMarketplaceInstall(
 	sandboxRunner: SandboxRunner | null,
 	marketplaceUrl: string | undefined,
 	pluginId: string,
-	opts?: { version?: string; configuredPluginIds?: Set<string>; siteOrigin?: string },
+	opts?: {
+		version?: string;
+		configuredPluginIds?: Set<string>;
+		siteOrigin?: string;
+		/**
+		 * When true, sandbox: false bypass mode is active. The sandbox runner
+		 * is the noop runner (isAvailable() === false) but the runtime will
+		 * load the marketplace plugin in-process via syncMarketplacePlugins().
+		 * Skip the SANDBOX_NOT_AVAILABLE gate so the install can proceed.
+		 */
+		sandboxBypassed?: boolean;
+	},
 ): Promise<ApiResult<MarketplaceInstallResult>> {
 	const client = getClient(marketplaceUrl, opts?.siteOrigin);
 	if (!client) {
@@ -322,7 +354,9 @@ export async function handleMarketplaceInstall(
 		};
 	}
 
-	if (!sandboxRunner || !sandboxRunner.isAvailable()) {
+	// Sandbox availability check: skip when sandbox: false bypass is active.
+	// The runtime's syncMarketplacePlugins() will load the plugin in-process.
+	if (!opts?.sandboxBypassed && (!sandboxRunner || !sandboxRunner.isAvailable())) {
 		return {
 			success: false,
 			error: {
@@ -503,6 +537,13 @@ export async function handleMarketplaceUpdate(
 		version?: string;
 		confirmCapabilityChanges?: boolean;
 		confirmRouteVisibilityChanges?: boolean;
+		/**
+		 * When true, sandbox: false bypass mode is active. The sandbox runner
+		 * is the noop runner (isAvailable() === false) but the runtime will
+		 * load the marketplace plugin in-process via syncMarketplacePlugins().
+		 * Skip the SANDBOX_NOT_AVAILABLE gate so the update can proceed.
+		 */
+		sandboxBypassed?: boolean;
 	},
 ): Promise<ApiResult<MarketplaceUpdateResult>> {
 	const client = getClient(marketplaceUrl);
@@ -518,7 +559,9 @@ export async function handleMarketplaceUpdate(
 			error: { code: "STORAGE_NOT_CONFIGURED", message: "Storage is required" },
 		};
 	}
-	if (!sandboxRunner || !sandboxRunner.isAvailable()) {
+	// Sandbox availability check: skip when sandbox: false bypass is active.
+	// The runtime's syncMarketplacePlugins() will load the plugin in-process.
+	if (!opts?.sandboxBypassed && (!sandboxRunner || !sandboxRunner.isAvailable())) {
 		return {
 			success: false,
 			error: { code: "SANDBOX_NOT_AVAILABLE", message: "Sandbox runner is required" },

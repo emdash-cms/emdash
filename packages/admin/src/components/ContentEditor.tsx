@@ -23,8 +23,9 @@ import {
 	ArrowsInSimple,
 	ArrowsOutSimple,
 	ArrowSquareOut,
+	ImageBroken,
 } from "@phosphor-icons/react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -108,6 +109,13 @@ export interface ContentEditorProps {
 	item?: ContentItem | null;
 	fields: Record<string, FieldDescriptor>;
 	isNew?: boolean;
+	/**
+	 * Locale this entry is bound to. For existing entries this matches
+	 * `item.locale`; for new entries it's the URL `?locale=` (or default).
+	 * Threaded into the byline picker so the empty-state CTA links to the
+	 * right locale on the Bylines manager.
+	 */
+	entryLocale?: string | null;
 	isSaving?: boolean;
 	onSave?: (payload: {
 		data: Record<string, unknown>;
@@ -148,6 +156,8 @@ export interface ContentEditorProps {
 	onAuthorChange?: (authorId: string | null) => void;
 	/** Available byline profiles */
 	availableBylines?: BylineSummary[];
+	/** Whether the parent's byline picker query has resolved. Suppresses the empty-state flash before first fetch. */
+	availableBylinesLoaded?: boolean;
 	/** Selected byline credits (controlled for new entries) */
 	selectedBylines?: BylineCreditInput[];
 	/** Callback when byline credits are changed */
@@ -195,6 +205,7 @@ export function ContentEditor({
 	item,
 	fields,
 	isNew,
+	entryLocale,
 	isSaving,
 	onSave,
 	onAutosave,
@@ -213,6 +224,7 @@ export function ContentEditor({
 	users,
 	onAuthorChange,
 	availableBylines,
+	availableBylinesLoaded,
 	selectedBylines,
 	onBylinesChange,
 	onQuickCreateByline,
@@ -237,6 +249,11 @@ export function ContentEditor({
 		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
 			[],
 	);
+	// Gates whether `bylines` is included in the save payload. Untouched
+	// edits must not ship `[]` — strict per-locale hydration can return
+	// empty for entries with credits at other locales, and sending `[]`
+	// would wipe them.
+	const [bylinesTouched, setBylinesTouched] = React.useState(false);
 
 	// Track portableText editor for document outline. Only the "content"
 	// field wires its editor into this slot (see onEditorReady below).
@@ -310,6 +327,7 @@ export function ContentEditor({
 			}),
 		);
 		pendingAutosaveStateRef.current = null;
+		setBylinesTouched(false);
 	}
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
@@ -337,6 +355,7 @@ export function ContentEditor({
 				}),
 			);
 			pendingAutosaveStateRef.current = null;
+			setBylinesTouched(false);
 		}
 	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
 
@@ -344,6 +363,7 @@ export function ContentEditor({
 
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
+			setBylinesTouched(true);
 			if (isNew) {
 				onBylinesChange?.(next);
 				return;
@@ -415,15 +435,19 @@ export function ContentEditor({
 		// Schedule autosave
 		autosaveTimeoutRef.current = setTimeout(() => {
 			if (hasInvalidUrls(formDataRef.current)) return;
-			const payload = {
+			const payload: {
+				data: Record<string, unknown>;
+				slug?: string;
+				bylines?: BylineCreditInput[];
+			} = {
 				data: formDataRef.current,
 				slug: slugRef.current || undefined,
-				bylines: activeBylines,
 			};
+			if (bylinesTouched) payload.bylines = activeBylines;
 			pendingAutosaveStateRef.current = serializeEditorState({
 				data: payload.data,
 				slug: payload.slug || "",
-				bylines: payload.bylines,
+				bylines: activeBylines,
 			});
 			onAutosave(payload);
 		}, AUTOSAVE_DELAY);
@@ -442,6 +466,7 @@ export function ContentEditor({
 		isSaving,
 		isAutosaving,
 		activeBylines,
+		bylinesTouched,
 		hasInvalidUrls,
 	]);
 
@@ -454,11 +479,16 @@ export function ContentEditor({
 			clearTimeout(autosaveTimeoutRef.current);
 			autosaveTimeoutRef.current = null;
 		}
-		onSave?.({
+		const payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		} = {
 			data: formData,
 			slug: slug || undefined,
-			bylines: activeBylines,
-		});
+		};
+		if (isNew || bylinesTouched) payload.bylines = activeBylines;
+		onSave?.(payload);
 	};
 
 	// Preview URL state
@@ -967,9 +997,14 @@ export function ContentEditor({
 									<BylineCreditsEditor
 										credits={activeBylines}
 										bylines={availableBylines ?? []}
+										bylinesLoaded={availableBylinesLoaded}
 										onChange={handleBylinesChange}
 										onQuickCreate={onQuickCreateByline}
 										onQuickEdit={onQuickEditByline}
+										// Existing entry: use its own locale. New entry: use the
+										// URL `?locale=` (passed in via `entryLocale`).
+										entryLocale={item?.locale ?? entryLocale}
+										i18n={i18n}
 									/>
 								</div>
 							)}
@@ -1574,6 +1609,7 @@ function ImageFieldRenderer({
 }: ImageFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const [imageBroken, setImageBroken] = React.useState(false);
 	// Normalize value to get display URL (handles both object and legacy string)
 	// Prefer previewUrl for admin display, fall back to src, then derive from storageKey/id
 	const displayUrl =
@@ -1584,6 +1620,10 @@ function ImageFieldRenderer({
 				(value && (!value.provider || value.provider === "local")
 					? `/_emdash/api/media/file/${typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id}`
 					: undefined);
+
+	React.useEffect(() => {
+		setImageBroken(false);
+	}, [displayUrl]);
 
 	const handleSelect = (item: MediaItem) => {
 		const isLocalProvider = !item.provider || item.provider === "local";
@@ -1609,24 +1649,63 @@ function ImageFieldRenderer({
 		<div id={id}>
 			<Label>{label}</Label>
 			{displayUrl ? (
-				<div className="mt-2 relative group">
-					<img src={displayUrl} alt="" className="max-h-48 rounded-lg border object-cover" />
-					<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							{t`Change`}
-						</Button>
-						<Button
-							type="button"
-							shape="square"
-							variant="destructive"
-							className="h-8 w-8"
-							onClick={handleRemove}
-							aria-label={t`Remove image`}
-						>
-							<X className="h-4 w-4" />
-						</Button>
+				imageBroken ? (
+					<div className="mt-2 relative group">
+						<div className="min-h-20 rounded-lg border bg-kumo-muted flex items-center justify-center gap-2 text-kumo-subtle">
+							<ImageBroken className="h-5 w-5" />
+							<span className="text-sm">{t`Image not found`}</span>
+						</div>
+						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => setPickerOpen(true)}
+							>
+								{t`Change`}
+							</Button>
+							<Button
+								type="button"
+								shape="square"
+								variant="destructive"
+								className="h-8 w-8"
+								onClick={handleRemove}
+								aria-label={t`Remove image`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
 					</div>
-				</div>
+				) : (
+					<div className="mt-2 relative group">
+						<img
+							src={displayUrl}
+							alt=""
+							className="max-h-48 min-h-20 rounded-lg border object-cover"
+							onError={() => setImageBroken(true)}
+						/>
+						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => setPickerOpen(true)}
+							>
+								{t`Change`}
+							</Button>
+							<Button
+								type="button"
+								shape="square"
+								variant="destructive"
+								className="h-8 w-8"
+								onClick={handleRemove}
+								aria-label={t`Remove image`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
+					</div>
+				)
 			) : (
 				<Button
 					type="button"
@@ -1849,6 +1928,17 @@ interface BylineCreditsEditorProps {
 		bylineId: string,
 		input: { slug: string; displayName: string },
 	) => Promise<BylineSummary>;
+	/**
+	 * Locale of the entry being edited. When the picker comes back empty and
+	 * the install is multi-locale, the empty-state copy and CTA link are
+	 * scoped to this locale (post-migration 040, the picker is strict
+	 * per-locale — see the bylines manager flow).
+	 */
+	entryLocale?: string | null;
+	/** i18n config from the manifest. When set with >1 locales, the editor renders the locale-scoped empty-state. */
+	i18n?: { defaultLocale: string; locales: string[] } | null;
+	/** Suppresses the empty-state until the picker query resolves. Defaults to true. */
+	bylinesLoaded?: boolean;
 }
 
 function BylineCreditsEditor({
@@ -1857,6 +1947,9 @@ function BylineCreditsEditor({
 	onChange,
 	onQuickCreate,
 	onQuickEdit,
+	entryLocale,
+	i18n,
+	bylinesLoaded = true,
 }: BylineCreditsEditorProps) {
 	const { t } = useLingui();
 	const [selectedBylineId, setSelectedBylineId] = React.useState("");
@@ -1904,8 +1997,30 @@ function BylineCreditsEditor({
 		setEditError(null);
 	};
 
+	// Multi-locale install with no bylines at the entry's locale: show a
+	// CTA to the byline manager, scoped to that locale. Quick-create
+	// still works inline.
+	const isMultiLocale = !!i18n && i18n.locales.length > 1;
+	const showLocaleEmptyState =
+		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
+
 	return (
 		<div className="space-y-3">
+			{showLocaleEmptyState && (
+				<div className="rounded border border-dashed p-3 text-sm space-y-2">
+					<p className="text-kumo-subtle">
+						{t`No bylines available in ${entryLocale}. Create a variant from the Bylines page before crediting one on this entry.`}
+					</p>
+					<RouterLinkButton
+						to="/bylines"
+						search={{ locale: entryLocale ?? undefined }}
+						variant="secondary"
+						size="sm"
+					>
+						{t`Manage bylines in ${entryLocale}`}
+					</RouterLinkButton>
+				</div>
+			)}
 			<div className="flex gap-2">
 				<Select
 					value={selectedBylineId}

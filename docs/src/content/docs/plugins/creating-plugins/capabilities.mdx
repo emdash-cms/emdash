@@ -5,25 +5,21 @@ description: Declare what your plugin needs, and understand what the sandbox enf
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Sandboxed plugins are isolated by default. To do anything beyond reading and writing their own KV and storage, a plugin has to **declare a capability** on its descriptor. The sandbox bridge gates every host-provided API based on those declarations — a plugin that didn't declare `content:read` doesn't get a `ctx.content`, and one that didn't declare `network:request` doesn't get `ctx.http`.
+Sandboxed plugins are isolated by default. To do anything beyond reading and writing their own KV and storage, a plugin has to **declare a capability** in its [manifest](/plugins/creating-plugins/manifest/). The sandbox bridge gates every host-provided API based on those declarations — a plugin that didn't declare `content:read` doesn't get a `ctx.content`, and one that didn't declare `network:request` doesn't get `ctx.http`.
 
 This page covers what each capability grants, how the sandbox enforces them, and what's not enforceable.
 
 ## Declaring capabilities
 
-Capabilities live on the descriptor (the file imported by `astro.config.mjs`), alongside `id`, `version`, and `entrypoint`:
+Capabilities live in `emdash-plugin.jsonc`, alongside `slug` and the rest of the trust contract:
 
-```typescript title="src/index.ts"
-export function helloPlugin(): PluginDescriptor {
-	return {
-		id: "plugin-hello",
-		version: "0.1.0",
-		format: "standard",
-		entrypoint: "@my-org/plugin-hello/sandbox",
+```jsonc title="emdash-plugin.jsonc"
+{
+	"slug": "plugin-hello",
+	// ...identity + profile...
 
-		capabilities: ["content:read", "network:request"],
-		allowedHosts: ["api.example.com"],
-	};
+	"capabilities": ["content:read", "network:request"],
+	"allowedHosts": ["api.example.com"]
 }
 ```
 
@@ -51,35 +47,16 @@ A few things worth knowing:
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
 
-<Aside type="caution" title="Renamed in this minor">
-	Some capability names were unified. Old names still work with deprecation warnings and will be removed in the next minor:
-
-	| Old                  | New                                |
-	| -------------------- | ---------------------------------- |
-	| `read:content`       | `content:read`                     |
-	| `write:content`      | `content:write`                    |
-	| `read:media`         | `media:read`                       |
-	| `write:media`        | `media:write`                      |
-	| `read:users`         | `users:read`                       |
-	| `network:fetch`      | `network:request`                  |
-	| `network:fetch:any`  | `network:request:unrestricted`     |
-	| `email:provide`      | `hooks.email-transport:register`   |
-	| `email:intercept`    | `hooks.email-events:register`      |
-	| `page:inject`        | `hooks.page-fragments:register`    |
-
-	`emdash plugin bundle` and `emdash plugin validate` warn for each deprecated name. `emdash plugin publish` rejects manifests that still use deprecated names — re-bundle after renaming.
-</Aside>
-
 ## Network host allowlists
 
 Plugins with `network:request` can only fetch hosts listed in `allowedHosts`. Wildcards are supported for subdomains:
 
-```typescript
-capabilities: ["network:request"],
-allowedHosts: [
-	"api.example.com",          // exact host
-	"*.cdn.example.com",        // any subdomain of cdn.example.com
-],
+```jsonc title="emdash-plugin.jsonc"
+"capabilities": ["network:request"],
+"allowedHosts": [
+	"api.example.com",     // exact host
+	"*.cdn.example.com"    // any subdomain of cdn.example.com
+]
 ```
 
 The bridge checks the request URL's host against the allowlist before forwarding the request. A request to a host that wasn't declared throws inside the plugin without ever leaving the sandbox.
@@ -94,13 +71,13 @@ When a sandbox runner is active, the runtime enforces:
 
 1. **Capability gating.** The PluginContext factory only populates `ctx.content`, `ctx.media`, `ctx.http`, `ctx.users`, `ctx.email` when the corresponding capability is declared. Calling a method on an undeclared capability isn't possible — there's no object there.
 
-2. **Storage and KV scoping.** Every storage and KV operation is scoped to the plugin's id. A plugin can't read another plugin's KV or its storage collections, and it can only access storage collections it declared on the descriptor.
+2. **Storage and KV scoping.** Every storage and KV operation is scoped to the plugin's slug. A plugin can't read another plugin's KV or its storage collections, and it can only access storage collections it declared in the manifest.
 
 3. **Network isolation.** Direct `fetch()` and other network primitives are blocked by the runner. The only way to reach the network is `ctx.http.fetch()`, which goes through the bridge's host validation.
 
 4. **No host bindings.** Sandboxed plugins don't see environment variables, the filesystem, or any platform bindings — even if your host worker has them. The plugin runtime is a clean isolate with only the bridge and the declared capabilities.
 
-5. **Resource limits.** The runner can enforce CPU, subrequest, wall-clock, and memory limits per invocation. The exact limits depend on which runner you're using; the Cloudflare runner uses the platform's Worker Loader limits (50ms CPU per invocation, 10 subrequests, 30 second wall-clock, ~128MB memory). Hooks that exceed the runner's limits are aborted; the EmDash hook timeout (`timeout` in the hook config) enforces a stricter ceiling on top of that.
+5. **Resource limits.** The runner can enforce CPU, subrequest, wall-clock, and memory limits per invocation. The exact limits depend on which runner you're using; the Cloudflare runner uses the platform's Worker Loader limits (50ms CPU per invocation, 10 subrequests, 30 second wall-clock, ~128MB memory). The Node.js workerd runner (`@emdash-cms/sandbox-workerd`) enforces wall-clock time via `Promise.race`; CPU and memory limits are Cloudflare platform features and are not enforced by standalone workerd. Hooks that exceed the runner's limits are aborted; the EmDash hook timeout (`timeout` in the hook config) enforces a stricter ceiling on top of that.
 
 </Steps>
 
@@ -120,11 +97,10 @@ This is why declaring extra capabilities matters even if you "might use them lat
 
 ## Bundle-time validation
 
-`emdash plugin bundle` and `emdash plugin publish` perform additional checks:
+`emdash-plugin bundle` and `emdash-plugin publish` perform additional checks:
 
-- Every declared capability must be in the known set (typos fail the build).
-- A plugin that declares `network:request` without populating `allowedHosts` triggers a warning — declare hosts or switch to `network:request:unrestricted` and document why.
-- Deprecated capability names trigger warnings during `bundle`/`validate` and a hard fail on `publish`.
+- Every declared capability must be in the recognised set (typos fail the build).
+- `network:request` requires a non-empty `allowedHosts`; `network:request:unrestricted` requires it to be empty. See [the manifest reference](/plugins/creating-plugins/manifest/#capabilities).
 - The bundled `backend.js` can't import Node.js built-ins (`fs`, `path`, `child_process`, etc.) — sandbox runtimes don't provide them.
 
 See [Bundling and publishing](/plugins/creating-plugins/publishing/) for the full list of checks.

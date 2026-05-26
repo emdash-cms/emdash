@@ -1,6 +1,6 @@
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Image as ImageIcon, X } from "@phosphor-icons/react";
+import { Image as ImageIcon, ImageBroken, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
@@ -35,7 +35,12 @@ export function BlockKitMediaPickerField({
 }: BlockKitMediaPickerFieldProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const [imageBroken, setImageBroken] = React.useState(false);
 	const url = typeof value === "string" && value.length > 0 ? value : "";
+
+	React.useEffect(() => {
+		setImageBroken(false);
+	}, [url]);
 	const filter = mimeTypeFilter ?? "image/";
 	const canPreview = isSafePreviewUrl(url);
 
@@ -55,30 +60,65 @@ export function BlockKitMediaPickerField({
 		<div>
 			<label className="text-sm font-medium mb-1.5 block">{label}</label>
 			{canPreview ? (
-				<div className="relative group">
-					<img
-						src={url}
-						alt=""
-						className="max-h-40 w-full rounded-md border border-kumo-line object-contain bg-kumo-muted"
-						referrerPolicy="no-referrer"
-						loading="lazy"
-					/>
-					<div className="absolute top-2 end-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity flex gap-1">
-						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							{t`Change`}
-						</Button>
-						<Button
-							type="button"
-							shape="square"
-							variant="destructive"
-							className="h-8 w-8"
-							onClick={() => onChange(actionId, "")}
-							aria-label={t`Remove`}
-						>
-							<X className="h-4 w-4" />
-						</Button>
+				imageBroken ? (
+					<div className="relative group min-h-20">
+						<div className="min-h-20 w-full rounded-md border border-kumo-line bg-kumo-muted flex items-center justify-center gap-2 text-kumo-subtle">
+							<ImageBroken className="h-5 w-5" />
+							<span className="text-sm">{t`Image not found`}</span>
+						</div>
+						<div className="absolute top-2 end-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity flex gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => setPickerOpen(true)}
+							>
+								{t`Change`}
+							</Button>
+							<Button
+								type="button"
+								shape="square"
+								variant="destructive"
+								className="h-8 w-8"
+								onClick={() => onChange(actionId, "")}
+								aria-label={t`Remove`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
 					</div>
-				</div>
+				) : (
+					<div className="relative group">
+						<img
+							src={url}
+							alt=""
+							className="max-h-40 min-h-20 w-full rounded-md border border-kumo-line object-contain bg-kumo-muted"
+							referrerPolicy="no-referrer"
+							loading="lazy"
+							onError={() => setImageBroken(true)}
+						/>
+						<div className="absolute top-2 end-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity flex gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => setPickerOpen(true)}
+							>
+								{t`Change`}
+							</Button>
+							<Button
+								type="button"
+								shape="square"
+								variant="destructive"
+								className="h-8 w-8"
+								onClick={() => onChange(actionId, "")}
+								aria-label={t`Remove`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
+					</div>
+				)
 			) : (
 				<Button
 					type="button"

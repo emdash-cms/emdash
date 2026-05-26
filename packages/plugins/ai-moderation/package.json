@@ -27,7 +27,7 @@
 		"emdash": "workspace:>=0.9.0",
 		"react": "^18.0.0 || ^19.0.0",
 		"@phosphor-icons/react": "^2.1.10",
-		"@cloudflare/kumo": "^1.0.0"
+		"@cloudflare/kumo": "catalog:"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20250224.0",

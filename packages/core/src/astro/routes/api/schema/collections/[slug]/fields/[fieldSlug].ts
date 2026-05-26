@@ -32,7 +32,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const denied = requirePerm(user, "schema:read");
 	if (denied) return denied;
 
-	const result = await handleSchemaFieldGet(emdash!.db, collectionSlug, fieldSlug);
+	const result = await handleSchemaFieldGet(emdash.db, collectionSlug, fieldSlug);
 	return unwrapResult(result);
 };
 
@@ -50,9 +50,9 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const body = await parseBody(request, updateFieldBody);
 	if (isParseError(body)) return body;
 
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- body is Zod-validated via parseBody(request, updateFieldBody) above
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- body is Zod-validated via parseBody(request, updateFieldBody) above
 	const result = await handleSchemaFieldUpdate(
-		emdash!.db,
+		emdash.db,
 		collectionSlug,
 		fieldSlug,
 		body as UpdateFieldInput,
@@ -71,6 +71,6 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 	const denied = requirePerm(user, "schema:manage");
 	if (denied) return denied;
 
-	const result = await handleSchemaFieldDelete(emdash!.db, collectionSlug, fieldSlug);
+	const result = await handleSchemaFieldDelete(emdash.db, collectionSlug, fieldSlug);
 	return unwrapResult(result);
 };

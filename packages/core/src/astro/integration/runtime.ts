@@ -11,7 +11,10 @@ import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
+import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
+
+export type { ExperimentalConfig, RegistryConfig } from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -197,6 +200,17 @@ export interface EmDashConfig {
 	sandboxRunner?: string;
 
 	/**
+	 * Explicitly disable plugin sandboxing, even if a sandbox runner is configured.
+	 * Use this as a debugging escape hatch to determine whether a bug is in your
+	 * plugin code or in the sandbox runtime.
+	 *
+	 * When set to `false`, all plugins run in-process without isolation.
+	 *
+	 * @default true (sandboxing enabled if sandboxRunner is configured)
+	 */
+	sandbox?: boolean;
+
+	/**
 	 * Authentication configuration
 	 *
 	 * Use an auth adapter function from a platform package:
@@ -264,6 +278,10 @@ export interface EmDashConfig {
 	 * Must be an HTTPS URL in production, or localhost/127.0.0.1 in dev.
 	 * Requires `sandboxRunner` to be configured (marketplace plugins run sandboxed).
 	 *
+	 * When `registry` is also configured, the registry replaces the marketplace
+	 * for the admin UI's browse and install flows. Existing marketplace-installed
+	 * plugins continue to work; new installs and updates come from the registry.
+	 *
 	 * @example
 	 * ```ts
 	 * emdash({
@@ -273,6 +291,28 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	marketplace?: string;
+
+	/**
+	 * Experimental features.
+	 *
+	 * These options are not yet stable. Shape, defaults, and behavior may
+	 * change between minor versions. Use only if you're comfortable
+	 * tracking the release notes and updating your config when an
+	 * experimental feature graduates or changes.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   experimental: {
+	 *     registry: {
+	 *       aggregatorUrl: "https://registry.emdashcms.com",
+	 *     },
+	 *   },
+	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 * })
+	 * ```
+	 */
+	experimental?: ExperimentalConfig;
 
 	/**
 	 * Maximum allowed media file upload size in bytes.
@@ -489,12 +529,16 @@ export interface EmDashConfig {
 	};
 }
 
+const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");
+const configHolder = globalThis as Record<symbol, unknown>;
+
 /**
  * Get stored config from global
  * This is set by the virtual module at build time
  */
 export function getStoredConfig(): EmDashConfig | null {
-	return globalThis.__emdashConfig || null;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	return (configHolder[STORED_CONFIG_KEY] as EmDashConfig | undefined) ?? null;
 }
 
 /**
@@ -502,11 +546,5 @@ export function getStoredConfig(): EmDashConfig | null {
  * Called by the integration at config time
  */
 export function setStoredConfig(config: EmDashConfig): void {
-	globalThis.__emdashConfig = config;
-}
-
-// Declare global type
-declare global {
-	// eslint-disable-next-line no-var
-	var __emdashConfig: EmDashConfig | undefined;
+	configHolder[STORED_CONFIG_KEY] = config;
 }

@@ -5,23 +5,25 @@ description: Composable field widgets for json fields, configured through seed o
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash's `json` field type stores arbitrary structured data, but the default editor is a single-line text input where you have to type raw JSON by hand. **Field Kit** is a first-party plugin that ships four composable widgets for `json` fields, configured entirely through seed `options` — no React required from site builders.
+EmDash's `json` field type stores arbitrary structured data, edited by default through a single-line text input that takes raw JSON. **Field Kit** is a first-party plugin that ships four composable widgets for `json` fields, configured entirely through seed `options` so site builders can use them with seed schema alone.
 
 <Aside type="tip">
-Field Kit widgets store **clean JSON**: removing the plugin leaves valid data in the database. No shape mutation, no new columns, no migration.
+Field Kit widgets store **clean JSON**: the stored value is plain content data, so removing the plugin leaves valid content behind.
 </Aside>
 
 ## Installation
+
+Install the package from npm:
 
 ```bash
 npm i @emdash-cms/plugin-field-kit
 ```
 
-Register the plugin in `astro.config.mjs`:
+The following configuration registers the plugin:
 
-```typescript
+```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
-import emdash from "emdash";
+import emdash from "emdash/astro";
 import { fieldKitPlugin } from "@emdash-cms/plugin-field-kit";
 
 export default defineConfig({
@@ -33,7 +35,7 @@ export default defineConfig({
 });
 ```
 
-Then attach a widget to any `json` field by setting `widget` to `field-kit:<name>`:
+Attach a widget to any `json` field by setting `widget` to `field-kit:<name>`. The following field definition uses the `list` widget:
 
 ```json
 {
@@ -57,7 +59,7 @@ If a widget is missing its required `options` (e.g. `fields` for `object-form`/`
 
 ### object-form
 
-Renders a group of typed sub-fields that store as a single JSON object. Good for fixed-shape structured data like nutrition facts or contact info.
+Renders a group of typed sub-fields that store as a single JSON object. Good for fixed-shape structured data like nutrition facts or contact info. The following field definition configures a nutrition object:
 
 ```json
 {
@@ -86,7 +88,7 @@ Stored value: `{ "calories": 250, "protein": 12.5, "fat": 8, "carbs": 30 }`.
 
 ### list
 
-An ordered array editor with add, remove, and reorder controls. Each row is a JSON object whose shape is defined by `fields`. The row header shows a summary rendered from a Mustache-style template.
+An ordered array editor with add, remove, and reorder controls. Each row is a JSON object whose shape is defined by `fields`. The row header shows a summary rendered from a Mustache-style template. The following field definition configures an ingredients list:
 
 ```json
 {
@@ -108,7 +110,7 @@ An ordered array editor with add, remove, and reorder controls. Each row is a JS
 }
 ```
 
-Stored value:
+The stored value is an array of row objects:
 
 ```json
 [
@@ -129,7 +131,7 @@ Stored value:
 
 ### grid
 
-A two-dimensional matrix of rows × columns. Each cell can be a toggle, text input, number input, or select. Useful for matrices like seasonal availability, price tables, or feature comparisons.
+A two-dimensional matrix of rows × columns. Each cell can be a toggle, text input, number input, or select. Useful for matrices like seasonal availability, price tables, or feature comparisons. The following field definition configures a seasonal availability grid:
 
 ```json
 {
@@ -153,7 +155,7 @@ A two-dimensional matrix of rows × columns. Each cell can be a toggle, text inp
 }
 ```
 
-Stored value:
+The stored value is an object keyed by row, then by column:
 
 ```json
 {
@@ -173,7 +175,7 @@ Stored value:
 
 ### tags
 
-A chip-style input for arrays of strings. Supports a fixed `suggestions` list, free-form custom values (toggleable), case transforms, and an optional `max`.
+A chip-style input for arrays of strings. Supports a fixed `suggestions` list, free-form custom values (toggleable), case transforms, and an optional `max`. The following field definition configures a keywords tag input:
 
 ```json
 {
@@ -222,7 +224,7 @@ Common props on every sub-field: `required`, `helpText`, `defaultValue`.
 
 ## Summary templates
 
-The `list` widget renders each collapsed row using a Mustache-style template in `options.summary`. `{{key}}` is replaced with the row's value for that key (coerced to a string). Falsy values fall back to `"{itemLabel} {n}"`.
+The `list` widget renders each collapsed row using a Mustache-style template in `options.summary`. `{{key}}` is replaced with the row's value for that key (coerced to a string). Falsy values fall back to `"{itemLabel} {n}"`. The following template combines two keys:
 
 ```
 "summary": "{{name}} — {{amount}}"
@@ -232,7 +234,7 @@ Renders rows like `Flour — 500g`. The template is plain string substitution �
 
 ## Data durability
 
-Field Kit widgets store plain JSON in the field's existing column. There are no plugin-specific tables, no foreign keys, no schema mutation. If you remove `@emdash-cms/plugin-field-kit` from your config, the data stays valid — only the editing UI changes back to the default `json` text input.
+Field Kit widgets store plain JSON in the field's existing column, using only that column. If you remove `@emdash-cms/plugin-field-kit` from your config, the data stays valid — the field reverts to the default `json` text input.
 
 This applies even when you change the widget shape: unknown keys on stored objects are preserved on the next write, so you can evolve a schema without losing data captured under an older field set.
 

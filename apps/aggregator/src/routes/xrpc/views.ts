@@ -126,7 +126,7 @@ export function packageView(row: PackageRow): AggregatorDefs.PackageView {
 	const view: AggregatorDefs.PackageView = {
 		uri,
 		cid,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- `did` is consumer-validated at write time
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- `did` is consumer-validated at write time
 		did: row.did as `did:${string}:${string}`,
 		slug: row.slug,
 		profile: synthesizePackageProfile(row, uri),
@@ -152,7 +152,7 @@ export function releaseView(row: ReleaseRow): AggregatorDefs.ReleaseView {
 	return {
 		uri,
 		cid,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- `did` is consumer-validated at write time
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- `did` is consumer-validated at write time
 		did: row.did as `did:${string}:${string}`,
 		package: row.package,
 		version: row.version,

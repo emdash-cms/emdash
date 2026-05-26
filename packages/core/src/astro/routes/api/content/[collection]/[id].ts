@@ -35,12 +35,12 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	if (result.success && !hasPermission(user, "content:read_drafts")) {
 		const data =
 			result.data && typeof result.data === "object"
-				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+				? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check
 					(result.data as Record<string, unknown>)
 				: undefined;
 		const item =
 			data?.item && typeof data.item === "object"
-				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check
+				? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check
 					(data.item as Record<string, unknown>)
 				: undefined;
 		const status = typeof item?.status === "string" ? item.status : null;
@@ -87,13 +87,13 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 
 	const existingData =
 		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
 				(existing.data as Record<string, unknown>)
 			: undefined;
 	// Handler returns { item, _rev } — extract the item for ownership and ID resolution
 	const existingItem =
 		existingData?.item && typeof existingData.item === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
 				(existingData.item as Record<string, unknown>)
 			: existingData;
 	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
@@ -151,13 +151,13 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 
 	const deleteData =
 		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
 				(existing.data as Record<string, unknown>)
 			: undefined;
 	// Handler returns { item, _rev } — extract the item for ownership and ID resolution
 	const deleteItem =
 		deleteData?.item && typeof deleteData.item === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
 				(deleteData.item as Record<string, unknown>)
 			: deleteData;
 	const authorId = typeof deleteItem?.authorId === "string" ? deleteItem.authorId : "";

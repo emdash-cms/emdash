@@ -21,13 +21,11 @@ Behind the scenes it uses [Cloudflare AI Search](https://developers.cloudflare.c
 
 ## Connect it
 
-The endpoint is:
+The server is reachable at the following endpoint, with no authentication or API key. It is public and read-only.
 
 ```
 https://docs.emdashcms.com/mcp
 ```
-
-No authentication, no API key. It's public and read-only.
 
 ### Auto-discovery in EmDash templates
 
@@ -39,7 +37,7 @@ If you started your project from an EmDash template (`npm create emdash`), three
 | `.cursor/mcp.json`  | Cursor       |
 | `.vscode/mcp.json`  | VS Code      |
 
-Just open the project and accept the workspace-trust prompt your tool shows on first run. Nothing else to do.
+Open the project and accept the workspace-trust prompt the tool shows on first run. No further setup is required.
 
 ### Manual setup
 
@@ -48,15 +46,15 @@ If you're not using a template, or you use a different tool, add it once with th
 <Tabs>
 <TabItem label="Claude Code">
 
-Add the server with the Claude Code CLI:
+The following command adds the server with the Claude Code CLI:
 
 ```bash
 claude mcp add --transport http emdash-docs https://docs.emdashcms.com/mcp
 ```
 
-Or commit a `.mcp.json` at your project root:
+Alternatively, commit a `.mcp.json` file at the project root with the following contents:
 
-```json
+```json title=".mcp.json"
 {
   "mcpServers": {
     "emdash-docs": {
@@ -70,9 +68,9 @@ Or commit a `.mcp.json` at your project root:
 </TabItem>
 <TabItem label="OpenCode">
 
-Add to your `opencode.jsonc`:
+Add the following entry to `opencode.jsonc`:
 
-```jsonc
+```jsonc title="opencode.jsonc"
 {
   "mcp": {
     "emdash-docs": {
@@ -86,9 +84,9 @@ Add to your `opencode.jsonc`:
 </TabItem>
 <TabItem label="Cursor">
 
-Commit `.cursor/mcp.json` at your project root, or add it via **Cursor Settings -> MCP -> Add new MCP server**:
+Commit a `.cursor/mcp.json` file at the project root with the following contents, or add the server via **Cursor Settings -> MCP -> Add new MCP server**:
 
-```json
+```json title=".cursor/mcp.json"
 {
   "mcpServers": {
     "emdash-docs": {
@@ -102,9 +100,9 @@ Commit `.cursor/mcp.json` at your project root, or add it via **Cursor Settings 
 </TabItem>
 <TabItem label="VS Code">
 
-Add to `.vscode/mcp.json` in your project (or your user settings):
+Add the following entry to `.vscode/mcp.json` in the project, or to user settings:
 
-```json
+```json title=".vscode/mcp.json"
 {
   "servers": {
     "emdash-docs": {
@@ -118,9 +116,9 @@ Add to `.vscode/mcp.json` in your project (or your user settings):
 </TabItem>
 <TabItem label="Claude Desktop">
 
-Claude Desktop only supports stdio MCP servers natively, so use [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) as a bridge. Add to `claude_desktop_config.json`:
+Claude Desktop only supports stdio MCP servers natively, so use [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) as a bridge. Add the following entry to `claude_desktop_config.json`:
 
-```json
+```json title="claude_desktop_config.json"
 {
   "mcpServers": {
     "emdash-docs": {

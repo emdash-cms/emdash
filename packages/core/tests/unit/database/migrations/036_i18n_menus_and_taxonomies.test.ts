@@ -1,11 +1,35 @@
+import BetterSqlite3 from "better-sqlite3";
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
+import { Kysely as KyselyCtor, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createDatabase } from "../../../../src/database/connection.js";
 import { down, up } from "../../../../src/database/migrations/036_i18n_menus_and_taxonomies.js";
 import type { Database } from "../../../../src/database/types.js";
 import { setI18nConfig } from "../../../../src/i18n/config.js";
+
+/**
+ * Build a Kysely instance backed by better-sqlite3 with foreign keys ON and
+ * `PRAGMA foreign_keys = OFF` made into a no-op. This simulates Cloudflare
+ * D1's behavior, where FKs are always enforced and the standard escape hatch
+ * is silently ignored. Used to verify regressions for #1021 — bugs that only
+ * surface when FK enforcement can't be turned off mid-transaction.
+ */
+function createD1LikeDatabase(): Kysely<Database> {
+	const sqlite = new BetterSqlite3(":memory:");
+	sqlite.pragma("foreign_keys = ON");
+	const originalPrepare = sqlite.prepare.bind(sqlite);
+	sqlite.prepare = ((source: string) => {
+		// Make `PRAGMA foreign_keys = OFF/ON` a no-op like D1 does. `defer_foreign_keys`
+		// is intentionally left intact (D1 honors it for deferred validation).
+		if (/^\s*PRAGMA\s+foreign_keys\s*=/i.test(source)) {
+			return originalPrepare("SELECT 1") as ReturnType<typeof originalPrepare>;
+		}
+		return originalPrepare(source);
+	}) as typeof sqlite.prepare;
+	const dialect = new SqliteDialect({ database: sqlite });
+	return new KyselyCtor<Database>({ dialect });
+}
 
 /**
  * Seed the four pre-i18n tables that migration 036 widens, plus the support
@@ -37,9 +61,18 @@ async function seedPreMigrationSchema(db: Kysely<Database>): Promise<void> {
 			title_attr TEXT,
 			target TEXT,
 			css_classes TEXT,
-			created_at TEXT DEFAULT (datetime('now'))
+			created_at TEXT DEFAULT (datetime('now')),
+			CONSTRAINT menu_items_menu_fk FOREIGN KEY (menu_id)
+				REFERENCES _emdash_menus(id) ON DELETE CASCADE,
+			CONSTRAINT menu_items_parent_fk FOREIGN KEY (parent_id)
+				REFERENCES _emdash_menu_items(id) ON DELETE CASCADE
 		)
 	`.execute(db);
+
+	await sql`CREATE INDEX idx_menu_items_menu ON _emdash_menu_items(menu_id, sort_order)`.execute(
+		db,
+	);
+	await sql`CREATE INDEX idx_menu_items_parent ON _emdash_menu_items(parent_id)`.execute(db);
 
 	await sql`
 		CREATE TABLE taxonomies (
@@ -215,7 +248,7 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 				SELECT taxonomy_id FROM content_taxonomies WHERE entry_id = 'p1' ORDER BY taxonomy_id
 			`.execute(db);
 			// On a fresh install translation_group == id, so values look unchanged.
-			expect(groups.rows.map((r) => r.taxonomy_id).sort()).toEqual(["t1", "t2"]);
+			expect(groups.rows.map((r) => r.taxonomy_id).toSorted()).toEqual(["t1", "t2"]);
 
 			// FK to taxonomies.id is gone: insert via group whose row id differs.
 			await sql`
@@ -230,6 +263,108 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 				SELECT COUNT(*) AS count FROM content_taxonomies WHERE entry_id = 'p2'
 			`.execute(db);
 			expect(Number(orphan.rows[0]?.count ?? 0)).toBe(1);
+		});
+
+		it("preserves taxonomy parent_id hierarchy on D1 (regression for #1021)", async () => {
+			// On D1 where `PRAGMA foreign_keys = OFF` is a no-op, dropping the old
+			// taxonomies table cascades ON DELETE SET NULL through the new table's
+			// self-FK on parent_id and flattens the hierarchy. Pointing the self-FK
+			// at `taxonomies_new` (rebound to `taxonomies` by SQLite's RENAME) avoids
+			// this. Run against a Kysely instance that mimics D1's locked-on FK
+			// enforcement.
+			await db.destroy();
+			db = createD1LikeDatabase();
+			await seedPreMigrationSchema(db);
+			await sql`INSERT INTO taxonomies (id, name, slug, label) VALUES ('news', 'category', 'news', 'News')`.execute(
+				db,
+			);
+			await sql`INSERT INTO taxonomies (id, name, slug, label, parent_id) VALUES ('tech', 'category', 'tech', 'Tech', 'news')`.execute(
+				db,
+			);
+
+			await up(db);
+
+			const child = await sql<{ parent_id: string | null }>`
+				SELECT parent_id FROM taxonomies WHERE id = 'tech'
+			`.execute(db);
+			expect(child.rows[0]?.parent_id).toBe("news");
+		});
+
+		it("preserves content_taxonomies rows on D1 (regression for #1021)", async () => {
+			// The original migration relied on PRAGMA foreign_keys = OFF to suppress
+			// the ON DELETE CASCADE on content_taxonomies.taxonomy_id when dropping
+			// the old taxonomies table. D1 ignores that PRAGMA, so the cascade fired
+			// and wiped all post-taxonomy associations. Run against a Kysely instance
+			// that mimics D1's locked-on FK enforcement.
+			await db.destroy();
+			db = createD1LikeDatabase();
+			await seedPreMigrationSchema(db);
+			await sql`INSERT INTO taxonomies (id, name, slug, label) VALUES ('news', 'category', 'news', 'News')`.execute(
+				db,
+			);
+			await sql`INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id) VALUES ('posts', 'p1', 'news')`.execute(
+				db,
+			);
+
+			await up(db);
+
+			const count = await sql<{ count: number }>`
+				SELECT COUNT(*) AS count FROM content_taxonomies WHERE entry_id = 'p1'
+			`.execute(db);
+			expect(Number(count.rows[0]?.count ?? 0)).toBe(1);
+		});
+
+		it("preserves _emdash_menu_items rows on D1 (regression for #1021)", async () => {
+			// Same bug class as content_taxonomies: `_emdash_menu_items.menu_id`
+			// has `ON DELETE CASCADE` to `_emdash_menus(id)` from migration 005.
+			// When `rebuildMenus()` drops the old `_emdash_menus` on D1 the
+			// cascade fires and wipes all menu items (including nested children
+			// via the self-FK on parent_id). The fix rebuilds `_emdash_menu_items`
+			// first to physically strip both FKs.
+			await db.destroy();
+			db = createD1LikeDatabase();
+			await seedPreMigrationSchema(db);
+			await sql`INSERT INTO _emdash_menus (id, name, label) VALUES ('main', 'main', 'Main')`.execute(
+				db,
+			);
+			await sql`
+				INSERT INTO _emdash_menu_items (id, menu_id, type, label)
+				VALUES ('top', 'main', 'custom', 'Top')
+			`.execute(db);
+			await sql`
+				INSERT INTO _emdash_menu_items (id, menu_id, parent_id, type, label)
+				VALUES ('child', 'main', 'top', 'custom', 'Child')
+			`.execute(db);
+
+			await up(db);
+
+			const count = await sql<{ count: number }>`
+				SELECT COUNT(*) AS count FROM _emdash_menu_items WHERE menu_id = 'main'
+			`.execute(db);
+			expect(Number(count.rows[0]?.count ?? 0)).toBe(2);
+
+			// Nested item still references its parent.
+			const child = await sql<{ parent_id: string | null }>`
+				SELECT parent_id FROM _emdash_menu_items WHERE id = 'child'
+			`.execute(db);
+			expect(child.rows[0]?.parent_id).toBe("top");
+		});
+
+		it("strips _emdash_menu_items FKs so the menus rebuild is safe", async () => {
+			// Defensive assertion: after up() runs, _emdash_menu_items must
+			// have no FKs to _emdash_menus, otherwise the down() rollback
+			// (which drops _emdash_menus before rebuilding menu_items) would
+			// re-trigger the same cascade on D1.
+			await db.destroy();
+			db = createD1LikeDatabase();
+			await seedPreMigrationSchema(db);
+
+			await up(db);
+
+			const fks = await sql<{ table: string }>`
+				PRAGMA foreign_key_list(_emdash_menu_items)
+			`.execute(db);
+			expect(fks.rows).toHaveLength(0);
 		});
 
 		it("remaps _emdash_menu_items.reference_id for content references", async () => {
@@ -382,6 +517,52 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			`.execute(db);
 
 			await expect(down(db)).rejects.toThrow(/taxonomies/);
+		});
+
+		it("preserves _emdash_menu_items rows on D1 rollback (regression for #1021)", async () => {
+			// Down() drops _emdash_menus before stripping locale from
+			// _emdash_menu_items. This must not cascade — up() already
+			// removed the FK that would otherwise wipe child rows.
+			await db.destroy();
+			db = createD1LikeDatabase();
+			await seedPreMigrationSchema(db);
+			await sql`INSERT INTO _emdash_menus (id, name, label) VALUES ('main', 'main', 'Main')`.execute(
+				db,
+			);
+			await sql`
+				INSERT INTO _emdash_menu_items (id, menu_id, type, label)
+				VALUES ('top', 'main', 'custom', 'Top')
+			`.execute(db);
+			await up(db);
+
+			await down(db);
+
+			const count = await sql<{ count: number }>`
+				SELECT COUNT(*) AS count FROM _emdash_menu_items WHERE menu_id = 'main'
+			`.execute(db);
+			expect(Number(count.rows[0]?.count ?? 0)).toBe(1);
+		});
+
+		it("refuses to rollback when content_taxonomies has dangling rows", async () => {
+			await sql`INSERT INTO taxonomies (id, name, slug, label) VALUES ('t1', 'category', 'news', 'News')`.execute(
+				db,
+			);
+			await sql`INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id) VALUES ('posts', 'p1', 't1')`.execute(
+				db,
+			);
+			await up(db);
+			// Delete the taxonomy row, leaving content_taxonomies pointing at a
+			// translation_group with no taxonomies row. (Possible because up()
+			// removed the cascading FK.)
+			await sql`DELETE FROM taxonomies WHERE id = 't1'`.execute(db);
+
+			await expect(down(db)).rejects.toThrow(/content_taxonomies/);
+
+			// Assertion fired before any destructive work — locale columns still present.
+			const cols = (await db.introspection.getTables())
+				.find((t) => t.name === "taxonomies")
+				?.columns.map((c) => c.name);
+			expect(cols).toContain("locale");
 		});
 	});
 
