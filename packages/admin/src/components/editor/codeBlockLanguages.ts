@@ -73,18 +73,38 @@ export function findLanguage(value: string | null | undefined): CodeBlockLanguag
 
 /**
  * Normalize a user-entered language string to a canonical id where possible.
- * Unknown inputs are returned trimmed and lowercased so they round-trip
- * predictably and produce stable `language-{id}` class names.
+ * Unknown inputs are sanitized to a single safe class token: lowercased,
+ * trimmed, with any character outside `[a-z0-9_-]` (including whitespace,
+ * dots, slashes, etc.) collapsed to `-`. This keeps the stored value safe
+ * to interpolate into a `language-{id}` CSS class without splitting on
+ * whitespace.
  *
- * Returns `undefined` for empty/whitespace input.
+ * Examples:
+ *   normalizeLanguage("TypeScript")   -> "typescript" (canonical id)
+ *   normalizeLanguage("ts")           -> "typescript" (alias)
+ *   normalizeLanguage("Objective C")  -> "objective-c" (sanitized)
+ *   normalizeLanguage("F#")           -> "f-" (sanitized)
+ *   normalizeLanguage("")             -> undefined
  */
+// Hoisted to module scope to avoid re-compilation on every call.
+const DISALLOWED_CHARS_RE = /[^a-z0-9_-]+/g;
+const LEADING_TRAILING_HYPHENS_RE = /^-+|-+$/g;
+
 export function normalizeLanguage(value: string | null | undefined): string | undefined {
 	if (!value) return undefined;
 	const trimmed = value.trim();
 	if (!trimmed) return undefined;
 	const match = findLanguage(trimmed);
 	if (match) return match.id;
-	return trimmed.toLowerCase();
+	// Sanitize unknown input: lowercase, then collapse runs of disallowed
+	// characters into a single `-` so the result is always a single CSS class
+	// token. We deliberately don't return `undefined` on collisions here --
+	// callers can compare the sanitized result with the input if they need to.
+	const sanitized = trimmed
+		.toLowerCase()
+		.replace(DISALLOWED_CHARS_RE, "-")
+		.replace(LEADING_TRAILING_HYPHENS_RE, "");
+	return sanitized || undefined;
 }
 
 /**

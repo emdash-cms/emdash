@@ -58,8 +58,6 @@ const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguage[] = [
 	{ id: "yaml", label: "YAML", aliases: ["yml"] },
 ];
 
-const DATALIST_ID = "emdash-inline-code-block-languages";
-
 function findLanguage(value: string | null | undefined): CodeBlockLanguage | null {
 	if (!value) return null;
 	const needle = value.trim().toLowerCase();
@@ -71,13 +69,24 @@ function findLanguage(value: string | null | undefined): CodeBlockLanguage | nul
 	return null;
 }
 
+// Hoisted to module scope to avoid re-compilation on every call.
+const DISALLOWED_CHARS_RE = /[^a-z0-9_-]+/g;
+const LEADING_TRAILING_HYPHENS_RE = /^-+|-+$/g;
+
 function normalizeLanguage(value: string | null | undefined): string | undefined {
 	if (!value) return undefined;
 	const trimmed = value.trim();
 	if (!trimmed) return undefined;
 	const match = findLanguage(trimmed);
 	if (match) return match.id;
-	return trimmed.toLowerCase();
+	// Sanitize unknown input: lowercase, then collapse runs of disallowed
+	// characters into a single `-` so the result is always a single CSS class
+	// token (the frontend renders `language-{id}` on the <pre>/<code>).
+	const sanitized = trimmed
+		.toLowerCase()
+		.replace(DISALLOWED_CHARS_RE, "-")
+		.replace(LEADING_TRAILING_HYPHENS_RE, "");
+	return sanitized || undefined;
 }
 
 function languageLabel(value: string | null | undefined): string {
@@ -87,9 +96,9 @@ function languageLabel(value: string | null | undefined): string {
 	return value;
 }
 
-function CodeBlockLanguageDatalist() {
+function CodeBlockLanguageDatalist({ id }: { id: string }) {
 	return (
-		<datalist id={DATALIST_ID}>
+		<datalist id={id}>
 			{CODE_BLOCK_LANGUAGES.map((lang) => (
 				<option key={lang.id} value={lang.id} label={lang.label} />
 			))}
@@ -154,6 +163,9 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 	const [draft, setDraft] = React.useState(storedLanguage);
 	const inputRef = React.useRef<HTMLInputElement>(null);
 	const popoverRef = React.useRef<HTMLDivElement>(null);
+	// Per-instance datalist id so multiple code blocks (or multiple inline
+	// editors) on the same page don't create duplicate DOM ids.
+	const datalistId = React.useId();
 
 	React.useEffect(() => {
 		if (!isEditing) {
@@ -211,7 +223,7 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 			onMouseEnter={() => setIsHovered(true)}
 			onMouseLeave={() => setIsHovered(false)}
 		>
-			<CodeBlockLanguageDatalist />
+			<CodeBlockLanguageDatalist id={datalistId} />
 			<pre className="emdash-code-block">
 				<NodeViewContent<"code"> as="code" />
 			</pre>
@@ -228,6 +240,12 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 					pointerEvents: chipVisible ? "auto" : "none",
 					transition: "opacity 0.15s",
 				}}
+				// When the chip is hidden, also remove it from the tab order so
+				// keyboard users don't land on an invisible focus target.
+				// `inert` would be cleaner but isn't available on JSX HTMLDivElement
+				// types yet; aria-hidden + tabIndex on the button below cover the
+				// same need.
+				aria-hidden={chipVisible ? undefined : true}
 			>
 				{isEditing ? (
 					<div
@@ -246,12 +264,12 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 						<input
 							ref={inputRef}
 							type="text"
-							list={DATALIST_ID}
+							list={datalistId}
 							value={draft}
 							onChange={(e) => setDraft(e.target.value)}
 							onKeyDown={handleKeyDown}
-								placeholder="Language"
-								aria-label="Language"
+							placeholder="Language"
+							aria-label="Language"
 							style={{
 								height: "1.75rem",
 								width: "10rem",
@@ -287,10 +305,11 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 				) : (
 					<button
 						type="button"
+						tabIndex={chipVisible ? 0 : -1}
 						onMouseDown={(e) => e.preventDefault()}
 						onClick={openPicker}
-							title="Set language"
-							aria-label={`Set language (current: ${label})`}
+						title="Set language"
+						aria-label={`Set language (current: ${label})`}
 						className="emdash-inline-code-block-chip"
 						style={{
 							padding: "0.125rem 0.5rem",

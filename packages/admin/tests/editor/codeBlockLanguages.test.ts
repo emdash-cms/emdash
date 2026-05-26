@@ -71,6 +71,39 @@ describe("normalizeLanguage", () => {
 		expect(normalizeLanguage("Erlang")).toBe("erlang");
 	});
 
+	it("collapses internal whitespace so the value remains a single class token", () => {
+		// Frontend renders `<pre class="language-${id}">`; whitespace would
+		// split that into two classes (`language-objective c`), so unknown
+		// inputs with spaces are joined with a single hyphen.
+		expect(normalizeLanguage("Objective C")).toBe("objective-c");
+		expect(normalizeLanguage("My  Lang")).toBe("my-lang");
+		expect(normalizeLanguage("Pure\tScript")).toBe("pure-script");
+		expect(normalizeLanguage("a\nb")).toBe("a-b");
+	});
+
+	it("strips other characters that would break a CSS class token", () => {
+		// Dots, slashes, and other punctuation get collapsed to `-`.
+		expect(normalizeLanguage("foo.bar")).toBe("foo-bar");
+		expect(normalizeLanguage("a/b")).toBe("a-b");
+		expect(normalizeLanguage("plain!text")).toBe("plain-text");
+	});
+
+	it("preserves hyphens and underscores in unknown input", () => {
+		expect(normalizeLanguage("my-lang")).toBe("my-lang");
+		expect(normalizeLanguage("my_lang")).toBe("my_lang");
+	});
+
+	it("trims leading and trailing hyphens introduced by sanitization", () => {
+		expect(normalizeLanguage("@swift")).toBe("swift");
+		expect(normalizeLanguage("rust!")).toBe("rust");
+		expect(normalizeLanguage("---x---")).toBe("x");
+	});
+
+	it("returns undefined for input that sanitizes to an empty string", () => {
+		expect(normalizeLanguage("!!!")).toBeUndefined();
+		expect(normalizeLanguage("@@@")).toBeUndefined();
+	});
+
 	it("returns undefined for empty input", () => {
 		expect(normalizeLanguage("")).toBeUndefined();
 		expect(normalizeLanguage(null)).toBeUndefined();
