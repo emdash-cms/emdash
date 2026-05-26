@@ -1,5 +1,26 @@
 # @emdash-cms/registry-cli
 
+## 0.4.0
+
+### Minor Changes
+
+- [#1126](https://github.com/emdash-cms/emdash/pull/1126) [`cf3c706`](https://github.com/emdash-cms/emdash/commit/cf3c706a65087696eb6cca5844b7668a50e4a090) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `emdash-plugin update-package`, a CLI command for editing an already-published plugin's registry record (license, authors, security contacts, name, description, keywords) without cutting a new release. Without `--yes` it prints a diff and exits without writing; with `--yes` it writes the updated record to the publisher's PDS using atproto's `swapRecord` precondition (concurrent writes surface as `STALE_RECORD` instead of silently overwriting each other) and bumps `lastUpdated`. Optional fields use a "manifest absent = no change" policy: removing a key from the manifest doesn't wipe the published value, matching `publish` semantics. Renaming a plugin via the manifest now surfaces a "looks like a rename" message listing the publisher's existing packages instead of a generic not-found, so publishers don't accidentally orphan releases under the old slug.
+
+  The publishing client (`@emdash-cms/registry-client`) gains a `swapRecord` parameter on `putRecord` and `unsafePutRecord` for callers needing optimistic-concurrency writes.
+
+### Patch Changes
+
+- [#1145](https://github.com/emdash-cms/emdash/pull/1145) [`463c7a2`](https://github.com/emdash-cms/emdash/commit/463c7a23036d55fee3f5105c1a878c9abdee2e1f) Thanks [@ascorbic](https://github.com/ascorbic)! - Refactors the build pipeline's runtime validation of the probed plugin's
+  default export to use a Zod schema. Error messages keep the same format
+  (`hook "X" must be a function or { handler, ... }`, `hook "X" has
+invalid FIELD VALUE (...)`). Exotic-object entries (Date, RegExp,
+  Promise, class instances) now produce the wrong-shape error instead of
+  falling through to a misleading "missing handler" error. BigInt /
+  cyclic-object / function / symbol field values are rendered safely in
+  error messages instead of crashing with a TypeError.
+- Updated dependencies [[`cf3c706`](https://github.com/emdash-cms/emdash/commit/cf3c706a65087696eb6cca5844b7668a50e4a090)]:
+  - @emdash-cms/registry-client@0.2.0
+
 ## 0.3.0
 
 ### Minor Changes
