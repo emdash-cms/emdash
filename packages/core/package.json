@@ -201,6 +201,7 @@
     "@oslojs/encoding": "catalog:",
     "@portabletext/toolkit": "^5.0.1",
     "@tiptap/core": "catalog:",
+    "@tiptap/extension-code-block": "catalog:",
     "@tiptap/extension-focus": "catalog:",
     "@tiptap/extension-image": "catalog:",
     "@tiptap/extension-link": "catalog:",
