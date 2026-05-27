@@ -6,10 +6,9 @@
  * Without JavaScript, all pages are visible as one long form.
  * The client-side script enhances with multi-page navigation, AJAX, etc.
  */
-import {
-	loadPublicFormDefinition,
-	type PublicPluginApiRouteHandler,
-} from "../public-definition.js";
+import { getPublicPluginApiRouteHandler } from "emdash/plugin-utils";
+
+import { loadPublicFormDefinition } from "../public-definition.js";
 import type { FormField, FormPage } from "../types.js";
 
 interface Props {
@@ -19,14 +18,12 @@ interface Props {
 const { node } = Astro.props;
 const formId = node.formId;
 
-const handlePluginApiRoute = (Astro.locals.emdash as
-	| { handlePluginApiRoute?: PublicPluginApiRouteHandler }
-	| undefined)?.handlePluginApiRoute;
+const handlePublicPluginApiRoute = getPublicPluginApiRouteHandler(Astro.locals);
 
 const form = await loadPublicFormDefinition({
 	formId,
 	baseUrl: Astro.url,
-	handlePluginApiRoute,
+	handlePublicPluginApiRoute,
 });
 if (!form) return;
 

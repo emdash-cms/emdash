@@ -63,6 +63,17 @@ describe("parsePublicFormDefinitionResponse", () => {
 			parsePublicFormDefinitionResponse(jsonResponse({ error: { message: "Not found" } }, 404)),
 		).resolves.toBeNull();
 	});
+
+	it("does not recursively unwrap nested response envelopes", async () => {
+		await expect(
+			parsePublicFormDefinitionResponse(jsonResponse({ data: { data: activeForm } })),
+		).resolves.toBeNull();
+		await expect(
+			parsePublicFormDefinitionResponse(
+				jsonResponse({ data: { success: true, data: activeForm } }),
+			),
+		).resolves.toBeNull();
+	});
 });
 
 describe("parsePublicFormDefinitionPayload", () => {
@@ -90,23 +101,77 @@ describe("parsePublicFormDefinitionPayload", () => {
 			}),
 		).toBeNull();
 	});
+
+	it("does not recursively unwrap nested handler result data", () => {
+		expect(
+			parsePublicFormDefinitionPayload({
+				success: true,
+				data: { data: activeForm },
+			}),
+		).toBeNull();
+		expect(
+			parsePublicFormDefinitionPayload({
+				success: true,
+				data: { success: true, data: activeForm },
+			}),
+		).toBeNull();
+	});
+
+	it("returns null for malformed active form data", () => {
+		expect(
+			parsePublicFormDefinitionPayload({
+				success: true,
+				data: { status: "active" },
+			}),
+		).toBeNull();
+		expect(
+			parsePublicFormDefinitionPayload({
+				success: true,
+				data: { ...activeForm, pages: undefined },
+			}),
+		).toBeNull();
+		expect(
+			parsePublicFormDefinitionPayload({
+				success: true,
+				data: { ...activeForm, settings: undefined },
+			}),
+		).toBeNull();
+		expect(
+			parsePublicFormDefinitionPayload({
+				success: true,
+				data: {
+					...activeForm,
+					pages: [{ fields: [{ ...activeForm.pages[0]!.fields[0]!, type: "unknown" }] }],
+				},
+			}),
+		).toBeNull();
+		expect(
+			parsePublicFormDefinitionPayload({
+				success: true,
+				data: {
+					...activeForm,
+					pages: [{ fields: [{ ...activeForm.pages[0]!.fields[0]!, options: {} }] }],
+				},
+			}),
+		).toBeNull();
+	});
 });
 
 describe("loadPublicFormDefinition", () => {
 	it("loads active forms through the internal public plugin route handler", async () => {
-		const handlePluginApiRoute = vi.fn(async () => ({ success: true, data: activeForm }));
+		const handlePublicPluginApiRoute = vi.fn(async () => ({ success: true, data: activeForm }));
 		const fetch = vi.fn(async () => jsonResponse({ data: activeForm }));
 
 		await expect(
 			loadPublicFormDefinition({
 				formId: "contact",
 				baseUrl: new URL("https://example.com/contact"),
-				handlePluginApiRoute,
+				handlePublicPluginApiRoute,
 				fetch,
 			}),
 		).resolves.toEqual(activeForm);
 
-		expect(handlePluginApiRoute).toHaveBeenCalledWith(
+		expect(handlePublicPluginApiRoute).toHaveBeenCalledWith(
 			"emdash-forms",
 			"POST",
 			"/definition",
@@ -116,7 +181,7 @@ describe("loadPublicFormDefinition", () => {
 	});
 
 	it("treats internal missing or inactive results as definitive", async () => {
-		const handlePluginApiRoute = vi.fn(async () => ({
+		const handlePublicPluginApiRoute = vi.fn(async () => ({
 			success: false,
 			error: { code: "NOT_FOUND", message: "Form not found" },
 		}));
@@ -126,7 +191,26 @@ describe("loadPublicFormDefinition", () => {
 			loadPublicFormDefinition({
 				formId: "missing",
 				baseUrl: new URL("https://example.com/contact"),
-				handlePluginApiRoute,
+				handlePublicPluginApiRoute,
+				fetch,
+			}),
+		).resolves.toBeNull();
+
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
+	it("treats malformed internal results as definitive", async () => {
+		const handlePublicPluginApiRoute = vi.fn(async () => ({
+			success: true,
+			data: { status: "active" },
+		}));
+		const fetch = vi.fn(async () => jsonResponse({ data: activeForm }));
+
+		await expect(
+			loadPublicFormDefinition({
+				formId: "contact",
+				baseUrl: new URL("https://example.com/contact"),
+				handlePublicPluginApiRoute,
 				fetch,
 			}),
 		).resolves.toBeNull();
@@ -148,21 +232,30 @@ describe("loadPublicFormDefinition", () => {
 		expect(fetch).toHaveBeenCalledTimes(1);
 	});
 
-	it("falls back to fetching when the internal handler throws", async () => {
-		const handlePluginApiRoute = vi.fn(async () => {
+	it("does not fall back to fetching when the internal handler throws", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const handlePublicPluginApiRoute = vi.fn(async () => {
 			throw new Error("dispatcher unavailable");
 		});
 		const fetch = vi.fn(async () => jsonResponse({ data: activeForm }));
 
-		await expect(
-			loadPublicFormDefinition({
-				formId: "contact",
-				baseUrl: new URL("https://example.com/contact"),
-				handlePluginApiRoute,
-				fetch,
-			}),
-		).resolves.toEqual(activeForm);
+		try {
+			await expect(
+				loadPublicFormDefinition({
+					formId: "contact",
+					baseUrl: new URL("https://example.com/contact"),
+					handlePublicPluginApiRoute,
+					fetch,
+				}),
+			).resolves.toBeNull();
 
-		expect(fetch).toHaveBeenCalledTimes(1);
+			expect(fetch).not.toHaveBeenCalled();
+			expect(warn).toHaveBeenCalledWith(
+				"[emdash-forms] public definition dispatcher failed:",
+				expect.any(Error),
+			);
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });
