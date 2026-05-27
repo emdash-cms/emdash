@@ -9,12 +9,12 @@
 
 import type { D1Database } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
-import type { SandboxEmailSendCallback } from "emdash";
 import { ulid, PluginStorageRepository } from "emdash";
 import { Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
 
 import { sandboxHttpFetch } from "./bridge-http.js";
+import { getEmailSendCallback } from "./email-callback.js";
 
 /** Regex to validate collection names (prevent SQL injection) */
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
@@ -38,24 +38,6 @@ const SYSTEM_COLUMNS = new Set([
 	"draft_revision_id",
 ]);
 
-/**
- * Module-level email send callback.
- *
- * The bridge runs in the host process (same worker), so we can use a
- * module-level callback that the runner sets before creating bridge bindings.
- * This avoids the need to pass non-serializable functions through props.
- *
- * @see runner.ts setEmailSendCallback()
- */
-let emailSendCallback: SandboxEmailSendCallback | null = null;
-
-/**
- * Set the email send callback for all bridge instances.
- * Called by the runner when the EmailPipeline is available.
- */
-export function setEmailSendCallback(callback: SandboxEmailSendCallback | null): void {
-	emailSendCallback = callback;
-}
 
 /**
  * Serialize a value for D1 storage.
@@ -988,6 +970,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!capabilities.includes("email:send")) {
 			throw new Error("Missing capability: email:send");
 		}
+		const emailSendCallback = getEmailSendCallback();
 		if (!emailSendCallback) {
 			throw new Error("Email is not configured. No email provider is available.");
 		}

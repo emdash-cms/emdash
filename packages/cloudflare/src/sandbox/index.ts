@@ -9,5 +9,6 @@
  */
 
 export { CloudflareSandboxRunner, createSandboxRunner, type PluginBridgeProps } from "./runner.js";
-export { PluginBridge, setEmailSendCallback, type PluginBridgeEnv } from "./bridge.js";
+export { PluginBridge, type PluginBridgeEnv } from "./bridge.js";
+export { setEmailSendCallback } from "./email-callback.js";
 export { generatePluginWrapper } from "./wrapper.js";

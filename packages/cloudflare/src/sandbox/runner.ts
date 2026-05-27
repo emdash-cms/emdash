@@ -23,7 +23,7 @@ import {
 	type PluginManifest,
 } from "emdash";
 
-import { setEmailSendCallback } from "./bridge.js";
+import { setEmailSendCallback } from "./email-callback.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
