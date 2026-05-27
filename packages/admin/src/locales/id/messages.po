@@ -850,7 +850,7 @@ msgstr "Terapkan"
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:144
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:145
 msgid "Apply language"
-msgstr ""
+msgstr "Terapkan bahasa"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2475
 #: packages/admin/src/components/PortableTextEditor.tsx:2476
@@ -4377,7 +4377,7 @@ msgstr "Tidak ada pengguna tertaut"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:134
 msgid "No matches"
-msgstr ""
+msgstr "Tidak ditemukan"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:266
 msgid "No matching passkey found for this account."
@@ -5865,11 +5865,11 @@ msgstr "Atur ukuran tampilan kustom untuk instans gambar ini."
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:170
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:174
 msgid "Set language"
-msgstr ""
+msgstr "Atur bahasa"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:171
 msgid "Set language (current: {label})"
-msgstr ""
+msgstr "Atur bahasa (saat ini: {label})"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:531
 msgid "Set to 0 to never close comments automatically."
