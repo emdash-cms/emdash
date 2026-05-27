@@ -5,23 +5,22 @@ description: Expose REST endpoints from your sandboxed plugin for the admin UI a
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Plugins can expose API routes for their admin UI and external integrations. Routes are mounted under `/_emdash/api/plugins/<plugin-id>/<route-name>` and run inside the sandbox runtime with the same `PluginContext` that hooks receive.
+Plugins can expose API routes for their admin UI and external integrations. Routes are mounted under `/_emdash/api/plugins/<slug>/<route-name>` (the `<slug>` is the plugin's `slug` field from `emdash-plugin.jsonc` — exposed at runtime as `ctx.plugin.id`) and run inside the sandbox runtime with the same `PluginContext` that hooks receive.
 
-This page covers sandboxed (standard-format) plugins. The API surface for native plugins is the same; the only difference is the handler signature — see the note in [Native plugins](/plugins/creating-native-plugins/your-first-native-plugin/) for details.
+This page covers sandboxed plugins. The API surface for native plugins is the same; the only difference is the handler signature — see the note in [Native plugins](/plugins/creating-native-plugins/your-first-native-plugin/) for details.
 
 ## Defining routes
 
-Declare routes in `definePlugin()` from your `sandbox-entry.ts`:
+Declare routes in the default export of `src/plugin.ts`:
 
-```typescript title="src/sandbox-entry.ts"
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
+```typescript title="src/plugin.ts"
+import type { SandboxedPlugin } from "emdash/plugin";
 import { z } from "astro/zod";
 
-export default definePlugin({
+export default {
 	routes: {
 		status: {
-			handler: async (_routeCtx, ctx: PluginContext) => {
+			handler: async (_routeCtx, ctx) => {
 				return { ok: true, plugin: ctx.plugin.id };
 			},
 		},
@@ -32,7 +31,7 @@ export default definePlugin({
 				limit: z.number().default(50),
 				cursor: z.string().optional(),
 			}),
-			handler: async (routeCtx, ctx: PluginContext) => {
+			handler: async (routeCtx, ctx) => {
 				const { formId, limit, cursor } = routeCtx.input;
 
 				const result = await ctx.storage.submissions.query({
@@ -46,17 +45,17 @@ export default definePlugin({
 			},
 		},
 	},
-});
+} satisfies SandboxedPlugin;
 ```
 
-Standard-format route handlers take **two arguments**: `(routeCtx, ctx)`.
+`satisfies SandboxedPlugin` infers `routeCtx` and `ctx` — no parameter annotations needed. Sandboxed route handlers take **two arguments**: `(routeCtx, ctx)`.
 
 - `routeCtx` carries request-shaped data: `{ input, request, requestMeta }`.
 - `ctx` is the same `PluginContext` you get inside hooks — `ctx.storage`, `ctx.kv`, `ctx.content`, `ctx.http`, `ctx.log`, etc.
 
 ## Route URLs
 
-Routes mount at `/_emdash/api/plugins/<plugin-id>/<route-name>`. Route names can include slashes for nested paths.
+Routes mount at `/_emdash/api/plugins/<slug>/<route-name>`. Route names can include slashes for nested paths.
 
 | Plugin id     | Route name      | URL                                            |
 | ------------- | --------------- | ---------------------------------------------- |
@@ -66,7 +65,7 @@ Routes mount at `/_emdash/api/plugins/<plugin-id>/<route-name>`. Route names can
 | `analytics`   | `events/recent` | `/_emdash/api/plugins/analytics/events/recent` |
 
 <Aside type="caution">
-	Plugin ids must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The `pluginId` segment in the route is a single Astro path segment, so anything outside that pattern (scoped names, leading digits, dots, slashes) won't route, and storage-index provisioning rejects it too. Pair an unscoped id with a scoped npm package name in `entrypoint`, the way first-party plugins do (`id: "field-kit"`, `entrypoint: "@emdash-cms/plugin-field-kit"`).
+	The plugin's `slug` (in `emdash-plugin.jsonc`) must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The slug fills a single Astro path segment in the route URL, so anything outside that pattern (scoped names, leading digits, dots, slashes) won't route, and storage-index provisioning rejects it too. Pair an unscoped `slug` with a scoped npm package name, the way first-party plugins do (`slug: "field-kit"`, package `@emdash-cms/plugin-field-kit`).
 </Aside>
 
 ## Authentication and CSRF
@@ -191,17 +190,17 @@ routes: {
 
 ## Accessing the request
 
-The full `Request` object is available as `routeCtx.request` for headers, raw body access, and URL parsing. `routeCtx.requestMeta` carries IP, user agent, and geo data normalised across platforms.
+`routeCtx.request` is a **`SandboxedRequest`**: a portable `{ url, method, headers }` record that behaves identically in-process and inside an isolate. `headers` is a `Record<string, string>` keyed by lowercased header name — index it by the lowercased name, or iterate with `Object.entries`. `url` is a string, so `new URL(request.url)` parses query params. `routeCtx.requestMeta` carries IP, user agent, and geo data normalised across platforms when available.
 
 ```typescript
 handler: async (routeCtx, ctx) => {
 	const { request, requestMeta } = routeCtx;
 
-	const auth = request.headers.get("Authorization");
+	const auth = request.headers["authorization"]; // lowercased key, no .get()
 	const url = new URL(request.url);
 	const page = url.searchParams.get("page");
 
-	ctx.log.info("Request", { ip: requestMeta.ip, ua: requestMeta.userAgent });
+	ctx.log.info("Request", { meta: requestMeta });
 
 	if (request.method !== "POST") {
 		throw new Response("POST required", { status: 405 });
@@ -348,12 +347,18 @@ curl -X POST https://your-site.com/_emdash/api/plugins/forms/create \
 ## Route context reference
 
 ```typescript
-// What standard-format handlers receive as their two arguments
+// What sandboxed route handlers receive as their two arguments
 
-interface StandardRouteContext<TInput = unknown> {
-	input: TInput;
-	request: Request;
-	requestMeta: { ip: string | null; userAgent: string | null; geo?: GeoData };
+interface SandboxedRequest {
+	url: string;
+	method: string;
+	headers: Record<string, string>; // lowercased keys
+}
+
+interface SandboxedRouteContext {
+	input: unknown; // narrow with the `input` Zod schema at the route level
+	request: SandboxedRequest;
+	requestMeta?: unknown;
 }
 
 interface PluginContext {

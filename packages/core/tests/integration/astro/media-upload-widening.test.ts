@@ -125,7 +125,7 @@ function buildContext(opts: {
 				role: 50 as const,
 			},
 		},
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub for tests
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
 	} as unknown as APIContext;
 }
 
@@ -288,7 +288,7 @@ function buildUploadUrlContext(opts: {
 				role: 50 as const,
 			},
 		},
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub for tests
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
 	} as unknown as APIContext;
 }
 

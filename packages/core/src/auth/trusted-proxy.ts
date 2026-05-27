@@ -56,7 +56,7 @@ function getEnvTrustedHeaders(): string[] {
 		// value at runtime (Vite/Astro inline import.meta.env at build time,
 		// which locks the value into the bundle). Fall back to import.meta.env
 		// for bundler-managed environments where process.env isn't populated.
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- import.meta.env shape varies by bundler
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- import.meta.env shape varies by bundler
 		const importMetaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> })
 			.env;
 		raw =

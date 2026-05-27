@@ -91,6 +91,7 @@ import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
+import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
@@ -2074,6 +2075,8 @@ export function PortableTextEditor({
 					color: "#3b82f6",
 					width: 2,
 				},
+				// Replaced with CodeBlockExtension below (adds language picker node view).
+				codeBlock: false,
 				// StarterKit v3 includes Link and Underline
 				link: {
 					openOnClick: false,
@@ -2084,6 +2087,7 @@ export function PortableTextEditor({
 				},
 				underline: {},
 			}),
+			CodeBlockExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
@@ -2253,17 +2257,25 @@ export function PortableTextEditor({
 			const editPos = editingBlockPosRef.current;
 
 			if (editPos !== null) {
-				// Editing an existing block — update its attributes in place
-				const { tr } = editor.state;
-				const node = tr.doc.nodeAt(editPos);
-				if (node?.type.name === "pluginBlock") {
-					tr.setNodeMarkup(editPos, undefined, {
-						...node.attrs,
-						id: typeof id === "string" ? id : node.attrs.id,
-						data,
-					});
-					editor.view.dispatch(tr);
-				}
+				// Editing an existing block — update its attributes in place.
+				// Use the chain API so TipTap's onUpdate fires reliably
+				// (raw view.dispatch may not trigger onUpdate for attribute-only
+				// changes on atom nodes in some TipTap versions).
+				editor
+					.chain()
+					.command(({ tr }) => {
+						const node = tr.doc.nodeAt(editPos);
+						if (node?.type.name === "pluginBlock") {
+							tr.setNodeMarkup(editPos, undefined, {
+								...node.attrs,
+								id: typeof id === "string" ? id : node.attrs.id,
+								data,
+							});
+							return true;
+						}
+						return false;
+					})
+					.run();
 			} else {
 				// Inserting a new block
 				editor

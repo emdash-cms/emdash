@@ -4,10 +4,11 @@
  */
 
 export { NoopSandboxRunner, SandboxNotAvailableError, createNoopSandboxRunner } from "./noop.js";
+export { SandboxUnavailableError } from "./types.js";
 
 export type {
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,

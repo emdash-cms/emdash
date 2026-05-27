@@ -33,7 +33,7 @@ function resolveEnvValue(
 ): string {
 	if (directValue) return directValue;
 	const envVar = envVarName || defaultEnvVar;
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Worker binding accessed from untyped env object
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding accessed from untyped env object
 	const value = (env as Record<string, string | undefined>)[envVar];
 	if (!value) {
 		throw new Error(

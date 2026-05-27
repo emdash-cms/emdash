@@ -511,12 +511,12 @@ export function createMcpServer(): McpServer {
 			if (result.success && !canReadDrafts(extra)) {
 				const data =
 					result.data && typeof result.data === "object"
-						? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check
 							(result.data as Record<string, unknown>)
 						: undefined;
 				const item =
 					data?.item && typeof data.item === "object"
-						? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check
+						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check
 							(data.item as Record<string, unknown>)
 						: undefined;
 				const status = typeof item?.status === "string" ? item.status : null;
@@ -1140,7 +1140,7 @@ export function createMcpServer(): McpServer {
 			if (result.success && !canReadDrafts(extra)) {
 				const data =
 					result.data && typeof result.data === "object"
-						? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check
 							(result.data as Record<string, unknown>)
 						: undefined;
 				const translations = Array.isArray(data?.translations) ? data.translations : [];

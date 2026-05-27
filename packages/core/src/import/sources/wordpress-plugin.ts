@@ -299,8 +299,15 @@ export const wordpressPluginSource: ImportSource = {
 		});
 
 		if (!response.ok) {
-			const error = await response.json().catch(() => ({}));
-			throw new Error(error.message || `Failed to analyze site: ${response.statusText}`);
+			const body: unknown = await response.json().catch(() => undefined);
+			const message =
+				typeof body === "object" &&
+				body !== null &&
+				"message" in body &&
+				typeof body.message === "string"
+					? body.message
+					: "";
+			throw new Error(message || `Failed to analyze site: ${response.statusText}`);
 		}
 
 		const data: PluginAnalyzeResponse = await response.json();

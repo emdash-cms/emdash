@@ -83,6 +83,14 @@ function parseCatalog() {
 	return catalog;
 }
 
+function getRootPackageManager() {
+	const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+	if (!pkg.packageManager) {
+		throw new Error("Root package.json is missing a packageManager field");
+	}
+	return pkg.packageManager;
+}
+
 function collectWorkspaceVersions() {
 	const versions = {};
 	const dirs = [join(ROOT, "packages"), join(ROOT, "packages/plugins")];
@@ -116,8 +124,9 @@ function resolveDeps(deps, catalog, workspace) {
 	return resolved;
 }
 
-function transformPackageJson(srcPath, catalog, workspace) {
+function transformPackageJson(srcPath, catalog, workspace, packageManager) {
 	const pkg = JSON.parse(readFileSync(srcPath, "utf8"));
+	pkg.packageManager = packageManager;
 	pkg.dependencies = resolveDeps(pkg.dependencies, catalog, workspace);
 	pkg.devDependencies = resolveDeps(pkg.devDependencies, catalog, workspace);
 	if (pkg.peerDependencies) {
@@ -247,6 +256,7 @@ if (localIdx !== -1 && !localPath) {
 
 const catalog = parseCatalog();
 const workspace = collectWorkspaceVersions();
+const packageManager = getRootPackageManager();
 
 console.log("Workspace packages:");
 for (const [name, version] of Object.entries(workspace)) {
@@ -291,7 +301,7 @@ try {
 		if (existsSync(srcPkg)) {
 			writeFileSync(
 				join(destDir, "package.json"),
-				transformPackageJson(srcPkg, catalog, workspace),
+				transformPackageJson(srcPkg, catalog, workspace, packageManager),
 			);
 			console.log("  Transformed package.json");
 		}

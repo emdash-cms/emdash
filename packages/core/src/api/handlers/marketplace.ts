@@ -92,7 +92,7 @@ function getClient(
 	return createMarketplaceClient(marketplaceUrl, siteOrigin);
 }
 
-function diffCapabilities(
+export function diffCapabilities(
 	oldCaps: string[],
 	newCaps: string[],
 ): { added: string[]; removed: string[] } {
@@ -114,7 +114,7 @@ function diffCapabilities(
  * Diff route visibility between two manifests.
  * Returns routes that changed from private to public (newly exposed).
  */
-function diffRouteVisibility(
+export function diffRouteVisibility(
 	oldManifest: PluginManifest | undefined,
 	newManifest: PluginManifest,
 ): { newlyPublic: string[] } {
@@ -320,7 +320,18 @@ export async function handleMarketplaceInstall(
 	sandboxRunner: SandboxRunner | null,
 	marketplaceUrl: string | undefined,
 	pluginId: string,
-	opts?: { version?: string; configuredPluginIds?: Set<string>; siteOrigin?: string },
+	opts?: {
+		version?: string;
+		configuredPluginIds?: Set<string>;
+		siteOrigin?: string;
+		/**
+		 * When true, sandbox: false bypass mode is active. The sandbox runner
+		 * is the noop runner (isAvailable() === false) but the runtime will
+		 * load the marketplace plugin in-process via syncMarketplacePlugins().
+		 * Skip the SANDBOX_NOT_AVAILABLE gate so the install can proceed.
+		 */
+		sandboxBypassed?: boolean;
+	},
 ): Promise<ApiResult<MarketplaceInstallResult>> {
 	const client = getClient(marketplaceUrl, opts?.siteOrigin);
 	if (!client) {
@@ -343,7 +354,9 @@ export async function handleMarketplaceInstall(
 		};
 	}
 
-	if (!sandboxRunner || !sandboxRunner.isAvailable()) {
+	// Sandbox availability check: skip when sandbox: false bypass is active.
+	// The runtime's syncMarketplacePlugins() will load the plugin in-process.
+	if (!opts?.sandboxBypassed && (!sandboxRunner || !sandboxRunner.isAvailable())) {
 		return {
 			success: false,
 			error: {
@@ -524,6 +537,13 @@ export async function handleMarketplaceUpdate(
 		version?: string;
 		confirmCapabilityChanges?: boolean;
 		confirmRouteVisibilityChanges?: boolean;
+		/**
+		 * When true, sandbox: false bypass mode is active. The sandbox runner
+		 * is the noop runner (isAvailable() === false) but the runtime will
+		 * load the marketplace plugin in-process via syncMarketplacePlugins().
+		 * Skip the SANDBOX_NOT_AVAILABLE gate so the update can proceed.
+		 */
+		sandboxBypassed?: boolean;
 	},
 ): Promise<ApiResult<MarketplaceUpdateResult>> {
 	const client = getClient(marketplaceUrl);
@@ -539,7 +559,9 @@ export async function handleMarketplaceUpdate(
 			error: { code: "STORAGE_NOT_CONFIGURED", message: "Storage is required" },
 		};
 	}
-	if (!sandboxRunner || !sandboxRunner.isAvailable()) {
+	// Sandbox availability check: skip when sandbox: false bypass is active.
+	// The runtime's syncMarketplacePlugins() will load the plugin in-process.
+	if (!opts?.sandboxBypassed && (!sandboxRunner || !sandboxRunner.isAvailable())) {
 		return {
 			success: false,
 			error: { code: "SANDBOX_NOT_AVAILABLE", message: "Sandbox runner is required" },

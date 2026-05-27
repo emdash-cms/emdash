@@ -6,7 +6,7 @@
  * what was just written.
  *
  * This module deliberately does NOT implement the interactive OAuth flow
- * itself. Callers (the CLI in `@emdash-cms/registry-cli`) are responsible for:
+ * itself. Callers (the CLI in `@emdash-cms/plugin-cli`) are responsible for:
  *   1. Driving the OAuth dance (browser-redirect with device-flow fallback,
  *      DPoP-bound tokens) via `@atcute/oauth-node-client`.
  *   2. Persisting the resulting session somewhere durable.
@@ -160,12 +160,20 @@ export class PublishingClient {
 		 * validate (e.g. during a lexicon migration window).
 		 */
 		skipValidation?: boolean;
+		/**
+		 * Optimistic-concurrency precondition. When set, the write fails with
+		 * `InvalidSwap` if the record's current CID doesn't match. Use the
+		 * `cid` returned from a prior `getRecord` to ensure a read-then-write
+		 * flow doesn't silently overwrite a concurrent edit.
+		 */
+		swapRecord?: string;
 	}): Promise<{ uri: string; cid: string }> {
 		return this.#putRecord({
 			collection: input.collection,
 			rkey: input.rkey,
 			record: input.record as Record<string, unknown>,
 			skipValidation: input.skipValidation ?? false,
+			...(input.swapRecord !== undefined ? { swapRecord: input.swapRecord } : {}),
 		});
 	}
 
@@ -180,6 +188,10 @@ export class PublishingClient {
 		rkey: string;
 		record: Record<string, unknown>;
 		skipValidation?: boolean;
+		/**
+		 * Optimistic-concurrency precondition. See `putRecord`.
+		 */
+		swapRecord?: string;
 	}): Promise<{ uri: string; cid: string }> {
 		return this.#putRecord({ ...input, skipValidation: input.skipValidation ?? false });
 	}
@@ -189,6 +201,7 @@ export class PublishingClient {
 		rkey: string;
 		record: Record<string, unknown>;
 		skipValidation: boolean;
+		swapRecord?: string;
 	}): Promise<{ uri: string; cid: string }> {
 		const data = await ok(
 			this.#client.post("com.atproto.repo.putRecord", {
@@ -198,6 +211,7 @@ export class PublishingClient {
 					rkey: input.rkey,
 					record: input.record,
 					validate: !input.skipValidation,
+					...(input.swapRecord !== undefined ? { swapRecord: input.swapRecord } : {}),
 				},
 			}),
 		);

@@ -1,7 +1,7 @@
 /**
  * Credential shapes shared between the credential store, the publishing
  * client, and the CLI. These describe what we persist between an interactive
- * `emdash-registry login` and subsequent CLI invocations.
+ * `emdash-plugin login` and subsequent CLI invocations.
  *
  * The store itself is implementation-defined (filesystem on disk, in-memory
  * for tests, env-vars for CI). All implementations satisfy `CredentialStore`.

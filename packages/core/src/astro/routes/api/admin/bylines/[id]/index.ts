@@ -1,4 +1,3 @@
-import { Role } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
@@ -10,17 +9,9 @@ import { BylineRepository } from "#db/repositories/byline.js";
 
 export const prerender = false;
 
-function requireEditor(user: { role: number } | undefined): Response | null {
-	if (!user || user.role < Role.EDITOR) {
-		return apiError("FORBIDDEN", "Editor privileges required", 403);
-	}
-	return null;
-}
-
 export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
-	// Read access uses content:read so all authenticated roles can view byline data
-	const denied = requirePerm(user, "content:read");
+	const denied = requirePerm(user, "bylines:read");
 	if (denied) return denied;
 
 	if (!emdash?.db) {
@@ -39,7 +30,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
 export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
-	const denied = requireEditor(user);
+	const denied = requirePerm(user, "bylines:manage");
 	if (denied) return denied;
 
 	if (!emdash?.db) {
@@ -71,7 +62,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 
 export const DELETE: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
-	const denied = requireEditor(user);
+	const denied = requirePerm(user, "bylines:manage");
 	if (denied) return denied;
 
 	if (!emdash?.db) {

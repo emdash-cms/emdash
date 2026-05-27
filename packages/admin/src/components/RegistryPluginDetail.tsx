@@ -13,7 +13,7 @@
  * sidebar entries stay stable.
  */
 
-import { Badge, Button } from "@cloudflare/kumo";
+import { Badge, Button, LinkButton, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { ShieldCheck, Warning } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,12 +22,13 @@ import * as React from "react";
 
 import {
 	canonicalCapabilitiesForDriftCheck,
-	getLatestRegistryRelease,
 	getRegistryPackage,
 	installRegistryPlugin,
+	listRegistryReleases,
 	releasePassesPolicy,
 	resolveRegistryPackage,
 	type RegistryClientConfig,
+	type RegistryReleaseView,
 } from "../lib/api/registry.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
@@ -87,11 +88,71 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// DID, because that's an impersonation risk).
 	const handleResult = usePublisherHandle(pkg?.did ?? "", pkg?.handle);
 
-	const { data: release } = useQuery({
-		queryKey: ["registry", "latest-release", config.aggregatorUrl, pkg?.did, slug],
-		queryFn: () => getLatestRegistryRelease(config, pkg!.did, slug),
+	// `listReleases` returns releases in descending semver order. The aggregator
+	// strips yanked releases server-side when `acceptLabelers` includes a labeller
+	// applying the `security:yanked` label, but sites with no labeller config
+	// receive yanked releases interleaved by version. Filter them out client-side
+	// as defense in depth so the picker never offers an actively-yanked install.
+	// Lexicon-invalid records (`release === null`) are also filtered: they carry
+	// no actionable metadata and can't be installed.
+	// `limit: 100` is the lexicon ceiling; one page covers the long tail of
+	// real packages without needing cursor follow-up. Packages with more than
+	// 100 releases would still lose access to the oldest, but that's far past
+	// what a single plugin would ever ship in the experimental phase.
+	const { data: releasesData } = useQuery({
+		queryKey: ["registry", "releases", config.aggregatorUrl, config.acceptLabelers, pkg?.did, slug],
+		queryFn: () => listRegistryReleases(config, pkg!.did, slug, { limit: 100 }),
 		enabled: Boolean(pkg?.did && slug),
 	});
+
+	const releases = React.useMemo<RegistryReleaseView[]>(
+		() => (releasesData?.releases ?? []).filter((r) => r.release !== null && !isYanked(r)),
+		[releasesData],
+	);
+	const hasFilteredAllReleases = (releasesData?.releases.length ?? 0) > 0 && releases.length === 0;
+
+	// Default to the highest semver that passes the policy holdback. When every
+	// release is still inside the holdback window, fall back to the highest
+	// listed version — installation stays disabled (with the holdback banner)
+	// but the picker has something selected and the per-release metadata stays
+	// visible.
+	const defaultVersion = React.useMemo(() => {
+		if (!pkg || releases.length === 0) return undefined;
+		const passes = releases.find((r) =>
+			releasePassesPolicy(r, { did: pkg.did, slug }, config.policy),
+		);
+		return (passes ?? releases[0])?.version;
+	}, [pkg, releases, slug, config.policy]);
+
+	const [selectedVersion, setSelectedVersion] = React.useState<string | undefined>(undefined);
+	// Reset during render (not after commit) when navigating between packages —
+	// the component instance survives route changes, and an `effect` reset would
+	// let a stale selection from package A briefly resolve against package B's
+	// release list before the effect fires. Enables an "install the wrong version
+	// on a fast click after a route change" race.
+	const [prevPluginId, setPrevPluginId] = React.useState(pluginId);
+	if (prevPluginId !== pluginId) {
+		setPrevPluginId(pluginId);
+		setSelectedVersion(undefined);
+	}
+	// Reconcile when the release list changes underneath an explicit selection
+	// (the selected version got yanked between visits, the labeller config
+	// changed, etc.). Dropping back to the default avoids the Select trigger
+	// rendering a value with no matching option.
+	if (
+		selectedVersion !== undefined &&
+		releases.length > 0 &&
+		!releases.some((r) => r.version === selectedVersion)
+	) {
+		setSelectedVersion(undefined);
+	}
+
+	const effectiveVersion = selectedVersion ?? defaultVersion;
+	const release = React.useMemo(
+		() => releases.find((r) => r.version === effectiveVersion),
+		[releases, effectiveVersion],
+	);
+	const isPreRelease = release ? isPreReleaseVersion(release.version) : false;
 
 	// `release.extensions[com.emdashcms.experimental.package.releaseExtension]`
 	// carries the structured `declaredAccess`. The EmDash bundle manifest
@@ -112,18 +173,40 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// different permissions list than another publisher would for the
 	// same RFC-0001 fields.
 	const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
-	const releaseDoc = release?.release as
-		| {
-				extensions?: Record<string, { declaredAccess?: unknown; capabilities?: unknown }>;
-		  }
+	// `release` is lexicon-validated at the boundary; `extensions` is the
+	// lexicon's open `unknown` map, so its inner shape still needs narrowing.
+	const extensions = release?.release?.extensions as
+		| Record<string, { declaredAccess?: unknown; capabilities?: unknown }>
 		| undefined;
-	const ext = releaseDoc?.extensions?.[RELEASE_EXTENSION_NSID];
+	const ext = extensions?.[RELEASE_EXTENSION_NSID];
 
 	const capabilities: string[] = Array.isArray(ext?.capabilities)
 		? canonicalCapabilitiesForDriftCheck(ext?.capabilities)
 		: canonicalCapabilitiesForDriftCheck(declaredAccessToCapabilityList(ext?.declaredAccess));
 
-	const profile = pkg?.profile as { name?: string; description?: string } | undefined;
+	// `profile` / `release` are validated against their lexicons at the
+	// DiscoveryClient boundary, so the shape here is trustworthy (or `null`).
+	// URLs still need a scheme allow-list: the lexicon's `uri` format permits
+	// non-HTTP schemes (incl. `javascript:`), so an author/repo `url` going
+	// straight into an `href` would be stored XSS in the authenticated admin
+	// origin. `safeExternalHref` / `safeEmail` are that gate, not shape-parsing.
+	const pkgProfile = pkg?.profile ?? null;
+	const displayName = pkgProfile?.name;
+	const description = pkgProfile?.description;
+	const licenseText = pkgProfile?.license;
+	const keywordList = pkgProfile?.keywords ?? [];
+	const authorList = (pkgProfile?.authors ?? []).map((a) => ({
+		name: a.name,
+		url: safeExternalHref(a.url),
+		email: safeEmail(a.email),
+	}));
+	const securityList = (pkgProfile?.security ?? []).flatMap((c) => {
+		const url = safeExternalHref(c.url);
+		const email = safeEmail(c.email);
+		return url || email ? [{ url, email }] : [];
+	});
+	// `repo` is a release-level field (`release.repo`), not a profile field.
+	const repoHref = safeExternalHref(release?.release?.repo);
 	const verified = (pkg?.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
 	const policyOk =
@@ -218,13 +301,13 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 			<BackLink />
 
 			{/* Header */}
-			<div className="flex items-start gap-4">
+			<div className="flex flex-wrap items-start gap-4">
 				<div className="rounded-xl bg-kumo-subtle p-3 text-kumo-subtle">
 					<span aria-hidden className="block h-10 w-10" />
 				</div>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
-						<h1 className="truncate text-3xl font-bold">{profile?.name ?? slug}</h1>
+						<h1 className="truncate text-3xl font-bold">{displayName ?? slug}</h1>
 						{verified ? (
 							<ShieldCheck
 								className="h-5 w-5 shrink-0 text-kumo-brand"
@@ -237,12 +320,46 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						<PublisherHandle did={pkg.did} aggregatorHandle={pkg.handle} variant="detail" />
 					</p>
 					{release ? (
-						<p className="text-xs text-kumo-subtle">
-							{t`Version ${release.version}`} · {t`indexed ${formatDate(release.indexedAt)}`}
-						</p>
+						<div className="mt-1 flex flex-wrap items-center gap-2">
+							<p className="text-xs text-kumo-subtle">
+								{t`Version ${release.version}`} · {t`indexed ${formatDate(release.indexedAt)}`}
+							</p>
+							{isPreRelease ? <Badge>{t`Pre-release`}</Badge> : null}
+						</div>
 					) : null}
 				</div>
-				<div>
+				<div className="flex min-w-0 flex-wrap items-center gap-2">
+					{releases.length > 1 ? (
+						<Select
+							aria-label={t`Version`}
+							className="w-full max-w-[220px]"
+							value={effectiveVersion ?? ""}
+							onValueChange={(v) => setSelectedVersion(v ?? undefined)}
+							renderValue={(v) => (typeof v === "string" ? v : "")}
+						>
+							{releases.map((r) => {
+								const preRelease = isPreReleaseVersion(r.version);
+								const policyBlocked = !releasePassesPolicy(
+									r,
+									{ did: pkg.did, slug },
+									config.policy,
+								);
+								return (
+									<Select.Option key={r.version} value={r.version}>
+										<span className="flex items-center gap-2">
+											<span>{r.version}</span>
+											{preRelease ? (
+												<span className="text-xs text-kumo-subtle">{t`(pre-release)`}</span>
+											) : null}
+											{policyBlocked ? (
+												<span className="text-xs text-kumo-subtle">{t`(too new)`}</span>
+											) : null}
+										</span>
+									</Select.Option>
+								);
+							})}
+						</Select>
+					) : null}
 					{isInstalled ? (
 						<Button variant="secondary" disabled>
 							{t`Installed`}
@@ -284,6 +401,23 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				</div>
 			) : null}
 
+			{/* All releases withdrawn or malformed — the aggregator returned
+			    records but none survived the yanked + lexicon-validity filter. */}
+			{hasFilteredAllReleases ? (
+				<div
+					className="flex items-start gap-3 rounded-md border border-kumo-warning bg-kumo-warning/10 p-4 text-kumo-warning"
+					role="status"
+				>
+					<Warning className="mt-0.5 h-5 w-5 shrink-0" />
+					<div>
+						<p className="font-medium">{t`No installable releases`}</p>
+						<p className="mt-1 text-sm text-kumo-default">
+							{t`Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher.`}
+						</p>
+					</div>
+				</div>
+			) : null}
+
 			{/* Policy holdback notice */}
 			{release && !policyOk ? (
 				<div
@@ -301,8 +435,86 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 			) : null}
 
 			{/* Description */}
-			{profile?.description ? (
-				<p className="text-base text-kumo-default">{profile.description}</p>
+			{description ? <p className="text-base text-kumo-default">{description}</p> : null}
+
+			{/* License / keywords / repository */}
+			{licenseText || repoHref || keywordList.length > 0 ? (
+				<section className="flex flex-wrap items-center gap-2">
+					{licenseText ? <LicenseBadge license={licenseText} /> : null}
+					{keywordList.map((k) => (
+						<Badge key={k}>{k}</Badge>
+					))}
+					{repoHref ? (
+						<LinkButton href={repoHref} external variant="secondary">
+							{t`View source`}
+						</LinkButton>
+					) : null}
+				</section>
+			) : null}
+
+			{/* Authors */}
+			{authorList.length > 0 ? (
+				<section>
+					<h2 className="text-sm font-semibold text-kumo-subtle">{t`Authors`}</h2>
+					<ul className="mt-2 space-y-1">
+						{authorList.map((a, i) => (
+							<li
+								// eslint-disable-next-line react/no-array-index-key -- authors have no stable id; index is stable within a render
+								key={`${a.name}-${i}`}
+								className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+							>
+								<span className="font-medium text-kumo-default">{a.name}</span>
+								{a.url ? (
+									<a
+										href={a.url}
+										target="_blank"
+										rel="noreferrer"
+										className="text-kumo-brand hover:underline"
+									>
+										{t`Website`}
+									</a>
+								) : null}
+								{a.email ? (
+									<a href={`mailto:${a.email}`} className="text-kumo-brand hover:underline">
+										{a.email}
+									</a>
+								) : null}
+							</li>
+						))}
+					</ul>
+				</section>
+			) : null}
+
+			{/* Security contacts */}
+			{securityList.length > 0 ? (
+				<section>
+					<h2 className="text-sm font-semibold text-kumo-subtle">{t`Security contacts`}</h2>
+					<ul className="mt-2 space-y-1">
+						{securityList.map((c, i) => (
+							<li
+								// eslint-disable-next-line react/no-array-index-key -- contacts have no stable id; index is stable within a render
+								key={`${c.email ?? c.url ?? "contact"}-${i}`}
+								className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+							>
+								{c.email ? (
+									<a href={`mailto:${c.email}`} className="text-kumo-brand hover:underline">
+										{c.email}
+									</a>
+								) : null}
+								{c.url ? (
+									<a
+										href={c.url}
+										target="_blank"
+										rel="noreferrer"
+										className="text-kumo-brand hover:underline"
+									>
+										{c.url}
+									</a>
+								) : null}
+							</li>
+						))}
+					</ul>
+				</section>
 			) : null}
 
 			{/* Capabilities preview */}
@@ -321,7 +533,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 			{showConsent && release ? (
 				<CapabilityConsentDialog
 					mode="install"
-					pluginName={profile?.name ?? slug}
+					pluginName={displayName ?? slug}
 					capabilities={capabilities}
 					isPending={installMutation.isPending}
 					error={getMutationError(installMutation.error)}
@@ -371,12 +583,107 @@ function declaredAccessToCapabilityList(declaredAccess: unknown): string[] {
 	return out;
 }
 
+const PRE_RELEASE_VERSION_RE = /^\d+\.\d+\.\d+-/;
+
+/**
+ * Detects semver pre-release identifiers (`1.0.0-alpha.1`, `2.0.0-rc.2`). The
+ * release lexicon does not enforce semver shape, so a permissive `includes("-")`
+ * check would light up the badge for malformed values like `-1.0.0` or
+ * `abc-def`. Require a `MAJOR.MINOR.PATCH-` prefix instead.
+ */
+function isPreReleaseVersion(version: string): boolean {
+	return PRE_RELEASE_VERSION_RE.test(version);
+}
+
+const YANKED_LABEL_VALUE = "security:yanked";
+
+/**
+ * Aggregators forward labels applied by their configured labellers. `security:yanked`
+ * is a hard-enforcement label that publishers can self-apply (or that a labeller
+ * applies on their behalf) to retract a release after publication. Sites whose
+ * `acceptLabelers` config includes the labeller never see yanked releases at all
+ * (server filtering), but sites without it receive yanked releases interleaved
+ * with installable ones — filter them out so they never reach the picker.
+ *
+ * `neg` (negated labels) is intentionally ignored to match the server install
+ * handler, which only checks `l.val === "security:yanked"`. Diverging here would
+ * let the UI surface an install affordance the server will reject with
+ * `RELEASE_YANKED`. Honoring `neg` on both sides is a separate follow-up.
+ */
+function isYanked(release: RegistryReleaseView): boolean {
+	return (release.labels ?? []).some((l) => l.val === YANKED_LABEL_VALUE);
+}
+
 function formatDate(iso: string): string {
 	try {
 		return new Date(iso).toLocaleDateString();
 	} catch {
 		return iso;
 	}
+}
+
+/**
+ * SPDX page URL for a license, or `null` when the value isn't a single
+ * SPDX identifier (compound expressions like "MIT OR Apache-2.0" and the
+ * literal "proprietary" have no canonical spdx.org page).
+ */
+/**
+ * Validate an untrusted aggregator-supplied URL for use in an `href`.
+ * Returns the normalised URL only when it is an absolute `http(s)` URL;
+ * everything else (relative, `javascript:`, `data:`, garbage, non-string)
+ * returns `null`. The profile/release records are pass-throughs from a
+ * remote service, so an unsanitised `href` is stored XSS in the
+ * authenticated admin origin.
+ */
+function safeExternalHref(value: unknown): string | null {
+	if (typeof value !== "string" || value.length === 0) return null;
+	let parsed: URL;
+	try {
+		parsed = new URL(value);
+	} catch {
+		return null;
+	}
+	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+	return parsed.href;
+}
+
+// Conservative email shape: forbids whitespace (so no CRLF), the
+// characters that could break out of a `mailto:` href, and the
+// `mailto:` query delimiters (`? & = % /`) so a value like
+// `victim@x.com?bcc=attacker@evil` can't smuggle cc/bcc/subject/body.
+const EMAIL_RE = /^[^\s@<>()[\]\\,;:"?&=%/]+@[^\s@<>()[\]\\,;:"?&=%/]+\.[^\s@<>()[\]\\,;:"?&=%/]+$/;
+
+function safeEmail(value: unknown): string | null {
+	if (typeof value !== "string") return null;
+	const email = value.trim();
+	if (email.length === 0 || email.length > 320) return null;
+	return EMAIL_RE.test(email) ? email : null;
+}
+
+const SPDX_SINGLE_ID_RE = /^[A-Za-z0-9.+-]+$/;
+
+function spdxLicenseHref(license: string): string | null {
+	const id = license.trim();
+	if (!SPDX_SINGLE_ID_RE.test(id)) return null;
+	if (id.toLowerCase() === "proprietary") return null;
+	return `https://spdx.org/licenses/${id}.html`;
+}
+
+function LicenseBadge({ license }: { license: string }) {
+	const { t } = useLingui();
+	const href = spdxLicenseHref(license);
+	if (!href) return <Badge>{license}</Badge>;
+	return (
+		<a
+			href={href}
+			target="_blank"
+			rel="noreferrer"
+			aria-label={t`View the ${license} license on spdx.org`}
+			className="hover:opacity-80"
+		>
+			<Badge>{license}</Badge>
+		</a>
+	);
 }
 
 function formatHoldback(seconds: number): string {

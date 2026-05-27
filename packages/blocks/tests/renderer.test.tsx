@@ -7,6 +7,13 @@ import type { Block, BlockInteraction } from "../src/types.js";
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
+// Shared between the Collapsible.* mocks so DefaultTrigger / DefaultPanel can
+// react to open state set on Collapsible.Root.
+const CollapsibleContext = React.createContext<{
+	open?: boolean;
+	onOpenChange?: (next: boolean) => void;
+}>({});
+
 vi.mock("@cloudflare/kumo", () => ({
 	Button: ({ children, onClick, variant, type }: any) => (
 		<button onClick={onClick} data-variant={variant} type={type || "button"}>
@@ -159,13 +166,48 @@ vi.mock("@cloudflare/kumo", () => ({
 			</label>
 		),
 	},
-	Collapsible: ({ children, label, open, onOpenChange }: any) => (
-		<div data-testid="collapsible" data-open={open ? "true" : "false"}>
-			<button type="button" onClick={() => onOpenChange?.(!open)}>
-				{label}
-			</button>
-			{open && <div data-testid="collapsible-content">{children}</div>}
-		</div>
+	Collapsible: Object.assign(
+		// `Collapsible` is also `Collapsible.Root` in Kumo 2.x.
+		({ children, open, onOpenChange, ...rest }: any) => (
+			<div data-testid="collapsible" data-open={open ? "true" : "false"} {...rest}>
+				<CollapsibleContext.Provider value={{ open, onOpenChange }}>
+					{children}
+				</CollapsibleContext.Provider>
+			</div>
+		),
+		{
+			Root: ({ children, open, onOpenChange, ...rest }: any) => (
+				<div data-testid="collapsible" data-open={open ? "true" : "false"} {...rest}>
+					<CollapsibleContext.Provider value={{ open, onOpenChange }}>
+						{children}
+					</CollapsibleContext.Provider>
+				</div>
+			),
+			Trigger: ({ children }: any) => {
+				const ctx = React.useContext(CollapsibleContext);
+				return (
+					<button type="button" onClick={() => ctx.onOpenChange?.(!ctx.open)}>
+						{children}
+					</button>
+				);
+			},
+			DefaultTrigger: ({ children }: any) => {
+				const ctx = React.useContext(CollapsibleContext);
+				return (
+					<button type="button" onClick={() => ctx.onOpenChange?.(!ctx.open)}>
+						{children}
+					</button>
+				);
+			},
+			Panel: ({ children }: any) => {
+				const ctx = React.useContext(CollapsibleContext);
+				return ctx.open ? <div data-testid="collapsible-content">{children}</div> : null;
+			},
+			DefaultPanel: ({ children }: any) => {
+				const ctx = React.useContext(CollapsibleContext);
+				return ctx.open ? <div data-testid="collapsible-content">{children}</div> : null;
+			},
+		},
 	),
 	Combobox: Object.assign(
 		({ children, label }: any) => (

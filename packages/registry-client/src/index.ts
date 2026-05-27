@@ -8,10 +8,10 @@
  *     env-vars (CI), in-memory (tests).
  *   - **Publishing** (`./publishing`): repo operations against the publisher's
  *     own PDS using a session built by `@atcute/oauth-node-client`. Used by
- *     the CLI's `emdash-registry publish` flow.
+ *     the CLI's `emdash-plugin publish` flow.
  *   - **Discovery** (`./discovery`): read-only XRPC client over an aggregator.
- *     No authentication. Used by both the CLI (`emdash-registry search` /
- *     `emdash-registry info`) and the EmDash admin UI's install flow.
+ *     No authentication. Used by both the CLI (`emdash-plugin search` /
+ *     `emdash-plugin info`) and the EmDash admin UI's install flow.
  *
  * The two halves are deliberately decoupled so consumers that only need
  * discovery (most notably the admin UI) don't have to pull in the publishing

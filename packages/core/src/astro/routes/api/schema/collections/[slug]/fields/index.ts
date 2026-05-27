@@ -26,7 +26,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const denied = requirePerm(user, "schema:read");
 	if (denied) return denied;
 
-	const result = await handleSchemaFieldList(emdash!.db, collectionSlug);
+	const result = await handleSchemaFieldList(emdash.db, collectionSlug);
 	return unwrapResult(result);
 };
 
@@ -43,10 +43,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const body = await parseBody(request, createFieldBody);
 	if (isParseError(body)) return body;
 
-	const result = await handleSchemaFieldCreate(
-		emdash!.db,
-		collectionSlug,
-		body as CreateFieldInput,
-	);
+	const result = await handleSchemaFieldCreate(emdash.db, collectionSlug, body as CreateFieldInput);
 	return unwrapResult(result, 201);
 };

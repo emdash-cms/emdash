@@ -26,6 +26,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { computeThumbnailSize } from "../media/thumbnail.js";
+import { InlineCodeBlockExtension } from "./inline-code-block.js";
 
 // ── Portable Text types ────────────────────────────────────────────
 
@@ -1137,7 +1138,7 @@ function InlineMediaPicker({
 				const r = await ecFetch(url);
 				const d = await r.json();
 				const raw = d.data.items ?? [];
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- API response items mapped to MediaItem shape
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- API response items mapped to MediaItem shape
 				const typedRaw = raw as Array<{
 					id: string;
 					filename?: string;
@@ -1765,7 +1766,10 @@ export function InlinePortableTextEditor({
 			StarterKit.configure({
 				heading: { levels: [1, 2, 3] },
 				dropcursor: { color: "#3b82f6", width: 2 },
+				// Replaced with InlineCodeBlockExtension below (adds language picker).
+				codeBlock: false,
 			}),
+			InlineCodeBlockExtension,
 			Image.extend({
 				addAttributes() {
 					return {

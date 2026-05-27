@@ -1,0 +1,208 @@
+---
+title: Migrating to the plugin CLI
+description: Breaking changes for sandboxed-plugin authors, and how to update your plugin.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+This guide is for authors of **sandboxed** plugins written against the previous `definePlugin()` shape. Work through the breaking changes in order. None of them change how your hooks or routes behave at runtime; they change how the plugin is declared, built, and published.
+
+<Aside type="note" title="Native plugins are unaffected">
+	Native plugins continue to use `definePlugin()` from `emdash` and the
+	`PluginDefinition` shape. Nothing on this page applies to them.
+</Aside>
+
+For the full list of changes in each package, see the [EmDash changelog](https://github.com/emdash-cms/emdash/blob/main/CHANGELOG.md).
+
+## Breaking changes
+
+### Renamed: `@emdash-cms/registry-cli` is now `@emdash-cms/plugin-cli`
+
+Earlier releases shipped the CLI as `@emdash-cms/registry-cli`, with an `emdash-registry` binary.
+
+The package is now `@emdash-cms/plugin-cli` and the binary is `emdash-plugin`. The old package is no longer published.
+
+#### What should I do?
+
+Replace the dependency:
+
+```sh
+pnpm remove @emdash-cms/registry-cli
+pnpm add -D @emdash-cms/plugin-cli
+```
+
+Replace `emdash-registry` with `emdash-plugin` everywhere you call it. Every subcommand keeps its name (`bundle`, `publish`, `login`, `whoami`, `switch`, `validate`), and `init`, `build`, and `dev` are added. See [The plugin CLI](/plugins/creating-plugins/cli/).
+
+### Changed: sandboxed plugins are defined with `satisfies SandboxedPlugin`
+
+Earlier releases wrapped the plugin's hooks and routes in `definePlugin()` imported from `emdash`, with each handler's parameters annotated by hand.
+
+A sandboxed plugin is now a bare default export annotated with `satisfies SandboxedPlugin`. The type comes from `emdash/plugin`, a type-only entry point that the bundler erases. TypeScript infers each handler's `event` and `ctx` from the hook or route name, so handler parameters need no annotations.
+
+#### What should I do?
+
+Make four changes to the plugin's source file. Replace the import:
+
+```ts del={1} ins={2}
+import { definePlugin, type ContentHookEvent, type PluginContext } from "emdash";
+import type { SandboxedPlugin } from "emdash/plugin";
+```
+
+Replace the `definePlugin()` wrapper with a bare object and a `satisfies` annotation:
+
+```ts del={1} ins={2} "} satisfies SandboxedPlugin;"
+export default definePlugin({ /* hooks, routes */ });
+export default { /* hooks, routes */ } satisfies SandboxedPlugin;
+```
+
+Remove the parameter annotations from every handler:
+
+```ts del={1} ins={2}
+handler: async (event: ContentHookEvent, ctx: PluginContext) => {
+handler: async (event, ctx) => {
+```
+
+The result is one default-exported object:
+
+```ts title="src/plugin.ts"
+import type { SandboxedPlugin } from "emdash/plugin";
+
+export default {
+	hooks: {
+		"content:beforeSave": {
+			handler: async (event, ctx) => {
+				return event.content;
+			},
+		},
+	},
+} satisfies SandboxedPlugin;
+```
+
+To name an event type in a helper function, import it from `emdash/plugin`:
+
+```ts
+import type { ContentHookEvent, PluginContext } from "emdash/plugin";
+```
+
+A handler's `event` is always the canonical type for that hook. Annotating a handler with a narrower interface no longer type-checks. Validate any fields you depend on at runtime with a `typeof` check or a guard, which is the correct approach for data that comes from outside the type system.
+
+### Changed: a plugin is one `src/plugin.ts` plus `emdash-plugin.jsonc`
+
+Earlier releases split a plugin into two files: `src/index.ts` returned a `PluginDescriptor` (id, version, capabilities, storage, entrypoint), and `src/sandbox-entry.ts` held the hooks and routes.
+
+A plugin is now one runtime file, `src/plugin.ts` (hooks and routes), and one hand-edited manifest, `emdash-plugin.jsonc` (identity and the trust contract). The `entrypoint` and `format` fields are gone; the build wires them up.
+
+#### What should I do?
+
+Move the hooks and routes into `src/plugin.ts` using the shape above. Move the descriptor's metadata into `emdash-plugin.jsonc` next to `package.json`. The descriptor `id` becomes the manifest `slug`; `capabilities`, `allowedHosts`, and `storage` keep their shape; `version` is read from `package.json`, so omit it.
+
+The following example shows the manifest equivalent of a descriptor that declared one storage collection:
+
+```jsonc title="emdash-plugin.jsonc"
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "plugin-hello",
+	"publisher": "did:plc:abc123def456",
+
+	"license": "MIT",
+	"author": { "name": "Jane Doe", "url": "https://example.com" },
+	"security": { "email": "security@example.com" },
+
+	"capabilities": [],
+	"allowedHosts": [],
+	"storage": { "events": { "indexes": ["timestamp"] } }
+}
+```
+
+See [The plugin manifest](/plugins/creating-plugins/manifest/) for every field, and [Publisher pinning](/plugins/creating-plugins/manifest/#publisher-pinning) for the `publisher` field.
+
+In `package.json`, point the `"./sandbox"` export at the built runtime file:
+
+```json del={1} ins={2}
+"./sandbox": "./dist/sandbox-entry.mjs"
+"./sandbox": "./dist/plugin.mjs"
+```
+
+Add the manifest to `files` so it ships with the package:
+
+```json del={1} ins={2}
+"files": ["dist"]
+"files": ["dist", "emdash-plugin.jsonc"]
+```
+
+### Changed: build with `emdash-plugin build`
+
+Earlier releases built the two source files with a hand-written `tsdown` script.
+
+`emdash-plugin build` reads `emdash-plugin.jsonc` and `src/plugin.ts` and emits the `dist/` artifacts. `emdash-plugin dev` watches and rebuilds.
+
+#### What should I do?
+
+Replace the build script and add a watch script:
+
+```json title="package.json" del={2} ins={3,4}
+"scripts": {
+	"build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean"
+	"build": "emdash-plugin build",
+	"dev": "emdash-plugin dev"
+}
+```
+
+Then validate and build:
+
+```sh
+emdash-plugin validate
+emdash-plugin build
+```
+
+### Removed: standard-format type and function exports from `emdash`
+
+Earlier releases exported `StandardPluginDefinition`, `StandardHookHandler`, `StandardHookEntry`, `StandardRouteHandler`, `StandardRouteEntry`, and the function `isStandardPluginDefinition` from `emdash`.
+
+These are removed. They were helper aliases for the previous `definePlugin` shape.
+
+#### What should I do?
+
+Use `SandboxedPlugin` from `emdash/plugin` for the same purpose. A sandboxed plugin's default export is already typed by its `satisfies SandboxedPlugin` annotation, so there is no replacement for `isStandardPluginDefinition`; identify a plugin by its structure (`{ hooks?, routes? }`) if you need to.
+
+### Renamed: the runtime `SandboxedPlugin` type is now `SandboxedPluginInstance`
+
+This affects only authors of a custom `SandboxRunner`, such as `@emdash-cms/cloudflare`. Most plugin authors can skip it.
+
+`SandboxedPlugin` from `emdash` now refers to the author-facing source shape. The runtime handle returned by `SandboxRunner.load` is `SandboxedPluginInstance`.
+
+#### What should I do?
+
+If you import `SandboxedPlugin` from `emdash` to type a sandbox runner or hold runtime plugin handles, change the import to `SandboxedPluginInstance`:
+
+```ts del={1} ins={2}
+import type { SandboxedPlugin } from "emdash";
+import type { SandboxedPluginInstance } from "emdash";
+```
+
+## Tell your users
+
+Sites that install your plugin also need to change their import. Point them at the new shape: drop the braces and the `()`.
+
+```js title="astro.config.mjs" del={1,7} ins={2,8}
+import { helloPlugin } from "@my-org/plugin-hello";
+import hello from "@my-org/plugin-hello";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			sandboxed: [helloPlugin()],
+			sandboxed: [hello],
+		}),
+	],
+});
+```
+
+If your plugin accepted configuration through its factory, that configuration moves to the admin UI's plugin settings. Read it at runtime through `ctx.kv` or settings instead. See [Settings](/plugins/creating-plugins/settings/).
+
+## Next
+
+- [The plugin manifest](/plugins/creating-plugins/manifest/)
+- [The plugin CLI](/plugins/creating-plugins/cli/)
+- [Your first sandboxed plugin](/plugins/creating-plugins/your-first-plugin/)

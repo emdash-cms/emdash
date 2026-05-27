@@ -5,24 +5,32 @@ description: Build, register, and run a hello-world sandboxed plugin.
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-This guide walks through building a minimal sandboxed plugin from scratch — a plugin that logs every content save and exposes a single API route. By the end you'll have a plugin that runs in an isolated runtime via the configured sandbox runner. The same plugin code can also run in-process if the site operator chooses to move it from `sandboxed: []` into `plugins: []` — for example on platforms without a sandbox runner available.
+This guide builds a minimal sandboxed plugin from scratch. The plugin logs every content save and exposes a single API route. It runs in an isolated runtime provided by the configured sandbox runner. The same code also runs in-process when a site operator moves it from `sandboxed: []` into `plugins: []`, for example on a platform without a sandbox runner.
 
-If you haven't decided yet whether you want a sandboxed or native plugin, read [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) first.
+If you haven't decided between sandboxed and native, read [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) first.
 
-## Two files
+<Aside type="tip" title="The fast path">
+	`npx @emdash-cms/plugin-cli init my-plugin` scaffolds everything below —
+	manifest, `src/plugin.ts`, `package.json`, `tsconfig.json`, a test. This
+	guide explains what it generates so you can write or edit it by hand.
+</Aside>
 
-Every sandboxed plugin ships two pieces:
+## Two pieces
 
-1. **A descriptor** — a small object describing the plugin (id, version, capabilities, storage, where to find the runtime entry). Imported by `astro.config.mjs` at build time.
-2. **A sandbox entry** — the runtime code: hooks, routes, storage access. Loaded into the sandbox runtime at request time.
+A sandboxed plugin is:
 
-The two files live in the same package and run in completely different environments. The descriptor never sees the runtime context; the entry never sees `astro.config.mjs`.
+1. **`emdash-plugin.jsonc`** — a hand-edited [manifest](/plugins/creating-plugins/manifest/): identity, the trust contract (capabilities, hosts, storage), and profile fields. No code.
+2. **`src/plugin.ts`** — the runtime: hooks and routes. Type-only imports from `emdash/plugin`; no runtime `emdash` import.
+
+`emdash-plugin build` reads both and emits the `dist/` artifacts a site consumes.
+
+The following example shows the file layout of a complete plugin:
 
 ```
 my-plugin/
+├── emdash-plugin.jsonc   # Identity + trust contract + profile
 ├── src/
-│   ├── index.ts          # Descriptor — runs in Vite at build time
-│   └── sandbox-entry.ts  # Hooks, routes, storage — runs in the sandbox runtime
+│   └── plugin.ts         # Hooks, routes — runs in the sandbox runtime
 ├── package.json
 └── tsconfig.json
 ```
@@ -31,7 +39,7 @@ my-plugin/
 
 <Steps>
 
-1. Create a new directory and initialise it as a TypeScript ES module package.
+1. Create the directory and a `package.json`. The build is `emdash-plugin build`; there is no `tsdown` invocation to write.
 
    ```json title="package.json"
    {
@@ -44,24 +52,25 @@ my-plugin/
    			"import": "./dist/index.mjs",
    			"types": "./dist/index.d.mts"
    		},
-   		"./sandbox": "./dist/sandbox-entry.mjs"
+   		"./sandbox": "./dist/plugin.mjs"
    	},
-   	"files": ["dist"],
+   	"files": ["dist", "emdash-plugin.jsonc"],
    	"scripts": {
-   		"build": "tsdown src/index.ts src/sandbox-entry.ts --format esm --dts --clean"
+   		"build": "emdash-plugin build",
+   		"dev": "emdash-plugin dev"
    	},
    	"peerDependencies": {
-   		"emdash": "*"
+   		"emdash": ">=0.13.0"
    	},
    	"devDependencies": {
-   		"emdash": "*",
-   		"tsdown": "^0.6.0",
-   		"typescript": "^5.5.0"
+   		"@emdash-cms/plugin-cli": "0.2.0",
+   		"emdash": ">=0.13.0",
+   		"typescript": "^5.9.0"
    	}
    }
    ```
 
-   The `"./sandbox"` export is what the descriptor's `entrypoint` will point at. The bundler builds both files into `dist/`.
+   `"."` is the generated descriptor a site imports; `"./sandbox"` is the built runtime file. `emdash-plugin build` generates both.
 
 2. Add a `tsconfig.json`:
 
@@ -73,70 +82,60 @@ my-plugin/
    		"moduleResolution": "bundler",
    		"strict": true,
    		"esModuleInterop": true,
-   		"declaration": true,
-   		"outDir": "./dist",
-   		"rootDir": "./src"
+   		"verbatimModuleSyntax": true,
+   		"skipLibCheck": true,
+   		"types": []
    	},
    	"include": ["src/**/*"],
-   	"exclude": ["node_modules", "dist"]
+   	"exclude": ["node_modules"]
    }
    ```
 
 </Steps>
 
-<Aside type="tip">
-	If you're starting from scratch, `emdash plugin init my-plugin` scaffolds this layout for you and
-	asks whether you want the standard (sandboxed) or native template.
-</Aside>
+## Write the manifest
 
-## Write the descriptor
+`emdash-plugin.jsonc` carries the plugin's identity (`slug`), its trust contract (`capabilities`, `allowedHosts`, `storage`), profile fields, and the [publisher pin](/plugins/creating-plugins/manifest/#publisher-pinning).
 
-The descriptor is a factory function that returns a `PluginDescriptor`. It runs in Vite at build time, which means it must be side-effect-free and can't use any runtime APIs (`fetch`, the database, environment variables — none of those exist yet).
+The following example shows a complete manifest for the hello plugin:
 
-```typescript title="src/index.ts"
-import type { PluginDescriptor } from "emdash";
+```jsonc title="emdash-plugin.jsonc"
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
 
-export function helloPlugin(): PluginDescriptor {
-	return {
-		id: "plugin-hello",
-		version: "0.1.0",
-		format: "standard",
-		entrypoint: "@my-org/plugin-hello/sandbox",
+	"slug": "plugin-hello",
+	"publisher": "did:plc:abc123def456", // your Atmosphere account DID
 
-		capabilities: [],
-		storage: {
-			events: { indexes: ["timestamp"] },
-		},
-	};
+	"license": "MIT",
+	"author": { "name": "Jane Doe", "url": "https://example.com" },
+	"security": { "email": "security@example.com" },
+
+	"capabilities": [],
+	"allowedHosts": [],
+	"storage": { "events": { "indexes": ["timestamp"] } }
 }
 ```
 
-A few details that matter:
+Notes on this manifest:
 
-- **`format: "standard"` is required.** Without it, EmDash treats the package as a native plugin and looks for a different shape. The `format` field defaults to `"native"`.
-- **`entrypoint` is a module specifier**, not a file path. Use the same string you'd pass to `import` — usually `"<package-name>/sandbox"`. The package name can be scoped (`@my-org/plugin-hello`); the plugin `id` cannot.
-- **`id` is a URL-safe slug, not the npm package name.** It must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The id is used both as a single path segment in plugin route URLs (`/_emdash/api/plugins/<id>/...`) and as part of generated SQL identifiers for plugin storage indexes, so `@`, `/`, leading digits, and uppercase letters all fail at runtime. Pair an unscoped `id` like `plugin-hello` with a scoped npm package name in `entrypoint`.
-- **Capabilities, allowedHosts, and storage live on the descriptor.** The sandbox entry does not declare them — it can only use what the descriptor permits.
-- **Don't put runtime logic here.** No top-level `await`, no module-level `fetch`, no reading files. The descriptor is metadata.
+- **`slug` is a URL-safe id, not the npm package name.** `/^[a-z][a-z0-9_-]*$/`, max 64 chars. It's a single path segment in plugin route URLs (`/_emdash/api/plugins/<slug>/...`) and part of generated SQL identifiers for storage indexes, so `@`, `/`, leading digits, and uppercase all fail. Pair an unscoped `slug` (`plugin-hello`) with a scoped npm package name.
+- **`storage` declares collections up front.** `ctx.storage.events` works at runtime only because `events` is declared here. Accessing an undeclared collection throws.
+- **`version` is omitted.** The build reads it from `package.json` so there's one source of truth. See [the manifest reference](/plugins/creating-plugins/manifest/#version-lives-in-packagejson).
+- **The trust contract is consent.** Changing `capabilities`, `allowedHosts`, or `storage` later requires a version bump — installed sites consented to the old contract.
 
-## Write the sandbox entry
+## Write the runtime
 
-The runtime side. This file is loaded inside the sandbox runtime at request time, with no access to anything except what `ctx` provides.
+`src/plugin.ts` default-exports a bare object annotated with `satisfies SandboxedPlugin`. `emdash/plugin` provides only types, so a sandboxed plugin has no runtime dependency on `emdash`.
 
-```typescript title="src/sandbox-entry.ts"
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
+The following example logs every content save to plugin storage and exposes a `recent` route that returns the last ten saves:
 
-interface ContentSaveEvent {
-	collection: string;
-	content: { id: string };
-	isNew: boolean;
-}
+```typescript title="src/plugin.ts"
+import type { SandboxedPlugin } from "emdash/plugin";
 
-export default definePlugin({
+export default {
 	hooks: {
 		"content:afterSave": {
-			handler: async (event: ContentSaveEvent, ctx: PluginContext) => {
+			handler: async (event, ctx) => {
 				ctx.log.info("Content saved", {
 					collection: event.collection,
 					id: event.content.id,
@@ -153,47 +152,48 @@ export default definePlugin({
 
 	routes: {
 		recent: {
-			handler: async (_routeCtx, ctx: PluginContext) => {
+			handler: async (_routeCtx, ctx) => {
 				const result = await ctx.storage.events.query({ limit: 10 });
 				return { events: result.items };
 			},
 		},
 	},
-});
+} satisfies SandboxedPlugin;
 ```
 
-Things worth knowing:
+Notes on the runtime file:
 
-- **`definePlugin()` in the sandbox entry takes only `{ hooks, routes }`.** No `id`, no `version`, no `capabilities` — those come from the descriptor. EmDash throws at build time if you try to pass them here.
-- **Hook handlers take `(event, ctx)`.** The event shape depends on the hook name; see the [Hooks reference](/plugins/creating-plugins/hooks/).
-- **Route handlers take `(routeCtx, ctx)`** — two arguments. `routeCtx` has `{ input, request, requestMeta }`; `ctx` is the same `PluginContext` you get in hooks. Routes are reachable at `/_emdash/api/plugins/<plugin-id>/<route-name>`.
-- **`ctx.storage.events` works because `events` was declared on the descriptor.** Accessing an undeclared collection throws.
-- **`ctx.kv` is always available** — a per-plugin key-value store with `get`, `set`, `delete`, and `list(prefix)`.
+- **`satisfies SandboxedPlugin` types everything.** It infers `event` from the hook name (with the full canonical event type) and `ctx` as `PluginContext`, so handlers need no parameter annotations. A typo'd hook key like `"content:afterSav"` is a compile error.
+- **Hook handlers take `(event, ctx)`.** The event shape depends on the hook name; see the [Hooks guide](/plugins/creating-plugins/hooks/).
+- **Route handlers take `(routeCtx, ctx)`** — two arguments. `routeCtx` is `{ input, request, requestMeta? }`; `ctx` is the same `PluginContext`. Routes are reachable at `/_emdash/api/plugins/<slug>/<route-name>`.
+- **`ctx.storage.events` works because `events` is declared in the manifest.**
+- **`ctx.kv` is always available** — a per-plugin key-value store with `get`, `set`, `delete`, `list(prefix)`.
 
 ## Register the plugin
 
-In your site's `astro.config.mjs`, import the descriptor factory and pass it into the EmDash integration. Sandboxed plugins go in `sandboxed: []`; in-process plugins go in `plugins: []`. A standard-format plugin works in both — start with `sandboxed`.
+In the site's `astro.config.mjs`, import the plugin's default export and pass it in. Sandboxed plugins go in `sandboxed: []`; in-process plugins go in `plugins: []`. A sandboxed plugin works in both. The example below uses `sandboxed:`:
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 import { sandbox } from "@emdash-cms/cloudflare";
-import { helloPlugin } from "@my-org/plugin-hello";
+import hello from "@my-org/plugin-hello";
 
 export default defineConfig({
 	integrations: [
 		emdash({
-			sandboxed: [helloPlugin()],
+			sandboxed: [hello],
 			sandboxRunner: sandbox(),
 		}),
 	],
 });
 ```
 
-`sandboxRunner` is the pluggable piece. The example above uses `sandbox()` from `@emdash-cms/cloudflare`, which is the sandbox runner most sites use today. Runners for other platforms are in development. If no runner is configured (or the configured runner reports as unavailable on the current platform), `sandboxed: []` plugins are skipped at startup — to run the same plugin in-process, move it from `sandboxed: []` into `plugins: []`.
+`sandboxRunner` is the pluggable piece. The example uses `sandbox()` from `@emdash-cms/cloudflare`, the runner most sites use today. If no runner is configured (or the configured runner is unavailable on the current platform), `sandboxed: []` plugins are skipped at startup — move the plugin into `plugins: []` to run it in-process.
 
 <Aside type="caution" title="Cloudflare runner needs Worker Loader">
-	The `@emdash-cms/cloudflare` sandbox runner uses Cloudflare Workers' Dynamic Worker Loader, which means your `wrangler.jsonc` needs a `worker_loaders` binding:
+	The `@emdash-cms/cloudflare` sandbox runner uses Cloudflare Workers' Dynamic
+	Worker Loader, so `wrangler.jsonc` needs a `worker_loaders` binding:
 
 	```jsonc title="wrangler.jsonc"
 	{
@@ -201,7 +201,10 @@ export default defineConfig({
 	}
 	```
 
-	Without it the runner reports as unavailable at startup and sandboxed plugins are skipped. Other sandbox runners have their own platform requirements. See [Sandboxed vs Native](/plugins/creating-plugins/choosing-a-format/) for the platform matrix.
+	Without it the runner reports as unavailable at startup and sandboxed
+	plugins are skipped. Other runners have their own platform requirements. See
+	[Sandboxed vs Native](/plugins/creating-plugins/choosing-a-format/) for the
+	platform matrix.
 </Aside>
 
 ## Build and run
@@ -209,15 +212,18 @@ export default defineConfig({
 From the plugin directory:
 
 ```sh
-pnpm build
+emdash-plugin validate   # schema-check the manifest first
+emdash-plugin build      # emit dist/
 ```
 
-In the site directory, link or install the plugin (`pnpm add @my-org/plugin-hello` or a workspace link), then start the dev server. You should see `[hello] Content saved …` in the logs the next time you save a piece of content in the admin, and `GET /_emdash/api/plugins/plugin-hello/recent` should return the last ten save events.
+For an edit loop, run `emdash-plugin dev` (rebuilds on save, keeps the last good `dist/` on a failed build). In the site, install or link the plugin (`pnpm add file:../plugin-hello` or a workspace link) and start the dev server. Save a piece of content in the admin and you should see `Content saved …` in the logs; `GET /_emdash/api/plugins/plugin-hello/recent` returns the last ten save events.
 
 ## What to read next
 
-- [Hooks](/plugins/creating-plugins/hooks/) — the full set of events you can react to
-- [API routes](/plugins/creating-plugins/api-routes/) — input validation, public routes, error handling
+- [The manifest](/plugins/creating-plugins/manifest/) — every field, the trust contract, publisher pinning
+- [The `emdash-plugin` CLI](/plugins/creating-plugins/cli/) — `build`, `dev`, `bundle`
+- [Hooks](/plugins/creating-plugins/hooks/) — the full set of events
+- [API routes](/plugins/creating-plugins/api-routes/) — input validation, public routes, errors
 - [Storage and KV](/plugins/creating-plugins/storage/) — query options, indexes, batch operations
-- [Capabilities and security](/plugins/creating-plugins/capabilities/) — content access, network requests, host allowlists
-- [Bundling and publishing](/plugins/creating-plugins/publishing/) — when you're ready to ship to the marketplace
+- [Capabilities and security](/plugins/creating-plugins/capabilities/) — content access, network, host allowlists
+- [Bundling and publishing](/plugins/creating-plugins/publishing/) — shipping to the marketplace
