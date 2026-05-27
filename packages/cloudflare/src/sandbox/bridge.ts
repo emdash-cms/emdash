@@ -38,7 +38,6 @@ const SYSTEM_COLUMNS = new Set([
 	"draft_revision_id",
 ]);
 
-
 /**
  * Serialize a value for D1 storage.
  * Mirrors core's serializeValue: objects/arrays → JSON strings,
