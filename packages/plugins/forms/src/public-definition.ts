@@ -57,9 +57,7 @@ function hasValidOptions(value: unknown): boolean {
 		(Array.isArray(value) &&
 			value.every(
 				(option) =>
-					isObject(option) &&
-					typeof option.label === "string" &&
-					typeof option.value === "string",
+					isObject(option) && typeof option.label === "string" && typeof option.value === "string",
 			))
 	);
 }
