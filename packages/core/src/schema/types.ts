@@ -409,12 +409,27 @@ export interface UpdateBylineFieldInput {
 export type CustomFieldValue = string | boolean | null;
 
 /**
- * Reserved byline-field slugs. These collide with fixed columns on
- * `_emdash_bylines` (migrations 031 + 040); allowing a custom field with
- * one of these slugs would shadow the column on hydration. Enforced at the
- * registry layer (Phase 2) and the admin API zod layer (Phase 4).
+ * Reserved byline-field slugs. Two reasons a slug ends up here:
+ *
+ * 1. **Column collision.** Slugs that match a fixed column on
+ *    `_emdash_bylines` (migrations 031 + 040) would shadow that column
+ *    on hydration. The first 12 entries cover this.
+ * 2. **Route collision.** Static file routes under
+ *    `/_emdash/api/admin/byline-fields/` take precedence over the
+ *    `[slug].ts` dynamic route in Astro, so a custom field whose slug
+ *    matches a sibling static file (e.g. `reorder.ts`) is unreachable
+ *    via single-field CRUD — the static route handles only its own
+ *    method (POST for `reorder`) and 405s everything else.
+ *    `reorder` is the only such sibling today; new sibling routes
+ *    (e.g. a hypothetical `import.ts`) must be added here.
+ *    `[slug]/usage.ts` lives a level deeper so a slug of `usage` does
+ *    not collide — it resolves cleanly to `[slug].ts`.
+ *
+ * Enforced at the registry layer (Phase 2) and the admin API zod layer
+ * (Phase 4) so non-HTTP callers (seeds, scripts) get the same guarantee.
  */
 export const RESERVED_BYLINE_FIELD_SLUGS = [
+	// 1. Column-collision slugs (matches `_emdash_bylines` fixed columns).
 	"id",
 	"slug",
 	"display_name",
@@ -427,4 +442,6 @@ export const RESERVED_BYLINE_FIELD_SLUGS = [
 	"translation_group",
 	"created_at",
 	"updated_at",
+	// 2. Route-collision slugs (matches static sibling files of `[slug].ts`).
+	"reorder",
 ] as const;

@@ -57,6 +57,49 @@ export class BylineSchemaError extends Error {
 }
 
 /**
+ * Translate a `BylineSchemaError` code to a shared `ErrorCode` for the
+ * admin API. HTTP status is then derived by `mapErrorStatus` — this
+ * function deliberately doesn't carry one, so the API/handler boundary
+ * matches the rest of the codebase (handlers return `ApiResult<T>` with
+ * a code, the route layer maps to status via `unwrapResult`).
+ *
+ * Every code on the right-hand side of `case ... return ...` is defined
+ * in `ErrorCode` (`api/errors.ts`). `INVALID_LABEL` and
+ * `INVALID_VALIDATION` are intentionally folded into the `default`
+ * branch (→ `VALIDATION_ERROR`) so no ad-hoc codes leak out — the
+ * registry's domain code names them but the HTTP surface should not.
+ *
+ * `RESERVED_SLUG` / `INVALID_SLUG` typically don't reach this layer for
+ * HTTP callers — the zod schema rejects them first with a clean
+ * `VALIDATION_ERROR`. They're still listed so non-HTTP callers (and the
+ * test layer) get consistent mapping.
+ *
+ * `FIELD_NOT_FOUND` is normalised to the shared `NOT_FOUND` code so the
+ * admin client can branch on one constant across resource types.
+ */
+export function mapBylineSchemaError(error: BylineSchemaError): {
+	code: string;
+	message: string;
+	details?: Record<string, unknown>;
+} {
+	switch (error.code) {
+		case "FIELD_NOT_FOUND":
+			return { code: "NOT_FOUND", message: error.message, details: error.details };
+		case "FIELD_EXISTS":
+		case "TRANSLATABLE_LOCKED":
+		case "REORDER_MISMATCH":
+		case "INVALID_SLUG":
+		case "RESERVED_SLUG":
+		case "INVALID_TYPE":
+			return { code: error.code, message: error.message, details: error.details };
+		default:
+			// Catches INVALID_LABEL, INVALID_VALIDATION, and any future
+			// registry codes we forget to wire up explicitly.
+			return { code: "VALIDATION_ERROR", message: error.message, details: error.details };
+	}
+}
+
+/**
  * Registry for byline custom fields (Discussion #1174).
  *
  * Owns CRUD over `_emdash_byline_fields` plus the persisted
@@ -372,6 +415,49 @@ export class BylineSchemaRegistry {
 			}
 			await this.bumpVersion(trx);
 		});
+	}
+
+	/**
+	 * Per-table usage counts for a field, plus the sum. Backs the
+	 * destructive-delete confirm dialog in the admin UI (Phase 5).
+	 *
+	 * Both counts are surfaced separately for diagnostic value: a
+	 * non-zero count on the table that doesn't match the field's current
+	 * `translatable` flag indicates historical drift (e.g. a flip from
+	 * an older code path). Today the registry rejects such flips with
+	 * `TRANSLATABLE_LOCKED`, so any drift originates pre-Phase-2.
+	 *
+	 * Throws `FIELD_NOT_FOUND` when the slug doesn't resolve — callers
+	 * shouldn't get back zero counts for a missing field.
+	 */
+	async getFieldUsage(slug: string): Promise<{
+		translatableValueCount: number;
+		groupValueCount: number;
+		totalAffectedRows: number;
+	}> {
+		const field = await this.getField(slug);
+		if (!field) {
+			throw new BylineSchemaError(`Byline field "${slug}" not found`, "FIELD_NOT_FOUND", {
+				slug,
+			});
+		}
+		const tr = await this.db
+			.selectFrom("_emdash_byline_field_values")
+			.select(({ fn }) => [fn.count<number>("field_id").as("count")])
+			.where("field_id", "=", field.id)
+			.executeTakeFirst();
+		const grp = await this.db
+			.selectFrom("_emdash_byline_field_group_values")
+			.select(({ fn }) => [fn.count<number>("field_id").as("count")])
+			.where("field_id", "=", field.id)
+			.executeTakeFirst();
+		const translatableValueCount = Number(tr?.count ?? 0);
+		const groupValueCount = Number(grp?.count ?? 0);
+		return {
+			translatableValueCount,
+			groupValueCount,
+			totalAffectedRows: translatableValueCount + groupValueCount,
+		};
 	}
 
 	/**

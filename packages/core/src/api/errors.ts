@@ -61,6 +61,11 @@ export const ErrorCode = {
 	SCHEMA_FIELD_UPDATE_ERROR: "SCHEMA_FIELD_UPDATE_ERROR",
 	SCHEMA_FIELD_DELETE_ERROR: "SCHEMA_FIELD_DELETE_ERROR",
 	SCHEMA_FIELD_REORDER_ERROR: "SCHEMA_FIELD_REORDER_ERROR",
+	// Byline schema (Discussion #1174). Reuses RESERVED_SLUG, INVALID_SLUG,
+	// INVALID_TYPE, FIELD_EXISTS, NOT_FOUND, VALIDATION_ERROR where the
+	// semantics match; the two below are byline-domain specific:
+	TRANSLATABLE_LOCKED: "TRANSLATABLE_LOCKED",
+	REORDER_MISMATCH: "REORDER_MISMATCH",
 	ORPHAN_LIST_ERROR: "ORPHAN_LIST_ERROR",
 	ORPHAN_REGISTER_ERROR: "ORPHAN_REGISTER_ERROR",
 	COLLECTION_EXISTS: "COLLECTION_EXISTS",
@@ -370,6 +375,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.SSRF_BLOCKED:
 		case ErrorCode.UNKNOWN_ACTION:
 		case ErrorCode.AMBIGUOUS_LOCALE:
+		case ErrorCode.REORDER_MISMATCH:
 			return 400;
 
 		// 401 Unauthorized
@@ -414,6 +420,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.ALREADY_INSTALLED:
 		case ErrorCode.ALREADY_CONFIGURED:
 		case ErrorCode.ALREADY_UP_TO_DATE:
+		case ErrorCode.TRANSLATABLE_LOCKED:
 			return 409;
 
 		// 410 Gone
