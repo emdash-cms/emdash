@@ -32,9 +32,11 @@ import { bylineFieldUpdateBody } from "#api/schemas.js";
 
 export const prerender = false;
 
+// GET requires `schema:read` (Editor+); see sibling `index.ts` GET
+// for rationale.
 export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
-	const denied = requirePerm(user, "schema:manage");
+	const denied = requirePerm(user, "schema:read");
 	if (denied) return denied;
 
 	const dbErr = requireDb(emdash?.db);

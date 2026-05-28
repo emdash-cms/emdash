@@ -24,9 +24,15 @@ import { bylineFieldCreateBody } from "#api/schemas.js";
 
 export const prerender = false;
 
+// GET requires `schema:read` (Editor+), not `schema:manage` — Phase 6
+// of #1174 surfaced the split: editors need to read field definitions
+// to render custom-field inputs in the byline edit form, while only
+// admins manage the registry. The Phase 4 review-round constraint
+// "every endpoint returns 403 for a user without schema:manage" is
+// superseded for the read endpoints; mutations remain admin-only.
 export const GET: APIRoute = async ({ locals }) => {
 	const { emdash, user } = locals;
-	const denied = requirePerm(user, "schema:manage");
+	const denied = requirePerm(user, "schema:read");
 	if (denied) return denied;
 
 	const dbErr = requireDb(emdash?.db);

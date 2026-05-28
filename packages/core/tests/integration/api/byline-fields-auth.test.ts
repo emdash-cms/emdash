@@ -163,24 +163,79 @@ describe("admin/byline-fields routes — auth + permissions + validation", () =>
 	});
 
 	// ===========================================
-	// Permission gate (editor → 403, admin → ok)
+	// Permission gate — read/manage split (Phase 6 of #1174)
+	//
+	// Editors need to *read* the registry so the byline edit form can
+	// render custom-field inputs (Phase 6). Only admins can mutate
+	// the registry. The split is anchored by two perms:
+	//   - `schema:read`  → Editor (read endpoints)
+	//   - `schema:manage` → Admin  (mutation endpoints)
 	// ===========================================
 
-	describe("FORBIDDEN without schema:manage", () => {
-		it("GET /byline-fields returns 403 for Editor", async () => {
+	describe("editors can read but not mutate", () => {
+		it("GET /byline-fields succeeds for Editor (schema:read)", async () => {
 			const req = jsonRequest("http://localhost/_emdash/api/admin/byline-fields", "GET");
 			const res = await listFields(buildContext({ db, request: req, user: editorUser }));
-			expect(res.status).toBe(403);
-			expect(await res.json()).toMatchObject({ error: { code: "FORBIDDEN" } });
+			expect(res.status).toBe(200);
 		});
 
-		it("POST /byline-fields returns 403 for Editor", async () => {
+		it("GET /byline-fields/{slug} succeeds for Editor (schema:read)", async () => {
+			const registry = new BylineSchemaRegistry(db);
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+
+			const req = jsonRequest("http://localhost/_emdash/api/admin/byline-fields/job_title", "GET");
+			const res = await getOne(
+				buildContext({ db, request: req, params: { slug: "job_title" }, user: editorUser }),
+			);
+			expect(res.status).toBe(200);
+		});
+
+		it("GET /byline-fields/{slug}/usage succeeds for Editor (schema:read)", async () => {
+			const registry = new BylineSchemaRegistry(db);
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+
+			const req = jsonRequest(
+				"http://localhost/_emdash/api/admin/byline-fields/job_title/usage",
+				"GET",
+			);
+			const res = await getUsage(
+				buildContext({
+					db,
+					request: req,
+					params: { slug: "job_title" },
+					user: editorUser,
+				}),
+			);
+			expect(res.status).toBe(200);
+		});
+
+		it("POST /byline-fields returns 403 for Editor (mutation requires schema:manage)", async () => {
 			const req = jsonRequest("http://localhost/_emdash/api/admin/byline-fields", "POST", {
 				slug: "job_title",
 				label: "Job Title",
 				type: "string",
 			});
 			const res = await createField(buildContext({ db, request: req, user: editorUser }));
+			expect(res.status).toBe(403);
+		});
+
+		it("PATCH /byline-fields/{slug} returns 403 for Editor", async () => {
+			const registry = new BylineSchemaRegistry(db);
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+
+			const req = jsonRequest(
+				"http://localhost/_emdash/api/admin/byline-fields/job_title",
+				"PATCH",
+				{ label: "Patched" },
+			);
+			const res = await patchOne(
+				buildContext({
+					db,
+					request: req,
+					params: { slug: "job_title" },
+					user: editorUser,
+				}),
+			);
 			expect(res.status).toBe(403);
 		});
 

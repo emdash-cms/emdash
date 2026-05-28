@@ -18,9 +18,11 @@ import { handleBylineFieldUsage } from "#api/handlers/byline-fields.js";
 
 export const prerender = false;
 
+// GET requires `schema:read` (Editor+); see byline-fields/index.ts GET
+// for rationale on the read/manage split.
 export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
-	const denied = requirePerm(user, "schema:manage");
+	const denied = requirePerm(user, "schema:read");
 	if (denied) return denied;
 
 	const dbErr = requireDb(emdash?.db);
