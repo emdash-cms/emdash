@@ -1,0 +1,460 @@
+name: Reporter Reply
+
+# When an issue is in the `bot:awaiting-reporter` state and the original
+# reporter comments, classify the reply (positive / negative / unclear) via
+# a small Flue classifier workflow and act on the result.
+
+on:
+  issue_comment:
+    types: [created]
+
+# Default-deny at workflow level.
+permissions:
+  contents: read
+
+jobs:
+  classify-and-act:
+    name: Classify reply and act
+    # Only fire if:
+    #  - the comment is on an issue (not a PR -- issue_comment fires for both)
+    #  - the comment author is the original issue author
+    #  - the issue is currently in the bot:awaiting-reporter state
+    #
+    # The `contains(...)` check is on the event payload's label
+    # snapshot. Known small race: in `investigate.yml`'s reproduced+
+    # fixed path, the ask comment is posted before the label flip --
+    # a reply created in that 1-2 second window has a label snapshot
+    # without `bot:awaiting-reporter` and is dropped here. The live-
+    # check step also gates on labels, so even loosening this `if:`
+    # would not catch it. Accepted as known minor; a reporter cannot
+    # reply that fast in practice, and the next reply would be picked
+    # up correctly.
+    if: >-
+      github.event.issue.pull_request == null
+      && github.event.comment.user.login == github.event.issue.user.login
+      && contains(github.event.issue.labels.*.name, 'bot:awaiting-reporter')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: reporter-reply-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    permissions:
+      # All writes (open PR, transition labels, comment, dispatch workflow)
+      # use the app token below. The job's default GITHUB_TOKEN stays read-only.
+      contents: read
+      issues: read
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: emdash-cms
+          repositories: emdash
+          permission-issues: write
+          permission-contents: write
+          permission-pull-requests: write
+
+      # Re-verify live state before any expensive work. Three checks:
+      #
+      #   1. The issue is currently `bot:awaiting-reporter`. The job's
+      #      `if:` gate uses `github.event.issue.labels`, which is the
+      #      label snapshot at event dispatch time. Two replies in
+      #      quick succession would both pass the gate; concurrency
+      #      only serialises them.
+      #
+      #   2. The reply was posted AFTER the most recent bot ask. Every
+      #      verification ask from investigate.yml embeds a hidden
+      #      `<!-- bot-ask: <iso8601> -->` marker. A reply with an
+      #      older timestamp is feedback on a superseded fix candidate
+      #      and should not drive state transitions on the current one.
+      #
+      #   3. Only markers authored by the bot itself count. Without an
+      #      author filter, a reporter could forge `<!-- bot-ask:
+      #      9999-01-01T00:00:00Z -->` in any comment and permanently
+      #      stale every future reply.
+      - name: Re-verify live state
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        run: |
+          set -euo pipefail
+
+          LABELS="$(gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}" --jq '[.labels[].name] | join(",")')"
+          if ! grep -q 'bot:awaiting-reporter' <<<"$LABELS"; then
+            echo "::notice::issue #${ISSUE_NUMBER} is no longer in bot:awaiting-reporter (live labels: ${LABELS}); skipping stale reply event"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Pull ALL comments across pagination as a single JSON array
+          # (`--slurp` flattens `--paginate` pages). Then filter to
+          # comments authored by emdashbot itself, the app slug used
+          # across this repo's workflows (see auto-format.yml etc.).
+          # Without an author filter, a reporter could forge a
+          # `<!-- bot-ask: ... -->` marker and stale every future reply.
+          # The presence of the marker identifies a comment as a bot
+          # ask; we then use the COMMENT'S id (monotonically increasing
+          # per repo) to order it relative to the reply. Comment ids
+          # avoid the second-precision tie that an embedded timestamp
+          # has -- a reply posted in the same second as the ask still
+          # has a strictly greater id.
+          LATEST_ASK_ID="$(
+            gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/comments" --paginate --slurp \
+              --jq '
+                [ .[]
+                  | .[]
+                  | select(.user.login == "emdashbot[bot]")
+                  | select(.body | test("<!-- bot-ask: [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z -->"))
+                  | .id
+                ] | max // 0
+              '
+          )"
+
+          if [[ "$LATEST_ASK_ID" == "0" ]]; then
+            echo "::notice::no emdashbot[bot]-authored bot-ask comment found on issue #${ISSUE_NUMBER}; treating reply as stale"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Comment ids are monotonic integers; strictly-greater is
+          # safe regardless of clock drift, second-precision ties, or
+          # API caching. A reply that predates the latest ask cannot
+          # have a greater id.
+          if (( COMMENT_ID <= LATEST_ASK_ID )); then
+            echo "::notice::reply id ${COMMENT_ID} is not newer than latest bot ask id ${LATEST_ASK_ID}; treating as stale feedback on a superseded fix"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "stale=false" >> "$GITHUB_OUTPUT"
+        id: live-check
+
+      - name: Checkout
+        if: steps.live-check.outputs.stale != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup pnpm
+        if: steps.live-check.outputs.stale != 'true'
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Setup Node.js
+        if: steps.live-check.outputs.stale != 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: "package.json"
+          cache: "pnpm"
+
+      - name: Install root dependencies
+        if: steps.live-check.outputs.stale != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Flue agent dependencies
+        if: steps.live-check.outputs.stale != 'true'
+        run: pnpm install --frozen-lockfile
+        working-directory: .flue
+
+      - name: Build packages
+        if: steps.live-check.outputs.stale != 'true'
+        run: pnpm build
+
+      - name: Build classifier payload
+        if: steps.live-check.outputs.stale != 'true'
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPLY_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -euo pipefail
+          jq -nc \
+            --argjson n "$ISSUE_NUMBER" \
+            --arg b "$REPLY_BODY" \
+            '{replyBody: $b, issueNumber: $n, owner: "emdash-cms", repo: "emdash"}' \
+            > /tmp/classify-payload.json
+
+      - name: Run classifier
+        if: steps.live-check.outputs.stale != 'true'
+        id: classify
+        timeout-minutes: 10
+        env:
+          AGENT_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORCHESTRATOR_GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
+          CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -o pipefail
+          PAYLOAD="$(cat /tmp/classify-payload.json)"
+          set +e
+          pnpm --dir .flue exec flue run classify-reply \
+            --target node \
+            --root .flue \
+            --payload "$PAYLOAD" \
+            > /tmp/classify-stdout.json 2> /tmp/classify-stderr.log
+          EXIT=$?
+          set -e
+          if [[ $EXIT -ne 0 ]] || [[ ! -s /tmp/classify-stdout.json ]]; then
+            echo "::warning::classifier exit=${EXIT}; defaulting to unclear"
+            tail -n 50 /tmp/classify-stderr.log || true
+            echo "classification=unclear" >> "$GITHUB_OUTPUT"
+            : > /tmp/classify-reasoning.txt
+            exit 0
+          fi
+          # Same robust parse as investigate.yml: prefer the last JSON
+          # object line; fall back to slurp parse for multi-line JSON.
+          RESULT=""
+          while IFS= read -r line; do
+            if printf '%s' "$line" | jq -e 'type == "object"' >/dev/null 2>&1; then
+              RESULT="$line"
+            fi
+          done < /tmp/classify-stdout.json
+          if [[ -z "$RESULT" ]]; then
+            RESULT="$(jq -cs 'map(select(type == "object")) | last // empty' < /tmp/classify-stdout.json 2>/dev/null || true)"
+          fi
+          if [[ -z "$RESULT" ]] || [[ "$RESULT" == "null" ]]; then
+            echo "classification=unclear" >> "$GITHUB_OUTPUT"
+            : > /tmp/classify-reasoning.txt
+            exit 0
+          fi
+          # Whitelist the classification value -- the gate has to be a
+          # known enum or we treat it as unclear. Defends against the
+          # model returning an unexpected value, AND against any path
+          # where the value would leak into a heredoc body.
+          CLASS_RAW="$(jq -r '.classification // "unclear"' <<<"$RESULT" | tr -d '\r\n')"
+          case "$CLASS_RAW" in
+            positive|negative|unclear) CLASS="$CLASS_RAW" ;;
+            *) CLASS="unclear" ;;
+          esac
+          # Reasoning is attacker-influenceable (the reporter's reply
+          # is in the model prompt). Persist it to a file rather than
+          # $GITHUB_OUTPUT -- a heredoc with a fixed delimiter would be
+          # a step-output injection vector if the reasoning contained
+          # the delimiter on its own line.
+          jq -r '.reasoning // ""' <<<"$RESULT" > /tmp/classify-reasoning.txt
+          echo "classification=${CLASS}" >> "$GITHUB_OUTPUT"
+
+      # ----- Positive: open PR, transition to verified -----
+
+      - name: Handle positive (open PR)
+        if: steps.live-check.outputs.stale != 'true' && steps.classify.outputs.classification == 'positive'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          REPLY_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -euo pipefail
+          FIX_BRANCH="bot/fix-${ISSUE_NUMBER}"
+
+          # Quote the reporter's confirmation into the PR body. `> ` prefix
+          # every line so multi-paragraph confirmations render as a block quote.
+          QUOTED="$(printf '%s\n' "$REPLY_BODY" | sed 's/^/> /')"
+          ISSUE_URL="https://github.com/emdash-cms/emdash/issues/${ISSUE_NUMBER}"
+
+          {
+            echo "Closes #${ISSUE_NUMBER}."
+            echo
+            echo "The reporter confirmed this fix resolves the issue:"
+            echo
+            echo "${QUOTED}"
+            echo
+            echo "See ${ISSUE_URL} for the investigation trail."
+            echo
+            echo "<sub>Opened automatically by the investigation bot. A maintainer should review before merge.</sub>"
+          } > /tmp/pr-body.md
+
+          # `gh pr create` is idempotent-ish: if a PR already exists for
+          # this branch, it errors. Detect, fall back to listing the
+          # existing PR for the branch. If we can't find ANY PR URL,
+          # do not flip to bot:verified -- that state implies a real
+          # PR exists. Instead leave on bot:awaiting-reporter and ping
+          # the maintainer, since the fix branch may have been deleted
+          # by bot-cleanup.yml or by a manual purge.
+          set +e
+          PR_OUTPUT="$(gh pr create \
+            --repo emdash-cms/emdash \
+            --base main \
+            --head "${FIX_BRANCH}" \
+            --title "[bot] Fix #${ISSUE_NUMBER}: ${ISSUE_TITLE}" \
+            --body-file /tmp/pr-body.md 2>&1)"
+          CREATE_EXIT=$?
+          set -e
+          PR_URL=""
+          if [[ $CREATE_EXIT -eq 0 ]]; then
+            # gh pr create prints the new PR URL on stdout.
+            PR_URL="$(printf '%s' "$PR_OUTPUT" | grep -oE 'https://github.com/[^[:space:]]+/pull/[0-9]+' | head -n1 || true)"
+          else
+            echo "PR create failed or already exists. Output:"
+            echo "$PR_OUTPUT"
+            # Fall back to an existing open PR for the same branch.
+            PR_URL="$(gh pr list --repo emdash-cms/emdash --head "${FIX_BRANCH}" --state open --json url --jq '.[0].url // ""' || true)"
+          fi
+
+          if [[ -z "$PR_URL" ]]; then
+            # No PR exists. Do NOT mark verified -- that implies a PR.
+            # Surface the failure so a maintainer can recover.
+            gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash \
+              --remove-label "bot:awaiting-reporter" --add-label "bot:failed"
+            {
+              echo "The reporter confirmed the fix, but the bot could not open a PR (branch \`${FIX_BRANCH}\` may have been deleted)."
+              echo
+              echo "A maintainer needs to take this from here."
+            } > /tmp/comment.md
+            gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+            exit 0
+          fi
+
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:awaiting-reporter" --add-label "bot:verified"
+
+          {
+            echo "Thanks for confirming. A PR is open: ${PR_URL}"
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+
+      # ----- Negative: count retries, re-trigger or give up -----
+
+      - name: Handle negative (retry or fail)
+        if: steps.live-check.outputs.stale != 'true' && steps.classify.outputs.classification == 'negative'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPLY_BODY: ${{ github.event.comment.body }}
+          # Pull workflow context values into env so the shell never sees
+          # raw `${{ ... }}` expansions -- zizmor flags these as template
+          # injection even though `github.repository` and `github.ref_name`
+          # are trustworthy on a non-fork issue_comment trigger. Defensive.
+          REPO_FULL: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          # Retry counter is stored as a hidden HTML marker on the
+          # FIRST LINE of bot-authored retry comments. Three layers of
+          # hardening, in increasing tightness:
+          #   1. `user.login == emdashbot[bot]` -- only the App's own
+          #      comments count. A reporter cannot impersonate.
+          #   2. The marker must be on the first line. The agent's
+          #      output may be quoted into other bot comments (the
+          #      ask comment includes `${NOTES}` which is shaped by
+          #      the agent's free-form prose); pinning to line 0
+          #      prevents an attacker who slips a marker into the
+          #      issue body and gets it echoed back from defeating
+          #      the retry budget.
+          #   3. The regex is exact: full anchor, no whitespace slop,
+          #      bare integer.
+          COUNT="$(
+            gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/comments" --paginate --slurp \
+              --jq '
+                [ .[]
+                  | .[]
+                  | select(.user.login == "emdashbot[bot]")
+                  | (.body | split("\n")[0])
+                  | capture("^<!-- bot-retry-count: (?<n>[0-9]+) -->$"; "")
+                  | .n | tonumber
+                ] | max // 0
+              '
+          )"
+
+          NEXT=$((COUNT + 1))
+          MAX=3
+
+          if (( NEXT > MAX )); then
+            # Find the maintainer who applied bot:repro initially -- look up
+            # the labeled event on the issue's timeline.
+            LABELER="$(gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/events" --paginate \
+              --jq '[.[] | select(.event == "labeled" and .label.name == "bot:repro") | .actor.login] | last // ""')"
+
+            gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:awaiting-reporter" --add-label "bot:failed"
+            {
+              echo "<!-- bot-retry-count: ${NEXT} -->"
+              echo "The bot has tried ${MAX} times and the reporter still indicates the fix does not work. A human maintainer needs to take this from here."
+              if [[ -n "$LABELER" ]]; then
+                echo
+                echo "@${LABELER} (you applied \`bot:repro\` originally) — over to you."
+              fi
+            } > /tmp/comment.md
+            gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+            exit 0
+          fi
+
+          # Dispatch first, then transition the label. Order matters
+          # for recovery: if dispatch fails, the label stays put
+          # (so a maintainer can re-trigger by removing + re-adding
+          # `bot:repro` manually) rather than getting stuck in a
+          # `bot:reproducing` state with no investigation running.
+          set +e
+          gh workflow run investigate.yml \
+            --repo "$REPO_FULL" \
+            --ref "$REF_NAME" \
+            -f issueNumber="${ISSUE_NUMBER}" \
+            -f retryContext="${REPLY_BODY}"
+          DISPATCH_EXIT=$?
+          set -e
+
+          if [[ $DISPATCH_EXIT -ne 0 ]]; then
+            # Surface the failure on the issue so a maintainer can
+            # decide what to do. Leave the label on bot:awaiting-reporter
+            # so the maintainer's manual `bot:repro` re-application
+            # works as expected.
+            echo "::warning::workflow_dispatch failed (exit ${DISPATCH_EXIT}); leaving label on bot:awaiting-reporter"
+            {
+              echo "<!-- bot-retry-count: ${NEXT} -->"
+              echo "I tried to re-run the investigation but the dispatch failed. A maintainer can re-trigger by removing the \`bot:awaiting-reporter\` label and re-adding \`bot:repro\`."
+            } > /tmp/comment.md
+            gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+            exit 0
+          fi
+
+          # Dispatch succeeded. Now transition the label so the
+          # in-flight investigation can claim the issue state and a
+          # second reply during that window passes through the live-
+          # label check to a no-op. The dispatched investigate.yml
+          # will see `bot:reproducing` and leave it as-is at its
+          # transition step (which moves bot:repro -> bot:reproducing
+          # idempotently via --remove-label || true).
+          #
+          # Retry the flip up to 3 times: a transient API hiccup that
+          # leaves bot:awaiting-reporter visible opens a window for a
+          # duplicate retry. After 3 failures, the dispatched
+          # investigation will flip the label itself when it runs,
+          # which closes the window at the cost of a small race.
+          FLIP_OK=false
+          for ATTEMPT in 1 2 3; do
+            if gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash \
+              --remove-label "bot:awaiting-reporter" --add-label "bot:reproducing"; then
+              FLIP_OK=true
+              break
+            fi
+            echo "::warning::label flip attempt ${ATTEMPT} failed, retrying"
+            sleep $((ATTEMPT * 2))
+          done
+          if [[ "$FLIP_OK" != "true" ]]; then
+            echo "::warning::label flip failed 3 times; relying on investigate.yml's transition step to close the window"
+          fi
+
+          {
+            echo "<!-- bot-retry-count: ${NEXT} -->"
+            echo "Thanks for the additional detail. Re-running the investigation (attempt ${NEXT} of ${MAX})."
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md || true
+
+      # ----- Unclear: ask for clarification, no state change -----
+
+      - name: Handle unclear
+        if: steps.live-check.outputs.stale != 'true' && steps.classify.outputs.classification == 'unclear'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Could you clarify whether the candidate fix resolves the issue for you?"
+            echo
+            echo "A short \"yes, fixed\" or \"no, still broken\" (with what you saw) is plenty. The bot is waiting on your confirmation before opening a PR."
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md

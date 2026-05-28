@@ -1,0 +1,12 @@
+{
+	"author": {
+		"id": "MDQ6VXNlcjI3MTA2Mg==",
+		"is_bot": false,
+		"login": "mrmt",
+		"name": "MORIMOTO Jun"
+	},
+	"body": "## Summary\n\n`sanitize-html` is currently a runtime dependency of `emdash` (visible in `npm view emdash@1.0.0 dependencies`).\nThe upstream repository [`apostrophecms/sanitize-html`](https://github.com/apostrophecms/sanitize-html) was **archived (read-only) on 2026-02-27**, which means no further patches will be released — including for known vulnerabilities.\n\n## Concrete impact\n\n[GHSA-rpr9-rxv7-x643](https://github.com/apostrophecms/apostrophe/security/advisories/GHSA-rpr9-rxv7-x643) / CVE-2026-44990:\n\n- Severity: **critical**\n- Vulnerable: `sanitize-html <= 2.17.3` (i.e. all published versions)\n- Patched: **none** — upstream is archived\n\nThis advisory propagates to every downstream project using `emdash`, including mine ([mrmt/metafictions-web](https://github.com/mrmt/metafictions-web)). Dependabot opens a critical alert that has no actionable fix path while `emdash` keeps `sanitize-html` as a dependency.\n\n## Background in this repo\n\n`sanitize-html` was introduced for the SSR sanitization work tracked in #644. The choice predates the upstream archival.\n\n## Suggested options\n\nA few directions I can think of (any of these would help downstream users):\n\n1. **Migrate to an actively maintained sanitizer** — e.g. [`isomorphic-dompurify`](https://github.com/kkomelin/isomorphic-dompurify) (Workers-friendly), [`xss`](https://github.com/leizongmin/js-xss), or a maintained community fork of `sanitize-html`.\n2. **Fork & maintain** `sanitize-html` under `emdash-cms/` so the patch level can be controlled here.\n3. **Document the situation** in the README / security notes so downstream users know the alert is upstream-blocked and how to handle it (e.g. `pnpm.overrides`).\n\nHappy to help with a PR if a direction is decided. Thanks for `emdash`!\n\n## References\n\n- Archived upstream: https://github.com/apostrophecms/sanitize-html\n- Advisory: https://github.com/apostrophecms/apostrophe/security/advisories/GHSA-rpr9-rxv7-x643\n- Original sanitization work: #644",
+	"labels": [],
+	"number": 1049,
+	"title": "security: sanitize-html upstream is archived — CVE-2026-44990 will never be fixed"
+}
