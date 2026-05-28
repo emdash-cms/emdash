@@ -63,6 +63,9 @@ describeEachDialect("Migrations", (dialect) => {
 			"_emdash_sections",
 			"_emdash_bylines",
 			"_emdash_content_bylines",
+			"_emdash_byline_fields",
+			"_emdash_byline_field_values",
+			"_emdash_byline_field_group_values",
 		];
 
 		for (const table of tables) {
