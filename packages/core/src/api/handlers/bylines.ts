@@ -1,7 +1,11 @@
 import type { Kysely } from "kysely";
 
-import { BylineRepository, type CreateBylineInput } from "../../database/repositories/byline.js";
-import type { BylineSummary } from "../../database/repositories/types.js";
+import {
+	BylineRepository,
+	type CreateBylineInput,
+	type UpdateBylineInput,
+} from "../../database/repositories/byline.js";
+import { EmDashValidationError, type BylineSummary } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { getI18nConfig } from "../../i18n/config.js";
 import type { ApiResult } from "../types.js";
@@ -156,6 +160,52 @@ export async function handleBylineCreate(
 		return {
 			success: false,
 			error: { code: "BYLINE_CREATE_ERROR", message: "Failed to create byline" },
+		};
+	}
+}
+
+/**
+ * Update an existing byline. Forwards every field on `UpdateBylineInput`
+ * to `BylineRepository.update`, including the Phase 3 `customFields`
+ * map; per-field type validation lives in the repo, which throws
+ * `EmDashValidationError` on unknown slugs, type mismatches, or
+ * `select`-choice misses. This handler translates that into a clean
+ * `VALIDATION_ERROR` (400 via `mapErrorStatus`).
+ *
+ * Returns `NOT_FOUND` when the byline id doesn't resolve. Generic
+ * failures surface as `BYLINE_UPDATE_ERROR` (500) without leaking the
+ * underlying message.
+ */
+export async function handleBylineUpdate(
+	db: Kysely<Database>,
+	id: string,
+	input: UpdateBylineInput,
+): Promise<ApiResult<BylineSummary>> {
+	try {
+		const repo = new BylineRepository(db);
+		const byline = await repo.update(id, input);
+		if (!byline) {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: "Byline not found" },
+			};
+		}
+		return { success: true, data: byline };
+	} catch (error) {
+		// Unknown-key + type-mismatch + select-choice writes throw
+		// EmDashValidationError (Phase 3, see BylineRepository.update).
+		// Map to a clean 400 — the error message names the offending
+		// slug/type, which is safe to surface to the admin client.
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		console.error("[BYLINE_UPDATE_ERROR]", error);
+		return {
+			success: false,
+			error: { code: "BYLINE_UPDATE_ERROR", message: "Failed to update byline" },
 		};
 	}
 }
