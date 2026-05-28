@@ -354,6 +354,131 @@ describe("Byline query functions", () => {
 			expect(result.get(post.id)?.[0]?.byline.displayName).toBe("Batch Author");
 		});
 
+		it("hydrates customFields on author-fallback bylines across disjoint locale buckets", async () => {
+			// Regression for the Phase 3 review's "author-fallback still
+			// calls findByUserIds per bucket and hydrates inside each
+			// call" finding. Even with the explicit-credit path batched,
+			// the per-bucket findByUserIds calls each fired their own
+			// group-shared query for the author's translation_group — and
+			// when authors differ per locale (the disjoint case), the
+			// groups don't overlap, so the per-bucket caches don't help.
+			//
+			// Fix: `findByUserIds` gains `skipHydration`, the author-
+			// fallback path uses it, and the fallback bylines feed into
+			// the same `hydrationTargets` array as the explicit credits.
+			// One batched `hydrateBylineCustomFields` covers all bylines
+			// at the end of `getBylinesForEntries`.
+			const userRepo = new UserRepository(db);
+
+			// Two distinct authors (disjoint identities → disjoint
+			// translation_groups), one credited in each locale.
+			const userEn = await userRepo.create({
+				email: "en-author@example.com",
+				displayName: "EN Author",
+				role: "editor",
+			});
+			const userFr = await userRepo.create({
+				email: "fr-author@example.com",
+				displayName: "FR Author",
+				role: "editor",
+			});
+
+			const bylineEn = await bylineRepo.create({
+				slug: "en-author",
+				displayName: "EN Author",
+				userId: userEn.id,
+				locale: "en",
+			});
+			const bylineFr = await bylineRepo.create({
+				slug: "fr-author",
+				displayName: "FR Author",
+				userId: userFr.id,
+				locale: "fr",
+			});
+
+			// Register a non-translatable byline custom field and seed
+			// distinct values for each author's translation_group. Verifying
+			// that BOTH authors' values surface after a single
+			// getBylinesForEntries call proves the batched hydration
+			// covers the fallback path.
+			const { BylineSchemaRegistry } = await import("../../../src/schema/byline-registry.js");
+			const { sql } = await import("kysely");
+			const registry = new BylineSchemaRegistry(db);
+			await registry.createField({
+				slug: "twitter_handle",
+				label: "Twitter",
+				type: "string",
+				translatable: false,
+			});
+			const field = await registry.getField("twitter_handle");
+
+			const enGroup = bylineEn.translationGroup ?? bylineEn.id;
+			const frGroup = bylineFr.translationGroup ?? bylineFr.id;
+			expect(enGroup).not.toBe(frGroup);
+			await sql`
+				INSERT INTO _emdash_byline_field_group_values (translation_group, field_id, value)
+				VALUES (${enGroup}, ${field?.id}, '"@en"'),
+				       (${frGroup}, ${field?.id}, '"@fr"')
+			`.execute(db);
+			const { resetBylineFieldDefsCacheForTests } =
+				await import("../../../src/bylines/field-defs-cache.js");
+			resetBylineFieldDefsCacheForTests();
+
+			const enPost = await contentRepo.create({
+				type: "post",
+				slug: "en-post",
+				data: { title: "EN" },
+				locale: "en",
+				authorId: userEn.id,
+			});
+			const frPost = await contentRepo.create({
+				type: "post",
+				slug: "fr-post",
+				data: { title: "FR" },
+				locale: "fr",
+				authorId: userFr.id,
+			});
+
+			// Count queries against `_emdash_byline_field_group_values`
+			// to assert the AC envelope holds. The pre-fix path fired one
+			// query per locale bucket (2 here, since the buckets reference
+			// disjoint translation_groups). The fix defers fallback
+			// hydration into the single batched call and lands at exactly
+			// one query for the whole pass.
+			let groupValueQueries = 0;
+			const originalSelectFrom = db.selectFrom.bind(db);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- spy on a Kysely chain entry point; the chain values flow through unchanged
+			const selectFromSpy = vi.spyOn(db, "selectFrom").mockImplementation(((table: any) => {
+				if (table === "_emdash_byline_field_group_values") groupValueQueries += 1;
+				return originalSelectFrom(table);
+			}) as any);
+
+			let result;
+			try {
+				result = await getBylinesForEntries("post", [
+					{ id: enPost.id, locale: "en", authorId: enPost.authorId },
+					{ id: frPost.id, locale: "fr", authorId: frPost.authorId },
+				]);
+			} finally {
+				selectFromSpy.mockRestore();
+			}
+
+			const enCredits = result.get(enPost.id) ?? [];
+			const frCredits = result.get(frPost.id) ?? [];
+			expect(enCredits[0]?.source).toBe("inferred");
+			expect(frCredits[0]?.source).toBe("inferred");
+			// Both bylines must carry their group-shared customFields.
+			expect(enCredits[0]?.byline.customFields?.twitter_handle).toBe("@en");
+			expect(frCredits[0]?.byline.customFields?.twitter_handle).toBe("@fr");
+
+			// Phase 3 AC #8: "+1 batched query per hydration pass" for
+			// group-shared values — meaning one query for the entire
+			// `getBylinesForEntries` call regardless of bucket count. The
+			// pre-fix author-fallback path issued one per bucket; this
+			// asserts it now lands at one.
+			expect(groupValueQueries).toBe(1);
+		});
+
 		it("handles batches larger than SQL_BATCH_SIZE across explicit and inferred bylines", async () => {
 			const userRepo = new UserRepository(db);
 			const explicitByline = await bylineRepo.create({
