@@ -116,6 +116,7 @@ import {
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
+import { BylineSchemaPage } from "./routes/byline-schema";
 import { BylinesPage } from "./routes/bylines";
 import { UsersPage } from "./routes/users";
 
@@ -1494,6 +1495,15 @@ const bylinesRoute = createRoute({
 	validateSearch: parseBylinesLocaleSearch,
 });
 
+// Byline schema management route (Discussion #1174, Phase 5).
+// `minRole: ROLE_ADMIN` is enforced both in the sidebar (entry hidden
+// for non-admins) and inside `BylineSchemaPage` (URL-direct navigation).
+const bylineSchemaRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/byline-schema",
+	component: BylineSchemaPage,
+});
+
 // Content Types routes
 const contentTypesListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -1765,6 +1775,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	taxonomyRoute,
 	usersRoute,
 	bylinesRoute,
+	bylineSchemaRoute,
 	widgetsRoute,
 	settingsRoute,
 	generalSettingsRoute,
