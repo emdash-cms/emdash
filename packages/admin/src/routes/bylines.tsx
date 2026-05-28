@@ -20,6 +20,7 @@ import {
 	type BylineSummary,
 	type UserListItem,
 } from "../lib/api";
+import { listBylineFields, type BylineFieldDefinition } from "../lib/api/byline-fields.js";
 import { fetchManifest } from "../lib/api/client.js";
 
 interface BylineFormState {
@@ -29,6 +30,13 @@ interface BylineFormState {
 	websiteUrl: string;
 	userId: string | null;
 	isGuest: boolean;
+	/**
+	 * Custom-field values keyed by field slug (Phase 6 of #1174). Always
+	 * a defined object — `{}` when no fields are registered or the byline
+	 * has no stored values — so callers can spread it into update bodies
+	 * unconditionally.
+	 */
+	customFields: Record<string, unknown>;
 }
 
 export interface LoadMoreSnapshot {
@@ -62,6 +70,7 @@ function toFormState(byline?: BylineSummary | null): BylineFormState {
 			websiteUrl: "",
 			userId: null,
 			isGuest: false,
+			customFields: {},
 		};
 	}
 
@@ -72,6 +81,7 @@ function toFormState(byline?: BylineSummary | null): BylineFormState {
 		websiteUrl: byline.websiteUrl ?? "",
 		userId: byline.userId,
 		isGuest: byline.isGuest,
+		customFields: byline.customFields ?? {},
 	};
 }
 
@@ -142,6 +152,19 @@ export function BylinesPage() {
 	});
 
 	const users = usersData?.items ?? [];
+
+	// Phase 6 of #1174: render registered custom fields as inputs in the
+	// edit form. List is fetched once per page mount; the registry's
+	// version counter invalidates content-side caches but the admin UI
+	// just relies on react-query's staleTime for now — admins rarely
+	// add/remove fields while another admin is editing a byline, and the
+	// next page navigation refetches anyway.
+	const { data: customFieldsList, error: customFieldsError } = useQuery({
+		queryKey: ["byline-fields"],
+		queryFn: listBylineFields,
+		staleTime: 60 * 1000,
+	});
+	const customFieldDefs = customFieldsList?.items ?? [];
 
 	// Snapshot filters at click-time and discard the response if the user
 	// changed any of them while the request was in flight — otherwise stale
@@ -214,14 +237,29 @@ export function BylinesPage() {
 	const updateMutation = useMutation({
 		mutationFn: () => {
 			if (!selectedId) throw new Error("No byline selected");
-			return updateByline(selectedId, {
+			// Phase 6 of #1174: forward registered custom-field values
+			// when we have field-defs to render them. If the
+			// `byline-fields` list failed to load, the inputs aren't
+			// rendered so the editor cannot see what they'd be saving;
+			// omit the key entirely so the server-side repo skips the
+			// customFields branch and preserves stored values verbatim
+			// (`undefined` triggers the skip path in
+			// `BylineRepository.update`). Sending `form.customFields`
+			// would echo the hydrated values back — usually a no-op,
+			// but in a "field deleted server-side mid-session" scenario
+			// it would surface as a 400, surprising the editor.
+			const body: Parameters<typeof updateByline>[1] = {
 				slug: form.slug,
 				displayName: form.displayName,
 				bio: form.bio || null,
 				websiteUrl: form.websiteUrl || null,
 				userId: form.userId,
 				isGuest: form.isGuest,
-			});
+			};
+			if (!customFieldsError) {
+				body.customFields = form.customFields;
+			}
+			return updateByline(selectedId, body);
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
@@ -440,6 +478,53 @@ export function BylinesPage() {
 							}
 						/>
 
+						{/*
+						 * Phase 6 of #1174 — render registered custom-field
+						 * inputs. Edit-mode only: the server-side
+						 * `bylineCreateBody` zod schema does not accept
+						 * `customFields`, so showing inputs during the
+						 * create flow would set expectations the API can't
+						 * meet. The user creates the bare byline first; the
+						 * page re-renders in edit mode with `selected`
+						 * truthy, and the inputs appear.
+						 *
+						 * TODO: when a third extensible system table needs
+						 * custom fields, file a refactor Discussion to
+						 * extract <FieldRenderer> for reuse. The switch
+						 * below is intentionally inlined for now — pulling
+						 * it into a shared component for one consumer
+						 * (this) would just move the complexity.
+						 */}
+						{selected && customFieldDefs.length > 0 && (
+							<div className="space-y-4 pt-4 border-t border-kumo-line">
+								<h3 className="text-sm font-medium text-kumo-subtle">{t`Custom fields`}</h3>
+								{customFieldDefs.map((field) => (
+									<CustomFieldInput
+										key={field.id}
+										field={field}
+										value={form.customFields[field.slug]}
+										onChange={(next) =>
+											setForm((prev) => ({
+												...prev,
+												customFields: {
+													...prev.customFields,
+													[field.slug]: next,
+												},
+											}))
+										}
+									/>
+								))}
+							</div>
+						)}
+						{selected && customFieldsError && (
+							<div className="rounded-md border border-kumo-danger/40 bg-kumo-danger/5 p-3 text-sm">
+								<p className="font-medium text-kumo-danger">{t`Couldn't load custom fields.`}</p>
+								<p className="text-xs text-kumo-subtle mt-1">
+									{t`You can still edit the fixed fields above. Saving will not touch any stored custom-field values.`}
+								</p>
+							</div>
+						)}
+
 						<DialogError message={getMutationError(mutationError)} />
 
 						<div className="flex gap-2 pt-2">
@@ -506,4 +591,93 @@ export function BylinesPage() {
 			/>
 		</div>
 	);
+}
+
+/**
+ * Renders a single registered byline custom field as the appropriate
+ * Kumo input for its type (Phase 6 of #1174).
+ *
+ * Five v1 type cases mirror `BylineFieldType` and the inputs that
+ * `BylineFieldEditor` allows admins to register. Empty string inputs
+ * coerce to `null` on save so the repo's "null clears the row"
+ * storage semantic engages — server-side `BylineRepository.update`
+ * deletes the value row rather than storing an empty-string JSON.
+ *
+ * `field.required` adds a `*` after the label as a visual hint; the
+ * server is authoritative on validation (Phase 6 ACs don't include a
+ * client-side required check — the registry's `required` flag is
+ * descriptive rather than enforced in the write path today).
+ */
+function CustomFieldInput({
+	field,
+	value,
+	onChange,
+}: {
+	field: BylineFieldDefinition;
+	value: unknown;
+	onChange: (next: unknown) => void;
+}) {
+	const { t } = useLingui();
+	const label = field.required ? `${field.label} *` : field.label;
+	const stringValue = typeof value === "string" ? value : "";
+
+	switch (field.type) {
+		case "string":
+			return (
+				<Input
+					label={label}
+					value={stringValue}
+					onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
+				/>
+			);
+		case "text":
+			return (
+				<InputArea
+					label={label}
+					value={stringValue}
+					onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
+					rows={3}
+				/>
+			);
+		case "url":
+			return (
+				<Input
+					type="url"
+					label={label}
+					value={stringValue}
+					onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
+				/>
+			);
+		case "boolean":
+			// Booleans are always definite once the field is registered —
+			// `null` would mean "no row stored", which conceptually maps
+			// to `false` for a yes/no toggle. The Switch sends a real
+			// boolean and the storage path persists it verbatim.
+			return (
+				<Switch
+					label={label}
+					checked={value === true}
+					onCheckedChange={(checked) => onChange(checked)}
+				/>
+			);
+		case "select": {
+			const options = field.validation?.options ?? [];
+			// The empty-string entry serves as a "clear value" affordance;
+			// it produces `null` on change, which deletes the stored row
+			// per the repo's storage contract. Server-side `required`
+			// enforcement (if added later) would reject the resulting
+			// write rather than this dropdown disabling the entry.
+			const items: Record<string, string> = { "": t`-- Select --` };
+			for (const opt of options) items[opt] = opt;
+			return (
+				<Select
+					label={label}
+					value={stringValue}
+					onValueChange={(v) => onChange(!v ? null : v)}
+					items={items}
+					className="w-full"
+				/>
+			);
+		}
+	}
 }

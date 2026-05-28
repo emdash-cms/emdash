@@ -143,6 +143,7 @@ export {
 	type BylineInput,
 	type BylineTranslationInput,
 	type BylineCreditInput,
+	type BylineCustomFieldValue,
 	fetchBylines,
 	fetchByline,
 	createByline,

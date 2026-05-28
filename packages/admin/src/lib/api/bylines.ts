@@ -9,6 +9,14 @@ import {
 	type FindManyResult,
 } from "./client.js";
 
+/**
+ * Runtime value type for a byline custom field (Discussion #1174).
+ * The five v1 field types collapse to this narrow union: string-shaped
+ * types (`string`, `text`, `url`, `select`) → string; `boolean` → boolean;
+ * `null` for explicitly cleared values.
+ */
+export type BylineCustomFieldValue = string | boolean | null;
+
 export interface BylineSummary {
 	id: string;
 	slug: string;
@@ -27,6 +35,13 @@ export interface BylineSummary {
 	 * Nullable for backwards compatibility; new rows always populate it.
 	 */
 	translationGroup: string | null;
+	/**
+	 * Byline custom-field values keyed by field slug (Discussion #1174).
+	 * Optional in the type for backward-compat with pre-Phase-3 servers;
+	 * post-Phase-3 servers always populate as `{}` even when no fields
+	 * are registered.
+	 */
+	customFields?: Record<string, BylineCustomFieldValue>;
 }
 
 export interface BylineInput {
@@ -47,6 +62,17 @@ export interface BylineInput {
 	 * Requires `locale` (the server returns a validation error otherwise).
 	 */
 	translationOf?: string;
+	/**
+	 * Custom-field value writes (Discussion #1174). Accepted by the
+	 * update route only — `bylineCreateBody` server-side does not
+	 * include this key. Keys are field slugs; values pass through to
+	 * `BylineRepository.update`, which validates against the registered
+	 * field type and throws `EmDashValidationError` on mismatch.
+	 *
+	 * A value of `null` clears the row (Phase 3 storage semantics).
+	 * Unknown slugs return 400 `VALIDATION_ERROR`.
+	 */
+	customFields?: Record<string, unknown>;
 }
 
 export interface BylineTranslationInput {
