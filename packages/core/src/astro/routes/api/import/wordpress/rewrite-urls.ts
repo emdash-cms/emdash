@@ -24,6 +24,7 @@ import type { EmDashHandlers } from "#types";
 
 import {
 	buildBaseUrlMap,
+	extractMediaUrl,
 	findMatchingUrl,
 	rewritePortableTextUrls,
 	rewriteStringUrls,
@@ -174,8 +175,10 @@ async function rewriteUrls(
 					const value = row[field.slug];
 					if (!value || typeof value !== "string") continue;
 
-					// Try to find a matching rewritten URL
-					const newUrl = findMatchingUrl(value, urlMap, baseMap);
+					// Values are stored as JSON MediaValue objects (e.g. featured_image from
+					// import normalizes to {"provider":"external","src":"<wp url>"}). Match on the
+					// inner `src`, falling back to the raw value for legacy bare-URL rows.
+					const newUrl = findMatchingUrl(extractMediaUrl(value), urlMap, baseMap);
 					if (newUrl) {
 						// Normalize into a proper MediaValue instead of storing a bare URL
 						try {
