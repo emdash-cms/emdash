@@ -152,6 +152,22 @@ export {
 	createBylineTranslation,
 } from "./bylines.js";
 
+// Byline custom-field schema (Discussion #1174)
+export {
+	type BylineFieldType,
+	type BylineFieldValidation,
+	type BylineFieldDefinition,
+	type BylineFieldUsage,
+	type CreateBylineFieldInput,
+	type UpdateBylineFieldInput,
+	listBylineFields,
+	getBylineFieldUsage,
+	createBylineField,
+	updateBylineField,
+	deleteBylineField,
+	reorderBylineFields,
+} from "./byline-fields.js";
+
 // Menus
 export {
 	type Menu,
