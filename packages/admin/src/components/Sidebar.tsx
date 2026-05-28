@@ -16,6 +16,7 @@ import {
 	Users,
 	Stack,
 	ArrowsLeftRight,
+	IdentificationCard,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -33,6 +34,37 @@ export { KumoSidebar as Sidebar, useSidebar };
 // Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
+
+/**
+ * Static invariants for nav entries that have AC-level visibility
+ * requirements (Phase 5 of Discussion #1174: "Admin sees the 'Byline
+ * Schema' entry; Editor does not").
+ *
+ * Exported as plain data so a unit test can assert the route + role
+ * pairing without mounting Kumo's Sidebar primitive — which portals
+ * its rendered content to `document.body` and applies collapse-state
+ * CSS (`display:none` on labels at narrow viewports), making
+ * full-DOM tests of role filtering brittle. The runtime `adminItems`
+ * array below references these constants directly so the test
+ * effectively guards the production list.
+ */
+export const BYLINE_SCHEMA_NAV_ITEM = {
+	to: "/byline-schema" as const,
+	minRole: ROLE_ADMIN,
+} as const;
+
+/**
+ * Filter a nav-items list by user role. Pure function — exported so
+ * tests can verify the role gate without rendering the sidebar. An
+ * item passes when it has no `minRole` (public) or the user is at
+ * least the required level.
+ */
+export function filterNavItemsByRole<T extends { minRole?: number }>(
+	items: T[],
+	userRole: number,
+): T[] {
+	return items.filter((item) => !item.minRole || userRole >= item.minRole);
+}
 
 export interface SidebarNavProps {
 	manifest: {
@@ -211,6 +243,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	const adminItems: NavItem[] = [
 		{ to: "/content-types", label: t`Content Types`, icon: Database, minRole: ROLE_ADMIN },
+		{
+			to: BYLINE_SCHEMA_NAV_ITEM.to,
+			label: t`Byline Schema`,
+			icon: IdentificationCard,
+			minRole: BYLINE_SCHEMA_NAV_ITEM.minRole,
+		},
 		{ to: "/users", label: t`Users`, icon: Users, minRole: ROLE_ADMIN },
 		{ to: "/plugins-manager", label: t`Plugins`, icon: PuzzlePiece, minRole: ROLE_ADMIN },
 	];
@@ -264,13 +302,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		}
 	}
 
-	const filterByRole = (items: NavItem[]) =>
-		items.filter((item) => !item.minRole || userRole >= item.minRole);
-
-	const visibleContent = filterByRole(contentItems);
-	const visibleManage = filterByRole(manageItems);
-	const visibleAdmin = filterByRole(adminItems);
-	const visiblePlugins = filterByRole(pluginItems);
+	const visibleContent = filterNavItemsByRole(contentItems, userRole);
+	const visibleManage = filterNavItemsByRole(manageItems, userRole);
+	const visibleAdmin = filterNavItemsByRole(adminItems, userRole);
+	const visiblePlugins = filterNavItemsByRole(pluginItems, userRole);
 
 	function renderNavItems(items: NavItem[]) {
 		return items.map((item, index) => {
