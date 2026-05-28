@@ -1,5 +1,5 @@
 .build/
-.alchemy/
+dist/
 node_modules/
 .env
 .env.local

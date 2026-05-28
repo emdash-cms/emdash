@@ -1,86 +1,114 @@
-# Flue triage experiment
+# Investigate bot
 
-**Status:** prototype, not deployed. See [PR #1090](https://github.com/emdash-cms/emdash/pull/1090) for design context and review history.
+Experimental Flue-powered investigation bot for `emdash-cms/emdash` issues. Runs as a GitHub Actions workflow when a maintainer applies the `bot:repro` label. Not deployed as a Cloudflare Worker.
 
-This directory contains an experimental Flue-based triage system with two phases:
+For the design rationale, see [PLAN.md](./PLAN.md) and the [PR description](https://github.com/emdash-cms/emdash/pull/1090). Astro's analogous setup (`.flue/agents/issue-triage.ts` in `withastro/astro`) is the closest reference.
 
-## Phase 1: Worker-deployed auto-labeller
+## What it does
 
-A Cloudflare Worker that receives `issues.opened` webhooks from GitHub, classifies the issue with Workers AI (kimi-k2.6) routed through our AI Gateway, and posts a labeling comment.
+When a maintainer adds `bot:repro` to an issue:
 
-- `agents/triage-label.ts` — HTTP webhook handler. Verifies HMAC against raw bytes, parses, classifies, applies labels. Prompt is inlined (the default Cloudflare sandbox has no filesystem for skills).
-- `agents/triage-issue.ts` — CLI-only entrypoint. Same classification, no webhook. Used by the local prototype runner and by Phase 2.
-- `app.ts` — boot-time wiring of the Workers AI binding through our AI Gateway.
-- `lib/github.ts` — Octokit wrapper.
-- `lib/verify-signature.ts` — HMAC-SHA256 verification using Web Crypto.
+1. **Classify** — kimi-k2.6 decides issue kind/area/whether a browser is needed.
+2. **Reproduce** — opus runs in a `local()` sandbox on the GH Actions runner. Picks one of three sub-skills:
+   - `repro-api` — `pnpm test`, CLI commands, direct API hits, no browser
+   - `repro-admin` — `agent-browser` against `pnpm dev` with the dev-bypass auth shortcut
+   - `repro-public` — `agent-browser` against the rendered public site
+3. **Diagnose** — read the source paths that explain the symptom, rate confidence honestly.
+4. **Verify** — decide whether the behaviour is a bug or intended-by-design. Gates the fix stage.
+5. **Fix** — conditional on `verdict=bug` AND `confidence=high`. Writes the change, runs the reproduce test, runs the broader package tests, typecheck, lint, format. Stages but does not commit.
 
-## Phase 2: GH-Actions-driven reproduction attempt
+The orchestrator (`.github/workflows/investigate.yml`) reads the structured JSON output and performs all GitHub writes — labels, comments, branch pushes, PR creation. The agent itself has no write access to GitHub.
 
-When a maintainer adds the `triage:reproduce` label to an issue, the `.github/workflows/auto-repro.yml` workflow fires, checks the repo out, and runs the `repro-issue` agent with `sandbox: local()` — real bash, real `pnpm`, real `gh`. The agent tries to write a failing test or repro script and posts the result.
+## Trigger and label state
 
-It does NOT push branches, commit anything, or attempt fixes.
+| Label                   | Set by     | Meaning                                          |
+| ----------------------- | ---------- | ------------------------------------------------ |
+| `bot:repro`             | Maintainer | Investigation requested                          |
+| `bot:reproducing`       | Bot        | Investigation in progress                        |
+| `bot:reproduced`        | Bot        | Reproduced; no fix attempted (or fix abandoned)  |
+| `bot:awaiting-reporter` | Bot        | Fix pushed; reporter asked to verify             |
+| `bot:verified`          | Bot        | Reporter confirmed; PR opened                    |
+| `bot:not-reproduced`    | Bot        | Could not observe the reported behaviour         |
+| `bot:skipped`           | Bot        | Declined (non-bug, requires external data, etc.) |
+| `bot:failed`            | Bot        | Gave up after retries                            |
 
-- `agents/repro-issue.ts` — CLI-only agent.
-- `<repo-root>/.agents/skills/reproduce/SKILL.md` — the reproduce prompt. Lives alongside our existing skills so Flue's `local()` sandbox finds it via the standard `.agents/skills/<name>/SKILL.md` lookup.
+The bot owns every label except `bot:repro`. Maintainers don't manage state directly — they trigger by adding `bot:repro` and re-trigger by removing/re-adding it.
+
+## File layout
+
+```
+.flue/
+├── lib/
+│   └── classifier.ts          # Shared kimi classifier + reply-classifier schemas
+├── skills/
+│   ├── _INVESTIGATE.md        # Reference doc; not imported as a Flue skill
+│   ├── diagnose/SKILL.md
+│   ├── fix/SKILL.md
+│   ├── repro-admin/SKILL.md
+│   ├── repro-api/SKILL.md
+│   ├── repro-public/SKILL.md
+│   └── verify/SKILL.md
+├── workflows/
+│   ├── investigate.ts         # 4-stage pipeline
+│   └── classify-reply.ts      # Reporter-reply classifier
+├── scripts/
+│   └── run-local.ts           # Local prototype runner
+├── fixtures/                  # 5 real issues for local iteration
+└── package.json               # Flue 0.8
+
+.github/workflows/
+├── investigate.yml            # bot:repro → investigate workflow
+├── reporter-reply.yml         # Reporter comments on a bot-awaited issue
+└── bot-cleanup.yml            # Branch cleanup on issue close + daily cron
+```
+
+## Token model
+
+Two distinct tokens per investigation, mirroring `withastro/astro`'s split:
+
+- **Sandbox token** (`AGENT_GH_TOKEN`): default `secrets.GITHUB_TOKEN`, scoped to `contents: read, issues: read` via the job's `permissions:`. The only token in `local({ env })`. The agent's bash can clone the repo and run `gh issue view`; it cannot comment, label, or push.
+- **Orchestrator token**: a GitHub App installation token minted by `actions/create-github-app-token`, scoped to `issues: write, contents: write, pull-requests: write` on this repo only. Lives in the workflow YAML and is used for all writes. Never crosses into the sandbox env.
+
+A complete jailbreak of the agent's bash cannot escalate to comment, label, branch-push, or PR-create writes — those require the orchestrator token, which the sandbox never sees.
 
 ## Local prototyping
 
-Required env:
+The `prototype` script invokes the real Flue workflow against a fixture issue and dumps the structured result. No GitHub writes — the orchestrator that does writes lives in the YAML.
 
 ```bash
-export CLOUDFLARE_ACCOUNT_ID=<account uuid>
-export CLOUDFLARE_GATEWAY_ID=<gateway slug>
-export CLOUDFLARE_API_TOKEN=<gateway-scoped token>
-
 cd .flue
 pnpm install
 
-# Test against a saved fixture (under .flue/fixtures/)
+# Cloudflare AI Gateway creds (same secrets bonk.yml and review.yml use)
+export CLOUDFLARE_ACCOUNT_ID=...
+export CLOUDFLARE_GATEWAY_ID=...
+export CLOUDFLARE_API_TOKEN=...
+
+# GitHub read-only token for the sandbox's `gh issue view`
+export AGENT_GH_TOKEN=...  # or GITHUB_TOKEN / GH_TOKEN — the script picks any
+
+# Run against a saved fixture (under .flue/fixtures/)
 pnpm prototype 1021
 
 # Or against a live issue
-pnpm prototype --live 1083
-
-# Or post the result to GitHub (only if you really mean it)
-GITHUB_TOKEN=... pnpm prototype --apply --live 1083
+pnpm prototype --live 1183
 
 # Try a different model
-FLUE_TRIAGE_MODEL=cloudflare-ai-gateway/claude-opus-4-7 pnpm prototype 1021
+FLUE_INVESTIGATE_MODEL=cloudflare-ai-gateway/claude-sonnet-4-6 pnpm prototype 1021
 ```
 
-The runner spawns `flue run triage-issue` with the issue payload and prints the structured triage, the labels that would be applied, and the rendered comment body. Defaults to `cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6` (the same kimi model the deployed Worker uses).
+The fixtures directory holds five real issues from the queue (#1021, #1042, #1046, #1049, #1080) so prompt iteration can happen without burning live `gh` API quota.
 
-## Why two phases
+## One-time setup (when this lands on `main`)
 
-Phase 1 is cheap (~$0 per issue on Workers AI), fast (~5s end-to-end), and conservative (label + comment only). It runs on every new issue.
+1. **GitHub App.** The bot uses an existing App (the same one `bonk.yml`, `review.yml`, `release.yml`, `auto-format.yml` use). The `APP_ID` and `APP_PRIVATE_KEY` repository secrets already exist. The App's installation must include the `issues: write`, `contents: write`, and `pull_requests: write` permissions on `emdash-cms/emdash`.
+2. **Labels.** `investigate.yml`'s first step does `gh label create --force` for each of the eight `bot:*` labels. No manual setup needed; the labels appear after the first run.
+3. **GitHub Project board (optional).** Create a project in the UI with one column per `bot:*` label and a saved query like `repo:emdash-cms/emdash label:bot:reproducing` per column. The bot moves labels; cards follow automatically. Not required for the bot to function.
 
-Phase 2 is expensive (Opus on a 30-min runner), slow, and powerful (real shell, can write tests). It runs only on explicit maintainer opt-in. The split prevents bot rate-limit churn and bounds the blast radius of agent mistakes.
+## What this PR does not do
 
-## Threat model (Phase 2)
-
-The repro agent feeds attacker-controlled issue bodies into a prompt context with a `bash`-equipped sandbox. Anyone can file an issue. The agent's "do not commit, do not push, do not curl arbitrary URLs" guardrails in `SKILL.md` are **prompt-level only** -- a sufficiently clever issue body can argue them away.
-
-What blocks real abuse:
-
-1. **Maintainer label gate.** The workflow fires on `issues.labeled` with `label.name == 'triage:reproduce'`. A maintainer (with `issues:write`) has to apply that label before the agent ever sees the issue body. **This is the first security boundary.** Don't apply `triage:reproduce` to an issue you wouldn't drop a fresh Opus into.
-2. **Two-token split (`AGENT_GH_TOKEN` vs `ORCHESTRATOR_GH_TOKEN`).** Modelled on the [withastro/astro `issue-triage` setup](https://github.com/withastro/astro/blob/main/.flue/agents/issue-triage.ts):
-   - The agent's bash sandbox inherits **only** `AGENT_GH_TOKEN`, which is the workflow's default `GITHUB_TOKEN`. The job's `permissions:` block grants it `contents: read, issues: read` -- enough to clone the repo and run `gh issue view`, but **not** to comment, label, or close anything.
-   - The orchestrator (the TS code in `repro-issue.ts`) holds `ORCHESTRATOR_GH_TOKEN`, a GitHub App installation token minted by `actions/create-github-app-token`. This token has `issues: write` and is what actually posts the result comment and applies the result label.
-   - The orchestrator token is read from `process.env` in the agent's parent process and is **never passed into `local()`**, so the sandbox's bash tool cannot see or use it. A complete jailbreak of the agent's bash still cannot escalate to comment/label writes.
-3. **`contents: read` on the runner.** Even a jailbroken agent can't push branches via `git push`. `AGENT_GH_TOKEN` permissions are the floor; the sandbox never gets more than the workflow grants.
-4. **No third-party network in shell.** `SKILL.md` explicitly forbids `curl`/`wget` against arbitrary URLs. This is advisory; trust depends on (2) + (3) for the hard limits.
-
-What a successful jailbreak of the agent's bash **can** do (worst case):
-
-- Read any issue / PR body in the repo (read-only).
-- `git clone` other public repos.
-- Run arbitrary code on the runner with the runner's network access (could `curl` an attacker host with anything in the sandbox env -- which is only `AGENT_GH_TOKEN`, `CI`, `NODE_ENV`).
-
-What it **cannot** do:
-
-- Comment, label, or close any issue / PR (no write token in sandbox env).
-- Push to any branch (no `contents: write`).
-- Create or merge PRs.
-- Read the orchestrator's app token, the AI Gateway token, or any other workflow secret (`local()` filters host env by default).
-
-If we ever scope the agent's token even tighter (e.g. minting a third token with read access only to the single triggering issue), it goes in `AGENT_GH_TOKEN`. The orchestrator-token / sandbox-token boundary stays.
+- No Cloudflare Worker is deployed.
+- No `app.ts`, no `wrangler.jsonc`.
+- No `/repro` or `/verify` slash commands. Triggers are labels and comment replies only.
+- No auto-fire on every new issue. The bot only runs when a maintainer explicitly requests it.
+- No auto-merging or auto-PR-opening without reporter verification.

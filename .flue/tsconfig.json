@@ -9,8 +9,8 @@
 		"verbatimModuleSyntax": true,
 		"noEmit": true,
 		"allowImportingTsExtensions": false,
-		"types": ["@cloudflare/workers-types", "node"]
+		"types": ["node"]
 	},
-	"include": ["agents/**/*.ts", "lib/**/*.ts", "scripts/**/*.ts", "alchemy.run.ts"],
+	"include": ["workflows/**/*.ts", "lib/**/*.ts", "scripts/**/*.ts"],
 	"exclude": [".build", "node_modules"]
 }

@@ -3,26 +3,22 @@
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
-	"description": "Experimental Flue-powered issue triage bot for emdash-cms/emdash",
+	"description": "Experimental Flue-powered issue investigation bot for emdash-cms/emdash. Invoked from GitHub Actions; not deployed as a Worker.",
 	"scripts": {
-		"dev": "flue dev --target cloudflare --env .env",
-		"build": "flue build --target cloudflare --output .build",
-		"deploy": "STAGE=${STAGE:-staging} alchemy deploy --stage ${STAGE:-staging}",
-		"destroy": "STAGE=${STAGE:-staging} alchemy destroy --stage ${STAGE:-staging}",
+		"build": "flue build --target node --output .build",
 		"prototype": "tsx scripts/run-local.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@flue/runtime": "^0.7.0",
+		"@flue/runtime": "^0.8.0",
 		"@octokit/core": "^7.0.0",
 		"valibot": "^1.0.0"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20251101.0",
-		"@flue/cli": "^0.7.0",
+		"@flue/cli": "^0.8.0",
 		"@types/node": "^25.8.0",
-		"alchemy": "^0.78.0",
 		"tsx": "^4.20.0",
-		"typescript": "^5.9.0"
+		"typescript": "^5.9.0",
+		"wrangler": "^4.95.0"
 	}
 }

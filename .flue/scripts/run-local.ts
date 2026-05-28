@@ -1,23 +1,29 @@
 // Local prototype runner.
 //
-// Wraps `flue run triage-issue` for convenience. Reads an issue fixture
+// Wraps `flue run investigate` for convenience. Reads an issue fixture
 // (or pulls one live with `gh issue view`), constructs the payload, and
-// shows the structured triage result, the labels that would be applied,
-// and the comment that would be posted.
+// prints the structured InvestigateResult. No GitHub writes -- the
+// orchestrator that does writes lives in .github/workflows/investigate.yml,
+// not here.
+//
+// The investigate workflow expects AGENT_GH_TOKEN to be set; we forward
+// whichever of GITHUB_TOKEN / GH_TOKEN the user has, treating it as the
+// "agent" token even though locally there's no orchestrator/agent split.
+// The agent's read-only token only affects what `gh issue view` etc.
+// inside its sandbox can do; on a maintainer's laptop the host user
+// already has those reads, so the sandbox token mostly stops the agent
+// from doing accidental writes from inside its bash.
 //
 // Required env:
-//   CLOUDFLARE_ACCOUNT_ID=<account uuid>
-//   CLOUDFLARE_GATEWAY_ID=<gateway slug>
-//   CLOUDFLARE_API_TOKEN=<gateway-scoped token>
-//
-// No GitHub writes unless --apply is passed AND GITHUB_TOKEN is in env.
+//   CLOUDFLARE_ACCOUNT_ID
+//   CLOUDFLARE_GATEWAY_ID
+//   CLOUDFLARE_API_TOKEN
 //
 // Usage:
-//   pnpm prototype 1021
-//   pnpm prototype 1021 1049 1080
-//   pnpm prototype --live 1083
-//   pnpm prototype --apply --live 1083                                # post to GH
-//   FLUE_TRIAGE_MODEL=cloudflare-ai-gateway/claude-opus-4-7 pnpm prototype 1021
+//   pnpm prototype 1021                                     # one fixture
+//   pnpm prototype 1021 1049 1080                           # several
+//   pnpm prototype --live 1083                              # fetch live with gh
+//   FLUE_INVESTIGATE_MODEL=cloudflare-ai-gateway/claude-sonnet-4-6 pnpm prototype 1021
 
 import { execSync, spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
@@ -37,9 +43,9 @@ const FLUE_DIR = resolve(HERE, "..");
 const ISSUE_NUMBER_RE = /^\d+$/;
 
 async function loadFixture(arg: string, live: boolean): Promise<Fixture> {
-	// `arg` is interpolated into a shell command (gh issue view) and a file
-	// path (fixtures/issue-${arg}.json). Restrict to plain integers so a
-	// `--apply '1 && rm -rf /'` style input can't smuggle metachars through
+	// `arg` is interpolated into a shell command (`gh issue view`) and a
+	// file path (`fixtures/issue-<arg>.json`). Restrict to plain integers
+	// so a `'1 && rm -rf /'` style input cannot smuggle metachars through
 	// execSync or path traversal through the fixture lookup.
 	if (!ISSUE_NUMBER_RE.test(arg)) {
 		throw new Error(`issueNumber must be a positive integer, got: ${JSON.stringify(arg)}`);
@@ -57,7 +63,7 @@ async function loadFixture(arg: string, live: boolean): Promise<Fixture> {
 	return parsed;
 }
 
-async function runOne(fixture: Fixture, apply: boolean): Promise<void> {
+async function runOne(fixture: Fixture): Promise<void> {
 	const id = `local-${fixture.number}-${Date.now()}`;
 	const payload = JSON.stringify({
 		issueNumber: fixture.number,
@@ -65,18 +71,15 @@ async function runOne(fixture: Fixture, apply: boolean): Promise<void> {
 		issueBody: fixture.body,
 		owner: "emdash-cms",
 		repo: "emdash",
-		apply,
 	});
 
 	console.error(`\n=== issue #${fixture.number}: ${fixture.title}`);
 	const start = Date.now();
 
-	// Use `pnpm exec` (not `npx`) so we invoke the Flue version pinned in
-	// .flue/package.json/lockfile rather than whatever npx happens to
-	// resolve from the registry on the day.
+	// `pnpm exec` (not `npx`) so we invoke the lockfile-pinned Flue.
 	const result = spawnSync(
 		"pnpm",
-		["exec", "flue", "run", "triage-issue", "--target", "node", "--id", id, "--payload", payload],
+		["exec", "flue", "run", "investigate", "--target", "node", "--id", id, "--payload", payload],
 		{
 			cwd: FLUE_DIR,
 			env: process.env,
@@ -93,27 +96,13 @@ async function runOne(fixture: Fixture, apply: boolean): Promise<void> {
 async function main() {
 	const args = process.argv.slice(2);
 	const live = args.includes("--live");
-	const apply = args.includes("--apply");
 	const issueArgs = args.filter((a) => !a.startsWith("--"));
 
 	if (issueArgs.length === 0) {
-		console.error(
-			"usage: tsx scripts/run-local.ts [--live] [--apply] <issueNumber> [<issueNumber>...]",
-		);
+		console.error("usage: tsx scripts/run-local.ts [--live] <issueNumber> [<issueNumber>...]");
 		process.exit(2);
 	}
-	// Accept either GITHUB_TOKEN or GH_TOKEN from the user's shell, but
-	// normalise to GITHUB_TOKEN before spawning the child. The agent
-	// reads only process.env.GITHUB_TOKEN, so a user-set GH_TOKEN alone
-	// would otherwise pass this check and silently fail later.
-	if (apply) {
-		const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
-		if (!token) {
-			console.error("--apply requires GITHUB_TOKEN (or GH_TOKEN) in env");
-			process.exit(2);
-		}
-		process.env.GITHUB_TOKEN = token;
-	}
+
 	const missingGateway = [
 		"CLOUDFLARE_ACCOUNT_ID",
 		"CLOUDFLARE_GATEWAY_ID",
@@ -124,9 +113,20 @@ async function main() {
 		process.exit(2);
 	}
 
+	// Normalise GITHUB_TOKEN / GH_TOKEN into AGENT_GH_TOKEN, which is
+	// what investigate.ts reads. The workflow itself sets this explicitly
+	// from `secrets.GITHUB_TOKEN`; locally we accept the user's gh CLI
+	// token, treating it the same way.
+	const agentToken = process.env.AGENT_GH_TOKEN ?? process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
+	if (!agentToken) {
+		console.error("AGENT_GH_TOKEN (or GITHUB_TOKEN / GH_TOKEN) required for the agent's sandbox");
+		process.exit(2);
+	}
+	process.env.AGENT_GH_TOKEN = agentToken;
+
 	for (const arg of issueArgs) {
 		const fixture = await loadFixture(arg, live);
-		await runOne(fixture, apply);
+		await runOne(fixture);
 	}
 }
 

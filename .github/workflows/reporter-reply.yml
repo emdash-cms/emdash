@@ -1,0 +1,263 @@
+name: Reporter Reply
+
+# When an issue is in the `bot:awaiting-reporter` state and the original
+# reporter comments, classify the reply (positive / negative / unclear) via
+# a small Flue classifier workflow and act on the result.
+
+on:
+  issue_comment:
+    types: [created]
+
+# Default-deny at workflow level.
+permissions:
+  contents: read
+
+jobs:
+  classify-and-act:
+    name: Classify reply and act
+    # Only fire if:
+    #  - the comment is on an issue (not a PR -- issue_comment fires for both)
+    #  - the comment author is the original issue author
+    #  - the issue is currently in the bot:awaiting-reporter state
+    if: >-
+      github.event.issue.pull_request == null
+      && github.event.comment.user.login == github.event.issue.user.login
+      && contains(github.event.issue.labels.*.name, 'bot:awaiting-reporter')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: reporter-reply-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    permissions:
+      # All writes (open PR, transition labels, comment, dispatch workflow)
+      # use the app token below. The job's default GITHUB_TOKEN stays read-only.
+      contents: read
+      issues: read
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: emdash-cms
+          repositories: emdash
+          permission-issues: write
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: "package.json"
+          cache: "pnpm"
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Flue agent dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .flue
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Build classifier payload
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPLY_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -euo pipefail
+          jq -nc \
+            --argjson n "$ISSUE_NUMBER" \
+            --arg b "$REPLY_BODY" \
+            '{replyBody: $b, issueNumber: $n, owner: "emdash-cms", repo: "emdash"}' \
+            > /tmp/classify-payload.json
+
+      - name: Run classifier
+        id: classify
+        timeout-minutes: 10
+        env:
+          AGENT_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORCHESTRATOR_GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
+          CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -o pipefail
+          PAYLOAD="$(cat /tmp/classify-payload.json)"
+          RUN_ID="classify-${ISSUE_NUMBER}-$(date +%s)"
+          set +e
+          pnpm --dir .flue exec flue run classify-reply \
+            --target node \
+            --root .flue \
+            --id "$RUN_ID" \
+            --payload "$PAYLOAD" \
+            > /tmp/classify-stdout.json
+          EXIT=$?
+          set -e
+          if [[ $EXIT -ne 0 ]] || [[ ! -s /tmp/classify-stdout.json ]]; then
+            echo "classification=unclear" >> "$GITHUB_OUTPUT"
+            echo "reasoning=Classifier crashed or returned no output; defaulting to unclear." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RESULT="$(jq -cs 'map(select(type == "object")) | last // empty' < /tmp/classify-stdout.json)"
+          if [[ -z "$RESULT" ]]; then
+            echo "classification=unclear" >> "$GITHUB_OUTPUT"
+            echo "reasoning=Classifier output was not valid JSON; defaulting to unclear." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CLASS="$(jq -r '.classification // "unclear"' <<<"$RESULT")"
+          # Reasoning may contain newlines; pass via heredoc.
+          {
+            echo "classification=${CLASS}"
+            echo 'reasoning<<CLASSIFIER_REASONING_EOF'
+            jq -r '.reasoning // ""' <<<"$RESULT"
+            echo CLASSIFIER_REASONING_EOF
+          } >> "$GITHUB_OUTPUT"
+
+      # ----- Positive: open PR, transition to verified -----
+
+      - name: Handle positive (open PR)
+        if: steps.classify.outputs.classification == 'positive'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          REPLY_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -euo pipefail
+          FIX_BRANCH="bot/fix-${ISSUE_NUMBER}"
+
+          # Quote the reporter's confirmation into the PR body. `> ` prefix
+          # every line so multi-paragraph confirmations render as a block quote.
+          QUOTED="$(printf '%s\n' "$REPLY_BODY" | sed 's/^/> /')"
+          ISSUE_URL="https://github.com/emdash-cms/emdash/issues/${ISSUE_NUMBER}"
+
+          {
+            echo "Closes #${ISSUE_NUMBER}."
+            echo
+            echo "The reporter confirmed this fix resolves the issue:"
+            echo
+            echo "${QUOTED}"
+            echo
+            echo "See ${ISSUE_URL} for the investigation trail."
+            echo
+            echo "<sub>Opened automatically by the investigation bot. A maintainer should review before merge.</sub>"
+          } > /tmp/pr-body.md
+
+          # `gh pr create` is idempotent-ish: if a PR already exists for this
+          # branch, it errors. Detect and skip creation in that case.
+          set +e
+          PR_URL="$(gh pr create \
+            --repo emdash-cms/emdash \
+            --base main \
+            --head "${FIX_BRANCH}" \
+            --title "[bot] Fix #${ISSUE_NUMBER}: ${ISSUE_TITLE}" \
+            --body-file /tmp/pr-body.md 2>&1)"
+          CREATE_EXIT=$?
+          set -e
+          if [[ $CREATE_EXIT -ne 0 ]]; then
+            echo "PR create failed or already exists. Output:"
+            echo "$PR_URL"
+            # Try to find an existing PR for the branch.
+            PR_URL="$(gh pr list --repo emdash-cms/emdash --head "${FIX_BRANCH}" --state open --json url --jq '.[0].url // ""' || true)"
+          fi
+
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:awaiting-reporter" --add-label "bot:verified"
+
+          {
+            echo "Thanks for confirming. A PR is open: ${PR_URL:-(unable to determine PR URL, check the repo)}"
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+
+      # ----- Negative: count retries, re-trigger or give up -----
+
+      - name: Handle negative (retry or fail)
+        if: steps.classify.outputs.classification == 'negative'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPLY_BODY: ${{ github.event.comment.body }}
+          # Pull workflow context values into env so the shell never sees
+          # raw `${{ ... }}` expansions -- zizmor flags these as template
+          # injection even though `github.repository` and `github.ref_name`
+          # are trustworthy on a non-fork issue_comment trigger. Defensive.
+          REPO_FULL: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          # Retry counter is stored in a hidden HTML comment in the most recent
+          # bot comment on the issue. Walk all bot comments, grep for the
+          # marker, take the max value.
+          COMMENTS_JSON="$(gh issue view "$ISSUE_NUMBER" --repo emdash-cms/emdash --json comments --jq '.comments')"
+          COUNT="$(jq -r '
+            [ .[]
+              | .body
+              | capture("<!--\\s*bot-retry-count:\\s*(?<n>[0-9]+)\\s*-->"; "g")
+              | .n | tonumber
+            ] | max // 0
+          ' <<<"$COMMENTS_JSON")"
+
+          NEXT=$((COUNT + 1))
+          MAX=3
+
+          if (( NEXT > MAX )); then
+            # Find the maintainer who applied bot:repro initially -- look up
+            # the labeled event on the issue's timeline.
+            LABELER="$(gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/events" --paginate \
+              --jq '[.[] | select(.event == "labeled" and .label.name == "bot:repro") | .actor.login] | last // ""')"
+
+            gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:awaiting-reporter" --add-label "bot:failed"
+            {
+              echo "<!-- bot-retry-count: ${NEXT} -->"
+              echo "The bot has tried ${MAX} times and the reporter still indicates the fix does not work. A human maintainer needs to take this from here."
+              if [[ -n "$LABELER" ]]; then
+                echo
+                echo "@${LABELER} (you applied \`bot:repro\` originally) — over to you."
+              fi
+            } > /tmp/comment.md
+            gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+            exit 0
+          fi
+
+          # Re-trigger investigate.yml via workflow_dispatch, passing the
+          # reporter's reply as retryContext so the agent knows what missed.
+          gh workflow run investigate.yml \
+            --repo "$REPO_FULL" \
+            --ref "$REF_NAME" \
+            -f issueNumber="${ISSUE_NUMBER}" \
+            -f retryContext="${REPLY_BODY}"
+
+          {
+            echo "<!-- bot-retry-count: ${NEXT} -->"
+            echo "Thanks for the additional detail. Re-running the investigation (attempt ${NEXT} of ${MAX})."
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+
+      # ----- Unclear: ask for clarification, no state change -----
+
+      - name: Handle unclear
+        if: steps.classify.outputs.classification == 'unclear'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Could you clarify whether the candidate fix resolves the issue for you?"
+            echo
+            echo "A short \"yes, fixed\" or \"no, still broken\" (with what you saw) is plenty. The bot is waiting on your confirmation before opening a PR."
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
