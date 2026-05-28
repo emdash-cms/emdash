@@ -60,7 +60,9 @@ describeEachDialect("BylineSchemaRegistry concurrency", (dialect) => {
 		expect(succeeded).toBe(slugs.length);
 
 		const endVersion = await registry.getVersion();
-		expect(endVersion - startVersion).toBe(slugs.length);
+		// Each successful mutation bumps the counter twice (before + after
+		// the schema change). 10 creates → 20 increments.
+		expect(endVersion - startVersion).toBe(slugs.length * 2);
 	});
 
 	it("parallel updateField calls don't lose version increments", async () => {
@@ -76,10 +78,11 @@ describeEachDialect("BylineSchemaRegistry concurrency", (dialect) => {
 
 		const after = await registry.getVersion();
 		// Every update is non-trivial (label changes), so every call should
-		// have bumped the counter. PG: serialised by the row-level lock on
-		// `_emdash_byline_fields.id` during UPDATE; SQLite: serialised by
-		// the database lock. Either way, increments are not lost.
-		expect(after - baseline).toBe(labels.length);
+		// have bumped the counter twice. PG: serialised by the row-level
+		// lock on `_emdash_byline_fields.id` during UPDATE; SQLite:
+		// serialised by the database lock. Either way, increments are not
+		// lost.
+		expect(after - baseline).toBe(labels.length * 2);
 
 		// And the final state is a single, well-defined row — no duplicate
 		// definitions, label is one of the inputs.
@@ -107,7 +110,8 @@ describeEachDialect("BylineSchemaRegistry concurrency", (dialect) => {
 		await registry.reorderFields(["c", "a", "b"]);
 
 		const after = await registry.getVersion();
-		expect(after - baseline).toBe(3);
+		// 3 mutations × 2 bumps each = 6 increments.
+		expect(after - baseline).toBe(6);
 	});
 
 	it("parallel deletes against distinct fields don't lose increments", async () => {
@@ -119,7 +123,8 @@ describeEachDialect("BylineSchemaRegistry concurrency", (dialect) => {
 		await Promise.all(Array.from({ length: 6 }, (_, i) => registry.deleteField(`del_${i}`)));
 
 		const after = await registry.getVersion();
-		expect(after - baseline).toBe(6);
+		// 6 deletes × 2 bumps each = 12 increments.
+		expect(after - baseline).toBe(12);
 		expect((await registry.listFields()).map((f) => f.slug)).not.toContain("del_0");
 	});
 

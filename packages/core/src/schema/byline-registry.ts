@@ -66,24 +66,38 @@ export class BylineSchemaError extends Error {
  * writes; D1 inherits that; Postgres handles concurrent UPDATEs via row-
  * level locking).
  *
- * **Bump-before-mutate ordering (D1 partial-failure safety).** D1 has no
- * transactions; `withTransaction` falls back to direct execution. Every
- * mutation bumps the version counter *before* applying the schema change
- * — not after — so a crash between the two statements leaves the system
- * in a recoverable state:
+ * **Bump-twice inside a transaction (crash + concurrency safety).** Every
+ * mutation method wraps `bumpVersion → mutate → bumpVersion` in
+ * `withTransaction`. On Node SQLite + Postgres the three statements are
+ * atomic — cache readers see either the pre-mutation state at the old
+ * version or the post-mutation state at the new version, never a partial.
+ * On D1 (no transactions) the calls run sequentially and the cache can
+ * briefly observe an intermediate state; the second bump narrows that
+ * window to the millisecond gap between mutation and second-bump SQL.
  *
- * - Crash before bump: nothing happened.
- * - Crash after bump but before mutation: the schema is unchanged but
- *   caches invalidate on the higher version. They refetch the (unchanged)
- *   field list once. The original caller retries the mutation, which
- *   bumps again and lands. Net cost: one spurious cache refresh.
+ * Why bump twice (the obvious "bump once after" leaves a worse window):
  *
- * The bump-after order would leave caches *permanently* stale on a crash
- * between the mutation and the bump — the schema would have changed but
- * the cache would have no signal to refetch, and a retry of the same
- * op would throw `FIELD_EXISTS` / `FIELD_NOT_FOUND` without reaching the
- * bump line. Bump-before trades that for a smaller, self-healing reader
- * race during the mutation window.
+ * - **Bump after only**: a crash between mutation and bump leaves the
+ *   schema changed but the version unchanged. Caches stay stuck stale
+ *   *until the next successful mutation* — potentially forever. A retry
+ *   of the same op throws `FIELD_EXISTS`/`FIELD_NOT_FOUND` and never
+ *   reaches the bump line.
+ * - **Bump before only**: a concurrent hydration request between bump
+ *   and mutation can read the new version, fetch the *old* defs, and
+ *   cache them under the new version — stuck stale until the next
+ *   mutation. The Phase 3 reviewer caught this.
+ * - **Bump before + bump after**: covers both. The first bump
+ *   invalidates existing caches before the mutation lands (crash here
+ *   is safe — caches refresh to the still-old schema, retry recovers).
+ *   The second bump invalidates caches that captured the mid-transition
+ *   state (race here is bounded by the bump-to-bump duration). Cost is
+ *   one extra `UPDATE options` per mutation, single set-based SQL,
+ *   negligible at the scale schema mutations happen.
+ *
+ * The residual unsafe window on D1 — crash between mutation and second
+ * bump — is the same fundamental D1 limitation that affects every
+ * multi-statement consistency invariant in this codebase. It's bounded
+ * by the time-to-issue-one-SQL-UPDATE (~ms) rather than unbounded.
  *
  * **Application-level cascade in `deleteField`.** Migration 041 declares
  * FK ON DELETE CASCADE on both value tables, and at runtime SQLite + D1 +
@@ -153,26 +167,28 @@ export class BylineSchemaRegistry {
 		const id = ulid();
 		const sortOrder = input.sortOrder ?? (await this.nextSortOrder());
 
-		// Bump-before-mutate: see class JSDoc for the D1 partial-failure
-		// rationale. All validation has already run above; the only way the
-		// INSERT can fail now is a concurrent insert of the same slug
-		// (UNIQUE constraint), which leaves the bump as a spurious
-		// cache-refresh signal — strictly better than a stale cache.
-		await this.bumpVersion();
-
-		await this.db
-			.insertInto("_emdash_byline_fields")
-			.values({
-				id,
-				slug: input.slug,
-				label: input.label,
-				type: input.type,
-				required: input.required ? 1 : 0,
-				translatable: input.translatable === false ? 0 : 1,
-				validation: validation ? JSON.stringify(validation) : null,
-				sort_order: sortOrder,
-			})
-			.execute();
+		// Bump-twice inside a transaction: see class JSDoc. All validation
+		// (slug, label, type, validation payload, FIELD_EXISTS) has already
+		// run above, so the only way this can fail now is a concurrent
+		// insert of the same slug (UNIQUE), which rolls back the whole tx
+		// on Node SQLite + PG — keeping the bumps and the row atomic.
+		await withTransaction(this.db, async (trx) => {
+			await this.bumpVersion(trx);
+			await trx
+				.insertInto("_emdash_byline_fields")
+				.values({
+					id,
+					slug: input.slug,
+					label: input.label,
+					type: input.type,
+					required: input.required ? 1 : 0,
+					translatable: input.translatable === false ? 0 : 1,
+					validation: validation ? JSON.stringify(validation) : null,
+					sort_order: sortOrder,
+				})
+				.execute();
+			await this.bumpVersion(trx);
+		});
 
 		const created = await this.getFieldById(id);
 		if (!created) {
@@ -250,16 +266,18 @@ export class BylineSchemaRegistry {
 
 		updates.updated_at = new Date().toISOString();
 
-		// Bump-before-mutate: see class JSDoc. All validation (including
-		// translatable-flip safety) has run; the UPDATE is idempotent, so a
-		// crash here recovers cleanly on retry.
-		await this.bumpVersion();
-
-		await this.db
-			.updateTable("_emdash_byline_fields")
-			.set(updates)
-			.where("id", "=", field.id)
-			.execute();
+		// Bump-twice inside a transaction: see class JSDoc. All validation
+		// (including translatable-flip safety) has run; the UPDATE is
+		// idempotent.
+		await withTransaction(this.db, async (trx) => {
+			await this.bumpVersion(trx);
+			await trx
+				.updateTable("_emdash_byline_fields")
+				.set(updates)
+				.where("id", "=", field.id)
+				.execute();
+			await this.bumpVersion(trx);
+		});
 
 		const updated = await this.getFieldById(field.id);
 		if (!updated) {
@@ -278,24 +296,17 @@ export class BylineSchemaRegistry {
 			});
 		}
 
-		// Bump-before-mutate. See class JSDoc.
-		await this.bumpVersion();
-
-		// Application-level cascade. The FKs in migration 041 already
-		// ON DELETE CASCADE, but doing it explicitly here:
-		//   1. removes the dependency on `PRAGMA foreign_keys = ON`
-		//      (set in production via `connection.ts:60`, but easy to miss
-		//      in tests and one-off scripts);
-		//   2. mirrors `BylineRepository.delete`'s app-level cascade, which
-		//      had to be implemented when migration 040 dropped its FK;
-		//   3. makes the cleanup ordering explicit on D1 — value rows first,
-		//      definition row last, so a crash leaves the definition still
-		//      present (deletable on retry) rather than orphan values
-		//      pointing at a vanished definition id.
-		//
-		// withTransaction gives us real atomicity on Node SQLite + PG;
-		// on D1 it falls back to direct sequenced execution.
+		// Bump-twice inside the same transaction as the cascade. See class
+		// JSDoc. Application-level cascade order matters on D1 (no tx):
+		// value rows first, definition row last, so a crash leaves the
+		// definition still present (deletable on retry) rather than orphan
+		// values pointing at a vanished definition id. The FKs in migration
+		// 041 already ON DELETE CASCADE; doing it explicitly here adds
+		// defense-in-depth against FK-pragma misconfig and mirrors
+		// `BylineRepository.delete`'s app-level cascade for the bylines
+		// domain.
 		await withTransaction(this.db, async (trx) => {
+			await this.bumpVersion(trx);
 			await trx
 				.deleteFrom("_emdash_byline_field_values")
 				.where("field_id", "=", field.id)
@@ -305,6 +316,7 @@ export class BylineSchemaRegistry {
 				.where("field_id", "=", field.id)
 				.execute();
 			await trx.deleteFrom("_emdash_byline_fields").where("id", "=", field.id).execute();
+			await this.bumpVersion(trx);
 		});
 	}
 
@@ -343,18 +355,12 @@ export class BylineSchemaRegistry {
 			}
 		}
 
-		// Bump-before-mutate: see class JSDoc. The reorder loop is
-		// idempotent (each statement writes a fixed sort_order to a fixed
-		// slug), so a crash mid-loop recovers cleanly on retry.
-		await this.bumpVersion();
-
-		// Update sort_order for each field. The loop is per-slug rather than
-		// a single CASE expression because the per-statement form is dialect-
-		// agnostic and tiny field sets (typical: 3–10) make the cost
-		// irrelevant. Mirrors `SchemaRegistry.reorderFields`. Wrapped in
-		// withTransaction for real atomicity on Node SQLite + PG.
+		// Bump-twice inside the transaction with the reorder loop. See
+		// class JSDoc. Each UPDATE writes a fixed sort_order to a fixed
+		// slug, so the loop is idempotent on retry.
 		const now = new Date().toISOString();
 		await withTransaction(this.db, async (trx) => {
+			await this.bumpVersion(trx);
 			for (let i = 0; i < slugs.length; i++) {
 				const slug = slugs[i];
 				if (slug === undefined) continue;
@@ -364,6 +370,7 @@ export class BylineSchemaRegistry {
 					.where("slug", "=", slug)
 					.execute();
 			}
+			await this.bumpVersion(trx);
 		});
 	}
 
@@ -396,13 +403,18 @@ export class BylineSchemaRegistry {
 	 *
 	 * Stored as a JSON number literal (`5`, not `"5"`) so `JSON.parse` reads
 	 * it back as a number on the cache path.
+	 *
+	 * The optional `conn` parameter lets callers run the bump inside an
+	 * outer transaction so it lands atomically with the mutation it pairs
+	 * with — see the class JSDoc for the bump-twice ordering rationale.
 	 */
-	private async bumpVersion(): Promise<void> {
+	private async bumpVersion(conn?: Kysely<Database>): Promise<void> {
+		const target = conn ?? this.db;
 		await sql`
 			UPDATE options
 			SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)
 			WHERE name = ${VERSION_KEY}
-		`.execute(this.db);
+		`.execute(target);
 	}
 
 	private async nextSortOrder(): Promise<number> {

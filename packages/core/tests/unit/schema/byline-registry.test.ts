@@ -408,7 +408,13 @@ describe("BylineSchemaRegistry", () => {
 			expect(await registry.getVersion()).toBe(0);
 		});
 
-		it("monotonically increases across mutations", async () => {
+		it("monotonically increases across mutations (bump-twice = +2 per op)", async () => {
+			// Each mutation bumps the version twice — once before the
+			// schema change, once after. The first bump invalidates
+			// existing caches (crash safety); the second invalidates
+			// caches that captured the in-flight mid-transition state
+			// (race safety for cross-isolate readers). See the registry
+			// class JSDoc for the full rationale.
 			const v0 = await registry.getVersion();
 			await registry.createField({ slug: "a", label: "A", type: "string" });
 			const v1 = await registry.getVersion();
@@ -422,11 +428,11 @@ describe("BylineSchemaRegistry", () => {
 			const v5 = await registry.getVersion();
 
 			expect(v0).toBe(0);
-			expect(v1).toBe(1);
-			expect(v2).toBe(2);
-			expect(v3).toBe(3);
-			expect(v4).toBe(4);
-			expect(v5).toBe(5);
+			expect(v1).toBe(2);
+			expect(v2).toBe(4);
+			expect(v3).toBe(6);
+			expect(v4).toBe(8);
+			expect(v5).toBe(10);
 		});
 
 		it("getVersion returns 0 when the row is missing", async () => {
@@ -435,20 +441,19 @@ describe("BylineSchemaRegistry", () => {
 		});
 	});
 
-	describe("bump-before-mutate ordering", () => {
+	describe("bump-twice ordering", () => {
 		// These tests pin the observable behaviour that the registry bumps
-		// the version counter *before* it applies the schema mutation. The
-		// rationale lives in BylineSchemaRegistry's class JSDoc: on D1 (no
-		// transactions) a crash between bump and mutation leaves the system
-		// recoverable; the opposite order leaves caches stuck stale.
+		// the version counter twice per mutation — once before the schema
+		// change (crash safety: caches refresh on the higher version) and
+		// once after (race safety: caches that captured the mid-transition
+		// state get invalidated on the second bump). The rationale lives
+		// in BylineSchemaRegistry's class JSDoc.
 		//
-		// "Observable behaviour" here means: when a mutation would fail
-		// for a reason that only becomes visible *after* the bump runs
-		// (e.g. a UNIQUE-constraint race), the version counter still
-		// advanced. Tests that assert "version unchanged on validation
-		// rejection" further confirm that pre-bump validation is correct.
+		// "Observable behaviour" here means: a successful mutation bumps
+		// the counter by exactly 2, and a mutation rejected at validation
+		// (before any DB write) does not bump at all.
 
-		it("createField bumps the version before INSERT (validation errors do NOT bump)", async () => {
+		it("createField bumps the version by 2 (validation errors do NOT bump)", async () => {
 			const v0 = await registry.getVersion();
 
 			// Pre-bump validation: an invalid slug never reaches the bump.
@@ -457,18 +462,18 @@ describe("BylineSchemaRegistry", () => {
 			).rejects.toMatchObject({ code: "INVALID_SLUG" });
 			expect(await registry.getVersion()).toBe(v0);
 
-			// Successful path: bump lands.
+			// Successful path: bumps land before + after.
 			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
-			expect(await registry.getVersion()).toBe(v0 + 1);
+			expect(await registry.getVersion()).toBe(v0 + 2);
 
 			// Duplicate-slug check is pre-bump too (we call getField first).
 			await expect(
 				registry.createField({ slug: "job_title", label: "Other", type: "string" }),
 			).rejects.toMatchObject({ code: "FIELD_EXISTS" });
-			expect(await registry.getVersion()).toBe(v0 + 1);
+			expect(await registry.getVersion()).toBe(v0 + 2);
 		});
 
-		it("deleteField bumps the version before the DELETE (FIELD_NOT_FOUND does NOT bump)", async () => {
+		it("deleteField bumps the version by 2 (FIELD_NOT_FOUND does NOT bump)", async () => {
 			const v0 = await registry.getVersion();
 			await expect(registry.deleteField("missing")).rejects.toMatchObject({
 				code: "FIELD_NOT_FOUND",
@@ -479,10 +484,10 @@ describe("BylineSchemaRegistry", () => {
 			const v1 = await registry.getVersion();
 
 			await registry.deleteField("job_title");
-			expect(await registry.getVersion()).toBe(v1 + 1);
+			expect(await registry.getVersion()).toBe(v1 + 2);
 		});
 
-		it("updateField bumps the version before the UPDATE (TRANSLATABLE_LOCKED does NOT bump)", async () => {
+		it("updateField bumps the version by 2 (TRANSLATABLE_LOCKED does NOT bump)", async () => {
 			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
 			const field = await registry.getField("job_title");
 			await sql`
@@ -502,12 +507,12 @@ describe("BylineSchemaRegistry", () => {
 			).rejects.toMatchObject({ code: "TRANSLATABLE_LOCKED" });
 			expect(await registry.getVersion()).toBe(v0);
 
-			// Successful update bumps.
+			// Successful update bumps before + after.
 			await registry.updateField("job_title", { label: "Job Title" });
-			expect(await registry.getVersion()).toBe(v0 + 1);
+			expect(await registry.getVersion()).toBe(v0 + 2);
 		});
 
-		it("reorderFields bumps the version before the UPDATE loop (REORDER_MISMATCH does NOT bump)", async () => {
+		it("reorderFields bumps the version by 2 (REORDER_MISMATCH does NOT bump)", async () => {
 			await registry.createField({ slug: "a", label: "A", type: "string" });
 			await registry.createField({ slug: "b", label: "B", type: "string" });
 			const v0 = await registry.getVersion();
@@ -518,7 +523,7 @@ describe("BylineSchemaRegistry", () => {
 			expect(await registry.getVersion()).toBe(v0);
 
 			await registry.reorderFields(["b", "a"]);
-			expect(await registry.getVersion()).toBe(v0 + 1);
+			expect(await registry.getVersion()).toBe(v0 + 2);
 		});
 	});
 
