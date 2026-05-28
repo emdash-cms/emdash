@@ -312,3 +312,119 @@ export const RESERVED_COLLECTION_SLUGS = [
 	"options",
 	"audit_logs",
 ];
+
+/**
+ * Byline custom fields (Discussion #1174).
+ *
+ * Sites declare site-specific byline metadata (`job_title`, `pronouns`,
+ * `twitter_handle`, `company`, …) without touching emdash core. Definitions
+ * live in `_emdash_byline_fields`; values in either
+ * `_emdash_byline_field_values` (translatable, keyed by `byline_id`) or
+ * `_emdash_byline_field_group_values` (non-translatable, keyed by
+ * `translation_group`). The per-field `translatable` flag decides which
+ * value table is used. See migration 041.
+ */
+
+/**
+ * The five v1 field types supported on byline custom fields. Deliberately
+ * narrower than the content `FieldType` union — bylines don't need
+ * `portableText`, `reference`, `image`, etc. v2 may extend this; v1 keeps
+ * the storage and UI surfaces small.
+ */
+export type BylineFieldType = "string" | "text" | "url" | "boolean" | "select";
+
+export const BYLINE_FIELD_TYPES: readonly BylineFieldType[] = [
+	"string",
+	"text",
+	"url",
+	"boolean",
+	"select",
+] as const;
+
+/**
+ * Validation rules for a byline custom field. v1 only exposes `options`
+ * (the choice list for `select` fields). The shape mirrors the content-
+ * field convention so the admin UI patterns transfer.
+ */
+export interface BylineFieldValidation {
+	/** Choices for `select`-type fields. Ignored for other types. */
+	options?: string[];
+}
+
+/**
+ * Runtime shape of a registered byline custom field. Stored in
+ * `_emdash_byline_fields` (see migration 041).
+ */
+export interface BylineFieldDefinition {
+	id: string;
+	slug: string;
+	label: string;
+	type: BylineFieldType;
+	required: boolean;
+	/**
+	 * Whether values are stored per-locale (`true`, in
+	 * `_emdash_byline_field_values` keyed by `byline_id`) or shared across
+	 * every locale variant of the same byline identity (`false`, in
+	 * `_emdash_byline_field_group_values` keyed by `translation_group`).
+	 * Defaults to `true` at the DB level.
+	 */
+	translatable: boolean;
+	validation: BylineFieldValidation | null;
+	sortOrder: number;
+	createdAt: string;
+	updatedAt: string;
+}
+
+/**
+ * Input for creating a byline custom field. `slug` and `type` are not
+ * updatable post-create — changing either would invalidate stored values.
+ */
+export interface CreateBylineFieldInput {
+	slug: string;
+	label: string;
+	type: BylineFieldType;
+	required?: boolean;
+	translatable?: boolean;
+	validation?: BylineFieldValidation | null;
+	sortOrder?: number;
+}
+
+/**
+ * Input for updating a byline custom field. `slug` and `type` are
+ * intentionally not present — see `CreateBylineFieldInput`.
+ */
+export interface UpdateBylineFieldInput {
+	label?: string;
+	required?: boolean;
+	translatable?: boolean;
+	validation?: BylineFieldValidation | null;
+	sortOrder?: number;
+}
+
+/**
+ * Runtime value type for a byline custom field. The narrow union mirrors
+ * what the five v1 field types can produce: `string`/`text`/`url`/`select`
+ * → string, `boolean` → boolean, plus `null` for cleared values.
+ */
+export type CustomFieldValue = string | boolean | null;
+
+/**
+ * Reserved byline-field slugs. These collide with fixed columns on
+ * `_emdash_bylines` (migrations 031 + 040); allowing a custom field with
+ * one of these slugs would shadow the column on hydration. Enforced at the
+ * registry layer (Phase 2) and the admin API zod layer (Phase 4).
+ */
+export const RESERVED_BYLINE_FIELD_SLUGS = [
+	"id",
+	"slug",
+	"display_name",
+	"bio",
+	"avatar_media_id",
+	"website_url",
+	"user_id",
+	"is_guest",
+	"locale",
+	"translation_group",
+	"created_at",
+	"updated_at",
+] as const;
