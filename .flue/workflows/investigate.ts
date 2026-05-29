@@ -65,7 +65,6 @@ const reproduceResultSchema = v.object({
 		"failing-test",
 		"repro-script",
 		"pnpm-command",
-		"playwright-test",
 		"agent-browser-only",
 		"none",
 	]),

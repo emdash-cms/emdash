@@ -1,11 +1,11 @@
 ---
 name: repro-admin
-description: Reproduce an EmDash admin UI bug. Boots a demo with bgproc, drives the admin with agent-browser using the dev-bypass session, and prefers a Playwright test as the durable artifact.
+description: Reproduce an EmDash admin UI bug. Boots a demo with bgproc, drives the admin with agent-browser using the dev-bypass session, and captures the reproduction as screenshots plus a written transcript.
 ---
 
 # Reproduce: Admin UI
 
-The issue is in the React admin under `/_emdash/admin/*`. You need a running demo, an authenticated session, and a way to drive the UI through the steps the reporter described. The best outcome is a Playwright test under `packages/admin/tests/e2e/` (or the root `e2e/` suite when the bug crosses package boundaries) that fails today and will guard against regression once a fix lands. The second-best outcome is an `agent-browser` transcript with screenshots.
+The issue is in the React admin under `/_emdash/admin/*`. You need a running demo, an authenticated session, and a way to drive the UI through the steps the reporter described. Reproduce and confirm the bug entirely through `agent-browser`: the durable artifact is your screenshots plus a precise, replayable transcript of the steps. Do not write Playwright (or any other) tests -- the bot cannot reliably run them here, so an unrun test is unverified guesswork. A regression test belongs to whoever lands the fix.
 
 ## Hard prohibitions
 
@@ -24,15 +24,15 @@ The issue is in the React admin under `/_emdash/admin/*`. You need a running dem
 5. **Drive the UI.** Use `agent-browser snapshot -i -c` to get an accessibility tree with `@e<n>` refs. Interact with `click @e<n>`, `fill @e<n> "text"`, `select @e<n> "option"`. Refs are stable only within a snapshot -- re-snapshot after each navigation or DOM change.
 6. **Screenshot at meaningful steps.** Save to `.bot-artifacts/step-<n>.png`. Take one when you land on the page, one at the point where the reporter says the bug appears, and one of the broken state. Use `--full` only when the bug is below the fold. Keep file sizes reasonable.
 7. **Watch for JS errors.** After each interaction, run `agent-browser console` and `agent-browser errors`. Capture anything that looks related to the symptom. Console warnings about React keys or unmounted setState are almost never the bug; runtime exceptions usually are.
-8. **Prefer a Playwright test.** If the reproduction is deterministic, port it to a Playwright test under `packages/admin/tests/e2e/` (or the appropriate suite in the root `e2e/`). Use the dev-bypass URL in your `test.beforeEach` to establish the session. Run with `pnpm test:e2e` (or the project's filter) and confirm the test fails for the reported reason. Name the test for the issue: `test("reproduces #<number>: <short description>", ...)`. Playwright's chromium is already installed in this environment -- run the test directly and do not run `playwright install` (it can stall for many minutes on the browser download).
-9. **Confirm the failure mode matches.** A snapshot that shows a different broken state is not a reproduction. If you can only get the page into an adjacent broken state, say so in notes.
+8. **Confirm the failure mode matches.** A snapshot that shows a different broken state is not a reproduction. If you can only get the page into an adjacent broken state, say so in notes. Write down the exact replayable step sequence (URL, refs/selectors, inputs, the observed broken state) so a maintainer can follow it without you.
 
 ## When to skip
 
 Mark `skipped: true` and explain in notes when:
 
-- The bug requires a specific browser engine that Playwright cannot drive faithfully (rare; usually a Safari-specific layout quirk).
-- The bug requires OS-level interaction beyond what Playwright supports -- native file pickers in non-trivial drag-drop, OS clipboard internals, IME flows, hardware key combinations.
+- The bug requires a specific browser engine that agent-browser's headless Chromium cannot drive faithfully (rare; usually a Safari-specific layout quirk).
+- The bug requires OS-level interaction beyond what a headless browser supports -- native file pickers in non-trivial drag-drop, OS clipboard internals, IME flows, hardware key combinations.
+- The bug only reproduces with a real user's browser extensions or profile (e.g. a password manager or autofill that injects into inputs), which a clean headless browser does not have. Say so in notes -- this is a real bug class the bot cannot trigger.
 - The bug requires real Cloudflare Access in front of the admin. The dev-bypass path skips Access; if the symptom is specifically "Access redirects me incorrectly", you cannot reproduce it locally.
 - The reporter's repro depends on production data, third-party OAuth, or a hosted environment.
 - The demo will not boot for an unrelated reason and the failure is in setup, not in the admin code.
@@ -43,8 +43,6 @@ Return:
 
 - Whether you reproduced the bug.
 - Whether you skipped (with reason if so).
-- The approach you used: `playwright-test`, `agent-browser-only`, or `none`.
-- Notes: a short paragraph naming the demo, the URL path where the symptom appeared, the interaction sequence in plain prose, any console or runtime errors, and the test file path if you wrote one.
+- The approach you used: `agent-browser-only` or `none`.
+- Notes: a short paragraph naming the demo, the URL path where the symptom appeared, the interaction sequence in plain prose, and any console or runtime errors.
 - A list of screenshots, each with the relative filename under `.bot-artifacts/` and a one-line description of what it shows.
-
-Do not stage or commit the test you wrote. The fix stage may pick it up; if no fix runs, the orchestrator decides what to do with the working tree.
