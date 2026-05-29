@@ -47,7 +47,7 @@ Dispatch based on `area`:
 - `admin` -> follow `../repro-admin.md`.
 - `public` -> follow `../repro-public.md`.
 
-Each reproduce sub-skill returns whether it managed to reproduce the failure, the approach it used (failing test, repro script, agent-browser session, Playwright test, or none), free-form notes, and any screenshots it captured. Carry that result forward unchanged.
+Each reproduce sub-skill returns whether it managed to reproduce the failure, the approach it used (failing test, repro script, agent-browser session, or none), free-form notes, and any screenshots it captured. Carry that result forward unchanged.
 
 If the reproduce stage returns `skipped: true`, do not run diagnose or fix. Run verify only if there is enough static evidence in the issue body and source to form an opinion -- if not, skip verify too and return the classification plus the skip reason.
 

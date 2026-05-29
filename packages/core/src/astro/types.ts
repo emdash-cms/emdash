@@ -385,6 +385,14 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
+	// Public-only plugin API route handler for SSR page components.
+	handlePublicPluginApiRoute: (
+		pluginId: string,
+		method: string,
+		path: string,
+		request: Request,
+	) => Promise<HandlerResponse>;
+
 	// Plugin route metadata (for auth decisions before dispatch)
 	getPluginRouteMeta: (pluginId: string, path: string) => { public: boolean } | null;
 

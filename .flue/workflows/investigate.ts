@@ -29,6 +29,8 @@
 // passed into the sandbox env. The orchestrator's app token lives in
 // the workflow YAML and never crosses into this agent process.
 
+import { writeFileSync } from "node:fs";
+
 import { createAgent, type FlueContext } from "@flue/runtime";
 import { local } from "@flue/runtime/node";
 import * as v from "valibot";
@@ -63,7 +65,6 @@ const reproduceResultSchema = v.object({
 		"failing-test",
 		"repro-script",
 		"pnpm-command",
-		"playwright-test",
 		"agent-browser-only",
 		"none",
 	]),
@@ -151,11 +152,26 @@ interface InvestigateResult {
 
 // ---------- Agents ----------
 
-// Classifier: cheap, no sandbox needed.
+// Classifier: cheap kimi call on the default in-memory sandbox. It has
+// no access to the EmDash checkout and so cannot read AGENTS.md for repo
+// context. Inline a short primer here so it can map issues to the
+// correct `area` instead of guessing. Without it, kimi spends most of
+// its budget reasoning about what EmDash is and where a bug lives.
 const classifierAgent = createAgent(() => ({
 	model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6",
-	instructions:
+	instructions: [
 		"You classify GitHub issues for the EmDash CMS investigation bot. Output strictly matches the requested schema.",
+		"",
+		"EmDash is an Astro-native CMS that runs on Cloudflare (D1 + R2 + Workers) or Node + SQLite. Map the `area` field as follows:",
+		"- admin: the React admin SPA mounted at `/_emdash/admin/*` -- the content editor, dashboards, settings, and any authoring UI. The post/page editor (rich text, code blocks, media pickers, field inputs) is admin.",
+		"- public: the rendered public site a visitor sees -- Astro pages outside `/_emdash`, SSR output, routing, sitemap, RSS, image rendering.",
+		"- api: the `/_emdash/api/*` HTTP routes and their handlers (REST, auth, content CRUD) when the bug is in the request/response, not a UI.",
+		"- migration: database migrations or schema changes.",
+		"- build: building, bundling, packaging, or type generation.",
+		"- other: anything that does not fit the above.",
+		"",
+		"requiresBrowser is true for admin and public bugs (they need a real browser to reproduce) and false otherwise.",
+	].join("\n"),
 }));
 
 // Investigator: opus + local() sandbox + the six stage skills registered.
@@ -234,7 +250,33 @@ function pickReproduceSkill(area: IssueClassification["area"]) {
 
 // ---------- run() ----------
 
-export async function run({
+/**
+ * Persist the structured result to a file so the GitHub Actions
+ * orchestrator can read it directly. `flue run` interleaves build-log
+ * lines on stdout and pretty-prints the returned result, so scraping
+ * the result back out of stdout is fragile. Writing the assembled
+ * result object to a known path makes the handoff deterministic.
+ *
+ * The path comes from `INVESTIGATE_RESULT_PATH` (set by the workflow);
+ * when it is unset -- local prototyping via run-local.ts -- we skip the
+ * write and rely on the returned value. Only a clean completion writes
+ * the file; a thrown error leaves no file, which the orchestrator
+ * treats as a failed run.
+ */
+export async function run(ctx: FlueContext<InvestigatePayload>): Promise<InvestigateResult> {
+	const result = await runImpl(ctx);
+	const path = process.env.INVESTIGATE_RESULT_PATH;
+	if (path) {
+		try {
+			writeFileSync(path, JSON.stringify(result));
+		} catch (error) {
+			console.error("[investigate] failed to write result file:", error);
+		}
+	}
+	return result;
+}
+
+async function runImpl({
 	init,
 	payload,
 	log,
