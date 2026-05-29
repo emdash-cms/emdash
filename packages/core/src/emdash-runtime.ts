@@ -105,7 +105,7 @@ function isValidMetadataContribution(c: unknown): c is PageMetadataContribution 
 
 import { after } from "./after.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
-import { runSystemCleanup } from "./cleanup.js";
+import { publishScheduledContent, runSystemCleanup } from "./cleanup.js";
 import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 	defaultCommentModerate,
@@ -1165,8 +1165,9 @@ export class EmDashRuntime {
 					cronScheduler = new NodeCronScheduler(cronExecutor);
 				}
 
-				// Register system cleanup to run alongside each scheduler tick.
-				// Pass storage so cleanupPendingUploads can delete orphaned files.
+				// Register system cleanup and scheduled publishing to run
+				// alongside each scheduler tick.  Both are independent and
+				// non-fatal -- failures are logged internally.
 				cronScheduler.setSystemCleanup(async () => {
 					try {
 						await runSystemCleanup(db, storage ?? undefined);
@@ -1174,6 +1175,14 @@ export class EmDashRuntime {
 						// Non-fatal -- individual cleanup failures are already logged
 						// by runSystemCleanup. This catches unexpected errors.
 						console.error("[cleanup] System cleanup failed:", error);
+					}
+
+					try {
+						await publishScheduledContent(db);
+					} catch (error) {
+						// Non-fatal -- individual publish failures are already logged
+						// by publishScheduledContent. This catches unexpected errors.
+						console.error("[scheduled] Scheduled content publishing failed:", error);
 					}
 				});
 

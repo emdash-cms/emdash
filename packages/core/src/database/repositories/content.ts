@@ -893,15 +893,24 @@ export class ContentRepository {
 	 * Returns all content where scheduled_at <= now, regardless of status.
 	 * This covers both draft-scheduled posts (status='scheduled') and
 	 * published posts with scheduled draft changes (status='published').
+	 *
+	 * Uses datetime() on both sides for SQLite to normalize the ISO 8601
+	 * "T"/"Z" format stored in scheduled_at against datetime('now')'s
+	 * "YYYY-MM-DD HH:MM:SS" format.  On Postgres, casts to timestamptz.
 	 */
 	async findReadyToPublish(type: string): Promise<ContentItem[]> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
+
+		const isPostgresDialect = this.db.getExecutor().adapter.constructor.name === "PostgresAdapter";
+		const scheduledAtExpr = isPostgresDialect
+			? sql`scheduled_at::timestamptz`
+			: sql`datetime(scheduled_at)`;
+		const nowExpr = isPostgresDialect ? sql`CURRENT_TIMESTAMP` : sql`datetime('now')`;
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT * FROM ${sql.ref(tableName)}
 			WHERE scheduled_at IS NOT NULL
-			AND scheduled_at <= ${now}
+			AND ${scheduledAtExpr} <= ${nowExpr}
 			AND deleted_at IS NULL
 			ORDER BY scheduled_at ASC
 		`.execute(this.db);

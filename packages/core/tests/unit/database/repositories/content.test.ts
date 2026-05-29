@@ -585,6 +585,24 @@ describe("ContentRepository", () => {
 
 			expect(ready).toHaveLength(0);
 		});
+
+		it("should find items with ISO 8601 T/Z format (regression: #917)", async () => {
+			// Issue #917: on SQLite, ISO 8601 strings with "T" and "Z"
+			// (e.g. "2020-01-15T12:00:00.000Z") were compared against
+			// datetime('now') which returns "YYYY-MM-DD HH:MM:SS". The "T"
+			// character (0x54) sorts after space (0x20) in lexicographic
+			// comparison, so the <= check always returned false.
+			const post = await repo.create(createPostFixture());
+			// Use explicit ISO 8601 with T and Z — the format toISOString() produces
+			// and the format the schedule API stores
+			const pastIso = "2020-06-15T10:30:00.000Z";
+			await repo.update("post", post.id, { status: "scheduled", scheduledAt: pastIso });
+
+			const ready = await repo.findReadyToPublish("post");
+
+			expect(ready).toHaveLength(1);
+			expect(ready[0]!.id).toBe(post.id);
+		});
 	});
 
 	describe("countScheduled()", () => {

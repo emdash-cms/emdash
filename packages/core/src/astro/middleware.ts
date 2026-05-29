@@ -27,6 +27,8 @@ import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sand
 // @ts-ignore - virtual module
 import { createStorage as virtualCreateStorage } from "virtual:emdash/storage";
 
+import { after } from "../after.js";
+import { publishScheduledContent } from "../cleanup.js";
 import {
 	createRecorder,
 	flushRecorder,
@@ -58,6 +60,10 @@ import type { EmDashHandlers } from "./types.js";
 let runtimeInstance: EmDashRuntime | null = null;
 // Whether initialization is in progress (prevents concurrent init attempts)
 let runtimeInitializing = false;
+// Debounce timestamp for scheduled content publishing (ms since epoch)
+let lastScheduledPublishAt = 0;
+/** Minimum interval between scheduled publish checks (ms) */
+const SCHEDULED_PUBLISH_DEBOUNCE_MS = 15_000;
 
 /** Whether i18n config has been initialized from the virtual module */
 let i18nInitialized = false;
@@ -548,6 +554,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Update plugin enabled/disabled status and rebuild hook pipeline
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),
 				};
+
+				// Tick the cron scheduler so the piggyback path (Cloudflare
+				// Workers) processes plugin cron tasks and system cleanup
+				// on each request (debounced to at most once per 60 s).
+				runtime.tickCron();
+
+				// Publish scheduled content independently of the cron system.
+				// Uses after() so it doesn't block the response and properly
+				// extends the Worker lifetime via waitUntil on Cloudflare.
+				// Debounced to avoid running on every single request.
+				const now = Date.now();
+				if (now - lastScheduledPublishAt >= SCHEDULED_PUBLISH_DEBOUNCE_MS) {
+					lastScheduledPublishAt = now;
+					const db = runtime.db;
+					after(async () => {
+						try {
+							await publishScheduledContent(db);
+						} catch (error) {
+							console.error("[scheduled] Scheduled content publishing failed:", error);
+						}
+					});
+				}
 			} catch (error) {
 				console.error("EmDash middleware error:", error);
 			}
