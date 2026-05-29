@@ -672,12 +672,10 @@ function CustomFieldInput({
 			);
 		case "select": {
 			const options = field.validation?.options ?? [];
-			// The empty-string entry serves as a "clear value" affordance;
-			// it produces `null` on change, which deletes the stored row
-			// per the repo's storage contract. Server-side `required`
-			// enforcement (if added later) would reject the resulting
-			// write rather than this dropdown disabling the entry.
-			const items: Record<string, string> = { "": t`-- Select --` };
+			// Null-prototype object so options that collide with
+			// `Object.prototype` keys (`__proto__`, `toString`) survive.
+			const items: Record<string, string> = Object.create(null);
+			items[""] = t`-- Select --`;
 			for (const opt of options) items[opt] = opt;
 			return (
 				<Select

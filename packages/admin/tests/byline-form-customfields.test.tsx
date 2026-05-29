@@ -172,21 +172,18 @@ describe("BylinesPage — custom-field inputs (Phase 6 of #1174)", () => {
 			</TestWrapper>,
 		);
 
-		// Click the byline in the sidebar list — moves the form into
-		// edit mode and the custom-field section becomes visible.
+		// Edit mode: registered field renders inline (no "Custom fields" header).
 		const bylineButton = screen.getByRole("button", { name: /Jane Doe/ });
 		await bylineButton.click();
 
-		// AC: registered fields render as inputs alongside the fixed
-		// columns.
-		await expect.element(screen.getByText("Custom fields")).toBeInTheDocument();
 		await expect.element(screen.getByLabelText("Job title")).toBeInTheDocument();
 	});
 
-	it("does not render the custom-field section in create mode", async () => {
+	it("renders the custom-field input in create mode", async () => {
+		// Phase 6: create-flow parity — POST accepts customFields now.
 		vi.mocked(fetchBylines).mockResolvedValue({ items: [], nextCursor: undefined });
 		vi.mocked(listBylineFields).mockResolvedValue({
-			items: [makeField({ slug: "job_title", type: "string" })],
+			items: [makeField({ label: "Job title", slug: "job_title", type: "string" })],
 		});
 
 		const screen = await render(
@@ -195,12 +192,8 @@ describe("BylinesPage — custom-field inputs (Phase 6 of #1174)", () => {
 			</TestWrapper>,
 		);
 
-		// Server-side `bylineCreateBody` doesn't accept `customFields`;
-		// showing inputs in create mode would set expectations the API
-		// can't meet. The "Create byline" heading is the create-mode
-		// signal; the Custom fields section must NOT appear.
 		await expect.element(screen.getByText("Create byline")).toBeInTheDocument();
-		expect(screen.getByText("Custom fields").query()).toBeNull();
+		await expect.element(screen.getByLabelText("Job title")).toBeInTheDocument();
 	});
 
 	it("forwards customFields in the PATCH body on save", async () => {

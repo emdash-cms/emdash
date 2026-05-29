@@ -46,7 +46,11 @@ import { useCurrentUser } from "../lib/api/current-user.js";
 // avoids a circular dep through `@emdash-cms/auth` for the admin SPA.
 const ROLE_ADMIN = 50;
 
-const QUERY_KEY = ["byline-schema", "fields"] as const;
+// Shared with `routes/bylines.tsx` so schema mutations invalidate the
+// byline form's field-defs cache in the same session. The "usage"
+// subkeys below stay under a `byline-schema` prefix — they're a
+// per-field impact lookup, not the field list itself.
+const QUERY_KEY = ["byline-fields"] as const;
 
 export function BylineSchemaPage() {
 	const { t } = useLingui();

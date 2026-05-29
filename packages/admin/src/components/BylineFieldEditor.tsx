@@ -147,6 +147,16 @@ export function BylineFieldEditor({
 		}
 	};
 
+	// Parsed once so `handleSave` and `canSave` agree on what counts as
+	// a valid select option set (no empty lines, trimmed).
+	const parsedSelectOptions =
+		state.type === "select"
+			? state.options
+					.split("\n")
+					.map((o) => o.trim())
+					.filter(Boolean)
+			: [];
+
 	const handleSave = () => {
 		// Validate locally before round-tripping. The server validates
 		// again at the zod + registry layers; this is purely UX so the
@@ -154,16 +164,10 @@ export function BylineFieldEditor({
 		// fire-and-fail.
 		if (!state.label.trim()) return;
 		if (!isEdit && !state.slug.trim()) return;
+		if (state.type === "select" && parsedSelectOptions.length === 0) return;
 
 		const validation: BylineFieldValidation | null =
-			state.type === "select"
-				? {
-						options: state.options
-							.split("\n")
-							.map((o) => o.trim())
-							.filter(Boolean),
-					}
-				: null;
+			state.type === "select" ? { options: parsedSelectOptions } : null;
 
 		if (isEdit) {
 			const updateInput: UpdateBylineFieldInput = {
@@ -192,7 +196,10 @@ export function BylineFieldEditor({
 	};
 
 	const translatableLocked = isEdit && usageTotal > 0;
-	const canSave = state.label.trim().length > 0 && (isEdit || state.slug.trim().length > 0);
+	const canSave =
+		state.label.trim().length > 0 &&
+		(isEdit || state.slug.trim().length > 0) &&
+		(state.type !== "select" || parsedSelectOptions.length > 0);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -265,6 +272,8 @@ export function BylineFieldEditor({
 
 					{/* Toggles */}
 					<div className="flex flex-wrap items-center gap-6">
+						{/* TODO: enforce `required` on the write path — currently
+						 * descriptive only, see `BylineRepository.coerceFieldValue`. */}
 						<Switch
 							checked={state.required}
 							onCheckedChange={(checked) => setField("required", checked)}
