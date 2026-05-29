@@ -191,7 +191,10 @@ jobs:
           set -o pipefail
           PAYLOAD="$(cat /tmp/classify-payload.json)"
           set +e
-          pnpm --dir .flue exec flue run classify-reply \
+          # See investigate.yml's "Run Flue investigate agent" step
+          # for why we invoke the binary directly rather than via
+          # `pnpm --dir`. Same --root resolution bug.
+          .flue/node_modules/.bin/flue run classify-reply \
             --target node \
             --root .flue \
             --payload "$PAYLOAD" \

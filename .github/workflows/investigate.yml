@@ -233,7 +233,22 @@ jobs:
           # result to stdout. Send stderr to a separate file so we can
           # surface Flue's progress in the workflow log without
           # contaminating the JSON we parse.
-          pnpm --dir .flue exec flue run investigate \
+          # Run `flue run` from the repo root (not from .flue/). Two
+          # reasons:
+          #   1. Flue resolves `--root .flue` relative to the caller's
+          #      cwd. `pnpm --dir .flue` would compose to `.flue/.flue`
+          #      and the build fails with "No agent or workflow files
+          #      found." (Observed on the first live run.)
+          #   2. The agent's `local()` sandbox inherits process.cwd()
+          #      as its working directory. We want that to be the
+          #      EmDash repo root so the agent's bash tool can `pnpm
+          #      test`, `git`, `gh issue view`, etc. against the
+          #      EmDash checkout.
+          #
+          # Invoke the flue binary directly from .flue/'s installed
+          # node_modules; pnpm's `--dir` semantics are exactly what
+          # broke us originally.
+          .flue/node_modules/.bin/flue run investigate \
             --target node \
             --root .flue \
             --payload "$PAYLOAD" \
