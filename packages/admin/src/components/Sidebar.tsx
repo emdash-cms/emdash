@@ -16,7 +16,6 @@ import {
 	Users,
 	Stack,
 	ArrowsLeftRight,
-	IdentificationCard,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -243,12 +242,6 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	const adminItems: NavItem[] = [
 		{ to: "/content-types", label: t`Content Types`, icon: Database, minRole: ROLE_ADMIN },
-		{
-			to: BYLINE_SCHEMA_NAV_ITEM.to,
-			label: t`Byline Schema`,
-			icon: IdentificationCard,
-			minRole: BYLINE_SCHEMA_NAV_ITEM.minRole,
-		},
 		{ to: "/users", label: t`Users`, icon: Users, minRole: ROLE_ADMIN },
 		{ to: "/plugins-manager", label: t`Plugins`, icon: PuzzlePiece, minRole: ROLE_ADMIN },
 	];
