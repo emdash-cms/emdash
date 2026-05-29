@@ -96,6 +96,7 @@ export type {
 	PortableTextTextBlock,
 	PortableTextImageBlock,
 	PortableTextCodeBlock,
+	PortableTextHtmlBlock,
 	PortableTextUnknownBlock,
 	ProseMirrorMark,
 	ProseMirrorNode,
