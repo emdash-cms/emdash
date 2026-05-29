@@ -19,6 +19,8 @@ export interface Section {
 	previewUrl?: string;
 	source: SectionSource;
 	themeId?: string;
+	/** Category for grouping and filtering sections */
+	category?: string;
 	createdAt: string;
 	updatedAt: string;
 }

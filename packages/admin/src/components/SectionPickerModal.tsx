@@ -6,14 +6,23 @@
 
 import { Button, Dialog, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, Stack, FolderOpen } from "@phosphor-icons/react";
+import { MagnifyingGlass, Stack, FolderOpen, Tag } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchSections, type Section } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks";
+import {
+	SECTION_STARTER_TEMPLATES,
+	SECTION_CATEGORIES,
+	matchesSectionTemplate,
+	templateToSection,
+	getCategoryById,
+	type SectionCategoryId,
+} from "../lib/sectionTemplates";
 import { cn } from "../lib/utils";
+import { SectionVisualPreview } from "./SectionVisualPreview.js";
 
 interface SectionPickerModalProps {
 	open: boolean;
@@ -24,6 +33,7 @@ interface SectionPickerModalProps {
 export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPickerModalProps) {
 	const { t } = useLingui();
 	const [searchQuery, setSearchQuery] = React.useState("");
+	const [selectedCategory, setSelectedCategory] = React.useState<SectionCategoryId | null>(null);
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 
 	const { data: sectionsData, isLoading: sectionsLoading } = useQuery({
@@ -35,11 +45,22 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 		enabled: open,
 	});
 	const sections = sectionsData?.items ?? [];
+	const starterSections = React.useMemo(
+		() =>
+			SECTION_STARTER_TEMPLATES.filter(
+				(template) =>
+					matchesSectionTemplate(template, debouncedSearch) &&
+					(!selectedCategory || template.category === selectedCategory),
+			).map(templateToSection),
+		[debouncedSearch, selectedCategory],
+	);
+	const hasAnySections = starterSections.length > 0 || sections.length > 0 || sectionsLoading;
 
 	// Reset search when modal opens
 	React.useEffect(() => {
 		if (open) {
 			setSearchQuery("");
+			setSelectedCategory(null);
 		}
 	}, [open]);
 
@@ -73,11 +94,12 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 					/>
 				</div>
 
-				{/* Search */}
-				<div className="flex items-center gap-4 py-4 border-b">
-					<div className="relative flex-1">
+				{/* Search and filter */}
+				<div className="space-y-3 py-4 border-b">
+					<div className="relative">
 						<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 						<Input
+							aria-label={t`Search sections`}
 							placeholder={t`Search sections...`}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
@@ -85,15 +107,60 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 							autoFocus
 						/>
 					</div>
+					{/* Category filter */}
+					<div className="flex flex-wrap gap-2">
+						<button
+							type="button"
+							className={cn(
+								"rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+								!selectedCategory
+									? "border-kumo-brand bg-kumo-tint text-kumo-brand"
+									: "border-kumo-line text-kumo-subtle hover:border-kumo-brand hover:text-kumo-brand",
+							)}
+							onClick={() => setSelectedCategory(null)}
+						>
+							{t`All`}
+						</button>
+						{SECTION_CATEGORIES.map((cat) => (
+							<button
+								key={cat.id}
+								type="button"
+								className={cn(
+									"rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+									selectedCategory === cat.id
+										? "border-kumo-brand bg-kumo-tint text-kumo-brand"
+										: "border-kumo-line text-kumo-subtle hover:border-kumo-brand hover:text-kumo-brand",
+								)}
+								onClick={() => setSelectedCategory(cat.id as SectionCategoryId)}
+							>
+								{t(cat.label)}
+							</button>
+						))}
+					</div>
 				</div>
 
 				{/* Section grid */}
 				<div className="flex-1 overflow-y-auto py-4">
-					{sectionsLoading ? (
-						<div className="flex items-center justify-center h-32">
-							<div className="text-kumo-subtle">{t`Loading sections...`}</div>
+					{hasAnySections ? (
+						<div className="space-y-6">
+							{starterSections.length > 0 && (
+								<SectionGroup
+									title="Starter sections"
+									sections={starterSections}
+									onSelect={handleSelect}
+								/>
+							)}
+							{sectionsLoading ? (
+								<div className="flex items-center justify-center h-20">
+									<div className="text-kumo-subtle">{t`Loading sections...`}</div>
+								</div>
+							) : (
+								sections.length > 0 && (
+									<SectionGroup title="Saved sections" sections={sections} onSelect={handleSelect} />
+								)
+							)}
 						</div>
-					) : sections.length === 0 ? (
+					) : (
 						<div className="flex flex-col items-center justify-center h-32 text-center">
 							{searchQuery ? (
 								<>
@@ -111,16 +178,6 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 								</>
 							)}
 						</div>
-					) : (
-						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-							{sections.map((section) => (
-								<SectionCard
-									key={section.id}
-									section={section}
-									onSelect={() => handleSelect(section)}
-								/>
-							))}
-						</div>
 					)}
 				</div>
 
@@ -135,7 +192,31 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 	);
 }
 
+function SectionGroup({
+	title,
+	sections,
+	onSelect,
+}: {
+	title: string;
+	sections: Section[];
+	onSelect: (section: Section) => void;
+}) {
+	return (
+		<section>
+			<h3 className="mb-3 text-sm font-medium text-kumo-subtle">{title}</h3>
+			<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+				{sections.map((section) => (
+					<SectionCard key={section.id} section={section} onSelect={() => onSelect(section)} />
+				))}
+			</div>
+		</section>
+	);
+}
+
 function SectionCard({ section, onSelect }: { section: Section; onSelect: () => void }) {
+	const { t } = useLingui();
+	const category = section.category ? getCategoryById(section.category) : null;
+
 	return (
 		<button
 			type="button"
@@ -147,23 +228,41 @@ function SectionCard({ section, onSelect }: { section: Section; onSelect: () => 
 			)}
 		>
 			{/* Preview */}
-			<div className="aspect-video bg-kumo-tint flex items-center justify-center">
+			<div className="h-28 bg-kumo-tint/50 overflow-hidden">
 				{section.previewUrl ? (
 					<img
 						src={section.previewUrl}
 						alt={section.title}
 						className="w-full h-full object-cover"
 					/>
+				) : section.content.length > 0 ? (
+					<div className="scale-[0.25] origin-top-left w-[400%] h-[400%] pointer-events-none opacity-60">
+						<SectionVisualPreview value={section.content} />
+					</div>
 				) : (
-					<Stack className="h-8 w-8 text-kumo-subtle" />
+					<div className="w-full h-full flex items-center justify-center text-kumo-subtle">
+						<Stack className="h-8 w-8" />
+					</div>
 				)}
 			</div>
 
 			{/* Content */}
-			<div className="p-3">
-				<h4 className="font-medium truncate">{section.title}</h4>
+			<div className="p-2.5">
+				<div className="flex items-start justify-between gap-2">
+					<h4 className="font-medium truncate text-sm flex-1">{section.title}</h4>
+					{category ? (
+						<span className="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-kumo-tint px-1.5 py-0.5 text-[10px] font-medium text-kumo-subtle">
+							<Tag className="h-2.5 w-2.5" />
+							{t(category.label)}
+						</span>
+					) : (
+						<span className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-kumo-subtle">
+							{section.source}
+						</span>
+					)}
+				</div>
 				{section.description && (
-					<p className="text-xs text-kumo-subtle line-clamp-2 mt-1">{section.description}</p>
+					<p className="text-xs text-kumo-subtle line-clamp-1 mt-1">{section.description}</p>
 				)}
 			</div>
 		</button>

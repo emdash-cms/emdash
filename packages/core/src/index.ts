@@ -64,6 +64,7 @@ export {
 	handleContentDiscardDraft,
 	handleContentCompare,
 	handleContentTranslations,
+	handleContentAutosave,
 	handleMediaList,
 	handleMediaGet,
 	handleMediaCreate,

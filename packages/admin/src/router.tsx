@@ -5,6 +5,11 @@
  */
 
 import { Button, Loader, Toast } from "@cloudflare/kumo";
+import {
+	importFromBuilderSchema,
+	importPortableTextToLexicalState,
+	type BuilderDocument,
+} from "@emdash-cms/blocks/builder";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
@@ -58,6 +63,7 @@ import { ThemeMarketplaceBrowse } from "./components/ThemeMarketplaceBrowse";
 import { ThemeMarketplaceDetail } from "./components/ThemeMarketplaceDetail";
 import { Widgets } from "./components/Widgets";
 import { WordPressImport } from "./components/WordPressImport";
+import { BuilderEditor } from "./components/builder/BuilderEditor";
 import {
 	apiFetch,
 	parseApiResponse,
@@ -260,6 +266,101 @@ const dashboardRoute = createRoute({
 	path: "/",
 	component: DashboardPage,
 });
+
+// Builder route
+const builderRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/builder",
+	component: BuilderEditorPage,
+	validateSearch: (search: Record<string, unknown>) => ({
+		collection: typeof search.collection === "string" ? search.collection : undefined,
+		id: typeof search.id === "string" ? search.id : undefined,
+		field: typeof search.field === "string" ? search.field : "content",
+	}),
+});
+
+function isBuilderDocumentValue(value: unknown): value is BuilderDocument {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return false;
+	}
+	const doc = value as Record<string, unknown>;
+	return doc.version === 1 && Array.isArray(doc.blocks);
+}
+
+function isLexicalEditorState(value: unknown): boolean {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return false;
+	}
+	const state = value as Record<string, unknown>;
+	const root = state.root;
+	return typeof root === "object" && root !== null && !Array.isArray(root);
+}
+
+function toBuilderInitialContent(value: unknown): string {
+	if (!value) return "";
+
+	if (isLexicalEditorState(value)) {
+		return JSON.stringify(value);
+	}
+
+	if (isBuilderDocumentValue(value)) {
+		const state = importFromBuilderSchema(value);
+		return state ? JSON.stringify(state) : "";
+	}
+
+	const portableTextState = importPortableTextToLexicalState(value);
+	if (portableTextState) {
+		return JSON.stringify(portableTextState);
+	}
+
+	return typeof value === "string" ? value : "";
+}
+
+function BuilderEditorPage() {
+	const { t } = useLingui();
+	const { collection, id, field } = useSearch({ from: "/_admin/builder" });
+
+	const hasTarget = Boolean(collection && id);
+	const { data: rawItem, isLoading, error } = useQuery({
+		queryKey: ["content", collection, id],
+		queryFn: () => fetchContent(collection!, id!),
+		enabled: hasTarget,
+	});
+
+	const { data: draftRevision } = useQuery({
+		queryKey: ["revision", rawItem?.draftRevisionId],
+		queryFn: () => fetchRevision(rawItem!.draftRevisionId!),
+		enabled: !!rawItem?.draftRevisionId,
+	});
+
+	const initialContent = React.useMemo(() => {
+		const fieldName = field ?? "content";
+		const draftValue = draftRevision?.data?.[fieldName];
+		const liveValue = rawItem?.data?.[fieldName];
+		return toBuilderInitialContent(draftValue ?? liveValue);
+	}, [draftRevision, rawItem, field]);
+
+	if (!hasTarget) {
+		return <ErrorScreen error={t`Open the builder from a saved content item.`} />;
+	}
+
+	if (isLoading) {
+		return <LoadingScreen />;
+	}
+
+	if (error || !rawItem) {
+		return <ErrorScreen error={error instanceof Error ? error.message : t`Failed to load content`} />;
+	}
+
+	return (
+		<BuilderEditor
+			collection={collection}
+			id={id}
+			field={field ?? "content"}
+			initialContent={initialContent}
+		/>
+	);
+}
 
 function DashboardPage() {
 	const { data: manifest } = useQuery({
@@ -1743,6 +1844,7 @@ const notFoundRoute = createRoute({
 // Create route tree with admin routes under layout and setup route separate
 const adminRoutes = adminLayoutRoute.addChildren([
 	dashboardRoute,
+	builderRoute,
 	contentListRoute,
 	contentNewRoute,
 	contentEditRoute,

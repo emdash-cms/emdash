@@ -11,14 +11,16 @@ export interface Props {
 		_type: "button";
 		_key: string;
 		text: string;
+		id?: string;
 		url?: string;
 		style?: "default" | "outline" | "fill";
 	};
 }
 
 const { node } = Astro.props;
-const { text, url: rawUrl, style = "default" } = node ?? {};
-const url = rawUrl ? sanitizeHref(rawUrl) : undefined;
+const { text, id: rawId, url: rawUrl, style = "default" } = node ?? {};
+const rawHref = rawUrl || rawId;
+const url = rawHref ? sanitizeHref(rawHref) : undefined;
 ---
 
 {

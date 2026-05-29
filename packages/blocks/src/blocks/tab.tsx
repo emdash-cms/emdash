@@ -23,7 +23,11 @@ export function TabBlockComponent({
 				tabs={tabs}
 			/>
 			<div className="pt-4">
-				<BlockRenderer blocks={block.panels[activeTab]?.blocks ?? []} onAction={onAction} />
+				{block.panels[activeTab]?.blocks?.length ? (
+					<BlockRenderer blocks={block.panels[activeTab]?.blocks ?? []} onAction={onAction} />
+				) : block.panels[activeTab]?.body ? (
+					<p className="text-sm leading-6 text-kumo-default">{block.panels[activeTab]?.body}</p>
+				) : null}
 			</div>
 		</div>
 	);

@@ -208,6 +208,27 @@ export async function updateContent(
 }
 
 /**
+ * Autosave: save builder content (Lexical JSON) as a draft revision.
+ *
+ * Converts Lexical JSON → BuilderDocument on the server side.
+ * Does NOT update content table columns — only creates a revision.
+ */
+export async function autosaveContent(
+	collection: string,
+	id: string,
+	content: string,
+	field = "content",
+): Promise<string> {
+	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/autosave`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ content, field }),
+	});
+	const data = await parseApiResponse<{ revisionId: string }>(response, "Failed to autosave");
+	return data.revisionId;
+}
+
+/**
  * Delete content (moves to trash)
  */
 export async function deleteContent(collection: string, id: string): Promise<void> {

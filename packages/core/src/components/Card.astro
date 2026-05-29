@@ -1,0 +1,103 @@
+---
+import { sanitizeHref } from "../utils/url.js";
+
+export interface Props {
+	node: {
+		_type: "card";
+		_key?: string;
+		title?: string;
+		description?: string;
+		image?: string;
+		ctaText?: string;
+		ctaUrl?: string;
+	};
+}
+
+const { node } = Astro.props;
+const ctaUrl = node?.ctaUrl ? sanitizeHref(node.ctaUrl) : undefined;
+---
+
+<article class="emdash-card">
+	{node?.image && <img class="emdash-card__image" src={node.image} alt={node.title || ""} loading="lazy" />}
+	<div class="emdash-card__body">
+		{node?.title && <h3 class="emdash-card__title">{node.title}</h3>}
+		{node?.description && <p class="emdash-card__description">{node.description}</p>}
+		{
+			node?.ctaText &&
+				(ctaUrl ? (
+					<a class="emdash-card__cta" href={ctaUrl}>
+						{node.ctaText}
+					</a>
+				) : (
+					<span class="emdash-card__cta">{node.ctaText}</span>
+				))
+		}
+	</div>
+</article>
+
+<style>
+	.emdash-card {
+		--emdash-card-bg-default: #fff;
+		--emdash-card-border-default: #ddd;
+		--emdash-card-text-default: #1f2937;
+		--emdash-card-muted-default: #666;
+		--emdash-card-link-default: #0073aa;
+
+		overflow: hidden;
+		color: var(--emdash-card-text, var(--text-color-kumo-default, var(--emdash-card-text-default)));
+		border: 1px solid var(--emdash-card-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-card-border-default))));
+		border-radius: 6px;
+		background: var(--emdash-card-bg, var(--color-kumo-base, var(--emdash-surface-color, var(--emdash-card-bg-default))));
+	}
+
+	.emdash-card__image {
+		display: block;
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		object-fit: cover;
+	}
+
+	.emdash-card__body {
+		padding: 1rem;
+	}
+
+	.emdash-card__title {
+		margin: 0;
+		font-size: 1.05rem;
+		line-height: 1.35;
+	}
+
+	.emdash-card__description {
+		margin: 0.5rem 0 0;
+		line-height: 1.6;
+		color: var(--emdash-card-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-card-muted-default))));
+	}
+
+	.emdash-card__cta {
+		display: inline-block;
+		margin-top: 0.85rem;
+		font-weight: 600;
+		text-decoration: none;
+		color: var(--emdash-card-link, var(--text-color-kumo-brand, var(--emdash-link-color, var(--emdash-card-link-default))));
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-card {
+			--emdash-card-bg-default: #111827;
+			--emdash-card-border-default: #374151;
+			--emdash-card-text-default: #f9fafb;
+			--emdash-card-muted-default: #d1d5db;
+			--emdash-card-link-default: #60a5fa;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-card,
+	:global([data-theme="dark"]) .emdash-card,
+	:global(.dark) .emdash-card {
+		--emdash-card-bg-default: #111827;
+		--emdash-card-border-default: #374151;
+		--emdash-card-text-default: #f9fafb;
+		--emdash-card-muted-default: #d1d5db;
+		--emdash-card-link-default: #60a5fa;
+	}
+</style>

@@ -18,6 +18,10 @@ import {
 	Globe,
 	User,
 	FileArrowDown,
+	Stack,
+	Sparkle,
+	ArrowRight,
+	Tag,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -31,9 +35,21 @@ import {
 	type Section,
 	type SectionSource,
 } from "../lib/api";
-import { slugify } from "../lib/utils";
+import {
+	SECTION_STARTER_TEMPLATES,
+	SECTION_CATEGORIES,
+	templateToCreateInput,
+	draftSectionFromIntent,
+	getIntentSuggestions,
+	getTemplateSuggestions,
+	type SectionStarterTemplate,
+	type SectionCategoryId,
+	getCategoryById,
+} from "../lib/sectionTemplates";
+import { cn, slugify } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { SectionVisualPreview } from "./SectionVisualPreview.js";
 
 const sourceIcons: Record<SectionSource, React.ElementType> = {
 	theme: Globe,
@@ -56,13 +72,23 @@ export function Sections() {
 	const [deleteSlug, setDeleteSlug] = React.useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [selectedSource, setSelectedSource] = React.useState<SectionSource | null>(null);
+	const [selectedCategory, setSelectedCategory] = React.useState<SectionCategoryId | null>(null);
 
 	// Create form state
 	const [createTitle, setCreateTitle] = React.useState("");
 	const [createSlug, setCreateSlug] = React.useState("");
 	const [createDescription, setCreateDescription] = React.useState("");
+	const [createKeywords, setCreateKeywords] = React.useState("");
+	const [createContent, setCreateContent] = React.useState<unknown[]>([]);
+	const [selectedTemplateId, setSelectedTemplateId] = React.useState<string | null>(null);
 	const [slugTouched, setSlugTouched] = React.useState(false);
 	const [createError, setCreateError] = React.useState<string | null>(null);
+
+	// Draft from intent state
+	const [draftIntent, setDraftIntent] = React.useState("");
+	const [draftResult, setDraftResult] = React.useState<ReturnType<typeof draftSectionFromIntent> | null>(null);
+	const [draftSuggestions, setDraftSuggestions] = React.useState<string[]>([]);
+	const [showSuggestions, setShowSuggestions] = React.useState(false);
 
 	// Reset form when dialog closes
 	React.useEffect(() => {
@@ -70,10 +96,27 @@ export function Sections() {
 			setCreateTitle("");
 			setCreateSlug("");
 			setCreateDescription("");
+			setCreateKeywords("");
+			setCreateContent([]);
+			setSelectedTemplateId(null);
 			setSlugTouched(false);
 			setCreateError(null);
+			setDraftIntent("");
+			setDraftResult(null);
+			setDraftSuggestions([]);
+			setShowSuggestions(false);
 		}
 	}, [isCreateOpen]);
+
+	// Handle draft from intent
+	const handleDraftFromIntent = React.useCallback(() => {
+		if (!draftIntent.trim()) {
+			setDraftResult(null);
+			return;
+		}
+		const result = draftSectionFromIntent(draftIntent);
+		setDraftResult(result);
+	}, [draftIntent]);
 
 	const { data: sectionsData, isLoading: sectionsLoading } = useQuery({
 		queryKey: ["sections", { source: selectedSource, search: searchQuery }],
@@ -111,13 +154,49 @@ export function Sections() {
 	const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		setCreateError(null);
+		const keywords = createKeywords
+			.split(",")
+			.map((keyword) => keyword.trim())
+			.filter(Boolean);
 		createMutation.mutate({
 			slug: createSlug,
 			title: createTitle,
 			description: createDescription || undefined,
-			content: [], // Start with empty content
+			keywords,
+			content: createContent,
 		});
 	};
+
+	const handleSelectTemplate = (template: SectionStarterTemplate | null) => {
+		if (!template) {
+			setSelectedTemplateId(null);
+			setCreateTitle("");
+			setCreateSlug("");
+			setCreateDescription("");
+			setCreateKeywords("");
+			setCreateContent([]);
+			setSlugTouched(false);
+			return;
+		}
+
+		const input = templateToCreateInput(template);
+		setSelectedTemplateId(template.id);
+		setCreateTitle(input.title);
+		setCreateSlug(input.slug);
+		setCreateDescription(input.description ?? "");
+		setCreateKeywords(input.keywords?.join(", ") ?? "");
+		setCreateContent(input.content);
+		setSlugTouched(false);
+	};
+
+	// Apply draft result to form - defined after handleSelectTemplate
+	const handleApplyDraft = React.useCallback(() => {
+		if (draftResult?.found && draftResult.template) {
+			handleSelectTemplate(draftResult.template);
+			setDraftIntent("");
+			setDraftResult(null);
+		}
+	}, [draftResult]);
 
 	const handleCopySlug = (slug: string) => {
 		void navigator.clipboard.writeText(slug);
@@ -144,7 +223,7 @@ export function Sections() {
 							</Button>
 						)}
 					/>
-					<Dialog className="p-6" size="lg">
+					<Dialog className="max-h-[85vh] overflow-y-auto p-6" size="lg">
 						<div className="flex items-start justify-between gap-4 mb-4">
 							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
 								{t`Create Section`}
@@ -166,6 +245,232 @@ export function Sections() {
 							/>
 						</div>
 						<form onSubmit={handleCreate} className="space-y-4">
+							{/* Draft from intent - schema-constrained AI-assisted drafting */}
+							<div className="rounded-lg border border-dashed border-kumo-brand/30 bg-kumo-tint/30 p-4">
+								<div className="flex items-center gap-2 mb-3">
+									<Sparkle className="h-4 w-4 text-kumo-brand" />
+									<span className="text-sm font-medium">{t`Draft from intent`}</span>
+								</div>
+								<p className="text-xs text-kumo-subtle mb-3">
+									{t`Describe what you need and we'll suggest a matching template.`}
+								</p>
+								<div className="relative">
+									<div className="flex gap-2">
+										<div className="relative flex-1">
+											<Input
+												placeholder={t`e.g. pricing table, FAQ section, hero banner`}
+												value={draftIntent}
+												onChange={(e) => {
+													const value = e.target.value;
+													setDraftIntent(value);
+													// Update suggestions on input change
+													if (value.trim().length >= 2) {
+														setDraftSuggestions(getIntentSuggestions(value.trim()));
+														setShowSuggestions(true);
+													} else {
+														setDraftSuggestions([]);
+														setShowSuggestions(false);
+													}
+												}}
+												onKeyDown={(e) => {
+													if (e.key === "Enter") {
+														e.preventDefault();
+														setShowSuggestions(false);
+														handleDraftFromIntent();
+													} else if (e.key === "Escape") {
+														setShowSuggestions(false);
+													}
+												}}
+												onFocus={() => {
+													if (draftIntent.trim().length >= 2 && draftSuggestions.length > 0) {
+														setShowSuggestions(true);
+													}
+												}}
+												onBlur={() => {
+													// Delay hiding to allow click on suggestion
+													setTimeout(() => setShowSuggestions(false), 200);
+												}}
+												className="flex-1 pr-8"
+											/>
+											{draftIntent && (
+												<button
+													type="button"
+													className="absolute end-2 top-1/2 -translate-y-1/2 text-kumo-subtle hover:text-kumo-brand"
+													onClick={() => {
+														setDraftIntent("");
+														setDraftSuggestions([]);
+														setShowSuggestions(false);
+													}}
+													aria-label={t`Clear`}
+												>
+													<X className="h-4 w-4" />
+												</button>
+											)}
+										</div>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() => {
+												setShowSuggestions(false);
+												handleDraftFromIntent();
+											}}
+											disabled={!draftIntent.trim()}
+										>
+											{t`Suggest`}
+										</Button>
+									</div>
+									{/* Autocomplete suggestions dropdown */}
+									{showSuggestions && draftSuggestions.length > 0 && (
+										<div className="absolute z-10 mt-1 w-full rounded-lg border bg-kumo-base shadow-lg">
+											{draftSuggestions.map((suggestion, index) => (
+												<button
+													key={suggestion}
+													type="button"
+													className={cn(
+														"w-full text-left px-3 py-2 text-sm transition-colors",
+														index === 0 ? "rounded-t-lg" : "",
+														index === draftSuggestions.length - 1 ? "rounded-b-lg" : "",
+														"hover:bg-kumo-tint",
+													)}
+													onClick={() => {
+														setDraftIntent(suggestion);
+														setDraftSuggestions([]);
+														setShowSuggestions(false);
+														// Auto-suggest on click
+														const result = draftSectionFromIntent(suggestion);
+														setDraftResult(result);
+													}}
+												>
+													{suggestion}
+												</button>
+											))}
+										</div>
+									)}
+								</div>
+								{draftResult && (
+									<div className="mt-3 p-3 rounded-lg bg-kumo-base border">
+										{draftResult.found && draftResult.template ? (
+											<div className="flex items-center justify-between gap-3">
+												<div className="flex-1 min-w-0">
+													<div className="text-sm font-medium flex items-center gap-2">
+														<span
+															className={cn(
+																"inline-block w-2 h-2 rounded-full shrink-0",
+																draftResult.confidence === "high"
+																	? "bg-green-500"
+																	: draftResult.confidence === "medium"
+																		? "bg-yellow-500"
+																		: "bg-gray-400",
+															)}
+														/>
+														<span className="truncate">{draftResult.template.title}</span>
+													</div>
+													<div className="text-xs text-kumo-subtle mt-0.5">
+														{draftResult.suggestion}
+													</div>
+													{/* Alternative suggestions */}
+													{draftResult.alternatives && draftResult.alternatives.length > 0 && (
+														<div className="mt-2 flex flex-wrap gap-1">
+															<span className="text-[10px] text-kumo-subtle">{t`Or try:`}</span>
+															{draftResult.alternatives.slice(0, 2).map((alt) => (
+																<button
+																	key={alt.id}
+																	type="button"
+																	className="rounded bg-kumo-tint px-1.5 py-0.5 text-[10px] text-kumo-brand hover:bg-kumo-brand/10 transition-colors"
+																	onClick={() => {
+																		const result = draftSectionFromIntent(alt.title);
+																		setDraftResult(result);
+																	}}
+																>
+																	{alt.title}
+																</button>
+															))}
+														</div>
+													)}
+												</div>
+												<Button
+													type="button"
+													size="sm"
+													icon={<ArrowRight />}
+													onClick={handleApplyDraft}
+													className="shrink-0"
+												>
+													{t`Use`}
+												</Button>
+											</div>
+										) : (
+											<div className="text-sm text-kumo-subtle">
+												{draftResult.suggestion}
+											</div>
+										)}
+									</div>
+								)}
+							</div>
+
+							<div>
+								<div className="mb-2 text-sm font-medium">{t`Start from template`}</div>
+								{/* Category filter for templates */}
+								<div className="flex flex-wrap gap-2 mb-3">
+									<button
+										type="button"
+										className={cn(
+											"rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+											!selectedCategory
+												? "border-kumo-brand bg-kumo-tint text-kumo-brand"
+												: "border-kumo-line text-kumo-subtle hover:border-kumo-brand hover:text-kumo-brand",
+										)}
+										onClick={() => setSelectedCategory(null)}
+									>
+										{t`All`}
+									</button>
+									{SECTION_CATEGORIES.map((cat) => (
+										<button
+											key={cat.id}
+											type="button"
+											className={cn(
+												"rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+												selectedCategory === cat.id
+													? "border-kumo-brand bg-kumo-tint text-kumo-brand"
+													: "border-kumo-line text-kumo-subtle hover:border-kumo-brand hover:text-kumo-brand",
+											)}
+											onClick={() => setSelectedCategory(cat.id as SectionCategoryId)}
+										>
+											{t(cat.label)}
+										</button>
+									))}
+								</div>
+								<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+									<button
+										type="button"
+										className={cn(
+											"rounded-lg border p-3 text-start transition-colors",
+											!selectedTemplateId
+												? "border-kumo-brand bg-kumo-tint"
+												: "hover:border-kumo-brand hover:bg-kumo-tint/50",
+										)}
+										onClick={() => handleSelectTemplate(null)}
+									>
+										<div className="flex items-center gap-2 font-medium">
+											<Plus className="h-4 w-4" />
+											{t`Blank Section`}
+										</div>
+										<p className="mt-1 text-xs text-kumo-subtle">
+											{t`Start empty and build the section manually.`}
+										</p>
+									</button>
+									{SECTION_STARTER_TEMPLATES.filter(
+										(template) => !selectedCategory || template.category === selectedCategory,
+									).map((template) => (
+										<TemplateCard
+											key={template.id}
+											template={template}
+											active={selectedTemplateId === template.id}
+											onSelect={() => handleSelectTemplate(template)}
+										/>
+									))}
+								</div>
+							</div>
 							<Input
 								label={t`Title`}
 								value={createTitle}
@@ -202,6 +507,12 @@ export function Sections() {
 								onChange={(e) => setCreateDescription(e.target.value)}
 								placeholder={t`A full-width hero banner with heading, text, and CTA button`}
 								rows={3}
+							/>
+							<Input
+								label={t`Keywords`}
+								value={createKeywords}
+								onChange={(e) => setCreateKeywords(e.target.value)}
+								placeholder={t`hero, banner, cta`}
 							/>
 							<DialogError message={createError || getMutationError(createMutation.error)} />
 							<div className="flex justify-end gap-2">
@@ -315,6 +626,53 @@ export function Sections() {
 	);
 }
 
+function TemplateCard({
+	template,
+	active,
+	onSelect,
+}: {
+	template: SectionStarterTemplate;
+	active: boolean;
+	onSelect: () => void;
+}) {
+	const { t } = useLingui();
+	const category = SECTION_CATEGORIES.find((c) => c.id === template.category);
+
+	return (
+		<button
+			type="button"
+			className={cn(
+				"rounded-lg border text-start transition-colors relative overflow-hidden",
+				active ? "border-kumo-brand bg-kumo-tint" : "hover:border-kumo-brand hover:bg-kumo-tint/50",
+			)}
+			onClick={onSelect}
+		>
+			{/* Mini visual preview */}
+			<div className="h-16 bg-kumo-tint/50 overflow-hidden">
+				<div className="scale-[0.2] origin-top-left w-[500%] h-[500%] pointer-events-none opacity-60">
+					<SectionVisualPreview value={template.content} />
+				</div>
+			</div>
+
+			{/* Content */}
+			<div className="p-2.5">
+				<div className="flex items-start justify-between gap-1">
+					<div className="flex items-center gap-1.5 font-medium text-sm">
+						<Stack className="h-3.5 w-3.5 text-kumo-brand" />
+						<span className="truncate">{template.title}</span>
+					</div>
+					{category && (
+						<span className="shrink-0 rounded-full bg-kumo-tint px-1.5 py-0.5 text-[10px] font-medium text-kumo-subtle">
+							{t(category.label)}
+						</span>
+					)}
+				</div>
+				<p className="mt-1 text-[11px] text-kumo-subtle line-clamp-1">{template.description}</p>
+			</div>
+		</button>
+	);
+}
+
 function SectionCard({
 	section,
 	onEdit,
@@ -328,66 +686,83 @@ function SectionCard({
 }) {
 	const { t } = useLingui();
 	const SourceIcon = sourceIcons[section.source];
+	const category = section.category ? getCategoryById(section.category) : null;
 
 	return (
-		<div className="rounded-lg border bg-kumo-base overflow-hidden">
+		<div className="rounded-lg border bg-kumo-base overflow-hidden hover:border-kumo-brand/50 transition-colors">
 			{/* Preview area */}
-			<div className="aspect-video bg-kumo-tint flex items-center justify-center">
+			<div className="h-32 bg-kumo-tint overflow-hidden">
 				{section.previewUrl ? (
 					<img
 						src={section.previewUrl}
 						alt={section.title}
 						className="w-full h-full object-cover"
 					/>
+				) : section.content.length > 0 ? (
+					<div className="scale-[0.25] origin-top-left w-[400%] h-[400%] pointer-events-none opacity-60">
+						<SectionVisualPreview value={section.content} />
+					</div>
 				) : (
-					<div className="text-kumo-subtle text-sm">{t`No preview`}</div>
+					<div className="w-full h-full flex items-center justify-center text-kumo-subtle text-sm">
+						<Stack className="h-6 w-6 mr-2" />
+						{t`No preview`}
+					</div>
 				)}
 			</div>
 
 			{/* Content */}
-			<div className="p-4">
+			<div className="p-3">
 				<div className="flex items-start justify-between gap-2">
 					<div className="flex-1 min-w-0">
-						<h3 className="font-semibold truncate">{section.title}</h3>
-						<p className="text-sm text-kumo-subtle truncate">{section.slug}</p>
+						<h3 className="font-semibold truncate text-sm">{section.title}</h3>
+						<p className="text-xs text-kumo-subtle truncate">{section.slug}</p>
 					</div>
 					<div
-						className="flex items-center gap-1 text-xs text-kumo-subtle"
+						className="flex items-center gap-1 text-[10px] text-kumo-subtle shrink-0"
 						title={t(sourceLabels[section.source])}
 					>
 						<SourceIcon className="h-3 w-3" />
-						<span>{t(sourceLabels[section.source])}</span>
 					</div>
 				</div>
 
 				{section.description && (
-					<p className="mt-2 text-sm text-kumo-subtle line-clamp-2">{section.description}</p>
+					<p className="mt-2 text-xs text-kumo-subtle line-clamp-2">{section.description}</p>
+				)}
+
+				{/* Category badge */}
+				{category && (
+					<div className="mt-2">
+						<span className="inline-flex items-center gap-1 rounded-full bg-kumo-tint px-2 py-0.5 text-[10px] font-medium text-kumo-subtle">
+							<Tag className="h-3 w-3" />
+							{t(category.label)}
+						</span>
+					</div>
 				)}
 
 				{section.keywords.length > 0 && (
 					<div className="mt-2 flex flex-wrap gap-1">
-						{section.keywords.slice(0, 3).map((keyword) => (
+						{section.keywords.slice(0, 2).map((keyword) => (
 							<span
 								key={keyword}
-								className="inline-flex items-center rounded bg-kumo-tint px-1.5 py-0.5 text-xs text-kumo-subtle"
+								className="inline-flex items-center rounded bg-kumo-tint/50 px-1.5 py-0.5 text-[10px] text-kumo-subtle"
 							>
 								{keyword}
 							</span>
 						))}
-						{section.keywords.length > 3 && (
-							<span className="text-xs text-kumo-subtle">+{section.keywords.length - 3} more</span>
+						{section.keywords.length > 2 && (
+							<span className="text-[10px] text-kumo-subtle">+{section.keywords.length - 2}</span>
 						)}
 					</div>
 				)}
 
 				{/* Actions */}
-				<div className="mt-4 flex items-center gap-2">
+				<div className="mt-3 flex items-center gap-1">
 					<Button
 						variant="outline"
 						size="sm"
 						icon={<PencilSimple />}
 						onClick={onEdit}
-						className="flex-1"
+						className="flex-1 text-xs h-7"
 					>
 						{t`Edit`}
 					</Button>
@@ -397,8 +772,9 @@ function SectionCard({
 						onClick={onCopySlug}
 						title={t`Copy slug`}
 						aria-label={t`Copy ${section.slug} to clipboard`}
+						className="h-7 w-7"
 					>
-						<Copy className="h-4 w-4" />
+						<Copy className="h-3.5 w-3.5" />
 					</Button>
 					<Button
 						variant="ghost"
@@ -407,8 +783,9 @@ function SectionCard({
 						title={section.source === "theme" ? t`Cannot delete theme sections` : t`Delete`}
 						aria-label={t`Delete ${section.title}`}
 						disabled={section.source === "theme"}
+						className="h-7 w-7"
 					>
-						<Trash className="h-4 w-4" />
+						<Trash className="h-3.5 w-3.5" />
 					</Button>
 				</div>
 			</div>

@@ -1,0 +1,109 @@
+---
+export interface Props {
+	node: {
+		_type: "icon";
+		_key?: string;
+		name?: string;
+		label?: string;
+		description?: string;
+	};
+}
+
+const { node } = Astro.props;
+
+const ICON_GLYPH_MAP: Record<string, string> = {
+	star: "★",
+	check: "✓",
+	lightning: "⚡",
+	gear: "⚙",
+	users: "👥",
+	clock: "🕐",
+	bell: "🔔",
+	shield: "🛡",
+	chart: "📊",
+	heart: "♥",
+	flag: "🚩",
+	target: "◎",
+	key: "🔑",
+	lock: "🔒",
+	globe: "🌐",
+};
+
+const glyph = ICON_GLYPH_MAP[node.name ?? ""] ?? "•";
+---
+
+<div class="emdash-icon-block">
+	<div class="emdash-icon-block__icon-wrap">
+		<span class="emdash-icon-block__glyph">{glyph}</span>
+	</div>
+	<div class="emdash-icon-block__content">
+		{node.label && <div class="emdash-icon-block__label">{node.label}</div>}
+		{node.description && <p class="emdash-icon-block__desc">{node.description}</p>}
+	</div>
+</div>
+
+<style>
+	.emdash-icon-block {
+		--emdash-icon-block-bg-default: #fff;
+		--emdash-icon-block-border-default: #e5e7eb;
+		--emdash-icon-block-text-default: #1f2937;
+		--emdash-icon-block-muted-default: #6b7280;
+		--emdash-icon-block-brand-default: #0f766e;
+
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding: 1rem;
+		border: 1px solid var(--emdash-icon-block-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-icon-block-border-default))));
+		border-radius: 6px;
+		background: var(--emdash-icon-block-bg, var(--color-kumo-base, var(--emdash-surface-color, var(--emdash-icon-block-bg-default))));
+		color: var(--emdash-icon-block-text, var(--text-color-kumo-default, var(--emdash-icon-block-text-default)));
+	}
+
+	.emdash-icon-block__icon-wrap {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 0.5rem;
+		background: color-mix(in srgb, var(--emdash-icon-block-brand, var(--emdash-icon-block-brand-default)) 10%, transparent);
+		color: var(--emdash-icon-block-brand, var(--emdash-icon-block-brand-default));
+	}
+
+	.emdash-icon-block__glyph {
+		font-size: 1.25rem;
+		line-height: 1;
+	}
+
+	.emdash-icon-block__label {
+		font-size: 0.9rem;
+		font-weight: 700;
+	}
+
+	.emdash-icon-block__desc {
+		margin-top: 0.25rem;
+		font-size: 0.85rem;
+		color: var(--emdash-icon-block-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-icon-block-muted-default))));
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-icon-block {
+			--emdash-icon-block-bg-default: #111827;
+			--emdash-icon-block-border-default: #374151;
+			--emdash-icon-block-text-default: #f9fafb;
+			--emdash-icon-block-muted-default: #d1d5db;
+			--emdash-icon-block-brand-default: #2dd4bf;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-icon-block,
+	:global([data-theme="dark"]) .emdash-icon-block,
+	:global(.dark) .emdash-icon-block {
+		--emdash-icon-block-bg-default: #111827;
+		--emdash-icon-block-border-default: #374151;
+		--emdash-icon-block-text-default: #f9fafb;
+		--emdash-icon-block-muted-default: #d1d5db;
+		--emdash-icon-block-brand-default: #2dd4bf;
+	}
+</style>

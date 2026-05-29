@@ -1,0 +1,98 @@
+---
+import { PortableText } from "astro-portabletext";
+
+export interface Props {
+	node: {
+		_type: "accordion";
+		_key?: string;
+		items?: Array<{
+			_key?: string;
+			label?: string;
+			body?: string;
+			text?: string;
+			blocks?: unknown[];
+		}>;
+	};
+}
+
+const { node } = Astro.props;
+const items = Array.isArray(node?.items) ? node.items : [];
+---
+
+{
+	items.length > 0 && (
+		<div class="emdash-accordion">
+			{items.map((item, index) => {
+				const body = item.body || item.text || "";
+				const blocks = Array.isArray(item.blocks) ? item.blocks : [];
+				return (
+					<details class="emdash-accordion__item">
+						<summary class="emdash-accordion__summary">
+							{item.label || `Item ${index + 1}`}
+						</summary>
+						<div class="emdash-accordion__panel">
+							{blocks.length > 0 ? <PortableText value={blocks} /> : body && <p>{body}</p>}
+						</div>
+					</details>
+				);
+			})}
+		</div>
+	)
+}
+
+<style>
+	.emdash-accordion {
+		--emdash-accordion-bg-default: #fff;
+		--emdash-accordion-border-default: #ddd;
+		--emdash-accordion-summary-bg-default: #f7f7f7;
+		--emdash-accordion-text-default: #1f2937;
+
+		margin: 1.5rem 0;
+		color: var(--emdash-accordion-text, var(--text-color-kumo-default, var(--emdash-accordion-text-default)));
+		border: 1px solid var(--emdash-accordion-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-accordion-border-default))));
+		border-radius: 6px;
+		background: var(--emdash-accordion-bg, var(--color-kumo-base, var(--emdash-accordion-bg-default)));
+		overflow: hidden;
+	}
+
+	.emdash-accordion__item + .emdash-accordion__item {
+		border-top: 1px solid var(--emdash-accordion-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-accordion-border-default))));
+	}
+
+	.emdash-accordion__summary {
+		cursor: pointer;
+		padding: 1rem;
+		font-weight: 600;
+		background: var(--emdash-accordion-summary-bg, var(--color-kumo-tint, var(--emdash-surface-muted, var(--emdash-accordion-summary-bg-default))));
+	}
+
+	.emdash-accordion__panel {
+		padding: 1rem;
+	}
+
+	.emdash-accordion__panel > :first-child {
+		margin-top: 0;
+	}
+
+	.emdash-accordion__panel > :last-child {
+		margin-bottom: 0;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-accordion {
+			--emdash-accordion-bg-default: #111827;
+			--emdash-accordion-border-default: #374151;
+			--emdash-accordion-summary-bg-default: #1f2937;
+			--emdash-accordion-text-default: #f9fafb;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-accordion,
+	:global([data-theme="dark"]) .emdash-accordion,
+	:global(.dark) .emdash-accordion {
+		--emdash-accordion-bg-default: #111827;
+		--emdash-accordion-border-default: #374151;
+		--emdash-accordion-summary-bg-default: #1f2937;
+		--emdash-accordion-text-default: #f9fafb;
+	}
+</style>

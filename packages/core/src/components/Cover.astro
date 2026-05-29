@@ -5,6 +5,7 @@
  * Renders an image/video with text overlay from WordPress imports.
  */
 import { PortableText } from "astro-portabletext";
+import { sanitizeHref } from "../utils/url.js";
 
 export interface Props {
 	node: {
@@ -14,9 +15,13 @@ export interface Props {
 		backgroundVideo?: string;
 		overlayColor?: string;
 		overlayOpacity?: number;
-		content: unknown[];
+		content?: unknown[];
 		minHeight?: string;
 		alignment?: "left" | "center" | "right";
+		heading?: string;
+		body?: string;
+		ctaText?: string;
+		ctaUrl?: string;
 	};
 }
 
@@ -29,9 +34,16 @@ const {
 	content = [],
 	minHeight = "300px",
 	alignment = "center",
+	heading,
+	body,
+	ctaText,
+	ctaUrl: rawCtaUrl,
 } = node ?? {};
 
 const hasBackground = backgroundImage || backgroundVideo;
+const structuredContent = Array.isArray(content) ? content : [];
+const hasStructuredContent = structuredContent.length > 0;
+const ctaUrl = rawCtaUrl ? sanitizeHref(rawCtaUrl) : undefined;
 const overlayStyle = overlayColor
 	? `background-color: ${overlayColor}; opacity: ${overlayOpacity};`
 	: `background-color: rgba(0, 0, 0, ${overlayOpacity});`;
@@ -61,7 +73,24 @@ const overlayStyle = overlayColor
 	}
 	{hasBackground && <div class="emdash-cover__overlay" style={overlayStyle} />}
 	<div class="emdash-cover__content">
-		<PortableText value={content} />
+		{
+			hasStructuredContent ? (
+				<PortableText value={structuredContent} />
+			) : (
+				<>
+					{heading && <h2 class="emdash-cover__heading">{heading}</h2>}
+					{body && <p class="emdash-cover__body">{body}</p>}
+					{ctaText &&
+						(ctaUrl ? (
+							<a href={ctaUrl} class="emdash-cover__button">
+								{ctaText}
+							</a>
+						) : (
+							<span class="emdash-cover__button">{ctaText}</span>
+						))}
+				</>
+			)
+		}
 	</div>
 </div>
 
@@ -103,6 +132,38 @@ const overlayStyle = overlayColor
 		color: var(--emdash-cover-text-color, #fff);
 	}
 
+	.emdash-cover__heading {
+		margin: 0;
+		font-size: 3rem;
+		line-height: 1.05;
+	}
+
+	.emdash-cover__body {
+		max-width: 42rem;
+		margin: 1rem auto 0;
+		font-size: 1.125rem;
+		line-height: 1.6;
+	}
+
+	.emdash-cover--align-left .emdash-cover__body {
+		margin-left: 0;
+	}
+
+	.emdash-cover--align-right .emdash-cover__body {
+		margin-right: 0;
+	}
+
+	.emdash-cover__button {
+		display: inline-block;
+		margin-top: 1.5rem;
+		padding: 0.75em 1.25em;
+		border-radius: 4px;
+		background: var(--emdash-cover-button-bg, #fff);
+		color: var(--emdash-cover-button-color, #111);
+		font-weight: 600;
+		text-decoration: none;
+	}
+
 	.emdash-cover--align-left {
 		justify-content: flex-start;
 		text-align: left;
@@ -124,5 +185,15 @@ const overlayStyle = overlayColor
 	.emdash-cover__content :global(h4),
 	.emdash-cover__content :global(p) {
 		color: inherit;
+	}
+
+	@media (max-width: 640px) {
+		.emdash-cover {
+			padding: 1.5rem;
+		}
+
+		.emdash-cover__heading {
+			font-size: 2rem;
+		}
 	}
 </style>

@@ -1,0 +1,183 @@
+---
+import { sanitizeHref } from "../utils/url.js";
+
+export interface Props {
+	node: {
+		_type: "ctaBanner";
+		_key?: string;
+		variant?: "default" | "primary" | "muted";
+		title?: string;
+		description?: string;
+		ctaText?: string;
+		ctaUrl?: string;
+		alignment?: "left" | "center" | "right";
+	};
+}
+
+const { node } = Astro.props;
+const variant = node?.variant === "primary" || node?.variant === "muted" ? node.variant : "default";
+const alignment = node?.alignment === "left" || node?.alignment === "right" ? node.alignment : "center";
+const ctaUrl = node?.ctaUrl ? sanitizeHref(node.ctaUrl) : undefined;
+---
+
+<section class:list={["emdash-cta-banner", `emdash-cta-banner--${variant}`, `emdash-cta-banner--${alignment}`]}>
+	<div class="emdash-cta-banner__content">
+		{node?.title && <h2 class="emdash-cta-banner__title">{node.title}</h2>}
+		{node?.description && <p class="emdash-cta-banner__description">{node.description}</p>}
+		{node?.ctaText && (
+			ctaUrl ? (
+				<a class="emdash-cta-banner__cta" href={ctaUrl}>
+					{node.ctaText}
+				</a>
+			) : (
+				<span class="emdash-cta-banner__cta">{node.ctaText}</span>
+			)
+		)}
+	</div>
+</section>
+
+<style>
+	.emdash-cta-banner {
+		--emdash-cta-bg-default: #f7f7f7;
+		--emdash-cta-border-default: #ddd;
+		--emdash-cta-text-default: #1f2937;
+		--emdash-cta-muted-default: #4b5563;
+		--emdash-cta-btn-bg-default: #0073aa;
+		--emdash-cta-btn-color-default: #fff;
+
+		margin: 1.5rem 0;
+		padding: 2.5rem 1.5rem;
+		text-align: center;
+		color: var(--emdash-cta-text, var(--text-color-kumo-default, var(--emdash-cta-text-default)));
+		border: 1px solid var(--emdash-cta-border, var(--color-kumo-line, var(--emdash-cta-border-default)));
+		border-radius: 8px;
+		background: var(--emdash-cta-bg, var(--color-kumo-tint, var(--emdash-cta-bg-default)));
+	}
+
+	.emdash-cta-banner--primary {
+		--emdash-cta-bg-default: #0073aa;
+		--emdash-cta-border-default: #0073aa;
+		--emdash-cta-text-default: #fff;
+		--emdash-cta-muted-default: #bfdbfe;
+		--emdash-cta-btn-bg-default: #fff;
+		--emdash-cta-btn-color-default: #0073aa;
+	}
+
+	.emdash-cta-banner--muted {
+		--emdash-cta-bg-default: #e5e7eb;
+		--emdash-cta-border-default: #d1d5db;
+		--emdash-cta-text-default: #1f2937;
+		--emdash-cta-muted-default: #4b5563;
+		--emdash-cta-btn-bg-default: #1f2937;
+		--emdash-cta-btn-color-default: #fff;
+	}
+
+	.emdash-cta-banner--left {
+		text-align: left;
+	}
+
+	.emdash-cta-banner--right {
+		text-align: right;
+	}
+
+	.emdash-cta-banner__content {
+		max-width: 42rem;
+		margin: 0 auto;
+	}
+
+	.emdash-cta-banner--left .emdash-cta-banner__content {
+		margin-left: 0;
+	}
+
+	.emdash-cta-banner--right .emdash-cta-banner__content {
+		margin-right: 0;
+	}
+
+	.emdash-cta-banner__title {
+		margin: 0;
+		font-size: 1.5rem;
+		line-height: 1.25;
+	}
+
+	.emdash-cta-banner__description {
+		max-width: 36rem;
+		margin: 0.75rem auto 0;
+		line-height: 1.6;
+		color: var(--emdash-cta-muted, var(--text-color-kumo-subtle, var(--emdash-cta-muted-default)));
+	}
+
+	.emdash-cta-banner__cta {
+		display: inline-block;
+		margin-top: 1.25rem;
+		padding: 0.75rem 1.75rem;
+		border-radius: 4px;
+		font-weight: 600;
+		text-decoration: none;
+		text-align: center;
+		transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+		background-color: var(--emdash-cta-btn-bg, var(--emdash-cta-btn-bg-default));
+		color: var(--emdash-cta-btn-color, var(--emdash-cta-btn-color-default));
+	}
+
+	.emdash-cta-banner__cta:hover {
+		opacity: 0.9;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-cta-banner {
+			--emdash-cta-bg-default: #1f2937;
+			--emdash-cta-border-default: #374151;
+			--emdash-cta-text-default: #f9fafb;
+			--emdash-cta-muted-default: #d1d5db;
+		}
+
+		.emdash-cta-banner--primary {
+			--emdash-cta-bg-default: #1e40af;
+			--emdash-cta-border-default: #1e40af;
+			--emdash-cta-text-default: #fff;
+			--emdash-cta-muted-default: #bfdbfe;
+			--emdash-cta-btn-bg-default: #fff;
+			--emdash-cta-btn-color-default: #1e40af;
+		}
+
+		.emdash-cta-banner--muted {
+			--emdash-cta-bg-default: #374151;
+			--emdash-cta-border-default: #4b5563;
+			--emdash-cta-text-default: #f9fafb;
+			--emdash-cta-muted-default: #d1d5db;
+			--emdash-cta-btn-bg-default: #f9fafb;
+			--emdash-cta-btn-color-default: #1f2937;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-cta-banner,
+	:global([data-theme="dark"]) .emdash-cta-banner,
+	:global(.dark) .emdash-cta-banner {
+		--emdash-cta-bg-default: #1f2937;
+		--emdash-cta-border-default: #374151;
+		--emdash-cta-text-default: #f9fafb;
+		--emdash-cta-muted-default: #d1d5db;
+	}
+
+	:global([data-mode="dark"]) .emdash-cta-banner--primary,
+	:global([data-theme="dark"]) .emdash-cta-banner--primary,
+	:global(.dark) .emdash-cta-banner--primary {
+		--emdash-cta-bg-default: #1e40af;
+		--emdash-cta-border-default: #1e40af;
+		--emdash-cta-text-default: #fff;
+		--emdash-cta-muted-default: #bfdbfe;
+		--emdash-cta-btn-bg-default: #fff;
+		--emdash-cta-btn-color-default: #1e40af;
+	}
+
+	:global([data-mode="dark"]) .emdash-cta-banner--muted,
+	:global([data-theme="dark"]) .emdash-cta-banner--muted,
+	:global(.dark) .emdash-cta-banner--muted {
+		--emdash-cta-bg-default: #374151;
+		--emdash-cta-border-default: #4b5563;
+		--emdash-cta-text-default: #f9fafb;
+		--emdash-cta-muted-default: #d1d5db;
+		--emdash-cta-btn-bg-default: #f9fafb;
+		--emdash-cta-btn-color-default: #1f2937;
+	}
+</style>
