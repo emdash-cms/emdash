@@ -128,7 +128,8 @@ function fetchOpenPrs(repo) {
 		"--state",
 		"open",
 		"--limit",
-		"200",
+		// gh's effective max; avoids silently omitting PRs from list / --needs-review.
+		"1000",
 		"--json",
 		"number,title,labels,createdAt,updatedAt,author,isDraft,mergeable,reviewDecision,statusCheckRollup",
 	]);
@@ -245,7 +246,12 @@ function main() {
 	const rest = [];
 	for (let i = 0; i < argv.length; i++) {
 		if (argv[i] === "--repo") {
-			repoOverride = argv[i + 1];
+			const value = argv[i + 1];
+			if (!value || value.startsWith("-")) {
+				console.error("--repo requires a value, e.g. --repo owner/name");
+				process.exit(1);
+			}
+			repoOverride = value;
 			i++;
 			continue;
 		}

@@ -26,7 +26,7 @@ jobs:
       contents: read
       pull-requests: write
     concurrency:
-      group: review-state-${{ github.event.pull_request.number || github.run_id }}
+      group: review-state-${{ github.event.pull_request.number || 'sweep' }}
       cancel-in-progress: false
     steps:
       - name: Apply review state labels
@@ -48,7 +48,7 @@ jobs:
               },
               'review/needs-rereview': {
                 color: 'd93f0b',
-                description: 'Author pushed changes since the last review',
+                description: 'New commits since the last review',
               },
               'review/approved': {
                 color: '0e8a16',
@@ -162,8 +162,9 @@ jobs:
                 }
 
                 // --- Last non-merge commit ---
-                // Merge commits (parents > 1) are "Update branch" / `git merge main`
-                // and must NOT count as the author making changes.
+                // Only NON-merge commits count as new work. Merge commits (parents > 1)
+                // are "Update branch" / `git merge main`, so syncing a branch with main
+                // does not flip a reviewed PR back to needs-rereview.
                 const commits = await github.paginate(github.rest.pulls.listCommits, {
                   owner,
                   repo,
