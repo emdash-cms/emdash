@@ -1559,7 +1559,7 @@ msgstr "Import fortsetzen"
 #: packages/admin/src/components/users/roleDefinitions.ts:24
 #: packages/admin/src/components/WelcomeModal.tsx:28
 msgid "Contributor"
-msgstr "Mitwirkende"
+msgstr "Mitwirkender"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:225
 #: packages/admin/src/components/users/InviteUserModal.tsx:134
@@ -3156,11 +3156,11 @@ msgstr "Installiere die"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:43
 msgid "Full access"
-msgstr "Voller Zugriff"
+msgstr "Uneingeschränkter Zugriff"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:96
 msgid "Full admin access"
-msgstr "Voller Admin-Zugriff"
+msgstr "Uneingeschränkter Zugriff"
 
 #: packages/admin/src/components/Settings.tsx:69
 msgid "General"
