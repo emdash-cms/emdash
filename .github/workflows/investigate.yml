@@ -188,22 +188,101 @@ jobs:
           npm install -g bgproc agent-browser
           agent-browser install
 
+      # DEBUG (temporary): agent-browser is built on playwright-core and
+      # shares ~/.cache/ms-playwright with the repo's Playwright. The
+      # `playwright install` step below stalls deterministically right
+      # after the browser zip reaches 100% (runs 26630115530, 26632563684),
+      # which smells like registry/lock contention in that shared cache.
+      # Capture what agent-browser leaves behind so we can compare against
+      # what `playwright install` then tries to do. Remove once root-caused.
+      - name: Debug -- ms-playwright cache after agent-browser
+        if: always()
+        run: |
+          CACHE="$HOME/.cache/ms-playwright"
+          echo "agent-browser: $(command -v agent-browser) $(agent-browser --version 2>&1 || true)"
+          echo "::group::ms-playwright cache (post agent-browser)"
+          ls -laR "$CACHE" 2>&1 | head -80 || echo "(cache missing)"
+          echo "--- locks / incomplete markers ---"
+          find "$CACHE" \( -name '*.lock' -o -name '__dirlock*' -o -name '*INCOMPLETE*' \) -printf '%p  %s bytes\n' 2>/dev/null || true
+          echo "::endgroup::"
+
       - name: Install root dependencies
         run: pnpm install --frozen-lockfile
 
       # The agent may write a Playwright test as the durable repro
       # artifact (per the repro-admin / repro-public skills) and run it
       # with `pnpm exec playwright test`. Playwright needs its own browser,
-      # separate from agent-browser's Chrome. Pre-install it here -- the
-      # same command the repo's own e2e CI uses -- so the agent never
-      # stalls on a mid-run `playwright install` (observed hanging for
-      # 15+ minutes behind a buffered pipe, with no visible progress).
-      # Runners are in Azure, same network as the Playwright CDN, so a
-      # healthy install finishes in well under a minute; the tight bound
-      # fails fast if the download stalls instead of hanging the run.
-      - name: Install Playwright browser
-        timeout-minutes: 3
-        run: pnpm exec playwright install --with-deps chromium
+      # separate from agent-browser's Chrome.
+      #
+      # DEBUG (temporary): this step deterministically stalls right after
+      # the browser zip hits 100% (runs 26630115530, 26632563684); retries
+      # do not help, so it is not a flaky CDN node. Run the install in the
+      # background with DEBUG=pw:install and snapshot process + cache + lock
+      # + socket state every 15s so the hang is captured instead of opaque.
+      # Once we know the cause, replace this whole block with the plain
+      # `pnpm exec playwright install --with-deps chromium`.
+      - name: Install Playwright browser (debug)
+        timeout-minutes: 6
+        env:
+          DEBUG: pw:install
+        run: |
+          set -uo pipefail
+          CACHE="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"
+
+          echo "::group::environment"
+          echo "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-<unset>}"
+          echo "HOME=$HOME  USER=$(whoami)"
+          echo "playwright version: $(pnpm exec playwright --version 2>&1 || echo '?')"
+          echo "node: $(node -v)  pnpm: $(pnpm -v)"
+          df -h "$HOME" || true
+          echo "::endgroup::"
+
+          echo "::group::cache BEFORE playwright install"
+          ls -laR "$CACHE" 2>&1 | head -80 || echo "(cache missing)"
+          echo "--- locks / incomplete ---"
+          find "$CACHE" \( -name '*.lock' -o -name '__dirlock*' -o -name '*INCOMPLETE*' \) -printf '%p  %s bytes\n' 2>/dev/null || true
+          echo "::endgroup::"
+
+          # Background the install so we can poll while it runs. stdbuf keeps
+          # the DEBUG=pw:install output line-buffered so it lands live.
+          : > /tmp/pw-install.log
+          (
+            stdbuf -oL -eL pnpm exec playwright install --with-deps chromium > /tmp/pw-install.log 2>&1
+            echo $? > /tmp/pw-install.exit
+          ) &
+          PW=$!
+
+          for i in $(seq 1 22); do
+            if ! kill -0 "$PW" 2>/dev/null; then echo "install process exited"; break; fi
+            sleep 15
+            echo "::group::watchdog tick $i  $(date -u +%H:%M:%S)"
+            echo "--- tail install log ---"; tail -n 15 /tmp/pw-install.log 2>/dev/null || true
+            echo "--- download/install processes ---"
+            ps -eo pid,ppid,etimes,stat,rss,comm,args 2>/dev/null | grep -iE 'playwright|install|chrome|unzip|curl|wget|tar' | grep -v grep || echo "(none)"
+            echo "--- cache tree ---"; find "$CACHE" -maxdepth 2 2>/dev/null | head -40 || true
+            echo "--- locks / incomplete ---"
+            find "$CACHE" \( -name '*.lock' -o -name '__dirlock*' -o -name '*INCOMPLETE*' \) -printf '%p  %s bytes  mtime=%t\n' 2>/dev/null || true
+            echo "--- open files under cache ---"
+            command -v lsof >/dev/null && lsof +D "$CACHE" 2>/dev/null | head -25 || echo "(lsof unavailable)"
+            echo "--- sockets ---"
+            command -v ss >/dev/null && ss -tanp 2>/dev/null | grep -iE 'ESTAB|SYN-SENT' | head -15 || echo "(ss unavailable)"
+            echo "::endgroup::"
+          done
+
+          wait "$PW" 2>/dev/null || true
+          echo "::group::cache AFTER"
+          ls -laR "$CACHE" 2>&1 | head -80 || true
+          echo "::endgroup::"
+          echo "::group::full install log"
+          cat /tmp/pw-install.log 2>/dev/null || true
+          echo "::endgroup::"
+
+          EXIT="$(cat /tmp/pw-install.exit 2>/dev/null || echo 1)"
+          echo "playwright install exit=$EXIT"
+          if [ "$EXIT" != "0" ]; then
+            echo "::error::playwright install failed or stalled (exit $EXIT) -- see watchdog snapshots above"
+            exit 1
+          fi
 
       - name: Install Flue agent dependencies
         run: pnpm install --frozen-lockfile
