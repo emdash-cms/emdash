@@ -1,0 +1,217 @@
+name: Review State
+
+# Event-driven interpreter that maintains four mutually-exclusive review/*
+# labels on open PRs so maintainers can see review status at a glance.
+# Pure actions/github-script: no checkout, no secrets, no agent.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+  schedule:
+    # Backstop sweep so state stays correct even if an event was missed.
+    - cron: "15 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  review-state:
+    name: Update review state labels
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    concurrency:
+      group: review-state-${{ github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: false
+    steps:
+      - name: Apply review state labels
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // The four mutually-exclusive review states.
+            const stateLabels = {
+              'review/needs-review': {
+                color: 'fbca04',
+                description: 'No maintainer or bot review yet',
+              },
+              'review/awaiting-author': {
+                color: 'c5def5',
+                description: 'Reviewed; waiting on the author to respond',
+              },
+              'review/needs-rereview': {
+                color: 'd93f0b',
+                description: 'Author pushed changes since the last review',
+              },
+              'review/approved': {
+                color: '0e8a16',
+                description: 'Approved; no new commits since',
+              },
+            };
+            const stateNames = Object.keys(stateLabels);
+
+            // --- Ensure the four labels exist (mirrors pr-sweep.yml) ---
+            const existingLabels = new Set();
+            for await (const response of github.paginate.iterator(
+              github.rest.issues.listLabelsForRepo,
+              { owner, repo, per_page: 100 }
+            )) {
+              for (const label of response.data) {
+                existingLabels.add(label.name);
+              }
+            }
+            for (const [name, meta] of Object.entries(stateLabels)) {
+              if (!existingLabels.has(name)) {
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name,
+                  color: meta.color,
+                  description: meta.description,
+                });
+              }
+            }
+
+            // Remove a label, ignoring 404 if it's already gone (mirrors pr-sweep.yml).
+            async function safeRemoveLabel(prNumber, name) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo,
+                  issue_number: prNumber,
+                  name,
+                });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+              }
+            }
+
+            // --- Determine the set of PRs to process ---
+            let prs;
+            if (
+              context.eventName === 'pull_request_target' ||
+              context.eventName === 'pull_request_review'
+            ) {
+              prs = [context.payload.pull_request];
+            } else {
+              // schedule / workflow_dispatch: sweep every open PR.
+              prs = await github.paginate(github.rest.pulls.list, {
+                owner,
+                repo,
+                state: 'open',
+                per_page: 100,
+              });
+            }
+
+            core.info(`Processing ${prs.length} PR(s) for review state`);
+
+            for (const pr of prs) {
+              if (!pr) continue;
+              try {
+                const currentLabels = new Set((pr.labels || []).map(l => l.name));
+
+                // Drafts get no review state: strip any review/* labels and move on.
+                if (pr.draft === true) {
+                  for (const name of stateNames) {
+                    if (currentLabels.has(name)) {
+                      await safeRemoveLabel(pr.number, name);
+                    }
+                  }
+                  core.info(`#${pr.number}: draft, cleared review state`);
+                  continue;
+                }
+
+                // Skip bot-authored PRs entirely (no labeling).
+                if (pr.user && pr.user.type === 'Bot') {
+                  core.info(`#${pr.number}: bot author, skipping`);
+                  continue;
+                }
+
+                // --- Qualifying reviews ---
+                const reviews = await github.paginate(github.rest.pulls.listReviews, {
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  per_page: 100,
+                });
+                const qualifying = reviews.filter(review =>
+                  review.user &&
+                  review.user.login !== pr.user.login &&
+                  (
+                    review.user.type === 'Bot' ||
+                    ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(review.author_association)
+                  ) &&
+                  ['APPROVED', 'CHANGES_REQUESTED', 'COMMENTED'].includes(review.state)
+                );
+
+                let lastReview = null;
+                for (const review of qualifying) {
+                  if (
+                    !lastReview ||
+                    new Date(review.submitted_at) > new Date(lastReview.submitted_at)
+                  ) {
+                    lastReview = review;
+                  }
+                }
+
+                // --- Last non-merge commit ---
+                // Merge commits (parents > 1) are "Update branch" / `git merge main`
+                // and must NOT count as the author making changes.
+                const commits = await github.paginate(github.rest.pulls.listCommits, {
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  per_page: 100,
+                });
+                let lastCommitAt;
+                for (const commit of commits) {
+                  if (commit.parents && commit.parents.length > 1) continue;
+                  const committed = commit.commit?.committer?.date;
+                  if (!committed) continue;
+                  if (!lastCommitAt || new Date(committed) > new Date(lastCommitAt)) {
+                    lastCommitAt = committed;
+                  }
+                }
+
+                // --- Decide the state ---
+                let desired;
+                if (!lastReview) {
+                  desired = 'review/needs-review';
+                } else if (
+                  lastCommitAt &&
+                  new Date(lastCommitAt) > new Date(lastReview.submitted_at)
+                ) {
+                  desired = 'review/needs-rereview';
+                } else if (lastReview.state === 'APPROVED') {
+                  desired = 'review/approved';
+                } else {
+                  desired = 'review/awaiting-author';
+                }
+
+                // --- Apply: add the chosen label, remove the other three ---
+                if (!currentLabels.has(desired)) {
+                  await github.rest.issues.addLabels({
+                    owner,
+                    repo,
+                    issue_number: pr.number,
+                    labels: [desired],
+                  });
+                }
+                for (const name of stateNames) {
+                  if (name !== desired && currentLabels.has(name)) {
+                    await safeRemoveLabel(pr.number, name);
+                  }
+                }
+
+                core.info(`#${pr.number}: ${desired}`);
+              } catch (e) {
+                core.warning(`#${pr.number}: failed to update review state: ${e.message}`);
+              }
+            }
