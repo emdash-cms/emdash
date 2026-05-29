@@ -1031,7 +1031,11 @@ export function ContentEditor({
 							{/* Taxonomy selector */}
 							{item && (
 								<div className="p-4 border-t">
-									<TaxonomySidebar collection={collection} entryId={item.id} />
+									<TaxonomySidebar
+										collection={collection}
+										entryId={item.id}
+										entryLocale={item.locale ?? entryLocale}
+									/>
 								</div>
 							)}
 
