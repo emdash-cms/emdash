@@ -87,30 +87,24 @@ async function getBylineFieldsVersion(db: Kysely<Database>): Promise<number> {
 }
 
 /**
- * Resolve the registered byline custom-field definitions for the current
- * request. Two-tier caching as described in the module header:
+ * Resolve registered byline custom-field definitions. Two-tier cache:
+ * per-request via `requestCached`, then per-isolate via the global
+ * holder.
  *
- *   1. Per-request: at most one version read and one defs fetch per
- *      request, regardless of how many `BylineRepository` calls happen.
- *   2. Per-isolate: defs survive across requests until the persisted
- *      version changes — **except when the request uses an isolated
- *      database**, in which case the global holder is bypassed.
+ * The global holder is bypassed for isolated requests (playground / DO
+ * preview, which point at a divergent schema) and for dirty versions
+ * (odd counter — see `BylineSchemaRegistry`'s class JSDoc — indicates
+ * an in-flight or crashed mutation). Both bypass paths still hit the
+ * per-request cache, so a single render dedupes within itself.
  *
- * Always returns an array — never throws on a missing version row or an
- * empty registry. An empty array means "no custom fields registered",
- * which is the opt-in default for sites that haven't declared any.
+ * Always returns an array. Empty = no custom fields registered.
  */
 export async function getBylineFieldDefs(db: Kysely<Database>): Promise<BylineFieldDefinition[]> {
 	const isolated = getRequestContext()?.dbIsIsolated === true;
 	const version = await getBylineFieldsVersion(db);
+	const dirty = version % 2 !== 0;
 	return requestCached(`${REQUEST_CACHE_KEY_DEFS_PREFIX}${version}`, async () => {
-		// Skip the global holder for isolated requests — playground and DO
-		// preview point at schemas that may diverge from the singleton, and
-		// a version-number collision must not leak the singleton's defs.
-		// The per-request cache above is still in play because it's keyed
-		// by the request context itself, so the isolated request still
-		// dedupes within its own lifetime.
-		if (isolated) {
+		if (isolated || dirty) {
 			return new BylineSchemaRegistry(db).listFields();
 		}
 		if (holder.cached !== null && holder.cachedVersion === version) {

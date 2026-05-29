@@ -208,14 +208,18 @@ describe("BylineSchemaRegistry", () => {
 			expect(afterCreate).toBeGreaterThan(before);
 		});
 
-		it("no-op updates return the field without bumping the version", async () => {
+		it("no-op updates return the field and force-advance the clean marker", async () => {
+			// No-op updates call markVersionClean (always-advance) so the
+			// same path doubles as false-clean recovery.
 			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
 			const v = await registry.getVersion();
 
 			const result = await registry.updateField("job_title", {});
 
 			expect(result.slug).toBe("job_title");
-			expect(await registry.getVersion()).toBe(v);
+			const after = await registry.getVersion();
+			expect(after).toBeGreaterThan(v);
+			expect(after % 2).toBe(0);
 		});
 
 		it("rejects unknown slugs with FIELD_NOT_FOUND", async () => {
@@ -453,32 +457,44 @@ describe("BylineSchemaRegistry", () => {
 		// the counter by exactly 2, and a mutation rejected at validation
 		// (before any DB write) does not bump at all.
 
-		it("createField bumps the version by 2 (validation errors do NOT bump)", async () => {
+		it("createField bumps the version by 2 on success; pre-DB validation errors do NOT bump", async () => {
 			const v0 = await registry.getVersion();
 
-			// Pre-bump validation: an invalid slug never reaches the bump.
+			// Pre-DB validation: an invalid slug throws before any version
+			// write — no recovery hook fires either, so the counter is
+			// untouched.
 			await expect(
 				registry.createField({ slug: "JobTitle", label: "Job title", type: "string" }),
 			).rejects.toMatchObject({ code: "INVALID_SLUG" });
 			expect(await registry.getVersion()).toBe(v0);
 
-			// Successful path: bumps land before + after.
+			// Successful path: markDirty + markClean = +2.
 			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
 			expect(await registry.getVersion()).toBe(v0 + 2);
 
-			// Duplicate-slug check is pre-bump too (we call getField first).
+			// Duplicate-slug check now calls `markVersionClean` (the
+			// always-advance contract — see registry class JSDoc). This
+			// covers recovery from a concurrent-collapse false-clean, so
+			// the counter moves by +2 (even → next even) on this path.
 			await expect(
 				registry.createField({ slug: "job_title", label: "Other", type: "string" }),
 			).rejects.toMatchObject({ code: "FIELD_EXISTS" });
-			expect(await registry.getVersion()).toBe(v0 + 2);
+			const afterDup = await registry.getVersion();
+			expect(afterDup).toBeGreaterThan(v0 + 2);
+			expect(afterDup % 2).toBe(0);
 		});
 
-		it("deleteField bumps the version by 2 (FIELD_NOT_FOUND does NOT bump)", async () => {
+		it("deleteField bumps the version by 2 on success; FIELD_NOT_FOUND advances via recovery", async () => {
 			const v0 = await registry.getVersion();
+			// FIELD_NOT_FOUND fires markVersionClean unconditionally — the
+			// recovery hook also doubles as the concurrent-collapse defense.
+			// Counter advances by +2 (even → next even).
 			await expect(registry.deleteField("missing")).rejects.toMatchObject({
 				code: "FIELD_NOT_FOUND",
 			});
-			expect(await registry.getVersion()).toBe(v0);
+			const afterMiss = await registry.getVersion();
+			expect(afterMiss).toBeGreaterThan(v0);
+			expect(afterMiss % 2).toBe(0);
 
 			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
 			const v1 = await registry.getVersion();
@@ -524,6 +540,106 @@ describe("BylineSchemaRegistry", () => {
 
 			await registry.reorderFields(["b", "a"]);
 			expect(await registry.getVersion()).toBe(v0 + 2);
+		});
+	});
+
+	describe("dirty-version recovery (#1174 BUG 1)", () => {
+		// Simulates a crash between `markVersionDirty` and `markVersionClean`
+		// by setting the version row to an odd value directly.
+
+		async function setVersionDirty(value: number): Promise<void> {
+			if (value % 2 === 0) throw new Error("test setup: value must be odd");
+			await sql`
+				INSERT INTO options (name, value)
+				VALUES ('byline_fields_version', ${String(value)})
+				ON CONFLICT(name) DO UPDATE SET value = ${String(value)}
+			`.execute(db);
+		}
+
+		it("createField FIELD_EXISTS recovers an odd version to even", async () => {
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+			await setVersionDirty(99);
+
+			await expect(
+				registry.createField({ slug: "job_title", label: "Other", type: "string" }),
+			).rejects.toMatchObject({ code: "FIELD_EXISTS" });
+
+			const after = await registry.getVersion();
+			expect(after % 2).toBe(0);
+		});
+
+		it("deleteField FIELD_NOT_FOUND recovers an odd version to even", async () => {
+			await setVersionDirty(7);
+
+			await expect(registry.deleteField("does_not_exist")).rejects.toMatchObject({
+				code: "FIELD_NOT_FOUND",
+			});
+
+			expect((await registry.getVersion()) % 2).toBe(0);
+		});
+
+		it("updateField FIELD_NOT_FOUND recovers an odd version to even", async () => {
+			await setVersionDirty(5);
+
+			await expect(registry.updateField("ghost", { label: "X" })).rejects.toMatchObject({
+				code: "FIELD_NOT_FOUND",
+			});
+
+			expect((await registry.getVersion()) % 2).toBe(0);
+		});
+
+		it("updateField no-op input recovers an odd version to even", async () => {
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+			await setVersionDirty(9);
+
+			// Empty input is the "explicit no-op" idempotent exit. Returns
+			// the current field shape; must restore parity if dirty.
+			const result = await registry.updateField("job_title", {});
+			expect(result.slug).toBe("job_title");
+			expect((await registry.getVersion()) % 2).toBe(0);
+		});
+
+		it("recovery exits force-advance the version even when starting from clean", async () => {
+			// Always-advance contract: a retry that hits FIELD_EXISTS on
+			// a clean counter could be recovering from a concurrent-collapse
+			// false-clean, so the exit must still produce a counter change.
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+			const v = await registry.getVersion();
+			expect(v % 2).toBe(0);
+
+			await expect(
+				registry.createField({ slug: "job_title", label: "Dup", type: "string" }),
+			).rejects.toMatchObject({ code: "FIELD_EXISTS" });
+
+			const after = await registry.getVersion();
+			expect(after).toBeGreaterThan(v);
+			expect(after % 2).toBe(0);
+		});
+
+		it("a successful mutation starting from dirty ends at even", async () => {
+			// Without parity-aware helpers, a successful mutation starting
+			// from dirty would take odd → even → odd (cache bypass
+			// forever). The helpers guarantee odd → odd → even.
+			await registry.createField({ slug: "existing", label: "Existing", type: "string" });
+			await setVersionDirty(11);
+
+			await registry.createField({ slug: "fresh_field", label: "Fresh", type: "string" });
+
+			const after = await registry.getVersion();
+			expect(after % 2).toBe(0);
+		});
+
+		it("missing version row is initialised on first markVersionDirty", async () => {
+			// Cold-start: upsert must initialise the row, not silently no-op.
+			await sql`DELETE FROM options WHERE name = 'byline_fields_version'`.execute(db);
+			expect(await registry.getVersion()).toBe(0);
+
+			// A successful create runs markVersionDirty → markVersionClean
+			// against the now-missing row. Both must land.
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+
+			// +1 for dirty (no row → '1'), +1 for clean (= 2). Even & visible.
+			expect(await registry.getVersion()).toBe(2);
 		});
 	});
 

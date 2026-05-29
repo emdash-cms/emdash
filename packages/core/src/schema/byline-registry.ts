@@ -102,66 +102,40 @@ export function mapBylineSchemaError(error: BylineSchemaError): {
 /**
  * Registry for byline custom fields (Discussion #1174).
  *
- * Owns CRUD over `_emdash_byline_fields` plus the persisted
- * `options.byline_fields_version` counter that the field-defs cache reads.
- * Every mutation bumps the counter in a single set-based UPDATE so the
- * increment is atomic on every supported dialect (SQLite serialises
- * writes; D1 inherits that; Postgres handles concurrent UPDATEs via row-
- * level locking).
+ * Owns CRUD over `_emdash_byline_fields` and the
+ * `options.byline_fields_version` counter that drives cache
+ * invalidation in `bylines/field-defs-cache.ts`.
  *
- * **Bump-twice inside a transaction (crash + concurrency safety).** Every
- * mutation method wraps `bumpVersion → mutate → bumpVersion` in
- * `withTransaction`. On Node SQLite + Postgres the three statements are
- * atomic — cache readers see either the pre-mutation state at the old
- * version or the post-mutation state at the new version, never a partial.
- * On D1 (no transactions) the calls run sequentially and the cache can
- * briefly observe an intermediate state; the second bump narrows that
- * window to the millisecond gap between mutation and second-bump SQL.
+ * **Dirty-bit bookend.** Every mutation runs `markVersionDirty` before
+ * the schema write and `markVersionClean` after, as standalone writes
+ * (not inside `withTransaction`) so concurrent isolates observe the
+ * dirty mark *before* the mutation lands. Parity carries meaning:
+ * odd = mutation in flight or crashed mid-flight, even = stable.
+ * The cache bypasses the global holder while odd.
  *
- * Why bump twice (the obvious "bump once after" leaves a worse window):
+ * `markVersionDirty` is parity-aware (idempotent on odd) so a
+ * crashed prior attempt doesn't invert the bit.
+ * `markVersionClean` always advances to a new even value (+2 from
+ * even, +1 from odd) so concurrent mutators can't collapse on the
+ * same key and pin a stale cache snapshot. Idempotent-retry exits
+ * (`FIELD_EXISTS` / `FIELD_NOT_FOUND` / no-op update) call
+ * `markVersionClean` too — same code path doubles as crash recovery
+ * and false-clean recovery.
  *
- * - **Bump after only**: a crash between mutation and bump leaves the
- *   schema changed but the version unchanged. Caches stay stuck stale
- *   *until the next successful mutation* — potentially forever. A retry
- *   of the same op throws `FIELD_EXISTS`/`FIELD_NOT_FOUND` and never
- *   reaches the bump line.
- * - **Bump before only**: a concurrent hydration request between bump
- *   and mutation can read the new version, fetch the *old* defs, and
- *   cache them under the new version — stuck stale until the next
- *   mutation. The Phase 3 reviewer caught this.
- * - **Bump before + bump after**: covers both. The first bump
- *   invalidates existing caches before the mutation lands (crash here
- *   is safe — caches refresh to the still-old schema, retry recovers).
- *   The second bump invalidates caches that captured the mid-transition
- *   state (race here is bounded by the bump-to-bump duration). Cost is
- *   one extra `UPDATE options` per mutation, single set-based SQL,
- *   negligible at the scale schema mutations happen.
+ * The residual race: a reader caching between two concurrent
+ * `markVersionClean` calls sees a partial-set snapshot until the
+ * second clean lands. Bounded by the inter-clean window (~ms).
+ * Schema mutations are admin-only and rare; acceptable for now.
+ * A CAS-on-bump or dialect-specific lock is tracked as follow-up.
  *
- * The residual unsafe window on D1 — crash between mutation and second
- * bump — is the same fundamental D1 limitation that affects every
- * multi-statement consistency invariant in this codebase. It's bounded
- * by the time-to-issue-one-SQL-UPDATE (~ms) rather than unbounded.
+ * **`deleteField` cascade.** Migration 041 already declares
+ * `ON DELETE CASCADE` on both value tables. The explicit deletes
+ * here are defense-in-depth against FK-pragma misconfig and mirror
+ * `BylineRepository.delete`'s app-level cascade for the bylines
+ * domain.
  *
- * **Application-level cascade in `deleteField`.** Migration 041 declares
- * FK ON DELETE CASCADE on both value tables, and at runtime SQLite + D1 +
- * Postgres all enforce it. `deleteField` *also* deletes value rows
- * explicitly inside the same `withTransaction` block as a defense-in-
- * depth measure — the explicit DELETE is independent of FK pragma config
- * (useful for tests and ad-hoc scripts that bypass `connection.ts`),
- * mirrors the precedent set by `BylineRepository.delete` (which had to
- * implement app-level cascade because migration 040 dropped its FK
- * entirely), and makes the deletion semantics readable at the call site.
- *
- * The registry intentionally does not touch the value tables
- * (`_emdash_byline_field_values`, `_emdash_byline_field_group_values`)
- * *during write operations on byline values* — those are owned by
- * `BylineRepository.update` (Phase 3). `deleteField`'s value-row cleanup
- * is a schema-side concern (removing definitions), not a value-side one.
- *
- * Reserved-slug rejection happens at the API layer (zod schema, Phase 4)
- * *and* here — the registry never trusts callers to have already
- * validated. The double check keeps the registry safe to use from
- * non-HTTP code paths (seeds, scripts, future internal callers).
+ * Reserved-slug rejection runs at the API layer (zod) *and* here so
+ * non-HTTP callers (seeds, scripts) can't bypass the check.
  */
 export class BylineSchemaRegistry {
 	constructor(private db: Kysely<Database>) {}
@@ -202,6 +176,8 @@ export class BylineSchemaRegistry {
 
 		const existing = await this.getField(input.slug);
 		if (existing) {
+			// Idempotent retry exit — see class JSDoc.
+			await this.markVersionClean();
 			throw new BylineSchemaError(`Byline field "${input.slug}" already exists`, "FIELD_EXISTS", {
 				slug: input.slug,
 			});
@@ -210,13 +186,8 @@ export class BylineSchemaRegistry {
 		const id = ulid();
 		const sortOrder = input.sortOrder ?? (await this.nextSortOrder());
 
-		// Bump-twice inside a transaction: see class JSDoc. All validation
-		// (slug, label, type, validation payload, FIELD_EXISTS) has already
-		// run above, so the only way this can fail now is a concurrent
-		// insert of the same slug (UNIQUE), which rolls back the whole tx
-		// on Node SQLite + PG — keeping the bumps and the row atomic.
+		await this.markVersionDirty();
 		await withTransaction(this.db, async (trx) => {
-			await this.bumpVersion(trx);
 			await trx
 				.insertInto("_emdash_byline_fields")
 				.values({
@@ -230,8 +201,8 @@ export class BylineSchemaRegistry {
 					sort_order: sortOrder,
 				})
 				.execute();
-			await this.bumpVersion(trx);
 		});
+		await this.markVersionClean();
 
 		const created = await this.getFieldById(id);
 		if (!created) {
@@ -247,6 +218,8 @@ export class BylineSchemaRegistry {
 	async updateField(slug: string, input: UpdateBylineFieldInput): Promise<BylineFieldDefinition> {
 		const field = await this.getField(slug);
 		if (!field) {
+			// Idempotent retry exit — see class JSDoc.
+			await this.markVersionClean();
 			throw new BylineSchemaError(`Byline field "${slug}" not found`, "FIELD_NOT_FOUND", {
 				slug,
 			});
@@ -301,26 +274,23 @@ export class BylineSchemaRegistry {
 		}
 
 		if (Object.keys(updates).length === 0) {
-			// No-op update — still return the current field shape so callers
-			// don't have to special-case "nothing changed". Don't bump the
-			// version counter: caches stay valid.
+			// No-op update — still advance the clean marker in case
+			// we're recovering a crashed prior attempt.
+			await this.markVersionClean();
 			return field;
 		}
 
 		updates.updated_at = new Date().toISOString();
 
-		// Bump-twice inside a transaction: see class JSDoc. All validation
-		// (including translatable-flip safety) has run; the UPDATE is
-		// idempotent.
+		await this.markVersionDirty();
 		await withTransaction(this.db, async (trx) => {
-			await this.bumpVersion(trx);
 			await trx
 				.updateTable("_emdash_byline_fields")
 				.set(updates)
 				.where("id", "=", field.id)
 				.execute();
-			await this.bumpVersion(trx);
 		});
+		await this.markVersionClean();
 
 		const updated = await this.getFieldById(field.id);
 		if (!updated) {
@@ -334,22 +304,18 @@ export class BylineSchemaRegistry {
 	async deleteField(slug: string): Promise<void> {
 		const field = await this.getField(slug);
 		if (!field) {
+			// Idempotent retry exit — see class JSDoc.
+			await this.markVersionClean();
 			throw new BylineSchemaError(`Byline field "${slug}" not found`, "FIELD_NOT_FOUND", {
 				slug,
 			});
 		}
 
-		// Bump-twice inside the same transaction as the cascade. See class
-		// JSDoc. Application-level cascade order matters on D1 (no tx):
-		// value rows first, definition row last, so a crash leaves the
-		// definition still present (deletable on retry) rather than orphan
-		// values pointing at a vanished definition id. The FKs in migration
-		// 041 already ON DELETE CASCADE; doing it explicitly here adds
-		// defense-in-depth against FK-pragma misconfig and mirrors
-		// `BylineRepository.delete`'s app-level cascade for the bylines
-		// domain.
+		// Delete order matters on D1 (no tx): value rows first, definition
+		// row last, so a crash leaves the definition recoverable on retry
+		// rather than orphan values pointing at a vanished id.
+		await this.markVersionDirty();
 		await withTransaction(this.db, async (trx) => {
-			await this.bumpVersion(trx);
 			await trx
 				.deleteFrom("_emdash_byline_field_values")
 				.where("field_id", "=", field.id)
@@ -359,8 +325,8 @@ export class BylineSchemaRegistry {
 				.where("field_id", "=", field.id)
 				.execute();
 			await trx.deleteFrom("_emdash_byline_fields").where("id", "=", field.id).execute();
-			await this.bumpVersion(trx);
 		});
+		await this.markVersionClean();
 	}
 
 	/**
@@ -398,12 +364,9 @@ export class BylineSchemaRegistry {
 			}
 		}
 
-		// Bump-twice inside the transaction with the reorder loop. See
-		// class JSDoc. Each UPDATE writes a fixed sort_order to a fixed
-		// slug, so the loop is idempotent on retry.
 		const now = new Date().toISOString();
+		await this.markVersionDirty();
 		await withTransaction(this.db, async (trx) => {
-			await this.bumpVersion(trx);
 			for (let i = 0; i < slugs.length; i++) {
 				const slug = slugs[i];
 				if (slug === undefined) continue;
@@ -413,8 +376,8 @@ export class BylineSchemaRegistry {
 					.where("slug", "=", slug)
 					.execute();
 			}
-			await this.bumpVersion(trx);
 		});
+		await this.markVersionClean();
 	}
 
 	/**
@@ -482,25 +445,39 @@ export class BylineSchemaRegistry {
 	// ============================================
 
 	/**
-	 * Atomic version increment. A single set-based UPDATE means every
-	 * concurrent mutation lands as its own increment — no read-modify-write
-	 * window. SQLite + D1 serialise writes; Postgres handles the contention
-	 * via row-level locking on the `options` row.
-	 *
-	 * Stored as a JSON number literal (`5`, not `"5"`) so `JSON.parse` reads
-	 * it back as a number on the cache path.
-	 *
-	 * The optional `conn` parameter lets callers run the bump inside an
-	 * outer transaction so it lands atomically with the mutation it pairs
-	 * with — see the class JSDoc for the bump-twice ordering rationale.
+	 * Force the version counter to an odd integer ("dirty"). Idempotent
+	 * on odd so a crashed prior attempt can't invert parity. Upsert to
+	 * cover the missing-row case (otherwise the flip silently no-ops).
+	 * See the class JSDoc for the bookend rationale.
 	 */
-	private async bumpVersion(conn?: Kysely<Database>): Promise<void> {
-		const target = conn ?? this.db;
+	private async markVersionDirty(): Promise<void> {
 		await sql`
-			UPDATE options
-			SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)
-			WHERE name = ${VERSION_KEY}
-		`.execute(target);
+			INSERT INTO options (name, value)
+			VALUES (${VERSION_KEY}, '1')
+			ON CONFLICT(name) DO UPDATE SET value = CASE
+				WHEN CAST(value AS INTEGER) % 2 = 0
+					THEN CAST(CAST(value AS INTEGER) + 1 AS TEXT)
+				ELSE value
+			END
+		`.execute(this.db);
+	}
+
+	/**
+	 * Force the version counter to a **new** even integer (+2 from even,
+	 * +1 from odd). Always-advance — never a no-op — so two concurrent
+	 * mutators can't collapse on the same even key and pin a stale cache
+	 * snapshot. See the class JSDoc for the concurrent-collapse rationale.
+	 */
+	private async markVersionClean(): Promise<void> {
+		await sql`
+			INSERT INTO options (name, value)
+			VALUES (${VERSION_KEY}, '2')
+			ON CONFLICT(name) DO UPDATE SET value = CASE
+				WHEN CAST(value AS INTEGER) % 2 = 0
+					THEN CAST(CAST(value AS INTEGER) + 2 AS TEXT)
+				ELSE CAST(CAST(value AS INTEGER) + 1 AS TEXT)
+			END
+		`.execute(this.db);
 	}
 
 	private async nextSortOrder(): Promise<number> {

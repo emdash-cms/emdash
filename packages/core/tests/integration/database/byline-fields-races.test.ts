@@ -1,23 +1,9 @@
 /**
- * Byline field registry — concurrent-mutation safety
- *
- * Phase 2 of Discussion #1174 mandates that every mutation on
- * `BylineSchemaRegistry` bumps `options.byline_fields_version` atomically,
- * so two concurrent mutations don't collapse into one increment. The
- * registry implements this with a single set-based UPDATE
- * (`SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT)`); this suite
- * proves that contract end-to-end on every supported dialect.
- *
- * SQLite + D1: writes are serialised at the database level, so "concurrent"
- * here means "fired in parallel via `Promise.all`" — the test verifies the
- * code path is set-based rather than read-modify-write (the latter would
- * deadlock or drop increments under serialisation).
- *
- * Postgres: real row-level concurrency. The atomic UPDATE relies on PG's
- * default `READ COMMITTED` isolation behaviour on UPDATE statements,
- * which acquires a row-level lock for the duration of the statement.
- * Concurrent UPDATEs serialise behind the lock; each one observes the
- * latest committed value and applies its +1.
+ * Byline field registry — concurrent-mutation safety under the
+ * parity-aware bookend (Phase 6 of #1174). Asserts post-state
+ * correctness (every row lands, final version is even) rather than
+ * exact +N increments — concurrent mutators can collapse one or both
+ * bookends, which is fine per the registry's class JSDoc.
  *
  * Activate Postgres parity by exporting `EMDASH_TEST_PG=1` and pointing
  * `PG_CONNECTION_STRING` at a writable test database.
@@ -46,7 +32,7 @@ describeEachDialect("BylineSchemaRegistry concurrency", (dialect) => {
 		await teardownForDialect(ctx);
 	});
 
-	it("parallel createField calls each land their own version increment", async () => {
+	it("parallel createField calls all land their rows and the post-state version is even", async () => {
 		const startVersion = await registry.getVersion();
 		const slugs = Array.from({ length: 10 }, (_, i) => `field_${i}`);
 
@@ -54,18 +40,19 @@ describeEachDialect("BylineSchemaRegistry concurrency", (dialect) => {
 			slugs.map((slug) => registry.createField({ slug, label: slug, type: "string" })),
 		);
 
-		// Every create either succeeded (FIELD_EXISTS shouldn't fire because
-		// slugs are unique) — collect successes and count them.
-		const succeeded = results.filter((r) => r.status === "fulfilled").length;
-		expect(succeeded).toBe(slugs.length);
+		expect(results.filter((r) => r.status === "fulfilled").length).toBe(slugs.length);
+
+		const reloadedSlugs = (await registry.listFields()).map((f) => f.slug);
+		for (const slug of slugs) {
+			expect(reloadedSlugs).toContain(slug);
+		}
 
 		const endVersion = await registry.getVersion();
-		// Each successful mutation bumps the counter twice (before + after
-		// the schema change). 10 creates → 20 increments.
-		expect(endVersion - startVersion).toBe(slugs.length * 2);
+		expect(endVersion).toBeGreaterThan(startVersion);
+		expect(endVersion % 2).toBe(0);
 	});
 
-	it("parallel updateField calls don't lose version increments", async () => {
+	it("parallel updateField calls all land and post-state version is even", async () => {
 		const field = await registry.createField({
 			slug: "job_title",
 			label: "Job title",
@@ -77,12 +64,8 @@ describeEachDialect("BylineSchemaRegistry concurrency", (dialect) => {
 		await Promise.allSettled(labels.map((label) => registry.updateField("job_title", { label })));
 
 		const after = await registry.getVersion();
-		// Every update is non-trivial (label changes), so every call should
-		// have bumped the counter twice. PG: serialised by the row-level
-		// lock on `_emdash_byline_fields.id` during UPDATE; SQLite:
-		// serialised by the database lock. Either way, increments are not
-		// lost.
-		expect(after - baseline).toBe(labels.length * 2);
+		expect(after).toBeGreaterThan(baseline);
+		expect(after % 2).toBe(0);
 
 		// And the final state is a single, well-defined row — no duplicate
 		// definitions, label is one of the inputs.
@@ -91,7 +74,7 @@ describeEachDialect("BylineSchemaRegistry concurrency", (dialect) => {
 		expect(labels).toContain(reloaded?.label);
 	});
 
-	it("mixed parallel mutations all bump the version", async () => {
+	it("mixed parallel mutations all land and post-state version is even", async () => {
 		await registry.createField({ slug: "a", label: "A", type: "string" });
 		await registry.createField({ slug: "b", label: "B", type: "string" });
 		const baseline = await registry.getVersion();
@@ -104,17 +87,20 @@ describeEachDialect("BylineSchemaRegistry concurrency", (dialect) => {
 		];
 
 		await Promise.all(ops);
-		// Reorder runs serially after both — it reads the full set so it
-		// can't safely race against parallel creates. (The registry itself
-		// permits the race; this test just keeps the assertion meaningful.)
+		// Reorder runs serially — it reads the full set, so racing it
+		// against parallel creates would make the assertion non-meaningful.
 		await registry.reorderFields(["c", "a", "b"]);
 
 		const after = await registry.getVersion();
-		// 3 mutations × 2 bumps each = 6 increments.
-		expect(after - baseline).toBe(6);
+		expect(after).toBeGreaterThan(baseline);
+		expect(after % 2).toBe(0);
+
+		const fields = await registry.listFields();
+		expect(fields.map((f) => f.slug).toSorted()).toEqual(["a", "b", "c"]);
+		expect(fields.find((f) => f.slug === "a")?.label).toBe("Aa");
 	});
 
-	it("parallel deletes against distinct fields don't lose increments", async () => {
+	it("parallel deletes against distinct fields all land and post-state version is even", async () => {
 		for (let i = 0; i < 6; i++) {
 			await registry.createField({ slug: `del_${i}`, label: `del_${i}`, type: "string" });
 		}
@@ -123,9 +109,13 @@ describeEachDialect("BylineSchemaRegistry concurrency", (dialect) => {
 		await Promise.all(Array.from({ length: 6 }, (_, i) => registry.deleteField(`del_${i}`)));
 
 		const after = await registry.getVersion();
-		// 6 deletes × 2 bumps each = 12 increments.
-		expect(after - baseline).toBe(12);
-		expect((await registry.listFields()).map((f) => f.slug)).not.toContain("del_0");
+		expect(after).toBeGreaterThan(baseline);
+		expect(after % 2).toBe(0);
+
+		const remaining = (await registry.listFields()).map((f) => f.slug);
+		for (let i = 0; i < 6; i++) {
+			expect(remaining).not.toContain(`del_${i}`);
+		}
 	});
 
 	it("createField duplicate slugs: one succeeds, the other surfaces FIELD_EXISTS", async () => {
