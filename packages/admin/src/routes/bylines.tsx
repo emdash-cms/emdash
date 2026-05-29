@@ -21,6 +21,7 @@ import {
 	type UserListItem,
 } from "../lib/api";
 import { fetchManifest } from "../lib/api/client.js";
+import { useDebouncedValue } from "../lib/hooks.js";
 
 interface BylineFormState {
 	slug: string;
@@ -86,6 +87,10 @@ export function BylinesPage() {
 	const navigate = useNavigate();
 	const { locale: routeLocale } = useSearch({ from: "/_admin/bylines" });
 	const [search, setSearch] = React.useState("");
+	// Debounce the search before it feeds the query key/fetch so typing stays
+	// responsive — the input stays bound to raw `search` while only the
+	// debounced value drives refetches.
+	const debouncedSearch = useDebouncedValue(search, 300);
 	const [guestFilter, setGuestFilter] = React.useState<"all" | "guest" | "linked">("all");
 	const [selectedId, setSelectedId] = React.useState<string | null>(null);
 	const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
@@ -118,10 +123,10 @@ export function BylinesPage() {
 	};
 
 	const { data, isLoading, error } = useQuery({
-		queryKey: ["bylines", search, guestFilter, activeLocale ?? null],
+		queryKey: ["bylines", debouncedSearch, guestFilter, activeLocale ?? null],
 		queryFn: () =>
 			fetchBylines({
-				search: search || undefined,
+				search: debouncedSearch || undefined,
 				isGuest: guestFilter === "all" ? undefined : guestFilter === "guest",
 				locale: activeLocale,
 				limit: 50,
@@ -158,7 +163,13 @@ export function BylinesPage() {
 			return { result, snapshot };
 		},
 		onSuccess: ({ result, snapshot }) => {
-			if (!loadMoreSnapshotMatches(snapshot, { search, guestFilter, locale: activeLocale })) {
+			if (
+				!loadMoreSnapshotMatches(snapshot, {
+					search: debouncedSearch,
+					guestFilter,
+					locale: activeLocale,
+				})
+			) {
 				return;
 			}
 			setAllItems((prev) => [...prev, ...result.items]);
@@ -275,7 +286,7 @@ export function BylinesPage() {
 		},
 	});
 
-	if (isLoading) {
+	if (isLoading && !data) {
 		return (
 			<div className="flex items-center justify-center min-h-[30vh]">
 				<Loader />
@@ -370,7 +381,7 @@ export function BylinesPage() {
 								className="w-full mt-2"
 								onClick={() =>
 									loadMoreMutation.mutate({
-										search,
+										search: debouncedSearch,
 										guestFilter,
 										locale: activeLocale,
 										cursor: nextCursor,
