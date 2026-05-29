@@ -32,7 +32,7 @@ function buildRuntime(db: Kysely<Database>): EmDashRuntime {
 	const runtimeDeps = {
 		config,
 		plugins: [],
-		// eslint-disable-next-line typescript-eslint(no-explicit-any) -- match RuntimeDependencies signature
+		// eslint-disable-next-line typescript/no-explicit-any -- match RuntimeDependencies signature
 		createDialect: (() => {
 			throw new Error("createDialect not used in this test");
 		}) as any,

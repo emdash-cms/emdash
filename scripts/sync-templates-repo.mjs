@@ -49,7 +49,18 @@ const TEMPLATES = [
 	"starter-cloudflare",
 ];
 
-const EXCLUDE = new Set(["node_modules", "dist", ".astro", ".emdash", "CHANGELOG.md"]);
+const EXCLUDE = new Set([
+	"node_modules",
+	"dist",
+	".astro",
+	".emdash",
+	"CHANGELOG.md",
+	// AGENTS-template.md is the canonical per-template body that the
+	// sync-template-skills.sh script concatenates with scripts/agents-base.md
+	// to produce the final AGENTS.md. The public templates repo only needs
+	// the generated AGENTS.md.
+	"AGENTS-template.md",
+]);
 
 const RE_NON_WHITESPACE_START = /^\S/;
 const RE_CATALOG_ENTRY = /^\s+"?([^"]+)"?:\s+(.+)$/;
@@ -70,6 +81,14 @@ function parseCatalog() {
 		if (match) catalog[match[1]] = match[2];
 	}
 	return catalog;
+}
+
+function getRootPackageManager() {
+	const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+	if (!pkg.packageManager) {
+		throw new Error("Root package.json is missing a packageManager field");
+	}
+	return pkg.packageManager;
 }
 
 function collectWorkspaceVersions() {
@@ -105,8 +124,9 @@ function resolveDeps(deps, catalog, workspace) {
 	return resolved;
 }
 
-function transformPackageJson(srcPath, catalog, workspace) {
+function transformPackageJson(srcPath, catalog, workspace, packageManager) {
 	const pkg = JSON.parse(readFileSync(srcPath, "utf8"));
+	pkg.packageManager = packageManager;
 	pkg.dependencies = resolveDeps(pkg.dependencies, catalog, workspace);
 	pkg.devDependencies = resolveDeps(pkg.devDependencies, catalog, workspace);
 	if (pkg.peerDependencies) {
@@ -139,24 +159,18 @@ function pnpmWorkspaceYaml(template) {
 	const allowBuilds = template.endsWith("-cloudflare")
 		? "  esbuild: true\n  workerd: true\n  better-sqlite3: false\n  sharp: false"
 		: "  esbuild: true\n  better-sqlite3: true\n  sharp: true\n  workerd: false";
-	return `# Approve only the native build scripts this runtime needs (pnpm >=10.26
-# and pnpm 11). The rest are listed false so strictDepBuilds, which is on
-# by default, treats them as reviewed and does not fail the install.
+	return `# Build scripts: allow only what each runtime needs; rest false so
+# strictDepBuilds (pnpm >=10.26 / 11) passes.
 allowBuilds:
 ${allowBuilds}
 
-# Supply-chain hardening:
-# - minimumReleaseAge: don't install a version until it has been public for
-#   24h, so a compromised release has time to be caught. EmDash's own
-#   packages are exempt so new EmDash releases install immediately.
-# - trustPolicy: never install a package whose trust level has dropped.
-# - blockExoticSubdeps: transitive deps must come from the registry,
-#   workspace, or local paths -- no git/tarball sub-dependencies.
+# Supply-chain hardening: cooldown on brand-new releases (EmDash exempt)
+# and no non-registry transitive sources. (No trustPolicy: no-downgrade --
+# it trips on upstream provenance regressions we don't control.)
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - emdash
   - "@emdash-cms/*"
-trustPolicy: no-downgrade
 blockExoticSubdeps: true
 `;
 }
@@ -242,6 +256,7 @@ if (localIdx !== -1 && !localPath) {
 
 const catalog = parseCatalog();
 const workspace = collectWorkspaceVersions();
+const packageManager = getRootPackageManager();
 
 console.log("Workspace packages:");
 for (const [name, version] of Object.entries(workspace)) {
@@ -286,7 +301,7 @@ try {
 		if (existsSync(srcPkg)) {
 			writeFileSync(
 				join(destDir, "package.json"),
-				transformPackageJson(srcPkg, catalog, workspace),
+				transformPackageJson(srcPkg, catalog, workspace, packageManager),
 			);
 			console.log("  Transformed package.json");
 		}

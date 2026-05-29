@@ -1,0 +1,92 @@
+---
+title: Upgrading plugins on your site
+description: Breaking changes for sites that install EmDash plugins, and how to adapt your project.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+This guide is for **site operators**: people who install plugins into a site. If you write plugins, see [Migrating to the plugin CLI](/plugins/creating-plugins/migrating-to-the-cli/) instead.
+
+## Upgrade your dependencies
+
+Update `emdash` and your plugin packages to their latest versions, then reinstall and rebuild:
+
+```sh
+pnpm up emdash @emdash-cms/plugin-audit-log @emdash-cms/plugin-webhook-notifier @emdash-cms/plugin-atproto
+pnpm build
+```
+
+After upgrading, your site may build and run without further changes. If the build fails or a plugin stops loading, work through the breaking changes below. Each one tells you exactly what to change.
+
+For the full list of changes in each package, see its entry in the [EmDash changelog](https://github.com/emdash-cms/emdash/blob/main/CHANGELOG.md).
+
+## Breaking changes
+
+### Renamed: `@emdash-cms/registry-cli` is now `@emdash-cms/plugin-cli`
+
+Earlier releases shipped the plugin registry CLI as `@emdash-cms/registry-cli`, with an `emdash-registry` binary.
+
+The package is now `@emdash-cms/plugin-cli` and the binary is `emdash-plugin`. The old package is no longer published.
+
+You only have this dependency if you publish plugins or run registry commands from your site repository. Most sites that only install plugins never had it.
+
+#### What should I do?
+
+Replace the package:
+
+```sh
+pnpm remove @emdash-cms/registry-cli
+pnpm add -D @emdash-cms/plugin-cli
+```
+
+Update any `package.json` scripts that call the old binary, replacing `emdash-registry` with `emdash-plugin`:
+
+```sh del={1} ins={2}
+emdash-registry publish --url https://example.com/my-plugin-1.0.0.tar.gz
+emdash-plugin publish --url https://example.com/my-plugin-1.0.0.tar.gz
+```
+
+### Changed: published plugins use a default export
+
+Earlier releases exposed first-party plugins as a named export and a factory call, for example `import { auditLogPlugin } from "@emdash-cms/plugin-audit-log"` used as `auditLogPlugin()`.
+
+These plugins now provide a default export that you pass directly into `plugins:` or `sandboxed:`. There is no factory call. This affects `@emdash-cms/plugin-audit-log`, `@emdash-cms/plugin-webhook-notifier`, and `@emdash-cms/plugin-atproto`.
+
+#### What should I do?
+
+In `astro.config.mjs`, drop the braces around the import and the `()` after the plugin name.
+
+The following example shows the change for `@emdash-cms/plugin-audit-log`, which runs in-process and goes in `plugins:`:
+
+```js title="astro.config.mjs" del={1,7} ins={2,8}
+import { auditLogPlugin } from "@emdash-cms/plugin-audit-log";
+import auditLog from "@emdash-cms/plugin-audit-log";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			plugins: [auditLogPlugin()],
+			plugins: [auditLog],
+		}),
+	],
+});
+```
+
+Apply the same two edits to the other packages. `@emdash-cms/plugin-atproto` and `@emdash-cms/plugin-webhook-notifier` are sandboxed plugins, so they go in `sandboxed:` instead of `plugins:`; the import change is identical.
+
+| Package                               | Default export binding |
+| ------------------------------------- | ---------------------- |
+| `@emdash-cms/plugin-audit-log`        | `auditLog`             |
+| `@emdash-cms/plugin-webhook-notifier` | `webhookNotifier`      |
+| `@emdash-cms/plugin-atproto`          | `atproto`              |
+
+<Aside type="note" title="Where did the factory argument go?">
+	The old factory call accepted per-install configuration. That configuration
+	now lives in the admin UI, under the plugin's settings page (stored in KV).
+	Set it there instead of in `astro.config.mjs`. There is nothing to pass at
+	the call site, so the `()` is no longer needed.
+</Aside>
+
+## After upgrading
+
+If a third-party plugin still ships a named export and factory call, it has not been updated for this release. Check its changelog. All first-party plugins listed above use the default-export shape.

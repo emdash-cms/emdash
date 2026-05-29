@@ -108,6 +108,8 @@ The S3 adapter works with Cloudflare R2 (via S3 API), MinIO, and other S3-compat
 
 </Aside>
 
+The following configuration points EmDash at an S3-compatible bucket:
+
 ```js title="astro.config.mjs"
 import emdash, { s3 } from "emdash/astro";
 
@@ -159,6 +161,8 @@ environment variables.
 Environment variables are read from `process.env` when the process starts. This is a
 Node-only feature.
 
+Calling `s3()` with no arguments reads every field from the `S3_*` environment variables:
+
 ```js title="astro.config.mjs — runtime environment variable example"
 import emdash, { s3 } from "emdash/astro";
 
@@ -207,6 +211,8 @@ storage: s3({
 Generate R2 API credentials in the Cloudflare dashboard under R2 > Manage R2 API Tokens.
 
 ### MinIO
+
+Point the S3 adapter at a MinIO endpoint with its access credentials:
 
 ```js
 storage: s3({

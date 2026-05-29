@@ -7,7 +7,7 @@
 
 import type { User } from "@emdash-cms/auth";
 
-import type { EmDashHandlers } from "./dist/types.d.mts";
+import type { EmDashHandlers } from "./dist/astro/types.d.mts";
 
 declare global {
 	namespace App {

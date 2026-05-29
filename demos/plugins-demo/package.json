@@ -13,10 +13,11 @@
   "dependencies": {
     "@astrojs/node": "catalog:",
     "@astrojs/react": "catalog:",
-    "@emdash-cms/plugin-audit-log": "workspace:*",
     "@emdash-cms/plugin-api-test": "workspace:*",
-    "@emdash-cms/plugin-webhook-notifier": "workspace:*",
+    "@emdash-cms/plugin-audit-log": "workspace:*",
     "@emdash-cms/plugin-embeds": "workspace:*",
+    "@emdash-cms/plugin-webhook-notifier": "workspace:*",
+    "@emdash-cms/plugin-cli": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "astro": "catalog:",
@@ -27,7 +28,5 @@
   },
   "devDependencies": {
     "@types/node": "catalog:"
-  },
-  "peerDependencies": {},
-  "optionalDependencies": {}
+  }
 }

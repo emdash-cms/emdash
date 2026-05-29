@@ -677,6 +677,36 @@ describe("EmDashClient", () => {
 		});
 	});
 
+	describe("terms()", () => {
+		it("returns ListResult with items mapped from { terms } envelope", async () => {
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/taxonomies/categories/terms",
+					handler: () =>
+						jsonResponse({
+							terms: [
+								{ id: "t1", slug: "uncategorized", label: "Uncategorized", count: 3 },
+								{ id: "t2", slug: "news", label: "News", count: 1 },
+							],
+						}),
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.terms("categories");
+			expect(result.items).toHaveLength(2);
+			expect(result.items[0]!.slug).toBe("uncategorized");
+			expect(result.items[1]!.slug).toBe("news");
+			expect(result.nextCursor).toBeUndefined();
+		});
+	});
+
 	describe("menus()", () => {
 		it("returns menu array from bare-array envelope", async () => {
 			const backend = createMockBackend([

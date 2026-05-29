@@ -29,8 +29,8 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 	if (typeof body === "object" && body !== null && "error" in body) {
 		const { error } = body;
 		if (typeof error === "object" && error !== null && "message" in error) {
-			const { message: msg } = error;
-			if (typeof msg === "string") message = msg;
+			const { message: errorMessage } = error;
+			if (typeof errorMessage === "string") message = errorMessage;
 		}
 	}
 	throw new Error(message || `${fallback}: ${res.statusText}`);
@@ -42,6 +42,11 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 export interface FindManyResult<T> {
 	items: T[];
 	nextCursor?: string;
+	/**
+	 * Total number of rows matching the filters (ignoring pagination).
+	 * Optional because older servers may not return it.
+	 */
+	total?: number;
 }
 
 /**

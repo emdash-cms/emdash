@@ -385,6 +385,14 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
+	// Public-only plugin API route handler for SSR page components.
+	handlePublicPluginApiRoute: (
+		pluginId: string,
+		method: string,
+		path: string,
+		request: Request,
+	) => Promise<HandlerResponse>;
+
 	// Plugin route metadata (for auth decisions before dispatch)
 	getPluginRouteMeta: (pluginId: string, path: string) => { public: boolean } | null;
 
@@ -426,6 +434,10 @@ export interface EmDashHandlers {
 
 	// Sandbox runner (for marketplace plugin install/update)
 	getSandboxRunner: () => import("../plugins/sandbox/types.js").SandboxRunner | null;
+
+	// Whether sandbox bypass mode (sandbox: false) is active. Marketplace
+	// install/update routes use this to skip the SANDBOX_NOT_AVAILABLE gate.
+	isSandboxBypassed: () => boolean;
 
 	// Sync marketplace plugin states (after install/update/uninstall)
 	syncMarketplacePlugins: () => Promise<void>;

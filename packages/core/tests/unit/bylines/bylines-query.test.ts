@@ -5,6 +5,7 @@ import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { SQL_BATCH_SIZE } from "../../../src/utils/chunks.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -75,6 +76,56 @@ describe("Byline query functions", () => {
 		it("returns null for non-existent slug", async () => {
 			const result = await getBylineBySlug("nobody");
 			expect(result).toBeNull();
+		});
+
+		it("walks the locale fallback chain when the requested locale has no row", async () => {
+			// Identity lookup pattern — mirrors getTerm / getMenu in PR #916.
+			// Locale fallback IS appropriate here ("show me this byline") in
+			// contrast to credit hydration ("what should render on this
+			// entry"), which stays strict.
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "fr", "de"] });
+			try {
+				const anchor = await bylineRepo.create({
+					slug: "jane",
+					displayName: "Jane Doe",
+					locale: "en",
+				});
+				await bylineRepo.create({
+					slug: "jane",
+					displayName: "Jeanne",
+					locale: "fr",
+					translationOf: anchor.id,
+				});
+				// No de sibling. Requesting de falls back through the chain to
+				// the configured defaultLocale (en).
+				const result = await getBylineBySlug("jane", { locale: "de" });
+				expect(result?.locale).toBe("en");
+				expect(result?.displayName).toBe("Jane Doe");
+			} finally {
+				setI18nConfig(null);
+			}
+		});
+
+		it("prefers the requested locale's row when it exists", async () => {
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "fr", "de"] });
+			try {
+				const anchor = await bylineRepo.create({
+					slug: "jane",
+					displayName: "Jane Doe",
+					locale: "en",
+				});
+				await bylineRepo.create({
+					slug: "jane",
+					displayName: "Jeanne",
+					locale: "fr",
+					translationOf: anchor.id,
+				});
+				const result = await getBylineBySlug("jane", { locale: "fr" });
+				expect(result?.locale).toBe("fr");
+				expect(result?.displayName).toBe("Jeanne");
+			} finally {
+				setI18nConfig(null);
+			}
 		});
 	});
 
@@ -152,6 +203,75 @@ describe("Byline query functions", () => {
 
 			const bylines = await getEntryBylines("post", post.id);
 			expect(bylines).toHaveLength(0);
+		});
+	});
+
+	describe("getEntryBylines — explicit credit sentinel", () => {
+		it("suppresses author fallback for cross-locale explicit credits with no i18n config", async () => {
+			setI18nConfig(null);
+
+			const userRepo = new UserRepository(db);
+			const author = await userRepo.create({
+				email: "cross-locale-no-i18n@example.com",
+				displayName: "Author Account",
+				role: "editor",
+			});
+			await bylineRepo.create({
+				slug: "author-en",
+				displayName: "Author EN",
+				userId: author.id,
+				locale: "en",
+			});
+
+			const credited = await bylineRepo.create({
+				slug: "credited",
+				displayName: "Credited FR",
+				locale: "fr",
+			});
+
+			const enPost = await contentRepo.create({
+				type: "post",
+				slug: "en-post-cross-locale",
+				data: { title: "Hello" },
+				locale: "en",
+				authorId: author.id,
+			});
+			await bylineRepo.setContentBylines("post", enPost.id, [{ bylineId: credited.id }]);
+
+			const result = await getEntryBylines("post", enPost.id, { locale: "en" });
+			expect(result).toEqual([]);
+		});
+
+		it("does not run a probe query against _emdash_content_bylines", async () => {
+			setI18nConfig(null);
+
+			const userRepo = new UserRepository(db);
+			const author = await userRepo.create({
+				email: "no-probe@example.com",
+				displayName: "Author",
+				role: "editor",
+			});
+			await bylineRepo.create({
+				slug: "no-probe-author",
+				displayName: "Author Byline",
+				userId: author.id,
+			});
+
+			const post = await contentRepo.create({
+				type: "post",
+				slug: "no-probe-post",
+				data: { title: "No explicit credits" },
+				authorId: author.id,
+			});
+
+			const single = vi.spyOn(BylineRepository.prototype, "hasContentBylines");
+			const batch = vi.spyOn(BylineRepository.prototype, "hasContentBylinesMany");
+			await getEntryBylines("post", post.id);
+			await getBylinesForEntries("post", [
+				{ id: post.id, authorId: author.id, primaryBylineId: null },
+			]);
+			expect(single).not.toHaveBeenCalled();
+			expect(batch).not.toHaveBeenCalled();
 		});
 	});
 
@@ -306,6 +426,228 @@ describe("Byline query functions", () => {
 		it("returns empty map for empty input", async () => {
 			const result = await getBylinesForEntries("post", []);
 			expect(result.size).toBe(0);
+		});
+	});
+
+	describe("i18n (migration 040) — strict per-locale runtime", () => {
+		it("getEntryBylines({ locale }) returns the sibling at that locale", async () => {
+			const anchor = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane Doe",
+				locale: "en",
+			});
+			await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jeanne",
+				locale: "fr",
+				translationOf: anchor.id,
+			});
+
+			const post = await contentRepo.create({
+				type: "post",
+				slug: "i18n-post",
+				data: { title: "Hi" },
+			});
+			await bylineRepo.setContentBylines("post", post.id, [{ bylineId: anchor.id }]);
+
+			const enCredits = await getEntryBylines("post", post.id, { locale: "en" });
+			const frCredits = await getEntryBylines("post", post.id, { locale: "fr" });
+
+			expect(enCredits[0]?.byline.displayName).toBe("Jane Doe");
+			expect(frCredits[0]?.byline.displayName).toBe("Jeanne");
+		});
+
+		it("getEntryBylines({ locale }) returns [] when no sibling exists at that locale", async () => {
+			const anchor = await bylineRepo.create({
+				slug: "marco",
+				displayName: "Marco",
+				locale: "en",
+			});
+
+			const post = await contentRepo.create({
+				type: "post",
+				slug: "marco-post",
+				data: { title: "Hi" },
+			});
+			await bylineRepo.setContentBylines("post", post.id, [{ bylineId: anchor.id }]);
+
+			const frCredits = await getEntryBylines("post", post.id, { locale: "fr" });
+			expect(frCredits).toEqual([]);
+		});
+
+		it("getEntryBylines without locale returns every locale variant of the credit", async () => {
+			const anchor = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane Doe",
+				locale: "en",
+			});
+			await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jeanne",
+				locale: "fr",
+				translationOf: anchor.id,
+			});
+
+			const post = await contentRepo.create({
+				type: "post",
+				slug: "no-locale",
+				data: { title: "Hi" },
+			});
+			await bylineRepo.setContentBylines("post", post.id, [{ bylineId: anchor.id }]);
+
+			const all = await getEntryBylines("post", post.id);
+			expect(all).toHaveLength(2);
+			expect(all.map((c) => c.byline.locale).toSorted()).toEqual(["en", "fr"]);
+		});
+
+		it("getBylinesForEntries buckets by entry locale and returns each entry's locale match", async () => {
+			const anchor = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane Doe",
+				locale: "en",
+			});
+			await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jeanne",
+				locale: "fr",
+				translationOf: anchor.id,
+			});
+
+			const enPost = await contentRepo.create({
+				type: "post",
+				slug: "en-jane",
+				data: { title: "Hello" },
+				locale: "en",
+			});
+			const frPost = await contentRepo.create({
+				type: "post",
+				slug: "fr-jane",
+				data: { title: "Bonjour" },
+				locale: "fr",
+			});
+			await bylineRepo.setContentBylines("post", enPost.id, [{ bylineId: anchor.id }]);
+			await bylineRepo.setContentBylines("post", frPost.id, [{ bylineId: anchor.id }]);
+
+			const result = await getBylinesForEntries("post", [
+				{ id: enPost.id, authorId: null, locale: "en" },
+				{ id: frPost.id, authorId: null, locale: "fr" },
+			]);
+
+			expect(result.get(enPost.id)?.[0]?.byline.locale).toBe("en");
+			expect(result.get(enPost.id)?.[0]?.byline.displayName).toBe("Jane Doe");
+			expect(result.get(frPost.id)?.[0]?.byline.locale).toBe("fr");
+			expect(result.get(frPost.id)?.[0]?.byline.displayName).toBe("Jeanne");
+		});
+
+		it("getBylinesForEntries returns [] for entries whose credit has no sibling at the entry's locale", async () => {
+			const anchor = await bylineRepo.create({
+				slug: "solo",
+				displayName: "Solo",
+				locale: "en",
+			});
+
+			const frPost = await contentRepo.create({
+				type: "post",
+				slug: "fr-solo",
+				data: { title: "Bonjour" },
+				locale: "fr",
+			});
+			await bylineRepo.setContentBylines("post", frPost.id, [{ bylineId: anchor.id }]);
+
+			const result = await getBylinesForEntries("post", [
+				{ id: frPost.id, authorId: null, locale: "fr" },
+			]);
+			expect(result.get(frPost.id)).toEqual([]);
+		});
+
+		it("does not infer from authorId when entry has explicit credits at another locale", async () => {
+			const userRepo = new UserRepository(db);
+			const user = await userRepo.create({
+				email: "runtime-fallback@example.com",
+				displayName: "Author",
+				role: "editor",
+			});
+			await bylineRepo.create({
+				slug: "author-fr",
+				displayName: "Auteur",
+				userId: user.id,
+				locale: "fr",
+			});
+
+			const explicit = await bylineRepo.create({
+				slug: "marco",
+				displayName: "Marco",
+				locale: "en",
+			});
+
+			const frPost = await contentRepo.create({
+				type: "post",
+				slug: "fr-post-explicit",
+				data: { title: "Bonjour" },
+				locale: "fr",
+				authorId: user.id,
+			});
+			await bylineRepo.setContentBylines("post", frPost.id, [{ bylineId: explicit.id }]);
+
+			const refreshed = await contentRepo.findById("post", frPost.id);
+
+			const single = await getEntryBylines("post", frPost.id, { locale: "fr" });
+			expect(single).toEqual([]);
+
+			const batch = await getBylinesForEntries("post", [
+				{
+					id: frPost.id,
+					authorId: frPost.authorId,
+					primaryBylineId: refreshed?.primaryBylineId ?? null,
+					locale: "fr",
+				},
+			]);
+			expect(batch.get(frPost.id)).toEqual([]);
+		});
+
+		it("inferred (user-linked) byline is strict per locale too", async () => {
+			const userRepo = new UserRepository(db);
+			const user = await userRepo.create({
+				email: "inferred-i18n@example.com",
+				displayName: "Inferred",
+				role: "editor",
+			});
+
+			await bylineRepo.create({
+				slug: "inferred",
+				displayName: "Inferred EN",
+				userId: user.id,
+				locale: "en",
+			});
+
+			const frPost = await contentRepo.create({
+				type: "post",
+				slug: "fr-inferred",
+				data: { title: "Bonjour" },
+				locale: "fr",
+				authorId: user.id,
+			});
+
+			// No fr sibling exists for the user's byline. Strict hydration
+			// returns no inferred credit — same rule as explicit credits.
+			const result = await getBylinesForEntries("post", [
+				{ id: frPost.id, authorId: frPost.authorId, locale: "fr" },
+			]);
+			expect(result.get(frPost.id)).toEqual([]);
+
+			// EN entry by the same author DOES get the inferred byline.
+			const enPost = await contentRepo.create({
+				type: "post",
+				slug: "en-inferred",
+				data: { title: "Hello" },
+				locale: "en",
+				authorId: user.id,
+			});
+			const enResult = await getBylinesForEntries("post", [
+				{ id: enPost.id, authorId: enPost.authorId, locale: "en" },
+			]);
+			expect(enResult.get(enPost.id)?.[0]?.source).toBe("inferred");
+			expect(enResult.get(enPost.id)?.[0]?.byline.locale).toBe("en");
 		});
 	});
 });

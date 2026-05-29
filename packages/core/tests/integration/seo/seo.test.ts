@@ -1061,6 +1061,54 @@ describe("SEO", () => {
 			expect(result.success).toBe(true);
 			expect(result.data!.collections).toEqual([]);
 		});
+
+		it("should include locale on each entry", async () => {
+			await repo.create({
+				type: "post",
+				slug: "hello",
+				data: { title: "Hello" },
+				status: "published",
+			});
+
+			const result = await handleSitemapData(db);
+
+			expect(result.success).toBe(true);
+			const entries = flatEntries(result.data!);
+			expect(entries).toHaveLength(1);
+			// Default locale is `'en'` from migration 019. Rows backfill to it.
+			expect(result.data!.collections[0]!.entries[0]!.locale).toBe("en");
+		});
+
+		it("should expose translation_group so siblings can be linked", async () => {
+			// Create an English post, then a French translation of it. The
+			// repo wires `translation_group` so both rows share a group.
+			const en = await repo.create({
+				type: "post",
+				slug: "hello",
+				data: { title: "Hello" },
+				status: "published",
+				locale: "en",
+			});
+			await repo.create({
+				type: "post",
+				slug: "bonjour",
+				data: { title: "Bonjour" },
+				status: "published",
+				locale: "fr",
+				translationOf: en.id,
+			});
+
+			const result = await handleSitemapData(db, "post");
+
+			expect(result.success).toBe(true);
+			const entries = result.data!.collections[0]!.entries;
+			expect(entries).toHaveLength(2);
+			const locales = entries.map((e) => e.locale).toSorted();
+			expect(locales).toEqual(["en", "fr"]);
+			const groups = new Set(entries.map((e) => e.translationGroup));
+			expect(groups.size).toBe(1);
+			expect(groups.has(en.translationGroup ?? en.id)).toBe(true);
+		});
 	});
 
 	describe("has_seo opt-in per collection", () => {

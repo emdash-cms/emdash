@@ -250,7 +250,7 @@ Every entry returned by query functions includes an `edit` proxy for annotating 
 </article>
 ```
 
-In edit mode, `{...entry.edit.title}` produces a `data-emdash-ref` attribute that the visual editing toolbar uses to enable inline editing. In production, the proxy spreads produce no output — zero runtime cost.
+In edit mode, `{...entry.edit.title}` produces a `data-emdash-ref` attribute that the visual editing toolbar uses to enable inline editing. In production, the proxy spreads produce no output.
 
 <Aside type="tip">
 	For string and text fields, inline editing uses `contenteditable`. For Portable Text fields, it
@@ -359,7 +359,7 @@ if (!post) {
 ```
 
 <Aside type="tip">
-	Server rendering shows content changes immediately without rebuilding. Use it for frequently
+	Server rendering shows content changes immediately. Use it for frequently
 	updated content.
 </Aside>
 

@@ -136,7 +136,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (
 			error instanceof Error &&
 			"code" in error &&
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowing error to check custom code property after "code" in error guard
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing error to check custom code property after "code" in error guard
 			(error as { code: string }).code === "NOT_SUPPORTED"
 		) {
 			return apiError(

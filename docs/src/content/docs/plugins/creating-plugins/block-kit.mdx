@@ -25,8 +25,7 @@ EmDash's Block Kit lets sandboxed plugins describe their admin UI as JSON. The h
 6. The plugin returns new blocks, and the cycle repeats.
 
 ```typescript
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
+import type { SandboxedPlugin } from "emdash/plugin";
 
 interface BlockInteraction {
 	type: "page_load" | "block_action" | "form_submit";
@@ -35,10 +34,10 @@ interface BlockInteraction {
 	values?: Record<string, unknown>;
 }
 
-export default definePlugin({
+export default {
 	routes: {
 		admin: {
-			handler: async (routeCtx, ctx: PluginContext) => {
+			handler: async (routeCtx, ctx) => {
 				const interaction = routeCtx.input as BlockInteraction;
 
 				if (interaction.type === "page_load") {
@@ -70,10 +69,10 @@ export default definePlugin({
 			},
 		},
 	},
-});
+} satisfies SandboxedPlugin;
 ```
 
-The standard-format route handler takes two arguments: `routeCtx` (with `input`, `request`, `requestMeta`) and `ctx` (the `PluginContext`).
+The route handler takes two arguments: `routeCtx` (with `input`, `request`, `requestMeta`) and `ctx` (the `PluginContext`). `satisfies SandboxedPlugin` infers both.
 
 ## Block types
 

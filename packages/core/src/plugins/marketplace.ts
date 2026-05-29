@@ -509,7 +509,7 @@ export async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBun
 	}
 
 	// Compute SHA-256 checksum of the tarball for verification
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Uint8Array is a valid BufferSource at runtime; TS lib mismatch
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Uint8Array is a valid BufferSource at runtime; TS lib mismatch
 	const hashBuffer = await crypto.subtle.digest("SHA-256", tarballBytes as unknown as BufferSource);
 	const hashArray = new Uint8Array(hashBuffer);
 	const checksum = Array.from(hashArray, (b) => b.toString(16).padStart(2, "0")).join("");

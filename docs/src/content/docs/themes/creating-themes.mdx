@@ -9,14 +9,14 @@ An EmDash theme is a complete Astro site -- pages, layouts, components, styles -
 
 ## Key Concepts
 
-- **A theme is a working Astro project.** There's no theme API or abstraction layer. You build a site and ship it as a template. The seed file just tells EmDash what collections, fields, menus, redirects, and taxonomies to create on first run.
-- **EmDash gives you more control over the content model than WordPress.** Themes take advantage of this -- the seed file declares exactly what fields each collection needs. Build on the standard **posts** and **pages** collections and add fields and taxonomies as your design requires, rather than inventing entirely new content types.
+- **A theme is a working Astro project.** There is no theme API or abstraction layer. A theme is a site shipped as a template. The seed file tells EmDash what collections, fields, menus, redirects, and taxonomies to create on first run.
+- **The seed file declares the content model.** It lists exactly what fields each collection needs. Build on the standard **posts** and **pages** collections and add fields and taxonomies as the design requires, rather than inventing entirely new content types.
 - **Theme content pages must be server-rendered.** In a theme, content changes at runtime through the admin UI, so pages that display EmDash content must not be prerendered. Do not use `getStaticPaths()` in theme content routes. (Static site builds using EmDash as a build-time data source _can_ use `getStaticPaths`, but themes are always SSR.)
 - **No hard-coded content.** Site title, tagline, navigation, and other dynamic content come from the CMS via API calls -- not from template strings.
 
 ## Project Structure
 
-Create a theme with this structure:
+A theme uses the following structure:
 
 ```
 my-emdash-theme/
@@ -346,9 +346,9 @@ const primaryMenu = await getMenu("primary");
 
 Themes often need multiple page layouts -- a default layout, a full-width layout, a landing page layout. In EmDash, add a `template` select field to the pages collection and map it to layout components in your catch-all route.
 
-Add the field to your pages collection in the seed file:
+Add the field to the pages collection in the seed file:
 
-```json
+```json title=".emdash/seed.json"
 {
 	"slug": "template",
 	"label": "Page Template",
@@ -486,9 +486,7 @@ Include sample content in the seed file to demonstrate your theme's design:
 
 ## Including Media
 
-Reference images in sample content using the `$media` syntax.
-
-For remote images:
+Reference images in sample content using the `$media` syntax. A remote image is referenced by URL:
 
 ```json
 {
@@ -504,7 +502,7 @@ For remote images:
 }
 ```
 
-For local images, place files in `.emdash/uploads/` and reference them:
+For local images, place files in `.emdash/uploads/` and reference them by filename:
 
 ```json
 {
@@ -580,7 +578,7 @@ Users can then install your theme:
 npm create astro@latest -- --template @your-org/emdash-theme-blog
 ```
 
-For GitHub-hosted themes:
+A GitHub-hosted theme is installed with the `github:` template prefix:
 
 ```bash
 npm create astro@latest -- --template github:your-org/emdash-theme-blog
@@ -684,7 +682,7 @@ const marketingTypes = {
 <PortableText value={value} components={{ types: marketingTypes }} />
 ```
 
-Then use it in your pages:
+Render the wrapper component in a page:
 
 ```astro title="src/pages/index.astro"
 ---
@@ -715,7 +713,7 @@ Add `_key` to blocks that should be linkable:
 }
 ```
 
-Then use it as an anchor in your component:
+Use the `_key` value as an anchor in the block component:
 
 ```astro
 <section id={value._key}>

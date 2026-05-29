@@ -327,14 +327,14 @@ describe("CLI Integration", () => {
 		});
 
 		it("taxonomy terms returns terms for a taxonomy", async () => {
-			const result = await cliJson<{ terms: { slug: string }[] }>(
+			const result = await cliJson<{ items: { slug: string }[] }>(
 				"taxonomy",
 				"terms",
 				"categories",
 			);
-			expect(result.terms).toBeDefined();
-			expect(Array.isArray(result.terms)).toBe(true);
-			const slugs = result.terms.map((t) => t.slug);
+			expect(result.items).toBeDefined();
+			expect(Array.isArray(result.items)).toBe(true);
+			const slugs = result.items.map((t) => t.slug);
 			expect(slugs).toContain("news");
 		});
 	});

@@ -2379,7 +2379,7 @@ export function generateOpenApiDocument(
 			},
 		},
 		security: [{ session: [] }, { bearer: [] }],
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- readonly const paths are compatible at runtime
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- readonly const paths are compatible at runtime
 		paths: buildAllPaths(maxUploadSize) as unknown as ZodOpenApiPathsObject,
 	});
 }

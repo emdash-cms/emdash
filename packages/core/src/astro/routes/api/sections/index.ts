@@ -19,7 +19,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	const { emdash, user } = locals;
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
-	const db = emdash!.db;
+	const db = emdash.db;
 
 	const denied = requirePerm(user, "sections:read");
 	if (denied) return denied;
@@ -39,7 +39,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
-	const db = emdash!.db;
+	const db = emdash.db;
 
 	const denied = requirePerm(user, "sections:manage");
 	if (denied) return denied;

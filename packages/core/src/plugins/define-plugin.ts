@@ -1,16 +1,13 @@
 /**
  * definePlugin() Helper
  *
- * Creates a properly typed and normalized plugin definition.
- * Supports two formats:
+ * Native plugin authoring entry. Returns a fully-resolved
+ * `ResolvedPlugin` ready for the host integration to mount.
  *
- * 1. **Native format** -- full PluginDefinition with id, version, capabilities, etc.
- *    Returns a ResolvedPlugin.
- *
- * 2. **Standard format** -- just { hooks, routes }. No id/version/capabilities.
- *    Returns the same object (identity function for type inference).
- *    Metadata comes from the descriptor at config time.
- *
+ * Sandboxed plugins do NOT use this function. They default-export
+ * a bare `{ hooks?, routes? }` object with a `satisfies SandboxedPlugin`
+ * annotation from `emdash/plugin`. See the `emdash` changeset for the
+ * authoring shape.
  */
 
 import { normalizeCapabilities } from "./types.js";
@@ -23,7 +20,6 @@ import type {
 	HookConfig,
 	PluginCapability,
 	PluginStorageConfig,
-	StandardPluginDefinition,
 } from "./types.js";
 
 // Plugin ID validation patterns
@@ -32,33 +28,13 @@ const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
 
 /**
- * Define an EmDash plugin.
+ * Define a native EmDash plugin.
  *
- * **Standard format** -- the canonical format for plugins that work in both
- * trusted and sandboxed modes. No id/version -- those come from the descriptor.
- *
- * @example
- * ```typescript
- * import { definePlugin } from "emdash";
- *
- * export default definePlugin({
- *   hooks: {
- *     "content:afterSave": {
- *       handler: async (event, ctx) => {
- *         await ctx.kv.set("lastSave", Date.now());
- *       },
- *     },
- *   },
- *   routes: {
- *     status: {
- *       handler: async (routeCtx, ctx) => ({ ok: true }),
- *     },
- *   },
- * });
- * ```
- *
- * **Native format** -- for plugins that need React admin, direct DB access,
- * or other capabilities not available in the sandbox.
+ * Native plugins ship as regular npm modules, get installed via
+ * `pnpm add` + an `astro.config.mjs` edit, and run in the host
+ * process. They have full access to the runtime — capabilities are
+ * still enforced by `PluginContextFactory`, but there is no isolation
+ * boundary.
  *
  * @example
  * ```typescript
@@ -83,30 +59,32 @@ const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
  *   }
  * });
  * ```
+ *
+ * Sandboxed-format plugins do not use `definePlugin`. They
+ * default-export a bare `{ hooks?, routes? }` object with a
+ * `satisfies SandboxedPlugin` annotation from `emdash/plugin`. Calling
+ * `definePlugin` with an object that has no `id` throws at runtime
+ * (the type system already rejects it at compile time — this check is
+ * for callers that bypass typechecking).
  */
-// Native overload first -- PluginDefinition (with id+version) is more specific
 export function definePlugin<TStorage extends PluginStorageConfig>(
 	definition: PluginDefinition<TStorage>,
-): ResolvedPlugin<TStorage>;
-// Standard overload second -- catches { hooks, routes } without id/version
-export function definePlugin(definition: StandardPluginDefinition): StandardPluginDefinition;
-export function definePlugin<TStorage extends PluginStorageConfig>(
-	definition: PluginDefinition<TStorage> | StandardPluginDefinition,
-): ResolvedPlugin<TStorage> | StandardPluginDefinition {
-	// Standard format: has hooks/routes but no id/version
-	if (!("id" in definition) || !("version" in definition)) {
-		// Validate that the standard format has at least hooks or routes
-		if (!("hooks" in definition) && !("routes" in definition)) {
-			throw new Error(
-				"Standard plugin format requires at least `hooks` or `routes`. " +
-					"For native format, provide `id` and `version`.",
-			);
-		}
-		// Identity function -- return as-is for type inference.
-		// The adapter (adaptSandboxEntry) will convert this to a ResolvedPlugin at build time.
-		return definition;
+): ResolvedPlugin<TStorage> {
+	// Semantic check, not a structural one: `id` is what makes this a
+	// native definition. Sandboxed plugins (the only other shape that
+	// might land here at runtime) intentionally never have an `id` —
+	// identity comes from the manifest's `slug` + `publisher`, computed
+	// at install time. So "no id" is the unambiguous signal that the
+	// caller meant the sandboxed authoring flow.
+	if (typeof definition.id !== "string" || definition.id.length === 0) {
+		throw new Error(
+			`definePlugin() requires \`id\` (got ${typeof definition.id}). ` +
+				"For native plugins, make sure your definition has both `id` and " +
+				"`version`. For sandboxed plugins, drop `definePlugin()` entirely " +
+				"and `export default { hooks, routes } satisfies SandboxedPlugin` " +
+				'from "emdash/plugin" — identity comes from `emdash-plugin.jsonc`.',
+		);
 	}
-
 	return defineNativePlugin(definition);
 }
 
