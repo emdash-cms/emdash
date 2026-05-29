@@ -151,11 +151,26 @@ interface InvestigateResult {
 
 // ---------- Agents ----------
 
-// Classifier: cheap, no sandbox needed.
+// Classifier: cheap kimi call on the default in-memory sandbox. It has
+// no access to the EmDash checkout and so cannot read AGENTS.md for repo
+// context. Inline a short primer here so it can map issues to the
+// correct `area` instead of guessing. Without it, kimi spends most of
+// its budget reasoning about what EmDash is and where a bug lives.
 const classifierAgent = createAgent(() => ({
 	model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6",
-	instructions:
+	instructions: [
 		"You classify GitHub issues for the EmDash CMS investigation bot. Output strictly matches the requested schema.",
+		"",
+		"EmDash is an Astro-native CMS that runs on Cloudflare (D1 + R2 + Workers) or Node + SQLite. Map the `area` field as follows:",
+		"- admin: the React admin SPA mounted at `/_emdash/admin/*` -- the content editor, dashboards, settings, and any authoring UI. The post/page editor (rich text, code blocks, media pickers, field inputs) is admin.",
+		"- public: the rendered public site a visitor sees -- Astro pages outside `/_emdash`, SSR output, routing, sitemap, RSS, image rendering.",
+		"- api: the `/_emdash/api/*` HTTP routes and their handlers (REST, auth, content CRUD) when the bug is in the request/response, not a UI.",
+		"- migration: database migrations or schema changes.",
+		"- build: building, bundling, packaging, or type generation.",
+		"- other: anything that does not fit the above.",
+		"",
+		"requiresBrowser is true for admin and public bugs (they need a real browser to reproduce) and false otherwise.",
+	].join("\n"),
 }));
 
 // Investigator: opus + local() sandbox + the six stage skills registered.
