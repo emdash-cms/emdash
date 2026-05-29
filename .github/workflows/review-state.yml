@@ -182,6 +182,19 @@ jobs:
                 }
 
                 // --- Decide the state ---
+                // lastReview may be a COMMENTED review; approvals should still win unless a later
+                // decision review (APPROVED/CHANGES_REQUESTED) supersedes them.
+                let lastDecisionReview = null;
+                for (const review of qualifying) {
+                  if (review.state === 'COMMENTED') continue;
+                  if (
+                    !lastDecisionReview ||
+                    new Date(review.submitted_at) > new Date(lastDecisionReview.submitted_at)
+                  ) {
+                    lastDecisionReview = review;
+                  }
+                }
+
                 let desired;
                 if (!lastReview) {
                   desired = 'review/needs-review';
@@ -190,7 +203,7 @@ jobs:
                   new Date(lastCommitAt) > new Date(lastReview.submitted_at)
                 ) {
                   desired = 'review/needs-rereview';
-                } else if (lastReview.state === 'APPROVED') {
+                } else if (lastDecisionReview?.state === 'APPROVED') {
                   desired = 'review/approved';
                 } else {
                   desired = 'review/awaiting-author';
