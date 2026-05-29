@@ -772,6 +772,17 @@ export class SchemaRegistry {
 			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_published_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, published_at DESC, id DESC)
 		`.execute(conn);
+
+		// Locale-aware composite indexes for i18n content lists (see migration 041)
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_locale_updated_id`)}
+			ON ${sql.ref(tableName)} (deleted_at, locale, updated_at DESC, id DESC)
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_locale_created_id`)}
+			ON ${sql.ref(tableName)} (deleted_at, locale, created_at DESC, id DESC)
+		`.execute(conn);
 	}
 
 	/**

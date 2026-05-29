@@ -120,6 +120,7 @@ describe("Database Migrations (Integration)", () => {
 			"038_registry_plugin_state",
 			"039_fix_fts5_triggers",
 			"040_byline_i18n",
+			"041_content_locale_list_index",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

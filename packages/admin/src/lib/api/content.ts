@@ -143,6 +143,8 @@ export async function fetchContentList(
 		orderBy?: string;
 		/** Sort direction; defaults to "desc" on the server. */
 		order?: "asc" | "desc";
+		/** Case-insensitive substring search across title/name/slug. */
+		search?: string;
 	},
 ): Promise<FindManyResult<ContentItem>> {
 	const params = new URLSearchParams();
@@ -152,6 +154,7 @@ export async function fetchContentList(
 	if (options?.locale) params.set("locale", options.locale);
 	if (options?.orderBy) params.set("orderBy", options.orderBy);
 	if (options?.order) params.set("order", options.order);
+	if (options?.search) params.set("q", options.search);
 
 	const url = `${API_BASE}/content/${collection}${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);

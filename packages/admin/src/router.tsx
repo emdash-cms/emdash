@@ -307,9 +307,13 @@ function ContentListPage() {
 		direction: "desc",
 	});
 
+	// Server-side search term (debounced inside ContentList). Part of the query
+	// key so a new term restarts the cursor chain from a filtered first page.
+	const [searchTerm, setSearchTerm] = React.useState("");
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["content", collection, { locale: activeLocale, sort }],
+			queryKey: ["content", collection, { locale: activeLocale, sort, search: searchTerm }],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
@@ -317,6 +321,7 @@ function ContentListPage() {
 					limit: 100,
 					orderBy: sort.field,
 					order: sort.direction,
+					search: searchTerm || undefined,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -441,6 +446,7 @@ function ContentListPage() {
 			sort={sort}
 			onSortChange={setSort}
 			total={total}
+			onSearchChange={setSearchTerm}
 		/>
 	);
 }

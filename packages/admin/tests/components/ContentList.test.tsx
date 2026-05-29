@@ -418,6 +418,32 @@ describe("ContentList", () => {
 
 			await expect.element(screen.getByText(NO_RESULTS_PATTERN)).toBeInTheDocument();
 		});
+
+		// #1219: when the caller opts into server-side search it reports the
+		// (debounced) query and must NOT also filter the loaded page client-side
+		// (the server already returned the matching rows).
+		it("reports the query upward and does not client-filter in server mode", async () => {
+			const onSearchChange = vi.fn();
+			const items = [
+				makeItem({ id: "1", data: { title: "Alpha post" } }),
+				makeItem({ id: "2", data: { title: "Beta post" } }),
+			];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onSearchChange={onSearchChange} />,
+			);
+
+			await screen.getByRole("searchbox").fill("beta");
+
+			// Debounced callback fires with the typed term.
+			await vi.waitFor(() => {
+				expect(onSearchChange).toHaveBeenCalledWith("beta");
+			});
+
+			// Server mode shows whatever `items` the caller supplied — it does not
+			// hide "Alpha post" by filtering locally.
+			await expect.element(screen.getByText("Alpha post")).toBeInTheDocument();
+			await expect.element(screen.getByText("Beta post")).toBeInTheDocument();
+		});
 	});
 
 	describe("pagination", () => {
