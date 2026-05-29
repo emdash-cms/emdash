@@ -81,7 +81,12 @@ export interface FindManyMediaOptions {
 	/** Filter by MIME type. Pass a string for a single prefix/exact, or an array to match any. Strings ending with "/" are treated as LIKE prefix matches; others are exact equality. */
 	mimeType?: string | readonly string[];
 	status?: MediaStatus | "all"; // Filter by status, defaults to "ready"
+	/** Case-insensitive substring matched against the filename (covers filename and extension). */
+	q?: string;
 }
+
+// LIKE wildcards that must be escaped so user search input is matched literally.
+const LIKE_WILDCARD_RE = /[\\%_]/g;
 
 /**
  * Media repository for database operations
@@ -248,6 +253,18 @@ export class MediaRepository {
 		const mimeFilters = normalizeMimeFilter(options.mimeType);
 		if (mimeFilters.length > 0) {
 			query = query.where((eb) => mimeMatchExpr(eb, mimeFilters));
+		}
+
+		// Case-insensitive filename substring search (also matches extensions).
+		// LIKE wildcards in the term are escaped so they're treated literally.
+		const term = options.q?.trim();
+		if (term) {
+			const pattern = `%${term.replace(LIKE_WILDCARD_RE, (c) => `\\${c}`)}%`;
+			query = query.where(
+				sql<string>`lower(filename)`,
+				"like",
+				sql<string>`lower(${pattern}) escape '\\'`,
+			);
 		}
 
 		// Default to only showing ready items

@@ -25,6 +25,7 @@ import {
 	type MediaProviderInfo,
 	type MediaProviderItem,
 } from "../lib/api";
+import { useDebouncedValue } from "../lib/hooks.js";
 import { providerItemToMediaItem, getFileIcon } from "../lib/media-utils";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
@@ -145,6 +146,8 @@ export function MediaPickerModal({
 	const [selectedItem, setSelectedItem] = React.useState<SelectedMedia | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const [searchQuery, setSearchQuery] = React.useState("");
+	// Debounced for the local library's server-side filename search.
+	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 	const fileInputRef = React.useRef<HTMLInputElement>(null);
 
 	// URL input state
@@ -208,12 +211,13 @@ export function MediaPickerModal({
 		hasNextPage: hasNextLocalPage,
 		isFetchingNextPage: isFetchingNextLocalPage,
 	} = useInfiniteQuery({
-		queryKey: ["media", filters?.join(",") ?? ""],
+		queryKey: ["media", filters?.join(",") ?? "", debouncedSearch.trim()],
 		queryFn: ({ pageParam }) =>
 			fetchMediaList({
 				mimeType: filters,
 				cursor: pageParam,
 				limit: 100,
+				search: debouncedSearch.trim() || undefined,
 			}),
 		initialPageParam: undefined as string | undefined,
 		getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -555,13 +559,14 @@ export function MediaPickerModal({
 
 				{/* Toolbar */}
 				<div className="flex items-center justify-between pb-3 gap-4">
-					{/* Search (if provider supports it) */}
-					{canSearch ? (
+					{/* Search — providers that support it, plus the local library
+					    (filename/extension search, handled server-side). */}
+					{canSearch || activeProvider === "local" ? (
 						<div className="relative flex-1 max-w-xs">
 							<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 							<Input
 								type="search"
-								placeholder={t`Search...`}
+								placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
 								aria-label={t`Search media`}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}

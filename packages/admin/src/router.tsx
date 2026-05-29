@@ -1003,13 +1003,20 @@ const mediaRoute = createRoute({
 function MediaPage() {
 	const queryClient = useQueryClient();
 
+	// Filename search + MIME type filter for the local library (server-side).
+	const [search, setSearch] = React.useState("");
+	const [mimeFilter, setMimeFilter] = React.useState<string | string[] | undefined>(undefined);
+	const mimeKey = Array.isArray(mimeFilter) ? mimeFilter.join(",") : (mimeFilter ?? "");
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["media"],
+			queryKey: ["media", { search, mime: mimeKey }],
 			queryFn: ({ pageParam }) =>
 				fetchMediaList({
 					cursor: pageParam,
 					limit: 100,
+					search: search || undefined,
+					mimeType: mimeFilter,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -1045,6 +1052,8 @@ function MediaPage() {
 			onLoadMore={() => void fetchNextPage()}
 			onUpload={(file) => uploadMutation.mutate(file)}
 			onDelete={(id) => deleteMutation.mutate(id)}
+			onLocalSearchChange={setSearch}
+			onLocalMimeFilterChange={setMimeFilter}
 		/>
 	);
 }
