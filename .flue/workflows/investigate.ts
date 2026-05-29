@@ -29,6 +29,8 @@
 // passed into the sandbox env. The orchestrator's app token lives in
 // the workflow YAML and never crosses into this agent process.
 
+import { writeFileSync } from "node:fs";
+
 import { createAgent, type FlueContext } from "@flue/runtime";
 import { local } from "@flue/runtime/node";
 import * as v from "valibot";
@@ -249,7 +251,33 @@ function pickReproduceSkill(area: IssueClassification["area"]) {
 
 // ---------- run() ----------
 
-export async function run({
+/**
+ * Persist the structured result to a file so the GitHub Actions
+ * orchestrator can read it directly. `flue run` interleaves build-log
+ * lines on stdout and pretty-prints the returned result, so scraping
+ * the result back out of stdout is fragile. Writing the assembled
+ * result object to a known path makes the handoff deterministic.
+ *
+ * The path comes from `INVESTIGATE_RESULT_PATH` (set by the workflow);
+ * when it is unset -- local prototyping via run-local.ts -- we skip the
+ * write and rely on the returned value. Only a clean completion writes
+ * the file; a thrown error leaves no file, which the orchestrator
+ * treats as a failed run.
+ */
+export async function run(ctx: FlueContext<InvestigatePayload>): Promise<InvestigateResult> {
+	const result = await runImpl(ctx);
+	const path = process.env.INVESTIGATE_RESULT_PATH;
+	if (path) {
+		try {
+			writeFileSync(path, JSON.stringify(result));
+		} catch (error) {
+			console.error("[investigate] failed to write result file:", error);
+		}
+	}
+	return result;
+}
+
+async function runImpl({
 	init,
 	payload,
 	log,

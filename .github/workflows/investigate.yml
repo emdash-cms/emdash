@@ -237,6 +237,10 @@ jobs:
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_KEY: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
           ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+          # The workflow writes its assembled result here on clean
+          # completion; the parse step reads it directly instead of
+          # scraping the result back out of stdout.
+          INVESTIGATE_RESULT_PATH: /tmp/agent-result.json
         run: |
           set -o pipefail
           PAYLOAD="$(cat /tmp/agent-payload.json)"
@@ -285,32 +289,22 @@ jobs:
           AGENT_EXIT: ${{ steps.agent.outputs.exit }}
         run: |
           set -euo pipefail
-          if [[ "${AGENT_EXIT:-1}" != "0" ]] || [[ ! -s /tmp/agent-stdout.json ]]; then
+          # The workflow writes its assembled result to
+          # /tmp/agent-result.json (INVESTIGATE_RESULT_PATH) on clean
+          # completion. A non-zero exit or a missing/empty file means the
+          # run did not finish -- treat it as failed.
+          if [[ "${AGENT_EXIT:-1}" != "0" ]] || [[ ! -s /tmp/agent-result.json ]]; then
             echo "outcome=failed" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # Flue may interleave non-JSON log lines on stdout. Slurp-mode
-          # (`jq -s`) fails hard on any non-JSON content. Instead, scan
-          # the stream and keep only the last well-formed JSON object.
-          # Two strategies in order: prefer the last line that parses as
-          # a JSON object (`flue run` emits the workflow result as a
-          # single line), then fall back to the whole stream parse.
-          RESULT=""
-          while IFS= read -r line; do
-            if printf '%s' "$line" | jq -e 'type == "object"' >/dev/null 2>&1; then
-              RESULT="$line"
-            fi
-          done < /tmp/agent-stdout.json
-          if [[ -z "$RESULT" ]]; then
-            # Fallback: try slurp parse (handles pretty-printed multi-line JSON).
-            RESULT="$(jq -cs 'map(select(type == "object")) | last // empty' < /tmp/agent-stdout.json 2>/dev/null || true)"
-          fi
-          if [[ -z "$RESULT" ]] || [[ "$RESULT" == "null" ]]; then
-            echo "::warning::could not parse any JSON object from agent stdout"
+          # Defensive: confirm the file is a single JSON object before the
+          # downstream `jq` reads. The workflow controls this file, so a
+          # malformed one indicates a bug, not adversarial input.
+          if ! jq -e 'type == "object"' /tmp/agent-result.json >/dev/null 2>&1; then
+            echo "::warning::result file is not a JSON object"
             echo "outcome=failed" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          printf '%s' "$RESULT" > /tmp/agent-result.json
 
           SKIPPED="$(jq -r '.skipped // false' /tmp/agent-result.json)"
           REPRODUCED="$(jq -r '.reproduced // false' /tmp/agent-result.json)"
