@@ -139,14 +139,15 @@ describe("localizePath", () => {
 		expect(await localizePath("//blog/hello/", "fr")).toBe("/fr/blog/hello");
 	});
 
-	it("uses the locale code as the segment for drifted/legacy locale values", async () => {
+	it("returns null for drifted/legacy locales not in the configured list", async () => {
 		setI18nConfig({
 			defaultLocale: "en",
 			locales: ["en", "fr"],
 			prefixDefaultLocale: false,
 		});
-		// `de` isn't in the configured locales -- the helper still
-		// produces a usable URL rather than dropping the row entirely.
-		expect(await localizePath("/blog/hello", "de")).toBe("/de/blog/hello");
+		// `de` isn't configured. The sitemap route would emit a link
+		// to `/de/blog/hello`, but the site has no route there -- the
+		// caller should drop the entry instead.
+		expect(await localizePath("/blog/hello", "de")).toBeNull();
 	});
 });

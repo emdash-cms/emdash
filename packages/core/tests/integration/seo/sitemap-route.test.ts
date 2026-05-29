@@ -205,4 +205,94 @@ describe("sitemap-[collection].xml route", () => {
 		expect(xml).toContain("<loc>http://localhost:4321/blog/solo</loc>");
 		expect(xml).not.toContain("xhtml:link");
 	});
+
+	it("drops rows whose locale isn't in the configured i18n.locales list", async () => {
+		setI18nConfig({
+			defaultLocale: "en",
+			locales: ["en", "fr"],
+			prefixDefaultLocale: false,
+		});
+
+		await repo.create({
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			status: "published",
+			locale: "en",
+		});
+		// `de` isn't a configured locale -- the site has no /de/ route.
+		// Better to drop the entry than to publish a sitemap link that
+		// 404s.
+		await repo.create({
+			type: "post",
+			slug: "hallo",
+			data: { title: "Hallo" },
+			status: "published",
+			locale: "de",
+		});
+
+		const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+		expect(res.status).toBe(200);
+		const xml = await res.text();
+
+		expect(xml).toContain("<loc>http://localhost:4321/blog/hello</loc>");
+		expect(xml).not.toContain("/de/");
+		expect(xml).not.toContain('hreflang="de"');
+		expect(xml).not.toContain("hallo");
+	});
+
+	it("omits unroutable siblings from hreflang alternates", async () => {
+		setI18nConfig({
+			defaultLocale: "en",
+			locales: ["en", "fr"],
+			prefixDefaultLocale: false,
+		});
+
+		// English source + French translation (routable) + German
+		// translation (locale not configured -- unroutable).
+		const en = await repo.create({
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			status: "published",
+			locale: "en",
+		});
+		await repo.create({
+			type: "post",
+			slug: "bonjour",
+			data: { title: "Bonjour" },
+			status: "published",
+			locale: "fr",
+			translationOf: en.id,
+		});
+		await repo.create({
+			type: "post",
+			slug: "hallo",
+			data: { title: "Hallo" },
+			status: "published",
+			locale: "de",
+			translationOf: en.id,
+		});
+
+		const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+		expect(res.status).toBe(200);
+		const xml = await res.text();
+
+		// French + English routable rows present.
+		expect(xml).toContain("<loc>http://localhost:4321/blog/hello</loc>");
+		expect(xml).toContain("<loc>http://localhost:4321/fr/blog/bonjour</loc>");
+
+		// German row dropped, and no German hreflang on remaining rows.
+		expect(xml).not.toContain("/de/");
+		expect(xml).not.toContain('hreflang="de"');
+		expect(xml).not.toContain("hallo");
+
+		// English row still lists French as an alternate (and x-default).
+		expect(xml).toContain(
+			'<xhtml:link rel="alternate" hreflang="fr" href="http://localhost:4321/fr/blog/bonjour" />',
+		);
+		expect(xml).toContain(
+			'<xhtml:link rel="alternate" hreflang="x-default" href="http://localhost:4321/blog/hello" />',
+		);
+	});
 });

@@ -87,14 +87,15 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 			}
 		}
 
-		// Resolve every URL up-front. `localizePath` may be async (it
-		// dynamically imports `astro:i18n` when available); doing this
-		// in one pass lets us reference sibling URLs while emitting
-		// hreflang alternates without re-resolving.
-		const urlByEntry = new Map<string, string>();
-		const resolveEntryUrl = async (entry: Entry): Promise<string> => {
-			const cached = urlByEntry.get(entry.id);
-			if (cached) return cached;
+		// Resolve every URL up-front so we can reference sibling URLs
+		// while emitting hreflang alternates without re-resolving.
+		// `localizePath` returns `null` when the row's locale isn't in
+		// the configured `i18n.locales` list -- the site can't serve a
+		// route for it, so the entry is dropped from the sitemap and
+		// omitted from sibling alternates.
+		const urlByEntry = new Map<string, string | null>();
+		const resolveEntryUrl = async (entry: Entry): Promise<string | null> => {
+			if (urlByEntry.has(entry.id)) return urlByEntry.get(entry.id) ?? null;
 			const path = interpolateUrlPattern({
 				pattern: col.urlPattern,
 				collection: col.collection,
@@ -102,7 +103,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 				id: entry.id,
 			});
 			const localized = await localizePath(path, entry.locale);
-			const absolute = `${siteUrl}${localized}`;
+			const absolute = localized === null ? null : `${siteUrl}${localized}`;
 			urlByEntry.set(entry.id, absolute);
 			return absolute;
 		};
@@ -117,6 +118,10 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 
 		const writeUrl = async (entry: Entry, siblings: Entry[] | null) => {
 			const loc = await resolveEntryUrl(entry);
+			// Skip rows whose locale isn't in the configured `i18n.locales`
+			// list. Linking to a route the site can't serve is worse than
+			// no link at all (search engines hit a 404 and downrank).
+			if (loc === null) return;
 
 			lines.push("  <url>");
 			lines.push(`    <loc>${escapeXml(loc)}</loc>`);
@@ -125,23 +130,36 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 			if (useXhtml && siblings && siblings.length > 1) {
 				// Emit one xhtml:link per sibling (including self -- Google
 				// recommends including the page's own hreflang annotation).
+				// Siblings with unroutable locales are skipped here too.
 				for (const sib of siblings) {
 					const sibLoc = await resolveEntryUrl(sib);
+					if (sibLoc === null) continue;
 					lines.push(
 						`    <xhtml:link rel="alternate" hreflang="${escapeXml(sib.locale)}" href="${escapeXml(sibLoc)}" />`,
 					);
 				}
 
 				// x-default: prefer the default-locale sibling, otherwise
-				// the first sibling (stable order: rows arrive sorted by
-				// updated_at DESC from the handler).
-				const xDefault =
-					(i18nConfig && siblings.find((s) => s.locale === i18nConfig.defaultLocale)) ||
-					siblings[0];
-				if (xDefault) {
-					const xLoc = await resolveEntryUrl(xDefault);
+				// the first sibling with a routable URL. Stable order:
+				// rows arrive sorted by updated_at DESC from the handler.
+				const defaultSibling =
+					i18nConfig && siblings.find((s) => s.locale === i18nConfig.defaultLocale);
+				let xDefaultLoc: string | null = null;
+				if (defaultSibling) {
+					xDefaultLoc = await resolveEntryUrl(defaultSibling);
+				}
+				if (xDefaultLoc === null) {
+					for (const sib of siblings) {
+						const sibLoc = await resolveEntryUrl(sib);
+						if (sibLoc !== null) {
+							xDefaultLoc = sibLoc;
+							break;
+						}
+					}
+				}
+				if (xDefaultLoc !== null) {
 					lines.push(
-						`    <xhtml:link rel="alternate" hreflang="x-default" href="${escapeXml(xLoc)}" />`,
+						`    <xhtml:link rel="alternate" hreflang="x-default" href="${escapeXml(xDefaultLoc)}" />`,
 					);
 				}
 			}

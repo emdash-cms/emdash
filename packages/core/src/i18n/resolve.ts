@@ -72,23 +72,27 @@ export function interpolateUrlPattern(options: {
  * works in both i18n and non-i18n builds without tripping Astro's
  * `i18nNotEnabled` resolver (the case with importing `astro:i18n`).
  *
- * - When i18n is not configured, returns `path` unchanged.
- * - For the default locale with `prefixDefaultLocale: false`, returns
- *   `path` unchanged.
- * - For non-default locales (or any locale when `prefixDefaultLocale`
- *   is true), prepends `/{segment}` where `{segment}` is the locale's
- *   custom `path` if one is configured, otherwise the locale string
- *   itself.
+ * Returns:
+ *   - The original `path` when i18n is not configured.
+ *   - The original `path` for the default locale when
+ *     `prefixDefaultLocale` is false.
+ *   - `/{segment}{path}` for any other configured locale, where
+ *     `{segment}` is the locale's custom `path` if one is set,
+ *     otherwise the locale code.
+ *   - `null` when the row's locale isn't in the configured list.
+ *     Callers should drop the entry: a sitemap link to a route the
+ *     site can't serve is worse than no link at all (search engines
+ *     get a 404 / soft-404 and downrank the page).
  *
  * Falls back to `getI18nConfig()` (EmDash's mirror of the same config,
  * populated at runtime startup) when `astro:config/server` is
  * unavailable -- e.g. running outside an Astro build context, such as
  * in vitest.
  */
-export async function localizePath(path: string, locale: string): Promise<string> {
+export async function localizePath(path: string, locale: string): Promise<string | null> {
 	const segment = await resolveLocaleSegment(locale);
-	if (segment === null) return normalizePath(path);
-	if (segment === "") return normalizePath(path);
+	if (segment === undefined) return null;
+	if (segment === null || segment === "") return normalizePath(path);
 	return normalizePath(`/${segment}${path}`);
 }
 
@@ -100,8 +104,10 @@ export async function localizePath(path: string, locale: string): Promise<string
  *   - `""` when the locale is the default locale and
  *     `prefixDefaultLocale` is false (caller should not prefix).
  *   - The locale's custom `path` value, or the locale string itself.
+ *   - `undefined` when the locale isn't in the configured list --
+ *     the row points at a route the site can't serve.
  */
-async function resolveLocaleSegment(locale: string): Promise<string | null> {
+async function resolveLocaleSegment(locale: string): Promise<string | null | undefined> {
 	const i18n = await readAstroI18nConfig();
 	if (!i18n || !i18n.locales || i18n.locales.length <= 1) return null;
 
@@ -118,10 +124,7 @@ async function resolveLocaleSegment(locale: string): Promise<string | null> {
 		}
 	}
 
-	// Locale doesn't appear in the configured list -- fall back to using
-	// the code as-is. This keeps a translation row with a drifted/legacy
-	// locale value linkable rather than dropping it.
-	return locale;
+	return undefined;
 }
 
 interface AstroI18nConfig {
