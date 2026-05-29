@@ -17,7 +17,7 @@
 // Required env:
 //   CLOUDFLARE_ACCOUNT_ID
 //   CLOUDFLARE_GATEWAY_ID
-//   CLOUDFLARE_API_TOKEN
+//   CLOUDFLARE_API_KEY
 //
 // Usage:
 //   pnpm prototype 1021                                     # one fixture
@@ -106,7 +106,7 @@ async function main() {
 	const missingGateway = [
 		"CLOUDFLARE_ACCOUNT_ID",
 		"CLOUDFLARE_GATEWAY_ID",
-		"CLOUDFLARE_API_TOKEN",
+		"CLOUDFLARE_API_KEY",
 	].filter((k) => !process.env[k]);
 	if (missingGateway.length > 0) {
 		console.error(`missing required env: ${missingGateway.join(", ")}`);
