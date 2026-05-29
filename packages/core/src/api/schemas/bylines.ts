@@ -93,6 +93,19 @@ export const bylineCreateBody = z
 		 * rather than minting a fresh one. Requires `locale`.
 		 */
 		translationOf: z.string().min(1).optional(),
+		/**
+		 * Byline custom-field values (Discussion #1174, Phase 6 — create-flow
+		 * parity with update). Keys are field slugs; values are unknown at
+		 * the API layer because the per-field type contract lives in the
+		 * registry and would require an extra query to enforce here. The
+		 * repository's `coerceFieldValue` validates against the field's
+		 * type and throws `EmDashValidationError` on mismatch — the route
+		 * maps that to a 400 `VALIDATION_ERROR`. Reserved-slug write
+		 * attempts fall out as `EmDashValidationError("Unknown byline
+		 * custom field …")` because no registered field claims a reserved
+		 * slug.
+		 */
+		customFields: z.record(z.string(), z.unknown()).optional(),
 	})
 	.meta({ id: "BylineCreateBody" });
 
