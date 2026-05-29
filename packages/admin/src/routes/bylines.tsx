@@ -1,5 +1,6 @@
 import { Button, Input, InputArea, Loader, Select, Switch } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
+import { IdentificationCard } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
@@ -7,6 +8,8 @@ import * as React from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
 import { DialogError, getMutationError } from "../components/DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "../components/LocaleSwitcher.js";
+import { RouterLinkButton } from "../components/RouterLinkButton.js";
+import { BYLINE_SCHEMA_NAV_ITEM } from "../components/Sidebar.js";
 import { TranslationsPanel } from "../components/TranslationsPanel.js";
 import {
 	createByline,
@@ -22,6 +25,7 @@ import {
 } from "../lib/api";
 import { listBylineFields, type BylineFieldDefinition } from "../lib/api/byline-fields.js";
 import { fetchManifest } from "../lib/api/client.js";
+import { useCurrentUser } from "../lib/api/current-user.js";
 
 interface BylineFormState {
 	slug: string;
@@ -110,6 +114,9 @@ export function BylinesPage() {
 	});
 	const i18n = useI18nConfig(manifest);
 	const isMultiLocale = !!i18n && i18n.locales.length > 1;
+
+	const { data: currentUser } = useCurrentUser();
+	const canManageBylineSchema = (currentUser?.role ?? 0) >= BYLINE_SCHEMA_NAV_ITEM.minRole;
 	// `activeLocale` is the URL search param when present, else the default.
 	// Picker on a translated post can be expected to scope to the post's
 	// locale (Phase 4 wires that up); for the bylines manager itself the
@@ -218,8 +225,11 @@ export function BylinesPage() {
 	});
 
 	const createMutation = useMutation({
-		mutationFn: () =>
-			createByline({
+		mutationFn: () => {
+			// Mirrors updateMutation's customFields guard: omit the key
+			// when field-defs failed to load so the new row starts blank
+			// instead of echoing an empty hydration back.
+			const body: Parameters<typeof createByline>[0] = {
 				slug: form.slug,
 				displayName: form.displayName,
 				bio: form.bio || null,
@@ -227,9 +237,15 @@ export function BylinesPage() {
 				userId: form.userId,
 				isGuest: form.isGuest,
 				locale: activeLocale,
-			}),
+			};
+			if (!customFieldsError && Object.keys(form.customFields).length > 0) {
+				body.customFields = form.customFields;
+			}
+			return createByline(body);
+		},
 		onSuccess: (created) => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
+			void queryClient.invalidateQueries({ queryKey: ["byline", created.id] });
 			setSelectedId(created.id);
 		},
 	});
@@ -331,19 +347,28 @@ export function BylinesPage() {
 
 	return (
 		<div className="space-y-4">
-			{isMultiLocale && i18n && activeLocale ? (
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-2xl font-semibold">{t`Bylines`}</h1>
-					</div>
-					<LocaleSwitcher
-						locales={i18n.locales}
-						defaultLocale={i18n.defaultLocale}
-						value={activeLocale}
-						onChange={handleLocaleChange}
-					/>
+			<div className="flex items-center justify-between gap-3">
+				<h1 className="text-2xl font-semibold">{t`Bylines`}</h1>
+				<div className="flex items-center gap-2">
+					{canManageBylineSchema && (
+						<RouterLinkButton
+							to={BYLINE_SCHEMA_NAV_ITEM.to}
+							variant="secondary"
+							icon={<IdentificationCard />}
+						>
+							{t`Byline schema`}
+						</RouterLinkButton>
+					)}
+					{isMultiLocale && i18n && activeLocale && (
+						<LocaleSwitcher
+							locales={i18n.locales}
+							defaultLocale={i18n.defaultLocale}
+							value={activeLocale}
+							onChange={handleLocaleChange}
+						/>
+					)}
 				</div>
-			) : null}
+			</div>
 
 			<div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
 				<div className="rounded-lg border p-4">
@@ -466,6 +491,38 @@ export function BylinesPage() {
 							}}
 							className="w-full"
 						/>
+						{/*
+						 * Render registered custom-field inputs inline with
+						 * the fixed fields. TODO: when a third extensible
+						 * system table needs custom fields, file a refactor
+						 * Discussion to extract <FieldRenderer> for reuse.
+						 */}
+						{customFieldDefs.length > 0 &&
+							customFieldDefs.map((field) => (
+								<CustomFieldInput
+									key={field.id}
+									field={field}
+									value={form.customFields[field.slug]}
+									onChange={(next) =>
+										setForm((prev) => ({
+											...prev,
+											customFields: {
+												...prev.customFields,
+												[field.slug]: next,
+											},
+										}))
+									}
+								/>
+							))}
+						{customFieldsError && (
+							<div className="rounded-md border border-kumo-danger/40 bg-kumo-danger/5 p-3 text-sm">
+								<p className="font-medium text-kumo-danger">{t`Couldn't load custom fields.`}</p>
+								<p className="text-xs text-kumo-subtle mt-1">
+									{t`You can still edit the fixed fields above. Saving will not touch any stored custom-field values.`}
+								</p>
+							</div>
+						)}
+
 						<Switch
 							label={t`Guest byline`}
 							checked={form.isGuest}
@@ -477,53 +534,6 @@ export function BylinesPage() {
 								}))
 							}
 						/>
-
-						{/*
-						 * Phase 6 of #1174 — render registered custom-field
-						 * inputs. Edit-mode only: the server-side
-						 * `bylineCreateBody` zod schema does not accept
-						 * `customFields`, so showing inputs during the
-						 * create flow would set expectations the API can't
-						 * meet. The user creates the bare byline first; the
-						 * page re-renders in edit mode with `selected`
-						 * truthy, and the inputs appear.
-						 *
-						 * TODO: when a third extensible system table needs
-						 * custom fields, file a refactor Discussion to
-						 * extract <FieldRenderer> for reuse. The switch
-						 * below is intentionally inlined for now — pulling
-						 * it into a shared component for one consumer
-						 * (this) would just move the complexity.
-						 */}
-						{selected && customFieldDefs.length > 0 && (
-							<div className="space-y-4 pt-4 border-t border-kumo-line">
-								<h3 className="text-sm font-medium text-kumo-subtle">{t`Custom fields`}</h3>
-								{customFieldDefs.map((field) => (
-									<CustomFieldInput
-										key={field.id}
-										field={field}
-										value={form.customFields[field.slug]}
-										onChange={(next) =>
-											setForm((prev) => ({
-												...prev,
-												customFields: {
-													...prev.customFields,
-													[field.slug]: next,
-												},
-											}))
-										}
-									/>
-								))}
-							</div>
-						)}
-						{selected && customFieldsError && (
-							<div className="rounded-md border border-kumo-danger/40 bg-kumo-danger/5 p-3 text-sm">
-								<p className="font-medium text-kumo-danger">{t`Couldn't load custom fields.`}</p>
-								<p className="text-xs text-kumo-subtle mt-1">
-									{t`You can still edit the fixed fields above. Saving will not touch any stored custom-field values.`}
-								</p>
-							</div>
-						)}
 
 						<DialogError message={getMutationError(mutationError)} />
 

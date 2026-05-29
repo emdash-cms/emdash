@@ -63,11 +63,11 @@ export interface BylineInput {
 	 */
 	translationOf?: string;
 	/**
-	 * Custom-field value writes (Discussion #1174). Accepted by the
-	 * update route only — `bylineCreateBody` server-side does not
-	 * include this key. Keys are field slugs; values pass through to
-	 * `BylineRepository.update`, which validates against the registered
-	 * field type and throws `EmDashValidationError` on mismatch.
+	 * Custom-field value writes (Discussion #1174). Accepted by both
+	 * the create and update routes (Phase 6 added create-flow parity).
+	 * Keys are field slugs; values pass through to the byline
+	 * repository, which validates against the registered field type
+	 * and throws `EmDashValidationError` on mismatch.
 	 *
 	 * A value of `null` clears the row (Phase 3 storage semantics).
 	 * Unknown slugs return 400 `VALIDATION_ERROR`.
