@@ -251,9 +251,8 @@ describe("draftSectionFromIntent", () => {
 				// Try matching by title
 				const byTitle = draftSectionFromIntent(template.title);
 				// Try matching by first keyword
-				const byKeyword = template.keywords.length > 0
-					? draftSectionFromIntent(template.keywords[0])
-					: byTitle;
+				const byKeyword =
+					template.keywords.length > 0 ? draftSectionFromIntent(template.keywords[0]) : byTitle;
 
 				const matched = byTitle.found || byKeyword.found;
 				expect(matched).toBe(true, `Template "${template.id}" should be reachable`);
@@ -271,7 +270,7 @@ describe("getIntentKeywords", () => {
 
 	it("contains common intent keywords", () => {
 		const keywords = getIntentKeywords();
-		const keywordSet = new Set(keywords.map(k => k.toLowerCase()));
+		const keywordSet = new Set(keywords.map((k) => k.toLowerCase()));
 
 		// Verify some key keywords are present
 		expect(keywordSet.has("pricing")).toBe(true);
@@ -289,7 +288,7 @@ describe("getIntentKeywords", () => {
 
 	it("includes expanded keywords for better matching", () => {
 		const keywords = getIntentKeywords();
-		const keywordSet = new Set(keywords.map(k => k.toLowerCase()));
+		const keywordSet = new Set(keywords.map((k) => k.toLowerCase()));
 
 		// Check for new expanded keywords
 		expect(keywordSet.has("workflow")).toBe(true);

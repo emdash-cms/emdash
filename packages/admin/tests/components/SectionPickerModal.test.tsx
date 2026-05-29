@@ -84,7 +84,9 @@ describe("SectionPickerModal", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByRole("button", { name: /hero section/i })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: /call to action/i })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: /call to action/i }))
+			.toBeInTheDocument();
 	});
 
 	it("clicking a section calls onSelect and closes modal", async () => {

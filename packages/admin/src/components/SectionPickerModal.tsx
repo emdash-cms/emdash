@@ -156,7 +156,11 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 								</div>
 							) : (
 								sections.length > 0 && (
-									<SectionGroup title="Saved sections" sections={sections} onSelect={handleSelect} />
+									<SectionGroup
+										title="Saved sections"
+										sections={sections}
+										onSelect={handleSelect}
+									/>
 								)
 							)}
 						</div>

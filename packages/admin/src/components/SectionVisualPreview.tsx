@@ -1,4 +1,3 @@
-import * as React from "react";
 import {
 	Star,
 	CheckCircle,
@@ -18,6 +17,7 @@ import {
 	Megaphone,
 	CurrencyDollar,
 } from "@phosphor-icons/react";
+import * as React from "react";
 
 type PortableTextBlock = Record<string, unknown>;
 
@@ -103,7 +103,12 @@ function renderTextBlock(block: PortableTextBlock): React.ReactNode {
 	const listItem = typeof block.listItem === "string" ? block.listItem : "";
 
 	if (listItem) {
-		return <p className="pl-4 text-sm leading-7 text-kumo-default">{listItem === "number" ? "1. " : "- "}{text}</p>;
+		return (
+			<p className="pl-4 text-sm leading-7 text-kumo-default">
+				{listItem === "number" ? "1. " : "- "}
+				{text}
+			</p>
+		);
 	}
 
 	switch (style) {
@@ -142,7 +147,11 @@ function renderChildren(children: unknown): React.ReactNode {
 			node = <strong>{node}</strong>;
 		}
 
-		return <React.Fragment key={typeof child._key === "string" ? child._key : index}>{node}</React.Fragment>;
+		return (
+			<React.Fragment key={typeof child._key === "string" ? child._key : index}>
+				{node}
+			</React.Fragment>
+		);
 	});
 }
 
@@ -180,9 +189,11 @@ function CoverPreview({ block }: { block: PortableTextBlock }) {
 			/>
 			<div className="relative z-10 max-w-2xl">
 				{structuredContent.length > 0 ? (
-					<div className="space-y-4">{structuredContent.map((item, index) => (
-						<React.Fragment key={getKey(item, index)}>{renderBlock(item)}</React.Fragment>
-					))}</div>
+					<div className="space-y-4">
+						{structuredContent.map((item, index) => (
+							<React.Fragment key={getKey(item, index)}>{renderBlock(item)}</React.Fragment>
+						))}
+					</div>
 				) : (
 					<>
 						{heading && <h2 className="text-4xl font-bold leading-tight">{heading}</h2>}
@@ -205,7 +216,8 @@ function CoverPreview({ block }: { block: PortableTextBlock }) {
 
 function ButtonPreview({ block }: { block: PortableTextBlock }) {
 	const text = typeof block.text === "string" ? block.text : "Button";
-	const href = typeof block.url === "string" ? block.url : typeof block.id === "string" ? block.id : "";
+	const href =
+		typeof block.url === "string" ? block.url : typeof block.id === "string" ? block.id : "";
 	const style = block.style === "outline" ? "outline" : "fill";
 
 	return (
@@ -236,7 +248,8 @@ function PullquotePreview({ block }: { block: PortableTextBlock }) {
 }
 
 function ImagePreview({ block }: { block: PortableTextBlock }) {
-	const src = typeof block.url === "string" ? block.url : typeof block.src === "string" ? block.src : "";
+	const src =
+		typeof block.url === "string" ? block.url : typeof block.src === "string" ? block.src : "";
 	const alt = typeof block.alt === "string" ? block.alt : "";
 
 	if (!src) return <UnknownBlockPreview block={block} />;
@@ -274,14 +287,21 @@ function AccordionPreview({ block }: { block: PortableTextBlock }) {
 							<span>{label}</span>
 							<span className="text-kumo-subtle transition-transform group-open:rotate-180">
 								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M19 9l-7 7-7-7"
+									/>
 								</svg>
 							</span>
 						</summary>
 						<div className="mt-2 space-y-3 rounded-b bg-kumo-base p-4">
 							{itemBlocks.length > 0 ? (
 								itemBlocks.map((itemBlock, itemIndex) => (
-									<React.Fragment key={getKey(itemBlock, itemIndex)}>{renderBlock(itemBlock)}</React.Fragment>
+									<React.Fragment key={getKey(itemBlock, itemIndex)}>
+										{renderBlock(itemBlock)}
+									</React.Fragment>
 								))
 							) : body ? (
 								<p className="text-sm leading-7 text-kumo-default">{body}</p>
@@ -299,7 +319,8 @@ function AccordionPreview({ block }: { block: PortableTextBlock }) {
 function BannerPreview({ block }: { block: PortableTextBlock }) {
 	const title = typeof block.title === "string" ? block.title : "";
 	const description = typeof block.description === "string" ? block.description : "";
-	const variant = block.variant === "alert" ? "alert" : block.variant === "error" ? "error" : "default";
+	const variant =
+		block.variant === "alert" ? "alert" : block.variant === "error" ? "error" : "default";
 
 	const variantStyles = {
 		default: "border-kumo-line bg-kumo-tint",
@@ -314,26 +335,55 @@ function BannerPreview({ block }: { block: PortableTextBlock }) {
 	};
 
 	return (
-		<div className={`rounded-lg border px-4 py-3 ${variantStyles[variant]}`} role={variant === "default" ? "status" : "alert"}>
+		<div
+			className={`rounded-lg border px-4 py-3 ${variantStyles[variant]}`}
+			role={variant === "default" ? "status" : "alert"}
+		>
 			<div className="flex gap-3">
 				{variant === "alert" && (
-					<svg className={`mt-0.5 h-5 w-5 flex-shrink-0 ${iconColors[variant]}`} fill="currentColor" viewBox="0 0 20 20">
-						<path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+					<svg
+						className={`mt-0.5 h-5 w-5 flex-shrink-0 ${iconColors[variant]}`}
+						fill="currentColor"
+						viewBox="0 0 20 20"
+					>
+						<path
+							fillRule="evenodd"
+							d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+							clipRule="evenodd"
+						/>
 					</svg>
 				)}
 				{variant === "error" && (
-					<svg className={`mt-0.5 h-5 w-5 flex-shrink-0 ${iconColors[variant]}`} fill="currentColor" viewBox="0 0 20 20">
-						<path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+					<svg
+						className={`mt-0.5 h-5 w-5 flex-shrink-0 ${iconColors[variant]}`}
+						fill="currentColor"
+						viewBox="0 0 20 20"
+					>
+						<path
+							fillRule="evenodd"
+							d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+							clipRule="evenodd"
+						/>
 					</svg>
 				)}
 				{variant === "default" && (
-					<svg className={`mt-0.5 h-5 w-5 flex-shrink-0 ${iconColors[variant]}`} fill="currentColor" viewBox="0 0 20 20">
-						<path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+					<svg
+						className={`mt-0.5 h-5 w-5 flex-shrink-0 ${iconColors[variant]}`}
+						fill="currentColor"
+						viewBox="0 0 20 20"
+					>
+						<path
+							fillRule="evenodd"
+							d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+							clipRule="evenodd"
+						/>
 					</svg>
 				)}
 				<div className="min-w-0 flex-1">
 					{title && <p className="text-sm font-medium leading-tight text-kumo-default">{title}</p>}
-					{description && <p className="mt-1 text-sm leading-relaxed text-kumo-subtle">{description}</p>}
+					{description && (
+						<p className="mt-1 text-sm leading-relaxed text-kumo-subtle">{description}</p>
+					)}
 				</div>
 			</div>
 		</div>
@@ -362,10 +412,15 @@ function TestimonialPreview({ block }: { block: PortableTextBlock }) {
 				const avatar = typeof item.avatar === "string" ? item.avatar : "";
 
 				return (
-					<figure key={getKey(item, index)} className="rounded-lg border border-kumo-line bg-kumo-base p-5">
+					<figure
+						key={getKey(item, index)}
+						className="rounded-lg border border-kumo-line bg-kumo-base p-5"
+					>
 						<blockquote className="text-base leading-relaxed text-kumo-default">{quote}</blockquote>
 						<figcaption className="mt-4 flex items-center gap-3">
-							{avatar && <img src={avatar} alt={author} className="h-10 w-10 rounded-full object-cover" />}
+							{avatar && (
+								<img src={avatar} alt={author} className="h-10 w-10 rounded-full object-cover" />
+							)}
 							<div>
 								{author && <div className="text-sm font-medium text-kumo-default">{author}</div>}
 								{(title || company) && (
@@ -394,13 +449,19 @@ function CardGridPreview({ block }: { block: PortableTextBlock }) {
 	const columns = normalizeColumns(block.columns);
 	const items = Array.isArray(block.items) ? block.items : [];
 	const columnClass =
-		columns === 2 ? "sm:grid-cols-2" : columns === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3";
+		columns === 2
+			? "sm:grid-cols-2"
+			: columns === 4
+				? "sm:grid-cols-2 lg:grid-cols-4"
+				: "sm:grid-cols-2 lg:grid-cols-3";
 
 	return (
 		<section className="space-y-4">
 			{(title || description) && (
 				<div>
-					{title && <h2 className="text-xl font-semibold leading-tight text-kumo-default">{title}</h2>}
+					{title && (
+						<h2 className="text-xl font-semibold leading-tight text-kumo-default">{title}</h2>
+					)}
 					{description && <p className="mt-2 text-sm leading-6 text-kumo-subtle">{description}</p>}
 				</div>
 			)}
@@ -515,21 +576,34 @@ function StatsPreview({ block }: { block: PortableTextBlock }) {
 		<section className="grid gap-3 sm:grid-cols-3">
 			{items.map((item, index) => {
 				const label = typeof item.label === "string" ? item.label : `Metric ${index + 1}`;
-				const value = typeof item.value === "string" || typeof item.value === "number" ? item.value : "";
+				const value =
+					typeof item.value === "string" || typeof item.value === "number" ? item.value : "";
 				const description = typeof item.description === "string" ? item.description : "";
-				const trend = item.trend === "up" || item.trend === "down" || item.trend === "neutral" ? item.trend : "neutral";
+				const trend =
+					item.trend === "up" || item.trend === "down" || item.trend === "neutral"
+						? item.trend
+						: "neutral";
 				const trendLabel = trend === "up" ? "up" : trend === "down" ? "down" : "flat";
 				const trendClass =
-					trend === "up" ? "text-green-600" : trend === "down" ? "text-red-600" : "text-kumo-subtle";
+					trend === "up"
+						? "text-green-600"
+						: trend === "down"
+							? "text-red-600"
+							: "text-kumo-subtle";
 
 				return (
-					<div key={getKey(item, index)} className="rounded-lg border border-kumo-line bg-kumo-base p-4">
+					<div
+						key={getKey(item, index)}
+						className="rounded-lg border border-kumo-line bg-kumo-base p-4"
+					>
 						<div className="text-xs font-medium uppercase text-kumo-subtle">{label}</div>
 						<div className="mt-2 flex items-baseline gap-2">
 							<div className="text-2xl font-semibold leading-none text-kumo-default">{value}</div>
 							<span className={`text-sm font-medium ${trendClass}`}>{trendLabel}</span>
 						</div>
-						{description && <div className="mt-2 text-sm leading-5 text-kumo-subtle">{description}</div>}
+						{description && (
+							<div className="mt-2 text-sm leading-5 text-kumo-subtle">{description}</div>
+						)}
 					</div>
 				);
 			})}
@@ -568,13 +642,19 @@ function FeatureListPreview({ block }: { block: PortableTextBlock }) {
 	const columns = normalizeColumns(block.columns);
 	const items = Array.isArray(block.items) ? block.items : [];
 	const columnClass =
-		columns === 2 ? "sm:grid-cols-2" : columns === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3";
+		columns === 2
+			? "sm:grid-cols-2"
+			: columns === 4
+				? "sm:grid-cols-2 lg:grid-cols-4"
+				: "sm:grid-cols-2 lg:grid-cols-3";
 
 	return (
 		<section className="space-y-4">
 			{(title || description) && (
 				<div>
-					{title && <h2 className="text-xl font-semibold leading-tight text-kumo-default">{title}</h2>}
+					{title && (
+						<h2 className="text-xl font-semibold leading-tight text-kumo-default">{title}</h2>
+					)}
 					{description && <p className="mt-2 text-sm leading-6 text-kumo-subtle">{description}</p>}
 				</div>
 			)}
@@ -582,10 +662,15 @@ function FeatureListPreview({ block }: { block: PortableTextBlock }) {
 				<div className={`grid gap-4 ${columnClass}`}>
 					{items.map((item, index) =>
 						isRecord(item) ? (
-							<div key={getKey(item, index)} className="flex gap-4 rounded-lg border border-kumo-line bg-kumo-base p-4">
+							<div
+								key={getKey(item, index)}
+								className="flex gap-4 rounded-lg border border-kumo-line bg-kumo-base p-4"
+							>
 								<div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-kumo-brand/10 text-kumo-brand">
 									{(() => {
-										const IconComponent = resolveFeatureIcon(typeof item.icon === "string" ? item.icon : "");
+										const IconComponent = resolveFeatureIcon(
+											typeof item.icon === "string" ? item.icon : "",
+										);
 										return <IconComponent className="h-5 w-5" />;
 									})()}
 								</div>
@@ -597,7 +682,10 @@ function FeatureListPreview({ block }: { block: PortableTextBlock }) {
 										<p className="mt-1 text-sm leading-5 text-kumo-subtle">{item.description}</p>
 									)}
 									{typeof item.url === "string" && item.url && (
-										<a href={safeHref(item.url)} className="mt-2 inline-flex text-sm font-medium text-kumo-brand hover:underline">
+										<a
+											href={safeHref(item.url)}
+											className="mt-2 inline-flex text-sm font-medium text-kumo-brand hover:underline"
+										>
 											Learn more
 										</a>
 									)}
@@ -668,10 +756,17 @@ function FaqPreview({ block }: { block: PortableTextBlock }) {
 				isRecord(item) ? (
 					<details key={getKey(item, index)} className="group rounded-lg border border-kumo-line">
 						<summary className="flex cursor-pointer list-none items-center justify-between rounded-lg bg-kumo-tint/50 px-4 py-3 text-sm font-medium text-kumo-default hover:bg-kumo-tint">
-							<span>{typeof item.question === "string" ? item.question : `Question ${index + 1}`}</span>
+							<span>
+								{typeof item.question === "string" ? item.question : `Question ${index + 1}`}
+							</span>
 							<span className="text-kumo-subtle transition-transform group-open:rotate-180">
 								<svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M19 9l-7 7-7-7"
+									/>
 								</svg>
 							</span>
 						</summary>
@@ -735,13 +830,19 @@ function PricingTablePreview({ block }: { block: PortableTextBlock }) {
 	}
 
 	const columnClass =
-		columns === 2 ? "grid-cols-2" : columns === 4 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3";
+		columns === 2
+			? "grid-cols-2"
+			: columns === 4
+				? "grid-cols-2 lg:grid-cols-4"
+				: "grid-cols-2 lg:grid-cols-3";
 
 	return (
 		<section className="space-y-4">
 			{(title || description) && (
 				<div className="text-center">
-					{title && <h2 className="text-xl font-semibold leading-tight text-kumo-default">{title}</h2>}
+					{title && (
+						<h2 className="text-xl font-semibold leading-tight text-kumo-default">{title}</h2>
+					)}
 					{description && <p className="mt-2 text-sm leading-6 text-kumo-subtle">{description}</p>}
 				</div>
 			)}
@@ -764,7 +865,9 @@ function PricingTablePreview({ block }: { block: PortableTextBlock }) {
 									<span className="text-2xl font-bold text-kumo-default">
 										{typeof item.price === "string" ? item.price : "—"}
 									</span>
-									<span className="text-sm text-kumo-subtle">/{typeof item.period === "string" ? item.period : "mo"}</span>
+									<span className="text-sm text-kumo-subtle">
+										/{typeof item.period === "string" ? item.period : "mo"}
+									</span>
 								</div>
 								{typeof item.description === "string" && item.description && (
 									<p className="mt-2 text-xs text-kumo-subtle">{item.description}</p>
@@ -779,12 +882,15 @@ function PricingTablePreview({ block }: { block: PortableTextBlock }) {
 							)}
 							<div className="mt-4 space-y-2">
 								{typeof item.features === "string" &&
-									item.features.split("\n").filter(Boolean).map((feature: string, featIndex: number) => (
-										<div key={featIndex} className="flex items-start gap-2 text-sm">
-											<CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-kumo-brand" />
-											<span className="text-kumo-default">{feature.trim()}</span>
-										</div>
-									))}
+									item.features
+										.split("\n")
+										.filter(Boolean)
+										.map((feature: string, featIndex: number) => (
+											<div key={featIndex} className="flex items-start gap-2 text-sm">
+												<CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-kumo-brand" />
+												<span className="text-kumo-default">{feature.trim()}</span>
+											</div>
+										))}
 							</div>
 							{typeof item.ctaText === "string" && item.ctaText && (
 								<a
@@ -809,11 +915,20 @@ function PricingTablePreview({ block }: { block: PortableTextBlock }) {
 function CtaBannerPreview({ block }: { block: PortableTextBlock }) {
 	const title = typeof block.title === "string" ? block.title : "";
 	const description = typeof block.description === "string" ? block.description : "";
-	const backgroundColor = block.backgroundColor === "dark" ? "dark" : block.backgroundColor === "light" ? "light" : block.backgroundColor === "gradient" ? "gradient" : "brand";
+	const backgroundColor =
+		block.backgroundColor === "dark"
+			? "dark"
+			: block.backgroundColor === "light"
+				? "light"
+				: block.backgroundColor === "gradient"
+					? "gradient"
+					: "brand";
 	const buttonText = typeof block.buttonText === "string" ? block.buttonText : "";
 	const buttonUrl = typeof block.buttonUrl === "string" ? block.buttonUrl : "";
-	const buttonStyle = block.buttonStyle === "outline" ? "outline" : block.buttonStyle === "ghost" ? "ghost" : "fill";
-	const alignment = block.alignment === "left" ? "left" : block.alignment === "right" ? "right" : "center";
+	const buttonStyle =
+		block.buttonStyle === "outline" ? "outline" : block.buttonStyle === "ghost" ? "ghost" : "fill";
+	const alignment =
+		block.alignment === "left" ? "left" : block.alignment === "right" ? "right" : "center";
 
 	const bgStyles = {
 		brand: "bg-kumo-brand",
@@ -830,21 +945,42 @@ function CtaBannerPreview({ block }: { block: PortableTextBlock }) {
 	};
 
 	const buttonStyles = {
-		fill: buttonStyle === "fill" ? (backgroundColor === "light" ? "bg-kumo-brand text-white hover:bg-kumo-brand/90" : "bg-white text-kumo-brand hover:bg-white/90") : "",
-		outline: buttonStyle === "outline" ? (backgroundColor === "light" ? "border-2 border-kumo-brand text-kumo-brand hover:bg-kumo-brand/10" : "border-2 border-white text-white hover:bg-white/10") : "",
-		ghost: buttonStyle === "ghost" ? (backgroundColor === "light" ? "text-kumo-brand hover:bg-kumo-brand/10" : "text-white hover:bg-white/10") : "",
+		fill:
+			buttonStyle === "fill"
+				? backgroundColor === "light"
+					? "bg-kumo-brand text-white hover:bg-kumo-brand/90"
+					: "bg-white text-kumo-brand hover:bg-white/90"
+				: "",
+		outline:
+			buttonStyle === "outline"
+				? backgroundColor === "light"
+					? "border-2 border-kumo-brand text-kumo-brand hover:bg-kumo-brand/10"
+					: "border-2 border-white text-white hover:bg-white/10"
+				: "",
+		ghost:
+			buttonStyle === "ghost"
+				? backgroundColor === "light"
+					? "text-kumo-brand hover:bg-kumo-brand/10"
+					: "text-white hover:bg-white/10"
+				: "",
 	};
 
 	return (
 		<section className={`rounded-lg ${bgStyles[backgroundColor]} px-8 py-10`}>
 			<div
 				className={`flex flex-col gap-4 ${
-					alignment === "left" ? "items-start text-left" : alignment === "right" ? "items-end text-right" : "items-center text-center"
+					alignment === "left"
+						? "items-start text-left"
+						: alignment === "right"
+							? "items-end text-right"
+							: "items-center text-center"
 				}`}
 			>
 				{title && <h2 className={`text-2xl font-bold ${textStyles[backgroundColor]}`}>{title}</h2>}
 				{description && (
-					<p className={`max-w-xl text-base ${backgroundColor === "light" ? "text-kumo-default" : "text-white/85"}`}>
+					<p
+						className={`max-w-xl text-base ${backgroundColor === "light" ? "text-kumo-default" : "text-white/85"}`}
+					>
 						{description}
 					</p>
 				)}

@@ -1,5 +1,5 @@
-import * as React from "react";
 import { Collapsible } from "@cloudflare/kumo";
+import * as React from "react";
 import { useState } from "react";
 
 import type { FaqBlock } from "../types.js";
@@ -14,11 +14,22 @@ export function FaqBlockComponent({ block }: { block: FaqBlock }) {
 	);
 }
 
-function FaqItemAccordion({ item, index }: { item: { question: string; answer: string }; index: number }) {
+function FaqItemAccordion({
+	item,
+	index,
+}: {
+	item: { question: string; answer: string };
+	index: number;
+}) {
 	const [open, setOpen] = useState(false);
 
 	return (
-		<Collapsible.Root open={open} onOpenChange={setOpen} data-testid="faq-collapsible" data-open={open}>
+		<Collapsible.Root
+			open={open}
+			onOpenChange={setOpen}
+			data-testid="faq-collapsible"
+			data-open={open}
+		>
 			<Collapsible.DefaultTrigger className="flex w-full cursor-pointer list-none items-center justify-between rounded-lg border border-kumo-line bg-kumo-tint/50 px-4 py-3 text-start text-sm font-medium text-kumo-default hover:bg-kumo-tint">
 				<span>{item.question || `Question ${index + 1}`}</span>
 				<span className="text-kumo-subtle transition-transform group-open:rotate-180">

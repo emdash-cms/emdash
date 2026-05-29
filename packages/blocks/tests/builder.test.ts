@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { validateBuilderDocument, newBuilderDocument, newBlockId } from "../src/builder/schema.js";
-import { renderBlockDocument } from "../src/builder/renderer.js";
-import { exportToBuilderSchema } from "../src/builder/lexical-to-builder.js";
 import {
 	importFromBuilderSchema,
 	importPortableTextToLexicalState,
 } from "../src/builder/builder-to-lexical.js";
+import { exportToBuilderSchema } from "../src/builder/lexical-to-builder.js";
+import { renderBlockDocument } from "../src/builder/renderer.js";
+import { validateBuilderDocument, newBuilderDocument, newBlockId } from "../src/builder/schema.js";
 
 // ── schema ─────────────────────────────────────────────────────────────────────
 
@@ -43,7 +43,11 @@ describe("validateBuilderDocument", () => {
 					props: { gap: "1rem" },
 					columns: [
 						{ id: "col1", width: 6, blocks: [{ id: "b1", type: "divider" }] },
-						{ id: "col2", width: 6, blocks: [{ id: "b2", type: "spacer", props: { height: "1rem" } }] },
+						{
+							id: "col2",
+							width: 6,
+							blocks: [{ id: "b2", type: "spacer", props: { height: "1rem" } }],
+						},
 					],
 				},
 			],
@@ -291,9 +295,7 @@ describe("renderBlockDocument", () => {
 							id: "c1",
 							type: "columns",
 							props: { gap: "1rem" },
-							columns: [
-								{ id: "col1", width: 12, blocks: [{ id: "b1", type: "divider" }] },
-							],
+							columns: [{ id: "col1", width: 12, blocks: [{ id: "b1", type: "divider" }] }],
 						},
 					],
 				},

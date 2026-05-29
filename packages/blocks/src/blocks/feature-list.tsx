@@ -25,14 +25,22 @@ function resolveIcon(iconKey?: string): string {
 export function FeatureListBlockComponent({ block }: { block: FeatureListBlock }) {
 	const columns = block.columns ?? 3;
 	const columnClass =
-		columns === 2 ? "sm:grid-cols-2" : columns === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3";
+		columns === 2
+			? "sm:grid-cols-2"
+			: columns === 4
+				? "sm:grid-cols-2 lg:grid-cols-4"
+				: "sm:grid-cols-2 lg:grid-cols-3";
 
 	return (
 		<section className="space-y-4">
 			{(block.title || block.description) && (
 				<div>
-					{block.title && <h2 className="text-xl font-semibold text-kumo-default">{block.title}</h2>}
-					{block.description && <p className="mt-2 text-sm text-kumo-subtle">{block.description}</p>}
+					{block.title && (
+						<h2 className="text-xl font-semibold text-kumo-default">{block.title}</h2>
+					)}
+					{block.description && (
+						<p className="mt-2 text-sm text-kumo-subtle">{block.description}</p>
+					)}
 				</div>
 			)}
 			{block.items.length > 0 ? (

@@ -550,7 +550,12 @@ function cardGrid(opts: {
 	};
 }
 
-function icon(opts: { blockId?: string; name: string; label: string; description?: string }): IconBlock {
+function icon(opts: {
+	blockId?: string;
+	name: string;
+	label: string;
+	description?: string;
+}): IconBlock {
 	return {
 		type: "icon",
 		name: opts.name,
@@ -590,11 +595,7 @@ function logoCloud(opts: {
 	};
 }
 
-function steps(opts: {
-	blockId?: string;
-	title?: string;
-	items: StepItem[];
-}): StepsBlock {
+function steps(opts: { blockId?: string; title?: string; items: StepItem[] }): StepsBlock {
 	return {
 		type: "steps",
 		...(opts.title !== undefined && { title: opts.title }),

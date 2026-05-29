@@ -1,12 +1,13 @@
 import { AccordionBlockComponent } from "./blocks/accordion.js";
 import { ActionsBlockComponent } from "./blocks/actions.js";
 import { BannerBlockComponent } from "./blocks/banner.js";
-import { CardBlockComponent } from "./blocks/card.js";
 import { CardGridBlockComponent } from "./blocks/card-grid.js";
+import { CardBlockComponent } from "./blocks/card.js";
 import { ChartBlockComponent } from "./blocks/chart.js";
 import { CodeBlockComponent } from "./blocks/code.js";
 import { ColumnsBlockComponent } from "./blocks/columns.js";
 import { ContextBlockComponent } from "./blocks/context.js";
+import { CtaBannerBlockComponent } from "./blocks/cta-banner.js";
 import { DividerBlockComponent } from "./blocks/divider.js";
 import { EmptyBlockComponent } from "./blocks/empty.js";
 import { FaqBlockComponent } from "./blocks/faq.js";
@@ -15,18 +16,17 @@ import { FieldsBlockComponent } from "./blocks/fields.js";
 import { FormBlockComponent } from "./blocks/form.js";
 import { HeaderBlockComponent } from "./blocks/header.js";
 import { IconBlockComponent } from "./blocks/icon.js";
-import { LogoCloudBlockComponent } from "./blocks/logo-cloud.js";
-import { StepsBlockComponent } from "./blocks/steps.js";
 import { ImageBlockComponent } from "./blocks/image.js";
+import { LogoCloudBlockComponent } from "./blocks/logo-cloud.js";
 import { MeterBlockComponent } from "./blocks/meter.js";
+import { PricingTableBlockComponent } from "./blocks/pricing-table.js";
 import { SectionBlockComponent } from "./blocks/section.js";
 import { StatsBlockComponent } from "./blocks/stats.js";
+import { StepsBlockComponent } from "./blocks/steps.js";
 import { TabBlockComponent } from "./blocks/tab.js";
 import { TableBlockComponent } from "./blocks/table.js";
 import { TestimonialBlockComponent } from "./blocks/testimonial.js";
 import { VideoEmbedBlockComponent } from "./blocks/video-embed.js";
-import { CtaBannerBlockComponent } from "./blocks/cta-banner.js";
-import { PricingTableBlockComponent } from "./blocks/pricing-table.js";
 import type { Block, BlockInteraction } from "./types.js";
 
 function renderBlock(

@@ -18,8 +18,8 @@ import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPane
 import { EditorHeader } from "./EditorHeader";
 import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
 import { RouterLinkButton } from "./RouterLinkButton.js";
-import { SectionVisualPreview } from "./SectionVisualPreview";
 import { SaveButton } from "./SaveButton";
+import { SectionVisualPreview } from "./SectionVisualPreview";
 
 export function SectionEditor() {
 	const { t } = useLingui();

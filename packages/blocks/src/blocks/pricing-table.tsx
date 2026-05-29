@@ -15,15 +15,11 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
 		>
 			<div className="mb-4">
 				<h3 className="text-lg font-semibold text-kumo-default">{plan.name}</h3>
-				{plan.description && (
-					<p className="mt-1 text-sm text-kumo-subtle">{plan.description}</p>
-				)}
+				{plan.description && <p className="mt-1 text-sm text-kumo-subtle">{plan.description}</p>}
 			</div>
 			<div className="mb-6">
 				<span className="text-3xl font-bold text-kumo-default">{plan.price}</span>
-				{plan.period && (
-					<span className="text-sm text-kumo-subtle">/{plan.period}</span>
-				)}
+				{plan.period && <span className="text-sm text-kumo-subtle">/{plan.period}</span>}
 			</div>
 			<ul className="mb-6 flex-1 space-y-2">
 				{plan.features.map((feature, index) => (
@@ -54,7 +50,9 @@ export function PricingTableBlockComponent({ block }: { block: PricingTableBlock
 		<section className="space-y-6">
 			{(block.title || block.description) && (
 				<div className="text-center">
-					{block.title && <h2 className="text-2xl font-semibold text-kumo-default">{block.title}</h2>}
+					{block.title && (
+						<h2 className="text-2xl font-semibold text-kumo-default">{block.title}</h2>
+					)}
 					{block.description && (
 						<p className="mt-2 text-sm leading-6 text-kumo-subtle">{block.description}</p>
 					)}

@@ -72,36 +72,36 @@ export { default as Underline } from "./marks/Underline.astro";
 export { default as StrikeThrough } from "./marks/StrikeThrough.astro";
 export { default as Link } from "./marks/Link.astro";
 
+import AccordionComponent from "./Accordion.astro";
+import BannerComponent from "./Banner.astro";
 import BreakComponent from "./Break.astro";
 import ButtonComponent from "./Button.astro";
 import ButtonsComponent from "./Buttons.astro";
+import CardComponent from "./Card.astro";
+import CardGridComponent from "./CardGrid.astro";
 import CodeComponent from "./Code.astro";
 import ColumnsComponent from "./Columns.astro";
 import CoverComponent from "./Cover.astro";
+import CtaBannerComponent from "./CtaBanner.astro";
 import EmbedComponent from "./Embed.astro";
+import FaqComponent from "./Faq.astro";
+import FeatureListComponent from "./FeatureList.astro";
 import FileComponent from "./File.astro";
 import GalleryComponent from "./Gallery.astro";
 import HtmlBlockComponent from "./HtmlBlock.astro";
+import IconComponent from "./Icon.astro";
 // Pre-configured components object for PortableText
 import ImageComponent from "./Image.astro";
-import { emdashMarkComponents } from "./marks.js";
-import PullquoteComponent from "./Pullquote.astro";
-import TableComponent from "./Table.astro";
-import AccordionComponent from "./Accordion.astro";
-import BannerComponent from "./Banner.astro";
-import TestimonialComponent from "./Testimonial.astro";
-import CardComponent from "./Card.astro";
-import CardGridComponent from "./CardGrid.astro";
-import TabsComponent from "./Tabs.astro";
-import StatsComponent from "./Stats.astro";
-import FeatureListComponent from "./FeatureList.astro";
-import IconComponent from "./Icon.astro";
 import LogoCloudComponent from "./LogoCloud.astro";
-import StepsComponent from "./Steps.astro";
-import FaqComponent from "./Faq.astro";
-import VideoEmbedComponent from "./VideoEmbed.astro";
+import { emdashMarkComponents } from "./marks.js";
 import PricingTableComponent from "./PricingTable.astro";
-import CtaBannerComponent from "./CtaBanner.astro";
+import PullquoteComponent from "./Pullquote.astro";
+import StatsComponent from "./Stats.astro";
+import StepsComponent from "./Steps.astro";
+import TableComponent from "./Table.astro";
+import TabsComponent from "./Tabs.astro";
+import TestimonialComponent from "./Testimonial.astro";
+import VideoEmbedComponent from "./VideoEmbed.astro";
 
 /**
  * Pre-configured components for EmDash Portable Text content

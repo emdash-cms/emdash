@@ -8,9 +8,7 @@ export function IconBlockComponent({ block }: { block: IconBlock }) {
 			</div>
 			<div>
 				<div className="text-sm font-semibold text-kumo-default">{block.label}</div>
-				{block.description && (
-					<p className="mt-1 text-sm text-kumo-subtle">{block.description}</p>
-				)}
+				{block.description && <p className="mt-1 text-sm text-kumo-subtle">{block.description}</p>}
 			</div>
 		</div>
 	);

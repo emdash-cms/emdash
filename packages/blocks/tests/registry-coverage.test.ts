@@ -20,6 +20,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+
 import type { Block } from "../src/types.js";
 
 // ── Central Registry ───────────────────────────────────────────────────────────
@@ -216,11 +217,7 @@ export const BLOCKS_PACKAGE_VISUAL_TYPES = [
  * Block types handled by Astro core components (not blocks package).
  * These should have corresponding exports in core/components/index.ts.
  */
-export const ASTRO_COMPONENT_TYPES = [
-	"cover",
-	"pullquote",
-	"button",
-] as const;
+export const ASTRO_COMPONENT_TYPES = ["cover", "pullquote", "button"] as const;
 
 /**
  * Core Astro component registry exports for section components.
@@ -379,25 +376,15 @@ describe("Section Registry Coverage", () => {
 		] as const;
 
 		it("all admin plugin blocks should have visual preview support", () => {
-			const missing = findExtra(
-				ADMIN_PLUGIN_BLOCK_TYPES,
-				ADMIN_PREVIEW_BLOCK_TYPES,
-			);
+			const missing = findExtra(ADMIN_PLUGIN_BLOCK_TYPES, ADMIN_PREVIEW_BLOCK_TYPES);
 
 			if (missing.length > 0) {
-				console.warn(
-					`Plugin blocks missing visual preview: ${missing.join(", ")}`,
-				);
+				console.warn(`Plugin blocks missing visual preview: ${missing.join(", ")}`);
 			}
 
 			// Allow block type since it just renders text
-			const previewablePluginBlocks = ADMIN_PLUGIN_BLOCK_TYPES.filter(
-				(t) => t !== "block",
-			);
-			const missingPreview = findMissing(
-				previewablePluginBlocks,
-				ADMIN_PREVIEW_BLOCK_TYPES,
-			);
+			const previewablePluginBlocks = ADMIN_PLUGIN_BLOCK_TYPES.filter((t) => t !== "block");
+			const missingPreview = findMissing(previewablePluginBlocks, ADMIN_PREVIEW_BLOCK_TYPES);
 
 			expect(missingPreview).toEqual([]);
 		});
@@ -412,15 +399,10 @@ describe("Section Registry Coverage", () => {
 			const previewableBlocks = ADMIN_PREVIEW_BLOCK_TYPES.filter(
 				(t) => !PORTABLE_TEXT_NATIVE_TYPES.includes(t),
 			);
-			const missing = findMissing(
-				previewableBlocks,
-				[...pluginBlockTypes],
-			);
+			const missing = findMissing(previewableBlocks, [...pluginBlockTypes]);
 
 			if (missing.length > 0) {
-				console.warn(
-					`Preview blocks missing plugin definition: ${missing.join(", ")}`,
-				);
+				console.warn(`Preview blocks missing plugin definition: ${missing.join(", ")}`);
 			}
 
 			expect(missing).toEqual([]);
@@ -438,29 +420,21 @@ describe("Section Registry Coverage", () => {
 		});
 
 		it("all visual block types should be in renderer types", () => {
-			const missing = findMissing(
-				BLOCKS_PACKAGE_VISUAL_TYPES,
-				BLOCKS_RENDERER_TYPES,
-			);
+			const missing = findMissing(BLOCKS_PACKAGE_VISUAL_TYPES, BLOCKS_RENDERER_TYPES);
 
 			if (missing.length > 0) {
-				console.error(
-					`Missing renderer cases for: ${missing.join(", ")}`,
-				);
+				console.error(`Missing renderer cases for: ${missing.join(", ")}`);
 			}
 
 			expect(missing).toEqual([]);
 		});
 
 		it("should not include Astro-only types in blocks renderer", () => {
-			const astroTypesInRenderer = findExtra(
-				BLOCKS_RENDERER_TYPES,
-				ASTRO_COMPONENT_TYPES,
-			);
+			const astroTypesInRenderer = findExtra(BLOCKS_RENDERER_TYPES, ASTRO_COMPONENT_TYPES);
 
 			// These types should NOT be in blocks renderer
 			const accidentallyIncluded = ASTRO_COMPONENT_TYPES.filter((t) =>
-				BLOCKS_RENDERER_TYPES.includes(t as typeof BLOCKS_RENDERER_TYPES[number]),
+				BLOCKS_RENDERER_TYPES.includes(t as (typeof BLOCKS_RENDERER_TYPES)[number]),
 			);
 
 			expect(accidentallyIncluded).toEqual([]);
@@ -567,9 +541,7 @@ describe("Section Registry Coverage", () => {
 				if (!inRenderer) issues.push("blocks renderer");
 
 				if (issues.length > 0) {
-					console.error(
-						`Block type "${blockType}" missing from: ${issues.join(", ")}`,
-					);
+					console.error(`Block type "${blockType}" missing from: ${issues.join(", ")}`);
 				}
 
 				expect(inTemplates).toBe(true);

@@ -1,5 +1,6 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
+
 import type { PluginBlockDef } from "../components/PortableTextEditor";
 import type { CreateSectionInput, Section } from "./api/sections";
 
@@ -19,7 +20,13 @@ export const SECTION_CATEGORIES: readonly {
 	{ id: "social", label: msg`Social Proof`, icon: "social" },
 ];
 
-export type SectionCategoryId = "layout" | "content" | "marketing" | "media" | "navigation" | "social";
+export type SectionCategoryId =
+	| "layout"
+	| "content"
+	| "marketing"
+	| "media"
+	| "navigation"
+	| "social";
 
 /**
  * Get a category by its ID.
@@ -504,7 +511,8 @@ export const SECTION_STARTER_TEMPLATES: SectionStarterTemplate[] = [
 					{
 						_key: "starterFaqTwo",
 						question: "How do I get started?",
-						answer: "Create a reusable section, edit its content, then insert it into a page or post.",
+						answer:
+							"Create a reusable section, edit its content, then insert it into a page or post.",
 					},
 				],
 			},
@@ -561,7 +569,8 @@ export const SECTION_STARTER_TEMPLATES: SectionStarterTemplate[] = [
 						price: "79",
 						period: "month",
 						description: "Best for growing teams and businesses.",
-						features: "Unlimited pages\n50GB storage\nPriority support\nAdvanced analytics\nCustom domain\nAPI access",
+						features:
+							"Unlimited pages\n50GB storage\nPriority support\nAdvanced analytics\nCustom domain\nAPI access",
 						ctaText: "Start free trial",
 						ctaUrl: "/signup?plan=pro",
 						featured: true,
@@ -572,7 +581,8 @@ export const SECTION_STARTER_TEMPLATES: SectionStarterTemplate[] = [
 						price: "199",
 						period: "month",
 						description: "For large organizations with custom needs.",
-						features: "Everything in Pro\nUnlimited storage\n24/7 support\nSSO & SAML\nCustom integrations\nDedicated account manager",
+						features:
+							"Everything in Pro\nUnlimited storage\n24/7 support\nSSO & SAML\nCustom integrations\nDedicated account manager",
 						ctaText: "Contact sales",
 						ctaUrl: "/contact",
 						featured: false,
@@ -1354,8 +1364,16 @@ export const SECTION_TEMPLATE_PLUGIN_BLOCKS: PluginBlockDef[] = [
 				min_items: 1,
 				max_items: 10,
 				initial_value: [
-					{ icon: "lightning", title: "Sign up", description: "Create your free account in seconds." },
-					{ icon: "gear", title: "Configure", description: "Set up your workspace and preferences." },
+					{
+						icon: "lightning",
+						title: "Sign up",
+						description: "Create your free account in seconds.",
+					},
+					{
+						icon: "gear",
+						title: "Configure",
+						description: "Set up your workspace and preferences.",
+					},
 					{ icon: "check", title: "Launch", description: "Go live and start seeing results." },
 				],
 			},
@@ -1399,7 +1417,8 @@ export const SECTION_TEMPLATE_PLUGIN_BLOCKS: PluginBlockDef[] = [
 					},
 					{
 						question: "How do I get started?",
-						answer: "Create a reusable section, edit its content, then insert it into a page or post.",
+						answer:
+							"Create a reusable section, edit its content, then insert it into a page or post.",
 					},
 				],
 			},
@@ -1465,7 +1484,8 @@ export const SECTION_TEMPLATE_PLUGIN_BLOCKS: PluginBlockDef[] = [
 				action_id: "description",
 				label: "Description",
 				multiline: true,
-				initial_value: "Choose the plan that fits your needs. All plans include a 14-day free trial.",
+				initial_value:
+					"Choose the plan that fits your needs. All plans include a 14-day free trial.",
 			},
 			{
 				type: "select",
@@ -1731,13 +1751,28 @@ const INTENT_MAPPINGS: IntentMapping[] = [
 	},
 	// CTA Section
 	{
-		keywords: ["cta", "call to action", "conversion", "button", "get started", "signup", "subscribe"],
+		keywords: [
+			"cta",
+			"call to action",
+			"conversion",
+			"button",
+			"get started",
+			"signup",
+			"subscribe",
+		],
 		templateId: "starter-cta",
 		confidence: "high",
 	},
 	// CTA Banner
 	{
-		keywords: ["cta banner", "promotion", "marketing banner", "full width cta", "promotional banner", "ad banner"],
+		keywords: [
+			"cta banner",
+			"promotion",
+			"marketing banner",
+			"full width cta",
+			"promotional banner",
+			"ad banner",
+		],
 		templateId: "starter-cta-banner",
 		confidence: "high",
 	},
@@ -1761,7 +1796,14 @@ const INTENT_MAPPINGS: IntentMapping[] = [
 	},
 	// Testimonial
 	{
-		keywords: ["testimonial", "testimonials", "review", "reviews", "quote social", "customer review"],
+		keywords: [
+			"testimonial",
+			"testimonials",
+			"review",
+			"reviews",
+			"quote social",
+			"customer review",
+		],
 		templateId: "starter-testimonial",
 		confidence: "high",
 	},
@@ -1773,25 +1815,57 @@ const INTENT_MAPPINGS: IntentMapping[] = [
 	},
 	// Card Grid
 	{
-		keywords: ["card grid", "cards", "features grid", "products", "showcase", "grid layout", "cards layout"],
+		keywords: [
+			"card grid",
+			"cards",
+			"features grid",
+			"products",
+			"showcase",
+			"grid layout",
+			"cards layout",
+		],
 		templateId: "starter-card-grid",
 		confidence: "high",
 	},
 	// Tabs
 	{
-		keywords: ["tabs", "tabbed", "panels", "tab panels", "comparison tabs", "comparison", "tabbed content"],
+		keywords: [
+			"tabs",
+			"tabbed",
+			"panels",
+			"tab panels",
+			"comparison tabs",
+			"comparison",
+			"tabbed content",
+		],
 		templateId: "starter-tabs",
 		confidence: "high",
 	},
 	// Stats / Counter
 	{
-		keywords: ["stats", "stats counter", "metrics", "numbers", "kpi", "counter", "statistics", "data"],
+		keywords: [
+			"stats",
+			"stats counter",
+			"metrics",
+			"numbers",
+			"kpi",
+			"counter",
+			"statistics",
+			"data",
+		],
 		templateId: "starter-stats",
 		confidence: "high",
 	},
 	// Feature List
 	{
-		keywords: ["feature list", "features", "benefits", "icons features", "feature grid", "capabilities"],
+		keywords: [
+			"feature list",
+			"features",
+			"benefits",
+			"icons features",
+			"feature grid",
+			"capabilities",
+		],
 		templateId: "starter-feature-list",
 		confidence: "high",
 	},
@@ -1821,7 +1895,16 @@ const INTENT_MAPPINGS: IntentMapping[] = [
 	},
 	// Pricing Table
 	{
-		keywords: ["pricing", "price", "plans", "tier", "subscription", "comparison table", "cost", "billing"],
+		keywords: [
+			"pricing",
+			"price",
+			"plans",
+			"tier",
+			"subscription",
+			"comparison table",
+			"cost",
+			"billing",
+		],
 		templateId: "starter-pricing-table",
 		confidence: "high",
 	},
@@ -2060,7 +2143,9 @@ export function draftSectionFromIntent(
 
 	// Filter out zero-score results and apply threshold
 	const validScores = scores.filter(
-		(s) => s.score > 0 && (s.confidence === "high" || s.confidence === "medium" || s.confidence === "low"),
+		(s) =>
+			s.score > 0 &&
+			(s.confidence === "high" || s.confidence === "medium" || s.confidence === "low"),
 	);
 
 	if (validScores.length === 0) {
@@ -2139,11 +2224,11 @@ function contextualRelevanceBoost(
 		"hero-cover": ["card-grid", "stats", "feature-list", "cta-banner", "testimonial"],
 		"card-grid": ["cta-banner", "testimonial", "steps"],
 		"feature-list": ["card-grid", "stats", "cta-banner"],
-		"stats": ["feature-list", "card-grid", "steps"],
-		"faq": ["cta-banner", "hero-cover", "testimonial"],
+		stats: ["feature-list", "card-grid", "steps"],
+		faq: ["cta-banner", "hero-cover", "testimonial"],
 		"pricing-table": ["faq", "testimonial", "cta-banner", "feature-list"],
-		"testimonial": ["cta-banner", "card-grid", "feature-list"],
-		"steps": ["cta-banner", "feature-list", "card-grid"],
+		testimonial: ["cta-banner", "card-grid", "feature-list"],
+		steps: ["cta-banner", "feature-list", "card-grid"],
 	};
 
 	const complements = complementaryPairs[template.slug] || [];

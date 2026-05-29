@@ -13,11 +13,19 @@ export type { LexicalEditorProps } from "./editor/index.js";
 export { LexicalEditorContext, useLexicalEditorContext } from "./editor/index.js";
 
 // Builder
-export { BlockPicker, PropertyPanel, DragDropPlugin, SortableNodeWrapper } from "./builder/index.js";
+export {
+	BlockPicker,
+	PropertyPanel,
+	DragDropPlugin,
+	SortableNodeWrapper,
+} from "./builder/index.js";
 export type { BlockDefinition, DragDropPluginProps } from "./builder/index.js";
 export { renderBlockDocument } from "./builder/renderer.js";
 export { exportToBuilderSchema } from "./builder/lexical-to-builder.js";
-export { importFromBuilderSchema, importPortableTextToLexicalState } from "./builder/builder-to-lexical.js";
+export {
+	importFromBuilderSchema,
+	importPortableTextToLexicalState,
+} from "./builder/builder-to-lexical.js";
 export { validateBuilderDocument, newBuilderDocument, newBlockId } from "./builder/schema.js";
 export type {
 	BuilderBlock,

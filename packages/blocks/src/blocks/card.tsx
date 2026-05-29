@@ -10,7 +10,12 @@ export function CardItemView({ item }: { item: CardItem }) {
 	return (
 		<article className="overflow-hidden rounded-lg border border-kumo-line bg-kumo-base">
 			{item.image && (
-				<img src={item.image} alt={item.title} className="h-40 w-full object-cover" loading="lazy" />
+				<img
+					src={item.image}
+					alt={item.title}
+					className="h-40 w-full object-cover"
+					loading="lazy"
+				/>
 			)}
 			<div className="p-5">
 				<h3 className="text-base font-semibold text-kumo-default">{item.title}</h3>

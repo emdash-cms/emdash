@@ -6,7 +6,11 @@ function TestimonialCard({ item }: { item: TestimonialItem }) {
 			<blockquote className="text-base leading-relaxed text-kumo-default">{item.quote}</blockquote>
 			<figcaption className="mt-4 flex items-center gap-3">
 				{item.avatar && (
-					<img src={item.avatar} alt={item.author} className="h-10 w-10 rounded-full object-cover" />
+					<img
+						src={item.avatar}
+						alt={item.author}
+						className="h-10 w-10 rounded-full object-cover"
+					/>
 				)}
 				<div>
 					<div className="text-sm font-medium text-kumo-default">{item.author}</div>

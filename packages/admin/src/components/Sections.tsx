@@ -86,7 +86,9 @@ export function Sections() {
 
 	// Draft from intent state
 	const [draftIntent, setDraftIntent] = React.useState("");
-	const [draftResult, setDraftResult] = React.useState<ReturnType<typeof draftSectionFromIntent> | null>(null);
+	const [draftResult, setDraftResult] = React.useState<ReturnType<
+		typeof draftSectionFromIntent
+	> | null>(null);
 	const [draftSuggestions, setDraftSuggestions] = React.useState<string[]>([]);
 	const [showSuggestions, setShowSuggestions] = React.useState(false);
 
@@ -400,9 +402,7 @@ export function Sections() {
 												</Button>
 											</div>
 										) : (
-											<div className="text-sm text-kumo-subtle">
-												{draftResult.suggestion}
-											</div>
+											<div className="text-sm text-kumo-subtle">{draftResult.suggestion}</div>
 										)}
 									</div>
 								)}

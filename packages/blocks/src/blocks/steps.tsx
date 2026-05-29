@@ -53,9 +53,7 @@ function StepItemView({ item, index }: { item: StepItem; index: number }) {
 				)}
 				<div>
 					<h3 className="text-base font-semibold text-kumo-default">{item.title}</h3>
-					{item.description && (
-						<p className="mt-1 text-sm text-kumo-subtle">{item.description}</p>
-					)}
+					{item.description && <p className="mt-1 text-sm text-kumo-subtle">{item.description}</p>}
 				</div>
 			</div>
 		</li>

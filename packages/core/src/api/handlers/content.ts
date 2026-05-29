@@ -2,6 +2,7 @@
  * Content CRUD handlers
  */
 
+import { validateBuilderDocument, exportToBuilderSchema } from "@emdash-cms/blocks/server";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
@@ -28,7 +29,6 @@ import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
-import { validateBuilderDocument, exportToBuilderSchema } from "@emdash-cms/blocks/server";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 import { validateMediaFields } from "./validate-media-fields.js";
 

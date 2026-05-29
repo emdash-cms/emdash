@@ -26,6 +26,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 
+import { BuilderEditor } from "./components/builder/BuilderEditor";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
 import { ContentList, type ContentListSort } from "./components/ContentList";
@@ -63,7 +64,6 @@ import { ThemeMarketplaceBrowse } from "./components/ThemeMarketplaceBrowse";
 import { ThemeMarketplaceDetail } from "./components/ThemeMarketplaceDetail";
 import { Widgets } from "./components/Widgets";
 import { WordPressImport } from "./components/WordPressImport";
-import { BuilderEditor } from "./components/builder/BuilderEditor";
 import {
 	apiFetch,
 	parseApiResponse,
@@ -321,7 +321,11 @@ function BuilderEditorPage() {
 	const { collection, id, field } = useSearch({ from: "/_admin/builder" });
 
 	const hasTarget = Boolean(collection && id);
-	const { data: rawItem, isLoading, error } = useQuery({
+	const {
+		data: rawItem,
+		isLoading,
+		error,
+	} = useQuery({
 		queryKey: ["content", collection, id],
 		queryFn: () => fetchContent(collection!, id!),
 		enabled: hasTarget,
@@ -349,7 +353,9 @@ function BuilderEditorPage() {
 	}
 
 	if (error || !rawItem) {
-		return <ErrorScreen error={error instanceof Error ? error.message : t`Failed to load content`} />;
+		return (
+			<ErrorScreen error={error instanceof Error ? error.message : t`Failed to load content`} />
+		);
 	}
 
 	return (
