@@ -36,7 +36,7 @@ jobs:
       github.event_name == 'workflow_dispatch'
       || (github.event.label.name == 'bot:repro' && github.event.issue.pull_request == null)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     # Serialize per-issue. Don't cancel in-flight runs -- partial state is
     # worse than a queue, since the agent may have already pushed branches.
     concurrency:
@@ -176,6 +176,18 @@ jobs:
           node-version-file: "package.json"
           cache: "pnpm"
 
+      # The repro-admin and repro-public skills drive a real browser via
+      # `bgproc` (boots `pnpm dev`) and `agent-browser` (Playwright). They
+      # are not project dependencies, so install them globally here rather
+      # than letting the agent burn tokens discovering and self-installing
+      # them mid-run. PATH is inherited by the agent's local() sandbox, so
+      # these land on the agent's bash PATH. `agent-browser install`
+      # fetches the browser binary.
+      - name: Install browser automation tools
+        run: |
+          npm install -g bgproc agent-browser
+          agent-browser install
+
       - name: Install root dependencies
         run: pnpm install --frozen-lockfile
 
@@ -213,7 +225,7 @@ jobs:
 
       - name: Run Flue investigate agent
         id: agent
-        timeout-minutes: 30
+        timeout-minutes: 50
         # Sandbox token is the workflow-scoped GITHUB_TOKEN (read-only here).
         # Orchestrator token is the app token. The agent's local() sandbox
         # picks up AGENT_GH_TOKEN as GH_TOKEN; the orchestrator token is
@@ -228,11 +240,17 @@ jobs:
         run: |
           set -o pipefail
           PAYLOAD="$(cat /tmp/agent-payload.json)"
+          # Sanity-check what the agent's session will see. Flue reads
+          # AGENTS.md from the sandbox cwd (repo root) at session init;
+          # if it is missing here the agent starts with no repo context.
+          echo "agent cwd: $(pwd)"
+          echo "AGENTS.md at cwd: $([ -f AGENTS.md ] && echo present || echo MISSING)"
           set +e
           # `flue run` writes structured log events and the workflow
-          # result to stdout. Send stderr to a separate file so we can
-          # surface Flue's progress in the workflow log without
-          # contaminating the JSON we parse.
+          # result to stdout, and human-readable progress to stderr. Tee
+          # stderr to both the workflow log (so progress is visible live,
+          # not just dumped at end-of-step) and a file, while keeping
+          # stdout clean for the JSON parse step.
           # Run `flue run` from the repo root (not from .flue/). Two
           # reasons:
           #   1. Flue resolves `--root .flue` relative to the caller's
@@ -252,12 +270,10 @@ jobs:
             --target node \
             --root .flue \
             --payload "$PAYLOAD" \
-            > /tmp/agent-stdout.json 2> /tmp/agent-stderr.log
+            > /tmp/agent-stdout.json 2> >(tee /tmp/agent-stderr.log >&2)
           EXIT=$?
           set -e
           echo "exit=$EXIT" >> "$GITHUB_OUTPUT"
-          echo "--- agent stderr (last 200 lines) ---"
-          tail -n 200 /tmp/agent-stderr.log || true
           echo "--- agent stdout (first 200 lines) ---"
           head -n 200 /tmp/agent-stdout.json || true
           echo "--- end preview ---"
@@ -417,7 +433,7 @@ jobs:
         run: |
           set -euo pipefail
           # Re-check issue state before any GitHub writes. The agent
-          # ran for up to 30 minutes; in that window the issue may
+          # ran for up to 50 minutes; in that window the issue may
           # have been closed (manually, or by bot-cleanup.yml on a
           # different trigger). Pushing branches and commenting on a
           # closed issue would be noise; bot-cleanup.yml would then
