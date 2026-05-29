@@ -47,48 +47,79 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 	// 2. Deduplicate existing rows by path.
 	//    For each path, roll up hits and pick the freshest last_seen_at onto
-	//    a single keeper row, then delete the non-keepers. Uses window
-	//    functions (ROW_NUMBER) so the dedup SQL is valid on both SQLite
-	//    (3.25+, 2018) and Postgres. The previous GROUP BY approach was
-	//    accepted by SQLite but invalid on Postgres because `id` wasn't in
-	//    the GROUP BY or wrapped in an aggregate.
+	//    every row of that path, then delete the non-keepers. Uses a single
+	//    GROUP BY aggregate joined by `path` so the per-path aggregates are
+	//    computed once — O(n) — rather than once per row.
+	//
+	//    Earlier versions of this migration computed the aggregates as
+	//    window functions inside a CTE and referenced that CTE three times
+	//    from the outer UPDATE (twice as correlated subqueries in the SET
+	//    list). Postgres inlines non-recursive CTEs and does not share
+	//    materialization across references, so each row of the UPDATE
+	//    re-evaluated the full window pipeline — O(n²). On a populated
+	//    `_emdash_404_log` (~200k rows of bot/scanner noise is realistic)
+	//    that wedged the migration for tens of minutes and OOM'd the pg
+	//    client buffer. See #1085.
+	//
+	//    Because every row of a given path receives the same `hits` and
+	//    `last_seen_at`, the keeper retained by the DELETE below is
+	//    guaranteed to hold the correct rolled-up values. Updating
+	//    soon-to-be-deleted rows is wasted work but keeps the SQL portable
+	//    (avoids the dialect split between `UPDATE … FROM …` join keys),
+	//    and the linear cost dominates the slightly-wider write set.
 	if (!hitsExists) {
-		await sql`
-			WITH ranked AS (
-				SELECT
-					id,
-					path,
-					ROW_NUMBER() OVER (
-						PARTITION BY path
-						ORDER BY created_at DESC, id DESC
-					) AS rn,
-					COUNT(*) OVER (PARTITION BY path) AS path_count,
-					MAX(created_at) OVER (PARTITION BY path) AS latest_created_at
-				FROM _emdash_404_log
-			)
-			UPDATE _emdash_404_log
-			SET
-				hits = (SELECT path_count FROM ranked WHERE ranked.id = _emdash_404_log.id),
-				last_seen_at = (SELECT latest_created_at FROM ranked WHERE ranked.id = _emdash_404_log.id)
-			WHERE id IN (SELECT id FROM ranked WHERE rn = 1)
-		`.execute(db);
+		// Surface row count up-front so operators can see the migration is
+		// proportional to table size rather than guessing it has hung.
+		const countRow = (
+			await sql<{
+				n: number | string;
+			}>`SELECT COUNT(*) AS n FROM _emdash_404_log`.execute(db)
+		).rows[0];
+		const rowCount = countRow ? Number(countRow.n) : 0;
+		if (rowCount > 0) {
+			// eslint-disable-next-line no-console
+			console.warn(
+				`[migration 035] deduplicating _emdash_404_log (${rowCount} rows)` +
+					(rowCount > 50_000
+						? " — large tables may take a few minutes; consider TRUNCATE if the table only holds bot/scanner noise"
+						: ""),
+			);
 
-		// Delete the non-keepers (every row except the freshest per path).
-		await sql`
-			DELETE FROM _emdash_404_log
-			WHERE id IN (
-				SELECT id FROM (
+			await sql`
+				UPDATE _emdash_404_log
+				SET
+					hits = agg.path_count,
+					last_seen_at = agg.latest_created_at
+				FROM (
 					SELECT
-						id,
-						ROW_NUMBER() OVER (
-							PARTITION BY path
-							ORDER BY created_at DESC, id DESC
-						) AS rn
+						path,
+						COUNT(*) AS path_count,
+						MAX(created_at) AS latest_created_at
 					FROM _emdash_404_log
-				) AS ranked
-				WHERE rn > 1
-			)
-		`.execute(db);
+					GROUP BY path
+				) AS agg
+				WHERE _emdash_404_log.path = agg.path
+			`.execute(db);
+
+			// Delete the non-keepers (every row except the freshest per path).
+			// References the window-function subquery exactly once, so it
+			// materializes once and runs in a single linear pass.
+			await sql`
+				DELETE FROM _emdash_404_log
+				WHERE id IN (
+					SELECT id FROM (
+						SELECT
+							id,
+							ROW_NUMBER() OVER (
+								PARTITION BY path
+								ORDER BY created_at DESC, id DESC
+							) AS rn
+						FROM _emdash_404_log
+					) AS ranked
+					WHERE rn > 1
+				)
+			`.execute(db);
+		}
 	}
 
 	// 3. Add unique index on path for upsert semantics.
