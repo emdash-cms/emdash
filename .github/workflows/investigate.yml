@@ -191,6 +191,20 @@ jobs:
       - name: Install root dependencies
         run: pnpm install --frozen-lockfile
 
+      # The agent may write a Playwright test as the durable repro
+      # artifact (per the repro-admin / repro-public skills) and run it
+      # with `pnpm exec playwright test`. Playwright needs its own browser,
+      # separate from agent-browser's Chrome. Pre-install it here -- the
+      # same command the repo's own e2e CI uses -- so the agent never
+      # stalls on a mid-run `playwright install` (observed hanging for
+      # 15+ minutes behind a buffered pipe, with no visible progress).
+      # Runners are in Azure, same network as the Playwright CDN, so a
+      # healthy install finishes in well under a minute; the tight bound
+      # fails fast if the download stalls instead of hanging the run.
+      - name: Install Playwright browser
+        timeout-minutes: 3
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Install Flue agent dependencies
         run: pnpm install --frozen-lockfile
         working-directory: .flue
