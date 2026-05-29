@@ -2338,7 +2338,7 @@ export function PortableTextEditor({
 	return (
 		<div
 			className={cn(
-				"border rounded-lg overflow-hidden",
+				"border rounded-lg overflow-clip",
 				minimal && "border-0 rounded-none -mx-4",
 				focusMode === "spotlight" && "spotlight-mode",
 				className,
@@ -2794,7 +2794,7 @@ function EditorToolbar({
 			ref={toolbarRef}
 			role="toolbar"
 			aria-label={t`Text formatting`}
-			className="border-b bg-kumo-tint/50 p-1 flex flex-wrap gap-0.5"
+			className="sticky top-0 z-10 border-b bg-kumo-tint p-1 flex flex-wrap gap-0.5"
 			onKeyDown={handleKeyDown}
 		>
 			{/* Text formatting */}
