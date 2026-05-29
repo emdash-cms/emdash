@@ -145,26 +145,53 @@ function assignCustomFieldValue(
 }
 
 /**
- * Coerce a raw write-path value to a `CustomFieldValue` for the given
- * field, throwing `EmDashValidationError` on type mismatch. Mirrors what
- * the Phase 4 zod schema will enforce at the API layer; this guard runs
- * regardless of caller so internal code paths (seeds, tests, future
- * non-HTTP callers) can't slip past it.
+ * Coerce a raw write-path value to `CustomFieldValue`, throwing
+ * `EmDashValidationError` on type mismatch. `null` clears the field
+ * (DELETE in the write path).
  *
- * `null` is always accepted — it represents "clear this field" and
- * triggers a DELETE rather than an upsert in the write path.
+ * TODO: `field.required` is not enforced. The admin UI exposes the
+ * toggle but the backend accepts missing values; design pass needed
+ * on the enforcement model.
  */
 function coerceFieldValue(field: BylineFieldDefinition, raw: unknown): CustomFieldValue {
 	if (raw === null) return null;
 
 	switch (field.type) {
 		case "string":
-		case "text":
+		case "text": {
+			if (typeof raw !== "string") {
+				throw new EmDashValidationError(
+					`Byline field "${field.slug}" expects a string value (received ${typeof raw})`,
+					{ slug: field.slug, type: field.type, received: typeof raw },
+				);
+			}
+			return raw;
+		}
 		case "url": {
 			if (typeof raw !== "string") {
 				throw new EmDashValidationError(
 					`Byline field "${field.slug}" expects a string value (received ${typeof raw})`,
 					{ slug: field.slug, type: field.type, received: typeof raw },
+				);
+			}
+			// Empty string round-trips as a clear from the admin UI; any
+			// non-empty value must be a valid http(s) URL. The scheme
+			// allowlist mirrors `httpUrl` in `api/schemas/common.ts` —
+			// `new URL` alone would accept `javascript:`/`data:` etc.
+			if (raw === "") return raw;
+			let parsed: URL;
+			try {
+				parsed = new URL(raw);
+			} catch {
+				throw new EmDashValidationError(
+					`Byline field "${field.slug}" expects a valid URL (received "${raw}")`,
+					{ slug: field.slug, type: field.type, received: raw },
+				);
+			}
+			if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+				throw new EmDashValidationError(
+					`Byline field "${field.slug}" must use http or https scheme (received "${parsed.protocol}")`,
+					{ slug: field.slug, type: field.type, received: raw, protocol: parsed.protocol },
 				);
 			}
 			return raw;
@@ -353,15 +380,15 @@ export class BylineRepository {
 		];
 		const groupByGroup = await this.loadGroupValuesByIds(groups);
 
-		// Apply values directly to each summary. `summaries[i]` is its own
-		// object even for duplicates of the same byline_id, so writes don't
-		// collide.
+		// Each loop gates on `field.translatable` so a row in the wrong
+		// owner table (e.g. left over from a translatable flip) can't
+		// leak into hydration.
 		for (const summary of summaries) {
 			const trValues = translatableByByline.get(summary.id);
 			if (trValues) {
 				for (const [fieldId, value] of trValues) {
 					const field = fieldById.get(fieldId);
-					if (!field) continue;
+					if (!field || !field.translatable) continue;
 					assignCustomFieldValue(summary, field, value);
 				}
 			}
@@ -371,7 +398,7 @@ export class BylineRepository {
 				if (grpValues) {
 					for (const [fieldId, value] of grpValues) {
 						const field = fieldById.get(fieldId);
-						if (!field) continue;
+						if (!field || field.translatable) continue;
 						assignCustomFieldValue(summary, field, value);
 					}
 				}
@@ -578,14 +605,9 @@ export class BylineRepository {
 	}
 
 	/**
-	 * Resolve a `customFields` input map (slug → unknown) into a validated
-	 * write list. Throws `EmDashValidationError` on unknown slugs, type
-	 * mismatches, or select-choice misses — callers run this BEFORE any
-	 * row write so a bad value can't leave partial state behind.
-	 *
-	 * Validation reuses the same field-defs cache that hydration uses; the
-	 * version-counter invalidation guarantees the write sees a fresh
-	 * definition set after a Phase 2 mutation in any isolate.
+	 * Validate a `customFields` input map into a write list before any row
+	 * write — throws `EmDashValidationError` on unknown slugs, type
+	 * mismatches, or select-choice misses.
 	 */
 	private async resolveCustomFieldWrites(
 		customFields: Record<string, unknown> | undefined,
@@ -608,16 +630,15 @@ export class BylineRepository {
 	}
 
 	/**
-	 * Persist a validated custom-field write list against a byline row.
-	 * Per-field writes route to `_emdash_byline_field_values` (translatable)
-	 * or `_emdash_byline_field_group_values` (group-shared). A `null` value
-	 * clears the row. Writes are idempotent via `ON CONFLICT DO UPDATE`.
-	 *
-	 * Returns `true` if any group-shared write happened, so the caller
-	 * can invalidate the per-request cache for the group AFTER the
-	 * transaction commits.
+	 * Write a validated custom-field list against a byline row inside the
+	 * caller's transaction. Per-field writes route to
+	 * `_emdash_byline_field_values` (translatable) or
+	 * `_emdash_byline_field_group_values` (group-shared); `null` clears.
+	 * Returns `true` when any group-shared row was touched so the caller
+	 * can invalidate the per-request cache post-commit.
 	 */
-	private async persistCustomFieldWrites(
+	private async applyCustomFieldWritesInTrx(
+		trx: Kysely<Database>,
 		bylineId: string,
 		translationGroup: string,
 		writes: Array<{ field: BylineFieldDefinition; value: CustomFieldValue }>,
@@ -625,69 +646,62 @@ export class BylineRepository {
 	): Promise<boolean> {
 		if (writes.length === 0) return false;
 		let touchedGroupShared = false;
-		// withTransaction wraps the value writes so Node SQLite + PG get
-		// real atomicity across all per-field upserts. On D1 the
-		// transaction falls back to direct execution — each upsert is
-		// independently idempotent, so a crash mid-loop is recoverable
-		// on retry.
-		await withTransaction(this.db, async (trx) => {
-			for (const { field, value } of writes) {
-				if (!field.translatable) touchedGroupShared = true;
-				if (field.translatable) {
-					if (value === null) {
-						await trx
-							.deleteFrom("_emdash_byline_field_values")
-							.where("byline_id", "=", bylineId)
-							.where("field_id", "=", field.id)
-							.execute();
-					} else {
-						const encoded = JSON.stringify(value);
-						await trx
-							.insertInto("_emdash_byline_field_values")
-							.values({
-								byline_id: bylineId,
-								field_id: field.id,
-								value: encoded,
-								created_at: now,
-								updated_at: now,
-							})
-							.onConflict((oc) =>
-								oc.columns(["byline_id", "field_id"]).doUpdateSet({
-									value: encoded,
-									updated_at: now,
-								}),
-							)
-							.execute();
-					}
+		for (const { field, value } of writes) {
+			if (!field.translatable) touchedGroupShared = true;
+			if (field.translatable) {
+				if (value === null) {
+					await trx
+						.deleteFrom("_emdash_byline_field_values")
+						.where("byline_id", "=", bylineId)
+						.where("field_id", "=", field.id)
+						.execute();
 				} else {
-					if (value === null) {
-						await trx
-							.deleteFrom("_emdash_byline_field_group_values")
-							.where("translation_group", "=", translationGroup)
-							.where("field_id", "=", field.id)
-							.execute();
-					} else {
-						const encoded = JSON.stringify(value);
-						await trx
-							.insertInto("_emdash_byline_field_group_values")
-							.values({
-								translation_group: translationGroup,
-								field_id: field.id,
+					const encoded = JSON.stringify(value);
+					await trx
+						.insertInto("_emdash_byline_field_values")
+						.values({
+							byline_id: bylineId,
+							field_id: field.id,
+							value: encoded,
+							created_at: now,
+							updated_at: now,
+						})
+						.onConflict((oc) =>
+							oc.columns(["byline_id", "field_id"]).doUpdateSet({
 								value: encoded,
-								created_at: now,
 								updated_at: now,
-							})
-							.onConflict((oc) =>
-								oc.columns(["translation_group", "field_id"]).doUpdateSet({
-									value: encoded,
-									updated_at: now,
-								}),
-							)
-							.execute();
-					}
+							}),
+						)
+						.execute();
+				}
+			} else {
+				if (value === null) {
+					await trx
+						.deleteFrom("_emdash_byline_field_group_values")
+						.where("translation_group", "=", translationGroup)
+						.where("field_id", "=", field.id)
+						.execute();
+				} else {
+					const encoded = JSON.stringify(value);
+					await trx
+						.insertInto("_emdash_byline_field_group_values")
+						.values({
+							translation_group: translationGroup,
+							field_id: field.id,
+							value: encoded,
+							created_at: now,
+							updated_at: now,
+						})
+						.onConflict((oc) =>
+							oc.columns(["translation_group", "field_id"]).doUpdateSet({
+								value: encoded,
+								updated_at: now,
+							}),
+						)
+						.execute();
 				}
 			}
-		});
+		}
 		return touchedGroupShared;
 	}
 
@@ -695,12 +709,12 @@ export class BylineRepository {
 		const id = ulid();
 		const now = new Date().toISOString();
 
-		// Validate customFields BEFORE inserting the row so a bad value
-		// can't leave a bare byline behind.
+		// Validate customFields before opening the transaction so a bad
+		// value surfaces as VALIDATION_ERROR without aborting an insert.
 		const customFieldWrites = await this.resolveCustomFieldWrites(input.customFields);
 
-		// translationOf joins the source byline's group; otherwise we mint a
-		// fresh group equal to id (matching migration 040's backfill pattern).
+		// translationOf joins the source's group; otherwise mint a fresh
+		// group = id (matches migration 040's backfill pattern).
 		let translationGroup: string = id;
 		if (input.translationOf) {
 			const source = await this.findById(input.translationOf);
@@ -708,37 +722,41 @@ export class BylineRepository {
 			translationGroup = source.translationGroup ?? source.id;
 		}
 
-		await this.db
-			.insertInto("_emdash_bylines")
-			.values({
+		// Wrap insert + custom-field writes in one transaction so a
+		// partial failure rolls both back on Node/PG. D1 still has its
+		// own no-transactions limitation — recovery for that path lives
+		// in `handleBylineCreate`.
+		let touchedGroupShared = false;
+		await withTransaction(this.db, async (trx) => {
+			await trx
+				.insertInto("_emdash_bylines")
+				.values({
+					id,
+					slug: input.slug,
+					display_name: input.displayName,
+					bio: input.bio ?? null,
+					avatar_media_id: input.avatarMediaId ?? null,
+					website_url: input.websiteUrl ?? null,
+					user_id: input.userId ?? null,
+					is_guest: input.isGuest ? 1 : 0,
+					created_at: now,
+					updated_at: now,
+					// Omit `locale` so the DB DEFAULT (configured defaultLocale)
+					// applies — matches TaxonomyRepository.create.
+					...(input.locale !== undefined ? { locale: input.locale } : {}),
+					translation_group: translationGroup,
+				})
+				.execute();
+
+			touchedGroupShared = await this.applyCustomFieldWritesInTrx(
+				trx,
 				id,
-				slug: input.slug,
-				display_name: input.displayName,
-				bio: input.bio ?? null,
-				avatar_media_id: input.avatarMediaId ?? null,
-				website_url: input.websiteUrl ?? null,
-				user_id: input.userId ?? null,
-				is_guest: input.isGuest ? 1 : 0,
-				created_at: now,
-				updated_at: now,
-				// When omitted the DB DEFAULT (configured defaultLocale) is used —
-				// keeps behaviour consistent with TaxonomyRepository.create.
-				...(input.locale !== undefined ? { locale: input.locale } : {}),
-				translation_group: translationGroup,
-			})
-			.execute();
+				translationGroup,
+				customFieldWrites,
+				now,
+			);
+		});
 
-		const touchedGroupShared = await this.persistCustomFieldWrites(
-			id,
-			translationGroup,
-			customFieldWrites,
-			now,
-		);
-
-		// Invalidate the request-scope group-shared cache after the
-		// transaction commits, mirroring `update`. No earlier `findById`
-		// on this group, so the cache should be clean — but invalidate
-		// defensively in case a hydration ran in the same request.
 		if (touchedGroupShared) {
 			clearRequestCacheEntry(`byline-field-group-values:${translationGroup}`);
 		}
@@ -754,14 +772,12 @@ export class BylineRepository {
 		const existing = await this.findById(id);
 		if (!existing) return null;
 
-		// Resolve and validate `customFields` **before** any DB write so a
-		// validation error (unknown slug, type mismatch, select-choice
-		// mismatch) surfaces without partial-state side effects.
+		// Validate customFields before opening the transaction so a bad
+		// value surfaces as VALIDATION_ERROR without aborting an update.
 		const customFieldWrites = await this.resolveCustomFieldWrites(input.customFields);
 
-		const updates: Record<string, unknown> = {
-			updated_at: new Date().toISOString(),
-		};
+		const now = new Date().toISOString();
+		const updates: Record<string, unknown> = { updated_at: now };
 
 		if (input.slug !== undefined) updates.slug = input.slug;
 		if (input.displayName !== undefined) updates.display_name = input.displayName;
@@ -771,27 +787,23 @@ export class BylineRepository {
 		if (input.userId !== undefined) updates.user_id = input.userId;
 		if (input.isGuest !== undefined) updates.is_guest = input.isGuest ? 1 : 0;
 
-		await this.db.updateTable("_emdash_bylines").set(updates).where("id", "=", id).execute();
-
 		const group = existing.translationGroup ?? existing.id;
-		// Track whether any group-shared write happened so we can
-		// invalidate the per-request cache for this group AFTER the
-		// transaction commits. The earlier `findById(id)` call at the
-		// top of `update` populated the cache for this group; without
-		// invalidation, the closing `findById` (and any later reads in
-		// the same request) would return stale customFields.
-		const touchedGroupShared = await this.persistCustomFieldWrites(
-			id,
-			group,
-			customFieldWrites,
-			new Date().toISOString(),
-		);
+		// Wrap row update + custom-field writes in one transaction so a
+		// partial failure rolls both back on Node/PG. The post-commit
+		// invalidation below clears the per-request cache that the
+		// top-of-method `findById` populated for this group.
+		let touchedGroupShared = false;
+		await withTransaction(this.db, async (trx) => {
+			await trx.updateTable("_emdash_bylines").set(updates).where("id", "=", id).execute();
+			touchedGroupShared = await this.applyCustomFieldWritesInTrx(
+				trx,
+				id,
+				group,
+				customFieldWrites,
+				now,
+			);
+		});
 
-		// Invalidate the request-scope group-shared cache after the
-		// transaction has committed. Done outside the transaction so
-		// the invalidation order is "write, then expose the change to
-		// readers" — readers that picked up the cache before this
-		// point are out of date; the next read will fetch fresh.
 		if (touchedGroupShared) {
 			clearRequestCacheEntry(`byline-field-group-values:${group}`);
 		}

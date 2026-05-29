@@ -11,6 +11,45 @@ import { getI18nConfig } from "../../i18n/config.js";
 import type { ApiResult } from "../types.js";
 
 /**
+ * Whether the existing byline row's fixed columns match a fresh-create
+ * payload after null/undefined normalisation. Used by the D1 create-retry
+ * recovery branch.
+ */
+function bylineFixedFieldsMatch(
+	existing: BylineSummary,
+	input: CreateBylineInput,
+	effectiveLocale: string,
+): boolean {
+	const norm = (v: string | null | undefined): string | null => v ?? null;
+	return (
+		existing.displayName === input.displayName &&
+		norm(existing.bio) === norm(input.bio) &&
+		norm(existing.avatarMediaId) === norm(input.avatarMediaId) &&
+		norm(existing.websiteUrl) === norm(input.websiteUrl) &&
+		norm(existing.userId) === norm(input.userId) &&
+		existing.isGuest === (input.isGuest ?? false) &&
+		existing.locale === effectiveLocale
+	);
+}
+
+/**
+ * Whether every key in `existing` appears in `input` with the same value.
+ * Allows `input` to contain additional keys (the partial-write recovery
+ * case); rejects on a divergent value or a key the input omits.
+ */
+function existingCustomFieldsAreSubsetOf(
+	existing: Record<string, unknown>,
+	input: Record<string, unknown> | undefined,
+): boolean {
+	if (!input) return Object.keys(existing).length === 0;
+	for (const [slug, value] of Object.entries(existing)) {
+		if (!Object.hasOwn(input, slug)) return false;
+		if (input[slug] !== value) return false;
+	}
+	return true;
+}
+
+/**
  * Reject locales the site doesn't configure. Returns `null` when the locale
  * is fine (omitted, or matches `locales` in the i18n config, or i18n isn't
  * configured at all).
@@ -139,10 +178,30 @@ export async function handleBylineCreate(
 		}
 
 		// Duplicate guard: same (slug, locale) — matches the DB unique key
-		// added in migration 040. Falls back to the configured defaultLocale
-		// when the caller omits `locale`, mirroring the column DEFAULT.
+		// from migration 040.
 		const existing = await repo.findBySlug(input.slug, { locale: effectiveLocale });
 		if (existing) {
+			// D1 has no transactions, so a crash between the byline insert
+			// and the per-field writes leaves a partial row that's
+			// otherwise unrecoverable. Treat a same-identity retry that
+			// provides customFields as completing the abandoned create.
+			// Recovery requires fixed-column + translation-group +
+			// subset-customFields match; anything else collapses to a
+			// standard duplicate-slug conflict.
+			const expectedTranslationGroup = sourceGroup ?? existing.id;
+			const inputHasFields = !!input.customFields && Object.keys(input.customFields).length > 0;
+			if (
+				inputHasFields &&
+				bylineFixedFieldsMatch(existing, input, effectiveLocale) &&
+				existing.translationGroup === expectedTranslationGroup &&
+				existingCustomFieldsAreSubsetOf(existing.customFields ?? {}, input.customFields)
+			) {
+				const recovered = await repo.update(existing.id, {
+					customFields: input.customFields,
+				});
+				if (recovered) return { success: true, data: recovered };
+			}
+
 			return {
 				success: false,
 				error: {
@@ -157,11 +216,8 @@ export async function handleBylineCreate(
 		const byline = await repo.create(input);
 		return { success: true, data: byline };
 	} catch (error) {
-		// customFields unknown-slug / type-mismatch / select-choice
-		// misses throw EmDashValidationError (Phase 6 of #1174, see
-		// BylineRepository.resolveCustomFieldWrites). Map to a clean
-		// 400 so the admin client surfaces the per-field message
-		// rather than a generic 500.
+		// Mirror handleBylineUpdate: surface customFields validation
+		// errors as 400 rather than swallowing them as a generic 500.
 		if (error instanceof EmDashValidationError) {
 			return {
 				success: false,

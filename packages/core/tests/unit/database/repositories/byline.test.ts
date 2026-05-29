@@ -1773,6 +1773,110 @@ describe("BylineRepository", () => {
 			expect(ok?.customFields?.role).toBe("editor");
 		});
 
+		it("rejects url values that don't parse as a URL", async () => {
+			const byline = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane",
+				locale: "en",
+			});
+			await registry.createField({
+				slug: "portfolio",
+				label: "Portfolio",
+				type: "url",
+			});
+
+			await expect(
+				bylineRepo.update(byline.id, { customFields: { portfolio: "not a url" } }),
+			).rejects.toBeInstanceOf(EmDashValidationError);
+
+			// Valid absolute URLs land.
+			const ok = await bylineRepo.update(byline.id, {
+				customFields: { portfolio: "https://example.com" },
+			});
+			expect(ok?.customFields?.portfolio).toBe("https://example.com");
+		});
+
+		it("rejects url values with non-http(s) schemes (javascript:, data:, mailto:, ftp:)", async () => {
+			// Mirrors `httpUrl` in `api/schemas/common.ts` — `new URL`
+			// alone accepts XSS-shaped schemes.
+			const byline = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane",
+				locale: "en",
+			});
+			await registry.createField({
+				slug: "portfolio",
+				label: "Portfolio",
+				type: "url",
+			});
+
+			for (const dangerous of [
+				"javascript:alert(1)",
+				"data:text/html,<script>alert(1)</script>",
+				"mailto:foo@bar.com",
+				"ftp://example.com/file",
+				"file:///etc/passwd",
+			]) {
+				await expect(
+					bylineRepo.update(byline.id, { customFields: { portfolio: dangerous } }),
+				).rejects.toBeInstanceOf(EmDashValidationError);
+			}
+		});
+
+		it("hydration ignores rows written to the wrong owner table", async () => {
+			// Regression: applyCustomFieldsTo used to apply rows from both
+			// value tables regardless of `field.translatable`, so a stale
+			// row from a translatable flip could leak in.
+			const byline = await bylineRepo.create({
+				slug: "jane",
+				displayName: "Jane",
+				locale: "en",
+			});
+
+			await registry.createField({
+				slug: "job_title",
+				label: "Job title",
+				type: "string",
+				translatable: true,
+			});
+			await registry.createField({
+				slug: "twitter_handle",
+				label: "Twitter",
+				type: "string",
+				translatable: false,
+			});
+			const job = await registry.getField("job_title");
+			const tw = await registry.getField("twitter_handle");
+
+			// "Right" rows — should hydrate.
+			await sql`
+				INSERT INTO _emdash_byline_field_values (byline_id, field_id, value)
+				VALUES (${byline.id}, ${job?.id}, '"Editor"')
+			`.execute(db);
+			await sql`
+				INSERT INTO _emdash_byline_field_group_values (translation_group, field_id, value)
+				VALUES (${byline.translationGroup ?? byline.id}, ${tw?.id}, '"@jane"')
+			`.execute(db);
+			// "Wrong" rows — translatable field with a group-shared row,
+			// and group-shared field with a per-locale row. Both must
+			// be ignored by hydration.
+			await sql`
+				INSERT INTO _emdash_byline_field_group_values (translation_group, field_id, value)
+				VALUES (${byline.translationGroup ?? byline.id}, ${job?.id}, '"WRONG: group row for translatable field"')
+			`.execute(db);
+			await sql`
+				INSERT INTO _emdash_byline_field_values (byline_id, field_id, value)
+				VALUES (${byline.id}, ${tw?.id}, '"WRONG: per-locale row for group field"')
+			`.execute(db);
+			resetBylineFieldDefsCacheForTests();
+
+			const reloaded = await bylineRepo.findById(byline.id);
+			expect(reloaded?.customFields).toEqual({
+				job_title: "Editor",
+				twitter_handle: "@jane",
+			});
+		});
+
 		it("invalidates the per-request group-shared cache after a non-translatable write", async () => {
 			// Regression for the Phase 3 review's finding that update()
 			// primes the group-shared request cache via its opening
