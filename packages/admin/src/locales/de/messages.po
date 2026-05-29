@@ -4185,7 +4185,7 @@ msgstr "{0} erstellen"
 
 #: packages/admin/src/components/ContentEditor.tsx:629
 msgid "New {collectionLabel}"
-msgstr "Neue {collectionLabel}"
+msgstr "Neu: {collectionLabel}"
 
 #: packages/admin/src/components/WordPressImport.tsx:1818
 msgid "New collection"
