@@ -65,9 +65,15 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: emdash-cms
           repositories: emdash
-          permission-issues: write
-          permission-contents: write
-          permission-pull-requests: write
+          # Inherit whatever permissions the App's installation grants
+          # rather than narrowing per-call. Every other emdashbot[bot]
+          # workflow in this repo (auto-format, release, format-command,
+          # dependabot-approve, sync-templates, query-counts-apply)
+          # follows the same convention -- the installation is already
+          # repo-scoped, and requesting explicit subsets fails when
+          # the installation's grant doesn't match exactly. Symptom of
+          # the mismatch: HTTP 422 "The permissions requested are not
+          # granted to this installation."
 
       - name: Resolve issue context
         id: ctx

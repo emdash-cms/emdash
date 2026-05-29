@@ -38,12 +38,7 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: emdash-cms
           repositories: emdash
-          permission-contents: write
-          # Read-only PR scope so we can `gh pr list --head bot/fix-N`
-          # before deleting the branch -- protects an open bot-opened
-          # PR from being orphaned when an issue is closed without
-          # merging.
-          permission-pull-requests: read
+          # See investigate.yml's app-token step for the convention.
 
       - name: Delete bot branches for closed issue
         env:
@@ -104,7 +99,7 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: emdash-cms
           repositories: emdash
-          permission-contents: write
+          # See investigate.yml's app-token step for the convention.
 
       - name: Sweep stale artifacts branches
         env:

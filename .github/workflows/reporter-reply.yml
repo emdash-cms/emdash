@@ -52,9 +52,7 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: emdash-cms
           repositories: emdash
-          permission-issues: write
-          permission-contents: write
-          permission-pull-requests: write
+          # See investigate.yml's app-token step for the convention.
 
       # Re-verify live state before any expensive work. Three checks:
       #
