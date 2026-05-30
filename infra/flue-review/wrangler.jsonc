@@ -1,0 +1,28 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-flue-review",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-04-01",
+	"compatibility_flags": ["nodejs_compat"],
+	// Workers AI binding. Flue's generated Cloudflare entry reserves the
+	// `cloudflare/` model prefix and routes it through this binding, so the
+	// reviewer model (`cloudflare/@cf/moonshotai/kimi-k2.6`) needs no API key.
+	"ai": {
+		"binding": "AI",
+	},
+	// Container sandbox. Flue auto-wires any Durable Object class whose
+	// class_name ends in `Sandbox` to @cloudflare/sandbox's Sandbox class in
+	// the generated bundle. The reviewer needs a real Linux env for `git`.
+	"durable_objects": {
+		"bindings": [{ "class_name": "Sandbox", "name": "Sandbox" }],
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sandbox"] }],
+	"containers": [{ "class_name": "Sandbox", "image": "./Dockerfile" }],
+	"vars": {
+		"GITHUB_OWNER_LOGIN": "ascorbic",
+		"GITHUB_REPO": "emdash-cms/emdash",
+	},
+	"observability": {
+		"enabled": true,
+	},
+}

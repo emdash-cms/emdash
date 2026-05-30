@@ -1,0 +1,24 @@
+{
+	"name": "@emdash-cms/flue-review",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "flue dev --target cloudflare",
+		"build": "flue build --target cloudflare",
+		"deploy": "flue build --target cloudflare && wrangler deploy",
+		"cf-typegen": "wrangler types",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@flue/cli": "^0.8.1",
+		"typescript": "catalog:",
+		"wrangler": "catalog:"
+	},
+	"dependencies": {
+		"@cloudflare/sandbox": "^0.10.3",
+		"@flue/runtime": "^0.8.1",
+		"agents": "^0.13.3",
+		"valibot": "^1.4.1"
+	}
+}
