@@ -21,19 +21,18 @@
 	"vars": {
 		"GITHUB_OWNER_LOGIN": "ascorbic",
 		"GITHUB_REPO": "emdash-cms/emdash",
+		// emdashbot GitHub App. Not secret (app id is public; installation id is
+		// low-sensitivity). Only the private key and webhook secret are secrets.
+		"GITHUB_APP_ID": "3255304",
+		"GITHUB_APP_INSTALLATION_ID": "120963314",
 	},
 	// Set with `wrangler secret put <NAME>`. The webhook secret is used by the
-	// public handler; the GitHub App trio is used only by the workflow DO to
-	// fetch prior reviews and post the review (never by the agent container).
-	// GITHUB_APP_PRIVATE_KEY must be a PKCS#8 PEM (convert GitHub's download
-	// with `openssl pkcs8 -topk8 -nocrypt -in key.pem`).
+	// public handler; the private key is used only by the workflow DO to mint an
+	// installation token, fetch prior reviews, and post (never by the agent
+	// container). GITHUB_APP_PRIVATE_KEY must be a PKCS#8 PEM (convert GitHub's
+	// download with `openssl pkcs8 -topk8 -nocrypt -in key.pem`).
 	"secrets": {
-		"required": [
-			"GITHUB_WEBHOOK_SECRET",
-			"GITHUB_APP_ID",
-			"GITHUB_APP_PRIVATE_KEY",
-			"GITHUB_APP_INSTALLATION_ID",
-		],
+		"required": ["GITHUB_WEBHOOK_SECRET", "GITHUB_APP_PRIVATE_KEY"],
 	},
 	"observability": {
 		"enabled": true,
