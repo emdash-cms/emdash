@@ -28,14 +28,14 @@ app.post("/webhook/github", async (c) => {
 	if (eventType === "ping") return c.text("pong", 200);
 	if (eventType !== "pull_request") return c.text(`ignored event: ${eventType}`, 202);
 
-	let event: unknown;
+	let event: Parameters<typeof gatePullRequestEvent>[0];
 	try {
 		event = JSON.parse(raw);
 	} catch {
 		return c.text("invalid JSON", 400);
 	}
 
-	const decision = gatePullRequestEvent(event as Parameters<typeof gatePullRequestEvent>[0]);
+	const decision = gatePullRequestEvent(event);
 	if (!decision.review) return c.text(`skipped: ${decision.reason}`, 202);
 
 	// Admit the durable workflow run (fast). The review + post run in the

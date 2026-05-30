@@ -58,6 +58,9 @@ const reviewAgent = createAgent<ReviewPayload, Env>(({ env }) => ({
 	sandbox: {
 		createSessionEnv: ({ id: sessionId, cwd: sessionCwd }) =>
 			cfSandboxToSessionEnv(
+				// wrangler types the auto-wired DO as DurableObjectNamespace<undefined>;
+				// Flue re-exports the real Sandbox class into the bundle at build.
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 				getSandbox(env.Sandbox as DurableObjectNamespace<Sandbox>, sessionId),
 				sessionCwd ?? "/workspace",
 			),

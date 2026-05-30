@@ -29,10 +29,17 @@ export function readAppCreds(env: Env): GitHubAppCreds | null {
 	return { appId, privateKeyPem, installationId };
 }
 
+const BASE64_PLUS = /\+/g;
+const BASE64_SLASH = /\//g;
+const BASE64_PADDING = /=+$/;
+const PEM_BEGIN = /-----BEGIN [^-]+-----/g;
+const PEM_END = /-----END [^-]+-----/g;
+const PEM_WHITESPACE = /\s+/g;
+
 function base64UrlFromBytes(bytes: Uint8Array): string {
 	let binary = "";
 	for (const b of bytes) binary += String.fromCharCode(b);
-	return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+	return btoa(binary).replace(BASE64_PLUS, "-").replace(BASE64_SLASH, "_").replace(BASE64_PADDING, "");
 }
 
 function base64UrlFromString(input: string): string {
@@ -40,10 +47,7 @@ function base64UrlFromString(input: string): string {
 }
 
 function pemToPkcs8(pem: string): ArrayBuffer {
-	const body = pem
-		.replace(/-----BEGIN [^-]+-----/g, "")
-		.replace(/-----END [^-]+-----/g, "")
-		.replace(/\s+/g, "");
+	const body = pem.replace(PEM_BEGIN, "").replace(PEM_END, "").replace(PEM_WHITESPACE, "");
 	const binary = atob(body);
 	const bytes = new Uint8Array(binary.length);
 	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -86,7 +90,7 @@ export async function mintInstallationToken(creds: GitHubAppCreds): Promise<stri
 	if (!res.ok) {
 		throw new Error(`installation token mint failed: ${res.status} ${await res.text()}`);
 	}
-	const json = (await res.json()) as { token?: string };
+	const json = await res.json<{ token?: string }>();
 	if (!json.token) throw new Error("installation token response had no token");
 	return json.token;
 }
@@ -115,15 +119,17 @@ export async function fetchPriorReview(
 			},
 		);
 		if (!res.ok) return undefined;
-		const reviews = (await res.json()) as Array<{
-			user?: { login?: string };
-			body?: string;
-			state?: string;
-			submitted_at?: string;
-		}>;
+		const reviews = await res.json<
+			Array<{
+				user?: { login?: string };
+				body?: string;
+				state?: string;
+				submitted_at?: string;
+			}>
+		>();
 		const ours = reviews
 			.filter((r) => r.user?.login === "emdashbot[bot]" && r.body)
-			.sort((a, b) => (a.submitted_at ?? "").localeCompare(b.submitted_at ?? ""));
+			.toSorted((a, b) => (a.submitted_at ?? "").localeCompare(b.submitted_at ?? ""));
 		const latest = ours.at(-1);
 		if (!latest) return undefined;
 		return `Your previous review (state: ${latest.state ?? "unknown"}):\n\n${latest.body}`;
@@ -156,7 +162,7 @@ export async function addEyesReaction(
 			body: JSON.stringify({ content: "eyes" }),
 		});
 		if (!res.ok) return undefined;
-		const json = (await res.json()) as { id?: number };
+		const json = await res.json<{ id?: number }>();
 		return json.id;
 	} catch {
 		return undefined;
@@ -247,7 +253,7 @@ export async function postReview(
 	// Most likely cause: a comment line isn't part of the diff. Fall back to a
 	// body-only review so the summary is never lost.
 	const firstError = await res.text();
-	const bodyOnly = { body: `${result.summary}`, event };
+	const bodyOnly = { body: result.summary, event };
 	res = await fetch(url, { method: "POST", headers, body: JSON.stringify(bodyOnly) });
 	if (!res.ok) {
 		throw new Error(

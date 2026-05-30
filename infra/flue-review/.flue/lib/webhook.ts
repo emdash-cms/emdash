@@ -1,6 +1,7 @@
 // GitHub webhook signature verification and pull_request event gating.
 
 const encoder = new TextEncoder();
+const NON_HEX = /[^0-9a-fA-F]/;
 
 /**
  * Verify the `X-Hub-Signature-256` header against the raw request body using
@@ -28,7 +29,7 @@ export async function verifyWebhookSignature(
 }
 
 function hexToBytes(hex: string): Uint8Array | null {
-	if (hex.length === 0 || hex.length % 2 !== 0 || /[^0-9a-fA-F]/.test(hex)) return null;
+	if (hex.length === 0 || hex.length % 2 !== 0 || NON_HEX.test(hex)) return null;
 	const out = new Uint8Array(hex.length / 2);
 	for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
 	return out;
