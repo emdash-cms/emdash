@@ -207,7 +207,10 @@ msgstr "{0} Elemente werden importiert"
 #. placeholder {1}: plugin.capabilities.length !== 1 ? "s" : ""
 #: packages/admin/src/components/PluginManager.tsx:398
 msgid "{0} permission{1}"
-msgstr "{0} Berechtigung{1}"
+msgstr "{0} Berechtigungen"
+#: This implementation causes issues with languages like German -> the EN plural can come with the letter s added by {1} but e.g. German does not follow this logic.
+#: Temporary fix used above: Omit the {1} and use the plural directly
+#: Suggested fix: Use the ICU plural string for Permission/Permissions -> Berechtigung/Berechtigungen instead
 
 #. placeholder {0}: plugins?.length ?? 0
 #: packages/admin/src/components/PluginManager.tsx:169
@@ -486,7 +489,7 @@ msgstr "Zugriff verweigert"
 #: packages/admin/src/lib/api/marketplace.ts:224
 #: packages/admin/src/lib/api/marketplace.ts:232
 msgid "Access your media library"
-msgstr "Greife auf deine Medienbibliothek zu"
+msgstr "Auf Medienbibliothek zugreifen"
 
 #: packages/admin/src/components/SetupWizard.tsx:354
 msgid "Account"
@@ -1503,7 +1506,7 @@ msgstr "Inhalts-ID:"
 
 #: packages/admin/src/router.tsx:778
 msgid "Content is now live"
-msgstr "Inhalt ist jetzt online verfügbar"
+msgstr "Inhalt ist jetzt öffentlich einsehbar"
 
 #: packages/admin/src/components/WordPressImport.tsx:2177
 msgid "content items"
@@ -2468,7 +2471,8 @@ msgstr "E-Mail-Adresse bestätigt!"
 #. placeholder {0}: block.label
 #: packages/admin/src/components/PortableTextEditor.tsx:2019
 msgid "Embed a {0}"
-msgstr "Ein {0} einbetten"
+msgstr "{0} einbetten"
+#: Temporary fix: Removed the indefinite article "Ein" from the beginning of this string to avoid issues (it will differ based on the value of {0})
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2022
 msgid "Embeds"
@@ -4957,7 +4961,7 @@ msgstr "publiziert"
 #: packages/admin/src/components/Dashboard.tsx:187
 #: packages/admin/src/router.tsx:778
 msgid "Published"
-msgstr "publiziert"
+msgstr "Publiziert"
 
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:327
@@ -5447,7 +5451,7 @@ msgstr "Publizieren planen für"
 
 #: packages/admin/src/components/ContentEditor.tsx:922
 msgid "Schedule for later"
-msgstr "Für später planen"
+msgstr "Später publizieren"
 
 #: packages/admin/src/components/ContentList.tsx:729
 msgid "scheduled"
@@ -6686,7 +6690,7 @@ msgstr "Planung aufheben"
 
 #: packages/admin/src/router.tsx:847
 msgid "Unscheduled"
-msgstr "Ungeplant"
+msgstr "Planung aufgehoben"
 
 #. placeholder {0}: (element as { type: string }).type
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:128
