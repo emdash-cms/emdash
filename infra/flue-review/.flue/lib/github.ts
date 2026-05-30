@@ -39,7 +39,10 @@ const PEM_WHITESPACE = /\s+/g;
 function base64UrlFromBytes(bytes: Uint8Array): string {
 	let binary = "";
 	for (const b of bytes) binary += String.fromCharCode(b);
-	return btoa(binary).replace(BASE64_PLUS, "-").replace(BASE64_SLASH, "_").replace(BASE64_PADDING, "");
+	return btoa(binary)
+		.replace(BASE64_PLUS, "-")
+		.replace(BASE64_SLASH, "_")
+		.replace(BASE64_PADDING, "");
 }
 
 function base64UrlFromString(input: string): string {
