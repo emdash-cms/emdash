@@ -19,10 +19,9 @@
 	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sandbox"] }],
 	"containers": [{ "class_name": "Sandbox", "image": "./Dockerfile" }],
 	"vars": {
-		"GITHUB_OWNER_LOGIN": "ascorbic",
-		"GITHUB_REPO": "emdash-cms/emdash",
 		// emdashbot GitHub App. Not secret (app id is public; installation id is
 		// low-sensitivity). Only the private key and webhook secret are secrets.
+		// Owner/repo come from the webhook payload, so they aren't configured here.
 		"GITHUB_APP_ID": "3255304",
 		"GITHUB_APP_INSTALLATION_ID": "120963314",
 	},

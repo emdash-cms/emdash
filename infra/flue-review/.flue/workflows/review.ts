@@ -77,8 +77,10 @@ export const route: WorkflowRouteHandler = async (_c, next) => next();
 
 // GitHub login / repo-name charset.
 const NAME = /^[A-Za-z0-9._-]+$/;
-// Git ref: segments of safe chars joined by "/". No leading "-", no "..".
-const REF = /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/;
+// Git ref: "/"-joined segments; each segment must not start with "-" (so the
+// value can't be read as a CLI option when interpolated into git). The caller
+// also rejects "..".
+const REF = /^[A-Za-z0-9._][A-Za-z0-9._-]*(?:\/[A-Za-z0-9._][A-Za-z0-9._-]*)*$/;
 
 function assertSafe(payload: ReviewPayload): void {
 	if (!Number.isInteger(payload.prNumber) || payload.prNumber <= 0) {
@@ -181,7 +183,17 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 		// Post from this trusted DO context (durable, not bound by the webhook's
 		// 30s waitUntil budget). In dev (no creds) we just log and return.
 		if (token) {
-			await postReview(token, payload.owner, payload.repo, payload.prNumber, data);
+			// Don't let a transient GitHub failure throw: that would discard the
+			// completed review AND trigger Flue's at-least-once workflow restart
+			// (a full re-review). Log and return the result instead.
+			try {
+				await postReview(token, payload.owner, payload.repo, payload.prNumber, data);
+			} catch (err) {
+				ctx.log.error?.("[review] postReview failed", {
+					error: String(err),
+					prNumber: payload.prNumber,
+				});
+			}
 		} else {
 			ctx.log.info?.("[review] no GitHub App creds; skipping post", { prNumber: payload.prNumber });
 		}

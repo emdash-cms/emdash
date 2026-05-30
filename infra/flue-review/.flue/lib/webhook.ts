@@ -19,17 +19,19 @@ export async function verifyWebhookSignature(
 		false,
 		["sign"],
 	);
-	const mac = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody));
-	const expected =
-		"sha256=" + [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
-	return timingSafeEqual(expected, signatureHeader);
+	const provided = hexToBytes(signatureHeader.slice("sha256=".length));
+	if (!provided) return false;
+	const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody)));
+	if (provided.length !== mac.length) return false;
+	// Workers' built-in constant-time comparison over the raw MAC bytes.
+	return crypto.subtle.timingSafeEqual(provided, mac);
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
-	if (a.length !== b.length) return false;
-	let diff = 0;
-	for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-	return diff === 0;
+function hexToBytes(hex: string): Uint8Array | null {
+	if (hex.length === 0 || hex.length % 2 !== 0 || /[^0-9a-fA-F]/.test(hex)) return null;
+	const out = new Uint8Array(hex.length / 2);
+	for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+	return out;
 }
 
 export interface GatedPr {
@@ -44,9 +46,11 @@ export interface GatedPr {
 
 export type GateDecision = { review: true; pr: GatedPr } | { review: false; reason: string };
 
-// Actions that warrant a (re-)review. `synchronize` = new commits pushed.
-const REVIEWABLE_ACTIONS = new Set(["opened", "reopened", "ready_for_review", "synchronize"]);
-// Manual trigger: applying this label to a PR.
+// Actions that warrant an auto-review. Deliberately NOT `synchronize`: we don't
+// re-review on every pushed commit (noisy and costly). Re-review after changes
+// is an explicit action via the bot:review label below.
+const REVIEWABLE_ACTIONS = new Set(["opened", "reopened", "ready_for_review"]);
+// Manual trigger (re-review): applying this label to a PR.
 const MANUAL_LABEL = "bot:review";
 
 interface PullRequestEvent {
@@ -70,21 +74,24 @@ interface PullRequestEvent {
  * account to avoid self-review loops.
  */
 export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
+	const pr = event.pull_request;
+	if (!pr) return { review: false, reason: "no pull_request in payload" };
+
+	// Bot-author guard applies to BOTH auto and manual triggers, so labeling a
+	// bot-authored PR (or emdashbot's own PR) can't kick off a self-review loop.
+	const author = pr.user?.login ?? "";
+	if (author.endsWith("[bot]")) {
+		return { review: false, reason: `author "${author}" is a bot` };
+	}
+
 	const action = event.action ?? "";
 	const isManual = action === "labeled" && event.label?.name === MANUAL_LABEL;
 	if (!isManual && !REVIEWABLE_ACTIONS.has(action)) {
 		return { review: false, reason: `action "${action}" is not reviewable` };
 	}
 
-	const pr = event.pull_request;
-	if (!pr) return { review: false, reason: "no pull_request in payload" };
 	if (pr.draft && action !== "ready_for_review" && !isManual) {
 		return { review: false, reason: "PR is a draft" };
-	}
-
-	const author = pr.user?.login ?? "";
-	if (author.endsWith("[bot]")) {
-		return { review: false, reason: `author "${author}" is a bot` };
 	}
 
 	const owner = event.repository?.owner?.login;
