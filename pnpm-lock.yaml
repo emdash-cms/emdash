@@ -366,7 +366,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))(workerd@1.20260526.1)(wrangler@4.95.0)
+        version: 1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))(workerd@1.20260507.1)(wrangler@4.95.0)
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
         version: 0.16.3(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5)
@@ -868,6 +868,9 @@ importers:
       agents:
         specifier: ^0.13.3
         version: 0.13.3(@babel/core@7.29.0)(@babel/runtime@7.29.7)(@cloudflare/workers-types@4.20260305.1)(@x402/core@2.8.0)(@x402/evm@2.8.0(typescript@6.0.3))(ai@6.0.172(zod@4.4.1))(react@19.2.4)(rolldown@1.0.2)(vite@8.0.14(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))(zod@4.4.1)
+      hono:
+        specifier: ^4.12.23
+        version: 4.12.23
       valibot:
         specifier: ^1.4.1
         version: 1.4.1(typescript@6.0.3)
@@ -8294,10 +8297,6 @@ packages:
     resolution: {integrity: sha512-eIaZ9qDgu7XV0pxOCrg7/WhnQ6Ivm22UcxhXx/A3dcbqbbYgBEkc6e/J/s7j2tS96zoB0S9VBdLwQNCWwUo4LA==}
     engines: {node: '>=16.9.0'}
 
-  hono@4.12.4:
-    resolution: {integrity: sha512-ooiZW1Xy8rQ4oELQ++otI2T9DsKpV0M6c6cO6JGx4RTfav9poFFLlet9UMXHZnoM1yG0HWGlQLswBGX3RZmHtg==}
-    engines: {node: '>=16.9.0'}
-
   hono@4.12.7:
     resolution: {integrity: sha512-jq9l1DM0zVIvsm3lv9Nw9nlJnMNPOcAtsbsgiUhWcFzPE99Gvo6yRTlszSLLYacMeQ6quHD6hMfId8crVHvexw==}
     engines: {node: '>=16.9.0'}
@@ -13345,9 +13344,9 @@ snapshots:
       - utf-8-validate
       - workerd
 
-  '@cloudflare/vite-plugin@1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))(workerd@1.20260526.1)(wrangler@4.95.0)':
+  '@cloudflare/vite-plugin@1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))(workerd@1.20260507.1)(wrangler@4.95.0)':
     dependencies:
-      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260526.1)
+      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260507.1)
       miniflare: 4.20260507.1
       unenv: 2.0.0-rc.24
       vite: 8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0)
@@ -13854,14 +13853,14 @@ snapshots:
     dependencies:
       '@earendil-works/pi-agent-core': 0.77.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.1))(ws@8.21.0)(zod@4.4.1)
       '@earendil-works/pi-ai': 0.77.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.1))(ws@8.21.0)(zod@4.4.1)
-      '@hono/node-server': 2.0.4(hono@4.12.7)
-      '@hono/standard-validator': 0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.7)
+      '@hono/node-server': 2.0.4(hono@4.12.23)
+      '@hono/standard-validator': 0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.23)
       '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.1)
       '@standard-community/standard-json': 0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.0(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1)
       '@standard-community/standard-openapi': 0.2.9(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1))(@standard-schema/spec@1.1.0)(openapi-types@12.1.3)(typebox@1.1.38)(valibot@1.4.0(typescript@6.0.3))(zod@4.4.1)
       '@valibot/to-json-schema': 1.7.0(valibot@1.4.0(typescript@6.0.3))
-      hono: 4.12.7
-      hono-openapi: 1.3.0(@hono/standard-validator@0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.7))(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1))(@standard-community/standard-openapi@0.2.9(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1))(@standard-schema/spec@1.1.0)(openapi-types@12.1.3)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod@4.4.1))(@types/json-schema@7.0.15)(hono@4.12.7)(openapi-types@12.1.3)
+      hono: 4.12.23
+      hono-openapi: 1.3.0(@hono/standard-validator@0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.23))(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1))(@standard-community/standard-openapi@0.2.9(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1))(@standard-schema/spec@1.1.0)(openapi-types@12.1.3)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod@4.4.1))(@types/json-schema@7.0.15)(hono@4.12.23)(openapi-types@12.1.3)
       js-yaml: 4.1.1
       just-bash: 3.0.1
       openapi-types: 12.1.3
@@ -13898,22 +13897,18 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@hono/node-server@1.19.9(hono@4.12.4)':
+  '@hono/node-server@1.19.9(hono@4.12.23)':
     dependencies:
-      hono: 4.12.4
+      hono: 4.12.23
 
-  '@hono/node-server@1.19.9(hono@4.12.7)':
+  '@hono/node-server@2.0.4(hono@4.12.23)':
     dependencies:
-      hono: 4.12.7
+      hono: 4.12.23
 
-  '@hono/node-server@2.0.4(hono@4.12.7)':
-    dependencies:
-      hono: 4.12.7
-
-  '@hono/standard-validator@0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.7)':
+  '@hono/standard-validator@0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.23)':
     dependencies:
       '@standard-schema/spec': 1.1.0
-      hono: 4.12.7
+      hono: 4.12.23
 
   '@iconify-json/ph@1.2.2':
     dependencies:
@@ -14361,7 +14356,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.26.0(@cfworker/json-schema@4.1.1)(zod@4.4.1)':
     dependencies:
-      '@hono/node-server': 1.19.9(hono@4.12.4)
+      '@hono/node-server': 1.19.9(hono@4.12.23)
       ajv: 8.17.1
       ajv-formats: 3.0.1(ajv@8.17.1)
       content-type: 1.0.5
@@ -14371,7 +14366,7 @@ snapshots:
       eventsource-parser: 3.0.6
       express: 5.2.1
       express-rate-limit: 8.2.1(express@5.2.1)
-      hono: 4.12.4
+      hono: 4.12.23
       jose: 6.1.3
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -14385,7 +14380,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.1)':
     dependencies:
-      '@hono/node-server': 1.19.9(hono@4.12.7)
+      '@hono/node-server': 1.19.9(hono@4.12.23)
       ajv: 8.17.1
       ajv-formats: 3.0.1(ajv@8.17.1)
       content-type: 1.0.5
@@ -14395,7 +14390,7 @@ snapshots:
       eventsource-parser: 3.0.8
       express: 5.2.1
       express-rate-limit: 8.2.1(express@5.2.1)
-      hono: 4.12.7
+      hono: 4.12.23
       jose: 6.1.3
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -16766,7 +16761,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vitest: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.1.5)(@vitest/ui@4.1.5)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))
+      vitest: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.1.5)(@vitest/ui@4.1.5)(jsdom@26.1.0)(vite@8.0.14(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))
 
   '@vitest/utils@4.1.5':
     dependencies:
@@ -19012,19 +19007,17 @@ snapshots:
 
   highlight.js@10.7.3: {}
 
-  hono-openapi@1.3.0(@hono/standard-validator@0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.7))(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1))(@standard-community/standard-openapi@0.2.9(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1))(@standard-schema/spec@1.1.0)(openapi-types@12.1.3)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod@4.4.1))(@types/json-schema@7.0.15)(hono@4.12.7)(openapi-types@12.1.3):
+  hono-openapi@1.3.0(@hono/standard-validator@0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.23))(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1))(@standard-community/standard-openapi@0.2.9(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1))(@standard-schema/spec@1.1.0)(openapi-types@12.1.3)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod@4.4.1))(@types/json-schema@7.0.15)(hono@4.12.23)(openapi-types@12.1.3):
     dependencies:
       '@standard-community/standard-json': 0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1)
       '@standard-community/standard-openapi': 0.2.9(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.0(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.1))(zod@4.4.1))(@standard-schema/spec@1.1.0)(openapi-types@12.1.3)(typebox@1.1.38)(valibot@1.4.1(typescript@6.0.3))(zod@4.4.1)
       '@types/json-schema': 7.0.15
       openapi-types: 12.1.3
     optionalDependencies:
-      '@hono/standard-validator': 0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.7)
-      hono: 4.12.7
+      '@hono/standard-validator': 0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.23)
+      hono: 4.12.23
 
   hono@4.12.23: {}
-
-  hono@4.12.4: {}
 
   hono@4.12.7: {}
 

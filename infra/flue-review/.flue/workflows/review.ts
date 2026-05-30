@@ -18,6 +18,7 @@ import { cfSandboxToSessionEnv } from "@flue/runtime/cloudflare";
 import { getSandbox, type Sandbox } from "@cloudflare/sandbox";
 
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
+import { readAppCreds, mintInstallationToken, fetchPriorReview, postReview } from "../lib/github.js";
 // Bundled as a SkillReference by the Flue build. Holds the full investigation
 // protocol (git-only, ported from the ask-bonk auto-reviewer).
 import review from "../skills/review/SKILL.md" with { type: "skill" };
@@ -32,12 +33,6 @@ interface ReviewPayload {
 	baseRef: string;
 	owner: string;
 	repo: string;
-	/**
-	 * Optional prior-review context for a re-review: earlier emdashbot[bot]
-	 * findings and the author's replies, fetched by the orchestrator and passed
-	 * in. Absent on a first review.
-	 */
-	priorReview?: string;
 }
 
 // Kimi via the Cloudflare Workers AI binding: the `cloudflare/` prefix is
@@ -103,7 +98,7 @@ function assertSafe(payload: ReviewPayload): void {
 	}
 }
 
-function buildPrContext(payload: ReviewPayload): string {
+function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
 	const lines = [
 		`PR #${payload.prNumber} in ${payload.owner}/${payload.repo}.`,
 		`Head ref: ${payload.headRef}. Base branch: ${payload.baseRef} (diff against origin/${payload.baseRef}).`,
@@ -113,20 +108,27 @@ function buildPrContext(payload: ReviewPayload): string {
 		"",
 		payload.prBody || "(no description provided)",
 	];
-	if (payload.priorReview) {
-		lines.push(
-			"",
-			"## Prior review context (this is a re-review)",
-			"",
-			payload.priorReview,
-		);
+	if (priorReview) {
+		lines.push("", "## Prior review context (this is a re-review)", "", priorReview);
 	}
 	return lines.join("\n");
 }
 
 export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewResult> {
-	const { init, payload } = ctx;
+	const { init, payload, env } = ctx;
 	assertSafe(payload);
+
+	// GitHub access lives entirely in this trusted DO code, never in the agent's
+	// container. Without app creds (e.g. local dev) we skip posting and just
+	// return the result. The token (minted once, valid ~1h) is reused for the
+	// prior-review fetch and the final post.
+	const creds = readAppCreds(env);
+	let token: string | undefined;
+	let priorReview: string | undefined;
+	if (creds) {
+		token = await mintInstallationToken(creds);
+		priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
+	}
 
 	const harness = await init(reviewAgent);
 	const session = await harness.session();
@@ -155,7 +157,7 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 
 	const { data } = await session.skill(review, {
 		args: {
-			prContext: buildPrContext(payload),
+			prContext: buildPrContext(payload, priorReview),
 			owner: payload.owner,
 			repo: payload.repo,
 			prNumber: payload.prNumber,
@@ -164,6 +166,14 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 		},
 		result: reviewResultSchema,
 	});
+
+	// Post from this trusted DO context (durable, not bound by the webhook's
+	// 30s waitUntil budget). In dev (no creds) we just log and return.
+	if (token) {
+		await postReview(token, payload.owner, payload.repo, payload.prNumber, data);
+	} else {
+		ctx.log.info?.("[review] no GitHub App creds; skipping post", { prNumber: payload.prNumber });
+	}
 
 	return data;
 }

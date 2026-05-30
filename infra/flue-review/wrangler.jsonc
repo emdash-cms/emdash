@@ -22,6 +22,19 @@
 		"GITHUB_OWNER_LOGIN": "ascorbic",
 		"GITHUB_REPO": "emdash-cms/emdash",
 	},
+	// Set with `wrangler secret put <NAME>`. The webhook secret is used by the
+	// public handler; the GitHub App trio is used only by the workflow DO to
+	// fetch prior reviews and post the review (never by the agent container).
+	// GITHUB_APP_PRIVATE_KEY must be a PKCS#8 PEM (convert GitHub's download
+	// with `openssl pkcs8 -topk8 -nocrypt -in key.pem`).
+	"secrets": {
+		"required": [
+			"GITHUB_WEBHOOK_SECRET",
+			"GITHUB_APP_ID",
+			"GITHUB_APP_PRIVATE_KEY",
+			"GITHUB_APP_INSTALLATION_ID",
+		],
+	},
 	"observability": {
 		"enabled": true,
 	},

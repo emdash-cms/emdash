@@ -5,5 +5,6 @@ dist/
 worker-configuration.d.ts
 .dev.vars
 .dev.vars.*
+!.dev.vars.example
 .env
 .env.*

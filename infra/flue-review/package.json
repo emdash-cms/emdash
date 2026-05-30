@@ -19,6 +19,7 @@
 		"@cloudflare/sandbox": "^0.10.3",
 		"@flue/runtime": "^0.8.1",
 		"agents": "^0.13.3",
+		"hono": "^4.12.23",
 		"valibot": "^1.4.1"
 	}
 }

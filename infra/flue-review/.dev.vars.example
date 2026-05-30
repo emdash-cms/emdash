@@ -1,0 +1,13 @@
+# Local dev secrets for `flue dev --target cloudflare`. Copy to `.dev.vars`.
+# With the GITHUB_APP_* trio left empty, the workflow skips posting and just
+# returns the review result (safe for local testing without a real App).
+
+# HMAC secret shared with the GitHub webhook config.
+GITHUB_WEBHOOK_SECRET=
+
+# GitHub App credentials (leave empty in dev to skip posting).
+GITHUB_APP_ID=
+# PKCS#8 PEM, newlines as literal \n or a quoted multi-line value.
+# Convert GitHub's PKCS#1 download: openssl pkcs8 -topk8 -nocrypt -in key.pem
+GITHUB_APP_PRIVATE_KEY=
+GITHUB_APP_INSTALLATION_ID=
