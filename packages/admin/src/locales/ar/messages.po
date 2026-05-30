@@ -711,7 +711,7 @@ msgstr "الكل"
 
 #: packages/admin/src/routes/bylines.tsx:325
 msgid "All bylines"
-msgstr "جميع أسماء المؤلفين"
+msgstr "جميع الكُتّاب"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:108
 msgid "All capabilities"
@@ -1114,7 +1114,7 @@ msgstr "قائمة نقطية"
 #: packages/admin/src/components/Sidebar.tsx:209
 #: packages/admin/src/routes/bylines.tsx:299
 msgid "Bylines"
-msgstr "أسماء المؤلفين"
+msgstr "الكُتّاب"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:25
 msgid "Can create content"
@@ -1652,7 +1652,7 @@ msgstr "إنشاء حساب"
 #: packages/admin/src/components/ContentEditor.tsx:2120
 #: packages/admin/src/routes/bylines.tsx:389
 msgid "Create byline"
-msgstr "إنشاء اسم مؤلف"
+msgstr "إنشاء كاتب"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 msgid "Create Content Type"
@@ -1955,7 +1955,7 @@ msgstr "حذف {0}؟"
 
 #: packages/admin/src/routes/bylines.tsx:499
 msgid "Delete Byline?"
-msgstr "حذف اسم المؤلف؟"
+msgstr "حذف الكاتب؟"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2582
 msgid "Delete column"
@@ -2373,7 +2373,7 @@ msgstr "تعديل {title}"
 
 #: packages/admin/src/components/ContentEditor.tsx:2182
 msgid "Edit byline"
-msgstr "تعديل اسم المؤلف"
+msgstr "تعديل الكاتب"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:364
 msgid "Edit Domain"
@@ -2662,7 +2662,7 @@ msgstr "فشل إنشاء حساب المسؤول"
 
 #: packages/admin/src/components/ContentEditor.tsx:2166
 msgid "Failed to create byline"
-msgstr "فشل في إنشاء اسم المؤلف"
+msgstr "فشل إنشاء الكاتب"
 
 #: packages/admin/src/components/WordPressImport.tsx:1553
 msgid "Failed to create some collections"
@@ -2688,7 +2688,7 @@ msgstr "فشل حذف النطاق المسموح به"
 
 #: packages/admin/src/lib/api/bylines.ts:117
 msgid "Failed to delete byline"
-msgstr "فشل حذف اسم المؤلف"
+msgstr "فشل حذف الكاتب"
 
 #: packages/admin/src/lib/api/schema.ts:222
 msgid "Failed to delete collection"
@@ -2858,7 +2858,7 @@ msgstr "فشل في تحميل النطاقات المسموح بها"
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:287
 msgid "Failed to load bylines: {0}"
-msgstr "فشل تحميل أسماء المؤلفين: {0}"
+msgstr "فشل تحميل الكُتّاب: {0}"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:89
 msgid "Failed to load email settings"
@@ -3020,7 +3020,7 @@ msgstr "فشل تحديث {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:2216
 msgid "Failed to update byline"
-msgstr "فشل في تحديث اسم المؤلف"
+msgstr "فشل تحديث الكاتب"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
 msgid "Failed to update domain"
@@ -3136,7 +3136,7 @@ msgstr "تصفية حسب النوع"
 
 #: packages/admin/src/routes/bylines.tsx:321
 msgid "Filter byline type"
-msgstr "تصفية حسب نوع اسم المؤلف"
+msgstr "تصفية حسب نوع الكاتب"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "First-time commenters only"
@@ -3206,7 +3206,7 @@ msgstr "المجموعة (اختياري)"
 
 #: packages/admin/src/routes/bylines.tsx:432
 msgid "Guest byline"
-msgstr "اسم مؤلف ضيف"
+msgstr "كاتب ضيف"
 
 #: packages/admin/src/routes/bylines.tsx:326
 msgid "Guest only"
@@ -3880,7 +3880,7 @@ msgstr "إدارة {0} لـ {1}"
 
 #: packages/admin/src/components/ContentEditor.tsx:2020
 msgid "Manage bylines in {entryLocale}"
-msgstr "إدارة أسماء المؤلفين في {entryLocale}"
+msgstr "إدارة الكُتّاب في {entryLocale}"
 
 #: packages/admin/src/components/Widgets.tsx:326
 msgid "Manage content widgets in your widget areas"
@@ -4284,15 +4284,15 @@ msgstr "لا توجد تعليقات موافق عليها بعد."
 
 #: packages/admin/src/components/ContentEditor.tsx:2012
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
-msgstr "لا توجد أسماء مؤلفين متاحة في {entryLocale}. أنشئ نسخة من صفحة أسماء المؤلفين قبل إسناد اسم لهذا المدخل."
+msgstr "لا يوجد كُتّاب متاحون في {entryLocale}. أنشئ نسخة من صفحة الكُتّاب قبل إسناد كاتب لهذا المدخل."
 
 #: packages/admin/src/routes/bylines.tsx:365
 msgid "No bylines found"
-msgstr "لم يُعثر على أسماء مؤلفين"
+msgstr "لم يُعثر على كُتّاب"
 
 #: packages/admin/src/components/ContentEditor.tsx:2107
 msgid "No bylines selected."
-msgstr "لم يتم اختيار اسماء مؤلفين."
+msgstr "لم يتم اختيار أي كاتب."
 
 #: packages/admin/src/components/Dashboard.tsx:172
 msgid "No collections configured"
@@ -4971,7 +4971,7 @@ msgstr "بقلم"
 
 #: packages/admin/src/components/ContentEditor.tsx:2115
 msgid "Quick create byline"
-msgstr "إنشاء اسم مؤلف بشكل سريع"
+msgstr "إنشاء كاتب بشكل سريع"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:167
 #: packages/admin/src/components/editor/ImageNode.tsx:168
@@ -5532,7 +5532,7 @@ msgstr "ابحث بالاسم أو البريد الإلكتروني..."
 
 #: packages/admin/src/routes/bylines.tsx:314
 msgid "Search bylines"
-msgstr "البحث في أسماء المؤلفين"
+msgstr "البحث في الكُتّاب"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:163
 msgid "Search comments"
@@ -5719,11 +5719,11 @@ msgstr "اختيار الكل"
 
 #: packages/admin/src/components/ContentEditor.tsx:2032
 msgid "Select byline"
-msgstr "اختر اسم المؤلف"
+msgstr "اختر الكاتب"
 
 #: packages/admin/src/components/ContentEditor.tsx:2029
 msgid "Select byline..."
-msgstr "اختيار اسم مؤلف..."
+msgstr "اختيار كاتب..."
 
 #. placeholder {0}: comment.authorName
 #: packages/admin/src/components/comments/CommentInbox.tsx:456
@@ -6375,7 +6375,7 @@ msgstr "سيتم إزالة قاعدة إعادة التوجيه هذه بشكل
 
 #: packages/admin/src/routes/bylines.tsx:500
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
-msgstr "سيُزال ملف اسم المؤلف. ستُحذف روابط أسماء المؤلفين في المحتوى وتُمسح مؤشرات القيادة."
+msgstr "سيُزال ملف الكاتب. ستُحذف روابط الكُتّاب في المحتوى وتُمسح مؤشرات القيادة."
 
 #: packages/admin/src/components/SectionEditor.tsx:283
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
