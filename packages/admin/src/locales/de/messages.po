@@ -1751,15 +1751,15 @@ msgstr "Erstelle deinen Passkey"
 #: packages/admin/src/lib/api/marketplace.ts:223
 #: packages/admin/src/lib/api/marketplace.ts:231
 msgid "Create, update, and delete content"
-msgstr "Erstelle, aktualisiere oder entferne Inhalte"
+msgstr "Erstelle, aktualisiere und entferne Inhalte"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:81
 msgid "Create, update, and delete navigation menus"
-msgstr "Erstelle, aktualisiere oder entferne Navigationsmenüs"
+msgstr "Erstelle, aktualisiere und entferne Navigationsmenüs"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:76
 msgid "Create, update, and delete taxonomy terms"
-msgstr "Erstelle, aktualisiere oder entferne Taxonomiebegriffe"
+msgstr "Erstelle, aktualisiere und entferne Taxonomiebegriffe"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:51
 msgid "Create, update, delete content"
@@ -4092,7 +4092,7 @@ msgstr "Bearbeitet"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:71
 msgid "Modify collection schemas"
-msgstr "Kollektionsschemata ändern oder entfernen"
+msgstr "Kollektionsschemata ändern und entfernen"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:42
 msgid "Most Popular"
@@ -6785,7 +6785,7 @@ msgstr "Lade ein Bild hoch, um zu beginnen"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:61
 msgid "Upload and delete media"
-msgstr "Mediendateien hochladen oder entfernen"
+msgstr "Mediendateien hochladen und entfernen"
 
 #: packages/admin/src/lib/api/marketplace.ts:225
 #: packages/admin/src/lib/api/marketplace.ts:233
