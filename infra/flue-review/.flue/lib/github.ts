@@ -135,6 +135,63 @@ export async function fetchPriorReview(
 	}
 }
 
+/**
+ * Add an 👀 reaction to the PR to signal "review in progress". Returns the
+ * reaction id (to remove later) or undefined on failure. Non-fatal: a missing
+ * progress marker should never block a review.
+ */
+export async function addEyesReaction(
+	token: string,
+	owner: string,
+	repo: string,
+	prNumber: number,
+): Promise<number | undefined> {
+	try {
+		const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions`, {
+			method: "POST",
+			headers: {
+				authorization: `Bearer ${token}`,
+				accept: "application/vnd.github+json",
+				"content-type": "application/json",
+				"user-agent": USER_AGENT,
+				"x-github-api-version": "2022-11-28",
+			},
+			body: JSON.stringify({ content: "eyes" }),
+		});
+		if (!res.ok) return undefined;
+		const json = (await res.json()) as { id?: number };
+		return json.id;
+	} catch {
+		return undefined;
+	}
+}
+
+/** Remove a previously-added reaction (the in-progress marker). Non-fatal. */
+export async function removeReaction(
+	token: string,
+	owner: string,
+	repo: string,
+	prNumber: number,
+	reactionId: number,
+): Promise<void> {
+	try {
+		await fetch(
+			`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions/${reactionId}`,
+			{
+				method: "DELETE",
+				headers: {
+					authorization: `Bearer ${token}`,
+					accept: "application/vnd.github+json",
+					"user-agent": USER_AGENT,
+					"x-github-api-version": "2022-11-28",
+				},
+			},
+		);
+	} catch {
+		// Best-effort cleanup; leaving a stray reaction is harmless.
+	}
+}
+
 function verdictToEvent(verdict: ReviewResult["verdict"]): "APPROVE" | "REQUEST_CHANGES" | "COMMENT" {
 	switch (verdict) {
 		case "approve":

@@ -18,7 +18,14 @@ import { cfSandboxToSessionEnv } from "@flue/runtime/cloudflare";
 import { getSandbox, type Sandbox } from "@cloudflare/sandbox";
 
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
-import { readAppCreds, mintInstallationToken, fetchPriorReview, postReview } from "../lib/github.js";
+import {
+	readAppCreds,
+	mintInstallationToken,
+	fetchPriorReview,
+	postReview,
+	addEyesReaction,
+	removeReaction,
+} from "../lib/github.js";
 // Bundled as a SkillReference by the Flue build. Holds the full investigation
 // protocol (git-only, ported from the ask-bonk auto-reviewer).
 import review from "../skills/review/SKILL.md" with { type: "skill" };
@@ -125,55 +132,65 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 	const creds = readAppCreds(env);
 	let token: string | undefined;
 	let priorReview: string | undefined;
+	let reactionId: number | undefined;
 	if (creds) {
 		token = await mintInstallationToken(creds);
+		// Signal "review in progress" before the (minutes-long) container review.
+		reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
 		priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
 	}
 
-	const harness = await init(reviewAgent);
-	const session = await harness.session();
+	try {
+		const harness = await init(reviewAgent);
+		const session = await harness.session();
 
-	// Set up the checkout inside the container: init in /workspace, fetch the
-	// base branch and the PR head, check out the PR head (detached). Full fetch
-	// (no shallow/depth) so `git diff origin/<base>...HEAD` can resolve a merge
-	// base. emdash is public, so anonymous https is sufficient.
-	const cloneUrl = `https://github.com/${payload.owner}/${payload.repo}.git`;
-	const setup = [
-		"set -euo pipefail",
-		"cd /workspace",
-		"git init -q",
-		`git remote add origin ${cloneUrl} 2>/dev/null || git remote set-url origin ${cloneUrl}`,
-		`git fetch -q --no-tags origin ${payload.baseRef}:refs/remotes/origin/${payload.baseRef}`,
-		`git fetch -q --no-tags origin pull/${payload.prNumber}/head:refs/remotes/origin/pr`,
-		"git checkout -q -f refs/remotes/origin/pr",
-	].join("\n");
+		// Set up the checkout inside the container: init in /workspace, fetch the
+		// base branch and the PR head, check out the PR head (detached). Full fetch
+		// (no shallow/depth) so `git diff origin/<base>...HEAD` can resolve a merge
+		// base. emdash is public, so anonymous https is sufficient.
+		const cloneUrl = `https://github.com/${payload.owner}/${payload.repo}.git`;
+		const setup = [
+			"set -euo pipefail",
+			"cd /workspace",
+			"git init -q",
+			`git remote add origin ${cloneUrl} 2>/dev/null || git remote set-url origin ${cloneUrl}`,
+			`git fetch -q --no-tags origin ${payload.baseRef}:refs/remotes/origin/${payload.baseRef}`,
+			`git fetch -q --no-tags origin pull/${payload.prNumber}/head:refs/remotes/origin/pr`,
+			"git checkout -q -f refs/remotes/origin/pr",
+		].join("\n");
 
-	const setupResult = await session.shell(setup);
-	if (setupResult.exitCode !== 0) {
-		throw new Error(
-			`git setup failed (exit ${setupResult.exitCode}): ${setupResult.stderr || setupResult.stdout}`,
-		);
+		const setupResult = await session.shell(setup);
+		if (setupResult.exitCode !== 0) {
+			throw new Error(
+				`git setup failed (exit ${setupResult.exitCode}): ${setupResult.stderr || setupResult.stdout}`,
+			);
+		}
+
+		const { data } = await session.skill(review, {
+			args: {
+				prContext: buildPrContext(payload, priorReview),
+				owner: payload.owner,
+				repo: payload.repo,
+				prNumber: payload.prNumber,
+				baseRef: payload.baseRef,
+				headRef: payload.headRef,
+			},
+			result: reviewResultSchema,
+		});
+
+		// Post from this trusted DO context (durable, not bound by the webhook's
+		// 30s waitUntil budget). In dev (no creds) we just log and return.
+		if (token) {
+			await postReview(token, payload.owner, payload.repo, payload.prNumber, data);
+		} else {
+			ctx.log.info?.("[review] no GitHub App creds; skipping post", { prNumber: payload.prNumber });
+		}
+
+		return data;
+	} finally {
+		// Clear the in-progress marker whether the review posted or threw.
+		if (token && reactionId !== undefined) {
+			await removeReaction(token, payload.owner, payload.repo, payload.prNumber, reactionId);
+		}
 	}
-
-	const { data } = await session.skill(review, {
-		args: {
-			prContext: buildPrContext(payload, priorReview),
-			owner: payload.owner,
-			repo: payload.repo,
-			prNumber: payload.prNumber,
-			baseRef: payload.baseRef,
-			headRef: payload.headRef,
-		},
-		result: reviewResultSchema,
-	});
-
-	// Post from this trusted DO context (durable, not bound by the webhook's
-	// 30s waitUntil budget). In dev (no creds) we just log and return.
-	if (token) {
-		await postReview(token, payload.owner, payload.repo, payload.prNumber, data);
-	} else {
-		ctx.log.info?.("[review] no GitHub App creds; skipping post", { prNumber: payload.prNumber });
-	}
-
-	return data;
 }
