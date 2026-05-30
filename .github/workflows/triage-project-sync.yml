@@ -38,7 +38,13 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # owner + repositories: org-scoped for Projects, but limited to this
+          # one repo. permission-*: least privilege, just what the sync needs
+          # (org Projects write; issues read for the workflow_dispatch backfill).
           owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-organization-projects: write
+          permission-issues: read
 
       - name: Sync triage state to project
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
