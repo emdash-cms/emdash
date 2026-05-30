@@ -127,7 +127,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Run Bonk (${{ steps.model.outputs.alias }})
-        uses: ask-bonk/ask-bonk/github@a8c6cac8726d0d5ab887bc159aae77e2bfb2cf18 # main as of 2026-04-24
+        uses: ask-bonk/ask-bonk/github@8c7a8314f4f4865e2e41e5718dfabc4ab7a2274b # main as of 2026-04-24
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}

@@ -1,5 +1,15 @@
 # @emdash-cms/cache-demo-site
 
+## 0.0.11
+
+### Patch Changes
+
+- Updated dependencies [[`cf3c706`](https://github.com/emdash-cms/emdash/commit/cf3c706a65087696eb6cca5844b7668a50e4a090), [`02ed8ba`](https://github.com/emdash-cms/emdash/commit/02ed8ba32ef1f4301d84465b934430eee08eef74), [`11b3001`](https://github.com/emdash-cms/emdash/commit/11b300100e066c6b3463070a9b65fba868f37e9b), [`fae97ee`](https://github.com/emdash-cms/emdash/commit/fae97ee5465934365864557e9fa3ee8754cfd49c), [`88f544d`](https://github.com/emdash-cms/emdash/commit/88f544db4b8e2f30060a3b4d670ff72aa8760d61), [`9a30607`](https://github.com/emdash-cms/emdash/commit/9a30607791a2f27473b1d2fe7700291e0be1ea1c), [`d0ff94b`](https://github.com/emdash-cms/emdash/commit/d0ff94bd476e7fd4b5d18c94904cfb5c071fea92), [`463c7a2`](https://github.com/emdash-cms/emdash/commit/463c7a23036d55fee3f5105c1a878c9abdee2e1f)]:
+  - @emdash-cms/plugin-cli@0.4.0
+  - emdash@0.15.0
+  - @emdash-cms/cloudflare@0.15.0
+  - @emdash-cms/plugin-webhook-notifier@0.2.0
+
 ## 0.0.10
 
 ### Patch Changes

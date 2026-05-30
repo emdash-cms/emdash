@@ -26,7 +26,7 @@
 	"author": "Matt Kane",
 	"license": "MIT",
 	"peerDependencies": {
-		"emdash": "workspace:>=0.14.0"
+		"emdash": "workspace:>=0.15.0"
 	},
 	"devDependencies": {
 		"@emdash-cms/plugin-cli": "workspace:*",

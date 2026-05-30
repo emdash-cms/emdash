@@ -27,6 +27,8 @@ rules:
       # author) via github-script. They never check out PR code.
       - pr-compliance.yml
       - pr-triage.yml
+      # review-state only reads PR and review metadata via github-script to set review/* labels; it never checks out or runs PR code.
+      - review-state.yml
       # query-counts-apply uses workflow_run to apply snapshot updates that
       # were computed in the untrusted `query-counts` workflow. The trusted
       # workflow only consumes the artifact JSON, verifies the head SHA, and
