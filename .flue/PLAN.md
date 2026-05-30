@@ -31,9 +31,9 @@ Browser access (`agent-browser` against `pnpm dev`) shifts ~6 admin-UI issues fr
 
 One label triggers the bot. The bot then manages its own label as the investigation progresses. Labels are mutually exclusive on a single issue.
 
-| Label                   | Set by     | Meaning                                              |
-| ----------------------- | ---------- | ---------------------------------------------------- |
-| `bot:repro`             | Maintainer | Investigation requested                              |
+| Label                      | Set by     | Meaning                                              |
+| -------------------------- | ---------- | ---------------------------------------------------- |
+| `bot:repro`                | Maintainer | Investigation requested                              |
 | `triage/reproducing`       | Bot        | Investigation in progress                            |
 | `triage/reproduced`        | Bot        | Reproduced; no fix attempted (low confidence)        |
 | `triage/awaiting-reporter` | Bot        | Reproduced + fix attempted; reporter asked to verify |

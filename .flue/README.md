@@ -21,9 +21,9 @@ The orchestrator (`.github/workflows/investigate.yml`) reads the structured JSON
 
 ## Trigger and label state
 
-| Label                   | Set by     | Meaning                                          |
-| ----------------------- | ---------- | ------------------------------------------------ |
-| `bot:repro`             | Maintainer | Investigation requested                          |
+| Label                      | Set by     | Meaning                                          |
+| -------------------------- | ---------- | ------------------------------------------------ |
+| `bot:repro`                | Maintainer | Investigation requested                          |
 | `triage/reproducing`       | Bot        | Investigation in progress                        |
 | `triage/reproduced`        | Bot        | Reproduced; no fix attempted (or fix abandoned)  |
 | `triage/awaiting-reporter` | Bot        | Fix pushed; reporter asked to verify             |
