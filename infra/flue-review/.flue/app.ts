@@ -8,8 +8,8 @@
 // durable workflow run, and returns. The review and the GitHub post happen
 // inside the workflow's Durable Object, which is not bound by that budget.
 
-import { Hono } from "hono";
 import { flue } from "@flue/runtime/app";
+import { Hono } from "hono";
 
 import { verifyWebhookSignature, gatePullRequestEvent } from "./lib/webhook.js";
 

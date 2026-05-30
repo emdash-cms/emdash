@@ -74,18 +74,15 @@ async function signAppJwt(creds: GitHubAppCreds): Promise<string> {
 /** Mint a short-lived installation access token. */
 export async function mintInstallationToken(creds: GitHubAppCreds): Promise<string> {
 	const jwt = await signAppJwt(creds);
-	const res = await fetch(
-		`${GITHUB_API}/app/installations/${creds.installationId}/access_tokens`,
-		{
-			method: "POST",
-			headers: {
-				authorization: `Bearer ${jwt}`,
-				accept: "application/vnd.github+json",
-				"user-agent": USER_AGENT,
-				"x-github-api-version": "2022-11-28",
-			},
+	const res = await fetch(`${GITHUB_API}/app/installations/${creds.installationId}/access_tokens`, {
+		method: "POST",
+		headers: {
+			authorization: `Bearer ${jwt}`,
+			accept: "application/vnd.github+json",
+			"user-agent": USER_AGENT,
+			"x-github-api-version": "2022-11-28",
 		},
-	);
+	});
 	if (!res.ok) {
 		throw new Error(`installation token mint failed: ${res.status} ${await res.text()}`);
 	}
@@ -175,24 +172,23 @@ export async function removeReaction(
 	reactionId: number,
 ): Promise<void> {
 	try {
-		await fetch(
-			`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions/${reactionId}`,
-			{
-				method: "DELETE",
-				headers: {
-					authorization: `Bearer ${token}`,
-					accept: "application/vnd.github+json",
-					"user-agent": USER_AGENT,
-					"x-github-api-version": "2022-11-28",
-				},
+		await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions/${reactionId}`, {
+			method: "DELETE",
+			headers: {
+				authorization: `Bearer ${token}`,
+				accept: "application/vnd.github+json",
+				"user-agent": USER_AGENT,
+				"x-github-api-version": "2022-11-28",
 			},
-		);
+		});
 	} catch {
 		// Best-effort cleanup; leaving a stray reaction is harmless.
 	}
 }
 
-function verdictToEvent(verdict: ReviewResult["verdict"]): "APPROVE" | "REQUEST_CHANGES" | "COMMENT" {
+function verdictToEvent(
+	verdict: ReviewResult["verdict"],
+): "APPROVE" | "REQUEST_CHANGES" | "COMMENT" {
 	switch (verdict) {
 		case "approve":
 			return "APPROVE";

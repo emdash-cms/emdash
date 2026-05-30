@@ -30,8 +30,8 @@ allowBuilds:
   workerd: true
   # Transitive @flue/runtime deps. The reviewer ran end-to-end with these
   # build scripts ignored, so none are needed at runtime.
-  '@google/genai': false
-  '@mongodb-js/zstd': false
+  "@google/genai": false
+  "@mongodb-js/zstd": false
   node-liblzma: false
   protobufjs: false
 # Reviewed benign trust downgrades (publish-method changes, not takeovers).

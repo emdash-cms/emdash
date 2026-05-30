@@ -13,11 +13,10 @@
 // container via the egress proxy, so the token never enters model-reachable
 // space.
 
+import { getSandbox, type Sandbox } from "@cloudflare/sandbox";
 import { createAgent, type FlueContext, type WorkflowRouteHandler } from "@flue/runtime";
 import { cfSandboxToSessionEnv } from "@flue/runtime/cloudflare";
-import { getSandbox, type Sandbox } from "@cloudflare/sandbox";
 
-import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
 import {
 	readAppCreds,
 	mintInstallationToken,
@@ -26,6 +25,7 @@ import {
 	addEyesReaction,
 	removeReaction,
 } from "../lib/github.js";
+import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
 // Bundled as a SkillReference by the Flue build. Holds the full investigation
 // protocol (git-only, ported from the ask-bonk auto-reviewer).
 import review from "../skills/review/SKILL.md" with { type: "skill" };

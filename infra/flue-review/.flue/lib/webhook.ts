@@ -20,7 +20,8 @@ export async function verifyWebhookSignature(
 		["sign"],
 	);
 	const mac = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody));
-	const expected = "sha256=" + [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
+	const expected =
+		"sha256=" + [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("");
 	return timingSafeEqual(expected, signatureHeader);
 }
 
