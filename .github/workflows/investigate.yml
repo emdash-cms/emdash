@@ -125,41 +125,17 @@ jobs:
             echo "reporter=${REPORTER}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Ensure bot labels exist
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          set -eu
-          # color/description tuples; one bot:* label per row.
-          # repro     = work scheduled, not yet started
-          # reproducing = investigation in progress
-          # reproduced  = bug confirmed, no fix yet
-          # awaiting-reporter = fix pushed, waiting on reporter verification
-          # verified  = reporter confirmed, PR opened
-          # not-reproduced = could not reproduce
-          # skipped   = agent declined (out of scope, missing info)
-          # failed    = bot crashed or hit retry cap
-          gh label create "bot:repro"             --force --color 1d76db --description "Maintainer asked the bot to reproduce this" --repo emdash-cms/emdash
-          gh label create "bot:reproducing"       --force --color fbca04 --description "Bot is currently investigating"              --repo emdash-cms/emdash
-          gh label create "bot:reproduced"        --force --color d93f0b --description "Bot reproduced the bug"                       --repo emdash-cms/emdash
-          gh label create "bot:awaiting-reporter" --force --color c2e0c6 --description "Fix pushed, waiting on reporter to verify"    --repo emdash-cms/emdash
-          gh label create "bot:verified"          --force --color 0e8a16 --description "Reporter verified the fix"                    --repo emdash-cms/emdash
-          gh label create "bot:not-reproduced"    --force --color bfdadc --description "Bot could not reproduce"                      --repo emdash-cms/emdash
-          gh label create "bot:skipped"           --force --color e4e669 --description "Bot declined to investigate"                  --repo emdash-cms/emdash
-          gh label create "bot:failed"            --force --color b60205 --description "Bot crashed or hit the retry cap"             --repo emdash-cms/emdash
-
-      - name: Transition label to bot:reproducing
+      - name: Transition label to triage/reproducing
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
         run: |
           set -euo pipefail
           # Remove any existing bot:* label; swallow 404s (label may not be present).
-          for L in bot:repro bot:reproducing bot:reproduced bot:awaiting-reporter bot:verified bot:not-reproduced bot:skipped bot:failed; do
+          for L in bot:repro triage/reproducing triage/reproduced triage/awaiting-reporter triage/verified triage/not-reproduced triage/skipped triage/failed; do
             gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "$L" >/dev/null 2>&1 || true
           done
-          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --add-label "bot:reproducing"
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --add-label "triage/reproducing"
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -334,7 +310,7 @@ jobs:
         run: |
           set -euo pipefail
           REASON="$(jq -r '.reason // .notes // "No reason provided."' /tmp/agent-result.json)"
-          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:reproducing" --add-label "bot:skipped"
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/skipped"
           {
             echo "The investigation bot declined to reproduce this issue."
             echo
@@ -354,7 +330,7 @@ jobs:
         run: |
           set -euo pipefail
           ATTEMPTS="$(jq -r '.attempts // "The bot tried the steps described in the issue but could not trigger the bug."' /tmp/agent-result.json)"
-          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:reproducing" --add-label "bot:not-reproduced"
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/not-reproduced"
           {
             echo "The investigation bot could not reproduce this issue."
             echo
@@ -378,7 +354,7 @@ jobs:
         run: |
           set -euo pipefail
           NOTES="$(jq -r '.notes // ""' /tmp/agent-result.json)"
-          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:reproducing" --add-label "bot:reproduced"
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/reproduced"
           {
             echo "The investigation bot reproduced the described behavior, but it appears to be intended."
             echo
@@ -402,7 +378,7 @@ jobs:
         run: |
           set -euo pipefail
           NOTES="$(jq -r '.notes // ""' /tmp/agent-result.json)"
-          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:reproducing" --add-label "bot:reproduced"
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/reproduced"
           {
             echo "The investigation bot reproduced this issue."
             echo
@@ -557,19 +533,19 @@ jobs:
 
           # Order matters: post the ask comment FIRST, transition the
           # label only after the comment succeeds. If we flipped to
-          # `bot:awaiting-reporter` before posting and the comment
+          # `triage/awaiting-reporter` before posting and the comment
           # then failed, reporter-reply.yml would see an issue in the
           # awaiting state with no current `bot-ask` marker, treat
           # every future reply as stale, and the issue would be stuck
           # until a maintainer noticed.
           if ! gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md; then
-            echo "::warning::ask-comment post failed; transitioning to bot:failed instead of bot:awaiting-reporter"
+            echo "::warning::ask-comment post failed; transitioning to triage/failed instead of triage/awaiting-reporter"
             gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash \
-              --remove-label "bot:reproducing" --add-label "bot:failed" || true
+              --remove-label "triage/reproducing" --add-label "triage/failed" || true
             exit 1
           fi
           gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash \
-            --remove-label "bot:reproducing" --add-label "bot:awaiting-reporter"
+            --remove-label "triage/reproducing" --add-label "triage/awaiting-reporter"
 
       # ----- Outcome branches: agent failed / no parseable result -----
 
@@ -584,7 +560,7 @@ jobs:
             echo "No issue number resolved; nothing to comment on."
             exit 0
           fi
-          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:reproducing" --add-label "bot:failed" || true
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/failed" || true
           {
             echo "The investigation bot ran into a problem and could not complete."
             echo

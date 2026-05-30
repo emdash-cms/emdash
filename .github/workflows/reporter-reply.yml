@@ -1,6 +1,6 @@
 name: Reporter Reply
 
-# When an issue is in the `bot:awaiting-reporter` state and the original
+# When an issue is in the `triage/awaiting-reporter` state and the original
 # reporter comments, classify the reply (positive / negative / unclear) via
 # a small Flue classifier workflow and act on the result.
 
@@ -18,13 +18,13 @@ jobs:
     # Only fire if:
     #  - the comment is on an issue (not a PR -- issue_comment fires for both)
     #  - the comment author is the original issue author
-    #  - the issue is currently in the bot:awaiting-reporter state
+    #  - the issue is currently in the triage/awaiting-reporter state
     #
     # The `contains(...)` check is on the event payload's label
     # snapshot. Known small race: in `investigate.yml`'s reproduced+
     # fixed path, the ask comment is posted before the label flip --
     # a reply created in that 1-2 second window has a label snapshot
-    # without `bot:awaiting-reporter` and is dropped here. The live-
+    # without `triage/awaiting-reporter` and is dropped here. The live-
     # check step also gates on labels, so even loosening this `if:`
     # would not catch it. Accepted as known minor; a reporter cannot
     # reply that fast in practice, and the next reply would be picked
@@ -32,7 +32,7 @@ jobs:
     if: >-
       github.event.issue.pull_request == null
       && github.event.comment.user.login == github.event.issue.user.login
-      && contains(github.event.issue.labels.*.name, 'bot:awaiting-reporter')
+      && contains(github.event.issue.labels.*.name, 'triage/awaiting-reporter')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -58,7 +58,7 @@ jobs:
 
       # Re-verify live state before any expensive work. Three checks:
       #
-      #   1. The issue is currently `bot:awaiting-reporter`. The job's
+      #   1. The issue is currently `triage/awaiting-reporter`. The job's
       #      `if:` gate uses `github.event.issue.labels`, which is the
       #      label snapshot at event dispatch time. Two replies in
       #      quick succession would both pass the gate; concurrency
@@ -83,8 +83,8 @@ jobs:
           set -euo pipefail
 
           LABELS="$(gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}" --jq '[.labels[].name] | join(",")')"
-          if ! grep -q 'bot:awaiting-reporter' <<<"$LABELS"; then
-            echo "::notice::issue #${ISSUE_NUMBER} is no longer in bot:awaiting-reporter (live labels: ${LABELS}); skipping stale reply event"
+          if ! grep -q 'triage/awaiting-reporter' <<<"$LABELS"; then
+            echo "::notice::issue #${ISSUE_NUMBER} is no longer in triage/awaiting-reporter (live labels: ${LABELS}); skipping stale reply event"
             echo "stale=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -274,8 +274,8 @@ jobs:
           # `gh pr create` is idempotent-ish: if a PR already exists for
           # this branch, it errors. Detect, fall back to listing the
           # existing PR for the branch. If we can't find ANY PR URL,
-          # do not flip to bot:verified -- that state implies a real
-          # PR exists. Instead leave on bot:awaiting-reporter and ping
+          # do not flip to triage/verified -- that state implies a real
+          # PR exists. Instead leave on triage/awaiting-reporter and ping
           # the maintainer, since the fix branch may have been deleted
           # by bot-cleanup.yml or by a manual purge.
           set +e
@@ -302,7 +302,7 @@ jobs:
             # No PR exists. Do NOT mark verified -- that implies a PR.
             # Surface the failure so a maintainer can recover.
             gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash \
-              --remove-label "bot:awaiting-reporter" --add-label "bot:failed"
+              --remove-label "triage/awaiting-reporter" --add-label "triage/failed"
             {
               echo "The reporter confirmed the fix, but the bot could not open a PR (branch \`${FIX_BRANCH}\` may have been deleted)."
               echo
@@ -312,7 +312,7 @@ jobs:
             exit 0
           fi
 
-          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:awaiting-reporter" --add-label "bot:verified"
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/awaiting-reporter" --add-label "triage/verified"
 
           {
             echo "Thanks for confirming. A PR is open: ${PR_URL}"
@@ -372,7 +372,7 @@ jobs:
             LABELER="$(gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/events" --paginate \
               --jq '[.[] | select(.event == "labeled" and .label.name == "bot:repro") | .actor.login] | last // ""')"
 
-            gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "bot:awaiting-reporter" --add-label "bot:failed"
+            gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/awaiting-reporter" --add-label "triage/failed"
             {
               echo "<!-- bot-retry-count: ${NEXT} -->"
               echo "The bot has tried ${MAX} times and the reporter still indicates the fix does not work. A human maintainer needs to take this from here."
@@ -389,7 +389,7 @@ jobs:
           # for recovery: if dispatch fails, the label stays put
           # (so a maintainer can re-trigger by removing + re-adding
           # `bot:repro` manually) rather than getting stuck in a
-          # `bot:reproducing` state with no investigation running.
+          # `triage/reproducing` state with no investigation running.
           set +e
           gh workflow run investigate.yml \
             --repo "$REPO_FULL" \
@@ -401,13 +401,13 @@ jobs:
 
           if [[ $DISPATCH_EXIT -ne 0 ]]; then
             # Surface the failure on the issue so a maintainer can
-            # decide what to do. Leave the label on bot:awaiting-reporter
+            # decide what to do. Leave the label on triage/awaiting-reporter
             # so the maintainer's manual `bot:repro` re-application
             # works as expected.
-            echo "::warning::workflow_dispatch failed (exit ${DISPATCH_EXIT}); leaving label on bot:awaiting-reporter"
+            echo "::warning::workflow_dispatch failed (exit ${DISPATCH_EXIT}); leaving label on triage/awaiting-reporter"
             {
               echo "<!-- bot-retry-count: ${NEXT} -->"
-              echo "I tried to re-run the investigation but the dispatch failed. A maintainer can re-trigger by removing the \`bot:awaiting-reporter\` label and re-adding \`bot:repro\`."
+              echo "I tried to re-run the investigation but the dispatch failed. A maintainer can re-trigger by removing the \`triage/awaiting-reporter\` label and re-adding \`bot:repro\`."
             } > /tmp/comment.md
             gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
             exit 0
@@ -417,19 +417,19 @@ jobs:
           # in-flight investigation can claim the issue state and a
           # second reply during that window passes through the live-
           # label check to a no-op. The dispatched investigate.yml
-          # will see `bot:reproducing` and leave it as-is at its
-          # transition step (which moves bot:repro -> bot:reproducing
+          # will see `triage/reproducing` and leave it as-is at its
+          # transition step (which moves bot:repro -> triage/reproducing
           # idempotently via --remove-label || true).
           #
           # Retry the flip up to 3 times: a transient API hiccup that
-          # leaves bot:awaiting-reporter visible opens a window for a
+          # leaves triage/awaiting-reporter visible opens a window for a
           # duplicate retry. After 3 failures, the dispatched
           # investigation will flip the label itself when it runs,
           # which closes the window at the cost of a small race.
           FLIP_OK=false
           for ATTEMPT in 1 2 3; do
             if gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash \
-              --remove-label "bot:awaiting-reporter" --add-label "bot:reproducing"; then
+              --remove-label "triage/awaiting-reporter" --add-label "triage/reproducing"; then
               FLIP_OK=true
               break
             fi

@@ -1,7 +1,7 @@
 // Classify a reporter's reply to the bot's verification ask.
 //
 // Triggered by .github/workflows/reporter-reply.yml when the issue
-// author comments on an issue that has the `bot:awaiting-reporter`
+// author comments on an issue that has the `triage/awaiting-reporter`
 // label. The workflow YAML reads the classification from this run's
 // output and decides whether to open a PR, retry, or ask for
 // clarification.
