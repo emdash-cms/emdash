@@ -339,7 +339,8 @@ export interface CodeBlock extends BlockBase {
 
 export interface TabPanel {
 	label: string;
-	blocks: Block[];
+	body?: string;
+	blocks?: Block[];
 }
 
 export interface TabBlock extends BlockBase {
@@ -364,6 +365,132 @@ export interface AccordionBlock extends BlockBase {
 	default_open?: boolean;
 }
 
+export interface TestimonialItem {
+	quote: string;
+	author: string;
+	title?: string;
+	company?: string;
+	avatar?: string;
+}
+
+export interface TestimonialBlock extends BlockBase {
+	type: "testimonial";
+	items: TestimonialItem[];
+}
+
+export interface CardItem {
+	title: string;
+	description?: string;
+	image?: string;
+	ctaText?: string;
+	ctaUrl?: string;
+}
+
+export interface CardBlock extends BlockBase, CardItem {
+	type: "card";
+}
+
+export interface CardGridBlock extends BlockBase {
+	type: "cardGrid";
+	title?: string;
+	description?: string;
+	columns?: 2 | 3 | 4;
+	items: CardItem[];
+}
+
+export interface IconBlock extends BlockBase {
+	type: "icon";
+	name: string;
+	label: string;
+	description?: string;
+}
+
+export interface FeatureListItem {
+	icon: string;
+	title: string;
+	description?: string;
+}
+
+export interface FeatureListBlock extends BlockBase {
+	type: "featureList";
+	title?: string;
+	description?: string;
+	columns?: number;
+	items: FeatureListItem[];
+}
+
+export interface LogoCloudItem {
+	name: string;
+	logoUrl: string;
+	url?: string;
+}
+
+export interface LogoCloudBlock extends BlockBase {
+	type: "logoCloud";
+	title?: string;
+	items: LogoCloudItem[];
+}
+
+export interface StepItem {
+	title: string;
+	description?: string;
+	icon?: string;
+}
+
+export interface StepsBlock extends BlockBase {
+	type: "steps";
+	title?: string;
+	items: StepItem[];
+}
+
+export interface FaqItem {
+	question: string;
+	answer: string;
+}
+
+export interface FaqBlock extends BlockBase {
+	type: "faq";
+	items: FaqItem[];
+}
+
+export interface VideoEmbedBlock extends BlockBase {
+	type: "videoEmbed";
+	title?: string;
+	provider?: "youtube" | "vimeo" | "custom";
+	embedUrl: string;
+	caption?: string;
+	poster?: string;
+}
+
+// ── Pricing & CTA ─────────────────────────────────────────────────────────────
+
+export interface PricingPlan {
+	name: string;
+	price: string;
+	period?: string;
+	description?: string;
+	features: string[];
+	highlighted?: boolean;
+	ctaLabel: string;
+	ctaHref?: string;
+}
+
+export interface PricingTableBlock extends BlockBase {
+	type: "pricingTable";
+	title?: string;
+	description?: string;
+	plans: PricingPlan[];
+}
+
+export interface CtaBannerBlock extends BlockBase {
+	type: "ctaBanner";
+	title: string;
+	description?: string;
+	primaryAction: { label: string; href: string };
+	secondaryAction?: { label: string; href: string };
+	variant?: "default" | "dark" | "brand";
+}
+
 export type Block =
 	| HeaderBlock
 	| SectionBlock
@@ -382,7 +509,18 @@ export type Block =
 	| CodeBlock
 	| TabBlock
 	| EmptyBlock
-	| AccordionBlock;
+	| AccordionBlock
+	| TestimonialBlock
+	| CardBlock
+	| CardGridBlock
+	| IconBlock
+	| FeatureListBlock
+	| LogoCloudBlock
+	| StepsBlock
+	| FaqBlock
+	| VideoEmbedBlock
+	| PricingTableBlock
+	| CtaBannerBlock;
 
 // ── Interactions ─────────────────────────────────────────────────────────────
 

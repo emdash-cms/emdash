@@ -1,0 +1,103 @@
+---
+export interface Props {
+	node: {
+		_type: "faq";
+		_key?: string;
+		items?: Array<{
+			_key?: string;
+			question?: string;
+			answer?: string;
+		}>;
+	};
+}
+
+const { node } = Astro.props;
+const items = Array.isArray(node?.items) ? node.items : [];
+---
+
+{
+	items.length > 0 && (
+		<div class="emdash-faq">
+			{items.map((item, index) => {
+				const question = item.question || `Question ${index + 1}`;
+				const answer = item.answer || "";
+				return (
+					<details class="emdash-faq__item">
+						<summary class="emdash-faq__summary">
+							{question}
+						</summary>
+						<div class="emdash-faq__panel">
+							<p>{answer}</p>
+						</div>
+					</details>
+				);
+			})}
+		</div>
+	)
+}
+
+<style>
+	.emdash-faq {
+		--emdash-faq-bg-default: #fff;
+		--emdash-faq-border-default: #ddd;
+		--emdash-faq-summary-bg-default: #f7f7f7;
+		--emdash-faq-text-default: #1f2937;
+
+		margin: 1.5rem 0;
+		color: var(--emdash-faq-text, var(--text-color-kumo-default, var(--emdash-faq-text-default)));
+		border: 1px solid var(--emdash-faq-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-faq-border-default))));
+		border-radius: 6px;
+		background: var(--emdash-faq-bg, var(--color-kumo-base, var(--emdash-faq-bg-default)));
+		overflow: hidden;
+	}
+
+	.emdash-faq__item + .emdash-faq__item {
+		border-top: 1px solid var(--emdash-faq-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-faq-border-default))));
+	}
+
+	.emdash-faq__summary {
+		cursor: pointer;
+		padding: 1rem;
+		font-weight: 600;
+		background: var(--emdash-faq-summary-bg, var(--color-kumo-tint, var(--emdash-surface-muted, var(--emdash-faq-summary-bg-default))));
+		list-style: none;
+	}
+
+	.emdash-faq__summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.emdash-faq__summary::marker {
+		display: none;
+	}
+
+	.emdash-faq__panel {
+		padding: 1rem;
+	}
+
+	.emdash-faq__panel > :first-child {
+		margin-top: 0;
+	}
+
+	.emdash-faq__panel > :last-child {
+		margin-bottom: 0;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-faq {
+			--emdash-faq-bg-default: #111827;
+			--emdash-faq-border-default: #374151;
+			--emdash-faq-summary-bg-default: #1f2937;
+			--emdash-faq-text-default: #f9fafb;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-faq,
+	:global([data-theme="dark"]) .emdash-faq,
+	:global(.dark) .emdash-faq {
+		--emdash-faq-bg-default: #111827;
+		--emdash-faq-border-default: #374151;
+		--emdash-faq-summary-bg-default: #1f2937;
+		--emdash-faq-text-default: #f9fafb;
+	}
+</style>

@@ -1,0 +1,258 @@
+---
+import { sanitizeHref } from "../utils/url.js";
+
+export interface Props {
+	node: {
+		_type: "pricingTable";
+		_key?: string;
+		title?: string;
+		description?: string;
+		items?: Array<{
+			_key?: string;
+			name?: string;
+			price?: string | number;
+			period?: string;
+			description?: string;
+			features?: string[];
+			ctaText?: string;
+			ctaUrl?: string;
+			highlighted?: boolean;
+		}>;
+	};
+}
+
+const { node } = Astro.props;
+const items = Array.isArray(node?.items) ? node.items : [];
+---
+
+{
+	(node?.title || node?.description || items.length > 0) && (
+		<section class="emdash-pricing-table">
+			{(node?.title || node?.description) && (
+				<header class="emdash-pricing-table__header">
+					{node.title && <h2 class="emdash-pricing-table__title">{node.title}</h2>}
+					{node.description && <p class="emdash-pricing-table__description">{node.description}</p>}
+				</header>
+			)}
+			{items.length > 0 && (
+				<div class="emdash-pricing-table__grid">
+					{items.map((item) => {
+						const ctaUrl = item.ctaUrl ? sanitizeHref(item.ctaUrl) : undefined;
+						const features = Array.isArray(item.features) ? item.features : [];
+						return (
+							<article class:list={["emdash-pricing-table__plan", item.highlighted && "emdash-pricing-table__plan--highlighted"]}>
+								{item.highlighted && <div class="emdash-pricing-table__badge">Popular</div>}
+								{item.name && <h3 class="emdash-pricing-table__name">{item.name}</h3>}
+								{item.description && <p class="emdash-pricing-table__plan-description">{item.description}</p>}
+								<div class="emdash-pricing-table__price-row">
+									{item.price !== undefined && <span class="emdash-pricing-table__price">{item.price}</span>}
+									{item.period && <span class="emdash-pricing-table__period">{item.period}</span>}
+								</div>
+								{features.length > 0 && (
+									<ul class="emdash-pricing-table__features">
+										{features.map((feature) => (
+											<li class="emdash-pricing-table__feature">{feature}</li>
+										))}
+									</ul>
+								)}
+								{item.ctaText &&
+									(ctaUrl ? (
+										<a class:list={["emdash-pricing-table__cta", item.highlighted && "emdash-pricing-table__cta--primary"]} href={ctaUrl}>
+											{item.ctaText}
+										</a>
+									) : (
+										<span class:list={["emdash-pricing-table__cta", item.highlighted && "emdash-pricing-table__cta--primary"]}>
+											{item.ctaText}
+										</span>
+									))}
+							</article>
+						);
+					})}
+				</div>
+			)}
+		</section>
+	)
+}
+
+<style>
+	.emdash-pricing-table {
+		--emdash-pricing-bg-default: #fff;
+		--emdash-pricing-border-default: #ddd;
+		--emdash-pricing-text-default: #1f2937;
+		--emdash-pricing-muted-default: #666;
+		--emdash-pricing-accent-default: #0073aa;
+		--emdash-pricing-highlight-bg-default: #f0f9ff;
+		--emdash-pricing-highlight-border-default: #0073aa;
+
+		margin: 1.5rem 0;
+		color: var(--emdash-pricing-text, var(--text-color-kumo-default, var(--emdash-pricing-text-default)));
+	}
+
+	.emdash-pricing-table__header {
+		margin-bottom: 1.5rem;
+		text-align: center;
+	}
+
+	.emdash-pricing-table__title {
+		margin: 0;
+		font-size: 1.75rem;
+		line-height: 1.25;
+	}
+
+	.emdash-pricing-table__description {
+		max-width: 42rem;
+		margin: 0.5rem auto 0;
+		line-height: 1.6;
+		color: var(--emdash-pricing-muted, var(--text-color-kumo-subtle, var(--emdash-pricing-muted-default)));
+	}
+
+	.emdash-pricing-table__grid {
+		display: grid;
+		gap: 1rem;
+		align-items: start;
+	}
+
+	@media (min-width: 700px) {
+		.emdash-pricing-table__grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (min-width: 980px) {
+		.emdash-pricing-table__grid {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+
+	.emdash-pricing-table__plan {
+		position: relative;
+		padding: 1.5rem;
+		border: 1px solid var(--emdash-pricing-border, var(--color-kumo-line, var(--emdash-pricing-border-default)));
+		border-radius: 8px;
+		background: var(--emdash-pricing-bg, var(--color-kumo-base, var(--emdash-pricing-bg-default)));
+		text-align: center;
+	}
+
+	.emdash-pricing-table__plan--highlighted {
+		border-color: var(--emdash-pricing-highlight-border, var(--emdash-pricing-accent-default));
+		background: var(--emdash-pricing-highlight-bg, var(--emdash-pricing-highlight-bg-default));
+	}
+
+	.emdash-pricing-table__badge {
+		position: absolute;
+		top: -0.75rem;
+		left: 50%;
+		transform: translateX(-50%);
+		padding: 0.25rem 0.75rem;
+		font-size: 0.75rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #fff;
+		background: var(--emdash-pricing-accent-default);
+		border-radius: 9999px;
+	}
+
+	.emdash-pricing-table__name {
+		margin: 0;
+		font-size: 1.25rem;
+		font-weight: 700;
+	}
+
+	.emdash-pricing-table__plan-description {
+		margin: 0.5rem 0 0;
+		font-size: 0.9rem;
+		line-height: 1.5;
+		color: var(--emdash-pricing-muted, var(--text-color-kumo-subtle, var(--emdash-pricing-muted-default)));
+	}
+
+	.emdash-pricing-table__price-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: center;
+		gap: 0.35rem;
+		margin-top: 1rem;
+	}
+
+	.emdash-pricing-table__price {
+		font-size: 2.5rem;
+		font-weight: 800;
+		line-height: 1;
+	}
+
+	.emdash-pricing-table__period {
+		font-size: 0.9rem;
+		color: var(--emdash-pricing-muted, var(--text-color-kumo-subtle, var(--emdash-pricing-muted-default)));
+	}
+
+	.emdash-pricing-table__features {
+		margin: 1.25rem 0 0;
+		padding: 0;
+		list-style: none;
+		text-align: left;
+	}
+
+	.emdash-pricing-table__feature {
+		padding: 0.5rem 0;
+		border-bottom: 1px solid var(--emdash-pricing-border, var(--color-kumo-line, var(--emdash-pricing-border-default)));
+		font-size: 0.9rem;
+		line-height: 1.5;
+	}
+
+	.emdash-pricing-table__feature:last-child {
+		border-bottom: none;
+	}
+
+	.emdash-pricing-table__cta {
+		display: block;
+		margin-top: 1.25rem;
+		padding: 0.75rem 1.5rem;
+		border-radius: 4px;
+		font-weight: 600;
+		text-decoration: none;
+		text-align: center;
+		transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+		background-color: transparent;
+		color: var(--emdash-pricing-accent-default);
+		border: 2px solid var(--emdash-pricing-accent-default);
+	}
+
+	.emdash-pricing-table__cta:hover {
+		background-color: var(--emdash-pricing-accent-default);
+		color: #fff;
+	}
+
+	.emdash-pricing-table__cta--primary {
+		background-color: var(--emdash-pricing-accent-default);
+		color: #fff;
+	}
+
+	.emdash-pricing-table__cta--primary:hover {
+		background-color: #005177;
+		border-color: #005177;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-pricing-table {
+			--emdash-pricing-bg-default: #111827;
+			--emdash-pricing-border-default: #374151;
+			--emdash-pricing-text-default: #f9fafb;
+			--emdash-pricing-muted-default: #d1d5db;
+			--emdash-pricing-accent-default: #60a5fa;
+			--emdash-pricing-highlight-bg-default: #1e3a5f;
+			--emdash-pricing-highlight-border-default: #60a5fa;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-pricing-table,
+	:global([data-theme="dark"]) .emdash-pricing-table,
+	:global(.dark) .emdash-pricing-table {
+		--emdash-pricing-bg-default: #111827;
+		--emdash-pricing-border-default: #374151;
+		--emdash-pricing-text-default: #f9fafb;
+		--emdash-pricing-muted-default: #d1d5db;
+		--emdash-pricing-accent-default: #60a5fa;
+		--emdash-pricing-highlight-bg-default: #1e3a5f;
+		--emdash-pricing-highlight-border-default: #60a5fa;
+	}
+</style>

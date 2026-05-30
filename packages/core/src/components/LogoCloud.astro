@@ -1,0 +1,120 @@
+---
+export interface Props {
+	node: {
+		_type: "logoCloud";
+		_key?: string;
+		title?: string;
+		items?: Array<{
+			_key?: string;
+			name?: string;
+			logoUrl?: string;
+			url?: string;
+		}>;
+	};
+}
+
+const { node } = Astro.props;
+const items = Array.isArray(node?.items) ? node.items : [];
+---
+
+{
+	items.length > 0 && (
+		<section class="emdash-logo-cloud">
+			{node.title && <h2 class="emdash-logo-cloud__title">{node.title}</h2>}
+			<div class="emdash-logo-cloud__grid">
+				{items.map((item) => (
+					item.logoUrl ? (
+						item.url ? (
+							<a href={item.url} target="_blank" rel="noopener noreferrer" class="emdash-logo-cloud__item">
+								<img src={item.logoUrl} alt={item.name || ""} class="emdash-logo-cloud__logo" loading="lazy" />
+							</a>
+						) : (
+							<div class="emdash-logo-cloud__item">
+								<img src={item.logoUrl} alt={item.name || ""} class="emdash-logo-cloud__logo" loading="lazy" />
+							</div>
+						)
+					) : (
+						<div class="emdash-logo-cloud__item emdash-logo-cloud__item--placeholder">
+							<span>{item.name || "Logo"}</span>
+						</div>
+					)
+				))}
+			</div>
+		</section>
+	)
+}
+
+<style>
+	.emdash-logo-cloud {
+		--emdash-logo-cloud-bg-default: #fff;
+		--emdash-logo-cloud-border-default: #e5e7eb;
+		--emdash-logo-cloud-text-default: #1f2937;
+		--emdash-logo-cloud-muted-default: #9ca3af;
+
+		margin: 1.5rem 0;
+		color: var(--emdash-logo-cloud-text, var(--text-color-kumo-default, var(--emdash-logo-cloud-text-default)));
+	}
+
+	.emdash-logo-cloud__title {
+		text-align: center;
+		font-size: 1.1rem;
+		font-weight: 600;
+		margin-bottom: 1.25rem;
+		color: var(--emdash-logo-cloud-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-logo-cloud-muted-default))));
+	}
+
+	.emdash-logo-cloud__grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1.5rem;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.emdash-logo-cloud__item {
+		display: flex;
+		align-items: center;
+		color: var(--emdash-logo-cloud-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-logo-cloud-muted-default))));
+		transition: color 0.2s;
+	}
+
+	a.emdash-logo-cloud__item:hover {
+		color: var(--emdash-logo-cloud-text, var(--text-color-kumo-default, var(--emdash-logo-cloud-text-default)));
+	}
+
+	.emdash-logo-cloud__logo {
+		max-height: 3rem;
+		width: auto;
+		object-fit: contain;
+	}
+
+	.emdash-logo-cloud__item--placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		height: 3rem;
+		padding: 0 1rem;
+		border: 1px dashed var(--emdash-logo-cloud-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-logo-cloud-border-default))));
+		border-radius: 4px;
+		font-size: 0.85rem;
+		color: var(--emdash-logo-cloud-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-logo-cloud-muted-default))));
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-logo-cloud {
+			--emdash-logo-cloud-bg-default: #111827;
+			--emdash-logo-cloud-border-default: #374151;
+			--emdash-logo-cloud-text-default: #f9fafb;
+			--emdash-logo-cloud-muted-default: #9ca3af;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-logo-cloud,
+	:global([data-theme="dark"]) .emdash-logo-cloud,
+	:global(.dark) .emdash-logo-cloud {
+		--emdash-logo-cloud-bg-default: #111827;
+		--emdash-logo-cloud-border-default: #374151;
+		--emdash-logo-cloud-text-default: #f9fafb;
+		--emdash-logo-cloud-muted-default: #9ca3af;
+	}
+</style>

@@ -132,6 +132,7 @@ import {
 	handleContentDiscardDraft,
 	handleContentCompare,
 	handleContentTranslations,
+	handleContentAutosave,
 	handleMediaList,
 	handleMediaGet,
 	handleMediaCreate,
@@ -2536,6 +2537,16 @@ export class EmDashRuntime {
 
 	async handleContentDiscardDraft(collection: string, id: string) {
 		return handleContentDiscardDraft(this.db, collection, id);
+	}
+
+	async handleContentAutosave(
+		collection: string,
+		id: string,
+		lexicalJson: unknown,
+		authorId?: string,
+		field?: string,
+	) {
+		return handleContentAutosave(this.db, collection, id, lexicalJson, authorId, field);
 	}
 
 	async handleContentCompare(collection: string, id: string) {

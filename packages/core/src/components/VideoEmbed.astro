@@ -1,0 +1,91 @@
+---
+export interface Props {
+	node: {
+		_type: "videoEmbed";
+		_key?: string;
+		title?: string;
+		provider?: "youtube" | "vimeo" | "custom";
+		embedUrl?: string;
+		caption?: string;
+		poster?: string;
+	};
+}
+
+const { node } = Astro.props;
+const embedUrl = node?.embedUrl || "";
+const title = node?.title || "Video";
+const caption = node?.caption;
+---
+
+{
+	embedUrl && (
+		<figure class="emdash-video-embed">
+			<div class="emdash-video-embed__wrapper">
+				<iframe
+					src={embedUrl}
+					title={title}
+					allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+					allowfullscreen
+					class="emdash-video-embed__iframe"
+					loading="lazy"
+				/>
+			</div>
+			{caption && (
+				<figcaption class="emdash-video-embed__caption">
+					{caption}
+				</figcaption>
+			)}
+		</figure>
+	)
+}
+
+<style>
+	.emdash-video-embed {
+		margin: 1.5rem 0;
+	}
+
+	.emdash-video-embed__wrapper {
+		position: relative;
+		overflow: hidden;
+		border-radius: 6px;
+		border: 1px solid var(--color-kumo-line, #ddd);
+		background: var(--color-kumo-tint, #f7f7f7);
+	}
+
+	.emdash-video-embed__wrapper::before {
+		content: "";
+		display: block;
+		padding-top: 56.25%;
+	}
+
+	.emdash-video-embed__iframe {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		border: none;
+	}
+
+	.emdash-video-embed__caption {
+		margin-top: 0.75rem;
+		text-align: center;
+		font-size: 0.875rem;
+		line-height: 1.5;
+		color: var(--text-kumo-subtle, #6b7280);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-video-embed__wrapper {
+			border-color: #374151;
+			background: #1f2937;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-video-embed__wrapper,
+	:global([data-theme="dark"]) .emdash-video-embed__wrapper,
+	:global(.dark) .emdash-video-embed__wrapper {
+		border-color: #374151;
+		background: #1f2937;
+	}
+</style>

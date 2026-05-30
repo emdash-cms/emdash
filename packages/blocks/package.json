@@ -12,6 +12,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./builder": {
+      "types": "./dist/builder/index.d.ts",
+      "default": "./dist/builder/index.js"
+    },
     "./server": {
       "types": "./dist/server.d.ts",
       "default": "./dist/server.js"
@@ -27,9 +31,15 @@
   },
   "dependencies": {
     "@cloudflare/kumo": "catalog:",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@lexical/react": "^0.44.0",
+    "@lexical/utils": "^0.44.0",
     "@phosphor-icons/react": "catalog:",
     "clsx": "^2.1.1",
     "echarts": "^6.0.0",
+    "lexical": "^0.44.0",
     "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {

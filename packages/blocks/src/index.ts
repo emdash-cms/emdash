@@ -7,6 +7,36 @@ export { cn, formatRelativeTime } from "./utils.js";
 export { blocks, elements } from "./builders.js";
 export { validateBlocks } from "./validation.js";
 
+// Editor
+export { LexicalEditor } from "./editor/index.js";
+export type { LexicalEditorProps } from "./editor/index.js";
+export { LexicalEditorContext, useLexicalEditorContext } from "./editor/index.js";
+
+// Builder
+export {
+	BlockPicker,
+	PropertyPanel,
+	DragDropPlugin,
+	SortableNodeWrapper,
+} from "./builder/index.js";
+export type { BlockDefinition, DragDropPluginProps } from "./builder/index.js";
+export { renderBlockDocument } from "./builder/renderer.js";
+export { exportToBuilderSchema } from "./builder/lexical-to-builder.js";
+export {
+	importFromBuilderSchema,
+	importPortableTextToLexicalState,
+} from "./builder/builder-to-lexical.js";
+export { validateBuilderDocument, newBuilderDocument, newBlockId } from "./builder/schema.js";
+export type {
+	BuilderBlock,
+	BuilderDocument,
+	BuilderColumnsBlock,
+	BuilderRichTextBlock,
+	BuilderSectionBlock,
+	PortableTextNode,
+	ValidationError,
+} from "./builder/schema.js";
+
 // Re-export all types
 export type {
 	// Composition objects
@@ -32,11 +62,14 @@ export type {
 	// Block sub-types
 	TableColumn,
 	StatItem,
+	TestimonialItem,
+	CardItem,
 	ChartSeries,
 	ChartConfig,
 	TimeseriesChartConfig,
 	CustomChartConfig,
 	TabPanel,
+	PricingPlan,
 	// Blocks
 	HeaderBlock,
 	SectionBlock,
@@ -56,6 +89,21 @@ export type {
 	MeterBlock,
 	EmptyBlock,
 	AccordionBlock,
+	TestimonialBlock,
+	CardBlock,
+	CardGridBlock,
+	IconBlock,
+	FeatureListBlock,
+	FeatureListItem,
+	LogoCloudBlock,
+	LogoCloudItem,
+	StepsBlock,
+	StepItem,
+	FaqBlock,
+	FaqItem,
+	VideoEmbedBlock,
+	PricingTableBlock,
+	CtaBannerBlock,
 	Block,
 	// Interactions
 	BlockAction,

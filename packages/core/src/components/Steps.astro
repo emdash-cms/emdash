@@ -1,0 +1,168 @@
+---
+export interface Props {
+	node: {
+		_type: "steps";
+		_key?: string;
+		title?: string;
+		items?: Array<{
+			_key?: string;
+			title?: string;
+			description?: string;
+			icon?: string;
+		}>;
+	};
+}
+
+const { node } = Astro.props;
+const items = Array.isArray(node?.items) ? node.items : [];
+
+const ICON_MAP: Record<string, string> = {
+	star: "★",
+	check: "✓",
+	lightning: "⚡",
+	gear: "⚙",
+	users: "👥",
+	clock: "🕐",
+	bell: "🔔",
+	shield: "🛡",
+	chart: "📊",
+	heart: "♥",
+	flag: "🚩",
+	target: "◎",
+	key: "🔑",
+	lock: "🔒",
+	globe: "🌐",
+};
+
+function resolveIcon(iconKey?: string): string {
+	return ICON_MAP[iconKey ?? ""] ?? "•";
+}
+---
+
+{
+	items.length > 0 && (
+		<section class="emdash-steps">
+			{node.title && <h2 class="emdash-steps__title">{node.title}</h2>}
+			<ol class="emdash-steps__list">
+				{items.map((item, index) => (
+					<li class="emdash-steps__item">
+						<div class="emdash-steps__marker">
+							<span class="emdash-steps__number">{index + 1}</span>
+						</div>
+						<div class="emdash-steps__content">
+							<div class="emdash-steps__header">
+								{item.icon && <span class="emdash-steps__icon">{resolveIcon(item.icon)}</span>}
+								<h3 class="emdash-steps__item-title">{item.title}</h3>
+							</div>
+							{item.description && <p class="emdash-steps__desc">{item.description}</p>}
+						</div>
+					</li>
+				))}
+			</ol>
+		</section>
+	)
+}
+
+<style>
+	.emdash-steps {
+		--emdash-steps-bg-default: #fff;
+		--emdash-steps-border-default: #e5e7eb;
+		--emdash-steps-text-default: #1f2937;
+		--emdash-steps-muted-default: #6b7280;
+		--emdash-steps-brand-default: #0f766e;
+
+		margin: 1.5rem 0;
+		color: var(--emdash-steps-text, var(--text-color-kumo-default, var(--emdash-steps-text-default)));
+	}
+
+	.emdash-steps__title {
+		font-size: 1.25rem;
+		font-weight: 700;
+		margin-bottom: 1.5rem;
+	}
+
+	.emdash-steps__list {
+		position: relative;
+		list-style: none;
+		margin: 0;
+		padding: 0 0 0 1.5rem;
+		border-left: 2px solid var(--emdash-steps-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-steps-border-default))));
+	}
+
+	.emdash-steps__item {
+		position: relative;
+		padding: 0 0 1.5rem 1.5rem;
+	}
+
+	.emdash-steps__item:last-child {
+		padding-bottom: 0;
+	}
+
+	.emdash-steps__marker {
+		position: absolute;
+		left: -1.5rem;
+		top: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: 9999px;
+		background: var(--emdash-steps-brand, var(--emdash-steps-brand-default));
+		color: #fff;
+	}
+
+	.emdash-steps__number {
+		font-size: 0.75rem;
+		font-weight: 700;
+		line-height: 1;
+	}
+
+	.emdash-steps__content {
+		min-width: 0;
+	}
+
+	.emdash-steps__header {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.emdash-steps__icon {
+		font-size: 1.1rem;
+		color: var(--emdash-steps-brand, var(--emdash-steps-brand-default));
+	}
+
+	.emdash-steps__item-title {
+		font-size: 1rem;
+		font-weight: 700;
+		line-height: 1.4;
+	}
+
+	.emdash-steps__desc {
+		margin-top: 0.4rem;
+		font-size: 0.9rem;
+		line-height: 1.6;
+		color: var(--emdash-steps-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-steps-muted-default))));
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-steps {
+			--emdash-steps-bg-default: #111827;
+			--emdash-steps-border-default: #374151;
+			--emdash-steps-text-default: #f9fafb;
+			--emdash-steps-muted-default: #d1d5db;
+			--emdash-steps-brand-default: #2dd4bf;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-steps,
+	:global([data-theme="dark"]) .emdash-steps,
+	:global(.dark) .emdash-steps {
+		--emdash-steps-bg-default: #111827;
+		--emdash-steps-border-default: #374151;
+		--emdash-steps-text-default: #f9fafb;
+		--emdash-steps-muted-default: #d1d5db;
+		--emdash-steps-brand-default: #2dd4bf;
+	}
+</style>

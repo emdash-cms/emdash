@@ -1,0 +1,200 @@
+---
+export interface Props {
+	node: {
+		_type: "featureList";
+		_key?: string;
+		title?: string;
+		description?: string;
+		columns?: number;
+		items?: Array<{
+			_key?: string;
+			icon?: string;
+			title?: string;
+			description?: string;
+			url?: string;
+		}>;
+	};
+}
+
+const { node } = Astro.props;
+const items = Array.isArray(node?.items) ? node.items : [];
+const columns = node?.columns ?? 3;
+
+const FEATURE_ICON_MAP: Record<string, string> = {
+	star: "★",
+	check: "✓",
+	lightning: "⚡",
+	gear: "⚙",
+	users: "👥",
+	clock: "🕐",
+	bell: "🔔",
+	shield: "🛡",
+	chart: "📊",
+	heart: "♥",
+	flag: "🚩",
+	target: "◎",
+	key: "🔑",
+	lock: "🔒",
+	globe: "🌐",
+};
+
+function resolveIcon(iconKey?: string): string {
+	return FEATURE_ICON_MAP[iconKey ?? ""] ?? "•";
+}
+---
+
+{
+	items.length > 0 && (
+		<section class="emdash-feature-list">
+			{(node.title || node.description) && (
+				<div class="emdash-feature-list__header">
+					{node.title && <h2 class="emdash-feature-list__title">{node.title}</h2>}
+					{node.description && <p class="emdash-feature-list__description">{node.description}</p>}
+				</div>
+			)}
+			<div class:list={["emdash-feature-list__grid", `emdash-feature-list__grid--cols-${columns}`]}>
+				{items.map((item) => (
+					<div class="emdash-feature-list__item">
+						<div class="emdash-feature-list__icon">
+							<span class="emdash-feature-list__icon-glyph">{resolveIcon(item.icon)}</span>
+						</div>
+						<div class="emdash-feature-list__content">
+							{item.title && <h3 class="emdash-feature-list__item-title">{item.title}</h3>}
+							{item.description && <p class="emdash-feature-list__item-desc">{item.description}</p>}
+							{item.url && <a href={item.url} class="emdash-feature-list__link">Learn more</a>}
+						</div>
+					</div>
+				))}
+			</div>
+		</section>
+	)
+}
+
+<style>
+	.emdash-feature-list {
+		--emdash-feature-list-bg-default: #fff;
+		--emdash-feature-list-border-default: #e5e7eb;
+		--emdash-feature-list-text-default: #1f2937;
+		--emdash-feature-list-muted-default: #6b7280;
+		--emdash-feature-list-brand-default: #0f766e;
+
+		margin: 1.5rem 0;
+		color: var(--emdash-feature-list-text, var(--text-color-kumo-default, var(--emdash-feature-list-text-default)));
+	}
+
+	.emdash-feature-list__header {
+		margin-bottom: 1rem;
+	}
+
+	.emdash-feature-list__title {
+		font-size: 1.25rem;
+		font-weight: 700;
+		line-height: 1.3;
+	}
+
+	.emdash-feature-list__description {
+		margin-top: 0.5rem;
+		font-size: 0.95rem;
+		color: var(--emdash-feature-list-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-feature-list-muted-default))));
+	}
+
+	.emdash-feature-list__grid {
+		display: grid;
+		gap: 1rem;
+	}
+
+	.emdash-feature-list__grid--cols-2 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.emdash-feature-list__grid--cols-3 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.emdash-feature-list__grid--cols-4 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	@media (min-width: 768px) {
+		.emdash-feature-list__grid--cols-3 {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
+		.emdash-feature-list__grid--cols-4 {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+	}
+
+	.emdash-feature-list__item {
+		display: flex;
+		gap: 0.75rem;
+		padding: 1rem;
+		border: 1px solid var(--emdash-feature-list-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-feature-list-border-default))));
+		border-radius: 6px;
+		background: var(--emdash-feature-list-bg, var(--color-kumo-base, var(--emdash-surface-color, var(--emdash-feature-list-bg-default))));
+	}
+
+	.emdash-feature-list__icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.5rem;
+		height: 2.5rem;
+		flex-shrink: 0;
+		border-radius: 0.5rem;
+		background: var(--emdash-feature-list-brand, var(--emdash-feature-list-brand-default));
+		background: color-mix(in srgb, var(--emdash-feature-list-brand, var(--emdash-feature-list-brand-default)) 10%, transparent);
+		color: var(--emdash-feature-list-brand, var(--emdash-feature-list-brand-default));
+	}
+
+	.emdash-feature-list__icon-glyph {
+		font-size: 1.25rem;
+		line-height: 1;
+	}
+
+	.emdash-feature-list__content {
+		min-width: 0;
+		flex: 1;
+	}
+
+	.emdash-feature-list__item-title {
+		font-size: 0.9rem;
+		font-weight: 700;
+		line-height: 1.4;
+	}
+
+	.emdash-feature-list__item-desc {
+		margin-top: 0.25rem;
+		font-size: 0.85rem;
+		line-height: 1.5;
+		color: var(--emdash-feature-list-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-feature-list-muted-default))));
+	}
+
+	.emdash-feature-list__link {
+		display: inline-block;
+		margin-top: 0.5rem;
+		font-size: 0.85rem;
+		font-weight: 500;
+		color: var(--emdash-feature-list-brand, var(--emdash-feature-list-brand-default));
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-feature-list {
+			--emdash-feature-list-bg-default: #111827;
+			--emdash-feature-list-border-default: #374151;
+			--emdash-feature-list-text-default: #f9fafb;
+			--emdash-feature-list-muted-default: #d1d5db;
+			--emdash-feature-list-brand-default: #2dd4bf;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-feature-list,
+	:global([data-theme="dark"]) .emdash-feature-list,
+	:global(.dark) .emdash-feature-list {
+		--emdash-feature-list-bg-default: #111827;
+		--emdash-feature-list-border-default: #374151;
+		--emdash-feature-list-text-default: #f9fafb;
+		--emdash-feature-list-muted-default: #d1d5db;
+		--emdash-feature-list-brand-default: #2dd4bf;
+	}
+</style>

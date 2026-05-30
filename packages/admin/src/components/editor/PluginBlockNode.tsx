@@ -27,6 +27,25 @@ import {
 	Copy,
 	Cube,
 	ListBullets,
+	Quotes,
+	WarningCircle,
+	Star,
+	CheckCircle,
+	Lightning,
+	Gear,
+	Users,
+	Clock,
+	Bell,
+	Shield,
+	ChartBar,
+	Heart,
+	Flag,
+	Target,
+	Key,
+	LockSimple,
+	Globe,
+	Megaphone,
+	CurrencyDollar,
 } from "@phosphor-icons/react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
@@ -51,6 +70,8 @@ export interface PluginBlockDef {
 	 * Optional display category in the slash menu. Defaults to "Embeds" when omitted.
 	 */
 	category?: string;
+	/** Whether the block should appear as its own slash command. */
+	insertable?: boolean;
 }
 
 // =============================================================================
@@ -87,6 +108,26 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 	link: LinkSimple,
 	"link-external": ArrowSquareOut,
 	form: ListBullets,
+	list: ListBullets,
+	quote: Quotes,
+	warning: WarningCircle,
+	star: Star,
+	check: CheckCircle,
+	lightning: Lightning,
+	gear: Gear,
+	users: Users,
+	clock: Clock,
+	bell: Bell,
+	shield: Shield,
+	chart: ChartBar,
+	heart: Heart,
+	flag: Flag,
+	target: Target,
+	key: Key,
+	lock: LockSimple,
+	globe: Globe,
+	megaphone: Megaphone,
+	dollar: CurrencyDollar,
 };
 
 /** Resolve an icon key to a React component */

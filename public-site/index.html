@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>EmDash CMS | A public-service CMS for the agent era</title>
+		<meta
+			name="description"
+			content="EmDash is an open-source, Astro-native CMS that brings structured content, sandboxed plugins, visual sections, and AI-assisted authoring to public-interest publishing."
+		/>
+		<link rel="stylesheet" href="./styles.css" />
+	</head>
+	<body>
+		<header class="site-header">
+			<a class="brand" href="https://github.com/emdash-cms/emdash">EmDash</a>
+			<nav aria-label="Primary navigation">
+				<a href="#why">Why</a>
+				<a href="#new">New</a>
+				<a href="#capabilities">Capabilities</a>
+				<a href="#public-service">Public service</a>
+				<a href="https://github.com/emdash-cms/emdash">GitHub</a>
+			</nav>
+		</header>
+
+		<main>
+			<section class="hero">
+				<div class="hero-copy">
+					<p class="eyebrow">Open-source CMS infrastructure</p>
+					<h1>EmDash is a modern publishing system for public-interest websites.</h1>
+					<p class="lede">
+						It rebuilds the useful parts of WordPress on Astro, TypeScript, Cloudflare, Portable
+						Text, and sandboxed plugins, while adding visual section editing and schema-constrained
+						AI-assisted drafting.
+					</p>
+					<div class="actions" aria-label="Project links">
+						<a class="button primary" href="https://github.com/emdash-cms/emdash">View source</a>
+						<a class="button" href="https://docs.emdashcms.com/">Read docs</a>
+					</div>
+				</div>
+				<div class="system-card" aria-label="EmDash platform layers">
+					<div class="layer strong">Astro site</div>
+					<div class="layer">EmDash admin</div>
+					<div class="layer">Portable Text content</div>
+					<div class="layer">Sandboxed plugins</div>
+					<div class="layer">Cloudflare or Node runtime</div>
+				</div>
+			</section>
+
+			<section id="why" class="band">
+				<div class="section-heading">
+					<p class="eyebrow">Why it matters</p>
+					<h2>Public organizations need publishing tools they can inspect, adapt, and trust.</h2>
+				</div>
+				<div class="split">
+					<p>
+						EmDash is designed for teams that need the flexibility of WordPress without inheriting
+						its PHP hosting model, broad plugin attack surface, and serialized-HTML content lock-in.
+						The project keeps content structured, the runtime portable, and extensions isolated.
+					</p>
+					<p>
+						The goal is practical public infrastructure: a CMS that small institutions, campaigns,
+						civic projects, researchers, nonprofits, and local publishers can run, audit, migrate,
+						and automate without surrendering their content model to a closed platform.
+					</p>
+				</div>
+			</section>
+
+			<section id="capabilities" class="grid-section">
+				<div class="section-heading">
+					<p class="eyebrow">Current capabilities</p>
+					<h2>What is now in the project</h2>
+				</div>
+				<div class="cards">
+					<article>
+						<h3>Visual section library</h3>
+						<p>
+							Editors can choose from reusable content sections with categories, visual previews,
+							thumbnails, accessibility labels, and registry coverage checks.
+						</p>
+					</article>
+					<article>
+						<h3>Structured authoring</h3>
+						<p>
+							Portable Text keeps editorial content as structured JSON so it can render to web,
+							mobile, email, search, and API surfaces without scraping HTML.
+						</p>
+					</article>
+					<article>
+						<h3>AI-assisted drafts</h3>
+						<p>
+							Intent-based drafting maps editor prompts to known section schemas, with confidence
+							scoring and constrained alternatives instead of free-form page generation.
+						</p>
+					</article>
+					<article>
+						<h3>Sandboxed plugins</h3>
+						<p>
+							Plugins are designed to run with explicit capabilities in Worker isolates, limiting
+							what extensions can access and making third-party code safer to adopt.
+						</p>
+					</article>
+				</div>
+			</section>
+
+			<section id="new" class="band feature-showcase">
+				<div class="section-heading">
+					<p class="eyebrow">New in this preview</p>
+					<h2>Visual page building without giving up structured content</h2>
+				</div>
+				<div class="feature-grid">
+					<article class="feature-card highlight">
+						<span class="feature-number">01</span>
+						<h3>Visual section picker</h3>
+						<p>
+							Editors can browse reusable page sections by category, preview each option, and add
+							the right block without memorizing schema names.
+						</p>
+						<ul>
+							<li>Category filters</li>
+							<li>Visual previews and thumbnails</li>
+							<li>Accessible search labels</li>
+						</ul>
+					</article>
+					<article class="feature-card">
+						<span class="feature-number">02</span>
+						<h3>Expanded section library</h3>
+						<p>
+							The content vocabulary now covers common marketing, editorial, institutional, and
+							resource-page patterns.
+						</p>
+						<ul>
+							<li>FAQ, video, pricing, CTA, testimonials</li>
+							<li>Feature lists, logo clouds, steps, stats</li>
+							<li>Cards, tabs, accordions, banners</li>
+						</ul>
+					</article>
+					<article class="feature-card">
+						<span class="feature-number">03</span>
+						<h3>Intent-based drafts</h3>
+						<p>
+							Editor intent can be mapped into known section schemas, keeping generated drafts
+							inside the system's structured content model.
+						</p>
+						<ul>
+							<li>Schema-constrained output</li>
+							<li>Confidence and alternatives</li>
+							<li>Tests for draft selection behavior</li>
+						</ul>
+					</article>
+					<article class="feature-card">
+						<span class="feature-number">04</span>
+						<h3>Registry coverage</h3>
+						<p>
+							The block registry is tested across package boundaries so admin choices, block
+							definitions, and Astro renderers stay aligned.
+						</p>
+						<ul>
+							<li>Coverage tests for section types</li>
+							<li>Renderer alignment checks</li>
+							<li>Safer future additions</li>
+						</ul>
+					</article>
+					<article class="feature-card">
+						<span class="feature-number">05</span>
+						<h3>Builder editor groundwork</h3>
+						<p>
+							The project now has the foundation for richer block editing, including property
+							panels, drag/drop wrappers, and Lexical persistence.
+						</p>
+						<ul>
+							<li>Block picker and property panel</li>
+							<li>Builder-to-Lexical conversion</li>
+							<li>Lexical-to-builder conversion</li>
+						</ul>
+					</article>
+					<article class="feature-card">
+						<span class="feature-number">06</span>
+						<h3>Autosave-ready editing flow</h3>
+						<p>
+							Content editing now includes autosave endpoint support and internal service wiring
+							that prepares the editor for longer authoring sessions.
+						</p>
+						<ul>
+							<li>Autosave API route</li>
+							<li>Runtime service container</li>
+							<li>More resilient editing workflow</li>
+						</ul>
+					</article>
+				</div>
+			</section>
+
+			<section class="band">
+				<div class="section-heading">
+					<p class="eyebrow">Section blocks</p>
+					<h2>A growing page-building vocabulary</h2>
+				</div>
+				<ul class="pill-list" aria-label="Available EmDash sections">
+					<li>Hero</li>
+					<li>Accordion</li>
+					<li>Feature List</li>
+					<li>Card Grid</li>
+					<li>Icon</li>
+					<li>Logo Cloud</li>
+					<li>Steps</li>
+					<li>FAQ</li>
+					<li>Video Embed</li>
+					<li>Pricing Table</li>
+					<li>CTA Banner</li>
+					<li>Testimonial</li>
+					<li>Stats</li>
+					<li>Tabs</li>
+				</ul>
+			</section>
+
+			<section class="grid-section workflow-section">
+				<div class="section-heading">
+					<p class="eyebrow">Editorial workflow</p>
+					<h2>From idea to structured page section</h2>
+				</div>
+				<div class="workflow">
+					<div>
+						<span>1</span>
+						<h3>Choose</h3>
+						<p>Pick a section visually from a categorized library.</p>
+					</div>
+					<div>
+						<span>2</span>
+						<h3>Draft</h3>
+						<p>Start from editor intent while staying inside supported schemas.</p>
+					</div>
+					<div>
+						<span>3</span>
+						<h3>Edit</h3>
+						<p>Adjust structured fields through builder and section controls.</p>
+					</div>
+					<div>
+						<span>4</span>
+						<h3>Render</h3>
+						<p>Publish through Astro renderers without serializing the page as raw HTML.</p>
+					</div>
+				</div>
+			</section>
+
+			<section id="public-service" class="grid-section">
+				<div class="section-heading">
+					<p class="eyebrow">Public-service use cases</p>
+					<h2>Built for real civic publishing work</h2>
+				</div>
+				<div class="use-cases">
+					<div>
+						<h3>Campaign and advocacy sites</h3>
+						<p>
+							Publish policy pages, statements, landing pages, and updates without rebuilding the
+							site.
+						</p>
+					</div>
+					<div>
+						<h3>Research and knowledge hubs</h3>
+						<p>
+							Maintain structured articles, datasets, explainers, and searchable resource libraries.
+						</p>
+					</div>
+					<div>
+						<h3>Institutional websites</h3>
+						<p>
+							Give editors visual tools while keeping deployments fast, typed, and
+							version-controlled.
+						</p>
+					</div>
+				</div>
+			</section>
+
+			<section class="notice">
+				<h2>About this Cloudflare Pages preview</h2>
+				<p>
+					This page is a static public overview of EmDash. The full CMS admin, authentication,
+					database, media storage, and plugin runtime need a server environment such as Cloudflare
+					Workers with D1/R2 or a Node.js deployment with SQLite.
+				</p>
+			</section>
+		</main>
+	</body>
+</html>

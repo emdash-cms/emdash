@@ -1,0 +1,130 @@
+---
+export interface Props {
+	node: {
+		_type: "stats";
+		_key?: string;
+		items?: Array<{
+			_key?: string;
+			label?: string;
+			value?: string | number;
+			description?: string;
+			trend?: "up" | "down" | "neutral";
+		}>;
+	};
+}
+
+const { node } = Astro.props;
+const items = Array.isArray(node?.items) ? node.items : [];
+---
+
+{
+	items.length > 0 && (
+		<section class="emdash-stats">
+			{items.map((item) => {
+				const trend = item.trend === "up" || item.trend === "down" || item.trend === "neutral" ? item.trend : "neutral";
+				return (
+					<div class:list={["emdash-stat", `emdash-stat--${trend}`]}>
+						{item.label && <div class="emdash-stat__label">{item.label}</div>}
+						<div class="emdash-stat__value-row">
+							{item.value !== undefined && <div class="emdash-stat__value">{item.value}</div>}
+							<span class="emdash-stat__trend">{trend === "up" ? "up" : trend === "down" ? "down" : "flat"}</span>
+						</div>
+						{item.description && <div class="emdash-stat__description">{item.description}</div>}
+					</div>
+				);
+			})}
+		</section>
+	)
+}
+
+<style>
+	.emdash-stats {
+		--emdash-stat-bg-default: #fff;
+		--emdash-stat-border-default: #ddd;
+		--emdash-stat-text-default: #1f2937;
+		--emdash-stat-muted-default: #666;
+		--emdash-stat-up-default: #15803d;
+		--emdash-stat-down-default: #b91c1c;
+
+		display: grid;
+		gap: 1rem;
+		margin: 1.5rem 0;
+		color: var(--emdash-stat-text, var(--text-color-kumo-default, var(--emdash-stat-text-default)));
+	}
+
+	@media (min-width: 700px) {
+		.emdash-stats {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+
+	.emdash-stat {
+		padding: 1rem;
+		border: 1px solid var(--emdash-stat-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-stat-border-default))));
+		border-radius: 6px;
+		background: var(--emdash-stat-bg, var(--color-kumo-base, var(--emdash-surface-color, var(--emdash-stat-bg-default))));
+	}
+
+	.emdash-stat__label {
+		font-size: 0.8rem;
+		font-weight: 700;
+		letter-spacing: 0;
+		text-transform: uppercase;
+		color: var(--emdash-stat-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-stat-muted-default))));
+	}
+
+	.emdash-stat__value-row {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
+		margin-top: 0.55rem;
+	}
+
+	.emdash-stat__value {
+		font-size: 2rem;
+		font-weight: 700;
+		line-height: 1;
+	}
+
+	.emdash-stat__trend {
+		font-size: 0.8rem;
+		font-weight: 700;
+		color: var(--emdash-stat-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-stat-muted-default))));
+	}
+
+	.emdash-stat--up .emdash-stat__trend {
+		color: var(--emdash-stat-up, var(--emdash-stat-up-default));
+	}
+
+	.emdash-stat--down .emdash-stat__trend {
+		color: var(--emdash-stat-down, var(--emdash-stat-down-default));
+	}
+
+	.emdash-stat__description {
+		margin-top: 0.5rem;
+		line-height: 1.5;
+		color: var(--emdash-stat-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-stat-muted-default))));
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-stats {
+			--emdash-stat-bg-default: #111827;
+			--emdash-stat-border-default: #374151;
+			--emdash-stat-text-default: #f9fafb;
+			--emdash-stat-muted-default: #d1d5db;
+			--emdash-stat-up-default: #4ade80;
+			--emdash-stat-down-default: #f87171;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-stats,
+	:global([data-theme="dark"]) .emdash-stats,
+	:global(.dark) .emdash-stats {
+		--emdash-stat-bg-default: #111827;
+		--emdash-stat-border-default: #374151;
+		--emdash-stat-text-default: #f9fafb;
+		--emdash-stat-muted-default: #d1d5db;
+		--emdash-stat-up-default: #4ade80;
+		--emdash-stat-down-default: #f87171;
+	}
+</style>

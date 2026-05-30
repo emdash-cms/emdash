@@ -1,0 +1,97 @@
+---
+export interface Props {
+	node: {
+		_type: "banner";
+		_key?: string;
+		variant?: "default" | "alert" | "error";
+		title?: string;
+		description?: string;
+	};
+}
+
+const { node } = Astro.props;
+const variant = node?.variant === "alert" || node?.variant === "error" ? node.variant : "default";
+---
+
+<aside class:list={["emdash-banner", `emdash-banner--${variant}`]} role={variant === "default" ? "status" : "alert"}>
+	{node?.title && <strong class="emdash-banner__title">{node.title}</strong>}
+	{node?.description && <p class="emdash-banner__description">{node.description}</p>}
+</aside>
+
+<style>
+	.emdash-banner {
+		--emdash-banner-bg-default: #f7f7f7;
+		--emdash-banner-border-default: #ddd;
+		--emdash-banner-text-default: #1f2937;
+		--emdash-banner-muted-default: #4b5563;
+
+		margin: 1.5rem 0;
+		padding: 1rem;
+		color: var(--emdash-banner-text, var(--text-color-kumo-default, var(--emdash-banner-text-default)));
+		border: 1px solid var(--emdash-banner-border, var(--color-kumo-line, var(--emdash-banner-border-default)));
+		border-radius: 6px;
+		background: var(--emdash-banner-bg, var(--color-kumo-tint, var(--emdash-banner-bg-default)));
+	}
+
+	.emdash-banner--alert {
+		--emdash-banner-border-default: #f0b429;
+		--emdash-banner-bg-default: #fff8e1;
+	}
+
+	.emdash-banner--error {
+		--emdash-banner-border-default: #d93025;
+		--emdash-banner-bg-default: #fdecea;
+	}
+
+	.emdash-banner__title {
+		display: block;
+		font-weight: 700;
+	}
+
+	.emdash-banner__description {
+		margin: 0.35rem 0 0;
+		color: var(--emdash-banner-muted, var(--text-color-kumo-subtle, var(--emdash-banner-muted-default)));
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-banner {
+			--emdash-banner-bg-default: #1f2937;
+			--emdash-banner-border-default: #374151;
+			--emdash-banner-text-default: #f9fafb;
+			--emdash-banner-muted-default: #d1d5db;
+		}
+
+		.emdash-banner--alert {
+			--emdash-banner-bg-default: #422006;
+			--emdash-banner-border-default: #d97706;
+		}
+
+		.emdash-banner--error {
+			--emdash-banner-bg-default: #450a0a;
+			--emdash-banner-border-default: #dc2626;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-banner,
+	:global([data-theme="dark"]) .emdash-banner,
+	:global(.dark) .emdash-banner {
+		--emdash-banner-bg-default: #1f2937;
+		--emdash-banner-border-default: #374151;
+		--emdash-banner-text-default: #f9fafb;
+		--emdash-banner-muted-default: #d1d5db;
+	}
+
+	:global([data-mode="dark"]) .emdash-banner--alert,
+	:global([data-theme="dark"]) .emdash-banner--alert,
+	:global(.dark) .emdash-banner--alert {
+		--emdash-banner-bg-default: #422006;
+		--emdash-banner-border-default: #d97706;
+	}
+
+	:global([data-mode="dark"]) .emdash-banner--error,
+	:global([data-theme="dark"]) .emdash-banner--error,
+	:global(.dark) .emdash-banner--error {
+		--emdash-banner-bg-default: #450a0a;
+		--emdash-banner-border-default: #dc2626;
+	}
+</style>

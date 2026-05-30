@@ -8,6 +8,10 @@
  * In edit mode, renders a TipTap-based inline editor instead of static HTML.
  * The edit metadata is detected automatically from the value — no extra props needed.
  *
+ * Supports both:
+ * - Portable Text format (blocks with _type, children, etc.)
+ * - BuilderDocument format ({ version: 1, blocks: [...] })
+ *
  * Plugin block rendering components are auto-merged from plugins that declare
  * a `componentsEntry`. Plugin components are merged between EmDash defaults
  * and user overrides, so users can still override individual block types.
@@ -22,15 +26,32 @@ import { getEditMeta } from "../query.js";
 import { pluginBlockComponents } from "virtual:emdash/block-components";
 import { emdashComponents } from "./index.js";
 import InlineEditor from "./InlineEditor.astro";
+import { renderBlockDocument } from "@emdash-cms/blocks/server";
+import type { BuilderDocument } from "@emdash-cms/blocks/server";
 
 export interface Props extends Omit<PortableTextProps, "value"> {
 	value: PortableTextProps["value"];
+}
+
+/**
+ * Check if a value looks like a BuilderDocument.
+ * BuilderDocuments have { version: 1, blocks: [...] } structure.
+ */
+function isBuilderDocument(value: unknown): value is BuilderDocument {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return false;
+	}
+	const doc = value as Record<string, unknown>;
+	return doc.version === 1 && Array.isArray(doc.blocks);
 }
 
 const { value, components: userComponents, ...rest } = Astro.props;
 
 // Check for edit metadata (attached as non-enumerable property by query functions)
 const editMeta = getEditMeta(value);
+
+// Check if this is a BuilderDocument
+const isBuilder = isBuilderDocument(value);
 
 // Merge: EmDash defaults < Plugin block components < User components
 const withPlugins = mergeComponents(emdashComponents, { type: pluginBlockComponents });
@@ -46,6 +67,8 @@ const mergedComponents = userComponents
 		entryId={editMeta.id}
 		field={editMeta.field}
 	/>
+) : isBuilder ? (
+	<Fragment set:html={renderBlockDocument(value)} />
 ) : (
 	<BasePortableText value={value} components={mergedComponents} {...rest} />
 )}

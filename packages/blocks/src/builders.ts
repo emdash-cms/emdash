@@ -4,6 +4,9 @@ import type {
 	BannerBlock,
 	Block,
 	ButtonElement,
+	CardBlock,
+	CardGridBlock,
+	CardItem,
 	CheckboxElement,
 	ChartBlock,
 	ChartSeries,
@@ -12,6 +15,7 @@ import type {
 	ColumnsBlock,
 	ConfirmDialog,
 	ContextBlock,
+	CtaBannerBlock,
 	DateInputElement,
 	RadioElement,
 	RepeaterElement,
@@ -19,11 +23,22 @@ import type {
 	DividerBlock,
 	Element,
 	EmptyBlock,
+	FaqBlock,
+	FaqItem,
+	FeatureListBlock,
+	FeatureListItem,
 	FieldsBlock,
+	LogoCloudBlock,
+	LogoCloudItem,
 	FormBlock,
 	FormField,
 	HeaderBlock,
+	IconBlock,
 	ImageBlock,
+	PricingPlan,
+	PricingTableBlock,
+	StepsBlock,
+	StepItem,
 	MediaPickerElement,
 	MeterBlock,
 	NumberInputElement,
@@ -35,9 +50,12 @@ import type {
 	TableBlock,
 	TableColumn,
 	TextInputElement,
+	TestimonialBlock,
+	TestimonialItem,
 	ToggleElement,
 	TabBlock,
 	TabPanel,
+	VideoEmbedBlock,
 } from "./types.js";
 
 // ── Block Builders ───────────────────────────────────────────────────────────
@@ -495,6 +513,158 @@ function accordion(opts: {
 	};
 }
 
+function testimonial(opts: { blockId?: string; items: TestimonialItem[] }): TestimonialBlock {
+	return {
+		type: "testimonial",
+		items: opts.items,
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function card(opts: CardItem & { blockId?: string }): CardBlock {
+	return {
+		type: "card",
+		title: opts.title,
+		...(opts.description !== undefined && { description: opts.description }),
+		...(opts.image !== undefined && { image: opts.image }),
+		...(opts.ctaText !== undefined && { ctaText: opts.ctaText }),
+		...(opts.ctaUrl !== undefined && { ctaUrl: opts.ctaUrl }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function cardGrid(opts: {
+	blockId?: string;
+	title?: string;
+	description?: string;
+	columns?: 2 | 3 | 4;
+	items: CardItem[];
+}): CardGridBlock {
+	return {
+		type: "cardGrid",
+		...(opts.title !== undefined && { title: opts.title }),
+		...(opts.description !== undefined && { description: opts.description }),
+		...(opts.columns !== undefined && { columns: opts.columns }),
+		items: opts.items,
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function icon(opts: {
+	blockId?: string;
+	name: string;
+	label: string;
+	description?: string;
+}): IconBlock {
+	return {
+		type: "icon",
+		name: opts.name,
+		label: opts.label,
+		...(opts.description !== undefined && { description: opts.description }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function featureList(opts: {
+	blockId?: string;
+	title?: string;
+	description?: string;
+	columns?: number;
+	items: FeatureListItem[];
+}): FeatureListBlock {
+	return {
+		type: "featureList",
+		...(opts.title !== undefined && { title: opts.title }),
+		...(opts.description !== undefined && { description: opts.description }),
+		...(opts.columns !== undefined && { columns: opts.columns }),
+		items: opts.items,
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function logoCloud(opts: {
+	blockId?: string;
+	title?: string;
+	items: LogoCloudItem[];
+}): LogoCloudBlock {
+	return {
+		type: "logoCloud",
+		...(opts.title !== undefined && { title: opts.title }),
+		items: opts.items,
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function steps(opts: { blockId?: string; title?: string; items: StepItem[] }): StepsBlock {
+	return {
+		type: "steps",
+		...(opts.title !== undefined && { title: opts.title }),
+		items: opts.items,
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function faq(opts: { blockId?: string; items: FaqItem[] }): FaqBlock {
+	return {
+		type: "faq",
+		items: opts.items,
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function videoEmbed(opts: {
+	blockId?: string;
+	title?: string;
+	provider?: "youtube" | "vimeo" | "custom";
+	embedUrl: string;
+	caption?: string;
+	poster?: string;
+}): VideoEmbedBlock {
+	return {
+		type: "videoEmbed",
+		...(opts.title !== undefined && { title: opts.title }),
+		...(opts.provider !== undefined && { provider: opts.provider }),
+		embedUrl: opts.embedUrl,
+		...(opts.caption !== undefined && { caption: opts.caption }),
+		...(opts.poster !== undefined && { poster: opts.poster }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function pricingTable(opts: {
+	blockId?: string;
+	title?: string;
+	description?: string;
+	plans: PricingPlan[];
+}): PricingTableBlock {
+	return {
+		type: "pricingTable",
+		...(opts.title !== undefined && { title: opts.title }),
+		...(opts.description !== undefined && { description: opts.description }),
+		plans: opts.plans,
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function ctaBanner(opts: {
+	blockId?: string;
+	title: string;
+	description?: string;
+	primaryAction: { label: string; href: string };
+	secondaryAction?: { label: string; href: string };
+	variant?: "default" | "dark" | "brand";
+}): CtaBannerBlock {
+	return {
+		type: "ctaBanner",
+		title: opts.title,
+		...(opts.description !== undefined && { description: opts.description }),
+		primaryAction: opts.primaryAction,
+		...(opts.secondaryAction !== undefined && { secondaryAction: opts.secondaryAction }),
+		...(opts.variant !== undefined && { variant: opts.variant }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 export const blocks = {
@@ -517,6 +687,17 @@ export const blocks = {
 	tab: tabBlock,
 	empty,
 	accordion,
+	testimonial,
+	card,
+	cardGrid,
+	icon,
+	featureList,
+	logoCloud,
+	steps,
+	faq,
+	videoEmbed,
+	pricingTable,
+	ctaBanner,
 };
 
 export const elements = {

@@ -1,0 +1,161 @@
+---
+import { PortableText } from "astro-portabletext";
+
+export interface Props {
+	node: {
+		_type: "tab";
+		_key?: string;
+		default_tab?: number;
+		panels?: Array<{
+			_key?: string;
+			label?: string;
+			body?: string;
+			blocks?: unknown[];
+		}>;
+	};
+}
+
+const { node } = Astro.props;
+const panels = Array.isArray(node?.panels) ? node.panels : [];
+const defaultTab = typeof node?.default_tab === "number" ? node.default_tab : 0;
+---
+
+{
+	panels.length > 0 && (
+		<section class="emdash-tabs" data-emdash-tabs>
+			<div class="emdash-tabs__list" role="tablist">
+				{panels.map((panel, index) => {
+					const active = index === defaultTab || (defaultTab >= panels.length && index === 0);
+					return (
+						<label class:list={["emdash-tabs__tab", active && "emdash-tabs__tab--active"]}>
+							<input
+								class="emdash-tabs__input"
+								type="radio"
+								name={`emdash-tabs-${node?._key ?? "section"}`}
+								checked={active}
+								value={String(index)}
+								data-emdash-tab-input
+								data-tab-index={String(index)}
+							/>
+							<span>{panel.label || `Tab ${index + 1}`}</span>
+						</label>
+					);
+				})}
+			</div>
+			{panels.map((panel, index) => {
+				const active = index === defaultTab || (defaultTab >= panels.length && index === 0);
+				const blocks = Array.isArray(panel.blocks) ? panel.blocks : [];
+				return (
+					<div
+						class:list={["emdash-tabs__panel", !active && "emdash-tabs__panel--hidden"]}
+						data-emdash-tab-panel
+						data-tab-index={String(index)}
+					>
+						{blocks.length > 0 ? <PortableText value={blocks} /> : panel.body && <p>{panel.body}</p>}
+					</div>
+				);
+			})}
+		</section>
+	)
+}
+
+<script>
+	document.querySelectorAll<HTMLElement>("[data-emdash-tabs]").forEach((root) => {
+		const inputs = Array.from(root.querySelectorAll<HTMLInputElement>("[data-emdash-tab-input]"));
+		const panels = Array.from(root.querySelectorAll<HTMLElement>("[data-emdash-tab-panel]"));
+
+		const activate = (index: string) => {
+			panels.forEach((panel) => {
+				panel.classList.toggle("emdash-tabs__panel--hidden", panel.dataset.tabIndex !== index);
+			});
+		};
+
+		inputs.forEach((input) => {
+			input.addEventListener("change", () => {
+				if (input.checked) activate(input.dataset.tabIndex ?? "0");
+			});
+			if (input.checked) activate(input.dataset.tabIndex ?? "0");
+		});
+	});
+</script>
+
+<style>
+	.emdash-tabs {
+		--emdash-tabs-bg-default: #fff;
+		--emdash-tabs-border-default: #ddd;
+		--emdash-tabs-muted-default: #666;
+		--emdash-tabs-text-default: #1f2937;
+		--emdash-tabs-active-bg-default: #f7f7f7;
+
+		margin: 1.5rem 0;
+		color: var(--emdash-tabs-text, var(--text-color-kumo-default, var(--emdash-tabs-text-default)));
+		border: 1px solid var(--emdash-tabs-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-tabs-border-default))));
+		border-radius: 6px;
+		background: var(--emdash-tabs-bg, var(--color-kumo-base, var(--emdash-tabs-bg-default)));
+		overflow: hidden;
+	}
+
+	.emdash-tabs__list {
+		display: flex;
+		gap: 0.25rem;
+		overflow-x: auto;
+		padding: 0.5rem 0.5rem 0;
+		border-bottom: 1px solid var(--emdash-tabs-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-tabs-border-default))));
+	}
+
+	.emdash-tabs__tab {
+		border-radius: 4px 4px 0 0;
+		color: var(--emdash-tabs-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-tabs-muted-default))));
+		cursor: pointer;
+		font-weight: 600;
+		padding: 0.65rem 0.9rem;
+	}
+
+	.emdash-tabs__input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.emdash-tabs__tab:has(.emdash-tabs__input:checked),
+	.emdash-tabs__tab--active {
+		background: var(--emdash-tabs-active-bg, var(--color-kumo-tint, var(--emdash-tabs-active-bg-default)));
+		color: var(--emdash-tabs-text, var(--text-color-kumo-default, var(--emdash-tabs-text-default)));
+	}
+
+	.emdash-tabs__panel {
+		padding: 1rem;
+	}
+
+	.emdash-tabs__panel--hidden {
+		display: none;
+	}
+
+	.emdash-tabs__panel > :first-child {
+		margin-top: 0;
+	}
+
+	.emdash-tabs__panel > :last-child {
+		margin-bottom: 0;
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-tabs {
+			--emdash-tabs-bg-default: #111827;
+			--emdash-tabs-border-default: #374151;
+			--emdash-tabs-muted-default: #d1d5db;
+			--emdash-tabs-text-default: #f9fafb;
+			--emdash-tabs-active-bg-default: #1f2937;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-tabs,
+	:global([data-theme="dark"]) .emdash-tabs,
+	:global(.dark) .emdash-tabs {
+		--emdash-tabs-bg-default: #111827;
+		--emdash-tabs-border-default: #374151;
+		--emdash-tabs-muted-default: #d1d5db;
+		--emdash-tabs-text-default: #f9fafb;
+		--emdash-tabs-active-bg-default: #1f2937;
+	}
+</style>

@@ -11,13 +11,15 @@ import { useParams, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchSection, updateSection, type Section, type UpdateSectionInput } from "../lib/api";
-import { slugify } from "../lib/utils";
+import { getSectionTemplatePluginBlocks } from "../lib/pluginBlocks";
+import { cn, slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
 import { EditorHeader } from "./EditorHeader";
 import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
+import { SectionVisualPreview } from "./SectionVisualPreview";
 
 export function SectionEditor() {
 	const { t } = useLingui();
@@ -110,6 +112,8 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 	const [description, setDescription] = React.useState(section.description || "");
 	const [keywords, setKeywords] = React.useState(section.keywords.join(", "));
 	const [content, setContent] = React.useState<unknown[]>(section.content);
+	const [contentView, setContentView] = React.useState<"edit" | "visual">("edit");
+	const sectionPluginBlocks = React.useMemo(() => getSectionTemplatePluginBlocks(), []);
 
 	// Track initial state for dirty checking
 	const [lastSavedData] = React.useState(() =>
@@ -191,13 +195,46 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 				<div className="col-span-8 space-y-6">
 					{/* Content editor */}
 					<div className="rounded-lg border bg-kumo-base p-6">
-						<Label className="text-lg font-semibold mb-4 block">{t`Content`}</Label>
-						<PortableTextEditor
-							value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
-							onChange={(value) => setContent(value as unknown[])}
-							onBlockSidebarOpen={handleBlockSidebarOpen}
-							onBlockSidebarClose={handleBlockSidebarClose}
-						/>
+						<div className="mb-4 flex items-center justify-between gap-4">
+							<Label className="text-lg font-semibold">{t`Content`}</Label>
+							<div className="flex rounded-md border bg-kumo-tint/50 p-0.5" role="tablist">
+								<button
+									type="button"
+									className={cn(
+										"rounded px-3 py-1.5 text-sm",
+										contentView === "edit"
+											? "bg-kumo-base shadow-sm"
+											: "text-kumo-subtle hover:text-kumo-default",
+									)}
+									onClick={() => setContentView("edit")}
+								>
+									{t`Edit`}
+								</button>
+								<button
+									type="button"
+									className={cn(
+										"rounded px-3 py-1.5 text-sm",
+										contentView === "visual"
+											? "bg-kumo-base shadow-sm"
+											: "text-kumo-subtle hover:text-kumo-default",
+									)}
+									onClick={() => setContentView("visual")}
+								>
+									{t`Visual`}
+								</button>
+							</div>
+						</div>
+						{contentView === "edit" ? (
+							<PortableTextEditor
+								value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
+								onChange={(value) => setContent(value as unknown[])}
+								pluginBlocks={sectionPluginBlocks}
+								onBlockSidebarOpen={handleBlockSidebarOpen}
+								onBlockSidebarClose={handleBlockSidebarClose}
+							/>
+						) : (
+							<SectionVisualPreview value={content} />
+						)}
 					</div>
 
 					{/* Save action at the bottom of the main column so users hit

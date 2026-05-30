@@ -2013,6 +2013,7 @@ export function PortableTextEditor({
 		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped).
 		// Plugins can supply a custom `category` (plain string) — falls back to "Embeds".
 		for (const block of pluginBlocks) {
+			if (block.insertable === false) continue;
 			cmds.push({
 				id: `plugin-${block.pluginId}-${block.type}`,
 				title: block.label,
@@ -2346,7 +2347,12 @@ export function PortableTextEditor({
 			aria-labelledby={ariaLabelledby}
 		>
 			{!minimal && (
-				<EditorToolbar editor={editor} focusMode={focusMode} onFocusModeChange={setFocusMode} />
+				<EditorToolbar
+					editor={editor}
+					focusMode={focusMode}
+					onFocusModeChange={setFocusMode}
+					onInsertSection={() => setSectionPickerOpen(true)}
+				/>
 			)}
 			<EditorBubbleMenu editor={editor} />
 			<TableBubbleMenu editor={editor} />
@@ -2659,10 +2665,12 @@ function EditorToolbar({
 	editor,
 	focusMode,
 	onFocusModeChange,
+	onInsertSection,
 }: {
 	editor: Editor;
 	focusMode: FocusMode;
 	onFocusModeChange: (mode: FocusMode) => void;
+	onInsertSection: () => void;
 }) {
 	const { t } = useLingui();
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
@@ -2997,6 +3005,9 @@ function EditorToolbar({
 				</div>
 				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title={t`Insert Image`}>
 					<ImageIcon className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton onClick={onInsertSection} title={t`Insert Section`}>
+					<Stack className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setHorizontalRule().run()}

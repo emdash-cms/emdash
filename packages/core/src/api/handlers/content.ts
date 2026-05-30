@@ -2,6 +2,7 @@
  * Content CRUD handlers
  */
 
+import { validateBuilderDocument, exportToBuilderSchema } from "@emdash-cms/blocks/server";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
@@ -1582,4 +1583,93 @@ async function syncNonTranslatableFields(
 		WHERE translation_group = ${translationGroup}
 		AND id != ${updatedItemId}
 	`.execute(trx);
+}
+
+/**
+ * Autosave: convert Lexical JSON to BuilderDocument, validate, and save as draft revision.
+ *
+ * Does NOT update content table columns — only creates a revision and sets it
+ * as the draft_revision_id pointer.
+ */
+export async function handleContentAutosave(
+	db: Kysely<Database>,
+	collection: string,
+	id: string,
+	lexicalJson: unknown,
+	authorId?: string,
+	field = "content",
+): Promise<ApiResult<{ revisionId: string }>> {
+	try {
+		validateIdentifier(field, "content field name");
+
+		// Convert Lexical JSON → BuilderDocument
+		const builderDoc = exportToBuilderSchema(lexicalJson);
+
+		// Validate BuilderDocument
+		const validation = validateBuilderDocument(builderDoc);
+		if (!validation.valid) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: `Invalid BuilderDocument: ${validation.errors[0]?.message}`,
+				},
+			};
+		}
+
+		const revisionRepo = new RevisionRepository(db);
+		const contentRepo = new ContentRepository(db);
+
+		const existing = await contentRepo.findByIdOrSlug(collection, id);
+		if (!existing) {
+			return {
+				success: false,
+				error: {
+					code: "NOT_FOUND",
+					message: `Content item not found: ${id}`,
+				},
+			};
+		}
+
+		let baseData = existing.data;
+		if (existing.draftRevisionId) {
+			const currentDraft = await revisionRepo.findById(existing.draftRevisionId);
+			baseData = currentDraft?.data ?? existing.data;
+		}
+
+		// Early Phase-N builds accidentally stored the BuilderDocument as the
+		// whole revision data object. Normalize that shape back under the
+		// content field so publish can sync a real collection column.
+		if (
+			baseData.version === 1 &&
+			Array.isArray(baseData.blocks) &&
+			!Object.hasOwn(baseData, field)
+		) {
+			baseData = { ...existing.data, [field]: baseData };
+		}
+
+		const revisionData = { ...baseData, [field]: builderDoc };
+
+		// Create revision with the BuilderDocument inside the target content field.
+		const revision = await revisionRepo.create({
+			collection,
+			entryId: existing.id,
+			data: revisionData,
+			authorId,
+		});
+
+		// Update draft_revision_id pointer on the content row
+		await contentRepo.setDraftRevision(collection, existing.id, revision.id);
+
+		return { success: true, data: { revisionId: revision.id } };
+	} catch (error) {
+		console.error("Autosave error:", error);
+		return {
+			success: false,
+			error: {
+				code: "AUTOSAVE_ERROR",
+				message: "Failed to autosave content",
+			},
+		};
+	}
 }

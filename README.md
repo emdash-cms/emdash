@@ -17,6 +17,12 @@ Or deploy directly to your Cloudflare account:
 
 EmDash runs on Cloudflare (D1 + R2 + Workers) or any Node.js server with SQLite. No PHP, no separate hosting tier -- just deploy your Astro site.
 
+## Public Preview
+
+The repository includes a static public-service overview for Cloudflare Pages at [`public-site/`](public-site/). It explains EmDash for civic, institutional, research, campaign, and nonprofit publishing teams that need inspectable open-source infrastructure.
+
+Cloudflare Pages can host the static overview, project narrative, and documentation links. The full CMS admin, authentication, database, media storage, and plugin runtime require a server environment such as Cloudflare Workers with D1/R2 or a Node.js deployment with SQLite.
+
 ## Templates
 
 EmDash ships with three starter templates:
@@ -144,6 +150,8 @@ const { entries: posts } = await getEmDashCollection("posts");
 **Agents** -- Skill files for AI-assisted plugin and theme development. CLI for programmatic site management. Built-in MCP server for direct AI tool integration.
 
 **WordPress migration** -- Import posts, pages, media, and taxonomies from WXR exports, the WordPress REST API, or WordPress.com. Agent skills help port plugins and themes.
+
+**Visual sections** -- A growing section library for editorial page building, including feature lists, icons, logo clouds, steps, FAQs, video embeds, pricing tables, CTA banners, cards, testimonials, stats, tabs, and accordions. The admin supports visual previews, category filtering, registry coverage checks, and schema-constrained draft generation from editor intent.
 
 ## Portable Platforms
 

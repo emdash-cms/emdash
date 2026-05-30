@@ -1,0 +1,176 @@
+---
+import { sanitizeHref } from "../utils/url.js";
+
+export interface Props {
+	node: {
+		_type: "cardGrid";
+		_key?: string;
+		title?: string;
+		description?: string;
+		columns?: 2 | 3 | 4 | "2" | "3" | "4";
+		items?: Array<{
+			_key?: string;
+			title?: string;
+			description?: string;
+			image?: string;
+			ctaText?: string;
+			ctaUrl?: string;
+		}>;
+	};
+}
+
+const { node } = Astro.props;
+const items = Array.isArray(node?.items) ? node.items : [];
+const columns = node?.columns === 2 || node?.columns === "2" ? 2 : node?.columns === 4 || node?.columns === "4" ? 4 : 3;
+---
+
+{
+	(node?.title || node?.description || items.length > 0) && (
+		<section class:list={["emdash-card-grid", `emdash-card-grid--${columns}`]}>
+			{(node?.title || node?.description) && (
+				<header class="emdash-card-grid__header">
+					{node.title && <h2 class="emdash-card-grid__title">{node.title}</h2>}
+					{node.description && <p class="emdash-card-grid__description">{node.description}</p>}
+				</header>
+			)}
+			{items.length > 0 && (
+				<div class="emdash-card-grid__items">
+					{items.map((item) => {
+						const ctaUrl = item.ctaUrl ? sanitizeHref(item.ctaUrl) : undefined;
+						return (
+							<article class="emdash-card-grid__card">
+								{item.image && (
+									<img class="emdash-card-grid__image" src={item.image} alt={item.title || ""} loading="lazy" />
+								)}
+								<div class="emdash-card-grid__body">
+									{item.title && <h3 class="emdash-card-grid__card-title">{item.title}</h3>}
+									{item.description && <p class="emdash-card-grid__card-description">{item.description}</p>}
+									{item.ctaText &&
+										(ctaUrl ? (
+											<a class="emdash-card-grid__cta" href={ctaUrl}>
+												{item.ctaText}
+											</a>
+										) : (
+											<span class="emdash-card-grid__cta">{item.ctaText}</span>
+										))}
+								</div>
+							</article>
+						);
+					})}
+				</div>
+			)}
+		</section>
+	)
+}
+
+<style>
+	.emdash-card-grid {
+		--emdash-card-bg-default: #fff;
+		--emdash-card-border-default: #ddd;
+		--emdash-card-text-default: #1f2937;
+		--emdash-card-muted-default: #666;
+		--emdash-card-link-default: #0073aa;
+
+		margin: 1.5rem 0;
+		color: var(--emdash-card-text, var(--text-color-kumo-default, var(--emdash-card-text-default)));
+	}
+
+	.emdash-card-grid__header {
+		margin-bottom: 1rem;
+	}
+
+	.emdash-card-grid__title {
+		margin: 0;
+		font-size: 1.5rem;
+		line-height: 1.25;
+	}
+
+	.emdash-card-grid__description {
+		max-width: 42rem;
+		margin: 0.5rem 0 0;
+		line-height: 1.6;
+		color: var(--emdash-card-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-card-muted-default))));
+	}
+
+	.emdash-card-grid__items {
+		display: grid;
+		gap: 1rem;
+	}
+
+	@media (min-width: 700px) {
+		.emdash-card-grid--2 .emdash-card-grid__items,
+		.emdash-card-grid--3 .emdash-card-grid__items,
+		.emdash-card-grid--4 .emdash-card-grid__items {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (min-width: 980px) {
+		.emdash-card-grid--3 .emdash-card-grid__items {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+
+		.emdash-card-grid--4 .emdash-card-grid__items {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+	}
+
+	.emdash-card-grid__card {
+		overflow: hidden;
+		color: var(--emdash-card-text, var(--text-color-kumo-default, var(--emdash-card-text-default)));
+		border: 1px solid var(--emdash-card-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-card-border-default))));
+		border-radius: 6px;
+		background: var(--emdash-card-bg, var(--color-kumo-base, var(--emdash-surface-color, var(--emdash-card-bg-default))));
+	}
+
+	.emdash-card-grid__image {
+		display: block;
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		object-fit: cover;
+	}
+
+	.emdash-card-grid__body {
+		padding: 1rem;
+	}
+
+	.emdash-card-grid__card-title {
+		margin: 0;
+		font-size: 1.05rem;
+		line-height: 1.35;
+	}
+
+	.emdash-card-grid__card-description {
+		margin: 0.5rem 0 0;
+		line-height: 1.6;
+		color: var(--emdash-card-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-card-muted-default))));
+	}
+
+	.emdash-card-grid__cta {
+		display: inline-block;
+		margin-top: 0.85rem;
+		font-weight: 600;
+		text-decoration: none;
+		color: var(--emdash-card-link, var(--text-color-kumo-brand, var(--emdash-link-color, var(--emdash-card-link-default))));
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-card-grid {
+			--emdash-card-bg-default: #111827;
+			--emdash-card-border-default: #374151;
+			--emdash-card-text-default: #f9fafb;
+			--emdash-card-muted-default: #d1d5db;
+			--emdash-card-link-default: #60a5fa;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-card-grid,
+	:global([data-theme="dark"]) .emdash-card-grid,
+	:global(.dark) .emdash-card-grid {
+		--emdash-card-bg-default: #111827;
+		--emdash-card-border-default: #374151;
+		--emdash-card-text-default: #f9fafb;
+		--emdash-card-muted-default: #d1d5db;
+		--emdash-card-link-default: #60a5fa;
+	}
+</style>

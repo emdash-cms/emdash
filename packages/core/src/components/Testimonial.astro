@@ -1,0 +1,119 @@
+---
+export interface Props {
+	node: {
+		_type: "testimonial";
+		_key?: string;
+		items?: Array<{
+			_key?: string;
+			quote?: string;
+			author?: string;
+			title?: string;
+			company?: string;
+			avatar?: string;
+		}>;
+	};
+}
+
+const { node } = Astro.props;
+const items = Array.isArray(node?.items) ? node.items : [];
+---
+
+{
+	items.length > 0 && (
+		<div class="emdash-testimonials">
+			{items.map((item) => (
+				<figure class="emdash-testimonial">
+					{item.quote && <blockquote class="emdash-testimonial__quote">{item.quote}</blockquote>}
+					<figcaption class="emdash-testimonial__meta">
+						{item.avatar && <img class="emdash-testimonial__avatar" src={item.avatar} alt={item.author || ""} />}
+						<div>
+							{item.author && <div class="emdash-testimonial__author">{item.author}</div>}
+							{(item.title || item.company) && (
+								<div class="emdash-testimonial__role">
+									{item.title}
+									{item.title && item.company && ", "}
+									{item.company}
+								</div>
+							)}
+						</div>
+					</figcaption>
+				</figure>
+			))}
+		</div>
+	)
+}
+
+<style>
+	.emdash-testimonials {
+		--emdash-testimonial-bg-default: #fff;
+		--emdash-testimonial-border-default: #ddd;
+		--emdash-testimonial-text-default: #1f2937;
+		--emdash-testimonial-muted-default: #666;
+
+		display: grid;
+		gap: 1rem;
+		margin: 1.5rem 0;
+		color: var(--emdash-testimonial-text, var(--text-color-kumo-default, var(--emdash-testimonial-text-default)));
+	}
+
+	@media (min-width: 700px) {
+		.emdash-testimonials {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	.emdash-testimonial {
+		margin: 0;
+		padding: 1.25rem;
+		border: 1px solid var(--emdash-testimonial-border, var(--color-kumo-line, var(--emdash-border-color, var(--emdash-testimonial-border-default))));
+		border-radius: 6px;
+		background: var(--emdash-testimonial-bg, var(--color-kumo-base, var(--emdash-testimonial-bg-default)));
+	}
+
+	.emdash-testimonial__quote {
+		margin: 0;
+		font-size: 1rem;
+		line-height: 1.6;
+	}
+
+	.emdash-testimonial__meta {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-top: 1rem;
+	}
+
+	.emdash-testimonial__avatar {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 999px;
+		object-fit: cover;
+	}
+
+	.emdash-testimonial__author {
+		font-weight: 700;
+	}
+
+	.emdash-testimonial__role {
+		font-size: 0.9rem;
+		color: var(--emdash-testimonial-muted, var(--text-color-kumo-subtle, var(--emdash-muted-color, var(--emdash-testimonial-muted-default))));
+	}
+
+	@media (prefers-color-scheme: dark) {
+		.emdash-testimonials {
+			--emdash-testimonial-bg-default: #111827;
+			--emdash-testimonial-border-default: #374151;
+			--emdash-testimonial-text-default: #f9fafb;
+			--emdash-testimonial-muted-default: #d1d5db;
+		}
+	}
+
+	:global([data-mode="dark"]) .emdash-testimonials,
+	:global([data-theme="dark"]) .emdash-testimonials,
+	:global(.dark) .emdash-testimonials {
+		--emdash-testimonial-bg-default: #111827;
+		--emdash-testimonial-border-default: #374151;
+		--emdash-testimonial-text-default: #f9fafb;
+		--emdash-testimonial-muted-default: #d1d5db;
+	}
+</style>

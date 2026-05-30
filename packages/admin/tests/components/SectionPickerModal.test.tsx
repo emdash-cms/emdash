@@ -17,6 +17,14 @@ vi.mock("../../src/lib/api", async () => {
 	};
 });
 
+vi.mock("../../src/lib/sectionTemplates", async () => {
+	const actual = await vi.importActual("../../src/lib/sectionTemplates");
+	return {
+		...actual,
+		SECTION_STARTER_TEMPLATES: [],
+	};
+});
+
 // Import after mocks
 const { SectionPickerModal } = await import("../../src/components/SectionPickerModal");
 
@@ -75,8 +83,10 @@ describe("SectionPickerModal", () => {
 				<SectionPickerModal open={true} onOpenChange={vi.fn()} onSelect={vi.fn()} />
 			</Wrapper>,
 		);
-		await expect.element(screen.getByText("Hero Section")).toBeInTheDocument();
-		await expect.element(screen.getByText("Call to Action")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: /hero section/i })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: /call to action/i }))
+			.toBeInTheDocument();
 	});
 
 	it("clicking a section calls onSelect and closes modal", async () => {
@@ -87,11 +97,10 @@ describe("SectionPickerModal", () => {
 				<SectionPickerModal open={true} onOpenChange={onOpenChange} onSelect={onSelect} />
 			</Wrapper>,
 		);
-		await expect.element(screen.getByText("Hero Section")).toBeInTheDocument();
-		// The Base UI dialog puts an inert overlay. Use direct DOM click to bypass it.
-		const heroEl = screen.getByText("Hero Section").element();
-		const button = heroEl.closest("button");
-		button!.click();
+		const heroButton = screen.getByRole("button", { name: /hero section/i });
+		await expect.element(heroButton).toBeInTheDocument();
+		// Base UI dialog overlay intercepts Playwright's .click() — use direct DOM click to bypass inert barrier.
+		heroButton.element().click();
 		expect(onSelect).toHaveBeenCalledWith(
 			expect.objectContaining({ slug: "hero", title: "Hero Section" }),
 		);
@@ -104,7 +113,7 @@ describe("SectionPickerModal", () => {
 				<SectionPickerModal open={true} onOpenChange={vi.fn()} onSelect={vi.fn()} />
 			</Wrapper>,
 		);
-		await expect.element(screen.getByText("Hero Section")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: /hero section/i })).toBeInTheDocument();
 		const searchInput = screen.getByPlaceholder("Search sections...");
 		await searchInput.fill("cta");
 		// Search is debounced — wait for the query to fire

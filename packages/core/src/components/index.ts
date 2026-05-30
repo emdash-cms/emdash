@@ -49,6 +49,21 @@ export { default as Buttons } from "./Buttons.astro";
 export { default as Cover } from "./Cover.astro";
 export { default as File } from "./File.astro";
 export { default as Pullquote } from "./Pullquote.astro";
+export { default as Accordion } from "./Accordion.astro";
+export { default as Banner } from "./Banner.astro";
+export { default as Testimonial } from "./Testimonial.astro";
+export { default as Card } from "./Card.astro";
+export { default as CardGrid } from "./CardGrid.astro";
+export { default as Tabs } from "./Tabs.astro";
+export { default as Stats } from "./Stats.astro";
+export { default as FeatureList } from "./FeatureList.astro";
+export { default as Icon } from "./Icon.astro";
+export { default as LogoCloud } from "./LogoCloud.astro";
+export { default as Steps } from "./Steps.astro";
+export { default as Faq } from "./Faq.astro";
+export { default as VideoEmbed } from "./VideoEmbed.astro";
+export { default as PricingTable } from "./PricingTable.astro";
+export { default as CtaBanner } from "./CtaBanner.astro";
 
 // Mark components
 export { default as Superscript } from "./marks/Superscript.astro";
@@ -57,21 +72,36 @@ export { default as Underline } from "./marks/Underline.astro";
 export { default as StrikeThrough } from "./marks/StrikeThrough.astro";
 export { default as Link } from "./marks/Link.astro";
 
+import AccordionComponent from "./Accordion.astro";
+import BannerComponent from "./Banner.astro";
 import BreakComponent from "./Break.astro";
 import ButtonComponent from "./Button.astro";
 import ButtonsComponent from "./Buttons.astro";
+import CardComponent from "./Card.astro";
+import CardGridComponent from "./CardGrid.astro";
 import CodeComponent from "./Code.astro";
 import ColumnsComponent from "./Columns.astro";
 import CoverComponent from "./Cover.astro";
+import CtaBannerComponent from "./CtaBanner.astro";
 import EmbedComponent from "./Embed.astro";
+import FaqComponent from "./Faq.astro";
+import FeatureListComponent from "./FeatureList.astro";
 import FileComponent from "./File.astro";
 import GalleryComponent from "./Gallery.astro";
 import HtmlBlockComponent from "./HtmlBlock.astro";
+import IconComponent from "./Icon.astro";
 // Pre-configured components object for PortableText
 import ImageComponent from "./Image.astro";
+import LogoCloudComponent from "./LogoCloud.astro";
 import { emdashMarkComponents } from "./marks.js";
+import PricingTableComponent from "./PricingTable.astro";
 import PullquoteComponent from "./Pullquote.astro";
+import StatsComponent from "./Stats.astro";
+import StepsComponent from "./Steps.astro";
 import TableComponent from "./Table.astro";
+import TabsComponent from "./Tabs.astro";
+import TestimonialComponent from "./Testimonial.astro";
+import VideoEmbedComponent from "./VideoEmbed.astro";
 
 /**
  * Pre-configured components for EmDash Portable Text content
@@ -96,6 +126,21 @@ export const emdashComponents = {
 		cover: CoverComponent,
 		file: FileComponent,
 		pullquote: PullquoteComponent,
+		accordion: AccordionComponent,
+		banner: BannerComponent,
+		testimonial: TestimonialComponent,
+		card: CardComponent,
+		cardGrid: CardGridComponent,
+		tab: TabsComponent,
+		stats: StatsComponent,
+		featureList: FeatureListComponent,
+		icon: IconComponent,
+		logoCloud: LogoCloudComponent,
+		steps: StepsComponent,
+		faq: FaqComponent,
+		videoEmbed: VideoEmbedComponent,
+		pricingTable: PricingTableComponent,
+		ctaBanner: CtaBannerComponent,
 	},
 	mark: emdashMarkComponents,
 };

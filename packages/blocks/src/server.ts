@@ -8,6 +8,19 @@
 
 export { blocks, elements } from "./builders.js";
 export { validateBlocks } from "./validation.js";
+export { renderBlockDocument } from "./builder/renderer.js";
+export { exportToBuilderSchema } from "./builder/lexical-to-builder.js";
+export { validateBuilderDocument, newBuilderDocument, newBlockId } from "./builder/schema.js";
+
+export type {
+	BuilderBlock,
+	BuilderDocument,
+	BuilderColumnsBlock,
+	BuilderRichTextBlock,
+	BuilderSectionBlock,
+	PortableTextNode,
+	ValidationError,
+} from "./builder/schema.js";
 
 export type {
 	// Composition objects
