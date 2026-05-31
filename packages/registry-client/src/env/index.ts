@@ -13,6 +13,15 @@
  * (`>=4.16`), and the wildcard (`*` / `x`). OR (`||`) is not supported and is
  * reported as an invalid range.
  *
+ * Prerelease handling diverges from node-semver and is intentionally more
+ * permissive: a prerelease version satisfies any comparator whose ordering it
+ * meets, with no requirement that the comparator share its `[major,minor,patch]`
+ * tuple. So `5.0.0-alpha` satisfies `>=4.16.0 <5.0.0` here where node-semver
+ * would reject it. Hosts almost never run prerelease Astro/EmDash builds and the
+ * gate fails open on a definite-mismatch-only basis, so the looser semantics
+ * can only let an install through, never wrongly block one. Tightening this to
+ * node-semver's prerelease gating is a deliberate future change, not a bug.
+ *
  * Pure, dependency-free, and isomorphic so the CLI (publish-time validation),
  * the server (install/update gate), and the admin (browser compat warning)
  * all share one implementation.
@@ -63,6 +72,26 @@ type Operator = ">=" | ">" | "<=" | "<" | "=";
 interface Comparator {
 	op: Operator;
 	version: ParsedVersion;
+}
+
+/**
+ * Build the host-environment map the install/update gate compares a release's
+ * `requires` against, from the EmDash and Astro versions the host advertises.
+ *
+ * An environment whose version is unknown is omitted so the gate skips it
+ * rather than blocking on a version it can't evaluate: an uncompiled build
+ * reporting `"dev"` for EmDash, or an unresolved Astro version. Shared by the
+ * server install/update gate and the admin's client-side compat warning so the
+ * dev-skip / astro-omit rule lives in exactly one place.
+ */
+export function hostEnvFromVersions(
+	emdashVersion: string | undefined,
+	astroVersion: string | undefined,
+): HostEnv {
+	const host: HostEnv = {};
+	if (emdashVersion && emdashVersion !== "dev") host["env:emdash"] = emdashVersion;
+	if (astroVersion) host["env:astro"] = astroVersion;
+	return host;
 }
 
 /**
@@ -122,6 +151,47 @@ export function checkEnvCompatibility(requires: unknown, host: HostEnv): EnvMism
 		}
 	}
 	return mismatches;
+}
+
+/** An `env:*` constraint that could not be enforced against the host. */
+export interface SkippedEnvConstraint {
+	/** The `env:*` key whose constraint was skipped. */
+	key: string;
+	/** The required range string from the release record. */
+	required: string;
+	/**
+	 * `"unknown"`: the host advertises no version for this env.
+	 * `"unparseable"`: the host version exists but isn't valid semver.
+	 */
+	reason: "unknown" | "unparseable";
+}
+
+/**
+ * Find the `env:*` constraints in `requires` that {@link checkEnvCompatibility}
+ * silently skips because the host can't evaluate them: the host advertises no
+ * version for that env, or advertises one that isn't parseable semver. These
+ * are the cases where a hard gate degrades to a no-op, so the server can log
+ * them rather than bypass silently.
+ *
+ * DID-keyed constraints are excluded — those are forward-compat package deps,
+ * not host environments, and their absence from the host map is expected.
+ */
+export function findSkippedEnvConstraints(
+	requires: unknown,
+	host: HostEnv,
+): SkippedEnvConstraint[] {
+	const parsed = parseRequires(requires);
+	const skipped: SkippedEnvConstraint[] = [];
+	for (const [key, range] of Object.entries(parsed)) {
+		if (!ENV_KEY_RE.test(key)) continue;
+		const hostVersion = host[key];
+		if (hostVersion === undefined) {
+			skipped.push({ key, required: range, reason: "unknown" });
+		} else if (parseVersion(hostVersion) === null) {
+			skipped.push({ key, required: range, reason: "unparseable" });
+		}
+	}
+	return skipped;
 }
 
 function satisfiesComparator(v: ParsedVersion, c: Comparator): boolean {

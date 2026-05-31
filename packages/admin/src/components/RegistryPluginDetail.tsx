@@ -21,10 +21,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { fetchManifest } from "../lib/api/client.js";
 import {
 	canonicalCapabilitiesForDriftCheck,
-	fetchHostEnv,
 	getRegistryPackage,
+	hostEnvFromManifest,
 	installRegistryPlugin,
 	listRegistryReleases,
 	releasePassesPolicy,
@@ -63,10 +64,13 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 
 	// Host environment versions (`env:emdash`, `env:astro`) — used to evaluate
 	// the selected release's `requires` constraints before offering install.
-	const { data: hostEnv } = useQuery({
-		queryKey: ["host-env"],
-		queryFn: fetchHostEnv,
+	// Derived from the admin manifest the shell already fetches under the same
+	// query key, so this view adds no extra round-trip.
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
 	});
+	const hostEnv = React.useMemo(() => hostEnvFromManifest(manifest), [manifest]);
 
 	// Parse `<publisher>/<slug>` out of the route param. The publisher
 	// segment is either a handle (`example.dev`) or a DID
@@ -225,10 +229,11 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// constraints against the running host. `requires` is the lexicon's open
 	// `unknown` value; `checkEnvCompatibility` guards its shape. Mirrors the
 	// server-side install gate so the admin can't offer an install the server
-	// would reject. Empty while the host env is still loading (fail-open until
-	// the data arrives; the server gate is the authority either way).
+	// would reject. While the manifest is still loading `hostEnv` is empty, so
+	// every constraint is skipped (fail-open until the data arrives; the server
+	// gate is the authority either way).
 	const envMismatches = React.useMemo(() => {
-		if (!release || !hostEnv) return [];
+		if (!release) return [];
 		return checkEnvCompatibility(release.release?.requires, hostEnv);
 	}, [release, hostEnv]);
 	const envOk = envMismatches.length === 0;

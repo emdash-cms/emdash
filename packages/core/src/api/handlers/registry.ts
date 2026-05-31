@@ -40,7 +40,11 @@
 
 import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
-import { checkEnvCompatibility } from "@emdash-cms/registry-client/env";
+import {
+	checkEnvCompatibility,
+	findSkippedEnvConstraints,
+	hostEnvFromVersions,
+} from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
 import type { Kysely } from "kysely";
 
@@ -524,16 +528,12 @@ async function fetchArtifact(mirrors: string[], declaredUrl: string): Promise<Ui
 
 /**
  * Build the host-environment map the install/update gate compares a release's
- * `requires` against. Keys mirror the lexicon's `env:*` convention. An
- * environment whose version is unknown (e.g. an uncompiled build reporting
- * `"dev"`, or Astro unresolved) is omitted so the gate skips it rather than
- * blocking on a version it can't evaluate.
+ * `requires` against. Delegates to the shared {@link hostEnvFromVersions} so the
+ * server gate and the admin's client-side warning apply the same dev-skip /
+ * astro-omit rule.
  */
 export function buildHostEnv(emdashVersion: string, astroVersion: string | undefined): HostEnv {
-	const host: HostEnv = {};
-	if (emdashVersion && emdashVersion !== "dev") host["env:emdash"] = emdashVersion;
-	if (astroVersion) host["env:astro"] = astroVersion;
-	return host;
+	return hostEnvFromVersions(emdashVersion, astroVersion);
 }
 
 /**
@@ -560,6 +560,14 @@ export function assertEnvCompatible(
 	requires: unknown,
 	hostEnv: HostEnv,
 ): EnvIncompatibleError | null {
+	// A constraint the host can't evaluate (unknown or unparseable host
+	// version) downgrades the gate to a no-op for that env. Log it so a
+	// silent bypass is observable rather than invisible.
+	for (const skipped of findSkippedEnvConstraints(requires, hostEnv)) {
+		console.warn(
+			`[registry] env compatibility constraint skipped: ${skipped.key} requires ${skipped.required} but host version is ${skipped.reason}`,
+		);
+	}
 	const mismatches = checkEnvCompatibility(requires, hostEnv);
 	if (mismatches.length === 0) return null;
 	const guarded: Record<string, string> = {};

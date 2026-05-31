@@ -26,11 +26,18 @@ import type {
 	ValidatedReleaseView,
 	ValidatedSearchPackages,
 } from "@emdash-cms/registry-client/discovery";
+import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
-import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
+import {
+	API_BASE,
+	apiFetch,
+	parseApiResponse,
+	throwResponseError,
+	type AdminManifest,
+} from "./client.js";
 
 export type { Did, Handle };
 export type { HostEnv };
@@ -297,22 +304,15 @@ export async function listRegistryReleases(
 }
 
 /**
- * Fetch the host environment versions (`env:emdash`, `env:astro`) the running
+ * Derive the host environment versions (`env:emdash`, `env:astro`) the running
  * EmDash install advertises, so a release's `requires` constraints can be
- * evaluated client-side before offering install. Reads the admin manifest,
- * which carries `version` (EmDash) and `astroVersion`. A `"dev"` EmDash build
- * and a missing Astro version are omitted so the compat check skips them.
+ * evaluated client-side before offering install. Reads the already-fetched
+ * admin manifest (`version`, `astroVersion`) rather than issuing a second
+ * request. The dev-skip / astro-omit rule is shared with the server gate via
+ * `hostEnvFromVersions`.
  */
-export async function fetchHostEnv(): Promise<HostEnv> {
-	const response = await apiFetch(`${API_BASE}/manifest`);
-	const manifest = await parseApiResponse<{ version?: string; astroVersion?: string }>(
-		response,
-		i18n._(msg`Failed to fetch host environment`),
-	);
-	const host: HostEnv = {};
-	if (manifest.version && manifest.version !== "dev") host["env:emdash"] = manifest.version;
-	if (manifest.astroVersion) host["env:astro"] = manifest.astroVersion;
-	return host;
+export function hostEnvFromManifest(manifest: AdminManifest | undefined): HostEnv {
+	return hostEnvFromVersions(manifest?.version, manifest?.astroVersion);
 }
 
 /**

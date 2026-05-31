@@ -48,7 +48,10 @@ export { type DiscoveryClientOptions, DiscoveryClient } from "./discovery/index.
 export {
 	type EnvMismatch,
 	type HostEnv,
+	type SkippedEnvConstraint,
 	checkEnvCompatibility,
+	findSkippedEnvConstraints,
+	hostEnvFromVersions,
 	isValidVersionRange,
 	parseRequires,
 	satisfiesRange,

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
 	checkEnvCompatibility,
+	findSkippedEnvConstraints,
+	hostEnvFromVersions,
 	isValidVersionRange,
 	parseRequires,
 	satisfiesRange,
@@ -156,5 +158,56 @@ describe("checkEnvCompatibility", () => {
 	it("skips host envs whose version is unknown/unparseable", () => {
 		const result = checkEnvCompatibility({ "env:emdash": ">=1.0.0" }, { "env:emdash": "dev" });
 		expect(result).toEqual([]);
+	});
+});
+
+describe("findSkippedEnvConstraints", () => {
+	it("returns nothing when every env constraint is evaluable", () => {
+		expect(
+			findSkippedEnvConstraints(
+				{ "env:emdash": ">=1.0.0", "env:astro": ">=4.0.0" },
+				{ "env:emdash": "1.2.0", "env:astro": "4.16.0" },
+			),
+		).toEqual([]);
+	});
+
+	it("flags an env the host does not advertise as unknown", () => {
+		expect(findSkippedEnvConstraints({ "env:astro": ">=4.16" }, { "env:emdash": "1.2.0" })).toEqual(
+			[{ key: "env:astro", required: ">=4.16", reason: "unknown" }],
+		);
+	});
+
+	it("flags an env whose host version is not parseable semver", () => {
+		expect(findSkippedEnvConstraints({ "env:emdash": ">=1.0.0" }, { "env:emdash": "dev" })).toEqual(
+			[{ key: "env:emdash", required: ">=1.0.0", reason: "unparseable" }],
+		);
+	});
+
+	it("ignores DID-keyed constraints (package deps, not host envs)", () => {
+		expect(findSkippedEnvConstraints({ "did:plc:abc": "^1.0.0" }, {})).toEqual([]);
+	});
+
+	it("does not crash on a garbage requires shape", () => {
+		expect(findSkippedEnvConstraints("garbage", {})).toEqual([]);
+		expect(findSkippedEnvConstraints(null, {})).toEqual([]);
+	});
+});
+
+describe("hostEnvFromVersions", () => {
+	it("maps emdash + astro versions to env:* keys", () => {
+		expect(hostEnvFromVersions("1.2.0", "4.16.0")).toEqual({
+			"env:emdash": "1.2.0",
+			"env:astro": "4.16.0",
+		});
+	});
+
+	it("omits a dev emdash build so the gate skips it", () => {
+		expect(hostEnvFromVersions("dev", "4.16.0")).toEqual({ "env:astro": "4.16.0" });
+	});
+
+	it("omits each env whose version is unknown", () => {
+		expect(hostEnvFromVersions("1.2.0", undefined)).toEqual({ "env:emdash": "1.2.0" });
+		expect(hostEnvFromVersions(undefined, "4.16.0")).toEqual({ "env:astro": "4.16.0" });
+		expect(hostEnvFromVersions(undefined, undefined)).toEqual({});
 	});
 });
