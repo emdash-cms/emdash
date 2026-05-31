@@ -212,15 +212,33 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const verified = (pkg?.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
 	// Media artifacts (icon / screenshot / banner) live on the release record's
-	// `artifacts` map. Each carries a publisher-supplied `url`; we never point an
-	// `<img>` at it directly — every image goes through the server's SSRF-defended
-	// proxy, which also enforces an image content-type allowlist.
+	// `artifacts` map. The publisher-supplied URLs never reach the client — we
+	// address each image by its `(did, slug, version, kind, index)` coordinates,
+	// and the server resolves the declared URL from the release record before
+	// fetching it through its SSRF-defended, content-type-allowlisted proxy.
 	const mediaArtifacts = extractMediaArtifacts(release?.release?.artifacts);
-	const iconSrc = artifactProxyUrl(mediaArtifacts.icon?.url);
-	const bannerSrc = artifactProxyUrl(mediaArtifacts.banner?.url);
-	const screenshots = mediaArtifacts.screenshots
-		.map((shot) => ({ ...shot, src: artifactProxyUrl(shot.url) }))
-		.filter((shot): shot is typeof shot & { src: string } => shot.src !== null);
+	const artifactDid = pkg?.did;
+	const artifactVersion = release?.version;
+	const iconSrc =
+		mediaArtifacts.icon && artifactDid
+			? artifactProxyUrl({ did: artifactDid, slug, version: artifactVersion, kind: "icon" })
+			: null;
+	const bannerSrc =
+		mediaArtifacts.banner && artifactDid
+			? artifactProxyUrl({ did: artifactDid, slug, version: artifactVersion, kind: "banner" })
+			: null;
+	const screenshots = artifactDid
+		? mediaArtifacts.screenshots.map((shot) => ({
+				...shot,
+				src: artifactProxyUrl({
+					did: artifactDid,
+					slug,
+					version: artifactVersion,
+					kind: "screenshot",
+					index: shot.index,
+				}),
+			}))
+		: [];
 
 	const policyOk =
 		release && pkg ? releasePassesPolicy(release, { did: pkg.did, slug }, config.policy) : true;
@@ -474,11 +492,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				<section aria-label={t`Screenshots`}>
 					<ul className="flex snap-x gap-3 overflow-x-auto pb-2">
 						{screenshots.map((shot, i) => (
-							<li
-								// eslint-disable-next-line react/no-array-index-key -- screenshots have no stable id; index is stable within a render
-								key={`${shot.url}-${i}`}
-								className="shrink-0 snap-start"
-							>
+							<li key={shot.index} className="shrink-0 snap-start">
 								<img
 									src={shot.src}
 									alt={t`Screenshot ${i + 1}`}

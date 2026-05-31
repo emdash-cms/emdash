@@ -16,7 +16,39 @@ const PNG_1x1 = Uint8Array.from(
 /** A 3x5 GIF87a. The logical-screen descriptor at bytes 6-9 carries the size. */
 const GIF_3x5 = Uint8Array.from(Buffer.from("4749463837610300050080000000000000ffffff", "hex"));
 
-/** A minimal SVG with explicit width/height attributes. */
+/**
+ * A minimal ISOBMFF/AVIF header (`ftyp` brand `avif` + `meta>iprp>ipco>ispe`).
+ * `image-size` reads the brand as the type and the `ispe` box as the
+ * dimensions (64x48); no full image data is needed.
+ */
+function box(name: string, payload: Buffer): Buffer {
+	const buf = Buffer.alloc(8 + payload.length);
+	buf.writeUInt32BE(buf.length, 0);
+	buf.write(name, 4, "ascii");
+	payload.copy(buf, 8);
+	return buf;
+}
+const AVIF_64x48 = (() => {
+	const ftyp = box(
+		"ftyp",
+		Buffer.concat([
+			Buffer.from("avif", "ascii"),
+			Buffer.from([0, 0, 0, 0]),
+			Buffer.from("avifmif1", "ascii"),
+		]),
+	);
+	const ispePayload = Buffer.alloc(12);
+	ispePayload.writeUInt32BE(64, 4);
+	ispePayload.writeUInt32BE(48, 8);
+	const ispe = box("ispe", ispePayload);
+	const meta = box(
+		"meta",
+		Buffer.concat([Buffer.from([0, 0, 0, 0]), box("iprp", box("ipco", ispe))]),
+	);
+	return new Uint8Array(Buffer.concat([ftyp, meta]));
+})();
+
+/** A minimal SVG with explicit width/height attributes — no longer an accepted type. */
 const SVG_12x8 = new TextEncoder().encode(
 	'<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8"></svg>',
 );
@@ -38,12 +70,22 @@ describe("measureImage", () => {
 		});
 	});
 
-	it("reads SVG dimensions and maps to image/svg+xml", () => {
-		expect(measureImage(SVG_12x8)).toEqual({
-			contentType: "image/svg+xml",
-			width: 12,
-			height: 8,
+	it("reads AVIF dimensions and maps to image/avif", () => {
+		expect(measureImage(AVIF_64x48)).toEqual({
+			contentType: "image/avif",
+			width: 64,
+			height: 48,
 		});
+	});
+
+	it("rejects SVG (removed from the allowlist)", () => {
+		try {
+			measureImage(SVG_12x8);
+			throw new Error("expected measureImage to throw");
+		} catch (error) {
+			expect(error).toBeInstanceOf(ArtifactError);
+			expect((error as ArtifactError).code).toBe("ARTIFACT_UNSUPPORTED");
+		}
 	});
 
 	it("rejects bytes that are not a recognised image", () => {

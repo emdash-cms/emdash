@@ -567,7 +567,7 @@ export const ArtifactFileSchema = z
 	.meta({
 		title: "Artifact file reference",
 		description:
-			"A media file (PNG / JPEG / WebP / GIF / SVG) bundled into a release as an icon, screenshot, or banner.",
+			"A media file (PNG / JPEG / WebP / GIF / AVIF) bundled into a release as an icon, screenshot, or banner.",
 	});
 
 /**

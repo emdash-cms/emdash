@@ -5,7 +5,7 @@
  * the `#artifact` record the release embeds: the multibase-multihash checksum,
  * the MIME content type, and the pixel dimensions. Dimensions come from
  * `image-size`, which reads only the header bytes (no decode), so it's cheap
- * and works for PNG / JPEG / WebP / GIF / SVG.
+ * and works for PNG / JPEG / WebP / GIF / AVIF.
  *
  * Kept filesystem- and network-free so it tests against raw byte fixtures.
  * The CLI command reads files and uploads them; this module turns bytes +
@@ -39,7 +39,7 @@ const TYPE_TO_CONTENT_TYPE: Record<string, string> = {
 	jpg: "image/jpeg",
 	gif: "image/gif",
 	webp: "image/webp",
-	svg: "image/svg+xml",
+	avif: "image/avif",
 };
 
 /** Thrown when an artifact file isn't a supported image. */
@@ -56,7 +56,7 @@ export class ArtifactError extends Error {
 /**
  * Sniff `bytes` as an image and return its content type and dimensions. Throws
  * `ArtifactError` when the bytes aren't a supported image or carry no usable
- * dimensions (e.g. a width-less SVG that `image-size` can't measure).
+ * dimensions.
  */
 export function measureImage(bytes: Uint8Array): {
 	contentType: string;
@@ -76,7 +76,7 @@ export function measureImage(bytes: Uint8Array): {
 	if (type === undefined || !(type in TYPE_TO_CONTENT_TYPE)) {
 		throw new ArtifactError(
 			"ARTIFACT_UNSUPPORTED",
-			`Artifact image format ${type ? `"${type}"` : "(unknown)"} is not supported. Use PNG, JPEG, WebP, GIF, or SVG.`,
+			`Artifact image format ${type ? `"${type}"` : "(unknown)"} is not supported. Use PNG, JPEG, WebP, GIF, or AVIF.`,
 		);
 	}
 	const { width, height } = result;
