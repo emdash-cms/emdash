@@ -20,6 +20,10 @@
 		"./discovery": {
 			"types": "./dist/discovery/index.d.ts",
 			"default": "./dist/discovery/index.js"
+		},
+		"./env": {
+			"types": "./dist/env/index.d.ts",
+			"default": "./dist/env/index.js"
 		}
 	},
 	"files": [

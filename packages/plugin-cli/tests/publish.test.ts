@@ -142,6 +142,28 @@ describe("publishRelease", () => {
 			expect(value.artifacts.package.contentType).toBe("application/gzip");
 		});
 
+		it("writes release-level requires into the release record when provided", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(
+				buildOptions(pds, {
+					requires: { "env:emdash": ">=1.0.0", "env:astro": ">=4.16" },
+				}),
+			);
+
+			const release = pds.records.get(`at://${TEST_DID}/${NSID.packageRelease}/test-plugin:1.0.0`);
+			const value = release!.value as { requires?: Record<string, string> };
+			expect(value.requires).toEqual({ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" });
+		});
+
+		it("omits requires from the release record when empty or absent", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(buildOptions(pds, { requires: {} }));
+
+			const release = pds.records.get(`at://${TEST_DID}/${NSID.packageRelease}/test-plugin:1.0.0`);
+			const value = release!.value as Record<string, unknown>;
+			expect("requires" in value).toBe(false);
+		});
+
 		it("hard-fails when license is missing, with no records written", async () => {
 			const pds = new MockPds({ did: TEST_DID });
 			const opts = buildOptions(pds, {

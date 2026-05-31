@@ -311,6 +311,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		url: args.url,
 		profileInput,
 		repo: manifestLoad?.manifest.repo,
+		requires: manifestLoad?.manifest.requires,
 		allowOverwrite: args["allow-overwrite"],
 		logger,
 	});

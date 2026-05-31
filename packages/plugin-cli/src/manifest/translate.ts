@@ -45,6 +45,13 @@ export interface NormalisedManifest {
 	keywords: string[] | undefined;
 	repo: string | undefined;
 
+	/**
+	 * Release-level environment constraints (`release.requires`). Map of
+	 * `env:*`/DID keys to semver ranges. Release-level, not profile-level —
+	 * passed to `publishRelease` separately, never via `manifestToProfileInput`.
+	 */
+	requires: Record<string, string> | undefined;
+
 	// Trust contract (defaults applied by the schema; always present here).
 	capabilities: PluginCapability[];
 	allowedHosts: string[];
@@ -166,6 +173,7 @@ export function normaliseManifest(manifest: Manifest, packageVersion?: string): 
 		description: manifest.description,
 		keywords: manifest.keywords,
 		repo: manifest.repo,
+		requires: manifest.requires,
 		// Schema validation already gates capability strings to the
 		// current vocabulary via a runtime check, so by the time we get
 		// here the strings are guaranteed members of PluginCapability.

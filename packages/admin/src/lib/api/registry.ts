@@ -26,12 +26,14 @@ import type {
 	ValidatedReleaseView,
 	ValidatedSearchPackages,
 } from "@emdash-cms/registry-client/discovery";
+import type { HostEnv } from "@emdash-cms/registry-client/env";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export type { Did, Handle };
+export type { HostEnv };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -292,6 +294,25 @@ export async function listRegistryReleases(
 ): Promise<ValidatedListReleases> {
 	const client = await getDiscoveryClient(config);
 	return client.listReleases(did, slug, opts);
+}
+
+/**
+ * Fetch the host environment versions (`env:emdash`, `env:astro`) the running
+ * EmDash install advertises, so a release's `requires` constraints can be
+ * evaluated client-side before offering install. Reads the admin manifest,
+ * which carries `version` (EmDash) and `astroVersion`. A `"dev"` EmDash build
+ * and a missing Astro version are omitted so the compat check skips them.
+ */
+export async function fetchHostEnv(): Promise<HostEnv> {
+	const response = await apiFetch(`${API_BASE}/manifest`);
+	const manifest = await parseApiResponse<{ version?: string; astroVersion?: string }>(
+		response,
+		i18n._(msg`Failed to fetch host environment`),
+	);
+	const host: HostEnv = {};
+	if (manifest.version && manifest.version !== "dev") host["env:emdash"] = manifest.version;
+	if (manifest.astroVersion) host["env:astro"] = manifest.astroVersion;
+	return host;
 }
 
 /**

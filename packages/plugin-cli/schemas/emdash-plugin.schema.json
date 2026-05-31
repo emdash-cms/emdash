@@ -55,6 +55,9 @@
 		},
 		"repo": {
 			"$ref": "#/$defs/__schema42"
+		},
+		"requires": {
+			"$ref": "#/$defs/__schema43"
 		}
 	},
 	"required": [
@@ -465,6 +468,30 @@
 			"examples": [
 				"https://github.com/emdash-cms/plugin-gallery"
 			]
+		},
+		"__schema43": {
+			"type": "object",
+			"propertyNames": {
+				"$ref": "#/$defs/__schema44"
+			},
+			"additionalProperties": {
+				"$ref": "#/$defs/__schema45"
+			},
+			"title": "Environment requirements",
+			"description": "Host environment constraints for this release, keyed by `env:*` (e.g. \"env:astro\", \"env:emdash\") with semver-range values. EmDash refuses to install a release whose constraints the host does not satisfy.",
+			"examples": [
+				{
+					"env:emdash": ">=1.0.0",
+					"env:astro": ">=4.16"
+				}
+			]
+		},
+		"__schema44": {
+			"type": "string"
+		},
+		"__schema45": {
+			"type": "string",
+			"minLength": 1
 		}
 	}
 }

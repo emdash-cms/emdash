@@ -60,6 +60,7 @@ import {
 	PLUGIN_VERSION_MAX_LENGTH,
 	PLUGIN_VERSION_RE,
 } from "@emdash-cms/plugin-types";
+import { isValidVersionRange } from "@emdash-cms/registry-client/env";
 import { z } from "zod";
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -243,6 +244,42 @@ export const RepoSchema = z
 		title: "Source repository",
 		description: "HTTPS URL of the plugin's source repository. Surfaced in registry listings.",
 		examples: ["https://github.com/emdash-cms/plugin-gallery"],
+	});
+
+/** `env:<name>` requirement keys (one or more non-colon characters). */
+const REQUIRES_ENV_KEY_RE = /^env:[^:]+$/;
+
+/**
+ * Release-level environment constraints. Mirrors `release.json#requires`: a
+ * map of `env:*` keys (host environment requirements) or package DIDs to
+ * semver-range constraint strings. EmDash uses `env:emdash` and `env:astro`.
+ *
+ * Keys are validated structurally (`env:<name>` or `did:<method>:<id>`) and
+ * values against the shared range grammar in `@emdash-cms/registry-client/env`,
+ * the same evaluator the install gate and the admin compatibility warning use,
+ * so a publisher can't ship a constraint that no consumer can evaluate.
+ */
+export const RequiresSchema = z
+	.record(
+		z
+			.string()
+			.refine(
+				(k) => REQUIRES_ENV_KEY_RE.test(k) || isDid(k),
+				'requires key must be an `env:*` requirement (e.g. "env:astro") or a package DID',
+			),
+		z
+			.string()
+			.min(1, "requires range must be a non-empty semver range")
+			.refine(
+				isValidVersionRange,
+				'requires range must be a valid semver range (e.g. ">=4.16", "^4.0.0", ">=4.16.0 <5.0.0")',
+			),
+	)
+	.meta({
+		title: "Environment requirements",
+		description:
+			'Host environment constraints for this release, keyed by `env:*` (e.g. "env:astro", "env:emdash") with semver-range values. EmDash refuses to install a release whose constraints the host does not satisfy.',
+		examples: [{ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" }],
 	});
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -631,6 +668,7 @@ export const ManifestSchema = z
 
 		// Optional release fields.
 		repo: RepoSchema.optional(),
+		requires: RequiresSchema.optional(),
 	})
 	.strict()
 	.refine((v) => !(v.author !== undefined && v.authors !== undefined), {

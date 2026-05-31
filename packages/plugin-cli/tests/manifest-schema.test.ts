@@ -19,6 +19,7 @@ import {
 	LicenseSchema,
 	ManifestSchema,
 	RepoSchema,
+	RequiresSchema,
 	SecurityContactSchema,
 } from "../src/manifest/schema.js";
 
@@ -118,6 +119,42 @@ describe("RepoSchema", () => {
 	it("rejects non-URL strings", () => {
 		const result = RepoSchema.safeParse("not a url");
 		expect(result.success).toBe(false);
+	});
+});
+
+describe("RequiresSchema", () => {
+	it("accepts env:* keys with semver-range values", () => {
+		expect(RequiresSchema.parse({ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" })).toEqual({
+			"env:emdash": ">=1.0.0",
+			"env:astro": ">=4.16",
+		});
+	});
+
+	it("accepts caret, tilde, and AND-set ranges", () => {
+		expect(
+			RequiresSchema.parse({
+				"env:astro": "^4.0.0",
+				"env:emdash": ">=1.0.0 <2.0.0",
+			}),
+		).toBeTruthy();
+		expect(RequiresSchema.parse({ "env:astro": "~4.16.0" })).toBeTruthy();
+	});
+
+	it("accepts forward-compat DID-shaped keys", () => {
+		expect(RequiresSchema.parse({ "did:plc:abc123": "^1.0.0" })).toEqual({
+			"did:plc:abc123": "^1.0.0",
+		});
+	});
+
+	it("rejects keys that are neither env:* nor DID-shaped", () => {
+		expect(RequiresSchema.safeParse({ astro: ">=4.16" }).success).toBe(false);
+		expect(RequiresSchema.safeParse({ "env:": ">=4.16" }).success).toBe(false);
+	});
+
+	it("rejects values that aren't valid semver ranges", () => {
+		expect(RequiresSchema.safeParse({ "env:astro": "not-a-range" }).success).toBe(false);
+		expect(RequiresSchema.safeParse({ "env:astro": "" }).success).toBe(false);
+		expect(RequiresSchema.safeParse({ "env:astro": ">=" }).success).toBe(false);
 	});
 });
 
@@ -257,9 +294,26 @@ describe("ManifestSchema (full document)", () => {
 			description: "Image gallery block for EmDash.",
 			keywords: ["gallery", "images", "media"],
 			repo: "https://github.com/emdash-cms/plugin-gallery",
+			requires: { "env:emdash": ">=1.0.0", "env:astro": ">=4.16" },
 			capabilities: ["content:read"],
 			storage: { events: { indexes: ["timestamp"] } },
 		});
 		expect(result.success).toBe(true);
+	});
+
+	it("accepts a manifest with release-level requires", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			requires: { "env:astro": ">=4.16" },
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects a manifest with an invalid requires range", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			requires: { "env:astro": "not-a-range" },
+		});
+		expect(result.success).toBe(false);
 	});
 });

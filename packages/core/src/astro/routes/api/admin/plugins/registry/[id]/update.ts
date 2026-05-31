@@ -14,8 +14,10 @@ import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
-import { handleRegistryUpdate } from "#api/index.js";
+import { buildHostEnv, handleRegistryUpdate } from "#api/index.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
+
+import { VERSION } from "../../../../../../../version.js";
 
 export const prerender = false;
 
@@ -64,6 +66,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				version: body.version,
 				confirmCapabilityChanges: body.confirmCapabilityChanges,
 				confirmRouteVisibilityChanges: body.confirmRouteVisibilityChanges,
+				hostEnv: buildHostEnv(VERSION, emdash.config.astroVersion),
 			},
 		);
 

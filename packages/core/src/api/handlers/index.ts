@@ -171,6 +171,8 @@ export {
 
 // Registry handlers (experimental)
 export {
+	assertEnvCompatible,
+	buildHostEnv,
 	handleRegistryInstall,
 	handleRegistryUninstall,
 	handleRegistryUpdate,
