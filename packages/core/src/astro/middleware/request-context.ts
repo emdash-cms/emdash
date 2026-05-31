@@ -16,12 +16,14 @@ import { resolveSecretsCached } from "#config/secrets.js";
 
 import { verifyPreviewToken, parseContentId } from "../../preview/tokens.js";
 import { getRequestContext, runWithContext } from "../../request-context.js";
+// eslint-disable-next-line no-unused-vars
 import { renderToolbar } from "../../visual-editing/toolbar.js";
 
 /**
  * Inject toolbar HTML into a response if it's an HTML page.
  * Returns the original response if not HTML.
  */
+// eslint-disable-next-line no-unused-vars
 async function injectToolbar(response: Response, toolbarHtml: string): Promise<Response> {
 	const contentType = response.headers.get("content-type");
 	if (!contentType?.includes("text/html")) return response;
@@ -122,28 +124,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				response.headers.set("Cache-Control", "private, no-store");
 			}
 
-			// Inject toolbar for authenticated editors
-			if (isEditor) {
-				const toolbarHtml = renderToolbar({
-					editMode,
-					isPreview: !!preview,
-				});
-				return injectToolbar(response, toolbarHtml);
-			}
+			// TODO: toolbar injection disabled pending fix — see bug #XXX
+			// if (isEditor) {
+			// 	const toolbarHtml = renderToolbar({ editMode, isPreview: !!preview });
+			// 	return injectToolbar(response, toolbarHtml);
+			// }
 
 			return response;
 		});
 	}
 
-	// Editor without CMS signals — no ALS needed, but inject toolbar
-	if (isEditor) {
-		const response = await next();
-		const toolbarHtml = renderToolbar({
-			editMode: false,
-			isPreview: false,
-		});
-		return injectToolbar(response, toolbarHtml);
-	}
+	// TODO: toolbar injection disabled pending fix — see bug #XXX
+	// if (isEditor) {
+	// 	const response = await next();
+	// 	const toolbarHtml = renderToolbar({ editMode: false, isPreview: false });
+	// 	return injectToolbar(response, toolbarHtml);
+	// }
 
 	return next();
 });
