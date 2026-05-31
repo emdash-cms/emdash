@@ -197,6 +197,8 @@ async function searchSingleCollection(
 
 	// Get searchable fields for snippet generation
 	const searchableFields = await ftsManager.getSearchableFields(collection);
+	const hasTitleField = await collectionHasField(db, collection, "title");
+	const titleSelection = hasTitleField ? sql.ref("c.title") : sql<string | null>`NULL`;
 
 	// Build weight string for bm25 if weights provided
 	// Format: bm25(table, weight1, weight2, ...)
@@ -229,7 +231,7 @@ async function searchSingleCollection(
 			c.id,
 			c.slug,
 			c.locale,
-			c.title,
+			${titleSelection} as title,
 			snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) as snippet,
 			${sql.raw(bm25Expr)} as score
 		FROM "${sql.raw(ftsTable)}" f
@@ -347,6 +349,11 @@ export async function getSuggestions(
 
 		const ftsTable = ftsManager.getFtsTableName(collection);
 		const contentTable = ftsManager.getContentTableName(collection);
+		const hasTitleField = await collectionHasField(db, collection, "title");
+		const titleSelection = hasTitleField
+			? sql.ref("c.title")
+			: sql<string>`COALESCE(c.slug, c.id)`;
+		const titleRequired = hasTitleField ? sql`AND c.title IS NOT NULL` : sql``;
 
 		// Use prefix search for autocomplete. `escapeQuery` already appends `*`
 		// to each term for prefix matching, so we must not append another one.
@@ -363,13 +370,13 @@ export async function getSuggestions(
 			}>`
 				SELECT 
 					c.id,
-					c.title
+					${titleSelection} as title
 				FROM "${sql.raw(ftsTable)}" f
 				JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
 				WHERE "${sql.raw(ftsTable)}" MATCH ${prefixQuery}
 				AND c.status = 'published'
 				AND c.deleted_at IS NULL
-				AND c.title IS NOT NULL
+				${titleRequired}
 				${locale ? sql`AND c.locale = ${locale}` : sql``}
 				ORDER BY bm25("${sql.raw(ftsTable)}")
 				LIMIT ${limit}
@@ -395,6 +402,25 @@ export async function getSuggestions(
 	}
 
 	return suggestions.slice(0, limit);
+}
+
+async function collectionHasField(
+	db: Kysely<Database>,
+	collection: string,
+	field: string,
+): Promise<boolean> {
+	validateIdentifier(collection, "collection slug");
+	validateIdentifier(field, "field slug");
+
+	const row = await db
+		.selectFrom("_emdash_collections as c")
+		.innerJoin("_emdash_fields as f", "f.collection_id", "c.id")
+		.select("f.id")
+		.where("c.slug", "=", collection)
+		.where("f.slug", "=", field)
+		.executeTakeFirst();
+
+	return row !== undefined;
 }
 
 /**
