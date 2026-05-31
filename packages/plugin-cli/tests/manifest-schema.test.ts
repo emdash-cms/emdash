@@ -376,7 +376,7 @@ describe("ManifestSchema (full document)", () => {
 			description: "Image gallery block for EmDash.",
 			keywords: ["gallery", "images", "media"],
 			repo: "https://github.com/emdash-cms/plugin-gallery",
-			requires: { "env:emdash": ">=1.0.0", "env:astro": ">=4.16" },
+			release: { requires: { "env:emdash": ">=1.0.0", "env:astro": ">=4.16" } },
 			capabilities: ["content:read"],
 			storage: { events: { indexes: ["timestamp"] } },
 		});
@@ -386,7 +386,7 @@ describe("ManifestSchema (full document)", () => {
 	it("accepts a manifest with release-level requires", () => {
 		const result = ManifestSchema.safeParse({
 			...minimal,
-			requires: { "env:astro": ">=4.16" },
+			release: { requires: { "env:astro": ">=4.16" } },
 		});
 		expect(result.success).toBe(true);
 	});
@@ -394,7 +394,7 @@ describe("ManifestSchema (full document)", () => {
 	it("rejects a manifest with an invalid requires range", () => {
 		const result = ManifestSchema.safeParse({
 			...minimal,
-			requires: { "env:astro": "not-a-range" },
+			release: { requires: { "env:astro": "not-a-range" } },
 		});
 		expect(result.success).toBe(false);
 	});

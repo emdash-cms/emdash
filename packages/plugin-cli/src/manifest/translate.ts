@@ -185,7 +185,7 @@ export function normaliseManifest(manifest: Manifest, packageVersion?: string): 
 		description: manifest.description,
 		keywords: manifest.keywords,
 		repo: manifest.repo,
-		requires: manifest.requires,
+		requires: manifest.release?.requires,
 		artifacts: manifest.release?.artifacts,
 		// Schema validation already gates capability strings to the
 		// current vocabulary via a runtime check, so by the time we get

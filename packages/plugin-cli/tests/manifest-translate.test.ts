@@ -100,7 +100,7 @@ describe("normaliseManifest", () => {
 			license: "MIT",
 			author: { name: "Jane" },
 			security: { email: "s@example.com" },
-			requires: { "env:emdash": ">=1.0.0", "env:astro": ">=4.16" },
+			release: { requires: { "env:emdash": ">=1.0.0", "env:astro": ">=4.16" } },
 		});
 		expect(normalised.requires).toEqual({ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" });
 	});

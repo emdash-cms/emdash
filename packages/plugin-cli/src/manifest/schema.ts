@@ -640,12 +640,14 @@ export const ArtifactsSchema = z
  */
 export const ReleaseSchema = z
 	.object({
+		requires: RequiresSchema.optional(),
 		artifacts: ArtifactsSchema.optional(),
 	})
 	.strict()
 	.meta({
 		title: "Release",
-		description: "Per-release fields, such as media artifacts (icon / screenshot / banner).",
+		description:
+			"Per-release fields: environment constraints (`requires`) and media artifacts (icon / screenshot / banner).",
 	});
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -753,10 +755,10 @@ export const ManifestSchema = z
 
 		// Optional release fields.
 		repo: RepoSchema.optional(),
-		requires: RequiresSchema.optional(),
 
-		// Per-release media artifacts (icon / screenshot / banner). File
-		// refs are resolved relative to the manifest at publish time.
+		// Per-release block: environment constraints (`requires`) and media
+		// artifacts (icon / screenshot / banner). File refs are resolved
+		// relative to the manifest at publish time.
 		release: ReleaseSchema.optional(),
 	})
 	.strict()
