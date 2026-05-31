@@ -9,12 +9,13 @@
  * routes and `confirmRouteVisibilityChanges` is absent.
  */
 
+import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
-import { buildHostEnv, handleRegistryUpdate } from "#api/index.js";
+import { handleRegistryUpdate } from "#api/index.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 
 import { VERSION } from "../../../../../../../version.js";
@@ -66,7 +67,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				version: body.version,
 				confirmCapabilityChanges: body.confirmCapabilityChanges,
 				confirmRouteVisibilityChanges: body.confirmRouteVisibilityChanges,
-				hostEnv: buildHostEnv(VERSION, emdash.config.astroVersion),
+				hostEnv: hostEnvFromVersions(VERSION, emdash.config.astroVersion),
 			},
 		);
 

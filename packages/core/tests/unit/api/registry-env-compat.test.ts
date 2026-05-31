@@ -12,24 +12,7 @@
 import { describe, expect, it } from "vitest";
 
 import { mapErrorStatus } from "../../../src/api/errors.js";
-import { assertEnvCompatible, buildHostEnv } from "../../../src/api/handlers/registry.js";
-
-describe("buildHostEnv", () => {
-	it("maps emdash + astro versions to env:* keys", () => {
-		expect(buildHostEnv("1.2.0", "4.16.0")).toEqual({
-			"env:emdash": "1.2.0",
-			"env:astro": "4.16.0",
-		});
-	});
-
-	it("omits a dev emdash build so the gate skips it", () => {
-		expect(buildHostEnv("dev", "4.16.0")).toEqual({ "env:astro": "4.16.0" });
-	});
-
-	it("omits astro when its version is unknown", () => {
-		expect(buildHostEnv("1.2.0", undefined)).toEqual({ "env:emdash": "1.2.0" });
-	});
-});
+import { assertEnvCompatible } from "../../../src/api/handlers/registry.js";
 
 describe("assertEnvCompatible", () => {
 	const host = { "env:emdash": "1.2.0", "env:astro": "4.12.0" };

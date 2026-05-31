@@ -40,11 +40,7 @@
 
 import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
-import {
-	checkEnvCompatibility,
-	findSkippedEnvConstraints,
-	hostEnvFromVersions,
-} from "@emdash-cms/registry-client/env";
+import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
 import type { Kysely } from "kysely";
 
@@ -524,16 +520,6 @@ async function fetchArtifact(mirrors: string[], declaredUrl: string): Promise<Ui
 	throw new Error(
 		`Failed to download artifact from any source. Tried:\n  ${clientErrors.join("\n  ")}`,
 	);
-}
-
-/**
- * Build the host-environment map the install/update gate compares a release's
- * `requires` against. Delegates to the shared {@link hostEnvFromVersions} so the
- * server gate and the admin's client-side warning apply the same dev-skip /
- * astro-omit rule.
- */
-export function buildHostEnv(emdashVersion: string, astroVersion: string | undefined): HostEnv {
-	return hostEnvFromVersions(emdashVersion, astroVersion);
 }
 
 /**

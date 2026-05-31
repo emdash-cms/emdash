@@ -12,12 +12,13 @@
  * view time (handle is best-effort per the lexicon).
  */
 
+import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
-import { buildHostEnv, handleRegistryInstall } from "#api/index.js";
+import { handleRegistryInstall } from "#api/index.js";
 import { isParseError, parseBody } from "#api/parse.js";
 
 import { VERSION } from "../../../../../../version.js";
@@ -95,7 +96,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			},
 			{
 				configuredPluginIds: reservedPluginIds,
-				hostEnv: buildHostEnv(VERSION, emdash.config.astroVersion),
+				hostEnv: hostEnvFromVersions(VERSION, emdash.config.astroVersion),
 			},
 		);
 
