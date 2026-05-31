@@ -7,8 +7,8 @@
  */
 
 import { Badge, Button, Checkbox, Switch, Toast } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
 import { plural } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
 	PuzzlePiece,
 	Gear,
