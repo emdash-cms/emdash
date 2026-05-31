@@ -124,7 +124,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				response.headers.set("Cache-Control", "private, no-store");
 			}
 			// TODO: toolbar injection disabled pending client-side mount
-			// TODO: toolbar injection disabled pending fix — see bug #XXX
 			// if (isEditor) {
 			// 	const toolbarHtml = renderToolbar({ editMode, isPreview: !!preview });
 			// 	return injectToolbar(response, toolbarHtml);
@@ -134,7 +133,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		});
 	}
 
-	// TODO: toolbar injection disabled pending fix — see bug #XXX
+	// TODO: toolbar injection disabled pending client-side mount
 	// if (isEditor) {
 	// 	const response = await next();
 	// 	const toolbarHtml = renderToolbar({ editMode: false, isPreview: false });
