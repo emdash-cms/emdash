@@ -7,7 +7,7 @@
  *   1. resolves each ref under the manifest directory (rejecting paths that
  *      escape it),
  *   2. reads the bytes and measures content type + dimensions,
- *   3. PUTs the bytes to `<base>/<slug>/<version>/<filename>`,
+ *   3. PUTs the bytes to `<base>/<slug>/<version>/<slot>-<filename>`,
  *   4. records `{ url, checksum, contentType, width, height, lang? }`.
  *
  * The hosting contract: the publisher's `--artifact-base-url` target must
@@ -17,7 +17,7 @@
  */
 
 import { readFile } from "node:fs/promises";
-import { basename, relative, resolve, sep } from "node:path";
+import { basename, isAbsolute, relative, resolve, sep } from "node:path";
 
 import type { ManifestArtifacts, ManifestArtifactFile } from "../manifest/schema.js";
 import type { ReleaseArtifactInput, ReleaseArtifactsInput } from "./api.js";
@@ -87,15 +87,23 @@ export async function resolveReleaseArtifacts(
 	const out: ReleaseArtifactsInput = {};
 
 	if (artifacts.icon) {
-		out.icon = await resolveOne(artifacts.icon, "icon", options, upload);
+		out.icon = await resolveOne(artifacts.icon, "icon", "icon", options, upload);
 	}
 	if (artifacts.banner) {
-		out.banner = await resolveOne(artifacts.banner, "banner", options, upload);
+		out.banner = await resolveOne(artifacts.banner, "banner", "banner", options, upload);
 	}
 	if (artifacts.screenshot && artifacts.screenshot.length > 0) {
 		const screenshots: ReleaseArtifactInput[] = [];
 		for (const [index, ref] of artifacts.screenshot.entries()) {
-			screenshots.push(await resolveOne(ref, `screenshot ${index + 1}`, options, upload));
+			screenshots.push(
+				await resolveOne(
+					ref,
+					`screenshot ${index + 1}`,
+					`screenshot-${index + 1}`,
+					options,
+					upload,
+				),
+			);
 		}
 		out.screenshots = screenshots;
 	}
@@ -106,6 +114,7 @@ export async function resolveReleaseArtifacts(
 async function resolveOne(
 	ref: ManifestArtifactFile,
 	label: string,
+	slot: string,
 	options: ResolveArtifactsOptions,
 	upload: ArtifactUploader,
 ): Promise<ReleaseArtifactInput> {
@@ -130,7 +139,7 @@ async function resolveOne(
 	try {
 		record = buildArtifactRecord({
 			bytes,
-			url: artifactUrl(options.baseUrl, options.slug, options.version, ref.file),
+			url: artifactUrl(options.baseUrl, options.slug, options.version, slot, ref.file),
 			lang: ref.lang,
 		});
 	} catch (error) {
@@ -162,7 +171,7 @@ async function resolveOne(
 function resolveWithinManifest(manifestDir: string, file: string, label: string): string {
 	const absolute = resolve(manifestDir, file);
 	const rel = relative(manifestDir, absolute);
-	if (rel === "" || rel.startsWith("..") || rel.startsWith(`..${sep}`)) {
+	if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(file)) {
 		throw new ArtifactUploadError(
 			"ARTIFACT_PATH_ESCAPE",
 			`${label} artifact path ${file} resolves outside the manifest directory.`,
@@ -172,13 +181,21 @@ function resolveWithinManifest(manifestDir: string, file: string, label: string)
 }
 
 /**
- * Build the public URL for an artifact: `<base>/<slug>/<version>/<filename>`.
- * Only the basename of the manifest ref is used so nested source paths don't
- * leak into the published URL.
+ * Build the public URL for an artifact:
+ * `<base>/<slug>/<version>/<slot>-<filename>`. The basename of the manifest ref
+ * keeps nested source paths out of the published URL; the `slot` prefix
+ * (`icon`, `banner`, `screenshot-2`) keeps two refs with the same basename in
+ * different directories from colliding on the same upload target.
  */
-function artifactUrl(baseUrl: string, slug: string, version: string, file: string): string {
+function artifactUrl(
+	baseUrl: string,
+	slug: string,
+	version: string,
+	slot: string,
+	file: string,
+): string {
 	const trimmed = baseUrl.replace(TRAILING_SLASHES, "");
-	const name = basename(file);
+	const name = `${slot}-${basename(file)}`;
 	return `${trimmed}/${encodeURIComponent(slug)}/${encodeURIComponent(version)}/${encodeURIComponent(name)}`;
 }
 

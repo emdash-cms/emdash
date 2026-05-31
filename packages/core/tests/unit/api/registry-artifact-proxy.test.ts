@@ -181,4 +181,30 @@ describe("registry artifact proxy", () => {
 		const res = await GET(makeContext("https://cdn.example.com/huge.png"));
 		expect(res.status).toBe(413);
 	});
+
+	it("rejects a streamed body that exceeds the cap with no content-length", async () => {
+		// No content-length header, so the declared-length guard can't fire. The
+		// body streams past MAX_IMAGE_BYTES (5MB); only readCapped's running tally
+		// catches it, cancels the reader, and returns null -> 413.
+		const chunk = new Uint8Array(1024 * 1024);
+		let emitted = 0;
+		const body = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				if (emitted >= 6) {
+					controller.close();
+					return;
+				}
+				emitted++;
+				controller.enqueue(chunk);
+			},
+		});
+		const response = new Response(body, {
+			status: 200,
+			headers: { "content-type": "image/png" },
+		});
+		expect(response.headers.get("content-length")).toBeNull();
+		globalThis.fetch = vi.fn(async () => response) as typeof globalThis.fetch;
+		const res = await GET(makeContext("https://cdn.example.com/streamed.png"));
+		expect(res.status).toBe(413);
+	});
 });

@@ -30,7 +30,6 @@ const ALLOWED_IMAGE_TYPES = new Set([
 	"image/webp",
 	"image/gif",
 	"image/svg+xml",
-	"image/avif",
 ]);
 
 /** Cap proxied images so a hostile host can't stream an unbounded body. */
