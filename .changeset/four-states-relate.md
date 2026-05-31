@@ -1,7 +1,8 @@
 ---
 ---
-"@emdash-cms/admin": patch
----
+
+## "@emdash-cms/admin": patch
+
 ---
 
 Enhanced taxonomy validation error messages to show specific field errors instead of generic "Invalid request data" messages.
