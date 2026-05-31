@@ -91,6 +91,7 @@ import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
+import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
@@ -2074,6 +2075,8 @@ export function PortableTextEditor({
 					color: "#3b82f6",
 					width: 2,
 				},
+				// Replaced with CodeBlockExtension below (adds language picker node view).
+				codeBlock: false,
 				// StarterKit v3 includes Link and Underline
 				link: {
 					openOnClick: false,
@@ -2084,6 +2087,7 @@ export function PortableTextEditor({
 				},
 				underline: {},
 			}),
+			CodeBlockExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,

@@ -26,6 +26,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { computeThumbnailSize } from "../media/thumbnail.js";
+import { InlineCodeBlockExtension } from "./inline-code-block.js";
 
 // ── Portable Text types ────────────────────────────────────────────
 
@@ -1765,7 +1766,10 @@ export function InlinePortableTextEditor({
 			StarterKit.configure({
 				heading: { levels: [1, 2, 3] },
 				dropcursor: { color: "#3b82f6", width: 2 },
+				// Replaced with InlineCodeBlockExtension below (adds language picker).
+				codeBlock: false,
 			}),
+			InlineCodeBlockExtension,
 			Image.extend({
 				addAttributes() {
 					return {
