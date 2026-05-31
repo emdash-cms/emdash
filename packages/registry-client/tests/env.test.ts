@@ -37,6 +37,10 @@ describe("isValidVersionRange", () => {
 		expect(isValidVersionRange(">=4.16.0 <5.0.0")).toBe(true);
 	});
 
+	it("accepts || union ranges", () => {
+		expect(isValidVersionRange("^4.0.0 || ^5.0.0")).toBe(true);
+	});
+
 	it("accepts prerelease versions in comparators", () => {
 		expect(isValidVersionRange(">=6.0.0-beta.0")).toBe(true);
 	});
@@ -80,6 +84,16 @@ describe("satisfiesRange", () => {
 	it("matches the wildcard against any version", () => {
 		expect(satisfiesRange("4.16.0", "*")).toBe(true);
 		expect(satisfiesRange("1.0.0-rc.1", "*")).toBe(true);
+	});
+
+	it("evaluates || union ranges", () => {
+		expect(satisfiesRange("5.1.0", "^4.0.0 || ^5.0.0")).toBe(true);
+		expect(satisfiesRange("3.0.0", "^4.0.0 || ^5.0.0")).toBe(false);
+	});
+
+	it("evaluates a prerelease host by precedence, not excluded from release ranges", () => {
+		expect(satisfiesRange("1.0.0-rc.1", ">=0.13.0")).toBe(true);
+		expect(satisfiesRange("4.1.0-beta.2", "^4.0.0")).toBe(true);
 	});
 
 	it("treats an unparseable host version as satisfied (cannot prove incompatible)", () => {
