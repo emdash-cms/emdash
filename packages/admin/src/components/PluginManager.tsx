@@ -8,6 +8,7 @@
 
 import { Badge, Button, Checkbox, Switch, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
+import { plural } from "@lingui/core/macro";
 import {
 	PuzzlePiece,
 	Gear,
@@ -395,7 +396,10 @@ function PluginCard({
 										.join(", ")}
 								>
 									<ShieldCheck className="h-3 w-3" />
-									{t`${plugin.capabilities.length} permission${plugin.capabilities.length !== 1 ? "s" : ""}`}
+									{plural(plugin.capabilities.length, {
+										one: "# permission",
+										other: "# permissions",
+									})}
 								</span>
 							)}
 						</div>
