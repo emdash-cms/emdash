@@ -172,6 +172,7 @@ export {
 // Registry handlers (experimental)
 export {
 	assertEnvCompatible,
+	assertSafeArtifactUrl,
 	handleRegistryInstall,
 	handleRegistryUninstall,
 	handleRegistryUpdate,

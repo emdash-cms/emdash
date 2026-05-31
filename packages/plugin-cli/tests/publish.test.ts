@@ -599,4 +599,94 @@ describe("publishRelease", () => {
 			expect("repo" in (release!.value as Record<string, unknown>)).toBe(false);
 		});
 	});
+
+	describe("release artifacts", () => {
+		const icon = {
+			url: "https://cdn.example.com/test-plugin/1.0.0/icon.png",
+			checksum: "bciqiconchecksum",
+			contentType: "image/png",
+			width: 256,
+			height: 256,
+		};
+		const banner = {
+			url: "https://cdn.example.com/test-plugin/1.0.0/banner.png",
+			checksum: "bciqbannerchecksum",
+			contentType: "image/png",
+			width: 1280,
+			height: 320,
+		};
+
+		interface ReleaseArtifactsMap {
+			package?: { url: string; checksum: string };
+			icon?: { url: string; checksum: string; width?: number; height?: number };
+			banner?: { url: string; checksum: string; width?: number; height?: number };
+			screenshots?: Array<{ url: string; checksum: string; width?: number; height?: number }>;
+		}
+
+		function readArtifacts(pds: MockPds): ReleaseArtifactsMap {
+			const release = pds.records.get(`at://${TEST_DID}/${NSID.packageRelease}/test-plugin:1.0.0`);
+			return (release!.value as { artifacts: ReleaseArtifactsMap }).artifacts;
+		}
+
+		it("writes icon and banner artifacts into the release record", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(buildOptions(pds, { artifacts: { icon, banner } }));
+			const artifacts = readArtifacts(pds);
+			expect(artifacts.icon).toMatchObject({
+				url: icon.url,
+				checksum: icon.checksum,
+				contentType: "image/png",
+				width: 256,
+				height: 256,
+			});
+			expect(artifacts.banner).toMatchObject({ url: banner.url, width: 1280, height: 320 });
+		});
+
+		it("writes a single screenshot as a one-element screenshots array", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			const shot = {
+				url: "https://cdn.example.com/test-plugin/1.0.0/s1.png",
+				checksum: "bciqs1",
+				contentType: "image/png",
+				width: 800,
+				height: 600,
+			};
+			await publishRelease(buildOptions(pds, { artifacts: { screenshots: [shot] } }));
+			const artifacts = readArtifacts(pds);
+			expect(artifacts.screenshots).toHaveLength(1);
+			expect(artifacts.screenshots?.[0]).toMatchObject({
+				url: shot.url,
+				width: 800,
+				height: 600,
+			});
+		});
+
+		it("writes the full screenshot gallery as an ordered array", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			const shots = [0, 1, 2].map((i) => ({
+				url: `https://cdn.example.com/test-plugin/1.0.0/s${i}.png`,
+				checksum: `bciqs${i}`,
+				contentType: "image/png",
+				width: 800,
+				height: 600,
+			}));
+			await publishRelease(buildOptions(pds, { artifacts: { screenshots: shots } }));
+			const artifacts = readArtifacts(pds);
+			expect(artifacts.screenshots?.map((s) => s.url)).toEqual(shots.map((s) => s.url));
+		});
+
+		it("keeps the package artifact when media artifacts are present", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(buildOptions(pds, { artifacts: { icon } }));
+			const artifacts = readArtifacts(pds);
+			expect(artifacts.package?.url).toBe("https://example.com/test-plugin-1.0.0.tar.gz");
+		});
+
+		it("leaves the artifacts map at just the package when none are supplied", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(buildOptions(pds));
+			const artifacts = readArtifacts(pds);
+			expect(Object.keys(artifacts)).toEqual(["package"]);
+		});
+	});
 });

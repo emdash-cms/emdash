@@ -132,6 +132,31 @@ export interface ProfileInput {
 	keywords?: string[];
 }
 
+/**
+ * A resolved image artifact ready to embed in the release. The CLI command
+ * reads the file, computes the checksum, measures the dimensions, and uploads
+ * the bytes before constructing this; `publishRelease` only writes it.
+ */
+export interface ReleaseArtifactInput {
+	url: string;
+	checksum: string;
+	contentType: string;
+	width: number;
+	height: number;
+	lang?: string;
+}
+
+/**
+ * Resolved release media artifacts. `icon` / `banner` are single images;
+ * `screenshots` is the ordered gallery, written verbatim to the lexicon's
+ * `artifacts.screenshots` array.
+ */
+export interface ReleaseArtifactsInput {
+	icon?: ReleaseArtifactInput;
+	banner?: ReleaseArtifactInput;
+	screenshots?: ReleaseArtifactInput[];
+}
+
 export interface PublishOptions {
 	/** Authenticated client against the publisher's PDS. */
 	publisher: PublishingClient;
@@ -168,6 +193,13 @@ export interface PublishOptions {
 	 * release record when non-empty; omitted otherwise.
 	 */
 	requires?: Record<string, string>;
+	/**
+	 * Resolved media artifacts (icon / screenshot / banner) for this release.
+	 * Already uploaded and measured by the caller. Written verbatim into the
+	 * release record. Releases are immutable per version, so this is not a
+	 * first-publish-only field.
+	 */
+	artifacts?: ReleaseArtifactsInput;
 	/**
 	 * Allow overwriting an existing release at `<slug>:<version>`. Default
 	 * is `false`, which causes publish to refuse with `RELEASE_ALREADY_PUBLISHED`.
@@ -238,6 +270,16 @@ interface PackageProfileRecordShape {
 	keywords?: string[];
 }
 
+/** An image artifact embedded in a release (`release.json#artifact`). */
+interface ImageArtifact {
+	url: string;
+	checksum: string;
+	contentType: string;
+	width: number;
+	height: number;
+	lang?: string;
+}
+
 interface PackageReleaseRecordShape {
 	$type: typeof NSID.packageRelease;
 	package: string;
@@ -248,6 +290,10 @@ interface PackageReleaseRecordShape {
 			checksum: string;
 			contentType?: string;
 		};
+		icon?: ImageArtifact;
+		banner?: ImageArtifact;
+		/** Ordered screenshot gallery (`artifacts.screenshots` in the lexicon). */
+		screenshots?: ImageArtifact[];
 	};
 	/** Source-repository URL (`release.repo`). Omitted when not provided. */
 	repo?: string;
@@ -411,6 +457,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	if (options.requires !== undefined && Object.keys(options.requires).length > 0) {
 		releaseRecord.requires = options.requires;
 	}
+	applyArtifacts(releaseRecord, options.artifacts);
 
 	type WriteOp =
 		| {
@@ -562,6 +609,25 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 
 function atUri(did: Did, collection: string, rkey: string): string {
 	return `at://${did}/${collection}/${rkey}`;
+}
+
+/**
+ * Write resolved media artifacts into a release record's `artifacts` map.
+ *
+ * `icon` and `banner` map to their single-`#artifact` lexicon slots directly;
+ * `screenshots` is written as the lexicon's `artifacts.screenshots` array,
+ * preserving gallery order.
+ */
+function applyArtifacts(
+	record: PackageReleaseRecordShape,
+	artifacts: ReleaseArtifactsInput | undefined,
+): void {
+	if (!artifacts) return;
+	if (artifacts.icon) record.artifacts.icon = { ...artifacts.icon };
+	if (artifacts.banner) record.artifacts.banner = { ...artifacts.banner };
+	if (artifacts.screenshots && artifacts.screenshots.length > 0) {
+		record.artifacts.screenshots = artifacts.screenshots.map((shot) => ({ ...shot }));
+	}
 }
 
 /**

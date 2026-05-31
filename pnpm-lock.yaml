@@ -222,6 +222,9 @@ catalogs:
     chokidar:
       specifier: ^5.0.0
       version: 5.0.0
+    image-size:
+      specifier: ^2.0.2
+      version: 2.0.2
     jsonc-parser:
       specifier: ^3.3.1
       version: 3.3.1
@@ -1732,7 +1735,7 @@ importers:
         specifier: ^3.4.2
         version: 3.4.2
       image-size:
-        specifier: ^2.0.2
+        specifier: 'catalog:'
         version: 2.0.2
       jsonc-parser:
         specifier: 'catalog:'

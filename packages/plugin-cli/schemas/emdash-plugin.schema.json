@@ -58,6 +58,9 @@
 		},
 		"requires": {
 			"$ref": "#/$defs/__schema43"
+		},
+		"release": {
+			"$ref": "#/$defs/__schema46"
 		}
 	},
 	"required": [
@@ -492,6 +495,83 @@
 		"__schema45": {
 			"type": "string",
 			"minLength": 1
+		},
+		"__schema46": {
+			"type": "object",
+			"properties": {
+				"artifacts": {
+					"$ref": "#/$defs/__schema47"
+				}
+			},
+			"additionalProperties": false,
+			"title": "Release",
+			"description": "Per-release fields, such as media artifacts (icon / screenshot / banner)."
+		},
+		"__schema47": {
+			"type": "object",
+			"properties": {
+				"icon": {
+					"$ref": "#/$defs/__schema48"
+				},
+				"banner": {
+					"$ref": "#/$defs/__schema52"
+				},
+				"screenshots": {
+					"$ref": "#/$defs/__schema53"
+				}
+			},
+			"additionalProperties": false,
+			"title": "Artifacts",
+			"description": "Release media artifacts. `icon` and `banner` are single images; `screenshots` is a gallery array."
+		},
+		"__schema48": {
+			"$ref": "#/$defs/__schema49"
+		},
+		"__schema49": {
+			"type": "object",
+			"properties": {
+				"file": {
+					"$ref": "#/$defs/__schema50"
+				},
+				"lang": {
+					"$ref": "#/$defs/__schema51"
+				}
+			},
+			"required": [
+				"file"
+			],
+			"additionalProperties": false,
+			"title": "Artifact file reference",
+			"description": "A media file (PNG / JPEG / WebP / GIF / AVIF) bundled into a release as an icon, screenshot, or banner."
+		},
+		"__schema50": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 1024,
+			"description": "Path to the image file, relative to the manifest. Resolved, hashed, measured, and uploaded at publish time."
+		},
+		"__schema51": {
+			"type": "string",
+			"minLength": 2,
+			"maxLength": 64,
+			"description": "BCP 47 language tag for a localised artifact (e.g. \"en\", \"pt-BR\").",
+			"examples": [
+				"en",
+				"pt-BR"
+			]
+		},
+		"__schema52": {
+			"$ref": "#/$defs/__schema49"
+		},
+		"__schema53": {
+			"minItems": 1,
+			"maxItems": 8,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema49"
+			},
+			"title": "Screenshots",
+			"description": "Screenshot gallery for the plugin's detail page (<= 8 entries)."
 		}
 	}
 }

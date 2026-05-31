@@ -23,7 +23,9 @@ import * as React from "react";
 
 import { fetchManifest } from "../lib/api/client.js";
 import {
+	artifactProxyUrl,
 	canonicalCapabilitiesForDriftCheck,
+	extractMediaArtifacts,
 	getRegistryPackage,
 	hostEnvFromManifest,
 	installRegistryPlugin,
@@ -222,6 +224,35 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const repoHref = safeExternalHref(release?.release?.repo);
 	const verified = (pkg?.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
+	// Media artifacts (icon / screenshot / banner) live on the release record's
+	// `artifacts` map. The publisher-supplied URLs never reach the client — we
+	// address each image by its `(did, slug, version, kind, index)` coordinates,
+	// and the server resolves the declared URL from the release record before
+	// fetching it through its SSRF-defended, content-type-allowlisted proxy.
+	const mediaArtifacts = extractMediaArtifacts(release?.release?.artifacts);
+	const artifactDid = pkg?.did;
+	const artifactVersion = release?.version;
+	const iconSrc =
+		mediaArtifacts.icon && artifactDid
+			? artifactProxyUrl({ did: artifactDid, slug, version: artifactVersion, kind: "icon" })
+			: null;
+	const bannerSrc =
+		mediaArtifacts.banner && artifactDid
+			? artifactProxyUrl({ did: artifactDid, slug, version: artifactVersion, kind: "banner" })
+			: null;
+	const screenshots = artifactDid
+		? mediaArtifacts.screenshots.map((shot) => ({
+				...shot,
+				src: artifactProxyUrl({
+					did: artifactDid,
+					slug,
+					version: artifactVersion,
+					kind: "screenshot",
+					index: shot.index,
+				}),
+			}))
+		: [];
+
 	const policyOk =
 		release && pkg ? releasePassesPolicy(release, { did: pkg.did, slug }, config.policy) : true;
 
@@ -327,10 +358,29 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		<div className="space-y-6">
 			<BackLink />
 
+			{/* Banner */}
+			{bannerSrc ? (
+				<img
+					src={bannerSrc}
+					alt={t`${displayName ?? slug} banner`}
+					className="h-40 w-full rounded-xl object-cover"
+					loading="lazy"
+				/>
+			) : null}
+
 			{/* Header */}
 			<div className="flex flex-wrap items-start gap-4">
-				<div className="rounded-xl bg-kumo-subtle p-3 text-kumo-subtle">
-					<span aria-hidden className="block h-10 w-10" />
+				<div className="overflow-hidden rounded-xl bg-kumo-subtle text-kumo-subtle">
+					{iconSrc ? (
+						<img
+							src={iconSrc}
+							alt={t`${displayName ?? slug} icon`}
+							className="block h-16 w-16 object-cover"
+							loading="lazy"
+						/>
+					) : (
+						<span aria-hidden className="block h-16 w-16" />
+					)}
 				</div>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
@@ -489,6 +539,26 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 
 			{/* Description */}
 			{description ? <p className="text-base text-kumo-default">{description}</p> : null}
+
+			{/* Screenshot gallery */}
+			{screenshots.length > 0 ? (
+				<section aria-label={t`Screenshots`}>
+					<ul className="flex snap-x gap-3 overflow-x-auto pb-2">
+						{screenshots.map((shot, i) => (
+							<li key={shot.index} className="shrink-0 snap-start">
+								<img
+									src={shot.src}
+									alt={t`Screenshot ${i + 1}`}
+									width={shot.width}
+									height={shot.height}
+									className="h-48 w-auto rounded-lg border border-kumo-default object-cover"
+									loading="lazy"
+								/>
+							</li>
+						))}
+					</ul>
+				</section>
+			) : null}
 
 			{/* License / keywords / repository */}
 			{licenseText || repoHref || keywordList.length > 0 ? (

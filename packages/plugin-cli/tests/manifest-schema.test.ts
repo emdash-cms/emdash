@@ -15,6 +15,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	ArtifactFileSchema,
+	ArtifactsSchema,
 	AuthorSchema,
 	LicenseSchema,
 	ManifestSchema,
@@ -158,6 +160,64 @@ describe("RequiresSchema", () => {
 	});
 });
 
+describe("ArtifactFileSchema", () => {
+	it("accepts a bare file ref", () => {
+		expect(ArtifactFileSchema.safeParse({ file: "./icon.png" }).success).toBe(true);
+	});
+
+	it("accepts a file ref with a lang tag", () => {
+		expect(ArtifactFileSchema.safeParse({ file: "./icon-fr.png", lang: "fr" }).success).toBe(true);
+	});
+
+	it("rejects an empty file path", () => {
+		expect(ArtifactFileSchema.safeParse({ file: "" }).success).toBe(false);
+	});
+
+	it("rejects unknown keys (e.g. a hand-written url/checksum)", () => {
+		const result = ArtifactFileSchema.safeParse({
+			file: "./icon.png",
+			url: "https://example.com/icon.png",
+		});
+		expect(result.success).toBe(false);
+	});
+});
+
+describe("ArtifactsSchema", () => {
+	it("accepts icon and banner as single file refs", () => {
+		const result = ArtifactsSchema.safeParse({
+			icon: { file: "./icon.png" },
+			banner: { file: "./banner.png" },
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("accepts screenshots as an array of file refs", () => {
+		const result = ArtifactsSchema.safeParse({
+			screenshots: [{ file: "./s1.png" }, { file: "./s2.png", lang: "de" }],
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects a single (non-array) screenshots value", () => {
+		const result = ArtifactsSchema.safeParse({ screenshots: { file: "./s1.png" } });
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects an empty screenshots array", () => {
+		expect(ArtifactsSchema.safeParse({ screenshots: [] }).success).toBe(false);
+	});
+
+	it("rejects more than eight screenshots", () => {
+		const screenshots = Array.from({ length: 9 }, (_, i) => ({ file: `./s${i}.png` }));
+		expect(ArtifactsSchema.safeParse({ screenshots }).success).toBe(false);
+	});
+
+	it("rejects the legacy singular `screenshot` key", () => {
+		const result = ArtifactsSchema.safeParse({ screenshot: [{ file: "./s1.png" }] });
+		expect(result.success).toBe(false);
+	});
+});
+
 describe("ManifestSchema (full document)", () => {
 	const minimal = {
 		slug: "my-plugin",
@@ -171,6 +231,28 @@ describe("ManifestSchema (full document)", () => {
 	it("accepts the minimal required shape", () => {
 		const result = ManifestSchema.safeParse(minimal);
 		expect(result.success).toBe(true);
+	});
+
+	it("accepts a manifest with a release.artifacts block", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			release: {
+				artifacts: {
+					icon: { file: "./icon.png" },
+					banner: { file: "./banner.png" },
+					screenshots: [{ file: "./s1.png" }, { file: "./s2.png" }],
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects an unknown key inside release", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			release: { artifacts: { icon: { file: "./icon.png" } }, bogus: true },
+		});
+		expect(result.success).toBe(false);
 	});
 
 	it("accepts a manifest with $schema for IDE completion", () => {
