@@ -429,6 +429,103 @@ export async function resolveDidToHandle(did: string): Promise<DidHandleResoluti
 }
 
 // ---------------------------------------------------------------------------
+// Artifact proxy (server GET)
+// ---------------------------------------------------------------------------
+
+const ARTIFACT_PROXY_ENDPOINT = `${API_BASE}/admin/plugins/registry/artifact`;
+
+/**
+ * Build the URL of the server-side artifact proxy for a publisher-supplied
+ * image URL (icon / screenshot / banner). The browser never fetches the
+ * publisher's URL directly — the proxy applies SSRF defences, enforces an
+ * image content-type allowlist, and serves the bytes back same-origin.
+ *
+ * Returns `null` when the input isn't an absolute http(s) URL. The release
+ * record is an untrusted aggregator pass-through, so a `javascript:` or
+ * relative `url` must never reach an `<img src>`.
+ */
+export function artifactProxyUrl(value: unknown): string | null {
+	if (typeof value !== "string" || value.length === 0) return null;
+	let parsed: URL;
+	try {
+		parsed = new URL(value);
+	} catch {
+		return null;
+	}
+	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+	// Forward the original value, not `parsed.href`: WHATWG normalisation can
+	// rewrite the path/query and 404 against byte-sensitive hosting. The server
+	// re-validates independently, so the scheme check here is the only gate.
+	return `${ARTIFACT_PROXY_ENDPOINT}?url=${encodeURIComponent(value)}`;
+}
+
+/** A single image artifact lifted off a release record. */
+export interface MediaArtifact {
+	url: string;
+	width?: number;
+	height?: number;
+}
+
+export interface MediaArtifacts {
+	icon?: MediaArtifact;
+	banner?: MediaArtifact;
+	screenshots: MediaArtifact[];
+}
+
+const SCREENSHOT_OVERFLOW_KEY_RE = /^x-screenshot-(\d+)$/;
+
+/**
+ * Narrow one entry of a release's `artifacts` map to the fields we render.
+ * Returns `null` when the value isn't an object with a string `url`.
+ *
+ * Records are lexicon-validated at the DiscoveryClient boundary, but
+ * `artifacts` is an open map (the `x-screenshot-N` overflow keys are
+ * unrecognised by the lexicon), so each entry still needs shape-narrowing.
+ */
+function asMediaArtifact(value: unknown): MediaArtifact | null {
+	if (!value || typeof value !== "object") return null;
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; field shapes checked below
+	const v = value as Record<string, unknown>;
+	if (typeof v.url !== "string" || v.url.length === 0) return null;
+	const artifact: MediaArtifact = { url: v.url };
+	if (typeof v.width === "number") artifact.width = v.width;
+	if (typeof v.height === "number") artifact.height = v.height;
+	return artifact;
+}
+
+/**
+ * Pull icon, banner, and the screenshot gallery out of a release's `artifacts`
+ * map. The lexicon types `screenshot` as a single artifact, so the gallery is
+ * the lexicon `screenshot` plus any `x-screenshot-N` overflow keys (the CLI
+ * writes additional screenshots there), ordered by N.
+ */
+export function extractMediaArtifacts(artifacts: unknown): MediaArtifacts {
+	const result: MediaArtifacts = { screenshots: [] };
+	if (!artifacts || typeof artifacts !== "object") return result;
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; each entry is shape-narrowed by asMediaArtifact
+	const map = artifacts as Record<string, unknown>;
+
+	const icon = asMediaArtifact(map.icon);
+	if (icon) result.icon = icon;
+	const banner = asMediaArtifact(map.banner);
+	if (banner) result.banner = banner;
+
+	const first = asMediaArtifact(map.screenshot);
+	const overflow: Array<{ index: number; artifact: MediaArtifact }> = [];
+	for (const [key, value] of Object.entries(map)) {
+		const match = SCREENSHOT_OVERFLOW_KEY_RE.exec(key);
+		if (!match) continue;
+		const artifact = asMediaArtifact(value);
+		if (artifact) overflow.push({ index: Number(match[1]), artifact });
+	}
+	overflow.sort((a, b) => a.index - b.index);
+
+	if (first) result.screenshots.push(first);
+	for (const entry of overflow) result.screenshots.push(entry.artifact);
+	return result;
+}
+
+// ---------------------------------------------------------------------------
 // Install (server POST)
 // ---------------------------------------------------------------------------
 

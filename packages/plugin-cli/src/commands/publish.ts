@@ -44,7 +44,9 @@ import {
 	publishRelease,
 	type ProfileInput,
 	type PublishLogger,
+	type ReleaseArtifactsInput,
 } from "../publish/api.js";
+import { ArtifactUploadError, resolveReleaseArtifacts } from "../publish/upload-artifacts.js";
 
 /**
  * Hard cap on the gzipped tarball we'll buffer into memory. Sized for the
@@ -115,6 +117,11 @@ export const publishCommand = defineCommand({
 			description:
 				"Allow overwriting an existing release at <slug>:<version>. Default refuses, since FAIR treats version records as immutable and aggregators/labellers may flag any change as a takedown event.",
 			default: false,
+		},
+		"artifact-base-url": {
+			type: "string",
+			description:
+				"Base URL the CLI PUTs media artifacts (icon / screenshot / banner) to. Each file is uploaded to <base>/<slug>/<version>/<filename> and that URL is recorded in the release. The target must serve the bytes back unchanged with a stable content type. Required when the manifest declares any `release.artifacts`.",
 		},
 		json: {
 			type: "boolean",
@@ -303,6 +310,8 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		warn: (m) => consola.warn(m),
 	};
 
+	const artifacts = await resolveManifestArtifacts(args, manifestLoad, logger);
+
 	const result = await publishRelease({
 		publisher,
 		did: session.did,
@@ -311,6 +320,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		url: args.url,
 		profileInput,
 		repo: manifestLoad?.manifest.repo,
+		artifacts,
 		allowOverwrite: args["allow-overwrite"],
 		logger,
 	});
@@ -369,6 +379,59 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		`The aggregator will pick this up from the firehose. To verify discovery once it's indexed:`,
 	);
 	console.log(`  ${pc.cyan(`emdash-plugin info ${session.handle ?? session.did} ${result.slug}`)}`);
+}
+
+/**
+ * Resolve the manifest's `release.artifacts` block into uploaded, embeddable
+ * records. Returns `undefined` when no manifest was loaded or it declared no
+ * artifacts. Throws `CliError` when artifacts are declared but the publisher
+ * didn't supply `--artifact-base-url`, or when resolution/upload fails.
+ */
+async function resolveManifestArtifacts(
+	args: PublishArgs,
+	manifestLoad: ManifestLoadOutcome | null,
+	logger: PublishLogger,
+): Promise<ReleaseArtifactsInput | undefined> {
+	const artifacts = manifestLoad?.manifest.artifacts;
+	if (!manifestLoad || !artifacts) return undefined;
+
+	const baseUrl = args["artifact-base-url"];
+	if (baseUrl === undefined || baseUrl.length === 0) {
+		throw new CliError(
+			"The manifest declares `release.artifacts` (icon / screenshot / banner) but no --artifact-base-url was given. Pass --artifact-base-url <url> so the CLI can upload the images and record where they're hosted.",
+			2,
+			"ARTIFACT_BASE_URL_REQUIRED",
+		);
+	}
+	let parsedBase: URL;
+	try {
+		parsedBase = new URL(baseUrl);
+	} catch {
+		throw new CliError(`--artifact-base-url is not a valid URL: ${baseUrl}`, 2, "INVALID_FLAG");
+	}
+	if (parsedBase.protocol !== "https:") {
+		throw new CliError(
+			`--artifact-base-url must use https; got ${parsedBase.protocol}. Host artifacts over TLS.`,
+			2,
+			"INVALID_FLAG",
+		);
+	}
+
+	try {
+		return await resolveReleaseArtifacts({
+			artifacts,
+			manifestDir: dirname(manifestLoad.path),
+			baseUrl,
+			slug: manifestLoad.manifest.slug,
+			version: manifestLoad.manifest.version,
+			logger,
+		});
+	} catch (error) {
+		if (error instanceof ArtifactUploadError) {
+			throw new CliError(error.message, 1, error.code);
+		}
+		throw error;
+	}
 }
 
 /**
@@ -435,6 +498,7 @@ type PublishArgs = {
 	manifest?: string;
 	"no-manifest"?: boolean;
 	"allow-overwrite"?: boolean;
+	"artifact-base-url"?: string;
 	json?: boolean;
 };
 

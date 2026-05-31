@@ -21,7 +21,9 @@ import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
+	artifactProxyUrl,
 	canonicalCapabilitiesForDriftCheck,
+	extractMediaArtifacts,
 	getRegistryPackage,
 	installRegistryPlugin,
 	listRegistryReleases,
@@ -209,6 +211,17 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const repoHref = safeExternalHref(release?.release?.repo);
 	const verified = (pkg?.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
+	// Media artifacts (icon / screenshot / banner) live on the release record's
+	// `artifacts` map. Each carries a publisher-supplied `url`; we never point an
+	// `<img>` at it directly — every image goes through the server's SSRF-defended
+	// proxy, which also enforces an image content-type allowlist.
+	const mediaArtifacts = extractMediaArtifacts(release?.release?.artifacts);
+	const iconSrc = artifactProxyUrl(mediaArtifacts.icon?.url);
+	const bannerSrc = artifactProxyUrl(mediaArtifacts.banner?.url);
+	const screenshots = mediaArtifacts.screenshots
+		.map((shot) => ({ ...shot, src: artifactProxyUrl(shot.url) }))
+		.filter((shot): shot is typeof shot & { src: string } => shot.src !== null);
+
 	const policyOk =
 		release && pkg ? releasePassesPolicy(release, { did: pkg.did, slug }, config.policy) : true;
 	// Handle resolution affects display only -- installs are addressed
@@ -300,10 +313,29 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		<div className="space-y-6">
 			<BackLink />
 
+			{/* Banner */}
+			{bannerSrc ? (
+				<img
+					src={bannerSrc}
+					alt={t`${displayName ?? slug} banner`}
+					className="h-40 w-full rounded-xl object-cover"
+					loading="lazy"
+				/>
+			) : null}
+
 			{/* Header */}
 			<div className="flex flex-wrap items-start gap-4">
-				<div className="rounded-xl bg-kumo-subtle p-3 text-kumo-subtle">
-					<span aria-hidden className="block h-10 w-10" />
+				<div className="overflow-hidden rounded-xl bg-kumo-subtle text-kumo-subtle">
+					{iconSrc ? (
+						<img
+							src={iconSrc}
+							alt={t`${displayName ?? slug} icon`}
+							className="block h-16 w-16 object-cover"
+							loading="lazy"
+						/>
+					) : (
+						<span aria-hidden className="block h-16 w-16" />
+					)}
 				</div>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
@@ -436,6 +468,30 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 
 			{/* Description */}
 			{description ? <p className="text-base text-kumo-default">{description}</p> : null}
+
+			{/* Screenshot gallery */}
+			{screenshots.length > 0 ? (
+				<section aria-label={t`Screenshots`}>
+					<ul className="flex snap-x gap-3 overflow-x-auto pb-2">
+						{screenshots.map((shot, i) => (
+							<li
+								// eslint-disable-next-line react/no-array-index-key -- screenshots have no stable id; index is stable within a render
+								key={`${shot.url}-${i}`}
+								className="shrink-0 snap-start"
+							>
+								<img
+									src={shot.src}
+									alt={t`Screenshot ${i + 1}`}
+									width={shot.width}
+									height={shot.height}
+									className="h-48 w-auto rounded-lg border border-kumo-default object-cover"
+									loading="lazy"
+								/>
+							</li>
+						))}
+					</ul>
+				</section>
+			) : null}
 
 			{/* License / keywords / repository */}
 			{licenseText || repoHref || keywordList.length > 0 ? (

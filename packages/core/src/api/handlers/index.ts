@@ -171,6 +171,7 @@ export {
 
 // Registry handlers (experimental)
 export {
+	assertSafeArtifactUrl,
 	handleRegistryInstall,
 	handleRegistryUninstall,
 	handleRegistryUpdate,

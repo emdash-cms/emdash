@@ -527,6 +527,91 @@ export const AdminSchema = z
 	});
 
 // ──────────────────────────────────────────────────────────────────────────
+// Media artifacts (icon / screenshot / banner)
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * BCP 47 language tag for a localised artifact. Mirrors `release.json#artifact.lang`.
+ * Structural check only — the registry aggregator owns the strict grammar.
+ */
+const ArtifactLangSchema = z
+	.string()
+	.min(2, 'lang must be a BCP 47 language tag (e.g. "en", "pt-BR")')
+	.max(64, "lang must be <= 64 characters")
+	.meta({
+		description: 'BCP 47 language tag for a localised artifact (e.g. "en", "pt-BR").',
+		examples: ["en", "pt-BR"],
+	});
+
+/**
+ * A single media-artifact file reference. The `file` path is resolved relative
+ * to the manifest at publish time; the CLI reads the bytes, computes the
+ * checksum and pixel dimensions, uploads them to the publisher's artifact
+ * hosting, and writes a `#artifact` record (url, checksum, contentType, width,
+ * height, lang?) into the release. Only the authoring inputs live here — the
+ * derived fields never appear in the manifest.
+ */
+export const ArtifactFileSchema = z
+	.object({
+		file: z
+			.string()
+			.min(1, "artifact `file` path cannot be empty")
+			.max(1024, "artifact `file` path must be <= 1024 characters")
+			.meta({
+				description:
+					"Path to the image file, relative to the manifest. Resolved, hashed, measured, and uploaded at publish time.",
+			}),
+		lang: ArtifactLangSchema.optional(),
+	})
+	.strict()
+	.meta({
+		title: "Artifact file reference",
+		description:
+			"A media file (PNG / JPEG / WebP / GIF / SVG) bundled into a release as an icon, screenshot, or banner.",
+	});
+
+/**
+ * Release media artifacts. `icon` and `banner` are single files; `screenshot`
+ * is an array (a plugin can ship a gallery). Mirrors `release.json#artifacts`
+ * minus the `package` entry, which the CLI derives from the tarball.
+ */
+export const ArtifactsSchema = z
+	.object({
+		icon: ArtifactFileSchema.optional(),
+		banner: ArtifactFileSchema.optional(),
+		screenshot: z
+			.array(ArtifactFileSchema)
+			.min(1, "screenshot[] must have at least one entry when set")
+			.max(8, "screenshot[] must have <= 8 entries")
+			.meta({
+				title: "Screenshots",
+				description: "Screenshot gallery for the plugin's detail page (<= 8 entries).",
+			})
+			.optional(),
+	})
+	.strict()
+	.meta({
+		title: "Artifacts",
+		description:
+			"Release media artifacts. `icon` and `banner` are single images; `screenshot` is a gallery array.",
+	});
+
+/**
+ * Release-level block. Holds fields scoped to a single version rather than the
+ * package profile. Today that's media `artifacts`; the source `repo` stays at
+ * the top level for backwards compatibility.
+ */
+export const ReleaseSchema = z
+	.object({
+		artifacts: ArtifactsSchema.optional(),
+	})
+	.strict()
+	.meta({
+		title: "Release",
+		description: "Per-release fields, such as media artifacts (icon / screenshot / banner).",
+	});
+
+// ──────────────────────────────────────────────────────────────────────────
 // Top-level manifest
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -631,6 +716,10 @@ export const ManifestSchema = z
 
 		// Optional release fields.
 		repo: RepoSchema.optional(),
+
+		// Per-release media artifacts (icon / screenshot / banner). File
+		// refs are resolved relative to the manifest at publish time.
+		release: ReleaseSchema.optional(),
 	})
 	.strict()
 	.refine((v) => !(v.author !== undefined && v.authors !== undefined), {
@@ -706,3 +795,9 @@ export type ManifestAuthor = z.infer<typeof AuthorSchema>;
 
 /** A single security contact entry, normalised. */
 export type ManifestSecurityContact = z.infer<typeof SecurityContactSchema>;
+
+/** A single media-artifact file reference (icon / screenshot / banner). */
+export type ManifestArtifactFile = z.infer<typeof ArtifactFileSchema>;
+
+/** The release media-artifacts block. */
+export type ManifestArtifacts = z.infer<typeof ArtifactsSchema>;

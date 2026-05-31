@@ -132,6 +132,32 @@ export interface ProfileInput {
 	keywords?: string[];
 }
 
+/**
+ * A resolved image artifact ready to embed in the release. The CLI command
+ * reads the file, computes the checksum, measures the dimensions, and uploads
+ * the bytes before constructing this; `publishRelease` only writes it.
+ */
+export interface ReleaseArtifactInput {
+	url: string;
+	checksum: string;
+	contentType: string;
+	width: number;
+	height: number;
+	lang?: string;
+}
+
+/**
+ * Resolved release media artifacts. `icon` / `banner` are single images;
+ * `screenshots` is the ordered gallery. The first screenshot is written to the
+ * lexicon's `artifacts.screenshot` slot and the rest to `x-screenshot-N`
+ * custom keys.
+ */
+export interface ReleaseArtifactsInput {
+	icon?: ReleaseArtifactInput;
+	banner?: ReleaseArtifactInput;
+	screenshots?: ReleaseArtifactInput[];
+}
+
 export interface PublishOptions {
 	/** Authenticated client against the publisher's PDS. */
 	publisher: PublishingClient;
@@ -162,6 +188,13 @@ export interface PublishOptions {
 	 * immutable per version, so this is not a first-publish-only field.
 	 */
 	repo?: string;
+	/**
+	 * Resolved media artifacts (icon / screenshot / banner) for this release.
+	 * Already uploaded and measured by the caller. Written verbatim into the
+	 * release record. Releases are immutable per version, so this is not a
+	 * first-publish-only field.
+	 */
+	artifacts?: ReleaseArtifactsInput;
 	/**
 	 * Allow overwriting an existing release at `<slug>:<version>`. Default
 	 * is `false`, which causes publish to refuse with `RELEASE_ALREADY_PUBLISHED`.
@@ -232,6 +265,16 @@ interface PackageProfileRecordShape {
 	keywords?: string[];
 }
 
+/** An image artifact embedded in a release (`release.json#artifact`). */
+interface ImageArtifact {
+	url: string;
+	checksum: string;
+	contentType: string;
+	width: number;
+	height: number;
+	lang?: string;
+}
+
 interface PackageReleaseRecordShape {
 	$type: typeof NSID.packageRelease;
 	package: string;
@@ -242,6 +285,17 @@ interface PackageReleaseRecordShape {
 			checksum: string;
 			contentType?: string;
 		};
+		icon?: ImageArtifact;
+		banner?: ImageArtifact;
+		/**
+		 * First screenshot. The lexicon's `artifacts` object types
+		 * `screenshot` as a single `#artifact`, so additional screenshots
+		 * ride along under `x-screenshot-N` custom keys (which the lexicon
+		 * sanctions: "Custom types use 'x-' prefix and pass through as
+		 * unrecognised fields").
+		 */
+		screenshot?: ImageArtifact;
+		[extraScreenshot: `x-screenshot-${number}`]: ImageArtifact | undefined;
 	};
 	/** Source-repository URL (`release.repo`). Omitted when not provided. */
 	repo?: string;
@@ -400,6 +454,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	if (options.repo !== undefined) {
 		releaseRecord.repo = options.repo;
 	}
+	applyArtifacts(releaseRecord, options.artifacts);
 
 	type WriteOp =
 		| {
@@ -551,6 +606,32 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 
 function atUri(did: Did, collection: string, rkey: string): string {
 	return `at://${did}/${collection}/${rkey}`;
+}
+
+/**
+ * Write resolved media artifacts into a release record's `artifacts` map.
+ *
+ * `icon` and `banner` map to their lexicon slots directly. The lexicon types
+ * `screenshot` as a single `#artifact`, so the first screenshot goes there and
+ * any extras ride along under `x-screenshot-2`, `x-screenshot-3`, … custom
+ * keys (the lexicon documents `x-` prefixed entries as pass-through fields).
+ * Indices are 1-based and contiguous, matching the gallery order.
+ */
+function applyArtifacts(
+	record: PackageReleaseRecordShape,
+	artifacts: ReleaseArtifactsInput | undefined,
+): void {
+	if (!artifacts) return;
+	if (artifacts.icon) record.artifacts.icon = { ...artifacts.icon };
+	if (artifacts.banner) record.artifacts.banner = { ...artifacts.banner };
+	const screenshots = artifacts.screenshots ?? [];
+	screenshots.forEach((shot, index) => {
+		if (index === 0) {
+			record.artifacts.screenshot = { ...shot };
+		} else {
+			record.artifacts[`x-screenshot-${index + 1}`] = { ...shot };
+		}
+	});
 }
 
 /**
