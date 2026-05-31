@@ -53,11 +53,14 @@
 		"keywords": {
 			"$ref": "#/$defs/__schema40"
 		},
-		"repo": {
+		"sections": {
 			"$ref": "#/$defs/__schema42"
 		},
+		"repo": {
+			"$ref": "#/$defs/__schema52"
+		},
 		"release": {
-			"$ref": "#/$defs/__schema43"
+			"$ref": "#/$defs/__schema53"
 		}
 	},
 	"required": [
@@ -459,6 +462,80 @@
 			"maxLength": 128
 		},
 		"__schema42": {
+			"type": "object",
+			"properties": {
+				"description": {
+					"$ref": "#/$defs/__schema43"
+				},
+				"installation": {
+					"$ref": "#/$defs/__schema48"
+				},
+				"faq": {
+					"$ref": "#/$defs/__schema49"
+				},
+				"changelog": {
+					"$ref": "#/$defs/__schema50"
+				},
+				"security": {
+					"$ref": "#/$defs/__schema51"
+				}
+			},
+			"additionalProperties": false,
+			"title": "Profile sections",
+			"description": "Long-form package documentation (description / installation / faq / changelog / security). Each value is CommonMark Markdown (inline or a `{ file }` ref) capped at 20000 bytes / 2000 graphemes. Rendered on the package's registry page."
+		},
+		"__schema43": {
+			"$ref": "#/$defs/__schema44"
+		},
+		"__schema44": {
+			"anyOf": [
+				{
+					"$ref": "#/$defs/__schema45"
+				},
+				{
+					"$ref": "#/$defs/__schema46"
+				}
+			],
+			"title": "Section value",
+			"description": "Either inline CommonMark Markdown or a `{ file }` reference to a sibling Markdown file."
+		},
+		"__schema45": {
+			"type": "string",
+			"description": "Inline CommonMark Markdown for this section. Capped at 20000 bytes / 2000 graphemes."
+		},
+		"__schema46": {
+			"type": "object",
+			"properties": {
+				"file": {
+					"$ref": "#/$defs/__schema47"
+				}
+			},
+			"required": [
+				"file"
+			],
+			"additionalProperties": false,
+			"title": "Section file reference",
+			"description": "Loads the section's Markdown from a sibling file instead of inlining it in the manifest."
+		},
+		"__schema47": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 1024,
+			"description": "Path to a CommonMark Markdown file, relative to the manifest. Its content is read inline into the section at publish time."
+		},
+		"__schema48": {
+			"$ref": "#/$defs/__schema44"
+		},
+		"__schema49": {
+			"$ref": "#/$defs/__schema44"
+		},
+		"__schema50": {
+			"$ref": "#/$defs/__schema44"
+		},
+		"__schema51": {
+			"$ref": "#/$defs/__schema44"
+		},
+		"__schema52": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
@@ -469,27 +546,27 @@
 				"https://github.com/emdash-cms/plugin-gallery"
 			]
 		},
-		"__schema43": {
+		"__schema53": {
 			"type": "object",
 			"properties": {
 				"requires": {
-					"$ref": "#/$defs/__schema44"
+					"$ref": "#/$defs/__schema54"
 				},
 				"artifacts": {
-					"$ref": "#/$defs/__schema47"
+					"$ref": "#/$defs/__schema57"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Release",
 			"description": "Per-release fields: environment constraints (`requires`) and media artifacts (icon / screenshot / banner)."
 		},
-		"__schema44": {
+		"__schema54": {
 			"type": "object",
 			"propertyNames": {
-				"$ref": "#/$defs/__schema45"
+				"$ref": "#/$defs/__schema55"
 			},
 			"additionalProperties": {
-				"$ref": "#/$defs/__schema46"
+				"$ref": "#/$defs/__schema56"
 			},
 			"title": "Environment requirements",
 			"description": "Host environment constraints for this release, keyed by `env:*` (e.g. \"env:astro\", \"env:emdash\") with semver-range values. EmDash refuses to install a release whose constraints the host does not satisfy.",
@@ -500,41 +577,41 @@
 				}
 			]
 		},
-		"__schema45": {
+		"__schema55": {
 			"type": "string"
 		},
-		"__schema46": {
+		"__schema56": {
 			"type": "string",
 			"minLength": 1
 		},
-		"__schema47": {
+		"__schema57": {
 			"type": "object",
 			"properties": {
 				"icon": {
-					"$ref": "#/$defs/__schema48"
+					"$ref": "#/$defs/__schema58"
 				},
 				"banner": {
-					"$ref": "#/$defs/__schema52"
+					"$ref": "#/$defs/__schema62"
 				},
 				"screenshots": {
-					"$ref": "#/$defs/__schema53"
+					"$ref": "#/$defs/__schema63"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Artifacts",
 			"description": "Release media artifacts. `icon` and `banner` are single images; `screenshots` is a gallery array."
 		},
-		"__schema48": {
-			"$ref": "#/$defs/__schema49"
+		"__schema58": {
+			"$ref": "#/$defs/__schema59"
 		},
-		"__schema49": {
+		"__schema59": {
 			"type": "object",
 			"properties": {
 				"file": {
-					"$ref": "#/$defs/__schema50"
+					"$ref": "#/$defs/__schema60"
 				},
 				"lang": {
-					"$ref": "#/$defs/__schema51"
+					"$ref": "#/$defs/__schema61"
 				}
 			},
 			"required": [
@@ -544,13 +621,13 @@
 			"title": "Artifact file reference",
 			"description": "A media file (PNG / JPEG / WebP / GIF / AVIF) bundled into a release as an icon, screenshot, or banner."
 		},
-		"__schema50": {
+		"__schema60": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"description": "Path to the image file, relative to the manifest. Resolved, hashed, measured, and uploaded at publish time."
 		},
-		"__schema51": {
+		"__schema61": {
 			"type": "string",
 			"minLength": 2,
 			"maxLength": 64,
@@ -560,15 +637,15 @@
 				"pt-BR"
 			]
 		},
-		"__schema52": {
-			"$ref": "#/$defs/__schema49"
+		"__schema62": {
+			"$ref": "#/$defs/__schema59"
 		},
-		"__schema53": {
+		"__schema63": {
 			"minItems": 1,
 			"maxItems": 8,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema49"
+				"$ref": "#/$defs/__schema59"
 			},
 			"title": "Screenshots",
 			"description": "Screenshot gallery for the plugin's detail page (<= 8 entries)."

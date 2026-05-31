@@ -544,6 +544,48 @@ describe("publishRelease", () => {
 			expect("keywords" in value).toBe(false);
 		});
 
+		it("writes resolved sections into the profile record on first publish", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(
+				buildOptions(pds, {
+					profile: undefined,
+					profileInput: {
+						license: "MIT",
+						authors: [{ name: "Solo" }],
+						security: [{ email: "s@example.com" }],
+						sections: {
+							description: "# About\n\nA great plugin.",
+							installation: "Run `pnpm add`.",
+						},
+					},
+				}),
+			);
+			const profile = pds.records.get(`at://${TEST_DID}/${NSID.packageProfile}/test-plugin`);
+			const value = profile!.value as { sections?: Record<string, string> };
+			expect(value.sections).toEqual({
+				description: "# About\n\nA great plugin.",
+				installation: "Run `pnpm add`.",
+			});
+		});
+
+		it("omits sections when none are provided or the map is empty", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(
+				buildOptions(pds, {
+					profile: undefined,
+					profileInput: {
+						license: "MIT",
+						authors: [{ name: "Solo" }],
+						security: [{ email: "s@example.com" }],
+						sections: {},
+					},
+				}),
+			);
+			const profile = pds.records.get(`at://${TEST_DID}/${NSID.packageProfile}/test-plugin`);
+			const value = profile!.value as Record<string, unknown>;
+			expect("sections" in value).toBe(false);
+		});
+
 		it("hard-fails when no security contact is provided", async () => {
 			const pds = new MockPds({ did: TEST_DID });
 			await expect(

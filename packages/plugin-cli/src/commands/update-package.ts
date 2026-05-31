@@ -38,7 +38,12 @@ import pc from "picocolors";
 import { redirectConsolaToStderr } from "../cli-output.js";
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
 import { checkPublisher, PublisherCheckError } from "../manifest/publisher.js";
-import { manifestToProfileInput, normaliseManifest } from "../manifest/translate.js";
+import {
+	manifestToProfileInput,
+	normaliseManifest,
+	resolveSections,
+	SectionError,
+} from "../manifest/translate.js";
 import { resumeSession } from "../oauth.js";
 import {
 	updatePackage,
@@ -176,6 +181,14 @@ async function loadManifestForUpdate(path: string): Promise<ManifestLoadOutcome>
 				if (code === "VERSION_MISSING" || code === "VERSION_MISMATCH") {
 					throw new CliError(error.message, 1, String(code));
 				}
+			}
+			throw error;
+		}
+		try {
+			normalised.sections = await resolveSections(manifest.sections, dirname(resolvedPath));
+		} catch (error) {
+			if (error instanceof SectionError) {
+				throw new CliError(error.message, 1, error.code);
 			}
 			throw error;
 		}
