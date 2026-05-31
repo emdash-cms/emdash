@@ -79,6 +79,10 @@ describe("OAuth provider route — environment resolution", () => {
 	});
 
 	it("falls back gracefully when locals.runtime.env throws (Astro v6 Cloudflare)", async () => {
+		// In Node tests the dynamic import of cloudflare:workers throws,
+		// so we verify the triple-fallback chain: locals.runtime.env →
+		// cloudflare:workers (throws) → import.meta.env. A successful
+		// cloudflare:workers path can be verified in integration tests.
 		vi.stubEnv("EMDASH_OAUTH_GITHUB_CLIENT_ID", "test-client-id");
 		vi.stubEnv("EMDASH_OAUTH_GITHUB_CLIENT_SECRET", "test-client-secret");
 
