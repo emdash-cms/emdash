@@ -13,8 +13,11 @@
  * sidebar entries stay stable.
  */
 
-import { Badge, Button, LinkButton, Select } from "@cloudflare/kumo";
+import { Badge, Button, LinkButton, Select, Tabs, Tooltip } from "@cloudflare/kumo";
+import type { TabsItem } from "@cloudflare/kumo";
 import { checkEnvCompatibility } from "@emdash-cms/registry-client/env";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { ShieldCheck, Warning } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -26,15 +29,20 @@ import {
 	artifactProxyUrl,
 	canonicalCapabilitiesForDriftCheck,
 	extractMediaArtifacts,
+	extractSbom,
 	getRegistryPackage,
 	hostEnvFromManifest,
 	installRegistryPlugin,
 	listRegistryReleases,
+	presentSections,
 	releasePassesPolicy,
 	resolveRegistryPackage,
+	sbomDownloadHref,
 	type RegistryClientConfig,
 	type RegistryReleaseView,
+	type SectionKey,
 } from "../lib/api/registry.js";
+import { renderMarkdown } from "../lib/markdown.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
@@ -222,7 +230,47 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	});
 	// `repo` is a release-level field (`release.repo`), not a profile field.
 	const repoHref = safeExternalHref(release?.release?.repo);
-	const verified = (pkg?.labels ?? []).some((l: { val?: string }) => l.val === "verified");
+
+	// Verified-publisher label. `src` is the labeller DID that issued it — shown
+	// in the shield tooltip so the admin can judge who is vouching for the
+	// publisher, not just that *someone* did.
+	const verifiedLabel = (pkg?.labels ?? []).find((l: { val?: string }) => l.val === "verified") as
+		| { val?: string; src?: string }
+		| undefined;
+	const verified = Boolean(verifiedLabel);
+	const verifiedLabeller = typeof verifiedLabel?.src === "string" ? verifiedLabel.src : null;
+
+	// Long-form profile sections (description / installation / faq / changelog /
+	// security). Empty / whitespace-only entries are dropped by `presentSections`;
+	// each surviving value goes through the shared sanitizing `renderMarkdown`.
+	const sections = presentSections(pkgProfile);
+
+	// Active section tab. Defaults to the first present section (description-first
+	// by `SECTION_ORDER`). Reconciled during render — not in an effect — when the
+	// selected section disappears after navigating to a different package, so the
+	// Tabs trigger never renders a value with no matching pane.
+	const [selectedSection, setSelectedSection] = React.useState<SectionKey | undefined>(undefined);
+	const defaultSection = sections[0]?.key;
+	const activeSection =
+		selectedSection && sections.some((s) => s.key === selectedSection)
+			? selectedSection
+			: defaultSection;
+	if (selectedSection !== undefined && activeSection !== selectedSection) {
+		setSelectedSection(undefined);
+	}
+	const activePane = sections.find((s) => s.key === activeSection);
+
+	// SBOM reference on the signed release record. The download link points
+	// directly at the publisher's URL (the browser fetches it client-side on
+	// click), so the URL is gated through `sbomDownloadHref` before it reaches an
+	// `href` — same scheme allow-list as every other publisher URL.
+	const sbom = extractSbom(release?.release?.sbom);
+	const sbomHref = sbom ? sbomDownloadHref(sbom.url) : null;
+
+	// `lastUpdated` is the publisher-asserted update time on the profile;
+	// `release.indexedAt` is when the aggregator indexed the release. They answer
+	// different questions, so both are labelled distinctly below.
+	const lastUpdated = typeof pkgProfile?.lastUpdated === "string" ? pkgProfile.lastUpdated : null;
 
 	// Media artifacts (icon / screenshot / banner) live on the release record's
 	// `artifacts` map. The publisher-supplied URLs never reach the client — we
@@ -386,9 +434,25 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					<div className="flex items-center gap-2">
 						<h1 className="truncate text-3xl font-bold">{displayName ?? slug}</h1>
 						{verified ? (
-							<ShieldCheck
-								className="h-5 w-5 shrink-0 text-kumo-brand"
-								aria-label={t`Verified publisher`}
+							<Tooltip
+								content={
+									verifiedLabeller
+										? t`Verified publisher. A labeller (${verifiedLabeller}) has confirmed this publisher's identity.`
+										: t`Verified publisher. A labeller has confirmed this publisher's identity.`
+								}
+								render={
+									<button
+										type="button"
+										className="inline-flex shrink-0 cursor-help rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
+										aria-label={
+											verifiedLabeller
+												? t`Verified publisher, confirmed by labeller ${verifiedLabeller}`
+												: t`Verified publisher`
+										}
+									>
+										<ShieldCheck className="h-5 w-5 text-kumo-brand" aria-hidden />
+									</button>
+								}
 							/>
 						) : null}
 					</div>
@@ -398,11 +462,39 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					</p>
 					{release ? (
 						<div className="mt-1 flex flex-wrap items-center gap-2">
-							<p className="text-xs text-kumo-subtle">
-								{t`Version ${release.version}`} · {t`indexed ${formatDate(release.indexedAt)}`}
-							</p>
+							<p className="text-xs text-kumo-subtle">{t`Version ${release.version}`}</p>
 							{isPreRelease ? <Badge>{t`Pre-release`}</Badge> : null}
+							{sbom?.format ? (
+								<Badge>{t`SBOM · ${sbom.format}`}</Badge>
+							) : sbom ? (
+								<Badge>{t`SBOM`}</Badge>
+							) : null}
+							{sbomHref ? (
+								<a
+									href={sbomHref}
+									target="_blank"
+									rel="noopener noreferrer"
+									download
+									className="text-xs text-kumo-brand hover:underline"
+								>
+									{t`Download SBOM`}
+								</a>
+							) : null}
 						</div>
+					) : null}
+					{release ? (
+						<dl className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-kumo-subtle">
+							{lastUpdated ? (
+								<div className="flex items-center gap-1">
+									<dt className="font-medium">{t`Updated`}</dt>
+									<dd>{formatDate(lastUpdated)}</dd>
+								</div>
+							) : null}
+							<div className="flex items-center gap-1">
+								<dt className="font-medium">{t`Indexed`}</dt>
+								<dd>{formatDate(release.indexedAt)}</dd>
+							</div>
+						</dl>
 					) : null}
 				</div>
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -652,6 +744,30 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				</section>
 			) : null}
 
+			{/* Long-form sections (description / installation / faq / changelog /
+			    security). One pane per non-empty section; sanitized Markdown. */}
+			{sections.length > 0 && activePane ? (
+				<section aria-label={t`Plugin details`}>
+					{sections.length > 1 ? (
+						<Tabs
+							variant="underline"
+							value={activeSection}
+							onValueChange={(v) => setSelectedSection(v as SectionKey)}
+							tabs={sections.map(
+								(s): TabsItem => ({ value: s.key, label: t(SECTION_LABELS[s.key]) }),
+							)}
+						/>
+					) : (
+						<h2 className="text-sm font-semibold text-kumo-subtle">
+							{t(SECTION_LABELS[activePane.key])}
+						</h2>
+					)}
+					<div className="prose prose-sm mt-4 max-w-none rounded-lg border bg-kumo-base p-6">
+						<div dangerouslySetInnerHTML={{ __html: renderMarkdown(activePane.markdown) }} />
+					</div>
+				</section>
+			) : null}
+
 			{/* Consent dialog */}
 			{showConsent && release ? (
 				<CapabilityConsentDialog
@@ -670,6 +786,14 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		</div>
 	);
 }
+
+const SECTION_LABELS: Record<SectionKey, MessageDescriptor> = {
+	description: msg`Description`,
+	installation: msg`Installation`,
+	faq: msg`FAQ`,
+	changelog: msg`Changelog`,
+	security: msg`Security`,
+};
 
 function BackLink() {
 	const { t } = useLingui();
