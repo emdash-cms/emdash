@@ -1,0 +1,12 @@
+# Local dev secrets for `flue dev --target cloudflare`. Copy to `.dev.vars`.
+# With GITHUB_APP_PRIVATE_KEY left empty, the workflow skips posting and just
+# returns the review result (safe for local testing without the App key).
+# GITHUB_APP_ID and GITHUB_APP_INSTALLATION_ID are non-secret vars in
+# wrangler.jsonc, not here.
+
+# HMAC secret shared with the GitHub webhook config.
+GITHUB_WEBHOOK_SECRET=
+
+# emdashbot App private key, PKCS#8 PEM (leave empty in dev to skip posting).
+# Convert GitHub's PKCS#1 download: openssl pkcs8 -topk8 -nocrypt -in key.pem
+GITHUB_APP_PRIVATE_KEY=

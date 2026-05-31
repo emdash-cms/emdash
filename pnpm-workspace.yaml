@@ -28,6 +28,12 @@ allowBuilds:
   better-sqlite3: true
   esbuild: true
   workerd: true
+  # Transitive @flue/runtime deps. The reviewer ran end-to-end with these
+  # build scripts ignored, so none are needed at runtime.
+  "@google/genai": false
+  "@mongodb-js/zstd": false
+  node-liblzma: false
+  protobufjs: false
 # Reviewed benign trust downgrades (publish-method changes, not takeovers).
 trustPolicyExclude:
   - "vite@6.4.1" # trusted-publisher -> provenance (vitejs CI change)
@@ -139,5 +145,5 @@ catalog:
   typescript: ^6.0.3
   vite: ^8.0.11
   vitest: ^4.1.5
-  wrangler: ^4.83.0
+  wrangler: ^4.95.0
   zod: ^4.4.1

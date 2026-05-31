@@ -31,16 +31,16 @@ Browser access (`agent-browser` against `pnpm dev`) shifts ~6 admin-UI issues fr
 
 One label triggers the bot. The bot then manages its own label as the investigation progresses. Labels are mutually exclusive on a single issue.
 
-| Label                   | Set by     | Meaning                                              |
-| ----------------------- | ---------- | ---------------------------------------------------- |
-| `bot:repro`             | Maintainer | Investigation requested                              |
-| `bot:reproducing`       | Bot        | Investigation in progress                            |
-| `bot:reproduced`        | Bot        | Reproduced; no fix attempted (low confidence)        |
-| `bot:awaiting-reporter` | Bot        | Reproduced + fix attempted; reporter asked to verify |
-| `bot:verified`          | Bot        | Reporter confirmed; PR opened                        |
-| `bot:not-reproduced`    | Bot        | Could not observe the reported behaviour             |
-| `bot:skipped`           | Bot        | Declined (needs user data, host-specific, etc.)      |
-| `bot:failed`            | Bot        | Gave up after retries                                |
+| Label                      | Set by     | Meaning                                              |
+| -------------------------- | ---------- | ---------------------------------------------------- |
+| `bot:repro`                | Maintainer | Investigation requested                              |
+| `triage/reproducing`       | Bot        | Investigation in progress                            |
+| `triage/reproduced`        | Bot        | Reproduced; no fix attempted (low confidence)        |
+| `triage/awaiting-reporter` | Bot        | Reproduced + fix attempted; reporter asked to verify |
+| `triage/verified`          | Bot        | Reporter confirmed; PR opened                        |
+| `triage/not-reproduced`    | Bot        | Could not observe the reported behaviour             |
+| `triage/skipped`           | Bot        | Declined (needs user data, host-specific, etc.)      |
+| `triage/failed`            | Bot        | Gave up after retries                                |
 
 A GitHub Project board mirrors these as columns via saved label queries. One-time UI setup; the bot does not touch the board directly.
 
@@ -55,7 +55,7 @@ Triggered by `issues.labeled` with `bot:repro`. Runs the Flue `investigate` work
 Steps:
 
 1. Mint App installation token (scoped: `issues: write, contents: write, pull-requests: write` on this repo only).
-2. Workflow YAML transitions label: `bot:repro` → `bot:reproducing`.
+2. Workflow YAML transitions label: `bot:repro` → `triage/reproducing`.
 3. Checkout, setup pnpm + node, install, build.
 4. `pnpm exec flue run investigate` with payload `{ issueNumber, issueTitle, issueBody, owner, repo, retryContext? }`.
 5. Workflow YAML reads structured output JSON; pushes branches; posts comment; transitions label to terminal state.
@@ -69,22 +69,22 @@ Bot's stages inside the workflow (each a separate skill, structured output betwe
 
 Terminal label after a run:
 
-- Reproduce skipped → `bot:skipped`
-- Reproduce returned `reproduced: false` → `bot:not-reproduced`
-- Verify returned `intended-behavior` → `bot:reproduced` (with explanation in comment)
-- Fix attempted and `fixed: false` → `bot:reproduced`
-- Fix attempted and `fixed: true` → `bot:awaiting-reporter`
+- Reproduce skipped → `triage/skipped`
+- Reproduce returned `reproduced: false` → `triage/not-reproduced`
+- Verify returned `intended-behavior` → `triage/reproduced` (with explanation in comment)
+- Fix attempted and `fixed: false` → `triage/reproduced`
+- Fix attempted and `fixed: true` → `triage/awaiting-reporter`
 
 ### 2. `reporter-reply.yml`
 
-Triggered by `issue_comment.created`. Filters: issue carries `bot:awaiting-reporter`, comment author is the issue author.
+Triggered by `issue_comment.created`. Filters: issue carries `triage/awaiting-reporter`, comment author is the issue author.
 
 Steps:
 
 1. Mint App token.
 2. Classify the reply with a cheap kimi call: `positive | negative | unclear`.
-3. **positive** — open PR from `bot/fix-<n>`. Apply `bot:verified`. Remove `bot:awaiting-reporter`. Comment on the new PR with the reporter quote.
-4. **negative** — increment retry counter (stored in a hidden HTML comment on the issue, or in a per-issue gist; TBD during build). If < 3 retries, re-invoke `investigate.yml` via `workflow_dispatch` with `retryContext: <reporter comment body>`. If ≥ 3, apply `bot:failed` and ping the maintainer who originally added `bot:repro`.
+3. **positive** — open PR from `bot/fix-<n>`. Apply `triage/verified`. Remove `triage/awaiting-reporter`. Comment on the new PR with the reporter quote.
+4. **negative** — increment retry counter (stored in a hidden HTML comment on the issue, or in a per-issue gist; TBD during build). If < 3 retries, re-invoke `investigate.yml` via `workflow_dispatch` with `retryContext: <reporter comment body>`. If ≥ 3, apply `triage/failed` and ping the maintainer who originally added `bot:repro`.
 5. **unclear** — post a one-sentence clarifying question. No state change.
 
 ### 3. `bot-cleanup.yml`

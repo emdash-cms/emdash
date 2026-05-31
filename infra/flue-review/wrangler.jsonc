@@ -1,0 +1,39 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-flue-review",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-04-01",
+	"compatibility_flags": ["nodejs_compat"],
+	// Workers AI binding. Flue's generated Cloudflare entry reserves the
+	// `cloudflare/` model prefix and routes it through this binding, so the
+	// reviewer model (`cloudflare/@cf/moonshotai/kimi-k2.6`) needs no API key.
+	"ai": {
+		"binding": "AI",
+	},
+	// Container sandbox. Flue auto-wires any Durable Object class whose
+	// class_name ends in `Sandbox` to @cloudflare/sandbox's Sandbox class in
+	// the generated bundle. The reviewer needs a real Linux env for `git`.
+	"durable_objects": {
+		"bindings": [{ "class_name": "Sandbox", "name": "Sandbox" }],
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sandbox"] }],
+	"containers": [{ "class_name": "Sandbox", "image": "./Dockerfile" }],
+	"vars": {
+		// emdashbot GitHub App. Not secret (app id is public; installation id is
+		// low-sensitivity). Only the private key and webhook secret are secrets.
+		// Owner/repo come from the webhook payload, so they aren't configured here.
+		"GITHUB_APP_ID": "3255304",
+		"GITHUB_APP_INSTALLATION_ID": "120963314",
+	},
+	// Set with `wrangler secret put <NAME>`. The webhook secret is used by the
+	// public handler; the private key is used only by the workflow DO to mint an
+	// installation token, fetch prior reviews, and post (never by the agent
+	// container). GITHUB_APP_PRIVATE_KEY must be a PKCS#8 PEM (convert GitHub's
+	// download with `openssl pkcs8 -topk8 -nocrypt -in key.pem`).
+	"secrets": {
+		"required": ["GITHUB_WEBHOOK_SECRET", "GITHUB_APP_PRIVATE_KEY"],
+	},
+	"observability": {
+		"enabled": true,
+	},
+}

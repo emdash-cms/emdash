@@ -21,16 +21,16 @@ The orchestrator (`.github/workflows/investigate.yml`) reads the structured JSON
 
 ## Trigger and label state
 
-| Label                   | Set by     | Meaning                                          |
-| ----------------------- | ---------- | ------------------------------------------------ |
-| `bot:repro`             | Maintainer | Investigation requested                          |
-| `bot:reproducing`       | Bot        | Investigation in progress                        |
-| `bot:reproduced`        | Bot        | Reproduced; no fix attempted (or fix abandoned)  |
-| `bot:awaiting-reporter` | Bot        | Fix pushed; reporter asked to verify             |
-| `bot:verified`          | Bot        | Reporter confirmed; PR opened                    |
-| `bot:not-reproduced`    | Bot        | Could not observe the reported behaviour         |
-| `bot:skipped`           | Bot        | Declined (non-bug, requires external data, etc.) |
-| `bot:failed`            | Bot        | Gave up after retries                            |
+| Label                      | Set by     | Meaning                                          |
+| -------------------------- | ---------- | ------------------------------------------------ |
+| `bot:repro`                | Maintainer | Investigation requested                          |
+| `triage/reproducing`       | Bot        | Investigation in progress                        |
+| `triage/reproduced`        | Bot        | Reproduced; no fix attempted (or fix abandoned)  |
+| `triage/awaiting-reporter` | Bot        | Fix pushed; reporter asked to verify             |
+| `triage/verified`          | Bot        | Reporter confirmed; PR opened                    |
+| `triage/not-reproduced`    | Bot        | Could not observe the reported behaviour         |
+| `triage/skipped`           | Bot        | Declined (non-bug, requires external data, etc.) |
+| `triage/failed`            | Bot        | Gave up after retries                            |
 
 The bot owns every label except `bot:repro`. Maintainers don't manage state directly — they trigger by adding `bot:repro` and re-trigger by removing/re-adding it.
 
@@ -103,7 +103,7 @@ The fixtures directory holds five real issues from the queue (#1021, #1042, #104
 
 1. **GitHub App.** The bot uses an existing App (the same one `bonk.yml`, `review.yml`, `release.yml`, `auto-format.yml` use). The `APP_ID` and `APP_PRIVATE_KEY` repository secrets already exist. The App's installation must include the `issues: write`, `contents: write`, and `pull_requests: write` permissions on `emdash-cms/emdash`.
 2. **Labels.** `investigate.yml`'s first step does `gh label create --force` for each of the eight `bot:*` labels. No manual setup needed; the labels appear after the first run.
-3. **GitHub Project board (optional).** Create a project in the UI with one column per `bot:*` label and a saved query like `repo:emdash-cms/emdash label:bot:reproducing` per column. The bot moves labels; cards follow automatically. Not required for the bot to function.
+3. **GitHub Project board (optional).** Create a project in the UI with one column per `bot:*` label and a saved query like `repo:emdash-cms/emdash label:triage/reproducing` per column. The bot moves labels; cards follow automatically. Not required for the bot to function.
 
 ## What this PR does not do
 
