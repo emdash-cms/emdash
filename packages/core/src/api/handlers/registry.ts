@@ -40,6 +40,8 @@
 
 import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
+import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
+import type { HostEnv } from "@emdash-cms/registry-client/env";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
@@ -520,6 +522,52 @@ async function fetchArtifact(mirrors: string[], declaredUrl: string): Promise<Ui
 	);
 }
 
+/**
+ * The shape of a single env-compatibility failure returned to the admin in
+ * the `ENV_INCOMPATIBLE` error's `details`.
+ */
+interface EnvIncompatibleError {
+	code: "ENV_INCOMPATIBLE";
+	message: string;
+	details: { requires: Record<string, string>; host: HostEnv };
+}
+
+/**
+ * Gate a release's `requires` constraints against the running host
+ * environment. `requires` is the lexicon-`unknown` value off the signed
+ * release record — never trust its shape; `checkEnvCompatibility` guards it.
+ *
+ * Returns `null` when every advertised constraint is satisfied (or there are
+ * none), or a structured `ENV_INCOMPATIBLE` error naming the unsatisfied
+ * constraints and the host versions. The error carries the guarded `requires`
+ * and `host` maps so the admin can render the same mismatch the UI gate shows.
+ */
+export function assertEnvCompatible(
+	requires: unknown,
+	hostEnv: HostEnv,
+): EnvIncompatibleError | null {
+	// A constraint the host can't evaluate (unknown or unparseable host
+	// version) downgrades the gate to a no-op for that env. Log it so a
+	// silent bypass is observable rather than invisible.
+	for (const skipped of findSkippedEnvConstraints(requires, hostEnv)) {
+		console.warn(
+			`[registry] env compatibility constraint skipped: ${skipped.key} requires ${skipped.required} but host version is ${skipped.reason}`,
+		);
+	}
+	const mismatches = checkEnvCompatibility(requires, hostEnv);
+	if (mismatches.length === 0) return null;
+	const guarded: Record<string, string> = {};
+	for (const m of mismatches) guarded[m.key] = m.required;
+	const summary = mismatches
+		.map((m) => `${m.key} requires ${m.required} but host is ${m.host}`)
+		.join("; ");
+	return {
+		code: "ENV_INCOMPATIBLE",
+		message: `This release is not compatible with the current environment: ${summary}.`,
+		details: { requires: guarded, host: hostEnv },
+	};
+}
+
 // ── Install ────────────────────────────────────────────────────────
 
 export async function handleRegistryInstall(
@@ -528,7 +576,7 @@ export async function handleRegistryInstall(
 	sandboxRunner: SandboxRunner | null,
 	registryConfigInput: RegistryConfigInput | undefined,
 	input: RegistryInstallInput,
-	opts?: { configuredPluginIds?: Set<string> },
+	opts?: { configuredPluginIds?: Set<string>; hostEnv?: HostEnv },
 ): Promise<ApiResult<RegistryInstallResult>> {
 	// Accept either the bare-string shorthand or the full
 	// `RegistryConfig` object (see `RegistryConfigInput`).
@@ -735,6 +783,17 @@ export async function handleRegistryInstall(
 					message: "This release has been withdrawn (security:yanked label).",
 				},
 			};
+		}
+
+		// Step 3b: environment compatibility. The signed release record may
+		// carry a `requires` block (`env:emdash`, `env:astro`, ...). Refuse
+		// the install if the running host doesn't satisfy a constraint, so a
+		// stale browser tab or non-UI caller can't bypass the admin's
+		// disabled Install button. `requires` is lexicon-`unknown`; the
+		// helper guards its shape.
+		if (opts?.hostEnv) {
+			const envError = assertEnvCompatible(releaseView.release?.requires, opts.hostEnv);
+			if (envError) return { success: false, error: envError };
 		}
 
 		// Step 3a: enforce the configured minimum release age. The browser
@@ -1212,6 +1271,7 @@ export async function handleRegistryUpdate(
 		version?: string;
 		confirmCapabilityChanges?: boolean;
 		confirmRouteVisibilityChanges?: boolean;
+		hostEnv?: HostEnv;
 	},
 ): Promise<ApiResult<RegistryUpdateResult>> {
 	const registryConfig = coerceRegistryConfig(registryConfigInput);
@@ -1361,6 +1421,14 @@ export async function handleRegistryUpdate(
 				success: false,
 				error: { code: "YANKED", message: "Release has been yanked by a trusted labeller" },
 			};
+		}
+
+		// Environment compatibility gate. An ungated update could otherwise
+		// land a version whose `requires` the host doesn't satisfy. Same
+		// guard as install; `requires` is lexicon-`unknown`.
+		if (opts?.hostEnv) {
+			const envError = assertEnvCompatible(signedRelease.requires, opts.hostEnv);
+			if (envError) return { success: false, error: envError };
 		}
 
 		const declaredUrl = signedRelease.artifacts?.package?.url;

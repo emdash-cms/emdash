@@ -8,6 +8,16 @@
  * Import as: `import { apiFetch, parseApiResponse, isRecord } from "emdash/plugin-utils";`
  */
 
+import type { EmDashHandlers } from "./astro/types.js";
+
+export type PublicPluginApiRouteHandler = EmDashHandlers["handlePublicPluginApiRoute"];
+
+export interface PublicPluginRuntimeLocals {
+	emdash?: {
+		handlePublicPluginApiRoute?: PublicPluginApiRouteHandler;
+	};
+}
+
 /**
  * Fetch wrapper that adds the `X-EmDash-Request` CSRF protection header.
  *
@@ -18,6 +28,19 @@ export function apiFetch(input: string | URL | Request, init?: RequestInit): Pro
 	const headers = new Headers(init?.headers);
 	headers.set("X-EmDash-Request", "1");
 	return fetch(input, { ...init, headers });
+}
+
+/**
+ * Get the public-only plugin route dispatcher exposed to SSR page components.
+ *
+ * This intentionally reads `handlePublicPluginApiRoute`, not the raw
+ * `handlePluginApiRoute` used by core's authenticated plugin API route.
+ */
+export function getPublicPluginApiRouteHandler(
+	locals: PublicPluginRuntimeLocals | null | undefined,
+): PublicPluginApiRouteHandler | undefined {
+	const handler = locals?.emdash?.handlePublicPluginApiRoute;
+	return typeof handler === "function" ? handler : undefined;
 }
 
 /**

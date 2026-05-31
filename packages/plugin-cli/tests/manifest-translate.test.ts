@@ -94,6 +94,27 @@ describe("normaliseManifest", () => {
 		).toThrow(/disagrees/);
 	});
 
+	it("passes release-level requires through unchanged", () => {
+		const normalised = normaliseManifest({
+			version: "0.1.0",
+			license: "MIT",
+			author: { name: "Jane" },
+			security: { email: "s@example.com" },
+			release: { requires: { "env:emdash": ">=1.0.0", "env:astro": ">=4.16" } },
+		});
+		expect(normalised.requires).toEqual({ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" });
+	});
+
+	it("leaves requires undefined when the manifest omits it", () => {
+		const normalised = normaliseManifest({
+			version: "0.1.0",
+			license: "MIT",
+			author: { name: "Jane" },
+			security: { email: "s@example.com" },
+		});
+		expect(normalised.requires).toBeUndefined();
+	});
+
 	it("throws when no version is available anywhere", () => {
 		expect(() =>
 			normaliseManifest({
@@ -118,6 +139,7 @@ describe("manifestToProfileBootstrap", () => {
 			description: "desc",
 			keywords: ["k"],
 			repo: "https://github.com/example/p",
+			requires: undefined,
 			capabilities: [],
 			allowedHosts: [],
 			storage: {},
@@ -142,6 +164,7 @@ describe("manifestToProfileBootstrap", () => {
 			description: undefined,
 			keywords: undefined,
 			repo: undefined,
+			requires: undefined,
 			capabilities: [],
 			allowedHosts: [],
 			storage: {},
@@ -168,6 +191,7 @@ describe("manifestToProfileInput", () => {
 			description: "desc",
 			keywords: ["k1", "k2"],
 			repo: "https://github.com/example/p",
+			requires: { "env:astro": ">=4.16" },
 			capabilities: [],
 			allowedHosts: [],
 			storage: {},
@@ -186,6 +210,8 @@ describe("manifestToProfileInput", () => {
 		expect(input.name).toBe("Test");
 		expect(input.description).toBe("desc");
 		expect(input.keywords).toEqual(["k1", "k2"]);
+		// requires is release-level, never folded into the profile input.
+		expect("requires" in input).toBe(false);
 	});
 
 	it("omits name, description and keywords when the manifest doesn't set them", () => {
@@ -200,6 +226,7 @@ describe("manifestToProfileInput", () => {
 			description: undefined,
 			keywords: undefined,
 			repo: undefined,
+			requires: undefined,
 			capabilities: [],
 			allowedHosts: [],
 			storage: {},

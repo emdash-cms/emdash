@@ -14,8 +14,11 @@ export function AccordionBlockComponent({
 	const [open, setOpen] = useState(block.default_open ?? false);
 
 	return (
-		<Collapsible label={block.label} open={open} onOpenChange={setOpen}>
-			<BlockRenderer blocks={block.blocks} onAction={onAction} />
-		</Collapsible>
+		<Collapsible.Root open={open} onOpenChange={setOpen} data-testid="collapsible" data-open={open}>
+			<Collapsible.DefaultTrigger>{block.label}</Collapsible.DefaultTrigger>
+			<Collapsible.DefaultPanel>
+				<BlockRenderer blocks={block.blocks} onAction={onAction} />
+			</Collapsible.DefaultPanel>
+		</Collapsible.Root>
 	);
 }
