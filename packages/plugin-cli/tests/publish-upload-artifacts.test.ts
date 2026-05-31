@@ -64,7 +64,7 @@ describe("resolveReleaseArtifacts", () => {
 			artifacts: {
 				icon: { file: "./icon.png" },
 				banner: { file: "./banner.png" },
-				screenshot: [{ file: "./s1.png" }, { file: "./s2.png", lang: "de" }],
+				screenshots: [{ file: "./s1.png" }, { file: "./s2.png", lang: "de" }],
 			},
 			manifestDir: dir,
 			baseUrl: "https://cdn.example.com/",
@@ -94,7 +94,7 @@ describe("resolveReleaseArtifacts", () => {
 	it("preserves screenshot order", async () => {
 		const { uploader } = recordingUploader();
 		const result = await resolveReleaseArtifacts({
-			artifacts: { screenshot: [{ file: "./s2.png" }, { file: "./s1.png" }] },
+			artifacts: { screenshots: [{ file: "./s2.png" }, { file: "./s1.png" }] },
 			manifestDir: dir,
 			baseUrl: "https://cdn.example.com",
 			slug: "gallery",
@@ -115,7 +115,7 @@ describe("resolveReleaseArtifacts", () => {
 
 		const { uploader, uploads } = recordingUploader();
 		const result = await resolveReleaseArtifacts({
-			artifacts: { screenshot: [{ file: "./light/shot.png" }, { file: "./dark/shot.png" }] },
+			artifacts: { screenshots: [{ file: "./light/shot.png" }, { file: "./dark/shot.png" }] },
 			manifestDir: dir,
 			baseUrl: "https://cdn.example.com",
 			slug: "gallery",
@@ -136,7 +136,7 @@ describe("resolveReleaseArtifacts", () => {
 		await writeFile(join(dir, "image.png"), PNG_1x1);
 
 		const result = await resolveReleaseArtifacts({
-			artifacts: { icon: { file: "./image.png" }, screenshot: [{ file: "./image.png" }] },
+			artifacts: { icon: { file: "./image.png" }, screenshots: [{ file: "./image.png" }] },
 			manifestDir: dir,
 			baseUrl: "https://cdn.example.com",
 			slug: "gallery",

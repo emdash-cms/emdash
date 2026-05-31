@@ -45,33 +45,36 @@ describe("extractMediaArtifacts", () => {
 		expect(result.screenshots).toEqual([]);
 	});
 
-	it("collects the screenshot slot plus x-screenshot-N overflow, in order", () => {
+	it("collects the screenshots array in order", () => {
 		const result = extractMediaArtifacts({
 			package: { url: "https://x/a.tgz" },
-			screenshot: s1,
-			"x-screenshot-2": s2,
-			"x-screenshot-3": s3,
+			screenshots: [s1, s2, s3],
 		});
 		expect(result.screenshots.map((s) => s.url)).toEqual([s1.url, s2.url, s3.url]);
 	});
 
-	it("orders overflow keys numerically, not lexically", () => {
-		const result = extractMediaArtifacts({
-			screenshot: s1,
-			"x-screenshot-10": { url: "https://x/s10.png" },
-			"x-screenshot-2": s2,
-		});
-		expect(result.screenshots.map((s) => s.url)).toEqual([s1.url, s2.url, "https://x/s10.png"]);
+	it("handles a single-element screenshots array", () => {
+		const result = extractMediaArtifacts({ screenshots: [s1] });
+		expect(result.screenshots.map((s) => s.url)).toEqual([s1.url]);
+	});
+
+	it("ignores a non-array screenshots value", () => {
+		expect(extractMediaArtifacts({ screenshots: s1 }).screenshots).toEqual([]);
+		expect(extractMediaArtifacts({ screenshots: "nope" }).screenshots).toEqual([]);
+	});
+
+	it("ignores the legacy singular `screenshot` key", () => {
+		const result = extractMediaArtifacts({ screenshot: s1, "x-screenshot-2": s2 });
+		expect(result.screenshots).toEqual([]);
 	});
 
 	it("skips entries without a usable url", () => {
 		const result = extractMediaArtifacts({
 			icon: { width: 10 },
-			screenshot: { url: 123 },
-			"x-screenshot-2": s2,
+			screenshots: [{ url: 123 }, s2],
 		});
 		expect(result.icon).toBeUndefined();
-		// The malformed `screenshot` is dropped; the valid overflow survives.
+		// The malformed first entry is dropped; the valid one survives.
 		expect(result.screenshots.map((s) => s.url)).toEqual([s2.url]);
 	});
 });

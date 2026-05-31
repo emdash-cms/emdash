@@ -489,13 +489,13 @@
 				"banner": {
 					"$ref": "#/$defs/__schema49"
 				},
-				"screenshot": {
+				"screenshots": {
 					"$ref": "#/$defs/__schema50"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Artifacts",
-			"description": "Release media artifacts. `icon` and `banner` are single images; `screenshot` is a gallery array."
+			"description": "Release media artifacts. `icon` and `banner` are single images; `screenshots` is a gallery array."
 		},
 		"__schema45": {
 			"$ref": "#/$defs/__schema46"

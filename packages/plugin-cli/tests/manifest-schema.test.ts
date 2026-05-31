@@ -154,25 +154,30 @@ describe("ArtifactsSchema", () => {
 		expect(result.success).toBe(true);
 	});
 
-	it("accepts screenshot as an array of file refs", () => {
+	it("accepts screenshots as an array of file refs", () => {
 		const result = ArtifactsSchema.safeParse({
-			screenshot: [{ file: "./s1.png" }, { file: "./s2.png", lang: "de" }],
+			screenshots: [{ file: "./s1.png" }, { file: "./s2.png", lang: "de" }],
 		});
 		expect(result.success).toBe(true);
 	});
 
-	it("rejects a single (non-array) screenshot", () => {
-		const result = ArtifactsSchema.safeParse({ screenshot: { file: "./s1.png" } });
+	it("rejects a single (non-array) screenshots value", () => {
+		const result = ArtifactsSchema.safeParse({ screenshots: { file: "./s1.png" } });
 		expect(result.success).toBe(false);
 	});
 
-	it("rejects an empty screenshot array", () => {
-		expect(ArtifactsSchema.safeParse({ screenshot: [] }).success).toBe(false);
+	it("rejects an empty screenshots array", () => {
+		expect(ArtifactsSchema.safeParse({ screenshots: [] }).success).toBe(false);
 	});
 
 	it("rejects more than eight screenshots", () => {
-		const screenshot = Array.from({ length: 9 }, (_, i) => ({ file: `./s${i}.png` }));
-		expect(ArtifactsSchema.safeParse({ screenshot }).success).toBe(false);
+		const screenshots = Array.from({ length: 9 }, (_, i) => ({ file: `./s${i}.png` }));
+		expect(ArtifactsSchema.safeParse({ screenshots }).success).toBe(false);
+	});
+
+	it("rejects the legacy singular `screenshot` key", () => {
+		const result = ArtifactsSchema.safeParse({ screenshot: [{ file: "./s1.png" }] });
+		expect(result.success).toBe(false);
 	});
 });
 
@@ -198,7 +203,7 @@ describe("ManifestSchema (full document)", () => {
 				artifacts: {
 					icon: { file: "./icon.png" },
 					banner: { file: "./banner.png" },
-					screenshot: [{ file: "./s1.png" }, { file: "./s2.png" }],
+					screenshots: [{ file: "./s1.png" }, { file: "./s2.png" }],
 				},
 			},
 		});

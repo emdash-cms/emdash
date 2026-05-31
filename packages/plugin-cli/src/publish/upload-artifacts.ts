@@ -79,7 +79,7 @@ export async function resolveReleaseArtifacts(
 ): Promise<ReleaseArtifactsInput | undefined> {
 	const { artifacts } = options;
 	if (!artifacts) return undefined;
-	if (!artifacts.icon && !artifacts.banner && !(artifacts.screenshot?.length ?? 0)) {
+	if (!artifacts.icon && !artifacts.banner && !(artifacts.screenshots?.length ?? 0)) {
 		return undefined;
 	}
 
@@ -92,9 +92,9 @@ export async function resolveReleaseArtifacts(
 	if (artifacts.banner) {
 		out.banner = await resolveOne(artifacts.banner, "banner", "banner", options, upload);
 	}
-	if (artifacts.screenshot && artifacts.screenshot.length > 0) {
+	if (artifacts.screenshots && artifacts.screenshots.length > 0) {
 		const screenshots: ReleaseArtifactInput[] = [];
-		for (const [index, ref] of artifacts.screenshot.entries()) {
+		for (const [index, ref] of artifacts.screenshots.entries()) {
 			screenshots.push(
 				await resolveOne(
 					ref,

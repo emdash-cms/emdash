@@ -594,10 +594,16 @@ describe("publishRelease", () => {
 			height: 320,
 		};
 
-		function readArtifacts(pds: MockPds): Record<string, { url: string; checksum: string }> {
+		interface ReleaseArtifactsMap {
+			package?: { url: string; checksum: string };
+			icon?: { url: string; checksum: string; width?: number; height?: number };
+			banner?: { url: string; checksum: string; width?: number; height?: number };
+			screenshots?: Array<{ url: string; checksum: string; width?: number; height?: number }>;
+		}
+
+		function readArtifacts(pds: MockPds): ReleaseArtifactsMap {
 			const release = pds.records.get(`at://${TEST_DID}/${NSID.packageRelease}/test-plugin:1.0.0`);
-			return (release!.value as { artifacts: Record<string, { url: string; checksum: string }> })
-				.artifacts;
+			return (release!.value as { artifacts: ReleaseArtifactsMap }).artifacts;
 		}
 
 		it("writes icon and banner artifacts into the release record", async () => {
@@ -614,7 +620,7 @@ describe("publishRelease", () => {
 			expect(artifacts.banner).toMatchObject({ url: banner.url, width: 1280, height: 320 });
 		});
 
-		it("writes a single screenshot into the lexicon screenshot slot", async () => {
+		it("writes a single screenshot as a one-element screenshots array", async () => {
 			const pds = new MockPds({ did: TEST_DID });
 			const shot = {
 				url: "https://cdn.example.com/test-plugin/1.0.0/s1.png",
@@ -625,11 +631,15 @@ describe("publishRelease", () => {
 			};
 			await publishRelease(buildOptions(pds, { artifacts: { screenshots: [shot] } }));
 			const artifacts = readArtifacts(pds);
-			expect(artifacts.screenshot).toMatchObject({ url: shot.url, width: 800, height: 600 });
-			expect("x-screenshot-2" in artifacts).toBe(false);
+			expect(artifacts.screenshots).toHaveLength(1);
+			expect(artifacts.screenshots?.[0]).toMatchObject({
+				url: shot.url,
+				width: 800,
+				height: 600,
+			});
 		});
 
-		it("spills extra screenshots into x-screenshot-N custom keys", async () => {
+		it("writes the full screenshot gallery as an ordered array", async () => {
 			const pds = new MockPds({ did: TEST_DID });
 			const shots = [0, 1, 2].map((i) => ({
 				url: `https://cdn.example.com/test-plugin/1.0.0/s${i}.png`,
@@ -640,10 +650,7 @@ describe("publishRelease", () => {
 			}));
 			await publishRelease(buildOptions(pds, { artifacts: { screenshots: shots } }));
 			const artifacts = readArtifacts(pds);
-			// First in the lexicon slot, the rest under x-screenshot-2.., 1-based.
-			expect(artifacts.screenshot?.url).toBe(shots[0]!.url);
-			expect(artifacts["x-screenshot-2"]?.url).toBe(shots[1]!.url);
-			expect(artifacts["x-screenshot-3"]?.url).toBe(shots[2]!.url);
+			expect(artifacts.screenshots?.map((s) => s.url)).toEqual(shots.map((s) => s.url));
 		});
 
 		it("keeps the package artifact when media artifacts are present", async () => {

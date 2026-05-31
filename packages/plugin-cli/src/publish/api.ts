@@ -148,9 +148,8 @@ export interface ReleaseArtifactInput {
 
 /**
  * Resolved release media artifacts. `icon` / `banner` are single images;
- * `screenshots` is the ordered gallery. The first screenshot is written to the
- * lexicon's `artifacts.screenshot` slot and the rest to `x-screenshot-N`
- * custom keys.
+ * `screenshots` is the ordered gallery, written verbatim to the lexicon's
+ * `artifacts.screenshots` array.
  */
 export interface ReleaseArtifactsInput {
 	icon?: ReleaseArtifactInput;
@@ -287,15 +286,8 @@ interface PackageReleaseRecordShape {
 		};
 		icon?: ImageArtifact;
 		banner?: ImageArtifact;
-		/**
-		 * First screenshot. The lexicon's `artifacts` object types
-		 * `screenshot` as a single `#artifact`, so additional screenshots
-		 * ride along under `x-screenshot-N` custom keys (which the lexicon
-		 * sanctions: "Custom types use 'x-' prefix and pass through as
-		 * unrecognised fields").
-		 */
-		screenshot?: ImageArtifact;
-		[extraScreenshot: `x-screenshot-${number}`]: ImageArtifact | undefined;
+		/** Ordered screenshot gallery (`artifacts.screenshots` in the lexicon). */
+		screenshots?: ImageArtifact[];
 	};
 	/** Source-repository URL (`release.repo`). Omitted when not provided. */
 	repo?: string;
@@ -611,11 +603,9 @@ function atUri(did: Did, collection: string, rkey: string): string {
 /**
  * Write resolved media artifacts into a release record's `artifacts` map.
  *
- * `icon` and `banner` map to their lexicon slots directly. The lexicon types
- * `screenshot` as a single `#artifact`, so the first screenshot goes there and
- * any extras ride along under `x-screenshot-2`, `x-screenshot-3`, … custom
- * keys (the lexicon documents `x-` prefixed entries as pass-through fields).
- * Indices are 1-based and contiguous, matching the gallery order.
+ * `icon` and `banner` map to their single-`#artifact` lexicon slots directly;
+ * `screenshots` is written as the lexicon's `artifacts.screenshots` array,
+ * preserving gallery order.
  */
 function applyArtifacts(
 	record: PackageReleaseRecordShape,
@@ -624,14 +614,9 @@ function applyArtifacts(
 	if (!artifacts) return;
 	if (artifacts.icon) record.artifacts.icon = { ...artifacts.icon };
 	if (artifacts.banner) record.artifacts.banner = { ...artifacts.banner };
-	const screenshots = artifacts.screenshots ?? [];
-	screenshots.forEach((shot, index) => {
-		if (index === 0) {
-			record.artifacts.screenshot = { ...shot };
-		} else {
-			record.artifacts[`x-screenshot-${index + 1}`] = { ...shot };
-		}
-	});
+	if (artifacts.screenshots && artifacts.screenshots.length > 0) {
+		record.artifacts.screenshots = artifacts.screenshots.map((shot) => ({ ...shot }));
+	}
 }
 
 /**

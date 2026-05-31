@@ -472,15 +472,13 @@ export interface MediaArtifacts {
 	screenshots: MediaArtifact[];
 }
 
-const SCREENSHOT_OVERFLOW_KEY_RE = /^x-screenshot-(\d+)$/;
-
 /**
  * Narrow one entry of a release's `artifacts` map to the fields we render.
  * Returns `null` when the value isn't an object with a string `url`.
  *
  * Records are lexicon-validated at the DiscoveryClient boundary, but
- * `artifacts` is an open map (the `x-screenshot-N` overflow keys are
- * unrecognised by the lexicon), so each entry still needs shape-narrowing.
+ * `artifacts` is an aggregator pass-through, so each entry still needs
+ * shape-narrowing before it reaches an `<img>`.
  */
 function asMediaArtifact(value: unknown): MediaArtifact | null {
 	if (!value || typeof value !== "object") return null;
@@ -495,9 +493,8 @@ function asMediaArtifact(value: unknown): MediaArtifact | null {
 
 /**
  * Pull icon, banner, and the screenshot gallery out of a release's `artifacts`
- * map. The lexicon types `screenshot` as a single artifact, so the gallery is
- * the lexicon `screenshot` plus any `x-screenshot-N` overflow keys (the CLI
- * writes additional screenshots there), ordered by N.
+ * map. The lexicon types `screenshots` as an array of artifacts; entries
+ * without a usable `url` are dropped, and gallery order is preserved.
  */
 export function extractMediaArtifacts(artifacts: unknown): MediaArtifacts {
 	const result: MediaArtifacts = { screenshots: [] };
@@ -510,18 +507,12 @@ export function extractMediaArtifacts(artifacts: unknown): MediaArtifacts {
 	const banner = asMediaArtifact(map.banner);
 	if (banner) result.banner = banner;
 
-	const first = asMediaArtifact(map.screenshot);
-	const overflow: Array<{ index: number; artifact: MediaArtifact }> = [];
-	for (const [key, value] of Object.entries(map)) {
-		const match = SCREENSHOT_OVERFLOW_KEY_RE.exec(key);
-		if (!match) continue;
-		const artifact = asMediaArtifact(value);
-		if (artifact) overflow.push({ index: Number(match[1]), artifact });
+	if (Array.isArray(map.screenshots)) {
+		for (const entry of map.screenshots) {
+			const artifact = asMediaArtifact(entry);
+			if (artifact) result.screenshots.push(artifact);
+		}
 	}
-	overflow.sort((a, b) => a.index - b.index);
-
-	if (first) result.screenshots.push(first);
-	for (const entry of overflow) result.screenshots.push(entry.artifact);
 	return result;
 }
 

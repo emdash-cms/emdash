@@ -571,7 +571,7 @@ export const ArtifactFileSchema = z
 	});
 
 /**
- * Release media artifacts. `icon` and `banner` are single files; `screenshot`
+ * Release media artifacts. `icon` and `banner` are single files; `screenshots`
  * is an array (a plugin can ship a gallery). Mirrors `release.json#artifacts`
  * minus the `package` entry, which the CLI derives from the tarball.
  */
@@ -579,10 +579,10 @@ export const ArtifactsSchema = z
 	.object({
 		icon: ArtifactFileSchema.optional(),
 		banner: ArtifactFileSchema.optional(),
-		screenshot: z
+		screenshots: z
 			.array(ArtifactFileSchema)
-			.min(1, "screenshot[] must have at least one entry when set")
-			.max(8, "screenshot[] must have <= 8 entries")
+			.min(1, "screenshots[] must have at least one entry when set")
+			.max(8, "screenshots[] must have <= 8 entries")
 			.meta({
 				title: "Screenshots",
 				description: "Screenshot gallery for the plugin's detail page (<= 8 entries).",
@@ -593,7 +593,7 @@ export const ArtifactsSchema = z
 	.meta({
 		title: "Artifacts",
 		description:
-			"Release media artifacts. `icon` and `banner` are single images; `screenshot` is a gallery array.",
+			"Release media artifacts. `icon` and `banner` are single images; `screenshots` is a gallery array.",
 	});
 
 /**
