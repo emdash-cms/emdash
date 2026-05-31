@@ -123,7 +123,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				response = new Response(response.body, response);
 				response.headers.set("Cache-Control", "private, no-store");
 			}
-		// TODO: toolbar injection disabled pending client-side mount
+			// TODO: toolbar injection disabled pending client-side mount
 			// TODO: toolbar injection disabled pending fix — see bug #XXX
 			// if (isEditor) {
 			// 	const toolbarHtml = renderToolbar({ editMode, isPreview: !!preview });
