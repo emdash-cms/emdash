@@ -84,9 +84,8 @@ test.describe("Byline custom fields", () => {
 		await page.getByRole("button", { name: "Create" }).click();
 
 		// After create, the form moves to edit mode and the sidebar list
-		// re-renders with the new byline highlighted. The "Custom fields"
-		// section is conditional on `selected`, so it appears only after
-		// the create completes.
+		// re-renders with the new byline highlighted. Custom-field inputs
+		// are gated on `selected`, so they appear only after create lands.
 		await expect(page.getByRole("button", { name: bylineDisplayName })).toBeVisible({
 			timeout: 5000,
 		});
@@ -95,7 +94,7 @@ test.describe("Byline custom fields", () => {
 		// 3. Fill the custom field input and save
 		// ---------------------------------------------------------------
 
-		await expect(page.getByText("Custom fields")).toBeVisible();
+		await expect(page.getByLabel(fieldLabel)).toBeVisible();
 		await page.getByLabel(fieldLabel).fill(fieldValue);
 		await page.getByRole("button", { name: "Save" }).click();
 
