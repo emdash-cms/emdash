@@ -36,6 +36,7 @@
 
 import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type { ResolvedPlugin } from "../bundle/types.js";
 import { fileExists } from "../bundle/utils.js";
@@ -301,7 +302,7 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 		);
 	}
 
-	const pluginModule: unknown = await import(probeOutputPath);
+	const pluginModule: unknown = await import(pathToFileURL(probeOutputPath).href);
 	if (!isObjectRecord(pluginModule)) {
 		throw new BuildPipelineError(
 			"INVALID_PLUGIN_FORMAT",

@@ -54,6 +54,8 @@ export interface FindManyResult<T> {
  */
 export interface AdminManifest {
 	version: string;
+	/** Version of Astro the host is built with, when resolvable. */
+	astroVersion?: string;
 	hash: string;
 	collections: Record<
 		string,

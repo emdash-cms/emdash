@@ -383,6 +383,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/artifact",
+		entrypoint: resolveRoute("api/admin/plugins/registry/artifact.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/admin/plugins/[id]/update",
 		entrypoint: resolveRoute("api/admin/plugins/[id]/update.ts"),
 	});
