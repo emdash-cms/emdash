@@ -329,15 +329,6 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				border-top: 1px solid rgba(255,255,255,0.08);
 			}
 
-			/* Keep all nav icons visible when sidebar collapses to icon mode */
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="group-content"] {
-				grid-template-rows: 1fr !important;
-			}
-			/* Mobile drawer: kumo's Sheet has no data-state attribute, so group-content
-			   stays at grid-rows-[0fr] (hidden). Force it open in the mobile sidebar. */
-			.emdash-sidebar[data-mobile="true"] [data-sidebar="group-content"] {
-				grid-template-rows: 1fr !important;
-			}
 			/* Collapsed separators — thin centered line */
 			.emdash-sidebar[data-state="collapsed"] [data-sidebar="separator"] {
 				margin: 0.375rem 0.625rem;
@@ -422,51 +413,43 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 					<KumoSidebar.Separator />
 
-					{/* Content — collections + media (collapsible) */}
+					{/* Content — collections + media */}
 					{visibleContent.length > 1 && (
-						<KumoSidebar.Group collapsible defaultOpen>
+						<KumoSidebar.Group>
 							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Content`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.GroupContent>
-								<KumoSidebar.Menu>
-									{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
-								</KumoSidebar.Menu>
-							</KumoSidebar.GroupContent>
+							<KumoSidebar.Menu>
+								{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
+							</KumoSidebar.Menu>
 						</KumoSidebar.Group>
 					)}
 
 					<KumoSidebar.Separator />
 
-					{/* Manage — comments, menus, taxonomies, etc. (collapsible) */}
+					{/* Manage — comments, menus, taxonomies, etc. */}
 					{visibleManage.length > 0 && (
-						<KumoSidebar.Group collapsible defaultOpen>
+						<KumoSidebar.Group>
 							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Manage`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.GroupContent>
-								<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
-							</KumoSidebar.GroupContent>
+							<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
 						</KumoSidebar.Group>
 					)}
 
 					<KumoSidebar.Separator />
 
-					{/* Admin — content types, users, plugins, import (collapsible) */}
+					{/* Admin — content types, users, plugins, import */}
 					{visibleAdmin.length > 0 && (
-						<KumoSidebar.Group collapsible defaultOpen>
+						<KumoSidebar.Group>
 							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Admin`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.GroupContent>
-								<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
-							</KumoSidebar.GroupContent>
+							<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
 						</KumoSidebar.Group>
 					)}
 
-					{/* Plugin pages (collapsible) */}
+					{/* Plugin pages */}
 					{visiblePlugins.length > 0 && (
 						<>
 							<KumoSidebar.Separator />
-							<KumoSidebar.Group collapsible defaultOpen>
+							<KumoSidebar.Group>
 								<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Plugins`}</KumoSidebar.GroupLabel>
-								<KumoSidebar.GroupContent>
-									<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
-								</KumoSidebar.GroupContent>
+								<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
 							</KumoSidebar.Group>
 						</>
 					)}
