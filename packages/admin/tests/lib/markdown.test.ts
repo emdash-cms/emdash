@@ -36,6 +36,13 @@ describe("renderMarkdown", () => {
 		expect(html).toContain('target="_blank"');
 	});
 
+	it("renders inline markdown inside link text", () => {
+		const html = renderMarkdown("[**bold** link](https://example.com)");
+		expect(html).toContain('href="https://example.com"');
+		expect(html).toContain("<strong>bold</strong>");
+		expect(html).not.toContain("**bold**");
+	});
+
 	it("drops a javascript: link, keeping only its text", () => {
 		const html = renderMarkdown("[click](javascript:alert(1))");
 		expect(html).not.toContain("javascript:");

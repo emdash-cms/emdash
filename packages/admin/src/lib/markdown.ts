@@ -19,9 +19,13 @@ function escapeHtml(str: string): string {
 
 const renderer = new Renderer();
 
-renderer.link = ({ href, text }) => {
-	if (!SAFE_URL_RE.test(href)) return escapeHtml(text);
-	return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
+renderer.link = function (this: Renderer, { href, tokens }) {
+	// `tokens` is the parsed inline content (e.g. `**bold**` → `<strong>`); the
+	// token's `text` would be the raw markdown source. DOMPurify re-sanitizes
+	// the whole output, so emitting inline HTML here is safe.
+	const inner = this.parser.parseInline(tokens);
+	if (!SAFE_URL_RE.test(href)) return inner;
+	return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>`;
 };
 
 renderer.image = ({ text }) => escapeHtml(text);

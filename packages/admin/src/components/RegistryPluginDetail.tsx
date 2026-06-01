@@ -246,18 +246,15 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const sections = presentSections(pkgProfile);
 
 	// Active section tab. Defaults to the first present section (description-first
-	// by `SECTION_ORDER`). Reconciled during render — not in an effect — when the
-	// selected section disappears after navigating to a different package, so the
-	// Tabs trigger never renders a value with no matching pane.
+	// by `SECTION_ORDER`). `activeSection` falls back to the default when the
+	// selected section isn't present (e.g. after navigating to a different
+	// package), so the Tabs trigger never renders a value with no matching pane.
 	const [selectedSection, setSelectedSection] = React.useState<SectionKey | undefined>(undefined);
 	const defaultSection = sections[0]?.key;
 	const activeSection =
 		selectedSection && sections.some((s) => s.key === selectedSection)
 			? selectedSection
 			: defaultSection;
-	if (selectedSection !== undefined && activeSection !== selectedSection) {
-		setSelectedSection(undefined);
-	}
 	const activePane = sections.find((s) => s.key === activeSection);
 
 	// SBOM reference on the signed release record. The download link points
