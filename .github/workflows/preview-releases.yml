@@ -4,8 +4,9 @@ on:
   push:
     # `bot/fix-*` branches are pushed by .github/workflows/investigate.yml
     # before the bot asks the reporter to verify a candidate fix. The
-    # ask comment includes an `npm i https://pkg.pr.new/emdash@fix-<n>`
-    # install URL that only resolves once pkg.pr.new has actually
+    # ask comment includes an `npm i https://pkg.pr.new/emdash@bot/fix-<n>`
+    # install URL (the full branch name -- pkg.pr.new resolves branches by
+    # their full ref) that only resolves once pkg.pr.new has actually
     # published a preview release on the branch -- hence the explicit
     # branch pattern here.
     branches: [main, "bot/fix-*"]

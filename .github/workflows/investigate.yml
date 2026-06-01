@@ -491,9 +491,12 @@ jobs:
 
           rm -f "$GIT_ASKPASS"
 
-          # Build the install command from the branch name. pkg.pr.new
-          # already publishes preview releases on every push to this repo.
-          INSTALL_CMD="npm i https://pkg.pr.new/emdash@${FIX_BRANCH##*/}"
+          # Build the install command from the branch name. The
+          # preview-releases.yml workflow publishes a pkg.pr.new release on
+          # every push to bot/fix-*. pkg.pr.new keys branch resolution by the
+          # *full* branch name, so use "$FIX_BRANCH" verbatim -- stripping the
+          # "bot/" prefix (e.g. "fix-123") produces a URL that 404s.
+          INSTALL_CMD="npm i https://pkg.pr.new/emdash@${FIX_BRANCH}"
 
           # ISO-8601 timestamp embedded in the comment as a hidden
           # HTML marker. reporter-reply.yml uses this to verify that a
