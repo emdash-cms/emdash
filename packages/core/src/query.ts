@@ -481,7 +481,6 @@ function stableOrder(value: Record<string, unknown>): Record<string, unknown> {
 	return ordered;
 }
 
-
 async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
 	type: T,
 	filter?: CollectionFilter,
