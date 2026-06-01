@@ -290,6 +290,9 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			/* Classic dark chrome — override kumo tokens within the sidebar */
 			.emdash-sidebar {
 				--color-kumo-base: #1d2327;
+				/* Kumo 2.4 paints the surface via bg-(--sidebar-bg) on an inner
+				   container, resolved from the wrapper's light --color-kumo-base. */
+				--sidebar-bg: #1d2327;
 				--color-kumo-tint: rgba(255,255,255,0.1);
 				--color-kumo-line: rgba(255,255,255,0.08);
 				--color-kumo-brand: #2271b1;
