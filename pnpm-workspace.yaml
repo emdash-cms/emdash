@@ -89,7 +89,7 @@ catalog:
   "@atcute/xrpc-server-cloudflare": ^2.0.0
   "@atproto/crypto": ^0.4.5
   "@atproto/repo": ^0.9.1
-  "@cloudflare/kumo": ^2.3.0
+  "@cloudflare/kumo": ^2.4.0
   "@cloudflare/vite-plugin": ^1.36.3
   "@cloudflare/vitest-pool-workers": ^0.16.3
   "@cloudflare/workers-types": ^4.20260305.1
