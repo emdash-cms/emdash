@@ -59,6 +59,7 @@ export {
 	type MediaProviderInfo,
 	type MediaProviderItem,
 	fetchMediaList,
+	fetchMediaItem,
 	uploadMedia,
 	deleteMedia,
 	updateMedia,

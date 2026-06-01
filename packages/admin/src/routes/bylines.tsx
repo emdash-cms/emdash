@@ -1,5 +1,6 @@
-import { Button, Input, InputArea, Loader, Select, Switch } from "@cloudflare/kumo";
+import { Button, Input, InputArea, Label, Loader, Select, Switch } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
+import { Image as ImageIcon, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
@@ -7,6 +8,7 @@ import * as React from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
 import { DialogError, getMutationError } from "../components/DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "../components/LocaleSwitcher.js";
+import { MediaPickerModal } from "../components/MediaPickerModal.js";
 import { TranslationsPanel } from "../components/TranslationsPanel.js";
 import {
 	createByline,
@@ -15,9 +17,11 @@ import {
 	fetchByline,
 	fetchBylineTranslations,
 	fetchBylines,
+	fetchMediaItem,
 	fetchUsers,
 	updateByline,
 	type BylineSummary,
+	type MediaItem,
 	type UserListItem,
 } from "../lib/api";
 import { fetchManifest } from "../lib/api/client.js";
@@ -29,6 +33,7 @@ interface BylineFormState {
 	websiteUrl: string;
 	userId: string | null;
 	isGuest: boolean;
+	avatarMediaId: string | null;
 }
 
 export interface LoadMoreSnapshot {
@@ -62,6 +67,7 @@ function toFormState(byline?: BylineSummary | null): BylineFormState {
 			websiteUrl: "",
 			userId: null,
 			isGuest: false,
+			avatarMediaId: null,
 		};
 	}
 
@@ -72,6 +78,7 @@ function toFormState(byline?: BylineSummary | null): BylineFormState {
 		websiteUrl: byline.websiteUrl ?? "",
 		userId: byline.userId,
 		isGuest: byline.isGuest,
+		avatarMediaId: byline.avatarMediaId ?? null,
 	};
 }
 
@@ -89,6 +96,7 @@ export function BylinesPage() {
 	const [guestFilter, setGuestFilter] = React.useState<"all" | "guest" | "linked">("all");
 	const [selectedId, setSelectedId] = React.useState<string | null>(null);
 	const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [allItems, setAllItems] = React.useState<BylineSummary[]>([]);
 	const [nextCursor, setNextCursor] = React.useState<string | undefined>(undefined);
 
@@ -184,6 +192,13 @@ export function BylinesPage() {
 		setForm(toFormState(selected));
 	}, [selected]);
 
+	const { data: avatarMediaItem } = useQuery({
+		queryKey: ["media", form.avatarMediaId],
+		queryFn: () =>
+			form.avatarMediaId ? fetchMediaItem(form.avatarMediaId) : Promise.resolve(null),
+		enabled: !!form.avatarMediaId,
+	});
+
 	// Translations: only fetched when a multi-locale install has a byline
 	// open. The panel renders one row per configured locale, with Translate
 	// or Edit buttons depending on which siblings exist.
@@ -204,6 +219,7 @@ export function BylinesPage() {
 				userId: form.userId,
 				isGuest: form.isGuest,
 				locale: activeLocale,
+				avatarMediaId: form.avatarMediaId,
 			}),
 		onSuccess: (created) => {
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
@@ -221,6 +237,7 @@ export function BylinesPage() {
 				websiteUrl: form.websiteUrl || null,
 				userId: form.userId,
 				isGuest: form.isGuest,
+				avatarMediaId: form.avatarMediaId,
 			});
 		},
 		onSuccess: () => {
@@ -411,6 +428,63 @@ export function BylinesPage() {
 							onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
 							rows={5}
 						/>
+						<div>
+							<Label>{t`Avatar`}</Label>
+							{form.avatarMediaId && avatarMediaItem ? (
+								<div className="mt-2 relative group">
+									<img
+										src={
+											!avatarMediaItem.provider || avatarMediaItem.provider === "local"
+												? `/_emdash/api/media/file/${avatarMediaItem.storageKey || avatarMediaItem.id}`
+												: avatarMediaItem.url
+										}
+										alt=""
+										className="max-h-48 rounded-lg border object-cover"
+									/>
+									<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+										<Button
+											type="button"
+											size="sm"
+											variant="secondary"
+											onClick={() => setPickerOpen(true)}
+										>
+											{t`Change`}
+										</Button>
+										<Button
+											type="button"
+											shape="square"
+											variant="destructive"
+											className="h-8 w-8"
+											onClick={() => setForm((prev) => ({ ...prev, avatarMediaId: null }))}
+											aria-label={t`Remove avatar`}
+										>
+											<X className="h-4 w-4" />
+										</Button>
+									</div>
+								</div>
+							) : (
+								<Button
+									type="button"
+									variant="outline"
+									className="mt-2 w-full h-32 border-dashed"
+									onClick={() => setPickerOpen(true)}
+								>
+									<div className="flex flex-col items-center gap-2 text-kumo-subtle">
+										<ImageIcon className="h-8 w-8" />
+										<span>{t`Select avatar`}</span>
+									</div>
+								</Button>
+							)}
+							<MediaPickerModal
+								open={pickerOpen}
+								onOpenChange={setPickerOpen}
+								onSelect={(item: MediaItem) =>
+									setForm((prev) => ({ ...prev, avatarMediaId: item.id }))
+								}
+								mimeTypeFilter="image/"
+								title={t`Select Avatar`}
+							/>
+						</div>
 						<Select
 							label={t`Linked user`}
 							value={form.userId ?? ""}

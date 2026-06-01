@@ -54,6 +54,15 @@ export async function fetchMediaList(options?: {
 }
 
 /**
+ * Fetch a single media item by id
+ */
+export async function fetchMediaItem(id: string): Promise<MediaItem> {
+	const response = await apiFetch(`${API_BASE}/media/${id}`);
+	const data = await parseApiResponse<{ item: MediaItem }>(response, "Failed to fetch media item");
+	return data.item;
+}
+
+/**
  * Upload URL response from the API
  */
 interface UploadUrlResponse {
