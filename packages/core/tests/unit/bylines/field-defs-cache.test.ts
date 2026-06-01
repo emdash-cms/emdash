@@ -138,16 +138,21 @@ describe("getBylineFieldDefs — dirty-version bypass (#1174 BUG 1)", () => {
 		]);
 	});
 
-	it("missing version row does not silently make cache invalidation a no-op", async () => {
-		// Cold-start case: helpers must upsert, not bare UPDATE, so a
-		// missing row still flips parity.
+	it("missing version row: production markVersionDirty path initialises the row and busts the cache", async () => {
+		// Drives invalidation through the registry helper, not the local
+		// `setVersion`, which would upsert the row regardless. Skipping
+		// `markVersionClean` keeps a bare-UPDATE regression in
+		// `markVersionDirty` from being masked by clean's own upsert.
 		await db.deleteFrom("options").where("name", "=", VERSION_KEY).execute();
-
 		expect(await getBylineFieldDefs(db)).toHaveLength(0);
 
-		await setVersion(db, 1);
+		const registry = new BylineSchemaRegistry(db);
+		const r = registry as unknown as { markVersionDirty(): Promise<void> };
+		await r.markVersionDirty();
 		await insertFieldDirect(db, "first_field");
 
+		// Odd version → cache bypasses the global holder and re-reads.
+		expect(await registry.getVersion()).toBe(1);
 		expect((await getBylineFieldDefs(db)).map((f) => f.slug)).toContain("first_field");
 	});
 });

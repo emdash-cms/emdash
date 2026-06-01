@@ -629,16 +629,23 @@ describe("BylineSchemaRegistry", () => {
 			expect(after % 2).toBe(0);
 		});
 
-		it("missing version row is initialised on first markVersionDirty", async () => {
-			// Cold-start: upsert must initialise the row, not silently no-op.
+		it("missing version row: markVersionDirty initialises odd, markVersionClean advances even", async () => {
+			// Each helper is asserted independently — `createField` runs
+			// both back-to-back, so `markVersionClean`'s upsert (always
+			// landing at 2) would mask a broken `markVersionDirty` that
+			// no-ops on a missing row.
 			await sql`DELETE FROM options WHERE name = 'byline_fields_version'`.execute(db);
 			expect(await registry.getVersion()).toBe(0);
 
-			// A successful create runs markVersionDirty → markVersionClean
-			// against the now-missing row. Both must land.
-			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+			const r = registry as unknown as {
+				markVersionDirty(): Promise<void>;
+				markVersionClean(): Promise<void>;
+			};
 
-			// +1 for dirty (no row → '1'), +1 for clean (= 2). Even & visible.
+			await r.markVersionDirty();
+			expect(await registry.getVersion()).toBe(1);
+
+			await r.markVersionClean();
 			expect(await registry.getVersion()).toBe(2);
 		});
 	});

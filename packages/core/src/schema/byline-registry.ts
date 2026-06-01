@@ -446,18 +446,22 @@ export class BylineSchemaRegistry {
 
 	/**
 	 * Force the version counter to an odd integer ("dirty"). Idempotent
-	 * on odd so a crashed prior attempt can't invert parity. Upsert to
-	 * cover the missing-row case (otherwise the flip silently no-ops).
-	 * See the class JSDoc for the bookend rationale.
+	 * on odd so a crashed prior attempt can't invert parity. Upsert (not
+	 * UPDATE) so a missing row still flips parity — `getVersion` returns
+	 * 0 on missing, which is even, so a bare UPDATE would leave the
+	 * cache pinned on a stale snapshot. See the class JSDoc.
+	 *
+	 * `options.value` qualified: PG's `ON CONFLICT DO UPDATE` puts both
+	 * the target and `EXCLUDED.value` in scope; bare `value` is ambiguous.
 	 */
 	private async markVersionDirty(): Promise<void> {
 		await sql`
 			INSERT INTO options (name, value)
 			VALUES (${VERSION_KEY}, '1')
 			ON CONFLICT(name) DO UPDATE SET value = CASE
-				WHEN CAST(value AS INTEGER) % 2 = 0
-					THEN CAST(CAST(value AS INTEGER) + 1 AS TEXT)
-				ELSE value
+				WHEN CAST(options.value AS INTEGER) % 2 = 0
+					THEN CAST(CAST(options.value AS INTEGER) + 1 AS TEXT)
+				ELSE options.value
 			END
 		`.execute(this.db);
 	}
@@ -467,15 +471,17 @@ export class BylineSchemaRegistry {
 	 * +1 from odd). Always-advance — never a no-op — so two concurrent
 	 * mutators can't collapse on the same even key and pin a stale cache
 	 * snapshot. See the class JSDoc for the concurrent-collapse rationale.
+	 *
+	 * `options.value` qualified — see `markVersionDirty`.
 	 */
 	private async markVersionClean(): Promise<void> {
 		await sql`
 			INSERT INTO options (name, value)
 			VALUES (${VERSION_KEY}, '2')
 			ON CONFLICT(name) DO UPDATE SET value = CASE
-				WHEN CAST(value AS INTEGER) % 2 = 0
-					THEN CAST(CAST(value AS INTEGER) + 2 AS TEXT)
-				ELSE CAST(CAST(value AS INTEGER) + 1 AS TEXT)
+				WHEN CAST(options.value AS INTEGER) % 2 = 0
+					THEN CAST(CAST(options.value AS INTEGER) + 2 AS TEXT)
+				ELSE CAST(CAST(options.value AS INTEGER) + 1 AS TEXT)
 			END
 		`.execute(this.db);
 	}
