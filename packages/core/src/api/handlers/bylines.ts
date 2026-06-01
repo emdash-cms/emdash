@@ -10,6 +10,10 @@ import type { Database } from "../../database/types.js";
 import { getI18nConfig } from "../../i18n/config.js";
 import type { ApiResult } from "../types.js";
 
+// `undefined → null` so a missing field in the create payload matches the
+// repo's stored `null` (BylineRepository normalises with `?? null` on write).
+const norm = (v: string | null | undefined): string | null => v ?? null;
+
 /**
  * Whether the existing byline row's fixed columns match a fresh-create
  * payload after null/undefined normalisation. Used by the D1 create-retry
@@ -20,7 +24,6 @@ function bylineFixedFieldsMatch(
 	input: CreateBylineInput,
 	effectiveLocale: string,
 ): boolean {
-	const norm = (v: string | null | undefined): string | null => v ?? null;
 	return (
 		existing.displayName === input.displayName &&
 		norm(existing.bio) === norm(input.bio) &&
