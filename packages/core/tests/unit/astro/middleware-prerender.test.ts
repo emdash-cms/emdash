@@ -495,4 +495,68 @@ describe("astro middleware request-scoped db", () => {
 			isWrite: true,
 		});
 	});
+
+	it("sets isAuthenticated true for Bearer-authenticated API requests (#1046)", async () => {
+		const commit = vi.fn();
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: { _marker: "scoped" } as never,
+			commit,
+		});
+
+		const cookies = { get: vi.fn(() => undefined), set: vi.fn() };
+		const astroSession = { get: vi.fn(async () => null) };
+
+		const context: Record<string, unknown> = {
+			request: new Request("https://example.com/_emdash/api/content/posts", {
+				headers: { Authorization: "Bearer ec_pat_test" },
+			}),
+			url: new URL("https://example.com/_emdash/api/content/posts"),
+			cookies,
+			locals: {},
+			redirect: vi.fn(),
+			isPrerendered: false,
+			session: astroSession,
+		};
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const opts = vi.mocked(createRequestScopedDb).mock.calls[0]?.[0];
+		expect(opts).toMatchObject({
+			config: DB_CONFIG_MARKER,
+			isAuthenticated: true,
+			isWrite: false,
+		});
+	});
+
+	it("sets isAuthenticated true for Bearer-authenticated public pages (#1046)", async () => {
+		const commit = vi.fn();
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: { _marker: "scoped" } as never,
+			commit,
+		});
+
+		const cookies = { get: vi.fn(() => undefined), set: vi.fn() };
+		const astroSession = { get: vi.fn(async () => null) };
+
+		const context: Record<string, unknown> = {
+			request: new Request("https://example.com/", {
+				headers: { Authorization: "Bearer ec_pat_test" },
+			}),
+			url: new URL("https://example.com/"),
+			cookies,
+			locals: {},
+			redirect: vi.fn(),
+			isPrerendered: false,
+			session: astroSession,
+		};
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const opts = vi.mocked(createRequestScopedDb).mock.calls[0]?.[0];
+		expect(opts).toMatchObject({
+			config: DB_CONFIG_MARKER,
+			isAuthenticated: true,
+			isWrite: false,
+		});
+	});
 });

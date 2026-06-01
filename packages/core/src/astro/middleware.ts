@@ -255,6 +255,7 @@ function pushMetricsTimings(
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
 const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
+const BEARER_AUTH_RE = /^bearer\s+\S/i;
 
 /**
  * Ask the configured database adapter for a per-request scoped Kysely. The
@@ -327,6 +328,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await context.session?.get("user");
 
+		// Bearer/PAT/OAuth requests are resolved by middleware/auth.ts which
+		// runs AFTER this middleware, so locals.user isn't set yet. Header
+		// presence is enough for D1 routing: the bookmark cookie is httpOnly
+		// + opaque, and an invalid token is rejected by auth before data
+		// leaks. See #1046.
+		const authHeader = request.headers.get("authorization");
+		const hasBearer = authHeader != null && BEARER_AUTH_RE.test(authHeader);
+
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
 				const timings: Array<{ name: string; dur: number; desc?: string }> = [];
@@ -392,7 +401,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// to the nearest replica; for other adapters it's a no-op.
 				const anonScoped = createRequestScopedDb({
 					config: config?.database?.config,
-					isAuthenticated: false,
+					isAuthenticated: hasBearer,
 					isWrite: request.method !== "GET" && request.method !== "HEAD",
 					cookies,
 					url,
@@ -558,7 +567,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// per-request state (e.g. a D1 bookmark cookie for read-your-writes).
 			const scoped = createRequestScopedDb({
 				config: config?.database?.config,
-				isAuthenticated: !!sessionUser,
+				isAuthenticated: !!sessionUser || hasBearer,
 				isWrite: request.method !== "GET" && request.method !== "HEAD",
 				cookies: context.cookies,
 				url,
