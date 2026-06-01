@@ -1,5 +1,16 @@
 # @emdash-cms/admin
 
+## 0.16.1
+
+### Patch Changes
+
+- [#1277](https://github.com/emdash-cms/emdash/pull/1277) [`2c36d55`](https://github.com/emdash-cms/emdash/commit/2c36d5514f317d5c01a19def93956922d3b0557c) Thanks [@ahliweb](https://github.com/ahliweb)! - Completes the Indonesian translations for the admin UI and keeps `id` as the canonical locale code.
+
+- [#1278](https://github.com/emdash-cms/emdash/pull/1278) [`930d23b`](https://github.com/emdash-cms/emdash/commit/930d23bb0e3c3a860904996ef7ddd6c239572203) Thanks [@ascorbic](https://github.com/ascorbic)! - Fix admin sidebar rendering white text on a light background in light mode. Kumo 2.4 moved the sidebar surface to an inner container painted with `bg-(--sidebar-bg)`, where `--sidebar-bg` is resolved from the wrapper's default (light) `--color-kumo-base`. The sidebar's dark-chrome override only set `--color-kumo-base`, which no longer reaches that surface, so the dark background was lost while the white text remained. The override now sets `--sidebar-bg` directly.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.16.1
+
 ## 0.16.0
 
 ### Minor Changes

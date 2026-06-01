@@ -1,5 +1,13 @@
 # @emdash-cms/perf-demo-site
 
+## 0.0.13
+
+### Patch Changes
+
+- Updated dependencies []:
+  - emdash@0.16.1
+  - @emdash-cms/cloudflare@0.16.1
+
 ## 0.0.12
 
 ### Patch Changes
