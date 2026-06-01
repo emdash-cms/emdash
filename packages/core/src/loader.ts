@@ -306,11 +306,14 @@ function buildStatusCondition(
 
 	if (status === "published") {
 		// Include both published content AND scheduled content past its publish time.
-		// scheduled_at is stored as text (ISO 8601). On Postgres, we must cast it
-		// to timestamptz for the comparison with CURRENT_TIMESTAMP to work.
+		// scheduled_at is stored as ISO 8601 text (e.g. "2026-05-05T01:41:59.000Z").
+		// On Postgres, cast to timestamptz for proper comparison.
+		// On SQLite, wrap both sides in datetime() to normalize format —
+		// scheduled_at uses "T" and "Z" separators while datetime('now')
+		// returns "YYYY-MM-DD HH:MM:SS", so a raw text comparison fails.
 		const scheduledAtExpr = isPostgres(db)
 			? sql`${sql.ref(scheduledAtField)}::timestamptz`
-			: sql.ref(scheduledAtField);
+			: sql`datetime(${sql.ref(scheduledAtField)})`;
 		return sql`(${sql.ref(statusField)} = 'published' OR (${sql.ref(statusField)} = 'scheduled' AND ${scheduledAtExpr} <= ${currentTimestampValue(db)}))`;
 	}
 

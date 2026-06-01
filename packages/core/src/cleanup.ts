@@ -13,10 +13,13 @@ import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/
 import { sql, type Kysely } from "kysely";
 
 import { cleanupExpiredChallenges } from "./auth/challenge-store.js";
+import { ContentRepository } from "./database/repositories/content.js";
 import { MediaRepository } from "./database/repositories/media.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
+import { withTransaction } from "./database/transaction.js";
 import type { Database } from "./database/types.js";
 import type { Storage } from "./storage/types.js";
+import { isMissingTableError } from "./utils/db-errors.js";
 
 /**
  * Result of a system cleanup run.
@@ -150,4 +153,79 @@ async function pruneExcessiveRevisions(db: Kysely<Database>): Promise<number> {
 	}
 
 	return totalPruned;
+}
+
+// ─── Scheduled Content Publishing ──────────────────────────────────────────
+
+/**
+ * Result of a scheduled content publishing run.
+ */
+export interface PublishScheduledResult {
+	/** Total items published across all collections */
+	published: number;
+	/** Total items that failed to publish */
+	failed: number;
+}
+
+/**
+ * Publish all content whose scheduled_at time has passed.
+ *
+ * Iterates over every registered collection, finds items where
+ * `scheduled_at <= now`, and promotes each to published status via the
+ * standard `ContentRepository.publish()` path (which handles revision
+ * promotion, data sync, and clearing the schedule).
+ *
+ * Safe to call frequently -- when nothing is due, the only cost is one
+ * lightweight SELECT per collection plus the collections list query.
+ *
+ * Each item is published independently; a failure on one item does not
+ * prevent the rest from being processed.
+ */
+export async function publishScheduledContent(
+	db: Kysely<Database>,
+): Promise<PublishScheduledResult> {
+	const result: PublishScheduledResult = { published: 0, failed: 0 };
+
+	// Discover all registered collections
+	let collectionSlugs: string[];
+	try {
+		const rows = await db.selectFrom("_emdash_collections").select("slug").execute();
+		collectionSlugs = rows.map((r) => r.slug);
+	} catch (error) {
+		// Pre-migration database or missing table -- nothing to publish
+		if (isMissingTableError(error)) return result;
+		throw error;
+	}
+
+	if (collectionSlugs.length === 0) return result;
+
+	const repo = new ContentRepository(db);
+
+	for (const slug of collectionSlugs) {
+		let readyItems;
+		try {
+			readyItems = await repo.findReadyToPublish(slug);
+		} catch (error) {
+			// Table may have been dropped between listing and querying
+			if (isMissingTableError(error)) continue;
+			console.error(`[scheduled] Failed to query scheduled content for ${slug}:`, error);
+			continue;
+		}
+
+		for (const item of readyItems) {
+			try {
+				await withTransaction(db, async (trx) => {
+					const txRepo = new ContentRepository(trx);
+					await txRepo.publish(slug, item.id);
+				});
+				result.published++;
+				console.log(`[scheduled] Published ${slug}/${item.id} (scheduled_at: ${item.scheduledAt})`);
+			} catch (error) {
+				result.failed++;
+				console.error(`[scheduled] Failed to publish ${slug}/${item.id}:`, error);
+			}
+		}
+	}
+
+	return result;
 }

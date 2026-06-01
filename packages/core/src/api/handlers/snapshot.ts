@@ -12,6 +12,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { currentTimestampValue, isSqlite } from "../../database/dialect-helpers.js";
 import type { Database } from "../../database/types.js";
 
 // ─�� Preview signature verification ──────────────────────────────
@@ -289,12 +290,17 @@ export async function generateSnapshot(
 					`.execute(db)
 					).rows;
 				} else {
-					// Only export published content
+					// Only export published content.
+					// On SQLite, wrap scheduled_at in datetime() to normalize
+					// ISO 8601 "T"/"Z" format for comparison with datetime('now').
+					const scheduledAtExpr = isSqlite(db)
+						? sql`datetime(scheduled_at)`
+						: sql`scheduled_at::timestamptz`;
 					rows = (
 						await sql<Record<string, unknown>>`
 						SELECT * FROM ${sql.raw(`"${tableName}"`)}
 						WHERE deleted_at IS NULL
-						AND (status = 'published' OR (status = 'scheduled' AND scheduled_at <= datetime('now')))
+						AND (status = 'published' OR (status = 'scheduled' AND ${scheduledAtExpr} <= ${currentTimestampValue(db)}))
 					`.execute(db)
 					).rows;
 				}
