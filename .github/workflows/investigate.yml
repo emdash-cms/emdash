@@ -132,7 +132,7 @@ jobs:
         run: |
           set -euo pipefail
           # Remove any existing bot:* label; swallow 404s (label may not be present).
-          for L in bot:repro triage/reproducing triage/reproduced triage/awaiting-reporter triage/verified triage/not-reproduced triage/skipped triage/failed; do
+          for L in bot:repro triage/reproducing triage/reproduced triage/by-design triage/awaiting-reporter triage/verified triage/not-reproduced triage/skipped triage/failed; do
             gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "$L" >/dev/null 2>&1 || true
           done
           gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --add-label "triage/reproducing"
