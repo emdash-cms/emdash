@@ -522,6 +522,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					hooks: runtime.hooks,
 					email: runtime.email,
 					configuredPlugins: runtime.configuredPlugins,
+					sandboxedPluginEntries: runtime.sandboxedPluginEntries,
 
 					// Configuration (for checking database type, auth mode, etc.)
 					config,
