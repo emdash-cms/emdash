@@ -194,7 +194,7 @@ function coerceFieldValue(field: BylineFieldDefinition, raw: unknown): CustomFie
 					{ slug: field.slug, type: field.type, received: raw, protocol: parsed.protocol },
 				);
 			}
-			return raw;
+			if (raw === "") return null;
 		}
 		case "boolean": {
 			if (typeof raw !== "boolean") {
