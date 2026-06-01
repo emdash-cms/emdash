@@ -17,9 +17,15 @@ updates:
     cooldown:
       default-days: 3
       semver-major-days: 7
+    # Group only minor/patch bumps. Majors carry breaking changes and
+    # peer-dep incompatibilities (e.g. @vitejs/plugin-react@6 importing
+    # vite/internal, which rolldown-vite doesn't export), so they break out
+    # into individual PRs for separate review instead of poisoning the batch.
     groups:
       dev-dependencies:
         dependency-type: "development"
+        update-types: ["minor", "patch"]
       production-dependencies:
         dependency-type: "production"
+        update-types: ["minor", "patch"]
     open-pull-requests-limit: 10
