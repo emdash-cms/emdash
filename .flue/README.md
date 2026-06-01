@@ -2,7 +2,7 @@
 
 Experimental Flue-powered investigation bot for `emdash-cms/emdash` issues. Runs as a GitHub Actions workflow when a maintainer applies the `bot:repro` label. Not deployed as a Cloudflare Worker.
 
-For the design rationale, see [PLAN.md](./PLAN.md) and the [PR description](https://github.com/emdash-cms/emdash/pull/1090). Astro's analogous setup (`.flue/agents/issue-triage.ts` in `withastro/astro`) is the closest reference.
+For the design rationale, see the [PR description](https://github.com/emdash-cms/emdash/pull/1090). Astro's analogous setup (`.flue/agents/issue-triage.ts` in `withastro/astro`) is the closest reference.
 
 ## What it does
 
@@ -13,24 +13,25 @@ When a maintainer adds `bot:repro` to an issue:
    - `repro-api` — `pnpm test`, CLI commands, direct API hits, no browser
    - `repro-admin` — `agent-browser` against `pnpm dev` with the dev-bypass auth shortcut
    - `repro-public` — `agent-browser` against the rendered public site
-3. **Diagnose** — read the source paths that explain the symptom, rate confidence honestly.
+3. **Diagnose** — read the source paths that explain the symptom, rate confidence in the root cause, choose a fix approach (`mechanical` / `clear-best-option` / `needs-design-decision`), and write a concrete proposed fix.
 4. **Verify** — decide whether the behaviour is a bug or intended-by-design. Gates the fix stage.
-5. **Fix** — conditional on `verdict=bug` AND `confidence=high`. Writes the change, runs the reproduce test, runs the broader package tests, typecheck, lint, format. Stages but does not commit.
+5. **Fix** — conditional on `verdict=bug`, `confidence!=low`, and `fixApproach!=needs-design-decision`. Runs on a cheaper model (kimi-k2.6) in its own session — diagnose already produced the plan, so this stage is guided implementation. Writes the change, runs the reproduce test, the broader package tests, typecheck, lint, format. Stages but does not commit.
 
 The orchestrator (`.github/workflows/investigate.yml`) reads the structured JSON output and performs all GitHub writes — labels, comments, branch pushes, PR creation. The agent itself has no write access to GitHub.
 
 ## Trigger and label state
 
-| Label                      | Set by     | Meaning                                          |
-| -------------------------- | ---------- | ------------------------------------------------ |
-| `bot:repro`                | Maintainer | Investigation requested                          |
-| `triage/reproducing`       | Bot        | Investigation in progress                        |
-| `triage/reproduced`        | Bot        | Reproduced; no fix attempted (or fix abandoned)  |
-| `triage/awaiting-reporter` | Bot        | Fix pushed; reporter asked to verify             |
-| `triage/verified`          | Bot        | Reporter confirmed; PR opened                    |
-| `triage/not-reproduced`    | Bot        | Could not observe the reported behaviour         |
-| `triage/skipped`           | Bot        | Declined (non-bug, requires external data, etc.) |
-| `triage/failed`            | Bot        | Gave up after retries                            |
+| Label                      | Set by     | Meaning                                                      |
+| -------------------------- | ---------- | ------------------------------------------------------------ |
+| `bot:repro`                | Maintainer | Investigation requested                                      |
+| `triage/reproducing`       | Bot        | Investigation in progress                                    |
+| `triage/reproduced`        | Bot        | Confirmed bug; needs a maintainer (no fix, or fix abandoned) |
+| `triage/by-design`         | Bot        | Reproduced, but the behaviour appears intentional            |
+| `triage/awaiting-reporter` | Bot        | Fix pushed; reporter asked to verify                         |
+| `triage/verified`          | Bot        | Reporter confirmed; PR opened                                |
+| `triage/not-reproduced`    | Bot        | Could not observe the reported behaviour                     |
+| `triage/skipped`           | Bot        | Declined (non-bug, requires external data, etc.)             |
+| `triage/failed`            | Bot        | Gave up after retries                                        |
 
 The bot owns every label except `bot:repro`. Maintainers don't manage state directly — they trigger by adding `bot:repro` and re-trigger by removing/re-adding it.
 

@@ -44,3 +44,15 @@ export {
 export { type PublishingClientFromHandlerOptions, PublishingClient } from "./publishing/index.js";
 
 export { type DiscoveryClientOptions, DiscoveryClient } from "./discovery/index.js";
+
+export {
+	type EnvMismatch,
+	type HostEnv,
+	type SkippedEnvConstraint,
+	checkEnvCompatibility,
+	findSkippedEnvConstraints,
+	hostEnvFromVersions,
+	isValidVersionRange,
+	parseRequires,
+	satisfiesRange,
+} from "./env/index.js";

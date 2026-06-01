@@ -4,8 +4,9 @@ on:
   push:
     # `bot/fix-*` branches are pushed by .github/workflows/investigate.yml
     # before the bot asks the reporter to verify a candidate fix. The
-    # ask comment includes an `npm i https://pkg.pr.new/emdash@fix-<n>`
-    # install URL that only resolves once pkg.pr.new has actually
+    # ask comment includes an `npm i https://pkg.pr.new/emdash@bot/fix-<n>`
+    # install URL (the full branch name -- pkg.pr.new resolves branches by
+    # their full ref) that only resolves once pkg.pr.new has actually
     # published a preview release on the branch -- hence the explicit
     # branch pattern here.
     branches: [main, "bot/fix-*"]
@@ -33,4 +34,13 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm dlx pkg-pr-new publish --pnpm './packages/core' './packages/admin' './packages/auth' './packages/blocks' './packages/cloudflare' './packages/create-emdash' './packages/gutenberg-to-portable-text' './packages/x402' './packages/plugins/ai-moderation' './packages/plugins/atproto' './packages/plugins/audit-log' './packages/plugins/color' './packages/plugins/embeds' './packages/plugins/forms' './packages/plugins/webhook-notifier'
+      # Publish a preview for every public package via globs rather than a
+      # hardcoded list. This keeps preview installs self-consistent: when
+      # `emdash`'s preview references a sibling like @emdash-cms/registry-client
+      # via `workspace:*`, pkg.pr.new can only rewrite that to a matching
+      # preview URL if the sibling is published in the same run. Omitting one
+      # makes the dep fall back to npm's released version, which breaks when the
+      # source has drifted (e.g. a new exports subpath added without a release).
+      # pkg.pr.new skips `private: true` packages automatically, so the test
+      # fixtures under packages/plugins/* are excluded without enumerating them.
+      - run: pnpm exec pkg-pr-new publish --pnpm './packages/*' './packages/plugins/*'
