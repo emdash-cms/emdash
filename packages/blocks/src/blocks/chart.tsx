@@ -100,7 +100,7 @@ function TimeseriesChartBlock({ block, isDarkMode }: { block: ChartBlock; isDark
 			config.series.map((s, i) => ({
 				name: escapeHtml(s.name),
 				data: s.data,
-				color: s.color ?? ChartPalette.color(i, isDarkMode),
+				color: s.color ?? ChartPalette.categorical(i, isDarkMode),
 			})),
 		[config.series, isDarkMode],
 	);

@@ -9,7 +9,12 @@
 import type { PluginCapability, PluginStorageConfig } from "@emdash-cms/plugin-types";
 
 import type { ProfileBootstrap, ProfileInput } from "../publish/api.js";
-import type { Manifest, ManifestAuthor, ManifestSecurityContact } from "./schema.js";
+import type {
+	Manifest,
+	ManifestArtifacts,
+	ManifestAuthor,
+	ManifestSecurityContact,
+} from "./schema.js";
 
 /**
  * Normalised "after the schema's single/multi convenience has been
@@ -44,6 +49,20 @@ export interface NormalisedManifest {
 	description: string | undefined;
 	keywords: string[] | undefined;
 	repo: string | undefined;
+
+	/**
+	 * Release-level environment constraints (`release.requires`). Map of
+	 * `env:*`/DID keys to semver ranges. Release-level, not profile-level —
+	 * passed to `publishRelease` separately, never via `manifestToProfileInput`.
+	 */
+	requires: Record<string, string> | undefined;
+
+	/**
+	 * Release media artifacts (icon / screenshot / banner). File refs only —
+	 * the publish command resolves, measures, and uploads them. `undefined`
+	 * when the manifest declared none.
+	 */
+	artifacts: ManifestArtifacts | undefined;
 
 	// Trust contract (defaults applied by the schema; always present here).
 	capabilities: PluginCapability[];
@@ -166,6 +185,8 @@ export function normaliseManifest(manifest: Manifest, packageVersion?: string): 
 		description: manifest.description,
 		keywords: manifest.keywords,
 		repo: manifest.repo,
+		requires: manifest.release?.requires,
+		artifacts: manifest.release?.artifacts,
 		// Schema validation already gates capability strings to the
 		// current vocabulary via a runtime check, so by the time we get
 		// here the strings are guaranteed members of PluginCapability.

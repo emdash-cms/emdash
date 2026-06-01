@@ -212,6 +212,9 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		handlePluginApiRoute: () => {
 			throw new Error("handlePluginApiRoute not implemented in test runtime");
 		},
+		handlePublicPluginApiRoute: () => {
+			throw new Error("handlePublicPluginApiRoute not implemented in test runtime");
+		},
 		getPluginRouteMeta: () => null,
 		getMediaProvider: runtime.getMediaProvider.bind(runtime),
 		getMediaProviderList: runtime.getMediaProviderList.bind(runtime),
