@@ -279,7 +279,10 @@ export function Sections() {
 												onKeyDown={(e) => {
 													if (e.key === "Enter") {
 														e.preventDefault();
-														if (draftHighlightedIndex >= 0 && draftSuggestions[draftHighlightedIndex]) {
+														if (
+															draftHighlightedIndex >= 0 &&
+															draftSuggestions[draftHighlightedIndex]
+														) {
 															// Select highlighted suggestion
 															const selected = draftSuggestions[draftHighlightedIndex];
 															setDraftIntent(selected);
@@ -353,7 +356,10 @@ export function Sections() {
 									</div>
 									{/* Autocomplete suggestions dropdown */}
 									{showSuggestions && draftSuggestions.length > 0 && (
-										<div className="absolute z-10 mt-1 w-full rounded-lg border bg-kumo-base shadow-lg" role="listbox">
+										<div
+											className="absolute z-10 mt-1 w-full rounded-lg border bg-kumo-base shadow-lg"
+											role="listbox"
+										>
 											{draftSuggestions.map((suggestion, index) => (
 												<button
 													key={suggestion}

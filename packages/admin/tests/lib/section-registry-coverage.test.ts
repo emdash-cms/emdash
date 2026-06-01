@@ -1,12 +1,12 @@
 /**
  * Section Registry Coverage Test
- * 
+ *
  * Verifies that every section template in SECTION_STARTER_TEMPLATES is properly
  * wired across all layers:
  * 1. Template has valid Portable Text content
  * 2. Template content blocks have corresponding block definitions
  * 3. Template category is valid
- * 
+ *
  * This test catches "registry drift" where a template exists but isn't properly
  * connected to the rendering pipeline.
  */
@@ -68,7 +68,7 @@ describe("Section Registry Coverage", () => {
 			for (const template of SECTION_STARTER_TEMPLATES) {
 				expect(validCategoryIds).toContain(
 					template.category,
-					`Template "${template.id}" has invalid category "${template.category}"`
+					`Template "${template.id}" has invalid category "${template.category}"`,
 				);
 			}
 		});
@@ -165,7 +165,7 @@ describe("Section Registry Coverage", () => {
 						if (blockObj.children || blockObj.items || blockObj.panels) {
 							expect(
 								blockObj._key || blockObj._id,
-								`Block of type "${blockObj._type}" in template "${template.id}" should have _key or _id`
+								`Block of type "${blockObj._type}" in template "${template.id}" should have _key or _id`,
 							).toBeTruthy();
 						}
 					}
@@ -181,7 +181,14 @@ describe("Section Registry Coverage", () => {
 
 		it("categories are: layout, content, marketing, media, navigation, social", () => {
 			const categoryIds = SECTION_CATEGORIES.map((c) => c.id).sort();
-			expect(categoryIds).toEqual(["content", "layout", "marketing", "media", "navigation", "social"]);
+			expect(categoryIds).toEqual([
+				"content",
+				"layout",
+				"marketing",
+				"media",
+				"navigation",
+				"social",
+			]);
 		});
 
 		it("every category has a label", () => {
@@ -204,7 +211,7 @@ describe("Section Registry Coverage", () => {
 			for (const category of SECTION_CATEGORIES) {
 				expect(categoryCounts[category.id] ?? 0).toBeGreaterThanOrEqual(
 					1,
-					`Category "${category.id}" has no templates`
+					`Category "${category.id}" has no templates`,
 				);
 			}
 		});
