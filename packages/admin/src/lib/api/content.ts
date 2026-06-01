@@ -164,8 +164,15 @@ export async function fetchContentList(
 /**
  * Fetch single content item
  */
-export async function fetchContent(collection: string, id: string): Promise<ContentItem> {
-	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}`);
+export async function fetchContent(
+	collection: string,
+	id: string,
+	options?: { locale?: string },
+): Promise<ContentItem> {
+	const params = new URLSearchParams();
+	if (options?.locale) params.set("locale", options.locale);
+	const query = params.toString() ? `?${params}` : "";
+	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}${query}`);
 	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to fetch content");
 	return data.item;
 }
@@ -200,8 +207,12 @@ export async function updateContent(
 	collection: string,
 	id: string,
 	input: UpdateContentInput,
+	options?: { locale?: string },
 ): Promise<ContentItem> {
-	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}`, {
+	const params = new URLSearchParams();
+	if (options?.locale) params.set("locale", options.locale);
+	const query = params.toString() ? `?${params}` : "";
+	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}${query}`, {
 		method: "PUT",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
@@ -213,8 +224,15 @@ export async function updateContent(
 /**
  * Delete content (moves to trash)
  */
-export async function deleteContent(collection: string, id: string): Promise<void> {
-	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}`, {
+export async function deleteContent(
+	collection: string,
+	id: string,
+	options?: { locale?: string },
+): Promise<void> {
+	const params = new URLSearchParams();
+	if (options?.locale) params.set("locale", options.locale);
+	const query = params.toString() ? `?${params}` : "";
+	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}${query}`, {
 		method: "DELETE",
 	});
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete content`));
@@ -284,8 +302,12 @@ export async function scheduleContent(
 	collection: string,
 	id: string,
 	scheduledAt: string,
+	options?: { locale?: string },
 ): Promise<ContentItem> {
-	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/schedule`, {
+	const params = new URLSearchParams();
+	if (options?.locale) params.set("locale", options.locale);
+	const query = params.toString() ? `?${params}` : "";
+	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/schedule${query}`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ scheduledAt }),
@@ -300,8 +322,15 @@ export async function scheduleContent(
 /**
  * Unschedule content (revert to draft)
  */
-export async function unscheduleContent(collection: string, id: string): Promise<ContentItem> {
-	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/schedule`, {
+export async function unscheduleContent(
+	collection: string,
+	id: string,
+	options?: { locale?: string },
+): Promise<ContentItem> {
+	const params = new URLSearchParams();
+	if (options?.locale) params.set("locale", options.locale);
+	const query = params.toString() ? `?${params}` : "";
+	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/schedule${query}`, {
 		method: "DELETE",
 	});
 	const data = await parseApiResponse<{ item: ContentItem }>(
@@ -366,8 +395,15 @@ export async function getPreviewUrl(
 /**
  * Publish content - promotes current draft to live
  */
-export async function publishContent(collection: string, id: string): Promise<ContentItem> {
-	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/publish`, {
+export async function publishContent(
+	collection: string,
+	id: string,
+	options?: { locale?: string },
+): Promise<ContentItem> {
+	const params = new URLSearchParams();
+	if (options?.locale) params.set("locale", options.locale);
+	const query = params.toString() ? `?${params}` : "";
+	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/publish${query}`, {
 		method: "POST",
 	});
 	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to publish content");
@@ -377,8 +413,15 @@ export async function publishContent(collection: string, id: string): Promise<Co
 /**
  * Unpublish content - removes from public, preserves draft
  */
-export async function unpublishContent(collection: string, id: string): Promise<ContentItem> {
-	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/unpublish`, {
+export async function unpublishContent(
+	collection: string,
+	id: string,
+	options?: { locale?: string },
+): Promise<ContentItem> {
+	const params = new URLSearchParams();
+	if (options?.locale) params.set("locale", options.locale);
+	const query = params.toString() ? `?${params}` : "";
+	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/unpublish${query}`, {
 		method: "POST",
 	});
 	const data = await parseApiResponse<{ item: ContentItem }>(
@@ -391,8 +434,15 @@ export async function unpublishContent(collection: string, id: string): Promise<
 /**
  * Discard draft changes - reverts to live version
  */
-export async function discardDraft(collection: string, id: string): Promise<ContentItem> {
-	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/discard-draft`, {
+export async function discardDraft(
+	collection: string,
+	id: string,
+	options?: { locale?: string },
+): Promise<ContentItem> {
+	const params = new URLSearchParams();
+	if (options?.locale) params.set("locale", options.locale);
+	const query = params.toString() ? `?${params}` : "";
+	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/discard-draft${query}`, {
 		method: "POST",
 	});
 	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to discard draft");

@@ -135,9 +135,10 @@ function patchAutosaveQueries(
 			data?: Record<string, unknown>;
 			slug?: string;
 		};
+		locale?: string;
 	},
 ) {
-	const { collection, id, savedItem, payload } = params;
+	const { collection, id, savedItem, payload, locale } = params;
 	const draftRevisionId = savedItem.draftRevisionId;
 
 	if (draftRevisionId) {
@@ -162,7 +163,10 @@ function patchAutosaveQueries(
 		});
 	}
 
-	queryClient.setQueryData<ContentItem>(["content", collection, id], savedItem);
+	queryClient.setQueryData<ContentItem>(
+		locale ? ["content", collection, id, { locale }] : ["content", collection, id],
+		savedItem,
+	);
 }
 
 // Create a base root route without Shell for setup
@@ -582,6 +586,7 @@ const contentEditRoute = createRoute({
 	component: ContentEditPage,
 	validateSearch: (search) => ({
 		...(typeof search.field === "string" && { field: search.field }),
+		...(typeof search.locale === "string" && { locale: search.locale }),
 	}),
 });
 
@@ -606,10 +611,12 @@ function ContentEditPage() {
 	});
 
 	const i18n = manifest?.i18n;
+	const activeLocale = i18n ? (searchParams.locale ?? i18n.defaultLocale) : undefined;
 
 	const { data: rawItem, isLoading } = useQuery({
-		queryKey: ["content", collection, id],
-		queryFn: () => fetchContent(collection, id),
+		queryKey: ["content", collection, id, { locale: activeLocale }],
+		queryFn: () => fetchContent(collection, id, { locale: activeLocale }),
+		enabled: !i18n || !!activeLocale,
 	});
 
 	React.useEffect(() => {
@@ -725,9 +732,11 @@ function ContentEditPage() {
 			bylines?: BylineCreditInput[];
 			skipRevision?: boolean;
 			seo?: ContentSeoInput;
-		}) => updateContent(collection, id, data),
+		}) => updateContent(collection, id, data, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+			});
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			// Invalidate the cached draft revision so stale data doesn't overwrite the form
@@ -753,7 +762,13 @@ function ContentEditPage() {
 			data?: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
-		}) => updateContent(collection, id, { ...data, skipRevision: true }),
+		}) =>
+			updateContent(
+				collection,
+				id,
+				{ ...data, skipRevision: true },
+				{ locale: rawItem?.locale ?? activeLocale },
+			),
 		onSuccess: (savedItem, variables) => {
 			patchAutosaveQueries(queryClient, {
 				collection,
@@ -763,6 +778,7 @@ function ContentEditPage() {
 					data: variables.data,
 					slug: variables.slug,
 				},
+				locale: rawItem?.locale ?? activeLocale,
 			});
 			setLastAutosaveAt(new Date());
 			// Keep the cache fresh without refetching older server state back into the form
@@ -778,9 +794,11 @@ function ContentEditPage() {
 	});
 
 	const publishMutation = useMutation({
-		mutationFn: () => publishContent(collection, id),
+		mutationFn: () => publishContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
@@ -794,9 +812,11 @@ function ContentEditPage() {
 	});
 
 	const unpublishMutation = useMutation({
-		mutationFn: () => unpublishContent(collection, id),
+		mutationFn: () => unpublishContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
 		},
@@ -810,9 +830,11 @@ function ContentEditPage() {
 	});
 
 	const discardDraftMutation = useMutation({
-		mutationFn: () => discardDraft(collection, id),
+		mutationFn: () => discardDraft(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({
 				title: t`Changes discarded`,
@@ -829,9 +851,12 @@ function ContentEditPage() {
 	});
 
 	const scheduleMutation = useMutation({
-		mutationFn: (scheduledAt: string) => scheduleContent(collection, id, scheduledAt),
+		mutationFn: (scheduledAt: string) =>
+			scheduleContent(collection, id, scheduledAt, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+			});
 			toastManager.add({
 				title: t`Scheduled`,
 				description: t`Content has been scheduled for publishing`,
@@ -847,9 +872,12 @@ function ContentEditPage() {
 	});
 
 	const unscheduleMutation = useMutation({
-		mutationFn: () => unscheduleContent(collection, id),
+		mutationFn: () =>
+			unscheduleContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+			});
 			toastManager.add({
 				title: t`Unscheduled`,
 				description: t`Content reverted to draft`,
@@ -879,6 +907,7 @@ function ContentEditPage() {
 			void navigate({
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
+				search: { locale: result.locale },
 			});
 			toastManager.add({
 				title: t`Translation created`,
@@ -895,14 +924,14 @@ function ContentEditPage() {
 	});
 
 	const deleteMutation = useMutation({
-		mutationFn: () => deleteContent(collection, id),
+		mutationFn: () => deleteContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
 			void navigate({
 				to: "/content/$collection",
 				params: { collection },
-				search: { locale: undefined },
+				search: { locale: activeLocale },
 			});
 		},
 		onError: (error) => {
