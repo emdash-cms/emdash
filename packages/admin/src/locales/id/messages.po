@@ -167,7 +167,7 @@ msgstr "{0} bidang"
 #. placeholder {2}: m.host
 #: packages/admin/src/components/RegistryPluginDetail.tsx:621
 msgid "{0} {1} required — you have {2}."
-msgstr ""
+msgstr "{0} {1} diperlukan — Anda memiliki {2}."
 
 #. placeholder {0}: menu.name
 #. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
@@ -178,7 +178,7 @@ msgstr "{0} • {1}"
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:410
 msgid "{0} banner"
-msgstr ""
+msgstr "Banner {0}"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1142
@@ -198,7 +198,7 @@ msgstr "{0} telah dihapus"
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:422
 msgid "{0} icon"
-msgstr ""
+msgstr "Ikon {0}"
 
 #. placeholder {0}: plugin.installCount.toLocaleString()
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:202
@@ -1260,7 +1260,7 @@ msgstr "Ubah Logo"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:791
 msgid "Changelog"
-msgstr ""
+msgstr "Riwayat perubahan"
 
 #: packages/admin/src/router.tsx:811
 msgid "Changes discarded"
@@ -2267,7 +2267,7 @@ msgstr "Turun"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:477
 msgid "Download SBOM"
-msgstr ""
+msgstr "Unduh SBOM"
 
 #: packages/admin/src/components/WordPressImport.tsx:1962
 msgid "Downloading"
@@ -3067,7 +3067,7 @@ msgstr "Gagal memverifikasi registrasi"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:790
 msgid "FAQ"
-msgstr ""
+msgstr "FAQ"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:236
 #: packages/admin/src/components/settings/GeneralSettings.tsx:242
@@ -3444,7 +3444,7 @@ msgstr "Tidak Kompatibel"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:491
 msgid "Indexed"
-msgstr ""
+msgstr "Terindeks"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2833
 msgid "Inline Code"
@@ -3458,7 +3458,7 @@ msgstr "Sisipkan"
 #. placeholder {0}: block?.label || ""
 #: packages/admin/src/components/PortableTextEditor.tsx:1270
 msgid "Insert {0}"
-msgstr ""
+msgstr "Sisipkan {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:908
 msgid "Insert a blockquote"
@@ -3527,7 +3527,7 @@ msgstr "Pemasangan diblokir"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:789
 msgid "Installation"
-msgstr ""
+msgstr "Pemasangan"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:173
@@ -4549,7 +4549,7 @@ msgstr "Tidak ada (tingkat atas)"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:614
 msgid "Not compatible with this environment"
-msgstr ""
+msgstr "Tidak kompatibel dengan lingkungan ini"
 
 #: packages/admin/src/components/FieldEditor.tsx:162
 #: packages/admin/src/components/FieldEditor.tsx:581
@@ -4847,7 +4847,7 @@ msgstr "Plugin"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:747
 msgid "Plugin details"
-msgstr ""
+msgstr "Detail plugin"
 
 #: packages/admin/src/components/PluginManager.tsx:110
 msgid "Plugin disabled"
@@ -5476,12 +5476,12 @@ msgstr "Menyimpan..."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:467
 msgid "SBOM"
-msgstr ""
+msgstr "SBOM"
 
 #. placeholder {0}: sbom.format
 #: packages/admin/src/components/RegistryPluginDetail.tsx:465
 msgid "SBOM · {0}"
-msgstr ""
+msgstr "SBOM · {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:899
 msgid "Schedule"
@@ -6428,7 +6428,7 @@ msgstr "Aturan pengalihan ini akan dihapus permanen."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:616
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
-msgstr ""
+msgstr "Rilis ini memerlukan lingkungan yang lebih baru daripada yang saat ini digunakan situs Anda. Tingkatkan sebelum memasang."
 
 #: packages/admin/src/routes/bylines.tsx:500
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
@@ -6801,7 +6801,7 @@ msgstr "Perbarui ke v{0}"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:486
 msgid "Updated"
-msgstr ""
+msgstr "Diperbarui"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:129
 msgid "Updated At"
@@ -7024,15 +7024,15 @@ msgstr "Penerbit terverifikasi"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:446
 msgid "Verified publisher, confirmed by labeller {verifiedLabeller}"
-msgstr ""
+msgstr "Penerbit terverifikasi, dikonfirmasi oleh pelabel {verifiedLabeller}"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:437
 msgid "Verified publisher. A labeller ({verifiedLabeller}) has confirmed this publisher's identity."
-msgstr ""
+msgstr "Penerbit terverifikasi. Seorang pelabel ({verifiedLabeller}) telah mengonfirmasi identitas penerbit ini."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:438
 msgid "Verified publisher. A labeller has confirmed this publisher's identity."
-msgstr ""
+msgstr "Penerbit terverifikasi. Seorang pelabel telah mengonfirmasi identitas penerbit ini."
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:194
 msgid "Verifying your invite..."
