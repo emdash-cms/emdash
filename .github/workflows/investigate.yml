@@ -354,7 +354,12 @@ jobs:
         run: |
           set -euo pipefail
           NOTES="$(jq -r '.notes // ""' /tmp/agent-result.json)"
-          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/reproduced"
+          # `triage/by-design` (not `triage/reproduced`): the bot
+          # reproduced the described behavior but believes it is
+          # intentional. This is a "likely close / convert to discussion"
+          # signal, the opposite follow-up from a confirmed bug, so it
+          # gets its own label rather than sharing triage/reproduced.
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/by-design"
           {
             echo "The investigation bot reproduced the described behavior, but it appears to be intended."
             echo
@@ -443,8 +448,8 @@ jobs:
 
           # Configure git identity and a GIT_ASKPASS shim so the app
           # token is never visible on a process command line.
-          git config --global user.name "emdash-bot[bot]"
-          git config --global user.email "bot@emdashcms.com"
+          git config --global user.name "emdashbot[bot]"
+          git config --global user.email "emdashbot[bot]@users.noreply.github.com"
           export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
           printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
           chmod +x "$GIT_ASKPASS"
@@ -480,8 +485,8 @@ jobs:
             (
               cd "$ART_TMP"
               git init -q -b "$ART_BRANCH"
-              git config user.name "emdash-bot[bot]"
-              git config user.email "bot@emdashcms.com"
+              git config user.name "emdashbot[bot]"
+              git config user.email "emdashbot[bot]@users.noreply.github.com"
               git add .bot-artifacts
               git commit -q -m "screenshots for #${ISSUE_NUMBER}"
               git remote add origin "$ORIGIN_URL"
