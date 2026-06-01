@@ -365,9 +365,7 @@ describe("Loader field filters", () => {
 		);
 
 		expect(result.entries).toHaveLength(0);
-		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("no such column"),
-		);
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("no such column"));
 		warnSpy.mockRestore();
 	});
 });
