@@ -21,10 +21,11 @@
  *   - `name`
  *   - `description`
  *   - `keywords`
+ *   - `sections`
  *
  * Fields preserved verbatim from the existing record: `$type`, `id`, `slug`,
- * `type`, plus any unknown forward-compatible fields (e.g. `sections` from
- * a future lexicon revision).
+ * `type`, plus any unknown forward-compatible fields from a future lexicon
+ * revision.
  */
 
 import { readFile } from "node:fs/promises";
@@ -271,6 +272,7 @@ function packageUpdateInputFromManifest(
 	if (profile.name !== undefined) input.name = profile.name;
 	if (profile.description !== undefined) input.description = profile.description;
 	if (profile.keywords !== undefined) input.keywords = profile.keywords;
+	if (profile.sections !== undefined) input.sections = profile.sections;
 	return input;
 }
 
@@ -312,8 +314,9 @@ function renderDiffLine(diff: PackageFieldDiff): void {
 
 function formatFieldValue(value: unknown): string {
 	if (value === undefined) return "(unset)";
-	if (typeof value === "string") return value;
-	return JSON.stringify(value);
+	const str = typeof value === "string" ? value : JSON.stringify(value);
+	// Sections (and other long fields) can be tens of KB; keep the diff readable.
+	return str.length > 160 ? `${str.slice(0, 159)}…` : str;
 }
 
 function formatJsonResult(result: UpdatePackageResult, applied: boolean): Record<string, unknown> {
