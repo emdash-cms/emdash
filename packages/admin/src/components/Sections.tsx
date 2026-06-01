@@ -91,6 +91,7 @@ export function Sections() {
 	> | null>(null);
 	const [draftSuggestions, setDraftSuggestions] = React.useState<string[]>([]);
 	const [showSuggestions, setShowSuggestions] = React.useState(false);
+	const [draftHighlightedIndex, setDraftHighlightedIndex] = React.useState(-1);
 
 	// Reset form when dialog closes
 	React.useEffect(() => {
@@ -265,6 +266,7 @@ export function Sections() {
 												onChange={(e) => {
 													const value = e.target.value;
 													setDraftIntent(value);
+													setDraftHighlightedIndex(-1);
 													// Update suggestions on input change
 													if (value.trim().length >= 2) {
 														setDraftSuggestions(getIntentSuggestions(value.trim()));
@@ -277,10 +279,36 @@ export function Sections() {
 												onKeyDown={(e) => {
 													if (e.key === "Enter") {
 														e.preventDefault();
-														setShowSuggestions(false);
-														handleDraftFromIntent();
+														if (draftHighlightedIndex >= 0 && draftSuggestions[draftHighlightedIndex]) {
+															// Select highlighted suggestion
+															const selected = draftSuggestions[draftHighlightedIndex];
+															setDraftIntent(selected);
+															setDraftSuggestions([]);
+															setShowSuggestions(false);
+															setDraftHighlightedIndex(-1);
+															const result = draftSectionFromIntent(selected);
+															setDraftResult(result);
+														} else {
+															setShowSuggestions(false);
+															handleDraftFromIntent();
+														}
 													} else if (e.key === "Escape") {
 														setShowSuggestions(false);
+														setDraftHighlightedIndex(-1);
+													} else if (e.key === "ArrowDown") {
+														e.preventDefault();
+														if (showSuggestions && draftSuggestions.length > 0) {
+															setDraftHighlightedIndex((prev) =>
+																prev < draftSuggestions.length - 1 ? prev + 1 : 0,
+															);
+														}
+													} else if (e.key === "ArrowUp") {
+														e.preventDefault();
+														if (showSuggestions && draftSuggestions.length > 0) {
+															setDraftHighlightedIndex((prev) =>
+																prev > 0 ? prev - 1 : draftSuggestions.length - 1,
+															);
+														}
 													}
 												}}
 												onFocus={() => {
@@ -302,6 +330,7 @@ export function Sections() {
 														setDraftIntent("");
 														setDraftSuggestions([]);
 														setShowSuggestions(false);
+														setDraftHighlightedIndex(-1);
 													}}
 													aria-label={t`Clear`}
 												>
@@ -324,25 +353,31 @@ export function Sections() {
 									</div>
 									{/* Autocomplete suggestions dropdown */}
 									{showSuggestions && draftSuggestions.length > 0 && (
-										<div className="absolute z-10 mt-1 w-full rounded-lg border bg-kumo-base shadow-lg">
+										<div className="absolute z-10 mt-1 w-full rounded-lg border bg-kumo-base shadow-lg" role="listbox">
 											{draftSuggestions.map((suggestion, index) => (
 												<button
 													key={suggestion}
 													type="button"
+													role="option"
+													aria-selected={index === draftHighlightedIndex}
 													className={cn(
 														"w-full text-left px-3 py-2 text-sm transition-colors",
 														index === 0 ? "rounded-t-lg" : "",
 														index === draftSuggestions.length - 1 ? "rounded-b-lg" : "",
-														"hover:bg-kumo-tint",
+														index === draftHighlightedIndex
+															? "bg-kumo-tint text-kumo-brand font-medium"
+															: "hover:bg-kumo-tint",
 													)}
 													onClick={() => {
 														setDraftIntent(suggestion);
 														setDraftSuggestions([]);
 														setShowSuggestions(false);
+														setDraftHighlightedIndex(-1);
 														// Auto-suggest on click
 														const result = draftSectionFromIntent(suggestion);
 														setDraftResult(result);
 													}}
+													onMouseEnter={() => setDraftHighlightedIndex(index)}
 												>
 													{suggestion}
 												</button>
