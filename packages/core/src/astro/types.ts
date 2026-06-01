@@ -108,6 +108,12 @@ export interface EmDashManifest {
 	version: string;
 	commit?: string;
 	hash: string;
+	/**
+	 * Version of Astro the host project is built with. Present when the
+	 * integration could resolve it. Surfaced so the admin can evaluate a
+	 * registry plugin's `env:astro` requirement against the running host.
+	 */
+	astroVersion?: string;
 	collections: Record<string, ManifestCollection>;
 	plugins: Record<string, ManifestPlugin>;
 	/**

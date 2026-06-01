@@ -40,7 +40,7 @@
 		"chokidar": "catalog:",
 		"citty": "^0.1.6",
 		"consola": "^3.4.2",
-		"image-size": "^2.0.2",
+		"image-size": "catalog:",
 		"jsonc-parser": "catalog:",
 		"modern-tar": "^0.7.5",
 		"picocolors": "^1.1.1",

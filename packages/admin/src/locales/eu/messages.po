@@ -50,7 +50,7 @@ msgstr ""
 msgid "(from {0})"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:352
+#: packages/admin/src/components/RegistryPluginDetail.tsx:429
 msgid "(pre-release)"
 msgstr ""
 
@@ -58,7 +58,7 @@ msgstr ""
 msgid "(synced)"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:355
+#: packages/admin/src/components/RegistryPluginDetail.tsx:432
 msgid "(too new)"
 msgstr ""
 
@@ -128,6 +128,7 @@ msgstr ""
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:288
+#: packages/admin/src/components/PluginManager.tsx:399
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr ""
 
@@ -161,10 +162,22 @@ msgstr ""
 msgid "{0, plural, one {field} other {fields}}"
 msgstr ""
 
+#. placeholder {0}: envLabel(m.key)
+#. placeholder {1}: m.required
+#. placeholder {2}: m.host
+#: packages/admin/src/components/RegistryPluginDetail.tsx:532
+msgid "{0} {1} required — you have {2}."
+msgstr ""
+
 #. placeholder {0}: menu.name
 #. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
 #: packages/admin/src/components/MenuList.tsx:215
 msgid "{0} • {1}"
+msgstr ""
+
+#. placeholder {0}: displayName ?? slug
+#: packages/admin/src/components/RegistryPluginDetail.tsx:365
+msgid "{0} banner"
 msgstr ""
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
@@ -173,13 +186,18 @@ msgid "{0} detected"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:110
+#: packages/admin/src/components/PluginManager.tsx:111
 msgid "{0} has been deactivated"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:305
+#: packages/admin/src/components/PluginManager.tsx:306
 msgid "{0} has been removed"
+msgstr ""
+
+#. placeholder {0}: displayName ?? slug
+#: packages/admin/src/components/RegistryPluginDetail.tsx:377
+msgid "{0} icon"
 msgstr ""
 
 #. placeholder {0}: plugin.installCount.toLocaleString()
@@ -188,7 +206,7 @@ msgid "{0} installs"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:91
+#: packages/admin/src/components/PluginManager.tsx:92
 msgid "{0} is now active"
 msgstr ""
 
@@ -203,14 +221,8 @@ msgstr ""
 msgid "{0} items will be imported"
 msgstr ""
 
-#. placeholder {0}: plugin.capabilities.length
-#. placeholder {1}: plugin.capabilities.length !== 1 ? "s" : ""
-#: packages/admin/src/components/PluginManager.tsx:398
-msgid "{0} permission{1}"
-msgstr ""
-
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:169
+#: packages/admin/src/components/PluginManager.tsx:170
 msgid "{0} plugins"
 msgstr ""
 
@@ -227,13 +239,13 @@ msgid "{0} system + {1} custom {2}"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:316
+#: packages/admin/src/components/TaxonomySidebar.tsx:332
 msgid "{0} updated"
 msgstr ""
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:258
+#: packages/admin/src/components/PluginManager.tsx:259
 msgid "{0} updated to v{1}"
 msgstr ""
 
@@ -508,7 +520,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:373
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:431
-#: packages/admin/src/components/TaxonomyManager.tsx:821
+#: packages/admin/src/components/TaxonomyManager.tsx:823
 msgid "Actions"
 msgstr ""
 
@@ -520,18 +532,19 @@ msgstr ""
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
 #: packages/admin/src/components/ContentEditor.tsx:2045
 #: packages/admin/src/components/MenuEditor.tsx:354
-#: packages/admin/src/components/TaxonomyManager.tsx:360
-#: packages/admin/src/components/TaxonomyManager.tsx:812
-#: packages/admin/src/components/TaxonomySidebar.tsx:439
+#: packages/admin/src/components/TaxonomySidebar.tsx:455
 msgid "Add"
 msgstr ""
 
 #. placeholder {0}: field.item_label
+#. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/PortableTextEditor.tsx:1489
+#: packages/admin/src/components/TaxonomyManager.tsx:362
+#: packages/admin/src/components/TaxonomyManager.tsx:814
 msgid "Add {0}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:238
+#: packages/admin/src/components/TaxonomySidebar.tsx:252
 msgid "Add {label}"
 msgstr ""
 
@@ -618,7 +631,7 @@ msgid "Add New"
 msgstr ""
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:449
+#: packages/admin/src/components/TaxonomySidebar.tsx:465
 msgid "Add new {0}"
 msgstr ""
 
@@ -630,7 +643,7 @@ msgstr ""
 msgid "Add Passkey"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:205
+#: packages/admin/src/components/PluginManager.tsx:206
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr ""
 
@@ -650,7 +663,7 @@ msgstr ""
 msgid "Add Sub-Field"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:237
+#: packages/admin/src/components/TaxonomySidebar.tsx:251
 msgid "Add tags..."
 msgstr ""
 
@@ -672,12 +685,12 @@ msgid "Additional data to import."
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:454
+#: packages/admin/src/components/Sidebar.tsx:441
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Admin"
 
-#: packages/admin/src/components/Sidebar.tsx:394
+#: packages/admin/src/components/Sidebar.tsx:385
 msgid "Admin navigation"
 msgstr ""
 
@@ -766,7 +779,7 @@ msgstr ""
 msgid "Already have an account?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:630
+#: packages/admin/src/components/PluginManager.tsx:634
 msgid "Also delete plugin storage data"
 msgstr ""
 
@@ -790,9 +803,9 @@ msgid "Alternatively, you can export from WordPress (Tools → Export) and uploa
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
-#: packages/admin/src/components/PluginManager.tsx:97
-#: packages/admin/src/components/PluginManager.tsx:116
-#: packages/admin/src/components/TaxonomySidebar.tsx:321
+#: packages/admin/src/components/PluginManager.tsx:98
+#: packages/admin/src/components/PluginManager.tsx:117
+#: packages/admin/src/components/TaxonomySidebar.tsx:337
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:341
 #: packages/admin/src/router.tsx:356
@@ -963,7 +976,7 @@ msgstr ""
 msgid "Authorizing..."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:458
+#: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Authors"
 msgstr ""
 
@@ -979,7 +992,7 @@ msgstr ""
 msgid "Auto-approve authenticated users"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:406
+#: packages/admin/src/components/TaxonomyManager.tsx:408
 msgid "Auto-generated from name (you can edit)"
 msgstr ""
 
@@ -1031,7 +1044,7 @@ msgstr "Itzuli login egitera"
 msgid "Back to marketplace"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:559
+#: packages/admin/src/components/RegistryPluginDetail.tsx:682
 msgid "Back to plugins"
 msgstr ""
 
@@ -1092,7 +1105,7 @@ msgstr ""
 msgid "Browse Files"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:198
+#: packages/admin/src/components/PluginManager.tsx:199
 msgid "Browse the"
 msgstr ""
 
@@ -1150,7 +1163,7 @@ msgstr "Edukia ikusi dezake"
 #: packages/admin/src/components/MenuEditor.tsx:351
 #: packages/admin/src/components/MenuEditor.tsx:522
 #: packages/admin/src/components/MenuList.tsx:172
-#: packages/admin/src/components/PluginManager.tsx:636
+#: packages/admin/src/components/PluginManager.tsx:640
 #: packages/admin/src/components/PortableTextEditor.tsx:2974
 #: packages/admin/src/components/Redirects.tsx:175
 #: packages/admin/src/components/SectionPickerModal.tsx:130
@@ -1161,8 +1174,8 @@ msgstr "Edukia ikusi dezake"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
 #: packages/admin/src/components/settings/SecuritySettings.tsx:206
 #: packages/admin/src/components/TaxonomyManager.tsx:187
-#: packages/admin/src/components/TaxonomyManager.tsx:470
-#: packages/admin/src/components/TaxonomyManager.tsx:684
+#: packages/admin/src/components/TaxonomyManager.tsx:472
+#: packages/admin/src/components/TaxonomyManager.tsx:686
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/Widgets.tsx:386
 #: packages/admin/src/components/WordPressImport.tsx:1753
@@ -1189,7 +1202,7 @@ msgstr ""
 msgid "Canonical URL"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:469
+#: packages/admin/src/components/PluginManager.tsx:473
 msgid "Capabilities"
 msgstr ""
 
@@ -1253,7 +1266,7 @@ msgstr ""
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:161
+#: packages/admin/src/components/PluginManager.tsx:162
 msgid "Check for updates"
 msgstr ""
 
@@ -1336,12 +1349,12 @@ msgstr "Egin klik emailean webgunean sartzeko."
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:377
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:381
 #: packages/admin/src/components/TaxonomyManager.tsx:164
-#: packages/admin/src/components/TaxonomyManager.tsx:369
-#: packages/admin/src/components/TaxonomyManager.tsx:375
-#: packages/admin/src/components/TaxonomyManager.tsx:379
-#: packages/admin/src/components/TaxonomyManager.tsx:603
-#: packages/admin/src/components/TaxonomyManager.tsx:609
-#: packages/admin/src/components/TaxonomyManager.tsx:613
+#: packages/admin/src/components/TaxonomyManager.tsx:371
+#: packages/admin/src/components/TaxonomyManager.tsx:377
+#: packages/admin/src/components/TaxonomyManager.tsx:381
+#: packages/admin/src/components/TaxonomyManager.tsx:605
+#: packages/admin/src/components/TaxonomyManager.tsx:611
+#: packages/admin/src/components/TaxonomyManager.tsx:615
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
 #: packages/admin/src/components/users/InviteUserModal.tsx:94
@@ -1373,11 +1386,11 @@ msgstr ""
 msgid "Code Block"
 msgstr "Kode blokea"
 
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:460
 msgid "Collapse"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:450
+#: packages/admin/src/components/PluginManager.tsx:454
 msgid "Collapse details"
 msgstr ""
 
@@ -1393,7 +1406,7 @@ msgstr ""
 msgid "Collection:"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:654
+#: packages/admin/src/components/TaxonomyManager.tsx:656
 msgid "Collections"
 msgstr ""
 
@@ -1468,7 +1481,7 @@ msgstr ""
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:2006
 #: packages/admin/src/components/SectionEditor.tsx:194
-#: packages/admin/src/components/Sidebar.tsx:428
+#: packages/admin/src/components/Sidebar.tsx:419
 #: packages/admin/src/components/Widgets.tsx:819
 msgid "Content"
 msgstr "Edukia"
@@ -1605,7 +1618,7 @@ msgstr ""
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:820
+#: packages/admin/src/components/TaxonomyManager.tsx:822
 msgid "Count"
 msgstr ""
 
@@ -1613,13 +1626,13 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/Redirects.tsx:184
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/TaxonomyManager.tsx:477
+#: packages/admin/src/components/TaxonomyManager.tsx:479
 #: packages/admin/src/components/Widgets.tsx:389
 #: packages/admin/src/routes/bylines.tsx:456
 msgid "Create"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:263
+#: packages/admin/src/components/TaxonomySidebar.tsx:279
 msgid "Create \"{trimmedInput}\""
 msgstr ""
 
@@ -1628,7 +1641,7 @@ msgid "Create a bullet list"
 msgstr "Sortu buleta zerrenda"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:365
+#: packages/admin/src/components/TaxonomyManager.tsx:367
 msgid "Create a new {0}"
 msgstr ""
 
@@ -1706,8 +1719,8 @@ msgstr ""
 msgid "Create sections in the Sections library to use them here"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:596
-#: packages/admin/src/components/TaxonomyManager.tsx:687
+#: packages/admin/src/components/TaxonomyManager.tsx:598
+#: packages/admin/src/components/TaxonomyManager.tsx:689
 msgid "Create Taxonomy"
 msgstr ""
 
@@ -1793,8 +1806,8 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:181
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:450
-#: packages/admin/src/components/TaxonomyManager.tsx:687
-#: packages/admin/src/components/TaxonomySidebar.tsx:263
+#: packages/admin/src/components/TaxonomyManager.tsx:689
+#: packages/admin/src/components/TaxonomySidebar.tsx:279
 msgid "Creating..."
 msgstr "Sortzen..."
 
@@ -1834,7 +1847,7 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
 #: packages/admin/src/components/Sidebar.tsx:179
-#: packages/admin/src/components/Sidebar.tsx:417
+#: packages/admin/src/components/Sidebar.tsx:408
 msgid "Dashboard"
 msgstr "Lan-lekua"
 
@@ -1860,7 +1873,7 @@ msgstr ""
 msgid "Decimal number"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:523
+#: packages/admin/src/components/RegistryPluginDetail.tsx:646
 msgid "Declared permissions"
 msgstr ""
 
@@ -1881,7 +1894,7 @@ msgstr ""
 msgid "Default Social Image"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:599
+#: packages/admin/src/components/TaxonomyManager.tsx:601
 msgid "Define a new taxonomy for classifying content"
 msgstr ""
 
@@ -1906,7 +1919,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:552
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
-#: packages/admin/src/components/TaxonomyManager.tsx:884
+#: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:636
 #: packages/admin/src/routes/bylines.tsx:465
 #: packages/admin/src/routes/bylines.tsx:501
@@ -1945,7 +1958,7 @@ msgid "Delete {0} widget area"
 msgstr ""
 
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
-#: packages/admin/src/components/TaxonomyManager.tsx:880
+#: packages/admin/src/components/TaxonomyManager.tsx:882
 msgid "Delete {0}?"
 msgstr ""
 
@@ -2040,7 +2053,7 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:256
 #: packages/admin/src/components/Redirects.tsx:553
 #: packages/admin/src/components/Sections.tsx:309
-#: packages/admin/src/components/TaxonomyManager.tsx:885
+#: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:637
 #: packages/admin/src/routes/bylines.tsx:502
 msgid "Deleting..."
@@ -2088,7 +2101,7 @@ msgstr ""
 msgid "Description"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:432
+#: packages/admin/src/components/TaxonomyManager.tsx:434
 msgid "Description (optional)"
 msgstr ""
 
@@ -2100,7 +2113,7 @@ msgstr ""
 msgid "Destination path"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:460
 msgid "details"
 msgstr ""
 
@@ -2132,7 +2145,7 @@ msgstr ""
 msgid "Disable"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:444
+#: packages/admin/src/components/PluginManager.tsx:448
 msgid "Disable plugin"
 msgstr ""
 
@@ -2148,14 +2161,14 @@ msgstr ""
 msgid "Disable User?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:353
+#: packages/admin/src/components/PluginManager.tsx:354
 #: packages/admin/src/components/Redirects.tsx:392
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:527
+#: packages/admin/src/components/PluginManager.tsx:531
 msgid "Disabled:"
 msgstr ""
 
@@ -2337,19 +2350,19 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:450
 #: packages/admin/src/components/MenuList.tsx:231
-#: packages/admin/src/components/PortableTextEditor.tsx:1270
 #: packages/admin/src/components/Sections.tsx:392
-#: packages/admin/src/components/TaxonomyManager.tsx:360
 #: packages/admin/src/components/TranslationsPanel.tsx:88
 msgid "Edit"
 msgstr ""
 
+#. placeholder {0}: block?.label || ""
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#. placeholder {0}: selected.displayName
 #: packages/admin/src/components/ContentTypeList.tsx:220
+#: packages/admin/src/components/PortableTextEditor.tsx:1270
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:276
 #: packages/admin/src/components/TaxonomyManager.tsx:89
+#: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/bylines.tsx:389
 msgid "Edit {0}"
 msgstr ""
@@ -2490,7 +2503,7 @@ msgstr ""
 msgid "Enable full-text search on this collection"
 msgstr "Aktibatu testu bilaketa bilduma honetan"
 
-#: packages/admin/src/components/PluginManager.tsx:444
+#: packages/admin/src/components/PluginManager.tsx:448
 msgid "Enable plugin"
 msgstr ""
 
@@ -2583,7 +2596,7 @@ msgstr ""
 msgid "Error updating widget"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:415
+#: packages/admin/src/components/RegistryPluginDetail.tsx:492
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr ""
 
@@ -2599,11 +2612,11 @@ msgstr ""
 msgid "Exit Spotlight Mode"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:460
 msgid "Expand"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:450
+#: packages/admin/src/components/PluginManager.tsx:454
 msgid "Expand details"
 msgstr ""
 
@@ -2664,7 +2677,7 @@ msgstr ""
 msgid "Failed to create some collections"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:456
+#: packages/admin/src/components/TaxonomySidebar.tsx:472
 msgid "Failed to create term"
 msgstr ""
 
@@ -2743,7 +2756,7 @@ msgstr ""
 msgid "Failed to delete widget area"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:115
+#: packages/admin/src/components/PluginManager.tsx:116
 msgid "Failed to disable plugin"
 msgstr ""
 
@@ -2763,7 +2776,7 @@ msgstr ""
 msgid "Failed to duplicate"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:96
+#: packages/admin/src/components/PluginManager.tsx:97
 msgid "Failed to enable plugin"
 msgstr ""
 
@@ -2780,11 +2793,11 @@ msgstr ""
 msgid "Failed to fetch collection"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:81
+#: packages/admin/src/components/TaxonomySidebar.tsx:83
 msgid "Failed to fetch entry terms"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:208
+#: packages/admin/src/lib/api/client.ts:210
 msgid "Failed to fetch manifest"
 msgstr ""
 
@@ -2802,7 +2815,7 @@ msgstr ""
 msgid "Failed to fetch setup status"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:65
+#: packages/admin/src/components/TaxonomySidebar.tsx:67
 msgid "Failed to fetch terms"
 msgstr ""
 
@@ -2839,7 +2852,7 @@ msgid "Failed to import media"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:160
-#: packages/admin/src/lib/api/registry.ts:455
+#: packages/admin/src/lib/api/registry.ts:593
 msgid "Failed to install plugin"
 msgstr ""
 
@@ -2873,7 +2886,7 @@ msgid "Failed to load plugin"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:144
+#: packages/admin/src/components/PluginManager.tsx:145
 msgid "Failed to load plugins: {0}"
 msgstr ""
 
@@ -2992,12 +3005,12 @@ msgstr ""
 msgid "Failed to send verification email"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:100
+#: packages/admin/src/components/TaxonomySidebar.tsx:102
 msgid "Failed to set entry terms"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:192
-#: packages/admin/src/lib/api/registry.ts:594
+#: packages/admin/src/lib/api/registry.ts:732
 msgid "Failed to uninstall plugin"
 msgstr ""
 
@@ -3010,7 +3023,7 @@ msgid "Failed to unschedule"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:320
+#: packages/admin/src/components/TaxonomySidebar.tsx:336
 msgid "Failed to update {0}"
 msgstr ""
 
@@ -3023,7 +3036,7 @@ msgid "Failed to update domain"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:176
-#: packages/admin/src/lib/api/registry.ts:526
+#: packages/admin/src/lib/api/registry.ts:664
 msgid "Failed to update plugin"
 msgstr ""
 
@@ -3167,7 +3180,7 @@ msgstr "Orokorra"
 msgid "General Settings"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:624
+#: packages/admin/src/components/TaxonomyManager.tsx:626
 msgid "Genres"
 msgstr ""
 
@@ -3247,7 +3260,7 @@ msgstr ""
 msgid "Hide token"
 msgstr "Ezkutatu tokena"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:647
+#: packages/admin/src/components/TaxonomyManager.tsx:649
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr ""
 
@@ -3264,7 +3277,7 @@ msgstr ""
 msgid "Homepage"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:384
+#: packages/admin/src/components/PluginManager.tsx:385
 msgid "Hooks"
 msgstr ""
 
@@ -3417,7 +3430,7 @@ msgid "Incompatible"
 msgstr ""
 
 #. placeholder {0}: formatDate(release.indexedAt)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:325
+#: packages/admin/src/components/RegistryPluginDetail.tsx:402
 msgid "indexed {0}"
 msgstr ""
 
@@ -3427,8 +3440,12 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:507
 #: packages/admin/src/components/MediaPickerModal.tsx:732
-#: packages/admin/src/components/PortableTextEditor.tsx:1270
 msgid "Insert"
+msgstr ""
+
+#. placeholder {0}: block?.label || ""
+#: packages/admin/src/components/PortableTextEditor.tsx:1270
+msgid "Insert {0}"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:908
@@ -3484,7 +3501,7 @@ msgid "Instagram"
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:193
-#: packages/admin/src/components/RegistryPluginDetail.tsx:373
+#: packages/admin/src/components/RegistryPluginDetail.tsx:450
 msgid "Install"
 msgstr ""
 
@@ -3499,16 +3516,16 @@ msgstr ""
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:174
 #: packages/admin/src/components/RegistryBrowse.tsx:198
-#: packages/admin/src/components/RegistryPluginDetail.tsx:365
+#: packages/admin/src/components/RegistryPluginDetail.tsx:442
 msgid "Installed"
 msgstr ""
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:496
+#: packages/admin/src/components/PluginManager.tsx:500
 msgid "Installed from marketplace (v{0})"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:515
+#: packages/admin/src/components/PluginManager.tsx:519
 msgid "Installed:"
 msgstr ""
 
@@ -3597,7 +3614,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:329
 #: packages/admin/src/components/MenuEditor.tsx:498
 #: packages/admin/src/components/MenuList.tsx:166
-#: packages/admin/src/components/TaxonomyManager.tsx:621
+#: packages/admin/src/components/TaxonomyManager.tsx:623
 #: packages/admin/src/components/Widgets.tsx:371
 msgid "Label"
 msgstr ""
@@ -3621,7 +3638,7 @@ msgstr "Hizkuntza"
 msgid "Large section heading"
 msgstr "Atal-goiburu handia"
 
-#: packages/admin/src/components/PluginManager.tsx:521
+#: packages/admin/src/components/PluginManager.tsx:525
 msgid "Last enabled:"
 msgstr ""
 
@@ -3759,7 +3776,7 @@ msgstr ""
 msgid "Loading menus..."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:135
+#: packages/admin/src/components/PluginManager.tsx:136
 msgid "Loading plugins..."
 msgstr ""
 
@@ -3782,7 +3799,7 @@ msgstr ""
 msgid "Loading setup..."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:825
+#: packages/admin/src/components/TaxonomyManager.tsx:827
 msgid "Loading terms..."
 msgstr ""
 
@@ -3802,7 +3819,7 @@ msgstr ""
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:176
 #: packages/admin/src/components/settings/SecuritySettings.tsx:113
-#: packages/admin/src/components/TaxonomyManager.tsx:777
+#: packages/admin/src/components/TaxonomyManager.tsx:779
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:252
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -3846,7 +3863,7 @@ msgstr ""
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:639
+#: packages/admin/src/components/TaxonomyManager.tsx:641
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr ""
 
@@ -3864,13 +3881,13 @@ msgstr ""
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:442
+#: packages/admin/src/components/Sidebar.tsx:431
 msgid "Manage"
 msgstr ""
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:796
+#: packages/admin/src/components/TaxonomyManager.tsx:798
 msgid "Manage {0} for {1}"
 msgstr ""
 
@@ -3882,7 +3899,7 @@ msgstr ""
 msgid "Manage content widgets in your widget areas"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:174
+#: packages/admin/src/components/PluginManager.tsx:175
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr ""
 
@@ -3915,13 +3932,13 @@ msgstr ""
 msgid "Mark as spam"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:200
+#: packages/admin/src/components/PluginManager.tsx:201
 msgid "marketplace"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:166
-#: packages/admin/src/components/PluginManager.tsx:354
+#: packages/admin/src/components/PluginManager.tsx:167
+#: packages/admin/src/components/PluginManager.tsx:355
 #: packages/admin/src/components/Sidebar.tsx:228
 msgid "Marketplace"
 msgstr ""
@@ -4136,20 +4153,20 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeList.tsx:94
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MenuList.tsx:154
-#: packages/admin/src/components/TaxonomyManager.tsx:387
-#: packages/admin/src/components/TaxonomyManager.tsx:630
-#: packages/admin/src/components/TaxonomyManager.tsx:819
+#: packages/admin/src/components/TaxonomyManager.tsx:389
+#: packages/admin/src/components/TaxonomyManager.tsx:632
+#: packages/admin/src/components/TaxonomyManager.tsx:821
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:148
 #: packages/admin/src/components/Widgets.tsx:365
 msgid "Name"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:556
+#: packages/admin/src/components/TaxonomyManager.tsx:558
 msgid "Name and label are required"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:562
+#: packages/admin/src/components/TaxonomyManager.tsx:564
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr ""
 
@@ -4175,7 +4192,7 @@ msgid "NEW"
 msgstr ""
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:427
+#: packages/admin/src/components/TaxonomySidebar.tsx:443
 msgid "New {0}"
 msgstr ""
 
@@ -4209,7 +4226,7 @@ msgstr ""
 msgid "new tab"
 msgstr "Fitxa berria"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:809
+#: packages/admin/src/components/TaxonomyManager.tsx:811
 msgid "New Taxonomy"
 msgstr ""
 
@@ -4225,7 +4242,7 @@ msgstr ""
 msgid "Newest"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:390
+#: packages/admin/src/components/TaxonomyManager.tsx:392
 msgid "News"
 msgstr ""
 
@@ -4247,7 +4264,7 @@ msgid "No"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:397
+#: packages/admin/src/components/TaxonomySidebar.tsx:413
 msgid "No {0} available."
 msgstr ""
 
@@ -4257,7 +4274,7 @@ msgid "No {0} yet."
 msgstr ""
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:828
+#: packages/admin/src/components/TaxonomyManager.tsx:830
 msgid "No {0} yet. Create one to get started."
 msgstr ""
 
@@ -4354,7 +4371,7 @@ msgstr ""
 msgid "No headings in document"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:413
+#: packages/admin/src/components/RegistryPluginDetail.tsx:490
 msgid "No installable releases"
 msgstr ""
 
@@ -4427,7 +4444,7 @@ msgstr ""
 msgid "No passkeys registered yet."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:194
+#: packages/admin/src/components/PluginManager.tsx:195
 msgid "No plugins configured"
 msgstr ""
 
@@ -4509,9 +4526,13 @@ msgstr ""
 msgid "No widget areas yet. Create one to get started."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:416
-#: packages/admin/src/components/TaxonomyManager.tsx:422
+#: packages/admin/src/components/TaxonomyManager.tsx:418
+#: packages/admin/src/components/TaxonomyManager.tsx:424
 msgid "None (top level)"
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:525
+msgid "Not compatible with this environment"
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:162
@@ -4587,7 +4608,7 @@ msgstr ""
 msgid "Optional caption for display"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:435
+#: packages/admin/src/components/TaxonomyManager.tsx:437
 msgid "Optional description"
 msgstr ""
 
@@ -4642,7 +4663,7 @@ msgstr ""
 msgid "Ownership"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:505
+#: packages/admin/src/components/PluginManager.tsx:509
 msgid "Package"
 msgstr ""
 
@@ -4650,7 +4671,7 @@ msgstr ""
 msgid "Page Not Found"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:372
+#: packages/admin/src/components/PluginManager.tsx:373
 #: packages/admin/src/components/WordPressImport.tsx:1167
 msgid "Pages"
 msgstr ""
@@ -4659,7 +4680,7 @@ msgstr ""
 msgid "Paragraph"
 msgstr "Parrafoa"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:412
+#: packages/admin/src/components/TaxonomyManager.tsx:414
 msgid "Parent"
 msgstr ""
 
@@ -4805,11 +4826,11 @@ msgstr ""
 msgid "Plugin"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:109
+#: packages/admin/src/components/PluginManager.tsx:110
 msgid "Plugin disabled"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:90
+#: packages/admin/src/components/PluginManager.tsx:91
 msgid "Plugin enabled"
 msgstr ""
 
@@ -4826,7 +4847,7 @@ msgstr ""
 msgid "Plugin not found"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:293
+#: packages/admin/src/components/RegistryPluginDetail.tsx:351
 msgid "Plugin not found. The publisher handle or slug may be incorrect."
 msgstr ""
 
@@ -4847,24 +4868,24 @@ msgstr ""
 msgid "Plugin responded with {0}: {text}"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:304
+#: packages/admin/src/components/PluginManager.tsx:305
 msgid "Plugin uninstalled"
 msgstr ""
 
-#: packages/admin/src/lib/api/registry.ts:546
+#: packages/admin/src/lib/api/registry.ts:684
 msgid "Plugin update requires re-consent"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:257
+#: packages/admin/src/components/PluginManager.tsx:258
 msgid "Plugin updated"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:219
-#: packages/admin/src/components/PluginManager.tsx:134
-#: packages/admin/src/components/PluginManager.tsx:143
-#: packages/admin/src/components/PluginManager.tsx:152
+#: packages/admin/src/components/PluginManager.tsx:135
+#: packages/admin/src/components/PluginManager.tsx:144
+#: packages/admin/src/components/PluginManager.tsx:153
 #: packages/admin/src/components/Sidebar.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:466
+#: packages/admin/src/components/Sidebar.tsx:451
 msgid "Plugins"
 msgstr "Pluginak"
 
@@ -4880,7 +4901,7 @@ msgstr ""
 msgid "Posts Per Page"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:327
+#: packages/admin/src/components/RegistryPluginDetail.tsx:404
 msgid "Pre-release"
 msgstr ""
 
@@ -4961,7 +4982,7 @@ msgstr ""
 msgid "Published At"
 msgstr "Argitaraketa data"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:319
+#: packages/admin/src/components/RegistryPluginDetail.tsx:396
 msgid "Published by"
 msgstr ""
 
@@ -5083,7 +5104,7 @@ msgstr ""
 msgid "Registry"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:429
+#: packages/admin/src/components/RegistryPluginDetail.tsx:506
 msgid "Release is too new to install"
 msgstr ""
 
@@ -5103,7 +5124,7 @@ msgstr ""
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
-#: packages/admin/src/components/TaxonomySidebar.tsx:222
+#: packages/admin/src/components/TaxonomySidebar.tsx:232
 msgid "Remove {0}"
 msgstr ""
 
@@ -5423,7 +5444,7 @@ msgstr ""
 #: packages/admin/src/components/settings/SeoSettings.tsx:251
 #: packages/admin/src/components/settings/SocialSettings.tsx:99
 #: packages/admin/src/components/settings/SocialSettings.tsx:173
-#: packages/admin/src/components/TaxonomyManager.tsx:474
+#: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
 #: packages/admin/src/routes/bylines.tsx:456
@@ -5484,6 +5505,7 @@ msgstr "Irismenak: {0}"
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:244
+#: packages/admin/src/components/RegistryPluginDetail.tsx:551
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:293
 msgid "Screenshot {0}"
@@ -5504,6 +5526,7 @@ msgid "Screenshot viewer"
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:234
+#: packages/admin/src/components/RegistryPluginDetail.tsx:545
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:164
 msgid "Screenshots"
 msgstr ""
@@ -5674,7 +5697,7 @@ msgstr ""
 msgid "Security audit passed"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:491
+#: packages/admin/src/components/RegistryPluginDetail.tsx:614
 msgid "Security contacts"
 msgstr ""
 
@@ -5883,7 +5906,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
 #: packages/admin/src/components/ContentTypeEditor.tsx:383
 #: packages/admin/src/components/Header.tsx:93
-#: packages/admin/src/components/PluginManager.tsx:433
+#: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:245
 #: packages/admin/src/components/WordPressImport.tsx:1647
@@ -6033,7 +6056,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:418
 #: packages/admin/src/components/SectionEditor.tsx:244
 #: packages/admin/src/components/Sections.tsx:184
-#: packages/admin/src/components/TaxonomyManager.tsx:396
+#: packages/admin/src/components/TaxonomyManager.tsx:398
 #: packages/admin/src/routes/bylines.tsx:399
 msgid "Slug"
 msgstr "Sluga"
@@ -6085,7 +6108,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:215
-#: packages/admin/src/components/PluginManager.tsx:493
+#: packages/admin/src/components/PluginManager.tsx:497
 #: packages/admin/src/components/Redirects.tsx:440
 #: packages/admin/src/components/SectionEditor.tsx:279
 msgid "Source"
@@ -6194,7 +6217,7 @@ msgstr ""
 msgid "Target locale"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:495
+#: packages/admin/src/components/TaxonomySidebar.tsx:511
 msgid "Taxonomies"
 msgstr ""
 
@@ -6202,11 +6225,11 @@ msgstr ""
 msgid "Taxonomies Manage"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:896
+#: packages/admin/src/components/TaxonomyManager.tsx:898
 msgid "Taxonomy created"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:783
+#: packages/admin/src/components/TaxonomyManager.tsx:785
 msgid "Taxonomy not found:"
 msgstr ""
 
@@ -6218,18 +6241,19 @@ msgstr ""
 msgid "Template:"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:360
-#: packages/admin/src/components/TaxonomyManager.tsx:812
+#: packages/admin/src/components/TaxonomyManager.tsx:361
+#: packages/admin/src/components/TaxonomyManager.tsx:362
+#: packages/admin/src/components/TaxonomyManager.tsx:814
 msgid "Term"
 msgstr ""
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:757
+#: packages/admin/src/components/TaxonomyManager.tsx:759
 msgid "Term \"{0}\" created in {1}."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:739
+#: packages/admin/src/components/TaxonomyManager.tsx:741
 msgid "Term deleted"
 msgstr ""
 
@@ -6361,12 +6385,16 @@ msgstr ""
 msgid "This plugin requires no special permissions."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:398
+#: packages/admin/src/components/RegistryPluginDetail.tsx:475
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:551
 msgid "This redirect rule will be permanently removed."
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:527
+msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:500
@@ -6398,7 +6426,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr ""
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:882
+#: packages/admin/src/components/TaxonomyManager.tsx:884
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr ""
 
@@ -6411,7 +6439,7 @@ msgstr ""
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:625
+#: packages/admin/src/components/PluginManager.tsx:629
 msgid "This will remove the plugin and its bundle from your site."
 msgstr ""
 
@@ -6452,7 +6480,7 @@ msgstr ""
 msgid "to close"
 msgstr "ixteko"
 
-#: packages/admin/src/components/PluginManager.tsx:202
+#: packages/admin/src/components/PluginManager.tsx:203
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr ""
 
@@ -6508,7 +6536,7 @@ msgid "Translating..."
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:89
-#: packages/admin/src/components/TaxonomyManager.tsx:756
+#: packages/admin/src/components/TaxonomyManager.tsx:758
 #: packages/admin/src/router.tsx:877
 msgid "Translation created"
 msgstr ""
@@ -6615,20 +6643,20 @@ msgid "Undo"
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:543
-#: packages/admin/src/components/PluginManager.tsx:639
+#: packages/admin/src/components/PluginManager.tsx:547
+#: packages/admin/src/components/PluginManager.tsx:643
 msgid "Uninstall"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:623
+#: packages/admin/src/components/PluginManager.tsx:627
 msgid "Uninstall {pluginName}?"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:618
+#: packages/admin/src/components/PluginManager.tsx:622
 msgid "Uninstall confirmation"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:639
+#: packages/admin/src/components/PluginManager.tsx:643
 msgid "Uninstalling..."
 msgstr ""
 
@@ -6707,7 +6735,7 @@ msgstr ""
 msgid "Up"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:476
+#: packages/admin/src/components/TaxonomyManager.tsx:478
 msgid "Update"
 msgstr ""
 
@@ -6725,7 +6753,7 @@ msgid "Update site settings"
 msgstr ""
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:364
+#: packages/admin/src/components/TaxonomyManager.tsx:366
 msgid "Update the {0} details"
 msgstr ""
 
@@ -6734,7 +6762,7 @@ msgid "Update this redirect rule."
 msgstr ""
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:413
+#: packages/admin/src/components/PluginManager.tsx:417
 msgid "Update to v{0}"
 msgstr ""
 
@@ -6752,7 +6780,7 @@ msgid "Updating content URLs..."
 msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:166
-#: packages/admin/src/components/PluginManager.tsx:413
+#: packages/admin/src/components/PluginManager.tsx:417
 msgid "Updating..."
 msgstr ""
 
@@ -6887,7 +6915,7 @@ msgstr "Erabili zuk erregistratutako sarbide-gakoa era seguruan sartzeko."
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:642
+#: packages/admin/src/components/TaxonomyManager.tsx:644
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr ""
 
@@ -6943,7 +6971,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr ""
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:357
+#: packages/admin/src/components/PluginManager.tsx:358
 msgid "v{0} available"
 msgstr ""
 
@@ -6953,7 +6981,7 @@ msgid "Validation"
 msgstr ""
 
 #: packages/admin/src/components/RegistryBrowse.tsx:186
-#: packages/admin/src/components/RegistryPluginDetail.tsx:314
+#: packages/admin/src/components/RegistryPluginDetail.tsx:391
 msgid "Verified publisher"
 msgstr ""
 
@@ -6971,12 +6999,12 @@ msgid "Verifying..."
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:321
-#: packages/admin/src/components/RegistryPluginDetail.tsx:334
+#: packages/admin/src/components/RegistryPluginDetail.tsx:411
 msgid "Version"
 msgstr ""
 
 #. placeholder {0}: release.version
-#: packages/admin/src/components/RegistryPluginDetail.tsx:325
+#: packages/admin/src/components/RegistryPluginDetail.tsx:402
 msgid "Version {0}"
 msgstr ""
 
@@ -6988,7 +7016,7 @@ msgstr ""
 msgid "View email provider status and send test emails"
 msgstr "Erakutsi email hornitzailearen egoera eta bidali probako emailak"
 
-#: packages/admin/src/components/PluginManager.tsx:425
+#: packages/admin/src/components/PluginManager.tsx:429
 msgid "View in Marketplace"
 msgstr ""
 
@@ -7004,11 +7032,11 @@ msgstr ""
 msgid "View Site"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:449
+#: packages/admin/src/components/RegistryPluginDetail.tsx:572
 msgid "View source"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:681
+#: packages/admin/src/components/RegistryPluginDetail.tsx:815
 msgid "View the {license} license on spdx.org"
 msgstr ""
 
@@ -7030,7 +7058,7 @@ msgstr ""
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:396
+#: packages/admin/src/components/RegistryPluginDetail.tsx:473
 msgid "We couldn't verify this publisher's identity"
 msgstr ""
 
@@ -7056,7 +7084,7 @@ msgid "WebAuthn is not supported in this browser"
 msgstr ""
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:226
-#: packages/admin/src/components/RegistryPluginDetail.tsx:474
+#: packages/admin/src/components/RegistryPluginDetail.tsx:597
 msgid "Website"
 msgstr ""
 
@@ -7092,7 +7120,7 @@ msgstr "Sarrera noiz aldatu zen azken aldiz"
 msgid "When the entry was published"
 msgstr "Sarrera noiz argitaratu zen"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:656
+#: packages/admin/src/components/TaxonomyManager.tsx:658
 msgid "Which content types can use this taxonomy"
 msgstr ""
 
@@ -7130,7 +7158,7 @@ msgid "Widget updated"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
-#: packages/admin/src/components/PluginManager.tsx:378
+#: packages/admin/src/components/PluginManager.tsx:379
 #: packages/admin/src/components/Sidebar.tsx:200
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
@@ -7288,7 +7316,7 @@ msgid "Your Role"
 msgstr "Zure rola"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:431
+#: packages/admin/src/components/RegistryPluginDetail.tsx:508
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr ""
 

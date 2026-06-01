@@ -43,6 +43,8 @@ interface TaxonomySidebarProps {
 	onChange?: (taxonomyName: string, termIds: string[]) => void;
 }
 
+const EMPTY_TERMS: TaxonomyTerm[] = [];
+
 /**
  * Fetch taxonomy definitions
  */
@@ -163,16 +165,16 @@ function TagInput({
 }) {
 	const { t } = useLingui();
 	const [input, setInput] = React.useState("");
+	const [isOpen, setIsOpen] = React.useState(false);
 
 	const selectedTerms = terms.filter((term) => selectedIds.has(term.id));
 
 	const trimmedInput = input.trim();
 
 	const suggestions = React.useMemo(() => {
-		if (!trimmedInput) return [];
-		return terms
-			.filter((term) => !selectedIds.has(term.id) && termMatches(term, trimmedInput))
-			.slice(0, 5);
+		const availableTerms = terms.filter((term) => !selectedIds.has(term.id));
+		if (!trimmedInput) return availableTerms.slice(0, 5);
+		return availableTerms.filter((term) => termMatches(term, trimmedInput)).slice(0, 5);
 	}, [trimmedInput, terms, selectedIds]);
 
 	const hasExactMatch = React.useMemo(() => {
@@ -185,12 +187,20 @@ function TagInput({
 	const handleSelect = (term: TaxonomyTerm) => {
 		onAdd(term.id);
 		setInput("");
+		setIsOpen(false);
 	};
 
 	const handleCreate = () => {
 		if (!trimmedInput || isCreating) return;
 		onCreate(trimmedInput);
 		setInput("");
+		setIsOpen(false);
+	};
+
+	const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+		const nextFocused = e.relatedTarget;
+		if (nextFocused instanceof Node && e.currentTarget.contains(nextFocused)) return;
+		setIsOpen(false);
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -229,10 +239,14 @@ function TagInput({
 			)}
 
 			{/* Input with autocomplete */}
-			<div className="relative">
+			<div className="relative" onBlur={handleBlur}>
 				<Input
 					value={input}
-					onChange={(e) => setInput(e.target.value)}
+					onChange={(e) => {
+						setInput(e.target.value);
+						setIsOpen(true);
+					}}
+					onFocus={() => setIsOpen(true)}
 					onKeyDown={handleKeyDown}
 					placeholder={t`Add tags...`}
 					aria-label={t`Add ${label}`}
@@ -240,12 +254,13 @@ function TagInput({
 				/>
 
 				{/* Suggestions dropdown */}
-				{(suggestions.length > 0 || showCreateOption) && (
+				{isOpen && (suggestions.length > 0 || showCreateOption) && (
 					<div className="absolute top-full start-0 end-0 mt-1 bg-kumo-overlay border rounded-md shadow-lg z-10">
 						{suggestions.map((term) => (
 							<button
 								key={term.id}
 								type="button"
+								onMouseDown={(e) => e.preventDefault()}
 								onClick={() => handleSelect(term)}
 								className="w-full text-start px-3 py-2 text-sm hover:bg-kumo-tint"
 							>
@@ -255,6 +270,7 @@ function TagInput({
 						{showCreateOption && (
 							<button
 								type="button"
+								onMouseDown={(e) => e.preventDefault()}
 								onClick={handleCreate}
 								disabled={isCreating}
 								className="w-full text-start px-3 py-2 text-sm hover:bg-kumo-tint text-kumo-accent flex items-center gap-1 border-t"
@@ -290,12 +306,12 @@ function TaxonomySection({
 	const [newCategoryLabel, setNewCategoryLabel] = React.useState("");
 	const [showCategoryInput, setShowCategoryInput] = React.useState(false);
 
-	const { data: terms = [] } = useQuery({
+	const { data: terms = EMPTY_TERMS } = useQuery({
 		queryKey: ["taxonomy-terms", taxonomy.name],
 		queryFn: () => fetchTerms(taxonomy.name),
 	});
 
-	const { data: entryTerms = [] } = useQuery({
+	const { data: entryTerms = EMPTY_TERMS } = useQuery({
 		queryKey: ["entry-terms", collection, entryId, taxonomy.name],
 		queryFn: () => {
 			if (!entryId) return [];
