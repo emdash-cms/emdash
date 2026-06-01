@@ -1,5 +1,34 @@
 # @emdash-cms/admin
 
+## 0.16.0
+
+### Minor Changes
+
+- [#1238](https://github.com/emdash-cms/emdash/pull/1238) [`60c0b2e`](https://github.com/emdash-cms/emdash/commit/60c0b2eeab7726471b313d0c453de82df1e08558) Thanks [@ascorbic](https://github.com/ascorbic)! - Registry plugins can now declare environment requirements. A plugin's manifest may set a release-level `requires` block (e.g. `{ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" }`), which is published into the release record. When browsing a registry plugin, the admin compares those constraints against the running EmDash and Astro versions: if the host doesn't satisfy them, it shows a compatibility warning and disables the Install button. The server enforces the same check on install and update, refusing an incompatible release with `ENV_INCOMPATIBLE` so the gate can't be bypassed.
+
+- [#1239](https://github.com/emdash-cms/emdash/pull/1239) [`1a4918f`](https://github.com/emdash-cms/emdash/commit/1a4918ff989d57b4f12e44b647542e406dce7cb9) Thanks [@ascorbic](https://github.com/ascorbic)! - Plugins published to the experimental registry can now ship icon, screenshot, and banner images. Declare them in `emdash-plugin.jsonc` under `release.artifacts` as file refs; `emdash-plugin publish --artifact-base-url <url>` measures each image's dimensions, uploads it, and records it in the release. The admin plugin detail page renders the icon, banner, and a screenshot gallery, fetched through a server-side image proxy. The proxy resolves each artifact's URL server-side from the validated release record (the client sends only the artifact's coordinates, never a URL), then applies SSRF defences and an image content-type allowlist before serving the bytes. Supported image types are PNG, JPEG, WebP, GIF, and AVIF; SVG is rejected at both publish and proxy because it is active content.
+
+- [#1253](https://github.com/emdash-cms/emdash/pull/1253) [`d2f2679`](https://github.com/emdash-cms/emdash/commit/d2f26792bc8f053693bfb0a6a9d65a7403753f0a) Thanks [@ascorbic](https://github.com/ascorbic)! - The registry plugin detail page now surfaces a plugin's long-form profile sections. Publishers' `description`, `installation`, `faq`, `changelog`, and `security` sections render as sanitized Markdown (the shared audited `renderMarkdown` — raw HTML, scripts, and images stripped, https-only links) in a tabbed view below the install action, with one tab per non-empty section. The page also shows an SBOM badge with the document format and a guarded direct download link (rendered only for safe http(s) URLs), the publisher-asserted `lastUpdated` time labelled distinctly from the aggregator's `indexedAt`, and an accessible tooltip on the verified-publisher shield naming the labeller DID that issued the verification.
+
+### Patch Changes
+
+- [#1257](https://github.com/emdash-cms/emdash/pull/1257) [`62619c2`](https://github.com/emdash-cms/emdash/commit/62619c2d7eeb0ea1ff4178ec4090c2872df51073) Thanks [@Rimander](https://github.com/Rimander)! - Completes the Spanish (Spain) admin translation, filling the 54 remaining untranslated strings across the plugin registry, SEO/social-image settings, the code-block editor, byline/content strings, and the capability-consent dialog. The `es-ES` catalog is now fully translated.
+
+- [#1255](https://github.com/emdash-cms/emdash/pull/1255) [`3d540da`](https://github.com/emdash-cms/emdash/commit/3d540daf4b2c89c408038ae55799e2513c1ef9c9) Thanks [@ascorbic](https://github.com/ascorbic)! - Fix admin crash on authenticated load with @cloudflare/kumo 2.4.x ([#1240](https://github.com/emdash-cms/emdash/issues/1240)). The
+  sidebar was using `Sidebar.GroupContent` and group-level `collapsible`/
+  `defaultOpen` props, which were removed in kumo 2.4.0. The four nav sections
+  (Content, Manage, Admin, Plugins) now render as plain `Sidebar.Group` blocks.
+  The workspace catalog range for `@cloudflare/kumo` is bumped from `^2.3.0` to
+  `^2.4.0` to match.
+
+- [#1248](https://github.com/emdash-cms/emdash/pull/1248) [`b89e988`](https://github.com/emdash-cms/emdash/commit/b89e988da2a930450ae237ae55b2594bbf395770) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fixes the flat taxonomy tag picker so focusing an empty input shows available existing terms for the collection.
+
+- [#1244](https://github.com/emdash-cms/emdash/pull/1244) [`4612749`](https://github.com/emdash-cms/emdash/commit/4612749770dba13ac6e01e8953854f318b9913dd) Thanks [@pitscher](https://github.com/pitscher)! - Fixes admin UI translations for permission counts and action labels so languages can use their correct plural forms and word order
+
+- Updated dependencies [[`60c0b2e`](https://github.com/emdash-cms/emdash/commit/60c0b2eeab7726471b313d0c453de82df1e08558)]:
+  - @emdash-cms/registry-client@0.3.0
+  - @emdash-cms/blocks@0.16.0
+
 ## 0.15.0
 
 ### Minor Changes
