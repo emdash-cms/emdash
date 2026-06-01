@@ -309,6 +309,9 @@ importers:
       oxlint-tsgolint:
         specifier: ^0.23.0
         version: 0.23.0
+      pkg-pr-new:
+        specifier: ^0.0.75
+        version: 0.0.75
       prettier:
         specifier: ^3.8.1
         version: 3.8.1
@@ -375,7 +378,7 @@ importers:
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
-        version: 1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))(workerd@1.20260526.1)(wrangler@4.95.0)
+        version: 1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))(workerd@1.20260507.1)(wrangler@4.95.0)
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
         version: 0.16.3(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5)
@@ -9724,6 +9727,10 @@ packages:
     resolution: {integrity: sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ==}
     engines: {node: '>=16.20.0'}
 
+  pkg-pr-new@0.0.75:
+    resolution: {integrity: sha512-u9mdErTewKSMsr+ceCt8VcNuNP0ro5AXiPXhUVApuEyqr2Zlvt+DdCFBcm+yGWN8mhOdZJ27meIDbnoZgfzpOw==}
+    hasBin: true
+
   pkg-types@1.3.1:
     resolution: {integrity: sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ==}
 
@@ -13362,9 +13369,9 @@ snapshots:
       - utf-8-validate
       - workerd
 
-  '@cloudflare/vite-plugin@1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))(workerd@1.20260526.1)(wrangler@4.95.0)':
+  '@cloudflare/vite-plugin@1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))(workerd@1.20260507.1)(wrangler@4.95.0)':
     dependencies:
-      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260526.1)
+      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260507.1)
       miniflare: 4.20260507.1
       unenv: 2.0.0-rc.24
       vite: 8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0)
@@ -16781,7 +16788,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vitest: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.1.5)(@vitest/ui@4.1.5)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))
+      vitest: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(@vitest/browser-playwright@4.1.5)(@vitest/ui@4.1.5)(jsdom@26.1.0)(vite@8.0.14(@types/node@24.10.13)(esbuild@0.27.3)(jiti@2.6.1)(yaml@2.9.0))
 
   '@vitest/utils@4.1.5':
     dependencies:
@@ -20678,6 +20685,8 @@ snapshots:
       thread-stream: 2.7.0
 
   pkce-challenge@5.0.1: {}
+
+  pkg-pr-new@0.0.75: {}
 
   pkg-types@1.3.1:
     dependencies:
