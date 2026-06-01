@@ -53,7 +53,7 @@ If the reproduce stage returns `skipped: true`, do not run diagnose or fix. Run 
 
 ### 3. Diagnose
 
-Follow `../diagnose.md`. Feed it the reproduce notes. It returns a root cause (file plus approximate line plus prose), a confidence rating, and hypothesis notes if confidence is lower than `high`.
+Follow `../diagnose.md`. Feed it the reproduce notes. It returns a root cause (file plus approximate line plus prose), a confidence rating in that cause, a fix approach (`mechanical`, `clear-best-option`, or `needs-design-decision`), a concrete proposed fix, and hypothesis notes covering alternative causes. Confidence rates the _cause_; fix approach rates the _fix_ -- the two are independent, so a confidently-located bug whose fix is one clear backwards-compatible change is `high` + `clear-best-option`, not `medium`.
 
 If the reproduce stage failed to reproduce (`reproduced: false`, not skipped), still run diagnose -- often the issue text alone is enough to identify the code path, and the bot's comment is more useful with a guess than without one. Diagnose should lower its own confidence accordingly.
 
@@ -63,14 +63,15 @@ Follow `../verify.md`. It looks at the diagnosed code, the surrounding documenta
 
 ### 5. Fix (conditional)
 
-Only run `../fix.md` when **both** of the following hold:
+Only run `../fix.md` when **all** of the following hold:
 
 - `verify.verdict === 'bug'`
-- `diagnose.confidence === 'high'`
+- `diagnose.confidence !== 'low'` (the cause is pinned with at least medium confidence)
+- `diagnose.fixApproach !== 'needs-design-decision'` (the fix is `mechanical` or `clear-best-option`)
 
-Any other combination: skip fix. The bot will post the diagnosis and verify reasoning as a comment, and a human takes it from there. Attempting a fix at medium or low confidence wastes runner minutes and produces noisy diffs that have to be thrown away.
+Any other combination: skip fix. The bot posts the diagnosis (including the proposed fix or, for a design decision, the options) and verify reasoning as a comment, and a human takes it from there. The gate is deliberately broader than the old `confidence === 'high'` rule, which conflated "is the cause certain?" with "is the fix obvious?" and starved the fix stage of real, fixable bugs. The output is not a merge -- it is a candidate branch the reporter is asked to verify and a maintainer reviews -- so a clear, test-backed fix is worth attempting even when it is more than a one-line change.
 
-When you do invoke fix, carry its result forward. Fix returns whether the change actually built and tested clean, a conventional-commit-style message, the list of files changed, and notes. The orchestrator is responsible for committing and pushing -- you do not.
+The fix stage runs on a cheaper model than the reasoning stages: diagnose has already produced a concrete plan, so fix is guided implementation rather than open-ended investigation. Carry its result forward. Fix returns whether the change actually built and tested clean, a conventional-commit-style message, the list of files changed, and notes. The orchestrator is responsible for committing and pushing -- you do not.
 
 ## Output
 
