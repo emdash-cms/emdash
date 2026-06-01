@@ -564,6 +564,125 @@ export const AdminSchema = z
 	});
 
 // ──────────────────────────────────────────────────────────────────────────
+// Long-form profile sections (description / installation / faq / changelog /
+// security)
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Per-section size caps, mirroring `profile.json#sections`. */
+export const SECTION_MAX_BYTES = 20000;
+export const SECTION_MAX_GRAPHEMES = 2000;
+
+/** The five FAIR-recognised section keys the lexicon enumerates. */
+export const SECTION_KEYS = [
+	"description",
+	"installation",
+	"faq",
+	"changelog",
+	"security",
+] as const;
+
+export type SectionKey = (typeof SECTION_KEYS)[number];
+
+const sectionGraphemeSegmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+
+/** Grapheme count via `Intl.Segmenter` — the codebase's grapheme-aware measure. */
+export function countGraphemes(value: string): number {
+	let count = 0;
+	for (const _ of sectionGraphemeSegmenter.segment(value)) count++;
+	return count;
+}
+
+/**
+ * Enforce the per-section size caps on a resolved markdown string. Returns
+ * an error message when over a cap, or `null` when within both. Shared by the
+ * inline-string schema check and the load-time file-ref check so an inline
+ * section and a `{ file }` section fail with the same message.
+ */
+export function sectionCapError(value: string): string | null {
+	const bytes = Buffer.byteLength(value, "utf8");
+	if (bytes > SECTION_MAX_BYTES) {
+		return `content is ${bytes} bytes, exceeding the ${SECTION_MAX_BYTES}-byte cap`;
+	}
+	const graphemes = countGraphemes(value);
+	if (graphemes > SECTION_MAX_GRAPHEMES) {
+		return `content is ${graphemes} graphemes, exceeding the ${SECTION_MAX_GRAPHEMES}-grapheme cap`;
+	}
+	return null;
+}
+
+/**
+ * A single section file reference. The `file` path is resolved relative to the
+ * manifest at LOAD time; the CLI reads the file's content directly into the
+ * section string (sections are inlined into the profile record, unlike media
+ * artifacts whose bytes are uploaded). Only the authoring input lives here.
+ */
+export const SectionFileSchema = z
+	.object({
+		file: z
+			.string()
+			.min(1, "section `file` path cannot be empty")
+			.max(1024, "section `file` path must be <= 1024 characters")
+			.meta({
+				description:
+					"Path to a CommonMark Markdown file, relative to the manifest. Its content is read inline into the section at publish time.",
+			}),
+	})
+	.strict()
+	.meta({
+		title: "Section file reference",
+		description:
+			"Loads the section's Markdown from a sibling file instead of inlining it in the manifest.",
+	});
+
+/**
+ * A single section value: either an inline CommonMark string or a `{ file }`
+ * reference. Inline strings are capped here (20000 bytes / 2000 graphemes); a
+ * file ref's content is capped at load time once the file is read, because the
+ * bytes aren't known until then.
+ */
+export const SectionValueSchema = z
+	.union([
+		z
+			.string()
+			.superRefine((value, ctx) => {
+				const error = sectionCapError(value);
+				if (error) ctx.addIssue({ code: "custom", message: error });
+			})
+			.meta({
+				description:
+					"Inline CommonMark Markdown for this section. Capped at 20000 bytes / 2000 graphemes.",
+			}),
+		SectionFileSchema,
+	])
+	.meta({
+		title: "Section value",
+		description:
+			"Either inline CommonMark Markdown or a `{ file }` reference to a sibling Markdown file.",
+	});
+
+/**
+ * Long-form profile sections. Profile-level (not per-release): the same map of
+ * human-readable Markdown carries across every release of a package. Keys are
+ * the five FAIR-recognised section names; `.strict()` rejects any other key so
+ * a typo (`instalation`) fails locally rather than producing an unrecognised
+ * section in the published profile.
+ */
+export const SectionsSchema = z
+	.object({
+		description: SectionValueSchema.optional(),
+		installation: SectionValueSchema.optional(),
+		faq: SectionValueSchema.optional(),
+		changelog: SectionValueSchema.optional(),
+		security: SectionValueSchema.optional(),
+	})
+	.strict()
+	.meta({
+		title: "Profile sections",
+		description:
+			"Long-form package documentation (description / installation / faq / changelog / security). Each value is CommonMark Markdown (inline or a `{ file }` ref) capped at 20000 bytes / 2000 graphemes. Rendered on the package's registry page.",
+	});
+
+// ──────────────────────────────────────────────────────────────────────────
 // Media artifacts (icon / screenshot / banner)
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -753,6 +872,11 @@ export const ManifestSchema = z
 		description: DescriptionSchema.optional(),
 		keywords: KeywordsSchema.optional(),
 
+		// Long-form profile sections (description / installation / faq /
+		// changelog / security). Profile-level, like the fields above. File
+		// refs are read inline at load time relative to the manifest.
+		sections: SectionsSchema.optional(),
+
 		// Optional release fields.
 		repo: RepoSchema.optional(),
 
@@ -838,6 +962,12 @@ export type ManifestSecurityContact = z.infer<typeof SecurityContactSchema>;
 
 /** A single media-artifact file reference (icon / screenshot / banner). */
 export type ManifestArtifactFile = z.infer<typeof ArtifactFileSchema>;
+
+/** A single section file reference (`{ file }`). */
+export type ManifestSectionFile = z.infer<typeof SectionFileSchema>;
+
+/** The long-form sections block, as authored (inline strings or file refs). */
+export type ManifestSections = z.infer<typeof SectionsSchema>;
 
 /** The release media-artifacts block. */
 export type ManifestArtifacts = z.infer<typeof ArtifactsSchema>;

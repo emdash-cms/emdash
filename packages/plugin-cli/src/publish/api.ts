@@ -130,6 +130,13 @@ export interface ProfileInput {
 	name?: string;
 	description?: string;
 	keywords?: string[];
+	/**
+	 * Long-form profile sections (description / installation / faq / changelog
+	 * / security), resolved to inline CommonMark strings. Profile-level: written
+	 * to the profile record on first publish, ignored on subsequent publishes
+	 * like the other profile fields.
+	 */
+	sections?: Record<string, string>;
 }
 
 /**
@@ -268,6 +275,7 @@ interface PackageProfileRecordShape {
 	name?: string;
 	description?: string;
 	keywords?: string[];
+	sections?: Record<string, string>;
 }
 
 /** An image artifact embedded in a release (`release.json#artifact`). */
@@ -909,6 +917,9 @@ function buildProfileRecord(input: {
 	if (profile.keywords !== undefined && profile.keywords.length > 0) {
 		record.keywords = profile.keywords;
 	}
+	if (profile.sections !== undefined && Object.keys(profile.sections).length > 0) {
+		record.sections = profile.sections;
+	}
 	return record;
 }
 
@@ -956,6 +967,9 @@ function listProvidedProfileInputFields(input: ProfileInput | undefined): string
 	if (input.keywords !== undefined && input.keywords.length > 0) fields.push("keywords");
 	if (input.authors !== undefined && input.authors.length > 0) fields.push("authors");
 	if (input.security !== undefined && input.security.length > 0) fields.push("security");
+	if (input.sections !== undefined && Object.keys(input.sections).length > 0) {
+		fields.push("sections");
+	}
 	return fields;
 }
 

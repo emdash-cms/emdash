@@ -4,3 +4,22 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  # npm ecosystem covers pnpm, including workspace catalogs (GA Feb 2025).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # pnpm enforces minimumReleaseAge (1440min / 1 day) at install time, so a
+    # PR for a too-fresh version would fail `pnpm install` in CI. Hold updates
+    # back past that gate (with margin) so Dependabot never proposes a version
+    # pnpm will refuse. See pnpm-workspace.yaml.
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+      production-dependencies:
+        dependency-type: "production"
+    open-pull-requests-limit: 10
