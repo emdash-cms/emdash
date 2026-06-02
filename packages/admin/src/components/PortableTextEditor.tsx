@@ -2794,7 +2794,7 @@ function EditorToolbar({
 			ref={toolbarRef}
 			role="toolbar"
 			aria-label={t`Text formatting`}
-			className="sticky top-0 z-10 border-b bg-kumo-tint p-1 flex flex-wrap gap-0.5"
+			className="sticky -top-6 z-10 border-b bg-kumo-tint p-1 flex flex-wrap gap-0.5"
 			onKeyDown={handleKeyDown}
 		>
 			{/* Text formatting */}
