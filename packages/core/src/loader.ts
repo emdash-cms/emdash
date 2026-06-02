@@ -25,8 +25,13 @@ import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js"
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /**
- * System columns that are not part of the content data
+ * SEO columns joined in from `_emdash_seo` on the single-entry path. Kept out
+ * of the generic field mapping (see SYSTEM_COLUMNS) and surfaced as a nested
+ * `data.seo` object instead. SEO lives in a side table, so a LEFT JOIN folds
+ * it into the entry load at zero extra query cost.
  */
+const SEO_COLUMNS = ["seo_title", "seo_description", "seo_image", "seo_canonical", "seo_no_index"];
+
 /**
  * System columns excluded from entry.data
  * Note: slug is intentionally NOT excluded - it's useful as data.slug in templates
@@ -47,7 +52,38 @@ const SYSTEM_COLUMNS = new Set([
 	"draft_revision_id",
 	"locale",
 	"translation_group",
+	// SEO columns joined from _emdash_seo on the single-entry path. Surfaced
+	// as a nested data.seo object (see extractSeo), never as flat fields.
+	...SEO_COLUMNS,
 ]);
+
+/** Resolved SEO shape attached to `entry.data.seo`. Mirrors `ContentSeo`. */
+interface EntrySeo {
+	title: string | null;
+	description: string | null;
+	image: string | null;
+	canonical: string | null;
+	noIndex: boolean;
+}
+
+/**
+ * Build a `data.seo` object from the joined `_emdash_seo` columns on a row.
+ *
+ * Returns `null` when no SEO row exists (LEFT JOIN miss → `seo_no_index` is
+ * NULL, since the column is `NOT NULL DEFAULT 0` whenever a row is present).
+ * Returning null keeps the `seo` key off entries that have none, so
+ * `getSeoMeta()` falls back to its defaults exactly as before.
+ */
+function extractSeo(row: Record<string, unknown>): EntrySeo | null {
+	if (row.seo_no_index === null || row.seo_no_index === undefined) return null;
+	return {
+		title: typeof row.seo_title === "string" ? row.seo_title : null,
+		description: typeof row.seo_description === "string" ? row.seo_description : null,
+		image: typeof row.seo_image === "string" ? row.seo_image : null,
+		canonical: typeof row.seo_canonical === "string" ? row.seo_canonical : null,
+		noIndex: row.seo_no_index === 1,
+	};
+}
 
 /**
  * Get the table name for a collection type
@@ -809,18 +845,31 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 				// Use raw SQL for dynamic table name, match by slug or id
 				// When locale is specified, prefer locale-scoped slug match,
-				// but IDs are globally unique so always check id without locale scope
+				// but IDs are globally unique so always check id without locale scope.
+				//
+				// LEFT JOIN _emdash_seo folds per-entry SEO (canonical, noindex,
+				// etc.) into this single query at zero extra round-trip cost. The
+				// joined columns are surfaced as a nested data.seo object via
+				// extractSeo() and excluded from the generic field mapping. SEO is
+				// 1:1 with content (PK on collection+content_id), so the join never
+				// multiplies rows.
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT * FROM ${sql.ref(tableName)}
-							WHERE deleted_at IS NULL
-							AND ((slug = ${id} AND locale = ${locale}) OR id = ${id})
+							SELECT c.*, ${sql.join(SEO_COLUMNS.map((col) => sql.ref(`s.${col}`)))}
+							FROM ${sql.ref(tableName)} AS c
+							LEFT JOIN ${sql.ref("_emdash_seo")} AS s
+								ON s.collection = ${type} AND s.content_id = c.id
+							WHERE c.deleted_at IS NULL
+							AND ((c.slug = ${id} AND c.locale = ${locale}) OR c.id = ${id})
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT * FROM ${sql.ref(tableName)}
-							WHERE deleted_at IS NULL
-							AND (slug = ${id} OR id = ${id})
+							SELECT c.*, ${sql.join(SEO_COLUMNS.map((col) => sql.ref(`s.${col}`)))}
+							FROM ${sql.ref(tableName)} AS c
+							LEFT JOIN ${sql.ref("_emdash_seo")} AS s
+								ON s.collection = ${type} AND s.content_id = c.id
+							WHERE c.deleted_at IS NULL
+							AND (c.slug = ${id} OR c.id = ${id})
 							LIMIT 1
 						`.execute(db);
 
@@ -872,11 +921,20 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							revLocale !== "" &&
 							(revLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
 						const revId = shouldPrefixRev ? `${revLocale}/${revSlug}` : revSlug;
+						// SEO is not revisioned — it comes from the content row's
+						// joined _emdash_seo columns, not the revision snapshot.
+						const revEntryData: Record<string, unknown> = {
+							...systemData,
+							slug,
+							...mapRevisionData(parsed),
+						};
+						const revSeo = extractSeo(row);
+						if (revSeo) revEntryData.seo = revSeo;
 						return {
 							id: revId,
 							slug,
 							status: rowStr(row, "status", "draft"),
-							data: { ...systemData, slug, ...mapRevisionData(parsed) },
+							data: revEntryData,
 							cacheHint: {
 								tags: [rowStr(row, "id")],
 								lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
@@ -885,11 +943,14 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					}
 				}
 
+				const entryData = mapRowToData(row);
+				const entrySeo = extractSeo(row);
+				if (entrySeo) entryData.seo = entrySeo;
 				return {
 					id: entryId,
 					slug: rowStr(row, "slug"),
 					status: rowStr(row, "status", "draft"),
-					data: mapRowToData(row),
+					data: entryData,
 					cacheHint: {
 						tags: [rowStr(row, "id")],
 						lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
