@@ -13,6 +13,17 @@ import {
 	type FindManyResult,
 } from "./client.js";
 
+/**
+ * Maximum length of the media filename search term. Mirrors the server-side
+ * zod schema (`q: z.string().trim().min(1).max(200)`); keep in sync.
+ */
+export const MEDIA_SEARCH_MAX_LENGTH = 200;
+
+/** Trim and clamp a search term to the server-accepted range. */
+export function normalizeMediaSearch(value: string | undefined | null): string {
+	return (value ?? "").trim().slice(0, MEDIA_SEARCH_MAX_LENGTH);
+}
+
 export interface MediaItem {
 	id: string;
 	filename: string;
@@ -49,7 +60,12 @@ export async function fetchMediaList(options?: {
 		const value = Array.isArray(options.mimeType) ? options.mimeType.join(",") : options.mimeType;
 		if (value) params.set("mimeType", value);
 	}
-	if (options?.search) params.set("q", options.search);
+	if (options?.search) {
+		// Trim and clamp to the server's accepted range so a long or
+		// whitespace-only term can't trigger an avoidable 400.
+		const q = normalizeMediaSearch(options.search);
+		if (q) params.set("q", q);
+	}
 
 	const url = `${API_BASE}/media${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);

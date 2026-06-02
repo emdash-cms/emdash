@@ -15,6 +15,7 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tansta
 import * as React from "react";
 
 import {
+	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaList,
 	fetchMediaProviders,
 	fetchProviderMedia,
@@ -573,6 +574,7 @@ export function MediaPickerModal({
 								aria-label={t`Search media`}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
+								maxLength={MEDIA_SEARCH_MAX_LENGTH}
 								className="ps-9"
 							/>
 						</div>

@@ -9,6 +9,7 @@ import {
 	type MediaItem,
 	type MediaProviderInfo,
 	type MediaProviderItem,
+	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaProviders,
 	fetchProviderMedia,
 	uploadToProvider,
@@ -376,6 +377,7 @@ export function MediaLibrary({
 							aria-label={t`Search media`}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
+							maxLength={MEDIA_SEARCH_MAX_LENGTH}
 							className="ps-9"
 						/>
 					</div>

@@ -58,6 +58,7 @@ export {
 	type MediaProviderCapabilities,
 	type MediaProviderInfo,
 	type MediaProviderItem,
+	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaList,
 	uploadMedia,
 	deleteMedia,
