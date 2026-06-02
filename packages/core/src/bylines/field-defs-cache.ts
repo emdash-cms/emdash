@@ -57,8 +57,8 @@ import { BylineSchemaRegistry } from "../schema/byline-registry.js";
 import type { BylineFieldDefinition } from "../schema/types.js";
 
 interface FieldDefsHolder {
-	/** Cached defs from the last successful fetch. Null until first read. */
-	cached: BylineFieldDefinition[] | null;
+	/** In-flight or resolved defs promise for the cached version. Null until first read. */
+	cached: Promise<BylineFieldDefinition[]> | null;
 	/** Persisted-version value that `cached` was fetched against. */
 	cachedVersion: number;
 }
@@ -110,7 +110,13 @@ export async function getBylineFieldDefs(db: Kysely<Database>): Promise<BylineFi
 		if (holder.cached !== null && holder.cachedVersion === version) {
 			return holder.cached;
 		}
-		const defs = await new BylineSchemaRegistry(db).listFields();
+		const defs = new BylineSchemaRegistry(db).listFields().catch((error) => {
+			if (holder.cached === defs) {
+				holder.cached = null;
+				holder.cachedVersion = -1;
+			}
+			throw error;
+		});
 		holder.cached = defs;
 		holder.cachedVersion = version;
 		return defs;

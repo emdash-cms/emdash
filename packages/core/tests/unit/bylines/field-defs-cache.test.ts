@@ -8,7 +8,7 @@
 import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { ulid } from "ulidx";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	getBylineFieldDefs,
@@ -60,7 +60,37 @@ describe("getBylineFieldDefs — dirty-version bypass (#1174 BUG 1)", () => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await db.destroy();
+	});
+
+	it("coalesces concurrent cold global reads on the same in-flight defs promise", async () => {
+		await insertFieldDirect(db, "shared_field");
+
+		const original = BylineSchemaRegistry.prototype.listFields;
+		let calls = 0;
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+
+		vi.spyOn(BylineSchemaRegistry.prototype, "listFields").mockImplementation(async function (
+			this: BylineSchemaRegistry,
+		) {
+			calls += 1;
+			await gate;
+			return original.call(this);
+		});
+
+		const first = getBylineFieldDefs(db);
+		const second = getBylineFieldDefs(db);
+
+		release();
+		const results = await Promise.all([first, second]);
+
+		expect(calls).toBe(1);
+		expect(results[0].map((f) => f.slug)).toEqual(["shared_field"]);
+		expect(results[1].map((f) => f.slug)).toEqual(["shared_field"]);
 	});
 
 	it("returns fresh defs when the global cache was primed under the same odd version", async () => {
