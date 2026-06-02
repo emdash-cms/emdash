@@ -225,7 +225,7 @@ export interface SeedByline {
 }
 
 export interface SeedBylineAvatar {
-	/** Storage key of the already-uploaded avatar file (`{ulid}{ext}`). */
+	/** Storage key of an avatar file that already exists in the configured storage. */
 	storageKey: string;
 	/** Alt text for the avatar image. */
 	alt?: string;

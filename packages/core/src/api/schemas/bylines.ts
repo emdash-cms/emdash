@@ -14,8 +14,8 @@ export const bylineSummarySchema = z
 		avatarMediaId: z.string().nullable(),
 		/**
 		 * Avatar media storage key + alt, folded in by the media join during
-		 * content byline hydration. Optional: absent on the plain byline
-		 * finders, which don't join media.
+		 * content byline hydration. Null on the plain byline finders, which
+		 * don't join media.
 		 */
 		avatarStorageKey: z.string().nullish(),
 		avatarAlt: z.string().nullish(),

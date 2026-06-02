@@ -59,7 +59,7 @@ export interface BylineSummary {
 	bio: string | null;
 	avatarMediaId: string | null;
 	/**
-	 * Avatar media storage key (`{ulid}{ext}`), folded in by a LEFT JOIN on the
+	 * The avatar media's storage key, folded in by a LEFT JOIN on the
 	 * `media` table during content byline hydration. Non-null only when the
 	 * byline has an avatar AND was loaded through the content-credit hydration
 	 * path (`getContentBylines` / `getContentBylinesMany`, i.e. the

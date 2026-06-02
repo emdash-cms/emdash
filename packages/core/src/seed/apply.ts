@@ -1195,9 +1195,17 @@ async function resolveSeedBylineAvatar(
 	return { id: created.id, created: true };
 }
 
-/** Delete a media row by id (best-effort cleanup for a failed byline write). */
+/**
+ * Delete a media row by id. Best-effort cleanup for a failed byline write: a
+ * failure here must not mask the original error that triggered the cleanup, so
+ * it is logged and swallowed rather than thrown.
+ */
 async function deleteMediaRow(db: Kysely<Database>, id: string): Promise<void> {
-	await db.deleteFrom("media").where("id", "=", id).execute();
+	try {
+		await db.deleteFrom("media").where("id", "=", id).execute();
+	} catch (error) {
+		console.warn(`[seed] failed to clean up orphaned avatar media ${id}:`, error);
+	}
 }
 
 /**
