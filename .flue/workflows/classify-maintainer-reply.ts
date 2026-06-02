@@ -60,9 +60,9 @@ export async function run({
 		"",
 		"## How to decide between proceed and steer",
 		"",
-		"If the maintainer names changes the bot did not already propose, it's `steer`. If they just pick from / approve what the bot already laid out, it's `proceed`. When a directed fix is warranted (proceed or steer), `directive` must be a self-contained instruction the fix agent can follow WITHOUT re-reading this conversation -- spell out the chosen option concretely.",
+		"If the maintainer names changes the bot did not already propose, it's `steer`. If they just pick from / approve what the bot already laid out, it's `proceed`. The two resolve to the same action, so the distinction is cosmetic -- never pick `unclear` just because you can't decide between them. When the maintainer clearly wants the fix implemented, always choose `proceed` or `steer` (lean `steer` when unsure); in either case `directive` must be a self-contained instruction the fix agent can follow WITHOUT re-reading this conversation -- spell out the chosen option concretely.",
 		"",
-		"Default to `unclear` when there is no clear instruction. A wrong `proceed`/`steer` runs an expensive fix; a wrong `close`/`takeover` disengages the bot.",
+		"Reserve `unclear` for a comment with no actionable instruction at all -- a question, an aside, or no decision. Only choose `close`/`takeover` on an explicit close-or-stop instruction: a wrong one disengages the bot.",
 		"",
 		"Quote the specific phrase that drove your decision in the reasoning field.",
 	].join("\n");
