@@ -151,10 +151,17 @@ interface PortableTextCodeBlock {
 	language?: string;
 }
 
+interface PortableTextHtmlBlock {
+	_type: "htmlBlock";
+	_key: string;
+	html: string;
+}
+
 type PortableTextBlock =
 	| PortableTextTextBlock
 	| PortableTextImageBlock
 	| PortableTextCodeBlock
+	| PortableTextHtmlBlock
 	| { _type: string; _key: string; [key: string]: unknown };
 
 // Generate unique key

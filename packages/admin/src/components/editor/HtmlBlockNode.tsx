@@ -21,6 +21,23 @@ import * as React from "react";
 import { cn } from "../../lib/utils";
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * True when focus is inside a text input or textarea (e.g. the HTML block's
+ * source <textarea>). Editor-level keyboard shortcuts must defer to native
+ * field editing in that case.
+ */
+function isEditingFormField(): boolean {
+	if (typeof document === "undefined") return false;
+	const active = document.activeElement;
+	if (!active) return false;
+	const tag = active.tagName;
+	return tag === "TEXTAREA" || tag === "INPUT";
+}
+
+// ---------------------------------------------------------------------------
 // Node View
 // ---------------------------------------------------------------------------
 
@@ -157,6 +174,15 @@ export const HtmlBlockExtension = Node.create({
 		return {
 			html: {
 				default: "",
+				// Store the raw markup in a semantic `data-html-content` attribute
+				// rather than leaking it as a bare `html="..."` attribute on every
+				// DOM/clipboard serialization (drag, copy, paste).
+				parseHTML: (element) => element.getAttribute("data-html-content") ?? "",
+				renderHTML: (attributes) => {
+					const html = typeof attributes.html === "string" ? attributes.html : "";
+					if (!html) return {};
+					return { "data-html-content": html };
+				},
 			},
 		};
 	},
@@ -178,25 +204,21 @@ export const HtmlBlockExtension = Node.create({
 	},
 
 	addKeyboardShortcuts() {
+		const deleteHtmlBlock = () => {
+			// Don't hijack Backspace/Delete while the user is editing the source
+			// in the nested <textarea> -- let the native field handle the keystroke.
+			if (isEditingFormField()) return false;
+			const { selection } = this.editor.state;
+			const node = this.editor.state.doc.nodeAt(selection.from);
+			if (node?.type.name === "htmlBlock") {
+				this.editor.commands.deleteSelection();
+				return true;
+			}
+			return false;
+		};
 		return {
-			Backspace: () => {
-				const { selection } = this.editor.state;
-				const node = this.editor.state.doc.nodeAt(selection.from);
-				if (node?.type.name === "htmlBlock") {
-					this.editor.commands.deleteSelection();
-					return true;
-				}
-				return false;
-			},
-			Delete: () => {
-				const { selection } = this.editor.state;
-				const node = this.editor.state.doc.nodeAt(selection.from);
-				if (node?.type.name === "htmlBlock") {
-					this.editor.commands.deleteSelection();
-					return true;
-				}
-				return false;
-			},
+			Backspace: deleteHtmlBlock,
+			Delete: deleteHtmlBlock,
 		};
 	},
 });
