@@ -347,7 +347,7 @@ jobs:
           } > /tmp/comment.md
           gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md || true
 
-      # ----- Close: flag as by-design, leave the actual close to a human -----
+      # ----- Close: flag as by-design; the bot never closes the issue itself -----
 
       - name: Handle close
         if: steps.live-check.outputs.stale != 'true' && steps.resolve.outputs.action == 'close'
@@ -371,7 +371,7 @@ jobs:
               echo "> ${REASONING}"
             fi
             echo
-            echo "Leaving the actual close to a maintainer."
+            echo "I don't close issues automatically — close it whenever you're ready."
           } > /tmp/comment.md
           gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
 
