@@ -534,6 +534,14 @@ jobs:
               echo "Could the reporter please try this and reply with whether it resolves the issue?"
             fi
             echo
+            # Maintainer directives. reporter-reply.yml only acts on a
+            # non-reporter comment when it carries one of these at the
+            # START of a line, so the keywords go in `code` spans (which
+            # don't form @-mentions and so won't trip the directive parser
+            # on this very comment -- belt-and-suspenders alongside the
+            # bot-author exclusion there).
+            echo "<sub>**Maintainers** can act on the reporter's behalf: start a line with <code>@emdashbot confirm</code> to accept the fix and open a PR, or <code>@emdashbot reject</code> (optionally with details) to re-run the investigation.</sub>"
+            echo
             echo "Fix branch: \`${FIX_BRANCH}\` · Artifacts branch: \`${ART_BRANCH}\`"
             echo
             echo "<sub>Run: $RUN_URL</sub>"
