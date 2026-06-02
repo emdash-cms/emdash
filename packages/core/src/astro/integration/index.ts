@@ -10,6 +10,8 @@
  * to avoid bundling Node.js-only code into the production build.
  */
 
+import { createRequire } from "node:module";
+
 import type { AstroIntegration, AstroIntegrationLogger } from "astro";
 
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
@@ -33,6 +35,23 @@ export type {
 	ResolvedPlugin,
 } from "./runtime.js";
 export { getStoredConfig } from "./runtime.js";
+
+/**
+ * Resolve the version of Astro the host project is building with, by reading
+ * `astro/package.json` from the project's own dependency tree. Surfaced to the
+ * admin and the registry install gate so a plugin's `env:astro` constraint can
+ * be evaluated against the real host version. Returns `undefined` if Astro
+ * can't be resolved (shouldn't happen in a real build, but never throw here).
+ */
+function resolveAstroVersion(): string | undefined {
+	try {
+		const require = createRequire(import.meta.url);
+		const pkg = require("astro/package.json") as { version?: unknown };
+		return typeof pkg.version === "string" ? pkg.version : undefined;
+	} catch {
+		return undefined;
+	}
+}
 
 /** Default storage: Local filesystem in .emdash directory */
 const DEFAULT_STORAGE = local({
@@ -204,6 +223,13 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				command,
 			}) => {
 				printBanner(logger);
+				// Capture the host's Astro version so the runtime can expose it
+				// to the admin and the registry install gate for `env:astro`
+				// constraint checks.
+				const astroVersion = resolveAstroVersion();
+				if (astroVersion !== undefined) {
+					serializableConfig.astroVersion = astroVersion;
+				}
 				// Extract i18n config from Astro config
 				// Astro locales can be strings OR { path, codes } objects — normalize to paths
 				if (astroConfig.i18n) {

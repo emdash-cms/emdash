@@ -3,7 +3,8 @@ import { Kysely, PostgresDialect, SqliteDialect } from "kysely";
 import { Pool } from "pg";
 import { describe } from "vitest";
 
-import { runMigrations } from "../../src/database/migrations/runner.js";
+import { getMigrationStatus, runMigrations } from "../../src/database/migrations/runner.js";
+import type { MigrationStatus } from "../../src/database/migrations/runner.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 
@@ -176,7 +177,7 @@ export async function createTestPostgresDatabase(): Promise<PgTestContext> {
  */
 export async function setupTestPostgresDatabase(): Promise<PgTestContext> {
 	const ctx = await createTestPostgresDatabase();
-	await runMigrations(ctx.db);
+	await runMigrations(ctx.db, { migrationTableSchema: ctx.schemaName });
 	return ctx;
 }
 
@@ -303,12 +304,21 @@ export async function setupForDialectWithCollections(
 /**
  * Tear down a test database for any dialect.
  */
-export async function teardownForDialect(ctx: DialectTestContext): Promise<void> {
+export async function teardownForDialect(ctx: DialectTestContext | undefined): Promise<void> {
+	if (!ctx) return;
 	if (ctx.pgCtx) {
 		await teardownTestPostgresDatabase(ctx.pgCtx);
 	} else {
 		await teardownTestDatabase(ctx.db);
 	}
+}
+
+export function runMigrationsForDialect(ctx: DialectTestContext): Promise<{ applied: string[] }> {
+	return runMigrations(ctx.db, { migrationTableSchema: ctx.pgCtx?.schemaName });
+}
+
+export function getMigrationStatusForDialect(ctx: DialectTestContext): Promise<MigrationStatus> {
+	return getMigrationStatus(ctx.db, { migrationTableSchema: ctx.pgCtx?.schemaName });
 }
 
 // Private alias to avoid name collision

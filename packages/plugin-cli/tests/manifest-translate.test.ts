@@ -2,13 +2,19 @@
  * Coverage for the manifest -> publish translation layer.
  */
 
-import { describe, expect, it } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
 	manifestToProfileBootstrap,
 	manifestToProfileInput,
 	normaliseManifest,
 	type NormalisedManifest,
+	resolveSections,
+	SectionError,
 } from "../src/manifest/translate.js";
 
 describe("normaliseManifest", () => {
@@ -94,6 +100,27 @@ describe("normaliseManifest", () => {
 		).toThrow(/disagrees/);
 	});
 
+	it("passes release-level requires through unchanged", () => {
+		const normalised = normaliseManifest({
+			version: "0.1.0",
+			license: "MIT",
+			author: { name: "Jane" },
+			security: { email: "s@example.com" },
+			release: { requires: { "env:emdash": ">=1.0.0", "env:astro": ">=4.16" } },
+		});
+		expect(normalised.requires).toEqual({ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" });
+	});
+
+	it("leaves requires undefined when the manifest omits it", () => {
+		const normalised = normaliseManifest({
+			version: "0.1.0",
+			license: "MIT",
+			author: { name: "Jane" },
+			security: { email: "s@example.com" },
+		});
+		expect(normalised.requires).toBeUndefined();
+	});
+
 	it("throws when no version is available anywhere", () => {
 		expect(() =>
 			normaliseManifest({
@@ -118,6 +145,7 @@ describe("manifestToProfileBootstrap", () => {
 			description: "desc",
 			keywords: ["k"],
 			repo: "https://github.com/example/p",
+			requires: undefined,
 			capabilities: [],
 			allowedHosts: [],
 			storage: {},
@@ -142,6 +170,7 @@ describe("manifestToProfileBootstrap", () => {
 			description: undefined,
 			keywords: undefined,
 			repo: undefined,
+			requires: undefined,
 			capabilities: [],
 			allowedHosts: [],
 			storage: {},
@@ -168,6 +197,7 @@ describe("manifestToProfileInput", () => {
 			description: "desc",
 			keywords: ["k1", "k2"],
 			repo: "https://github.com/example/p",
+			requires: { "env:astro": ">=4.16" },
 			capabilities: [],
 			allowedHosts: [],
 			storage: {},
@@ -186,6 +216,8 @@ describe("manifestToProfileInput", () => {
 		expect(input.name).toBe("Test");
 		expect(input.description).toBe("desc");
 		expect(input.keywords).toEqual(["k1", "k2"]);
+		// requires is release-level, never folded into the profile input.
+		expect("requires" in input).toBe(false);
 	});
 
 	it("omits name, description and keywords when the manifest doesn't set them", () => {
@@ -200,6 +232,7 @@ describe("manifestToProfileInput", () => {
 			description: undefined,
 			keywords: undefined,
 			repo: undefined,
+			requires: undefined,
 			capabilities: [],
 			allowedHosts: [],
 			storage: {},
@@ -209,5 +242,116 @@ describe("manifestToProfileInput", () => {
 		expect("name" in input).toBe(false);
 		expect("description" in input).toBe(false);
 		expect("keywords" in input).toBe(false);
+		expect("sections" in input).toBe(false);
+	});
+
+	it("carries resolved sections into the profile input", () => {
+		const normalised: NormalisedManifest = {
+			slug: "test",
+			version: "0.1.0",
+			license: "MIT",
+			publisher: "did:plc:abc",
+			authors: [{ name: "Solo" }],
+			securityContacts: [{ email: "s@example.com" }],
+			name: undefined,
+			description: undefined,
+			keywords: undefined,
+			repo: undefined,
+			requires: undefined,
+			sections: { description: "Long.", installation: "Run install." },
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			admin: { pages: [], widgets: [] },
+		};
+		const input = manifestToProfileInput(normalised);
+		expect(input.sections).toEqual({ description: "Long.", installation: "Run install." });
+	});
+
+	it("omits sections when the resolved map is empty or undefined", () => {
+		const base: NormalisedManifest = {
+			slug: "test",
+			version: "0.1.0",
+			license: "MIT",
+			publisher: "did:plc:abc",
+			authors: [{ name: "Solo" }],
+			securityContacts: [{ email: "s@example.com" }],
+			name: undefined,
+			description: undefined,
+			keywords: undefined,
+			repo: undefined,
+			requires: undefined,
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			admin: { pages: [], widgets: [] },
+		};
+		expect("sections" in manifestToProfileInput(base)).toBe(false);
+		expect("sections" in manifestToProfileInput({ ...base, sections: {} })).toBe(false);
+	});
+});
+
+describe("resolveSections", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "emdash-sections-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	it("returns undefined when the manifest declared no sections", async () => {
+		expect(await resolveSections(undefined, dir)).toBeUndefined();
+	});
+
+	it("passes inline strings through unchanged", async () => {
+		const resolved = await resolveSections({ description: "Inline desc.", faq: "Q&A." }, dir);
+		expect(resolved).toEqual({ description: "Inline desc.", faq: "Q&A." });
+	});
+
+	it("reads a { file } ref's content into the section", async () => {
+		await writeFile(join(dir, "install.md"), "# Install\n\nRun `pnpm add`.");
+		const resolved = await resolveSections({ installation: { file: "./install.md" } }, dir);
+		expect(resolved).toEqual({ installation: "# Install\n\nRun `pnpm add`." });
+	});
+
+	it("leaves unset keys out of the resolved map", async () => {
+		const resolved = await resolveSections({ description: "Only this." }, dir);
+		expect(resolved).toEqual({ description: "Only this." });
+		expect(resolved && "faq" in resolved).toBe(false);
+	});
+
+	it("rejects a file ref that escapes the manifest directory", async () => {
+		await expect(
+			resolveSections({ security: { file: "../secrets.md" } }, dir),
+		).rejects.toMatchObject({ code: "SECTION_PATH_ESCAPE" });
+	});
+
+	it("rejects an absolute file ref", async () => {
+		await expect(
+			resolveSections({ security: { file: "/etc/passwd" } }, dir),
+		).rejects.toBeInstanceOf(SectionError);
+	});
+
+	it("rejects an unreadable file ref", async () => {
+		await expect(
+			resolveSections({ changelog: { file: "./missing.md" } }, dir),
+		).rejects.toMatchObject({ code: "SECTION_FILE_UNREADABLE" });
+	});
+
+	it("rejects a file whose content exceeds the byte cap", async () => {
+		await writeFile(join(dir, "big.md"), "a".repeat(20001));
+		await expect(resolveSections({ description: { file: "./big.md" } }, dir)).rejects.toMatchObject(
+			{ code: "SECTION_TOO_LARGE" },
+		);
+	});
+
+	it("rejects a file whose content exceeds the grapheme cap", async () => {
+		await writeFile(join(dir, "emoji.md"), "😀".repeat(2001));
+		await expect(resolveSections({ faq: { file: "./emoji.md" } }, dir)).rejects.toMatchObject({
+			code: "SECTION_TOO_LARGE",
+		});
 	});
 });

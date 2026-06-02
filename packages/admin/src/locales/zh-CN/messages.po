@@ -50,7 +50,7 @@ msgstr "：使用"
 msgid "(from {0})"
 msgstr "（来自 {0}）"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:352
+#: packages/admin/src/components/RegistryPluginDetail.tsx:518
 msgid "(pre-release)"
 msgstr "（预发布）"
 
@@ -58,7 +58,7 @@ msgstr "（预发布）"
 msgid "(synced)"
 msgstr "（已同步）"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:355
+#: packages/admin/src/components/RegistryPluginDetail.tsx:521
 msgid "(too new)"
 msgstr "（版本过高）"
 
@@ -128,6 +128,7 @@ msgstr "{0, plural, one {# 个菜单将导入} other {# 个菜单将导入}}"
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:288
+#: packages/admin/src/components/PluginManager.tsx:399
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# 个权限} other {# 个权限}}"
 
@@ -161,11 +162,23 @@ msgstr "{0, plural, one {# 位用户} other {# 位用户}}"
 msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0} 个字段"
 
+#. placeholder {0}: envLabel(m.key)
+#. placeholder {1}: m.required
+#. placeholder {2}: m.host
+#: packages/admin/src/components/RegistryPluginDetail.tsx:621
+msgid "{0} {1} required — you have {2}."
+msgstr ""
+
 #. placeholder {0}: menu.name
 #. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
 #: packages/admin/src/components/MenuList.tsx:215
 msgid "{0} • {1}"
 msgstr "{0} • {1}"
+
+#. placeholder {0}: displayName ?? slug
+#: packages/admin/src/components/RegistryPluginDetail.tsx:410
+msgid "{0} banner"
+msgstr ""
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1142
@@ -173,22 +186,27 @@ msgid "{0} detected"
 msgstr "检测到 {0}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:110
+#: packages/admin/src/components/PluginManager.tsx:111
 msgid "{0} has been deactivated"
 msgstr "{0} 已停用"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:305
+#: packages/admin/src/components/PluginManager.tsx:306
 msgid "{0} has been removed"
 msgstr "{0} 已移除"
 
+#. placeholder {0}: displayName ?? slug
+#: packages/admin/src/components/RegistryPluginDetail.tsx:422
+msgid "{0} icon"
+msgstr ""
+
 #. placeholder {0}: plugin.installCount.toLocaleString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:203
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:202
 msgid "{0} installs"
 msgstr "{0} 次安装"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:91
+#: packages/admin/src/components/PluginManager.tsx:92
 msgid "{0} is now active"
 msgstr "{0} 现已激活"
 
@@ -203,14 +221,8 @@ msgstr "{0} 个项目 → {1}"
 msgid "{0} items will be imported"
 msgstr "将导入 {0} 个项目"
 
-#. placeholder {0}: plugin.capabilities.length
-#. placeholder {1}: plugin.capabilities.length !== 1 ? "s" : ""
-#: packages/admin/src/components/PluginManager.tsx:398
-msgid "{0} permission{1}"
-msgstr "{0} 个权限{1}"
-
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:169
+#: packages/admin/src/components/PluginManager.tsx:170
 msgid "{0} plugins"
 msgstr "{0} 个插件"
 
@@ -227,13 +239,13 @@ msgid "{0} system + {1} custom {2}"
 msgstr "{0} 个系统 + {1} 个自定义 {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:316
+#: packages/admin/src/components/TaxonomySidebar.tsx:332
 msgid "{0} updated"
 msgstr "{0} 已更新"
 
 #. placeholder {0}: plugin.name
 #. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:258
+#: packages/admin/src/components/PluginManager.tsx:259
 msgid "{0} updated to v{1}"
 msgstr "{0} 已更新至 v{1}"
 
@@ -508,7 +520,7 @@ msgstr "账户信息"
 #: packages/admin/src/components/ContentList.tsx:373
 #: packages/admin/src/components/ContentTypeList.tsx:106
 #: packages/admin/src/components/MediaLibrary.tsx:431
-#: packages/admin/src/components/TaxonomyManager.tsx:821
+#: packages/admin/src/components/TaxonomyManager.tsx:823
 msgid "Actions"
 msgstr "操作"
 
@@ -520,18 +532,19 @@ msgstr "活跃"
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
 #: packages/admin/src/components/ContentEditor.tsx:2045
 #: packages/admin/src/components/MenuEditor.tsx:354
-#: packages/admin/src/components/TaxonomyManager.tsx:360
-#: packages/admin/src/components/TaxonomyManager.tsx:812
-#: packages/admin/src/components/TaxonomySidebar.tsx:439
+#: packages/admin/src/components/TaxonomySidebar.tsx:455
 msgid "Add"
 msgstr "添加"
 
 #. placeholder {0}: field.item_label
+#. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/PortableTextEditor.tsx:1489
+#: packages/admin/src/components/TaxonomyManager.tsx:362
+#: packages/admin/src/components/TaxonomyManager.tsx:814
 msgid "Add {0}"
 msgstr "添加 {0}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:238
+#: packages/admin/src/components/TaxonomySidebar.tsx:252
 msgid "Add {label}"
 msgstr "添加 {label}"
 
@@ -618,7 +631,7 @@ msgid "Add New"
 msgstr "添加新内容"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:449
+#: packages/admin/src/components/TaxonomySidebar.tsx:465
 msgid "Add new {0}"
 msgstr "添加新{0}"
 
@@ -630,7 +643,7 @@ msgstr "添加 noindex 元标签"
 msgid "Add Passkey"
 msgstr "添加通行密钥"
 
-#: packages/admin/src/components/PluginManager.tsx:205
+#: packages/admin/src/components/PluginManager.tsx:206
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "在 astro.config.mjs 中添加插件以扩展 EmDash 功能。"
 
@@ -650,7 +663,7 @@ msgstr "添加 SEO 元数据字段（标题、描述、图片）并包含在站�
 msgid "Add Sub-Field"
 msgstr "添加子字段"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:237
+#: packages/admin/src/components/TaxonomySidebar.tsx:251
 msgid "Add tags..."
 msgstr "添加标签..."
 
@@ -672,12 +685,12 @@ msgid "Additional data to import."
 msgstr "要导入的其他数据。"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:454
+#: packages/admin/src/components/Sidebar.tsx:444
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "管理员"
 
-#: packages/admin/src/components/Sidebar.tsx:394
+#: packages/admin/src/components/Sidebar.tsx:388
 msgid "Admin navigation"
 msgstr "管理员导航"
 
@@ -766,7 +779,7 @@ msgstr "允许的类型"
 msgid "Already have an account?"
 msgstr "已经有账户了？"
 
-#: packages/admin/src/components/PluginManager.tsx:630
+#: packages/admin/src/components/PluginManager.tsx:634
 msgid "Also delete plugin storage data"
 msgstr "同时删除插件存储数据"
 
@@ -790,9 +803,9 @@ msgid "Alternatively, you can export from WordPress (Tools → Export) and uploa
 msgstr "或者，您可以从 WordPress 导出（工具 → 导出）并上传文件。"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
-#: packages/admin/src/components/PluginManager.tsx:97
-#: packages/admin/src/components/PluginManager.tsx:116
-#: packages/admin/src/components/TaxonomySidebar.tsx:321
+#: packages/admin/src/components/PluginManager.tsx:98
+#: packages/admin/src/components/PluginManager.tsx:117
+#: packages/admin/src/components/TaxonomySidebar.tsx:337
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:341
 #: packages/admin/src/router.tsx:356
@@ -963,7 +976,7 @@ msgstr "授权设备"
 msgid "Authorizing..."
 msgstr "授权中..."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:458
+#: packages/admin/src/components/RegistryPluginDetail.tsx:670
 msgid "Authors"
 msgstr "作者"
 
@@ -979,7 +992,7 @@ msgstr "自动（slug 变更）"
 msgid "Auto-approve authenticated users"
 msgstr "自动批准已认证用户"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:406
+#: packages/admin/src/components/TaxonomyManager.tsx:408
 msgid "Auto-generated from name (you can edit)"
 msgstr "从名称自动生成（您可以编辑）"
 
@@ -1026,12 +1039,12 @@ msgstr "返回内容类型"
 msgid "Back to login"
 msgstr "返回登录"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:116
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:392
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:115
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:391
 msgid "Back to marketplace"
 msgstr "返回市场"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:559
+#: packages/admin/src/components/RegistryPluginDetail.tsx:803
 msgid "Back to plugins"
 msgstr "返回插件列表"
 
@@ -1092,7 +1105,7 @@ msgstr "浏览并安装插件以扩展您的网站。"
 msgid "Browse Files"
 msgstr "浏览文件"
 
-#: packages/admin/src/components/PluginManager.tsx:198
+#: packages/admin/src/components/PluginManager.tsx:199
 msgid "Browse the"
 msgstr "浏览"
 
@@ -1150,7 +1163,7 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/MenuEditor.tsx:351
 #: packages/admin/src/components/MenuEditor.tsx:522
 #: packages/admin/src/components/MenuList.tsx:172
-#: packages/admin/src/components/PluginManager.tsx:636
+#: packages/admin/src/components/PluginManager.tsx:640
 #: packages/admin/src/components/PortableTextEditor.tsx:2974
 #: packages/admin/src/components/Redirects.tsx:175
 #: packages/admin/src/components/SectionPickerModal.tsx:130
@@ -1161,8 +1174,8 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:453
 #: packages/admin/src/components/settings/SecuritySettings.tsx:206
 #: packages/admin/src/components/TaxonomyManager.tsx:187
-#: packages/admin/src/components/TaxonomyManager.tsx:470
-#: packages/admin/src/components/TaxonomyManager.tsx:684
+#: packages/admin/src/components/TaxonomyManager.tsx:472
+#: packages/admin/src/components/TaxonomyManager.tsx:686
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/Widgets.tsx:386
 #: packages/admin/src/components/WordPressImport.tsx:1753
@@ -1189,7 +1202,7 @@ msgstr "无法从 URL 确定 MIME 类型。请使用以可识别的图片扩展�
 msgid "Canonical URL"
 msgstr "规范 URL"
 
-#: packages/admin/src/components/PluginManager.tsx:469
+#: packages/admin/src/components/PluginManager.tsx:473
 msgid "Capabilities"
 msgstr "权限"
 
@@ -1245,6 +1258,10 @@ msgstr "更换图片"
 msgid "Change Logo"
 msgstr "更改标志"
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:791
+msgid "Changelog"
+msgstr ""
+
 #: packages/admin/src/router.tsx:811
 msgid "Changes discarded"
 msgstr "更改已丢弃"
@@ -1253,7 +1270,7 @@ msgstr "更改已丢弃"
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "页面标题和网站名称之间的分隔符（例如，\"My Post | My Site\"）"
 
-#: packages/admin/src/components/PluginManager.tsx:161
+#: packages/admin/src/components/PluginManager.tsx:162
 msgid "Check for updates"
 msgstr "检查更新"
 
@@ -1306,7 +1323,7 @@ msgstr "点击邮件中的链接即可登录。"
 #: packages/admin/src/components/FieldEditor.tsx:345
 #: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/FieldEditor.tsx:355
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:437
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:436
 #: packages/admin/src/components/MediaDetailPanel.tsx:131
 #: packages/admin/src/components/MediaDetailPanel.tsx:133
 #: packages/admin/src/components/MediaPickerModal.tsx:469
@@ -1336,12 +1353,12 @@ msgstr "点击邮件中的链接即可登录。"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:377
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:381
 #: packages/admin/src/components/TaxonomyManager.tsx:164
-#: packages/admin/src/components/TaxonomyManager.tsx:369
-#: packages/admin/src/components/TaxonomyManager.tsx:375
-#: packages/admin/src/components/TaxonomyManager.tsx:379
-#: packages/admin/src/components/TaxonomyManager.tsx:603
-#: packages/admin/src/components/TaxonomyManager.tsx:609
-#: packages/admin/src/components/TaxonomyManager.tsx:613
+#: packages/admin/src/components/TaxonomyManager.tsx:371
+#: packages/admin/src/components/TaxonomyManager.tsx:377
+#: packages/admin/src/components/TaxonomyManager.tsx:381
+#: packages/admin/src/components/TaxonomyManager.tsx:605
+#: packages/admin/src/components/TaxonomyManager.tsx:611
+#: packages/admin/src/components/TaxonomyManager.tsx:615
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
 #: packages/admin/src/components/users/InviteUserModal.tsx:94
@@ -1373,11 +1390,11 @@ msgstr "代码"
 msgid "Code Block"
 msgstr "代码块"
 
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:460
 msgid "Collapse"
 msgstr "收起"
 
-#: packages/admin/src/components/PluginManager.tsx:450
+#: packages/admin/src/components/PluginManager.tsx:454
 msgid "Collapse details"
 msgstr "收起详情"
 
@@ -1393,7 +1410,7 @@ msgstr "合集"
 msgid "Collection:"
 msgstr "合集："
 
-#: packages/admin/src/components/TaxonomyManager.tsx:654
+#: packages/admin/src/components/TaxonomyManager.tsx:656
 msgid "Collections"
 msgstr "合集"
 
@@ -1468,7 +1485,7 @@ msgstr "已连接 {0}"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:2006
 #: packages/admin/src/components/SectionEditor.tsx:194
-#: packages/admin/src/components/Sidebar.tsx:428
+#: packages/admin/src/components/Sidebar.tsx:422
 #: packages/admin/src/components/Widgets.tsx:819
 msgid "Content"
 msgstr "内容"
@@ -1605,7 +1622,7 @@ msgstr "无法检测到 WordPress"
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "无法将 \"{draft}\" 映射到 MIME 类型。请直接输入 MIME。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:820
+#: packages/admin/src/components/TaxonomyManager.tsx:822
 msgid "Count"
 msgstr "数量"
 
@@ -1613,13 +1630,13 @@ msgstr "数量"
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/Redirects.tsx:184
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/TaxonomyManager.tsx:477
+#: packages/admin/src/components/TaxonomyManager.tsx:479
 #: packages/admin/src/components/Widgets.tsx:389
 #: packages/admin/src/routes/bylines.tsx:456
 msgid "Create"
 msgstr "创建"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:263
+#: packages/admin/src/components/TaxonomySidebar.tsx:279
 msgid "Create \"{trimmedInput}\""
 msgstr "创建 \"{trimmedInput}\""
 
@@ -1628,7 +1645,7 @@ msgid "Create a bullet list"
 msgstr "创建无序列表"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:365
+#: packages/admin/src/components/TaxonomyManager.tsx:367
 msgid "Create a new {0}"
 msgstr "创建新的 {0}"
 
@@ -1706,8 +1723,8 @@ msgstr "创建区块"
 msgid "Create sections in the Sections library to use them here"
 msgstr "在区块库中创建区块以便在此使用"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:596
-#: packages/admin/src/components/TaxonomyManager.tsx:687
+#: packages/admin/src/components/TaxonomyManager.tsx:598
+#: packages/admin/src/components/TaxonomyManager.tsx:689
 msgid "Create Taxonomy"
 msgstr "创建分类"
 
@@ -1793,8 +1810,8 @@ msgstr "正在创建合集和字段..."
 #: packages/admin/src/components/Redirects.tsx:181
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:450
-#: packages/admin/src/components/TaxonomyManager.tsx:687
-#: packages/admin/src/components/TaxonomySidebar.tsx:263
+#: packages/admin/src/components/TaxonomyManager.tsx:689
+#: packages/admin/src/components/TaxonomySidebar.tsx:279
 msgid "Creating..."
 msgstr "创建中..."
 
@@ -1834,7 +1851,7 @@ msgstr "深色"
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
 #: packages/admin/src/components/Sidebar.tsx:179
-#: packages/admin/src/components/Sidebar.tsx:417
+#: packages/admin/src/components/Sidebar.tsx:411
 msgid "Dashboard"
 msgstr "仪表板"
 
@@ -1860,7 +1877,7 @@ msgstr "日期格式"
 msgid "Decimal number"
 msgstr "十进制数字"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:523
+#: packages/admin/src/components/RegistryPluginDetail.tsx:735
 msgid "Declared permissions"
 msgstr "声明的权限"
 
@@ -1881,7 +1898,7 @@ msgstr "默认社交图片"
 msgid "Default Social Image"
 msgstr "默认社交图片"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:599
+#: packages/admin/src/components/TaxonomyManager.tsx:601
 msgid "Define a new taxonomy for classifying content"
 msgstr "定义新的分类以对内容进行分类"
 
@@ -1906,7 +1923,7 @@ msgstr "代码定义"
 #: packages/admin/src/components/Redirects.tsx:552
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
-#: packages/admin/src/components/TaxonomyManager.tsx:884
+#: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:636
 #: packages/admin/src/routes/bylines.tsx:465
 #: packages/admin/src/routes/bylines.tsx:501
@@ -1945,7 +1962,7 @@ msgid "Delete {0} widget area"
 msgstr "删除 {0} 小部件区域"
 
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
-#: packages/admin/src/components/TaxonomyManager.tsx:880
+#: packages/admin/src/components/TaxonomyManager.tsx:882
 msgid "Delete {0}?"
 msgstr "删除 {0}？"
 
@@ -2040,7 +2057,7 @@ msgstr "已删除"
 #: packages/admin/src/components/MenuList.tsx:256
 #: packages/admin/src/components/Redirects.tsx:553
 #: packages/admin/src/components/Sections.tsx:309
-#: packages/admin/src/components/TaxonomyManager.tsx:885
+#: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:637
 #: packages/admin/src/routes/bylines.tsx:502
 msgid "Deleting..."
@@ -2082,13 +2099,14 @@ msgid "Describe what this section is for..."
 msgstr "描述此区块的用途..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:415
+#: packages/admin/src/components/RegistryPluginDetail.tsx:788
 #: packages/admin/src/components/SectionEditor.tsx:259
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:373
 msgid "Description"
 msgstr "描述"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:432
+#: packages/admin/src/components/TaxonomyManager.tsx:434
 msgid "Description (optional)"
 msgstr "描述（可选）"
 
@@ -2100,7 +2118,7 @@ msgstr "目标"
 msgid "Destination path"
 msgstr "目标路径"
 
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:460
 msgid "details"
 msgstr "详情"
 
@@ -2132,7 +2150,7 @@ msgstr "尺寸："
 msgid "Disable"
 msgstr "禁用"
 
-#: packages/admin/src/components/PluginManager.tsx:444
+#: packages/admin/src/components/PluginManager.tsx:448
 msgid "Disable plugin"
 msgstr "禁用插件"
 
@@ -2148,14 +2166,14 @@ msgstr "禁用用户"
 msgid "Disable User?"
 msgstr "禁用用户？"
 
-#: packages/admin/src/components/PluginManager.tsx:353
+#: packages/admin/src/components/PluginManager.tsx:354
 #: packages/admin/src/components/Redirects.tsx:392
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
 msgstr "已禁用"
 
-#: packages/admin/src/components/PluginManager.tsx:527
+#: packages/admin/src/components/PluginManager.tsx:531
 msgid "Disabled:"
 msgstr "已禁用："
 
@@ -2247,6 +2265,10 @@ msgstr "完成"
 msgid "Down"
 msgstr "下移"
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:477
+msgid "Download SBOM"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1962
 msgid "Downloading"
 msgstr "下载中"
@@ -2337,19 +2359,19 @@ msgstr "例如：MacBook Pro、iPhone"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:450
 #: packages/admin/src/components/MenuList.tsx:231
-#: packages/admin/src/components/PortableTextEditor.tsx:1270
 #: packages/admin/src/components/Sections.tsx:392
-#: packages/admin/src/components/TaxonomyManager.tsx:360
 #: packages/admin/src/components/TranslationsPanel.tsx:88
 msgid "Edit"
 msgstr "编辑"
 
+#. placeholder {0}: block?.label || ""
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
-#. placeholder {0}: selected.displayName
 #: packages/admin/src/components/ContentTypeList.tsx:220
+#: packages/admin/src/components/PortableTextEditor.tsx:1270
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:276
 #: packages/admin/src/components/TaxonomyManager.tsx:89
+#: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/bylines.tsx:389
 msgid "Edit {0}"
 msgstr "编辑 {0}"
@@ -2490,7 +2512,7 @@ msgstr "启用评论"
 msgid "Enable full-text search on this collection"
 msgstr "在此合集上启用全文搜索"
 
-#: packages/admin/src/components/PluginManager.tsx:444
+#: packages/admin/src/components/PluginManager.tsx:448
 msgid "Enable plugin"
 msgstr "启用插件"
 
@@ -2583,7 +2605,7 @@ msgstr "保存区块时出错"
 msgid "Error updating widget"
 msgstr "更新小部件时出错"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:415
+#: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "此插件的每个已发布版本均已撤回或无法验证。请稍后查看，或联系发布者。"
 
@@ -2599,11 +2621,11 @@ msgstr "退出无干扰模式"
 msgid "Exit Spotlight Mode"
 msgstr "退出聚焦模式"
 
-#: packages/admin/src/components/PluginManager.tsx:456
+#: packages/admin/src/components/PluginManager.tsx:460
 msgid "Expand"
 msgstr "展开"
 
-#: packages/admin/src/components/PluginManager.tsx:450
+#: packages/admin/src/components/PluginManager.tsx:454
 msgid "Expand details"
 msgstr "展开详情"
 
@@ -2636,7 +2658,7 @@ msgstr "失败"
 msgid "Failed"
 msgstr "失败"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:189
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:188
 msgid "Failed security audit"
 msgstr "安全审计失败"
 
@@ -2664,7 +2686,7 @@ msgstr "创建署名失败"
 msgid "Failed to create some collections"
 msgstr "创建部分合集失败"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:456
+#: packages/admin/src/components/TaxonomySidebar.tsx:472
 msgid "Failed to create term"
 msgstr "创建分类项失败"
 
@@ -2743,7 +2765,7 @@ msgstr "删除小部件失败"
 msgid "Failed to delete widget area"
 msgstr "删除小部件区域失败"
 
-#: packages/admin/src/components/PluginManager.tsx:115
+#: packages/admin/src/components/PluginManager.tsx:116
 msgid "Failed to disable plugin"
 msgstr "禁用插件失败"
 
@@ -2763,7 +2785,7 @@ msgstr "关闭欢迎页面失败"
 msgid "Failed to duplicate"
 msgstr "复制失败"
 
-#: packages/admin/src/components/PluginManager.tsx:96
+#: packages/admin/src/components/PluginManager.tsx:97
 msgid "Failed to enable plugin"
 msgstr "启用插件失败"
 
@@ -2780,11 +2802,11 @@ msgstr "执行导入失败"
 msgid "Failed to fetch collection"
 msgstr "获取合集失败"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:81
+#: packages/admin/src/components/TaxonomySidebar.tsx:83
 msgid "Failed to fetch entry terms"
 msgstr "获取条目术语失败"
 
-#: packages/admin/src/lib/api/client.ts:208
+#: packages/admin/src/lib/api/client.ts:210
 msgid "Failed to fetch manifest"
 msgstr "获取清单失败"
 
@@ -2802,7 +2824,7 @@ msgstr "获取版本失败"
 msgid "Failed to fetch setup status"
 msgstr "获取设置状态失败"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:65
+#: packages/admin/src/components/TaxonomySidebar.tsx:67
 msgid "Failed to fetch terms"
 msgstr "获取术语失败"
 
@@ -2839,7 +2861,7 @@ msgid "Failed to import media"
 msgstr "导入媒体失败"
 
 #: packages/admin/src/lib/api/marketplace.ts:160
-#: packages/admin/src/lib/api/registry.ts:455
+#: packages/admin/src/lib/api/registry.ts:692
 msgid "Failed to install plugin"
 msgstr "安装插件失败"
 
@@ -2868,12 +2890,12 @@ msgstr "加载图片失败"
 msgid "Failed to load passkeys"
 msgstr "加载通行密钥失败"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:111
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:110
 msgid "Failed to load plugin"
 msgstr "加载插件失败"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:144
+#: packages/admin/src/components/PluginManager.tsx:145
 msgid "Failed to load plugins: {0}"
 msgstr "加载插件失败：{0}"
 
@@ -2992,12 +3014,12 @@ msgstr "发送测试邮件失败"
 msgid "Failed to send verification email"
 msgstr "发送验证邮件失败"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:100
+#: packages/admin/src/components/TaxonomySidebar.tsx:102
 msgid "Failed to set entry terms"
 msgstr "设置条目术语失败"
 
 #: packages/admin/src/lib/api/marketplace.ts:192
-#: packages/admin/src/lib/api/registry.ts:594
+#: packages/admin/src/lib/api/registry.ts:831
 msgid "Failed to uninstall plugin"
 msgstr "卸载插件失败"
 
@@ -3010,7 +3032,7 @@ msgid "Failed to unschedule"
 msgstr "取消安排发布失败"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:320
+#: packages/admin/src/components/TaxonomySidebar.tsx:336
 msgid "Failed to update {0}"
 msgstr "更新 {0} 失败"
 
@@ -3023,7 +3045,7 @@ msgid "Failed to update domain"
 msgstr "更新域名失败"
 
 #: packages/admin/src/lib/api/marketplace.ts:176
-#: packages/admin/src/lib/api/registry.ts:526
+#: packages/admin/src/lib/api/registry.ts:763
 msgid "Failed to update plugin"
 msgstr "更新插件失败"
 
@@ -3042,6 +3064,10 @@ msgstr "验证身份认证失败"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:253
 msgid "Failed to verify registration"
 msgstr "验证注册失败"
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:790
+msgid "FAQ"
+msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:236
 #: packages/admin/src/components/settings/GeneralSettings.tsx:242
@@ -3167,7 +3193,7 @@ msgstr "常规"
 msgid "General Settings"
 msgstr "常规设置"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:624
+#: packages/admin/src/components/TaxonomyManager.tsx:626
 msgid "Genres"
 msgstr "类型"
 
@@ -3247,7 +3273,7 @@ msgstr "对搜索引擎隐藏"
 msgid "Hide token"
 msgstr "隐藏令牌"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:647
+#: packages/admin/src/components/TaxonomyManager.tsx:649
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "层级式（类似分类，具有父子关系）"
 
@@ -3264,7 +3290,7 @@ msgstr "首页"
 msgid "Homepage"
 msgstr "主页"
 
-#: packages/admin/src/components/PluginManager.tsx:384
+#: packages/admin/src/components/PluginManager.tsx:385
 msgid "Hooks"
 msgstr "钩子"
 
@@ -3281,7 +3307,7 @@ msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:241
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:143
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:142
 msgid "Icon blurred due to image audit"
 msgstr "由于图像审计，图标已模糊"
 
@@ -3416,10 +3442,9 @@ msgstr "包含示例内容（推荐新站点使用）"
 msgid "Incompatible"
 msgstr "不兼容"
 
-#. placeholder {0}: formatDate(release.indexedAt)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:325
-msgid "indexed {0}"
-msgstr "索引于 {0}"
+#: packages/admin/src/components/RegistryPluginDetail.tsx:491
+msgid "Indexed"
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2833
 msgid "Inline Code"
@@ -3427,9 +3452,13 @@ msgstr "行内代码"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:507
 #: packages/admin/src/components/MediaPickerModal.tsx:732
-#: packages/admin/src/components/PortableTextEditor.tsx:1270
 msgid "Insert"
 msgstr "插入"
+
+#. placeholder {0}: block?.label || ""
+#: packages/admin/src/components/PortableTextEditor.tsx:1270
+msgid "Insert {0}"
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:908
 msgid "Insert a blockquote"
@@ -3483,8 +3512,8 @@ msgstr "插入表格"
 msgid "Instagram"
 msgstr "Instagram"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:193
-#: packages/admin/src/components/RegistryPluginDetail.tsx:373
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:192
+#: packages/admin/src/components/RegistryPluginDetail.tsx:539
 msgid "Install"
 msgstr "安装"
 
@@ -3492,23 +3521,27 @@ msgstr "安装"
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr "安装并激活电子邮件提供商插件以启用电子邮件功能，如邀请、免密登录链接和密码恢复。"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:187
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:186
 msgid "Install blocked"
 msgstr "安装被阻止"
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:789
+msgid "Installation"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:174
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:173
 #: packages/admin/src/components/RegistryBrowse.tsx:198
-#: packages/admin/src/components/RegistryPluginDetail.tsx:365
+#: packages/admin/src/components/RegistryPluginDetail.tsx:531
 msgid "Installed"
 msgstr "已安装"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:496
+#: packages/admin/src/components/PluginManager.tsx:500
 msgid "Installed from marketplace (v{0})"
 msgstr "已从市场安装 (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:515
+#: packages/admin/src/components/PluginManager.tsx:519
 msgid "Installed:"
 msgstr "已安装："
 
@@ -3586,7 +3619,7 @@ msgstr "张三"
 msgid "JSON"
 msgstr "JSON"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:294
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:293
 #: packages/admin/src/components/SectionEditor.tsx:268
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:189
 msgid "Keywords"
@@ -3597,7 +3630,7 @@ msgstr "关键词"
 #: packages/admin/src/components/MenuEditor.tsx:329
 #: packages/admin/src/components/MenuEditor.tsx:498
 #: packages/admin/src/components/MenuList.tsx:166
-#: packages/admin/src/components/TaxonomyManager.tsx:621
+#: packages/admin/src/components/TaxonomyManager.tsx:623
 #: packages/admin/src/components/Widgets.tsx:371
 msgid "Label"
 msgstr "标签"
@@ -3621,7 +3654,7 @@ msgstr "语言"
 msgid "Large section heading"
 msgstr "大章节标题"
 
-#: packages/admin/src/components/PluginManager.tsx:521
+#: packages/admin/src/components/PluginManager.tsx:525
 msgid "Last enabled:"
 msgstr "最后启用："
 
@@ -3759,7 +3792,7 @@ msgstr "正在加载菜单..."
 msgid "Loading menus..."
 msgstr "正在加载菜单..."
 
-#: packages/admin/src/components/PluginManager.tsx:135
+#: packages/admin/src/components/PluginManager.tsx:136
 msgid "Loading plugins..."
 msgstr "正在加载插件..."
 
@@ -3782,7 +3815,7 @@ msgstr "正在加载设置..."
 msgid "Loading setup..."
 msgstr "正在加载设置..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:825
+#: packages/admin/src/components/TaxonomyManager.tsx:827
 msgid "Loading terms..."
 msgstr "正在加载词条..."
 
@@ -3802,7 +3835,7 @@ msgstr "正在加载小部件..."
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:176
 #: packages/admin/src/components/settings/SecuritySettings.tsx:113
-#: packages/admin/src/components/TaxonomyManager.tsx:777
+#: packages/admin/src/components/TaxonomyManager.tsx:779
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:252
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -3846,7 +3879,7 @@ msgstr "长文本"
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "仅限小写字母、数字和连字符"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:639
+#: packages/admin/src/components/TaxonomyManager.tsx:641
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "仅限小写字母、数字和下划线，以字母开头"
 
@@ -3864,13 +3897,13 @@ msgstr "发起网络请求"
 msgid "Make network requests to any host (unrestricted)"
 msgstr "向任何主机发起网络请求（不受限制）"
 
-#: packages/admin/src/components/Sidebar.tsx:442
+#: packages/admin/src/components/Sidebar.tsx:434
 msgid "Manage"
 msgstr "管理"
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:796
+#: packages/admin/src/components/TaxonomyManager.tsx:798
 msgid "Manage {0} for {1}"
 msgstr "管理 {1} 的 {0}"
 
@@ -3882,7 +3915,7 @@ msgstr "在 {entryLocale} 中管理署名"
 msgid "Manage content widgets in your widget areas"
 msgstr "管理您的小部件区域中的内容小部件"
 
-#: packages/admin/src/components/PluginManager.tsx:174
+#: packages/admin/src/components/PluginManager.tsx:175
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "管理已安装的插件。启用或禁用插件以控制其功能。"
 
@@ -3915,13 +3948,13 @@ msgstr "将 WordPress 用户 {0} 映射到 EmDash 用户"
 msgid "Mark as spam"
 msgstr "标记为垃圾"
 
-#: packages/admin/src/components/PluginManager.tsx:200
+#: packages/admin/src/components/PluginManager.tsx:201
 msgid "marketplace"
 msgstr "市场"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:166
-#: packages/admin/src/components/PluginManager.tsx:354
+#: packages/admin/src/components/PluginManager.tsx:167
+#: packages/admin/src/components/PluginManager.tsx:355
 #: packages/admin/src/components/Sidebar.tsx:228
 msgid "Marketplace"
 msgstr "市场"
@@ -4136,20 +4169,20 @@ msgstr "我的精彩博客"
 #: packages/admin/src/components/ContentTypeList.tsx:94
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MenuList.tsx:154
-#: packages/admin/src/components/TaxonomyManager.tsx:387
-#: packages/admin/src/components/TaxonomyManager.tsx:630
-#: packages/admin/src/components/TaxonomyManager.tsx:819
+#: packages/admin/src/components/TaxonomyManager.tsx:389
+#: packages/admin/src/components/TaxonomyManager.tsx:632
+#: packages/admin/src/components/TaxonomyManager.tsx:821
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:148
 #: packages/admin/src/components/Widgets.tsx:365
 msgid "Name"
 msgstr "名称"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:556
+#: packages/admin/src/components/TaxonomyManager.tsx:558
 msgid "Name and label are required"
 msgstr "名称和标签为必填项"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:562
+#: packages/admin/src/components/TaxonomyManager.tsx:564
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "名称必须以字母开头，且仅包含小写字母、数字和下划线"
 
@@ -4175,7 +4208,7 @@ msgid "NEW"
 msgstr "新"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:427
+#: packages/admin/src/components/TaxonomySidebar.tsx:443
 msgid "New {0}"
 msgstr "新{0}"
 
@@ -4209,7 +4242,7 @@ msgstr "新区块"
 msgid "new tab"
 msgstr "新标签页"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:809
+#: packages/admin/src/components/TaxonomyManager.tsx:811
 msgid "New Taxonomy"
 msgstr "新分类"
 
@@ -4225,7 +4258,7 @@ msgstr "新窗口"
 msgid "Newest"
 msgstr "最新"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:390
+#: packages/admin/src/components/TaxonomyManager.tsx:392
 msgid "News"
 msgstr "新闻"
 
@@ -4238,7 +4271,7 @@ msgstr "下一步"
 msgid "Next page"
 msgstr "下一页"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:464
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:463
 msgid "Next screenshot"
 msgstr "下一张截图"
 
@@ -4247,7 +4280,7 @@ msgid "No"
 msgstr "否"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:397
+#: packages/admin/src/components/TaxonomySidebar.tsx:413
 msgid "No {0} available."
 msgstr "暂无{0}。"
 
@@ -4257,7 +4290,7 @@ msgid "No {0} yet."
 msgstr "暂无 {0}。"
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:828
+#: packages/admin/src/components/TaxonomyManager.tsx:830
 msgid "No {0} yet. Create one to get started."
 msgstr "暂无{0}。创建一个以开始使用。"
 
@@ -4322,7 +4355,7 @@ msgstr "暂无内容类型。"
 msgid "No custom fields yet"
 msgstr "尚无自定义字段"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:265
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:264
 msgid "No detailed description available."
 msgstr "暂无详细描述。"
 
@@ -4354,7 +4387,7 @@ msgstr "无字段可比较"
 msgid "No headings in document"
 msgstr "文档中无标题"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:413
+#: packages/admin/src/components/RegistryPluginDetail.tsx:579
 msgid "No installable releases"
 msgstr "无可安装的版本"
 
@@ -4427,7 +4460,7 @@ msgstr "未注册通行密钥"
 msgid "No passkeys registered yet."
 msgstr "暂无已注册的通行密钥。"
 
-#: packages/admin/src/components/PluginManager.tsx:194
+#: packages/admin/src/components/PluginManager.tsx:195
 msgid "No plugins configured"
 msgstr "未配置插件"
 
@@ -4509,10 +4542,14 @@ msgstr "尚无用户。"
 msgid "No widget areas yet. Create one to get started."
 msgstr "暂无小部件区域。创建一个以开始使用。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:416
-#: packages/admin/src/components/TaxonomyManager.tsx:422
+#: packages/admin/src/components/TaxonomyManager.tsx:418
+#: packages/admin/src/components/TaxonomyManager.tsx:424
 msgid "None (top level)"
 msgstr "无（顶级）"
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:614
+msgid "Not compatible with this environment"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:162
 #: packages/admin/src/components/FieldEditor.tsx:581
@@ -4590,7 +4627,7 @@ msgstr "显示在图片下方的可选说明"
 msgid "Optional caption for display"
 msgstr "用于显示的可选说明"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:435
+#: packages/admin/src/components/TaxonomyManager.tsx:437
 msgid "Optional description"
 msgstr "可选描述"
 
@@ -4645,7 +4682,7 @@ msgstr "覆盖搜索引擎结果中的页面标题"
 msgid "Ownership"
 msgstr "所有权"
 
-#: packages/admin/src/components/PluginManager.tsx:505
+#: packages/admin/src/components/PluginManager.tsx:509
 msgid "Package"
 msgstr "包"
 
@@ -4653,7 +4690,7 @@ msgstr "包"
 msgid "Page Not Found"
 msgstr "页面未找到"
 
-#: packages/admin/src/components/PluginManager.tsx:372
+#: packages/admin/src/components/PluginManager.tsx:373
 #: packages/admin/src/components/WordPressImport.tsx:1167
 msgid "Pages"
 msgstr "页面"
@@ -4662,7 +4699,7 @@ msgstr "页面"
 msgid "Paragraph"
 msgstr "段落"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:412
+#: packages/admin/src/components/TaxonomyManager.tsx:414
 msgid "Parent"
 msgstr "父级"
 
@@ -4775,7 +4812,7 @@ msgstr "永久删除「{title}」？此操作无法撤销。"
 msgid "Permanently delete {title}"
 msgstr "永久删除 {title}"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:274
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:273
 msgid "Permissions"
 msgstr "权限"
 
@@ -4808,11 +4845,15 @@ msgstr "请输入有效的 URL"
 msgid "Plugin"
 msgstr "插件"
 
-#: packages/admin/src/components/PluginManager.tsx:109
+#: packages/admin/src/components/RegistryPluginDetail.tsx:747
+msgid "Plugin details"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:110
 msgid "Plugin disabled"
 msgstr "插件已禁用"
 
-#: packages/admin/src/components/PluginManager.tsx:90
+#: packages/admin/src/components/PluginManager.tsx:91
 msgid "Plugin enabled"
 msgstr "插件已启用"
 
@@ -4825,11 +4866,11 @@ msgstr "插件错误"
 msgid "Plugin error ({0})"
 msgstr "插件错误（{0}）"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:113
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:112
 msgid "Plugin not found"
 msgstr "未找到插件"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:293
+#: packages/admin/src/components/RegistryPluginDetail.tsx:396
 msgid "Plugin not found. The publisher handle or slug may be incorrect."
 msgstr "未找到插件。发布者用户名或插件别名可能有误。"
 
@@ -4850,24 +4891,24 @@ msgstr "插件仓库"
 msgid "Plugin responded with {0}: {text}"
 msgstr "插件响应：{0}：{text}"
 
-#: packages/admin/src/components/PluginManager.tsx:304
+#: packages/admin/src/components/PluginManager.tsx:305
 msgid "Plugin uninstalled"
 msgstr "插件已卸载"
 
-#: packages/admin/src/lib/api/registry.ts:546
+#: packages/admin/src/lib/api/registry.ts:783
 msgid "Plugin update requires re-consent"
 msgstr "插件更新需要重新授权"
 
-#: packages/admin/src/components/PluginManager.tsx:257
+#: packages/admin/src/components/PluginManager.tsx:258
 msgid "Plugin updated"
 msgstr "插件已更新"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:219
-#: packages/admin/src/components/PluginManager.tsx:134
-#: packages/admin/src/components/PluginManager.tsx:143
-#: packages/admin/src/components/PluginManager.tsx:152
+#: packages/admin/src/components/PluginManager.tsx:135
+#: packages/admin/src/components/PluginManager.tsx:144
+#: packages/admin/src/components/PluginManager.tsx:153
 #: packages/admin/src/components/Sidebar.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:466
+#: packages/admin/src/components/Sidebar.tsx:454
 msgid "Plugins"
 msgstr "插件"
 
@@ -4883,7 +4924,7 @@ msgstr "文章"
 msgid "Posts Per Page"
 msgstr "每页文章数"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:327
+#: packages/admin/src/components/RegistryPluginDetail.tsx:463
 msgid "Pre-release"
 msgstr "预发布"
 
@@ -4923,7 +4964,7 @@ msgstr "上一步"
 msgid "Previous page"
 msgstr "上一页"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:446
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:445
 msgid "Previous screenshot"
 msgstr "上一张截图"
 
@@ -4956,7 +4997,7 @@ msgid "Published"
 msgstr "已发布"
 
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:327
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:326
 msgid "Published {0}"
 msgstr "发布于 {0}"
 
@@ -4964,7 +5005,7 @@ msgstr "发布于 {0}"
 msgid "Published At"
 msgstr "发布时间"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:319
+#: packages/admin/src/components/RegistryPluginDetail.tsx:457
 msgid "Published by"
 msgstr "发布者"
 
@@ -5086,7 +5127,7 @@ msgstr "注册已取消或超时。请重试。"
 msgid "Registry"
 msgstr "插件仓库"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:429
+#: packages/admin/src/components/RegistryPluginDetail.tsx:595
 msgid "Release is too new to install"
 msgstr "版本太新，无法安装"
 
@@ -5106,7 +5147,7 @@ msgstr "移除"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
-#: packages/admin/src/components/TaxonomySidebar.tsx:222
+#: packages/admin/src/components/TaxonomySidebar.tsx:232
 msgid "Remove {0}"
 msgstr "移除 {0}"
 
@@ -5228,7 +5269,7 @@ msgid "Required for accessibility. Describes the image for screen readers."
 msgstr "无障碍访问必需。为屏幕阅读器描述图片。"
 
 #. placeholder {0}: latest.minEmDashVersion
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:325
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:324
 msgid "Requires EmDash {0}"
 msgstr "需要 EmDash {0}"
 
@@ -5331,7 +5372,7 @@ msgid "Rich text editor"
 msgstr "富文本编辑器"
 
 #. placeholder {0}: latest.audit.riskScore
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:312
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:311
 msgid "Risk score: {0}/100"
 msgstr "风险评分：{0}/100"
 
@@ -5426,12 +5467,21 @@ msgstr "已保存"
 #: packages/admin/src/components/settings/SeoSettings.tsx:251
 #: packages/admin/src/components/settings/SocialSettings.tsx:99
 #: packages/admin/src/components/settings/SocialSettings.tsx:173
-#: packages/admin/src/components/TaxonomyManager.tsx:474
+#: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
 #: packages/admin/src/routes/bylines.tsx:456
 msgid "Saving..."
 msgstr "保存中..."
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:467
+msgid "SBOM"
+msgstr ""
+
+#. placeholder {0}: sbom.format
+#: packages/admin/src/components/RegistryPluginDetail.tsx:465
+msgid "SBOM · {0}"
+msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:899
 msgid "Schedule"
@@ -5486,7 +5536,8 @@ msgstr "权限范围：{0}"
 
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:244
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:243
+#: packages/admin/src/components/RegistryPluginDetail.tsx:640
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:293
 msgid "Screenshot {0}"
@@ -5494,19 +5545,20 @@ msgstr "截图 {0}"
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: screenshots.length
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:454
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:453
 msgid "Screenshot {0} of {1}"
 msgstr "截图 {0} / {1}"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:247
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:246
 msgid "Screenshot blurred due to image audit"
 msgstr "由于图像审计，截图已模糊"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:432
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:431
 msgid "Screenshot viewer"
 msgstr "截图查看器"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:234
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:233
+#: packages/admin/src/components/RegistryPluginDetail.tsx:634
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:164
 msgid "Screenshots"
 msgstr "截图"
@@ -5649,11 +5701,12 @@ msgstr "安全上下文"
 msgid "Secure your account"
 msgstr "保护您的账户"
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:792
 #: packages/admin/src/components/Settings.tsx:92
 msgid "Security"
 msgstr "安全"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:308
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:307
 msgid "Security Audit"
 msgstr "安全审计"
 
@@ -5677,7 +5730,7 @@ msgstr "安全审计标记此插件为可能不安全。"
 msgid "Security audit passed"
 msgstr "安全审计通过"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:491
+#: packages/admin/src/components/RegistryPluginDetail.tsx:703
 msgid "Security contacts"
 msgstr "安全联系方式"
 
@@ -5886,7 +5939,7 @@ msgstr "正在设置..."
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
 #: packages/admin/src/components/ContentTypeEditor.tsx:383
 #: packages/admin/src/components/Header.tsx:93
-#: packages/admin/src/components/PluginManager.tsx:433
+#: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/Sidebar.tsx:245
 #: packages/admin/src/components/WordPressImport.tsx:1647
@@ -6036,7 +6089,7 @@ msgstr "已跳过"
 #: packages/admin/src/components/FieldEditor.tsx:418
 #: packages/admin/src/components/SectionEditor.tsx:244
 #: packages/admin/src/components/Sections.tsx:184
-#: packages/admin/src/components/TaxonomyManager.tsx:396
+#: packages/admin/src/components/TaxonomyManager.tsx:398
 #: packages/admin/src/routes/bylines.tsx:399
 msgid "Slug"
 msgstr "别名"
@@ -6087,8 +6140,8 @@ msgstr "排序主题"
 #: packages/admin/src/components/ContentTypeList.tsx:100
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:215
-#: packages/admin/src/components/PluginManager.tsx:493
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:214
+#: packages/admin/src/components/PluginManager.tsx:497
 #: packages/admin/src/components/Redirects.tsx:440
 #: packages/admin/src/components/SectionEditor.tsx:279
 msgid "Source"
@@ -6197,7 +6250,7 @@ msgstr "目标"
 msgid "Target locale"
 msgstr "目标语言环境"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:495
+#: packages/admin/src/components/TaxonomySidebar.tsx:511
 msgid "Taxonomies"
 msgstr "分类"
 
@@ -6205,11 +6258,11 @@ msgstr "分类"
 msgid "Taxonomies Manage"
 msgstr "分类管理"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:896
+#: packages/admin/src/components/TaxonomyManager.tsx:898
 msgid "Taxonomy created"
 msgstr "分类已创建"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:783
+#: packages/admin/src/components/TaxonomyManager.tsx:785
 msgid "Taxonomy not found:"
 msgstr "未找到分类："
 
@@ -6221,18 +6274,19 @@ msgstr "分类：{taxonomyName}"
 msgid "Template:"
 msgstr "模板："
 
-#: packages/admin/src/components/TaxonomyManager.tsx:360
-#: packages/admin/src/components/TaxonomyManager.tsx:812
+#: packages/admin/src/components/TaxonomyManager.tsx:361
+#: packages/admin/src/components/TaxonomyManager.tsx:362
+#: packages/admin/src/components/TaxonomyManager.tsx:814
 msgid "Term"
 msgstr "词条"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:757
+#: packages/admin/src/components/TaxonomyManager.tsx:759
 msgid "Term \"{0}\" created in {1}."
 msgstr "术语 \"{0}\" 已在 {1} 中创建。\"\"术语 \"{0}\" 已在 {1} 中创建。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:739
+#: packages/admin/src/components/TaxonomyManager.tsx:741
 msgid "Term deleted"
 msgstr "词条已删除"
 
@@ -6360,17 +6414,21 @@ msgstr "对于大型导出，这可能需要一些时间。"
 msgid "This passkey is already registered on this device."
 msgstr "此通行密钥已在此设备上注册。"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:277
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:276
 msgid "This plugin requires no special permissions."
 msgstr "此插件不需要特殊权限。"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:398
+#: packages/admin/src/components/RegistryPluginDetail.tsx:564
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr "此发布者声明了一个他们无法证明拥有的名称——可能正在冒充他人。安装已被禁用。如果您认识并信任该发布者，请要求他们在重试前修复其身份验证设置。"
 
 #: packages/admin/src/components/Redirects.tsx:551
 msgid "This redirect rule will be permanently removed."
 msgstr "此重定向规则将被永久移除。"
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:616
+msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
+msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:500
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
@@ -6401,7 +6459,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "这将把项目移至回收站。您可以稍后从回收站恢复它。"
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:882
+#: packages/admin/src/components/TaxonomyManager.tsx:884
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "这将永久删除「{0}」并将其从所有内容中移除。"
 
@@ -6414,7 +6472,7 @@ msgstr "这将永久删除「{0}」。此操作无法撤销。"
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "这将永久删除此评论。此操作无法撤销。"
 
-#: packages/admin/src/components/PluginManager.tsx:625
+#: packages/admin/src/components/PluginManager.tsx:629
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "这将从您的站点移除插件及其包。"
 
@@ -6455,7 +6513,7 @@ msgstr "标题分隔符"
 msgid "to close"
 msgstr "关闭"
 
-#: packages/admin/src/components/PluginManager.tsx:202
+#: packages/admin/src/components/PluginManager.tsx:203
 msgid "to install plugins, or add them to your astro.config.mjs."
 msgstr "以安装插件，或将它们添加到您的 astro.config.mjs。"
 
@@ -6511,7 +6569,7 @@ msgid "Translating..."
 msgstr "翻译中..."
 
 #: packages/admin/src/components/MenuEditor.tsx:89
-#: packages/admin/src/components/TaxonomyManager.tsx:756
+#: packages/admin/src/components/TaxonomyManager.tsx:758
 #: packages/admin/src/router.tsx:877
 msgid "Translation created"
 msgstr "翻译已创建"
@@ -6617,21 +6675,21 @@ msgstr "下划线"
 msgid "Undo"
 msgstr "撤销"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:181
-#: packages/admin/src/components/PluginManager.tsx:543
-#: packages/admin/src/components/PluginManager.tsx:639
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:180
+#: packages/admin/src/components/PluginManager.tsx:547
+#: packages/admin/src/components/PluginManager.tsx:643
 msgid "Uninstall"
 msgstr "卸载"
 
-#: packages/admin/src/components/PluginManager.tsx:623
+#: packages/admin/src/components/PluginManager.tsx:627
 msgid "Uninstall {pluginName}?"
 msgstr "卸载 {pluginName}？"
 
-#: packages/admin/src/components/PluginManager.tsx:618
+#: packages/admin/src/components/PluginManager.tsx:622
 msgid "Uninstall confirmation"
 msgstr "卸载确认"
 
-#: packages/admin/src/components/PluginManager.tsx:639
+#: packages/admin/src/components/PluginManager.tsx:643
 msgid "Uninstalling..."
 msgstr "卸载中..."
 
@@ -6710,7 +6768,7 @@ msgstr "未验证的发布者"
 msgid "Up"
 msgstr "上移"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:476
+#: packages/admin/src/components/TaxonomyManager.tsx:478
 msgid "Update"
 msgstr "更新"
 
@@ -6728,7 +6786,7 @@ msgid "Update site settings"
 msgstr "更新网站设置"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:364
+#: packages/admin/src/components/TaxonomyManager.tsx:366
 msgid "Update the {0} details"
 msgstr "更新{0}详情"
 
@@ -6737,9 +6795,13 @@ msgid "Update this redirect rule."
 msgstr "更新此重定向规则。"
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:413
+#: packages/admin/src/components/PluginManager.tsx:417
 msgid "Update to v{0}"
 msgstr "更新至 v{0}"
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:486
+msgid "Updated"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:129
 msgid "Updated At"
@@ -6755,7 +6817,7 @@ msgid "Updating content URLs..."
 msgstr "正在更新内容 URL..."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:166
-#: packages/admin/src/components/PluginManager.tsx:413
+#: packages/admin/src/components/PluginManager.tsx:417
 msgid "Updating..."
 msgstr "更新中..."
 
@@ -6890,7 +6952,7 @@ msgstr "使用您注册的通行密钥安全登录。"
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "当页面没有 Open Graph 图片时作为默认图片。推荐尺寸：1200×630。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:642
+#: packages/admin/src/components/TaxonomyManager.tsx:644
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "用作标识符。仅限小写字母、数字和下划线。"
 
@@ -6946,7 +7008,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "来自这些域名的邮箱地址的用户可以无需邀请即可注册。他们将自动被分配指定的角色。"
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:357
+#: packages/admin/src/components/PluginManager.tsx:358
 msgid "v{0} available"
 msgstr "v{0} 可用"
 
@@ -6956,9 +7018,21 @@ msgid "Validation"
 msgstr "验证"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:186
-#: packages/admin/src/components/RegistryPluginDetail.tsx:314
+#: packages/admin/src/components/RegistryPluginDetail.tsx:447
 msgid "Verified publisher"
 msgstr "已验证的发布者"
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:446
+msgid "Verified publisher, confirmed by labeller {verifiedLabeller}"
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:437
+msgid "Verified publisher. A labeller ({verifiedLabeller}) has confirmed this publisher's identity."
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:438
+msgid "Verified publisher. A labeller has confirmed this publisher's identity."
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:194
 msgid "Verifying your invite..."
@@ -6973,13 +7047,13 @@ msgstr "正在验证您的链接..."
 msgid "Verifying..."
 msgstr "验证中..."
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:321
-#: packages/admin/src/components/RegistryPluginDetail.tsx:334
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:320
+#: packages/admin/src/components/RegistryPluginDetail.tsx:500
 msgid "Version"
 msgstr "版本"
 
 #. placeholder {0}: release.version
-#: packages/admin/src/components/RegistryPluginDetail.tsx:325
+#: packages/admin/src/components/RegistryPluginDetail.tsx:462
 msgid "Version {0}"
 msgstr "版本 {0}"
 
@@ -6991,7 +7065,7 @@ msgstr "视频"
 msgid "View email provider status and send test emails"
 msgstr "查看邮件提供商状态并发送测试邮件"
 
-#: packages/admin/src/components/PluginManager.tsx:425
+#: packages/admin/src/components/PluginManager.tsx:429
 msgid "View in Marketplace"
 msgstr "在市场查看"
 
@@ -7007,11 +7081,11 @@ msgstr "查看已发布的 {title}"
 msgid "View Site"
 msgstr "查看站点"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:449
+#: packages/admin/src/components/RegistryPluginDetail.tsx:661
 msgid "View source"
 msgstr "查看源码"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:681
+#: packages/admin/src/components/RegistryPluginDetail.tsx:936
 msgid "View the {license} license on spdx.org"
 msgstr "在 spdx.org 上查看 {license} 许可证"
 
@@ -7033,7 +7107,7 @@ msgstr "警告"
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "我们无法连接到位于 {0} 的 WordPress 站点。这可能意味着该站点不是 WordPress、REST API 被禁用或站点无法访问。"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:396
+#: packages/admin/src/components/RegistryPluginDetail.tsx:562
 msgid "We couldn't verify this publisher's identity"
 msgstr "我们无法验证此发布者的身份"
 
@@ -7058,8 +7132,8 @@ msgstr "网址"
 msgid "WebAuthn is not supported in this browser"
 msgstr "此浏览器不支持 WebAuthn"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:226
-#: packages/admin/src/components/RegistryPluginDetail.tsx:474
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:225
+#: packages/admin/src/components/RegistryPluginDetail.tsx:686
 msgid "Website"
 msgstr "网站"
 
@@ -7095,7 +7169,7 @@ msgstr "条目最后修改时间"
 msgid "When the entry was published"
 msgstr "条目发布时间"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:656
+#: packages/admin/src/components/TaxonomyManager.tsx:658
 msgid "Which content types can use this taxonomy"
 msgstr "哪些内容类型可以使用此分类"
 
@@ -7133,7 +7207,7 @@ msgid "Widget updated"
 msgstr "小部件已更新"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
-#: packages/admin/src/components/PluginManager.tsx:378
+#: packages/admin/src/components/PluginManager.tsx:379
 #: packages/admin/src/components/Sidebar.tsx:200
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
@@ -7291,7 +7365,7 @@ msgid "Your Role"
 msgstr "您的角色"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:431
+#: packages/admin/src/components/RegistryPluginDetail.tsx:597
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "您的站点要求插件发布至少 {0} 后才能安装。此版本稍后将可供安装。"
 

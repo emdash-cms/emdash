@@ -5,7 +5,11 @@ description: Write the fix when verify says bug and diagnose says high confidenc
 
 # Fix
 
-You are only here because verify returned `bug` and diagnose returned `high` confidence. The orchestrator decided this is worth attempting an automated fix. Your job is to write that fix, prove it works, leave the working tree in a state the orchestrator can commit and push, and report what you did.
+You are here because verify returned `bug`, diagnose pinned the cause with at least `medium` confidence, and diagnose rated the fix `mechanical` or `clear-best-option`. Diagnose handed you a **proposed fix** -- a concrete plan naming the file and the change. Your job is to implement that plan, prove it works, leave the working tree in a state the orchestrator can commit, and report what you did. The hard reasoning is already done; do not re-litigate the diagnosis unless reading the code convinces you it is wrong (in which case abandon -- see below).
+
+Read diagnose's proposed fix first and treat it as your spec. Implement that change. If, once you are in the code, the plan turns out to be wrong or incomplete, do not improvise a different large change -- abandon with `fixed: false` and say why, so a human can re-diagnose.
+
+**What your output is, and is not.** You are not merging anything, and you are not even opening a PR. The orchestrator pushes your staged change to a `bot/fix-<n>` branch and asks the original reporter to install a preview build and confirm it resolves their issue. A maintainer reviews before anything lands on `main`. So the bar is "a correct, conventions-respecting change that makes the reproduce test pass" -- not "a perfect, unimprovable patch." A clear, test-backed fix is worth shipping for verification even when it is more than a one-liner. Equally: do not gold-plate, do not expand scope, do not refactor beyond the diagnosed bug.
 
 You can edit source. You can run tests, lint, typecheck, and format. You cannot commit, push, open a PR, or touch any GitHub state.
 
@@ -23,7 +27,7 @@ You can edit source. You can run tests, lint, typecheck, and format. You cannot 
 
 1. **Re-read the diagnose root cause.** That is your target. The fix should land in the file and approximate line diagnose named. If your work drifts to a different file, stop and reconsider -- diagnose may have been wrong, in which case the right answer is to abandon, not to wander.
 2. **Establish a regression test where one is feasible.** Reproduce confirmed the bug through agent-browser, not a test, so there is usually no failing test on disk yet. If the bug is unit- or integration-testable (a handler, a query, a pure function, an API route), write a `vitest` test now that fails for the reported reason -- run it with `pnpm --filter <package> test <path>` and confirm it fails before you touch the fix. A bug with a testable surface and no regression test is not fixed. If the bug only manifests in the browser (admin UI interaction, rendered output), do not write a browser test -- the bot cannot run one reliably here; instead verify the fix through agent-browser and describe the manual verification in your notes so the maintainer can add a durable test when landing it.
-3. **Write the smallest fix that resolves the bug.** Follow EmDash's conventions:
+3. **Implement diagnose's proposed fix -- the smallest change that fully resolves the bug.** Start from the plan diagnose gave you; the change should land in the file and approximate line it named. Follow EmDash's conventions:
    - Internal imports end with `.js`. Type-only imports use `import type`.
    - Routes that change state start with `export const prerender = false;`.
    - Never interpolate values into SQL. Use Kysely's `sql` tagged template; use `sql.ref()` for identifiers; validate dynamic identifiers with `validateIdentifier()` before any `sql.raw()`.

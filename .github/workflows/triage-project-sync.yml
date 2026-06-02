@@ -1,0 +1,161 @@
+# Mirrors an issue's triage state onto the "Auto-Triage" Projects v2 board.
+#
+# Reactive and decoupled from the triage bot: it watches label changes and,
+# whenever a `bot:repro` (trigger) or `triage/*` (state) label is added or
+# removed, recomputes the issue's canonical triage state from its CURRENT
+# labels and sets the board's "Triage State" single-select field. The triage
+# workflows just move labels as they always have; this never writes back to
+# them.
+#
+# Auth: mints an emdashbot App installation token (same APP_ID / APP_PRIVATE_KEY
+# secrets the other bot workflows use). The App needs organization "Projects:
+# Read and write" for the project mutations.
+
+name: Triage project sync
+
+on:
+  issues:
+    types: [labeled, unlabeled]
+  workflow_dispatch: # one-shot backfill of issues already carrying triage labels
+
+concurrency:
+  # Serialize per issue so rapid reproducing -> reproduced transitions don't race.
+  group: triage-project-sync-${{ github.event.issue.number || github.run_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Skip PRs (issues.labeled fires for PRs too); always run the manual backfill.
+    if: github.event_name == 'workflow_dispatch' || github.event.issue.pull_request == null
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # owner + repositories: org-scoped for Projects, but limited to this
+          # one repo. permission-*: least privilege, just what the sync needs
+          # (org Projects write; issues read for the workflow_dispatch backfill).
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-organization-projects: write
+          permission-issues: read
+
+      - name: Sync triage state to project
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const PROJECT_NUMBER = 3;
+            const FIELD_NAME = "Triage State";
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Triage label -> board option name.
+            const STATE_BY_LABEL = {
+              "bot:repro": "Queued",
+              "triage/reproducing": "Reproducing",
+              "triage/reproduced": "Reproduced",
+              "triage/by-design": "By design",
+              "triage/awaiting-reporter": "Awaiting reporter",
+              "triage/verified": "Verified",
+              "triage/not-reproduced": "Not reproduced",
+              "triage/failed": "Failed",
+              "triage/skipped": "Skipped",
+            };
+            // When several are present, the most advanced/terminal one wins.
+            const PRECEDENCE = [
+              "triage/verified",
+              "triage/awaiting-reporter",
+              "triage/reproduced",
+              "triage/by-design",
+              "triage/not-reproduced",
+              "triage/failed",
+              "triage/skipped",
+              "triage/reproducing",
+              "bot:repro",
+            ];
+            const pickState = (labels) => {
+              for (const l of PRECEDENCE) if (labels.includes(l)) return STATE_BY_LABEL[l];
+              return null;
+            };
+            const labelNames = (iss) =>
+              (iss.labels || []).map((l) => (typeof l === "string" ? l : l.name));
+
+            // Resolve the project, the single-select field, and its options.
+            const projData = await github.graphql(
+              `query($owner:String!, $num:Int!, $field:String!) {
+                organization(login:$owner) {
+                  projectV2(number:$num) {
+                    id
+                    field(name:$field) {
+                      ... on ProjectV2SingleSelectField { id options { id name } }
+                    }
+                  }
+                }
+              }`,
+              { owner, num: PROJECT_NUMBER, field: FIELD_NAME },
+            );
+            const project = projData.organization.projectV2;
+            if (!project || !project.field) {
+              core.setFailed(`Project #${PROJECT_NUMBER} or field "${FIELD_NAME}" not found`);
+              return;
+            }
+            const fieldId = project.field.id;
+            const optionId = (name) => project.field.options.find((o) => o.name === name)?.id;
+
+            // Build the work list.
+            let issues = [];
+            if (context.eventName === "workflow_dispatch") {
+              const all = await github.paginate(github.rest.issues.listForRepo, {
+                owner,
+                repo,
+                state: "all",
+                per_page: 100,
+              });
+              issues = all.filter(
+                (iss) =>
+                  !iss.pull_request &&
+                  labelNames(iss).some((l) => l === "bot:repro" || l.startsWith("triage/")),
+              );
+            } else {
+              const iss = context.payload.issue;
+              if (!iss || iss.pull_request) return;
+              issues = [iss];
+            }
+
+            for (const iss of issues) {
+              const stateName = pickState(labelNames(iss));
+              if (!stateName) {
+                core.info(`#${iss.number}: no triage label; skipping`);
+                continue;
+              }
+              const optId = optionId(stateName);
+              if (!optId) {
+                core.warning(`#${iss.number}: no board option named "${stateName}"`);
+                continue;
+              }
+              // Idempotent: returns the existing item if the issue is already added.
+              const added = await github.graphql(
+                `mutation($project:ID!, $content:ID!) {
+                  addProjectV2ItemById(input:{projectId:$project, contentId:$content}) { item { id } }
+                }`,
+                { project: project.id, content: iss.node_id },
+              );
+              const itemId = added.addProjectV2ItemById.item.id;
+              await github.graphql(
+                `mutation($project:ID!, $item:ID!, $field:ID!, $opt:String!) {
+                  updateProjectV2ItemFieldValue(input:{
+                    projectId:$project, itemId:$item, fieldId:$field,
+                    value:{ singleSelectOptionId:$opt }
+                  }) { projectV2Item { id } }
+                }`,
+                { project: project.id, item: itemId, field: fieldId, opt: optId },
+              );
+              core.info(`#${iss.number} -> ${stateName}`);
+            }
