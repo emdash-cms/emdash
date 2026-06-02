@@ -23,6 +23,7 @@ function makeByline(overrides: Partial<BylineSummary> = {}): BylineSummary {
 		createdAt: "2025-01-15T10:30:00Z",
 		updatedAt: "2025-01-15T10:30:00Z",
 		locale: "en",
+		translationGroup: null,
 		...overrides,
 	};
 }

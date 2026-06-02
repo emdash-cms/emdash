@@ -1990,14 +1990,16 @@ function BylineCreditsEditor({
 	const resultPool = searchEnabled ? (searchResults.data?.items ?? []) : bylines;
 	const hasMoreResults = searchEnabled ? !!searchResults.data?.nextCursor : bylines.length >= 100;
 
-	// Resolve credited bylines to their full details for display. A ref-backed
-	// cache persists across searches so selected rows keep rendering even after
-	// the search results that introduced them change.
-	const knownBylines = React.useRef(new Map<string, BylineSummary>());
-	for (const b of selectedBylineDetails ?? []) knownBylines.current.set(b.id, b);
-	for (const b of bylines) knownBylines.current.set(b.id, b);
-	for (const b of searchResults.data?.items ?? []) knownBylines.current.set(b.id, b);
-	const bylineMap = knownBylines.current;
+	// Resolve credited bylines to their full details for display. Selected rows
+	// come from the parent-provided details so they keep rendering even when the
+	// current search results no longer include them.
+	const bylineMap = React.useMemo(() => {
+		const map = new Map<string, BylineSummary>();
+		for (const b of selectedBylineDetails ?? []) map.set(b.id, b);
+		for (const b of bylines) map.set(b.id, b);
+		for (const b of searchResults.data?.items ?? []) map.set(b.id, b);
+		return map;
+	}, [selectedBylineDetails, bylines, searchResults.data?.items]);
 
 	const availableToAdd = resultPool.filter((b) => !credits.some((c) => c.bylineId === b.id));
 
@@ -2087,6 +2089,8 @@ function BylineCreditsEditor({
 							</li>
 						))}
 					</ul>
+				) : searchEnabled && searchResults.isError ? (
+					<p className="text-sm text-kumo-danger">{t`Couldn't search bylines. Please try again.`}</p>
 				) : searchEnabled ? (
 					<p className="text-sm text-kumo-subtle">{t`No matching bylines.`}</p>
 				) : null}
