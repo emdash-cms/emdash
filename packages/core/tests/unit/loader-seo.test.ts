@@ -105,5 +105,33 @@ describeEachDialect("Loader SEO hydration (#1270)", (dialect) => {
 		expect(data.seo_no_index).toBeUndefined();
 		expect(data.seo_title).toBeUndefined();
 		expect(data.seo_canonical).toBeUndefined();
+		// Aliased join columns must not leak either.
+		expect(data._emdash_seo_no_index).toBeUndefined();
+		expect(data._emdash_seo_title).toBeUndefined();
+	});
+
+	it("does not shadow a user field named seo_title with the joined SEO column", async () => {
+		// A collection is free to define a `seo_title` field (it's a valid,
+		// non-reserved slug). The join must not clobber it.
+		const { SchemaRegistry } = await import("../../src/schema/registry.js");
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createField("post", { slug: "seo_title", label: "SEO Title", type: "string" });
+
+		const result = await handleContentCreate(ctx.db, "post", {
+			data: { title: "Has SEO Field", seo_title: "user-defined value" },
+			status: "published",
+		});
+		if (!result.success) throw new Error("create failed");
+		const post = result.data!.item;
+		await seoRepo.upsert("post", post.id, { title: "panel value", noIndex: true });
+
+		const loaded = await load(post.slug!);
+		const data = (loaded as { data: Record<string, unknown> }).data;
+
+		// The user's field value survives.
+		expect(data.seo_title).toBe("user-defined value");
+		// The SEO panel value lands on the nested object, distinct from the field.
+		expect((data.seo as Record<string, unknown>).title).toBe("panel value");
+		expect((data.seo as Record<string, unknown>).noIndex).toBe(true);
 	});
 });

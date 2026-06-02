@@ -25,12 +25,27 @@ import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js"
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /**
- * SEO columns joined in from `_emdash_seo` on the single-entry path. Kept out
- * of the generic field mapping (see SYSTEM_COLUMNS) and surfaced as a nested
- * `data.seo` object instead. SEO lives in a side table, so a LEFT JOIN folds
- * it into the entry load at zero extra query cost.
+ * SEO columns joined in from `_emdash_seo` on the single-entry path, mapped to
+ * aliased result keys. SEO lives in a side table, so a LEFT JOIN folds it into
+ * the entry load at zero extra query cost; the result is surfaced as a nested
+ * `data.seo` object (see extractSeo) rather than flat fields.
+ *
+ * The `_emdash_` prefix on the aliases guarantees they can never collide with
+ * a content field. Field slugs must match `/^[a-z][a-z0-9_]*$/`, so a user can
+ * legitimately define a `seo_title` field; selecting the joined column under
+ * its bare name would shadow that field in the result set and drop the user's
+ * value. The prefix (illegal as a leading slug char) sidesteps this entirely.
  */
-const SEO_COLUMNS = ["seo_title", "seo_description", "seo_image", "seo_canonical", "seo_no_index"];
+const SEO_COLUMN_ALIASES: Record<string, string> = {
+	seo_title: "_emdash_seo_title",
+	seo_description: "_emdash_seo_description",
+	seo_image: "_emdash_seo_image",
+	seo_canonical: "_emdash_seo_canonical",
+	seo_no_index: "_emdash_seo_no_index",
+};
+
+/** Aliased SEO result keys — excluded from generic field mapping. */
+const SEO_ALIAS_COLUMNS = Object.values(SEO_COLUMN_ALIASES);
 
 /**
  * System columns excluded from entry.data
@@ -52,9 +67,11 @@ const SYSTEM_COLUMNS = new Set([
 	"draft_revision_id",
 	"locale",
 	"translation_group",
-	// SEO columns joined from _emdash_seo on the single-entry path. Surfaced
-	// as a nested data.seo object (see extractSeo), never as flat fields.
-	...SEO_COLUMNS,
+	// Aliased SEO columns joined from _emdash_seo on the single-entry path.
+	// Surfaced as a nested data.seo object (see extractSeo), never as flat
+	// fields. The aliases are _emdash_-prefixed so they can't shadow a user
+	// field named e.g. `seo_title`.
+	...SEO_ALIAS_COLUMNS,
 ]);
 
 /** Resolved SEO shape attached to `entry.data.seo`. Mirrors `ContentSeo`. */
@@ -75,13 +92,18 @@ interface EntrySeo {
  * `getSeoMeta()` falls back to its defaults exactly as before.
  */
 function extractSeo(row: Record<string, unknown>): EntrySeo | null {
-	if (row.seo_no_index === null || row.seo_no_index === undefined) return null;
+	const noIndex = row[SEO_COLUMN_ALIASES.seo_no_index];
+	if (noIndex === null || noIndex === undefined) return null;
+	const title = row[SEO_COLUMN_ALIASES.seo_title];
+	const description = row[SEO_COLUMN_ALIASES.seo_description];
+	const image = row[SEO_COLUMN_ALIASES.seo_image];
+	const canonical = row[SEO_COLUMN_ALIASES.seo_canonical];
 	return {
-		title: typeof row.seo_title === "string" ? row.seo_title : null,
-		description: typeof row.seo_description === "string" ? row.seo_description : null,
-		image: typeof row.seo_image === "string" ? row.seo_image : null,
-		canonical: typeof row.seo_canonical === "string" ? row.seo_canonical : null,
-		noIndex: row.seo_no_index === 1,
+		title: typeof title === "string" ? title : null,
+		description: typeof description === "string" ? description : null,
+		image: typeof image === "string" ? image : null,
+		canonical: typeof canonical === "string" ? canonical : null,
+		noIndex: noIndex === 1,
 	};
 }
 
@@ -853,9 +875,14 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// extractSeo() and excluded from the generic field mapping. SEO is
 				// 1:1 with content (PK on collection+content_id), so the join never
 				// multiplies rows.
+				const seoSelect = sql.join(
+					Object.entries(SEO_COLUMN_ALIASES).map(
+						([col, alias]) => sql`${sql.ref(`s.${col}`)} AS ${sql.ref(alias)}`,
+					),
+				);
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT c.*, ${sql.join(SEO_COLUMNS.map((col) => sql.ref(`s.${col}`)))}
+							SELECT c.*, ${seoSelect}
 							FROM ${sql.ref(tableName)} AS c
 							LEFT JOIN ${sql.ref("_emdash_seo")} AS s
 								ON s.collection = ${type} AND s.content_id = c.id
@@ -864,7 +891,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT c.*, ${sql.join(SEO_COLUMNS.map((col) => sql.ref(`s.${col}`)))}
+							SELECT c.*, ${seoSelect}
 							FROM ${sql.ref(tableName)} AS c
 							LEFT JOIN ${sql.ref("_emdash_seo")} AS s
 								ON s.collection = ${type} AND s.content_id = c.id
