@@ -13,11 +13,11 @@ msgstr ""
 "Last-Translator: \n"
 "Language-Team: \n"
 
-#: packages/admin/src/routes/bylines.tsx:359
+#: packages/admin/src/routes/bylines.tsx:370
 msgid " - Guest"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:359
+#: packages/admin/src/routes/bylines.tsx:370
 msgid " - Linked"
 msgstr ""
 
@@ -50,7 +50,7 @@ msgstr ": 다음 사용"
 msgid "(from {0})"
 msgstr "({0} 제공)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:429
+#: packages/admin/src/components/RegistryPluginDetail.tsx:518
 msgid "(pre-release)"
 msgstr ""
 
@@ -58,7 +58,7 @@ msgstr ""
 msgid "(synced)"
 msgstr "(동기화됨)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:432
+#: packages/admin/src/components/RegistryPluginDetail.tsx:521
 msgid "(too new)"
 msgstr ""
 
@@ -165,7 +165,7 @@ msgstr ""
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
 #. placeholder {2}: m.host
-#: packages/admin/src/components/RegistryPluginDetail.tsx:532
+#: packages/admin/src/components/RegistryPluginDetail.tsx:621
 msgid "{0} {1} required — you have {2}."
 msgstr ""
 
@@ -176,7 +176,7 @@ msgid "{0} • {1}"
 msgstr ""
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:365
+#: packages/admin/src/components/RegistryPluginDetail.tsx:410
 msgid "{0} banner"
 msgstr ""
 
@@ -196,12 +196,12 @@ msgid "{0} has been removed"
 msgstr "{0}이(가) 제거되었습니다"
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:377
+#: packages/admin/src/components/RegistryPluginDetail.tsx:422
 msgid "{0} icon"
 msgstr ""
 
 #. placeholder {0}: plugin.installCount.toLocaleString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:203
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:202
 msgid "{0} installs"
 msgstr "{0}회 설치"
 
@@ -239,7 +239,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:332
+#: packages/admin/src/components/TaxonomySidebar.tsx:345
 msgid "{0} updated"
 msgstr "{0} 업데이트됨"
 
@@ -530,9 +530,9 @@ msgid "Active"
 msgstr "활성"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:171
-#: packages/admin/src/components/ContentEditor.tsx:2045
+#: packages/admin/src/components/ContentEditor.tsx:2049
 #: packages/admin/src/components/MenuEditor.tsx:354
-#: packages/admin/src/components/TaxonomySidebar.tsx:455
+#: packages/admin/src/components/TaxonomySidebar.tsx:476
 msgid "Add"
 msgstr "추가"
 
@@ -544,7 +544,7 @@ msgstr "추가"
 msgid "Add {0}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:252
+#: packages/admin/src/components/TaxonomySidebar.tsx:263
 msgid "Add {label}"
 msgstr "{label} 추가"
 
@@ -631,7 +631,7 @@ msgid "Add New"
 msgstr "추가"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:465
+#: packages/admin/src/components/TaxonomySidebar.tsx:486
 msgid "Add new {0}"
 msgstr "새 {0} 추가"
 
@@ -663,7 +663,7 @@ msgstr ""
 msgid "Add Sub-Field"
 msgstr "하위 필드 추가"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:251
+#: packages/admin/src/components/TaxonomySidebar.tsx:262
 msgid "Add tags..."
 msgstr "태그 추가..."
 
@@ -685,12 +685,12 @@ msgid "Additional data to import."
 msgstr "가져올 추가 데이터입니다."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:454
+#: packages/admin/src/components/Sidebar.tsx:444
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "관리자"
 
-#: packages/admin/src/components/Sidebar.tsx:394
+#: packages/admin/src/components/Sidebar.tsx:388
 msgid "Admin navigation"
 msgstr "관리자 탐색 메뉴"
 
@@ -718,7 +718,7 @@ msgstr ""
 msgid "All"
 msgstr "모두"
 
-#: packages/admin/src/routes/bylines.tsx:325
+#: packages/admin/src/routes/bylines.tsx:336
 msgid "All bylines"
 msgstr ""
 
@@ -805,7 +805,7 @@ msgstr "또는 WordPress(도구 → 내보내기)에서 내보내고 파일을 �
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
 #: packages/admin/src/components/PluginManager.tsx:98
 #: packages/admin/src/components/PluginManager.tsx:117
-#: packages/admin/src/components/TaxonomySidebar.tsx:337
+#: packages/admin/src/components/TaxonomySidebar.tsx:350
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:341
 #: packages/admin/src/router.tsx:356
@@ -976,7 +976,7 @@ msgstr "장치 승인"
 msgid "Authorizing..."
 msgstr "승인 중..."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:581
+#: packages/admin/src/components/RegistryPluginDetail.tsx:670
 msgid "Authors"
 msgstr ""
 
@@ -1039,12 +1039,12 @@ msgstr ""
 msgid "Back to login"
 msgstr "로그인으로 돌아가기"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:116
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:392
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:115
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:391
 msgid "Back to marketplace"
 msgstr "마켓플레이스로 돌아가기"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:682
+#: packages/admin/src/components/RegistryPluginDetail.tsx:803
 msgid "Back to plugins"
 msgstr ""
 
@@ -1070,7 +1070,7 @@ msgstr "보내기 전:"
 msgid "Bing Verification"
 msgstr "빙 확인"
 
-#: packages/admin/src/routes/bylines.tsx:409
+#: packages/admin/src/routes/bylines.tsx:420
 msgid "Bio"
 msgstr ""
 
@@ -1121,7 +1121,7 @@ msgstr "글머리 기호 목록"
 
 #: packages/admin/src/components/ContentEditor.tsx:996
 #: packages/admin/src/components/Sidebar.tsx:209
-#: packages/admin/src/routes/bylines.tsx:299
+#: packages/admin/src/routes/bylines.tsx:310
 msgid "Bylines"
 msgstr "작성자 정보"
 
@@ -1146,8 +1146,8 @@ msgstr "콘텐츠 조회 가능"
 #: packages/admin/src/components/ContentEditor.tsx:705
 #: packages/admin/src/components/ContentEditor.tsx:910
 #: packages/admin/src/components/ContentEditor.tsx:962
-#: packages/admin/src/components/ContentEditor.tsx:2148
-#: packages/admin/src/components/ContentEditor.tsx:2201
+#: packages/admin/src/components/ContentEditor.tsx:2152
+#: packages/admin/src/components/ContentEditor.tsx:2205
 #: packages/admin/src/components/ContentList.tsx:619
 #: packages/admin/src/components/ContentList.tsx:690
 #: packages/admin/src/components/ContentPickerModal.tsx:248
@@ -1231,9 +1231,9 @@ msgstr "카테고리({0})"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:1665
-#: packages/admin/src/components/ContentEditor.tsx:1694
-#: packages/admin/src/components/ContentEditor.tsx:1868
+#: packages/admin/src/components/ContentEditor.tsx:1669
+#: packages/admin/src/components/ContentEditor.tsx:1698
+#: packages/admin/src/components/ContentEditor.tsx:1872
 #: packages/admin/src/components/FieldEditor.tsx:402
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
@@ -1257,6 +1257,10 @@ msgstr ""
 #: packages/admin/src/components/settings/GeneralSettings.tsx:208
 msgid "Change Logo"
 msgstr "로고 변경"
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:791
+msgid "Changelog"
+msgstr ""
 
 #: packages/admin/src/router.tsx:811
 msgid "Changes discarded"
@@ -1319,7 +1323,7 @@ msgstr "이메일에 있는 링크를 클릭하여 로그인하세요."
 #: packages/admin/src/components/FieldEditor.tsx:345
 #: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/FieldEditor.tsx:355
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:437
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:436
 #: packages/admin/src/components/MediaDetailPanel.tsx:131
 #: packages/admin/src/components/MediaDetailPanel.tsx:133
 #: packages/admin/src/components/MediaPickerModal.tsx:469
@@ -1481,7 +1485,7 @@ msgstr "연결됨 {0}"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:2006
 #: packages/admin/src/components/SectionEditor.tsx:194
-#: packages/admin/src/components/Sidebar.tsx:428
+#: packages/admin/src/components/Sidebar.tsx:422
 #: packages/admin/src/components/Widgets.tsx:819
 msgid "Content"
 msgstr "콘텐츠"
@@ -1622,17 +1626,17 @@ msgstr ""
 msgid "Count"
 msgstr "수"
 
-#: packages/admin/src/components/ContentEditor.tsx:2172
+#: packages/admin/src/components/ContentEditor.tsx:2176
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/Redirects.tsx:184
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:479
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/routes/bylines.tsx:456
+#: packages/admin/src/routes/bylines.tsx:467
 msgid "Create"
 msgstr "생성"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:279
+#: packages/admin/src/components/TaxonomySidebar.tsx:290
 msgid "Create \"{trimmedInput}\""
 msgstr ""
 
@@ -1658,8 +1662,8 @@ msgstr "계정 만들기"
 msgid "Create an account"
 msgstr "계정 만들기"
 
-#: packages/admin/src/components/ContentEditor.tsx:2120
-#: packages/admin/src/routes/bylines.tsx:389
+#: packages/admin/src/components/ContentEditor.tsx:2124
+#: packages/admin/src/routes/bylines.tsx:400
 msgid "Create byline"
 msgstr "바이라인 추가"
 
@@ -1801,13 +1805,13 @@ msgstr "생성됨: {0}"
 msgid "Creating collections and fields..."
 msgstr "컬렉션 및 필드 생성 중..."
 
-#: packages/admin/src/components/ContentEditor.tsx:2172
+#: packages/admin/src/components/ContentEditor.tsx:2176
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/Redirects.tsx:181
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:450
 #: packages/admin/src/components/TaxonomyManager.tsx:689
-#: packages/admin/src/components/TaxonomySidebar.tsx:279
+#: packages/admin/src/components/TaxonomySidebar.tsx:290
 msgid "Creating..."
 msgstr "생성 중..."
 
@@ -1847,7 +1851,7 @@ msgstr "어두운 테마"
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
 #: packages/admin/src/components/Sidebar.tsx:179
-#: packages/admin/src/components/Sidebar.tsx:417
+#: packages/admin/src/components/Sidebar.tsx:411
 msgid "Dashboard"
 msgstr "대시보드"
 
@@ -1873,7 +1877,7 @@ msgstr "날짜 형식"
 msgid "Decimal number"
 msgstr "소수"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:646
+#: packages/admin/src/components/RegistryPluginDetail.tsx:735
 msgid "Declared permissions"
 msgstr ""
 
@@ -1921,8 +1925,8 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:636
-#: packages/admin/src/routes/bylines.tsx:465
-#: packages/admin/src/routes/bylines.tsx:501
+#: packages/admin/src/routes/bylines.tsx:476
+#: packages/admin/src/routes/bylines.tsx:512
 msgid "Delete"
 msgstr "삭제"
 
@@ -1962,7 +1966,7 @@ msgstr ""
 msgid "Delete {0}?"
 msgstr "{0}을(를) 삭제하시겠습니까?"
 
-#: packages/admin/src/routes/bylines.tsx:499
+#: packages/admin/src/routes/bylines.tsx:510
 msgid "Delete Byline?"
 msgstr ""
 
@@ -2055,7 +2059,7 @@ msgstr "삭제됨"
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:637
-#: packages/admin/src/routes/bylines.tsx:502
+#: packages/admin/src/routes/bylines.tsx:513
 msgid "Deleting..."
 msgstr "삭제 중..."
 
@@ -2095,6 +2099,7 @@ msgid "Describe what this section is for..."
 msgstr "이 섹션의 용도를 설명하세요."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:415
+#: packages/admin/src/components/RegistryPluginDetail.tsx:788
 #: packages/admin/src/components/SectionEditor.tsx:259
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:373
@@ -2199,9 +2204,9 @@ msgstr "무시"
 msgid "Display a navigation menu"
 msgstr "탐색 메뉴 표시"
 
-#: packages/admin/src/components/ContentEditor.tsx:2123
-#: packages/admin/src/components/ContentEditor.tsx:2185
-#: packages/admin/src/routes/bylines.tsx:394
+#: packages/admin/src/components/ContentEditor.tsx:2127
+#: packages/admin/src/components/ContentEditor.tsx:2189
+#: packages/admin/src/routes/bylines.tsx:405
 msgid "Display name"
 msgstr "표시 이름"
 
@@ -2256,9 +2261,13 @@ msgstr "계정이 없으신가요? <0>회원가입</0>"
 msgid "Done"
 msgstr "완료"
 
-#: packages/admin/src/components/ContentEditor.tsx:2066
+#: packages/admin/src/components/ContentEditor.tsx:2070
 msgid "Down"
 msgstr "아래로"
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:477
+msgid "Download SBOM"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1962
 msgid "Downloading"
@@ -2345,7 +2354,7 @@ msgstr "예: CI/CD 파이프라인"
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "예: 맥북 프로, 아이폰"
 
-#: packages/admin/src/components/ContentEditor.tsx:2075
+#: packages/admin/src/components/ContentEditor.tsx:2079
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:367
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 #: packages/admin/src/components/MenuEditor.tsx:450
@@ -2363,7 +2372,7 @@ msgstr "편집"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:276
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:361
-#: packages/admin/src/routes/bylines.tsx:389
+#: packages/admin/src/routes/bylines.tsx:400
 msgid "Edit {0}"
 msgstr "{0} 수정"
 
@@ -2380,7 +2389,7 @@ msgstr "{collectionLabel} 수정"
 msgid "Edit {title}"
 msgstr "{title} 편집"
 
-#: packages/admin/src/components/ContentEditor.tsx:2182
+#: packages/admin/src/components/ContentEditor.tsx:2186
 msgid "Edit byline"
 msgstr "작성자 편집"
 
@@ -2517,7 +2526,7 @@ msgid "Enabled"
 msgstr "활성화됨"
 
 #. placeholder {0}: label.toLowerCase()
-#: packages/admin/src/components/ContentEditor.tsx:1226
+#: packages/admin/src/components/ContentEditor.tsx:1230
 msgid "Enter {0}..."
 msgstr "{0}을(를) 입력하세요..."
 
@@ -2526,7 +2535,7 @@ msgstr "{0}을(를) 입력하세요..."
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "URL(https://…) 또는 상대 경로(/…)를 입력하세요."
 
-#: packages/admin/src/components/ContentEditor.tsx:1474
+#: packages/admin/src/components/ContentEditor.tsx:1478
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "유효한 URL을 입력하세요 (예: https://example.com)"
 
@@ -2542,7 +2551,7 @@ msgstr "집중 모드로 전환"
 msgid "Enter email"
 msgstr "이메일을 입력하세요"
 
-#: packages/admin/src/components/ContentEditor.tsx:1248
+#: packages/admin/src/components/ContentEditor.tsx:1252
 msgid "Enter markdown content..."
 msgstr "마크다운 콘텐츠를 입력하세요..."
 
@@ -2596,7 +2605,7 @@ msgstr "섹션을 저장하는 중에 오류가 발생했습니다."
 msgid "Error updating widget"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:492
+#: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr ""
 
@@ -2649,7 +2658,7 @@ msgstr "실패됨"
 msgid "Failed"
 msgstr "실패"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:189
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:188
 msgid "Failed security audit"
 msgstr "보안 감사 실패"
 
@@ -2669,7 +2678,7 @@ msgstr ""
 msgid "Failed to create admin"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2166
+#: packages/admin/src/components/ContentEditor.tsx:2170
 msgid "Failed to create byline"
 msgstr "바이라인을 추가하지 못했습니다."
 
@@ -2677,7 +2686,7 @@ msgstr "바이라인을 추가하지 못했습니다."
 msgid "Failed to create some collections"
 msgstr "일부 컬렉션을 생성하지 못했습니다."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:472
+#: packages/admin/src/components/TaxonomySidebar.tsx:493
 msgid "Failed to create term"
 msgstr "분류 항목을 생성하지 못했습니다."
 
@@ -2793,7 +2802,7 @@ msgstr ""
 msgid "Failed to fetch collection"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:83
+#: packages/admin/src/components/TaxonomySidebar.tsx:90
 msgid "Failed to fetch entry terms"
 msgstr ""
 
@@ -2815,7 +2824,7 @@ msgstr ""
 msgid "Failed to fetch setup status"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:67
+#: packages/admin/src/components/TaxonomySidebar.tsx:71
 msgid "Failed to fetch terms"
 msgstr ""
 
@@ -2852,7 +2861,7 @@ msgid "Failed to import media"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:160
-#: packages/admin/src/lib/api/registry.ts:593
+#: packages/admin/src/lib/api/registry.ts:692
 msgid "Failed to install plugin"
 msgstr ""
 
@@ -2865,7 +2874,7 @@ msgid "Failed to load allowed domains"
 msgstr "허용된 도메인을 로드하지 못했습니다."
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:287
+#: packages/admin/src/routes/bylines.tsx:298
 msgid "Failed to load bylines: {0}"
 msgstr ""
 
@@ -2881,7 +2890,7 @@ msgstr ""
 msgid "Failed to load passkeys"
 msgstr "패스키를 로드하지 못했습니다."
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:111
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:110
 msgid "Failed to load plugin"
 msgstr "플러그인을 로드하지 못했습니다."
 
@@ -3005,12 +3014,12 @@ msgstr "테스트 이메일을 보내지 못했습니다."
 msgid "Failed to send verification email"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:102
+#: packages/admin/src/components/TaxonomySidebar.tsx:113
 msgid "Failed to set entry terms"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:192
-#: packages/admin/src/lib/api/registry.ts:732
+#: packages/admin/src/lib/api/registry.ts:831
 msgid "Failed to uninstall plugin"
 msgstr ""
 
@@ -3023,11 +3032,11 @@ msgid "Failed to unschedule"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:336
+#: packages/admin/src/components/TaxonomySidebar.tsx:349
 msgid "Failed to update {0}"
 msgstr "{0}을(를) 업데이트하지 못했습니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:2216
+#: packages/admin/src/components/ContentEditor.tsx:2220
 msgid "Failed to update byline"
 msgstr "바이라인을 업데이트하지 못했습니다."
 
@@ -3036,7 +3045,7 @@ msgid "Failed to update domain"
 msgstr "도메인을 업데이트하지 못했습니다."
 
 #: packages/admin/src/lib/api/marketplace.ts:176
-#: packages/admin/src/lib/api/registry.ts:664
+#: packages/admin/src/lib/api/registry.ts:763
 msgid "Failed to update plugin"
 msgstr ""
 
@@ -3054,6 +3063,10 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:253
 msgid "Failed to verify registration"
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:790
+msgid "FAQ"
 msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:236
@@ -3143,7 +3156,7 @@ msgstr ""
 msgid "Filter by type"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:321
+#: packages/admin/src/routes/bylines.tsx:332
 msgid "Filter byline type"
 msgstr ""
 
@@ -3213,11 +3226,11 @@ msgstr "그리드 보기"
 msgid "Group (optional)"
 msgstr "그룹(선택사항)"
 
-#: packages/admin/src/routes/bylines.tsx:432
+#: packages/admin/src/routes/bylines.tsx:443
 msgid "Guest byline"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:326
+#: packages/admin/src/routes/bylines.tsx:337
 msgid "Guest only"
 msgstr ""
 
@@ -3294,7 +3307,7 @@ msgid "https://example.com/image.jpg"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:241
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:143
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:142
 msgid "Icon blurred due to image audit"
 msgstr "이미지 검수로 인해 아이콘이 흐리게 표시됨"
 
@@ -3316,7 +3329,7 @@ msgid "Image from media library"
 msgstr "미디어 라이브러리의 이미지"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
-#: packages/admin/src/components/ContentEditor.tsx:1656
+#: packages/admin/src/components/ContentEditor.tsx:1660
 msgid "Image not found"
 msgstr ""
 
@@ -3429,9 +3442,8 @@ msgstr "샘플 콘텐츠 포함(새 사이트에 권장)"
 msgid "Incompatible"
 msgstr "호환되지 않음"
 
-#. placeholder {0}: formatDate(release.indexedAt)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:402
-msgid "indexed {0}"
+#: packages/admin/src/components/RegistryPluginDetail.tsx:491
+msgid "Indexed"
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2833
@@ -3500,8 +3512,8 @@ msgstr ""
 msgid "Instagram"
 msgstr "인스타그램"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:193
-#: packages/admin/src/components/RegistryPluginDetail.tsx:450
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:192
+#: packages/admin/src/components/RegistryPluginDetail.tsx:539
 msgid "Install"
 msgstr "설치"
 
@@ -3509,14 +3521,18 @@ msgstr "설치"
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr "초대, 매직 링크, 비밀번호 복구와 같은 이메일 기능을 활성화하려면 이메일 공급자 플러그인을 설치하고 활성화하세요."
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:187
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:186
 msgid "Install blocked"
 msgstr "설치가 차단됨"
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:789
+msgid "Installation"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:174
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:173
 #: packages/admin/src/components/RegistryBrowse.tsx:198
-#: packages/admin/src/components/RegistryPluginDetail.tsx:442
+#: packages/admin/src/components/RegistryPluginDetail.tsx:531
 msgid "Installed"
 msgstr "설치됨"
 
@@ -3542,7 +3558,7 @@ msgstr "정수"
 msgid "Invalid invite link"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1543
+#: packages/admin/src/components/ContentEditor.tsx:1547
 msgid "Invalid JSON"
 msgstr "잘못된 JSON"
 
@@ -3603,7 +3619,7 @@ msgstr "제인 도"
 msgid "JSON"
 msgstr "JSON"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:294
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:293
 #: packages/admin/src/components/SectionEditor.tsx:268
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:189
 msgid "Keywords"
@@ -3708,11 +3724,11 @@ msgstr "다른 콘텐츠 항목에 대한 링크"
 msgid "Linked Accounts ({0})"
 msgstr "연결된 계정({0})"
 
-#: packages/admin/src/routes/bylines.tsx:327
+#: packages/admin/src/routes/bylines.tsx:338
 msgid "Linked only"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:415
+#: packages/admin/src/routes/bylines.tsx:426
 msgid "Linked user"
 msgstr ""
 
@@ -3736,7 +3752,7 @@ msgstr "실시간 미리보기"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:381
+#: packages/admin/src/routes/bylines.tsx:392
 msgid "Load more"
 msgstr "더 보기"
 
@@ -3825,7 +3841,7 @@ msgstr ""
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
 #: packages/admin/src/components/WelcomeModal.tsx:143
-#: packages/admin/src/routes/bylines.tsx:381
+#: packages/admin/src/routes/bylines.tsx:392
 msgid "Loading..."
 msgstr "로드 중..."
 
@@ -3881,7 +3897,7 @@ msgstr ""
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:442
+#: packages/admin/src/components/Sidebar.tsx:434
 msgid "Manage"
 msgstr "관리"
 
@@ -3891,7 +3907,7 @@ msgstr "관리"
 msgid "Manage {0} for {1}"
 msgstr "{1}에 대한 {0} 관리"
 
-#: packages/admin/src/components/ContentEditor.tsx:2020
+#: packages/admin/src/components/ContentEditor.tsx:2024
 msgid "Manage bylines in {entryLocale}"
 msgstr ""
 
@@ -4183,7 +4199,7 @@ msgstr "없음"
 msgid "new"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:339
+#: packages/admin/src/routes/bylines.tsx:350
 msgid "New"
 msgstr ""
 
@@ -4192,7 +4208,7 @@ msgid "NEW"
 msgstr "NEW"
 
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:443
+#: packages/admin/src/components/TaxonomySidebar.tsx:464
 msgid "New {0}"
 msgstr "새 {0}"
 
@@ -4255,7 +4271,7 @@ msgstr "다음"
 msgid "Next page"
 msgstr "다음 페이지"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:464
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:463
 msgid "Next screenshot"
 msgstr "다음 스크린샷"
 
@@ -4264,7 +4280,7 @@ msgid "No"
 msgstr "아니오"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:413
+#: packages/admin/src/components/TaxonomySidebar.tsx:434
 msgid "No {0} available."
 msgstr "사용 가능한 {0}이 없습니다."
 
@@ -4295,15 +4311,15 @@ msgstr "아직 API 토큰이 없습니다. 하나를 생성하여 시작하세�
 msgid "No approved comments yet."
 msgstr "아직 승인된 댓글이 없습니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:2012
+#: packages/admin/src/components/ContentEditor.tsx:2016
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:365
+#: packages/admin/src/routes/bylines.tsx:376
 msgid "No bylines found"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2107
+#: packages/admin/src/components/ContentEditor.tsx:2111
 msgid "No bylines selected."
 msgstr "선택된 작성자가 없습니다."
 
@@ -4339,7 +4355,7 @@ msgstr "아직 콘텐츠 유형이 없습니다."
 msgid "No custom fields yet"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:265
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:264
 msgid "No detailed description available."
 msgstr "자세한 설명이 없습니다."
 
@@ -4371,7 +4387,7 @@ msgstr "비교할 필드가 없습니다."
 msgid "No headings in document"
 msgstr "문서에 제목이 없습니다."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:490
+#: packages/admin/src/components/RegistryPluginDetail.tsx:579
 msgid "No installable releases"
 msgstr ""
 
@@ -4388,7 +4404,7 @@ msgstr "아직 항목이 없습니다"
 msgid "No limit"
 msgstr "제한 없음"
 
-#: packages/admin/src/routes/bylines.tsx:426
+#: packages/admin/src/routes/bylines.tsx:437
 msgid "No linked user"
 msgstr ""
 
@@ -4531,7 +4547,7 @@ msgstr ""
 msgid "None (top level)"
 msgstr "없음(최상위 수준)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:525
+#: packages/admin/src/components/RegistryPluginDetail.tsx:614
 msgid "Not compatible with this environment"
 msgstr ""
 
@@ -4793,7 +4809,7 @@ msgstr "\"{제목}\"을(를) 영구적으로 삭제하시겠습니까? 이 작�
 msgid "Permanently delete {title}"
 msgstr "{title}을(를) 영구적으로 삭제"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:274
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:273
 msgid "Permissions"
 msgstr "권한"
 
@@ -4826,6 +4842,10 @@ msgstr "유효한 URL을 입력하세요."
 msgid "Plugin"
 msgstr "플러그인"
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:747
+msgid "Plugin details"
+msgstr ""
+
 #: packages/admin/src/components/PluginManager.tsx:110
 msgid "Plugin disabled"
 msgstr "플러그인 비활성화됨"
@@ -4843,11 +4863,11 @@ msgstr ""
 msgid "Plugin error ({0})"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:113
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:112
 msgid "Plugin not found"
 msgstr "플러그인을 찾을 수 없습니다"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:351
+#: packages/admin/src/components/RegistryPluginDetail.tsx:396
 msgid "Plugin not found. The publisher handle or slug may be incorrect."
 msgstr ""
 
@@ -4872,7 +4892,7 @@ msgstr ""
 msgid "Plugin uninstalled"
 msgstr "플러그인이 제거되었습니다."
 
-#: packages/admin/src/lib/api/registry.ts:684
+#: packages/admin/src/lib/api/registry.ts:783
 msgid "Plugin update requires re-consent"
 msgstr ""
 
@@ -4885,7 +4905,7 @@ msgstr "플러그인이 업데이트되었습니다."
 #: packages/admin/src/components/PluginManager.tsx:144
 #: packages/admin/src/components/PluginManager.tsx:153
 #: packages/admin/src/components/Sidebar.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:466
+#: packages/admin/src/components/Sidebar.tsx:454
 msgid "Plugins"
 msgstr "플러그인"
 
@@ -4901,7 +4921,7 @@ msgstr "게시물"
 msgid "Posts Per Page"
 msgstr "페이지당 게시물 수"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:404
+#: packages/admin/src/components/RegistryPluginDetail.tsx:463
 msgid "Pre-release"
 msgstr ""
 
@@ -4941,7 +4961,7 @@ msgstr "이전"
 msgid "Previous page"
 msgstr "이전 페이지"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:446
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:445
 msgid "Previous screenshot"
 msgstr "이전 스크린샷"
 
@@ -4974,7 +4994,7 @@ msgid "Published"
 msgstr "게시됨"
 
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:327
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:326
 msgid "Published {0}"
 msgstr "게시됨 {0}"
 
@@ -4982,11 +5002,11 @@ msgstr "게시됨 {0}"
 msgid "Published At"
 msgstr "게시 날짜"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:396
+#: packages/admin/src/components/RegistryPluginDetail.tsx:457
 msgid "Published by"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2115
+#: packages/admin/src/components/ContentEditor.tsx:2119
 msgid "Quick create byline"
 msgstr "바이라인 빠르게 추가"
 
@@ -5104,13 +5124,13 @@ msgstr "등록이 취소되었거나 시간이 초과되었습니다. 다시 시
 msgid "Registry"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:506
+#: packages/admin/src/components/RegistryPluginDetail.tsx:595
 msgid "Release is too new to install"
 msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:2084
+#: packages/admin/src/components/ContentEditor.tsx:2088
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
 #: packages/admin/src/components/PortableTextEditor.tsx:2986
 #: packages/admin/src/components/settings/GeneralSettings.tsx:217
@@ -5124,7 +5144,7 @@ msgstr "제거"
 #. placeholder {0}: passkey.name
 #. placeholder {0}: term.label
 #: packages/admin/src/components/settings/PasskeyItem.tsx:188
-#: packages/admin/src/components/TaxonomySidebar.tsx:232
+#: packages/admin/src/components/TaxonomySidebar.tsx:243
 msgid "Remove {0}"
 msgstr "{0} 삭제"
 
@@ -5132,7 +5152,7 @@ msgstr "{0} 삭제"
 msgid "Remove {entry}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1876
+#: packages/admin/src/components/ContentEditor.tsx:1880
 msgid "Remove {label}"
 msgstr ""
 
@@ -5144,8 +5164,8 @@ msgstr "도메인 제거"
 msgid "Remove Domain?"
 msgstr "도메인을 제거하시겠습니까?"
 
-#: packages/admin/src/components/ContentEditor.tsx:1673
-#: packages/admin/src/components/ContentEditor.tsx:1702
+#: packages/admin/src/components/ContentEditor.tsx:1677
+#: packages/admin/src/components/ContentEditor.tsx:1706
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr "이미지 삭제"
@@ -5246,7 +5266,7 @@ msgid "Required for accessibility. Describes the image for screen readers."
 msgstr "접근성을 위해 필수입니다. 스크린 리더가 이미지 내용을 읽어줍니다."
 
 #. placeholder {0}: latest.minEmDashVersion
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:325
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:324
 msgid "Requires EmDash {0}"
 msgstr "EmDash {0} 필요"
 
@@ -5349,7 +5369,7 @@ msgid "Rich text editor"
 msgstr "리치 텍스트 편집기"
 
 #. placeholder {0}: latest.audit.riskScore
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:312
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:311
 msgid "Risk score: {0}/100"
 msgstr "위험 점수: {0}/100"
 
@@ -5364,7 +5384,7 @@ msgstr "역할"
 msgid "Role {role}"
 msgstr "역할 {role}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2089
+#: packages/admin/src/components/ContentEditor.tsx:2093
 msgid "Role label"
 msgstr "역할명"
 
@@ -5375,7 +5395,7 @@ msgstr "역할명"
 msgid "Same window"
 msgstr "현재 창"
 
-#: packages/admin/src/components/ContentEditor.tsx:2222
+#: packages/admin/src/components/ContentEditor.tsx:2226
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/editor/ImageNode.tsx:235
@@ -5385,7 +5405,7 @@ msgstr "현재 창"
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:456
+#: packages/admin/src/routes/bylines.tsx:467
 msgid "Save"
 msgstr "저장"
 
@@ -5431,7 +5451,7 @@ msgid "Saved"
 msgstr "저장됨"
 
 #: packages/admin/src/components/ContentEditor.tsx:649
-#: packages/admin/src/components/ContentEditor.tsx:2222
+#: packages/admin/src/components/ContentEditor.tsx:2226
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 #: packages/admin/src/components/FieldEditor.tsx:659
 #: packages/admin/src/components/MediaDetailPanel.tsx:241
@@ -5447,9 +5467,18 @@ msgstr "저장됨"
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:456
+#: packages/admin/src/routes/bylines.tsx:467
 msgid "Saving..."
 msgstr "저장 중..."
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:467
+msgid "SBOM"
+msgstr ""
+
+#. placeholder {0}: sbom.format
+#: packages/admin/src/components/RegistryPluginDetail.tsx:465
+msgid "SBOM · {0}"
+msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:899
 msgid "Schedule"
@@ -5504,8 +5533,8 @@ msgstr "권한 범위: {0}"
 
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:244
-#: packages/admin/src/components/RegistryPluginDetail.tsx:551
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:243
+#: packages/admin/src/components/RegistryPluginDetail.tsx:640
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:293
 msgid "Screenshot {0}"
@@ -5513,20 +5542,20 @@ msgstr "스크린샷 {0}"
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: screenshots.length
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:454
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:453
 msgid "Screenshot {0} of {1}"
 msgstr "{1} 중 스크린샷 {0}"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:247
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:246
 msgid "Screenshot blurred due to image audit"
 msgstr "이미지 검수로 인해 스크린샷이 흐리게 표시됨"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:432
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:431
 msgid "Screenshot viewer"
 msgstr "스크린샷 뷰어"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:234
-#: packages/admin/src/components/RegistryPluginDetail.tsx:545
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:233
+#: packages/admin/src/components/RegistryPluginDetail.tsx:634
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:164
 msgid "Screenshots"
 msgstr "스크린샷"
@@ -5549,7 +5578,7 @@ msgstr "{0} 검색..."
 msgid "Search by name or email..."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:314
+#: packages/admin/src/routes/bylines.tsx:325
 msgid "Search bylines"
 msgstr ""
 
@@ -5669,11 +5698,12 @@ msgstr "보안 환경"
 msgid "Secure your account"
 msgstr "계정을 보호하세요"
 
+#: packages/admin/src/components/RegistryPluginDetail.tsx:792
 #: packages/admin/src/components/Settings.tsx:92
 msgid "Security"
 msgstr "보안"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:308
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:307
 msgid "Security Audit"
 msgstr "보안 감사"
 
@@ -5697,7 +5727,7 @@ msgstr "보안 감사에서 이 플러그인이 잠재적으로 안전하지 않
 msgid "Security audit passed"
 msgstr "보안 감사 통과"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:614
+#: packages/admin/src/components/RegistryPluginDetail.tsx:703
 msgid "Security contacts"
 msgstr ""
 
@@ -5718,9 +5748,9 @@ msgid "Select"
 msgstr "선택"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:1730
-#: packages/admin/src/components/ContentEditor.tsx:1888
-#: packages/admin/src/components/ContentEditor.tsx:1904
+#: packages/admin/src/components/ContentEditor.tsx:1734
+#: packages/admin/src/components/ContentEditor.tsx:1892
+#: packages/admin/src/components/ContentEditor.tsx:1908
 msgid "Select {label}"
 msgstr "{label} 선택"
 
@@ -5736,11 +5766,11 @@ msgstr ""
 msgid "Select all"
 msgstr "모두 선택"
 
-#: packages/admin/src/components/ContentEditor.tsx:2032
+#: packages/admin/src/components/ContentEditor.tsx:2036
 msgid "Select byline"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2029
+#: packages/admin/src/components/ContentEditor.tsx:2033
 msgid "Select byline..."
 msgstr "작성자 선택..."
 
@@ -5762,7 +5792,7 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "파비콘 선택"
 
-#: packages/admin/src/components/ContentEditor.tsx:1892
+#: packages/admin/src/components/ContentEditor.tsx:1896
 msgid "Select file"
 msgstr ""
 
@@ -5770,7 +5800,7 @@ msgstr ""
 msgid "Select File"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1718
+#: packages/admin/src/components/ContentEditor.tsx:1722
 msgid "Select image"
 msgstr "이미지 선택"
 
@@ -5854,7 +5884,7 @@ msgstr "테스트 이메일 보내기"
 msgid "Sending..."
 msgstr "보내는 중..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1043
+#: packages/admin/src/components/ContentEditor.tsx:1047
 #: packages/admin/src/components/ContentTypeEditor.tsx:474
 #: packages/admin/src/components/Settings.tsx:81
 msgid "SEO"
@@ -6047,8 +6077,8 @@ msgid "Skipped"
 msgstr "건너뜀"
 
 #: packages/admin/src/components/ContentEditor.tsx:843
-#: packages/admin/src/components/ContentEditor.tsx:2131
-#: packages/admin/src/components/ContentEditor.tsx:2193
+#: packages/admin/src/components/ContentEditor.tsx:2135
+#: packages/admin/src/components/ContentEditor.tsx:2197
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:404
 #: packages/admin/src/components/ContentTypeList.tsx:97
@@ -6057,7 +6087,7 @@ msgstr "건너뜀"
 #: packages/admin/src/components/SectionEditor.tsx:244
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:398
-#: packages/admin/src/routes/bylines.tsx:399
+#: packages/admin/src/routes/bylines.tsx:410
 msgid "Slug"
 msgstr "슬러그"
 
@@ -6107,7 +6137,7 @@ msgstr "테마 정렬"
 #: packages/admin/src/components/ContentTypeList.tsx:100
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:215
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:214
 #: packages/admin/src/components/PluginManager.tsx:497
 #: packages/admin/src/components/Redirects.tsx:440
 #: packages/admin/src/components/SectionEditor.tsx:279
@@ -6217,7 +6247,7 @@ msgstr "열기 방식"
 msgid "Target locale"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:511
+#: packages/admin/src/components/TaxonomySidebar.tsx:537
 msgid "Taxonomies"
 msgstr "분류"
 
@@ -6356,8 +6386,8 @@ msgstr ""
 msgid "This field does not accept {sniffedMime} files."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1734
-#: packages/admin/src/components/ContentEditor.tsx:1907
+#: packages/admin/src/components/ContentEditor.tsx:1738
+#: packages/admin/src/components/ContentEditor.tsx:1911
 msgid "This field is required"
 msgstr "필수 항목입니다"
 
@@ -6381,11 +6411,11 @@ msgstr "대규모 내보내기의 경우 시간이 걸릴 수 있습니다."
 msgid "This passkey is already registered on this device."
 msgstr "이 패스키는 이 기기에 이미 등록되어 있습니다."
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:277
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:276
 msgid "This plugin requires no special permissions."
 msgstr "이 플러그인에는 특별한 권한이 필요하지 않습니다."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:475
+#: packages/admin/src/components/RegistryPluginDetail.tsx:564
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr ""
 
@@ -6393,11 +6423,11 @@ msgstr ""
 msgid "This redirect rule will be permanently removed."
 msgstr "이 리디렉션 규칙은 영구적으로 삭제됩니다."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:527
+#: packages/admin/src/components/RegistryPluginDetail.tsx:616
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:500
+#: packages/admin/src/routes/bylines.tsx:511
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr ""
 
@@ -6628,8 +6658,8 @@ msgstr "유형 불일치({0})"
 msgid "Unable to reach marketplace"
 msgstr "마켓플레이스에 접속할 수 없습니다"
 
-#: packages/admin/src/components/ContentEditor.tsx:2236
-#: packages/admin/src/components/ContentEditor.tsx:2251
+#: packages/admin/src/components/ContentEditor.tsx:2240
+#: packages/admin/src/components/ContentEditor.tsx:2255
 msgid "Unassigned"
 msgstr "할당되지 않음"
 
@@ -6642,7 +6672,7 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:181
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:180
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/PluginManager.tsx:643
 msgid "Uninstall"
@@ -6718,7 +6748,7 @@ msgstr ""
 msgid "Untitled"
 msgstr "제목 없음"
 
-#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1814
 msgid "Untitled file"
 msgstr ""
 
@@ -6731,7 +6761,7 @@ msgstr ""
 msgid "Unverified publisher"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2063
+#: packages/admin/src/components/ContentEditor.tsx:2067
 msgid "Up"
 msgstr "위로"
 
@@ -6765,6 +6795,10 @@ msgstr "이 리디렉션 규칙을 업데이트하세요."
 #: packages/admin/src/components/PluginManager.tsx:417
 msgid "Update to v{0}"
 msgstr "v{0}로 업데이트"
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:486
+msgid "Updated"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:129
 msgid "Updated At"
@@ -6919,7 +6953,7 @@ msgstr ""
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "식별자로 사용됩니다. 소문자, 숫자, 밑줄만 가능합니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:1325
+#: packages/admin/src/components/ContentEditor.tsx:1329
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "목록 페이지와 게시물 상단에서 이 게시물의 기본 시각적 요소로 사용됩니다."
 
@@ -6981,8 +7015,20 @@ msgid "Validation"
 msgstr "유효성 검증"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:186
-#: packages/admin/src/components/RegistryPluginDetail.tsx:391
+#: packages/admin/src/components/RegistryPluginDetail.tsx:447
 msgid "Verified publisher"
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:446
+msgid "Verified publisher, confirmed by labeller {verifiedLabeller}"
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:437
+msgid "Verified publisher. A labeller ({verifiedLabeller}) has confirmed this publisher's identity."
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:438
+msgid "Verified publisher. A labeller has confirmed this publisher's identity."
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:194
@@ -6998,13 +7044,13 @@ msgstr "링크 확인 중..."
 msgid "Verifying..."
 msgstr "확인 중..."
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:321
-#: packages/admin/src/components/RegistryPluginDetail.tsx:411
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:320
+#: packages/admin/src/components/RegistryPluginDetail.tsx:500
 msgid "Version"
 msgstr "버전"
 
 #. placeholder {0}: release.version
-#: packages/admin/src/components/RegistryPluginDetail.tsx:402
+#: packages/admin/src/components/RegistryPluginDetail.tsx:462
 msgid "Version {0}"
 msgstr ""
 
@@ -7032,11 +7078,11 @@ msgstr "게시된 {title} 보기"
 msgid "View Site"
 msgstr "사이트 보기"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:572
+#: packages/admin/src/components/RegistryPluginDetail.tsx:661
 msgid "View source"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:815
+#: packages/admin/src/components/RegistryPluginDetail.tsx:936
 msgid "View the {license} license on spdx.org"
 msgstr ""
 
@@ -7058,7 +7104,7 @@ msgstr "경고"
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "{0}에서 WordPress 사이트에 연결하지 못했습니다. WordPress 사이트가 아니거나, REST API가 비활성화되었거나, 사이트에 접근할 수 없는 경우 발생할 수 있습니다."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:473
+#: packages/admin/src/components/RegistryPluginDetail.tsx:562
 msgid "We couldn't verify this publisher's identity"
 msgstr ""
 
@@ -7083,12 +7129,12 @@ msgstr "웹 주소"
 msgid "WebAuthn is not supported in this browser"
 msgstr "이 브라우저에서는 WebAuthn이 지원되지 않습니다."
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:226
-#: packages/admin/src/components/RegistryPluginDetail.tsx:597
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:225
+#: packages/admin/src/components/RegistryPluginDetail.tsx:686
 msgid "Website"
 msgstr "웹사이트"
 
-#: packages/admin/src/routes/bylines.tsx:404
+#: packages/admin/src/routes/bylines.tsx:415
 msgid "Website URL"
 msgstr ""
 
@@ -7316,7 +7362,7 @@ msgid "Your Role"
 msgstr "내 권한"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:508
+#: packages/admin/src/components/RegistryPluginDetail.tsx:597
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr ""
 

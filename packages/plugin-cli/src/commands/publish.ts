@@ -36,6 +36,8 @@ import {
 	manifestToProfileInput,
 	normaliseManifest,
 	type NormalisedManifest,
+	resolveSections,
+	SectionError,
 } from "../manifest/translate.js";
 import { sha256Multihash } from "../multihash.js";
 import { resumeSession } from "../oauth.js";
@@ -566,6 +568,14 @@ async function loadManifestBootstrap(
 				if (code === "VERSION_MISSING" || code === "VERSION_MISMATCH") {
 					throw new CliError(error.message, 1, String(code));
 				}
+			}
+			throw error;
+		}
+		try {
+			normalised.sections = await resolveSections(manifest.sections, dirname(resolvedPath));
+		} catch (error) {
+			if (error instanceof SectionError) {
+				throw new CliError(error.message, 1, error.code);
 			}
 			throw error;
 		}
