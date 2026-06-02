@@ -74,13 +74,13 @@ describe("getBylineFieldDefs — dirty-version bypass (#1174 BUG 1)", () => {
 			release = resolve;
 		});
 
-		vi.spyOn(BylineSchemaRegistry.prototype, "listFields").mockImplementation(async function (
-			this: BylineSchemaRegistry,
-		) {
-			calls += 1;
-			await gate;
-			return original.call(this);
-		});
+		vi.spyOn(BylineSchemaRegistry.prototype, "listFields").mockImplementation(
+			async function (this: BylineSchemaRegistry) {
+				calls += 1;
+				await gate;
+				return original.call(this);
+			},
+		);
 
 		const first = getBylineFieldDefs(db);
 		const second = getBylineFieldDefs(db);
