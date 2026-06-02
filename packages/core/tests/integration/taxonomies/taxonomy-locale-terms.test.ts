@@ -35,6 +35,7 @@ import {
 interface TermFixture {
 	enContentId: string;
 	frContentId: string;
+	frContentSlug: string;
 	enTagId: string;
 	frTagId: string;
 }
@@ -80,6 +81,7 @@ async function seedLocalizedTags(db: Kysely<Database>): Promise<TermFixture> {
 	return {
 		enContentId: enContent.id,
 		frContentId: frContent.id,
+		frContentSlug: frContent.slug,
 		enTagId: enTag.id,
 		frTagId: frTag.id,
 	};
@@ -194,6 +196,19 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		const body = (await res.json()) as TermsResponse;
 		const ids = (body.data?.terms ?? []).map((t) => t.id);
 		expect(ids).toEqual([fx.enTagId]);
+	});
+
+	it("GET by slug returns only the FR variant for the FR entry", async () => {
+		const fx = await seedLocalizedTags(ctx.db);
+
+		const res = await getTerms(
+			buildGetContext(ctx.db, { collection: "post", id: fx.frContentSlug, taxonomy: "tags" }),
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as TermsResponse;
+		expect(body.error).toBeUndefined();
+		const ids = (body.data?.terms ?? []).map((t) => t.id);
+		expect(ids).toEqual([fx.frTagId]);
 	});
 
 	it("POST response echoes only the entry-locale variant", async () => {

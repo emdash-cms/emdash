@@ -40,10 +40,11 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		// server-side (deterministic, not client-spoofable) so only the matching
 		// term variant is returned — see issue #1218.
 		const entry = await new ContentRepository(emdash.db).findByIdOrSlug(collection, id);
-		const locale = entry?.locale ?? undefined;
+		if (!entry) return apiError("NOT_FOUND", "Content not found", 404);
+		const locale = entry.locale ?? undefined;
 
 		const repo = new TaxonomyRepository(emdash.db);
-		const terms = await repo.getTermsForEntry(collection, id, taxonomy, locale);
+		const terms = await repo.getTermsForEntry(collection, entry.id, taxonomy, locale);
 
 		return apiSuccess({
 			terms: terms.map((t) => ({
