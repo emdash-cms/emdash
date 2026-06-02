@@ -444,6 +444,54 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("Alpha post")).toBeInTheDocument();
 			await expect.element(screen.getByText("Beta post")).toBeInTheDocument();
 		});
+
+		// #1219: in server mode a zero-match query empties `items`. The search box
+		// must stay mounted so the user can clear the query.
+		it("keeps the search input mounted in server mode when there are no items", async () => {
+			const onSearchChange = vi.fn();
+			const screen = await render(
+				<ContentList {...defaultProps} items={[]} onSearchChange={onSearchChange} />,
+			);
+			await expect
+				.element(screen.getByRole("searchbox", { name: "Search posts" }))
+				.toBeInTheDocument();
+		});
+
+		// #1219: a zero-match server search must not show "Create your first one"
+		// (there is content, it just doesn't match), it must report the query.
+		it("shows a no-results message, not the empty state, for a zero-match server search", async () => {
+			const onSearchChange = vi.fn();
+			const screen = await render(
+				<ContentList {...defaultProps} items={[]} total={0} onSearchChange={onSearchChange} />,
+			);
+
+			await screen.getByRole("searchbox").fill("zzzzz");
+
+			await expect.element(screen.getByText(NO_RESULTS_PATTERN)).toBeInTheDocument();
+			expect(screen.getByText("Create your first one").query()).toBeNull();
+		});
+
+		// #1219: the match count must come from the server `total`, not the loaded
+		// page length, otherwise it undercounts when matches span multiple pages.
+		it("counts server-search matches using total, not the loaded page", async () => {
+			const onSearchChange = vi.fn();
+			const items = Array.from({ length: 20 }, (_, i) =>
+				makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),
+			);
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					total={143}
+					hasMore={true}
+					onSearchChange={onSearchChange}
+				/>,
+			);
+
+			await screen.getByRole("searchbox").fill("post");
+
+			await expect.element(screen.getByText(/143 items matching "post"/)).toBeInTheDocument();
+		});
 	});
 
 	describe("pagination", () => {

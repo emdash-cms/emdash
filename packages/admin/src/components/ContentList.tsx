@@ -148,6 +148,11 @@ export function ContentList({
 		return items.filter((item) => getItemTitle(item).toLowerCase().includes(query));
 	}, [items, searchQuery, serverSearch]);
 
+	// The query the current `items` reflect: server-side filtering lags behind
+	// typing by the debounce, so the empty-state message must use the debounced
+	// term; client-side filtering is immediate, so it uses the live query.
+	const activeSearch = serverSearch ? debouncedSearch.trim() : searchQuery;
+
 	// When the server reports a total, it's the source of truth for the
 	// denominator. In server-search mode that total already reflects the query,
 	// so we use it even while searching; in client mode an active query falls
@@ -211,7 +216,7 @@ export function ContentList({
 			</div>
 
 			{/* Search */}
-			{items.length > 0 && (
+			{(serverSearch || items.length > 0) && (
 				<div className="relative max-w-sm">
 					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
@@ -299,21 +304,27 @@ export function ContentList({
 								) : items.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
-											<Link
-												to="/content/$collection/new"
-												params={{ collection }}
-												search={{ locale: activeLocale }}
-												className="text-kumo-brand underline"
-											>
-												{t`Create your first one`}
-											</Link>
+											{activeSearch ? (
+												t`No results for "${activeSearch}"`
+											) : (
+												<>
+													{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
+													<Link
+														to="/content/$collection/new"
+														params={{ collection }}
+														search={{ locale: activeLocale }}
+														className="text-kumo-brand underline"
+													>
+														{t`Create your first one`}
+													</Link>
+												</>
+											)}
 										</td>
 									</tr>
 								) : paginatedItems.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No results for "${searchQuery}"`}
+											{t`No results for "${activeSearch}"`}
 										</td>
 									</tr>
 								) : (
@@ -338,10 +349,11 @@ export function ContentList({
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
 								{renderItemCount({
-									searchQuery,
+									searchQuery: activeSearch,
 									filteredCount: filteredItems.length,
 									total,
 									hasMore,
+									serverSearch,
 								})}
 							</span>
 							<div className="flex items-center gap-2">
@@ -508,7 +520,9 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 
 /**
  * Render the row-count line above pagination. The rules are:
- * - A search query always wins — say how many matches there are.
+ * - A search query always wins — say how many matches there are. In
+ *   server-search mode the server reports the full match count via `total`;
+ *   `filteredCount` is only the loaded page, so it would undercount.
  * - When the server reported a total, use it (no `+` suffix needed —
  *   we know the count).
  * - Otherwise fall back to the pre-refactor behavior: loaded count,
@@ -519,14 +533,17 @@ function renderItemCount({
 	filteredCount,
 	total,
 	hasMore,
+	serverSearch,
 }: {
 	searchQuery: string;
 	filteredCount: number;
 	total: number | undefined;
 	hasMore: boolean | undefined;
+	serverSearch: boolean;
 }): string {
 	if (searchQuery) {
-		return plural(filteredCount, {
+		const matchCount = serverSearch && typeof total === "number" ? total : filteredCount;
+		return plural(matchCount, {
 			one: `# item matching "${searchQuery}"`,
 			other: `# items matching "${searchQuery}"`,
 		});
