@@ -131,7 +131,7 @@ jobs:
           # has a strictly greater id.
           LATEST_ASK_ID="$(
             gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/comments" --paginate --slurp \
-              --jq '
+              | jq '
                 [ .[]
                   | .[]
                   | select(.user.login == "emdashbot[bot]")
@@ -473,7 +473,7 @@ jobs:
           #      bare integer.
           COUNT="$(
             gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/comments" --paginate --slurp \
-              --jq '
+              | jq '
                 [ .[]
                   | .[]
                   | select(.user.login == "emdashbot[bot]")
