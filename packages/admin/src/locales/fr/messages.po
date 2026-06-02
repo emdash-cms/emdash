@@ -60,7 +60,7 @@ msgstr "(synchronisé)"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:521
 msgid "(too new)"
-msgstr ""
+msgstr "(trop récent)"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:312
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:309
@@ -178,7 +178,7 @@ msgstr "{0} • {1}"
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:410
 msgid "{0} banner"
-msgstr ""
+msgstr "{0} bannière"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1142
@@ -198,7 +198,7 @@ msgstr "{0} a été supprimé"
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:422
 msgid "{0} icon"
-msgstr ""
+msgstr "{0} icône"
 
 #. placeholder {0}: plugin.installCount.toLocaleString()
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:202
@@ -864,7 +864,7 @@ msgstr "Appliquer"
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:144
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:145
 msgid "Apply language"
-msgstr ""
+msgstr "Appliquer la langue"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2517
 #: packages/admin/src/components/PortableTextEditor.tsx:2518
@@ -980,7 +980,7 @@ msgstr "En cours d'autorisation..."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:670
 msgid "Authors"
-msgstr ""
+msgstr "Auteurs"
 
 #: packages/admin/src/components/Redirects.tsx:495
 msgid "auto"
@@ -1999,7 +1999,7 @@ msgstr "Supprimer le champ ?"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:131
 msgid "Delete HTML block"
-msgstr ""
+msgstr "Supprimer le bloc HTML"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:191
 #: packages/admin/src/components/editor/ImageNode.tsx:192
@@ -2279,7 +2279,7 @@ msgstr "Vers le bas"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:477
 msgid "Download SBOM"
-msgstr ""
+msgstr "Télécharger SBOM"
 
 #: packages/admin/src/components/WordPressImport.tsx:1962
 msgid "Downloading"
@@ -2565,7 +2565,7 @@ msgstr "Saisissez l'adresse mail"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:144
 msgid "Enter HTML..."
-msgstr ""
+msgstr "Entrer le HTML..."
 
 #: packages/admin/src/components/ContentEditor.tsx:1255
 msgid "Enter markdown content..."
@@ -3083,7 +3083,7 @@ msgstr "Échec lors de la vérification de l'inscription"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:790
 msgid "FAQ"
-msgstr ""
+msgstr "FAQ"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:236
 #: packages/admin/src/components/settings/GeneralSettings.tsx:242
@@ -3318,7 +3318,7 @@ msgstr "Comment créer un mot de passe d'application"
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
 #: packages/admin/src/components/PortableTextEditor.tsx:953
 msgid "HTML"
-msgstr ""
+msgstr "HTML"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:147
 msgid "HTML source"
@@ -3357,7 +3357,7 @@ msgstr "Image de la médiathèque"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
 #: packages/admin/src/components/ContentEditor.tsx:1663
 msgid "Image not found"
-msgstr ""
+msgstr "Image non trouvée"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:179
 #: packages/admin/src/components/editor/ImageNode.tsx:180
@@ -3471,7 +3471,7 @@ msgstr "Incompatible"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:491
 msgid "Indexed"
-msgstr ""
+msgstr "Indexé"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2875
 msgid "Inline Code"
@@ -3558,7 +3558,7 @@ msgstr "Installation bloquée"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:789
 msgid "Installation"
-msgstr ""
+msgstr "Installation"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:173
@@ -4262,7 +4262,7 @@ msgstr "Nouveau type de contenu"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:116
 msgid "New public routes"
-msgstr ""
+msgstr "Nouvelles routes publiques"
 
 #: packages/admin/src/components/Redirects.tsx:102
 #: packages/admin/src/components/Redirects.tsx:336
@@ -4445,7 +4445,7 @@ msgstr "Aucun utilisateur lié"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:134
 msgid "No matches"
-msgstr ""
+msgstr "Pas de correspondances"
 
 #: packages/admin/src/components/ContentEditor.tsx:2099
 msgid "No matching bylines."
@@ -4534,7 +4534,7 @@ msgstr "Aucun résultat"
 #: packages/admin/src/components/ContentList.tsx:308
 #: packages/admin/src/components/ContentList.tsx:327
 msgid "No results for \"{activeSearch}\""
-msgstr ""
+msgstr "Pas de résultat pour \"{activeSearch}\""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:176
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:152
@@ -4589,7 +4589,7 @@ msgstr "Aucun (niveau supérieur)"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:614
 msgid "Not compatible with this environment"
-msgstr ""
+msgstr "Incompatible avec cet environnement"
 
 #: packages/admin/src/components/FieldEditor.tsx:162
 #: packages/admin/src/components/FieldEditor.tsx:581
@@ -4887,7 +4887,7 @@ msgstr "Module d'extension"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:747
 msgid "Plugin details"
-msgstr ""
+msgstr "Détails du module d'extension"
 
 #: packages/admin/src/components/PluginManager.tsx:110
 msgid "Plugin disabled"
@@ -5516,12 +5516,12 @@ msgstr "En cours d'enregistrement..."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:467
 msgid "SBOM"
-msgstr ""
+msgstr "SBOM"
 
 #. placeholder {0}: sbom.format
 #: packages/admin/src/components/RegistryPluginDetail.tsx:465
 msgid "SBOM · {0}"
-msgstr ""
+msgstr "SBOM · {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:901
 msgid "Schedule"
@@ -5620,7 +5620,7 @@ msgstr "Rechercher {0}..."
 #: packages/admin/src/components/MediaLibrary.tsx:376
 #: packages/admin/src/components/MediaPickerModal.tsx:573
 msgid "Search by filename..."
-msgstr ""
+msgstr "Rechercher par nom de fichier..."
 
 #: packages/admin/src/components/users/UserList.tsx:69
 msgid "Search by name or email..."
@@ -5707,7 +5707,7 @@ msgstr "Interrogeable"
 
 #: packages/admin/src/components/ContentEditor.tsx:2077
 msgid "Searching..."
-msgstr ""
+msgstr "Recherche en cours"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2043
 msgid "Section"
@@ -5965,11 +5965,11 @@ msgstr "Définissez une taille d'affichage personnalisée pour cette instance d'
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:170
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:174
 msgid "Set language"
-msgstr ""
+msgstr "Définir la langue"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:171
 msgid "Set language (current: {label})"
-msgstr ""
+msgstr "Définir la langue (actuelle: {label})"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:531
 msgid "Set to 0 to never close comments automatically."
@@ -6491,7 +6491,7 @@ msgstr "Cette section a été importée d'un autre système."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:119
 msgid "This update exposes the following routes without authentication:"
-msgstr ""
+msgstr "Cette mise à jour expose les routes suivantes sans authentification:"
 
 #: packages/admin/src/components/Widgets.tsx:635
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
@@ -6848,7 +6848,7 @@ msgstr "Mise à jour vers v{0}"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:486
 msgid "Updated"
-msgstr ""
+msgstr "Mis à jour"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:129
 msgid "Updated At"
@@ -7131,11 +7131,11 @@ msgstr "Voir le site"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:661
 msgid "View source"
-msgstr ""
+msgstr "Voir le code source"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:936
 msgid "View the {license} license on spdx.org"
-msgstr ""
+msgstr "Voir la license {license} sur spdx.org"
 
 #: packages/admin/src/components/Redirects.tsx:422
 msgid "Visitors hitting these paths will see an error."
