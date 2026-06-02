@@ -5,8 +5,14 @@ name: Investigate
 # fix branch). The orchestrator (this workflow) performs all GitHub writes
 # based on the agent's structured JSON output.
 #
-# Also accepts workflow_dispatch so the reporter-reply workflow can re-trigger
-# investigation when the reporter says the first attempt missed something.
+# Also accepts re-triggers from the reporter-reply workflow when the reporter
+# (or a maintainer) says the first attempt missed something:
+#   * workflow_dispatch -- for manual re-runs from the Actions UI.
+#   * repository_dispatch (type `reporter-retry`) -- used by reporter-reply.yml,
+#     because firing it needs only the contents:write the emdashbot App already
+#     has, whereas workflow_dispatch from the App would need actions:write.
+# Both carry { issueNumber, retryContext }; repository_dispatch in
+# client_payload, workflow_dispatch in inputs.
 
 on:
   issues:
@@ -21,6 +27,8 @@ on:
         description: "Reporter feedback from previous attempt"
         required: false
         type: string
+  repository_dispatch:
+    types: [reporter-retry]
 
 # Default-deny at workflow level. The job below opens up only what it needs.
 permissions:
@@ -34,13 +42,14 @@ jobs:
     # a PR (issues.labeled fires for PRs too).
     if: >-
       github.event_name == 'workflow_dispatch'
+      || github.event_name == 'repository_dispatch'
       || (github.event.label.name == 'bot:repro' && github.event.issue.pull_request == null)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     # Serialize per-issue. Don't cancel in-flight runs -- partial state is
     # worse than a queue, since the agent may have already pushed branches.
     concurrency:
-      group: investigate-${{ github.event.issue.number || inputs.issueNumber }}
+      group: investigate-${{ github.event.issue.number || inputs.issueNumber || github.event.client_payload.issueNumber }}
       cancel-in-progress: false
     # Sandbox token (GITHUB_TOKEN) is intentionally read-only. All writes use
     # the minted app token from the step below.
@@ -75,11 +84,13 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           EVENT_NAME: ${{ github.event_name }}
           LABEL_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          DISPATCH_ISSUE_NUMBER: ${{ inputs.issueNumber }}
+          # Re-trigger issue number / feedback come from inputs (workflow_dispatch)
+          # or client_payload (repository_dispatch); only one is ever set.
+          DISPATCH_ISSUE_NUMBER: ${{ inputs.issueNumber || github.event.client_payload.issueNumber }}
           LABEL_ISSUE_TITLE: ${{ github.event.issue.title }}
           LABEL_ISSUE_BODY: ${{ github.event.issue.body }}
           LABEL_ISSUE_REPORTER: ${{ github.event.issue.user.login }}
-          RETRY_CONTEXT: ${{ inputs.retryContext }}
+          RETRY_CONTEXT: ${{ inputs.retryContext || github.event.client_payload.retryContext }}
         run: |
           set -euo pipefail
           # The issue body and retry context are attacker-controllable
@@ -89,9 +100,24 @@ jobs:
           # and let the attacker forge subsequent outputs. Avoid
           # putting them in step outputs at all -- write to /tmp files
           # that later steps read directly.
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" || "$EVENT_NAME" == "repository_dispatch" ]]; then
             NUM="$DISPATCH_ISSUE_NUMBER"
+            # The dispatched number is attacker-influenceable (a forged
+            # repository_dispatch could carry a path-traversal value) and is
+            # about to be interpolated into an API path -- validate BEFORE the
+            # call, ahead of the shared check below. Issue numbers are positive
+            # integers with no leading zero (also keeps --argjson happy later).
+            if ! [[ "$NUM" =~ ^[1-9][0-9]*$ ]]; then
+              echo "::error::invalid issue number: $NUM"
+              exit 1
+            fi
             gh api "/repos/emdash-cms/emdash/issues/${NUM}" > /tmp/issue.json
+            # The issues API returns PRs too; only the labeled path was
+            # PR-guarded. Reject a PR number dispatched by mistake or forgery.
+            if jq -e '.pull_request' /tmp/issue.json >/dev/null 2>&1; then
+              echo "::error::#${NUM} is a pull request, not an issue"
+              exit 1
+            fi
             TITLE="$(jq -r '.title // ""' /tmp/issue.json | tr -d '\r\n')"
             REPORTER="$(jq -r '.user.login // ""' /tmp/issue.json | tr -d '\r\n')"
             jq -r '.body // ""' /tmp/issue.json > /tmp/ctx-body.txt
@@ -107,7 +133,7 @@ jobs:
           # outputs. Issue numbers are integers; logins match a tight
           # regex. Anything weird produces a hard fail rather than a
           # silent injection.
-          if ! [[ "$NUM" =~ ^[0-9]+$ ]]; then
+          if ! [[ "$NUM" =~ ^[1-9][0-9]*$ ]]; then
             echo "::error::invalid issue number: $NUM"
             exit 1
           fi

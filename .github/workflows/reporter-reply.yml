@@ -448,12 +448,11 @@ jobs:
           # maintainer (authorized in live-check, check 4). Login charset
           # is safe.
           COMMENTER: ${{ github.event.comment.user.login }}
-          # Pull workflow context values into env so the shell never sees
-          # raw `${{ ... }}` expansions -- zizmor flags these as template
-          # injection even though `github.repository` and `github.ref_name`
-          # are trustworthy on a non-fork issue_comment trigger. Defensive.
+          # Pull workflow context into env so the shell never sees raw
+          # `${{ ... }}` expansions -- zizmor flags these as template injection
+          # even though `github.repository` is trustworthy on a non-fork
+          # issue_comment trigger. Defensive.
           REPO_FULL: ${{ github.repository }}
-          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
@@ -506,17 +505,26 @@ jobs:
             exit 0
           fi
 
-          # Dispatch first, then transition the label. Order matters
-          # for recovery: if dispatch fails, the label stays put
-          # (so a maintainer can re-trigger by removing + re-adding
-          # `bot:repro` manually) rather than getting stuck in a
-          # `triage/reproducing` state with no investigation running.
+          # Re-trigger investigation via a repository_dispatch event (type
+          # `reporter-retry`) rather than `gh workflow run` (workflow_dispatch):
+          # firing repository_dispatch needs only contents:write, which the app
+          # token has, whereas workflow_dispatch needs actions:write, which the
+          # emdashbot App is not granted. investigate.yml reads issueNumber /
+          # retryContext from client_payload. The body is built with jq so the
+          # attacker-controlled REPLY_BODY is JSON-escaped, never interpolated
+          # into a command. repository_dispatch always runs on the default
+          # branch, so no ref is needed.
+          #
+          # Dispatch first, then transition the label. Order matters for
+          # recovery: if dispatch fails, the label stays put (so a maintainer
+          # can re-trigger by removing + re-adding `bot:repro` manually) rather
+          # than getting stuck in `triage/reproducing` with nothing running.
           set +e
-          gh workflow run investigate.yml \
-            --repo "$REPO_FULL" \
-            --ref "$REF_NAME" \
-            -f issueNumber="${ISSUE_NUMBER}" \
-            -f retryContext="${REPLY_BODY}"
+          jq -nc \
+            --arg n "$ISSUE_NUMBER" \
+            --arg r "$REPLY_BODY" \
+            '{event_type: "reporter-retry", client_payload: {issueNumber: $n, retryContext: $r}}' \
+            | gh api --method POST "/repos/${REPO_FULL}/dispatches" --input -
           DISPATCH_EXIT=$?
           set -e
 
@@ -525,7 +533,7 @@ jobs:
             # decide what to do. Leave the label on triage/awaiting-reporter
             # so the maintainer's manual `bot:repro` re-application
             # works as expected.
-            echo "::warning::workflow_dispatch failed (exit ${DISPATCH_EXIT}); leaving label on triage/awaiting-reporter"
+            echo "::warning::repository_dispatch failed (exit ${DISPATCH_EXIT}); leaving label on triage/awaiting-reporter"
             {
               echo "<!-- bot-retry-count: ${NEXT} -->"
               echo "I tried to re-run the investigation but the dispatch failed. A maintainer can re-trigger by removing the \`triage/awaiting-reporter\` label and re-adding \`bot:repro\`."
