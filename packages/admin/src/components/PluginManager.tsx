@@ -33,7 +33,6 @@ import {
 	type AdminManifest,
 	CAPABILITY_LABELS,
 } from "../lib/api";
-import { formatDate } from "../lib/utils.js";
 import {
 	checkPluginUpdates,
 	updateMarketplacePlugin,
@@ -48,6 +47,7 @@ import {
 } from "../lib/api/registry.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
+import { formatDate } from "../lib/utils.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";

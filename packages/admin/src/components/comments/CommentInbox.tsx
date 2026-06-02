@@ -476,9 +476,7 @@ function CommentRow({
 					<span className="font-medium">{comment.collection}</span>
 				</div>
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle whitespace-nowrap">
-				{formatDate(date)}
-			</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle whitespace-nowrap">{formatDate(date)}</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end gap-1">
 					{comment.status !== "approved" && (

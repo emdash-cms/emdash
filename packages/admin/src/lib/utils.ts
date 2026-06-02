@@ -55,7 +55,8 @@ export function formatRelativeTime(value: string | Date): string {
 	if (absDiffSecs < 60) return rtf.format(diffSecs, "second");
 	if (absDiffSecs < 60 * 60) return rtf.format(Math.round(diffSecs / 60), "minute");
 	if (absDiffSecs < 60 * 60 * 24) return rtf.format(Math.round(diffSecs / (60 * 60)), "hour");
-	if (absDiffSecs < 60 * 60 * 24 * 7) return rtf.format(Math.round(diffSecs / (60 * 60 * 24)), "day");
+	if (absDiffSecs < 60 * 60 * 24 * 7)
+		return rtf.format(Math.round(diffSecs / (60 * 60 * 24)), "day");
 
 	return formatDate(date, {
 		month: "short",

@@ -1,7 +1,14 @@
 import { i18n } from "@lingui/core";
 import { describe, it, expect, vi, afterEach } from "vitest";
 
-import { cn, formatDate, formatDateTime, formatNumber, formatRelativeTime, slugify } from "../../src/lib/utils";
+import {
+	cn,
+	formatDate,
+	formatDateTime,
+	formatNumber,
+	formatRelativeTime,
+	slugify,
+} from "../../src/lib/utils";
 
 afterEach(() => {
 	vi.useRealTimers();

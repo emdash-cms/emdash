@@ -24,8 +24,8 @@ import {
 	describeCapability,
 } from "../lib/api/marketplace.js";
 import { renderMarkdown } from "../lib/markdown.js";
-import { formatDate, formatNumber } from "../lib/utils.js";
 import { isSafeUrl, safeIconUrl } from "../lib/url.js";
+import { formatDate, formatNumber } from "../lib/utils.js";
 import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
@@ -324,7 +324,7 @@ export function MarketplacePluginDetail({
 								{latest.minEmDashVersion && (
 									<div>{t`Requires EmDash ${latest.minEmDashVersion}`}</div>
 								)}
-							<div>{t`Published ${formatDate(latest.publishedAt)}`}</div>
+								<div>{t`Published ${formatDate(latest.publishedAt)}`}</div>
 								{latest.bundleSize > 0 && <div>{formatBytes(latest.bundleSize)}</div>}
 							</div>
 						</div>

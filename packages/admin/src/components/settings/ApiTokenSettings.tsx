@@ -284,18 +284,14 @@ export function ApiTokenSettings() {
 									<div className="flex gap-3 mt-1 text-xs text-kumo-subtle">
 										<span>{t(msg`Scopes: ${token.scopes.join(", ")}`)}</span>
 										{token.expiresAt && (
-											<span>
-											{t(msg`Expires ${formatDate(token.expiresAt)}`)}
-											</span>
+											<span>{t(msg`Expires ${formatDate(token.expiresAt)}`)}</span>
 										)}
 										{token.lastUsedAt && (
-											<span>
-											{t(msg`Last used ${formatDate(token.lastUsedAt)}`)}
-											</span>
+											<span>{t(msg`Last used ${formatDate(token.lastUsedAt)}`)}</span>
 										)}
 									</div>
 									<div className="text-xs text-kumo-subtle mt-0.5">
-									{t(msg`Created ${formatDate(token.createdAt)}`)}
+										{t(msg`Created ${formatDate(token.createdAt)}`)}
 									</div>
 								</div>
 

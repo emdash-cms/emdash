@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 
 // @ts-expect-error - raw Vite asset import for browser test environment
 import indonesianCatalog from "../../src/locales/id/messages.po?raw";
-
 import {
 	DEFAULT_LOCALE,
 	getLocaleDir,

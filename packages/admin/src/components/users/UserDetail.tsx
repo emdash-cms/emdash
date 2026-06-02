@@ -217,19 +217,15 @@ export function UserDetail({
 										<div className="space-y-2 text-sm">
 											<div className="flex justify-between">
 												<span className="text-kumo-subtle">{t`Created`}</span>
-											<span>{formatDate(user.createdAt)}</span>
+												<span>{formatDate(user.createdAt)}</span>
 											</div>
 											<div className="flex justify-between">
 												<span className="text-kumo-subtle">{t`Last updated`}</span>
-											<span>{formatDate(user.updatedAt)}</span>
+												<span>{formatDate(user.updatedAt)}</span>
 											</div>
 											<div className="flex justify-between">
 												<span className="text-kumo-subtle">{t`Last login`}</span>
-												<span>
-													{user.lastLogin
-												? formatDate(user.lastLogin)
-														: t`Never`}
-												</span>
+												<span>{user.lastLogin ? formatDate(user.lastLogin) : t`Never`}</span>
 											</div>
 											<div className="flex justify-between">
 												<span className="text-kumo-subtle">{t`Email verified`}</span>
@@ -257,9 +253,9 @@ export function UserDetail({
 															</div>
 														</div>
 														<div className="text-end text-kumo-subtle">
-												<div>{t`Created ${formatDate(cred.createdAt)}`}</div>
+															<div>{t`Created ${formatDate(cred.createdAt)}`}</div>
 															<div className="text-xs">
-													{t`Last used ${formatDate(cred.lastUsedAt)}`}
+																{t`Last used ${formatDate(cred.lastUsedAt)}`}
 															</div>
 														</div>
 													</div>
@@ -283,7 +279,7 @@ export function UserDetail({
 													>
 														<span className="capitalize">{account.provider}</span>
 														<span className="text-kumo-subtle">
-												{t`Connected ${formatDate(account.createdAt)}`}
+															{t`Connected ${formatDate(account.createdAt)}`}
 														</span>
 													</div>
 												))}
