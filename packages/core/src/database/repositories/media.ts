@@ -85,9 +85,6 @@ export interface FindManyMediaOptions {
 	q?: string;
 }
 
-// LIKE wildcards that must be escaped so user search input is matched literally.
-const LIKE_WILDCARD_RE = /[\\%_]/g;
-
 /**
  * Media repository for database operations
  */
@@ -259,7 +256,7 @@ export class MediaRepository {
 		// LIKE wildcards in the term are escaped so they're treated literally.
 		const term = options.q?.trim();
 		if (term) {
-			const pattern = `%${term.replace(LIKE_WILDCARD_RE, (c) => `\\${c}`)}%`;
+			const pattern = `%${escapeLike(term)}%`;
 			query = query.where(
 				sql<string>`lower(filename)`,
 				"like",

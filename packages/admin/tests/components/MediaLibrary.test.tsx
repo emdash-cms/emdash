@@ -105,7 +105,7 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("test.jpg")).toBeInTheDocument();
 			// Table headers should be visible
 			await expect.element(screen.getByText("Filename")).toBeInTheDocument();
-			await expect.element(screen.getByText("Type")).toBeInTheDocument();
+			await expect.element(screen.getByText("Type", { exact: true })).toBeInTheDocument();
 			await expect.element(screen.getByText("Size")).toBeInTheDocument();
 		});
 	});

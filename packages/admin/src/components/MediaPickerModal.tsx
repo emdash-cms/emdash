@@ -204,6 +204,9 @@ export function MediaPickerModal({
 
 	// Fetch local media list (cursor-paginated so libraries beyond the
 	// first page remain selectable from the picker, not just the first 50).
+	// setQueryData is exact-match, so the optimistic dimension update below
+	// must share this exact key with the query that populates it.
+	const mediaQueryKey = ["media", filters?.join(",") ?? "", debouncedSearch.trim()];
 	const {
 		data: localData,
 		isLoading: localLoading,
@@ -211,7 +214,7 @@ export function MediaPickerModal({
 		hasNextPage: hasNextLocalPage,
 		isFetchingNextPage: isFetchingNextLocalPage,
 	} = useInfiniteQuery({
-		queryKey: ["media", filters?.join(",") ?? "", debouncedSearch.trim()],
+		queryKey: mediaQueryKey,
 		queryFn: ({ pageParam }) =>
 			fetchMediaList({
 				mimeType: filters,
@@ -282,7 +285,7 @@ export function MediaPickerModal({
 			updateMedia(id, { width, height }),
 		onSuccess: (_updated, { id, width, height }) => {
 			queryClient.setQueryData(
-				["media", filters?.join(",") ?? ""],
+				mediaQueryKey,
 				(
 					old:
 						| {
