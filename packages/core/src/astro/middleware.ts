@@ -51,6 +51,7 @@ import {
 	runWithContext,
 } from "../request-context.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
 import type { EmDashHandlers } from "./types.js";
 
 // Cached runtime instance (persists across requests within worker)
@@ -368,8 +369,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					try {
 						const runtime = await getRuntime(config, initSubTimings);
 						setupVerified = true;
+						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
+							handlePublicPluginApiRoute,
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
@@ -496,6 +499,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Plugin routes
 					handlePluginApiRoute: runtime.handlePluginApiRoute.bind(runtime),
+					handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
 					getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
 
 					// Media provider methods

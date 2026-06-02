@@ -1,0 +1,139 @@
+name: Bot Cleanup
+
+# Two ingress paths:
+#  - issues.closed: drop the bot branches for that issue immediately.
+#  - daily cron:    sweep `bot/artifacts-*` branches older than 90 days.
+#
+# Both jobs use the app token so deletions land as the bot identity (not
+# whoever closed the issue).
+
+on:
+  issues:
+    types: [closed]
+  schedule:
+    # 04:00 UTC daily. Off-peak for most contributors.
+    - cron: "0 4 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bot-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup-on-close:
+    name: Delete bot branches when an issue closes
+    if: github.event_name == 'issues' && github.event.issue.pull_request == null
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: emdash-cms
+          repositories: emdash
+          permission-contents: write
+          # Read-only PR scope so we can `gh pr list --head bot/fix-N`
+          # before deleting the branch -- protects an open bot-opened
+          # PR from being orphaned when an issue is closed without
+          # merging.
+          permission-pull-requests: read
+
+      - name: Delete bot branches for closed issue
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          FIX_BRANCH="bot/fix-${ISSUE_NUMBER}"
+          ART_BRANCH="bot/artifacts-${ISSUE_NUMBER}"
+
+          # bot/fix-N MAY have an open PR pointing at it (the bot
+          # opens one after `triage/verified`). Deleting the ref would
+          # invalidate that PR. Two close paths to worry about:
+          #
+          #  - PR merged -> issue auto-closes via "Closes #N" -> we
+          #    fire here. The PR is closed; deleting the now-unused
+          #    ref is fine. GitHub may have already deleted it.
+          #  - Maintainer manually closes the issue ("won't fix",
+          #    "stale", etc.) while the bot PR is still open. We
+          #    must NOT delete the ref -- it would close the PR
+          #    silently and lose the bot's work with no recovery.
+          OPEN_PR_COUNT="$(gh pr list \
+            --repo emdash-cms/emdash \
+            --head "$FIX_BRANCH" \
+            --state open \
+            --json number \
+            --jq 'length' 2>/dev/null || echo 0)"
+
+          if [[ "$OPEN_PR_COUNT" != "0" ]]; then
+            echo "::notice::skipping ${FIX_BRANCH} deletion: ${OPEN_PR_COUNT} open PR(s) reference it"
+          else
+            ENCODED="${FIX_BRANCH//\//%2F}"
+            STATUS="$(gh api -X DELETE "repos/emdash-cms/emdash/git/refs/heads/${ENCODED}" \
+              --silent -i 2>/dev/null | head -n 1 || true)"
+            echo "DELETE ${FIX_BRANCH}: ${STATUS:-no response}"
+          fi
+
+          # bot/artifacts-N is never the head of any PR (it's an
+          # orphan branch with screenshots only). Always safe to delete.
+          ENCODED="${ART_BRANCH//\//%2F}"
+          STATUS="$(gh api -X DELETE "repos/emdash-cms/emdash/git/refs/heads/${ENCODED}" \
+            --silent -i 2>/dev/null | head -n 1 || true)"
+          echo "DELETE ${ART_BRANCH}: ${STATUS:-no response}"
+
+  cleanup-daily:
+    name: Prune stale artifact branches
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: emdash-cms
+          repositories: emdash
+          permission-contents: write
+
+      - name: Sweep stale artifacts branches
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          CUTOFF="$(date -u -d '90 days ago' +%s 2>/dev/null || date -u -v-90d +%s)"
+          # Paginated branch list; filter to bot/artifacts-* in jq.
+          BRANCHES="$(gh api "repos/emdash-cms/emdash/branches" --paginate \
+            --jq '.[] | select(.name | startswith("bot/artifacts-")) | .name')"
+          if [[ -z "$BRANCHES" ]]; then
+            echo "No bot/artifacts-* branches found."
+            exit 0
+          fi
+          while IFS= read -r NAME; do
+            [[ -z "$NAME" ]] && continue
+            ENCODED="${NAME//\//%2F}"
+            DATE="$(gh api "repos/emdash-cms/emdash/branches/${ENCODED}" \
+              --jq '.commit.commit.committer.date' 2>/dev/null || true)"
+            if [[ -z "$DATE" ]]; then
+              echo "Skipping ${NAME}: could not read commit date."
+              continue
+            fi
+            TS="$(date -u -d "$DATE" +%s 2>/dev/null || date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$DATE" +%s)"
+            if (( TS < CUTOFF )); then
+              echo "Deleting ${NAME} (committed ${DATE})"
+              gh api -X DELETE "repos/emdash-cms/emdash/git/refs/heads/${ENCODED}" --silent || \
+                echo "  delete failed for ${NAME} (already gone?)"
+            else
+              echo "Keeping ${NAME} (committed ${DATE})"
+            fi
+          done <<<"$BRANCHES"

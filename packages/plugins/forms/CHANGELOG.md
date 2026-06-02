@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.3
+
+### Patch Changes
+
+- [#985](https://github.com/emdash-cms/emdash/pull/985) [`5456514`](https://github.com/emdash-cms/emdash/commit/54565143205035e475dabb16075e09ade046a74c) Thanks [@ppppangu](https://github.com/ppppangu)! - Fixes public form embeds during SSR by allowing frontend plugin components to call public plugin routes without self-fetching.
+
 ## 0.2.2
 
 ### Patch Changes

@@ -1353,7 +1353,7 @@ function PluginBlockModal({
 			<Dialog className="p-6" size={dialogSize}>
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{isEditing ? t`Edit` : t`Insert`} {block?.label || ""}
+						{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
 					</Dialog.Title>
 					<Dialog.Close
 						aria-label={t`Close`}

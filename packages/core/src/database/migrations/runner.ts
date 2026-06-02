@@ -107,16 +107,28 @@ export interface MigrationStatus {
 const MIGRATION_TABLE = "_emdash_migrations";
 const MIGRATION_LOCK_TABLE = "_emdash_migrations_lock";
 
-/**
- * Get migration status
- */
-export async function getMigrationStatus(db: Kysely<Database>): Promise<MigrationStatus> {
-	const migrator = new Migrator({
+export interface MigrationOptions {
+	migrationTableSchema?: string;
+}
+
+function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
+	return new Migrator({
 		db,
 		provider: new StaticMigrationProvider(),
 		migrationTableName: MIGRATION_TABLE,
 		migrationLockTableName: MIGRATION_LOCK_TABLE,
+		migrationTableSchema: options?.migrationTableSchema,
 	});
+}
+
+/**
+ * Get migration status
+ */
+export async function getMigrationStatus(
+	db: Kysely<Database>,
+	options?: MigrationOptions,
+): Promise<MigrationStatus> {
+	const migrator = createMigrator(db, options);
 
 	const migrations = await migrator.getMigrations();
 
@@ -274,24 +286,24 @@ function deepErrorMessage(error: unknown): string {
  * success. This matches the user-observable expectation that running
  * migrations twice in a row is a no-op.
  */
-export async function runMigrations(db: Kysely<Database>): Promise<{ applied: string[] }> {
+export async function runMigrations(
+	db: Kysely<Database>,
+	options?: MigrationOptions,
+): Promise<{ applied: string[] }> {
 	// Fast path: check if all migrations are already applied.
 	// A single cheap query vs the Migrator's full schema introspection.
 	// We use `>=` rather than `===` so a database with extra rows from a
 	// newer build (e.g. mid-deploy old isolate, or downgrade) still skips
 	// the migrator instead of falling through to the race-recovery path
 	// unnecessarily.
-	const initialCount = await getAppliedMigrationCount(db);
-	if (initialCount !== null && initialCount >= MIGRATION_COUNT) {
-		return { applied: [] };
+	if (!options?.migrationTableSchema) {
+		const initialCount = await getAppliedMigrationCount(db);
+		if (initialCount !== null && initialCount >= MIGRATION_COUNT) {
+			return { applied: [] };
+		}
 	}
 
-	const migrator = new Migrator({
-		db,
-		provider: new StaticMigrationProvider(),
-		migrationTableName: MIGRATION_TABLE,
-		migrationLockTableName: MIGRATION_LOCK_TABLE,
-	});
+	const migrator = createMigrator(db, options);
 
 	const { error, results } = await migrator.migrateToLatest();
 
@@ -325,13 +337,9 @@ export async function runMigrations(db: Kysely<Database>): Promise<{ applied: st
  */
 export async function rollbackMigration(
 	db: Kysely<Database>,
+	options?: MigrationOptions,
 ): Promise<{ rolledBack: string | null }> {
-	const migrator = new Migrator({
-		db,
-		provider: new StaticMigrationProvider(),
-		migrationTableName: MIGRATION_TABLE,
-		migrationLockTableName: MIGRATION_LOCK_TABLE,
-	});
+	const migrator = createMigrator(db, options);
 
 	const { error, results } = await migrator.migrateDown();
 

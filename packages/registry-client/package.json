@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/registry-client",
-	"version": "0.1.0",
+	"version": "0.3.0",
 	"description": "Atproto-aware client for the EmDash plugin registry: credential storage, publisher repo operations, and discovery against an aggregator.",
 	"type": "module",
 	"main": "dist/index.js",
@@ -20,6 +20,10 @@
 		"./discovery": {
 			"types": "./dist/discovery/index.d.ts",
 			"default": "./dist/discovery/index.js"
+		},
+		"./env": {
+			"types": "./dist/env/index.d.ts",
+			"default": "./dist/env/index.js"
 		}
 	},
 	"files": [
@@ -37,11 +41,13 @@
 		"@atcute/atproto": "catalog:",
 		"@atcute/client": "catalog:",
 		"@atcute/lexicons": "catalog:",
-		"@emdash-cms/registry-lexicons": "workspace:*"
+		"@emdash-cms/registry-lexicons": "workspace:*",
+		"semver": "catalog:"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
 		"@types/node": "catalog:",
+		"@types/semver": "catalog:",
 		"publint": "catalog:",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",
