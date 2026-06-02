@@ -357,7 +357,9 @@ function TermFormDialog({
 					<div className="flex items-start justify-between gap-4 mb-4">
 						<div className="flex flex-col space-y-1.5">
 							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{term ? t`Edit` : t`Add`} {taxonomyDef.labelSingular || t`Term`}
+								{term
+									? t`Edit ${taxonomyDef.labelSingular || t`Term`}`
+									: t`Add ${taxonomyDef.labelSingular || t`Term`}`}
 							</Dialog.Title>
 							<Dialog.Description className="text-sm text-kumo-subtle">
 								{term
@@ -809,7 +811,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 						{t`New Taxonomy`}
 					</Button>
 					<Button icon={<Plus />} onClick={() => setFormOpen(true)}>
-						{t`Add`} {taxonomyDef.labelSingular || t`Term`}
+						{t`Add ${taxonomyDef.labelSingular || t`Term`}`}
 					</Button>
 				</div>
 			</div>

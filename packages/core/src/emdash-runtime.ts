@@ -2048,6 +2048,7 @@ export class EmDashRuntime {
 		return {
 			version: VERSION,
 			commit: COMMIT,
+			astroVersion: this.config.astroVersion,
 			hash: manifestHash,
 			collections: manifestCollections,
 			plugins: manifestPlugins,

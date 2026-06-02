@@ -1,0 +1,579 @@
+name: Investigate
+
+# Runs the Flue-based investigation agent when a maintainer applies the
+# `bot:repro` label to an issue. The agent reproduces the bug (and may push a
+# fix branch). The orchestrator (this workflow) performs all GitHub writes
+# based on the agent's structured JSON output.
+#
+# Also accepts workflow_dispatch so the reporter-reply workflow can re-trigger
+# investigation when the reporter says the first attempt missed something.
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issueNumber:
+        description: "Issue number to investigate"
+        required: true
+        type: string
+      retryContext:
+        description: "Reporter feedback from previous attempt"
+        required: false
+        type: string
+
+# Default-deny at workflow level. The job below opens up only what it needs.
+permissions:
+  contents: read
+
+jobs:
+  investigate:
+    name: Investigate issue
+    # Gate on label name (only `bot:repro`) for the labeled path, or always
+    # run for workflow_dispatch. Also skip if the labeled "issue" is actually
+    # a PR (issues.labeled fires for PRs too).
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event.label.name == 'bot:repro' && github.event.issue.pull_request == null)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Serialize per-issue. Don't cancel in-flight runs -- partial state is
+    # worse than a queue, since the agent may have already pushed branches.
+    concurrency:
+      group: investigate-${{ github.event.issue.number || inputs.issueNumber }}
+      cancel-in-progress: false
+    # Sandbox token (GITHUB_TOKEN) is intentionally read-only. All writes use
+    # the minted app token from the step below.
+    permissions:
+      # Sandbox bash gets this via AGENT_GH_TOKEN; just enough to clone and
+      # read issues, never enough to comment, label, or push.
+      contents: read
+      issues: read
+    # Hoist commonly used workflow context into env so shell steps can
+    # reference $RUN_URL etc. without raw `${{ ... }}` expansions, which
+    # zizmor flags as template injection. The values themselves are
+    # trustworthy here (`github.run_id`, `github.repository`, etc.) but
+    # the pattern is the recommended fix.
+    env:
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: emdash-cms
+          repositories: emdash
+          permission-issues: write
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Resolve issue context
+        id: ctx
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          LABEL_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          DISPATCH_ISSUE_NUMBER: ${{ inputs.issueNumber }}
+          LABEL_ISSUE_TITLE: ${{ github.event.issue.title }}
+          LABEL_ISSUE_BODY: ${{ github.event.issue.body }}
+          LABEL_ISSUE_REPORTER: ${{ github.event.issue.user.login }}
+          RETRY_CONTEXT: ${{ inputs.retryContext }}
+        run: |
+          set -euo pipefail
+          # The issue body and retry context are attacker-controllable
+          # multiline strings. Writing them to $GITHUB_OUTPUT with a
+          # fixed heredoc delimiter is a step-output injection vector:
+          # a body containing the delimiter would terminate the heredoc
+          # and let the attacker forge subsequent outputs. Avoid
+          # putting them in step outputs at all -- write to /tmp files
+          # that later steps read directly.
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            NUM="$DISPATCH_ISSUE_NUMBER"
+            gh api "/repos/emdash-cms/emdash/issues/${NUM}" > /tmp/issue.json
+            TITLE="$(jq -r '.title // ""' /tmp/issue.json | tr -d '\r\n')"
+            REPORTER="$(jq -r '.user.login // ""' /tmp/issue.json | tr -d '\r\n')"
+            jq -r '.body // ""' /tmp/issue.json > /tmp/ctx-body.txt
+            printf '%s' "$RETRY_CONTEXT" > /tmp/ctx-retry.txt
+          else
+            NUM="$LABEL_ISSUE_NUMBER"
+            TITLE="$(printf '%s' "$LABEL_ISSUE_TITLE" | tr -d '\r\n')"
+            REPORTER="$(printf '%s' "$LABEL_ISSUE_REPORTER" | tr -d '\r\n')"
+            printf '%s' "$LABEL_ISSUE_BODY" > /tmp/ctx-body.txt
+            : > /tmp/ctx-retry.txt
+          fi
+          # Validate scalar fields are simple before they hit step
+          # outputs. Issue numbers are integers; logins match a tight
+          # regex. Anything weird produces a hard fail rather than a
+          # silent injection.
+          if ! [[ "$NUM" =~ ^[0-9]+$ ]]; then
+            echo "::error::invalid issue number: $NUM"
+            exit 1
+          fi
+          if ! [[ "$REPORTER" =~ ^[a-zA-Z0-9-]{0,39}$ ]]; then
+            echo "::error::invalid reporter login: $REPORTER"
+            exit 1
+          fi
+          # Titles can include arbitrary unicode; cap length and strip
+          # control characters. They are never executed, but they do
+          # get echoed into markdown comments.
+          TITLE_CLEAN="$(printf '%s' "$TITLE" | LC_ALL=C tr -d '\000-\037\177' | cut -c1-256)"
+          {
+            echo "number=${NUM}"
+            echo "title=${TITLE_CLEAN}"
+            echo "reporter=${REPORTER}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Transition label to triage/reproducing
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+        run: |
+          set -euo pipefail
+          # Remove any existing bot:* label; swallow 404s (label may not be present).
+          for L in bot:repro triage/reproducing triage/reproduced triage/by-design triage/awaiting-reporter triage/verified triage/not-reproduced triage/skipped triage/failed; do
+            gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "$L" >/dev/null 2>&1 || true
+          done
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --add-label "triage/reproducing"
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: "package.json"
+          cache: "pnpm"
+
+      # The repro-admin and repro-public skills drive a real browser via
+      # `bgproc` (boots `pnpm dev`) and `agent-browser`. They
+      # are not project dependencies, so install them globally here rather
+      # than letting the agent burn tokens discovering and self-installing
+      # them mid-run. PATH is inherited by the agent's local() sandbox, so
+      # these land on the agent's bash PATH. `agent-browser install`
+      # fetches the browser binary.
+      - name: Install browser automation tools
+        run: |
+          npm install -g bgproc agent-browser
+          agent-browser install
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Flue agent dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: .flue
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Build agent payload
+        id: payload
+        env:
+          ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+          ISSUE_TITLE: ${{ steps.ctx.outputs.title }}
+        run: |
+          set -euo pipefail
+          # Body and retry context come from /tmp files written by the
+          # ctx step, not $GITHUB_OUTPUT -- $GITHUB_OUTPUT with a fixed
+          # heredoc delimiter is a step-output injection vector when
+          # the content is attacker-controlled (issue body, retry text).
+          # jq --rawfile reads the file directly, so we never have to
+          # quote or escape the content in shell.
+          PAYLOAD="$(jq -nc \
+            --argjson n "$ISSUE_NUMBER" \
+            --arg t "$ISSUE_TITLE" \
+            --rawfile b /tmp/ctx-body.txt \
+            --rawfile r /tmp/ctx-retry.txt \
+            '{issueNumber: $n, issueTitle: $t, issueBody: $b, owner: "emdash-cms", repo: "emdash"} + (if $r == "" then {} else {retryContext: $r} end)')"
+          # Write payload to file rather than $GITHUB_OUTPUT to avoid the
+          # 1MB output cap on large issue bodies and to keep raw JSON out
+          # of step logs.
+          printf '%s' "$PAYLOAD" > /tmp/agent-payload.json
+          echo "path=/tmp/agent-payload.json" >> "$GITHUB_OUTPUT"
+
+      - name: Run Flue investigate agent
+        id: agent
+        timeout-minutes: 50
+        # Sandbox token is the workflow-scoped GITHUB_TOKEN (read-only here).
+        # Orchestrator token is the app token. The agent's local() sandbox
+        # picks up AGENT_GH_TOKEN as GH_TOKEN; the orchestrator token is
+        # intentionally NOT exposed to the sandbox.
+        env:
+          AGENT_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORCHESTRATOR_GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
+          CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+          # The workflow writes its assembled result here on clean
+          # completion; the parse step reads it directly instead of
+          # scraping the result back out of stdout.
+          INVESTIGATE_RESULT_PATH: /tmp/agent-result.json
+        run: |
+          set -o pipefail
+          PAYLOAD="$(cat /tmp/agent-payload.json)"
+          # Sanity-check what the agent's session will see. Flue reads
+          # AGENTS.md from the sandbox cwd (repo root) at session init;
+          # if it is missing here the agent starts with no repo context.
+          echo "agent cwd: $(pwd)"
+          echo "AGENTS.md at cwd: $([ -f AGENTS.md ] && echo present || echo MISSING)"
+          set +e
+          # `flue run` writes structured log events and the workflow
+          # result to stdout, and human-readable progress to stderr. Tee
+          # stderr to both the workflow log (so progress is visible live,
+          # not just dumped at end-of-step) and a file, while keeping
+          # stdout clean for the JSON parse step.
+          # Run `flue run` from the repo root (not from .flue/). Two
+          # reasons:
+          #   1. Flue resolves `--root .flue` relative to the caller's
+          #      cwd. `pnpm --dir .flue` would compose to `.flue/.flue`
+          #      and the build fails with "No agent or workflow files
+          #      found." (Observed on the first live run.)
+          #   2. The agent's `local()` sandbox inherits process.cwd()
+          #      as its working directory. We want that to be the
+          #      EmDash repo root so the agent's bash tool can `pnpm
+          #      test`, `git`, `gh issue view`, etc. against the
+          #      EmDash checkout.
+          #
+          # Invoke the flue binary directly from .flue/'s installed
+          # node_modules; pnpm's `--dir` semantics are exactly what
+          # broke us originally.
+          .flue/node_modules/.bin/flue run investigate \
+            --target node \
+            --root .flue \
+            --payload "$PAYLOAD" \
+            > /tmp/agent-stdout.json 2> >(tee /tmp/agent-stderr.log >&2)
+          EXIT=$?
+          set -e
+          echo "exit=$EXIT" >> "$GITHUB_OUTPUT"
+          echo "--- agent stdout (first 200 lines) ---"
+          head -n 200 /tmp/agent-stdout.json || true
+          echo "--- end preview ---"
+
+      - name: Parse agent result
+        if: always()
+        id: parse
+        env:
+          AGENT_EXIT: ${{ steps.agent.outputs.exit }}
+        run: |
+          set -euo pipefail
+          # The workflow writes its assembled result to
+          # /tmp/agent-result.json (INVESTIGATE_RESULT_PATH) on clean
+          # completion. A non-zero exit or a missing/empty file means the
+          # run did not finish -- treat it as failed.
+          if [[ "${AGENT_EXIT:-1}" != "0" ]] || [[ ! -s /tmp/agent-result.json ]]; then
+            echo "outcome=failed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Defensive: confirm the file is a single JSON object before the
+          # downstream `jq` reads. The workflow controls this file, so a
+          # malformed one indicates a bug, not adversarial input.
+          if ! jq -e 'type == "object"' /tmp/agent-result.json >/dev/null 2>&1; then
+            echo "::warning::result file is not a JSON object"
+            echo "outcome=failed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          SKIPPED="$(jq -r '.skipped // false' /tmp/agent-result.json)"
+          REPRODUCED="$(jq -r '.reproduced // false' /tmp/agent-result.json)"
+          FIXED="$(jq -r '.fixed // false' /tmp/agent-result.json)"
+          VERDICT="$(jq -r '.verdict // ""' /tmp/agent-result.json)"
+
+          if [[ "$SKIPPED" == "true" ]]; then
+            OUTCOME=skipped
+          elif [[ "$REPRODUCED" != "true" ]]; then
+            OUTCOME=not-reproduced
+          elif [[ "$FIXED" == "true" ]]; then
+            OUTCOME=fixed
+          elif [[ "$VERDICT" == "intended-behavior" ]]; then
+            OUTCOME=intended-behavior
+          else
+            OUTCOME=reproduced
+          fi
+          echo "outcome=$OUTCOME" >> "$GITHUB_OUTPUT"
+
+      # ----- Outcome branches: skipped -----
+
+      - name: Handle skipped
+        if: steps.parse.outputs.outcome == 'skipped'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+        run: |
+          set -euo pipefail
+          REASON="$(jq -r '.reason // .notes // "No reason provided."' /tmp/agent-result.json)"
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/skipped"
+          {
+            echo "The investigation bot declined to reproduce this issue."
+            echo
+            echo "**Reason:** ${REASON}"
+            echo
+            echo "<sub>Run: $RUN_URL</sub>"
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+
+      # ----- Outcome branches: not-reproduced -----
+
+      - name: Handle not-reproduced
+        if: steps.parse.outputs.outcome == 'not-reproduced'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+        run: |
+          set -euo pipefail
+          ATTEMPTS="$(jq -r '.attempts // "The bot tried the steps described in the issue but could not trigger the bug."' /tmp/agent-result.json)"
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/not-reproduced"
+          {
+            echo "The investigation bot could not reproduce this issue."
+            echo
+            echo "**What was tried:**"
+            echo
+            echo "${ATTEMPTS}"
+            echo
+            echo "If you can share a minimal reproduction (failing test, repo, or video), please add it and a maintainer can re-trigger the bot."
+            echo
+            echo "<sub>Run: $RUN_URL</sub>"
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+
+      # ----- Outcome branches: reproduced but verdict is intended-behavior -----
+
+      - name: Handle reproduced (intended-behavior)
+        if: steps.parse.outputs.outcome == 'intended-behavior'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+        run: |
+          set -euo pipefail
+          NOTES="$(jq -r '.notes // ""' /tmp/agent-result.json)"
+          # `triage/by-design` (not `triage/reproduced`): the bot
+          # reproduced the described behavior but believes it is
+          # intentional. This is a "likely close / convert to discussion"
+          # signal, the opposite follow-up from a confirmed bug, so it
+          # gets its own label rather than sharing triage/reproduced.
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/by-design"
+          {
+            echo "The investigation bot reproduced the described behavior, but it appears to be intended."
+            echo
+            echo "**Analysis:**"
+            echo
+            echo "${NOTES}"
+            echo
+            echo "A maintainer will follow up to confirm whether this is a bug or a documentation/UX gap."
+            echo
+            echo "<sub>Run: $RUN_URL</sub>"
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+
+      # ----- Outcome branches: reproduced but no fix yet -----
+
+      - name: Handle reproduced (no fix)
+        if: steps.parse.outputs.outcome == 'reproduced'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+        run: |
+          set -euo pipefail
+          NOTES="$(jq -r '.notes // ""' /tmp/agent-result.json)"
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/reproduced"
+          {
+            echo "The investigation bot reproduced this issue."
+            echo
+            echo "${NOTES}"
+            echo
+            echo "A maintainer will pick up the fix from here."
+            echo
+            echo "<sub>Run: $RUN_URL</sub>"
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
+
+      # ----- Outcome branches: reproduced AND fixed -----
+
+      - name: Handle reproduced + fixed
+        if: steps.parse.outputs.outcome == 'fixed'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+          ISSUE_TITLE: ${{ steps.ctx.outputs.title }}
+          REPORTER: ${{ steps.ctx.outputs.reporter }}
+        run: |
+          set -euo pipefail
+          # Re-check issue state before any GitHub writes. The agent
+          # ran for up to 50 minutes; in that window the issue may
+          # have been closed (manually, or by bot-cleanup.yml on a
+          # different trigger). Pushing branches and commenting on a
+          # closed issue would be noise; bot-cleanup.yml would then
+          # leave a dangling branch the close trigger already missed.
+          ISSUE_STATE="$(gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}" --jq '.state')"
+          if [[ "$ISSUE_STATE" != "open" ]]; then
+            echo "::warning::issue #${ISSUE_NUMBER} is ${ISSUE_STATE}; skipping branch push and comment"
+            exit 0
+          fi
+          NOTES="$(jq -r '.notes // ""' /tmp/agent-result.json)"
+          COMMIT_MSG="$(jq -r '.commitMessage // ("fix: address #" + (.classification.summary // ""))' /tmp/agent-result.json)"
+          FIX_BRANCH="bot/fix-${ISSUE_NUMBER}"
+          ART_BRANCH="bot/artifacts-${ISSUE_NUMBER}"
+
+          # Build the screenshot markdown block. URLs point at the
+          # orphan artifact branch on the emdash repo, not this PR's
+          # branch.
+          #
+          # Defense in depth on the agent's structured output:
+          #   - filename: regex-validated against [a-zA-Z0-9._-]+, max
+          #     80 chars. Anything that fails is dropped from the
+          #     comment (the screenshot is still on the artifact
+          #     branch; just not rendered). Prevents URL injection
+          #     and path traversal.
+          #   - description: any `]`, `[`, `(`, `)`, `\` MD-escaped
+          #     with a `\` prefix so the alt-text span can't be
+          #     broken out of.
+          SHOTS_MD="$(jq -r --arg branch "$ART_BRANCH" '
+            def md_escape: gsub("([\\\\\\[\\]()])"; "\\\\\\1");
+            (.screenshots // [])
+              | map(select((.filename // "") | test("^[a-zA-Z0-9._-]{1,80}$")))
+              | map(
+                "![" + ((.description // .filename) | md_escape) + "](https://raw.githubusercontent.com/emdash-cms/emdash/" + $branch + "/.bot-artifacts/" + .filename + ")"
+              )
+              | join("\n\n")
+          ' /tmp/agent-result.json)"
+
+          # Configure git identity and a GIT_ASKPASS shim so the app
+          # token is never visible on a process command line.
+          git config --global user.name "emdashbot[bot]"
+          git config --global user.email "emdashbot[bot]@users.noreply.github.com"
+          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
+          printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
+          chmod +x "$GIT_ASKPASS"
+          ORIGIN_URL="https://x-access-token@github.com/emdash-cms/emdash.git"
+
+          # Commit the staged fix onto bot/fix-<n>. The agent did
+          # `git add -A` for the fix files (per skills/fix/SKILL.md);
+          # we move .bot-artifacts off the index before committing so
+          # screenshots never land on the fix branch.
+          git reset HEAD .bot-artifacts 2>/dev/null || true
+          git checkout -B "$FIX_BRANCH"
+          git commit -m "$COMMIT_MSG" || {
+            echo "::warning::no staged changes to commit on $FIX_BRANCH"
+          }
+          git remote remove emdash-fix-origin 2>/dev/null || true
+          git remote add emdash-fix-origin "$ORIGIN_URL"
+          # Plain --force is intentional: every bot run regenerates the
+          # fix from scratch on top of current main. Prior bot commits
+          # on this branch are discarded. --force-with-lease without a
+          # tracked remote ref would not protect anything here (we
+          # never fetched bot/fix-N), and using it would falsely
+          # signal we're protecting against concurrent edits.
+          git push --force emdash-fix-origin "HEAD:refs/heads/${FIX_BRANCH}"
+
+          # Push the artifact branch as an orphan with only the
+          # screenshots. Uses a separate working tree so we don't
+          # disturb the fix branch state.
+          if [[ -d .bot-artifacts ]] && [[ -n "$(ls -A .bot-artifacts 2>/dev/null)" ]]; then
+            ART_TMP="$RUNNER_TEMP/artifacts-${ISSUE_NUMBER}"
+            rm -rf "$ART_TMP"
+            mkdir -p "$ART_TMP/.bot-artifacts"
+            cp -r .bot-artifacts/. "$ART_TMP/.bot-artifacts/"
+            (
+              cd "$ART_TMP"
+              git init -q -b "$ART_BRANCH"
+              git config user.name "emdashbot[bot]"
+              git config user.email "emdashbot[bot]@users.noreply.github.com"
+              git add .bot-artifacts
+              git commit -q -m "screenshots for #${ISSUE_NUMBER}"
+              git remote add origin "$ORIGIN_URL"
+              git push --force origin "HEAD:refs/heads/${ART_BRANCH}"
+            )
+          fi
+
+          rm -f "$GIT_ASKPASS"
+
+          # Build the install command from the branch name. The
+          # preview-releases.yml workflow publishes a pkg.pr.new release on
+          # every push to bot/fix-*. pkg.pr.new keys branch resolution by the
+          # *full* branch name, so use "$FIX_BRANCH" verbatim -- stripping the
+          # "bot/" prefix (e.g. "fix-123") produces a URL that 404s.
+          INSTALL_CMD="npm i https://pkg.pr.new/emdash@${FIX_BRANCH}"
+
+          # ISO-8601 timestamp embedded in the comment as a hidden
+          # HTML marker. reporter-reply.yml uses this to verify that a
+          # negative or positive reply was posted AFTER this most-
+          # recent ask. Replies posted to an earlier ask (about a
+          # previous fix candidate) are ignored as stale.
+          ASK_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          {
+            echo "<!-- bot-ask: ${ASK_AT} -->"
+            echo "The investigation bot reproduced this issue and pushed a candidate fix."
+            echo
+            echo "${NOTES}"
+            echo
+            echo "**Try the fix** _(the preview release may take ~60s to publish after the bot pushes its branch -- if `npm i` 404s, wait a moment and retry)_:"
+            echo
+            echo '```bash'
+            echo "${INSTALL_CMD}"
+            echo '```'
+            echo
+            if [[ -n "$SHOTS_MD" ]]; then
+              echo "**Screenshots:**"
+              echo
+              echo "${SHOTS_MD}"
+              echo
+            fi
+            if [[ -n "$REPORTER" ]]; then
+              echo "@${REPORTER} could you try this and reply here with whether it resolves the issue? A simple \"yes, fixed\" or \"no, still broken\" is enough."
+            else
+              echo "Could the reporter please try this and reply with whether it resolves the issue?"
+            fi
+            echo
+            echo "Fix branch: \`${FIX_BRANCH}\` · Artifacts branch: \`${ART_BRANCH}\`"
+            echo
+            echo "<sub>Run: $RUN_URL</sub>"
+          } > /tmp/comment.md
+
+          # Order matters: post the ask comment FIRST, transition the
+          # label only after the comment succeeds. If we flipped to
+          # `triage/awaiting-reporter` before posting and the comment
+          # then failed, reporter-reply.yml would see an issue in the
+          # awaiting state with no current `bot-ask` marker, treat
+          # every future reply as stale, and the issue would be stuck
+          # until a maintainer noticed.
+          if ! gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md; then
+            echo "::warning::ask-comment post failed; transitioning to triage/failed instead of triage/awaiting-reporter"
+            gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash \
+              --remove-label "triage/reproducing" --add-label "triage/failed" || true
+            exit 1
+          fi
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash \
+            --remove-label "triage/reproducing" --add-label "triage/awaiting-reporter"
+
+      # ----- Outcome branches: agent failed / no parseable result -----
+
+      - name: Handle agent failure
+        if: failure() || steps.parse.outputs.outcome == 'failed'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${ISSUE_NUMBER:-}" ]]; then
+            echo "No issue number resolved; nothing to comment on."
+            exit 0
+          fi
+          gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/failed" || true
+          {
+            echo "The investigation bot ran into a problem and could not complete."
+            echo
+            echo "A maintainer can re-trigger by removing and re-applying the \`bot:repro\` label."
+            echo
+            echo "<sub>Run: $RUN_URL</sub>"
+          } > /tmp/comment.md
+          gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md || true

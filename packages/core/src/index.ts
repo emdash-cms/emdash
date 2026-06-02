@@ -128,6 +128,8 @@ export type {
 	ResolvePathResult,
 	TranslationSummary,
 	TranslationsResult,
+	WhereRange,
+	WhereValue,
 } from "./query.js";
 
 // Request context (ALS-based ambient state for query functions)
