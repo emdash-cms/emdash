@@ -271,9 +271,16 @@ jobs:
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_KEY: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          # The workflow writes its result here; we read it directly instead of
+          # scraping `flue run`'s stdout, which interleaves build-log lines and
+          # pretty-prints the result -- both defeat line/slurp parsing and
+          # silently default every reply to `unclear`. Same handoff as
+          # investigate.yml's INVESTIGATE_RESULT_PATH.
+          CLASSIFY_RESULT_PATH: /tmp/classify-result.json
         run: |
           set -o pipefail
           PAYLOAD="$(cat /tmp/classify-payload.json)"
+          rm -f /tmp/classify-result.json
           set +e
           # See investigate.yml's "Run Flue investigate agent" step
           # for why we invoke the binary directly rather than via
@@ -285,34 +292,20 @@ jobs:
             > /tmp/classify-stdout.json 2> /tmp/classify-stderr.log
           EXIT=$?
           set -e
-          if [[ $EXIT -ne 0 ]] || [[ ! -s /tmp/classify-stdout.json ]]; then
-            echo "::warning::classifier exit=${EXIT}; defaulting to unclear"
+          : > /tmp/classify-reasoning.txt
+          # A clean run writes a single JSON object to the result file. A
+          # non-zero exit, a missing file, or a non-object means the run did
+          # not finish -- default to unclear (which re-asks, never acts).
+          if [[ $EXIT -ne 0 ]] || [[ ! -s /tmp/classify-result.json ]] || ! jq -e 'type == "object"' /tmp/classify-result.json >/dev/null 2>&1; then
+            echo "::warning::classifier exit=${EXIT} or no result file; defaulting to unclear"
             tail -n 50 /tmp/classify-stderr.log || true
             echo "classification=unclear" >> "$GITHUB_OUTPUT"
-            : > /tmp/classify-reasoning.txt
-            exit 0
-          fi
-          # Same robust parse as investigate.yml: prefer the last JSON
-          # object line; fall back to slurp parse for multi-line JSON.
-          RESULT=""
-          while IFS= read -r line; do
-            if printf '%s' "$line" | jq -e 'type == "object"' >/dev/null 2>&1; then
-              RESULT="$line"
-            fi
-          done < /tmp/classify-stdout.json
-          if [[ -z "$RESULT" ]]; then
-            RESULT="$(jq -cs 'map(select(type == "object")) | last // empty' < /tmp/classify-stdout.json 2>/dev/null || true)"
-          fi
-          if [[ -z "$RESULT" ]] || [[ "$RESULT" == "null" ]]; then
-            echo "classification=unclear" >> "$GITHUB_OUTPUT"
-            : > /tmp/classify-reasoning.txt
             exit 0
           fi
           # Whitelist the classification value -- the gate has to be a
           # known enum or we treat it as unclear. Defends against the
-          # model returning an unexpected value, AND against any path
-          # where the value would leak into a heredoc body.
-          CLASS_RAW="$(jq -r '.classification // "unclear"' <<<"$RESULT" | tr -d '\r\n')"
+          # model returning an unexpected value.
+          CLASS_RAW="$(jq -r '.classification // "unclear"' /tmp/classify-result.json | tr -d '\r\n')"
           case "$CLASS_RAW" in
             positive|negative|unclear) CLASS="$CLASS_RAW" ;;
             *) CLASS="unclear" ;;
@@ -322,7 +315,7 @@ jobs:
           # $GITHUB_OUTPUT -- a heredoc with a fixed delimiter would be
           # a step-output injection vector if the reasoning contained
           # the delimiter on its own line.
-          jq -r '.reasoning // ""' <<<"$RESULT" > /tmp/classify-reasoning.txt
+          jq -r '.reasoning // ""' /tmp/classify-result.json > /tmp/classify-reasoning.txt
           echo "classification=${CLASS}" >> "$GITHUB_OUTPUT"
 
       # Collapse the two classification sources into one output the

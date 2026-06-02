@@ -10,7 +10,12 @@
 
 import type { FlueContext } from "@flue/runtime";
 
-import { classifier, maintainerIntentSchema, type MaintainerIntent } from "../lib/classifier.js";
+import {
+	classifier,
+	maintainerIntentSchema,
+	persistClassifierResult,
+	type MaintainerIntent,
+} from "../lib/classifier.js";
 
 interface ClassifyMaintainerReplyPayload {
 	issueNumber: number;
@@ -69,5 +74,5 @@ export async function run({
 		issueNumber: payload.issueNumber,
 		intent: data.intent,
 	});
-	return data;
+	return persistClassifierResult(data);
 }

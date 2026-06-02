@@ -12,6 +12,7 @@ import type { FlueContext } from "@flue/runtime";
 
 import {
 	classifier,
+	persistClassifierResult,
 	replyClassificationSchema,
 	type ReplyClassification,
 } from "../lib/classifier.js";
@@ -68,5 +69,5 @@ export async function run({
 		issueNumber: payload.issueNumber,
 		classification: data.classification,
 	});
-	return data;
+	return persistClassifierResult(data);
 }
