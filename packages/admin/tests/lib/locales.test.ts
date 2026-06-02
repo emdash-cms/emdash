@@ -1,7 +1,5 @@
 import { describe, expect, test } from "vitest";
 
-// @ts-expect-error - raw Vite asset import for browser test environment
-import indonesianCatalog from "../../src/locales/id/messages.po?raw";
 import {
 	DEFAULT_LOCALE,
 	getLocaleDir,
@@ -22,13 +20,6 @@ for (const { code } of SUPPORTED_LOCALES) {
 test("loadMessages falls back to English for unknown locale", async () => {
 	const [fallback, english] = await Promise.all([loadMessages("xx"), loadMessages("en")]);
 	expect(fallback).toEqual(english);
-});
-
-test("Indonesian catalog has no untranslated entries", () => {
-	const untranslated = [
-		...indonesianCatalog.matchAll(/\nmsgid "(?!")(?:[^"\\]|\\.)+"\nmsgstr ""\n\n/g),
-	].length;
-	expect(untranslated).toBe(0);
 });
 
 // -- getLocaleDir ----------------------------------------------------------
@@ -124,10 +115,6 @@ describe("resolveLocale", () => {
 
 	test("matches exact accept-language tag with region (zh-TW)", () => {
 		expect(resolveLocale(makeRequest({ "accept-language": "zh-TW" }))).toBe("zh-TW");
-	});
-
-	test("maps Indonesian regional tags to canonical id locale", () => {
-		expect(resolveLocale(makeRequest({ "accept-language": "id-ID" }))).toBe("id");
 	});
 
 	test("matches Traditional Chinese script tag (zh-Hant -> zh-TW)", () => {

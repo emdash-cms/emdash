@@ -26,7 +26,7 @@ import type {
 	Redirect,
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
-import { cn, formatDate } from "../lib/utils.js";
+import { cn } from "../lib/utils.js";
 import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -227,7 +227,7 @@ function NotFoundPanel({
 					<div className="w-32 text-kumo-subtle text-xs">
 						{(() => {
 							const d = new Date(item.lastSeen);
-							return Number.isNaN(d.getTime()) ? item.lastSeen : formatDate(d);
+							return Number.isNaN(d.getTime()) ? item.lastSeen : d.toLocaleDateString();
 						})()}
 					</div>
 					<div className="w-8">

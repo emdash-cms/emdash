@@ -20,7 +20,6 @@ import {
 	type ApiTokenCreateResult,
 	type ApiTokenScopeValue,
 } from "../../lib/api/api-tokens.js";
-import { formatDate } from "../../lib/utils.js";
 import { getMutationError } from "../DialogError.js";
 import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
@@ -284,14 +283,18 @@ export function ApiTokenSettings() {
 									<div className="flex gap-3 mt-1 text-xs text-kumo-subtle">
 										<span>{t(msg`Scopes: ${token.scopes.join(", ")}`)}</span>
 										{token.expiresAt && (
-											<span>{t(msg`Expires ${formatDate(token.expiresAt)}`)}</span>
+											<span>
+												{t(msg`Expires ${new Date(token.expiresAt).toLocaleDateString()}`)}
+											</span>
 										)}
 										{token.lastUsedAt && (
-											<span>{t(msg`Last used ${formatDate(token.lastUsedAt)}`)}</span>
+											<span>
+												{t(msg`Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`)}
+											</span>
 										)}
 									</div>
 									<div className="text-xs text-kumo-subtle mt-0.5">
-										{t(msg`Created ${formatDate(token.createdAt)}`)}
+										{t(msg`Created ${new Date(token.createdAt).toLocaleDateString()}`)}
 									</div>
 								</div>
 

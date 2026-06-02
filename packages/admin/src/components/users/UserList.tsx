@@ -4,7 +4,7 @@ import { MagnifyingGlass, UserPlus, Prohibit, CheckCircle } from "@phosphor-icon
 import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
-import { cn, formatDate } from "../../lib/utils";
+import { cn } from "../../lib/utils";
 import { RoleBadge } from "./RoleBadge";
 import { useRolesConfig } from "./useRolesConfig.js";
 
@@ -182,7 +182,7 @@ interface UserListRowProps {
 function UserListRow({ user, onSelect }: UserListRowProps) {
 	const displayName = user.name || user.email;
 	const { t } = useLingui();
-	const lastLogin = user.lastLogin ? formatDate(user.lastLogin) : t`Never`;
+	const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : t`Never`;
 
 	return (
 		<tr className="hover:bg-kumo-tint/25 cursor-pointer" onClick={onSelect}>

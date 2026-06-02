@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchRevisions, restoreRevision, type Revision } from "../lib/api";
-import { formatDateTime, formatRelativeTime } from "../lib/utils";
+import { formatRelativeTime } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 // =============================================================================
@@ -85,7 +85,7 @@ interface RevisionHistoryProps {
  * Format a date as a full timestamp
  */
 function formatFullDate(dateString: string): string {
-	return formatDateTime(dateString, {
+	return new Date(dateString).toLocaleString(undefined, {
 		weekday: "short",
 		year: "numeric",
 		month: "short",

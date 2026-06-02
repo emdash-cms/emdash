@@ -17,7 +17,7 @@ import type {
 	CommentStatus,
 	BulkAction,
 } from "../../lib/api/comments.js";
-import { cn, formatDate } from "../../lib/utils.js";
+import { cn } from "../../lib/utils.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { CommentDetail } from "./CommentDetail.js";
@@ -476,7 +476,9 @@ function CommentRow({
 					<span className="font-medium">{comment.collection}</span>
 				</div>
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle whitespace-nowrap">{formatDate(date)}</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle whitespace-nowrap">
+				{date.toLocaleDateString()}
+			</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end gap-1">
 					{comment.status !== "approved" && (

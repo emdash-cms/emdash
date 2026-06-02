@@ -1,19 +1,6 @@
-import { i18n } from "@lingui/core";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
-import {
-	cn,
-	formatDate,
-	formatDateTime,
-	formatNumber,
-	formatRelativeTime,
-	slugify,
-} from "../../src/lib/utils";
-
-afterEach(() => {
-	vi.useRealTimers();
-	i18n.loadAndActivate({ locale: "en", messages: {} });
-});
+import { cn, slugify } from "../../src/lib/utils";
 
 describe("slugify", () => {
 	it("converts basic text to slug", () => {
@@ -73,37 +60,5 @@ describe("cn", () => {
 
 	it("handles undefined and null", () => {
 		expect(cn("foo", undefined, null, "bar")).toBe("foo bar");
-	});
-});
-
-describe("locale-aware formatting", () => {
-	it("formats relative time using the active admin locale", () => {
-		vi.useFakeTimers();
-		vi.setSystemTime(new Date("2026-06-03T12:00:00.000Z"));
-		i18n.loadAndActivate({ locale: "id", messages: {} });
-
-		expect(formatRelativeTime("2026-06-03T11:59:00.000Z")).toBe("1 menit yang lalu");
-	});
-
-	it("formats dates using the active admin locale", () => {
-		i18n.loadAndActivate({ locale: "id", messages: {} });
-
-		expect(formatDate("2026-06-03T12:00:00.000Z")).toBe(
-			new Intl.DateTimeFormat("id").format(new Date("2026-06-03T12:00:00.000Z")),
-		);
-	});
-
-	it("formats date-time values using the active admin locale", () => {
-		i18n.loadAndActivate({ locale: "id", messages: {} });
-
-		expect(formatDateTime("2026-06-03T12:34:00.000Z")).toBe(
-			new Date("2026-06-03T12:34:00.000Z").toLocaleString("id"),
-		);
-	});
-
-	it("formats numbers using the active admin locale", () => {
-		i18n.loadAndActivate({ locale: "id", messages: {} });
-
-		expect(formatNumber(1234567)).toBe(new Intl.NumberFormat("id").format(1234567));
 	});
 });

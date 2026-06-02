@@ -47,7 +47,6 @@ import {
 } from "../lib/api/registry.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
-import { formatDate } from "../lib/utils.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -518,19 +517,19 @@ function PluginCard({
 							{plugin.installedAt && (
 								<div>
 									<span className="text-kumo-subtle">{t`Installed:`}</span>{" "}
-									{formatDate(plugin.installedAt)}
+									{new Date(plugin.installedAt).toLocaleDateString()}
 								</div>
 							)}
 							{plugin.activatedAt && (
 								<div>
 									<span className="text-kumo-subtle">{t`Last enabled:`}</span>{" "}
-									{formatDate(plugin.activatedAt)}
+									{new Date(plugin.activatedAt).toLocaleDateString()}
 								</div>
 							)}
 							{plugin.deactivatedAt && !plugin.enabled && (
 								<div>
 									<span className="text-kumo-subtle">{t`Disabled:`}</span>{" "}
-									{formatDate(plugin.deactivatedAt)}
+									{new Date(plugin.deactivatedAt).toLocaleDateString()}
 								</div>
 							)}
 						</div>
