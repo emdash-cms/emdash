@@ -81,7 +81,9 @@ describe("BylinesPage search", () => {
 			// After the debounce window, exactly one additional refetch fires
 			// for the final value — not one per intermediate keystroke.
 			await vi.advanceTimersByTimeAsync(300);
-			expect(searchArgs()).toEqual([undefined, "ali"]);
+			await vi.waitFor(() => {
+				expect(searchArgs()).toEqual([undefined, "ali"]);
+			});
 
 			// The list view (and its search input) is still mounted.
 			await expect.element(screen.getByPlaceholder("Search bylines")).toBeInTheDocument();
