@@ -56,19 +56,20 @@ describe("GET/POST /_emdash/api/auth/me – welcome dismiss", () => {
 
 		expect(postRes.status).toBe(200);
 
-		// 3. GET with a *fresh* session (simulating session expiry) should
-		//    still report isFirstLogin = false because the flag is in the DB.
-		const freshSession = {
-			get: vi.fn().mockResolvedValue(undefined),
+		// 3. GET ignores the session entirely: even with a stale session flag
+		//    claiming the welcome hasn't been seen, the DB-persisted flag wins.
+		const staleSession = {
+			get: vi.fn().mockResolvedValue(false),
 			set: vi.fn(),
 		};
 
 		const getRes2 = await GET({
 			locals: { emdash: { db }, user: await userRepo.findById(user.id) },
-			session: freshSession,
+			session: staleSession,
 		} as unknown as Parameters<typeof GET>[0]);
 
 		const body2 = await getRes2.json();
 		expect(body2.data.isFirstLogin).toBe(false);
+		expect(staleSession.get).not.toHaveBeenCalled();
 	});
 });
