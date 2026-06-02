@@ -68,15 +68,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
-			requestParams: {
-				path: z.object({
-					collection: z.string().meta({ description: "Collection slug" }),
-					id: z.string().meta({ description: "Content ID or slug" }),
-				}),
-				query: z.object({
-					locale: z.string().optional().meta({ description: "Locale filter" }),
-				}),
-			},
+	const locale = new URL(request.url).searchParams.get("locale") || undefined;
 	const body = await parseBody(request, contentUpdateBody);
 	if (isParseError(body)) return body;
 
