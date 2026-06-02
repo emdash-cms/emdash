@@ -233,6 +233,7 @@ const updateCommand = defineCommand({
 			description: "Revision token from get (prevents overwriting unseen changes)",
 			required: true,
 		},
+		locale: { type: "string", description: "Locale for slug resolution" },
 		draft: {
 			type: "boolean",
 			description: "Keep as draft instead of auto-publishing",
@@ -247,17 +248,18 @@ const updateCommand = defineCommand({
 			const updated = await client.update(args.collection, args.id, {
 				data,
 				_rev: args.rev,
+				locale: args.locale,
 			});
 
 			// Auto-publish unless --draft is set.
 			// Only publish if the update created a draft revision (i.e. the
 			// collection supports revisions and data went to a draft).
 			if (!args.draft && updated.draftRevisionId) {
-				await client.publish(args.collection, args.id);
+				await client.publish(args.collection, updated.id);
 			}
 
 			// Re-fetch to return the current state
-			const item = await client.get(args.collection, args.id);
+			const item = await client.get(args.collection, updated.id);
 			output(item, args);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");
