@@ -44,7 +44,7 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
-import { cn, slugify } from "../lib/utils";
+import { cn, formatDateTime, slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -194,8 +194,7 @@ export interface ContentEditorProps {
 /** Format scheduled date for display */
 function formatScheduledDate(dateStr: string | null) {
 	if (!dateStr) return null;
-	const date = new Date(dateStr);
-	return date.toLocaleString();
+	return formatDateTime(dateStr);
 }
 
 /**
@@ -929,8 +928,8 @@ export function ContentEditor({
 
 									{item && (
 										<div className="text-xs text-kumo-subtle">
-											<p>{t`Created: ${new Date(item.createdAt).toLocaleString()}`}</p>
-											<p>{t`Updated: ${new Date(item.updatedAt).toLocaleString()}`}</p>
+											<p>{t`Created: ${formatDateTime(item.createdAt)}`}</p>
+											<p>{t`Updated: ${formatDateTime(item.updatedAt)}`}</p>
 										</div>
 									)}
 									{!isNew && onDelete && (

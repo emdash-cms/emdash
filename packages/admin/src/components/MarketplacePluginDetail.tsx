@@ -24,6 +24,7 @@ import {
 	describeCapability,
 } from "../lib/api/marketplace.js";
 import { renderMarkdown } from "../lib/markdown.js";
+import { formatDate, formatNumber } from "../lib/utils.js";
 import { isSafeUrl, safeIconUrl } from "../lib/url.js";
 import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
@@ -199,7 +200,7 @@ export function MarketplacePluginDetail({
 			<div className="flex flex-wrap items-center gap-4 rounded-lg border bg-kumo-tint/30 p-3 text-sm">
 				<div className="flex items-center gap-1.5">
 					<DownloadSimple className="h-4 w-4 text-kumo-subtle" />
-					<span>{t`${plugin.installCount.toLocaleString()} installs`}</span>
+					<span>{t`${formatNumber(plugin.installCount)} installs`}</span>
 				</div>
 				{latest?.audit && <AuditBadge verdict={latest.audit.verdict} />}
 				{plugin.license && <span className="text-kumo-subtle">{plugin.license}</span>}
@@ -323,7 +324,7 @@ export function MarketplacePluginDetail({
 								{latest.minEmDashVersion && (
 									<div>{t`Requires EmDash ${latest.minEmDashVersion}`}</div>
 								)}
-								<div>{t`Published ${new Date(latest.publishedAt).toLocaleDateString()}`}</div>
+							<div>{t`Published ${formatDate(latest.publishedAt)}`}</div>
 								{latest.bundleSize > 0 && <div>{formatBytes(latest.bundleSize)}</div>}
 							</div>
 						</div>

@@ -17,7 +17,7 @@ import type {
 	CommentStatus,
 	BulkAction,
 } from "../../lib/api/comments.js";
-import { cn } from "../../lib/utils.js";
+import { cn, formatDate } from "../../lib/utils.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { CommentDetail } from "./CommentDetail.js";
@@ -477,7 +477,7 @@ function CommentRow({
 				</div>
 			</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle whitespace-nowrap">
-				{date.toLocaleDateString()}
+				{formatDate(date)}
 			</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end gap-1">

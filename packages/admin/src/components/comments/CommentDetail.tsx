@@ -11,7 +11,7 @@ import { X, Check, Trash, Warning, UserCircle, EnvelopeSimple } from "@phosphor-
 import * as React from "react";
 
 import type { AdminComment, CommentStatus } from "../../lib/api/comments.js";
-import { cn } from "../../lib/utils.js";
+import { cn, formatDate, formatTime } from "../../lib/utils.js";
 
 export interface CommentDetailProps {
 	comment: AdminComment;
@@ -67,7 +67,7 @@ export function CommentDetail({
 					<div className="flex items-center justify-between">
 						<CommentStatusBadge status={comment.status} />
 						<span className="text-sm text-kumo-subtle">
-							{date.toLocaleDateString()} {date.toLocaleTimeString()}
+							{formatDate(date)} {formatTime(date)}
 						</span>
 					</div>
 

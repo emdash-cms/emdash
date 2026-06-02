@@ -33,6 +33,7 @@ import {
 	type AdminManifest,
 	CAPABILITY_LABELS,
 } from "../lib/api";
+import { formatDate } from "../lib/utils.js";
 import {
 	checkPluginUpdates,
 	updateMarketplacePlugin,
@@ -517,19 +518,19 @@ function PluginCard({
 							{plugin.installedAt && (
 								<div>
 									<span className="text-kumo-subtle">{t`Installed:`}</span>{" "}
-									{new Date(plugin.installedAt).toLocaleDateString()}
+									{formatDate(plugin.installedAt)}
 								</div>
 							)}
 							{plugin.activatedAt && (
 								<div>
 									<span className="text-kumo-subtle">{t`Last enabled:`}</span>{" "}
-									{new Date(plugin.activatedAt).toLocaleDateString()}
+									{formatDate(plugin.activatedAt)}
 								</div>
 							)}
 							{plugin.deactivatedAt && !plugin.enabled && (
 								<div>
 									<span className="text-kumo-subtle">{t`Disabled:`}</span>{" "}
-									{new Date(plugin.deactivatedAt).toLocaleDateString()}
+									{formatDate(plugin.deactivatedAt)}
 								</div>
 							)}
 						</div>

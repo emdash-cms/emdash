@@ -14,7 +14,7 @@ import * as React from "react";
 import { updateMedia, deleteMedia, type MediaItem } from "../lib/api";
 import { useStableCallback } from "../lib/hooks";
 import { getFileIcon, formatFileSize } from "../lib/media-utils";
-import { cn } from "../lib/utils";
+import { cn, formatDateTime } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 export interface MediaDetailPanelProps {
@@ -182,7 +182,7 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 						<div className="flex items-center gap-2 text-sm">
 							<Calendar className="h-4 w-4 text-kumo-subtle" />
 							<span className="text-kumo-subtle">{t`Uploaded:`}</span>
-							<span>{formatDate(item.createdAt)}</span>
+							<span>{formatTimestamp(item.createdAt)}</span>
 						</div>
 					</div>
 
@@ -262,8 +262,8 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 	);
 }
 
-function formatDate(isoString: string): string {
-	return new Date(isoString).toLocaleDateString(undefined, {
+function formatTimestamp(isoString: string): string {
+	return formatDateTime(isoString, {
 		year: "numeric",
 		month: "short",
 		day: "numeric",

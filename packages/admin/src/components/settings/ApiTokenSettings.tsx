@@ -20,6 +20,7 @@ import {
 	type ApiTokenCreateResult,
 	type ApiTokenScopeValue,
 } from "../../lib/api/api-tokens.js";
+import { formatDate } from "../../lib/utils.js";
 import { getMutationError } from "../DialogError.js";
 import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
@@ -284,17 +285,17 @@ export function ApiTokenSettings() {
 										<span>{t(msg`Scopes: ${token.scopes.join(", ")}`)}</span>
 										{token.expiresAt && (
 											<span>
-												{t(msg`Expires ${new Date(token.expiresAt).toLocaleDateString()}`)}
+											{t(msg`Expires ${formatDate(token.expiresAt)}`)}
 											</span>
 										)}
 										{token.lastUsedAt && (
 											<span>
-												{t(msg`Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`)}
+											{t(msg`Last used ${formatDate(token.lastUsedAt)}`)}
 											</span>
 										)}
 									</div>
 									<div className="text-xs text-kumo-subtle mt-0.5">
-										{t(msg`Created ${new Date(token.createdAt).toLocaleDateString()}`)}
+									{t(msg`Created ${formatDate(token.createdAt)}`)}
 									</div>
 								</div>
 

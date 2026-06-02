@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -20,21 +21,43 @@ export function cn(...inputs: ClassValue[]) {
  *
  * Handles unicode by normalizing to NFD and stripping diacritics.
  */
-export function formatRelativeTime(dateString: string): string {
-	const date = new Date(dateString);
+function getActiveLocale(): string {
+	return i18n.locale || "en";
+}
+
+function toDate(value: string | Date): Date {
+	return value instanceof Date ? value : new Date(value);
+}
+
+export function formatDate(value: string | Date, options?: Intl.DateTimeFormatOptions): string {
+	return toDate(value).toLocaleDateString(getActiveLocale(), options);
+}
+
+export function formatDateTime(value: string | Date, options?: Intl.DateTimeFormatOptions): string {
+	return toDate(value).toLocaleString(getActiveLocale(), options);
+}
+
+export function formatTime(value: string | Date, options?: Intl.DateTimeFormatOptions): string {
+	return toDate(value).toLocaleTimeString(getActiveLocale(), options);
+}
+
+export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
+	return value.toLocaleString(getActiveLocale(), options);
+}
+
+export function formatRelativeTime(value: string | Date): string {
+	const date = toDate(value);
 	const now = new Date();
-	const diffMs = now.getTime() - date.getTime();
-	const diffSecs = Math.floor(diffMs / 1000);
-	const diffMins = Math.floor(diffSecs / 60);
-	const diffHours = Math.floor(diffMins / 60);
-	const diffDays = Math.floor(diffHours / 24);
+	const diffSecs = Math.round((date.getTime() - now.getTime()) / 1000);
+	const absDiffSecs = Math.abs(diffSecs);
+	const rtf = new Intl.RelativeTimeFormat(getActiveLocale(), { numeric: "auto" });
 
-	if (diffSecs < 60) return "just now";
-	if (diffMins < 60) return `${diffMins} min${diffMins === 1 ? "" : "s"} ago`;
-	if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-	if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+	if (absDiffSecs < 60) return rtf.format(diffSecs, "second");
+	if (absDiffSecs < 60 * 60) return rtf.format(Math.round(diffSecs / 60), "minute");
+	if (absDiffSecs < 60 * 60 * 24) return rtf.format(Math.round(diffSecs / (60 * 60)), "hour");
+	if (absDiffSecs < 60 * 60 * 24 * 7) return rtf.format(Math.round(diffSecs / (60 * 60 * 24)), "day");
 
-	return date.toLocaleDateString(undefined, {
+	return formatDate(date, {
 		month: "short",
 		day: "numeric",
 		year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,

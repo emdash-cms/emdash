@@ -43,6 +43,7 @@ import {
 	type SectionKey,
 } from "../lib/api/registry.js";
 import { renderMarkdown } from "../lib/markdown.js";
+import { formatDate as formatLocaleDate } from "../lib/utils.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
@@ -871,7 +872,7 @@ function isYanked(release: RegistryReleaseView): boolean {
 
 function formatDate(iso: string): string {
 	try {
-		return new Date(iso).toLocaleDateString();
+		return formatLocaleDate(iso);
 	} catch {
 		return iso;
 	}

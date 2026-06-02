@@ -19,7 +19,7 @@ import * as React from "react";
 import type { ContentItem, TrashedContentItem } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { contentUrl } from "../lib/url.js";
-import { cn } from "../lib/utils";
+import { cn, formatDate } from "../lib/utils";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
@@ -605,7 +605,7 @@ function ContentListItem({
 					</span>
 				</td>
 			)}
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{date.toLocaleDateString()}</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle">{formatDate(date)}</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (
@@ -692,7 +692,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 			<td className="px-4 py-3">
 				<span className="font-medium text-kumo-subtle">{title}</span>
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{deletedDate.toLocaleDateString()}</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle">{formatDate(deletedDate)}</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					<Button
