@@ -65,3 +65,34 @@ export const replyClassificationSchema = v.object({
 });
 
 export type ReplyClassification = v.InferOutput<typeof replyClassificationSchema>;
+
+/**
+ * Schema for the maintainer-reply classifier. A maintainer addresses the
+ * bot (`@emdashbot ...`) on a triage issue; this maps their freeform
+ * instruction to one of a fixed set of intents the orchestrator can act
+ * on. The `directive` is the implementation guidance passed through to a
+ * directed investigate run -- never used to build identifiers or shell.
+ */
+export const maintainerIntentSchema = v.object({
+	intent: v.pipe(
+		v.picklist(["proceed", "steer", "close", "takeover", "unclear"]),
+		v.description(
+			"proceed: implement/ship the fix as discussed. steer: implement but with changed guidance. close: not a bug / wontfix / by design. takeover: a human is taking over, the bot should disengage. unclear: no actionable instruction.",
+		),
+	),
+	directive: v.pipe(
+		v.string(),
+		v.maxLength(2000),
+		v.description(
+			"For proceed/steer: the concrete implementation instruction to hand the fix agent (e.g. which option to take, what to change). Empty for close/takeover/unclear.",
+		),
+	),
+	reasoning: v.pipe(
+		v.string(),
+		v.minLength(5),
+		v.maxLength(400),
+		v.description("Short justification quoting the relevant phrase from the maintainer's comment."),
+	),
+});
+
+export type MaintainerIntent = v.InferOutput<typeof maintainerIntentSchema>;
