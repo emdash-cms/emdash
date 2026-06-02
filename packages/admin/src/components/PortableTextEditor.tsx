@@ -56,6 +56,7 @@ import {
 	Minus,
 	LinkBreak,
 	ArrowSquareOut,
+	BracketsAngle,
 	CodeBlock,
 	Stack,
 	Eye,
@@ -93,6 +94,7 @@ import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import {
@@ -149,10 +151,17 @@ interface PortableTextCodeBlock {
 	language?: string;
 }
 
+interface PortableTextHtmlBlock {
+	_type: "htmlBlock";
+	_key: string;
+	html: string;
+}
+
 type PortableTextBlock =
 	| PortableTextTextBlock
 	| PortableTextImageBlock
 	| PortableTextCodeBlock
+	| PortableTextHtmlBlock
 	| { _type: string; _key: string; [key: string]: unknown };
 
 // Generate unique key
@@ -274,6 +283,15 @@ function convertPMNode(node: {
 				_key: generateKey(),
 				code,
 				language: typeof rawLanguage === "string" ? rawLanguage : undefined,
+			};
+		}
+
+		case "htmlBlock": {
+			const rawHtml = node.attrs?.html;
+			return {
+				_type: "htmlBlock",
+				_key: generateKey(),
+				html: typeof rawHtml === "string" ? rawHtml : "",
 			};
 		}
 
@@ -640,6 +658,14 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "break":
 			return { type: "horizontalRule" };
 
+		case "htmlBlock": {
+			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
+			return {
+				type: "htmlBlock",
+				attrs: { html: htmlBlock.html || "" },
+			};
+		}
+
 		case "table": {
 			const tableBlock = block as {
 				_type: "table";
@@ -920,6 +946,21 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		aliases: ["code", "pre", "```"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+		},
+	},
+	{
+		id: "htmlBlock",
+		title: msg`HTML`,
+		description: msg`Insert raw HTML`,
+		icon: BracketsAngle,
+		aliases: ["html", "raw", "markup"],
+		command: ({ editor, range }) => {
+			editor
+				.chain()
+				.focus()
+				.deleteRange(range)
+				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+				.run();
 		},
 	},
 	{
@@ -2088,6 +2129,7 @@ export function PortableTextEditor({
 				underline: {},
 			}),
 			CodeBlockExtension,
+			HtmlBlockExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,

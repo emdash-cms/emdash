@@ -102,6 +102,14 @@ export interface FindManyOptions {
 		status?: string;
 		authorId?: string;
 		locale?: string;
+		/** Case-insensitive substring to match against `searchColumns`. */
+		q?: string;
+		/**
+		 * Columns the `q` substring filter is applied to (OR'd together).
+		 * Resolved by the handler from the collection's display fields so the
+		 * repository stays generic. Each name is validated as a SQL identifier.
+		 */
+		searchColumns?: string[];
 	};
 	orderBy?: {
 		field: string;

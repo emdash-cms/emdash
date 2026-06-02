@@ -308,9 +308,13 @@ function ContentListPage() {
 		direction: "desc",
 	});
 
+	// Server-side search term (debounced inside ContentList). Part of the query
+	// key so a new term restarts the cursor chain from a filtered first page.
+	const [searchTerm, setSearchTerm] = React.useState("");
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["content", collection, { locale: activeLocale, sort }],
+			queryKey: ["content", collection, { locale: activeLocale, sort, search: searchTerm }],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
@@ -318,6 +322,7 @@ function ContentListPage() {
 					limit: 100,
 					orderBy: sort.field,
 					order: sort.direction,
+					search: searchTerm || undefined,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -442,6 +447,7 @@ function ContentListPage() {
 			sort={sort}
 			onSortChange={setSort}
 			total={total}
+			onSearchChange={setSearchTerm}
 		/>
 	);
 }
@@ -1004,13 +1010,20 @@ const mediaRoute = createRoute({
 function MediaPage() {
 	const queryClient = useQueryClient();
 
+	// Filename search + MIME type filter for the local library (server-side).
+	const [search, setSearch] = React.useState("");
+	const [mimeFilter, setMimeFilter] = React.useState<string | string[] | undefined>(undefined);
+	const mimeKey = Array.isArray(mimeFilter) ? mimeFilter.join(",") : (mimeFilter ?? "");
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["media"],
+			queryKey: ["media", { search, mime: mimeKey }],
 			queryFn: ({ pageParam }) =>
 				fetchMediaList({
 					cursor: pageParam,
 					limit: 100,
+					search: search || undefined,
+					mimeType: mimeFilter,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -1046,6 +1059,8 @@ function MediaPage() {
 			onLoadMore={() => void fetchNextPage()}
 			onUpload={(file) => uploadMutation.mutate(file)}
 			onDelete={(id) => deleteMutation.mutate(id)}
+			onLocalSearchChange={setSearch}
+			onLocalMimeFilterChange={setMimeFilter}
 		/>
 	);
 }

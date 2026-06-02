@@ -4,12 +4,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createDatabase } from "../../../../src/database/connection.js";
 import { up as up040 } from "../../../../src/database/migrations/040_byline_i18n.js";
-import { down, up } from "../../../../src/database/migrations/041_byline_fields.js";
+import { down, up } from "../../../../src/database/migrations/042_byline_fields.js";
 import type { Database } from "../../../../src/database/types.js";
 
 /**
- * Seed the pre-041 schema: byline tables in their post-040 shape, plus the
- * `options` table the version-counter row writes to. 041 doesn't touch
+ * Seed the pre-042 schema: byline tables in their post-040 shape, plus the
+ * `options` table the version-counter row writes to. 042 doesn't touch
  * `_emdash_content_bylines` or `ec_*`, but 040 needs the support tables to
  * apply — set them up so the "applies on a #1146-era DB" case is exercised
  * the same way as a real upgrade.
@@ -108,7 +108,7 @@ async function getVersionRow(db: Kysely<Database>): Promise<string | null> {
 	return row.rows[0]?.value ?? null;
 }
 
-describe("041_byline_fields migration", () => {
+describe("042_byline_fields migration", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {

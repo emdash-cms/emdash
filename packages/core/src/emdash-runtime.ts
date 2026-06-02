@@ -2122,6 +2122,7 @@ export class EmDashRuntime {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			q?: string;
 		},
 	) {
 		return handleContentList(this.db, collection, params);
@@ -2555,6 +2556,7 @@ export class EmDashRuntime {
 		cursor?: string;
 		limit?: number;
 		mimeType?: string | readonly string[];
+		q?: string;
 	}) {
 		return handleMediaList(this.db, params);
 	}

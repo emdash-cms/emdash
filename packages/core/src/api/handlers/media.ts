@@ -27,6 +27,7 @@ export async function handleMediaList(
 		cursor?: string;
 		limit?: number;
 		mimeType?: string | readonly string[];
+		q?: string;
 	},
 ): Promise<ApiResult<MediaListResponse>> {
 	try {
@@ -35,6 +36,7 @@ export async function handleMediaList(
 			cursor: params.cursor,
 			limit: Math.min(params.limit || 50, 100),
 			mimeType: params.mimeType,
+			q: params.q,
 		});
 
 		return {

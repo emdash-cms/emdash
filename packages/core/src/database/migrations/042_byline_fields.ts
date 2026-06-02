@@ -144,7 +144,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
  *
  * The drops are unconditional `IF EXISTS` so a `down()` after a partial
  * `up()` (only one or two tables landed) still settles the database back
- * to its pre-041 state.
+ * to its pre-042 state.
  */
 export async function down(db: Kysely<unknown>): Promise<void> {
 	// Child tables first to avoid FK reference issues on Postgres. SQLite +
