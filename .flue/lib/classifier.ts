@@ -75,16 +75,16 @@ export type ReplyClassification = v.InferOutput<typeof replyClassificationSchema
  */
 export const maintainerIntentSchema = v.object({
 	intent: v.pipe(
-		v.picklist(["proceed", "steer", "close", "takeover", "unclear"]),
+		v.picklist(["implement", "close", "takeover", "unclear"]),
 		v.description(
-			"proceed: implement/ship the fix as discussed. steer: implement but with changed guidance. close: not a bug / wontfix / by design. takeover: a human is taking over, the bot should disengage. unclear: no actionable instruction.",
+			"implement: the maintainer wants the fix built (approving the proposal or naming a changed approach). close: not a bug / wontfix / by design. takeover: a human is taking over, the bot should disengage. unclear: no actionable instruction.",
 		),
 	),
 	directive: v.pipe(
 		v.string(),
 		v.maxLength(2000),
 		v.description(
-			"For proceed/steer: the concrete implementation instruction to hand the fix agent (e.g. which option to take, what to change). Empty for close/takeover/unclear.",
+			"For implement: the concrete instruction to hand the fix agent (which option to take, what to change). Empty for close/takeover/unclear.",
 		),
 	),
 	reasoning: v.pipe(

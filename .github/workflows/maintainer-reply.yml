@@ -240,7 +240,7 @@ jobs:
           # against any path where the value would leak into a heredoc body.
           INTENT_RAW="$(jq -r '.intent // "unclear"' <<<"$RESULT" | tr -d '\r\n')"
           case "$INTENT_RAW" in
-            proceed|steer|close|takeover|unclear) INTENT="$INTENT_RAW" ;;
+            implement|close|takeover|unclear) INTENT="$INTENT_RAW" ;;
             *) INTENT="unclear" ;;
           esac
           # Directive and reasoning are model output shaped by the maintainer's
@@ -253,9 +253,8 @@ jobs:
           jq -r '.reasoning // ""' <<<"$RESULT" > /tmp/classify-reasoning.txt
           echo "intent=${INTENT}" >> "$GITHUB_OUTPUT"
 
-      # Collapse intent + directive presence into one `action` the handlers
-      # gate on. `proceed` and `steer` both mean "dispatch a directed
-      # investigate run" -- but only if the classifier actually extracted a
+      # Combine intent + directive presence into the `action` the handlers
+      # gate on. `implement` only acts if the classifier actually extracted a
       # directive. An empty directive (the maintainer said "go ahead" without
       # naming an approach) cannot override the fix gate, so it would just
       # reproduce again; route it to `unclear` to ask for specifics instead.
@@ -267,7 +266,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$INTENT" in
-            proceed | steer)
+            implement)
               if [[ -s /tmp/directive.txt ]] && grep -q '[^[:space:]]' /tmp/directive.txt; then
                 ACTION="implement"
               else
