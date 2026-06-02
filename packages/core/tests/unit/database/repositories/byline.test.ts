@@ -140,6 +140,121 @@ describe("BylineRepository", () => {
 		expect(bylines[1]?.byline.id).toBe(first.id);
 	});
 
+	it("hydrates avatar storage key and alt via the media join", async () => {
+		// A media row standing in for an uploaded avatar.
+		await db
+			.insertInto("media")
+			.values({
+				id: "media-avatar-1",
+				filename: "jane.png",
+				mime_type: "image/png",
+				storage_key: "media-avatar-1.png",
+				status: "ready",
+				alt: "Jane Doe headshot",
+			})
+			.execute();
+
+		const withAvatar = await bylineRepo.create({
+			slug: "with-avatar",
+			displayName: "With Avatar",
+			avatarMediaId: "media-avatar-1",
+		});
+		const withoutAvatar = await bylineRepo.create({
+			slug: "without-avatar",
+			displayName: "Without Avatar",
+		});
+
+		const content = await contentRepo.create({
+			type: "post",
+			slug: "avatar-post",
+			data: { title: "Avatar Post" },
+		});
+		await bylineRepo.setContentBylines("post", content.id, [
+			{ bylineId: withAvatar.id },
+			{ bylineId: withoutAvatar.id },
+		]);
+
+		// Single-entry hydration path.
+		const credits = await bylineRepo.getContentBylines("post", content.id);
+		const avatared = credits.find((c) => c.byline.id === withAvatar.id)!;
+		const plain = credits.find((c) => c.byline.id === withoutAvatar.id)!;
+		expect(avatared.byline.avatarMediaId).toBe("media-avatar-1");
+		expect(avatared.byline.avatarStorageKey).toBe("media-avatar-1.png");
+		expect(avatared.byline.avatarAlt).toBe("Jane Doe headshot");
+		// No avatar -> storage key and alt are null, not undefined.
+		expect(plain.byline.avatarStorageKey).toBeNull();
+		expect(plain.byline.avatarAlt).toBeNull();
+
+		// Batch hydration path (the list-page case) resolves the same data
+		// without a per-byline media lookup.
+		const batch = await bylineRepo.getContentBylinesMany("post", [content.id]);
+		const batchCredit = batch.get(content.id)!.find((c) => c.byline.id === withAvatar.id)!;
+		expect(batchCredit.byline.avatarStorageKey).toBe("media-avatar-1.png");
+		expect(batchCredit.byline.avatarAlt).toBe("Jane Doe headshot");
+	});
+
+	it("hydrates avatar storage key for author-inferred bylines via findByUserIds", async () => {
+		await db
+			.insertInto("media")
+			.values({
+				id: "media-avatar-3",
+				filename: "u.png",
+				mime_type: "image/png",
+				storage_key: "media-avatar-3.png",
+				status: "ready",
+				alt: "User avatar",
+			})
+			.execute();
+		await db
+			.insertInto("users")
+			.values({
+				id: "user-123",
+				email: "linked@example.com",
+				name: "Linked User",
+				role: 30,
+				email_verified: 1,
+			})
+			.execute();
+		// A byline linked to a CMS user (the author-fallback path resolves
+		// these via findByUserIds when an entry has no explicit credits).
+		const byline = await bylineRepo.create({
+			slug: "linked-user",
+			displayName: "Linked User",
+			userId: "user-123",
+			avatarMediaId: "media-avatar-3",
+		});
+		expect(byline.id).toBeTruthy();
+
+		const map = await bylineRepo.findByUserIds(["user-123"]);
+		const resolved = map.get("user-123");
+		expect(resolved?.avatarStorageKey).toBe("media-avatar-3.png");
+		expect(resolved?.avatarAlt).toBe("User avatar");
+	});
+
+	it("leaves avatar storage key null on the plain byline finders", async () => {
+		await db
+			.insertInto("media")
+			.values({
+				id: "media-avatar-2",
+				filename: "x.png",
+				mime_type: "image/png",
+				storage_key: "media-avatar-2.png",
+				status: "ready",
+			})
+			.execute();
+		const created = await bylineRepo.create({
+			slug: "finder-avatar",
+			displayName: "Finder Avatar",
+			avatarMediaId: "media-avatar-2",
+		});
+
+		// findById/findBySlug don't join media — the field is null there, and
+		// callers should rely on the content-credit hydration path for it.
+		const byId = await bylineRepo.findById(created.id);
+		expect(byId?.avatarMediaId).toBe("media-avatar-2");
+		expect(byId?.avatarStorageKey).toBeNull();
+	});
+
 	it("getContentBylinesMany handles more IDs than SQL_BATCH_SIZE", async () => {
 		const byline = await bylineRepo.create({
 			slug: "batch-author",

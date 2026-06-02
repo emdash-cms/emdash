@@ -214,6 +214,27 @@ export interface SeedByline {
 	bio?: string;
 	websiteUrl?: string;
 	isGuest?: boolean;
+	/**
+	 * Avatar for the byline, seeded as an already-stored media item. Unlike a
+	 * content `$media` reference, nothing is downloaded: the caller supplies the
+	 * `storageKey` of a file that already exists in the configured storage (the
+	 * common case when seeding alongside a media migration). A `media` row is
+	 * created and linked via `avatarMediaId`.
+	 */
+	avatar?: SeedBylineAvatar;
+}
+
+export interface SeedBylineAvatar {
+	/** Storage key of the already-uploaded avatar file (`{ulid}{ext}`). */
+	storageKey: string;
+	/** Alt text for the avatar image. */
+	alt?: string;
+	/** Filename for the media record. Defaults to the storage key's basename. */
+	filename?: string;
+	/** MIME type for the media record. Defaults to `image/jpeg`. */
+	mimeType?: string;
+	width?: number;
+	height?: number;
 }
 
 /**

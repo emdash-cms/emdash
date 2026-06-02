@@ -68,6 +68,11 @@ const ROUTES = [
 	["GET", "/tag/webdev"],
 	["GET", "/rss.xml"],
 	["GET", "/search?q=static"],
+	// Byline-avatar list pages. /contributors uses the avatar storage key folded
+	// into byline hydration; /contributors-naive resolves each avatar with a
+	// per-byline media lookup. The gap between them is the N+1 the join removes.
+	["GET", "/contributors"],
+	["GET", "/contributors-naive"],
 ];
 
 const TRACKED_PHASES = new Set(["cold", "warm"]);

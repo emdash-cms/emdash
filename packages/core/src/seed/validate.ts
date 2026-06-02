@@ -471,6 +471,35 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (!byline.displayName) {
 					errors.push(`${prefix}: displayName is required`);
 				}
+
+				if (byline.avatar !== undefined) {
+					const avatar: unknown = byline.avatar;
+					if (!isRecord(avatar)) {
+						errors.push(`${prefix}.avatar: must be an object`);
+					} else {
+						if (typeof avatar.storageKey !== "string" || avatar.storageKey.trim().length === 0) {
+							errors.push(`${prefix}.avatar.storageKey: must be a non-empty string`);
+						}
+						for (const key of ["alt", "filename", "mimeType"] as const) {
+							if (avatar[key] !== undefined && typeof avatar[key] !== "string") {
+								errors.push(`${prefix}.avatar.${key}: must be a string`);
+							}
+						}
+						// filename/mimeType, when supplied, must be usable (non-blank):
+						// an empty filename would create a media row with no basename.
+						for (const key of ["filename", "mimeType"] as const) {
+							if (typeof avatar[key] === "string" && avatar[key].trim().length === 0) {
+								errors.push(`${prefix}.avatar.${key}: must not be empty`);
+							}
+						}
+						for (const key of ["width", "height"] as const) {
+							const v = avatar[key];
+							if (v !== undefined && (typeof v !== "number" || !Number.isFinite(v) || v < 0)) {
+								errors.push(`${prefix}.avatar.${key}: must be a non-negative number`);
+							}
+						}
+					}
+				}
 			}
 		}
 	}
