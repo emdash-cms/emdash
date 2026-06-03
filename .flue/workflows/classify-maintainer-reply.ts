@@ -1,10 +1,11 @@
 // Classify a maintainer's directive to the investigation bot.
 //
-// Triggered by .github/workflows/maintainer-reply.yml when a maintainer
-// (OWNER/MEMBER/COLLABORATOR) addresses `@emdashbot` on an issue carrying
-// a `triage/*` label. The workflow YAML reads the intent from this run's
-// output and decides whether to dispatch a directed investigate run, flag the
-// issue as by-design, disengage, or ask for clarification.
+// Triggered by .github/workflows/maintainer-reply.yml when someone with a
+// real admin/write/triage role on the repo (checked via the permission API,
+// not the spoofable author_association) addresses `@emdashbot` on an issue in
+// `triage/reproduced` or `triage/by-design`. The workflow YAML reads the intent
+// from this run's output and decides whether to dispatch a directed investigate
+// run, flag the issue as by-design, disengage, or ask for clarification.
 //
 // Cheap kimi prompt, no sandbox, no skills. Just structured output.
 
@@ -48,7 +49,9 @@ export async function run({
 		"",
 		"## Bot's investigation",
 		"",
-		payload.botContext ??
+		// Truthiness, not `??`: the orchestrator passes "" (not undefined) when
+		// there are no bot comments, and an empty section loses the model's cue.
+		payload.botContext?.trim() ||
 			"(unavailable; assume the bot reproduced the issue and either proposed options or pushed a candidate fix)",
 		"",
 		"## Maintainer's reply",

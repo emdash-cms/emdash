@@ -351,17 +351,17 @@ jobs:
           COMMENTER: ${{ github.event.comment.user.login }}
         run: |
           set -euo pipefail
-          # Reasoning is model output; read from file, never interpolated.
-          REASONING="$(cat /tmp/classify-reasoning.txt)"
           if [[ "$STATE" != "by-design" ]]; then
             gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash \
               --remove-label "triage/${STATE}" --add-label "triage/by-design"
           fi
           {
             echo "Flagged as by-design per @${COMMENTER}."
-            if [[ -n "$REASONING" ]]; then
+            # Reasoning is multi-line model output; read from the file and
+            # block-quote every line (a bare echo would quote only the first).
+            if grep -q '[^[:space:]]' /tmp/classify-reasoning.txt; then
               echo
-              echo "> ${REASONING}"
+              sed 's/^/> /' /tmp/classify-reasoning.txt
             fi
             echo
             echo "I don't close issues automatically — close it whenever you're ready."
