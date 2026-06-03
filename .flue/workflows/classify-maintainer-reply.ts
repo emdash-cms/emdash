@@ -51,8 +51,10 @@ export async function run({
 		"",
 		// Truthiness, not `??`: the orchestrator passes "" (not undefined) when
 		// there are no bot comments, and an empty section loses the model's cue.
+		// Neutral wording -- this fires for `by-design` too, where the bot found
+		// intended behavior rather than reproducing a bug.
 		payload.botContext?.trim() ||
-			"(unavailable; assume the bot reproduced the issue and either proposed options or pushed a candidate fix)",
+			"(unavailable; assume the bot has already investigated this issue)",
 		"",
 		"## Maintainer's reply",
 		"",
