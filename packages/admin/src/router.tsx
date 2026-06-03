@@ -497,6 +497,7 @@ function ContentNewPage() {
 			void navigate({
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
+				search: { locale: result.locale },
 			});
 		},
 	});
