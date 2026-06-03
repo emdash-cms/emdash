@@ -86,13 +86,14 @@ async function ensureFixtureDepsBuilt(): Promise<void> {
  * cold start until it finishes pre-bundling -- pronounced under the Cloudflare
  * (workerd) runner, where the first requests fail with optimize-deps errors.
  */
-async function waitForOk(url: string, timeoutMs: number): Promise<Response> {
+async function waitForOk(url: string, timeoutMs: number, token?: string): Promise<Response> {
 	const start = Date.now();
 	let lastStatus = 0;
 	let lastBody = "";
+	const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
 	while (Date.now() - start < timeoutMs) {
 		try {
-			const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+			const res = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) });
 			if (res.ok) return res;
 			lastStatus = res.status;
 			lastBody = await res.text().catch(() => "");
@@ -349,6 +350,18 @@ export default async function globalSetup(): Promise<void> {
 			} catch {
 				await new Promise((r) => setTimeout(r, 1000));
 			}
+		}
+
+		// 5c. Warm the admin's data routes so the SPA's first client-side fetches
+		// don't race the dev optimizer. On a slow CI runner the Cloudflare runner
+		// otherwise serves a cold 500 for these, rendering an empty admin and
+		// failing the first specs before the route finishes compiling.
+		console.log("[pw] Warming up admin API routes...");
+		for (const path of [
+			"/_emdash/api/schema/collections?includeFields=true",
+			"/_emdash/api/media",
+		]) {
+			await waitForOk(`${baseUrl}${path}`, 60_000, token);
 		}
 
 		// 6. Write server info
