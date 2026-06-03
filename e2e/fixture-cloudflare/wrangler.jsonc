@@ -8,13 +8,13 @@
 		{
 			"binding": "DB",
 			"database_name": "emdash_e2e",
-			"database_id": "emdash-e2e-local"
-		}
+			"database_id": "emdash-e2e-local",
+		},
 	],
 	"r2_buckets": [
 		{
 			"binding": "MEDIA",
-			"bucket_name": "emdash-e2e-media"
-		}
-	]
+			"bucket_name": "emdash-e2e-media",
+		},
+	],
 }
