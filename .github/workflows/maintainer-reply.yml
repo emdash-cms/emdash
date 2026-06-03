@@ -206,8 +206,9 @@ jobs:
           CLASSIFY_RESULT_PATH: /tmp/classify-result.json
         run: |
           set -o pipefail
+          RESULT_PATH="${CLASSIFY_RESULT_PATH:?CLASSIFY_RESULT_PATH not set}"
           PAYLOAD="$(cat /tmp/classify-payload.json)"
-          rm -f /tmp/classify-result.json
+          rm -f "$RESULT_PATH"
           set +e
           # See investigate.yml's "Run Flue investigate agent" step for why we
           # invoke the binary directly rather than via `pnpm --dir`.
@@ -223,7 +224,7 @@ jobs:
           # A clean run writes a single JSON object to the result file. A
           # non-zero exit, a missing file, or a non-object means the run did
           # not finish -- default to unclear (which re-asks, never acts).
-          if [[ $EXIT -ne 0 ]] || [[ ! -s /tmp/classify-result.json ]] || ! jq -e 'type == "object"' /tmp/classify-result.json >/dev/null 2>&1; then
+          if [[ $EXIT -ne 0 ]] || [[ ! -s "$RESULT_PATH" ]] || ! jq -e 'type == "object"' "$RESULT_PATH" >/dev/null 2>&1; then
             echo "::warning::classifier exit=${EXIT} or no result file; defaulting to unclear"
             tail -n 50 /tmp/classify-stderr.log || true
             echo "intent=unclear" >> "$GITHUB_OUTPUT"
@@ -231,7 +232,7 @@ jobs:
           fi
           # Whitelist the intent -- the handler gate must be a known enum or we
           # treat it as unclear. Defends against an unexpected model value.
-          INTENT_RAW="$(jq -r '.intent // "unclear"' /tmp/classify-result.json | tr -d '\r\n')"
+          INTENT_RAW="$(jq -r '.intent // "unclear"' "$RESULT_PATH" | tr -d '\r\n')"
           case "$INTENT_RAW" in
             implement|close|takeover|unclear) INTENT="$INTENT_RAW" ;;
             *) INTENT="unclear" ;;
@@ -242,8 +243,8 @@ jobs:
           # contained the delimiter on its own line. The directive is later
           # JSON-escaped into the dispatch payload; it is never interpolated
           # into a command or used to build an identifier.
-          jq -r '.directive // ""' /tmp/classify-result.json > /tmp/directive.txt
-          jq -r '.reasoning // ""' /tmp/classify-result.json > /tmp/classify-reasoning.txt
+          jq -r '.directive // ""' "$RESULT_PATH" > /tmp/directive.txt
+          jq -r '.reasoning // ""' "$RESULT_PATH" > /tmp/classify-reasoning.txt
           echo "intent=${INTENT}" >> "$GITHUB_OUTPUT"
 
       # Combine intent + directive presence into the `action` the handlers

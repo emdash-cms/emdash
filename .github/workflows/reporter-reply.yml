@@ -279,8 +279,9 @@ jobs:
           CLASSIFY_RESULT_PATH: /tmp/classify-result.json
         run: |
           set -o pipefail
+          RESULT_PATH="${CLASSIFY_RESULT_PATH:?CLASSIFY_RESULT_PATH not set}"
           PAYLOAD="$(cat /tmp/classify-payload.json)"
-          rm -f /tmp/classify-result.json
+          rm -f "$RESULT_PATH"
           set +e
           # See investigate.yml's "Run Flue investigate agent" step
           # for why we invoke the binary directly rather than via
@@ -296,7 +297,7 @@ jobs:
           # A clean run writes a single JSON object to the result file. A
           # non-zero exit, a missing file, or a non-object means the run did
           # not finish -- default to unclear (which re-asks, never acts).
-          if [[ $EXIT -ne 0 ]] || [[ ! -s /tmp/classify-result.json ]] || ! jq -e 'type == "object"' /tmp/classify-result.json >/dev/null 2>&1; then
+          if [[ $EXIT -ne 0 ]] || [[ ! -s "$RESULT_PATH" ]] || ! jq -e 'type == "object"' "$RESULT_PATH" >/dev/null 2>&1; then
             echo "::warning::classifier exit=${EXIT} or no result file; defaulting to unclear"
             tail -n 50 /tmp/classify-stderr.log || true
             echo "classification=unclear" >> "$GITHUB_OUTPUT"
@@ -305,7 +306,7 @@ jobs:
           # Whitelist the classification value -- the gate has to be a
           # known enum or we treat it as unclear. Defends against the
           # model returning an unexpected value.
-          CLASS_RAW="$(jq -r '.classification // "unclear"' /tmp/classify-result.json | tr -d '\r\n')"
+          CLASS_RAW="$(jq -r '.classification // "unclear"' "$RESULT_PATH" | tr -d '\r\n')"
           case "$CLASS_RAW" in
             positive|negative|unclear) CLASS="$CLASS_RAW" ;;
             *) CLASS="unclear" ;;
@@ -315,7 +316,7 @@ jobs:
           # $GITHUB_OUTPUT -- a heredoc with a fixed delimiter would be
           # a step-output injection vector if the reasoning contained
           # the delimiter on its own line.
-          jq -r '.reasoning // ""' /tmp/classify-result.json > /tmp/classify-reasoning.txt
+          jq -r '.reasoning // ""' "$RESULT_PATH" > /tmp/classify-reasoning.txt
           echo "classification=${CLASS}" >> "$GITHUB_OUTPUT"
 
       # Collapse the two classification sources into one output the
