@@ -22,21 +22,24 @@ const ROOT = resolve(__dirname, "..");
 interface Target {
 	fixtureDir: string;
 	buildFilter: string;
-	depsMarker: string;
+	depsMarkers: string[];
 	usesTempDb: boolean;
 }
+
+const COLOR_PLUGIN_DIST = resolve(ROOT, "packages/plugins/color/dist/index.mjs");
+const CLOUDFLARE_DIST = resolve(ROOT, "packages/cloudflare/dist/index.mjs");
 
 const TARGETS: Record<string, Target> = {
 	node: {
 		fixtureDir: resolve(ROOT, "e2e/fixture"),
 		buildFilter: "emdash-e2e-fixture...",
-		depsMarker: resolve(ROOT, "packages/plugins/color/dist/index.mjs"),
+		depsMarkers: [COLOR_PLUGIN_DIST],
 		usesTempDb: true,
 	},
 	cloudflare: {
 		fixtureDir: resolve(ROOT, "e2e/fixture-cloudflare"),
 		buildFilter: "emdash-e2e-fixture-cloudflare...",
-		depsMarker: resolve(ROOT, "packages/cloudflare/dist/index.mjs"),
+		depsMarkers: [CLOUDFLARE_DIST, COLOR_PLUGIN_DIST],
 		usesTempDb: false,
 	},
 };
@@ -68,7 +71,7 @@ async function ensureBuilt(): Promise<void> {
  * not the fixture's plugin dependencies like @emdash-cms/plugin-color.
  */
 async function ensureFixtureDepsBuilt(): Promise<void> {
-	if (existsSync(TARGET.depsMarker)) return;
+	if (TARGET.depsMarkers.every((marker) => existsSync(marker))) return;
 	console.log("[pw] Building e2e fixture dependencies...");
 	await execAsync("pnpm", ["run", "--filter", TARGET.buildFilter, "build"], {
 		cwd: ROOT,
@@ -158,6 +161,39 @@ async function apiUploadMedia(
 	return { id: item.id, storageKey: item.storageKey, url: item.url };
 }
 
+async function apiGet(baseUrl: string, token: string, path: string): Promise<any> {
+	const res = await fetch(`${baseUrl}${path}`, {
+		headers: { Authorization: `Bearer ${token}`, Origin: baseUrl },
+	});
+	if (!res.ok) {
+		const text = await res.text().catch(() => "");
+		throw new Error(`GET ${path} failed (${res.status}): ${text}`);
+	}
+	const json: any = await res.json();
+	return json.data ?? json;
+}
+
+/**
+ * Resolve seeded entries to their ids, in the order of `slugs`. The list GET
+ * also warms the content route's module graph, so the media/image POSTs that
+ * follow don't race the dev runner's optimizer on a cold route.
+ */
+async function idsBySlug(
+	baseUrl: string,
+	token: string,
+	collection: string,
+	slugs: string[],
+): Promise<string[]> {
+	const list = await apiGet(baseUrl, token, `/_emdash/api/content/${collection}?limit=100`);
+	const items: Array<{ id: string; slug: string }> = list.items ?? list;
+	const bySlug = new Map(items.map((i) => [i.slug, i.id]));
+	return slugs.map((slug) => {
+		const id = bySlug.get(slug);
+		if (!id) throw new Error(`Seeded ${collection} entry not found for slug "${slug}"`);
+		return id;
+	});
+}
+
 async function seedTestData(
 	baseUrl: string,
 	token: string,
@@ -167,41 +203,25 @@ async function seedTestData(
 	mediaIds: Record<string, string>;
 }> {
 	const collections: string[] = ["posts", "pages"];
-	const contentIds: Record<string, string[]> = {};
 	const mediaIds: Record<string, string> = {};
 
-	// Collections and fields are created by the fixture seed file
-	// (fixture/.emdash/seed.json) during dev-bypass setup.
+	// Collections, fields, taxonomies, sections, and the plain posts/pages are
+	// seeded server-side from the fixture's .emdash/seed.json during dev-bypass.
+	// Resolve their ids by slug (the list GETs also warm the content routes).
+	const postIds = await idsBySlug(baseUrl, token, "posts", [
+		"first-post",
+		"second-post",
+		"draft-post",
+	]);
+	const pageIds = await idsBySlug(baseUrl, token, "pages", ["about", "contact"]);
 
-	const postIds: string[] = [];
-	let result: any;
-
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
-		data: { title: "First Post", excerpt: "The very first post" },
-		slug: "first-post",
-	});
-	postIds.push(result.item?.id ?? result.id);
-	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${postIds[0]}/publish`, {});
-
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
-		data: { title: "Second Post", excerpt: "Another post" },
-		slug: "second-post",
-	});
-	postIds.push(result.item?.id ?? result.id);
-	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${postIds[1]}/publish`, {});
-
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
-		data: { title: "Draft Post", excerpt: "Not published yet" },
-		slug: "draft-post",
-	});
-	postIds.push(result.item?.id ?? result.id);
-
-	// --- Upload test image and create post with image block ---
+	// The image post needs real bytes in storage, so it stays an API flow. The
+	// content route is already warm from the GET above.
 	const testImagePath = join(ROOT, "e2e/fixtures/assets/test-image.png");
 	const media = await apiUploadMedia(baseUrl, token, testImagePath, "test-image.png", "image/png");
 	mediaIds["testImage"] = media.id;
 
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
+	const imagePost = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
 		data: {
 			title: "Post With Image",
 			excerpt: "A post containing an image block",
@@ -232,28 +252,15 @@ async function seedTestData(
 		},
 		slug: "post-with-image",
 	});
-	postIds.push(result.item?.id ?? result.id);
-	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${postIds[3]}/publish`, {});
+	const imagePostId = imagePost.item?.id ?? imagePost.id;
+	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${imagePostId}/publish`, {});
+	postIds.push(imagePostId);
 
-	contentIds["posts"] = postIds;
-
-	const pageIds: string[] = [];
-
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/pages", {
-		data: { title: "About" },
-		slug: "about",
-	});
-	pageIds.push(result.item?.id ?? result.id);
-	await apiPost(baseUrl, token, `/_emdash/api/content/pages/${pageIds[0]}/publish`, {});
-
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/pages", {
-		data: { title: "Contact" },
-		slug: "contact",
-	});
-	pageIds.push(result.item?.id ?? result.id);
-	contentIds["pages"] = pageIds;
-
-	return { collections, contentIds, mediaIds };
+	return {
+		collections,
+		contentIds: { posts: postIds, pages: pageIds },
+		mediaIds,
+	};
 }
 
 // ---------------------------------------------------------------------------
