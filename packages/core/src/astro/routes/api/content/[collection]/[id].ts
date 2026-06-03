@@ -64,7 +64,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	return unwrapResult(result);
 };
 
-export const PUT: APIRoute = async ({ params, request, locals, url, cache }) => {
+export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
@@ -75,8 +75,6 @@ export const PUT: APIRoute = async ({ params, request, locals, url, cache }) => 
 	if (!emdash?.handleContentUpdate || !emdash?.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
-
-	const locale = url.searchParams.get("locale") || undefined;
 
 	// Fetch item to check ownership
 	const existing = await emdash.handleContentGet(collection, id, locale);
