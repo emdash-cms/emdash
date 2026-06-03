@@ -14,6 +14,10 @@ export default defineConfig({
 	clean: true,
 	platform: "node",
 	target: "node22",
+	// semver (a devDependency) is bundled on purpose so its CJS `require` never
+	// reaches workerd (#1292). Disable tsdown's bundled-dependency advisory,
+	// which CI escalates to an error.
+	inlineOnly: false,
 	external: [
 		"@atcute/atproto",
 		"@atcute/client",

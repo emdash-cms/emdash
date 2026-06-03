@@ -2017,9 +2017,6 @@ importers:
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../registry-lexicons
-      semver:
-        specifier: 'catalog:'
-        version: 7.7.4
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
@@ -2033,6 +2030,9 @@ importers:
       publint:
         specifier: 'catalog:'
         version: 0.3.17
+      semver:
+        specifier: 'catalog:'
+        version: 7.7.4
       tsdown:
         specifier: 'catalog:'
         version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260421.2)(oxc-resolver@11.16.4)(publint@0.3.17)(typescript@6.0.3)

@@ -41,14 +41,14 @@
 		"@atcute/atproto": "catalog:",
 		"@atcute/client": "catalog:",
 		"@atcute/lexicons": "catalog:",
-		"@emdash-cms/registry-lexicons": "workspace:*",
-		"semver": "catalog:"
+		"@emdash-cms/registry-lexicons": "workspace:*"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
 		"@types/node": "catalog:",
 		"@types/semver": "catalog:",
 		"publint": "catalog:",
+		"semver": "catalog:",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "catalog:"

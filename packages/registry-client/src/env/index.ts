@@ -15,7 +15,9 @@
  * (browser compat warning), all sharing one implementation.
  */
 
-import { satisfies, valid, validRange } from "semver";
+import satisfies from "semver/functions/satisfies.js";
+import valid from "semver/functions/valid.js";
+import validRange from "semver/ranges/valid.js";
 
 export interface HostEnv {
 	/** Map of `env:*` key to the host's current version of that environment. */
