@@ -34,6 +34,37 @@ export { KumoSidebar as Sidebar, useSidebar };
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
 
+/**
+ * Static invariants for nav entries that have AC-level visibility
+ * requirements (Phase 5 of Discussion #1174: "Admin sees the 'Byline
+ * Schema' entry; Editor does not").
+ *
+ * Exported as plain data so a unit test can assert the route + role
+ * pairing without mounting Kumo's Sidebar primitive — which portals
+ * its rendered content to `document.body` and applies collapse-state
+ * CSS (`display:none` on labels at narrow viewports), making
+ * full-DOM tests of role filtering brittle. The runtime `adminItems`
+ * array below references these constants directly so the test
+ * effectively guards the production list.
+ */
+export const BYLINE_SCHEMA_NAV_ITEM = {
+	to: "/byline-schema" as const,
+	minRole: ROLE_ADMIN,
+} as const;
+
+/**
+ * Filter a nav-items list by user role. Pure function — exported so
+ * tests can verify the role gate without rendering the sidebar. An
+ * item passes when it has no `minRole` (public) or the user is at
+ * least the required level.
+ */
+export function filterNavItemsByRole<T extends { minRole?: number }>(
+	items: T[],
+	userRole: number,
+): T[] {
+	return items.filter((item) => !item.minRole || userRole >= item.minRole);
+}
+
 export interface SidebarNavProps {
 	manifest: {
 		collections: Record<string, { label: string }>;
@@ -264,13 +295,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		}
 	}
 
-	const filterByRole = (items: NavItem[]) =>
-		items.filter((item) => !item.minRole || userRole >= item.minRole);
-
-	const visibleContent = filterByRole(contentItems);
-	const visibleManage = filterByRole(manageItems);
-	const visibleAdmin = filterByRole(adminItems);
-	const visiblePlugins = filterByRole(pluginItems);
+	const visibleContent = filterNavItemsByRole(contentItems, userRole);
+	const visibleManage = filterNavItemsByRole(manageItems, userRole);
+	const visibleAdmin = filterNavItemsByRole(adminItems, userRole);
+	const visiblePlugins = filterNavItemsByRole(pluginItems, userRole);
 
 	function renderNavItems(items: NavItem[]) {
 		return items.map((item, index) => {
@@ -290,6 +318,9 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			/* Classic dark chrome — override kumo tokens within the sidebar */
 			.emdash-sidebar {
 				--color-kumo-base: #1d2327;
+				/* Kumo 2.4 paints the surface via bg-(--sidebar-bg) on an inner
+				   container, resolved from the wrapper's light --color-kumo-base. */
+				--sidebar-bg: #1d2327;
 				--color-kumo-tint: rgba(255,255,255,0.1);
 				--color-kumo-line: rgba(255,255,255,0.08);
 				--color-kumo-brand: #2271b1;
@@ -329,15 +360,6 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				border-top: 1px solid rgba(255,255,255,0.08);
 			}
 
-			/* Keep all nav icons visible when sidebar collapses to icon mode */
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="group-content"] {
-				grid-template-rows: 1fr !important;
-			}
-			/* Mobile drawer: kumo's Sheet has no data-state attribute, so group-content
-			   stays at grid-rows-[0fr] (hidden). Force it open in the mobile sidebar. */
-			.emdash-sidebar[data-mobile="true"] [data-sidebar="group-content"] {
-				grid-template-rows: 1fr !important;
-			}
 			/* Collapsed separators — thin centered line */
 			.emdash-sidebar[data-state="collapsed"] [data-sidebar="separator"] {
 				margin: 0.375rem 0.625rem;
@@ -422,51 +444,43 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 					<KumoSidebar.Separator />
 
-					{/* Content — collections + media (collapsible) */}
+					{/* Content — collections + media */}
 					{visibleContent.length > 1 && (
-						<KumoSidebar.Group collapsible defaultOpen>
+						<KumoSidebar.Group>
 							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Content`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.GroupContent>
-								<KumoSidebar.Menu>
-									{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
-								</KumoSidebar.Menu>
-							</KumoSidebar.GroupContent>
+							<KumoSidebar.Menu>
+								{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
+							</KumoSidebar.Menu>
 						</KumoSidebar.Group>
 					)}
 
 					<KumoSidebar.Separator />
 
-					{/* Manage — comments, menus, taxonomies, etc. (collapsible) */}
+					{/* Manage — comments, menus, taxonomies, etc. */}
 					{visibleManage.length > 0 && (
-						<KumoSidebar.Group collapsible defaultOpen>
+						<KumoSidebar.Group>
 							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Manage`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.GroupContent>
-								<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
-							</KumoSidebar.GroupContent>
+							<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
 						</KumoSidebar.Group>
 					)}
 
 					<KumoSidebar.Separator />
 
-					{/* Admin — content types, users, plugins, import (collapsible) */}
+					{/* Admin — content types, users, plugins, import */}
 					{visibleAdmin.length > 0 && (
-						<KumoSidebar.Group collapsible defaultOpen>
+						<KumoSidebar.Group>
 							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Admin`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.GroupContent>
-								<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
-							</KumoSidebar.GroupContent>
+							<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
 						</KumoSidebar.Group>
 					)}
 
-					{/* Plugin pages (collapsible) */}
+					{/* Plugin pages */}
 					{visiblePlugins.length > 0 && (
 						<>
 							<KumoSidebar.Separator />
-							<KumoSidebar.Group collapsible defaultOpen>
+							<KumoSidebar.Group>
 								<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Plugins`}</KumoSidebar.GroupLabel>
-								<KumoSidebar.GroupContent>
-									<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
-								</KumoSidebar.GroupContent>
+								<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
 							</KumoSidebar.Group>
 						</>
 					)}

@@ -56,6 +56,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
 		cursor: query.cursor,
 		limit: query.limit,
 		mimeType: query.mimeType,
+		q: query.q,
 	});
 
 	if (!result.success) {

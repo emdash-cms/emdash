@@ -1,5 +1,9 @@
 # @emdash-cms/auth
 
+## 0.16.1
+
+## 0.16.0
+
 ## 0.15.0
 
 ### Minor Changes

@@ -1,7 +1,7 @@
 // Classify a reporter's reply to the bot's verification ask.
 //
 // Triggered by .github/workflows/reporter-reply.yml when the issue
-// author comments on an issue that has the `bot:awaiting-reporter`
+// author comments on an issue that has the `triage/awaiting-reporter`
 // label. The workflow YAML reads the classification from this run's
 // output and decides whether to open a PR, retry, or ask for
 // clarification.
@@ -12,6 +12,7 @@ import type { FlueContext } from "@flue/runtime";
 
 import {
 	classifier,
+	persistClassifierResult,
 	replyClassificationSchema,
 	type ReplyClassification,
 } from "../lib/classifier.js";
@@ -68,5 +69,5 @@ export async function run({
 		issueNumber: payload.issueNumber,
 		classification: data.classification,
 	});
-	return data;
+	return persistClassifierResult(data);
 }

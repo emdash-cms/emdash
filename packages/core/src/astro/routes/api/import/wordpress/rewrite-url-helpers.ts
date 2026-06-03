@@ -28,6 +28,28 @@ export function buildBaseUrlMap(urlMap: Record<string, string>): Map<string, str
 }
 
 /**
+ * Extract the URL to match from a stored media field value.
+ *
+ * Image/file columns hold a JSON-stringified MediaValue
+ * (e.g. `{"provider":"external","id":"","src":"https://.../hero.jpg"}`), but legacy
+ * rows may hold a bare URL string. Returns the inner `src` for a MediaValue, otherwise
+ * the value unchanged. Without this, the whole JSON blob is passed to findMatchingUrl()
+ * and the embedded URL is never matched.
+ */
+export function extractMediaUrl(value: string): string {
+	try {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape validated below
+		const parsed = JSON.parse(value) as { src?: unknown };
+		if (parsed && typeof parsed.src === "string") {
+			return parsed.src;
+		}
+	} catch {
+		// Not JSON — treat the column value as a bare URL.
+	}
+	return value;
+}
+
+/**
  * Find matching new URL for a given URL, checking exact, base, and WordPress image-size matches
  */
 export function findMatchingUrl(

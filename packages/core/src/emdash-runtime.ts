@@ -2048,6 +2048,7 @@ export class EmDashRuntime {
 		return {
 			version: VERSION,
 			commit: COMMIT,
+			astroVersion: this.config.astroVersion,
 			hash: manifestHash,
 			collections: manifestCollections,
 			plugins: manifestPlugins,
@@ -2121,6 +2122,7 @@ export class EmDashRuntime {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			q?: string;
 		},
 	) {
 		return handleContentList(this.db, collection, params);
@@ -2270,6 +2272,7 @@ export class EmDashRuntime {
 				noIndex?: boolean;
 			};
 			publishedAt?: string | null;
+			locale?: string;
 			/** Skip revision creation (used by autosave) */
 			skipRevision?: boolean;
 			_rev?: string;
@@ -2278,7 +2281,7 @@ export class EmDashRuntime {
 		// Resolve slug → ID if needed (before any lookups)
 		const { ContentRepository } = await import("./database/repositories/content.js");
 		const repo = new ContentRepository(this.db);
-		const resolvedItem = await repo.findByIdOrSlug(collection, id);
+		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
 		const resolvedId = resolvedItem?.id ?? id;
 
 		// Validate _rev early — before draft revision writes which modify updated_at.
@@ -2554,6 +2557,7 @@ export class EmDashRuntime {
 		cursor?: string;
 		limit?: number;
 		mimeType?: string | readonly string[];
+		q?: string;
 	}) {
 		return handleMediaList(this.db, params);
 	}

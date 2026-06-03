@@ -1,5 +1,22 @@
 # @emdash-cms/registry-cli
 
+## 0.5.0
+
+### Minor Changes
+
+- [#1238](https://github.com/emdash-cms/emdash/pull/1238) [`60c0b2e`](https://github.com/emdash-cms/emdash/commit/60c0b2eeab7726471b313d0c453de82df1e08558) Thanks [@ascorbic](https://github.com/ascorbic)! - Registry plugins can now declare environment requirements. A plugin's manifest may set a release-level `requires` block (e.g. `{ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" }`), which is published into the release record. When browsing a registry plugin, the admin compares those constraints against the running EmDash and Astro versions: if the host doesn't satisfy them, it shows a compatibility warning and disables the Install button. The server enforces the same check on install and update, refusing an incompatible release with `ENV_INCOMPATIBLE` so the gate can't be bypassed.
+
+- [#1239](https://github.com/emdash-cms/emdash/pull/1239) [`1a4918f`](https://github.com/emdash-cms/emdash/commit/1a4918ff989d57b4f12e44b647542e406dce7cb9) Thanks [@ascorbic](https://github.com/ascorbic)! - Plugins published to the experimental registry can now ship icon, screenshot, and banner images. Declare them in `emdash-plugin.jsonc` under `release.artifacts` as file refs; `emdash-plugin publish --artifact-base-url <url>` measures each image's dimensions, uploads it, and records it in the release. The admin plugin detail page renders the icon, banner, and a screenshot gallery, fetched through a server-side image proxy. The proxy resolves each artifact's URL server-side from the validated release record (the client sends only the artifact's coordinates, never a URL), then applies SSRF defences and an image content-type allowlist before serving the bytes. Supported image types are PNG, JPEG, WebP, GIF, and AVIF; SVG is rejected at both publish and proxy because it is active content.
+
+- [#1253](https://github.com/emdash-cms/emdash/pull/1253) [`d2f2679`](https://github.com/emdash-cms/emdash/commit/d2f26792bc8f053693bfb0a6a9d65a7403753f0a) Thanks [@ascorbic](https://github.com/ascorbic)! - Plugins published to the experimental registry can now ship long-form profile sections. Declare them in `emdash-plugin.jsonc` under a top-level `sections` block with any of `description`, `installation`, `faq`, `changelog`, and `security`. Each value is either inline CommonMark Markdown or a `{ file: "./path.md" }` ref read relative to the manifest at load time. Every section is capped at 20000 bytes and 2000 graphemes, enforced locally (inline strings during schema validation, file refs once their content is read) so `emdash-plugin validate`/`publish` fails with a clear message instead of a 400 from the PDS. File refs are resolved within the manifest directory; paths that escape it (via `..` or an absolute path) are rejected. Sections are profile-level: written to the package profile record on first publish and editable afterward with `emdash-registry update-package`, like the other profile fields.
+
+### Patch Changes
+
+- [#1247](https://github.com/emdash-cms/emdash/pull/1247) [`245f8dc`](https://github.com/emdash-cms/emdash/commit/245f8dc221913853d720963d899a8b2d62053985) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fixes plugin builds on Windows by importing the probe artifact through a file URL.
+
+- Updated dependencies [[`60c0b2e`](https://github.com/emdash-cms/emdash/commit/60c0b2eeab7726471b313d0c453de82df1e08558)]:
+  - @emdash-cms/registry-client@0.3.0
+
 ## 0.4.0
 
 ### Minor Changes

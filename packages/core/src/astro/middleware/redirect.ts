@@ -74,7 +74,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 
 		// 1. Exact match (O(1) Map lookup)
-		const exact = cached.exact.get(pathname);
+		let exact = cached.exact.get(pathname);
+		if (!exact && pathname.length > 1) {
+			const alt = pathname.endsWith("/") ? pathname.slice(0, -1) : `${pathname}/`;
+			exact = cached.exact.get(alt);
+		}
 		if (exact) {
 			const dest = exact.destination;
 			if (dest.startsWith("//") || dest.startsWith("/\\")) return next();

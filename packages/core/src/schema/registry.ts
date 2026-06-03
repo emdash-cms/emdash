@@ -772,6 +772,20 @@ export class SchemaRegistry {
 			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_published_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, published_at DESC, id DESC)
 		`.execute(conn);
+
+		// Locale-aware composite indexes for i18n content lists (see migration 041).
+		// Short `loc_upd`/`loc_crt` suffix keeps the updated/created discriminator
+		// inside Postgres's 63-byte identifier limit for long slugs; keep these
+		// names identical to migration 041.
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_loc_upd`)}
+			ON ${sql.ref(tableName)} (deleted_at, locale, updated_at DESC, id DESC)
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX ${sql.ref(`idx_${tableName}_loc_crt`)}
+			ON ${sql.ref(tableName)} (deleted_at, locale, created_at DESC, id DESC)
+		`.execute(conn);
 	}
 
 	/**

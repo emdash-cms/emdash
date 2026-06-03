@@ -55,7 +55,7 @@ jobs:
           ART_BRANCH="bot/artifacts-${ISSUE_NUMBER}"
 
           # bot/fix-N MAY have an open PR pointing at it (the bot
-          # opens one after `bot:verified`). Deleting the ref would
+          # opens one after `triage/verified`). Deleting the ref would
           # invalidate that PR. Two close paths to worry about:
           #
           #  - PR merged -> issue auto-closes via "Closes #N" -> we

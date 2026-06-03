@@ -26,7 +26,7 @@
 
 import { encodeCursor } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
-import { CURSOR_RAW_VALUES } from "./loader.js";
+import { CURSOR_RAW_VALUES, type WhereRange, type WhereValue } from "./loader.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingTableError } from "./utils/db-errors.js";
@@ -82,6 +82,8 @@ export type SortDirection = "asc" | "desc";
  */
 export type OrderBySpec = Record<string, SortDirection>;
 
+export type { WhereRange, WhereValue };
+
 export interface CollectionFilter {
 	status?: "draft" | "published" | "archived";
 	limit?: number;
@@ -99,11 +101,17 @@ export interface CollectionFilter {
 	 */
 	cursor?: string;
 	/**
-	 * Filter by field values or taxonomy terms
+	 * Filter by field values, taxonomy terms, or ranges.
+	 *
+	 * Taxonomy names are detected automatically and filtered via JOIN.
+	 * Other keys are treated as column filters on the content table.
+	 *
 	 * @example { category: 'news' } - Filter by taxonomy term
 	 * @example { category: ['news', 'featured'] } - Filter by multiple terms (OR)
+	 * @example { series: 'main' } - Exact match on a content field
+	 * @example { published_at: { gte: '2024-01-01', lt: '2025-01-01' } } - Date range
 	 */
-	where?: Record<string, string | string[]>;
+	where?: Record<string, WhereValue>;
 	/**
 	 * Order results by field(s)
 	 * @default { created_at: "desc" }
@@ -456,10 +464,21 @@ function collectionCacheKey(type: string, filter?: CollectionFilter): string {
 }
 
 function stableStringify(value: Record<string, unknown>): string {
+	return JSON.stringify(stableOrder(value));
+}
+
+function stableOrder(value: Record<string, unknown>): Record<string, unknown> {
 	const keys = Object.keys(value).toSorted();
 	const ordered: Record<string, unknown> = {};
-	for (const k of keys) ordered[k] = value[k];
-	return JSON.stringify(ordered);
+	for (const k of keys) {
+		const v = value[k];
+		if (isRecord(v)) {
+			ordered[k] = stableOrder(v);
+		} else {
+			ordered[k] = v;
+		}
+	}
+	return ordered;
 }
 
 async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(

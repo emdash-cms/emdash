@@ -217,6 +217,43 @@ describe("Content Handlers — auto-slug generation", () => {
 		});
 	});
 
+	describe("handleContentUpdate — locale-aware slug resolution", () => {
+		it("updates the row matching body.locale when the identifier is a shared slug", async () => {
+			const slug = "shared-locale-update";
+			const en = await handleContentCreate(db, "post", {
+				data: { title: "English" },
+				slug,
+				locale: "en",
+			});
+			const fr = await handleContentCreate(db, "post", {
+				data: { title: "French" },
+				slug,
+				locale: "fr",
+			});
+			expect(en.success).toBe(true);
+			expect(fr.success).toBe(true);
+
+			const currentFr = await handleContentGet(db, "post", slug, "fr");
+			expect(currentFr.success).toBe(true);
+
+			const updated = await handleContentUpdate(db, "post", slug, {
+				data: { title: "French Updated" },
+				locale: "fr",
+				_rev: currentFr.data!._rev,
+			});
+
+			expect(updated.success).toBe(true);
+			expect(updated.data?.item.id).toBe(fr.data?.item.id);
+			expect(updated.data?.item.locale).toBe("fr");
+			expect(updated.data?.item.data.title).toBe("French Updated");
+
+			const fetchedEn = await handleContentGet(db, "post", slug, "en");
+			const fetchedFr = await handleContentGet(db, "post", slug, "fr");
+			expect(fetchedEn.data?.item.data.title).toBe("English");
+			expect(fetchedFr.data?.item.data.title).toBe("French Updated");
+		});
+	});
+
 	describe("byline hydration and assignment", () => {
 		it("should assign and return bylines on create", async () => {
 			const bylineRepo = new BylineRepository(db);
