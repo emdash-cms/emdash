@@ -106,7 +106,6 @@ function isValidMetadataContribution(c: unknown): c is PageMetadataContribution 
 import { after } from "./after.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
 import { runSystemCleanup } from "./cleanup.js";
-import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 	defaultCommentModerate,
@@ -158,12 +157,12 @@ import {
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
 import { PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
-import { NodeCronScheduler } from "./plugins/scheduler/node.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
 
@@ -237,6 +236,13 @@ export interface MediaProviderContext {
 }
 
 /**
+ * Builds the timer-based scheduler that drives cron ticks and maintenance.
+ * Injected via `virtual:emdash/scheduler` so the platform — not core — decides
+ * whether a long-lived heartbeat exists.
+ */
+export type CreateSchedulerFn = (executor: CronExecutor) => CronScheduler;
+
+/**
  * Dependencies injected from virtual modules (middleware reads these)
  */
 export interface RuntimeDependencies {
@@ -249,6 +255,16 @@ export interface RuntimeDependencies {
 	sandboxEnabled: boolean;
 	/** sandbox: false escape hatch - load sandboxed plugins in-process */
 	sandboxBypassed?: boolean;
+	/**
+	 * Factory for the timer-based cron/maintenance heartbeat. Supplied by the
+	 * generated `virtual:emdash/scheduler` module: a `NodeCronScheduler` factory
+	 * on long-lived runtimes (Node/Bun), or `null` on serverless adapters where
+	 * an external driver (e.g. the Cloudflare Worker's `scheduled()` Cron
+	 * Trigger) calls `runScheduledTasks()` instead. When absent or null, the
+	 * runtime starts no scheduler. Keeping the platform decision in the
+	 * integration means core has no adapter-specific runtime checks.
+	 */
+	createScheduler?: CreateSchedulerFn | null;
 	/** Media provider entries from virtual module */
 	mediaProviderEntries?: MediaProviderEntry[];
 	sandboxedPluginEntries: SandboxedPluginEntry[];
@@ -453,7 +469,9 @@ export class EmDashRuntime {
 	 * Returns the items promoted so callers can invalidate their cache tags.
 	 */
 	async publishScheduled(): Promise<PublishedRef[]> {
-		return publishDueContent(this.db);
+		return publishDueContent(this.db, (collection, id, options) =>
+			this.handleContentPublish(collection, id, options),
+		);
 	}
 
 	/**
@@ -481,7 +499,10 @@ export class EmDashRuntime {
 
 		let published: PublishedRef[] = [];
 		try {
-			published = await publishDueContent(this.db);
+			// Route through the runtime wrapper so content:afterPublish hooks fire.
+			published = await publishDueContent(this.db, (collection, id, options) =>
+				this.handleContentPublish(collection, id, options),
+			);
 		} catch (error) {
 			console.error("[scheduled-publish] Sweep failed:", error);
 		}
@@ -1162,6 +1183,11 @@ export class EmDashRuntime {
 
 		let cronExecutor: CronExecutor | null = null;
 		let cronScheduler: CronScheduler | null = null;
+		// Populated with the constructed runtime just before this method returns,
+		// so the timer scheduler's cleanup can route scheduled publishing through
+		// the runtime wrapper (firing content:afterPublish hooks). The first tick
+		// is ≥1s out, well after the synchronous assignment below.
+		const runtimeRef: { current: EmDashRuntime | null } = { current: null };
 
 		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
@@ -1187,23 +1213,30 @@ export class EmDashRuntime {
 					}
 				});
 
-				// On Node/Bun the timer-based scheduler drives ticks. On Cloudflare
-				// Workers there are no long-lived timers — the Worker's `scheduled()`
-				// handler (wired to a Cron Trigger) calls runScheduledTasks() instead,
-				// so no scheduler instance is created here.
-				const isWorkersRuntime =
-					typeof globalThis.navigator !== "undefined" &&
-					globalThis.navigator.userAgent === "Cloudflare-Workers";
-
-				if (!isWorkersRuntime) {
-					const scheduler = new NodeCronScheduler(cronExecutor);
+				// The platform decides whether a long-lived timer heartbeat exists.
+				// `createScheduler` is injected by the generated virtual:emdash/scheduler
+				// module: a NodeCronScheduler factory on Node/Bun, or null on serverless
+				// adapters (e.g. Cloudflare) where the Worker's `scheduled()` handler
+				// drives runScheduledTasks() instead. No adapter check lives here.
+				if (deps.createScheduler) {
+					const scheduler = deps.createScheduler(cronExecutor);
 					cronScheduler = scheduler;
 
 					// Run scheduled publishing and system cleanup alongside each tick.
 					// Pass storage so cleanupPendingUploads can delete orphaned files.
 					scheduler.setSystemCleanup(async () => {
 						try {
-							await publishDueContent(db);
+							// Route through the runtime so content:afterPublish hooks fire.
+							// Falls back to the raw handler if (improbably) the tick beats
+							// the post-construction ref assignment.
+							const runtime = runtimeRef.current;
+							await publishDueContent(
+								db,
+								runtime
+									? (collection, id, options) =>
+											runtime.handleContentPublish(collection, id, options)
+									: undefined,
+							);
 						} catch (error) {
 							console.error("[scheduled-publish] Sweep failed:", error);
 						}
@@ -1221,7 +1254,9 @@ export class EmDashRuntime {
 						cronReschedule: () => cronScheduler?.reschedule(),
 					});
 
-					scheduler.start();
+					// start() is void on the timer scheduler but the interface
+					// allows a promise (alarm-backed schedulers); we don't block on it.
+					void scheduler.start();
 				}
 			} catch (error) {
 				console.warn("[cron] Failed to initialize cron system:", error);
@@ -1229,7 +1264,7 @@ export class EmDashRuntime {
 			}
 		});
 
-		return new EmDashRuntime({
+		const runtime = new EmDashRuntime({
 			db,
 			storage,
 			// Include bypassed sandboxed plugins in configuredPlugins so route
@@ -1252,6 +1287,10 @@ export class EmDashRuntime {
 			runtimeDeps: deps,
 			pipelineRef,
 		});
+		// Hand the constructed instance to the scheduler-cleanup closure so the
+		// timer-driven sweep can fire publish hooks (see runtimeRef above).
+		runtimeRef.current = runtime;
+		return runtime;
 	}
 
 	/**
@@ -2540,7 +2579,7 @@ export class EmDashRuntime {
 	async handleContentPublish(
 		collection: string,
 		id: string,
-		options: { publishedAt?: string } = {},
+		options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
 

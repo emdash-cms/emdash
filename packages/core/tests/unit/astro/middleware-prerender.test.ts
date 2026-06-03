@@ -118,6 +118,7 @@ vi.mock(
 vi.mock("virtual:emdash/sandboxed-plugins", () => ({ sandboxedPlugins: [] }), { virtual: true });
 vi.mock("virtual:emdash/storage", () => ({ createStorage: null }), { virtual: true });
 vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
+vi.mock("virtual:emdash/scheduler", () => ({ createScheduler: null }), { virtual: true });
 
 vi.mock("../../../src/emdash-runtime.js", () => ({
 	EmDashRuntime: {

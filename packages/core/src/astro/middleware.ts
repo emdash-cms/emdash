@@ -25,6 +25,8 @@ import * as virtualSandboxRunnerModule from "virtual:emdash/sandbox-runner";
 // @ts-ignore - virtual module
 import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sandboxed-plugins";
 // @ts-ignore - virtual module
+import { createScheduler as virtualCreateScheduler } from "virtual:emdash/scheduler";
+// @ts-ignore - virtual module
 import { createStorage as virtualCreateStorage } from "virtual:emdash/storage";
 
 import {
@@ -37,6 +39,7 @@ import {
 	type RuntimeDependencies,
 	type SandboxedPluginEntry,
 	type MediaProviderEntry,
+	type CreateSchedulerFn,
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
@@ -44,13 +47,13 @@ import { createPublicMediaUrlResolver } from "../media/url.js";
 import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
-import type { PublishedRef } from "../scheduled-publish.js";
 import {
 	createRequestMetrics,
 	getRequestContext,
 	type RequestMetrics,
 	runWithContext,
 } from "../request-context.js";
+import type { PublishedRef } from "../scheduled-publish.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
 import type { EmDashHandlers } from "./types.js";
@@ -127,6 +130,7 @@ function buildDependencies(config: EmDashConfig): RuntimeDependencies {
 		plugins: getPlugins(),
 		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
+		createScheduler: virtualCreateScheduler as CreateSchedulerFn | null,
 		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
 		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],

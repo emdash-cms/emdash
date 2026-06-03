@@ -14,6 +14,7 @@ import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import {
 	EmDashValidationError,
+	ScheduledNotDueError,
 	InvalidCursorError,
 	type BylineSummary,
 	type ContentBylineCredit,
@@ -1267,13 +1268,13 @@ export async function handleContentPublish(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-	options: { publishedAt?: string } = {},
+	options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.publish(collection, resolvedId, options.publishedAt);
+			return repo.publish(collection, resolvedId, options.publishedAt, options.requireScheduledDue);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1284,6 +1285,17 @@ export async function handleContentPublish(
 			data: { item },
 		};
 	} catch (error) {
+		// The scheduled sweep gates publish on the row still being due; a row
+		// unscheduled in the meantime is a silent skip, not a failure.
+		if (error instanceof ScheduledNotDueError) {
+			return {
+				success: false,
+				error: {
+					code: "NOT_DUE",
+					message: error.message,
+				},
+			};
+		}
 		if (error instanceof EmDashValidationError) {
 			return {
 				success: false,

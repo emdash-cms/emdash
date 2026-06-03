@@ -201,6 +201,8 @@ export {
 	PluginManager,
 	createPluginManager,
 	PluginRouteError,
+	// Scheduler (Node timer heartbeat — used by virtual:emdash/scheduler)
+	NodeCronScheduler,
 	// Sandbox
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
@@ -252,6 +254,10 @@ export type {
 	ModerationDecision,
 	CollectionCommentSettings,
 	StoredComment,
+
+	// Scheduler types
+	CronScheduler,
+	SystemCleanupFn,
 
 	// Sandbox runtime types
 	SandboxRunner,

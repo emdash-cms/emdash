@@ -227,3 +227,16 @@ export class EmDashValidationError extends Error {
 		this.name = "EmDashValidationError";
 	}
 }
+
+/**
+ * Thrown by `publish()` when called with `requireDue` for a row that is no
+ * longer due (its `scheduled_at` was cleared or pushed into the future between
+ * selection and publish — e.g. an editor unscheduled it). Lets the scheduled
+ * sweep skip the row silently rather than treating it as a publish failure.
+ */
+export class ScheduledNotDueError extends Error {
+	constructor(message = "Content is no longer scheduled to publish") {
+		super(message);
+		this.name = "ScheduledNotDueError";
+	}
+}
