@@ -1018,7 +1018,7 @@ msgstr "Dostępni dostawcy"
 msgid "Available Widgets"
 msgstr ""
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:254
+#: packages/admin/src/components/editor/BlockMenu.tsx:257
 #: packages/admin/src/components/MenuEditor.tsx:275
 #: packages/admin/src/components/WordPressImport.tsx:1349
 #: packages/admin/src/components/WordPressImport.tsx:2333
@@ -1115,7 +1115,7 @@ msgstr "Przeglądaj"
 msgid "Browse themes and preview them with your own content."
 msgstr "Przeglądaj motywy i podglądaj je z własną treścią."
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:101
+#: packages/admin/src/components/editor/BlockMenu.tsx:102
 #: packages/admin/src/components/PortableTextEditor.tsx:913
 #: packages/admin/src/components/PortableTextEditor.tsx:2915
 msgid "Bullet List"
@@ -1386,7 +1386,7 @@ msgstr "Zamknij panel"
 msgid "Code"
 msgstr "Kod"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:93
+#: packages/admin/src/components/editor/BlockMenu.tsx:94
 #: packages/admin/src/components/PortableTextEditor.tsx:943
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
 msgid "Code Block"
@@ -1920,7 +1920,7 @@ msgstr "Zdefiniowane w kodzie"
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
 #: packages/admin/src/components/ContentTypeEditor.tsx:663
 #: packages/admin/src/components/ContentTypeList.tsx:148
-#: packages/admin/src/components/editor/BlockMenu.tsx:298
+#: packages/admin/src/components/editor/BlockMenu.tsx:301
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
 #: packages/admin/src/components/MediaDetailPanel.tsx:230
@@ -2322,7 +2322,7 @@ msgstr "Przeciągnij, aby zmienić kolejność"
 msgid "Drag to reorder {0}"
 msgstr ""
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:335
+#: packages/admin/src/components/editor/BlockMenu.tsx:338
 msgid "Drag to reorder block"
 msgstr ""
 
@@ -2342,7 +2342,7 @@ msgstr ""
 msgid "Drop your WordPress export file here"
 msgstr "Upuść plik eksportu WordPress tutaj"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:289
+#: packages/admin/src/components/editor/BlockMenu.tsx:292
 msgid "Duplicate"
 msgstr ""
 
@@ -3251,19 +3251,19 @@ msgstr ""
 msgid "Guest only"
 msgstr ""
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:61
+#: packages/admin/src/components/editor/BlockMenu.tsx:62
 #: packages/admin/src/components/PortableTextEditor.tsx:883
 #: packages/admin/src/components/PortableTextEditor.tsx:2888
 msgid "Heading 1"
 msgstr "Nagłówek 1"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:69
+#: packages/admin/src/components/editor/BlockMenu.tsx:70
 #: packages/admin/src/components/PortableTextEditor.tsx:893
 #: packages/admin/src/components/PortableTextEditor.tsx:2895
 msgid "Heading 2"
 msgstr "Nagłówek 2"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:77
+#: packages/admin/src/components/editor/BlockMenu.tsx:78
 #: packages/admin/src/components/PortableTextEditor.tsx:903
 #: packages/admin/src/components/PortableTextEditor.tsx:2902
 msgid "Heading 3"
@@ -4600,7 +4600,7 @@ msgstr "Liczba"
 msgid "Number of posts to show per page on list views"
 msgstr "Liczba wpisów wyświetlanych na stronie w widokach list"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:109
+#: packages/admin/src/components/editor/BlockMenu.tsx:110
 #: packages/admin/src/components/PortableTextEditor.tsx:923
 #: packages/admin/src/components/PortableTextEditor.tsx:2922
 msgid "Numbered List"
@@ -4732,7 +4732,7 @@ msgstr ""
 msgid "Pages"
 msgstr "Strony"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:53
+#: packages/admin/src/components/editor/BlockMenu.tsx:54
 msgid "Paragraph"
 msgstr "Akapit"
 
@@ -5055,7 +5055,7 @@ msgstr "Szybkie tworzenie autora"
 msgid "Quick edit alt text"
 msgstr ""
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:85
+#: packages/admin/src/components/editor/BlockMenu.tsx:86
 #: packages/admin/src/components/PortableTextEditor.tsx:933
 #: packages/admin/src/components/PortableTextEditor.tsx:2929
 msgid "Quote"
@@ -6682,7 +6682,7 @@ msgstr "Spróbuj innego URL"
 msgid "Try with my data"
 msgstr "Wypróbuj z moimi danymi"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:279
+#: packages/admin/src/components/editor/BlockMenu.tsx:282
 msgid "Turn into"
 msgstr ""
 

@@ -12,6 +12,13 @@ export const bylineSummarySchema = z
 		displayName: z.string(),
 		bio: z.string().nullable(),
 		avatarMediaId: z.string().nullable(),
+		/**
+		 * Avatar media storage key + alt, folded in by the media join during
+		 * content byline hydration. Null on the plain byline finders, which
+		 * don't join media.
+		 */
+		avatarStorageKey: z.string().nullish(),
+		avatarAlt: z.string().nullish(),
 		websiteUrl: z.string().nullable(),
 		userId: z.string().nullable(),
 		isGuest: z.boolean(),

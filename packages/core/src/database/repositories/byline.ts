@@ -24,6 +24,17 @@ import {
 
 type BylineRow = Selectable<BylineTable>;
 
+/**
+ * A byline row optionally augmented with the avatar's media columns, folded in
+ * by the `LEFT JOIN media` in the content-credit hydration queries. The plain
+ * `selectAll()` finders produce rows without these keys, so they're optional
+ * and `rowToByline` defaults them to null.
+ */
+type BylineRowWithAvatar = BylineRow & {
+	avatar_storage_key?: string | null;
+	avatar_alt?: string | null;
+};
+
 export interface CreateBylineInput {
 	slug: string;
 	displayName: string;
@@ -89,13 +100,15 @@ export interface ContentBylineInput {
 	roleLabel?: string | null;
 }
 
-function rowToByline(row: BylineRow): BylineSummary {
+function rowToByline(row: BylineRowWithAvatar): BylineSummary {
 	return {
 		id: row.id,
 		slug: row.slug,
 		displayName: row.display_name,
 		bio: row.bio,
 		avatarMediaId: row.avatar_media_id,
+		avatarStorageKey: row.avatar_storage_key ?? null,
+		avatarAlt: row.avatar_alt ?? null,
 		websiteUrl: row.website_url,
 		userId: row.user_id,
 		isGuest: row.is_guest === 1,
@@ -913,6 +926,7 @@ export class BylineRepository {
 		let query = this.db
 			.selectFrom("_emdash_content_bylines as cb")
 			.innerJoin("_emdash_bylines as b", "b.translation_group", "cb.byline_id")
+			.leftJoin("media as m", "m.id", "b.avatar_media_id")
 			.select([
 				"cb.sort_order as sort_order",
 				"cb.role_label as role_label",
@@ -921,6 +935,8 @@ export class BylineRepository {
 				"b.display_name as display_name",
 				"b.bio as bio",
 				"b.avatar_media_id as avatar_media_id",
+				"m.storage_key as avatar_storage_key",
+				"m.alt as avatar_alt",
 				"b.website_url as website_url",
 				"b.user_id as user_id",
 				"b.is_guest as is_guest",
@@ -935,16 +951,19 @@ export class BylineRepository {
 		if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
 
 		const rows = await query.execute();
-		// Reconstruct minimal byline rows to feed `withCustomFields`. The
-		// JOIN selects the same columns as `BylineRow`, just under the
-		// `b.` alias — the reshape is mechanical and keeps the hydration
-		// helper unaware of the JOIN shape.
-		const bylineRows: BylineRow[] = rows.map((row) => ({
+		// Reconstruct byline rows to feed `withCustomFields`. The JOIN selects
+		// the `BylineRow` columns under the `b.` alias plus the avatar media
+		// columns from the `media` LEFT JOIN; carry both through so
+		// `rowToByline` can populate `avatarStorageKey`/`avatarAlt` (otherwise
+		// the join runs but its values are dropped here).
+		const bylineRows: BylineRowWithAvatar[] = rows.map((row) => ({
 			id: row.id,
 			slug: row.slug,
 			display_name: row.display_name,
 			bio: row.bio,
 			avatar_media_id: row.avatar_media_id,
+			avatar_storage_key: row.avatar_storage_key,
+			avatar_alt: row.avatar_alt,
 			website_url: row.website_url,
 			user_id: row.user_id,
 			is_guest: row.is_guest,
@@ -1042,6 +1061,7 @@ export class BylineRepository {
 			let query = this.db
 				.selectFrom("_emdash_content_bylines as cb")
 				.innerJoin("_emdash_bylines as b", "b.translation_group", "cb.byline_id")
+				.leftJoin("media as m", "m.id", "b.avatar_media_id")
 				.select([
 					"cb.content_id as content_id",
 					"cb.sort_order as sort_order",
@@ -1051,6 +1071,8 @@ export class BylineRepository {
 					"b.display_name as display_name",
 					"b.bio as bio",
 					"b.avatar_media_id as avatar_media_id",
+					"m.storage_key as avatar_storage_key",
+					"m.alt as avatar_alt",
 					"b.website_url as website_url",
 					"b.user_id as user_id",
 					"b.is_guest as is_guest",
@@ -1065,12 +1087,16 @@ export class BylineRepository {
 			if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
 
 			const rows = await query.execute();
-			const bylineRows: BylineRow[] = rows.map((row) => ({
+			// Carry the avatar media columns from the LEFT JOIN through the
+			// reshape so `rowToByline` can populate avatarStorageKey/avatarAlt.
+			const bylineRows: BylineRowWithAvatar[] = rows.map((row) => ({
 				id: row.id,
 				slug: row.slug,
 				display_name: row.display_name,
 				bio: row.bio,
 				avatar_media_id: row.avatar_media_id,
+				avatar_storage_key: row.avatar_storage_key,
+				avatar_alt: row.avatar_alt,
 				website_url: row.website_url,
 				user_id: row.user_id,
 				is_guest: row.is_guest,
@@ -1135,8 +1161,30 @@ export class BylineRepository {
 		if (userIds.length === 0) return result;
 
 		for (const chunk of chunks(userIds, SQL_BATCH_SIZE)) {
-			let query = this.db.selectFrom("_emdash_bylines").selectAll().where("user_id", "in", chunk);
-			if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
+			// LEFT JOIN media so author-inferred bylines (the fallback path in
+			// `getBylinesForEntries`) carry the same render-ready avatar storage
+			// key as explicitly-credited bylines do.
+			let query = this.db
+				.selectFrom("_emdash_bylines as b")
+				.leftJoin("media as m", "m.id", "b.avatar_media_id")
+				.select([
+					"b.id as id",
+					"b.slug as slug",
+					"b.display_name as display_name",
+					"b.bio as bio",
+					"b.avatar_media_id as avatar_media_id",
+					"m.storage_key as avatar_storage_key",
+					"m.alt as avatar_alt",
+					"b.website_url as website_url",
+					"b.user_id as user_id",
+					"b.is_guest as is_guest",
+					"b.created_at as created_at",
+					"b.updated_at as updated_at",
+					"b.locale as locale",
+					"b.translation_group as translation_group",
+				])
+				.where("b.user_id", "in", chunk);
+			if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
 
 			const rows = await query.execute();
 			let bylines: BylineSummary[];

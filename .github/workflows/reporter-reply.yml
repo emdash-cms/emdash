@@ -131,7 +131,7 @@ jobs:
           # has a strictly greater id.
           LATEST_ASK_ID="$(
             gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/comments" --paginate --slurp \
-              --jq '
+              | jq '
                 [ .[]
                   | .[]
                   | select(.user.login == "emdashbot[bot]")
@@ -271,9 +271,17 @@ jobs:
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_KEY: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          # The workflow writes its result here; we read it directly instead of
+          # scraping `flue run`'s stdout, which interleaves build-log lines and
+          # pretty-prints the result -- both defeat line/slurp parsing and
+          # silently default every reply to `unclear`. Same handoff as
+          # investigate.yml's INVESTIGATE_RESULT_PATH.
+          CLASSIFY_RESULT_PATH: /tmp/classify-result.json
         run: |
           set -o pipefail
+          RESULT_PATH="${CLASSIFY_RESULT_PATH:?CLASSIFY_RESULT_PATH not set}"
           PAYLOAD="$(cat /tmp/classify-payload.json)"
+          rm -f "$RESULT_PATH"
           set +e
           # See investigate.yml's "Run Flue investigate agent" step
           # for why we invoke the binary directly rather than via
@@ -285,34 +293,20 @@ jobs:
             > /tmp/classify-stdout.json 2> /tmp/classify-stderr.log
           EXIT=$?
           set -e
-          if [[ $EXIT -ne 0 ]] || [[ ! -s /tmp/classify-stdout.json ]]; then
-            echo "::warning::classifier exit=${EXIT}; defaulting to unclear"
+          : > /tmp/classify-reasoning.txt
+          # A clean run writes a single JSON object to the result file. A
+          # non-zero exit, a missing file, or a non-object means the run did
+          # not finish -- default to unclear (which re-asks, never acts).
+          if [[ $EXIT -ne 0 ]] || [[ ! -s "$RESULT_PATH" ]] || ! jq -e 'type == "object"' "$RESULT_PATH" >/dev/null 2>&1; then
+            echo "::warning::classifier exit=${EXIT} or no result file; defaulting to unclear"
             tail -n 50 /tmp/classify-stderr.log || true
             echo "classification=unclear" >> "$GITHUB_OUTPUT"
-            : > /tmp/classify-reasoning.txt
-            exit 0
-          fi
-          # Same robust parse as investigate.yml: prefer the last JSON
-          # object line; fall back to slurp parse for multi-line JSON.
-          RESULT=""
-          while IFS= read -r line; do
-            if printf '%s' "$line" | jq -e 'type == "object"' >/dev/null 2>&1; then
-              RESULT="$line"
-            fi
-          done < /tmp/classify-stdout.json
-          if [[ -z "$RESULT" ]]; then
-            RESULT="$(jq -cs 'map(select(type == "object")) | last // empty' < /tmp/classify-stdout.json 2>/dev/null || true)"
-          fi
-          if [[ -z "$RESULT" ]] || [[ "$RESULT" == "null" ]]; then
-            echo "classification=unclear" >> "$GITHUB_OUTPUT"
-            : > /tmp/classify-reasoning.txt
             exit 0
           fi
           # Whitelist the classification value -- the gate has to be a
           # known enum or we treat it as unclear. Defends against the
-          # model returning an unexpected value, AND against any path
-          # where the value would leak into a heredoc body.
-          CLASS_RAW="$(jq -r '.classification // "unclear"' <<<"$RESULT" | tr -d '\r\n')"
+          # model returning an unexpected value.
+          CLASS_RAW="$(jq -r '.classification // "unclear"' "$RESULT_PATH" | tr -d '\r\n')"
           case "$CLASS_RAW" in
             positive|negative|unclear) CLASS="$CLASS_RAW" ;;
             *) CLASS="unclear" ;;
@@ -322,7 +316,7 @@ jobs:
           # $GITHUB_OUTPUT -- a heredoc with a fixed delimiter would be
           # a step-output injection vector if the reasoning contained
           # the delimiter on its own line.
-          jq -r '.reasoning // ""' <<<"$RESULT" > /tmp/classify-reasoning.txt
+          jq -r '.reasoning // ""' "$RESULT_PATH" > /tmp/classify-reasoning.txt
           echo "classification=${CLASS}" >> "$GITHUB_OUTPUT"
 
       # Collapse the two classification sources into one output the
@@ -448,12 +442,11 @@ jobs:
           # maintainer (authorized in live-check, check 4). Login charset
           # is safe.
           COMMENTER: ${{ github.event.comment.user.login }}
-          # Pull workflow context values into env so the shell never sees
-          # raw `${{ ... }}` expansions -- zizmor flags these as template
-          # injection even though `github.repository` and `github.ref_name`
-          # are trustworthy on a non-fork issue_comment trigger. Defensive.
+          # Pull workflow context into env so the shell never sees raw
+          # `${{ ... }}` expansions -- zizmor flags these as template injection
+          # even though `github.repository` is trustworthy on a non-fork
+          # issue_comment trigger. Defensive.
           REPO_FULL: ${{ github.repository }}
-          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
@@ -473,7 +466,7 @@ jobs:
           #      bare integer.
           COUNT="$(
             gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/comments" --paginate --slurp \
-              --jq '
+              | jq '
                 [ .[]
                   | .[]
                   | select(.user.login == "emdashbot[bot]")
@@ -506,17 +499,26 @@ jobs:
             exit 0
           fi
 
-          # Dispatch first, then transition the label. Order matters
-          # for recovery: if dispatch fails, the label stays put
-          # (so a maintainer can re-trigger by removing + re-adding
-          # `bot:repro` manually) rather than getting stuck in a
-          # `triage/reproducing` state with no investigation running.
+          # Re-trigger investigation via a repository_dispatch event (type
+          # `reporter-retry`) rather than `gh workflow run` (workflow_dispatch):
+          # firing repository_dispatch needs only contents:write, which the app
+          # token has, whereas workflow_dispatch needs actions:write, which the
+          # emdashbot App is not granted. investigate.yml reads issueNumber /
+          # retryContext from client_payload. The body is built with jq so the
+          # attacker-controlled REPLY_BODY is JSON-escaped, never interpolated
+          # into a command. repository_dispatch always runs on the default
+          # branch, so no ref is needed.
+          #
+          # Dispatch first, then transition the label. Order matters for
+          # recovery: if dispatch fails, the label stays put (so a maintainer
+          # can re-trigger by removing + re-adding `bot:repro` manually) rather
+          # than getting stuck in `triage/reproducing` with nothing running.
           set +e
-          gh workflow run investigate.yml \
-            --repo "$REPO_FULL" \
-            --ref "$REF_NAME" \
-            -f issueNumber="${ISSUE_NUMBER}" \
-            -f retryContext="${REPLY_BODY}"
+          jq -nc \
+            --arg n "$ISSUE_NUMBER" \
+            --arg r "$REPLY_BODY" \
+            '{event_type: "reporter-retry", client_payload: {issueNumber: $n, retryContext: $r}}' \
+            | gh api --method POST "/repos/${REPO_FULL}/dispatches" --input -
           DISPATCH_EXIT=$?
           set -e
 
@@ -525,7 +527,7 @@ jobs:
             # decide what to do. Leave the label on triage/awaiting-reporter
             # so the maintainer's manual `bot:repro` re-application
             # works as expected.
-            echo "::warning::workflow_dispatch failed (exit ${DISPATCH_EXIT}); leaving label on triage/awaiting-reporter"
+            echo "::warning::repository_dispatch failed (exit ${DISPATCH_EXIT}); leaving label on triage/awaiting-reporter"
             {
               echo "<!-- bot-retry-count: ${NEXT} -->"
               echo "I tried to re-run the investigation but the dispatch failed. A maintainer can re-trigger by removing the \`triage/awaiting-reporter\` label and re-adding \`bot:repro\`."

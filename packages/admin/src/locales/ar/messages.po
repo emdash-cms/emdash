@@ -1022,7 +1022,7 @@ msgstr "المزودون المتاحون"
 msgid "Available Widgets"
 msgstr "عناصر الواجهة المتاحة"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:254
+#: packages/admin/src/components/editor/BlockMenu.tsx:257
 #: packages/admin/src/components/MenuEditor.tsx:275
 #: packages/admin/src/components/WordPressImport.tsx:1349
 #: packages/admin/src/components/WordPressImport.tsx:2333
@@ -1119,7 +1119,7 @@ msgstr "تصفح"
 msgid "Browse themes and preview them with your own content."
 msgstr "تصفح المظاهر وقم بمعاينتها مع محتواك الخاص."
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:101
+#: packages/admin/src/components/editor/BlockMenu.tsx:102
 #: packages/admin/src/components/PortableTextEditor.tsx:913
 #: packages/admin/src/components/PortableTextEditor.tsx:2915
 msgid "Bullet List"
@@ -1390,7 +1390,7 @@ msgstr "إغلاق اللوحة"
 msgid "Code"
 msgstr "كود"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:93
+#: packages/admin/src/components/editor/BlockMenu.tsx:94
 #: packages/admin/src/components/PortableTextEditor.tsx:943
 #: packages/admin/src/components/PortableTextEditor.tsx:2936
 msgid "Code Block"
@@ -1924,7 +1924,7 @@ msgstr "مُعرَّف في الكود"
 #: packages/admin/src/components/comments/CommentInbox.tsx:407
 #: packages/admin/src/components/ContentTypeEditor.tsx:663
 #: packages/admin/src/components/ContentTypeList.tsx:148
-#: packages/admin/src/components/editor/BlockMenu.tsx:298
+#: packages/admin/src/components/editor/BlockMenu.tsx:301
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:378
 #: packages/admin/src/components/MediaDetailPanel.tsx:230
@@ -2326,7 +2326,7 @@ msgstr "اسحب لإعادة الترتيب"
 msgid "Drag to reorder {0}"
 msgstr "اسحب لإعادة ترتيب {0}"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:335
+#: packages/admin/src/components/editor/BlockMenu.tsx:338
 msgid "Drag to reorder block"
 msgstr "اسحب لإعادة ترتيب الكتلة"
 
@@ -2346,7 +2346,7 @@ msgstr "أسقط هنا لإضافة عنصر واجهة"
 msgid "Drop your WordPress export file here"
 msgstr "قم بإفلات ملف تصدير WordPress الخاص بك هنا"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:289
+#: packages/admin/src/components/editor/BlockMenu.tsx:292
 msgid "Duplicate"
 msgstr "تكرار"
 
@@ -3255,19 +3255,19 @@ msgstr "كاتب ضيف"
 msgid "Guest only"
 msgstr "ضيف فقط"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:61
+#: packages/admin/src/components/editor/BlockMenu.tsx:62
 #: packages/admin/src/components/PortableTextEditor.tsx:883
 #: packages/admin/src/components/PortableTextEditor.tsx:2888
 msgid "Heading 1"
 msgstr "عنوان 1"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:69
+#: packages/admin/src/components/editor/BlockMenu.tsx:70
 #: packages/admin/src/components/PortableTextEditor.tsx:893
 #: packages/admin/src/components/PortableTextEditor.tsx:2895
 msgid "Heading 2"
 msgstr "عنوان 2"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:77
+#: packages/admin/src/components/editor/BlockMenu.tsx:78
 #: packages/admin/src/components/PortableTextEditor.tsx:903
 #: packages/admin/src/components/PortableTextEditor.tsx:2902
 msgid "Heading 3"
@@ -4604,7 +4604,7 @@ msgstr "عدد"
 msgid "Number of posts to show per page on list views"
 msgstr "عدد المنشورات الظاهرة لكل صفحة في عروض القائمة"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:109
+#: packages/admin/src/components/editor/BlockMenu.tsx:110
 #: packages/admin/src/components/PortableTextEditor.tsx:923
 #: packages/admin/src/components/PortableTextEditor.tsx:2922
 msgid "Numbered List"
@@ -4739,7 +4739,7 @@ msgstr "الصفحة غير موجودة"
 msgid "Pages"
 msgstr "الصفحات"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:53
+#: packages/admin/src/components/editor/BlockMenu.tsx:54
 msgid "Paragraph"
 msgstr "فقرة"
 
@@ -5062,7 +5062,7 @@ msgstr "إنشاء كاتب بشكل سريع"
 msgid "Quick edit alt text"
 msgstr "تعديل سريع للنص البديل"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:85
+#: packages/admin/src/components/editor/BlockMenu.tsx:86
 #: packages/admin/src/components/PortableTextEditor.tsx:933
 #: packages/admin/src/components/PortableTextEditor.tsx:2929
 msgid "Quote"
@@ -6689,7 +6689,7 @@ msgstr "جرّب رابطًا آخر"
 msgid "Try with my data"
 msgstr "جرّب مع بياناتي"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:279
+#: packages/admin/src/components/editor/BlockMenu.tsx:282
 msgid "Turn into"
 msgstr "حوّل إلى"
 

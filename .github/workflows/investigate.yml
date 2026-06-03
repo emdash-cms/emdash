@@ -5,8 +5,20 @@ name: Investigate
 # fix branch). The orchestrator (this workflow) performs all GitHub writes
 # based on the agent's structured JSON output.
 #
-# Also accepts workflow_dispatch so the reporter-reply workflow can re-trigger
-# investigation when the reporter says the first attempt missed something.
+# Also accepts re-triggers from the reporter-reply workflow when the reporter
+# (or a maintainer) says the first attempt missed something:
+#   * workflow_dispatch -- for manual re-runs from the Actions UI.
+#   * repository_dispatch (type `reporter-retry`) -- used by reporter-reply.yml,
+#     because firing it needs only the contents:write the emdashbot App already
+#     has, whereas workflow_dispatch from the App would need actions:write.
+#   * repository_dispatch (type `maintainer-directive`) -- used by
+#     maintainer-reply.yml when a maintainer directs an implementation on a
+#     reproduced issue. Carries `directive`, an authoritative instruction that
+#     overrides the fix gate (see InvestigatePayload.maintainerDirective). The
+#     produced fix routes through the normal awaiting-reporter loop.
+# reporter-retry carries { issueNumber, retryContext }; maintainer-directive
+# carries { issueNumber, directive }; both via client_payload (workflow_dispatch
+# carries the equivalents in inputs).
 
 on:
   issues:
@@ -21,6 +33,12 @@ on:
         description: "Reporter feedback from previous attempt"
         required: false
         type: string
+      directive:
+        description: "Maintainer implementation directive (overrides the fix gate)"
+        required: false
+        type: string
+  repository_dispatch:
+    types: [reporter-retry, maintainer-directive]
 
 # Default-deny at workflow level. The job below opens up only what it needs.
 permissions:
@@ -34,13 +52,14 @@ jobs:
     # a PR (issues.labeled fires for PRs too).
     if: >-
       github.event_name == 'workflow_dispatch'
+      || github.event_name == 'repository_dispatch'
       || (github.event.label.name == 'bot:repro' && github.event.issue.pull_request == null)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     # Serialize per-issue. Don't cancel in-flight runs -- partial state is
     # worse than a queue, since the agent may have already pushed branches.
     concurrency:
-      group: investigate-${{ github.event.issue.number || inputs.issueNumber }}
+      group: investigate-${{ github.event.issue.number || inputs.issueNumber || github.event.client_payload.issueNumber }}
       cancel-in-progress: false
     # Sandbox token (GITHUB_TOKEN) is intentionally read-only. All writes use
     # the minted app token from the step below.
@@ -75,11 +94,17 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           EVENT_NAME: ${{ github.event_name }}
           LABEL_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          DISPATCH_ISSUE_NUMBER: ${{ inputs.issueNumber }}
+          # Re-trigger issue number / feedback come from inputs (workflow_dispatch)
+          # or client_payload (repository_dispatch); only one is ever set.
+          DISPATCH_ISSUE_NUMBER: ${{ inputs.issueNumber || github.event.client_payload.issueNumber }}
           LABEL_ISSUE_TITLE: ${{ github.event.issue.title }}
           LABEL_ISSUE_BODY: ${{ github.event.issue.body }}
           LABEL_ISSUE_REPORTER: ${{ github.event.issue.user.login }}
-          RETRY_CONTEXT: ${{ inputs.retryContext }}
+          RETRY_CONTEXT: ${{ inputs.retryContext || github.event.client_payload.retryContext }}
+          # A maintainer's implementation directive (maintainer-directive
+          # dispatch or a manual workflow_dispatch). Empty on the labeled and
+          # reporter-retry paths.
+          DIRECTIVE: ${{ inputs.directive || github.event.client_payload.directive }}
         run: |
           set -euo pipefail
           # The issue body and retry context are attacker-controllable
@@ -89,9 +114,24 @@ jobs:
           # and let the attacker forge subsequent outputs. Avoid
           # putting them in step outputs at all -- write to /tmp files
           # that later steps read directly.
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" || "$EVENT_NAME" == "repository_dispatch" ]]; then
             NUM="$DISPATCH_ISSUE_NUMBER"
+            # The dispatched number is attacker-influenceable (a forged
+            # repository_dispatch could carry a path-traversal value) and is
+            # about to be interpolated into an API path -- validate BEFORE the
+            # call, ahead of the shared check below. Issue numbers are positive
+            # integers with no leading zero (also keeps --argjson happy later).
+            if ! [[ "$NUM" =~ ^[1-9][0-9]*$ ]]; then
+              echo "::error::invalid issue number: $NUM"
+              exit 1
+            fi
             gh api "/repos/emdash-cms/emdash/issues/${NUM}" > /tmp/issue.json
+            # The issues API returns PRs too; only the labeled path was
+            # PR-guarded. Reject a PR number dispatched by mistake or forgery.
+            if jq -e '.pull_request' /tmp/issue.json >/dev/null 2>&1; then
+              echo "::error::#${NUM} is a pull request, not an issue"
+              exit 1
+            fi
             TITLE="$(jq -r '.title // ""' /tmp/issue.json | tr -d '\r\n')"
             REPORTER="$(jq -r '.user.login // ""' /tmp/issue.json | tr -d '\r\n')"
             jq -r '.body // ""' /tmp/issue.json > /tmp/ctx-body.txt
@@ -103,11 +143,22 @@ jobs:
             printf '%s' "$LABEL_ISSUE_BODY" > /tmp/ctx-body.txt
             : > /tmp/ctx-retry.txt
           fi
+          # The directive is attacker-shaped multiline text like the body and
+          # retry context; same treatment -- write to /tmp, never to a step
+          # output. Empty unless a maintainer-directive dispatch set it. A
+          # whitespace-only value (possible via a manual workflow_dispatch)
+          # normalizes to empty so `directed` and the payload reflect only a
+          # meaningful instruction.
+          if printf '%s' "$DIRECTIVE" | grep -q '[^[:space:]]'; then
+            printf '%s' "$DIRECTIVE" > /tmp/ctx-directive.txt
+          else
+            : > /tmp/ctx-directive.txt
+          fi
           # Validate scalar fields are simple before they hit step
           # outputs. Issue numbers are integers; logins match a tight
           # regex. Anything weird produces a hard fail rather than a
           # silent injection.
-          if ! [[ "$NUM" =~ ^[0-9]+$ ]]; then
+          if ! [[ "$NUM" =~ ^[1-9][0-9]*$ ]]; then
             echo "::error::invalid issue number: $NUM"
             exit 1
           fi
@@ -119,10 +170,15 @@ jobs:
           # control characters. They are never executed, but they do
           # get echoed into markdown comments.
           TITLE_CLEAN="$(printf '%s' "$TITLE" | LC_ALL=C tr -d '\000-\037\177' | cut -c1-256)"
+          # `directed` is a clean boolean derived from directive presence --
+          # safe for a step output (the directive text itself never is).
+          # Outcome branches use it to word maintainer-facing comments.
+          if [[ -s /tmp/ctx-directive.txt ]]; then DIRECTED=true; else DIRECTED=false; fi
           {
             echo "number=${NUM}"
             echo "title=${TITLE_CLEAN}"
             echo "reporter=${REPORTER}"
+            echo "directed=${DIRECTED}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Transition label to triage/reproducing
@@ -192,7 +248,8 @@ jobs:
             --arg t "$ISSUE_TITLE" \
             --rawfile b /tmp/ctx-body.txt \
             --rawfile r /tmp/ctx-retry.txt \
-            '{issueNumber: $n, issueTitle: $t, issueBody: $b, owner: "emdash-cms", repo: "emdash"} + (if $r == "" then {} else {retryContext: $r} end)')"
+            --rawfile d /tmp/ctx-directive.txt \
+            '{issueNumber: $n, issueTitle: $t, issueBody: $b, owner: "emdash-cms", repo: "emdash"} + (if $r == "" then {} else {retryContext: $r} end) + (if $d == "" then {} else {maintainerDirective: $d} end)')"
           # Write payload to file rather than $GITHUB_OUTPUT to avoid the
           # 1MB output cap on large issue bodies and to keep raw JSON out
           # of step logs.
@@ -263,6 +320,7 @@ jobs:
         id: parse
         env:
           AGENT_EXIT: ${{ steps.agent.outputs.exit }}
+          DIRECTED: ${{ steps.ctx.outputs.directed }}
         run: |
           set -euo pipefail
           # The workflow writes its assembled result to
@@ -293,7 +351,11 @@ jobs:
             OUTCOME=not-reproduced
           elif [[ "$FIXED" == "true" ]]; then
             OUTCOME=fixed
-          elif [[ "$VERDICT" == "intended-behavior" ]]; then
+          elif [[ "$VERDICT" == "intended-behavior" && "$DIRECTED" != "true" ]]; then
+            # A directed run overrides the intended-behavior judgment (the flue
+            # agent already skips its early return), so it should never land in
+            # by-design. If its fix was abandoned it falls through to the
+            # reproduced branch, which carries the directed-aware wording.
             OUTCOME=intended-behavior
           else
             OUTCOME=reproduced
@@ -307,12 +369,17 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+          DIRECTED: ${{ steps.ctx.outputs.directed }}
         run: |
           set -euo pipefail
           REASON="$(jq -r '.reason // .notes // "No reason provided."' /tmp/agent-result.json)"
           gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/skipped"
           {
-            echo "The investigation bot declined to reproduce this issue."
+            if [[ "$DIRECTED" == "true" ]]; then
+              echo "I couldn't carry out the directive: the reproduction step was skipped, so there's no way to verify a fix."
+            else
+              echo "The investigation bot declined to reproduce this issue."
+            fi
             echo
             echo "**Reason:** ${REASON}"
             echo
@@ -327,12 +394,17 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+          DIRECTED: ${{ steps.ctx.outputs.directed }}
         run: |
           set -euo pipefail
           ATTEMPTS="$(jq -r '.attempts // "The bot tried the steps described in the issue but could not trigger the bug."' /tmp/agent-result.json)"
           gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/not-reproduced"
           {
-            echo "The investigation bot could not reproduce this issue."
+            if [[ "$DIRECTED" == "true" ]]; then
+              echo "I tried to implement the directive but couldn't reproduce the issue to verify a fix against."
+            else
+              echo "The investigation bot could not reproduce this issue."
+            fi
             echo
             echo "**What was tried:**"
             echo
@@ -380,16 +452,29 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE_NUMBER: ${{ steps.ctx.outputs.number }}
+          DIRECTED: ${{ steps.ctx.outputs.directed }}
         run: |
           set -euo pipefail
           NOTES="$(jq -r '.notes // ""' /tmp/agent-result.json)"
           gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/reproducing" --add-label "triage/reproduced"
           {
-            echo "The investigation bot reproduced this issue."
-            echo
-            echo "${NOTES}"
-            echo
-            echo "A maintainer will pick up the fix from here."
+            if [[ "$DIRECTED" == "true" ]]; then
+              # A maintainer directed an implementation but the fix stage still
+              # came back empty (the fix agent read the code and abandoned, or
+              # the directive couldn't be carried out). Say so plainly rather
+              # than the default "a maintainer will pick up" line.
+              echo "I tried to implement the directive but couldn't produce a verified fix."
+              echo
+              echo "${NOTES}"
+              echo
+              echo "The issue stays in \`triage/reproduced\`. Refine the directive and reply again, or pick it up by hand."
+            else
+              echo "The investigation bot reproduced this issue."
+              echo
+              echo "${NOTES}"
+              echo
+              echo "A maintainer will pick up the fix from here."
+            fi
             echo
             echo "<sub>Run: $RUN_URL</sub>"
           } > /tmp/comment.md
