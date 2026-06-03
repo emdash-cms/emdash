@@ -1,0 +1,28 @@
+{
+	"name": "emdash-e2e-fixture-cloudflare",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build"
+	},
+	"dependencies": {
+		"@astrojs/cloudflare": "catalog:",
+		"@astrojs/react": "catalog:",
+		"@emdash-cms/auth": "workspace:*",
+		"@emdash-cms/cloudflare": "workspace:*",
+		"@emdash-cms/plugin-color": "workspace:*",
+		"astro": "catalog:",
+		"emdash": "workspace:*",
+		"react": "catalog:",
+		"react-dom": "catalog:"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "catalog:",
+		"wrangler": "catalog:"
+	},
+	"emdash": {
+		"seed": ".emdash/seed.json"
+	}
+}

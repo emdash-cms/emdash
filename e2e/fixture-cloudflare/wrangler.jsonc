@@ -1,0 +1,20 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-e2e-fixture-cloudflare",
+	"main": "./src/worker.ts",
+	"compatibility_date": "2026-01-14",
+	"compatibility_flags": ["nodejs_compat", "disable_nodejs_process_v2"],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash_e2e",
+			"database_id": "emdash-e2e-local"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "emdash-e2e-media"
+		}
+	]
+}

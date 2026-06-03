@@ -59,6 +59,7 @@ packages:
   - templates/*
   - packages/blocks/playground
   - e2e/fixture
+  - e2e/fixture-cloudflare
   - fixtures/*
   - docs
   - i18n
