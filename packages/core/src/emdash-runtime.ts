@@ -106,6 +106,7 @@ function isValidMetadataContribution(c: unknown): c is PageMetadataContribution 
 import { after } from "./after.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
 import { runSystemCleanup } from "./cleanup.js";
+import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 	defaultCommentModerate,
@@ -158,7 +159,6 @@ import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
 import { PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
 import { NodeCronScheduler } from "./plugins/scheduler/node.js";
-import { PiggybackScheduler } from "./plugins/scheduler/piggyback.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
@@ -449,14 +449,50 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Tick the cron system from request context (piggyback mode).
-	 * Call this from middleware on each request to ensure cron tasks
-	 * execute even when no dedicated scheduler is available.
+	 * Publish any content whose scheduled time has passed.
+	 * Returns the items promoted so callers can invalidate their cache tags.
 	 */
-	tickCron(): void {
-		if (this.cronScheduler instanceof PiggybackScheduler) {
-			this.cronScheduler.onRequest();
+	async publishScheduled(): Promise<PublishedRef[]> {
+		return publishDueContent(this.db);
+	}
+
+	/**
+	 * Run the full scheduled-maintenance batch: cron tasks, scheduled
+	 * publishing, and system cleanup. For request-less drivers — the
+	 * Cloudflare `scheduled()` handler invokes this from a Cron Trigger.
+	 * (On Node the timer-based scheduler drives the same work itself.)
+	 *
+	 * Each step is independent and non-fatal. Returns the content promoted
+	 * by the publishing sweep so the caller can purge edge-cache tags.
+	 */
+	async runScheduledTasks(): Promise<{ published: PublishedRef[] }> {
+		if (this.cronExecutor) {
+			try {
+				await this.cronExecutor.tick();
+			} catch (error) {
+				console.error("[cron] Tick failed:", error);
+			}
+			try {
+				await this.cronExecutor.recoverStaleLocks();
+			} catch (error) {
+				console.error("[cron] Stale lock recovery failed:", error);
+			}
 		}
+
+		let published: PublishedRef[] = [];
+		try {
+			published = await publishDueContent(this.db);
+		} catch (error) {
+			console.error("[scheduled-publish] Sweep failed:", error);
+		}
+
+		try {
+			await runSystemCleanup(this.db, this.storage ?? undefined);
+		} catch (error) {
+			console.error("[cleanup] System cleanup failed:", error);
+		}
+
+		return { published };
 	}
 
 	/**
@@ -1151,39 +1187,42 @@ export class EmDashRuntime {
 					}
 				});
 
-				// Detect platform and create appropriate scheduler.
-				// On Cloudflare Workers, setTimeout is available but unreliable for
-				// long durations — use PiggybackScheduler as default.
-				// In Node/Bun, use NodeCronScheduler with real timers.
+				// On Node/Bun the timer-based scheduler drives ticks. On Cloudflare
+				// Workers there are no long-lived timers — the Worker's `scheduled()`
+				// handler (wired to a Cron Trigger) calls runScheduledTasks() instead,
+				// so no scheduler instance is created here.
 				const isWorkersRuntime =
 					typeof globalThis.navigator !== "undefined" &&
 					globalThis.navigator.userAgent === "Cloudflare-Workers";
 
-				if (isWorkersRuntime) {
-					cronScheduler = new PiggybackScheduler(cronExecutor);
-				} else {
-					cronScheduler = new NodeCronScheduler(cronExecutor);
+				if (!isWorkersRuntime) {
+					const scheduler = new NodeCronScheduler(cronExecutor);
+					cronScheduler = scheduler;
+
+					// Run scheduled publishing and system cleanup alongside each tick.
+					// Pass storage so cleanupPendingUploads can delete orphaned files.
+					scheduler.setSystemCleanup(async () => {
+						try {
+							await publishDueContent(db);
+						} catch (error) {
+							console.error("[scheduled-publish] Sweep failed:", error);
+						}
+						try {
+							await runSystemCleanup(db, storage ?? undefined);
+						} catch (error) {
+							// Non-fatal -- individual cleanup failures are already logged
+							// by runSystemCleanup. This catches unexpected errors.
+							console.error("[cleanup] System cleanup failed:", error);
+						}
+					});
+
+					// Add cron reschedule callback (merges with existing factory options)
+					pipeline.setContextFactory({
+						cronReschedule: () => cronScheduler?.reschedule(),
+					});
+
+					scheduler.start();
 				}
-
-				// Register system cleanup to run alongside each scheduler tick.
-				// Pass storage so cleanupPendingUploads can delete orphaned files.
-				cronScheduler.setSystemCleanup(async () => {
-					try {
-						await runSystemCleanup(db, storage ?? undefined);
-					} catch (error) {
-						// Non-fatal -- individual cleanup failures are already logged
-						// by runSystemCleanup. This catches unexpected errors.
-						console.error("[cleanup] System cleanup failed:", error);
-					}
-				});
-
-				// Add cron reschedule callback (merges with existing factory options)
-				pipeline.setContextFactory({
-					cronReschedule: () => cronScheduler?.reschedule(),
-				});
-
-				// Start the scheduler
-				await cronScheduler.start();
 			} catch (error) {
 				console.warn("[cron] Failed to initialize cron system:", error);
 				// Non-fatal — CMS works without cron

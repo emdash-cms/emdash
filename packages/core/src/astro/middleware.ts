@@ -44,6 +44,7 @@ import { createPublicMediaUrlResolver } from "../media/url.js";
 import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
+import type { PublishedRef } from "../scheduled-publish.js";
 import {
 	createRequestMetrics,
 	getRequestContext,
@@ -182,6 +183,25 @@ async function getRuntime(
 	} finally {
 		runtimeInitializing = false;
 	}
+}
+
+/**
+ * Run scheduled maintenance (cron tasks, scheduled publishing, system cleanup)
+ * outside any request. Resolves the runtime from the build-time virtual config
+ * and the cached singleton — the same instance request handlers use.
+ *
+ * Wired into a platform heartbeat that is not a request: the Cloudflare Worker's
+ * `scheduled()` handler (Cron Trigger) calls this. On Node the runtime's own
+ * timer-based scheduler already drives the same work, so this isn't needed there.
+ *
+ * Returns the content promoted by the publishing sweep so the caller can purge
+ * edge-cache tags for it.
+ */
+export async function runScheduledTasks(): Promise<{ published: PublishedRef[] }> {
+	const config = getConfig();
+	if (!config) return { published: [] };
+	const runtime = await getRuntime(config);
+	return runtime.runScheduledTasks();
 }
 
 /**
