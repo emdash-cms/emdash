@@ -23,9 +23,15 @@
  * the contract, the filter pins the gate.
  */
 
+import { PuzzlePiece } from "@phosphor-icons/react";
 import { describe, it, expect } from "vitest";
 
-import { BYLINE_SCHEMA_NAV_ITEM, filterNavItemsByRole } from "../../src/components/Sidebar";
+import {
+	BYLINE_SCHEMA_NAV_ITEM,
+	filterNavItemsByRole,
+	resolveNavIcon,
+	toPhosphorIconName,
+} from "../../src/components/Sidebar";
 
 // Mirror @emdash-cms/auth Role levels. Kept inline (matching Sidebar.tsx)
 // to avoid a runtime dependency just to read two numeric constants.
@@ -86,5 +92,50 @@ describe("filterNavItemsByRole", () => {
 		// must strip every gated entry at role=0.
 		const visible = filterNavItemsByRole(items, 0).map((i) => i.to);
 		expect(visible).toEqual(["/"]);
+	});
+});
+
+describe("toPhosphorIconName", () => {
+	it("aliases documented lucide-style names to their Phosphor component", async () => {
+		// Names the docs/templates use that DON'T match Phosphor's own
+		// naming. These must resolve to a real Phosphor export — assert
+		// against the live package so a wrong alias fails here.
+		expect(toPhosphorIconName("settings")).toBe("Gear");
+		expect(toPhosphorIconName("chart")).toBe("ChartBar");
+		expect(toPhosphorIconName("award")).toBe("Medal");
+		const mod: Record<string, unknown> = await import("@phosphor-icons/react");
+		for (const name of ["settings", "chart", "award", "grid", "dashboard"]) {
+			expect(mod[toPhosphorIconName(name)]).toBeDefined();
+		}
+	});
+
+	it("converts kebab/snake/space names to PascalCase", () => {
+		// The general path: any Phosphor icon by its own kebab name.
+		expect(toPhosphorIconName("chart-bar")).toBe("ChartBar");
+		expect(toPhosphorIconName("clock-counter-clockwise")).toBe("ClockCounterClockwise");
+		expect(toPhosphorIconName("trophy")).toBe("Trophy");
+		expect(toPhosphorIconName("crop")).toBe("Crop");
+	});
+});
+
+describe("resolveNavIcon", () => {
+	it("falls back to PuzzlePiece when no icon is provided", () => {
+		// `icon` is optional on adminPages; an omitted value is the
+		// common case and must resolve synchronously to the default
+		// (no Suspense boundary needed for the icon-less page).
+		expect(resolveNavIcon(undefined)).toBe(PuzzlePiece);
+		expect(resolveNavIcon("")).toBe(PuzzlePiece);
+	});
+
+	it("returns a stable (memoized) lazy component for a named icon", () => {
+		// React.lazy identity must be stable across renders, otherwise
+		// the icon remounts and re-suspends every render. Repeated calls
+		// for the same name must return the same component reference.
+		const first = resolveNavIcon("trophy");
+		const second = resolveNavIcon("trophy");
+		expect(first).toBe(second);
+		// It's a lazy component, not the synchronous fallback.
+		expect(first).not.toBe(PuzzlePiece);
+		expect((first as { $$typeof?: symbol }).$$typeof).toBe(Symbol.for("react.lazy"));
 	});
 });

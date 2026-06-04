@@ -113,6 +113,87 @@ interface NavItem {
 }
 
 /**
+ * Friendly aliases for plugin admin-page icon names.
+ *
+ * Plugins declare `adminPages: [{ path, label, icon }]`, where `icon` is a
+ * lower/kebab name. Most names map straight onto a Phosphor component by
+ * converting to PascalCase (`chart-bar` → `ChartBar`), so the full Phosphor
+ * set is available without enumeration. The handful below are lucide-style
+ * names used across the EmDash docs/templates that *don't* match Phosphor's
+ * own naming — we alias them to the right component so existing configs and
+ * the documented examples keep working.
+ */
+const NAV_ICON_ALIASES: Record<string, string> = {
+	settings: "Gear",
+	chart: "ChartBar",
+	award: "Medal",
+	grid: "GridFour",
+	dashboard: "SquaresFour",
+	history: "ClockCounterClockwise",
+	search: "MagnifyingGlass",
+	link: "LinkSimple",
+	calendar: "CalendarBlank",
+	file: "FileText",
+	document: "FileText",
+};
+
+/** Word separators in icon names: kebab, snake, or whitespace. */
+const ICON_NAME_SEPARATOR = /[-_\s]+/;
+
+/**
+ * Resolve an icon name to its Phosphor component name (PascalCase). Applies
+ * the alias table first, then converts a kebab/snake/space name word-by-word.
+ * Exported for unit testing the pure mapping.
+ */
+export function toPhosphorIconName(name: string): string {
+	if (NAV_ICON_ALIASES[name]) {
+		return NAV_ICON_ALIASES[name];
+	}
+	return name
+		.split(ICON_NAME_SEPARATOR)
+		.filter(Boolean)
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+		.join("");
+}
+
+/**
+ * Cache of lazily-loaded icon components, keyed by Phosphor component name.
+ * `React.lazy` must return a stable identity across renders (a fresh lazy
+ * component on every render would remount and re-suspend), so memoize here.
+ */
+const lazyIconCache = new Map<string, React.ElementType>();
+
+/**
+ * Resolve a plugin page's `icon` name to a component.
+ *
+ * An omitted icon short-circuits to `PuzzlePiece` so the common (icon-less)
+ * page never suspends. Any other name resolves to its `@phosphor-icons/react`
+ * component, loaded lazily from a single code-split chunk the first time it's
+ * used — giving access to the entire Phosphor set without bundling it into
+ * the admin's main chunk. Unknown names fall back to `PuzzlePiece`.
+ *
+ * Returns a lazy component, so call sites must render it inside a
+ * `<React.Suspense>` boundary (see `NavMenuLink`). Exported so a unit test
+ * can assert resolution without mounting the portal-heavy Kumo Sidebar.
+ */
+export function resolveNavIcon(name?: string): React.ElementType {
+	if (!name) {
+		return PuzzlePiece;
+	}
+	const componentName = toPhosphorIconName(name);
+	let icon = lazyIconCache.get(componentName);
+	if (!icon) {
+		icon = React.lazy(async () => {
+			const mod = (await import("@phosphor-icons/react")) as Record<string, unknown>;
+			const Icon = mod[componentName] as React.ComponentType<{ className?: string }> | undefined;
+			return { default: Icon ?? PuzzlePiece };
+		});
+		lazyIconCache.set(componentName, icon);
+	}
+	return icon;
+}
+
+/**
  * Navigation item rendered as a TanStack Router <Link> inside kumo's
  * Sidebar.MenuItem. Styled to match kumo MenuButton appearance.
  * This approach guarantees client-side navigation works correctly.
@@ -120,6 +201,10 @@ interface NavItem {
 function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	const { state } = useSidebar();
 	const Icon = item.icon;
+	const iconClassName = cn(
+		"emdash-nav-icon size-[18px] shrink-0 transition-colors duration-200",
+		isActive ? "text-white" : "text-white/60 group-hover/menu-button:text-white/90",
+	);
 
 	const link = (
 		<Link
@@ -137,13 +222,9 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 				"focus-visible:ring-2 focus-visible:ring-kumo-brand/50",
 			)}
 		>
-			<Icon
-				className={cn(
-					"emdash-nav-icon size-[18px] shrink-0 transition-colors duration-200",
-					isActive ? "text-white" : "text-white/60 group-hover/menu-button:text-white/90",
-				)}
-				aria-hidden="true"
-			/>
+			<React.Suspense fallback={<PuzzlePiece className={iconClassName} aria-hidden="true" />}>
+				<Icon className={iconClassName} aria-hidden="true" />
+			</React.Suspense>
 			<span className="emdash-nav-label flex flex-1 items-center min-w-0 text-start overflow-hidden">
 				{item.label}
 				{item.badge != null && item.badge > 0 && (
@@ -290,7 +371,11 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						.split("-")
 						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
 						.join(" ");
-				pluginItems.push({ to: `/plugins/${pluginId}${page.path}`, label, icon: PuzzlePiece });
+				pluginItems.push({
+					to: `/plugins/${pluginId}${page.path}`,
+					label,
+					icon: resolveNavIcon(page.icon),
+				});
 			}
 		}
 	}
