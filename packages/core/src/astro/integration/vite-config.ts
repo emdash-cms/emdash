@@ -395,10 +395,25 @@ export function createViteConfig(
 							"emdash > @emdash-cms/auth > @oslojs/crypto/ecdsa",
 							"emdash > @emdash-cms/auth > @oslojs/crypto/sha2",
 							"emdash > @emdash-cms/auth > @oslojs/webauthn",
+							// Auth deps imported only on auth/login/callback routes, so
+							// the initial page scan misses them. Pre-bundle to avoid a
+							// re-optimize + reload cascade on first authenticated request.
+							"emdash > @oslojs/crypto/hmac",
+							"emdash > @oslojs/crypto/subtle",
+							"emdash > @oslojs/crypto/rsa",
+							"emdash > arctic",
 							// MCP SDK — server/index.js statically imports ajv (CJS-only).
 							// Pre-bundling converts CJS to ESM so workerd can load it.
 							"emdash > @modelcontextprotocol/sdk > ajv",
 							"emdash > @modelcontextprotocol/sdk > ajv-formats",
+							// MCP server entrypoints — only imported on the MCP route, so
+							// also missed by the initial scan.
+							"emdash > @modelcontextprotocol/sdk/server/mcp.js",
+							"emdash > @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js",
+							// Admin shell SSR deps, reached only when the admin route is
+							// first rendered.
+							"emdash > @emdash-cms/admin > @lingui/react",
+							"emdash > @emdash-cms/admin > @cloudflare/kumo/primitives",
 							// React (commonly used, may be hoisted)
 							"react",
 							"react/jsx-dev-runtime",
@@ -415,6 +430,7 @@ export function createViteConfig(
 							"astro/content/runtime",
 							"astro/assets/utils/inferRemoteSize.js",
 							"astro/assets/fonts/runtime.js",
+							"astro/assets/services/noop",
 							"@astrojs/cloudflare/image-service",
 						],
 					},

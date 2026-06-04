@@ -116,6 +116,7 @@ test.describe("Invite Accept Page", () => {
 
 			await expect(admin.page.locator("h1")).toContainText("Invite Error", { timeout: 15000 });
 			await expect(admin.page.locator("text=No invite token provided")).toBeVisible();
+			await expect(admin.page.locator("text=Back to login")).toBeVisible();
 		});
 
 		test("shows error for invalid token", async ({ admin }) => {
@@ -127,14 +128,6 @@ test.describe("Invite Accept Page", () => {
 			// The error step renders an h2 with an error title and a
 			// "Back to login" link regardless of the specific error code.
 			await expect(admin.page.locator("h2")).toBeVisible({ timeout: 15000 });
-			await expect(admin.page.locator("text=Back to login")).toBeVisible();
-		});
-
-		test("shows back to login link on error", async ({ admin }) => {
-			await admin.page.goto("/_emdash/admin/invite/accept");
-			await admin.waitForHydration();
-
-			await expect(admin.page.locator("h1")).toContainText("Invite Error", { timeout: 15000 });
 			await expect(admin.page.locator("text=Back to login")).toBeVisible();
 		});
 	});
