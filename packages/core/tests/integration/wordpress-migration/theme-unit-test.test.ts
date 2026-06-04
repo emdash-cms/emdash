@@ -188,11 +188,17 @@ describe("WordPress Theme Unit Test Migration", () => {
 			expect(result.length).toBeGreaterThan(0);
 		});
 
-		it("handles classic editor content", () => {
-			// Find a post in the "Classic" category
-			const classicPost = wxrData.posts.find((p) => p.categories.includes("classic"));
+		it("handles classic editor content (no block markers)", () => {
+			// A classic-category post with no Gutenberg block comments, so this
+			// genuinely exercises the classic-HTML fallback path in the converter
+			// rather than passing on whatever happens to be in the category.
+			const classicPost = wxrData.posts.find(
+				(p) =>
+					p.categories.includes("classic") &&
+					!!p.content?.trim() &&
+					!p.content.includes("<!-- wp:"),
+			);
 			expect(classicPost).toBeDefined();
-			expect(classicPost!.content?.trim()).toBeTruthy();
 
 			const result = gutenbergToPortableText(classicPost!.content);
 			expect(result.length).toBeGreaterThan(0);

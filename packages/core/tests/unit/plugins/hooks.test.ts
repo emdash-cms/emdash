@@ -61,14 +61,16 @@ describe("HookPipeline", () => {
 	// A real in-memory DB is needed for the context factory so hooks can
 	// actually execute (getContext throws without one).
 	let db: Kysely<DbSchema>;
+	let sqliteDb: Database.Database;
 
 	beforeEach(() => {
-		const sqliteDb = new Database(":memory:");
+		sqliteDb = new Database(":memory:");
 		db = new Kysely<DbSchema>({ dialect: new SqliteDialect({ database: sqliteDb }) });
 	});
 
 	afterEach(async () => {
 		await db.destroy();
+		sqliteDb.close();
 	});
 
 	describe("construction and registration", () => {
