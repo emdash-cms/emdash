@@ -514,7 +514,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 
 	const hasMore = requestedLimit != null && requestedLimit > 0 && entries.length > requestedLimit;
 	const pageEntries = hasMore ? entries.slice(0, requestedLimit) : entries;
-	const nextCursor = hasMore ? encodeEntryCursor(pageEntries.at(-1)!, filter?.orderBy) : undefined;
+	const nextCursor = hasMore ? encodeEntryCursor(pageEntries.at(-1), filter?.orderBy) : undefined;
 
 	const isEditMode = ctx?.editMode ?? false;
 	const entriesWithEdit = pageEntries.map((entry: ContentEntry<D>) => {
