@@ -236,12 +236,16 @@ test.describe("Full invite flow with passkey registration", () => {
 		// not visible in the users list after the passkey-invite registration
 		// above — reproducible in isolation, passes on Node. The registration
 		// ceremony completes (redirects to admin, no errors) but the user row
-		// isn't read back. Suspected D1 Sessions read-after-write under miniflare
-		// dev rather than a production bug, but unconfirmed. Tracked for the
-		// EmDash maintainers to investigate; skipped here so the CF lane stays green.
+		// isn't read back. NOT a consistency artifact: miniflare D1 is a local
+		// SQLite file (strongly consistent), so if the read misses a committed
+		// write it's a real code bug — likely a SQLite-vs-D1-dialect difference in
+		// the invite-registration write or the user-list read. Needs a
+		// browser-driven repro (passkey-gated) to confirm backend vs front-end.
+		// Flagged for maintainers as possibly a real Cloudflare bug; skipped so
+		// the CF lane stays green.
 		test.skip(
 			process.env.EMDASH_E2E_TARGET === "cloudflare",
-			"CF: invited user not read back after passkey-invite registration (under investigation)",
+			"CF: invited user not read back after passkey-invite registration (possible real bug, under investigation)",
 		);
 		await admin.devBypassAuth();
 		await admin.goto("/users");
