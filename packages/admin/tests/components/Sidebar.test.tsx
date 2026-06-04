@@ -23,7 +23,8 @@
  * the contract, the filter pins the gate.
  */
 
-import { PuzzlePiece } from "@phosphor-icons/react";
+import { PuzzlePiece, Gear, Trophy, ClockCounterClockwise } from "@phosphor-icons/react";
+import * as React from "react";
 import { describe, it, expect } from "vitest";
 
 import {
@@ -32,6 +33,7 @@ import {
 	resolveNavIcon,
 	toPhosphorIconName,
 } from "../../src/components/Sidebar";
+import { render } from "../utils/render.tsx";
 
 // Mirror @emdash-cms/auth Role levels. Kept inline (matching Sidebar.tsx)
 // to avoid a runtime dependency just to read two numeric constants.
@@ -96,25 +98,12 @@ describe("filterNavItemsByRole", () => {
 });
 
 describe("toPhosphorIconName", () => {
-	it("aliases documented lucide-style names to their Phosphor component", async () => {
-		// Names the docs/templates use that DON'T match Phosphor's own
-		// naming. These must resolve to a real Phosphor export — assert
-		// against the live package so a wrong alias fails here.
-		expect(toPhosphorIconName("settings")).toBe("Gear");
-		expect(toPhosphorIconName("chart")).toBe("ChartBar");
-		expect(toPhosphorIconName("award")).toBe("Medal");
-		const mod: Record<string, unknown> = await import("@phosphor-icons/react");
-		for (const name of ["settings", "chart", "award", "grid", "dashboard"]) {
-			expect(mod[toPhosphorIconName(name)]).toBeDefined();
-		}
-	});
-
-	it("converts kebab/snake/space names to PascalCase", () => {
-		// The general path: any Phosphor icon by its own kebab name.
+	it("converts kebab/snake/space names to PascalCase (the lazy-path key)", () => {
+		// Any Phosphor icon is reachable by its own kebab name.
 		expect(toPhosphorIconName("chart-bar")).toBe("ChartBar");
 		expect(toPhosphorIconName("clock-counter-clockwise")).toBe("ClockCounterClockwise");
-		expect(toPhosphorIconName("trophy")).toBe("Trophy");
-		expect(toPhosphorIconName("crop")).toBe("Crop");
+		expect(toPhosphorIconName("magnifying-glass")).toBe("MagnifyingGlass");
+		expect(toPhosphorIconName("heart")).toBe("Heart");
 	});
 });
 
@@ -127,15 +116,40 @@ describe("resolveNavIcon", () => {
 		expect(resolveNavIcon("")).toBe(PuzzlePiece);
 	});
 
-	it("returns a stable (memoized) lazy component for a named icon", () => {
-		// React.lazy identity must be stable across renders, otherwise
-		// the icon remounts and re-suspends every render. Repeated calls
-		// for the same name must return the same component reference.
-		const first = resolveNavIcon("trophy");
-		const second = resolveNavIcon("trophy");
+	it("resolves common/documented names synchronously from the static map", () => {
+		// These ship in the main bundle and must NOT be lazy — the
+		// everyday case never loads the full Phosphor set. Includes a
+		// lucide-style alias (`settings` → Gear) and a Phosphor-named one.
+		expect(resolveNavIcon("settings")).toBe(Gear);
+		expect(resolveNavIcon("trophy")).toBe(Trophy);
+		expect(resolveNavIcon("history")).toBe(ClockCounterClockwise);
+	});
+
+	it("returns a stable (memoized) lazy component for a name outside the map", () => {
+		// `heart` isn't in the static map, so it takes the lazy path.
+		// React.lazy identity must be stable across renders, otherwise the
+		// icon remounts and re-suspends — repeated calls return the same ref.
+		const first = resolveNavIcon("heart");
+		const second = resolveNavIcon("heart");
 		expect(first).toBe(second);
-		// It's a lazy component, not the synchronous fallback.
 		expect(first).not.toBe(PuzzlePiece);
 		expect((first as { $$typeof?: symbol }).$$typeof).toBe(Symbol.for("react.lazy"));
+	});
+
+	it("renders the PuzzlePiece fallback for a name that doesn't exist in Phosphor", async () => {
+		// The lazy path resolves `mod[componentName] ?? PuzzlePiece`. Drive
+		// it through a real render (not the Kumo Sidebar — just the icon) and
+		// confirm the rendered glyph IS PuzzlePiece by comparing the SVG body
+		// against a directly-rendered reference.
+		const Unknown = resolveNavIcon("definitely-not-a-real-icon-xyz");
+		const screen = await render(
+			<React.Suspense fallback={<span>loading</span>}>
+				<Unknown data-testid="resolved" />
+				<PuzzlePiece data-testid="expected" />
+			</React.Suspense>,
+		);
+		const resolved = screen.getByTestId("resolved");
+		await expect.element(resolved).toBeInTheDocument();
+		expect(resolved.element().innerHTML).toBe(screen.getByTestId("expected").element().innerHTML);
 	});
 });

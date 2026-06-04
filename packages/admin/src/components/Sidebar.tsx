@@ -16,6 +16,22 @@ import {
 	Users,
 	Stack,
 	ArrowsLeftRight,
+	ChartBar,
+	ChartLine,
+	ClockCounterClockwise,
+	Medal,
+	Trophy,
+	Crop,
+	BookOpen,
+	Plug,
+	Code,
+	CalendarBlank,
+	Bell,
+	Folder,
+	Star,
+	Tag,
+	LinkSimple,
+	MagnifyingGlass,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -113,42 +129,59 @@ interface NavItem {
 }
 
 /**
- * Friendly aliases for plugin admin-page icon names.
+ * Static map of common plugin admin-page icon names to Phosphor components.
  *
  * Plugins declare `adminPages: [{ path, label, icon }]`, where `icon` is a
- * lower/kebab name. Most names map straight onto a Phosphor component by
- * converting to PascalCase (`chart-bar` → `ChartBar`), so the full Phosphor
- * set is available without enumeration. The handful below are lucide-style
- * names used across the EmDash docs/templates that *don't* match Phosphor's
- * own naming — we alias them to the right component so existing configs and
- * the documented examples keep working.
+ * lower/kebab name. This table covers the names used across the EmDash
+ * docs/templates (including lucide-style names like `settings`/`chart` that
+ * don't match Phosphor's own naming) plus common nav glyphs. These are
+ * statically imported, so the everyday case resolves *synchronously* and the
+ * handful of components ship in the main bundle — the full Phosphor set is
+ * never pulled in for them. Any name not listed here is resolved lazily
+ * (see `resolveNavIcon`), so there is no hard ceiling.
  */
-const NAV_ICON_ALIASES: Record<string, string> = {
-	settings: "Gear",
-	chart: "ChartBar",
-	award: "Medal",
-	grid: "GridFour",
-	dashboard: "SquaresFour",
-	history: "ClockCounterClockwise",
-	search: "MagnifyingGlass",
-	link: "LinkSimple",
-	calendar: "CalendarBlank",
-	file: "FileText",
-	document: "FileText",
+const NAV_ICON_MAP: Record<string, React.ElementType> = {
+	// Documented in the plugin docs & "creating-plugins" skill
+	settings: Gear,
+	gear: Gear,
+	chart: ChartBar,
+	"chart-line": ChartLine,
+	dashboard: SquaresFour,
+	history: ClockCounterClockwise,
+	image: Image,
+	// Used by template / first-party plugins
+	award: Medal,
+	trophy: Trophy,
+	grid: GridFour,
+	crop: Crop,
+	// Common admin-nav glyphs
+	book: BookOpen,
+	plug: Plug,
+	code: Code,
+	file: FileText,
+	document: FileText,
+	users: Users,
+	database: Database,
+	list: List,
+	calendar: CalendarBlank,
+	bell: Bell,
+	folder: Folder,
+	star: Star,
+	tag: Tag,
+	link: LinkSimple,
+	search: MagnifyingGlass,
+	palette: Palette,
+	upload: Upload,
 };
 
 /** Word separators in icon names: kebab, snake, or whitespace. */
 const ICON_NAME_SEPARATOR = /[-_\s]+/;
 
 /**
- * Resolve an icon name to its Phosphor component name (PascalCase). Applies
- * the alias table first, then converts a kebab/snake/space name word-by-word.
- * Exported for unit testing the pure mapping.
+ * Convert a kebab/snake/space icon name to Phosphor's PascalCase component
+ * name (`chart-bar` → `ChartBar`). Exported for unit testing the pure mapping.
  */
 export function toPhosphorIconName(name: string): string {
-	if (NAV_ICON_ALIASES[name]) {
-		return NAV_ICON_ALIASES[name];
-	}
 	return name
 		.split(ICON_NAME_SEPARATOR)
 		.filter(Boolean)
@@ -166,19 +199,28 @@ const lazyIconCache = new Map<string, React.ElementType>();
 /**
  * Resolve a plugin page's `icon` name to a component.
  *
- * An omitted icon short-circuits to `PuzzlePiece` so the common (icon-less)
- * page never suspends. Any other name resolves to its `@phosphor-icons/react`
- * component, loaded lazily from a single code-split chunk the first time it's
- * used — giving access to the entire Phosphor set without bundling it into
- * the admin's main chunk. Unknown names fall back to `PuzzlePiece`.
+ * Resolution order:
+ *   1. No icon → `PuzzlePiece` (the common icon-less page never suspends).
+ *   2. A name in `NAV_ICON_MAP` → its statically-imported component (sync,
+ *      already in the main bundle — no extra chunk for everyday icons).
+ *   3. Anything else → the matching `@phosphor-icons/react` component, loaded
+ *      lazily from a code-split chunk the first time it's used. This gives
+ *      access to the entire Phosphor set without pulling it into the main
+ *      bundle, and only loads when a plugin uses an icon outside the map.
+ *      Names that don't exist in Phosphor fall back to `PuzzlePiece`.
  *
- * Returns a lazy component, so call sites must render it inside a
- * `<React.Suspense>` boundary (see `NavMenuLink`). Exported so a unit test
- * can assert resolution without mounting the portal-heavy Kumo Sidebar.
+ * Case 3 returns a `React.lazy` component, so call sites must render the
+ * result inside a `<React.Suspense>` boundary (see `NavMenuLink`). Exported
+ * so a unit test can assert resolution without mounting the portal-heavy
+ * Kumo Sidebar.
  */
 export function resolveNavIcon(name?: string): React.ElementType {
 	if (!name) {
 		return PuzzlePiece;
+	}
+	const mapped = NAV_ICON_MAP[name];
+	if (mapped) {
+		return mapped;
 	}
 	const componentName = toPhosphorIconName(name);
 	let icon = lazyIconCache.get(componentName);
