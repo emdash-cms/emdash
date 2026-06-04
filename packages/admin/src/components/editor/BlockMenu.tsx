@@ -29,6 +29,7 @@ import {
 	Trash,
 	type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
+import { NodeSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { createPortal } from "react-dom";
@@ -198,22 +199,19 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 	}, [isOpen]);
 
 	const handleDuplicate = () => {
-		const { selection } = editor.state;
-		const { $from, $to } = selection;
+		if (!(editor.state.selection instanceof NodeSelection)) {
+			onClose();
+			return;
+		}
 
-		// Get the block node at current position
-		const blockStart = $from.start($from.depth);
-		const blockEnd = $to.end($to.depth);
-
-		// Get the content to duplicate
-		const slice = editor.state.doc.slice(blockStart, blockEnd);
-
-		// Insert after current block
+		const { selection, doc } = editor.state;
+		const { from, to } = selection;
+		const slice = doc.slice(from, to);
 		editor
 			.chain()
 			.focus()
 			.command(({ tr }) => {
-				tr.insert(blockEnd + 1, slice.content);
+				tr.insert(to, slice.content);
 				return true;
 			})
 			.run();
@@ -222,7 +220,12 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 	};
 
 	const handleDelete = () => {
-		editor.chain().focus().deleteNode(editor.state.selection.$from.parent.type.name).run();
+		if (!(editor.state.selection instanceof NodeSelection)) {
+			onClose();
+			return;
+		}
+
+		editor.chain().focus().deleteSelection().run();
 		onClose();
 	};
 

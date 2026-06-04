@@ -58,6 +58,16 @@ interface InvestigatePayload {
 	repo: string;
 	/** Reporter feedback from a previous attempt, when re-triggered. */
 	retryContext?: string;
+	/**
+	 * A maintainer's authoritative implementation directive, when the run
+	 * was triggered by `maintainer-reply.yml`. Its presence overrides the
+	 * fix gate: the maintainer has made the design call diagnose deferred,
+	 * so the fix stage runs even on a `needs-design-decision`. The produced
+	 * fix then flows through the orchestrator's normal `awaiting-reporter`
+	 * loop -- the directive changes whether a fix is attempted, not what
+	 * happens to it afterwards.
+	 */
+	maintainerDirective?: string;
 }
 
 const reproduceResultSchema = v.object({
@@ -286,6 +296,16 @@ function issueContext(payload: InvestigatePayload): string {
 			"Treat the above as new information. Do not repeat the same approach that produced the failed previous attempt.",
 		);
 	}
+	if (payload.maintainerDirective) {
+		parts.push(
+			"",
+			"## Maintainer directive (authoritative)",
+			"",
+			payload.maintainerDirective,
+			"",
+			"A maintainer has decided how this should be fixed. Implement the directive above. It overrides any earlier suggestion that this needs a design decision -- the decision has been made. If reading the code convinces you the directive is mistaken, abandon with `fixed: false` and explain why rather than forcing a change you don't believe in.",
+		);
+	}
 	return parts.join("\n");
 }
 
@@ -342,6 +362,13 @@ async function runImpl({
 		throw new Error("AGENT_GH_TOKEN required (read-only token for the sandbox)");
 	}
 
+	// A maintainer directive overrides the bot's *judgment* gates -- the
+	// human has already decided this is worth fixing and how. It does NOT
+	// override the *capability* gates (can we reproduce it? did the fix
+	// hold?): those bail honestly so the maintainer learns the directive
+	// couldn't be carried out rather than getting a silent no-op.
+	const directed = Boolean(payload.maintainerDirective);
+
 	// --- Stage 0: classify ---
 
 	const classifierHarness = await init(classifierAgent, { name: "classify" });
@@ -365,7 +392,7 @@ async function runImpl({
 	);
 	log.info("classified", { issueNumber: payload.issueNumber, ...classification });
 
-	if (classification.kind !== "bug") {
+	if (classification.kind !== "bug" && !directed) {
 		return {
 			skipped: true,
 			reproduced: false,
@@ -446,7 +473,7 @@ async function runImpl({
 	});
 	log.info("verify", { issueNumber: payload.issueNumber, verdict: verifyOut.verdict });
 
-	if (verifyOut.verdict === "intended-behavior") {
+	if (verifyOut.verdict === "intended-behavior" && !directed) {
 		return {
 			skipped: false,
 			reproduced: reproduce.reproduced,
@@ -497,10 +524,18 @@ async function runImpl({
 	// `needs-design-decision` defers to a human even when the cause is
 	// certain (e.g. the fix needs a new public API or a component that
 	// doesn't exist yet).
+	//
+	// A maintainer directive overrides the gate entirely (see `directed`
+	// above): the human has made the design call diagnose deferred, asserted
+	// it's worth fixing, and asked for an implementation. We reach this point
+	// only past the `!reproduce.reproduced` early return, so a directed fix is
+	// always verified against a live reproduction. The fix agent abandons with
+	// `fixed: false` if the directive turns out wrong.
 	const shouldFix =
-		verifyOut.verdict === "bug" &&
-		diagnoseOut.confidence !== "low" &&
-		diagnoseOut.fixApproach !== "needs-design-decision";
+		directed ||
+		(verifyOut.verdict === "bug" &&
+			diagnoseOut.confidence !== "low" &&
+			diagnoseOut.fixApproach !== "needs-design-decision");
 
 	if (!shouldFix) {
 		// Explain precisely why no fix was attempted, since the reason

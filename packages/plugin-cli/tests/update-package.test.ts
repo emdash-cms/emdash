@@ -503,4 +503,36 @@ describe("buildPackageCandidate", () => {
 		});
 		expect(diffs).toEqual([]);
 	});
+
+	it("writes changed sections and preserves them when the manifest omits them", () => {
+		const existing = {
+			$type: NSID.packageProfile,
+			license: "MIT",
+			authors: [{ name: "Alice" }],
+			security: [{ email: "security@example.com" }],
+			slug: SLUG,
+			type: "emdash-plugin",
+			sections: { description: "Old description." },
+			lastUpdated: "2024-01-01T00:00:00.000Z",
+		};
+
+		const updated = buildPackageCandidate({
+			existing,
+			input: input({ sections: { description: "New description.", faq: "Q & A." } }),
+			now: FIXED_NOW,
+		});
+		expect(updated.candidate.sections).toEqual({
+			description: "New description.",
+			faq: "Q & A.",
+		});
+		expect(updated.diffs.map((d) => d.field)).toContain("sections");
+
+		const preserved = buildPackageCandidate({
+			existing,
+			input: input(),
+			now: FIXED_NOW,
+		});
+		expect(preserved.candidate.sections).toEqual({ description: "Old description." });
+		expect(preserved.diffs.map((d) => d.field)).not.toContain("sections");
+	});
 });

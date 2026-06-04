@@ -1,3 +1,4 @@
+import type { CustomFieldValue } from "../../schema/types.js";
 import { encodeBase64, decodeBase64 } from "../../utils/base64.js";
 
 /**
@@ -58,6 +59,25 @@ export interface BylineSummary {
 	displayName: string;
 	bio: string | null;
 	avatarMediaId: string | null;
+	/**
+	 * The avatar media's storage key, folded in by a LEFT JOIN on the
+	 * `media` table during content byline hydration. Non-null only when the
+	 * byline has an avatar AND was loaded through the content-credit hydration
+	 * path (`getContentBylines` / `getContentBylinesMany`, i.e. the
+	 * `entry.data.bylines` populated by `getEmDashCollection` / `getEmDashEntry`).
+	 * The plain byline finders (`findById`, `findBySlug`, …) leave it null.
+	 *
+	 * Lets list pages build a direct storage URL for an author avatar without a
+	 * per-byline `MediaRepository.findById`, avoiding an N+1 when many distinct
+	 * authors appear on one page.
+	 *
+	 * Optional so adding it is a non-breaking change for existing code that
+	 * constructs a `BylineSummary` literal; the repositories always populate it
+	 * (to `null` when there's no avatar or no media join).
+	 */
+	avatarStorageKey?: string | null;
+	/** Avatar media alt text, from the same media join. Null when not joined. */
+	avatarAlt?: string | null;
 	websiteUrl: string | null;
 	userId: string | null;
 	isGuest: boolean;
@@ -76,6 +96,16 @@ export interface BylineSummary {
 	 * populate it.
 	 */
 	translationGroup: string | null;
+	/**
+	 * Custom field values registered via the byline-fields schema (migration
+	 * 041, Discussion #1174). Optional in the TypeScript shape so existing
+	 * object-literal consumers (test fixtures, plugin renderers) stay
+	 * source-compatible; the runtime always returns `{}` when no fields are
+	 * registered. Translatable values reflect this row's locale; non-
+	 * translatable values are shared across every locale variant of the
+	 * byline's `translation_group`.
+	 */
+	customFields?: Record<string, CustomFieldValue>;
 }
 
 export interface ContentBylineCredit {
@@ -91,6 +121,14 @@ export interface FindManyOptions {
 		status?: string;
 		authorId?: string;
 		locale?: string;
+		/** Case-insensitive substring to match against `searchColumns`. */
+		q?: string;
+		/**
+		 * Columns the `q` substring filter is applied to (OR'd together).
+		 * Resolved by the handler from the collection's display fields so the
+		 * repository stays generic. Each name is validated as a SQL identifier.
+		 */
+		searchColumns?: string[];
 	};
 	orderBy?: {
 		field: string;

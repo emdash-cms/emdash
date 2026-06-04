@@ -15,23 +15,36 @@ permissions:
 jobs:
   classify-and-act:
     name: Classify reply and act
-    # Only fire if:
+    # The job `if:` is intentionally COARSE -- it filters only on things
+    # that are cheap and reliable from the event payload:
     #  - the comment is on an issue (not a PR -- issue_comment fires for both)
-    #  - the comment author is the original issue author
+    #  - the commenter is not a bot (see the loop note below)
     #  - the issue is currently in the triage/awaiting-reporter state
     #
-    # The `contains(...)` check is on the event payload's label
-    # snapshot. Known small race: in `investigate.yml`'s reproduced+
-    # fixed path, the ask comment is posted before the label flip --
-    # a reply created in that 1-2 second window has a label snapshot
-    # without `triage/awaiting-reporter` and is dropped here. The live-
-    # check step also gates on labels, so even loosening this `if:`
-    # would not catch it. Accepted as known minor; a reporter cannot
-    # reply that fast in practice, and the next reply would be picked
-    # up correctly.
+    # Authorization (is this the reporter, or a maintainer with a real
+    # write/triage role?) is deliberately NOT done here. The payload's
+    # `author_association` is unreliable for this: a maintainer whose org
+    # membership is set to private reports `NONE`, so gating on it here
+    # would silently drop their replies before we could check. The
+    # `live-check` step does an authoritative permission-role lookup
+    # instead -- see check 4 there.
+    #
+    # The label `contains(...)` is on the event payload's label snapshot.
+    # Known small race: in `investigate.yml`'s reproduced+fixed path, the
+    # ask comment is posted before the label flip -- a reply created in
+    # that 1-2 second window has a snapshot without
+    # `triage/awaiting-reporter` and is dropped here. The live-check step
+    # also gates on labels, so even loosening this `if:` would not catch
+    # it. Accepted as known minor; a reporter cannot reply that fast in
+    # practice, and the next reply would be picked up correctly.
+    #
+    # The `user.type != 'Bot'` guard is load-bearing: it excludes
+    # emdashbot's own comments. Without it, a bot comment could
+    # re-trigger the classifier -- and the `unclear` path posts a comment
+    # with no label flip or dedup marker, which would loop.
     if: >-
       github.event.issue.pull_request == null
-      && github.event.comment.user.login == github.event.issue.user.login
+      && github.event.comment.user.type != 'Bot'
       && contains(github.event.issue.labels.*.name, 'triage/awaiting-reporter')
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -56,7 +69,7 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
-      # Re-verify live state before any expensive work. Three checks:
+      # Re-verify live state before any expensive work. Four checks:
       #
       #   1. The issue is currently `triage/awaiting-reporter`. The job's
       #      `if:` gate uses `github.event.issue.labels`, which is the
@@ -74,11 +87,26 @@ jobs:
       #      author filter, a reporter could forge `<!-- bot-ask:
       #      9999-01-01T00:00:00Z -->` in any comment and permanently
       #      stale every future reply.
+      #
+      #   4. The commenter is authorized, and we record WHO they are:
+      #      either the original reporter, or a maintainer with a live
+      #      write/triage/maintain/admin role on the repo. This is checked
+      #      against the permission API, not the spoof-prone-by-omission
+      #      `author_association` from the payload. A maintainer must
+      #      additionally issue an explicit `@emdashbot confirm` /
+      #      `@emdashbot reject` directive -- this stops drive-by
+      #      maintainer chatter from driving state while still letting a
+      #      maintainer act on a quiet reporter's behalf. The reporter
+      #      path is interpreted by the AI classifier; the maintainer
+      #      directive maps deterministically and skips the classifier.
       - name: Re-verify live state
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENTER: ${{ github.event.comment.user.login }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          REPLY_BODY: ${{ github.event.comment.body }}
         run: |
           set -euo pipefail
 
@@ -103,7 +131,7 @@ jobs:
           # has a strictly greater id.
           LATEST_ASK_ID="$(
             gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/comments" --paginate --slurp \
-              --jq '
+              | jq '
                 [ .[]
                   | .[]
                   | select(.user.login == "emdashbot[bot]")
@@ -129,42 +157,98 @@ jobs:
             exit 0
           fi
 
+          # ---- Check 4: authorization + actor classification ----
+          #
+          # The original reporter is always trusted to speak to their own
+          # issue; their reply is handed to the AI classifier downstream.
+          if [[ "$COMMENTER" == "$ISSUE_AUTHOR" ]]; then
+            echo "actor=reporter" >> "$GITHUB_OUTPUT"
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Non-reporter: require a real write-or-triage role on the repo.
+          # We gate on BOTH fields the endpoint returns:
+          #   * `permission` -- the legacy BASE role (admin/write/read/none),
+          #     with maintain mapped to write and triage mapped to read.
+          #     Custom org roles collapse to their base here, so a
+          #     write-equivalent custom role is caught by `write` and we
+          #     don't have to enumerate custom names.
+          #   * `role_name` -- needed only to recognise `triage` specifically
+          #     (it maps down to `read` in `permission`, so the base field
+          #     alone can't tell triage from plain read access).
+          # Both are the highest effective role across repo/team/org/
+          # enterprise grants. A 404 (no access) leaves both empty.
+          #
+          # The read is authorized by the token's existing contents:write
+          # (push-equivalent) scope; this call does NOT work on metadata
+          # alone, so don't narrow the app-token scopes expecting it to.
+          PERM_JSON="$(gh api "/repos/emdash-cms/emdash/collaborators/${COMMENTER}/permission" 2>/dev/null || true)"
+          PERM="$(jq -r '.permission // ""' <<<"$PERM_JSON" 2>/dev/null || true)"
+          ROLE="$(jq -r '.role_name // ""' <<<"$PERM_JSON" 2>/dev/null || true)"
+          if [[ "$PERM" != "admin" && "$PERM" != "write" && "$ROLE" != "triage" ]]; then
+            echo "::notice::commenter ${COMMENTER} has permission '${PERM:-none}' / role '${ROLE:-none}' on emdash (need write or triage); ignoring non-reporter reply"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Authorized maintainer. They must opt in with an explicit
+          # directive; the mention+keyword has to START a line (leading
+          # whitespace only) so a directive quoted from another comment
+          # (`> @emdashbot confirm`) does not count. Case-insensitive.
+          # Maps deterministically to positive/negative -- the AI
+          # classifier is skipped entirely for this path.
+          DIRECTIVE=""
+          if grep -iqE '^[[:space:]]*@emdashbot[[:space:]]+(confirm|confirmed|verified|fixed)\b' <<<"$REPLY_BODY"; then
+            DIRECTIVE="positive"
+          elif grep -iqE '^[[:space:]]*@emdashbot[[:space:]]+(reject|rejected|retry|reopen)\b' <<<"$REPLY_BODY"; then
+            DIRECTIVE="negative"
+          fi
+
+          if [[ -z "$DIRECTIVE" ]]; then
+            echo "::notice::maintainer ${COMMENTER} commented without an '@emdashbot confirm/reject' directive; taking no action"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "actor=maintainer" >> "$GITHUB_OUTPUT"
+          echo "classification=${DIRECTIVE}" >> "$GITHUB_OUTPUT"
           echo "stale=false" >> "$GITHUB_OUTPUT"
         id: live-check
 
       - name: Checkout
-        if: steps.live-check.outputs.stale != 'true'
+        if: steps.live-check.outputs.stale != 'true' && steps.live-check.outputs.actor == 'reporter'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
           persist-credentials: false
 
       - name: Setup pnpm
-        if: steps.live-check.outputs.stale != 'true'
+        if: steps.live-check.outputs.stale != 'true' && steps.live-check.outputs.actor == 'reporter'
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
 
       - name: Setup Node.js
-        if: steps.live-check.outputs.stale != 'true'
+        if: steps.live-check.outputs.stale != 'true' && steps.live-check.outputs.actor == 'reporter'
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: "package.json"
           cache: "pnpm"
 
       - name: Install root dependencies
-        if: steps.live-check.outputs.stale != 'true'
+        if: steps.live-check.outputs.stale != 'true' && steps.live-check.outputs.actor == 'reporter'
         run: pnpm install --frozen-lockfile
 
       - name: Install Flue agent dependencies
-        if: steps.live-check.outputs.stale != 'true'
+        if: steps.live-check.outputs.stale != 'true' && steps.live-check.outputs.actor == 'reporter'
         run: pnpm install --frozen-lockfile
         working-directory: .flue
 
       - name: Build packages
-        if: steps.live-check.outputs.stale != 'true'
+        if: steps.live-check.outputs.stale != 'true' && steps.live-check.outputs.actor == 'reporter'
         run: pnpm build
 
       - name: Build classifier payload
-        if: steps.live-check.outputs.stale != 'true'
+        if: steps.live-check.outputs.stale != 'true' && steps.live-check.outputs.actor == 'reporter'
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           REPLY_BODY: ${{ github.event.comment.body }}
@@ -177,7 +261,7 @@ jobs:
             > /tmp/classify-payload.json
 
       - name: Run classifier
-        if: steps.live-check.outputs.stale != 'true'
+        if: steps.live-check.outputs.stale != 'true' && steps.live-check.outputs.actor == 'reporter'
         id: classify
         timeout-minutes: 10
         env:
@@ -187,9 +271,17 @@ jobs:
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}
           CLOUDFLARE_API_KEY: ${{ secrets.CF_AI_GATEWAY_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          # The workflow writes its result here; we read it directly instead of
+          # scraping `flue run`'s stdout, which interleaves build-log lines and
+          # pretty-prints the result -- both defeat line/slurp parsing and
+          # silently default every reply to `unclear`. Same handoff as
+          # investigate.yml's INVESTIGATE_RESULT_PATH.
+          CLASSIFY_RESULT_PATH: /tmp/classify-result.json
         run: |
           set -o pipefail
+          RESULT_PATH="${CLASSIFY_RESULT_PATH:?CLASSIFY_RESULT_PATH not set}"
           PAYLOAD="$(cat /tmp/classify-payload.json)"
+          rm -f "$RESULT_PATH"
           set +e
           # See investigate.yml's "Run Flue investigate agent" step
           # for why we invoke the binary directly rather than via
@@ -201,34 +293,20 @@ jobs:
             > /tmp/classify-stdout.json 2> /tmp/classify-stderr.log
           EXIT=$?
           set -e
-          if [[ $EXIT -ne 0 ]] || [[ ! -s /tmp/classify-stdout.json ]]; then
-            echo "::warning::classifier exit=${EXIT}; defaulting to unclear"
+          : > /tmp/classify-reasoning.txt
+          # A clean run writes a single JSON object to the result file. A
+          # non-zero exit, a missing file, or a non-object means the run did
+          # not finish -- default to unclear (which re-asks, never acts).
+          if [[ $EXIT -ne 0 ]] || [[ ! -s "$RESULT_PATH" ]] || ! jq -e 'type == "object"' "$RESULT_PATH" >/dev/null 2>&1; then
+            echo "::warning::classifier exit=${EXIT} or no result file; defaulting to unclear"
             tail -n 50 /tmp/classify-stderr.log || true
             echo "classification=unclear" >> "$GITHUB_OUTPUT"
-            : > /tmp/classify-reasoning.txt
-            exit 0
-          fi
-          # Same robust parse as investigate.yml: prefer the last JSON
-          # object line; fall back to slurp parse for multi-line JSON.
-          RESULT=""
-          while IFS= read -r line; do
-            if printf '%s' "$line" | jq -e 'type == "object"' >/dev/null 2>&1; then
-              RESULT="$line"
-            fi
-          done < /tmp/classify-stdout.json
-          if [[ -z "$RESULT" ]]; then
-            RESULT="$(jq -cs 'map(select(type == "object")) | last // empty' < /tmp/classify-stdout.json 2>/dev/null || true)"
-          fi
-          if [[ -z "$RESULT" ]] || [[ "$RESULT" == "null" ]]; then
-            echo "classification=unclear" >> "$GITHUB_OUTPUT"
-            : > /tmp/classify-reasoning.txt
             exit 0
           fi
           # Whitelist the classification value -- the gate has to be a
           # known enum or we treat it as unclear. Defends against the
-          # model returning an unexpected value, AND against any path
-          # where the value would leak into a heredoc body.
-          CLASS_RAW="$(jq -r '.classification // "unclear"' <<<"$RESULT" | tr -d '\r\n')"
+          # model returning an unexpected value.
+          CLASS_RAW="$(jq -r '.classification // "unclear"' "$RESULT_PATH" | tr -d '\r\n')"
           case "$CLASS_RAW" in
             positive|negative|unclear) CLASS="$CLASS_RAW" ;;
             *) CLASS="unclear" ;;
@@ -238,31 +316,64 @@ jobs:
           # $GITHUB_OUTPUT -- a heredoc with a fixed delimiter would be
           # a step-output injection vector if the reasoning contained
           # the delimiter on its own line.
-          jq -r '.reasoning // ""' <<<"$RESULT" > /tmp/classify-reasoning.txt
+          jq -r '.reasoning // ""' "$RESULT_PATH" > /tmp/classify-reasoning.txt
+          echo "classification=${CLASS}" >> "$GITHUB_OUTPUT"
+
+      # Collapse the two classification sources into one output the
+      # handlers gate on. For a reporter reply the value comes from the
+      # AI classifier above; for a maintainer it comes from the explicit
+      # directive parsed in live-check (the classifier never ran). Both
+      # are re-whitelisted here so the handler gate is always a known
+      # enum. A maintainer directive is only ever positive/negative, so
+      # the `unclear` handler is reporter-only in practice.
+      - name: Resolve classification
+        if: steps.live-check.outputs.stale != 'true'
+        id: resolve
+        env:
+          ACTOR: ${{ steps.live-check.outputs.actor }}
+          MAINTAINER_CLASS: ${{ steps.live-check.outputs.classification }}
+          REPORTER_CLASS: ${{ steps.classify.outputs.classification }}
+        run: |
+          set -euo pipefail
+          if [[ "$ACTOR" == "maintainer" ]]; then
+            CLASS="$MAINTAINER_CLASS"
+          else
+            CLASS="${REPORTER_CLASS:-unclear}"
+          fi
+          case "$CLASS" in
+            positive | negative | unclear) ;;
+            *) CLASS="unclear" ;;
+          esac
           echo "classification=${CLASS}" >> "$GITHUB_OUTPUT"
 
       # ----- Positive: open PR, transition to verified -----
 
       - name: Handle positive (open PR)
-        if: steps.live-check.outputs.stale != 'true' && steps.classify.outputs.classification == 'positive'
+        if: steps.live-check.outputs.stale != 'true' && steps.resolve.outputs.classification == 'positive'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           REPLY_BODY: ${{ github.event.comment.body }}
+          # The confirming commenter -- either the original reporter or a
+          # maintainer (authorized in live-check, check 4). GitHub logins
+          # are a restricted charset (alphanumeric + single hyphens), so
+          # this is injection-safe, but we route it through env to match
+          # the file's defensive convention rather than inlining `${{ }}`.
+          COMMENTER: ${{ github.event.comment.user.login }}
         run: |
           set -euo pipefail
           FIX_BRANCH="bot/fix-${ISSUE_NUMBER}"
 
-          # Quote the reporter's confirmation into the PR body. `> ` prefix
-          # every line so multi-paragraph confirmations render as a block quote.
+          # Quote the confirmation into the PR body. `> ` prefix every line
+          # so multi-paragraph confirmations render as a block quote.
           QUOTED="$(printf '%s\n' "$REPLY_BODY" | sed 's/^/> /')"
           ISSUE_URL="https://github.com/emdash-cms/emdash/issues/${ISSUE_NUMBER}"
 
           {
             echo "Closes #${ISSUE_NUMBER}."
             echo
-            echo "The reporter confirmed this fix resolves the issue:"
+            echo "@${COMMENTER} confirmed this fix resolves the issue:"
             echo
             echo "${QUOTED}"
             echo
@@ -304,7 +415,7 @@ jobs:
             gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash \
               --remove-label "triage/awaiting-reporter" --add-label "triage/failed"
             {
-              echo "The reporter confirmed the fix, but the bot could not open a PR (branch \`${FIX_BRANCH}\` may have been deleted)."
+              echo "@${COMMENTER} confirmed the fix, but the bot could not open a PR (branch \`${FIX_BRANCH}\` may have been deleted)."
               echo
               echo "A maintainer needs to take this from here."
             } > /tmp/comment.md
@@ -315,24 +426,27 @@ jobs:
           gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/awaiting-reporter" --add-label "triage/verified"
 
           {
-            echo "Thanks for confirming. A PR is open: ${PR_URL}"
+            echo "Thanks for confirming, @${COMMENTER}. A PR is open: ${PR_URL}"
           } > /tmp/comment.md
           gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md
 
       # ----- Negative: count retries, re-trigger or give up -----
 
       - name: Handle negative (retry or fail)
-        if: steps.live-check.outputs.stale != 'true' && steps.classify.outputs.classification == 'negative'
+        if: steps.live-check.outputs.stale != 'true' && steps.resolve.outputs.classification == 'negative'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           REPLY_BODY: ${{ github.event.comment.body }}
-          # Pull workflow context values into env so the shell never sees
-          # raw `${{ ... }}` expansions -- zizmor flags these as template
-          # injection even though `github.repository` and `github.ref_name`
-          # are trustworthy on a non-fork issue_comment trigger. Defensive.
+          # The replying commenter -- either the original reporter or a
+          # maintainer (authorized in live-check, check 4). Login charset
+          # is safe.
+          COMMENTER: ${{ github.event.comment.user.login }}
+          # Pull workflow context into env so the shell never sees raw
+          # `${{ ... }}` expansions -- zizmor flags these as template injection
+          # even though `github.repository` is trustworthy on a non-fork
+          # issue_comment trigger. Defensive.
           REPO_FULL: ${{ github.repository }}
-          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
@@ -352,7 +466,7 @@ jobs:
           #      bare integer.
           COUNT="$(
             gh api "/repos/emdash-cms/emdash/issues/${ISSUE_NUMBER}/comments" --paginate --slurp \
-              --jq '
+              | jq '
                 [ .[]
                   | .[]
                   | select(.user.login == "emdashbot[bot]")
@@ -375,7 +489,7 @@ jobs:
             gh issue edit "$ISSUE_NUMBER" --repo emdash-cms/emdash --remove-label "triage/awaiting-reporter" --add-label "triage/failed"
             {
               echo "<!-- bot-retry-count: ${NEXT} -->"
-              echo "The bot has tried ${MAX} times and the reporter still indicates the fix does not work. A human maintainer needs to take this from here."
+              echo "The bot has tried ${MAX} times and the latest reply (from @${COMMENTER}) still indicates the fix does not work. A human maintainer needs to take this from here."
               if [[ -n "$LABELER" ]]; then
                 echo
                 echo "@${LABELER} (you applied \`bot:repro\` originally) — over to you."
@@ -385,17 +499,26 @@ jobs:
             exit 0
           fi
 
-          # Dispatch first, then transition the label. Order matters
-          # for recovery: if dispatch fails, the label stays put
-          # (so a maintainer can re-trigger by removing + re-adding
-          # `bot:repro` manually) rather than getting stuck in a
-          # `triage/reproducing` state with no investigation running.
+          # Re-trigger investigation via a repository_dispatch event (type
+          # `reporter-retry`) rather than `gh workflow run` (workflow_dispatch):
+          # firing repository_dispatch needs only contents:write, which the app
+          # token has, whereas workflow_dispatch needs actions:write, which the
+          # emdashbot App is not granted. investigate.yml reads issueNumber /
+          # retryContext from client_payload. The body is built with jq so the
+          # attacker-controlled REPLY_BODY is JSON-escaped, never interpolated
+          # into a command. repository_dispatch always runs on the default
+          # branch, so no ref is needed.
+          #
+          # Dispatch first, then transition the label. Order matters for
+          # recovery: if dispatch fails, the label stays put (so a maintainer
+          # can re-trigger by removing + re-adding `bot:repro` manually) rather
+          # than getting stuck in `triage/reproducing` with nothing running.
           set +e
-          gh workflow run investigate.yml \
-            --repo "$REPO_FULL" \
-            --ref "$REF_NAME" \
-            -f issueNumber="${ISSUE_NUMBER}" \
-            -f retryContext="${REPLY_BODY}"
+          jq -nc \
+            --arg n "$ISSUE_NUMBER" \
+            --arg r "$REPLY_BODY" \
+            '{event_type: "reporter-retry", client_payload: {issueNumber: $n, retryContext: $r}}' \
+            | gh api --method POST "/repos/${REPO_FULL}/dispatches" --input -
           DISPATCH_EXIT=$?
           set -e
 
@@ -404,7 +527,7 @@ jobs:
             # decide what to do. Leave the label on triage/awaiting-reporter
             # so the maintainer's manual `bot:repro` re-application
             # works as expected.
-            echo "::warning::workflow_dispatch failed (exit ${DISPATCH_EXIT}); leaving label on triage/awaiting-reporter"
+            echo "::warning::repository_dispatch failed (exit ${DISPATCH_EXIT}); leaving label on triage/awaiting-reporter"
             {
               echo "<!-- bot-retry-count: ${NEXT} -->"
               echo "I tried to re-run the investigation but the dispatch failed. A maintainer can re-trigger by removing the \`triage/awaiting-reporter\` label and re-adding \`bot:repro\`."
@@ -442,22 +565,26 @@ jobs:
 
           {
             echo "<!-- bot-retry-count: ${NEXT} -->"
-            echo "Thanks for the additional detail. Re-running the investigation (attempt ${NEXT} of ${MAX})."
+            echo "Thanks for the additional detail, @${COMMENTER}. Re-running the investigation (attempt ${NEXT} of ${MAX})."
           } > /tmp/comment.md
           gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md || true
 
       # ----- Unclear: ask for clarification, no state change -----
 
       - name: Handle unclear
-        if: steps.live-check.outputs.stale != 'true' && steps.classify.outputs.classification == 'unclear'
+        if: steps.live-check.outputs.stale != 'true' && steps.resolve.outputs.classification == 'unclear'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          # The replying commenter -- the original reporter (the unclear
+          # path is reporter-only; a maintainer directive is always
+          # positive/negative). Login charset is safe.
+          COMMENTER: ${{ github.event.comment.user.login }}
         run: |
           set -euo pipefail
           {
-            echo "Could you clarify whether the candidate fix resolves the issue for you?"
+            echo "@${COMMENTER} could you clarify whether the candidate fix resolves the issue?"
             echo
-            echo "A short \"yes, fixed\" or \"no, still broken\" (with what you saw) is plenty. The bot is waiting on your confirmation before opening a PR."
+            echo "A short \"yes, fixed\" or \"no, still broken\" (with what you saw) is plenty. The bot is waiting on confirmation before opening a PR."
           } > /tmp/comment.md
           gh issue comment "$ISSUE_NUMBER" --repo emdash-cms/emdash --body-file /tmp/comment.md

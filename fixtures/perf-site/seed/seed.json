@@ -6,12 +6,10 @@
 		"description": "A blog with posts and pages",
 		"author": "EmDash"
 	},
-
 	"settings": {
 		"title": "My Blog",
 		"tagline": "Thoughts on building for the web"
 	},
-
 	"collections": [
 		{
 			"slug": "posts",
@@ -67,7 +65,6 @@
 			]
 		}
 	],
-
 	"taxonomies": [
 		{
 			"name": "category",
@@ -76,9 +73,18 @@
 			"hierarchical": true,
 			"collections": ["posts"],
 			"terms": [
-				{ "slug": "development", "label": "Development" },
-				{ "slug": "design", "label": "Design" },
-				{ "slug": "notes", "label": "Notes" }
+				{
+					"slug": "development",
+					"label": "Development"
+				},
+				{
+					"slug": "design",
+					"label": "Design"
+				},
+				{
+					"slug": "notes",
+					"label": "Notes"
+				}
 			]
 		},
 		{
@@ -88,40 +94,122 @@
 			"hierarchical": false,
 			"collections": ["posts"],
 			"terms": [
-				{ "slug": "webdev", "label": "Web Development" },
-				{ "slug": "opinion", "label": "Opinion" },
-				{ "slug": "tools", "label": "Tools" },
-				{ "slug": "creativity", "label": "Creativity" }
+				{
+					"slug": "webdev",
+					"label": "Web Development"
+				},
+				{
+					"slug": "opinion",
+					"label": "Opinion"
+				},
+				{
+					"slug": "tools",
+					"label": "Tools"
+				},
+				{
+					"slug": "creativity",
+					"label": "Creativity"
+				}
 			]
 		}
 	],
-
 	"bylines": [
 		{
-			"id": "byline-editorial",
-			"slug": "emdash-editorial",
-			"displayName": "EmDash Editorial"
+			"id": "author-1",
+			"slug": "ada-lovelace",
+			"displayName": "Ada Lovelace",
+			"avatar": {
+				"storageKey": "seed/avatars/ada-lovelace.jpg",
+				"alt": "Ada Lovelace avatar"
+			}
 		},
 		{
-			"id": "byline-guest",
-			"slug": "guest-contributor",
-			"displayName": "Guest Contributor",
-			"isGuest": true
+			"id": "author-2",
+			"slug": "grace-hopper",
+			"displayName": "Grace Hopper",
+			"avatar": {
+				"storageKey": "seed/avatars/grace-hopper.jpg",
+				"alt": "Grace Hopper avatar"
+			}
+		},
+		{
+			"id": "author-3",
+			"slug": "alan-turing",
+			"displayName": "Alan Turing",
+			"avatar": {
+				"storageKey": "seed/avatars/alan-turing.jpg",
+				"alt": "Alan Turing avatar"
+			}
+		},
+		{
+			"id": "author-4",
+			"slug": "katherine-johnson",
+			"displayName": "Katherine Johnson",
+			"avatar": {
+				"storageKey": "seed/avatars/katherine-johnson.jpg",
+				"alt": "Katherine Johnson avatar"
+			}
+		},
+		{
+			"id": "author-5",
+			"slug": "linus-torvalds",
+			"displayName": "Linus Torvalds",
+			"avatar": {
+				"storageKey": "seed/avatars/linus-torvalds.jpg",
+				"alt": "Linus Torvalds avatar"
+			}
+		},
+		{
+			"id": "author-6",
+			"slug": "margaret-hamilton",
+			"displayName": "Margaret Hamilton",
+			"avatar": {
+				"storageKey": "seed/avatars/margaret-hamilton.jpg",
+				"alt": "Margaret Hamilton avatar"
+			}
+		},
+		{
+			"id": "author-7",
+			"slug": "dennis-ritchie",
+			"displayName": "Dennis Ritchie",
+			"avatar": {
+				"storageKey": "seed/avatars/dennis-ritchie.jpg",
+				"alt": "Dennis Ritchie avatar"
+			}
+		},
+		{
+			"id": "author-8",
+			"slug": "barbara-liskov",
+			"displayName": "Barbara Liskov",
+			"avatar": {
+				"storageKey": "seed/avatars/barbara-liskov.jpg",
+				"alt": "Barbara Liskov avatar"
+			}
 		}
 	],
-
 	"menus": [
 		{
 			"name": "primary",
 			"label": "Primary Navigation",
 			"items": [
-				{ "type": "custom", "label": "Home", "url": "/" },
-				{ "type": "custom", "label": "About", "url": "/pages/about" },
-				{ "type": "custom", "label": "Posts", "url": "/posts" }
+				{
+					"type": "custom",
+					"label": "Home",
+					"url": "/"
+				},
+				{
+					"type": "custom",
+					"label": "About",
+					"url": "/pages/about"
+				},
+				{
+					"type": "custom",
+					"label": "Posts",
+					"url": "/posts"
+				}
 			]
 		}
 	],
-
 	"widgetAreas": [
 		{
 			"name": "sidebar",
@@ -187,7 +275,6 @@
 			]
 		}
 	],
-
 	"sections": [
 		{
 			"slug": "newsletter-signup",
@@ -199,7 +286,12 @@
 				{
 					"_type": "block",
 					"style": "h3",
-					"children": [{ "_type": "span", "text": "Stay in the loop" }]
+					"children": [
+						{
+							"_type": "span",
+							"text": "Stay in the loop"
+						}
+					]
 				},
 				{
 					"_type": "block",
@@ -233,7 +325,6 @@
 			]
 		}
 	],
-
 	"content": {
 		"pages": [
 			{
@@ -306,7 +397,12 @@
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "What survives" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "What survives"
+								}
+							]
 						},
 						{
 							"_type": "block",
@@ -341,8 +437,9 @@
 					]
 				},
 				"bylines": [
-					{ "byline": "byline-editorial" },
-					{ "byline": "byline-guest", "roleLabel": "Guest essay" }
+					{
+						"byline": "author-1"
+					}
 				],
 				"taxonomies": {
 					"category": ["development"],
@@ -387,7 +484,12 @@
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "The performance argument" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "The performance argument"
+								}
+							]
 						},
 						{
 							"_type": "block",
@@ -411,7 +513,11 @@
 						}
 					]
 				},
-				"bylines": [{ "byline": "byline-editorial" }],
+				"bylines": [
+					{
+						"byline": "author-2"
+					}
+				],
 				"taxonomies": {
 					"category": ["development"],
 					"tag": ["webdev", "opinion"]
@@ -455,7 +561,12 @@
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "The fear of being wrong" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "The fear of being wrong"
+								}
+							]
 						},
 						{
 							"_type": "block",
@@ -482,7 +593,12 @@
 				"taxonomies": {
 					"category": ["notes"],
 					"tag": ["opinion"]
-				}
+				},
+				"bylines": [
+					{
+						"byline": "author-3"
+					}
+				]
 			},
 			{
 				"id": "post-4",
@@ -522,7 +638,12 @@
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "The Unix philosophy, revisited" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "The Unix philosophy, revisited"
+								}
+							]
 						},
 						{
 							"_type": "block",
@@ -549,7 +670,12 @@
 				"taxonomies": {
 					"category": ["development"],
 					"tag": ["tools"]
-				}
+				},
+				"bylines": [
+					{
+						"byline": "author-4"
+					}
+				]
 			},
 			{
 				"id": "post-5",
@@ -589,7 +715,12 @@
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "Embracing the box" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "Embracing the box"
+								}
+							]
 						},
 						{
 							"_type": "block",
@@ -616,7 +747,12 @@
 				"taxonomies": {
 					"category": ["design"],
 					"tag": ["creativity"]
-				}
+				},
+				"bylines": [
+					{
+						"byline": "author-5"
+					}
+				]
 			},
 			{
 				"id": "post-6",
@@ -656,7 +792,12 @@
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "Why side projects matter" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "Why side projects matter"
+								}
+							]
 						},
 						{
 							"_type": "block",
@@ -683,7 +824,12 @@
 				"taxonomies": {
 					"category": ["development"],
 					"tag": ["creativity"]
-				}
+				},
+				"bylines": [
+					{
+						"byline": "author-6"
+					}
+				]
 			},
 			{
 				"id": "post-7",
@@ -723,7 +869,12 @@
 						{
 							"_type": "block",
 							"style": "h2",
-							"children": [{ "_type": "span", "text": "Removing as a feature" }]
+							"children": [
+								{
+									"_type": "span",
+									"text": "Removing as a feature"
+								}
+							]
 						},
 						{
 							"_type": "block",
@@ -750,7 +901,12 @@
 				"taxonomies": {
 					"category": ["notes"],
 					"tag": ["opinion"]
-				}
+				},
+				"bylines": [
+					{
+						"byline": "author-7"
+					}
+				]
 			},
 			{
 				"id": "post-draft",
@@ -771,7 +927,12 @@
 							]
 						}
 					]
-				}
+				},
+				"bylines": [
+					{
+						"byline": "author-8"
+					}
+				]
 			}
 		]
 	}

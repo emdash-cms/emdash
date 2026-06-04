@@ -255,6 +255,105 @@ export function releaseExemptFromMinimumAge(
 }
 
 // ---------------------------------------------------------------------------
+// Profile sections
+// ---------------------------------------------------------------------------
+
+/**
+ * The FAIR-recognised long-form section keys, in display order. Publishers may
+ * also ship unrecognised keys (the lexicon's `sections` map is open), but the
+ * admin renders only this known set so an aggregator can't inject a section
+ * with an attacker-chosen heading; everything else is ignored.
+ */
+export const SECTION_ORDER = [
+	"description",
+	"installation",
+	"faq",
+	"changelog",
+	"security",
+] as const;
+
+export type SectionKey = (typeof SECTION_ORDER)[number];
+
+export interface PresentSection {
+	key: SectionKey;
+	markdown: string;
+}
+
+/**
+ * Select the non-empty long-form sections off a package profile, in
+ * `SECTION_ORDER`. `profile.sections` is a lexicon-validated map of Markdown
+ * strings (or `null` when the aggregator returned a non-conforming record), so
+ * each value is narrowed to a non-whitespace string before inclusion. Empty,
+ * missing, whitespace-only, and non-string entries are dropped, so callers can
+ * suppress the whole sections UI when the result is empty.
+ */
+export function presentSections(
+	profile: { sections?: unknown } | null | undefined,
+): PresentSection[] {
+	const sections = profile?.sections;
+	if (!sections || typeof sections !== "object") return [];
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; each value is string-checked below
+	const map = sections as Record<string, unknown>;
+	const out: PresentSection[] = [];
+	for (const key of SECTION_ORDER) {
+		const value = map[key];
+		if (typeof value === "string" && value.trim().length > 0) {
+			out.push({ key, markdown: value });
+		}
+	}
+	return out;
+}
+
+// ---------------------------------------------------------------------------
+// SBOM
+// ---------------------------------------------------------------------------
+
+export interface ReleaseSbom {
+	format?: string;
+	url?: string;
+	checksum?: string;
+}
+
+/**
+ * Narrow a release record's `sbom` field to the fields the admin renders.
+ * Returns `null` unless the value is an object carrying at least one usable
+ * field (`format` or `url`); every field is independently optional per the
+ * lexicon. `sbom` is lexicon-validated at the DiscoveryClient boundary, but the
+ * record is a publisher pass-through, so its inner shape still needs narrowing.
+ */
+export function extractSbom(value: unknown): ReleaseSbom | null {
+	if (!value || typeof value !== "object") return null;
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; fields checked below
+	const v = value as Record<string, unknown>;
+	const sbom: ReleaseSbom = {};
+	if (typeof v.format === "string" && v.format.length > 0) sbom.format = v.format;
+	if (typeof v.url === "string" && v.url.length > 0) sbom.url = v.url;
+	if (typeof v.checksum === "string") sbom.checksum = v.checksum;
+	if (!sbom.format && !sbom.url) return null;
+	return sbom;
+}
+
+/**
+ * Validate an SBOM document URL for use in a download `href`. Returns the
+ * normalised URL only when it is an absolute `http(s)` URL; everything else
+ * (relative, `javascript:`, `data:`, non-string) returns `null`. The release
+ * record is a remote pass-through, so an unsanitised SBOM `href` would be
+ * stored XSS in the authenticated admin origin. The browser fetches the SBOM
+ * client-side on click — no server proxy, so SSRF isn't a concern here.
+ */
+export function sbomDownloadHref(value: unknown): string | null {
+	if (typeof value !== "string" || value.length === 0) return null;
+	let parsed: URL;
+	try {
+		parsed = new URL(value);
+	} catch {
+		return null;
+	}
+	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+	return parsed.href;
+}
+
+// ---------------------------------------------------------------------------
 // Public discovery hooks (callable by React Query)
 // ---------------------------------------------------------------------------
 

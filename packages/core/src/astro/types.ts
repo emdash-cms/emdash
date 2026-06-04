@@ -274,6 +274,7 @@ export interface EmDashHandlers {
 			status?: string;
 			authorId?: string | null;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
+			locale?: string;
 			seo?: {
 				title?: string | null;
 				description?: string | null;

@@ -22,6 +22,8 @@ import {
 	ManifestSchema,
 	RepoSchema,
 	RequiresSchema,
+	SECTION_KEYS,
+	SectionsSchema,
 	SecurityContactSchema,
 } from "../src/manifest/schema.js";
 
@@ -218,6 +220,78 @@ describe("ArtifactsSchema", () => {
 	});
 });
 
+describe("SectionsSchema", () => {
+	it("accepts an inline string for each of the five keys", () => {
+		for (const key of SECTION_KEYS) {
+			const result = SectionsSchema.safeParse({ [key]: "# Heading\n\nSome **markdown**." });
+			expect(result.success, key).toBe(true);
+		}
+	});
+
+	it("accepts a { file } ref for each of the five keys", () => {
+		for (const key of SECTION_KEYS) {
+			const result = SectionsSchema.safeParse({ [key]: { file: "./docs/x.md" } });
+			expect(result.success, key).toBe(true);
+		}
+	});
+
+	it("accepts a mix of inline and file refs", () => {
+		const result = SectionsSchema.safeParse({
+			description: "inline",
+			installation: { file: "./docs/install.md" },
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("treats every key as optional (empty object is valid)", () => {
+		expect(SectionsSchema.safeParse({}).success).toBe(true);
+	});
+
+	it("rejects an unknown section key", () => {
+		const result = SectionsSchema.safeParse({ instalation: "typo" });
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects an extra key in a file ref", () => {
+		const result = SectionsSchema.safeParse({ description: { file: "./x.md", lang: "en" } });
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects an inline section over the 20000-byte cap while under the grapheme cap", () => {
+		// A 25-byte family emoji (one grapheme via ZWJ). 1000 of them = 25000
+		// bytes (over the byte cap) but only 1000 graphemes (under the
+		// grapheme cap), so the byte check is the one that fires.
+		const result = SectionsSchema.safeParse({ description: "👨‍👩‍👧‍👦".repeat(1000) });
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.some((i) => i.message.includes("byte"))).toBe(true);
+		}
+	});
+
+	it("rejects an inline section over the 2000-grapheme cap while under the byte cap", () => {
+		// 2001 emoji. Each emoji is one grapheme but several UTF-8 bytes, so
+		// this trips the grapheme cap without reaching 20000 bytes (2001 * 4
+		// = 8004 bytes).
+		const result = SectionsSchema.safeParse({ faq: "😀".repeat(2001) });
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.some((i) => i.message.includes("grapheme"))).toBe(true);
+		}
+	});
+
+	it("accepts an inline section exactly at the grapheme cap", () => {
+		// 2000 ASCII chars: 2000 graphemes (at the cap) and 2000 bytes (under
+		// the byte cap). Both limits satisfied.
+		const result = SectionsSchema.safeParse({ changelog: "a".repeat(2000) });
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects an inline section one grapheme over the cap", () => {
+		const result = SectionsSchema.safeParse({ changelog: "a".repeat(2001) });
+		expect(result.success).toBe(false);
+	});
+});
+
 describe("ManifestSchema (full document)", () => {
 	const minimal = {
 		slug: "my-plugin",
@@ -245,6 +319,25 @@ describe("ManifestSchema (full document)", () => {
 			},
 		});
 		expect(result.success).toBe(true);
+	});
+
+	it("accepts a top-level sections block (inline + file refs)", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			sections: {
+				description: "Long description.",
+				installation: { file: "./docs/install.md" },
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects an unknown section key at the top level", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			sections: { changelog: "ok", bogus: "nope" },
+		});
+		expect(result.success).toBe(false);
 	});
 
 	it("rejects an unknown key inside release", () => {

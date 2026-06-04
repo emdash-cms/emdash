@@ -121,6 +121,13 @@ function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
 	if (isCodeBlock(block)) {
 		return convertCodeBlock(block);
 	}
+	if (block._type === "htmlBlock") {
+		const hb = block as PortableTextBlock & { html?: string };
+		return {
+			type: "htmlBlock",
+			attrs: { html: hb.html || "" },
+		};
+	}
 	if (block._type === "break") {
 		return { type: "horizontalRule" };
 	}

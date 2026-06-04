@@ -45,6 +45,9 @@ describe("Database Migrations (Integration)", () => {
 			"_emdash_sections",
 			"_emdash_bylines",
 			"_emdash_content_bylines",
+			"_emdash_byline_fields",
+			"_emdash_byline_field_values",
+			"_emdash_byline_field_group_values",
 		];
 
 		for (const table of tables) {
@@ -120,6 +123,8 @@ describe("Database Migrations (Integration)", () => {
 			"038_registry_plugin_state",
 			"039_fix_fts5_triggers",
 			"040_byline_i18n",
+			"041_content_locale_list_index",
+			"042_byline_fields",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

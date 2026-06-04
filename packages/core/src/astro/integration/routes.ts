@@ -457,6 +457,33 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/admin/bylines/[id]/translations.ts"),
 	});
 
+	// Byline custom-field schema routes (Discussion #1174, Phase 4).
+	// Order matters: the static `reorder` route must precede the dynamic
+	// `[slug]` route so Astro's resolver dispatches POST /byline-fields/reorder
+	// to the reorder handler instead of treating "reorder" as a slug. The
+	// `reorder` slug is also reserved at the data layer
+	// (RESERVED_BYLINE_FIELD_SLUGS) so the registry rejects field creation
+	// with that name — defence in depth.
+	injectRoute({
+		pattern: "/_emdash/api/admin/byline-fields",
+		entrypoint: resolveRoute("api/admin/byline-fields/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/byline-fields/reorder",
+		entrypoint: resolveRoute("api/admin/byline-fields/reorder.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/byline-fields/[slug]",
+		entrypoint: resolveRoute("api/admin/byline-fields/[slug].ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/byline-fields/[slug]/usage",
+		entrypoint: resolveRoute("api/admin/byline-fields/[slug]/usage.ts"),
+	});
+
 	injectRoute({
 		pattern: "/_emdash/api/admin/users/[id]",
 		entrypoint: resolveRoute("api/admin/users/[id]/index.ts"),

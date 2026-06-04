@@ -51,7 +51,8 @@ The bot owns every label except `bot:repro`. Maintainers don't manage state dire
 │   └── verify/SKILL.md
 ├── workflows/
 │   ├── investigate.ts         # 4-stage pipeline
-│   └── classify-reply.ts      # Reporter-reply classifier
+│   ├── classify-reply.ts      # Reporter-reply classifier
+│   └── classify-maintainer-reply.ts  # Maintainer-directive classifier
 ├── scripts/
 │   └── run-local.ts           # Local prototype runner
 ├── fixtures/                  # 5 real issues for local iteration
@@ -60,6 +61,7 @@ The bot owns every label except `bot:repro`. Maintainers don't manage state dire
 .github/workflows/
 ├── investigate.yml            # bot:repro → investigate workflow
 ├── reporter-reply.yml         # Reporter comments on a bot-awaited issue
+├── maintainer-reply.yml       # Maintainer @emdashbot directive on a triage issue
 └── bot-cleanup.yml            # Branch cleanup on issue close + daily cron
 ```
 

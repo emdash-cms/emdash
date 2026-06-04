@@ -20,13 +20,33 @@ import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import type { Database } from "./index.js";
 import { getRequestContext } from "./request-context.js";
-import { isMissingTableError } from "./utils/db-errors.js";
+import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /**
- * System columns that are not part of the content data
+ * SEO columns joined in from `_emdash_seo` on the single-entry path, mapped to
+ * aliased result keys. SEO lives in a side table, so a LEFT JOIN folds it into
+ * the entry load at zero extra query cost; the result is surfaced as a nested
+ * `data.seo` object (see extractSeo) rather than flat fields.
+ *
+ * The `_emdash_` prefix on the aliases guarantees they can never collide with
+ * a content field. Field slugs must match `/^[a-z][a-z0-9_]*$/`, so a user can
+ * legitimately define a `seo_title` field; selecting the joined column under
+ * its bare name would shadow that field in the result set and drop the user's
+ * value. The prefix (illegal as a leading slug char) sidesteps this entirely.
  */
+const SEO_COLUMN_ALIASES: Record<string, string> = {
+	seo_title: "_emdash_seo_title",
+	seo_description: "_emdash_seo_description",
+	seo_image: "_emdash_seo_image",
+	seo_canonical: "_emdash_seo_canonical",
+	seo_no_index: "_emdash_seo_no_index",
+};
+
+/** Aliased SEO result keys — excluded from generic field mapping. */
+const SEO_ALIAS_COLUMNS = Object.values(SEO_COLUMN_ALIASES);
+
 /**
  * System columns excluded from entry.data
  * Note: slug is intentionally NOT excluded - it's useful as data.slug in templates
@@ -47,7 +67,45 @@ const SYSTEM_COLUMNS = new Set([
 	"draft_revision_id",
 	"locale",
 	"translation_group",
+	// Aliased SEO columns joined from _emdash_seo on the single-entry path.
+	// Surfaced as a nested data.seo object (see extractSeo), never as flat
+	// fields. The aliases are _emdash_-prefixed so they can't shadow a user
+	// field named e.g. `seo_title`.
+	...SEO_ALIAS_COLUMNS,
 ]);
+
+/** Resolved SEO shape attached to `entry.data.seo`. Mirrors `ContentSeo`. */
+interface EntrySeo {
+	title: string | null;
+	description: string | null;
+	image: string | null;
+	canonical: string | null;
+	noIndex: boolean;
+}
+
+/**
+ * Build a `data.seo` object from the joined `_emdash_seo` columns on a row.
+ *
+ * Returns `null` when no SEO row exists (LEFT JOIN miss → `seo_no_index` is
+ * NULL, since the column is `NOT NULL DEFAULT 0` whenever a row is present).
+ * Returning null keeps the `seo` key off entries that have none, so
+ * `getSeoMeta()` falls back to its defaults exactly as before.
+ */
+function extractSeo(row: Record<string, unknown>): EntrySeo | null {
+	const noIndex = row[SEO_COLUMN_ALIASES.seo_no_index];
+	if (noIndex === null || noIndex === undefined) return null;
+	const title = row[SEO_COLUMN_ALIASES.seo_title];
+	const description = row[SEO_COLUMN_ALIASES.seo_description];
+	const image = row[SEO_COLUMN_ALIASES.seo_image];
+	const canonical = row[SEO_COLUMN_ALIASES.seo_canonical];
+	return {
+		title: typeof title === "string" ? title : null,
+		description: typeof description === "string" ? description : null,
+		image: typeof image === "string" ? image : null,
+		canonical: typeof canonical === "string" ? canonical : null,
+		noIndex: noIndex === 1,
+	};
+}
 
 /**
  * Get the table name for a collection type
@@ -311,10 +369,12 @@ function buildStatusCondition(
 		const scheduledAtExpr = isPostgres(db)
 			? sql`${sql.ref(scheduledAtField)}::timestamptz`
 			: sql.ref(scheduledAtField);
-		return sql`(${sql.ref(statusField)} = 'published' OR (${sql.ref(statusField)} = 'scheduled' AND ${scheduledAtExpr} <= ${currentTimestampValue(db)}))`;
+		const nowExpr = isPostgres(db)
+			? currentTimestampValue(db)
+			: sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
+		return sql`(${sql.ref(statusField)} = 'published' OR (${sql.ref(statusField)} = 'scheduled' AND ${scheduledAtExpr} <= ${nowExpr}))`;
 	}
 
-	// For other statuses (draft, archived), just match exactly
 	return sql`${sql.ref(statusField)} = ${status}`;
 }
 
@@ -408,6 +468,65 @@ function buildCursorCondition(
 	return sql`(${sql.ref(primary.field)} > ${orderValue} OR (${sql.ref(primary.field)} = ${orderValue} AND ${sql.ref(idField)} > ${cursorId}))`;
 }
 
+/** Type guard: is the where value a range object (not a string or array)? */
+function isWhereRange(value: WhereValue): value is WhereRange {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Build AND conditions for non-taxonomy field filters.
+ * Returns an array of sql fragments; empty if no field filters apply.
+ * Field names are validated against FIELD_NAME_PATTERN to prevent injection.
+ */
+function buildFieldConditions(
+	fields: Record<string, WhereValue>,
+	tablePrefix?: string,
+): ReturnType<typeof sql>[] {
+	const conditions: ReturnType<typeof sql>[] = [];
+
+	for (const [key, value] of Object.entries(fields)) {
+		if (!FIELD_NAME_PATTERN.test(key)) {
+			console.warn(`[emdash] where filter: invalid field name "${key}" ignored`);
+			continue;
+		}
+		if (value == null) continue;
+		const ref = tablePrefix ? sql.ref(`${tablePrefix}.${key}`) : sql.ref(key);
+
+		if (isWhereRange(value)) {
+			if (value.gt !== undefined) conditions.push(sql`${ref} > ${value.gt}`);
+			if (value.gte !== undefined) conditions.push(sql`${ref} >= ${value.gte}`);
+			if (value.lt !== undefined) conditions.push(sql`${ref} < ${value.lt}`);
+			if (value.lte !== undefined) conditions.push(sql`${ref} <= ${value.lte}`);
+		} else if (Array.isArray(value)) {
+			if (value.length > 0) {
+				conditions.push(sql`${ref} IN (${sql.join(value.map((v) => sql`${v}`))})`);
+			}
+		} else {
+			conditions.push(sql`${ref} = ${value}`);
+		}
+	}
+
+	return conditions;
+}
+
+/**
+ * Range filter for comparison operators on field values.
+ * Values are compared as strings in the database. This works correctly for
+ * ISO 8601 dates (e.g. "2024-01-01T00:00:00Z") because lexicographic ordering
+ * matches chronological ordering. Ensure date values use a consistent format.
+ */
+export interface WhereRange {
+	gt?: string;
+	gte?: string;
+	lt?: string;
+	lte?: string;
+}
+
+/**
+ * A where clause value: exact match, multi-value match, or range comparison.
+ */
+export type WhereValue = string | string[] | WhereRange;
+
 /**
  * Filter for loadCollection - type is required
  */
@@ -421,9 +540,16 @@ export interface CollectionFilter {
 	 */
 	cursor?: string;
 	/**
-	 * Filter by field values or taxonomy terms
+	 * Filter by field values, taxonomy terms, or ranges.
+	 *
+	 * Taxonomy names are detected automatically and filtered via JOIN.
+	 * Other keys are treated as column filters on the content table.
+	 *
+	 * @example { category: 'news' } - taxonomy term
+	 * @example { series: 'main' } - exact match on a content field
+	 * @example { published_at: { gte: '2024-01-01', lt: '2025-01-01' } } - date range
 	 */
-	where?: Record<string, string | string[]>;
+	where?: Record<string, WhereValue>;
 	/**
 	 * Order results by field(s)
 	 * @default { created_at: "desc" }
@@ -551,79 +677,81 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					? buildCursorCondition(cursor, orderBy, tableName)
 					: null;
 
-				// Check if we need taxonomy filtering
+				// Separate taxonomy filters from field filters
 				let result: { rows: Record<string, unknown>[] };
+				let taxonomyFilter: { name: string; slugs: string[] } | null = null;
+				const fieldFilters: Record<string, WhereValue> = {};
 
 				if (where && Object.keys(where).length > 0) {
-					// Get taxonomy names to detect taxonomy filters
 					const taxNames = await getTaxonomyNames(db);
-					const taxonomyFilters: Record<string, string | string[]> = {};
 
 					for (const [key, value] of Object.entries(where)) {
+						if (value == null) continue;
 						if (taxNames.has(key)) {
-							taxonomyFilters[key] = value;
+							if (isWhereRange(value)) {
+								console.warn(
+									`[emdash] where filter: range operators are not supported on taxonomy "${key}", ignored`,
+								);
+								continue;
+							}
+							if (taxonomyFilter) {
+								console.warn(
+									`[emdash] where filter: only one taxonomy is supported per query, "${key}" ignored`,
+								);
+								continue;
+							}
+							const slugs = Array.isArray(value) ? value : [value];
+							taxonomyFilter = { name: key, slugs };
+						} else {
+							fieldFilters[key] = value;
 						}
 					}
+				}
 
-					// If we have taxonomy filters, use JOIN
-					if (Object.keys(taxonomyFilters).length > 0) {
-						// Build query with taxonomy JOIN
-						// For now, support single taxonomy filter (can extend later for multiple)
-						const [taxName, termSlugs] = Object.entries(taxonomyFilters)[0];
-						const slugs = Array.isArray(termSlugs) ? termSlugs : [termSlugs];
-						const orderByClause = buildOrderByClause(orderBy, tableName);
+				if (taxonomyFilter) {
+					const orderByClause = buildOrderByClause(orderBy, tableName);
+					const statusCondition = buildStatusCondition(db, status, tableName);
+					const localeCondition = locale
+						? sql`AND ${sql.ref(tableName)}.locale = ${locale}`
+						: sql``;
+					const cursorCond = cursorConditionPrefixed ? sql`AND ${cursorConditionPrefixed}` : sql``;
+					const fieldConds = buildFieldConditions(fieldFilters, tableName);
+					const fieldCondsSQL =
+						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
 
-						const statusCondition = buildStatusCondition(db, status, tableName);
-						const localeCondition = locale
-							? sql`AND ${sql.ref(tableName)}.locale = ${locale}`
-							: sql``;
-						const cursorCond = cursorConditionPrefixed
-							? sql`AND ${cursorConditionPrefixed}`
-							: sql``;
-						result = await sql<Record<string, unknown>>`
-							SELECT DISTINCT ${sql.ref(tableName)}.* FROM ${sql.ref(tableName)}
-							INNER JOIN content_taxonomies ct
-								ON ct.collection = ${type}
-								AND ct.entry_id = ${sql.ref(tableName)}.id
-							INNER JOIN taxonomies t
-								ON t.id = ct.taxonomy_id
-							WHERE ${sql.ref(tableName)}.deleted_at IS NULL
-								AND ${statusCondition}
-								${localeCondition}
-								${cursorCond}
-								AND t.name = ${taxName}
-								AND t.slug IN (${sql.join(slugs.map((s) => sql`${s}`))})
-							${orderByClause}
-							${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
-						`.execute(db);
-					} else {
-						// No taxonomy filters, use simple query
-						const orderByClause = buildOrderByClause(orderBy);
-						const statusCondition = buildStatusCondition(db, status);
-						const localeFilter = locale ? sql`AND locale = ${locale}` : sql``;
-						const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
-						result = await sql<Record<string, unknown>>`
-							SELECT * FROM ${sql.ref(tableName)}
-							WHERE deleted_at IS NULL
+					result = await sql<Record<string, unknown>>`
+						SELECT DISTINCT ${sql.ref(tableName)}.* FROM ${sql.ref(tableName)}
+						INNER JOIN content_taxonomies ct
+							ON ct.collection = ${type}
+							AND ct.entry_id = ${sql.ref(tableName)}.id
+						INNER JOIN taxonomies t
+							ON t.id = ct.taxonomy_id
+						WHERE ${sql.ref(tableName)}.deleted_at IS NULL
 							AND ${statusCondition}
-							${localeFilter}
+							${localeCondition}
 							${cursorCond}
-							${orderByClause}
-							${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
-						`.execute(db);
-					}
+							AND t.name = ${taxonomyFilter.name}
+							AND t.slug IN (${sql.join(taxonomyFilter.slugs.map((s) => sql`${s}`))})
+							${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
+						${orderByClause}
+						${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
+					`.execute(db);
 				} else {
-					// No where clause, use simple query
 					const orderByClause = buildOrderByClause(orderBy);
 					const statusCondition = buildStatusCondition(db, status);
 					const localeFilter = locale ? sql`AND locale = ${locale}` : sql``;
 					const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
+					const fieldConds = buildFieldConditions(fieldFilters);
+					const fieldCondsSQL =
+						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
+
 					result = await sql<Record<string, unknown>>`
 						SELECT * FROM ${sql.ref(tableName)}
 						WHERE deleted_at IS NULL
 						AND ${statusCondition}
 						${localeFilter}
 						${cursorCond}
+						${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
 						${orderByClause}
 						${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
 					`.execute(db);
@@ -693,13 +821,17 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					},
 				};
 			} catch (error) {
-				// Handle missing table gracefully - return empty collection.
-				// This happens before migrations have run.
-				if (isMissingTableError(error)) {
+				// Handle missing table/column gracefully - return empty collection.
+				// Missing table happens before migrations have run.
+				// Missing column happens when a where filter references a non-existent field.
+				const message = error instanceof Error ? error.message : String(error);
+				if (isMissingTableError(error) || isMissingColumnError(error)) {
+					if (isMissingColumnError(error)) {
+						console.warn(`[emdash] where filter: ${message}`);
+					}
 					return { entries: [] };
 				}
 
-				const message = error instanceof Error ? error.message : String(error);
 				return {
 					error: new Error(`Failed to load collection: ${message}`),
 				};
@@ -735,18 +867,36 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 				// Use raw SQL for dynamic table name, match by slug or id
 				// When locale is specified, prefer locale-scoped slug match,
-				// but IDs are globally unique so always check id without locale scope
+				// but IDs are globally unique so always check id without locale scope.
+				//
+				// LEFT JOIN _emdash_seo folds per-entry SEO (canonical, noindex,
+				// etc.) into this single query at zero extra round-trip cost. The
+				// joined columns are surfaced as a nested data.seo object via
+				// extractSeo() and excluded from the generic field mapping. SEO is
+				// 1:1 with content (PK on collection+content_id), so the join never
+				// multiplies rows.
+				const seoSelect = sql.join(
+					Object.entries(SEO_COLUMN_ALIASES).map(
+						([col, alias]) => sql`${sql.ref(`s.${col}`)} AS ${sql.ref(alias)}`,
+					),
+				);
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT * FROM ${sql.ref(tableName)}
-							WHERE deleted_at IS NULL
-							AND ((slug = ${id} AND locale = ${locale}) OR id = ${id})
+							SELECT c.*, ${seoSelect}
+							FROM ${sql.ref(tableName)} AS c
+							LEFT JOIN ${sql.ref("_emdash_seo")} AS s
+								ON s.collection = ${type} AND s.content_id = c.id
+							WHERE c.deleted_at IS NULL
+							AND ((c.slug = ${id} AND c.locale = ${locale}) OR c.id = ${id})
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT * FROM ${sql.ref(tableName)}
-							WHERE deleted_at IS NULL
-							AND (slug = ${id} OR id = ${id})
+							SELECT c.*, ${seoSelect}
+							FROM ${sql.ref(tableName)} AS c
+							LEFT JOIN ${sql.ref("_emdash_seo")} AS s
+								ON s.collection = ${type} AND s.content_id = c.id
+							WHERE c.deleted_at IS NULL
+							AND (c.slug = ${id} OR c.id = ${id})
 							LIMIT 1
 						`.execute(db);
 
@@ -798,11 +948,20 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							revLocale !== "" &&
 							(revLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
 						const revId = shouldPrefixRev ? `${revLocale}/${revSlug}` : revSlug;
+						// SEO is not revisioned — it comes from the content row's
+						// joined _emdash_seo columns, not the revision snapshot.
+						const revEntryData: Record<string, unknown> = {
+							...systemData,
+							slug,
+							...mapRevisionData(parsed),
+						};
+						const revSeo = extractSeo(row);
+						if (revSeo) revEntryData.seo = revSeo;
 						return {
 							id: revId,
 							slug,
 							status: rowStr(row, "status", "draft"),
-							data: { ...systemData, slug, ...mapRevisionData(parsed) },
+							data: revEntryData,
 							cacheHint: {
 								tags: [rowStr(row, "id")],
 								lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
@@ -811,11 +970,14 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					}
 				}
 
+				const entryData = mapRowToData(row);
+				const entrySeo = extractSeo(row);
+				if (entrySeo) entryData.seo = entrySeo;
 				return {
 					id: entryId,
 					slug: rowStr(row, "slug"),
 					status: rowStr(row, "status", "draft"),
-					data: mapRowToData(row),
+					data: entryData,
 					cacheHint: {
 						tags: [rowStr(row, "id")],
 						lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
