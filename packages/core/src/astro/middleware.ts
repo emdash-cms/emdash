@@ -50,6 +50,7 @@ import {
 	type RequestMetrics,
 	runWithContext,
 } from "../request-context.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
 import type { EmDashHandlers } from "./types.js";
@@ -69,8 +70,24 @@ let i18nInitialized = false;
  * would query an empty database and crash. Once verified (or once the runtime
  * has initialized via an admin/API request), this stays true for the worker's
  * lifetime.
+ *
+ * Stored on globalThis behind a Symbol key so the flag is a true singleton
+ * even when the bundler duplicates this module across SSR chunks (same
+ * pattern as request-cache.ts). A plain module-scoped `let` becomes multiple
+ * independent variables, which would make the setup probe re-run far more
+ * often than intended — and every re-run is another chance for a transient
+ * DB error to be misread as "fresh install" and bounce visitors to setup.
  */
-let setupVerified = false;
+const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
+const setupFlagStore = globalThis as Record<symbol, unknown>;
+
+function isSetupVerified(): boolean {
+	return setupFlagStore[SETUP_VERIFIED_KEY] === true;
+}
+
+function markSetupVerified(): void {
+	setupFlagStore[SETUP_VERIFIED_KEY] = true;
+}
 
 /**
  * Get EmDash configuration from virtual module
@@ -338,7 +355,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Do a one-time lightweight probe using the same getDb() instance the
 				// page will use: if the migrations table doesn't exist, no migrations
 				// have ever run -- redirect to the setup wizard.
-				if (!setupVerified) {
+				if (!isSetupVerified()) {
 					const t0 = performance.now();
 					try {
 						const { getDb } = await import("../loader.js");
@@ -348,10 +365,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							.selectAll()
 							.limit(1)
 							.execute();
-						setupVerified = true;
-					} catch {
-						// Table doesn't exist -> fresh database, redirect to setup
-						return context.redirect("/_emdash/admin/setup");
+						markSetupVerified();
+					} catch (error) {
+						// Only a genuinely-missing migrations table means a fresh,
+						// un-set-up database — redirect to the setup wizard.
+						if (isMissingTableError(error)) {
+							return context.redirect("/_emdash/admin/setup");
+						}
+						// Any other failure (transient D1/replica error, timeout, cold-start
+						// race, locked SQLite) must NOT be read as "fresh install" — doing so
+						// bounces real visitors on a set-up site to /_emdash/admin/setup.
+						// Leave the flag unset so a later request can re-verify, and fall
+						// through to render the page normally.
+						console.error("Setup probe failed (non-fatal):", error);
 					}
 					timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 				}
@@ -368,7 +394,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					const t0 = performance.now();
 					try {
 						const runtime = await getRuntime(config, initSubTimings);
-						setupVerified = true;
+						markSetupVerified();
 						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
@@ -448,7 +474,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				for (const sub of initSubTimings) timings.push(sub);
 
 				// Runtime init runs migrations, so the DB is guaranteed set up
-				setupVerified = true;
+				markSetupVerified();
 
 				// The manifest is no longer pre-loaded here. It's admin-only
 				// content that public/anonymous requests never read, and
