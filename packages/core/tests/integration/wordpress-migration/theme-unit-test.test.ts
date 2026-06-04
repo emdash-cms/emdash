@@ -141,44 +141,38 @@ describe("WordPress Theme Unit Test Migration", () => {
 		it("converts list blocks", () => {
 			// Find a post with list content
 			const post = wxrData.posts.find((p) => p.content?.includes("wp:list"));
+			expect(post).toBeDefined();
 
-			if (post) {
-				const result = gutenbergToPortableText(post.content || "");
-				const listItems = result.filter((b) => b._type === "block" && (b as any).listItem);
-				expect(listItems.length).toBeGreaterThan(0);
-			}
+			const result = gutenbergToPortableText(post!.content || "");
+			const listItems = result.filter((b) => b._type === "block" && (b as any).listItem);
+			expect(listItems.length).toBeGreaterThan(0);
 		});
 
 		it("converts image blocks", () => {
 			const post = wxrData.posts.find((p) => p.content?.includes("wp:image"));
+			expect(post).toBeDefined();
 
-			if (post) {
-				const result = gutenbergToPortableText(post.content || "");
-				const images = result.filter((b) => b._type === "image");
-				expect(images.length).toBeGreaterThan(0);
-			}
+			const result = gutenbergToPortableText(post!.content || "");
+			const images = result.filter((b) => b._type === "image");
+			expect(images.length).toBeGreaterThan(0);
 		});
 
 		it("converts quote blocks", () => {
 			const post = wxrData.posts.find((p) => p.content?.includes("wp:quote"));
+			expect(post).toBeDefined();
 
-			if (post) {
-				const result = gutenbergToPortableText(post.content || "");
-				const quotes = result.filter(
-					(b) => b._type === "block" && (b as any).style === "blockquote",
-				);
-				expect(quotes.length).toBeGreaterThan(0);
-			}
+			const result = gutenbergToPortableText(post!.content || "");
+			const quotes = result.filter((b) => b._type === "block" && (b as any).style === "blockquote");
+			expect(quotes.length).toBeGreaterThan(0);
 		});
 
 		it("converts code blocks", () => {
 			const post = wxrData.posts.find((p) => p.content?.includes("wp:code"));
+			expect(post).toBeDefined();
 
-			if (post) {
-				const result = gutenbergToPortableText(post.content || "");
-				const codeBlocks = result.filter((b) => b._type === "code");
-				expect(codeBlocks.length).toBeGreaterThan(0);
-			}
+			const result = gutenbergToPortableText(post!.content || "");
+			const codeBlocks = result.filter((b) => b._type === "code");
+			expect(codeBlocks.length).toBeGreaterThan(0);
 		});
 
 		it("converts group blocks by flattening", () => {
@@ -197,31 +191,25 @@ describe("WordPress Theme Unit Test Migration", () => {
 		it("handles classic editor content", () => {
 			// Find a post in the "Classic" category
 			const classicPost = wxrData.posts.find((p) => p.categories.includes("classic"));
+			expect(classicPost).toBeDefined();
+			expect(classicPost!.content?.trim()).toBeTruthy();
 
-			if (classicPost && classicPost.content) {
-				// Classic content doesn't have wp: comments
-				const hasGutenbergBlocks = classicPost.content.includes("<!-- wp:");
-
-				if (!hasGutenbergBlocks && classicPost.content.trim()) {
-					const result = gutenbergToPortableText(classicPost.content);
-					expect(result.length).toBeGreaterThan(0);
-				}
-			}
+			const result = gutenbergToPortableText(classicPost!.content);
+			expect(result.length).toBeGreaterThan(0);
 		});
 
 		it("preserves inline formatting", () => {
 			const post = wxrData.posts.find(
 				(p) => p.content?.includes("<strong>") || p.content?.includes("<em>"),
 			);
+			expect(post).toBeDefined();
 
-			if (post) {
-				const result = gutenbergToPortableText(post.content || "");
-				const blocksWithMarks = result.filter(
-					(b) => b._type === "block" && (b as any).children?.some((c: any) => c.marks?.length > 0),
-				);
-				// Should have some formatted text
-				expect(blocksWithMarks.length).toBeGreaterThanOrEqual(0);
-			}
+			const result = gutenbergToPortableText(post!.content || "");
+			const blocksWithMarks = result.filter(
+				(b) => b._type === "block" && (b as any).children?.some((c: any) => c.marks?.length > 0),
+			);
+			// Inline <strong>/<em> must survive as Portable Text marks.
+			expect(blocksWithMarks.length).toBeGreaterThan(0);
 		});
 
 		it("handles empty content gracefully", () => {
@@ -244,8 +232,8 @@ describe("WordPress Theme Unit Test Migration", () => {
 			const specialPosts = wxrData.posts.filter(
 				(p) => p.title?.includes("&") || p.title?.includes("<") || p.title?.includes('"'),
 			);
-			// Should parse without errors
-			expect(specialPosts).toBeDefined();
+			// The fixture contains such titles, and they must parse without being dropped.
+			expect(specialPosts.length).toBeGreaterThan(0);
 		});
 
 		it("handles posts with very long content", () => {
@@ -256,10 +244,10 @@ describe("WordPress Theme Unit Test Migration", () => {
 				return currentLength > longestLength ? current : longest;
 			}, wxrData.posts[0]);
 
-			if (longestPost?.content) {
-				const result = gutenbergToPortableText(longestPost.content);
-				expect(result.length).toBeGreaterThan(0);
-			}
+			expect(longestPost?.content).toBeTruthy();
+
+			const result = gutenbergToPortableText(longestPost!.content!);
+			expect(result.length).toBeGreaterThan(0);
 		});
 
 		it("handles deeply nested blocks", () => {
@@ -267,21 +255,25 @@ describe("WordPress Theme Unit Test Migration", () => {
 			const nestedPost = wxrData.posts.find(
 				(p) => p.content?.includes("wp:columns") || p.content?.includes("wp:group"),
 			);
+			expect(nestedPost).toBeDefined();
 
-			if (nestedPost) {
-				const result = gutenbergToPortableText(nestedPost.content || "");
-				expect(Array.isArray(result)).toBe(true);
-			}
+			const result = gutenbergToPortableText(nestedPost!.content || "");
+			expect(result.length).toBeGreaterThan(0);
 		});
 
 		it("handles posts with embeds", () => {
-			const embedPost = wxrData.posts.find((p) => p.content?.includes("wp:embed"));
+			// The theme-unit-test fixture predates block embeds and contains none, so
+			// feed a known wp:embed block directly to verify the converter emits an
+			// embed node rather than silently skipping.
+			const content = `<!-- wp:embed {"url":"https://www.youtube.com/watch?v=abc123","type":"video","providerNameSlug":"youtube"} -->
+<figure class="wp-block-embed is-type-video is-provider-youtube wp-block-embed-youtube"><div class="wp-block-embed__wrapper">
+https://www.youtube.com/watch?v=abc123
+</div></figure>
+<!-- /wp:embed -->`;
 
-			if (embedPost) {
-				const result = gutenbergToPortableText(embedPost.content || "");
-				const embeds = result.filter((b) => b._type === "embed");
-				expect(embeds.length).toBeGreaterThanOrEqual(0);
-			}
+			const result = gutenbergToPortableText(content);
+			const embeds = result.filter((b) => b._type === "embed");
+			expect(embeds.length).toBeGreaterThan(0);
 		});
 	});
 
@@ -289,6 +281,7 @@ describe("WordPress Theme Unit Test Migration", () => {
 		it("preserves all text content through conversion", () => {
 			// Take a sample of posts and verify text isn't lost
 			const samplePosts = wxrData.posts.slice(0, 10);
+			let assertedCount = 0;
 
 			for (const post of samplePosts) {
 				if (!post.content) continue;
@@ -316,9 +309,13 @@ describe("WordPress Theme Unit Test Migration", () => {
 					const hasTextContent = PARAGRAPH_WITH_TEXT_REGEX.test(post.content);
 					if (hasTextContent) {
 						expect(extractedText.length).toBeGreaterThan(0);
+						assertedCount++;
 					}
 				}
 			}
+
+			// Guard against the loop silently asserting nothing.
+			expect(assertedCount).toBeGreaterThan(0);
 		});
 	});
 
