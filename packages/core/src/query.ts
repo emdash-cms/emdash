@@ -495,10 +495,11 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	const resolvedLocale =
 		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined);
 
+	const requestedLimit = filter?.limit;
 	const result = await getLiveCollection(COLLECTION_NAME, {
 		type,
 		status: filter?.status,
-		limit: filter?.limit,
+		limit: requestedLimit && requestedLimit > 0 ? requestedLimit + 1 : filter?.limit,
 		cursor: filter?.cursor,
 		where: filter?.where,
 		orderBy: filter?.orderBy,
@@ -506,18 +507,17 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	});
 
 	const { entries, error, cacheHint } = result;
-	// nextCursor is returned by the emdash loader but not part of Astro's base
-	// LiveLoader return type. Extract it safely via property descriptor to avoid
-	// an unsafe type assertion on the `any`-typed result object.
-	const rawCursor = Object.getOwnPropertyDescriptor(result, "nextCursor")?.value;
-	const nextCursor: string | undefined = typeof rawCursor === "string" ? rawCursor : undefined;
 
 	if (error) {
 		return { entries: [], error, cacheHint: {} };
 	}
 
+	const hasMore = requestedLimit != null && requestedLimit > 0 && entries.length > requestedLimit;
+	const pageEntries = hasMore ? entries.slice(0, requestedLimit) : entries;
+	const nextCursor = hasMore ? encodeEntryCursor(pageEntries.at(-1)!, filter?.orderBy) : undefined;
+
 	const isEditMode = ctx?.editMode ?? false;
-	const entriesWithEdit = entries.map((entry: ContentEntry<D>) => {
+	const entriesWithEdit = pageEntries.map((entry: ContentEntry<D>) => {
 		const dbId = entryDatabaseId(entry);
 		if (isEditMode) {
 			tagEditableFields(entryData(entry), type, dbId);
