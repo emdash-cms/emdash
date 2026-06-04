@@ -34,6 +34,7 @@ import type {
 	SeedWidget,
 	SeedContentEntry,
 } from "../../seed/types.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
 
 const SETTINGS_PREFIX = "site:";
@@ -186,7 +187,13 @@ async function detectI18nEnabled(
 
 	for (const collection of collections) {
 		validateIdentifier(collection.slug, "collection slug");
-		if (await collectDistinctLocales(sql.ref(`ec_${collection.slug}`))) return true;
+		// On D1, deleteCollection is non-atomic, so a collection row can outlive
+		// its ec_* table. Skip missing tables rather than crashing the export.
+		try {
+			if (await collectDistinctLocales(sql.ref(`ec_${collection.slug}`))) return true;
+		} catch (error) {
+			if (!isMissingTableError(error)) throw error;
+		}
 	}
 
 	return false;

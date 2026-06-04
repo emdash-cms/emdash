@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 import { ulid } from "ulidx";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -241,6 +242,20 @@ describe("exportSeed: CLI (no runtime i18n config) stays locale-aware (#1330)", 
 		const result = validateSeed(seed);
 		expect(result.errors).toEqual([]);
 		expect(result.valid).toBe(true);
+	});
+
+	it("does not crash when a collection row outlives its dropped ec_* table", async () => {
+		// On D1, deleteCollection is non-atomic, so a `_emdash_collections` row can
+		// survive without its `ec_*` table. The locale probe must skip the missing
+		// table rather than hard-crashing the export with "no such table".
+		db = await setupTestDatabaseWithCollections();
+
+		await sql`DROP TABLE ec_post`.execute(db);
+
+		const seed = await exportSeed(db);
+
+		// The collection metadata still exports; only the missing content table is skipped.
+		expect(seed.collections?.some((c) => c.slug === "post")).toBe(true);
 	});
 
 	it("keeps bare ids for genuinely single-locale projects", async () => {
