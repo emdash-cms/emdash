@@ -243,9 +243,14 @@ jobs:
           retention-days: 7
 
   test-e2e-cloudflare:
-    name: E2E smoke (Cloudflare/workerd)
+    name: E2E Cloudflare (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
+        shardTotal: [8]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -264,16 +269,16 @@ jobs:
           key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm exec playwright install --with-deps chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-      # Smoke only: content-types drives the admin SPA, schema CRUD, and the
-      # seeded content end-to-end on the workerd runtime. Broad spec coverage is
-      # a follow-up.
-      - run: pnpm exec playwright test content-types
+      # Runs the full e2e suite against the workerd runtime. Sharded like the Node
+      # lane: per-shard setup (dev-server boot + seed) is ~30s, so wall-clock is
+      # dominated by test execution and shards parallelize it near-linearly.
+      - run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           EMDASH_E2E_TARGET: cloudflare
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-report-cloudflare
+          name: playwright-report-cloudflare-${{ matrix.shardIndex }}
           path: |
             playwright-report/
             test-results/

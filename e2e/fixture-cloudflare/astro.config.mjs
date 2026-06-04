@@ -12,6 +12,8 @@ import { colorPlugin } from "@emdash-cms/plugin-color";
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 
+const marketplaceUrl = process.env.EMDASH_MARKETPLACE_URL || undefined;
+
 export default defineConfig({
 	output: "server",
 	adapter: cloudflare(),
@@ -21,6 +23,8 @@ export default defineConfig({
 			database: d1({ binding: "DB" }),
 			storage: r2({ binding: "MEDIA" }),
 			plugins: [colorPlugin()],
+			marketplace: marketplaceUrl,
+			sandboxRunner: marketplaceUrl ? "./noop-sandbox.mjs" : undefined,
 		}),
 	],
 	i18n: {
