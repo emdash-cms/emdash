@@ -9,6 +9,7 @@ import { resolve } from "node:path";
 import { defineCommand } from "citty";
 import consola from "consola";
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
 import { createDatabase } from "../../database/connection.js";
 import { runMigrations } from "../../database/migrations/runner.js";
@@ -17,6 +18,7 @@ import { MediaRepository } from "../../database/repositories/media.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import type { Database } from "../../database/types.js";
+import { validateIdentifier } from "../../database/validate.js";
 import { isI18nEnabled } from "../../i18n/config.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import type { FieldType } from "../../schema/types.js";
@@ -118,11 +120,17 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 	// 2. Export collections and fields
 	seed.collections = await exportCollections(db);
 
+	// Decide locale-awareness from the data. The runtime sets the i18n config via
+	// middleware, but the CLI never does, so `isI18nEnabled()` is always false
+	// under `emdash export-seed` (#1330). Detecting multiple locales in the data
+	// keeps the export locale-aware without the runtime flag.
+	const i18nEnabled = await detectI18nEnabled(db, seed.collections);
+
 	// 3. Export taxonomy definitions and terms
-	seed.taxonomies = await exportTaxonomies(db);
+	seed.taxonomies = await exportTaxonomies(db, i18nEnabled);
 
 	// 4. Export menus
-	seed.menus = await exportMenus(db);
+	seed.menus = await exportMenus(db, i18nEnabled);
 
 	// 5. Export widget areas
 	seed.widgetAreas = await exportWidgetAreas(db);
@@ -137,10 +145,51 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 						.map((s) => s.trim())
 						.filter(Boolean);
 
-		seed.content = await exportContent(db, seed.collections || [], collections);
+		seed.content = await exportContent(db, seed.collections || [], collections, i18nEnabled);
 	}
 
 	return seed;
+}
+
+/**
+ * Determine whether the export should emit locale-suffixed seed ids.
+ *
+ * The runtime initializes the i18n config in middleware, but the CLI never does,
+ * so `isI18nEnabled()` is always false under `emdash export-seed` (#1330). When
+ * the flag is unset, fall back to the data: a project is multi-locale when its
+ * i18n-aware tables hold rows in more than one distinct locale. `locale` is
+ * NOT NULL (defaulting to the site's default locale), so a per-row presence
+ * check is not enough — only the *count* of distinct locales distinguishes a
+ * genuinely single-locale project from a multi-locale one. This keeps
+ * single-locale exports on bare ids and gives multi-locale exports the
+ * per-locale suffix they need to avoid duplicate seed ids.
+ */
+async function detectI18nEnabled(
+	db: Kysely<Database>,
+	collections: SeedCollection[],
+): Promise<boolean> {
+	if (isI18nEnabled()) return true;
+
+	const locales = new Set<string>();
+	const collectDistinctLocales = async (tableRef: ReturnType<typeof sql.ref>): Promise<boolean> => {
+		const result = await sql<{ locale: string | null }>`
+			SELECT DISTINCT locale FROM ${tableRef}
+		`.execute(db);
+		for (const row of result.rows) {
+			if (row.locale) locales.add(row.locale);
+		}
+		return locales.size > 1;
+	};
+
+	if (await collectDistinctLocales(sql.ref("_emdash_taxonomy_defs"))) return true;
+	if (await collectDistinctLocales(sql.ref("_emdash_menus"))) return true;
+
+	for (const collection of collections) {
+		validateIdentifier(collection.slug, "collection slug");
+		if (await collectDistinctLocales(sql.ref(`ec_${collection.slug}`))) return true;
+	}
+
+	return false;
 }
 
 /**
@@ -212,9 +261,10 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 /**
  * Export taxonomy definitions and terms
  */
-async function exportTaxonomies(db: Kysely<Database>): Promise<SeedTaxonomy[]> {
-	const i18nEnabled = isI18nEnabled();
-
+async function exportTaxonomies(
+	db: Kysely<Database>,
+	i18nEnabled: boolean,
+): Promise<SeedTaxonomy[]> {
 	// Mirrors the content export pattern: one entry per (name, locale), stable
 	// seed-local id, translations linked via `translationOf` to the anchor's id.
 	const defs = await db
@@ -306,9 +356,7 @@ async function exportTaxonomies(db: Kysely<Database>): Promise<SeedTaxonomy[]> {
 /**
  * Export menus with their items
  */
-async function exportMenus(db: Kysely<Database>): Promise<SeedMenu[]> {
-	const i18nEnabled = isI18nEnabled();
-
+async function exportMenus(db: Kysely<Database>, i18nEnabled: boolean): Promise<SeedMenu[]> {
 	const menus = await db
 		.selectFrom("_emdash_menus")
 		.selectAll()
@@ -546,6 +594,7 @@ async function exportContent(
 	db: Kysely<Database>,
 	collections: SeedCollection[],
 	includeCollections: string[] | null,
+	i18nEnabled: boolean,
 ): Promise<Record<string, SeedContentEntry[]>> {
 	const content: Record<string, SeedContentEntry[]> = {};
 	const contentRepo = new ContentRepository(db);
@@ -578,8 +627,6 @@ async function exportContent(
 	} catch {
 		// Media table might not exist or be empty
 	}
-
-	const i18nEnabled = isI18nEnabled();
 
 	for (const collection of collections) {
 		// Skip if not in include list
