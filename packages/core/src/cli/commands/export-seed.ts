@@ -12,6 +12,7 @@ import type { Kysely } from "kysely";
 
 import { createDatabase } from "../../database/connection.js";
 import { runMigrations } from "../../database/migrations/runner.js";
+import { BylineRepository } from "../../database/repositories/byline.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { MediaRepository } from "../../database/repositories/media.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
@@ -31,6 +32,8 @@ import type {
 	SeedWidgetArea,
 	SeedWidget,
 	SeedContentEntry,
+	SeedByline,
+	SeedBylineCredit,
 } from "../../seed/types.js";
 import { slugify } from "../../utils/slugify.js";
 
@@ -127,7 +130,14 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 	// 5. Export widget areas
 	seed.widgetAreas = await exportWidgetAreas(db);
 
-	// 6. Export content (if requested)
+	// 6. Export byline profiles. The returned map (translation_group -> seed-local
+	// id) lets content credits below reference the same ids the root list emits.
+	const { bylines, groupToSeedId } = await exportBylines(db);
+	if (bylines.length > 0) {
+		seed.bylines = bylines;
+	}
+
+	// 7. Export content (if requested)
 	if (withContent !== undefined) {
 		const collections =
 			withContent === "" || withContent === "true"
@@ -137,10 +147,57 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 						.map((s) => s.trim())
 						.filter(Boolean);
 
-		seed.content = await exportContent(db, seed.collections || [], collections);
+		seed.content = await exportContent(db, seed.collections || [], collections, groupToSeedId);
 	}
 
 	return seed;
+}
+
+/**
+ * Export byline profiles as root-level `bylines[]`.
+ *
+ * `SeedByline` has no locale axis, so locale siblings of the same byline
+ * (sharing a `translation_group`) collapse to a single profile. The returned
+ * `groupToSeedId` map keys on `translation_group` — the value stored in
+ * `_emdash_content_bylines.byline_id` — so content credits can resolve to the
+ * emitted seed id.
+ */
+async function exportBylines(
+	db: Kysely<Database>,
+): Promise<{ bylines: SeedByline[]; groupToSeedId: Map<string, string> }> {
+	const bylineRepo = new BylineRepository(db);
+	const bylines: SeedByline[] = [];
+	const groupToSeedId = new Map<string, string>();
+	const usedSeedIds = new Set<string>();
+
+	let cursor: string | undefined;
+	do {
+		const result = await bylineRepo.findMany({ limit: 100, cursor });
+		for (const byline of result.items) {
+			const group = byline.translationGroup ?? byline.id;
+			// One seed entry per translation group; first row seen wins.
+			if (groupToSeedId.has(group)) continue;
+
+			let seedId = `byline:${byline.slug}`;
+			// Disambiguate the rare case of two distinct groups sharing a slug
+			// (slug is unique per-locale, not globally) so seed ids stay unique.
+			if (usedSeedIds.has(seedId)) seedId = `byline:${byline.slug}:${group}`;
+			usedSeedIds.add(seedId);
+			groupToSeedId.set(group, seedId);
+
+			bylines.push({
+				id: seedId,
+				slug: byline.slug,
+				displayName: byline.displayName,
+				bio: byline.bio || undefined,
+				websiteUrl: byline.websiteUrl || undefined,
+				isGuest: byline.isGuest || undefined,
+			});
+		}
+		cursor = result.nextCursor;
+	} while (cursor);
+
+	return { bylines, groupToSeedId };
 }
 
 /**
@@ -546,6 +603,7 @@ async function exportContent(
 	db: Kysely<Database>,
 	collections: SeedCollection[],
 	includeCollections: string[] | null,
+	bylineGroupToSeedId: Map<string, string>,
 ): Promise<Record<string, SeedContentEntry[]>> {
 	const content: Record<string, SeedContentEntry[]> = {};
 	const contentRepo = new ContentRepository(db);
@@ -642,6 +700,16 @@ async function exportContent(
 					entry.taxonomies = taxonomies;
 				}
 
+				// Get byline credits. Read the junction directly: its `byline_id`
+				// stores the translation_group, which is exactly the key in
+				// `bylineGroupToSeedId`. This is locale-agnostic (one row per
+				// credit) and avoids the locale-sibling fan-out a hydrated read
+				// would produce.
+				const bylines = await getBylineCredits(db, collection.slug, item.id, bylineGroupToSeedId);
+				if (bylines.length > 0) {
+					entry.bylines = bylines;
+				}
+
 				entries.push(entry);
 			}
 
@@ -721,6 +789,40 @@ function processDataForExport(
 	}
 
 	return result;
+}
+
+/**
+ * Get ordered byline credits for a content entry as `SeedBylineCredit[]`.
+ *
+ * The `_emdash_content_bylines.byline_id` column stores the credited byline's
+ * `translation_group`, so it maps straight through `groupToSeedId`. Credits
+ * whose group wasn't emitted in the root `bylines[]` are skipped (defensive;
+ * shouldn't happen for a consistent DB).
+ */
+async function getBylineCredits(
+	db: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	groupToSeedId: Map<string, string>,
+): Promise<SeedBylineCredit[]> {
+	const rows = await db
+		.selectFrom("_emdash_content_bylines")
+		.select(["byline_id", "role_label"])
+		.where("collection_slug", "=", collection)
+		.where("content_id", "=", entryId)
+		.orderBy("sort_order", "asc")
+		.execute();
+
+	const credits: SeedBylineCredit[] = [];
+	for (const row of rows) {
+		const seedId = groupToSeedId.get(row.byline_id);
+		if (!seedId) continue;
+		const credit: SeedBylineCredit = { byline: seedId };
+		if (row.role_label) credit.roleLabel = row.role_label;
+		credits.push(credit);
+	}
+
+	return credits;
 }
 
 /**
