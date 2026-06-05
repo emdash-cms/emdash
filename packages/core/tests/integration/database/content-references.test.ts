@@ -126,4 +126,51 @@ describeEachDialect("Content references schema", (dialect) => {
 			.execute();
 		expect(rows).toHaveLength(2);
 	});
+
+	it("forward and backlink traversal return the expected rows", async () => {
+		// Parent p1 references children c1, c2 (ordered); p2 also references c1.
+		await ctx.db
+			.insertInto("_emdash_content_references")
+			.values([
+				{ id: "e1", relation_group: "r1", parent_group: "p1", child_group: "c1", sort_order: 0 },
+				{ id: "e2", relation_group: "r1", parent_group: "p1", child_group: "c2", sort_order: 1 },
+				{ id: "e3", relation_group: "r1", parent_group: "p2", child_group: "c1", sort_order: 0 },
+			])
+			.execute();
+
+		// Forward: p1's children for relation r1, ordered.
+		const children = await ctx.db
+			.selectFrom("_emdash_content_references")
+			.select("child_group")
+			.where("parent_group", "=", "p1")
+			.where("relation_group", "=", "r1")
+			.orderBy("sort_order")
+			.execute();
+		expect(children.map((r) => r.child_group)).toEqual(["c1", "c2"]);
+
+		// Backlink: who references c1 (any parent) for relation r1.
+		const parents = await ctx.db
+			.selectFrom("_emdash_content_references")
+			.select("parent_group")
+			.where("child_group", "=", "c1")
+			.where("relation_group", "=", "r1")
+			.orderBy("parent_group")
+			.execute();
+		expect(parents.map((r) => r.parent_group)).toEqual(["p1", "p2"]);
+	});
+
+	it("allows same-collection and self references", async () => {
+		// Self reference: parent_group === child_group is permitted.
+		await ctx.db
+			.insertInto("_emdash_content_references")
+			.values({ id: "self1", relation_group: "r1", parent_group: "x1", child_group: "x1" })
+			.execute();
+
+		const row = await ctx.db
+			.selectFrom("_emdash_content_references")
+			.selectAll()
+			.where("id", "=", "self1")
+			.executeTakeFirstOrThrow();
+		expect(row.parent_group).toBe(row.child_group);
+	});
 });
