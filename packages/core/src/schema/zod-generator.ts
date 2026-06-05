@@ -423,27 +423,14 @@ function pascalCase(str: string): string {
 }
 
 /**
- * Simple singularization - handles common cases
- */
-function singularize(str: string): string {
-	if (str.endsWith("ies")) {
-		return str.slice(0, -3) + "y";
-	}
-	if (
-		str.endsWith("es") &&
-		(str.endsWith("sses") || str.endsWith("xes") || str.endsWith("ches") || str.endsWith("shes"))
-	) {
-		return str.slice(0, -2);
-	}
-	if (str.endsWith("s") && !str.endsWith("ss")) {
-		return str.slice(0, -1);
-	}
-	return str;
-}
-
-/**
- * Get the interface name for a collection
+ * Get the interface name for a collection.
+ *
+ * Derived from the slug, not the human label. Slugs are constrained to
+ * `/^[a-z][a-z0-9_]*$/` and are unique, so PascalCasing one always yields a
+ * valid, collision-free TS identifier. Labels are arbitrary and user-controlled
+ * (punctuation, spaces, duplicates across collections), which produced
+ * syntactically invalid or duplicate interface names.
  */
 function getInterfaceName(collection: CollectionWithFields): string {
-	return pascalCase(collection.labelSingular || singularize(collection.slug));
+	return pascalCase(collection.slug);
 }

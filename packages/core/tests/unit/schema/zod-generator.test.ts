@@ -6,6 +6,7 @@ import {
 	generateFieldSchema,
 	validateContent,
 	generateTypeScript,
+	generateTypesFile,
 	clearSchemaCache,
 } from "../../../src/schema/zod-generator.js";
 
@@ -547,11 +548,81 @@ describe("Zod Generator", () => {
 
 			const ts = generateTypeScript(collection);
 
-			expect(ts).toContain("export interface BlogPost");
+			// Interface names derive from the slug (`blog_posts` -> `BlogPosts`),
+			// not the human label, so they are always valid TS identifiers.
+			expect(ts).toContain("export interface BlogPosts");
 			expect(ts).toContain("title: string;");
 			expect(ts).toContain("content: PortableTextBlock[];");
 			expect(ts).toContain("featured?: boolean;");
 			expect(ts).toContain('status: "draft" | "published";');
+		});
+	});
+
+	describe("interface names derive from the slug", () => {
+		// A minimal collection factory: interface naming only depends on slug/labels.
+		function makeCollection(
+			slug: string,
+			overrides: Partial<CollectionWithFields> = {},
+		): CollectionWithFields {
+			return {
+				id: `c_${slug}`,
+				slug,
+				label: slug,
+				supports: [],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				fields: [],
+				...overrides,
+			};
+		}
+
+		function interfaceNamesOf(ts: string): string[] {
+			return Array.from(ts.matchAll(/export interface (\S+)/g), (m) => m[1]!);
+		}
+
+		it("uses the slug, ignoring an arbitrary human label", () => {
+			// The label has spaces and parentheses that are illegal in an
+			// identifier; the slug (constrained `[a-z0-9_]`) is used instead.
+			const ts = generateTypeScript(makeCollection("book", { labelSingular: "Book (do not use)" }));
+
+			expect(interfaceNamesOf(ts)).toEqual(["Book"]);
+		});
+
+		it("keeps names unique when two collections share a label", () => {
+			// Distinct slugs guarantee distinct interface names even when the
+			// human labels are identical (which previously collided).
+			const ts = generateTypesFile([
+				makeCollection("book", { labelSingular: "Book" }),
+				makeCollection("books", { labelSingular: "Book" }),
+			]);
+
+			const names = interfaceNamesOf(ts);
+			expect(names).toEqual(["Book", "Books"]);
+			expect(new Set(names).size).toBe(names.length);
+		});
+
+		it("PascalCases multi-word slugs", () => {
+			expect(interfaceNamesOf(generateTypeScript(makeCollection("blog_posts")))).toEqual([
+				"BlogPosts",
+			]);
+		});
+
+		it("leaves a plain slug unchanged", () => {
+			expect(interfaceNamesOf(generateTypeScript(makeCollection("pages")))).toEqual(["Pages"]);
+		});
+
+		it("references the same interface names in the EmDashCollections map", () => {
+			const ts = generateTypesFile([
+				makeCollection("book", { labelSingular: "Book (do not use)" }),
+				makeCollection("blog_posts"),
+			]);
+
+			// Every interface declared must be referenced by the augmentation map,
+			// keyed by slug -> interface name.
+			expect(ts).toContain("export interface Book {");
+			expect(ts).toContain("book: Book;");
+			expect(ts).toContain("export interface BlogPosts {");
+			expect(ts).toContain("blog_posts: BlogPosts;");
 		});
 	});
 });
