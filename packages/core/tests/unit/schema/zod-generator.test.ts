@@ -600,6 +600,21 @@ describe("Zod Generator", () => {
 			expect(new Set(names).size).toBe(names.length);
 		});
 
+		it("keeps names unique when a suffixed name collides with another slug", () => {
+			// `book` and `books` both singularize to `Book`, so `books` gets
+			// suffixed to `Book2` -- which is also exactly what `book2` produces.
+			// The dedupe must skip past an already-taken suffix, not blindly emit
+			// it, or the file declares `Book2` twice.
+			const ts = generateTypesFile([
+				makeCollection("book"),
+				makeCollection("books"),
+				makeCollection("book2"),
+			]);
+
+			const names = interfaceNamesOf(ts);
+			expect(new Set(names).size).toBe(names.length);
+		});
+
 		it("singularizes and PascalCases multi-word slugs", () => {
 			expect(interfaceNamesOf(generateTypeScript(makeCollection("blog_posts")))).toEqual([
 				"BlogPost",

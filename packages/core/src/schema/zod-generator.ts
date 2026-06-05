@@ -470,15 +470,25 @@ function getInterfaceName(collection: CollectionWithFields): string {
  * unique within the file. Collisions (from singularization or PascalCasing
  * collapsing distinct slugs) get a numeric suffix in collection order, so the
  * generated `.d.ts` never declares two interfaces with the same identifier.
+ *
+ * The suffix is chosen against the set of names already emitted, not a
+ * per-base counter, so a generated name can't collide with another slug's
+ * base name (e.g. slugs `book`, `books`, `book2`: `books` -> `Book2` would
+ * clash with `book2`, so it advances to `Book3`).
  */
-function uniqueInterfaceNames(collections: CollectionWithFields[]): Map<string, string> {
-	const seen = new Map<string, number>();
+export function uniqueInterfaceNames(collections: CollectionWithFields[]): Map<string, string> {
+	const used = new Set<string>();
 	const names = new Map<string, string>();
 	for (const collection of collections) {
 		const base = getInterfaceName(collection);
-		const count = seen.get(base) ?? 0;
-		seen.set(base, count + 1);
-		names.set(collection.slug, count === 0 ? base : `${base}${count + 1}`);
+		let name = base;
+		let suffix = 2;
+		while (used.has(name)) {
+			name = `${base}${suffix}`;
+			suffix++;
+		}
+		used.add(name);
+		names.set(collection.slug, name);
 	}
 	return names;
 }
