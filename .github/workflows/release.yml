@@ -78,6 +78,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
+      # Attach sandboxed-plugin tarballs to the releases changesets just
+      # created, so the decentralized registry has a stable public URL to
+      # point each release record at. See the script header for details.
+      - name: Attach plugin tarballs to releases
+        if: ${{ steps.changesets.outputs.published == 'true' }}
+        run: node .github/scripts/attach-plugin-tarballs.mjs
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
+
       - name: Publish (manual)
         if: ${{ inputs.publish-only }}
         run: node .github/scripts/release.mjs publish
