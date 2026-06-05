@@ -1,0 +1,108 @@
+---
+title: Querying the registry
+description: Build a plugin directory, search page, or release feed against the registry's public discovery API with @emdash-cms/registry-client.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+This is an advanced topic for building your own software against the [plugin registry](/plugins/registry/). If you only want to install plugins on an EmDash site, you do not need any of this — enable the registry in your config and use the admin dashboard.
+
+The registry's discovery side is a public, read-only API. The `@emdash-cms/registry-client` package wraps it, so you can build a plugin directory, a search page, or a release feed outside of EmDash. The client runs anywhere `fetch` is available — Node, Workers, the browser, or an Astro site.
+
+<Aside type="caution" title="Experimental">
+	The client targets an experimental API whose shapes may change without notice.
+	Pin `@emdash-cms/registry-client` to an exact version.
+</Aside>
+
+## Install
+
+The `discovery` subpath carries no authentication or OAuth dependencies. Install the client and pin it to an exact version:
+
+```sh
+npm install @emdash-cms/registry-client@0.3.1
+```
+
+## List and resolve packages
+
+The following Astro page lists every plugin in a registry:
+
+```astro title="src/pages/plugins/index.astro"
+---
+import { DiscoveryClient } from "@emdash-cms/registry-client/discovery";
+
+const discovery = new DiscoveryClient({
+  aggregatorUrl: "https://registry.emdashcms.com",
+});
+
+const { packages } = await discovery.searchPackages({ q: "", limit: 50 });
+---
+
+<ul>
+  {
+    packages.map((pkg) => (
+      <li>
+        <a href={`/plugins/${pkg.handle}/${pkg.slug}`}>
+          {pkg.profile?.name ?? pkg.slug}
+        </a>
+        <span>v{pkg.latestVersion}</span>
+        <p>{pkg.profile?.description}</p>
+      </li>
+    ))
+  }
+</ul>
+```
+
+A package detail page resolves a plugin by its handle and slug, then fetches the latest release:
+
+```typescript title="src/lib/plugin.ts"
+import { DiscoveryClient } from "@emdash-cms/registry-client/discovery";
+
+const discovery = new DiscoveryClient({
+  aggregatorUrl: "https://registry.emdashcms.com",
+});
+
+export async function getPlugin(handle: string, slug: string) {
+  const pkg = await discovery.resolvePackage({ handle, slug });
+  const latest = await discovery.getLatestRelease({
+    did: pkg.did,
+    package: pkg.slug,
+  });
+  return { pkg, latest };
+}
+```
+
+## Discovery methods
+
+The client exposes one method per aggregator query:
+
+- **`searchPackages({ q, capability?, limit?, cursor? })`** — free-text search, optionally filtered to packages declaring a given access category. Returns `{ packages, cursor? }`.
+- **`resolvePackage({ handle, slug })`** — resolve a package from a handle and slug.
+- **`getPackage({ did, slug })`** — fetch a package by its DID and slug.
+- **`listReleases({ did, package, limit?, cursor? })`** — every release for a package, newest version first.
+- **`getLatestRelease({ did, package })`** — the highest non-yanked release version.
+
+## Handling untrusted records
+
+The aggregator is an untrusted index that relays records it did not author, so the client validates each one at the boundary. Two rules follow from that:
+
+- **The `profile` and `release` fields can be `null`.** When a relayed record fails validation, the client surfaces it as `null` rather than failing the whole call, so one malformed record does not blank a search page. Always null-check before reading `pkg.profile?.name` or `release.release?.artifact`.
+- **Validate URL schemes yourself before rendering.** Validation checks structure, not URL safety — a `uri` field can carry a `javascript:` scheme. Apply your own `http`/`https` allow-list before putting any registry-supplied URL into an `href` or `src`.
+
+A non-2xx response throws `ClientResponseError` (re-exported from the package), carrying `.error`, `.description`, `.status`, and `.headers`.
+
+## Filtering by host compatibility
+
+A release can declare environment requirements (an EmDash or Astro version range) in its `requires` block. The `@emdash-cms/registry-client/env` subpath evaluates them, so a directory can flag releases that will not run on a given host:
+
+```typescript title="src/lib/compat.ts"
+import { checkEnvCompatibility, hostEnvFromVersions } from "@emdash-cms/registry-client/env";
+
+const host = hostEnvFromVersions("0.17.0", "5.6.0");
+const mismatches = checkEnvCompatibility(release.requires, host);
+// mismatches is [] when the release runs on this host.
+```
+
+## What to read next
+
+- [The plugin registry](/plugins/registry/) — enable and use the registry on an EmDash site
+- [Bundling and publishing](/plugins/creating-plugins/publishing/) — publish a plugin to the registry
