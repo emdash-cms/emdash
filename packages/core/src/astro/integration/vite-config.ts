@@ -296,6 +296,41 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
 	return astroConfig.adapter?.name === "@astrojs/cloudflare";
 }
 
+/** Matches relative/absolute path specifiers (`./x`, `../x`, `/x`, `.`). */
+const RELATIVE_OR_ABSOLUTE_SPECIFIER = /^[./]/;
+
+/**
+ * Extracts the bare npm package name from a module specifier, or `undefined`
+ * for non-package specifiers (relative/absolute paths, `virtual:`, `node:`, etc).
+ * `@emdash-cms/plugin-forms/astro` -> `@emdash-cms/plugin-forms`; `./local.ts` -> undefined.
+ */
+function packageNameFromSpecifier(spec: string): string | undefined {
+	if (!spec || RELATIVE_OR_ABSOLUTE_SPECIFIER.test(spec) || spec.includes(":")) return undefined;
+	const parts = spec.split("/");
+	if (spec.startsWith("@")) return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : undefined;
+	return parts[0] || undefined;
+}
+
+/**
+ * Collects the npm package names of configured plugins from their descriptors.
+ * Used to mark plugin packages for inline transform in dev (see `inlinePackages`
+ * in {@link createViteConfig}). Plugins commonly ship TypeScript source and
+ * multiple subpath exports (`/astro`, `/admin`), which the dev dep-optimizer
+ * otherwise discovers and pre-bundles one subpath at a time on first request,
+ * triggering a re-optimize + full-reload cascade.
+ */
+function collectPluginPackages(descriptors: PluginDescriptor[]): string[] {
+	const packages = new Set<string>();
+	for (const descriptor of descriptors) {
+		for (const spec of [descriptor.entrypoint, descriptor.adminEntry, descriptor.componentsEntry]) {
+			if (!spec) continue;
+			const pkg = packageNameFromSpecifier(spec);
+			if (pkg) packages.add(pkg);
+		}
+	}
+	return [...packages];
+}
+
 /**
  * Creates the Vite config update for EmDash.
  */
@@ -310,6 +345,21 @@ export function createViteConfig(
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
+
+	// Packages to transform inline (dev only) rather than pre-bundle: EmDash
+	// core, the Cloudflare adapter, and configured plugins. These either ship
+	// source or expose many subpath exports reached lazily across routes
+	// (`emdash/middleware`, `@emdash-cms/cloudflare/db/d1`, `<plugin>/astro`...).
+	// Letting the dep-optimizer discover them one at a time on first request
+	// invalidates the optimize cache mid-flight ("file does not exist at
+	// .../deps_ssr/chunk-*.js") and forces repeated full reloads on cold start.
+	// Excluding them from optimizeDeps makes Vite transform them as part of the
+	// module graph; they remain `noExternal` so workerd still gets ESM. Their
+	// CJS/heavy transitive deps stay pre-bundled via `optimizeDeps.include`.
+	const inlinePackages =
+		cloudflare && isDev
+			? [...new Set(["emdash", "@emdash-cms/cloudflare", ...collectPluginPackages(options.pluginDescriptors)])]
+			: [];
 
 	return {
 		// Astro SSR routes resolve version.ts from source (not tsdown dist),
@@ -360,7 +410,7 @@ export function createViteConfig(
 		// ssr.external conflicts with @cloudflare/vite-plugin's resolve.external validation.
 		ssr: cloudflare
 			? {
-					noExternal: ["emdash", "@emdash-cms/admin"],
+					noExternal: [...new Set(["emdash", "@emdash-cms/admin", ...inlinePackages])],
 					// Pre-bundle EmDash's runtime deps for workerd. Without this,
 					// Vite discovers them one-by-one on first request, causing workerd
 					// to enter "worker cancelled" state on cold cache.
@@ -371,7 +421,10 @@ export function createViteConfig(
 						// during pre-bundling and can't resolve them. Vite's exclude
 						// uses prefix matching (id.startsWith(m + "/")), so
 						// "virtual:emdash" matches all "virtual:emdash/*" imports.
-						exclude: ["virtual:emdash"],
+						// `inlinePackages` (EmDash core, the CF adapter, plugins) are
+						// excluded so their subpaths transform inline instead of
+						// cascading through lazy pre-bundling.
+						exclude: ["virtual:emdash", ...inlinePackages],
 						include: [
 							// EmDash direct deps
 							"emdash > @portabletext/toolkit",
@@ -423,6 +476,7 @@ export function createViteConfig(
 							// Top-level deps (use astro > path for pnpm compat)
 							"astro > zod/v4",
 							"astro > zod/v4/core",
+							"astro/zod",
 							"@emdash-cms/cloudflare > kysely-d1",
 							// Astro internal deps not covered by @astrojs/cloudflare adapter
 							"astro/virtual-modules/middleware.js",
