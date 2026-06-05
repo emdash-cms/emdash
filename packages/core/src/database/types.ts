@@ -440,6 +440,8 @@ export interface Database {
 	_emdash_byline_fields: BylineFieldTable;
 	_emdash_byline_field_values: BylineFieldValueTable;
 	_emdash_byline_field_group_values: BylineFieldGroupValueTable;
+	_emdash_relations: RelationTable;
+	_emdash_content_references: ContentReferenceTable;
 	_emdash_rate_limits: RateLimitTable;
 }
 
@@ -571,6 +573,38 @@ export interface BylineFieldGroupValueTable {
 	value: string | null;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
+}
+
+// Content references
+//
+// `_emdash_relations` defines relationship types (row-per-locale, like
+// `_emdash_taxonomy_defs`). `_emdash_content_references` holds directed edges
+// between content entries, linked by `translation_group` so they are
+// locale-agnostic — no foreign keys, mirroring `content_taxonomies`.
+
+export interface RelationTable {
+	id: string;
+	name: string;
+	parent_collection: string;
+	child_collection: string;
+	parent_label: string;
+	child_label: string;
+	locale: Generated<string>;
+	translation_group: string | null;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface ContentReferenceTable {
+	id: string;
+	/** Stores `_emdash_relations.translation_group` (locale-agnostic). No FK. */
+	relation_group: string;
+	/** Parent entry's `translation_group`. */
+	parent_group: string;
+	/** Child entry's `translation_group`. */
+	child_group: string;
+	sort_order: Generated<number>;
+	created_at: Generated<string>;
 }
 
 // Rate Limits
