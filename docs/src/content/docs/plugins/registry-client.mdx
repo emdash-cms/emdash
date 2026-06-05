@@ -41,10 +41,10 @@ const { packages } = await discovery.searchPackages({ q: "", limit: 50 });
   {
     packages.map((pkg) => (
       <li>
-        <a href={`/plugins/${pkg.handle}/${pkg.slug}`}>
+        <a href={`/plugins/${pkg.did}/${pkg.slug}`}>
           {pkg.profile?.name ?? pkg.slug}
         </a>
-        <span>v{pkg.latestVersion}</span>
+        {pkg.latestVersion && <span>v{pkg.latestVersion}</span>}
         <p>{pkg.profile?.description}</p>
       </li>
     ))
@@ -52,7 +52,9 @@ const { packages } = await discovery.searchPackages({ q: "", limit: 50 });
 </ul>
 ```
 
-A package detail page resolves a plugin by its handle and slug, then fetches the latest release:
+The link uses `pkg.did`, which is always present. The publisher `handle` is best-effort and can be absent, so don't build URLs from it.
+
+A package detail page fetches a plugin by its DID and slug, then fetches the latest release:
 
 ```typescript title="src/lib/plugin.ts"
 import { DiscoveryClient } from "@emdash-cms/registry-client/discovery";
@@ -61,8 +63,8 @@ const discovery = new DiscoveryClient({
   aggregatorUrl: "https://registry.emdashcms.com",
 });
 
-export async function getPlugin(handle: string, slug: string) {
-  const pkg = await discovery.resolvePackage({ handle, slug });
+export async function getPlugin(did: string, slug: string) {
+  const pkg = await discovery.getPackage({ did, slug });
   const latest = await discovery.getLatestRelease({
     did: pkg.did,
     package: pkg.slug,
@@ -85,7 +87,7 @@ The client exposes one method per aggregator query:
 
 The aggregator is an untrusted index that relays records it did not author, so the client validates each one at the boundary. Two rules follow from that:
 
-- **The `profile` and `release` fields can be `null`.** When a relayed record fails validation, the client surfaces it as `null` rather than failing the whole call, so one malformed record does not blank a search page. Always null-check before reading `pkg.profile?.name` or `release.release?.artifact`.
+- **The `profile` and `release` fields can be `null`.** When a relayed record fails validation, the client surfaces it as `null` rather than failing the whole call, so one malformed record does not blank a search page. Always null-check before reading `pkg.profile?.name` or `latest.release?.artifacts.package`.
 - **Validate URL schemes yourself before rendering.** Validation checks structure, not URL safety — a `uri` field can carry a `javascript:` scheme. Apply your own `http`/`https` allow-list before putting any registry-supplied URL into an `href` or `src`.
 
 A non-2xx response throws `ClientResponseError` (re-exported from the package), carrying `.error`, `.description`, `.status`, and `.headers`.
@@ -96,10 +98,15 @@ A release can declare environment requirements (an EmDash or Astro version range
 
 ```typescript title="src/lib/compat.ts"
 import { checkEnvCompatibility, hostEnvFromVersions } from "@emdash-cms/registry-client/env";
+import type { ValidatedReleaseView } from "@emdash-cms/registry-client/discovery";
 
 const host = hostEnvFromVersions("0.17.0", "5.6.0");
-const mismatches = checkEnvCompatibility(release.requires, host);
-// mismatches is [] when the release runs on this host.
+
+// Pass a getLatestRelease() result. The returned array is empty when the
+// release runs on this host.
+export function envMismatches(latest: ValidatedReleaseView) {
+  return checkEnvCompatibility(latest.release?.requires, host);
+}
 ```
 
 ## What to read next
