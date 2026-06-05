@@ -1,5 +1,24 @@
 # emdash
 
+## 0.17.1
+
+### Patch Changes
+
+- [#1328](https://github.com/emdash-cms/emdash/pull/1328) [`149fc49`](https://github.com/emdash-cms/emdash/commit/149fc4904326174075d100ccb4f203b2a250ec64) Thanks [@MA2153](https://github.com/MA2153)! - Fix `emdash export-seed` omitting bylines. The exporter now emits byline profiles as the root `bylines[]` array (one entry per translation group, since `SeedByline` has no locale axis) and, when content is exported, attaches each entry's ordered byline credits as `bylines[]` referencing those profiles. Credits are read straight from `_emdash_content_bylines` (whose `byline_id` already stores the translation group), so the exported seed round-trips back through `applySeed` with profiles and credits intact.
+
+- [#1336](https://github.com/emdash-cms/emdash/pull/1336) [`64d5675`](https://github.com/emdash-cms/emdash/commit/64d56759250016fb4bfb2a2ab83106407ffd61a7) Thanks [@ascorbic](https://github.com/ascorbic)! - Pre-bundle EmDash's auth, MCP, and admin-shell dependencies so `astro dev` on Cloudflare no longer triggers a re-optimize + full-reload cascade on the first authenticated/admin/MCP request.
+
+  These deps (`@oslojs/crypto/{hmac,subtle,rsa}`, `arctic`, the MCP server entrypoints, `@lingui/react`, `@cloudflare/kumo/primitives`, `astro/assets/services/noop`) are only imported on routes the initial Vite scan never reaches, so the workerd runtime discovered them one at a time. Each discovery invalidated the optimize cache mid-flight, producing `The file does not exist at ".../deps_ssr/chunk-*.js"` errors and repeated full reloads on cold start. Adding them to the Cloudflare SSR `optimizeDeps.include` list front-loads them into a single startup optimize pass.
+
+- [#1331](https://github.com/emdash-cms/emdash/pull/1331) [`77fff0a`](https://github.com/emdash-cms/emdash/commit/77fff0a36cd4d6dc242c1d8dd58934ca14cd6dbd) Thanks [@MA2153](https://github.com/MA2153)! - Fix `emdash export-seed` collapsing locale variants into duplicate seed ids on i18n projects. The CLI never initializes the runtime i18n config, so `isI18nEnabled()` was always `false` and the exporter stripped the `:locale` suffix from taxonomy, menu, and content seed ids — merging every locale variant into one bare id and producing duplicates that `validateSeed` rejected. The exporter now derives locale-awareness from the data (a project is multi-locale when its i18n-aware tables hold more than one distinct locale), so multi-locale exports keep their per-locale suffixes and `translationOf` links while genuinely single-locale projects still export bare ids.
+
+- [#1340](https://github.com/emdash-cms/emdash/pull/1340) [`87c40d3`](https://github.com/emdash-cms/emdash/commit/87c40d34b3a0130f67bf7d31caf40572f14135e6) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fix `getEmDashCollection` pagination losing `nextCursor` with Astro 6 live collections. Astro's `getLiveCollection` repacks loader results and drops the `nextCursor` field before it reaches the caller. The wrapper now over-fetches by one entry whenever a `limit` is provided, slices the extra row locally, and synthesizes `nextCursor` via the existing `encodeEntryCursor` helper — matching the strategy already used by the bucketing path.
+
+- Updated dependencies [[`83daa41`](https://github.com/emdash-cms/emdash/commit/83daa4149ed0d1ccf23d9f90304ef6ba3545d46f), [`dfabafe`](https://github.com/emdash-cms/emdash/commit/dfabafeb5db9c27c861015e7d426eb40d6ed940a)]:
+  - @emdash-cms/admin@0.17.1
+  - @emdash-cms/auth@0.17.1
+  - @emdash-cms/gutenberg-to-portable-text@0.17.1
+
 ## 0.17.0
 
 ### Minor Changes

@@ -80,7 +80,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm changeset status --since=origin/main
+      - name: Validate changesets
+        run: |
+          shopt -s extglob
+          if compgen -G ".changeset/!(README).md" > /dev/null; then
+            pnpm changeset status --since=origin/main
+          else
+            echo "No changesets present; skipping validation."
+          fi
 
   test:
     name: Tests

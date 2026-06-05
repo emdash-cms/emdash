@@ -170,7 +170,16 @@ function buildMediaUrl(imageRef: string, siteUrl?: string): string {
 		return imageRef;
 	}
 
-	// Build from media API path
+	// Root-relative path — the CMS SEO panel stores seo_image as
+	// "/_emdash/api/media/file/01KS....svg" (already includes the API
+	// prefix). Without this branch we'd re-prefix and produce
+	// "${siteUrl}/_emdash/api/media/file//_emdash/api/media/file/<id>"
+	// which 404s and breaks <meta property="og:image">.
+	if (imageRef.startsWith("/")) {
+		return siteUrl ? `${siteUrl.replace(TRAILING_SLASH_RE, "")}${imageRef}` : imageRef;
+	}
+
+	// Bare media_id — build the full media API path
 	const mediaPath = `/_emdash/api/media/file/${imageRef}`;
 	if (siteUrl) {
 		return `${siteUrl.replace(TRAILING_SLASH_RE, "")}${mediaPath}`;

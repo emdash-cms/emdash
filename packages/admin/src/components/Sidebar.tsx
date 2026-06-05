@@ -39,7 +39,7 @@ import * as React from "react";
 
 import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
-import { usePluginAdmins } from "../lib/plugin-context";
+import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
 import { cn } from "../lib/utils";
 import { BrandIcon } from "./Logo.js";
 
@@ -406,7 +406,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			const pluginPages = pluginAdmins[pluginId]?.pages;
 			const isBlocksMode = config.adminMode === "blocks";
 			for (const page of config.adminPages) {
-				if (!isBlocksMode && !pluginPages?.[page.path]) continue;
+				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
 				const label =
 					page.label ||
 					pluginId
