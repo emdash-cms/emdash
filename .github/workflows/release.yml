@@ -81,6 +81,9 @@ jobs:
       # Attach sandboxed-plugin tarballs to the releases changesets just
       # created, so the decentralized registry has a stable public URL to
       # point each release record at. See the script header for details.
+      # Only the changesets path is covered: the publish-only recovery path
+      # below neither runs changesets/action nor creates GitHub releases, so
+      # assets for that path must be backfilled manually.
       - name: Attach plugin tarballs to releases
         if: ${{ steps.changesets.outputs.published == 'true' }}
         run: node .github/scripts/attach-plugin-tarballs.mjs

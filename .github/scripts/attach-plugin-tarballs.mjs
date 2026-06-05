@@ -28,7 +28,14 @@ const LEADING_AT_RE = /^@/;
 const repo = process.env.GITHUB_REPOSITORY;
 const dryRun = process.env.DRY_RUN === "1";
 
-const raw = process.env.PUBLISHED_PACKAGES ?? "[]";
+if (!dryRun && !repo) {
+	console.error("GITHUB_REPOSITORY is not set; cannot target `gh release upload`.");
+	process.exit(1);
+}
+
+// `?? "[]"` only catches undefined/null. An unset Actions output arrives as
+// an empty string, which would make JSON.parse throw, so coalesce that too.
+const raw = process.env.PUBLISHED_PACKAGES?.trim() || "[]";
 let published;
 try {
 	published = JSON.parse(raw);
@@ -58,7 +65,15 @@ for (const entry of readdirSync(PLUGINS_DIR, { withFileTypes: true })) {
 	const pkgPath = join(dir, "package.json");
 	if (!existsSync(pkgPath)) continue;
 
-	const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+	// We read every plugin dir, so a single malformed package.json must not
+	// abort the whole step. Treat an unreadable manifest as a skip.
+	let pkg;
+	try {
+		pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+	} catch {
+		console.warn(`Skipping ${entry.name}: could not read/parse package.json`);
+		continue;
+	}
 
 	// Only published, public, sandboxed plugins.
 	if (!publishedVersions.has(pkg.name)) continue;
