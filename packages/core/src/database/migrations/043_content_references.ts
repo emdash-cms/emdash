@@ -15,12 +15,18 @@ import { currentTimestamp } from "../dialect-helpers.js";
  * `translation_group`, so edges are locale-agnostic. As with
  * `content_taxonomies`, group-linking precludes SQL foreign keys; referential
  * cleanup is an application-layer concern.
+ *
+ * Idempotency: every `CREATE TABLE` and `CREATE INDEX` uses `.ifNotExists()`,
+ * so a partial prior run (a crash mid-migration, or a retry after the runner's
+ * race-recovery path) re-applies cleanly — including any indexes that landed in
+ * the failed pass after their table.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
 	const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
 
 	await db.schema
 		.createTable("_emdash_relations")
+		.ifNotExists()
 		.addColumn("id", "text", (c) => c.primaryKey())
 		.addColumn("name", "text", (c) => c.notNull())
 		.addColumn("parent_collection", "text", (c) => c.notNull())
@@ -36,27 +42,32 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 	await db.schema
 		.createIndex("idx_relations_locale")
+		.ifNotExists()
 		.on("_emdash_relations")
 		.column("locale")
 		.execute();
 	await db.schema
 		.createIndex("idx_relations_translation_group")
+		.ifNotExists()
 		.on("_emdash_relations")
 		.column("translation_group")
 		.execute();
 	await db.schema
 		.createIndex("idx_relations_parent_collection")
+		.ifNotExists()
 		.on("_emdash_relations")
 		.column("parent_collection")
 		.execute();
 	await db.schema
 		.createIndex("idx_relations_child_collection")
+		.ifNotExists()
 		.on("_emdash_relations")
 		.column("child_collection")
 		.execute();
 
 	await db.schema
 		.createTable("_emdash_content_references")
+		.ifNotExists()
 		.addColumn("id", "text", (c) => c.primaryKey())
 		.addColumn("relation_group", "text", (c) => c.notNull())
 		.addColumn("parent_group", "text", (c) => c.notNull())
@@ -72,16 +83,19 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 	await db.schema
 		.createIndex("idx_content_references_parent")
+		.ifNotExists()
 		.on("_emdash_content_references")
 		.columns(["parent_group", "relation_group", "sort_order"])
 		.execute();
 	await db.schema
 		.createIndex("idx_content_references_child")
+		.ifNotExists()
 		.on("_emdash_content_references")
 		.columns(["child_group", "relation_group"])
 		.execute();
 	await db.schema
 		.createIndex("idx_content_references_relation")
+		.ifNotExists()
 		.on("_emdash_content_references")
 		.column("relation_group")
 		.execute();
