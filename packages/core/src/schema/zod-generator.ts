@@ -427,7 +427,7 @@ function pascalCase(str: string): string {
  *
  * Derived from the slug, not the human label. Slugs are constrained to
  * `/^[a-z][a-z0-9_]*$/` and are unique, so PascalCasing one always yields a
- * valid, collision-free TS identifier. Labels are arbitrary and user-controlled
+ * valid TS identifier. Labels are arbitrary and user-controlled
  * (punctuation, spaces, duplicates across collections), which produced
  * syntactically invalid or duplicate interface names.
  */
