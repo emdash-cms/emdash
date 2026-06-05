@@ -548,9 +548,10 @@ describe("Zod Generator", () => {
 
 			const ts = generateTypeScript(collection);
 
-			// Interface names derive from the slug (`blog_posts` -> `BlogPosts`),
-			// not the human label, so they are always valid TS identifiers.
-			expect(ts).toContain("export interface BlogPosts");
+			// Interface names derive from the singularized slug
+			// (`blog_posts` -> `BlogPost`), not the human label, so they are
+			// always valid TS identifiers describing a single entry.
+			expect(ts).toContain("export interface BlogPost");
 			expect(ts).toContain("title: string;");
 			expect(ts).toContain("content: PortableTextBlock[];");
 			expect(ts).toContain("featured?: boolean;");
@@ -558,7 +559,7 @@ describe("Zod Generator", () => {
 		});
 	});
 
-	describe("interface names derive from the slug", () => {
+	describe("interface names derive from the singularized slug", () => {
 		// A minimal collection factory: interface naming only depends on slug/labels.
 		function makeCollection(
 			slug: string,
@@ -588,27 +589,29 @@ describe("Zod Generator", () => {
 			expect(interfaceNamesOf(ts)).toEqual(["Book"]);
 		});
 
-		it("keeps names unique when two collections share a label", () => {
-			// Distinct slugs guarantee distinct interface names even when the
-			// human labels are identical (which previously collided).
-			const ts = generateTypesFile([
-				makeCollection("book", { labelSingular: "Book" }),
-				makeCollection("books", { labelSingular: "Book" }),
-			]);
+		it("keeps names unique when singularization collapses two slugs", () => {
+			// `book` and `books` both singularize to `Book`; the collision is
+			// resolved with a numeric suffix so the generated `.d.ts` never
+			// declares the same identifier twice.
+			const ts = generateTypesFile([makeCollection("book"), makeCollection("books")]);
 
 			const names = interfaceNamesOf(ts);
-			expect(names).toEqual(["Book", "Books"]);
+			expect(names).toEqual(["Book", "Book2"]);
 			expect(new Set(names).size).toBe(names.length);
 		});
 
-		it("PascalCases multi-word slugs", () => {
+		it("singularizes and PascalCases multi-word slugs", () => {
 			expect(interfaceNamesOf(generateTypeScript(makeCollection("blog_posts")))).toEqual([
-				"BlogPosts",
+				"BlogPost",
 			]);
 		});
 
-		it("leaves a plain slug unchanged", () => {
-			expect(interfaceNamesOf(generateTypeScript(makeCollection("pages")))).toEqual(["Pages"]);
+		it("singularizes a plural slug to describe a single entry", () => {
+			expect(interfaceNamesOf(generateTypeScript(makeCollection("pages")))).toEqual(["Page"]);
+		});
+
+		it("leaves an already-singular slug unchanged", () => {
+			expect(interfaceNamesOf(generateTypeScript(makeCollection("book")))).toEqual(["Book"]);
 		});
 
 		it("references the same interface names in the EmDashCollections map", () => {
@@ -621,8 +624,8 @@ describe("Zod Generator", () => {
 			// keyed by slug -> interface name.
 			expect(ts).toContain("export interface Book {");
 			expect(ts).toContain("book: Book;");
-			expect(ts).toContain("export interface BlogPosts {");
-			expect(ts).toContain("blog_posts: BlogPosts;");
+			expect(ts).toContain("export interface BlogPost {");
+			expect(ts).toContain("blog_posts: BlogPost;");
 		});
 	});
 });
