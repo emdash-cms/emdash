@@ -358,7 +358,13 @@ export function createViteConfig(
 	// CJS/heavy transitive deps stay pre-bundled via `optimizeDeps.include`.
 	const inlinePackages =
 		cloudflare && isDev
-			? [...new Set(["emdash", "@emdash-cms/cloudflare", ...collectPluginPackages(options.pluginDescriptors)])]
+			? [
+					...new Set([
+						"emdash",
+						"@emdash-cms/cloudflare",
+						...collectPluginPackages(options.pluginDescriptors),
+					]),
+				]
 			: [];
 
 	return {
