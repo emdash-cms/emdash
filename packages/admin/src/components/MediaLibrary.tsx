@@ -15,9 +15,27 @@ import {
 	uploadToProvider,
 } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
+import {
+	dataTransferFiles,
+	dataTransferHasFiles,
+	runUploadBatch,
+	type UploadBatchResult,
+} from "../lib/media-upload-batch.js";
 import { providerItemToMediaItem, getFileIcon, formatFileSize } from "../lib/media-utils";
+import { matchesMimeAllowlist, mimeFromFile } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
+
+const MEDIA_LIBRARY_UPLOAD_MIME_ALLOWLIST = [
+	"image/",
+	"video/",
+	"audio/",
+	"application/pdf",
+	"application/msword",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"application/vnd.ms-excel",
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+];
 
 /** Maps a coarse type-filter choice to the media list's `mimeType` filter. */
 function mimeForTypeFilter(value: string): string | string[] | undefined {
@@ -38,7 +56,7 @@ function mimeForTypeFilter(value: string): string | string[] | undefined {
 export interface MediaLibraryProps {
 	items?: MediaItem[];
 	isLoading?: boolean;
-	onUpload?: (file: File) => Promise<void> | void;
+	onUpload?: (file: File) => Promise<void>;
 	onSelect?: (item: MediaItem) => void;
 	onDelete?: (id: string) => void;
 	onItemUpdated?: () => void;
@@ -51,6 +69,14 @@ export interface MediaLibraryProps {
 	/** Called with the MIME filter for the local library (undefined = all types). */
 	onLocalMimeFilterChange?: (mimeType: string | string[] | undefined) => void;
 }
+
+type UploadState = {
+	status: "idle" | "uploading" | "success" | "error";
+	message?: string;
+	progress?: { current: number; total: number };
+};
+
+type DropState = "idle" | "active" | "reject";
 
 /**
  * Media library component with upload, provider tabs, and grid view
@@ -79,11 +105,10 @@ export function MediaLibrary({
 			onLocalSearchChange(debouncedSearch.trim());
 		}
 	}, [debouncedSearch, activeProvider, onLocalSearchChange]);
-	const [uploadState, setUploadState] = React.useState<{
-		status: "idle" | "uploading" | "success" | "error";
-		message?: string;
-		progress?: { current: number; total: number };
-	}>({ status: "idle" });
+	const [uploadState, setUploadState] = React.useState<UploadState>({ status: "idle" });
+	const [dropState, setDropState] = React.useState<DropState>("idle");
+	const dragDepthRef = React.useRef(0);
+	const uploadInProgressRef = React.useRef(false);
 	const fileInputRef = React.useRef<HTMLInputElement>(null);
 	// Track loaded image dimensions for providers that don't return them (e.g., CF Images)
 	const [loadedDimensions, setLoadedDimensions] = React.useState<
@@ -123,6 +148,8 @@ export function MediaLibrary({
 		}
 		return providers?.find((p) => p.id === activeProvider);
 	}, [activeProvider, providers, t]);
+	const canUpload = activeProviderInfo?.capabilities.upload ?? false;
+	const canSearch = activeProviderInfo?.capabilities.search ?? false;
 
 	// Update selected item when items change (e.g., after metadata update)
 	React.useEffect(() => {
@@ -147,92 +174,151 @@ export function MediaLibrary({
 		}
 	}, [uploadState.status]);
 
-	const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const files = e.target.files;
-		if (files && files.length > 0) {
-			const fileArray = [...files];
-			const total = fileArray.length;
+	const setFinalUploadState = React.useCallback(
+		<T,>(result: UploadBatchResult<T>, rejectedBeforeUpload = 0) => {
+			const uploaded = result.uploaded.length;
+			const failed = result.failed.length + rejectedBeforeUpload;
+			const total = result.total + rejectedBeforeUpload;
 
-			if (activeProvider === "local") {
-				setUploadState({ status: "uploading", progress: { current: 0, total } });
-				let uploaded = 0;
-				let failed = 0;
-
-				for (const file of fileArray) {
-					try {
-						await onUpload?.(file);
-						uploaded++;
-					} catch (error) {
-						console.error("Upload failed:", error);
-						failed++;
-					}
-					setUploadState({
-						status: "uploading",
-						progress: { current: uploaded + failed, total },
-					});
-				}
-
-				if (failed === 0) {
-					setUploadState({
-						status: "success",
-						message: plural(total, { one: "File uploaded", other: "# files uploaded" }),
-					});
-				} else if (uploaded === 0) {
-					setUploadState({
-						status: "error",
-						message: plural(total, { one: "Upload failed", other: "All # uploads failed" }),
-					});
-				} else {
-					setUploadState({
-						status: "error",
-						message: t`${uploaded} uploaded, ${failed} failed`,
-					});
-				}
-			} else if (activeProviderInfo?.capabilities.upload) {
-				// Upload to external provider
-				setUploadState({ status: "uploading", progress: { current: 0, total } });
-				let uploaded = 0;
-				let failed = 0;
-
-				for (const file of fileArray) {
-					try {
-						await uploadToProvider(activeProvider, file);
-						uploaded++;
-					} catch (error) {
-						console.error("Upload failed:", error);
-						failed++;
-					}
-					setUploadState({
-						status: "uploading",
-						progress: { current: uploaded + failed, total },
-					});
-				}
-
-				if (failed === 0) {
-					setUploadState({
-						status: "success",
-						message: plural(total, { one: "File uploaded", other: "# files uploaded" }),
-					});
-				} else if (uploaded === 0) {
-					setUploadState({
-						status: "error",
-						message: plural(total, { one: "Upload failed", other: "All # uploads failed" }),
-					});
-				} else {
-					setUploadState({
-						status: "error",
-						message: t`${uploaded} uploaded, ${failed} failed`,
-					});
-				}
-
-				void refetchProviderMedia();
+			if (failed === 0) {
+				setUploadState({
+					status: "success",
+					message: plural(total, { one: "File uploaded", other: "# files uploaded" }),
+				});
+			} else if (uploaded === 0) {
+				setUploadState({
+					status: "error",
+					message: plural(total, { one: "Upload failed", other: "All # uploads failed" }),
+				});
+			} else {
+				setUploadState({
+					status: "error",
+					message: t`${plural(uploaded, { one: "# file uploaded", other: "# files uploaded" })}, ${plural(failed, { one: "# file failed", other: "# files failed" })}`,
+				});
 			}
-		}
+		},
+		[t],
+	);
+
+	const handleFiles = React.useCallback(
+		async (files: File[]) => {
+			if (files.length === 0) return;
+			if (uploadInProgressRef.current) {
+				return;
+			}
+			if (!canUpload) {
+				setUploadState({
+					status: "error",
+					message: t`Uploads are not available for this provider`,
+				});
+				return;
+			}
+
+			const acceptedFiles = files.filter((file) => {
+				const mime = mimeFromFile(file);
+				return mime ? matchesMimeAllowlist(mime, MEDIA_LIBRARY_UPLOAD_MIME_ALLOWLIST) : false;
+			});
+			const rejectedCount = files.length - acceptedFiles.length;
+
+			if (acceptedFiles.length === 0) {
+				setUploadState({
+					status: "error",
+					message: plural(files.length, {
+						one: "The media library does not accept that file",
+						other: "The media library does not accept those # files",
+					}),
+				});
+				return;
+			}
+
+			uploadInProgressRef.current = true;
+			setUploadState({
+				status: "uploading",
+				progress: { current: 0, total: acceptedFiles.length },
+			});
+
+			try {
+				if (activeProvider === "local") {
+					if (!onUpload) {
+						setUploadState({ status: "error", message: t`Uploads are not configured` });
+						return;
+					}
+
+					const result = await runUploadBatch(acceptedFiles, onUpload, (progress) => {
+						setUploadState({ status: "uploading", progress });
+					});
+					for (const failure of result.failed) {
+						console.error("Upload failed:", failure.error);
+					}
+					setFinalUploadState(result, rejectedCount);
+					return;
+				}
+
+				const result = await runUploadBatch(
+					acceptedFiles,
+					(file) => uploadToProvider(activeProvider, file),
+					(progress) => {
+						setUploadState({ status: "uploading", progress });
+					},
+				);
+				for (const failure of result.failed) {
+					console.error("Upload failed:", failure.error);
+				}
+				setFinalUploadState(result, rejectedCount);
+				void refetchProviderMedia();
+			} finally {
+				uploadInProgressRef.current = false;
+			}
+		},
+		[activeProvider, canUpload, onUpload, refetchProviderMedia, setFinalUploadState, t],
+	);
+
+	const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		await handleFiles([...(e.target.files ?? [])]);
 		// Reset input
 		if (fileInputRef.current) {
 			fileInputRef.current.value = "";
 		}
 	};
+
+	const handleDragEnter = React.useCallback(
+		(e: React.DragEvent) => {
+			if (!dataTransferHasFiles(e.dataTransfer)) return;
+			e.preventDefault();
+			dragDepthRef.current += 1;
+			setDropState(canUpload && uploadState.status !== "uploading" ? "active" : "reject");
+		},
+		[canUpload, uploadState.status],
+	);
+
+	const handleDragOver = React.useCallback(
+		(e: React.DragEvent) => {
+			if (!dataTransferHasFiles(e.dataTransfer)) return;
+			e.preventDefault();
+			e.dataTransfer.dropEffect = canUpload && uploadState.status !== "uploading" ? "copy" : "none";
+			setDropState(canUpload && uploadState.status !== "uploading" ? "active" : "reject");
+		},
+		[canUpload, uploadState.status],
+	);
+
+	const handleDragLeave = React.useCallback((e: React.DragEvent) => {
+		if (!dataTransferHasFiles(e.dataTransfer)) return;
+		dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+		if (dragDepthRef.current === 0) {
+			setDropState("idle");
+		}
+	}, []);
+
+	const handleDrop = React.useCallback(
+		(e: React.DragEvent) => {
+			if (!dataTransferHasFiles(e.dataTransfer)) return;
+			e.preventDefault();
+			dragDepthRef.current = 0;
+			setDropState("idle");
+			void handleFiles(dataTransferFiles(e.dataTransfer));
+		},
+		[handleFiles],
+	);
 
 	// Build provider tabs
 	const providerTabs = React.useMemo(() => {
@@ -254,11 +340,21 @@ export function MediaLibrary({
 	const currentProviderItems = activeProvider !== "local" ? providerData?.items || [] : [];
 	const currentLoading = activeProvider === "local" ? isLoading : providerLoading;
 
-	const canUpload = activeProviderInfo?.capabilities.upload ?? false;
-	const canSearch = activeProviderInfo?.capabilities.search ?? false;
+	const dropMessage =
+		dropState === "active"
+			? t`Drop files to upload to ${activeProviderInfo?.name ?? t`Library`}`
+			: dropState === "reject"
+				? t`Uploads are not available here`
+				: t`Drag files here to upload`;
 
 	return (
-		<div className="space-y-6">
+		<div
+			className="space-y-6"
+			onDragEnter={handleDragEnter}
+			onDragOver={handleDragOver}
+			onDragLeave={handleDragLeave}
+			onDrop={handleDrop}
+		>
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<h1 className="text-2xl font-bold">{t`Media Library`}</h1>
@@ -364,6 +460,25 @@ export function MediaLibrary({
 					)}
 				</div>
 			</div>
+
+			{canUpload && (
+				<div
+					className={cn(
+						"rounded-md border border-dashed p-4 text-center text-sm transition-colors",
+						dropState === "active"
+							? "border-kumo-brand bg-kumo-tint text-kumo-default"
+							: dropState === "reject"
+								? "border-kumo-danger bg-kumo-danger/10 text-kumo-danger"
+								: "border-kumo-line bg-kumo-tint/40 text-kumo-subtle",
+					)}
+					aria-live="polite"
+				>
+					<div className="flex items-center justify-center gap-2">
+						<Upload className="h-4 w-4" aria-hidden="true" />
+						<span>{dropMessage}</span>
+					</div>
+				</div>
+			)}
 
 			{/* Search — providers that support it, plus the local library
 			    (filename/extension search + type filter, handled server-side). */}

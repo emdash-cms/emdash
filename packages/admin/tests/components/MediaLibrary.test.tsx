@@ -33,11 +33,39 @@ function QueryWrapper({ children }: { children: React.ReactNode }) {
 	return <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
 }
 
+function dispatchFileDrop(target: Element, files: File[]) {
+	const dataTransfer = new DataTransfer();
+	for (const file of files) {
+		dataTransfer.items.add(file);
+	}
+
+	target.dispatchEvent(
+		new DragEvent("drop", {
+			bubbles: true,
+			cancelable: true,
+			dataTransfer,
+		}),
+	);
+}
+
+function dispatchFileDrag(target: Element, type: "dragenter" | "dragover" | "dragleave") {
+	const dataTransfer = new DataTransfer();
+	dataTransfer.items.add(new File(["x"], "dragged.jpg", { type: "image/jpeg" }));
+
+	target.dispatchEvent(
+		new DragEvent(type, {
+			bubbles: true,
+			cancelable: true,
+			dataTransfer,
+		}),
+	);
+}
+
 function renderLibrary(props: Partial<React.ComponentProps<typeof MediaLibrary>> = {}) {
 	const defaultProps: React.ComponentProps<typeof MediaLibrary> = {
 		items: [],
 		isLoading: false,
-		onUpload: vi.fn(),
+		onUpload: vi.fn().mockResolvedValue(undefined),
 		onSelect: vi.fn(),
 		onDelete: vi.fn(),
 		onItemUpdated: vi.fn(),
@@ -120,6 +148,164 @@ describe("MediaLibrary", () => {
 			// Hidden file input should exist
 			const fileInput = screen.getByLabelText("Upload files");
 			await expect.element(fileInput).toBeInTheDocument();
+		});
+
+		it("shows active drop state while files are dragged over the library", async () => {
+			const screen = await renderLibrary();
+			const dropZone = screen.getByText("Drag files here to upload").element();
+
+			dispatchFileDrag(dropZone, "dragenter");
+
+			await expect.element(screen.getByText("Drop files to upload to Library")).toBeInTheDocument();
+		});
+
+		it("uploads every dropped file through the existing upload callback", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({ onUpload });
+			const dropZone = screen.getByText("Drag files here to upload").element();
+			const files = [
+				new File(["one"], "one.jpg", { type: "image/jpeg" }),
+				new File(["two"], "two.jpg", { type: "image/jpeg" }),
+			];
+
+			dispatchFileDrop(dropZone, files);
+
+			await vi.waitFor(() => {
+				expect(onUpload).toHaveBeenCalledTimes(2);
+			});
+			expect(onUpload).toHaveBeenNthCalledWith(1, files[0]);
+			expect(onUpload).toHaveBeenNthCalledWith(2, files[1]);
+			await expect.element(screen.getByText("2 files uploaded")).toBeInTheDocument();
+		});
+
+		it("shows batch progress while a dropped upload is pending", async () => {
+			const onUpload = vi.fn(
+				() =>
+					new Promise<void>(() => {
+						// Keep the first upload pending so progress remains visible.
+					}),
+			);
+			const screen = await renderLibrary({ onUpload });
+			const dropZone = screen.getByText("Drag files here to upload").element();
+
+			dispatchFileDrop(dropZone, [
+				new File(["one"], "one.jpg", { type: "image/jpeg" }),
+				new File(["two"], "two.jpg", { type: "image/jpeg" }),
+			]);
+
+			await expect.element(screen.getByText("Uploading 0/2...")).toBeInTheDocument();
+		});
+
+		it("shows a reject drop state while an upload is pending", async () => {
+			const onUpload = vi.fn(
+				() =>
+					new Promise<void>(() => {
+						// Keep the first upload pending so dragover should reject new drops.
+					}),
+			);
+			const screen = await renderLibrary({ onUpload });
+			const dropZone = screen.getByText("Drag files here to upload").element();
+
+			dispatchFileDrop(dropZone, [
+				new File(["one"], "one.jpg", { type: "image/jpeg" }),
+				new File(["two"], "two.jpg", { type: "image/jpeg" }),
+			]);
+			await expect.element(screen.getByText("Uploading 0/2...")).toBeInTheDocument();
+
+			dispatchFileDrag(dropZone, "dragenter");
+
+			await expect.element(screen.getByText("Uploads are not available here")).toBeInTheDocument();
+			expect(dropZone.closest('[aria-live="polite"]')?.className).toContain("border-kumo-danger");
+		});
+
+		it("does not start another upload batch while a dropped upload is pending", async () => {
+			const onUpload = vi.fn(
+				() =>
+					new Promise<void>(() => {
+						// Keep the first upload pending so a second drop exercises the in-flight guard.
+					}),
+			);
+			const screen = await renderLibrary({ onUpload });
+			const dropZone = screen.getByText("Drag files here to upload").element();
+			const firstFile = new File(["one"], "one.jpg", { type: "image/jpeg" });
+
+			dispatchFileDrop(dropZone, [
+				firstFile,
+				new File(["queued"], "queued.jpg", { type: "image/jpeg" }),
+			]);
+			await expect.element(screen.getByText("Uploading 0/2...")).toBeInTheDocument();
+
+			dispatchFileDrop(dropZone, [new File(["two"], "two.jpg", { type: "image/jpeg" })]);
+
+			await vi.waitFor(() => {
+				expect(onUpload).toHaveBeenCalledTimes(1);
+			});
+			expect(onUpload).toHaveBeenCalledWith(firstFile);
+			await expect.element(screen.getByText("Uploading 0/2...")).toBeInTheDocument();
+			expect(document.body.textContent).not.toContain("Upload already in progress");
+		});
+
+		it("shows a partial failure message for dropped batches", async () => {
+			const onUpload = vi
+				.fn()
+				.mockResolvedValueOnce(undefined)
+				.mockRejectedValueOnce(new Error("network failed"));
+			const screen = await renderLibrary({ onUpload });
+			const dropZone = screen.getByText("Drag files here to upload").element();
+
+			dispatchFileDrop(dropZone, [
+				new File(["one"], "one.jpg", { type: "image/jpeg" }),
+				new File(["two"], "two.jpg", { type: "image/jpeg" }),
+			]);
+
+			await expect.element(screen.getByText("1 file uploaded, 1 file failed")).toBeInTheDocument();
+		});
+
+		it("rejects dropped files outside the library upload allowlist", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({ onUpload });
+			const dropZone = screen.getByText("Drag files here to upload").element();
+
+			dispatchFileDrop(dropZone, [
+				new File(["script"], "script.sh", { type: "text/x-shellscript" }),
+			]);
+
+			await expect
+				.element(screen.getByText("The media library does not accept that file"))
+				.toBeInTheDocument();
+			expect(onUpload).not.toHaveBeenCalled();
+		});
+
+		it("uploads accepted dropped files and reports rejected files", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({ onUpload });
+			const dropZone = screen.getByText("Drag files here to upload").element();
+			const accepted = new File(["image"], "accepted.jpg", { type: "image/jpeg" });
+
+			dispatchFileDrop(dropZone, [
+				accepted,
+				new File(["script"], "script.sh", { type: "text/x-shellscript" }),
+			]);
+
+			await vi.waitFor(() => {
+				expect(onUpload).toHaveBeenCalledTimes(1);
+			});
+			expect(onUpload).toHaveBeenCalledWith(accepted);
+			await expect.element(screen.getByText("1 file uploaded, 1 file failed")).toBeInTheDocument();
+		});
+
+		it("accepts dropped files with generic MIME metadata when the extension is allowed", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({ onUpload });
+			const dropZone = screen.getByText("Drag files here to upload").element();
+			const file = new File(["pdf"], "proposal.pdf", { type: "application/octet-stream" });
+
+			dispatchFileDrop(dropZone, [file]);
+
+			await vi.waitFor(() => {
+				expect(onUpload).toHaveBeenCalledTimes(1);
+			});
+			expect(onUpload).toHaveBeenCalledWith(file);
 		});
 	});
 

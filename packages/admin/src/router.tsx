@@ -1057,7 +1057,7 @@ function MediaPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			hasMore={!!hasNextPage}
 			onLoadMore={() => void fetchNextPage()}
-			onUpload={(file) => uploadMutation.mutate(file)}
+			onUpload={(file) => uploadMutation.mutateAsync(file).then(() => undefined)}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onLocalSearchChange={setSearch}
 			onLocalMimeFilterChange={setMimeFilter}
