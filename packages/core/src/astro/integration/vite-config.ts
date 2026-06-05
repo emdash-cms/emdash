@@ -432,6 +432,41 @@ export function createViteConfig(
 							"astro/assets/fonts/runtime.js",
 							"astro/assets/services/noop",
 							"@astrojs/cloudflare/image-service",
+							// Runtime-reached SSR deps the startup scan can't see: the
+							// middleware chain sits behind the excluded `virtual:emdash`
+							// boundary, adapter entrypoints load lazily on first query, and
+							// ui/runtime/portabletext are imported during first render.
+							// Without these, the cold dev cache discovers them at request
+							// time and cascades a deps_ssr re-optimize race. Guarded by
+							// tests/integration/smoke/dep-optimizer-cold-cache.test.ts.
+							"emdash/ui",
+							"emdash/runtime",
+							"emdash/media/local-runtime",
+							"emdash/middleware",
+							"emdash/middleware/redirect",
+							"emdash/middleware/setup",
+							"emdash/middleware/auth",
+							"emdash/middleware/request-context",
+							// Astro's public re-export -- a different specifier than the
+							// `astro > zod/v4` entry above, so it must be listed separately.
+							"astro/zod",
+							// Cloudflare adapter entrypoints, loaded lazily on first
+							// content query / media op.
+							"@emdash-cms/cloudflare/db/d1",
+							"@emdash-cms/cloudflare/storage/r2",
+							// Bare specifiers for deps already listed above in their
+							// `emdash > ...` / `emdash > @emdash-cms/admin > ...` chained
+							// form. The chained form pre-bundles the copy resolved through
+							// the emdash package graph; at request time these resolve as
+							// top-level specifiers instead (a distinct Vite optimize key,
+							// same as `astro/zod` vs `astro > zod/v4` above). The cold-cache
+							// guard test re-optimized on exactly these until both forms were
+							// listed, so do NOT remove them as duplicates -- they are not.
+							"@lingui/react",
+							"@oslojs/crypto/hmac",
+							"@oslojs/crypto/subtle",
+							"@oslojs/crypto/rsa",
+							"@cloudflare/kumo/primitives",
 						],
 					},
 				}
