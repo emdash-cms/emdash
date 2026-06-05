@@ -223,6 +223,30 @@ describe("Field Types", () => {
 			expect(() => field.schema.parse("2026-02-26")).not.toThrow();
 			expect(() => field.schema.parse("2026-02-26T09:30:00.000Z")).toThrow();
 		});
+
+		it("should preserve local calendar dates for Date min/max options", () => {
+			const previousTimezone = process.env.TZ;
+			process.env.TZ = "Asia/Tokyo";
+
+			try {
+				const field = date({
+					required: true,
+					min: new Date(2026, 1, 26),
+					max: new Date(2026, 1, 28),
+				});
+
+				expect(field.ui?.min).toBe("2026-02-26");
+				expect(field.ui?.max).toBe("2026-02-28");
+				expect(() => field.schema.parse("2026-02-26")).not.toThrow();
+				expect(() => field.schema.parse("2026-02-25")).toThrow("Date is too early");
+			} finally {
+				if (previousTimezone === undefined) {
+					delete process.env.TZ;
+				} else {
+					process.env.TZ = previousTimezone;
+				}
+			}
+		});
 	});
 
 	describe("slug", () => {

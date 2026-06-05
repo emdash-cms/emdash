@@ -89,7 +89,7 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 		case "date":
 			return z
 				.string()
-				.regex(DATE_ONLY_PATTERN)
+				.regex(DATE_ONLY_PATTERN, "Must be a date in YYYY-MM-DD format")
 				.refine((value) => {
 					const parsed = new Date(`${value}T00:00:00.000Z`);
 					return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
