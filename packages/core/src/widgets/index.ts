@@ -55,7 +55,7 @@ export async function getWidgetArea(name: string): Promise<WidgetArea | null> {
 		// they're all non-null once w_id is (we match on widgets.area_id, so
 		// a widget row always has the not-null columns filled). Cast is the
 		// price of that structural fact.
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- left-join row is non-null when w_id is set; see above
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- left-join row is non-null when w_id is set; see above
 		const widgetRow = {
 			id: row.w_id,
 			type: row.w_type,

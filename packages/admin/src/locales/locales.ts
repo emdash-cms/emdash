@@ -42,10 +42,12 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "id", label: "Bahasa Indonesia", enabled: true }, // Indonesian
 	{ code: "ja", label: "日本語", enabled: true }, // Japanese
 	{ code: "ko", label: "한국어", enabled: false }, // Korean
+	{ code: "nb", label: "Norsk bokmål", enabled: true }, // Norwegian Bokmål
 	{ code: "pl", label: "Polski", enabled: true }, // Polish
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
 	{ code: "es-419", label: "Español (Latinoamérica)", enabled: true }, // Spanish (Latin America)
 	{ code: "es-ES", label: "Español (España)", enabled: true }, // Spanish (Spain) - BCP 47
+	{ code: "th", label: "ไทย", enabled: true }, // Thai
 	// Pseudo-locale for i18n testing - never enabled in the admin UI by default.
 	// Set EMDASH_PSEUDO_LOCALE=1 in .env to expose it in the locale switcher (dev only).
 	{ code: "pseudo", label: "Pseudo", enabled: false },

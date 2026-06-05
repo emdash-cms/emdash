@@ -50,7 +50,9 @@ import {
 	type RequestMetrics,
 	runWithContext,
 } from "../request-context.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
 import type { EmDashHandlers } from "./types.js";
 
 // Cached runtime instance (persists across requests within worker)
@@ -68,8 +70,24 @@ let i18nInitialized = false;
  * would query an empty database and crash. Once verified (or once the runtime
  * has initialized via an admin/API request), this stays true for the worker's
  * lifetime.
+ *
+ * Stored on globalThis behind a Symbol key so the flag is a true singleton
+ * even when the bundler duplicates this module across SSR chunks (same
+ * pattern as request-cache.ts). A plain module-scoped `let` becomes multiple
+ * independent variables, which would make the setup probe re-run far more
+ * often than intended — and every re-run is another chance for a transient
+ * DB error to be misread as "fresh install" and bounce visitors to setup.
  */
-let setupVerified = false;
+const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
+const setupFlagStore = globalThis as Record<symbol, unknown>;
+
+function isSetupVerified(): boolean {
+	return setupFlagStore[SETUP_VERIFIED_KEY] === true;
+}
+
+function markSetupVerified(): void {
+	setupFlagStore[SETUP_VERIFIED_KEY] = true;
+}
 
 /**
  * Get EmDash configuration from virtual module
@@ -79,11 +97,11 @@ function getConfig(): EmDashConfig | null {
 		// Initialize i18n config on first access (once per worker lifetime)
 		if (!i18nInitialized) {
 			i18nInitialized = true;
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module checked as object above
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module checked as object above
 			const config = virtualConfig as Record<string, unknown>;
 			if (config.i18n && typeof config.i18n === "object") {
 				setI18nConfig(
-					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- runtime-checked above
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- runtime-checked above
 					config.i18n as {
 						defaultLocale: string;
 						locales: string[];
@@ -95,7 +113,7 @@ function getConfig(): EmDashConfig | null {
 			}
 		}
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
 		return virtualConfig as EmDashConfig;
 	}
 	return null;
@@ -105,7 +123,7 @@ function getConfig(): EmDashConfig | null {
  * Get plugins from virtual module
  */
 function getPlugins(): ResolvedPlugin[] {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
 	return (virtualPlugins as ResolvedPlugin[]) || [];
 }
 
@@ -113,23 +131,22 @@ function getPlugins(): ResolvedPlugin[] {
  * Build runtime dependencies from virtual modules
  */
 function buildDependencies(config: EmDashConfig): RuntimeDependencies {
+	/* eslint-disable typescript-eslint/no-unsafe-type-assertion --
+	   The virtual:emdash/* imports above use @ts-ignore because tsgo/IDE
+	   resolution can't see virtual-modules.d.ts in every consumer setup,
+	   so they arrive as `any`. The casts here line each entry up with
+	   RuntimeDependencies's expected shape. The contract is enforced by
+	   the integration that populates these virtual modules. */
+	const sandboxModule = virtualSandboxRunnerModule as Record<string, unknown>;
 	return {
 		config,
 		plugins: getPlugins(),
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
-		sandboxEnabled: (virtualSandboxRunnerModule as Record<string, unknown>)
-			.sandboxEnabled as boolean,
-		sandboxBypassed:
-			((virtualSandboxRunnerModule as Record<string, unknown>).sandboxBypassed as boolean) ?? false,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
+		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
+		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
-		createSandboxRunner: (virtualSandboxRunnerModule as Record<string, unknown>)
-			.createSandboxRunner as
+		createSandboxRunner: sandboxModule.createSandboxRunner as
 			| ((opts: {
 					db: Kysely<Database>;
 					mediaStorage?: {
@@ -142,9 +159,9 @@ function buildDependencies(config: EmDashConfig): RuntimeDependencies {
 					};
 			  }) => SandboxRunner)
 			| null,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		mediaProviderEntries: (virtualMediaProviders as MediaProviderEntry[]) || [],
 	};
+	/* eslint-enable typescript-eslint/no-unsafe-type-assertion */
 }
 
 /**
@@ -266,7 +283,7 @@ function createRequestScopedDb(
 	opts: RequestScopedDbOpts,
 ): { db: Kysely<Database>; commit: () => void } | null {
 	if (typeof virtualCreateRequestScopedDb !== "function") return null;
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- adapter returns Kysely<unknown>; cast to Database since core owns that type
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- adapter returns Kysely<unknown>; cast to Database since core owns that type
 	const fn = virtualCreateRequestScopedDb as (
 		o: RequestScopedDbOpts,
 	) => { db: Kysely<Database>; commit: () => void } | null;
@@ -338,7 +355,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Do a one-time lightweight probe using the same getDb() instance the
 				// page will use: if the migrations table doesn't exist, no migrations
 				// have ever run -- redirect to the setup wizard.
-				if (!setupVerified) {
+				if (!isSetupVerified()) {
 					const t0 = performance.now();
 					try {
 						const { getDb } = await import("../loader.js");
@@ -348,10 +365,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							.selectAll()
 							.limit(1)
 							.execute();
-						setupVerified = true;
-					} catch {
-						// Table doesn't exist -> fresh database, redirect to setup
-						return context.redirect("/_emdash/admin/setup");
+						markSetupVerified();
+					} catch (error) {
+						// Only a genuinely-missing migrations table means a fresh,
+						// un-set-up database — redirect to the setup wizard.
+						if (isMissingTableError(error)) {
+							return context.redirect("/_emdash/admin/setup");
+						}
+						// Any other failure (transient D1/replica error, timeout, cold-start
+						// race, locked SQLite) must NOT be read as "fresh install" — doing so
+						// bounces real visitors on a set-up site to /_emdash/admin/setup.
+						// Leave the flag unset so a later request can re-verify, and fall
+						// through to render the page normally.
+						console.error("Setup probe failed (non-fatal):", error);
 					}
 					timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 				}
@@ -368,9 +394,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					const t0 = performance.now();
 					try {
 						const runtime = await getRuntime(config, initSubTimings);
-						setupVerified = true;
-						// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- partial object; getPageRuntime() only checks for the page-contribution methods
+						markSetupVerified();
+						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
+						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
+							handlePublicPluginApiRoute,
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
@@ -446,7 +474,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				for (const sub of initSubTimings) timings.push(sub);
 
 				// Runtime init runs migrations, so the DB is guaranteed set up
-				setupVerified = true;
+				markSetupVerified();
 
 				// The manifest is no longer pre-loaded here. It's admin-only
 				// content that public/anonymous requests never read, and
@@ -497,6 +525,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Plugin routes
 					handlePluginApiRoute: runtime.handlePluginApiRoute.bind(runtime),
+					handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
 					getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
 					getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
 

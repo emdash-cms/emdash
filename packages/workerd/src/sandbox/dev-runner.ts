@@ -30,6 +30,10 @@ import type { PluginManifest } from "emdash";
 import { createBridgeHandler } from "./bridge-handler.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 const SAFE_ID_RE = /[^a-z0-9_-]/gi;
 
 /**
@@ -216,6 +220,11 @@ export class MiniflareDevRunner implements SandboxRunner {
 
 	/**
 	 * Dispatch a fetch to a specific plugin worker in miniflare.
+	 *
+	 * Miniflare's `worker.fetch` uses undici's Request/Response/RequestInit
+	 * types, which are structurally compatible with the platform globals but
+	 * declared as distinct nominal types. Callers only consume status/ok and
+	 * the body via text()/json(), so we widen at this boundary.
 	 */
 	async dispatchToPlugin(pluginId: string, url: string, init?: RequestInit): Promise<Response> {
 		if (!this.mf) {
@@ -223,7 +232,8 @@ export class MiniflareDevRunner implements SandboxRunner {
 		}
 		const workerName = pluginId.replace(SAFE_ID_RE, "_");
 		const worker = await this.mf.getWorker(workerName);
-		return worker.fetch(url, init);
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- miniflare's Response_2 / RequestInit_2 are structurally compatible with the global types we use here. See JSDoc above.
+		return worker.fetch(url, init as never) as unknown as Response;
 	}
 }
 
@@ -258,7 +268,10 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 				const text = await res.text();
 				throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
 			}
-			const result = (await res.json()) as { value: unknown };
+			const result: unknown = await res.json();
+			if (!isRecord(result)) {
+				throw new Error(`Plugin ${this.id} hook ${hookName} returned a non-object response`);
+			}
 			return result.value;
 		});
 	}

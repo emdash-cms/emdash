@@ -28,6 +28,12 @@ allowBuilds:
   better-sqlite3: true
   esbuild: true
   workerd: true
+  # Transitive @flue/runtime deps. The reviewer ran end-to-end with these
+  # build scripts ignored, so none are needed at runtime.
+  "@google/genai": false
+  "@mongodb-js/zstd": false
+  node-liblzma: false
+  protobufjs: false
 # Reviewed benign trust downgrades (publish-method changes, not takeovers).
 trustPolicyExclude:
   - "vite@6.4.1" # trusted-publisher -> provenance (vitejs CI change)
@@ -53,6 +59,7 @@ packages:
   - templates/*
   - packages/blocks/playground
   - e2e/fixture
+  - e2e/fixture-cloudflare
   - fixtures/*
   - docs
   - i18n
@@ -83,7 +90,7 @@ catalog:
   "@atcute/xrpc-server-cloudflare": ^2.0.0
   "@atproto/crypto": ^0.4.5
   "@atproto/repo": ^0.9.1
-  "@cloudflare/kumo": ^1.16.0
+  "@cloudflare/kumo": ^2.4.0
   "@cloudflare/vite-plugin": ^1.36.3
   "@cloudflare/vitest-pool-workers": ^0.16.3
   "@cloudflare/workers-types": ^4.20260305.1
@@ -102,6 +109,7 @@ catalog:
   "@tanstack/react-router": 1.163.2
   "@tiptap/core": ^3.20.0
   "@tiptap/extension-character-count": ^3.20.0
+  "@tiptap/extension-code-block": ^3.20.0
   "@tiptap/extension-drag-handle": ^3.20.0
   "@tiptap/extension-drag-handle-react": ^3.20.0
   "@tiptap/extension-dropcursor": ^3.20.0
@@ -125,18 +133,21 @@ catalog:
   "@types/better-sqlite3": ^7.6.12
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
+  "@types/semver": ^7.5.8
   astro: ^6.3.0
   astro-iconset: ^0.0.4
   better-sqlite3: ^12.8.0
   chokidar: ^5.0.0
+  image-size: ^2.0.2
   jsonc-parser: ^3.3.1
   kysely: ^0.29.0
   publint: 0.3.17
   react: 19.2.4
   react-dom: 19.2.4
+  semver: ^7.6.3
   tsdown: 0.20.3
   typescript: ^6.0.3
   vite: ^8.0.11
   vitest: ^4.1.5
-  wrangler: ^4.83.0
+  wrangler: ^4.95.0
   zod: ^4.4.1

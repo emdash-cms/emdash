@@ -21,6 +21,8 @@ const mimeTypeFilter = z
 export const mediaListQuery = cursorPaginationQuery
 	.extend({
 		mimeType: mimeTypeFilter,
+		/** Case-insensitive filename substring search (also matches extensions). */
+		q: z.string().trim().min(1).max(200).optional(),
 	})
 	.meta({ id: "MediaListQuery" });
 

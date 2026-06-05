@@ -1,9 +1,12 @@
+import { randomUUID } from "node:crypto";
+
 import Database from "better-sqlite3";
 import { Kysely, PostgresDialect, SqliteDialect } from "kysely";
 import { Pool } from "pg";
 import { describe } from "vitest";
 
-import { runMigrations } from "../../src/database/migrations/runner.js";
+import { getMigrationStatus, runMigrations } from "../../src/database/migrations/runner.js";
+import type { MigrationStatus } from "../../src/database/migrations/runner.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 
@@ -104,30 +107,128 @@ export async function teardownTestDatabase(db: Kysely<DatabaseSchema>): Promise<
 // PostgreSQL helpers
 // ---------------------------------------------------------------------------
 
+// --- Per-worker database isolation -----------------------------------------
+//
+// Vitest runs test files in parallel worker processes that all share one
+// Postgres server. The original harness isolated each test in its own *schema*
+// inside one shared database. That breaks down under parallelism: Kysely's
+// migrator introspects the catalog database-wide (`pg_namespace`, `pg_class`)
+// with no schema filter, so a migration in one worker sees — and races against
+// — the sibling schemas other workers are concurrently creating and dropping.
+// The result is intermittent `schema/relation/column "test_…" does not exist`
+// failures during setup (issue #1333).
+//
+// Postgres catalogs are *per database*, so giving each worker its own database
+// fully isolates introspection. Within a worker, schemas are still created and
+// dropped per test, but sequentially (Vitest runs one file at a time per
+// worker and awaits hooks in order), so there is no concurrent catalog churn.
+
+/** Validate an identifier we must interpolate into DDL (no bind params allowed). */
+function assertSafeIdentifier(id: string): void {
+	if (!/^[a-z][a-z0-9_]*$/.test(id) || id.length > 63) {
+		throw new Error(`Unsafe SQL identifier: ${id}`);
+	}
+}
+
 /**
- * Shared pool for Postgres tests. One pool per test process, many schemas.
- * Created lazily on first call to createTestPostgresDatabase().
+ * Name of the Postgres database dedicated to the current Vitest worker.
+ * `VITEST_POOL_ID` is the stable worker-slot id (reused across files within a
+ * worker); we fall back to the pid so the harness still works outside Vitest.
+ */
+function workerDatabaseName(): string {
+	const raw = process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID ?? String(process.pid);
+	const slug = raw.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+	const name = `emdash_test_w_${slug}`;
+	assertSafeIdentifier(name);
+	return name;
+}
+
+/** Swap the database in a connection string for the per-worker database. */
+function withDatabase(connectionString: string, database: string): string {
+	const url = new URL(connectionString);
+	url.pathname = `/${database}`;
+	return url.toString();
+}
+
+/**
+ * Ensure the per-worker database exists and resolve its connection string.
+ * Memoised per process so the create-database round-trip happens once.
+ */
+let workerConnPromise: Promise<string> | null = null;
+function getWorkerConnectionString(): Promise<string> {
+	if (!workerConnPromise) {
+		workerConnPromise = (async () => {
+			const dbName = workerDatabaseName();
+			// Connect to the maintenance database from the original connection
+			// string to issue CREATE DATABASE (which cannot run while connected
+			// to its target, nor inside a transaction).
+			const admin = new Pool({ connectionString: PG_CONNECTION_STRING, max: 1 });
+			try {
+				const { rows } = await admin.query<{ exists: number }>(
+					"SELECT 1 AS exists FROM pg_database WHERE datname = $1",
+					[dbName],
+				);
+				if (rows.length === 0) {
+					// Concurrent CREATE DATABASE calls (different worker names) can
+					// still collide on the template1 lock; retry a few times.
+					await createDatabaseWithRetry(admin, dbName);
+				}
+			} finally {
+				await admin.end();
+			}
+			return withDatabase(PG_CONNECTION_STRING, dbName);
+		})();
+	}
+	return workerConnPromise;
+}
+
+async function createDatabaseWithRetry(admin: Pool, dbName: string): Promise<void> {
+	for (let attempt = 0; attempt < 10; attempt++) {
+		try {
+			await admin.query(`CREATE DATABASE ${dbName}`);
+			return;
+		} catch (error) {
+			const msg = String(error instanceof Error ? error.message : error);
+			// 42P04 = duplicate_database (another check-then-create raced us).
+			if (/already exists|duplicate_database/i.test(msg)) return;
+			// "source database … is being accessed by other users" — template1
+			// is locked by another concurrent CREATE DATABASE; back off and retry.
+			if (attempt < 9 && /being accessed by other users/i.test(msg)) {
+				await new Promise((resolve) => setTimeout(resolve, 50 + attempt * 50));
+				continue;
+			}
+			throw error;
+		}
+	}
+}
+
+/**
+ * Shared pool for the current worker's Postgres database. One pool per test
+ * process, used for schema create/drop. Created lazily.
  */
 let sharedPool: Pool | null = null;
 
-function getSharedPool(): Pool {
+async function getSharedPool(): Promise<Pool> {
 	if (!sharedPool) {
-		sharedPool = new Pool({
-			connectionString: PG_CONNECTION_STRING,
-			max: 10,
-		});
+		const connectionString = await getWorkerConnectionString();
+		sharedPool = new Pool({ connectionString, max: 10 });
 	}
 	return sharedPool;
 }
 
 /**
  * Generate a unique schema name for test isolation.
- * Format: test_<timestamp>_<random> — short, valid SQL identifier.
+ *
+ * Unique within the worker database via a monotonic counter (clock resolution
+ * independent) plus crypto entropy, so two contexts in the same process can
+ * never collide on a name. PostgreSQL identifiers are capped at 63 bytes; this
+ * stays well under.
  */
+let schemaCounter = 0;
 function uniqueSchemaName(): string {
-	const ts = Date.now().toString(36);
-	const rand = Math.random().toString(36).slice(2, 8);
-	return `test_${ts}_${rand}`;
+	const seq = (schemaCounter++).toString(36);
+	const rand = randomUUID().replace(/-/g, "").slice(0, 12);
+	return `test_${seq}_${rand}`;
 }
 
 export interface PgTestContext {
@@ -138,13 +239,15 @@ export interface PgTestContext {
 /**
  * Create an isolated Postgres database for a single test.
  *
- * Each call creates a unique schema and returns a Kysely instance
- * whose search_path is set to that schema. Tables are fully isolated.
+ * Each call creates a unique schema inside the worker's database and returns a
+ * Kysely instance whose search_path is set to that schema. Tables are fully
+ * isolated.
  *
  * Call `teardownTestPostgresDatabase()` in afterEach to drop the schema.
  */
 export async function createTestPostgresDatabase(): Promise<PgTestContext> {
-	const pool = getSharedPool();
+	const connectionString = await getWorkerConnectionString();
+	const pool = await getSharedPool();
 	const schemaName = uniqueSchemaName();
 
 	// Create the isolated schema using a raw connection
@@ -159,7 +262,7 @@ export async function createTestPostgresDatabase(): Promise<PgTestContext> {
 	// Test schema comes first so CREATE TABLE goes there.
 	// public is included for Postgres system functions and extensions.
 	const testPool = new Pool({
-		connectionString: PG_CONNECTION_STRING,
+		connectionString,
 		max: 5,
 		options: `-c search_path=${schemaName},public`,
 	});
@@ -176,7 +279,7 @@ export async function createTestPostgresDatabase(): Promise<PgTestContext> {
  */
 export async function setupTestPostgresDatabase(): Promise<PgTestContext> {
 	const ctx = await createTestPostgresDatabase();
-	await runMigrations(ctx.db);
+	await runMigrations(ctx.db, { migrationTableSchema: ctx.schemaName });
 	return ctx;
 }
 
@@ -230,7 +333,7 @@ export async function teardownTestPostgresDatabase(ctx: PgTestContext): Promise<
 	await ctx.db.destroy();
 
 	// Drop the schema using the shared pool
-	const pool = getSharedPool();
+	const pool = await getSharedPool();
 	const client = await pool.connect();
 	try {
 		await client.query(`DROP SCHEMA IF EXISTS ${ctx.schemaName} CASCADE`);
@@ -303,12 +406,21 @@ export async function setupForDialectWithCollections(
 /**
  * Tear down a test database for any dialect.
  */
-export async function teardownForDialect(ctx: DialectTestContext): Promise<void> {
+export async function teardownForDialect(ctx: DialectTestContext | undefined): Promise<void> {
+	if (!ctx) return;
 	if (ctx.pgCtx) {
 		await teardownTestPostgresDatabase(ctx.pgCtx);
 	} else {
 		await teardownTestDatabase(ctx.db);
 	}
+}
+
+export function runMigrationsForDialect(ctx: DialectTestContext): Promise<{ applied: string[] }> {
+	return runMigrations(ctx.db, { migrationTableSchema: ctx.pgCtx?.schemaName });
+}
+
+export function getMigrationStatusForDialect(ctx: DialectTestContext): Promise<MigrationStatus> {
+	return getMigrationStatus(ctx.db, { migrationTableSchema: ctx.pgCtx?.schemaName });
 }
 
 // Private alias to avoid name collision

@@ -1,0 +1,14 @@
+# Standalone pnpm workspace config for the triage bot. The repo root's
+# pnpm-workspace.yaml doesn't list .flue as a workspace, and this file
+# is what pnpm picks up when invoked from inside .flue/. Mirrors the
+# relevant build-allow settings from the root config.
+
+strictDepBuilds: false
+allowBuilds:
+  esbuild: true
+  workerd: true
+  "@google/genai": false
+  "@mongodb-js/zstd": false
+  "node-liblzma": false
+  protobufjs: false
+  sharp: false

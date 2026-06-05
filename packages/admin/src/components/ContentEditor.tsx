@@ -25,6 +25,7 @@ import {
 	ArrowSquareOut,
 	ImageBroken,
 } from "@phosphor-icons/react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -37,8 +38,9 @@ import type {
 	UserListItem,
 	TranslationSummary,
 } from "../lib/api";
-import { getPreviewUrl, getDraftStatus } from "../lib/api";
+import { fetchBylines, getPreviewUrl, getDraftStatus } from "../lib/api";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
+import { useDebouncedValue } from "../lib/hooks.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
@@ -109,6 +111,13 @@ export interface ContentEditorProps {
 	item?: ContentItem | null;
 	fields: Record<string, FieldDescriptor>;
 	isNew?: boolean;
+	/**
+	 * Locale this entry is bound to. For existing entries this matches
+	 * `item.locale`; for new entries it's the URL `?locale=` (or default).
+	 * Threaded into the byline picker so the empty-state CTA links to the
+	 * right locale on the Bylines manager.
+	 */
+	entryLocale?: string | null;
 	isSaving?: boolean;
 	onSave?: (payload: {
 		data: Record<string, unknown>;
@@ -149,6 +158,8 @@ export interface ContentEditorProps {
 	onAuthorChange?: (authorId: string | null) => void;
 	/** Available byline profiles */
 	availableBylines?: BylineSummary[];
+	/** Whether the parent's byline picker query has resolved. Suppresses the empty-state flash before first fetch. */
+	availableBylinesLoaded?: boolean;
 	/** Selected byline credits (controlled for new entries) */
 	selectedBylines?: BylineCreditInput[];
 	/** Callback when byline credits are changed */
@@ -196,6 +207,7 @@ export function ContentEditor({
 	item,
 	fields,
 	isNew,
+	entryLocale,
 	isSaving,
 	onSave,
 	onAutosave,
@@ -214,6 +226,7 @@ export function ContentEditor({
 	users,
 	onAuthorChange,
 	availableBylines,
+	availableBylinesLoaded,
 	selectedBylines,
 	onBylinesChange,
 	onQuickCreateByline,
@@ -238,6 +251,11 @@ export function ContentEditor({
 		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
 			[],
 	);
+	// Gates whether `bylines` is included in the save payload. Untouched
+	// edits must not ship `[]` — strict per-locale hydration can return
+	// empty for entries with credits at other locales, and sending `[]`
+	// would wipe them.
+	const [bylinesTouched, setBylinesTouched] = React.useState(false);
 
 	// Track portableText editor for document outline. Only the "content"
 	// field wires its editor into this slot (see onEditorReady below).
@@ -311,6 +329,7 @@ export function ContentEditor({
 			}),
 		);
 		pendingAutosaveStateRef.current = null;
+		setBylinesTouched(false);
 	}
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
@@ -338,6 +357,7 @@ export function ContentEditor({
 				}),
 			);
 			pendingAutosaveStateRef.current = null;
+			setBylinesTouched(false);
 		}
 	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
 
@@ -345,6 +365,7 @@ export function ContentEditor({
 
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
+			setBylinesTouched(true);
 			if (isNew) {
 				onBylinesChange?.(next);
 				return;
@@ -416,15 +437,19 @@ export function ContentEditor({
 		// Schedule autosave
 		autosaveTimeoutRef.current = setTimeout(() => {
 			if (hasInvalidUrls(formDataRef.current)) return;
-			const payload = {
+			const payload: {
+				data: Record<string, unknown>;
+				slug?: string;
+				bylines?: BylineCreditInput[];
+			} = {
 				data: formDataRef.current,
 				slug: slugRef.current || undefined,
-				bylines: activeBylines,
 			};
+			if (bylinesTouched) payload.bylines = activeBylines;
 			pendingAutosaveStateRef.current = serializeEditorState({
 				data: payload.data,
 				slug: payload.slug || "",
-				bylines: payload.bylines,
+				bylines: activeBylines,
 			});
 			onAutosave(payload);
 		}, AUTOSAVE_DELAY);
@@ -443,6 +468,7 @@ export function ContentEditor({
 		isSaving,
 		isAutosaving,
 		activeBylines,
+		bylinesTouched,
 		hasInvalidUrls,
 	]);
 
@@ -455,11 +481,16 @@ export function ContentEditor({
 			clearTimeout(autosaveTimeoutRef.current);
 			autosaveTimeoutRef.current = null;
 		}
-		onSave?.({
+		const payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		} = {
 			data: formData,
 			slug: slug || undefined,
-			bylines: activeBylines,
-		});
+		};
+		if (isNew || bylinesTouched) payload.bylines = activeBylines;
+		onSave?.(payload);
 	};
 
 	// Preview URL state
@@ -968,9 +999,15 @@ export function ContentEditor({
 									<BylineCreditsEditor
 										credits={activeBylines}
 										bylines={availableBylines ?? []}
+										selectedBylineDetails={item?.bylines?.map((entry) => entry.byline)}
+										bylinesLoaded={availableBylinesLoaded}
 										onChange={handleBylinesChange}
 										onQuickCreate={onQuickCreateByline}
 										onQuickEdit={onQuickEditByline}
+										// Existing entry: use its own locale. New entry: use the
+										// URL `?locale=` (passed in via `entryLocale`).
+										entryLocale={item?.locale ?? entryLocale}
+										i18n={i18n}
 									/>
 								</div>
 							)}
@@ -997,7 +1034,11 @@ export function ContentEditor({
 							{/* Taxonomy selector */}
 							{item && (
 								<div className="p-4 border-t">
-									<TaxonomySidebar collection={collection} entryId={item.id} />
+									<TaxonomySidebar
+										collection={collection}
+										entryId={item.id}
+										entryLocale={item.locale ?? entryLocale}
+									/>
 								</div>
 							)}
 
@@ -1888,23 +1929,45 @@ interface AuthorSelectorProps {
 interface BylineCreditsEditorProps {
 	credits: BylineCreditInput[];
 	bylines: BylineSummary[];
+	/**
+	 * Full byline details for the entry's already-selected credits. Seeded from
+	 * the saved entry so credited bylines always render their name/slug even when
+	 * they fall outside the initial (unsearched) picker list.
+	 */
+	selectedBylineDetails?: BylineSummary[];
 	onChange: (bylines: BylineCreditInput[]) => void;
 	onQuickCreate?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
 	onQuickEdit?: (
 		bylineId: string,
 		input: { slug: string; displayName: string },
 	) => Promise<BylineSummary>;
+	/**
+	 * Locale of the entry being edited. When the picker comes back empty and
+	 * the install is multi-locale, the empty-state copy and CTA link are
+	 * scoped to this locale (post-migration 040, the picker is strict
+	 * per-locale — see the bylines manager flow).
+	 */
+	entryLocale?: string | null;
+	/** i18n config from the manifest. When set with >1 locales, the editor renders the locale-scoped empty-state. */
+	i18n?: { defaultLocale: string; locales: string[] } | null;
+	/** Suppresses the empty-state until the picker query resolves. Defaults to true. */
+	bylinesLoaded?: boolean;
 }
 
 function BylineCreditsEditor({
 	credits,
 	bylines,
+	selectedBylineDetails,
 	onChange,
 	onQuickCreate,
 	onQuickEdit,
+	entryLocale,
+	i18n,
+	bylinesLoaded = true,
 }: BylineCreditsEditorProps) {
 	const { t } = useLingui();
-	const [selectedBylineId, setSelectedBylineId] = React.useState("");
+	const [search, setSearch] = React.useState("");
+	const debouncedSearch = useDebouncedValue(search, 300);
 	const [quickName, setQuickName] = React.useState("");
 	const [quickSlug, setQuickSlug] = React.useState("");
 	const [quickError, setQuickError] = React.useState<string | null>(null);
@@ -1915,9 +1978,39 @@ function BylineCreditsEditor({
 	const [editError, setEditError] = React.useState<string | null>(null);
 	const [isEditing, setIsEditing] = React.useState(false);
 
-	const bylineMap = React.useMemo(() => new Map(bylines.map((b) => [b.id, b])), [bylines]);
+	// Server-side search so the picker isn't limited to the first page of
+	// bylines (previously capped at 100 with no way to find the rest). When the
+	// search box is empty we fall back to the parent-provided initial list.
+	const trimmedSearch = debouncedSearch.trim();
+	const searchEnabled = trimmedSearch.length > 0;
+	const searchResults = useQuery({
+		queryKey: ["bylines", "credit-picker", entryLocale ?? null, trimmedSearch],
+		queryFn: () =>
+			fetchBylines({ search: trimmedSearch, locale: entryLocale ?? undefined, limit: 20 }),
+		enabled: searchEnabled,
+		placeholderData: keepPreviousData,
+	});
 
-	const availableToAdd = bylines.filter((b) => !credits.some((c) => c.bylineId === b.id));
+	const resultPool = searchEnabled ? (searchResults.data?.items ?? []) : bylines;
+	const hasMoreResults = searchEnabled ? !!searchResults.data?.nextCursor : bylines.length >= 100;
+
+	// Resolve credited bylines to their full details for display. Selected rows
+	// come from the parent-provided details so they keep rendering even when the
+	// current search results no longer include them.
+	const bylineMap = React.useMemo(() => {
+		const map = new Map<string, BylineSummary>();
+		for (const b of selectedBylineDetails ?? []) map.set(b.id, b);
+		for (const b of bylines) map.set(b.id, b);
+		for (const b of searchResults.data?.items ?? []) map.set(b.id, b);
+		return map;
+	}, [selectedBylineDetails, bylines, searchResults.data?.items]);
+
+	const availableToAdd = resultPool.filter((b) => !credits.some((c) => c.bylineId === b.id));
+
+	const addByline = (bylineId: string) => {
+		if (credits.some((c) => c.bylineId === bylineId)) return;
+		onChange([...credits, { bylineId, roleLabel: null }]);
+	};
 
 	const move = (index: number, direction: -1 | 1) => {
 		const target = index + direction;
@@ -1949,31 +2042,65 @@ function BylineCreditsEditor({
 		setEditError(null);
 	};
 
+	// Multi-locale install with no bylines at the entry's locale: show a
+	// CTA to the byline manager, scoped to that locale. Quick-create
+	// still works inline.
+	const isMultiLocale = !!i18n && i18n.locales.length > 1;
+	const showLocaleEmptyState =
+		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
+
 	return (
 		<div className="space-y-3">
-			<div className="flex gap-2">
-				<Select
-					value={selectedBylineId}
-					onValueChange={(v) => setSelectedBylineId(v ?? "")}
-					items={{
-						"": t`Select byline...`,
-						...Object.fromEntries(availableToAdd.map((b) => [b.id, b.displayName])),
-					}}
-					aria-label={t`Select byline`}
-					className="w-full"
+			{showLocaleEmptyState && (
+				<div className="rounded border border-dashed p-3 text-sm space-y-2">
+					<p className="text-kumo-subtle">
+						{t`No bylines available in ${entryLocale}. Create a variant from the Bylines page before crediting one on this entry.`}
+					</p>
+					<RouterLinkButton
+						to="/bylines"
+						search={{ locale: entryLocale ?? undefined }}
+						variant="secondary"
+						size="sm"
+					>
+						{t`Manage bylines in ${entryLocale}`}
+					</RouterLinkButton>
+				</div>
+			)}
+			<div className="space-y-2">
+				<Input
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+					placeholder={t`Search bylines to add...`}
+					aria-label={t`Search bylines`}
 				/>
-				<Button
-					type="button"
-					variant="secondary"
-					onClick={() => {
-						if (!selectedBylineId) return;
-						onChange([...credits, { bylineId: selectedBylineId, roleLabel: null }]);
-						setSelectedBylineId("");
-					}}
-					disabled={!selectedBylineId}
-				>
-					{t`Add`}
-				</Button>
+				{searchEnabled && searchResults.isLoading ? (
+					<p className="text-sm text-kumo-subtle">{t`Searching...`}</p>
+				) : availableToAdd.length > 0 ? (
+					<ul className="max-h-48 divide-y overflow-y-auto rounded border">
+						{availableToAdd.map((b) => (
+							<li key={b.id}>
+								<button
+									type="button"
+									className="flex w-full items-center justify-between gap-2 p-2 text-start hover:bg-kumo-tint"
+									onClick={() => addByline(b.id)}
+								>
+									<span className="min-w-0">
+										<span className="block truncate text-sm font-medium">{b.displayName}</span>
+										<span className="block truncate text-xs text-kumo-subtle">{b.slug}</span>
+									</span>
+									<span className="text-xs text-kumo-subtle">{t`Add`}</span>
+								</button>
+							</li>
+						))}
+					</ul>
+				) : searchEnabled && searchResults.isError ? (
+					<p className="text-sm text-kumo-danger">{t`Couldn't search bylines. Please try again.`}</p>
+				) : searchEnabled ? (
+					<p className="text-sm text-kumo-subtle">{t`No matching bylines.`}</p>
+				) : null}
+				{hasMoreResults && (
+					<p className="text-xs text-kumo-subtle">{t`Keep typing to narrow down more bylines.`}</p>
+				)}
 			</div>
 
 			{credits.length > 0 ? (

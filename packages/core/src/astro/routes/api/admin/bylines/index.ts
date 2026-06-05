@@ -1,12 +1,14 @@
-import { Role } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
+import { handleBylineCreate } from "#api/handlers/bylines.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { bylineCreateBody, bylinesListQuery } from "#api/schemas.js";
 import { invalidateBylineCache } from "#bylines/index.js";
 import { BylineRepository } from "#db/repositories/byline.js";
+
+import { getI18nConfig } from "../../../../../i18n/config.js";
 
 export const prerender = false;
 
@@ -17,12 +19,20 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
-	// Read access uses content:read so all authenticated roles can view byline data
-	const denied = requirePerm(user, "content:read");
+	const denied = requirePerm(user, "bylines:read");
 	if (denied) return denied;
 
 	const query = parseQuery(url, bylinesListQuery);
 	if (isParseError(query)) return query;
+
+	const i18n = getI18nConfig();
+	if (query.locale && i18n && !i18n.locales.includes(query.locale)) {
+		return apiError(
+			"VALIDATION_ERROR",
+			`Locale "${query.locale}" is not configured for this site`,
+			400,
+		);
+	}
 
 	try {
 		const repo = new BylineRepository(emdash.db);
@@ -30,6 +40,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 			search: query.search,
 			isGuest: query.isGuest,
 			userId: query.userId,
+			locale: query.locale,
 			cursor: query.cursor,
 			limit: query.limit,
 		});
@@ -47,16 +58,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
-	if (!user || user.role < Role.EDITOR) {
-		return apiError("FORBIDDEN", "Editor privileges required", 403);
-	}
+	const denied = requirePerm(user, "bylines:manage");
+	if (denied) return denied;
 
 	const body = await parseBody(request, bylineCreateBody);
 	if (isParseError(body)) return body;
 
 	try {
-		const repo = new BylineRepository(emdash.db);
-		const byline = await repo.create({
+		const result = await handleBylineCreate(emdash.db, {
 			slug: body.slug,
 			displayName: body.displayName,
 			bio: body.bio ?? null,
@@ -64,10 +73,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			websiteUrl: body.websiteUrl ?? null,
 			userId: body.userId ?? null,
 			isGuest: body.isGuest,
+			locale: body.locale,
+			translationOf: body.translationOf,
+			customFields: body.customFields,
 		});
 
-		invalidateBylineCache();
-		return apiSuccess(byline, 201);
+		if (result.success) invalidateBylineCache();
+		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create byline", "BYLINE_CREATE_ERROR");
 	}

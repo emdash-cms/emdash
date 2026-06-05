@@ -142,7 +142,7 @@ async function upPostgres(db: Kysely<unknown>): Promise<void> {
 		const hasLocale = await sql<{ exists: boolean }>`
 			SELECT EXISTS(
 				SELECT 1 FROM information_schema.columns
-				WHERE table_schema = 'public' AND table_name = ${t} AND column_name = 'locale'
+				WHERE table_schema = current_schema() AND table_name = ${t} AND column_name = 'locale'
 			) as exists
 		`.execute(db);
 		if (hasLocale.rows[0]?.exists === true) continue;
@@ -189,7 +189,7 @@ async function upPostgres(db: Kysely<unknown>): Promise<void> {
 	const hasTranslatable = await sql<{ exists: boolean }>`
 		SELECT EXISTS(
 			SELECT 1 FROM information_schema.columns
-			WHERE table_schema = 'public' AND table_name = '_emdash_fields' AND column_name = 'translatable'
+			WHERE table_schema = current_schema() AND table_name = '_emdash_fields' AND column_name = 'translatable'
 		) as exists
 	`.execute(db);
 	if (hasTranslatable.rows[0]?.exists !== true) {

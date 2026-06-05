@@ -24,6 +24,7 @@ import type { EmDashHandlers } from "#types";
 
 import {
 	buildBaseUrlMap,
+	extractMediaUrl,
 	findMatchingUrl,
 	rewritePortableTextUrls,
 	rewriteStringUrls,
@@ -134,7 +135,7 @@ async function rewriteUrls(
 					if (!value || typeof value !== "string") continue;
 
 					try {
-						// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns unknown; validated by Array.isArray below
+						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns unknown; validated by Array.isArray below
 						const blocks = JSON.parse(value) as PortableTextBlock[];
 						if (!Array.isArray(blocks)) continue;
 
@@ -174,8 +175,10 @@ async function rewriteUrls(
 					const value = row[field.slug];
 					if (!value || typeof value !== "string") continue;
 
-					// Try to find a matching rewritten URL
-					const newUrl = findMatchingUrl(value, urlMap, baseMap);
+					// Values are stored as JSON MediaValue objects (e.g. featured_image from
+					// import normalizes to {"provider":"external","src":"<wp url>"}). Match on the
+					// inner `src`, falling back to the raw value for legacy bare-URL rows.
+					const newUrl = findMatchingUrl(extractMediaUrl(value), urlMap, baseMap);
 					if (newUrl) {
 						// Normalize into a proper MediaValue instead of storing a bare URL
 						try {
@@ -192,11 +195,11 @@ async function rewriteUrls(
 				if (rowUpdated) {
 					try {
 						// Build update query dynamically
-						// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely dynamic table requires type assertion
+						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely dynamic table requires type assertion
 						let query = db.updateTable(tableName as any).where("id", "=", row.id);
 
 						for (const [key, value] of Object.entries(updates)) {
-							// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely dynamic column update requires type assertion
+							// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely dynamic column update requires type assertion
 							query = query.set({ [key]: value } as any);
 						}
 

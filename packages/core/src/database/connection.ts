@@ -1,22 +1,15 @@
 import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 
+import { EmDashDatabaseError } from "./errors.js";
 import { kyselyLogOption } from "./instrumentation.js";
 import type { Database } from "./types.js";
+
+export { EmDashDatabaseError };
 
 export interface DatabaseConfig {
 	url: string;
 	authToken?: string;
-}
-
-export class EmDashDatabaseError extends Error {
-	constructor(
-		message: string,
-		public override cause?: unknown,
-	) {
-		super(message);
-		this.name = "EmDashDatabaseError";
-	}
 }
 
 /**

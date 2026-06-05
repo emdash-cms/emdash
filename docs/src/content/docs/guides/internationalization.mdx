@@ -360,6 +360,24 @@ EmDash does not manage locale URLs — Astro handles routing. Common patterns:
 
 Use `getRelativeLocaleUrl` from `astro:i18n` to build correct URLs regardless of routing mode.
 
+## Sitemaps
+
+The per-collection sitemap at `/sitemap-{collection}.xml` is locale-aware. When i18n is enabled, each translation is emitted as its own `<url>` entry, with the locale prefix resolved through Astro's `getRelativeLocaleUrl`. Your `prefixDefaultLocale` setting and any custom locale `path` mappings are honoured automatically.
+
+Translation siblings are cross-linked with `xhtml:link` alternates so search engines can serve the correct language to each user:
+
+```xml title="/sitemap-post.xml"
+<url>
+  <loc>https://example.com/blog/hello</loc>
+  <lastmod>2026-05-28T16:33:15.461Z</lastmod>
+  <xhtml:link rel="alternate" hreflang="en" href="https://example.com/blog/hello" />
+  <xhtml:link rel="alternate" hreflang="fr" href="https://example.com/fr/blog/bonjour" />
+  <xhtml:link rel="alternate" hreflang="x-default" href="https://example.com/blog/hello" />
+</url>
+```
+
+Siblings are grouped by `translation_group`, so a row added later (a new locale variant of an existing post) automatically appears as an alternate on every other variant. Sites with a single locale produce a plain sitemap with no `xhtml` namespace.
+
 ## Importing Multilingual Content
 
 Import WordPress content through the admin migration tool — see [Content Import](/migration/content-import/) and [Migrate from WordPress](/migration/from-wordpress/). A WXR export does not carry the locale and translation-group structure that WPML or Polylang add, so imported content lands in your default locale.

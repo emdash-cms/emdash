@@ -66,7 +66,7 @@ jobs:
 
       - name: Checkout repository
         if: steps.verify-pr.outputs.exists == 'true'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -117,7 +117,7 @@ jobs:
 
       - name: Run Review (${{ steps.model.outputs.alias }})
         if: steps.verify-pr.outputs.exists == 'true'
-        uses: ask-bonk/ask-bonk/github@a8c6cac8726d0d5ab887bc159aae77e2bfb2cf18 # main as of 2026-04-24
+        uses: ask-bonk/ask-bonk/github@8c7a8314f4f4865e2e41e5718dfabc4ab7a2274b # main as of 2026-04-24
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_AI_GATEWAY_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CF_AI_GATEWAY_NAME }}

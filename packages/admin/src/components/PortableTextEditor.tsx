@@ -56,6 +56,7 @@ import {
 	Minus,
 	LinkBreak,
 	ArrowSquareOut,
+	BracketsAngle,
 	CodeBlock,
 	Stack,
 	Eye,
@@ -91,7 +92,9 @@ import type { Section } from "../lib/api";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
+import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import {
@@ -148,10 +151,17 @@ interface PortableTextCodeBlock {
 	language?: string;
 }
 
+interface PortableTextHtmlBlock {
+	_type: "htmlBlock";
+	_key: string;
+	html: string;
+}
+
 type PortableTextBlock =
 	| PortableTextTextBlock
 	| PortableTextImageBlock
 	| PortableTextCodeBlock
+	| PortableTextHtmlBlock
 	| { _type: string; _key: string; [key: string]: unknown };
 
 // Generate unique key
@@ -273,6 +283,15 @@ function convertPMNode(node: {
 				_key: generateKey(),
 				code,
 				language: typeof rawLanguage === "string" ? rawLanguage : undefined,
+			};
+		}
+
+		case "htmlBlock": {
+			const rawHtml = node.attrs?.html;
+			return {
+				_type: "htmlBlock",
+				_key: generateKey(),
+				html: typeof rawHtml === "string" ? rawHtml : "",
 			};
 		}
 
@@ -639,6 +658,14 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "break":
 			return { type: "horizontalRule" };
 
+		case "htmlBlock": {
+			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
+			return {
+				type: "htmlBlock",
+				attrs: { html: htmlBlock.html || "" },
+			};
+		}
+
 		case "table": {
 			const tableBlock = block as {
 				_type: "table";
@@ -919,6 +946,21 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		aliases: ["code", "pre", "```"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+		},
+	},
+	{
+		id: "htmlBlock",
+		title: msg`HTML`,
+		description: msg`Insert raw HTML`,
+		icon: BracketsAngle,
+		aliases: ["html", "raw", "markup"],
+		command: ({ editor, range }) => {
+			editor
+				.chain()
+				.focus()
+				.deleteRange(range)
+				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+				.run();
 		},
 	},
 	{
@@ -1266,7 +1308,7 @@ function PluginBlockModal({
 			<Dialog className="p-6" size={dialogSize}>
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{isEditing ? t`Edit` : t`Insert`} {block?.label || ""}
+						{isEditing ? t`Edit ${block?.label || ""}` : t`Insert ${block?.label || ""}`}
 					</Dialog.Title>
 					<Dialog.Close
 						aria-label={t`Close`}
@@ -2074,6 +2116,8 @@ export function PortableTextEditor({
 					color: "#3b82f6",
 					width: 2,
 				},
+				// Replaced with CodeBlockExtension below (adds language picker node view).
+				codeBlock: false,
 				// StarterKit v3 includes Link and Underline
 				link: {
 					openOnClick: false,
@@ -2084,6 +2128,8 @@ export function PortableTextEditor({
 				},
 				underline: {},
 			}),
+			CodeBlockExtension,
+			HtmlBlockExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
@@ -2253,17 +2299,25 @@ export function PortableTextEditor({
 			const editPos = editingBlockPosRef.current;
 
 			if (editPos !== null) {
-				// Editing an existing block — update its attributes in place
-				const { tr } = editor.state;
-				const node = tr.doc.nodeAt(editPos);
-				if (node?.type.name === "pluginBlock") {
-					tr.setNodeMarkup(editPos, undefined, {
-						...node.attrs,
-						id: typeof id === "string" ? id : node.attrs.id,
-						data,
-					});
-					editor.view.dispatch(tr);
-				}
+				// Editing an existing block — update its attributes in place.
+				// Use the chain API so TipTap's onUpdate fires reliably
+				// (raw view.dispatch may not trigger onUpdate for attribute-only
+				// changes on atom nodes in some TipTap versions).
+				editor
+					.chain()
+					.command(({ tr }) => {
+						const node = tr.doc.nodeAt(editPos);
+						if (node?.type.name === "pluginBlock") {
+							tr.setNodeMarkup(editPos, undefined, {
+								...node.attrs,
+								id: typeof id === "string" ? id : node.attrs.id,
+								data,
+							});
+							return true;
+						}
+						return false;
+					})
+					.run();
 			} else {
 				// Inserting a new block
 				editor
@@ -2326,7 +2380,7 @@ export function PortableTextEditor({
 	return (
 		<div
 			className={cn(
-				"border rounded-lg overflow-hidden",
+				"border rounded-lg overflow-clip",
 				minimal && "border-0 rounded-none -mx-4",
 				focusMode === "spotlight" && "spotlight-mode",
 				className,
@@ -2782,7 +2836,7 @@ function EditorToolbar({
 			ref={toolbarRef}
 			role="toolbar"
 			aria-label={t`Text formatting`}
-			className="border-b bg-kumo-tint/50 p-1 flex flex-wrap gap-0.5"
+			className="sticky -top-6 z-10 border-b bg-kumo-tint p-1 flex flex-wrap gap-0.5"
 			onKeyDown={handleKeyDown}
 		>
 			{/* Text formatting */}

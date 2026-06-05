@@ -78,7 +78,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const editMode = hasEditCookie && isEditor;
 
 	// Read locale from Astro's i18n routing
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Astro context includes currentLocale when i18n is configured
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Astro context includes currentLocale when i18n is configured
 	const locale = (context as { currentLocale?: string }).currentLocale;
 
 	// Verify preview token if present.

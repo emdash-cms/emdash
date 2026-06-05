@@ -163,11 +163,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			...(config?.indexes ?? []),
 			...(config?.uniqueIndexes ?? []),
 		];
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- D1 is the kysely-d1 dialect database type
 		const db = new Kysely<unknown>({
-			dialect: new D1Dialect({ database: this.env.DB as D1Database }),
+			dialect: new D1Dialect({ database: this.env.DB }),
 		});
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely<unknown> is compatible with PluginStorageRepository's expected db
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- Kysely<unknown> is compatible with PluginStorageRepository's expected db
 		return new PluginStorageRepository(db as never, pluginId, collection, allIndexes);
 	}
 
@@ -289,8 +288,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 		// Delegate to PluginStorageRepository for proper WHERE/ORDER BY/cursor support
 		const repo = this.getStorageRepo(collection);
-		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
 		const result = await repo.query({
+			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
 			where: opts.where as never,
 			orderBy: opts.orderBy,
 			limit: opts.limit,

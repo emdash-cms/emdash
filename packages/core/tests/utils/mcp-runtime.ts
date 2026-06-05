@@ -46,7 +46,7 @@ class AuthInjectingTransport extends InMemoryTransport {
 	): Promise<void> {
 		const existingExtra =
 			options?.authInfo && typeof options.authInfo === "object" && "extra" in options.authInfo
-				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof + 'in' check
+				? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof + 'in' check
 					(options.authInfo.extra as Record<string, unknown>)
 				: {};
 		return super.send(message, {
@@ -132,7 +132,7 @@ export function createTestRuntime(
 	const runtimeDeps = {
 		config,
 		plugins,
-		// eslint-disable-next-line typescript-eslint(no-explicit-any) -- match RuntimeDependencies signature
+		// eslint-disable-next-line typescript/no-explicit-any -- match RuntimeDependencies signature
 		createDialect: (() => {
 			throw new Error("createDialect not available in test runtime");
 		}) as any,
@@ -216,6 +216,9 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		invalidateUrlPatternCache,
 
 		handlePluginApiRoute: runtime.handlePluginApiRoute.bind(runtime),
+		handlePublicPluginApiRoute: () => {
+			throw new Error("handlePublicPluginApiRoute not implemented in test runtime");
+		},
 		getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
 		getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
 		getMediaProvider: runtime.getMediaProvider.bind(runtime),

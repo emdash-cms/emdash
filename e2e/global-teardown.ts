@@ -40,14 +40,17 @@ export default async function globalTeardown(): Promise<void> {
 			rmSync(info.tempDataDir, { recursive: true, force: true });
 		}
 
-		// Clean up build artifacts from the fixture dir
-		const astroDir = join(FIXTURE_DIR, ".astro");
-		if (existsSync(astroDir)) {
-			rmSync(astroDir, { recursive: true, force: true });
+		// Clean up artifacts from whichever fixture was run (Node or Cloudflare).
+		const fixtureDir = typeof info.workDir === "string" ? info.workDir : FIXTURE_DIR;
+
+		// Build artifacts and miniflare (D1/R2) state.
+		for (const dir of [".astro", ".wrangler"]) {
+			const path = join(fixtureDir, dir);
+			if (existsSync(path)) rmSync(path, { recursive: true, force: true });
 		}
 
 		// Clean up generated .emdash subdirs (uploads, etc.) but preserve seed.json
-		const emdashDir = join(FIXTURE_DIR, ".emdash");
+		const emdashDir = join(fixtureDir, ".emdash");
 		if (existsSync(emdashDir)) {
 			for (const entry of readdirSync(emdashDir)) {
 				if (entry === "seed.json") continue;

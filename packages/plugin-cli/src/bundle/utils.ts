@@ -25,7 +25,7 @@ export const MAX_BUNDLE_SIZE = 256 * 1024;
 export const MAX_FILE_SIZE = 128 * 1024;
 export const MAX_FILE_COUNT = 20;
 
-export const MAX_SCREENSHOTS = 5;
+export const MAX_SCREENSHOTS = 8;
 export const MAX_SCREENSHOT_WIDTH = 1920;
 export const MAX_SCREENSHOT_HEIGHT = 1080;
 export const ICON_SIZE = 256;

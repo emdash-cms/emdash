@@ -6,10 +6,22 @@
  * array shapes the lexicon uses.
  */
 
+import { readFile } from "node:fs/promises";
+import { isAbsolute, relative, resolve, sep } from "node:path";
+
 import type { PluginCapability, PluginStorageConfig } from "@emdash-cms/plugin-types";
 
 import type { ProfileBootstrap, ProfileInput } from "../publish/api.js";
-import type { Manifest, ManifestAuthor, ManifestSecurityContact } from "./schema.js";
+import {
+	type Manifest,
+	type ManifestArtifacts,
+	type ManifestAuthor,
+	type ManifestSecurityContact,
+	type ManifestSections,
+	SECTION_KEYS,
+	type SectionKey,
+	sectionCapError,
+} from "./schema.js";
 
 /**
  * Normalised "after the schema's single/multi convenience has been
@@ -45,6 +57,30 @@ export interface NormalisedManifest {
 	keywords: string[] | undefined;
 	repo: string | undefined;
 
+	/**
+	 * Long-form profile sections, resolved to inline strings. File refs have
+	 * been read into their content and every value re-checked against the
+	 * 20000-byte / 2000-grapheme cap. `undefined` when the manifest declared
+	 * none. Populated by {@link resolveSections} during load (see
+	 * `loadManifestBootstrap`); `normaliseManifest` leaves it undefined for
+	 * the file-free path.
+	 */
+	sections?: Partial<Record<SectionKey, string>>;
+
+	/**
+	 * Release-level environment constraints (`release.requires`). Map of
+	 * `env:*`/DID keys to semver ranges. Release-level, not profile-level —
+	 * passed to `publishRelease` separately, never via `manifestToProfileInput`.
+	 */
+	requires: Record<string, string> | undefined;
+
+	/**
+	 * Release media artifacts (icon / screenshot / banner). File refs only —
+	 * the publish command resolves, measures, and uploads them. `undefined`
+	 * when the manifest declared none.
+	 */
+	artifacts: ManifestArtifacts | undefined;
+
 	// Trust contract (defaults applied by the schema; always present here).
 	capabilities: PluginCapability[];
 	allowedHosts: string[];
@@ -79,6 +115,94 @@ export class VersionMismatchError extends Error {
 		this.code = code;
 		this.manifestVersion = manifestVersion;
 		this.packageVersion = packageVersion;
+	}
+}
+
+/**
+ * Thrown when a profile section can't be resolved: a `{ file }` ref that
+ * escapes the manifest directory, an unreadable file, or resolved content
+ * that exceeds the per-section cap. Callers convert this into their own
+ * command-level error (CliError).
+ */
+export class SectionError extends Error {
+	override readonly name = "SectionError";
+	readonly code: "SECTION_PATH_ESCAPE" | "SECTION_FILE_UNREADABLE" | "SECTION_TOO_LARGE";
+	/** The section key this error is about (`description`, `faq`, ...). */
+	readonly section: SectionKey;
+
+	constructor(
+		code: "SECTION_PATH_ESCAPE" | "SECTION_FILE_UNREADABLE" | "SECTION_TOO_LARGE",
+		message: string,
+		section: SectionKey,
+	) {
+		super(message);
+		this.code = code;
+		this.section = section;
+	}
+}
+
+/**
+ * Resolve a manifest's `sections` block into a map of inline strings.
+ *
+ * Each value is either an inline string (passed through, re-checked against
+ * the cap) or a `{ file }` ref (read relative to `manifestDir`, then capped).
+ * File refs are resolved here rather than at publish because sections are
+ * inlined into the profile record — there are no bytes to upload, only text to
+ * embed. Returns `undefined` when the manifest declared no sections.
+ *
+ * Throws {@link SectionError} on a path escape, an unreadable file, or content
+ * over the 20000-byte / 2000-grapheme cap, so `validate` / `publish` fails
+ * locally with a clear message instead of a 400 from the PDS.
+ */
+export async function resolveSections(
+	sections: ManifestSections | undefined,
+	manifestDir: string,
+): Promise<Partial<Record<SectionKey, string>> | undefined> {
+	if (!sections) return undefined;
+	const resolved: Partial<Record<SectionKey, string>> = {};
+	for (const key of SECTION_KEYS) {
+		const value = sections[key];
+		if (value === undefined) continue;
+		const content =
+			typeof value === "string" ? value : await readSectionFile(manifestDir, value.file, key);
+		const capError = sectionCapError(content);
+		if (capError) {
+			throw new SectionError("SECTION_TOO_LARGE", `section "${key}": ${capError}.`, key);
+		}
+		resolved[key] = content;
+	}
+	return Object.keys(resolved).length > 0 ? resolved : undefined;
+}
+
+/**
+ * Read a section `{ file }` ref's content, refusing paths that escape the
+ * manifest directory (via `..` or an absolute path). The manifest is
+ * publisher-authored, but a traversal would let `publish` read arbitrary
+ * files off the machine running the CLI and embed them in the published
+ * profile, so the boundary is enforced — same rule as media artifacts.
+ */
+async function readSectionFile(
+	manifestDir: string,
+	file: string,
+	section: SectionKey,
+): Promise<string> {
+	const absolute = resolve(manifestDir, file);
+	const rel = relative(manifestDir, absolute);
+	if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(file)) {
+		throw new SectionError(
+			"SECTION_PATH_ESCAPE",
+			`section "${section}" file path ${file} resolves outside the manifest directory.`,
+			section,
+		);
+	}
+	try {
+		return await readFile(absolute, "utf8");
+	} catch (error) {
+		throw new SectionError(
+			"SECTION_FILE_UNREADABLE",
+			`section "${section}" could not read file ${file}: ${error instanceof Error ? error.message : String(error)}`,
+			section,
+		);
 	}
 }
 
@@ -166,6 +290,8 @@ export function normaliseManifest(manifest: Manifest, packageVersion?: string): 
 		description: manifest.description,
 		keywords: manifest.keywords,
 		repo: manifest.repo,
+		requires: manifest.release?.requires,
+		artifacts: manifest.release?.artifacts,
 		// Schema validation already gates capability strings to the
 		// current vocabulary via a runtime check, so by the time we get
 		// here the strings are guaranteed members of PluginCapability.
@@ -208,6 +334,9 @@ export function manifestToProfileInput(manifest: NormalisedManifest): ProfileInp
 	if (manifest.name !== undefined) input.name = manifest.name;
 	if (manifest.description !== undefined) input.description = manifest.description;
 	if (manifest.keywords !== undefined) input.keywords = manifest.keywords;
+	if (manifest.sections !== undefined && Object.keys(manifest.sections).length > 0) {
+		input.sections = manifest.sections;
+	}
 	return input;
 }
 

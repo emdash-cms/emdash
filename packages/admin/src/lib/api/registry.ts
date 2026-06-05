@@ -26,12 +26,21 @@ import type {
 	ValidatedReleaseView,
 	ValidatedSearchPackages,
 } from "@emdash-cms/registry-client/discovery";
+import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
+import type { HostEnv } from "@emdash-cms/registry-client/env";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
-import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
+import {
+	API_BASE,
+	apiFetch,
+	parseApiResponse,
+	throwResponseError,
+	type AdminManifest,
+} from "./client.js";
 
 export type { Did, Handle };
+export type { HostEnv };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,7 +101,11 @@ interface WrappedDiscoveryClient {
 	resolvePackage: (handle: string, slug: string) => Promise<RegistryPackageView>;
 	getPackage: (did: string, slug: string) => Promise<RegistryPackageView>;
 	getLatestRelease: (did: string, slug: string) => Promise<RegistryReleaseView>;
-	listReleases: (did: string, slug: string, cursor?: string) => Promise<ValidatedListReleases>;
+	listReleases: (
+		did: string,
+		slug: string,
+		opts?: { cursor?: string; limit?: number },
+	) => Promise<ValidatedListReleases>;
 }
 
 let cachedDiscovery: {
@@ -145,12 +158,13 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 				package: slug,
 			});
 		},
-		async listReleases(did: string, slug: string, cursor?: string) {
+		async listReleases(did: string, slug: string, opts?: { cursor?: string; limit?: number }) {
 			return discovery.listReleases({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
 				did: did as Did,
 				package: slug,
-				cursor,
+				cursor: opts?.cursor,
+				limit: opts?.limit,
 			});
 		},
 	};
@@ -241,6 +255,105 @@ export function releaseExemptFromMinimumAge(
 }
 
 // ---------------------------------------------------------------------------
+// Profile sections
+// ---------------------------------------------------------------------------
+
+/**
+ * The FAIR-recognised long-form section keys, in display order. Publishers may
+ * also ship unrecognised keys (the lexicon's `sections` map is open), but the
+ * admin renders only this known set so an aggregator can't inject a section
+ * with an attacker-chosen heading; everything else is ignored.
+ */
+export const SECTION_ORDER = [
+	"description",
+	"installation",
+	"faq",
+	"changelog",
+	"security",
+] as const;
+
+export type SectionKey = (typeof SECTION_ORDER)[number];
+
+export interface PresentSection {
+	key: SectionKey;
+	markdown: string;
+}
+
+/**
+ * Select the non-empty long-form sections off a package profile, in
+ * `SECTION_ORDER`. `profile.sections` is a lexicon-validated map of Markdown
+ * strings (or `null` when the aggregator returned a non-conforming record), so
+ * each value is narrowed to a non-whitespace string before inclusion. Empty,
+ * missing, whitespace-only, and non-string entries are dropped, so callers can
+ * suppress the whole sections UI when the result is empty.
+ */
+export function presentSections(
+	profile: { sections?: unknown } | null | undefined,
+): PresentSection[] {
+	const sections = profile?.sections;
+	if (!sections || typeof sections !== "object") return [];
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; each value is string-checked below
+	const map = sections as Record<string, unknown>;
+	const out: PresentSection[] = [];
+	for (const key of SECTION_ORDER) {
+		const value = map[key];
+		if (typeof value === "string" && value.trim().length > 0) {
+			out.push({ key, markdown: value });
+		}
+	}
+	return out;
+}
+
+// ---------------------------------------------------------------------------
+// SBOM
+// ---------------------------------------------------------------------------
+
+export interface ReleaseSbom {
+	format?: string;
+	url?: string;
+	checksum?: string;
+}
+
+/**
+ * Narrow a release record's `sbom` field to the fields the admin renders.
+ * Returns `null` unless the value is an object carrying at least one usable
+ * field (`format` or `url`); every field is independently optional per the
+ * lexicon. `sbom` is lexicon-validated at the DiscoveryClient boundary, but the
+ * record is a publisher pass-through, so its inner shape still needs narrowing.
+ */
+export function extractSbom(value: unknown): ReleaseSbom | null {
+	if (!value || typeof value !== "object") return null;
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; fields checked below
+	const v = value as Record<string, unknown>;
+	const sbom: ReleaseSbom = {};
+	if (typeof v.format === "string" && v.format.length > 0) sbom.format = v.format;
+	if (typeof v.url === "string" && v.url.length > 0) sbom.url = v.url;
+	if (typeof v.checksum === "string") sbom.checksum = v.checksum;
+	if (!sbom.format && !sbom.url) return null;
+	return sbom;
+}
+
+/**
+ * Validate an SBOM document URL for use in a download `href`. Returns the
+ * normalised URL only when it is an absolute `http(s)` URL; everything else
+ * (relative, `javascript:`, `data:`, non-string) returns `null`. The release
+ * record is a remote pass-through, so an unsanitised SBOM `href` would be
+ * stored XSS in the authenticated admin origin. The browser fetches the SBOM
+ * client-side on click — no server proxy, so SSRF isn't a concern here.
+ */
+export function sbomDownloadHref(value: unknown): string | null {
+	if (typeof value !== "string" || value.length === 0) return null;
+	let parsed: URL;
+	try {
+		parsed = new URL(value);
+	} catch {
+		return null;
+	}
+	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+	return parsed.href;
+}
+
+// ---------------------------------------------------------------------------
 // Public discovery hooks (callable by React Query)
 // ---------------------------------------------------------------------------
 
@@ -283,10 +396,22 @@ export async function listRegistryReleases(
 	config: RegistryClientConfig,
 	did: string,
 	slug: string,
-	cursor?: string,
+	opts?: { cursor?: string; limit?: number },
 ): Promise<ValidatedListReleases> {
 	const client = await getDiscoveryClient(config);
-	return client.listReleases(did, slug, cursor);
+	return client.listReleases(did, slug, opts);
+}
+
+/**
+ * Derive the host environment versions (`env:emdash`, `env:astro`) the running
+ * EmDash install advertises, so a release's `requires` constraints can be
+ * evaluated client-side before offering install. Reads the already-fetched
+ * admin manifest (`version`, `astroVersion`) rather than issuing a second
+ * request. The dev-skip / astro-omit rule is shared with the server gate via
+ * `hostEnvFromVersions`.
+ */
+export function hostEnvFromManifest(manifest: AdminManifest | undefined): HostEnv {
+	return hostEnvFromVersions(manifest?.version, manifest?.astroVersion);
 }
 
 /**
@@ -420,6 +545,123 @@ export async function resolveDidToHandle(did: string): Promise<DidHandleResoluti
 	}
 
 	writeHandleCache(did, result);
+	return result;
+}
+
+// ---------------------------------------------------------------------------
+// Artifact proxy (server GET)
+// ---------------------------------------------------------------------------
+
+const ARTIFACT_PROXY_ENDPOINT = `${API_BASE}/admin/plugins/registry/artifact`;
+
+/** Artifact kinds the server proxy can resolve from a release record. */
+export type ArtifactKind = "icon" | "banner" | "screenshot";
+
+/**
+ * Coordinates identifying one image artifact on a release record. The browser
+ * sends these to the server proxy, which resolves the publisher-declared URL
+ * server-side from the validated release record — the raw publisher URL never
+ * leaves the server, so the client cannot coerce the proxy into fetching an
+ * undeclared URL.
+ */
+export interface ArtifactCoords {
+	did: string;
+	slug: string;
+	version?: string;
+	kind: ArtifactKind;
+	/** Required for `kind: "screenshot"`; ignored otherwise. */
+	index?: number;
+}
+
+/**
+ * Build the URL of the server-side artifact proxy for an artifact addressed by
+ * its `(did, slug, version, kind, index)` coordinates. The browser never sends
+ * the publisher's URL — the proxy resolves the *declared* URL from the release
+ * record, applies SSRF defences, enforces an image content-type allowlist, and
+ * serves the bytes back same-origin.
+ *
+ * Empty `version` (latest) and `index` (non-screenshot kinds) are omitted.
+ */
+export function artifactProxyUrl(coords: ArtifactCoords): string {
+	const params = new URLSearchParams();
+	params.set("did", coords.did);
+	params.set("slug", coords.slug);
+	params.set("kind", coords.kind);
+	if (coords.version) params.set("version", coords.version);
+	if (coords.kind === "screenshot" && coords.index !== undefined) {
+		params.set("index", String(coords.index));
+	}
+	return `${ARTIFACT_PROXY_ENDPOINT}?${params.toString()}`;
+}
+
+/**
+ * A single image artifact lifted off a release record. Carries presentation
+ * dimensions only — the URL is resolved server-side, so the client never holds
+ * the publisher-supplied URL.
+ */
+export interface MediaArtifact {
+	width?: number;
+	height?: number;
+}
+
+/**
+ * A screenshot artifact, carrying the index into the release's raw
+ * `screenshots` array. The proxy resolves by that index, so dropped (malformed)
+ * entries must not shift the indices of the surviving ones.
+ */
+export interface ScreenshotArtifact extends MediaArtifact {
+	index: number;
+}
+
+export interface MediaArtifacts {
+	icon?: MediaArtifact;
+	banner?: MediaArtifact;
+	screenshots: ScreenshotArtifact[];
+}
+
+/**
+ * Narrow one entry of a release's `artifacts` map to the fields we render.
+ * Returns `null` when the value isn't an object carrying a usable `url`
+ * (presence gate), keeping only the dimensions for layout.
+ *
+ * Records are lexicon-validated at the DiscoveryClient boundary, but
+ * `artifacts` is an aggregator pass-through, so each entry still needs
+ * shape-narrowing.
+ */
+function asMediaArtifact(value: unknown): MediaArtifact | null {
+	if (!value || typeof value !== "object") return null;
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; field shapes checked below
+	const v = value as Record<string, unknown>;
+	if (typeof v.url !== "string" || v.url.length === 0) return null;
+	const artifact: MediaArtifact = {};
+	if (typeof v.width === "number") artifact.width = v.width;
+	if (typeof v.height === "number") artifact.height = v.height;
+	return artifact;
+}
+
+/**
+ * Pull icon, banner, and the screenshot gallery out of a release's `artifacts`
+ * map, keeping presence and dimensions only. The lexicon types `screenshots`
+ * as an array of artifacts; entries without a usable `url` are dropped, and
+ * gallery order is preserved so screenshot indices line up with the proxy's.
+ */
+export function extractMediaArtifacts(artifacts: unknown): MediaArtifacts {
+	const result: MediaArtifacts = { screenshots: [] };
+	if (!artifacts || typeof artifacts !== "object") return result;
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; each entry is shape-narrowed by asMediaArtifact
+	const map = artifacts as Record<string, unknown>;
+
+	const icon = asMediaArtifact(map.icon);
+	if (icon) result.icon = icon;
+	const banner = asMediaArtifact(map.banner);
+	if (banner) result.banner = banner;
+
+	if (Array.isArray(map.screenshots)) {
+		map.screenshots.forEach((entry, index) => {
+			const artifact = asMediaArtifact(entry);
+			if (artifact) result.screenshots.push({ ...artifact, index });
+		});
+	}
 	return result;
 }
 

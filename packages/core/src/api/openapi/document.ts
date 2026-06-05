@@ -257,6 +257,9 @@ const contentPaths = {
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
+				query: z.object({
+					locale: z.string().optional().meta({ description: "Locale filter" }),
+				}),
 			},
 			requestBody: {
 				content: { [JSON_CONTENT]: { schema: contentUpdateBody } },
@@ -2379,7 +2382,7 @@ export function generateOpenApiDocument(
 			},
 		},
 		security: [{ session: [] }, { bearer: [] }],
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- readonly const paths are compatible at runtime
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- readonly const paths are compatible at runtime
 		paths: buildAllPaths(maxUploadSize) as unknown as ZodOpenApiPathsObject,
 	});
 }
