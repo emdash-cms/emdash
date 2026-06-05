@@ -720,18 +720,19 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
 
 					result = await sql<Record<string, unknown>>`
-						SELECT DISTINCT ${sql.ref(tableName)}.* FROM ${sql.ref(tableName)}
-						INNER JOIN content_taxonomies ct
-							ON ct.collection = ${type}
-							AND ct.entry_id = ${sql.ref(tableName)}.id
-						INNER JOIN taxonomies t
-							ON t.id = ct.taxonomy_id
+						SELECT * FROM ${sql.ref(tableName)}
 						WHERE ${sql.ref(tableName)}.deleted_at IS NULL
 							AND ${statusCondition}
 							${localeCondition}
 							${cursorCond}
-							AND t.name = ${taxonomyFilter.name}
-							AND t.slug IN (${sql.join(taxonomyFilter.slugs.map((s) => sql`${s}`))})
+							AND ${sql.ref(tableName)}.id IN (
+								SELECT DISTINCT ct.entry_id
+								FROM content_taxonomies ct
+								INNER JOIN taxonomies t ON t.id = ct.taxonomy_id
+								WHERE ct.collection = ${type}
+									AND t.name = ${taxonomyFilter.name}
+									AND t.slug IN (${sql.join(taxonomyFilter.slugs.map((s) => sql`${s}`))})
+							)
 							${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
 						${orderByClause}
 						${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
