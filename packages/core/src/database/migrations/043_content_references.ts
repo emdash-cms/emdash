@@ -102,6 +102,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-	await db.schema.dropTable("_emdash_content_references").execute();
-	await db.schema.dropTable("_emdash_relations").execute();
+	await db.schema.dropTable("_emdash_content_references").ifExists().execute();
+	await db.schema.dropTable("_emdash_relations").ifExists().execute();
 }
