@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
+import { DEFAULT_DATE_FORMAT, formatDateFormatExample } from "../../lib/date-format-example";
 import { EditorHeader } from "../EditorHeader";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { BackToSettingsLink } from "./BackToSettingsLink.js";
@@ -68,6 +69,9 @@ export function GeneralSettings() {
 	const handleChange = (key: keyof SiteSettings, value: unknown) => {
 		setFormData((prev) => ({ ...prev, [key]: value }));
 	};
+
+	const dateFormat = formData.dateFormat || DEFAULT_DATE_FORMAT;
+	const dateFormatExample = formatDateFormatExample(dateFormat);
 
 	const handleLogoSelect = (media: MediaItem) => {
 		setFormData((prev) => ({
@@ -302,9 +306,13 @@ export function GeneralSettings() {
 						/>
 						<Input
 							label={t`Date Format`}
-							value={formData.dateFormat || "MMMM d, yyyy"}
+							value={dateFormat}
 							onChange={(e) => handleChange("dateFormat", e.target.value)}
-							description={`Example: ${formData.dateFormat || "MMMM d, yyyy"} → January 23, 2026`}
+							description={
+								dateFormatExample
+									? t`Example: ${dateFormat} → ${dateFormatExample}`
+									: t`Example: ${dateFormat} → Invalid date format`
+							}
 						/>
 						<Input
 							label={t`Timezone`}
