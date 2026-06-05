@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import type { Database } from "../../../src/database/types.js";
@@ -172,5 +173,41 @@ describeEachDialect("Content references schema", (dialect) => {
 			.where("id", "=", "self1")
 			.executeTakeFirstOrThrow();
 		expect(row.parent_group).toBe(row.child_group);
+	});
+
+	it("creates the expected indexes (sqlite)", async () => {
+		if (ctx.dialect !== "sqlite") return; // index introspection is dialect-specific
+
+		const result = await sql<{ name: string }>`
+			SELECT name FROM sqlite_master WHERE type = 'index'
+		`.execute(ctx.db);
+		const names = new Set(result.rows.map((r) => r.name));
+
+		for (const idx of [
+			"idx_relations_locale",
+			"idx_relations_translation_group",
+			"idx_relations_parent_collection",
+			"idx_relations_child_collection",
+			"idx_content_references_parent",
+			"idx_content_references_child",
+			"idx_content_references_relation",
+		]) {
+			expect(names.has(idx), `missing index ${idx}`).toBe(true);
+		}
+	});
+
+	it("down() drops both tables and up() can recreate them", async () => {
+		const { down, up } = await import("../../../src/database/migrations/043_content_references.js");
+
+		await down(ctx.db);
+
+		// Tables gone: a raw query against them should reject.
+		await expect(sql`SELECT 1 FROM _emdash_content_references`.execute(ctx.db)).rejects.toThrow();
+		await expect(sql`SELECT 1 FROM _emdash_relations`.execute(ctx.db)).rejects.toThrow();
+
+		// Re-applying up() restores them.
+		await up(ctx.db);
+		const rows = await ctx.db.selectFrom("_emdash_relations").selectAll().execute();
+		expect(Array.isArray(rows)).toBe(true);
 	});
 });
