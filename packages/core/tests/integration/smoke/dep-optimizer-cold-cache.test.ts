@@ -48,16 +48,21 @@ async function waitForServer(url: string, timeoutMs: number): Promise<void> {
 async function fetchWithRetry(url: string, retries = 8, delayMs = 1500): Promise<void> {
 	// Mid-cascade requests can 500; retry so a transient 5xx doesn't mask the
 	// log-based assertion. We don't care about the body, only that we drove the
-	// route so its imports are reached.
+	// route so its imports are reached. If every attempt fails we throw -- a
+	// silent return would let the test pass without exercising the route, hiding
+	// a missing force-include behind a false green.
+	let lastError: unknown;
 	for (let attempt = 0; attempt <= retries; attempt++) {
 		try {
 			const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(15_000) });
 			if (res.status < 500) return;
-		} catch {
-			// retry
+			lastError = new Error(`${url} returned ${res.status}`);
+		} catch (error) {
+			lastError = error;
 		}
 		if (attempt < retries) await new Promise((r) => setTimeout(r, delayMs));
 	}
+	throw lastError instanceof Error ? lastError : new Error(`Request failed for ${url}`);
 }
 
 /**
@@ -154,7 +159,9 @@ describe.sequential("cold-cache SSR dep optimizer (cloudflare)", () => {
 			} finally {
 				server.kill("SIGTERM");
 				await new Promise((r) => setTimeout(r, 1200));
-				if (!server.killed) server.kill("SIGKILL");
+				// `killed` flips true the moment kill() is called, not when the process
+				// exits -- check exitCode to know if SIGTERM was actually honored.
+				if (server.exitCode === null) server.kill("SIGKILL");
 				await new Promise((r) => setTimeout(r, 500));
 			}
 		},
