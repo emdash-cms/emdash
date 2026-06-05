@@ -310,6 +310,7 @@ describe("SchemaRegistry", () => {
 				{ type: "number", slug: "f_number", expected: "REAL" },
 				{ type: "integer", slug: "f_integer", expected: "INTEGER" },
 				{ type: "boolean", slug: "f_boolean", expected: "INTEGER" },
+				{ type: "date", slug: "f_date", expected: "TEXT" },
 				{ type: "datetime", slug: "f_datetime", expected: "TEXT" },
 				{ type: "portableText", slug: "f_portable", expected: "JSON" },
 				{ type: "json", slug: "f_json", expected: "JSON" },

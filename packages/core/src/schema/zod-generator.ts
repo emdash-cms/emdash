@@ -5,6 +5,7 @@ import type { Field, FieldType, CollectionWithFields } from "./types.js";
 
 /** Pattern to split on underscores, hyphens, and spaces for PascalCase conversion */
 const PASCAL_CASE_SPLIT_PATTERN = /[_\-\s]+/;
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Generate a Zod schema from a collection's field definitions
@@ -84,6 +85,15 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 			// (strings, other numbers) fall through to `z.boolean()` and
 			// produce its standard rejection.
 			return z.preprocess((v) => (v === 0 || v === 1 ? Boolean(v) : v), z.boolean());
+
+		case "date":
+			return z
+				.string()
+				.regex(DATE_ONLY_PATTERN)
+				.refine((value) => {
+					const parsed = new Date(`${value}T00:00:00.000Z`);
+					return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+				}, "Invalid date");
 
 		case "datetime":
 			return z.string().datetime().or(z.string().date());
@@ -376,6 +386,7 @@ function fieldTypeToTypeScript(field: Field): string {
 		case "text":
 		case "slug":
 		case "url":
+		case "date":
 		case "datetime":
 			return "string";
 

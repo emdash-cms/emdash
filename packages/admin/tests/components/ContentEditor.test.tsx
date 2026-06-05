@@ -573,6 +573,14 @@ describe("ContentEditor", () => {
 			await expect.element(input).toHaveAttribute("type", "datetime-local");
 		});
 
+		it("renders date fields as date-only inputs", async () => {
+			const screen = await renderEditor({
+				fields: { event_date: { kind: "date", label: "Event date" } },
+			});
+			const input = screen.getByLabelText("Event date");
+			await expect.element(input).toHaveAttribute("type", "date");
+		});
+
 		it("displays a stored ISO datetime in the datetime-local input", async () => {
 			// The validator stores datetimes as full ISO 8601 with "Z" + millis,
 			// but <input type="datetime-local"> only accepts "YYYY-MM-DDTHH:mm".
@@ -619,6 +627,30 @@ describe("ContentEditor", () => {
 				expect.objectContaining({
 					data: expect.objectContaining({
 						recall_date: "2026-02-26T09:30:00.000Z",
+					}),
+				}),
+			);
+		});
+
+		it("saves date fields back as YYYY-MM-DD without a time", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: true,
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					event_date: { kind: "date", label: "Event date" },
+				},
+			});
+
+			await screen.getByLabelText("Title").fill("Event");
+			await screen.getByLabelText("Event date").fill("2026-02-26");
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						event_date: "2026-02-26",
 					}),
 				}),
 			);

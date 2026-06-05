@@ -160,7 +160,7 @@ const addFieldCommand = defineCommand({
 		type: {
 			type: "string",
 			description:
-				"Field type (string, text, number, integer, boolean, datetime, image, reference, portableText, json)",
+				"Field type (string, text, number, integer, boolean, date, datetime, image, reference, portableText, json)",
 			required: true,
 		},
 		label: {

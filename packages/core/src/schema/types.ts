@@ -15,6 +15,7 @@ export type FieldType =
 	| "number"
 	| "integer"
 	| "boolean"
+	| "date"
 	| "datetime"
 	| "select"
 	| "multiSelect"
@@ -36,6 +37,7 @@ export const FIELD_TYPES: readonly FieldType[] = [
 	"number",
 	"integer",
 	"boolean",
+	"date",
 	"datetime",
 	"select",
 	"multiSelect",
@@ -62,6 +64,7 @@ export const FIELD_TYPE_TO_COLUMN: Record<FieldType, ColumnType> = {
 	number: "REAL",
 	integer: "INTEGER",
 	boolean: "INTEGER",
+	date: "TEXT",
 	datetime: "TEXT",
 	select: "TEXT",
 	multiSelect: "JSON",
@@ -109,6 +112,7 @@ export interface RepeaterSubField {
 		| "number"
 		| "integer"
 		| "boolean"
+		| "date"
 		| "datetime"
 		| "select"
 		| "image";
@@ -125,6 +129,7 @@ export const REPEATER_SUB_FIELD_TYPES = [
 	"number",
 	"integer",
 	"boolean",
+	"date",
 	"datetime",
 	"select",
 	"image",

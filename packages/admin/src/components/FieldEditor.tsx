@@ -182,6 +182,12 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			icon: Calendar,
 		},
 		{
+			type: "date",
+			label: t`Date Only`,
+			description: t`Date picker without time`,
+			icon: Calendar,
+		},
+		{
 			type: "select",
 			label: t`Select`,
 			description: t`Single choice from options`,
@@ -581,6 +587,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 															number: t`Number`,
 															integer: t`Integer`,
 															boolean: t`Boolean`,
+															date: t`Date Only`,
 															datetime: t`Date & Time`,
 															select: t`Select`,
 															url: t`URL`,

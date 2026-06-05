@@ -8,6 +8,7 @@ import {
 	boolean as booleanField,
 	select,
 	multiSelect,
+	date,
 	datetime,
 	slug,
 	image,
@@ -207,6 +208,20 @@ describe("Field Types", () => {
 			expect(() => field.schema.parse(new Date("2024-06-15"))).not.toThrow();
 			expect(() => field.schema.parse(new Date("2023-12-31"))).toThrow();
 			expect(() => field.schema.parse(new Date("2025-01-01"))).toThrow();
+		});
+	});
+
+	describe("date", () => {
+		it("should create date field", () => {
+			const field = date();
+			expect(field.type).toBe("date");
+			expect(field.ui?.widget).toBe("date");
+		});
+
+		it("should validate date-only strings", () => {
+			const field = date({ required: true });
+			expect(() => field.schema.parse("2026-02-26")).not.toThrow();
+			expect(() => field.schema.parse("2026-02-26T09:30:00.000Z")).toThrow();
 		});
 	});
 

@@ -203,6 +203,26 @@ describe("Zod Generator", () => {
 			expect(() => schema.parse(123)).toThrow();
 		});
 
+		it("should generate date schema", () => {
+			const field: Field = {
+				id: "f1",
+				collectionId: "c1",
+				slug: "event_date",
+				label: "Event Date",
+				type: "date",
+				columnType: "TEXT",
+				required: true,
+				unique: false,
+				sortOrder: 0,
+				createdAt: new Date().toISOString(),
+			};
+
+			const schema = generateFieldSchema(field);
+			expect(schema.parse("2026-02-26")).toBe("2026-02-26");
+			expect(() => schema.parse("2026-02-26T09:30:00.000Z")).toThrow();
+			expect(() => schema.parse("02/26/2026")).toThrow();
+		});
+
 		it("should generate select schema with options", () => {
 			const field: Field = {
 				id: "f1",

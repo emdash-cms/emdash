@@ -42,6 +42,41 @@ describe("RepeaterField", () => {
 			]);
 		});
 	});
+
+	describe("date sub-field", () => {
+		it("renders date-only values in a date input", async () => {
+			const screen = await render(
+				<RepeaterField
+					label="Events"
+					id="events"
+					value={[{ event_date: "2026-02-26" }]}
+					onChange={vi.fn()}
+					subFields={[{ slug: "event_date", type: "date", label: "Event date" }]}
+				/>,
+			);
+			const input = screen.getByLabelText("Event date");
+			await expect.element(input).toHaveAttribute("type", "date");
+			await expect.element(input).toHaveValue("2026-02-26");
+		});
+
+		it("emits YYYY-MM-DD without a time on change", async () => {
+			const onChange = vi.fn();
+			const screen = await render(
+				<RepeaterField
+					label="Events"
+					id="events"
+					value={[{ event_date: "" }]}
+					onChange={onChange}
+					subFields={[{ slug: "event_date", type: "date", label: "Event date" }]}
+				/>,
+			);
+			await screen.getByLabelText("Event date").fill("2026-02-26");
+
+			expect(onChange).toHaveBeenLastCalledWith([
+				expect.objectContaining({ event_date: "2026-02-26" }),
+			]);
+		});
+	});
 });
 
 /**

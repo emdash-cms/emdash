@@ -117,6 +117,7 @@ describe("EmDashRuntime.getManifest()", () => {
 			source: "test",
 		});
 		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+		await registry.createField("posts", { slug: "event_date", label: "Event Date", type: "date" });
 		await registry.createField("posts", { slug: "body", label: "Body", type: "json" });
 
 		const runtime = buildRuntime(db);
@@ -125,6 +126,7 @@ describe("EmDashRuntime.getManifest()", () => {
 		const posts = manifest.collections.posts;
 		expect(posts).toBeDefined();
 		expect(posts?.fields.title?.kind).toBe("string");
+		expect(posts?.fields.event_date?.kind).toBe("date");
 		expect(posts?.fields.body?.kind).toBe("json");
 	});
 

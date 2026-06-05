@@ -1315,6 +1315,18 @@ function FieldRenderer({
 				/>
 			);
 
+		case "date":
+			return (
+				<Input
+					label={label}
+					id={id}
+					type="date"
+					value={typeof value === "string" ? value.slice(0, 10) : ""}
+					onChange={(e) => handleChange(e.target.value)}
+					required={field.required}
+				/>
+			);
+
 		case "image": {
 			// value is either an ImageFieldValue object, a legacy string URL, or undefined
 			const imageValue =
