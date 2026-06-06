@@ -11,6 +11,7 @@ import { CommentRepository } from "../database/repositories/comment.js";
 import type { PublicComment } from "../database/repositories/comment.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
 
 export interface GetCommentsOptions {
 	collection: string;
@@ -38,8 +39,14 @@ export interface GetCommentsResult {
  * ```
  */
 export async function getComments(options: GetCommentsOptions): Promise<GetCommentsResult> {
-	const db = await getDb();
-	return getCommentsWithDb(db, options);
+	return cachedQuery({
+		namespace: CacheNamespace.COMMENTS,
+		key: `comments:${options.collection}:${options.contentId}:${options.threaded ? "t" : "f"}`,
+		load: async () => {
+			const db = await getDb();
+			return getCommentsWithDb(db, options);
+		},
+	});
 }
 
 /**

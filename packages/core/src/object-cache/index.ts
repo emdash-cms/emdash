@@ -434,6 +434,10 @@ export const CacheNamespace = {
 	MENUS: "menus",
 	TAXONOMIES: "taxonomies",
 	BYLINES: "bylines",
+	/** Collection schema/metadata (label, supports, commentsEnabled, fields). */
+	SCHEMA: "schema",
+	/** Public (approved) comments. */
+	COMMENTS: "comments",
 } as const;
 
 /** Namespace for a content collection's cached queries. */
@@ -470,6 +474,16 @@ export function invalidateBylineObjectCache(): void {
 /** Invalidate cached navigation menus. */
 export function invalidateMenuObjectCache(): void {
 	invalidateObjectCache(CacheNamespace.MENUS);
+}
+
+/** Invalidate cached collection schema/metadata reads (e.g. getCollectionInfo). */
+export function invalidateSchemaObjectCache(): void {
+	invalidateObjectCache(CacheNamespace.SCHEMA);
+}
+
+/** Invalidate cached public comment reads. */
+export function invalidateCommentObjectCache(): void {
+	invalidateObjectCache(CacheNamespace.COMMENTS);
 }
 
 export type {

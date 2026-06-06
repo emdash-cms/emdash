@@ -199,6 +199,8 @@ export {
 	invalidateTaxonomyObjectCache,
 	invalidateBylineObjectCache,
 	invalidateMenuObjectCache,
+	invalidateSchemaObjectCache,
+	invalidateCommentObjectCache,
 	contentNamespace,
 	contentNamespaces,
 	CacheNamespace,

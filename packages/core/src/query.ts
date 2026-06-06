@@ -27,7 +27,11 @@
 import { encodeCursor } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
 import { CURSOR_RAW_VALUES, type WhereRange, type WhereValue } from "./loader.js";
-import { cachedQuery, contentNamespaces } from "./object-cache/index.js";
+import {
+	cachedQuery,
+	contentNamespaces,
+	invalidateSchemaObjectCache,
+} from "./object-cache/index.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingTableError } from "./utils/db-errors.js";
@@ -1087,9 +1091,14 @@ let cachedUrlPatterns: CachedPattern[] | null = null;
 /**
  * Invalidate the cached URL patterns used by resolveEmDashPath.
  * Call when collection URL patterns change (schema updates).
+ *
+ * Also busts the distributed schema cache (collection metadata such as
+ * `commentsEnabled`, `supports`, fields read by `getCollectionInfo`), since
+ * every schema-mutation path already routes through here.
  */
 export function invalidateUrlPatternCache(): void {
 	cachedUrlPatterns = null;
+	invalidateSchemaObjectCache();
 }
 
 /**
