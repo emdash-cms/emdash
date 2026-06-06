@@ -28,8 +28,9 @@ import type { CreateObjectCacheBackendFn, ObjectCacheBackend } from "emdash";
 
 /**
  * Workers KV enforces a 60-second floor on `expirationTtl`. Clamp shorter TTLs
- * up rather than letting `put` throw — epoch-based invalidation already
- * orphans stale keys immediately, so a slightly longer backstop TTL is benign.
+ * up rather than letting `put` throw — invalidation is epoch-comparison-based
+ * (stale values are overwritten in place on read), so the TTL is only a
+ * backstop for never-re-read keys and a slightly longer one is benign.
  */
 const KV_MIN_TTL_SECONDS = 60;
 

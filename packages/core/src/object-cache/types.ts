@@ -62,9 +62,10 @@ export interface ObjectCacheRuntimeConfig {
 	/**
 	 * Default time-to-live for cached entries, in seconds.
 	 *
-	 * Epoch-based invalidation orphans stale keys instantly (see
-	 * `./index.ts`), so the TTL is a backstop that reclaims orphaned keys and
-	 * bounds staleness for anything not covered by an explicit epoch bump.
+	 * Invalidation works by epoch comparison, not key deletion: a stale value
+	 * is detected on read (its stored epoch no longer matches) and overwritten
+	 * in place under the same key. The TTL is just a backstop that reclaims
+	 * keys that are never read again.
 	 *
 	 * @default 3600 (1 hour)
 	 */

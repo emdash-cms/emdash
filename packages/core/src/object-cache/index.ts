@@ -204,10 +204,37 @@ function epochKey(namespace: string): string {
 	return `${holder.config.keyPrefix}:epoch:${namespace}`;
 }
 
-/** Build the backend key for a cached value within one or more namespaces. */
-function valueKey(namespaces: readonly string[], epochs: readonly number[], key: string): string {
-	const sig = namespaces.map((ns, i) => `${ns}@${epochs[i]}`).join(",");
-	return `${holder.config.keyPrefix}:${sig}:${key}`;
+/**
+ * Build the (epoch-independent) backend key for a cached value.
+ *
+ * The key is stable across invalidations — the namespace epochs are stored
+ * *inside* the value envelope and validated on read, not baked into the key.
+ * This lets the value and the epochs be fetched in one parallel round-trip
+ * (instead of "read epoch, then read value"), and means an invalidated value
+ * is overwritten in place rather than orphaned under a dead epoch-keyed name.
+ */
+function valueKey(namespaces: readonly string[], key: string): string {
+	return `${holder.config.keyPrefix}:${namespaces.join(",")}:${key}`;
+}
+
+/**
+ * Stored cache envelope: the namespace epochs captured at write time alongside
+ * the cached value. A read is a HIT only when every stored epoch still matches
+ * the current epoch for its namespace.
+ */
+interface CacheEnvelope<T> {
+	/** Epoch per namespace, in the query's namespace order. */
+	e: number[];
+	/** The cached value. */
+	v: T;
+}
+
+function epochsMatch(stored: readonly number[], current: readonly number[]): boolean {
+	if (stored.length !== current.length) return false;
+	for (let i = 0; i < stored.length; i++) {
+		if (stored[i] !== current[i]) return false;
+	}
+	return true;
 }
 
 /**
@@ -309,31 +336,48 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 
 	const namespaces =
 		typeof options.namespace === "string" ? [options.namespace] : options.namespace;
-	const epochs = await Promise.all(namespaces.map((ns) => getEpoch(ns, backend)));
-	const fullKey = valueKey(namespaces, epochs, options.key);
+	const fullKey = valueKey(namespaces, options.key);
 
+	// Fetch the value and every namespace epoch concurrently — one round-trip
+	// instead of "read epochs, then read value". The value is a HIT only if its
+	// stored epochs still match the current ones.
+	let currentEpochs: number[] = [];
 	try {
-		const raw = await withTimeout(backend.get(fullKey), holder.config.timeout, "read");
+		const [raw, ...epochs] = await Promise.all([
+			withTimeout(backend.get(fullKey), holder.config.timeout, "read"),
+			...namespaces.map((ns) => getEpoch(ns, backend)),
+		]);
+		currentEpochs = epochs;
 		if (raw !== null) {
 			const decoded = decode(raw);
 			if (decoded !== undefined) {
-				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- key namespacing guarantees the stored value matches T
-				return decoded as T;
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- value envelope written by this function
+				const envelope = decoded as CacheEnvelope<T>;
+				if (epochsMatch(envelope.e, currentEpochs)) {
+					return envelope.v;
+				}
 			}
 		}
 	} catch {
 		// Treat backend read errors and timeouts as a miss — fall through to load().
+		// currentEpochs may be empty; recompute below before storing.
 	}
 
 	const value = await options.load();
 
 	const cacheable = options.cacheable ? options.cacheable(value) : true;
 	if (cacheable) {
-		const raw = encode(value);
 		const ttl = options.ttl ?? holder.config.defaultTtl;
-		// Defer the write so it never adds to TTFB.
+		// Defer the write so it never adds to TTFB. Capture epochs at write time
+		// (re-read if the parallel read above failed) and store them with the
+		// value so a later read can detect staleness.
 		after(async () => {
 			try {
+				const epochs =
+					currentEpochs.length === namespaces.length
+						? currentEpochs
+						: await Promise.all(namespaces.map((ns) => getEpoch(ns, backend)));
+				const raw = encode({ e: epochs, v: value } satisfies CacheEnvelope<T>);
 				await backend.set(fullKey, raw, ttl);
 			} catch (error) {
 				if (import.meta.env.DEV) {
