@@ -21,6 +21,10 @@ export const Permissions = {
 	"content:edit_any": Role.EDITOR,
 	"content:delete_own": Role.AUTHOR,
 	"content:delete_any": Role.EDITOR,
+	// Permanent deletion (empty trash) is irreversible and bypasses the
+	// soft-delete safety net, so it sits at the same authorization tier as
+	// other destructive system actions (schema:manage, comments:delete).
+	"content:delete_permanent": Role.ADMIN,
 	"content:publish_own": Role.AUTHOR,
 	"content:publish_any": Role.EDITOR,
 
@@ -45,6 +49,10 @@ export const Permissions = {
 	// Menus
 	"menus:read": Role.SUBSCRIBER,
 	"menus:manage": Role.EDITOR,
+
+	// Bylines
+	"bylines:read": Role.SUBSCRIBER,
+	"bylines:manage": Role.EDITOR,
 
 	// Widgets
 	"widgets:read": Role.SUBSCRIBER,
@@ -198,7 +206,7 @@ const SCOPE_MIN_ROLE: Record<ApiTokenScope, RoleLevel> = {
  * to enforce: effective_scopes = requested_scopes ∩ scopesForRole(role).
  */
 export function scopesForRole(role: RoleLevel): ApiTokenScope[] {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Object.entries loses tuple types; SCOPE_MIN_ROLE keys are ApiTokenScope by construction
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Object.entries loses tuple types; SCOPE_MIN_ROLE keys are ApiTokenScope by construction
 	const entries = Object.entries(SCOPE_MIN_ROLE) as [ApiTokenScope, RoleLevel][];
 	return entries.reduce<ApiTokenScope[]>((acc, [scope, minRole]) => {
 		if (role >= minRole) acc.push(scope);

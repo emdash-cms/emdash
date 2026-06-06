@@ -1,3 +1,4 @@
+/// <reference types="astro/client" />
 /**
  * Query functions for EmDash content
  *
@@ -10,9 +11,22 @@
  * Preview mode is handled implicitly via ALS request context —
  * no parameters needed. The middleware verifies the preview token
  * and sets the context; query functions read it automatically.
+ *
+ * The triple-slash directive above pulls in the ambient declaration for
+ * `astro:content` (used by the dynamic imports below) so this source
+ * file typechecks even when reached transitively by a sibling package
+ * whose tsconfig doesn't list `astro/client` in `compilerOptions.types`.
+ *
+ * Note: the directive is stripped from the compiled output (`dist/*`)
+ * by tsdown, so it does not propagate to downstream consumers of the
+ * published package. Consumers are Astro sites and already provide their
+ * own `astro/client` ambient surface anyway, so the runtime dynamic
+ * import resolves there at typecheck time without our help.
  */
 
+import { encodeCursor } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
+import { CURSOR_RAW_VALUES, type WhereRange, type WhereValue } from "./loader.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingTableError } from "./utils/db-errors.js";
@@ -68,6 +82,8 @@ export type SortDirection = "asc" | "desc";
  */
 export type OrderBySpec = Record<string, SortDirection>;
 
+export type { WhereRange, WhereValue };
+
 export interface CollectionFilter {
 	status?: "draft" | "published" | "archived";
 	limit?: number;
@@ -85,11 +101,17 @@ export interface CollectionFilter {
 	 */
 	cursor?: string;
 	/**
-	 * Filter by field values or taxonomy terms
+	 * Filter by field values, taxonomy terms, or ranges.
+	 *
+	 * Taxonomy names are detected automatically and filtered via JOIN.
+	 * Other keys are treated as column filters on the content table.
+	 *
 	 * @example { category: 'news' } - Filter by taxonomy term
 	 * @example { category: ['news', 'featured'] } - Filter by multiple terms (OR)
+	 * @example { series: 'main' } - Exact match on a content field
+	 * @example { published_at: { gte: '2024-01-01', lt: '2025-01-01' } } - Date range
 	 */
-	where?: Record<string, string | string[]>;
+	where?: Record<string, WhereValue>;
 	/**
 	 * Order results by field(s)
 	 * @default { created_at: "desc" }
@@ -279,9 +301,144 @@ export async function getEmDashCollection<T extends string, D = InferCollectionD
 	// appears on the home page AND in the sidebar) — caching collapses
 	// those duplicate queries, along with the bylines and taxonomy-term
 	// hydration each call would otherwise re-do.
-	return requestCached(collectionCacheKey(type, filter), () =>
-		getEmDashCollectionUncached<T, D>(type, filter),
+	//
+	// Bucket small limits to a shared minimum so a page with several
+	// "recent N posts" widgets at slightly different limits (e.g. a
+	// post-detail page asking for 4 in the body and 5 in the sidebar)
+	// shares one fetch + hydration round-trip rather than running two.
+	// Cursor-paginated calls are exempt: their limit is part of the
+	// pagination contract.
+	const bucketed = bucketFilter(filter);
+	const cached = await requestCached(collectionCacheKey(type, bucketed.fetchFilter), () =>
+		getEmDashCollectionUncached<T, D>(type, bucketed.fetchFilter),
 	);
+	return bucketed.requestedLimit === undefined
+		? cached
+		: sliceCollectionResult(cached, bucketed.requestedLimit, filter?.orderBy);
+}
+
+/**
+ * Threshold for limit bucketing. Page templates routinely render small
+ * "recent posts" widgets at limits 3-8; rounding those up to a single
+ * shared bucket lets one fetch satisfy several widgets within a request.
+ * Above this, the requested limit is honoured exactly — bucketing limit:50
+ * to limit:64 would waste hydration work for callers fetching real pages.
+ */
+const BUCKET_LIMIT_THRESHOLD = 10;
+
+interface BucketedFilter {
+	/** Filter to pass to the loader (with limit possibly raised). */
+	fetchFilter: CollectionFilter | undefined;
+	/** Original limit; defined only when bucketing was applied. */
+	requestedLimit: number | undefined;
+}
+
+/** @internal exported for unit tests; not part of the public API. */
+export function bucketFilter(filter: CollectionFilter | undefined): BucketedFilter {
+	const limit = filter?.limit;
+	if (
+		limit === undefined ||
+		limit >= BUCKET_LIMIT_THRESHOLD ||
+		limit <= 0 ||
+		filter?.cursor !== undefined
+	) {
+		return { fetchFilter: filter, requestedLimit: undefined };
+	}
+	return {
+		fetchFilter: { ...filter, limit: BUCKET_LIMIT_THRESHOLD },
+		requestedLimit: limit,
+	};
+}
+
+/**
+ * Slice a cached bucketed result down to the originally-requested limit
+ * and recompute `nextCursor` from the row that would have been the
+ * over-fetch detector for that limit. When truncation is needed, returns
+ * a shallow-copied result with a new `entries` array; otherwise returns
+ * the cached result unchanged (including error results and results
+ * already within the requested limit).
+ */
+/** @internal exported for unit tests; not part of the public API. */
+export function sliceCollectionResult<D>(
+	cached: CollectionResult<D>,
+	limit: number,
+	orderBy: OrderBySpec | undefined,
+): CollectionResult<D> {
+	if (cached.error) return cached;
+	if (cached.entries.length <= limit) return cached;
+	const sliced = cached.entries.slice(0, limit);
+	// Mirror the loader's encoding: cursor points at the last returned row,
+	// so "next page" picks up at the row immediately after it. See
+	// buildCursorCondition in loader.ts — it filters strictly past this row.
+	const lastEntry = sliced.at(-1);
+	const nextCursor = lastEntry ? encodeEntryCursor(lastEntry, orderBy) : undefined;
+	return { ...cached, entries: sliced, nextCursor };
+}
+
+/** Map of database column names to camelCase keys present on entry.data. */
+const ENTRY_DATA_KEY_MAP: Record<string, string> = {
+	created_at: "createdAt",
+	updated_at: "updatedAt",
+	published_at: "publishedAt",
+	scheduled_at: "scheduledAt",
+	author_id: "authorId",
+	primary_byline_id: "primaryBylineId",
+};
+
+// Mirror loader.ts FIELD_NAME_PATTERN. Kept in sync intentionally — diverging
+// would let the encoder accept a field name the loader's getPrimarySort then
+// rejected, producing a cursor that paginates against a different column.
+const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
+/**
+ * Encode a `nextCursor` from a content entry, mirroring the loader's
+ * encoding scheme: `(orderValue, id)` where `orderValue` is the primary
+ * sort field's stringified value. For date columns, reads the raw DB
+ * string the loader stashed via CURSOR_RAW_VALUES — round-tripping the
+ * parsed Date through `toISOString()` would lose precision for stored
+ * values that aren't already ISO-with-milliseconds.
+ */
+function encodeEntryCursor<D>(
+	entry: ContentEntry<D>,
+	orderBy: OrderBySpec | undefined,
+): string | undefined {
+	const data = entryData(entry);
+	const id = dataStr(data, "id");
+	if (!id) return undefined;
+
+	// Match loader.ts getPrimarySort: take the first valid field, default to created_at.
+	let dbField = "created_at";
+	if (orderBy) {
+		for (const field of Object.keys(orderBy)) {
+			if (FIELD_NAME_PATTERN.test(field)) {
+				dbField = field;
+				break;
+			}
+		}
+	}
+
+	// Date columns: prefer the raw stored string captured by the loader so
+	// the cursor matches what a direct loader fetch would emit, regardless
+	// of how the DB stored the timestamp.
+	const rawDateValuesRaw = Reflect.get(data, CURSOR_RAW_VALUES);
+	if (rawDateValuesRaw !== null && typeof rawDateValuesRaw === "object") {
+		const raw = Reflect.get(rawDateValuesRaw, dbField);
+		if (typeof raw === "string") return encodeCursor(raw, id);
+	}
+
+	const dataKey = ENTRY_DATA_KEY_MAP[dbField] ?? dbField;
+	const value = data[dataKey];
+	let orderValue: string;
+	if (value instanceof Date) {
+		orderValue = value.toISOString();
+	} else if (typeof value === "string" || typeof value === "number") {
+		orderValue = String(value);
+	} else {
+		// Match the loader's empty-string fallback for null/undefined order
+		// values so cursor decoding stays valid even at the boundary.
+		orderValue = "";
+	}
+	return encodeCursor(orderValue, id);
 }
 
 /**
@@ -307,10 +464,21 @@ function collectionCacheKey(type: string, filter?: CollectionFilter): string {
 }
 
 function stableStringify(value: Record<string, unknown>): string {
+	return JSON.stringify(stableOrder(value));
+}
+
+function stableOrder(value: Record<string, unknown>): Record<string, unknown> {
 	const keys = Object.keys(value).toSorted();
 	const ordered: Record<string, unknown> = {};
-	for (const k of keys) ordered[k] = value[k];
-	return JSON.stringify(ordered);
+	for (const k of keys) {
+		const v = value[k];
+		if (isRecord(v)) {
+			ordered[k] = stableOrder(v);
+		} else {
+			ordered[k] = v;
+		}
+	}
+	return ordered;
 }
 
 async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
@@ -327,10 +495,11 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	const resolvedLocale =
 		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined);
 
+	const requestedLimit = filter?.limit;
 	const result = await getLiveCollection(COLLECTION_NAME, {
 		type,
 		status: filter?.status,
-		limit: filter?.limit,
+		limit: requestedLimit && requestedLimit > 0 ? requestedLimit + 1 : filter?.limit,
 		cursor: filter?.cursor,
 		where: filter?.where,
 		orderBy: filter?.orderBy,
@@ -338,18 +507,17 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	});
 
 	const { entries, error, cacheHint } = result;
-	// nextCursor is returned by the emdash loader but not part of Astro's base
-	// LiveLoader return type. Extract it safely via property descriptor to avoid
-	// an unsafe type assertion on the `any`-typed result object.
-	const rawCursor = Object.getOwnPropertyDescriptor(result, "nextCursor")?.value;
-	const nextCursor: string | undefined = typeof rawCursor === "string" ? rawCursor : undefined;
 
 	if (error) {
 		return { entries: [], error, cacheHint: {} };
 	}
 
+	const hasMore = requestedLimit != null && requestedLimit > 0 && entries.length > requestedLimit;
+	const pageEntries = hasMore ? entries.slice(0, requestedLimit) : entries;
+	const nextCursor = hasMore ? encodeEntryCursor(pageEntries.at(-1), filter?.orderBy) : undefined;
+
 	const isEditMode = ctx?.editMode ?? false;
-	const entriesWithEdit = entries.map((entry: ContentEntry<D>) => {
+	const entriesWithEdit = pageEntries.map((entry: ContentEntry<D>) => {
 		const dbId = entryDatabaseId(entry);
 		if (isEditMode) {
 			tagEditableFields(entryData(entry), type, dbId);
@@ -562,10 +730,31 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 	try {
 		const { getBylinesForEntries } = await import("./bylines/index.js");
 
-		const ids = entries.map((e) => dataStr(entryData(e), "id")).filter(Boolean);
-		if (ids.length === 0) return;
+		const refs = entries
+			.map((e) => {
+				const data = entryData(e);
+				const id = dataStr(data, "id");
+				if (!id) return null;
+				return {
+					id,
+					authorId: dataStr(data, "authorId") || null,
+					primaryBylineId: dataStr(data, "primaryBylineId") || null,
+					locale: dataStr(data, "locale") || null,
+				};
+			})
+			.filter(
+				(
+					r,
+				): r is {
+					id: string;
+					authorId: string | null;
+					primaryBylineId: string | null;
+					locale: string | null;
+				} => r !== null,
+			);
+		if (refs.length === 0) return;
 
-		const bylinesMap = await getBylinesForEntries(type, ids);
+		const bylinesMap = await getBylinesForEntries(type, refs);
 
 		for (const entry of entries) {
 			const data = entryData(entry);

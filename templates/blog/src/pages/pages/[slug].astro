@@ -15,7 +15,7 @@ if (!page) {
 	return Astro.redirect("/404");
 }
 
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
 <Base

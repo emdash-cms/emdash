@@ -61,6 +61,11 @@ export const ErrorCode = {
 	SCHEMA_FIELD_UPDATE_ERROR: "SCHEMA_FIELD_UPDATE_ERROR",
 	SCHEMA_FIELD_DELETE_ERROR: "SCHEMA_FIELD_DELETE_ERROR",
 	SCHEMA_FIELD_REORDER_ERROR: "SCHEMA_FIELD_REORDER_ERROR",
+	// Byline schema (Discussion #1174). Reuses RESERVED_SLUG, INVALID_SLUG,
+	// INVALID_TYPE, FIELD_EXISTS, NOT_FOUND, VALIDATION_ERROR where the
+	// semantics match; the two below are byline-domain specific:
+	TRANSLATABLE_LOCKED: "TRANSLATABLE_LOCKED",
+	REORDER_MISMATCH: "REORDER_MISMATCH",
 	ORPHAN_LIST_ERROR: "ORPHAN_LIST_ERROR",
 	ORPHAN_REGISTER_ERROR: "ORPHAN_REGISTER_ERROR",
 	COLLECTION_EXISTS: "COLLECTION_EXISTS",
@@ -196,8 +201,12 @@ export const ErrorCode = {
 	INVALID_BUNDLE: "INVALID_BUNDLE",
 	BUNDLE_EXTRACT_FAILED: "BUNDLE_EXTRACT_FAILED",
 	BUNDLE_DOWNLOAD_FAILED: "BUNDLE_DOWNLOAD_FAILED",
+	AGGREGATOR_RESPONSE_INVALID: "AGGREGATOR_RESPONSE_INVALID",
+	AGGREGATOR_HTTP_ERROR: "AGGREGATOR_HTTP_ERROR",
+	AGGREGATOR_NOT_FOUND: "AGGREGATOR_NOT_FOUND",
 	CAPABILITY_ESCALATION: "CAPABILITY_ESCALATION",
 	ROUTE_VISIBILITY_ESCALATION: "ROUTE_VISIBILITY_ESCALATION",
+	ENV_INCOMPATIBLE: "ENV_INCOMPATIBLE",
 	INSTALL_FAILED: "INSTALL_FAILED",
 	UNINSTALL_FAILED: "UNINSTALL_FAILED",
 	SEARCH_FAILED: "SEARCH_FAILED",
@@ -218,6 +227,10 @@ export const ErrorCode = {
 	MENU_ITEM_UPDATE_ERROR: "MENU_ITEM_UPDATE_ERROR",
 	MENU_ITEM_DELETE_ERROR: "MENU_ITEM_DELETE_ERROR",
 	MENU_REORDER_ERROR: "MENU_REORDER_ERROR",
+	// Returned when a menu name resolves to multiple locale variants and
+	// the caller did not pass `locale` to disambiguate. (name, locale) is
+	// unique, so this only fires for omitted-locale lookups.
+	AMBIGUOUS_LOCALE: "AMBIGUOUS_LOCALE",
 
 	// Taxonomies
 	TAXONOMY_LIST_ERROR: "TAXONOMY_LIST_ERROR",
@@ -362,6 +375,8 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.SELF_ROLE_CHANGE:
 		case ErrorCode.SSRF_BLOCKED:
 		case ErrorCode.UNKNOWN_ACTION:
+		case ErrorCode.AMBIGUOUS_LOCALE:
+		case ErrorCode.REORDER_MISMATCH:
 			return 400;
 
 		// 401 Unauthorized
@@ -391,6 +406,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.COLLECTION_NOT_FOUND:
 		case ErrorCode.FILE_NOT_FOUND:
 		case ErrorCode.NO_VERSION:
+		case ErrorCode.AGGREGATOR_NOT_FOUND:
 			return 404;
 
 		// 409 Conflict
@@ -405,6 +421,8 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.ALREADY_INSTALLED:
 		case ErrorCode.ALREADY_CONFIGURED:
 		case ErrorCode.ALREADY_UP_TO_DATE:
+		case ErrorCode.TRANSLATABLE_LOCKED:
+		case ErrorCode.ENV_INCOMPATIBLE:
 			return 409;
 
 		// 410 Gone
@@ -435,6 +453,8 @@ export function mapErrorStatus(code: string | undefined): number {
 
 		// 502 Bad Gateway
 		case ErrorCode.BUNDLE_DOWNLOAD_FAILED:
+		case ErrorCode.AGGREGATOR_RESPONSE_INVALID:
+		case ErrorCode.AGGREGATOR_HTTP_ERROR:
 			return 502;
 
 		// 503 Service Unavailable

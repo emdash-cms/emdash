@@ -7,6 +7,13 @@ import type { Block, BlockInteraction } from "../src/types.js";
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
+// Shared between the Collapsible.* mocks so DefaultTrigger / DefaultPanel can
+// react to open state set on Collapsible.Root.
+const CollapsibleContext = React.createContext<{
+	open?: boolean;
+	onOpenChange?: (next: boolean) => void;
+}>({});
+
 vi.mock("@cloudflare/kumo", () => ({
 	Button: ({ children, onClick, variant, type }: any) => (
 		<button onClick={onClick} data-variant={variant} type={type || "button"}>
@@ -117,6 +124,20 @@ vi.mock("@cloudflare/kumo", () => ({
 			{contents}
 		</div>
 	),
+	Tabs: ({ tabs, value, onValueChange }: any) => (
+		<div role="tablist">
+			{tabs.map((tab: any) => (
+				<button
+					key={tab.value}
+					role="tab"
+					aria-selected={value === tab.value}
+					onClick={() => onValueChange?.(tab.value)}
+				>
+					{tab.label}
+				</button>
+			))}
+		</div>
+	),
 	Checkbox: {
 		Group: ({ children, legend }: any) => (
 			<fieldset data-testid="checkbox-group">
@@ -145,6 +166,49 @@ vi.mock("@cloudflare/kumo", () => ({
 			</label>
 		),
 	},
+	Collapsible: Object.assign(
+		// `Collapsible` is also `Collapsible.Root` in Kumo 2.x.
+		({ children, open, onOpenChange, ...rest }: any) => (
+			<div data-testid="collapsible" data-open={open ? "true" : "false"} {...rest}>
+				<CollapsibleContext.Provider value={{ open, onOpenChange }}>
+					{children}
+				</CollapsibleContext.Provider>
+			</div>
+		),
+		{
+			Root: ({ children, open, onOpenChange, ...rest }: any) => (
+				<div data-testid="collapsible" data-open={open ? "true" : "false"} {...rest}>
+					<CollapsibleContext.Provider value={{ open, onOpenChange }}>
+						{children}
+					</CollapsibleContext.Provider>
+				</div>
+			),
+			Trigger: ({ children }: any) => {
+				const ctx = React.useContext(CollapsibleContext);
+				return (
+					<button type="button" onClick={() => ctx.onOpenChange?.(!ctx.open)}>
+						{children}
+					</button>
+				);
+			},
+			DefaultTrigger: ({ children }: any) => {
+				const ctx = React.useContext(CollapsibleContext);
+				return (
+					<button type="button" onClick={() => ctx.onOpenChange?.(!ctx.open)}>
+						{children}
+					</button>
+				);
+			},
+			Panel: ({ children }: any) => {
+				const ctx = React.useContext(CollapsibleContext);
+				return ctx.open ? <div data-testid="collapsible-content">{children}</div> : null;
+			},
+			DefaultPanel: ({ children }: any) => {
+				const ctx = React.useContext(CollapsibleContext);
+				return ctx.open ? <div data-testid="collapsible-content">{children}</div> : null;
+			},
+		},
+	),
 	Combobox: Object.assign(
 		({ children, label }: any) => (
 			<div data-testid="combobox">
@@ -469,6 +533,48 @@ describe("BlockRenderer", () => {
 		expect(container.querySelectorAll("button").length).toBe(0);
 	});
 
+	it("accordion block renders label closed by default and reveals nested blocks on open", () => {
+		const { container } = renderBlocks([
+			{
+				type: "accordion",
+				label: "Advanced",
+				blocks: [{ type: "header", text: "Hidden heading" }],
+			},
+		]);
+
+		expect(screen.getByText("Advanced")).toBeTruthy();
+		expect(container.querySelector('[data-testid="collapsible"]')?.getAttribute("data-open")).toBe(
+			"false",
+		);
+		expect(screen.queryByText("Hidden heading")).toBeNull();
+
+		fireEvent.click(screen.getByText("Advanced"));
+		expect(screen.getByText("Hidden heading")).toBeTruthy();
+	});
+
+	it("accordion block respects default_open and forwards onAction from nested blocks", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "accordion",
+					label: "Tools",
+					default_open: true,
+					blocks: [
+						{
+							type: "actions",
+							elements: [{ type: "button", action_id: "ping", label: "Ping" }],
+						},
+					],
+				},
+			],
+			onAction,
+		);
+
+		fireEvent.click(screen.getByText("Ping"));
+		expect(onAction).toHaveBeenCalledWith({ type: "block_action", action_id: "ping" });
+	});
+
 	it("columns block renders blocks in columns", () => {
 		renderBlocks([
 			{
@@ -478,6 +584,52 @@ describe("BlockRenderer", () => {
 		]);
 		expect(screen.getByText("Left")).toBeTruthy();
 		expect(screen.getByText("Right")).toBeTruthy();
+	});
+
+	it("tab block renders panel labels and shows first panel by default", () => {
+		renderBlocks([
+			{
+				type: "tab",
+				panels: [
+					{ label: "General", blocks: [{ type: "header", text: "General Settings" }] },
+					{ label: "Advanced", blocks: [{ type: "header", text: "Advanced Settings" }] },
+				],
+			},
+		]);
+		expect(screen.getByText("General")).toBeTruthy();
+		expect(screen.getByText("Advanced")).toBeTruthy();
+		expect(screen.getByText("General Settings")).toBeTruthy();
+		expect(screen.queryByText("Advanced Settings")).toBeNull();
+	});
+
+	it("tab block switches panel on tab click", () => {
+		renderBlocks([
+			{
+				type: "tab",
+				panels: [
+					{ label: "General", blocks: [{ type: "header", text: "General Settings" }] },
+					{ label: "Advanced", blocks: [{ type: "header", text: "Advanced Settings" }] },
+				],
+			},
+		]);
+		fireEvent.click(screen.getByText("Advanced"));
+		expect(screen.queryByText("General Settings")).toBeNull();
+		expect(screen.getByText("Advanced Settings")).toBeTruthy();
+	});
+
+	it("tab block respects default_tab", () => {
+		renderBlocks([
+			{
+				type: "tab",
+				default_tab: 1,
+				panels: [
+					{ label: "General", blocks: [{ type: "header", text: "General Settings" }] },
+					{ label: "Advanced", blocks: [{ type: "header", text: "Advanced Settings" }] },
+				],
+			},
+		]);
+		expect(screen.queryByText("General Settings")).toBeNull();
+		expect(screen.getByText("Advanced Settings")).toBeTruthy();
 	});
 
 	it("button click fires onAction with block_action", () => {

@@ -20,11 +20,8 @@ import type { RequestScopedDbOpts } from "virtual:emdash/dialect";
 import { mediaProviders as virtualMediaProviders } from "virtual:emdash/media-providers";
 // @ts-ignore - virtual module
 import { plugins as virtualPlugins } from "virtual:emdash/plugins";
-import {
-	createSandboxRunner as virtualCreateSandboxRunner,
-	sandboxEnabled as virtualSandboxEnabled,
-	// @ts-ignore - virtual module
-} from "virtual:emdash/sandbox-runner";
+// @ts-ignore - virtual module
+import * as virtualSandboxRunnerModule from "virtual:emdash/sandbox-runner";
 // @ts-ignore - virtual module
 import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sandboxed-plugins";
 // @ts-ignore - virtual module
@@ -46,8 +43,16 @@ import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
-import { getRequestContext, runWithContext } from "../request-context.js";
+import { invalidateUrlPatternCache } from "../query.js";
+import {
+	createRequestMetrics,
+	getRequestContext,
+	type RequestMetrics,
+	runWithContext,
+} from "../request-context.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
 import type { EmDashHandlers } from "./types.js";
 
 // Cached runtime instance (persists across requests within worker)
@@ -65,8 +70,24 @@ let i18nInitialized = false;
  * would query an empty database and crash. Once verified (or once the runtime
  * has initialized via an admin/API request), this stays true for the worker's
  * lifetime.
+ *
+ * Stored on globalThis behind a Symbol key so the flag is a true singleton
+ * even when the bundler duplicates this module across SSR chunks (same
+ * pattern as request-cache.ts). A plain module-scoped `let` becomes multiple
+ * independent variables, which would make the setup probe re-run far more
+ * often than intended — and every re-run is another chance for a transient
+ * DB error to be misread as "fresh install" and bounce visitors to setup.
  */
-let setupVerified = false;
+const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
+const setupFlagStore = globalThis as Record<symbol, unknown>;
+
+function isSetupVerified(): boolean {
+	return setupFlagStore[SETUP_VERIFIED_KEY] === true;
+}
+
+function markSetupVerified(): void {
+	setupFlagStore[SETUP_VERIFIED_KEY] = true;
+}
 
 /**
  * Get EmDash configuration from virtual module
@@ -76,11 +97,11 @@ function getConfig(): EmDashConfig | null {
 		// Initialize i18n config on first access (once per worker lifetime)
 		if (!i18nInitialized) {
 			i18nInitialized = true;
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module checked as object above
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module checked as object above
 			const config = virtualConfig as Record<string, unknown>;
 			if (config.i18n && typeof config.i18n === "object") {
 				setI18nConfig(
-					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- runtime-checked above
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- runtime-checked above
 					config.i18n as {
 						defaultLocale: string;
 						locales: string[];
@@ -92,7 +113,7 @@ function getConfig(): EmDashConfig | null {
 			}
 		}
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
 		return virtualConfig as EmDashConfig;
 	}
 	return null;
@@ -102,7 +123,7 @@ function getConfig(): EmDashConfig | null {
  * Get plugins from virtual module
  */
 function getPlugins(): ResolvedPlugin[] {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
 	return (virtualPlugins as ResolvedPlugin[]) || [];
 }
 
@@ -110,24 +131,37 @@ function getPlugins(): ResolvedPlugin[] {
  * Build runtime dependencies from virtual modules
  */
 function buildDependencies(config: EmDashConfig): RuntimeDependencies {
+	/* eslint-disable typescript-eslint/no-unsafe-type-assertion --
+	   The virtual:emdash/* imports above use @ts-ignore because tsgo/IDE
+	   resolution can't see virtual-modules.d.ts in every consumer setup,
+	   so they arrive as `any`. The casts here line each entry up with
+	   RuntimeDependencies's expected shape. The contract is enforced by
+	   the integration that populates these virtual modules. */
+	const sandboxModule = virtualSandboxRunnerModule as Record<string, unknown>;
 	return {
 		config,
 		plugins: getPlugins(),
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
-		sandboxEnabled: virtualSandboxEnabled as boolean,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
+		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
+		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
-		createSandboxRunner: virtualCreateSandboxRunner as
-			| ((opts: { db: Kysely<Database> }) => SandboxRunner)
+		createSandboxRunner: sandboxModule.createSandboxRunner as
+			| ((opts: {
+					db: Kysely<Database>;
+					mediaStorage?: {
+						upload(options: {
+							key: string;
+							body: Uint8Array;
+							contentType: string;
+						}): Promise<unknown>;
+						delete(key: string): Promise<unknown>;
+					};
+			  }) => SandboxRunner)
 			| null,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- virtual module import is untyped (@ts-ignore above)
 		mediaProviderEntries: (virtualMediaProviders as MediaProviderEntry[]) || [],
 	};
+	/* eslint-enable typescript-eslint/no-unsafe-type-assertion */
 }
 
 /**
@@ -208,6 +242,33 @@ function finalizeResponse(
 	return res;
 }
 
+/**
+ * Append always-on counters (db.*, cache.*) to the Server-Timing list.
+ *
+ * dur values for `count`, `hit`, `miss` are integer counts — Server-Timing
+ * spec only models milliseconds, but browsers show whatever number is given,
+ * which is the convention most projects use for non-time samples.
+ */
+function pushMetricsTimings(
+	timings: Array<{ name: string; dur: number; desc?: string }>,
+	metrics: RequestMetrics,
+): void {
+	if (metrics.dbCount > 0) {
+		timings.push({ name: "db.total", dur: metrics.dbTotalMs, desc: "DB total" });
+		timings.push({ name: "db.count", dur: metrics.dbCount, desc: "Query count" });
+		if (metrics.dbFirstOffset !== null) {
+			timings.push({ name: "db.first", dur: metrics.dbFirstOffset, desc: "First query at" });
+		}
+		if (metrics.dbLastOffset !== null) {
+			timings.push({ name: "db.last", dur: metrics.dbLastOffset, desc: "Last query at" });
+		}
+	}
+	if (metrics.cacheHits + metrics.cacheMisses > 0) {
+		timings.push({ name: "cache.hit", dur: metrics.cacheHits, desc: "Cache hits" });
+		timings.push({ name: "cache.miss", dur: metrics.cacheMisses, desc: "Cache misses" });
+	}
+}
+
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
 const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
@@ -222,7 +283,7 @@ function createRequestScopedDb(
 	opts: RequestScopedDbOpts,
 ): { db: Kysely<Database>; commit: () => void } | null {
 	if (typeof virtualCreateRequestScopedDb !== "function") return null;
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- adapter returns Kysely<unknown>; cast to Database since core owns that type
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- adapter returns Kysely<unknown>; cast to Database since core owns that type
 	const fn = virtualCreateRequestScopedDb as (
 		o: RequestScopedDbOpts,
 	) => { db: Kysely<Database>; commit: () => void } | null;
@@ -251,6 +312,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		? createRecorder(url.pathname, request.method, request.headers.get("x-perf-phase") ?? "default")
 		: undefined;
 
+	const metrics = createRequestMetrics(performance.now());
+
 	const run = async (): Promise<Response> => {
 		// Process /_emdash routes and public routes with an active session
 		// (logged-in editors need the runtime for toolbar/visual editing on public pages)
@@ -271,8 +334,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Read the Astro session user once up-front. Both the anonymous fast path
 		// and the full doInit path need this, and the session store is network-backed
 		// (KV / Durable Object) so we want to avoid re-fetching on the hot path.
-		// Skipped entirely for prerendered requests — they have no session.
-		const sessionUser = context.isPrerendered ? null : await context.session?.get("user");
+		// Skipped entirely for:
+		//   - prerendered requests (no session at build time)
+		//   - requests without an `astro-session` cookie (no session to look up)
+		// The cookie check matters on Cloudflare Workers, where Astro's session
+		// backend is KV: calling session.get() on every anonymous public request
+		// turns normal traffic into a flood of KV read misses. See #733.
+		const hasSessionCookie = cookies.get("astro-session") !== undefined;
+		const sessionUser =
+			context.isPrerendered || !hasSessionCookie ? null : await context.session?.get("user");
 
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
@@ -285,7 +355,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Do a one-time lightweight probe using the same getDb() instance the
 				// page will use: if the migrations table doesn't exist, no migrations
 				// have ever run -- redirect to the setup wizard.
-				if (!setupVerified) {
+				if (!isSetupVerified()) {
 					const t0 = performance.now();
 					try {
 						const { getDb } = await import("../loader.js");
@@ -295,10 +365,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							.selectAll()
 							.limit(1)
 							.execute();
-						setupVerified = true;
-					} catch {
-						// Table doesn't exist -> fresh database, redirect to setup
-						return context.redirect("/_emdash/admin/setup");
+						markSetupVerified();
+					} catch (error) {
+						// Only a genuinely-missing migrations table means a fresh,
+						// un-set-up database — redirect to the setup wizard.
+						if (isMissingTableError(error)) {
+							return context.redirect("/_emdash/admin/setup");
+						}
+						// Any other failure (transient D1/replica error, timeout, cold-start
+						// race, locked SQLite) must NOT be read as "fresh install" — doing so
+						// bounces real visitors on a set-up site to /_emdash/admin/setup.
+						// Leave the flag unset so a later request can re-verify, and fall
+						// through to render the page normally.
+						console.error("Setup probe failed (non-fatal):", error);
 					}
 					timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 				}
@@ -315,9 +394,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					const t0 = performance.now();
 					try {
 						const runtime = await getRuntime(config, initSubTimings);
-						setupVerified = true;
-						// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- partial object; getPageRuntime() only checks for the page-contribution methods
+						markSetupVerified();
+						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
+						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
+							handlePublicPluginApiRoute,
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
@@ -347,13 +428,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					const response = await next();
 					timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 					timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+					pushMetricsTimings(timings, metrics);
 					return finalizeResponse(response, timings);
 				};
 				if (anonScoped) {
 					const parent = getRequestContext();
 					const ctx = parent
 						? { ...parent, db: anonScoped.db }
-						: { editMode: false, db: anonScoped.db };
+						: { editMode: false, db: anonScoped.db, metrics };
 					return runWithContext(ctx, async () => {
 						const response = await runAnon();
 						anonScoped.commit();
@@ -392,15 +474,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				for (const sub of initSubTimings) timings.push(sub);
 
 				// Runtime init runs migrations, so the DB is guaranteed set up
-				setupVerified = true;
+				markSetupVerified();
 
-				// Get manifest (cached after first call)
-				t0 = performance.now();
-				const manifest = await runtime.getManifest();
-				timings.push({ name: "manifest", dur: performance.now() - t0, desc: "Manifest" });
+				// The manifest is no longer pre-loaded here. It's admin-only
+				// content that public/anonymous requests never read, and
+				// loading it on every request put logged-out hot paths on
+				// the same staleness budget as admin operations. Admin
+				// routes call `emdash.getManifest()` directly.
 
 				// Attach to locals for route handlers
-				locals.emdashManifest = manifest;
 				locals.emdash = {
 					// Content handlers
 					handleContentList: runtime.handleContentList.bind(runtime),
@@ -443,6 +525,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Plugin routes
 					handlePluginApiRoute: runtime.handlePluginApiRoute.bind(runtime),
+					handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
 					getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
 
 					// Media provider methods
@@ -469,14 +552,24 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Configuration (for checking database type, auth mode, etc.)
 					config,
 
-					// Manifest invalidation (call after schema changes)
-					invalidateManifest: runtime.invalidateManifest.bind(runtime),
+					// Lazy manifest accessor — admin-only consumers call this on
+					// demand. `requestCached` inside `getManifest` dedupes within
+					// a single request.
+					getManifest: runtime.getManifest.bind(runtime),
+
+					// Clear the URL pattern cache after schema mutations that
+					// affect collection URL patterns.
+					invalidateUrlPatternCache,
 
 					// Sandbox runner (for marketplace plugin install/update)
 					getSandboxRunner: runtime.getSandboxRunner.bind(runtime),
+					isSandboxBypassed: runtime.isSandboxBypassed.bind(runtime),
 
 					// Sync marketplace plugin states (after install/update/uninstall)
 					syncMarketplacePlugins: runtime.syncMarketplacePlugins.bind(runtime),
+
+					// Sync registry plugin states (after install/update/uninstall)
+					syncRegistryPlugins: runtime.syncRegistryPlugins.bind(runtime),
 
 					// Update plugin enabled/disabled status and rebuild hook pipeline
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),
@@ -502,12 +595,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const response = await next();
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+				pushMetricsTimings(timings, metrics);
 				return finalizeResponse(response, timings);
 			};
 
 			if (scoped) {
 				const parent = getRequestContext();
-				const ctx = parent ? { ...parent, db: scoped.db } : { editMode: false, db: scoped.db };
+				const ctx = parent
+					? { ...parent, db: scoped.db }
+					: { editMode: false, db: scoped.db, metrics };
 				return runWithContext(ctx, async () => {
 					const response = await renderAndFinalize();
 					scoped.commit();
@@ -528,20 +624,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const parent = getRequestContext();
 			const ctx = parent
 				? { ...parent, editMode, db: playgroundDb, dbIsIsolated: true }
-				: { editMode, db: playgroundDb, dbIsIsolated: true };
+				: { editMode, db: playgroundDb, dbIsIsolated: true, metrics };
 			return runWithContext(ctx, doInit);
 		}
 		return doInit();
 	};
 
-	if (queryRecorder) {
-		try {
-			return await runWithContext({ editMode: false, queryRecorder }, run);
-		} finally {
-			flushRecorder(queryRecorder);
-		}
+	try {
+		return await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+	} finally {
+		if (queryRecorder) flushRecorder(queryRecorder);
 	}
-	return run();
 });
 
 export default onRequest;

@@ -118,7 +118,7 @@ export class AuditWorkflow extends WorkflowEntrypoint<Env, AuditParams> {
 				verdict: auditResult.verdict,
 				riskScore: auditResult.riskScore,
 				summary: auditResult.summary,
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- findings shape is preserved from AuditResult
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- findings shape is preserved from AuditResult
 				findings: auditResult.findings as unknown[],
 				model: auditResult.model,
 				durationMs: auditResult.durationMs,
@@ -131,7 +131,7 @@ export class AuditWorkflow extends WorkflowEntrypoint<Env, AuditParams> {
 					pluginId,
 					version,
 					verdict: imageAuditResult.verdict,
-					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- images shape is preserved from ImageAuditResult
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- images shape is preserved from ImageAuditResult
 					findings: imageAuditResult.images as unknown[],
 					model: imageAuditResult.model,
 					durationMs: imageAuditResult.durationMs,
@@ -185,12 +185,12 @@ export class AuditWorkflow extends WorkflowEntrypoint<Env, AuditParams> {
 
 		const iconData = files.get("icon.png");
 		if (iconData) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Uint8Array.buffer is ArrayBuffer at runtime
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Uint8Array.buffer is ArrayBuffer at runtime
 			imageFiles.push({ filename: "icon.png", data: iconData.buffer as ArrayBuffer });
 		}
 		for (const [path, data] of files) {
 			if (path.startsWith("screenshots/")) {
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Uint8Array.buffer is ArrayBuffer at runtime
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Uint8Array.buffer is ArrayBuffer at runtime
 				imageFiles.push({ filename: path, data: data.buffer as ArrayBuffer });
 			}
 		}

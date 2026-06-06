@@ -27,7 +27,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const body = await parseBody(request, fieldReorderBody);
 	if (isParseError(body)) return body;
 
-	const result = await handleSchemaFieldReorder(emdash!.db, collectionSlug, body.fieldSlugs);
-	if (result.success) emdash!.invalidateManifest();
+	const result = await handleSchemaFieldReorder(emdash.db, collectionSlug, body.fieldSlugs);
 	return unwrapResult(result);
 };

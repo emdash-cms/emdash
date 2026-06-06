@@ -105,7 +105,7 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("test.jpg")).toBeInTheDocument();
 			// Table headers should be visible
 			await expect.element(screen.getByText("Filename")).toBeInTheDocument();
-			await expect.element(screen.getByText("Type")).toBeInTheDocument();
+			await expect.element(screen.getByText("Type", { exact: true })).toBeInTheDocument();
 			await expect.element(screen.getByText("Size")).toBeInTheDocument();
 		});
 	});
@@ -180,6 +180,69 @@ describe("MediaLibrary", () => {
 		it("shows Media Library heading", async () => {
 			const screen = await renderLibrary();
 			await expect.element(screen.getByText("Media Library")).toBeInTheDocument();
+		});
+	});
+
+	describe("load more pagination", () => {
+		it("renders Load More button when hasMore is true", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, hasMore: true, onLoadMore: vi.fn() });
+			await expect.element(screen.getByRole("button", { name: "Load More" })).toBeInTheDocument();
+		});
+
+		it("does not render Load More button when hasMore is false", async () => {
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, hasMore: false, onLoadMore: vi.fn() });
+			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
+		});
+
+		it("invokes onLoadMore when Load More button is clicked", async () => {
+			const onLoadMore = vi.fn();
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, hasMore: true, onLoadMore });
+			await screen.getByRole("button", { name: "Load More" }).click();
+			expect(onLoadMore).toHaveBeenCalled();
+		});
+
+		it("keeps already-loaded items visible while fetching the next page (isLoading=true with items)", async () => {
+			// Reproduces the Copilot review concern: when isLoading flips true
+			// during a Load-More fetch, the grid must not be blanked out into a
+			// centered spinner — already-rendered items should remain visible.
+			const items = [makeMediaItem({ id: "1", filename: "first-page.jpg" })];
+			const screen = await renderLibrary({
+				items,
+				isLoading: true,
+				hasMore: true,
+				onLoadMore: vi.fn(),
+			});
+			await expect.element(screen.getByAltText("first-page.jpg")).toBeInTheDocument();
+		});
+	});
+
+	// #1221: the local library gained filename search + a type filter.
+	describe("local search and filter", () => {
+		it("reports the debounced filename query upward", async () => {
+			const onLocalSearchChange = vi.fn();
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, onLocalSearchChange });
+
+			await screen.getByRole("searchbox", { name: "Search media" }).fill("vacation");
+
+			await vi.waitFor(() => {
+				expect(onLocalSearchChange).toHaveBeenCalledWith("vacation");
+			});
+		});
+
+		it("reports a MIME filter when a type is chosen", async () => {
+			const onLocalMimeFilterChange = vi.fn();
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, onLocalMimeFilterChange });
+
+			// Open the type filter and choose Images.
+			await screen.getByRole("combobox", { name: "Filter by type" }).click();
+			await screen.getByRole("option", { name: "Images" }).click();
+
+			expect(onLocalMimeFilterChange).toHaveBeenCalledWith("image/");
 		});
 	});
 });

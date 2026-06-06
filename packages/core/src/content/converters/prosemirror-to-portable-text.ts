@@ -14,6 +14,7 @@ import type {
 	PortableTextMarkDef,
 	PortableTextImageBlock,
 	PortableTextCodeBlock,
+	PortableTextHtmlBlock,
 } from "./types.js";
 
 /**
@@ -133,6 +134,9 @@ function convertNodeInner(node: ProseMirrorNode): PortableTextBlock | PortableTe
 
 		case "codeBlock":
 			return convertCodeBlock(node);
+
+		case "htmlBlock":
+			return convertHtmlBlock(node);
 
 		case "image":
 			return convertImage(node);
@@ -347,6 +351,18 @@ function convertCodeBlock(node: ProseMirrorNode): PortableTextCodeBlock {
 		_key: generateKey(),
 		code,
 		language: language || undefined,
+	};
+}
+
+/**
+ * Convert HTML block to Portable Text
+ */
+function convertHtmlBlock(node: ProseMirrorNode): PortableTextHtmlBlock {
+	const rawHtml = node.attrs?.html;
+	return {
+		_type: "htmlBlock",
+		_key: generateKey(),
+		html: typeof rawHtml === "string" ? rawHtml : "",
 	};
 }
 

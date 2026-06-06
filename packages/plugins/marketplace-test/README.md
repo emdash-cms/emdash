@@ -6,7 +6,7 @@ End-to-end test plugin for the EmDash marketplace publish and audit pipeline.
 
 - Hooks into `content:beforeSave` to log save events
 - Exposes a `/ping` route and an `/events` route
-- Declares `read:content` and `write:content` capabilities
+- Declares `content:read` and `content:write` capabilities
 - Includes icon and screenshot assets for image audit testing
 
 ## Usage

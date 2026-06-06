@@ -54,6 +54,8 @@ export function renderElement(
 				);
 			}
 			return null;
+		case "media_picker":
+			return null;
 		default: {
 			const _exhaustive: never = element;
 			return null;

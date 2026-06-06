@@ -91,7 +91,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection] });
+	if (cache?.enabled) await cache.invalidate({ tags: [collection] });
 
 	return unwrapResult(result, 201);
 };

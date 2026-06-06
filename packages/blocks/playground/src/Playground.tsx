@@ -204,7 +204,7 @@ export function Playground() {
 			<header className="flex h-11 shrink-0 items-center gap-2 border-b border-kumo-line bg-kumo-bg px-3">
 				<span className="text-sm font-semibold text-kumo-text">Block Kit Playground</span>
 
-				<div className="ml-auto flex items-center gap-1.5">
+				<div className="ms-auto flex items-center gap-1.5">
 					{/* Template picker */}
 					<div className="relative" ref={templateMenuRef}>
 						<button
@@ -217,7 +217,7 @@ export function Playground() {
 						</button>
 						{templateMenuOpen && (
 							<div
-								className="absolute right-0 top-full z-50 mt-1 w-64 rounded-lg border border-kumo-line p-1 shadow-lg"
+								className="absolute end-0 top-full z-50 mt-1 w-64 rounded-lg border border-kumo-line p-1 shadow-lg"
 								style={{ backgroundColor: "var(--kumo-bg, Canvas)" }}
 							>
 								{templates.map((t, i) => (
@@ -225,7 +225,7 @@ export function Playground() {
 										key={t.name}
 										type="button"
 										onClick={() => loadTemplate(i)}
-										className="flex w-full flex-col items-start rounded-md px-3 py-2 text-left hover:bg-kumo-tint"
+										className="flex w-full flex-col items-start rounded-md px-3 py-2 text-start hover:bg-kumo-tint"
 									>
 										<span className="text-sm font-medium text-kumo-text">{t.name}</span>
 										<span className="text-xs text-kumo-text-secondary">{t.description}</span>
@@ -272,7 +272,7 @@ export function Playground() {
 								key={entry.type}
 								type="button"
 								onClick={() => insertBlock(i)}
-								className="flex w-full items-start gap-2 rounded-md px-2.5 py-2 text-left hover:bg-kumo-tint"
+								className="flex w-full items-start gap-2 rounded-md px-2.5 py-2 text-start hover:bg-kumo-tint"
 							>
 								<Plus
 									size={14}
@@ -299,7 +299,7 @@ export function Playground() {
 							JSON Editor
 						</span>
 						{errorCount > 0 && (
-							<span className="ml-auto flex items-center gap-1 text-[11px] font-medium text-kumo-warning">
+							<span className="ms-auto flex items-center gap-1 text-[11px] font-medium text-kumo-warning">
 								<Warning size={12} weight="fill" />
 								{errorCount} {errorCount === 1 ? "error" : "errors"}
 							</span>
@@ -358,14 +358,14 @@ export function Playground() {
 							<span className="text-[11px] font-medium uppercase tracking-wide text-kumo-text-secondary">
 								Action Log
 							</span>
-							<span className="ml-1.5 rounded-full bg-kumo-tint px-1.5 py-0.5 text-[10px] font-medium text-kumo-text-secondary">
+							<span className="ms-1.5 rounded-full bg-kumo-tint px-1.5 py-0.5 text-[10px] font-medium text-kumo-text-secondary">
 								{actionLog.length}
 							</span>
 							{actionLog.length > 0 && (
 								<button
 									type="button"
 									onClick={() => setActionLog([])}
-									className="ml-auto rounded-md p-1 text-kumo-text-secondary hover:bg-kumo-tint"
+									className="ms-auto rounded-md p-1 text-kumo-text-secondary hover:bg-kumo-tint"
 									aria-label="Clear log"
 								>
 									<Trash size={12} />

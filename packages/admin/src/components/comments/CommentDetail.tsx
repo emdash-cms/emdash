@@ -72,7 +72,7 @@ export function CommentDetail({
 					</div>
 
 					{/* Author info */}
-					<div className="rounded-lg border p-4 space-y-3">
+					<div className="rounded-lg border bg-kumo-base p-4 space-y-3">
 						<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
 							{t`Author`}
 						</h3>
@@ -90,7 +90,7 @@ export function CommentDetail({
 					</div>
 
 					{/* Comment body */}
-					<div className="rounded-lg border p-4 space-y-3">
+					<div className="rounded-lg border bg-kumo-base p-4 space-y-3">
 						<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
 							{t`Comment`}
 						</h3>
@@ -98,7 +98,7 @@ export function CommentDetail({
 					</div>
 
 					{/* Content reference */}
-					<div className="rounded-lg border p-4 space-y-2">
+					<div className="rounded-lg border bg-kumo-base p-4 space-y-2">
 						<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
 							{t`Content`}
 						</h3>
@@ -124,7 +124,7 @@ export function CommentDetail({
 
 					{/* Moderation metadata */}
 					{comment.moderationMetadata && Object.keys(comment.moderationMetadata).length > 0 && (
-						<div className="rounded-lg border p-4 space-y-3">
+						<div className="rounded-lg border bg-kumo-base p-4 space-y-3">
 							<h3 className="text-sm font-semibold text-kumo-subtle uppercase tracking-wider">
 								{t`Moderation Signals`}
 							</h3>

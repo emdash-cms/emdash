@@ -46,6 +46,33 @@ describe("normalizeMediaValue", () => {
 		});
 	});
 
+	it("converts bare local media ID to full local MediaValue when provider resolves it", async () => {
+		const providerItem: MediaProviderItem = {
+			id: "01KRZKN0BK219P9HBMPYYGYRHY",
+			filename: "photo.png",
+			mimeType: "image/png",
+			width: 1024,
+			height: 768,
+			alt: "A photo",
+			meta: { storageKey: "uploads/photo.png" },
+		};
+		const local = mockProvider(providerItem);
+
+		const result = await normalizeMediaValue("01KRZKN0BK219P9HBMPYYGYRHY", getProvider({ local }));
+
+		expect(local.get).toHaveBeenCalledWith("01KRZKN0BK219P9HBMPYYGYRHY");
+		expect(result).toEqual({
+			provider: "local",
+			id: "01KRZKN0BK219P9HBMPYYGYRHY",
+			filename: "photo.png",
+			mimeType: "image/png",
+			width: 1024,
+			height: 768,
+			alt: "A photo",
+			meta: { storageKey: "uploads/photo.png" },
+		});
+	});
+
 	it("converts bare internal media URL to full local MediaValue via provider", async () => {
 		const providerItem: MediaProviderItem = {
 			id: "01ABC",

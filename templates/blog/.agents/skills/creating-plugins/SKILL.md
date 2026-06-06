@@ -132,14 +132,14 @@ EmDash has two execution modes. Plugin code is identical in both — only the en
 
 Trusted plugins are npm packages or local files added in `astro.config.mjs`. They run in-process with your Astro site.
 
-- **Capabilities are documentation only.** Declaring `["read:content"]` documents intent but isn't enforced — the plugin has full process access.
+- **Capabilities are documentation only.** Declaring `["content:read"]` documents intent but isn't enforced — the plugin has full process access.
 - Only install from sources you trust. A malicious trusted plugin has the same access as your application code.
 
 ### Sandboxed Mode
 
 Sandboxed plugins run in isolated V8 isolates on Cloudflare Workers via [Dynamic Worker Loader](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/). Each plugin gets its own isolate.
 
-- **Capabilities are enforced.** If a plugin declares `["read:content"]`, it can only call `ctx.content.get()` and `ctx.content.list()`. Attempting `ctx.content.create()` throws a permission error.
+- **Capabilities are enforced.** If a plugin declares `["content:read"]`, it can only call `ctx.content.get()` and `ctx.content.list()`. Attempting `ctx.content.create()` throws a permission error.
 - **Network is blocked by default.** Direct `fetch()` calls fail. Plugins must use `ctx.http.fetch()`, which validates against `allowedHosts`.
 - **Storage is scoped.** A plugin can only access its own KV and storage collections.
 - **Admin UI uses Block Kit.** Sandboxed plugins describe their UI as JSON blocks -- no plugin JavaScript runs in the browser. See [Block Kit reference](./references/block-kit.md).
@@ -161,7 +161,7 @@ export default definePlugin({
 	hooks: {
 		"content:afterSave": {
 			handler: async (event: any, ctx: PluginContext) => {
-				// Trusted: ctx.http present because descriptor declares network:fetch
+				// Trusted: ctx.http present because descriptor declares network:request
 				// Sandboxed: ctx.http present and enforced via RPC bridge
 				if (!ctx.http) return;
 				await ctx.http.fetch("https://api.analytics.example.com/track", {
@@ -180,25 +180,27 @@ Key constraint for sandbox compatibility: **no Node.js built-ins** (`fs`, `path`
 
 Capabilities control what APIs are available on `ctx`. Always declare what your plugin needs — even in trusted mode, they document intent and are required for sandboxed execution.
 
-| Capability        | Grants                                                                 | `ctx` property |
-| ----------------- | ---------------------------------------------------------------------- | -------------- |
-| `read:content`    | `ctx.content.get()`, `ctx.content.list()`                              | `content`      |
-| `write:content`   | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` | `content`      |
-| `read:media`      | `ctx.media.get()`, `ctx.media.list()`                                  | `media`        |
-| `write:media`     | `ctx.media.getUploadUrl()`, `ctx.media.delete()`                       | `media`        |
-| `network:fetch`   | `ctx.http.fetch()` (restricted to `allowedHosts`)                      | `http`         |
-| `read:users`      | `ctx.users.get()`, `ctx.users.list()`, `ctx.users.getByEmail()`        | `users`        |
-| `email:send`      | `ctx.email.send()` — send email through the pipeline                   | `email`        |
-| `email:provide`   | Can register `email:deliver` exclusive hook (transport provider)       | —              |
-| `email:intercept` | Can register `email:beforeSend` / `email:afterSend` hooks              | —              |
+| Capability                       | Grants                                                                 | `ctx` property |
+| -------------------------------- | ---------------------------------------------------------------------- | -------------- |
+| `content:read`                   | `ctx.content.get()`, `ctx.content.list()`                              | `content`      |
+| `content:write`                  | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` | `content`      |
+| `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                  | `media`        |
+| `media:write`                    | `ctx.media.getUploadUrl()`, `ctx.media.delete()`                       | `media`        |
+| `network:request`                | `ctx.http.fetch()` (restricted to `allowedHosts`)                      | `http`         |
+| `network:request:unrestricted`   | `ctx.http.fetch()` (unrestricted — for user-configured URLs)           | `http`         |
+| `users:read`                     | `ctx.users.get()`, `ctx.users.list()`, `ctx.users.getByEmail()`        | `users`        |
+| `email:send`                     | `ctx.email.send()` — send email through the pipeline                   | `email`        |
+| `hooks.email-transport:register` | Can register `email:deliver` exclusive hook (transport provider)       | —              |
+| `hooks.email-events:register`    | Can register `email:beforeSend` / `email:afterSend` hooks              | —              |
+| `hooks.page-fragments:register`  | Can register `page:fragments` hook (inject scripts/styles into pages)  | —              |
 
 Storage (`ctx.storage`) and KV (`ctx.kv`) are **always available** — no capability needed. They're automatically scoped to the plugin.
 
 **Email capabilities are distinct:**
 
 - `email:send` — for plugins that _consume_ email (call `ctx.email.send()`)
-- `email:provide` — for plugins that _deliver_ email (implement the transport, e.g. Resend, SMTP)
-- `email:intercept` — for plugins that _observe or transform_ email (middleware hooks)
+- `hooks.email-transport:register` — for plugins that _deliver_ email (implement the transport, e.g. Resend, SMTP)
+- `hooks.email-events:register` — for plugins that _observe or transform_ email (middleware hooks)
 
 ```typescript
 // In the descriptor (index.ts)
@@ -209,7 +211,7 @@ export function myPlugin(): PluginDescriptor {
 		format: "standard",
 		entrypoint: "@my-org/my-plugin/sandbox",
 		options: {},
-		capabilities: ["read:content", "network:fetch"],
+		capabilities: ["content:read", "network:request"],
 		allowedHosts: ["api.example.com", "*.googleapis.com"], // Wildcards supported
 	};
 }
@@ -296,7 +298,7 @@ export function submissionsPlugin(): PluginDescriptor {
 		format: "standard",
 		entrypoint: "@my-org/plugin-submissions/sandbox",
 		options: {},
-		capabilities: ["read:content"],
+		capabilities: ["content:read"],
 		storage: {
 			submissions: {
 				indexes: ["formId", "status", "createdAt"],
@@ -415,10 +417,10 @@ interface PluginContext {
 	storage: Record<string, StorageCollection>; // Declared collections
 	kv: KVAccess; // Key-value store
 	log: LogAccess; // Structured logger
-	content?: ContentAccess; // If "read:content" capability
-	media?: MediaAccess; // If "read:media" capability
-	http?: HttpAccess; // If "network:fetch" capability
-	users?: UserAccess; // If "read:users" capability
+	content?: ContentAccess; // If "content:read" capability
+	media?: MediaAccess; // If "media:read" capability
+	http?: HttpAccess; // If "network:request" capability
+	users?: UserAccess; // If "users:read" capability
 	cron?: CronAccess; // Always available — scoped to plugin
 	email?: EmailAccess; // If "email:send" capability AND a provider is configured
 }
@@ -435,7 +437,7 @@ export function myPlugin(): PluginDescriptor {
 		format: "standard",
 		entrypoint: "@my-org/my-plugin/sandbox",
 		options: {},
-		capabilities: ["read:content", "network:fetch"],
+		capabilities: ["content:read", "network:request"],
 		allowedHosts: ["api.example.com"],
 		storage: { events: { indexes: ["timestamp"] } },
 	};

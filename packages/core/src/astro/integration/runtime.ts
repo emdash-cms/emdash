@@ -11,7 +11,10 @@ import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
+import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
+
+export type { ExperimentalConfig, RegistryConfig } from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -197,6 +200,17 @@ export interface EmDashConfig {
 	sandboxRunner?: string;
 
 	/**
+	 * Explicitly disable plugin sandboxing, even if a sandbox runner is configured.
+	 * Use this as a debugging escape hatch to determine whether a bug is in your
+	 * plugin code or in the sandbox runtime.
+	 *
+	 * When set to `false`, all plugins run in-process without isolation.
+	 *
+	 * @default true (sandboxing enabled if sandboxRunner is configured)
+	 */
+	sandbox?: boolean;
+
+	/**
 	 * Authentication configuration
 	 *
 	 * Use an auth adapter function from a platform package:
@@ -264,6 +278,10 @@ export interface EmDashConfig {
 	 * Must be an HTTPS URL in production, or localhost/127.0.0.1 in dev.
 	 * Requires `sandboxRunner` to be configured (marketplace plugins run sandboxed).
 	 *
+	 * When `registry` is also configured, the registry replaces the marketplace
+	 * for the admin UI's browse and install flows. Existing marketplace-installed
+	 * plugins continue to work; new installs and updates come from the registry.
+	 *
 	 * @example
 	 * ```ts
 	 * emdash({
@@ -273,6 +291,28 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	marketplace?: string;
+
+	/**
+	 * Experimental features.
+	 *
+	 * These options are not yet stable. Shape, defaults, and behavior may
+	 * change between minor versions. Use only if you're comfortable
+	 * tracking the release notes and updating your config when an
+	 * experimental feature graduates or changes.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   experimental: {
+	 *     registry: {
+	 *       aggregatorUrl: "https://registry.emdashcms.com",
+	 *     },
+	 *   },
+	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 * })
+	 * ```
+	 */
+	experimental?: ExperimentalConfig;
 
 	/**
 	 * Maximum allowed media file upload size in bytes.
@@ -303,6 +343,36 @@ export interface EmDashConfig {
 	siteUrl?: string;
 
 	/**
+	 * Additional origins accepted by passkey verification.
+	 *
+	 * When the same EmDash deployment is reachable under several hostnames sharing
+	 * a registrable parent (e.g. `https://example.com` plus
+	 * `https://preview.example.com`), the canonical `siteUrl` defines the `rpId`
+	 * and the entries here are the *additional* origins from which assertions
+	 * are accepted. Each entry must be the same hostname as `siteUrl` or a
+	 * subdomain of it — WebAuthn requires `rpId` to be a registrable suffix of
+	 * every origin.
+	 *
+	 * Merged at runtime with the `EMDASH_ALLOWED_ORIGINS` env var (comma-separated).
+	 * Validation:
+	 *   - Config-declared entries are shape-checked at Astro startup.
+	 *   - Subdomain relationship to `siteUrl` is checked at startup when
+	 *     `siteUrl` is also config-declared, otherwise at first passkey
+	 *     verification (since `siteUrl` may come from `EMDASH_SITE_URL`).
+	 *
+	 * Mismatches throw with a source-attributed message naming
+	 * `config.allowedOrigins` or `EMDASH_ALLOWED_ORIGINS`.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   siteUrl: "https://example.com",
+	 *   allowedOrigins: ["https://preview.example.com"],
+	 * })
+	 * ```
+	 */
+	allowedOrigins?: string[];
+	/*
 	 * Headers to trust for client IP resolution when running behind a reverse
 	 * proxy. The first header in this list that is present on the request
 	 * wins. Applies to rate limiting for auth endpoints and comment
@@ -457,14 +527,26 @@ export interface EmDashConfig {
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
 	};
+
+	/**
+	 * Version of Astro the host project is building with. Populated by the
+	 * integration's `astro:config:setup` hook (not authored by the user) and
+	 * surfaced to the admin and the registry install gate so a plugin's
+	 * `env:astro` requirement can be evaluated against the real host version.
+	 */
+	astroVersion?: string;
 }
+
+const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");
+const configHolder = globalThis as Record<symbol, unknown>;
 
 /**
  * Get stored config from global
  * This is set by the virtual module at build time
  */
 export function getStoredConfig(): EmDashConfig | null {
-	return globalThis.__emdashConfig || null;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	return (configHolder[STORED_CONFIG_KEY] as EmDashConfig | undefined) ?? null;
 }
 
 /**
@@ -472,11 +554,5 @@ export function getStoredConfig(): EmDashConfig | null {
  * Called by the integration at config time
  */
 export function setStoredConfig(config: EmDashConfig): void {
-	globalThis.__emdashConfig = config;
-}
-
-// Declare global type
-declare global {
-	// eslint-disable-next-line no-var
-	var __emdashConfig: EmDashConfig | undefined;
+	configHolder[STORED_CONFIG_KEY] = config;
 }

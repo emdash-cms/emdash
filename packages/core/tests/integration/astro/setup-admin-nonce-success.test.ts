@@ -28,6 +28,7 @@ vi.mock("@emdash-cms/auth/passkey", async (importOriginal) => {
 		verifyRegistrationResponse: vi.fn(async () => ({
 			credentialId: "fake-credential-id",
 			publicKey: new Uint8Array([1, 2, 3, 4]),
+			algorithm: -7,
 			counter: 0,
 			deviceType: "singleDevice" as const,
 			backedUp: false,
@@ -84,7 +85,7 @@ function createCookieJar(initial: Record<string, string> = {}): CookieJar {
 			const record = jar.get(name);
 			return !!record && !record.deleted;
 		},
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub
 	} as unknown as AstroCookies;
 
 	return { jar, cookies };
@@ -119,7 +120,7 @@ function buildContext(db: Kysely<Database>, request: Request, cookies: AstroCook
 				storage: undefined,
 			},
 		},
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- minimal stub
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub
 	} as unknown as APIContext;
 }
 

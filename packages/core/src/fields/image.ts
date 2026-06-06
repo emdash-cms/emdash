@@ -2,9 +2,6 @@ import { z } from "astro/zod";
 
 import type { FieldDefinition, ImageValue } from "./types.js";
 
-/**
- * Image field schema
- */
 const imageSchema = z.object({
 	id: z.string(),
 	src: z.string(),
@@ -13,22 +10,26 @@ const imageSchema = z.object({
 	height: z.number().optional(),
 });
 
-/**
- * Image field
- * References media items from the media library
- */
-export function image(options?: {
+export interface ImageOptions {
 	required?: boolean;
 	maxSize?: number; // in bytes
-	allowedTypes?: string[]; // MIME types
-}): FieldDefinition<ImageValue | undefined> {
+	allowedTypes?: string[]; // MIME types — exact or prefix
+}
+
+export function image(options: ImageOptions = {}): FieldDefinition<ImageValue | undefined> {
+	const validation =
+		options.allowedTypes && options.allowedTypes.length > 0
+			? { allowedMimeTypes: [...options.allowedTypes] }
+			: undefined;
+
 	return {
 		type: "image",
 		columnType: "TEXT",
-		schema: options?.required === false ? imageSchema.optional() : imageSchema,
+		schema: options.required === false ? imageSchema.optional() : imageSchema,
 		options,
 		ui: {
 			widget: "image",
 		},
+		validation,
 	};
 }

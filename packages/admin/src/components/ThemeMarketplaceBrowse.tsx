@@ -5,7 +5,9 @@
  * Navigates to theme detail on card click.
  */
 
-import { Button } from "@cloudflare/kumo";
+import { Button, Input, Select } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
@@ -29,10 +31,10 @@ import {
 
 type SortOption = "updated" | "created" | "name";
 
-const SORT_LABELS: Record<SortOption, string> = {
-	updated: "Recently Updated",
-	created: "Newest",
-	name: "Name",
+const SORT_LABELS: Record<SortOption, MessageDescriptor> = {
+	updated: msg`Recently Updated`,
+	created: msg`Newest`,
+	name: msg`Name`,
 };
 
 const VALID_SORTS = new Set<string>(["updated", "created", "name"]);
@@ -82,29 +84,25 @@ export function ThemeMarketplaceBrowse() {
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<div className="relative flex-1">
 					<MagnifyingGlass className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
-					<input
+					<Input
 						type="search"
 						placeholder={t`Search themes...`}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="w-full rounded-md border bg-kumo-base px-3 py-2 ps-9 text-sm placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-ring"
+						className="ps-9"
+						aria-label={t`Search themes`}
 					/>
 				</div>
-				<select
+				<Select
 					value={sort}
-					onChange={(e) => {
-						const v = e.target.value;
-						if (isSortOption(v)) setSort(v);
+					onValueChange={(v) => {
+						if (v && isSortOption(v)) setSort(v);
 					}}
-					className="rounded-md border bg-kumo-base px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kumo-ring"
+					items={Object.fromEntries(
+						Object.entries(SORT_LABELS).map(([value, label]) => [value, t(label)]),
+					)}
 					aria-label={t`Sort themes`}
-				>
-					{Object.entries(SORT_LABELS).map(([value, label]) => (
-						<option key={value} value={value}>
-							{label}
-						</option>
-					))}
-				</select>
+				/>
 			</div>
 
 			{/* Error state */}
@@ -115,8 +113,12 @@ export function ThemeMarketplaceBrowse() {
 					<p className="mt-1 text-sm text-kumo-subtle">
 						{error instanceof Error ? error.message : t`An error occurred`}
 					</p>
-					<Button variant="ghost" className="mt-4" onClick={() => void refetch()}>
-						<ArrowsClockwise className="me-2 h-4 w-4" />
+					<Button
+						variant="ghost"
+						className="mt-4"
+						onClick={() => void refetch()}
+						icon={<ArrowsClockwise />}
+					>
 						{t`Retry`}
 					</Button>
 				</div>

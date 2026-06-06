@@ -6,25 +6,27 @@ import {
 	Input,
 	InputArea,
 	Label,
+	LinkButton,
 	Loader,
 	Select,
 	Switch,
-	buttonVariants,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	Check,
 	Eye,
 	Image as ImageIcon,
 	MagnifyingGlass,
+	Paperclip,
 	X,
 	Trash,
 	ArrowsInSimple,
 	ArrowsOutSimple,
 	ArrowSquareOut,
+	ImageBroken,
 } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -37,14 +39,19 @@ import type {
 	UserListItem,
 	TranslationSummary,
 } from "../lib/api";
-import { getPreviewUrl, getDraftStatus } from "../lib/api";
+import { fetchBylines, getPreviewUrl, getDraftStatus } from "../lib/api";
+import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
+import { useDebouncedValue } from "../lib/hooks.js";
+import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
-import { contentUrl } from "../lib/url.js";
+import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
+import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { RepeaterField } from "./RepeaterField.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -72,18 +79,23 @@ import {
 } from "./PortableTextEditor";
 import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
-import { SeoImageField } from "./SeoImageField";
 import { SeoPanel } from "./SeoPanel";
 import { TaxonomySidebar } from "./TaxonomySidebar";
+import { TranslationsPanel } from "./TranslationsPanel.js";
 
 // Editor role level (40) from @emdash-cms/auth
 const ROLE_EDITOR = 40;
 
 export interface FieldDescriptor {
+	id?: string;
 	kind: string;
 	label?: string;
 	required?: boolean;
-	options?: Array<{ value: string; label: string }>;
+	/**
+	 * For `select` / `multiSelect`: the list of enum choices.
+	 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
+	 */
+	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	widget?: string;
 	validation?: Record<string, unknown>;
 }
@@ -100,6 +112,13 @@ export interface ContentEditorProps {
 	item?: ContentItem | null;
 	fields: Record<string, FieldDescriptor>;
 	isNew?: boolean;
+	/**
+	 * Locale this entry is bound to. For existing entries this matches
+	 * `item.locale`; for new entries it's the URL `?locale=` (or default).
+	 * Threaded into the byline picker so the empty-state CTA links to the
+	 * right locale on the Bylines manager.
+	 */
+	entryLocale?: string | null;
 	isSaving?: boolean;
 	onSave?: (payload: {
 		data: Record<string, unknown>;
@@ -140,6 +159,8 @@ export interface ContentEditorProps {
 	onAuthorChange?: (authorId: string | null) => void;
 	/** Available byline profiles */
 	availableBylines?: BylineSummary[];
+	/** Whether the parent's byline picker query has resolved. Suppresses the empty-state flash before first fetch. */
+	availableBylinesLoaded?: boolean;
 	/** Selected byline credits (controlled for new entries) */
 	selectedBylines?: BylineCreditInput[];
 	/** Callback when byline credits are changed */
@@ -189,6 +210,7 @@ export function ContentEditor({
 	item,
 	fields,
 	isNew,
+	entryLocale,
 	isSaving,
 	onSave,
 	onAutosave,
@@ -207,6 +229,7 @@ export function ContentEditor({
 	users,
 	onAuthorChange,
 	availableBylines,
+	availableBylinesLoaded,
 	selectedBylines,
 	onBylinesChange,
 	onQuickCreateByline,
@@ -223,6 +246,7 @@ export function ContentEditor({
 	manifest,
 }: ContentEditorProps) {
 	const { t } = useLingui();
+	const navigate = useNavigate();
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
@@ -231,6 +255,11 @@ export function ContentEditor({
 		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
 			[],
 	);
+	// Gates whether `bylines` is included in the save payload. Untouched
+	// edits must not ship `[]` — strict per-locale hydration can return
+	// empty for entries with credits at other locales, and sending `[]`
+	// would wipe them.
+	const [bylinesTouched, setBylinesTouched] = React.useState(false);
 
 	// Track portableText editor for document outline. Only the "content"
 	// field wires its editor into this slot (see onEditorReady below).
@@ -300,6 +329,40 @@ export function ContentEditor({
 	);
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
 
+	// Synchronously reset form state when the underlying item changes (e.g. a
+	// translation switch where TanStack Router keeps ContentEditor mounted but
+	// swaps `item` for a different id). The post-render useEffect below also
+	// syncs item -> formData, but it runs *after* the first render with the new
+	// item, leaving children (notably PortableTextEditor, which freezes its
+	// initial content on mount) one render behind. This is the React-recommended
+	// "store info from previous renders" idiom -- see
+	// https://react.dev/reference/react/useState#storing-information-from-previous-renders
+	//
+	// We also reset lastSavedData here (not just in the post-render effect) so
+	// that isDirty stays false through the switch -- otherwise SaveButton would
+	// briefly flip from "Saved" -> "Save" -> "Saved" within a single tick.
+	const [previousItemId, setPreviousItemId] = React.useState<string | null>(item?.id ?? null);
+	if (item && item.id !== previousItemId) {
+		setPreviousItemId(item.id);
+		setFormData(item.data);
+		setSlug(item.slug || "");
+		setSlugTouched(!!item.slug);
+		setStatus(item.status);
+		const nextBylines =
+			item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
+			[];
+		setInternalBylines(nextBylines);
+		setLastSavedData(
+			serializeEditorState({
+				data: item.data,
+				slug: item.slug || "",
+				bylines: nextBylines,
+			}),
+		);
+		pendingAutosaveStateRef.current = null;
+		setBylinesTouched(false);
+	}
+
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);
@@ -325,6 +388,7 @@ export function ContentEditor({
 				}),
 			);
 			pendingAutosaveStateRef.current = null;
+			setBylinesTouched(false);
 		}
 	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
 
@@ -332,6 +396,7 @@ export function ContentEditor({
 
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
+			setBylinesTouched(true);
 			if (isNew) {
 				onBylinesChange?.(next);
 				return;
@@ -403,15 +468,19 @@ export function ContentEditor({
 		// Schedule autosave
 		autosaveTimeoutRef.current = setTimeout(() => {
 			if (hasInvalidUrls(formDataRef.current)) return;
-			const payload = {
+			const payload: {
+				data: Record<string, unknown>;
+				slug?: string;
+				bylines?: BylineCreditInput[];
+			} = {
 				data: formDataRef.current,
 				slug: slugRef.current || undefined,
-				bylines: activeBylines,
 			};
+			if (bylinesTouched) payload.bylines = activeBylines;
 			pendingAutosaveStateRef.current = serializeEditorState({
 				data: payload.data,
 				slug: payload.slug || "",
-				bylines: payload.bylines,
+				bylines: activeBylines,
 			});
 			onAutosave(payload);
 		}, AUTOSAVE_DELAY);
@@ -430,6 +499,7 @@ export function ContentEditor({
 		isSaving,
 		isAutosaving,
 		activeBylines,
+		bylinesTouched,
 		hasInvalidUrls,
 	]);
 
@@ -442,11 +512,16 @@ export function ContentEditor({
 			clearTimeout(autosaveTimeoutRef.current);
 			autosaveTimeoutRef.current = null;
 		}
-		onSave?.({
+		const payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		} = {
 			data: formData,
 			slug: slug || undefined,
-			bylines: activeBylines,
-		});
+		};
+		if (isNew || bylinesTouched) payload.bylines = activeBylines;
+		onSave?.(payload);
 	};
 
 	// Preview URL state
@@ -549,7 +624,11 @@ export function ContentEditor({
 				isDistractionFree && "fixed inset-0 z-50 bg-kumo-base p-8 overflow-auto",
 			)}
 		>
-			{/* Header - show on hover in distraction-free mode */}
+			{/* Header. In distraction-free mode this becomes a hover-revealed
+			    overlay so the chrome stays out of the way while writing. In
+			    normal mode it's a regular block; the form also renders a
+			    Save button at the bottom so save is reachable without
+			    scrolling back up. */}
 			<div
 				className={cn(
 					"flex flex-wrap items-center justify-between gap-y-2",
@@ -559,15 +638,15 @@ export function ContentEditor({
 			>
 				<div className="flex items-center space-x-4">
 					{!isDistractionFree && (
-						<Link
+						<RouterLinkButton
 							to="/content/$collection"
 							params={{ collection }}
 							search={{ locale: undefined }}
 							aria-label={t`Back to ${collectionLabel} list`}
-							className={buttonVariants({ variant: "ghost", shape: "square" })}
-						>
-							<ArrowLeft className="h-5 w-5" aria-hidden="true" />
-						</Link>
+							variant="ghost"
+							shape="square"
+							icon={<ArrowPrev />}
+						/>
 					)}
 					{isDistractionFree && (
 						<Button
@@ -594,7 +673,7 @@ export function ContentEditor({
 						<div
 							className="flex items-center text-xs text-kumo-subtle"
 							role="status"
-							aria-label="Autosave status"
+							aria-label={t`Autosave status`}
 							aria-live="polite"
 						>
 							{isAutosaving ? (
@@ -640,7 +719,7 @@ export function ContentEditor({
 								<Dialog.Root>
 									<Dialog.Trigger
 										render={(p) => (
-											<Button {...p} type="button" variant="outline" size="sm" icon={<X />}>
+											<Button {...p} type="button" variant="outline" icon={<X />}>
 												{t`Discard changes`}
 											</Button>
 										)}
@@ -689,15 +768,14 @@ export function ContentEditor({
 								</Button>
 							)}
 							{isLive && item?.slug && (
-								<a
+								<LinkButton
 									href={contentUrl(collection, item.slug, urlPattern)}
-									target="_blank"
-									rel="noopener noreferrer"
-									className={buttonVariants({ variant: "outline" })}
+									external
+									variant="outline"
+									icon={<ArrowSquareOut />}
 								>
-									<ArrowSquareOut className="me-2 h-4 w-4" aria-hidden="true" />
 									{t`Live View`}
-								</a>
+								</LinkButton>
 							)}
 						</>
 					)}
@@ -721,9 +799,16 @@ export function ContentEditor({
 					>
 						<div className="space-y-4">
 							{Object.entries(fields).map(([name, field]) => {
+								// Key by item id so all field editors remount cleanly when the
+								// underlying content item changes (e.g. switching translations).
+								// PortableTextEditor in particular freezes its initial content on
+								// mount; without this key, navigating between translations leaves
+								// the previous locale's body in the editor and silently overwrites
+								// the new translation on the next edit.
+								const fieldKey = `${name}:${item?.id ?? "new"}`;
 								const fieldEl = (
 									<FieldRenderer
-										key={name}
+										key={fieldKey}
 										name={name}
 										field={field}
 										value={formData[name]}
@@ -745,26 +830,19 @@ export function ContentEditor({
 										manifest={manifest}
 									/>
 								);
-								if (
-									name === "featured_image" &&
-									field.kind === "image" &&
-									hasSeo &&
-									!isNew &&
-									onSeoChange
-								) {
-									return (
-										<div key={`${name}-with-seo`} className="grid grid-cols-1 gap-6 md:grid-cols-2">
-											<div>{fieldEl}</div>
-											<div>
-												<SeoImageField seo={item?.seo} onChange={onSeoChange} />
-											</div>
-										</div>
-									);
-								}
 								return fieldEl;
 							})}
 						</div>
 					</div>
+
+					{/* Save action at the bottom of the main column so users hit it
+					    naturally when they finish editing, without needing to scroll
+					    past the entire sidebar. */}
+					{!isDistractionFree && (
+						<div className="flex justify-end">
+							<SaveButton type="submit" isDirty={isDirty} isSaving={isSaving || false} />
+						</div>
+					)}
 				</div>
 
 				{/* Sidebar - hidden in distraction-free mode */}
@@ -954,9 +1032,15 @@ export function ContentEditor({
 									<BylineCreditsEditor
 										credits={activeBylines}
 										bylines={availableBylines ?? []}
+										selectedBylineDetails={item?.bylines?.map((entry) => entry.byline)}
+										bylinesLoaded={availableBylinesLoaded}
 										onChange={handleBylinesChange}
 										onQuickCreate={onQuickCreateByline}
 										onQuickEdit={onQuickEditByline}
+										// Existing entry: use its own locale. New entry: use the
+										// URL `?locale=` (passed in via `entryLocale`).
+										entryLocale={item?.locale ?? entryLocale}
+										i18n={i18n}
 									/>
 								</div>
 							)}
@@ -964,62 +1048,30 @@ export function ContentEditor({
 							{/* Translations sidebar - shown when i18n is enabled */}
 							{i18n && item && !isNew && (
 								<div className="p-4 border-t">
-									<h3 className="mb-4 font-semibold">{t`Translations`}</h3>
-									<div className="space-y-2">
-										{i18n.locales.map((locale) => {
-											const translation = translations?.find((tr) => tr.locale === locale);
-											const isCurrent = locale === item.locale;
-											return (
-												<div
-													key={locale}
-													className={cn(
-														"flex items-center justify-between rounded-md px-3 py-2 text-sm",
-														isCurrent
-															? "bg-kumo-brand/10 font-medium"
-															: translation
-																? "hover:bg-kumo-tint/50"
-																: "text-kumo-subtle",
-													)}
-												>
-													<div className="flex items-center gap-2">
-														<span className="text-xs font-semibold uppercase">{locale}</span>
-														{locale === i18n.defaultLocale && (
-															<span className="text-[10px] text-kumo-subtle">{t` (default)`}</span>
-														)}
-														{isCurrent && (
-															<span className="text-[10px] text-kumo-brand">{t`current`}</span>
-														)}
-													</div>
-													{translation && !isCurrent ? (
-														<Link
-															to="/content/$collection/$id"
-															params={{ collection, id: translation.id }}
-															className="text-xs text-kumo-brand hover:underline"
-														>
-															{t`Edit`}
-														</Link>
-													) : !translation && onTranslate ? (
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															className="h-auto px-2 py-1 text-xs"
-															onClick={() => onTranslate(locale)}
-														>
-															{t`Translate`}
-														</Button>
-													) : null}
-												</div>
-											);
-										})}
-									</div>
+									<TranslationsPanel
+										locales={i18n.locales}
+										defaultLocale={i18n.defaultLocale}
+										currentLocale={item.locale ?? undefined}
+										translations={translations ?? []}
+										onOpen={(tr) =>
+											navigate({
+												to: "/content/$collection/$id",
+												params: { collection, id: tr.id },
+											})
+										}
+										onCreate={onTranslate}
+									/>
 								</div>
 							)}
 
 							{/* Taxonomy selector */}
 							{item && (
 								<div className="p-4 border-t">
-									<TaxonomySidebar collection={collection} entryId={item.id} />
+									<TaxonomySidebar
+										collection={collection}
+										entryId={item.id}
+										entryLocale={item.locale ?? entryLocale}
+									/>
 								</div>
 							)}
 
@@ -1064,8 +1116,9 @@ interface FieldRendererProps {
 	field: FieldDescriptor;
 	value: unknown;
 	onChange: (name: string, value: unknown) => void;
-	/** Callback when a portableText editor is ready */
-	onEditorReady?: (editor: Editor) => void;
+	/** Callback when a portableText editor is ready.
+	 * Called with the editor on mount, and with `null` on unmount. */
+	onEditorReady?: (editor: Editor | null) => void;
 	/** Minimal chrome - hides toolbar, fades labels, removes borders (distraction-free mode) */
 	minimal?: boolean;
 	/** Plugin block types available for insertion in Portable Text fields */
@@ -1123,7 +1176,7 @@ function FieldRenderer({
 						label: string;
 						id: string;
 						required?: boolean;
-						options?: Array<{ value: string; label: string }>;
+						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 						minimal?: boolean;
 				  }>
 				| undefined;
@@ -1241,8 +1294,9 @@ function FieldRenderer({
 			);
 
 		case "select": {
+			const selectOptions = Array.isArray(field.options) ? field.options : [];
 			const selectItems: Record<string, string> = {};
-			for (const opt of field.options ?? []) {
+			for (const opt of selectOptions) {
 				selectItems[opt.value] = opt.label;
 			}
 			return (
@@ -1253,7 +1307,7 @@ function FieldRenderer({
 					onValueChange={(v) => handleChange(v ?? "")}
 					items={selectItems}
 				>
-					{field.options?.map((opt) => (
+					{selectOptions.map((opt) => (
 						<Select.Option key={opt.value} value={opt.value}>
 							{opt.label}
 						</Select.Option>
@@ -1263,12 +1317,13 @@ function FieldRenderer({
 		}
 
 		case "multiSelect": {
+			const multiSelectOptions = Array.isArray(field.options) ? field.options : [];
 			const selected: string[] = Array.isArray(value) ? (value as string[]) : [];
 			return (
 				<fieldset>
 					<Label className={labelClass}>{label}</Label>
 					<div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-						{field.options?.map((opt) => {
+						{multiSelectOptions.map((opt) => {
 							const isChecked = selected.includes(opt.value);
 							return (
 								<Checkbox
@@ -1295,8 +1350,8 @@ function FieldRenderer({
 					label={label}
 					id={id}
 					type="datetime-local"
-					value={typeof value === "string" ? value : ""}
-					onChange={(e) => handleChange(e.target.value)}
+					value={toDatetimeLocalInputValue(value)}
+					onChange={(e) => handleChange(fromDatetimeLocalInputValue(e.target.value))}
 					required={field.required}
 				/>
 			);
@@ -1317,6 +1372,36 @@ function FieldRenderer({
 					value={imageValue}
 					onChange={handleChange}
 					required={field.required}
+					allowedMimeTypes={
+						Array.isArray(field.validation?.allowedMimeTypes)
+							? (field.validation.allowedMimeTypes as string[])
+							: undefined
+					}
+					fieldId={field.id}
+				/>
+			);
+		}
+
+		case "file": {
+			// value is either a FileFieldValue object or undefined.
+			// The file field type was unusable before this PR (rendered as a text input
+			// that produced raw strings nobody could meaningfully save), so there is no
+			// "legacy string" data to preserve here.
+			const fileValue =
+				value != null && typeof value === "object" ? (value as FileFieldValue) : undefined;
+			return (
+				<FileFieldRenderer
+					id={id}
+					label={label}
+					value={fileValue}
+					onChange={handleChange}
+					required={field.required}
+					allowedMimeTypes={
+						Array.isArray(field.validation?.allowedMimeTypes)
+							? (field.validation.allowedMimeTypes as string[])
+							: undefined
+					}
+					fieldId={field.id}
 				/>
 			);
 		}
@@ -1552,6 +1637,8 @@ interface ImageFieldRendererProps {
 	value: ImageFieldValue | string | undefined;
 	onChange: (value: ImageFieldValue | null) => void;
 	required?: boolean;
+	allowedMimeTypes?: string[];
+	fieldId?: string;
 }
 
 function ImageFieldRenderer({
@@ -1561,9 +1648,12 @@ function ImageFieldRenderer({
 	value,
 	onChange,
 	required,
+	allowedMimeTypes,
+	fieldId,
 }: ImageFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const [imageBroken, setImageBroken] = React.useState(false);
 	// Normalize value to get display URL (handles both object and legacy string)
 	// Prefer previewUrl for admin display, fall back to src, then derive from storageKey/id
 	const displayUrl =
@@ -1574,6 +1664,10 @@ function ImageFieldRenderer({
 				(value && (!value.provider || value.provider === "local")
 					? `/_emdash/api/media/file/${typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id}`
 					: undefined);
+
+	React.useEffect(() => {
+		setImageBroken(false);
+	}, [displayUrl]);
 
 	const handleSelect = (item: MediaItem) => {
 		const isLocalProvider = !item.provider || item.provider === "local";
@@ -1599,24 +1693,63 @@ function ImageFieldRenderer({
 		<div id={id}>
 			<Label>{label}</Label>
 			{displayUrl ? (
-				<div className="mt-2 relative group">
-					<img src={displayUrl} alt="" className="max-h-48 rounded-lg border object-cover" />
-					<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							{t`Change`}
-						</Button>
-						<Button
-							type="button"
-							shape="square"
-							variant="destructive"
-							className="h-8 w-8"
-							onClick={handleRemove}
-							aria-label={t`Remove image`}
-						>
-							<X className="h-4 w-4" />
-						</Button>
+				imageBroken ? (
+					<div className="mt-2 relative group">
+						<div className="min-h-20 rounded-lg border bg-kumo-muted flex items-center justify-center gap-2 text-kumo-subtle">
+							<ImageBroken className="h-5 w-5" />
+							<span className="text-sm">{t`Image not found`}</span>
+						</div>
+						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => setPickerOpen(true)}
+							>
+								{t`Change`}
+							</Button>
+							<Button
+								type="button"
+								shape="square"
+								variant="destructive"
+								className="h-8 w-8"
+								onClick={handleRemove}
+								aria-label={t`Remove image`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
 					</div>
-				</div>
+				) : (
+					<div className="mt-2 relative group">
+						<img
+							src={displayUrl}
+							alt=""
+							className="max-h-48 min-h-20 rounded-lg border object-cover"
+							onError={() => setImageBroken(true)}
+						/>
+						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								onClick={() => setPickerOpen(true)}
+							>
+								{t`Change`}
+							</Button>
+							<Button
+								type="button"
+								shape="square"
+								variant="destructive"
+								className="h-8 w-8"
+								onClick={handleRemove}
+								aria-label={t`Remove image`}
+							>
+								<X className="h-4 w-4" />
+							</Button>
+						</div>
+					</div>
+				)
 			) : (
 				<Button
 					type="button"
@@ -1634,11 +1767,187 @@ function ImageFieldRenderer({
 				open={pickerOpen}
 				onOpenChange={setPickerOpen}
 				onSelect={handleSelect}
-				mimeTypeFilter="image/"
+				mimeTypeFilters={
+					allowedMimeTypes && allowedMimeTypes.length > 0 ? allowedMimeTypes : ["image/"]
+				}
+				fieldId={fieldId}
 				title={t`Select ${label}`}
 			/>
 			{description && <p className="text-xs text-kumo-subtle mt-1">{description}</p>}
 			{required && !displayUrl && (
+				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
+			)}
+		</div>
+	);
+}
+
+/**
+ * File field value — matches the "file" shape validated by the Zod generator:
+ * { id, provider?, src?, filename?, mimeType?, size?, meta? }
+ */
+interface FileFieldValue {
+	id: string;
+	/** Provider ID (e.g., "local", "s3") */
+	provider?: string;
+	/** Direct URL for non-local media */
+	src?: string;
+	filename?: string;
+	mimeType?: string;
+	size?: number;
+	/** Provider-specific metadata */
+	meta?: Record<string, unknown>;
+}
+
+interface FileFieldRendererProps {
+	id?: string;
+	label: string;
+	value: FileFieldValue | undefined;
+	onChange: (value: FileFieldValue | null) => void;
+	required?: boolean;
+	allowedMimeTypes?: string[];
+	fieldId?: string;
+}
+
+/**
+ * File field with media picker
+ *
+ * Like ImageFieldRenderer but for arbitrary file types. Shows a mime-type-appropriate
+ * icon, filename, and size instead of an image preview.
+ */
+function FileFieldRenderer({
+	id,
+	label,
+	value,
+	onChange,
+	required,
+	allowedMimeTypes,
+	fieldId,
+}: FileFieldRendererProps) {
+	const { t } = useLingui();
+	const [pickerOpen, setPickerOpen] = React.useState(false);
+
+	// Normalize value to derive display info.
+	// For local files, prefer meta.storageKey; fall back to value.src when it's an
+	// internal media path; finally fall back to value.id so local files remain
+	// clickable even when metadata is sparse. For external providers, use value.src
+	// but only when it's an http(s) URL — a hostile provider plugin could otherwise
+	// return a data: or javascript: URL that gets rendered as a clickable link.
+	const normalized = React.useMemo(() => {
+		if (!value) return null;
+		const isLocal = !value.provider || value.provider === "local";
+		const storageKey =
+			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : undefined;
+		const localSrc =
+			typeof value.src === "string" && value.src.startsWith("/_emdash/") ? value.src : undefined;
+		// Storage keys come from server-controlled paths today, but the Zod schema
+		// now lets clients write arbitrary `meta.storageKey` strings via the content
+		// API. Encode before interpolating so attacker-shaped values can't escape
+		// the path with `?` or `#`.
+		const localUrl = isLocal
+			? storageKey
+				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`
+				: (localSrc ?? `/_emdash/api/media/file/${encodeURIComponent(value.id)}`)
+			: undefined;
+		const externalUrl = !isLocal && value.src && isSafeUrl(value.src) ? value.src : undefined;
+		return {
+			displayUrl: localUrl ?? externalUrl,
+			filename: value.filename || t`Untitled file`,
+			mimeType: value.mimeType || "",
+			size: value.size,
+		};
+	}, [value, t]);
+
+	const handleSelect = (item: MediaItem) => {
+		const isLocalProvider = !item.provider || item.provider === "local";
+		onChange({
+			id: item.id,
+			provider: item.provider || "local",
+			src: isLocalProvider ? undefined : item.url,
+			filename: item.filename,
+			mimeType: item.mimeType,
+			size: item.size,
+			meta: isLocalProvider ? { ...item.meta, storageKey: item.storageKey } : item.meta,
+		});
+	};
+
+	const handleRemove = () => {
+		onChange(null);
+	};
+
+	const hasMime = !!normalized?.mimeType;
+	const size = typeof normalized?.size === "number" ? normalized.size : undefined;
+	const hasSize = size !== undefined;
+
+	return (
+		<div id={id}>
+			<Label>{label}</Label>
+			{normalized ? (
+				<div className="mt-2 flex items-center gap-3 rounded-lg border p-3">
+					<span className="text-3xl" aria-hidden="true">
+						{getFileIcon(normalized.mimeType)}
+					</span>
+					<div className="flex-1 min-w-0">
+						{normalized.displayUrl ? (
+							<a
+								href={normalized.displayUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-sm font-medium truncate block hover:underline"
+							>
+								{normalized.filename}
+							</a>
+						) : (
+							<p className="text-sm font-medium truncate">{normalized.filename}</p>
+						)}
+						{(hasMime || hasSize) && (
+							<p className="text-xs text-kumo-subtle">
+								{hasMime ? normalized.mimeType : null}
+								{hasMime && hasSize ? " • " : null}
+								{hasSize ? formatFileSize(size) : null}
+							</p>
+						)}
+					</div>
+					<div className="flex gap-1">
+						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
+							{t`Change`}
+						</Button>
+						<Button
+							type="button"
+							shape="square"
+							variant="destructive"
+							className="h-8 w-8"
+							onClick={handleRemove}
+							aria-label={t`Remove ${label}`}
+						>
+							<X className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+			) : (
+				<Button
+					type="button"
+					variant="outline"
+					className="mt-2 w-full h-32 border-dashed"
+					onClick={() => setPickerOpen(true)}
+					aria-label={t`Select ${label}`}
+				>
+					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
+						<Paperclip className="h-8 w-8" />
+						<span>{t`Select file`}</span>
+					</div>
+				</Button>
+			)}
+			<MediaPickerModal
+				open={pickerOpen}
+				onOpenChange={setPickerOpen}
+				onSelect={handleSelect}
+				mimeTypeFilters={allowedMimeTypes ?? []}
+				fieldId={fieldId}
+				hideUrlInput
+				mediaKind="file"
+				title={t`Select ${label}`}
+			/>
+			{required && !normalized && (
 				<p className="text-sm text-kumo-danger mt-1">{t`This field is required`}</p>
 			)}
 		</div>
@@ -1657,23 +1966,45 @@ interface AuthorSelectorProps {
 interface BylineCreditsEditorProps {
 	credits: BylineCreditInput[];
 	bylines: BylineSummary[];
+	/**
+	 * Full byline details for the entry's already-selected credits. Seeded from
+	 * the saved entry so credited bylines always render their name/slug even when
+	 * they fall outside the initial (unsearched) picker list.
+	 */
+	selectedBylineDetails?: BylineSummary[];
 	onChange: (bylines: BylineCreditInput[]) => void;
 	onQuickCreate?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
 	onQuickEdit?: (
 		bylineId: string,
 		input: { slug: string; displayName: string },
 	) => Promise<BylineSummary>;
+	/**
+	 * Locale of the entry being edited. When the picker comes back empty and
+	 * the install is multi-locale, the empty-state copy and CTA link are
+	 * scoped to this locale (post-migration 040, the picker is strict
+	 * per-locale — see the bylines manager flow).
+	 */
+	entryLocale?: string | null;
+	/** i18n config from the manifest. When set with >1 locales, the editor renders the locale-scoped empty-state. */
+	i18n?: { defaultLocale: string; locales: string[] } | null;
+	/** Suppresses the empty-state until the picker query resolves. Defaults to true. */
+	bylinesLoaded?: boolean;
 }
 
 function BylineCreditsEditor({
 	credits,
 	bylines,
+	selectedBylineDetails,
 	onChange,
 	onQuickCreate,
 	onQuickEdit,
+	entryLocale,
+	i18n,
+	bylinesLoaded = true,
 }: BylineCreditsEditorProps) {
 	const { t } = useLingui();
-	const [selectedBylineId, setSelectedBylineId] = React.useState("");
+	const [search, setSearch] = React.useState("");
+	const debouncedSearch = useDebouncedValue(search, 300);
 	const [quickName, setQuickName] = React.useState("");
 	const [quickSlug, setQuickSlug] = React.useState("");
 	const [quickError, setQuickError] = React.useState<string | null>(null);
@@ -1684,9 +2015,39 @@ function BylineCreditsEditor({
 	const [editError, setEditError] = React.useState<string | null>(null);
 	const [isEditing, setIsEditing] = React.useState(false);
 
-	const bylineMap = React.useMemo(() => new Map(bylines.map((b) => [b.id, b])), [bylines]);
+	// Server-side search so the picker isn't limited to the first page of
+	// bylines (previously capped at 100 with no way to find the rest). When the
+	// search box is empty we fall back to the parent-provided initial list.
+	const trimmedSearch = debouncedSearch.trim();
+	const searchEnabled = trimmedSearch.length > 0;
+	const searchResults = useQuery({
+		queryKey: ["bylines", "credit-picker", entryLocale ?? null, trimmedSearch],
+		queryFn: () =>
+			fetchBylines({ search: trimmedSearch, locale: entryLocale ?? undefined, limit: 20 }),
+		enabled: searchEnabled,
+		placeholderData: keepPreviousData,
+	});
 
-	const availableToAdd = bylines.filter((b) => !credits.some((c) => c.bylineId === b.id));
+	const resultPool = searchEnabled ? (searchResults.data?.items ?? []) : bylines;
+	const hasMoreResults = searchEnabled ? !!searchResults.data?.nextCursor : bylines.length >= 100;
+
+	// Resolve credited bylines to their full details for display. Selected rows
+	// come from the parent-provided details so they keep rendering even when the
+	// current search results no longer include them.
+	const bylineMap = React.useMemo(() => {
+		const map = new Map<string, BylineSummary>();
+		for (const b of selectedBylineDetails ?? []) map.set(b.id, b);
+		for (const b of bylines) map.set(b.id, b);
+		for (const b of searchResults.data?.items ?? []) map.set(b.id, b);
+		return map;
+	}, [selectedBylineDetails, bylines, searchResults.data?.items]);
+
+	const availableToAdd = resultPool.filter((b) => !credits.some((c) => c.bylineId === b.id));
+
+	const addByline = (bylineId: string) => {
+		if (credits.some((c) => c.bylineId === bylineId)) return;
+		onChange([...credits, { bylineId, roleLabel: null }]);
+	};
 
 	const move = (index: number, direction: -1 | 1) => {
 		const target = index + direction;
@@ -1718,33 +2079,65 @@ function BylineCreditsEditor({
 		setEditError(null);
 	};
 
+	// Multi-locale install with no bylines at the entry's locale: show a
+	// CTA to the byline manager, scoped to that locale. Quick-create
+	// still works inline.
+	const isMultiLocale = !!i18n && i18n.locales.length > 1;
+	const showLocaleEmptyState =
+		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
+
 	return (
 		<div className="space-y-3">
-			<div className="flex gap-2">
-				<select
-					value={selectedBylineId}
-					onChange={(e) => setSelectedBylineId(e.target.value)}
-					className="w-full rounded border bg-kumo-base px-3 py-2 text-sm"
-				>
-					<option value="">{t`Select byline...`}</option>
-					{availableToAdd.map((b) => (
-						<option key={b.id} value={b.id}>
-							{b.displayName}
-						</option>
-					))}
-				</select>
-				<Button
-					type="button"
-					variant="secondary"
-					onClick={() => {
-						if (!selectedBylineId) return;
-						onChange([...credits, { bylineId: selectedBylineId, roleLabel: null }]);
-						setSelectedBylineId("");
-					}}
-					disabled={!selectedBylineId}
-				>
-					{t`Add`}
-				</Button>
+			{showLocaleEmptyState && (
+				<div className="rounded border border-dashed p-3 text-sm space-y-2">
+					<p className="text-kumo-subtle">
+						{t`No bylines available in ${entryLocale}. Create a variant from the Bylines page before crediting one on this entry.`}
+					</p>
+					<RouterLinkButton
+						to="/bylines"
+						search={{ locale: entryLocale ?? undefined }}
+						variant="secondary"
+						size="sm"
+					>
+						{t`Manage bylines in ${entryLocale}`}
+					</RouterLinkButton>
+				</div>
+			)}
+			<div className="space-y-2">
+				<Input
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+					placeholder={t`Search bylines to add...`}
+					aria-label={t`Search bylines`}
+				/>
+				{searchEnabled && searchResults.isLoading ? (
+					<p className="text-sm text-kumo-subtle">{t`Searching...`}</p>
+				) : availableToAdd.length > 0 ? (
+					<ul className="max-h-48 divide-y overflow-y-auto rounded border">
+						{availableToAdd.map((b) => (
+							<li key={b.id}>
+								<button
+									type="button"
+									className="flex w-full items-center justify-between gap-2 p-2 text-start hover:bg-kumo-tint"
+									onClick={() => addByline(b.id)}
+								>
+									<span className="min-w-0">
+										<span className="block truncate text-sm font-medium">{b.displayName}</span>
+										<span className="block truncate text-xs text-kumo-subtle">{b.slug}</span>
+									</span>
+									<span className="text-xs text-kumo-subtle">{t`Add`}</span>
+								</button>
+							</li>
+						))}
+					</ul>
+				) : searchEnabled && searchResults.isError ? (
+					<p className="text-sm text-kumo-danger">{t`Couldn't search bylines. Please try again.`}</p>
+				) : searchEnabled ? (
+					<p className="text-sm text-kumo-subtle">{t`No matching bylines.`}</p>
+				) : null}
+				{hasMoreResults && (
+					<p className="text-xs text-kumo-subtle">{t`Keep typing to narrow down more bylines.`}</p>
+				)}
 			</div>
 
 			{credits.length > 0 ? (

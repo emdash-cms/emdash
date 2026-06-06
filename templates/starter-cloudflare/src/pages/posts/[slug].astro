@@ -16,7 +16,7 @@ if (!post) {
 	return Astro.redirect("/404");
 }
 
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 const { siteTitle } = resolveStarterSiteIdentity(await getSiteSettings());
 
 // SEO meta from content fields

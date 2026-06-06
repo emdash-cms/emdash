@@ -169,7 +169,7 @@ export function createStorage(config: Record<string, unknown>): Storage {
 	}
 
 	// env from cloudflare:workers doesn't have an index signature, so cast is needed
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- R2Bucket binding accessed from untyped env object
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- R2Bucket binding accessed from untyped env object
 	const bucket = (env as Record<string, unknown>)[binding] as R2Bucket | undefined;
 
 	if (!bucket) {

@@ -9,12 +9,18 @@
 import { describe, it, expect, vi } from "vitest";
 
 import type { PluginDescriptor } from "../../../src/astro/integration/runtime.js";
+import type { SandboxedPlugin } from "../../../src/plugin-types.js";
 import { adaptSandboxEntry } from "../../../src/plugins/adapt-sandbox-entry.js";
-import type { StandardPluginDefinition, StandardHookHandler } from "../../../src/plugins/types.js";
 
-/** Create a properly typed mock hook handler */
-function mockHandler(): StandardHookHandler {
-	return vi.fn(async () => {}) as unknown as StandardHookHandler;
+/**
+ * Create a mock hook handler with a loose signature. The strict
+ * mapped type on `SandboxedPlugin` ties handler shape to hook name;
+ * tests building fixtures across many hooks construct each entry as
+ * the union, so a single mock factory returns a handler typed as
+ * `() => Promise<unknown>` and TypeScript widens when assigned.
+ */
+function mockHandler(): () => Promise<void> {
+	return vi.fn(async () => {});
 }
 
 function createDescriptor(overrides?: Partial<PluginDescriptor>): PluginDescriptor {
@@ -30,7 +36,7 @@ function createDescriptor(overrides?: Partial<PluginDescriptor>): PluginDescript
 describe("adaptSandboxEntry", () => {
 	describe("basic adaptation", () => {
 		it("produces a ResolvedPlugin with correct id and version", () => {
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				hooks: {},
 				routes: {},
 			};
@@ -43,7 +49,7 @@ describe("adaptSandboxEntry", () => {
 		});
 
 		it("adapts an empty definition", () => {
-			const def: StandardPluginDefinition = {};
+			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor();
 
 			const result = adaptSandboxEntry(def, descriptor);
@@ -56,18 +62,18 @@ describe("adaptSandboxEntry", () => {
 		});
 
 		it("carries capabilities from descriptor", () => {
-			const def: StandardPluginDefinition = {};
+			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({
-				capabilities: ["read:content", "network:fetch"],
+				capabilities: ["content:read", "network:request"],
 			});
 
 			const result = adaptSandboxEntry(def, descriptor);
 
-			expect(result.capabilities).toEqual(["read:content", "network:fetch"]);
+			expect(result.capabilities).toEqual(["content:read", "network:request"]);
 		});
 
 		it("carries allowedHosts from descriptor", () => {
-			const def: StandardPluginDefinition = {};
+			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({
 				allowedHosts: ["api.example.com", "*.cdn.com"],
 			});
@@ -78,7 +84,7 @@ describe("adaptSandboxEntry", () => {
 		});
 
 		it("carries storage config from descriptor", () => {
-			const def: StandardPluginDefinition = {};
+			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({
 				storage: {
 					events: { indexes: ["timestamp", "type"] },
@@ -95,7 +101,7 @@ describe("adaptSandboxEntry", () => {
 		});
 
 		it("carries admin pages from descriptor", () => {
-			const def: StandardPluginDefinition = {};
+			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({
 				adminPages: [{ path: "/settings", label: "Settings", icon: "gear" }],
 			});
@@ -106,7 +112,7 @@ describe("adaptSandboxEntry", () => {
 		});
 
 		it("carries admin widgets from descriptor", () => {
-			const def: StandardPluginDefinition = {};
+			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({
 				adminWidgets: [{ id: "status", title: "Status", size: "half" }],
 			});
@@ -120,7 +126,7 @@ describe("adaptSandboxEntry", () => {
 	describe("hook adaptation", () => {
 		it("resolves a bare function hook with defaults", () => {
 			const handler = vi.fn();
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				hooks: {
 					"content:afterSave": handler,
 				},
@@ -142,7 +148,7 @@ describe("adaptSandboxEntry", () => {
 
 		it("resolves a config object hook with custom settings", () => {
 			const handler = vi.fn();
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				hooks: {
 					"content:beforeSave": {
 						handler,
@@ -168,7 +174,7 @@ describe("adaptSandboxEntry", () => {
 		});
 
 		it("resolves multiple hooks", () => {
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				hooks: {
 					"content:beforeSave": mockHandler(),
 					"content:afterSave": { handler: mockHandler(), priority: 200 },
@@ -189,7 +195,7 @@ describe("adaptSandboxEntry", () => {
 		});
 
 		it("sets pluginId on all hooks from descriptor", () => {
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				hooks: {
 					"content:beforeSave": mockHandler(),
 					"content:afterSave": { handler: mockHandler() },
@@ -205,7 +211,7 @@ describe("adaptSandboxEntry", () => {
 
 		it("resolves exclusive hooks", () => {
 			const handler = vi.fn();
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				hooks: {
 					"email:deliver": {
 						handler,
@@ -221,7 +227,7 @@ describe("adaptSandboxEntry", () => {
 		});
 
 		it("throws on unknown hook names", () => {
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				hooks: {
 					"unknown:hook": mockHandler(),
 				},
@@ -233,7 +239,7 @@ describe("adaptSandboxEntry", () => {
 
 		it("applies default config for partial config objects", () => {
 			const handler = vi.fn();
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				hooks: {
 					"content:afterSave": {
 						handler,
@@ -259,7 +265,7 @@ describe("adaptSandboxEntry", () => {
 		it("wraps standard two-arg route handler into single-arg RouteContext handler", async () => {
 			const standardHandler = vi.fn().mockResolvedValue({ ok: true });
 
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				routes: {
 					status: {
 						handler: standardHandler,
@@ -304,7 +310,7 @@ describe("adaptSandboxEntry", () => {
 		});
 
 		it("preserves public flag on routes", () => {
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				routes: {
 					webhook: {
 						handler: vi.fn(),
@@ -320,7 +326,7 @@ describe("adaptSandboxEntry", () => {
 		});
 
 		it("adapts multiple routes", () => {
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				routes: {
 					status: { handler: vi.fn() },
 					sync: { handler: vi.fn() },
@@ -336,55 +342,121 @@ describe("adaptSandboxEntry", () => {
 	});
 
 	describe("capability normalization", () => {
-		it("normalizes write:content to include read:content", () => {
-			const def: StandardPluginDefinition = {};
-			const descriptor = createDescriptor({ capabilities: ["write:content"] });
+		it("normalizes content:write to include content:read", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({ capabilities: ["content:write"] });
 
 			const result = adaptSandboxEntry(def, descriptor);
 
-			expect(result.capabilities).toContain("write:content");
-			expect(result.capabilities).toContain("read:content");
+			expect(result.capabilities).toContain("content:write");
+			expect(result.capabilities).toContain("content:read");
 		});
 
-		it("normalizes write:media to include read:media", () => {
-			const def: StandardPluginDefinition = {};
-			const descriptor = createDescriptor({ capabilities: ["write:media"] });
+		it("normalizes media:write to include media:read", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({ capabilities: ["media:write"] });
 
 			const result = adaptSandboxEntry(def, descriptor);
 
-			expect(result.capabilities).toContain("write:media");
-			expect(result.capabilities).toContain("read:media");
+			expect(result.capabilities).toContain("media:write");
+			expect(result.capabilities).toContain("media:read");
 		});
 
-		it("normalizes network:fetch:any to include network:fetch", () => {
-			const def: StandardPluginDefinition = {};
-			const descriptor = createDescriptor({ capabilities: ["network:fetch:any"] });
+		it("normalizes network:request:unrestricted to include network:request", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({ capabilities: ["network:request:unrestricted"] });
 
 			const result = adaptSandboxEntry(def, descriptor);
 
-			expect(result.capabilities).toContain("network:fetch:any");
-			expect(result.capabilities).toContain("network:fetch");
+			expect(result.capabilities).toContain("network:request:unrestricted");
+			expect(result.capabilities).toContain("network:request");
 		});
 
 		it("does not duplicate implied capabilities", () => {
-			const def: StandardPluginDefinition = {};
+			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({
-				capabilities: ["read:content", "write:content"],
+				capabilities: ["content:read", "content:write"],
 			});
 
 			const result = adaptSandboxEntry(def, descriptor);
 
-			const readCount = result.capabilities.filter((c) => c === "read:content").length;
+			const readCount = result.capabilities.filter((c) => c === "content:read").length;
 			expect(readCount).toBe(1);
 		});
 
 		it("throws on invalid capability", () => {
-			const def: StandardPluginDefinition = {};
+			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({
 				capabilities: ["invalid:capability"],
 			});
 
 			expect(() => adaptSandboxEntry(def, descriptor)).toThrow("Invalid capability");
+		});
+
+		// ── Deprecation alias layer ────────────────────────────────
+		// Sandboxed plugins arrive via descriptors generated by older
+		// builds (or older bundle versions). The adapter must accept
+		// deprecated names and silently rewrite to canonical names so
+		// the runtime only sees the new shape.
+
+		it("rewrites all deprecated capability names to current names", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({
+				capabilities: [
+					"read:content",
+					"write:content",
+					"read:media",
+					"write:media",
+					"read:users",
+					"network:fetch",
+					"network:fetch:any",
+					"email:provide",
+					"email:intercept",
+					"page:inject",
+				],
+			});
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			// Canonical names present
+			expect(result.capabilities).toContain("content:read");
+			expect(result.capabilities).toContain("content:write");
+			expect(result.capabilities).toContain("media:read");
+			expect(result.capabilities).toContain("media:write");
+			expect(result.capabilities).toContain("users:read");
+			expect(result.capabilities).toContain("network:request");
+			expect(result.capabilities).toContain("network:request:unrestricted");
+			expect(result.capabilities).toContain("hooks.email-transport:register");
+			expect(result.capabilities).toContain("hooks.email-events:register");
+			expect(result.capabilities).toContain("hooks.page-fragments:register");
+
+			// Deprecated names absent
+			for (const old of [
+				"read:content",
+				"write:content",
+				"read:media",
+				"write:media",
+				"read:users",
+				"network:fetch",
+				"network:fetch:any",
+				"email:provide",
+				"email:intercept",
+				"page:inject",
+			]) {
+				expect(result.capabilities).not.toContain(old);
+			}
+		});
+
+		it("deduplicates when both deprecated and current names are present", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({
+				capabilities: ["read:content", "content:read"],
+			});
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			const readCount = result.capabilities.filter((c) => c === "content:read").length;
+			expect(readCount).toBe(1);
 		});
 	});
 
@@ -393,7 +465,7 @@ describe("adaptSandboxEntry", () => {
 			// HookPipeline stores hooks as ResolvedHook<unknown> internally.
 			// The adapted hooks must have the expected shape.
 			const handler = vi.fn().mockResolvedValue(undefined);
-			const def: StandardPluginDefinition = {
+			const def: SandboxedPlugin = {
 				hooks: {
 					"content:afterSave": {
 						handler,

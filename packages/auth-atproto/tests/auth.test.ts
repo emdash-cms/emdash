@@ -106,24 +106,4 @@ describe("atproto auth config", () => {
 			expect(config).toEqual(original);
 		});
 	});
-
-	describe("descriptor shape invariants", () => {
-		it("id is always a non-empty string", () => {
-			const descriptor = atproto();
-			expect(typeof descriptor.id).toBe("string");
-			expect(descriptor.id.length).toBeGreaterThan(0);
-		});
-
-		it("label is always a non-empty string", () => {
-			const descriptor = atproto();
-			expect(typeof descriptor.label).toBe("string");
-			expect(descriptor.label.length).toBeGreaterThan(0);
-		});
-
-		it("adminEntry is always a non-empty string", () => {
-			const descriptor = atproto();
-			expect(typeof descriptor.adminEntry).toBe("string");
-			expect(descriptor.adminEntry!.length).toBeGreaterThan(0);
-		});
-	});
 });

@@ -172,6 +172,76 @@ describe("CLI Integration", () => {
 			await cli("content", "delete", "posts", created.id);
 		});
 
+		it("updates content by slug scoped to locale", async () => {
+			const slug = "cli-shared-locale";
+			const en = await cliJson<{ id: string; data: { title: string } }>(
+				"content",
+				"create",
+				"posts",
+				"--data",
+				JSON.stringify({ title: "CLI EN" }),
+				"--slug",
+				slug,
+				"--locale",
+				"en",
+			);
+			const fr = await cliJson<{ id: string; data: { title: string } }>(
+				"content",
+				"create",
+				"posts",
+				"--data",
+				JSON.stringify({ title: "CLI FR" }),
+				"--slug",
+				slug,
+				"--locale",
+				"fr",
+			);
+
+			const currentFr = await cliJson<{ _rev: string }>(
+				"content",
+				"get",
+				"posts",
+				slug,
+				"--locale",
+				"fr",
+			);
+			await cliJson<{ id: string; locale: string; data: { title: string } }>(
+				"content",
+				"update",
+				"posts",
+				slug,
+				"--locale",
+				"fr",
+				"--rev",
+				currentFr._rev,
+				"--data",
+				JSON.stringify({ title: "CLI FR Updated" }),
+			);
+
+			const fetchedEn = await cliJson<{ data: { title: string } }>(
+				"content",
+				"get",
+				"posts",
+				slug,
+				"--locale",
+				"en",
+			);
+			const fetchedFr = await cliJson<{ locale: string; data: { title: string } }>(
+				"content",
+				"get",
+				"posts",
+				slug,
+				"--locale",
+				"fr",
+			);
+			expect(fetchedEn.data.title).toBe("CLI EN");
+			expect(fetchedFr.locale).toBe("fr");
+			expect(fetchedFr.data.title).toBe("CLI FR Updated");
+
+			await cli("content", "delete", "posts", en.id);
+			await cli("content", "delete", "posts", fr.id);
+		});
+
 		it("publishes and unpublishes content", async () => {
 			const item = await cliJson<{ id: string }>(
 				"content",
@@ -310,6 +380,43 @@ describe("CLI Integration", () => {
 			const result = await cliJson<{ email: string; role: string }>("whoami");
 			expect(result.email).toBe("dev@emdash.local");
 			expect(result.role).toBe("admin");
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// Taxonomy commands
+	// -----------------------------------------------------------------------
+
+	describe("taxonomy", () => {
+		it("taxonomy list returns valid JSON array", async () => {
+			const result = await cliJson<{ name: string }[]>("taxonomy", "list");
+			expect(Array.isArray(result)).toBe(true);
+			expect(result.length).toBeGreaterThanOrEqual(1);
+			const names = result.map((t) => t.name);
+			expect(names).toContain("categories");
+		});
+
+		it("taxonomy terms returns terms for a taxonomy", async () => {
+			const result = await cliJson<{ items: { slug: string }[] }>(
+				"taxonomy",
+				"terms",
+				"categories",
+			);
+			expect(result.items).toBeDefined();
+			expect(Array.isArray(result.items)).toBe(true);
+			const slugs = result.items.map((t) => t.slug);
+			expect(slugs).toContain("news");
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// Menu commands
+	// -----------------------------------------------------------------------
+
+	describe("menu", () => {
+		it("menu list returns valid JSON array", async () => {
+			const result = await cliJson<unknown[]>("menu", "list");
+			expect(Array.isArray(result)).toBe(true);
 		});
 	});
 });

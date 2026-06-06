@@ -4,6 +4,7 @@ import type { Interceptor } from "../../../src/client/transport.js";
 import {
 	createTransport,
 	csrfInterceptor,
+	refreshInterceptor,
 	tokenInterceptor,
 } from "../../../src/client/transport.js";
 
@@ -219,6 +220,77 @@ describe("tokenInterceptor", () => {
 		await transport.fetch(new Request("https://example.com", { method: "GET" }));
 		await transport.fetch(new Request("https://example.com", { method: "POST" }));
 		expect(captured).toEqual(["Bearer tok", "Bearer tok"]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Interceptor composition
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// refreshInterceptor
+// ---------------------------------------------------------------------------
+
+describe("refreshInterceptor", () => {
+	it("unwraps { data: { access_token } } envelope from token endpoint", async () => {
+		let retryAuth: string | null = null;
+		let refreshedToken: string | null = null;
+		let refreshedRefresh: string | null = null;
+
+		const interceptor = refreshInterceptor({
+			refreshToken: "rt_old",
+			tokenEndpoint: "https://example.com/_emdash/api/oauth/token/refresh",
+			onTokenRefreshed: (accessToken, refreshToken) => {
+				refreshedToken = accessToken;
+				refreshedRefresh = refreshToken;
+			},
+		});
+
+		// Mock: first call returns 401, refresh endpoint returns wrapped envelope,
+		// retry should use the new token
+		let callCount = 0;
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = async (input: string | URL | Request) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url.includes("/oauth/token/refresh")) {
+				// Server wraps in { data: ... } via apiSuccess/unwrapResult
+				return new Response(
+					JSON.stringify({
+						data: {
+							access_token: "new_access",
+							refresh_token: "new_refresh",
+							expires_in: 3600,
+						},
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			return originalFetch(input);
+		};
+
+		try {
+			const backend: Interceptor = async (req) => {
+				callCount++;
+				if (callCount === 1) {
+					return new Response("unauthorized", { status: 401 });
+				}
+				retryAuth = req.headers.get("Authorization");
+				return new Response("ok", { status: 200 });
+			};
+
+			const transport = createTransport({
+				interceptors: [interceptor, backend],
+			});
+
+			const res = await transport.fetch(new Request("https://example.com/api/test"));
+			expect(res.status).toBe(200);
+			expect(callCount).toBe(2);
+			expect(retryAuth).toBe("Bearer new_access");
+			expect(refreshedToken).toBe("new_access");
+			expect(refreshedRefresh).toBe("new_refresh");
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
 	});
 });
 

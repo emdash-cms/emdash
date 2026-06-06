@@ -1,36 +1,114 @@
 /**
- * Menu CRUD handlers
+ * Menu CRUD handlers.
  *
- * Business logic for menu and menu-item endpoints.
- * Routes are thin wrappers that parse input, check auth, and call these.
+ * Business logic for menu and menu-item endpoints. Routes are thin wrappers
+ * that parse input, check auth, and call these.
+ *
+ * i18n: Menus are per-locale. `(name, locale)` is unique, so the same `name`
+ * (e.g. "primary") can exist in several locales within one translation_group.
+ * Menu items carry a `locale` + `translation_group` as well, and their
+ * `reference_id` points at the referenced content's translation_group (not a
+ * specific row id), so a single menu item target survives content translations.
  */
 
 import type { Kysely } from "kysely";
-import { ulid } from "ulidx";
 
-import { withTransaction } from "../../database/transaction.js";
-import type { Database, MenuItemTable, MenuTable } from "../../database/types.js";
+import {
+	MenuGoneError,
+	MenuRepository,
+	type CreateMenuItemInput as CreateMenuItemRepoInput,
+	type Menu,
+	type MenuItem,
+	type MenuListItem,
+	type MenuWithItems,
+	type SetMenuItem,
+	type UpdateMenuItemInput as UpdateMenuItemRepoInput,
+} from "../../database/repositories/menu.js";
+import type { Database } from "../../database/types.js";
+import { getI18nConfig } from "../../i18n/config.js";
 import type { ApiResult } from "../types.js";
 
-// ---------------------------------------------------------------------------
-// Response types
-// ---------------------------------------------------------------------------
+// Re-export entity types so route files and tests can import them from the
+// handler module without having to know about the repository layout.
+export type {
+	Menu,
+	MenuItem,
+	MenuListItem,
+	MenuTranslation,
+	MenuWithItems,
+} from "../../database/repositories/menu.js";
 
-type MenuRow = Omit<MenuTable, "created_at" | "updated_at"> & {
-	created_at: string;
-	updated_at: string;
-};
-
-type MenuItemRow = Omit<MenuItemTable, "created_at"> & {
-	created_at: string;
-};
-
-export interface MenuListItem extends MenuRow {
-	itemCount: number;
+export interface MenuTranslationsResponse {
+	translationGroup: string | null;
+	translations: Array<{
+		id: string;
+		name: string;
+		locale: string;
+		label: string;
+		updatedAt: string;
+	}>;
 }
 
-export interface MenuWithItems extends MenuRow {
-	items: MenuItemRow[];
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Error returned when a menu lookup by `name` matches multiple locale
+ * variants and the caller did not pass `locale` to disambiguate. Maps to
+ * HTTP 400 via `mapErrorStatus`. The available locales are surfaced in the
+ * message so MCP/REST callers can recover by re-issuing with `locale`.
+ */
+function ambiguousMenuLocaleError(
+	name: string,
+	locales: readonly string[],
+): { success: false; error: { code: "AMBIGUOUS_LOCALE"; message: string } } {
+	const sortedLocales = locales.toSorted();
+	return {
+		success: false,
+		error: {
+			code: "AMBIGUOUS_LOCALE",
+			message: `Menu '${name}' exists in multiple locales (${sortedLocales.join(
+				", ",
+			)}); pass 'locale' to disambiguate.`,
+		},
+	};
+}
+
+type ResolveMenuResult =
+	| { success: true; menu: Menu }
+	| { success: false; error: { code: "NOT_FOUND" | "AMBIGUOUS_LOCALE"; message: string } };
+
+/**
+ * Resolve a menu by name + optional locale to a single Menu, surfacing the
+ * canonical NOT_FOUND / AMBIGUOUS_LOCALE errors. Every item handler relies on
+ * this to translate (name, locale) into an unambiguous menu row.
+ */
+async function resolveMenu(
+	repo: MenuRepository,
+	name: string,
+	options: { locale?: string },
+): Promise<ResolveMenuResult> {
+	const matches = await repo.findByName(name, options);
+	if (matches.length === 0) {
+		return {
+			success: false,
+			error: {
+				code: "NOT_FOUND",
+				message: `Menu '${name}' not found${options.locale ? ` in locale '${options.locale}'` : ""}`,
+			},
+		};
+	}
+	if (matches.length > 1) {
+		return {
+			success: false,
+			error: ambiguousMenuLocaleError(
+				name,
+				matches.map((m) => m.locale),
+			).error,
+		};
+	}
+	return { success: true, menu: matches[0] };
 }
 
 // ---------------------------------------------------------------------------
@@ -38,39 +116,16 @@ export interface MenuWithItems extends MenuRow {
 // ---------------------------------------------------------------------------
 
 /**
- * List all menus with item counts.
+ * List menus with item counts. Filter by `locale` when provided.
  */
-export async function handleMenuList(db: Kysely<Database>): Promise<ApiResult<MenuListItem[]>> {
+export async function handleMenuList(
+	db: Kysely<Database>,
+	options: { locale?: string } = {},
+): Promise<ApiResult<MenuListItem[]>> {
 	try {
-		// Single query: LEFT JOIN + GROUP BY for the per-menu item count.
-		// Avoids the N+1 of one count query per menu.
-		const rows = await db
-			.selectFrom("_emdash_menus as m")
-			.leftJoin("_emdash_menu_items as i", "i.menu_id", "m.id")
-			.select(({ fn }) => [
-				"m.id",
-				"m.name",
-				"m.label",
-				"m.created_at",
-				"m.updated_at",
-				fn.count<number>("i.id").as("itemCount"),
-			])
-			.groupBy(["m.id", "m.name", "m.label", "m.created_at", "m.updated_at"])
-			.orderBy("m.name", "asc")
-			.execute();
-
-		// SQLite returns count as `number`, but some dialects (Postgres)
-		// return `string` from a count() aggregate. Normalize to number.
-		const menusWithCounts: MenuListItem[] = rows.map((row) => ({
-			id: row.id,
-			name: row.name,
-			label: row.label,
-			created_at: row.created_at,
-			updated_at: row.updated_at,
-			itemCount: typeof row.itemCount === "string" ? Number(row.itemCount) : row.itemCount,
-		}));
-
-		return { success: true, data: menusWithCounts };
+		const repo = new MenuRepository(db);
+		const items = await repo.findMany(options);
+		return { success: true, data: items };
 	} catch {
 		return {
 			success: false,
@@ -80,42 +135,60 @@ export async function handleMenuList(db: Kysely<Database>): Promise<ApiResult<Me
 }
 
 /**
- * Create a new menu.
+ * Create a new menu. When `translationOf` is supplied the new menu joins the
+ * source menu's translation_group (and gets the source's items cloned by the
+ * repository).
  */
 export async function handleMenuCreate(
 	db: Kysely<Database>,
-	input: { name: string; label: string },
-): Promise<ApiResult<MenuRow>> {
+	input: { name: string; label: string; locale?: string; translationOf?: string },
+): Promise<ApiResult<Menu>> {
 	try {
-		const existing = await db
-			.selectFrom("_emdash_menus")
-			.select("id")
-			.where("name", "=", input.name)
-			.executeTakeFirst();
-
-		if (existing) {
+		// Translating from a source menu only makes sense when the caller
+		// names the target locale: otherwise we'd silently clone into the
+		// configured default, which is almost never what's intended (and
+		// will collide if the source is already the default-locale menu).
+		// Enforced here so REST/SDK callers get the same guard as MCP.
+		if (input.translationOf && !input.locale) {
 			return {
 				success: false,
-				error: { code: "CONFLICT", message: `Menu with name "${input.name}" already exists` },
+				error: {
+					code: "VALIDATION_ERROR",
+					message: "`locale` is required when `translationOf` is provided",
+				},
 			};
 		}
 
-		const id = ulid();
-		await db
-			.insertInto("_emdash_menus")
-			.values({
-				id,
-				name: input.name,
-				label: input.label,
-			})
-			.execute();
+		const repo = new MenuRepository(db);
 
-		const menu = await db
-			.selectFrom("_emdash_menus")
-			.selectAll()
-			.where("id", "=", id)
-			.executeTakeFirstOrThrow();
+		// Existence check up front so the repo's "Source not found" throw
+		// becomes a clean NOT_FOUND on the API.
+		if (input.translationOf) {
+			const source = await repo.findById(input.translationOf);
+			if (!source) {
+				return {
+					success: false,
+					error: { code: "NOT_FOUND", message: "Source menu for translation not found" },
+				};
+			}
+		}
 
+		// Duplicate guard: same (name, locale). Falls back to the configured
+		// defaultLocale to match the column DEFAULT set by migration 036.
+		const effectiveLocale = input.locale ?? getI18nConfig()?.defaultLocale ?? "en";
+		if (await repo.existsByNameAndLocale(input.name, effectiveLocale)) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: `Menu "${input.name}" already exists${
+						input.locale ? ` in locale "${input.locale}"` : ""
+					}`,
+				},
+			};
+		}
+
+		const menu = await repo.create(input);
 		return { success: true, data: menu };
 	} catch {
 		return {
@@ -126,33 +199,28 @@ export async function handleMenuCreate(
 }
 
 /**
- * Get a single menu with all its items.
+ * Get a single menu by name. Honours an optional `locale` filter; when two
+ * menus share a name across locales, the locale distinguishes them.
+ *
+ * Historical behaviour: when `locale` is omitted, returns the lowest-locale
+ * match (deterministic). Mirrors the pre-repo handler.
  */
 export async function handleMenuGet(
 	db: Kysely<Database>,
 	name: string,
+	options: { locale?: string } = {},
 ): Promise<ApiResult<MenuWithItems>> {
 	try {
-		const menu = await db
-			.selectFrom("_emdash_menus")
-			.selectAll()
-			.where("name", "=", name)
-			.executeTakeFirst();
-
-		if (!menu) {
+		const repo = new MenuRepository(db);
+		const matches = await repo.findByName(name, options);
+		if (matches.length === 0) {
 			return {
 				success: false,
 				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
 			};
 		}
-
-		const items = await db
-			.selectFrom("_emdash_menu_items")
-			.selectAll()
-			.where("menu_id", "=", menu.id)
-			.orderBy("sort_order", "asc")
-			.execute();
-
+		const menu = matches[0];
+		const items = await repo.findItems(menu.id);
 		return { success: true, data: { ...menu, items } };
 	} catch {
 		return {
@@ -163,41 +231,50 @@ export async function handleMenuGet(
 }
 
 /**
- * Update a menu's metadata.
+ * Get a menu by id. Useful when the caller already has the id (e.g. after
+ * creating a translation and navigating to it).
+ */
+export async function handleMenuGetById(
+	db: Kysely<Database>,
+	id: string,
+): Promise<ApiResult<MenuWithItems>> {
+	try {
+		const repo = new MenuRepository(db);
+		const menu = await repo.findWithItems(id);
+		if (!menu) {
+			return {
+				success: false,
+				error: { code: "NOT_FOUND", message: `Menu '${id}' not found` },
+			};
+		}
+		return { success: true, data: menu };
+	} catch {
+		return {
+			success: false,
+			error: { code: "MENU_GET_ERROR", message: "Failed to fetch menu" },
+		};
+	}
+}
+
+/**
+ * Update a menu's label. The name + locale are immutable.
  */
 export async function handleMenuUpdate(
 	db: Kysely<Database>,
 	name: string,
-	input: { label?: string },
-): Promise<ApiResult<MenuRow>> {
+	input: { label?: string; locale?: string },
+): Promise<ApiResult<Menu>> {
 	try {
-		const menu = await db
-			.selectFrom("_emdash_menus")
-			.select("id")
-			.where("name", "=", name)
-			.executeTakeFirst();
-
-		if (!menu) {
+		const repo = new MenuRepository(db);
+		const resolved = await resolveMenu(repo, name, { locale: input.locale });
+		if (!resolved.success) return resolved;
+		const updated = await repo.update(resolved.menu.id, { label: input.label });
+		if (!updated) {
 			return {
 				success: false,
 				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
 			};
 		}
-
-		if (input.label) {
-			await db
-				.updateTable("_emdash_menus")
-				.set({ label: input.label })
-				.where("id", "=", menu.id)
-				.execute();
-		}
-
-		const updated = await db
-			.selectFrom("_emdash_menus")
-			.selectAll()
-			.where("id", "=", menu.id)
-			.executeTakeFirstOrThrow();
-
 		return { success: true, data: updated };
 	} catch {
 		return {
@@ -208,32 +285,18 @@ export async function handleMenuUpdate(
 }
 
 /**
- * Delete a menu and its items (cascade).
+ * Delete a menu (and its items, via the repository's explicit cleanup).
  */
 export async function handleMenuDelete(
 	db: Kysely<Database>,
 	name: string,
+	options: { locale?: string } = {},
 ): Promise<ApiResult<{ deleted: true }>> {
 	try {
-		const menu = await db
-			.selectFrom("_emdash_menus")
-			.select("id")
-			.where("name", "=", name)
-			.executeTakeFirst();
-
-		if (!menu) {
-			return {
-				success: false,
-				error: { code: "NOT_FOUND", message: `Menu '${name}' not found` },
-			};
-		}
-
-		// D1 has FOREIGN KEYS off by default, so the migration's `ON DELETE
-		// CASCADE` won't fire there. Delete items explicitly first — this is
-		// idempotent on SQLite/Postgres where the cascade also fires.
-		await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menu.id).execute();
-		await db.deleteFrom("_emdash_menus").where("id", "=", menu.id).execute();
-
+		const repo = new MenuRepository(db);
+		const resolved = await resolveMenu(repo, name, options);
+		if (!resolved.success) return resolved;
+		await repo.delete(resolved.menu.id);
 		return { success: true, data: { deleted: true } };
 	} catch {
 		return {
@@ -243,83 +306,54 @@ export async function handleMenuDelete(
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Menu item handlers
-// ---------------------------------------------------------------------------
-
-export interface CreateMenuItemInput {
-	type: string;
-	label: string;
-	referenceCollection?: string;
-	referenceId?: string;
-	customUrl?: string;
-	target?: string;
-	titleAttr?: string;
-	cssClasses?: string;
-	parentId?: string;
-	sortOrder?: number;
-}
-
 /**
- * Add an item to a menu.
+ * List every translation of a menu (by id or translation_group).
  */
-export async function handleMenuItemCreate(
+export async function handleMenuTranslations(
 	db: Kysely<Database>,
-	menuName: string,
-	input: CreateMenuItemInput,
-): Promise<ApiResult<MenuItemRow>> {
+	idOrGroup: string,
+): Promise<ApiResult<MenuTranslationsResponse>> {
 	try {
-		const menu = await db
-			.selectFrom("_emdash_menus")
-			.select("id")
-			.where("name", "=", menuName)
-			.executeTakeFirst();
-
-		if (!menu) {
+		const repo = new MenuRepository(db);
+		const result = await repo.listTranslations(idOrGroup);
+		if (!result) {
 			return {
 				success: false,
 				error: { code: "NOT_FOUND", message: "Menu not found" },
 			};
 		}
+		return { success: true, data: result };
+	} catch {
+		return {
+			success: false,
+			error: { code: "MENU_TRANSLATIONS_ERROR", message: "Failed to list menu translations" },
+		};
+	}
+}
 
-		let sortOrder = input.sortOrder ?? 0;
-		if (input.sortOrder === undefined) {
-			const maxOrder = await db
-				.selectFrom("_emdash_menu_items")
-				.select(({ fn }) => fn.max("sort_order").as("max"))
-				.where("menu_id", "=", menu.id)
-				.where("parent_id", "is", input.parentId ?? null)
-				.executeTakeFirst();
+// ---------------------------------------------------------------------------
+// Menu item handlers
+// ---------------------------------------------------------------------------
 
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Kysely fn.max returns unknown; always a number for sort_order column
-			sortOrder = ((maxOrder?.max as number) ?? -1) + 1;
-		}
+export type CreateMenuItemInput = CreateMenuItemRepoInput;
+export type UpdateMenuItemInput = UpdateMenuItemRepoInput;
+export type MenuSetItemsInput = SetMenuItem;
 
-		const id = ulid();
-		await db
-			.insertInto("_emdash_menu_items")
-			.values({
-				id,
-				menu_id: menu.id,
-				parent_id: input.parentId ?? null,
-				sort_order: sortOrder,
-				type: input.type,
-				reference_collection: input.referenceCollection ?? null,
-				reference_id: input.referenceId ?? null,
-				custom_url: input.customUrl ?? null,
-				label: input.label,
-				title_attr: input.titleAttr ?? null,
-				target: input.target ?? null,
-				css_classes: input.cssClasses ?? null,
-			})
-			.execute();
+/**
+ * Add an item to a menu. The item inherits the menu's locale.
+ */
+export async function handleMenuItemCreate(
+	db: Kysely<Database>,
+	menuName: string,
+	input: CreateMenuItemInput,
+	options: { locale?: string } = {},
+): Promise<ApiResult<MenuItem>> {
+	try {
+		const repo = new MenuRepository(db);
+		const resolved = await resolveMenu(repo, menuName, options);
+		if (!resolved.success) return resolved;
 
-		const item = await db
-			.selectFrom("_emdash_menu_items")
-			.selectAll()
-			.where("id", "=", id)
-			.executeTakeFirstOrThrow();
-
+		const item = await repo.createItem(resolved.menu.id, resolved.menu.locale, input);
 		return { success: true, data: item };
 	} catch {
 		return {
@@ -327,16 +361,6 @@ export async function handleMenuItemCreate(
 			error: { code: "MENU_ITEM_CREATE_ERROR", message: "Failed to create menu item" },
 		};
 	}
-}
-
-export interface UpdateMenuItemInput {
-	label?: string;
-	customUrl?: string;
-	target?: string;
-	titleAttr?: string;
-	cssClasses?: string;
-	parentId?: string | null;
-	sortOrder?: number;
 }
 
 /**
@@ -347,54 +371,20 @@ export async function handleMenuItemUpdate(
 	menuName: string,
 	itemId: string,
 	input: UpdateMenuItemInput,
-): Promise<ApiResult<MenuItemRow>> {
+	options: { locale?: string } = {},
+): Promise<ApiResult<MenuItem>> {
 	try {
-		const menu = await db
-			.selectFrom("_emdash_menus")
-			.select("id")
-			.where("name", "=", menuName)
-			.executeTakeFirst();
+		const repo = new MenuRepository(db);
+		const resolved = await resolveMenu(repo, menuName, options);
+		if (!resolved.success) return resolved;
 
-		if (!menu) {
-			return {
-				success: false,
-				error: { code: "NOT_FOUND", message: "Menu not found" },
-			};
-		}
-
-		const item = await db
-			.selectFrom("_emdash_menu_items")
-			.select("id")
-			.where("id", "=", itemId)
-			.where("menu_id", "=", menu.id)
-			.executeTakeFirst();
-
-		if (!item) {
+		const updated = await repo.updateItem(resolved.menu.id, itemId, input);
+		if (!updated) {
 			return {
 				success: false,
 				error: { code: "NOT_FOUND", message: "Menu item not found" },
 			};
 		}
-
-		const updates: Record<string, unknown> = {};
-		if (input.label !== undefined) updates.label = input.label;
-		if (input.customUrl !== undefined) updates.custom_url = input.customUrl;
-		if (input.target !== undefined) updates.target = input.target;
-		if (input.titleAttr !== undefined) updates.title_attr = input.titleAttr;
-		if (input.cssClasses !== undefined) updates.css_classes = input.cssClasses;
-		if (input.parentId !== undefined) updates.parent_id = input.parentId;
-		if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
-
-		if (Object.keys(updates).length > 0) {
-			await db.updateTable("_emdash_menu_items").set(updates).where("id", "=", itemId).execute();
-		}
-
-		const updated = await db
-			.selectFrom("_emdash_menu_items")
-			.selectAll()
-			.where("id", "=", itemId)
-			.executeTakeFirstOrThrow();
-
 		return { success: true, data: updated };
 	} catch {
 		return {
@@ -411,34 +401,20 @@ export async function handleMenuItemDelete(
 	db: Kysely<Database>,
 	menuName: string,
 	itemId: string,
+	options: { locale?: string } = {},
 ): Promise<ApiResult<{ deleted: true }>> {
 	try {
-		const menu = await db
-			.selectFrom("_emdash_menus")
-			.select("id")
-			.where("name", "=", menuName)
-			.executeTakeFirst();
+		const repo = new MenuRepository(db);
+		const resolved = await resolveMenu(repo, menuName, options);
+		if (!resolved.success) return resolved;
 
-		if (!menu) {
-			return {
-				success: false,
-				error: { code: "NOT_FOUND", message: "Menu not found" },
-			};
-		}
-
-		const result = await db
-			.deleteFrom("_emdash_menu_items")
-			.where("id", "=", itemId)
-			.where("menu_id", "=", menu.id)
-			.execute();
-
-		if (result[0]?.numDeletedRows === 0n) {
+		const deleted = await repo.deleteItem(resolved.menu.id, itemId);
+		if (!deleted) {
 			return {
 				success: false,
 				error: { code: "NOT_FOUND", message: "Menu item not found" },
 			};
 		}
-
 		return { success: true, data: { deleted: true } };
 	} catch {
 		return {
@@ -455,25 +431,8 @@ export interface ReorderItem {
 }
 
 // ---------------------------------------------------------------------------
-// Atomic-replace menu items (used by the MCP `menu_set_items` tool)
+// Atomic-replace menu items (used by the MCP `menu_set_items` tool and admin)
 // ---------------------------------------------------------------------------
-
-export interface MenuSetItemsInput {
-	label: string;
-	type: "custom" | "page" | "post" | "taxonomy" | "collection";
-	customUrl?: string;
-	referenceCollection?: string;
-	referenceId?: string;
-	titleAttr?: string;
-	target?: string;
-	cssClasses?: string;
-	/**
-	 * Index of the parent item in this same array. Must be strictly less
-	 * than the current item's index so the insert order resolves parents
-	 * before children. `undefined` makes the item top-level.
-	 */
-	parentIndex?: number;
-}
 
 /**
  * Replace the entire set of items for a menu in one atomic transaction.
@@ -486,12 +445,12 @@ export async function handleMenuSetItems(
 	db: Kysely<Database>,
 	menuName: string,
 	items: MenuSetItemsInput[],
+	options: { locale?: string } = {},
 ): Promise<ApiResult<{ name: string; itemCount: number }>> {
-	// Validate parentIndex references — must be strictly earlier so
-	// the array can be inserted in order with parents resolved first.
-	// Negative indices are out of range; only Zod's `.nonnegative()` at
-	// the MCP boundary catches them today, so guard explicitly here for
-	// any caller that bypasses Zod (REST routes, direct handler use).
+	// Validate parentIndex references — must be strictly earlier so the array
+	// can be inserted in order with parents resolved first. Negative indices
+	// are caught by Zod's `.nonnegative()` at the MCP boundary, but we guard
+	// explicitly so REST routes / direct handler use get the same error.
 	for (let i = 0; i < items.length; i++) {
 		const item = items[i];
 		if (item?.parentIndex !== undefined) {
@@ -508,72 +467,29 @@ export async function handleMenuSetItems(
 	}
 
 	try {
-		// Sentinel for "menu not found" thrown from inside the transaction
-		// so the rollback fires before we return the structured error.
-		const notFoundSentinel = Symbol("menu-not-found");
+		const repo = new MenuRepository(db);
+		const resolved = await resolveMenu(repo, menuName, options);
+		if (!resolved.success) return resolved;
 
-		try {
-			await withTransaction(db, async (trx) => {
-				// Existence check INSIDE the transaction so a concurrent
-				// menu_delete between lookup and write can't leave orphan
-				// items on D1 (FKs disabled by default).
-				const menu = await trx
-					.selectFrom("_emdash_menus")
-					.select("id")
-					.where("name", "=", menuName)
-					.executeTakeFirst();
-
-				if (!menu) {
-					throw notFoundSentinel;
-				}
-
-				await trx.deleteFrom("_emdash_menu_items").where("menu_id", "=", menu.id).execute();
-
-				const insertedIds: string[] = [];
-				for (let i = 0; i < items.length; i++) {
-					const item = items[i];
-					if (!item) continue;
-					const id = ulid();
-					const parentId =
-						item.parentIndex !== undefined ? (insertedIds[item.parentIndex] ?? null) : null;
-					await trx
-						.insertInto("_emdash_menu_items")
-						.values({
-							id,
-							menu_id: menu.id,
-							parent_id: parentId,
-							sort_order: i,
-							type: item.type,
-							reference_collection: item.referenceCollection ?? null,
-							reference_id: item.referenceId ?? null,
-							custom_url: item.customUrl ?? null,
-							label: item.label,
-							title_attr: item.titleAttr ?? null,
-							target: item.target ?? null,
-							css_classes: item.cssClasses ?? null,
-						})
-						.execute();
-					insertedIds.push(id);
-				}
-
-				await trx
-					.updateTable("_emdash_menus")
-					.set({ updated_at: new Date().toISOString() })
-					.where("id", "=", menu.id)
-					.execute();
-			});
-		} catch (error) {
-			if (error === notFoundSentinel) {
-				return {
-					success: false,
-					error: { code: "NOT_FOUND", message: `Menu '${menuName}' not found` },
-				};
-			}
-			throw error;
-		}
-
-		return { success: true, data: { name: menuName, itemCount: items.length } };
+		const { itemCount } = await repo.setItems(resolved.menu.id, resolved.menu.locale, items);
+		return { success: true, data: { name: menuName, itemCount } };
 	} catch (error) {
+		// `MenuGoneError` is thrown from inside the repository transaction
+		// when the menu was deleted concurrently between `resolveMenu` and the
+		// setItems write. Returning NOT_FOUND mirrors the original handler's
+		// in-transaction `notFoundSentinel` branch and keeps the response
+		// shape stable for REST/MCP callers.
+		if (error instanceof MenuGoneError) {
+			return {
+				success: false,
+				error: {
+					code: "NOT_FOUND",
+					message: `Menu '${menuName}' not found${
+						options.locale ? ` in locale '${options.locale}'` : ""
+					}`,
+				},
+			};
+		}
 		console.error("[emdash] handleMenuSetItems failed:", error);
 		return {
 			success: false,
@@ -589,43 +505,15 @@ export async function handleMenuItemReorder(
 	db: Kysely<Database>,
 	menuName: string,
 	items: ReorderItem[],
-): Promise<ApiResult<MenuItemRow[]>> {
+	options: { locale?: string } = {},
+): Promise<ApiResult<MenuItem[]>> {
 	try {
-		const menu = await db
-			.selectFrom("_emdash_menus")
-			.select("id")
-			.where("name", "=", menuName)
-			.executeTakeFirst();
+		const repo = new MenuRepository(db);
+		const resolved = await resolveMenu(repo, menuName, options);
+		if (!resolved.success) return resolved;
 
-		if (!menu) {
-			return {
-				success: false,
-				error: { code: "NOT_FOUND", message: "Menu not found" },
-			};
-		}
-
-		const updatedItems = await withTransaction(db, async (trx) => {
-			for (const item of items) {
-				await trx
-					.updateTable("_emdash_menu_items")
-					.set({
-						parent_id: item.parentId,
-						sort_order: item.sortOrder,
-					})
-					.where("id", "=", item.id)
-					.where("menu_id", "=", menu.id)
-					.execute();
-			}
-
-			return trx
-				.selectFrom("_emdash_menu_items")
-				.selectAll()
-				.where("menu_id", "=", menu.id)
-				.orderBy("sort_order", "asc")
-				.execute();
-		});
-
-		return { success: true, data: updatedItems };
+		const updated = await repo.reorderItems(resolved.menu.id, items);
+		return { success: true, data: updated };
 	} catch {
 		return {
 			success: false,

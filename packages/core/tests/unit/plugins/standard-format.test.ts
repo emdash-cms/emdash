@@ -1,9 +1,20 @@
 /**
- * Standard Plugin Format Tests
+ * Standard (sandboxed) plugin format tests.
  *
- * Tests the definePlugin() standard format overload, isStandardPluginDefinition(),
- * and the generatePluginsModule() standard format handling.
+ * Covers the runtime + integration side of sandboxed plugins:
  *
+ *   - `definePlugin` rejects sandboxed-shape input (missing `id`)
+ *     with a helpful message pointing at the new `satisfies
+ *     SandboxedPlugin` pattern. The type system catches this at
+ *     compile time too; this is the bypass-the-type-system runtime
+ *     check.
+ *   - `generatePluginsModule` emits the right import + adapter call
+ *     for sandboxed (`format: "standard"`) plugins vs the native
+ *     `createPlugin` call for native plugins.
+ *
+ * Authoring-side tests for `SandboxedPlugin` live next to the
+ * plugin-types module — strictness of the mapped type is verified
+ * there.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -11,66 +22,9 @@ import { describe, it, expect, vi } from "vitest";
 import type { PluginDescriptor } from "../../../src/astro/integration/runtime.js";
 import { generatePluginsModule } from "../../../src/astro/integration/virtual-modules.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
-import { isStandardPluginDefinition } from "../../../src/plugins/types.js";
 
-describe("definePlugin() standard format overload", () => {
-	it("returns the same object (identity function)", () => {
-		const def = {
-			hooks: {
-				"content:afterSave": {
-					handler: async () => {},
-				},
-			},
-			routes: {
-				status: {
-					handler: async () => ({ ok: true }),
-				},
-			},
-		};
-
-		const result = definePlugin(def);
-
-		// Standard format: definePlugin is an identity function
-		expect(result).toBe(def);
-	});
-
-	it("accepts hooks-only definition", () => {
-		const def = {
-			hooks: {
-				"content:beforeSave": async () => {},
-			},
-		};
-
-		const result = definePlugin(def);
-
-		expect(result).toBe(def);
-		expect(result.hooks).toBeDefined();
-	});
-
-	it("accepts routes-only definition", () => {
-		const def = {
-			routes: {
-				ping: {
-					handler: async () => ({ pong: true }),
-				},
-			},
-		};
-
-		const result = definePlugin(def);
-
-		expect(result).toBe(def);
-		expect(result.routes).toBeDefined();
-	});
-
-	it("throws on empty definition (no hooks or routes)", () => {
-		// An empty object has no id/version, so it's treated as standard format,
-		// but standard format requires at least hooks or routes
-		expect(() => definePlugin({})).toThrow(
-			"Standard plugin format requires at least `hooks` or `routes`",
-		);
-	});
-
-	it("still works with native format (id + version)", () => {
+describe("definePlugin()", () => {
+	it("returns a resolved native plugin for input with id + version", () => {
 		const handler = vi.fn();
 		const result = definePlugin({
 			id: "native-plugin",
@@ -80,53 +34,29 @@ describe("definePlugin() standard format overload", () => {
 			},
 		});
 
-		// Native format: returns a ResolvedPlugin
 		expect(result.id).toBe("native-plugin");
 		expect(result.version).toBe("1.0.0");
 		expect(result.hooks["content:beforeSave"]).toBeDefined();
 		expect(result.hooks["content:beforeSave"]!.pluginId).toBe("native-plugin");
 	});
-});
 
-describe("isStandardPluginDefinition()", () => {
-	it("returns true for { hooks: {} }", () => {
-		expect(isStandardPluginDefinition({ hooks: {} })).toBe(true);
+	it("throws when called without an id (sandboxed-shape input)", () => {
+		// The type system rejects this at compile time. At runtime,
+		// callers who bypass typechecking get a clear pointer at the
+		// sandboxed authoring flow.
+		expect(() =>
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentional type bypass for runtime check coverage
+			definePlugin({ hooks: {} } as any),
+		).toThrow(/SandboxedPlugin/);
 	});
 
-	it("returns true for { routes: {} }", () => {
-		expect(isStandardPluginDefinition({ routes: {} })).toBe(true);
-	});
-
-	it("returns true for { hooks: {}, routes: {} }", () => {
-		expect(isStandardPluginDefinition({ hooks: {}, routes: {} })).toBe(true);
-	});
-
-	it("returns false for null", () => {
-		expect(isStandardPluginDefinition(null)).toBe(false);
-	});
-
-	it("returns false for undefined", () => {
-		expect(isStandardPluginDefinition(undefined)).toBe(false);
-	});
-
-	it("returns false for a string", () => {
-		expect(isStandardPluginDefinition("hello")).toBe(false);
-	});
-
-	it("returns false for a native plugin definition (has id + version)", () => {
-		expect(
-			isStandardPluginDefinition({
-				id: "test",
+	it("throws when id is the empty string", () => {
+		expect(() =>
+			definePlugin({
+				id: "",
 				version: "1.0.0",
-				hooks: {},
 			}),
-		).toBe(false);
-	});
-
-	it("returns false for an empty object (no hooks or routes)", () => {
-		// Empty object has neither hooks/routes NOR id/version
-		// So hasPluginShape is false
-		expect(isStandardPluginDefinition({})).toBe(false);
+		).toThrow(/requires `id`/);
 	});
 });
 
@@ -179,7 +109,7 @@ describe("generatePluginsModule() standard format", () => {
 				version: "2.0.0",
 				entrypoint: "@my/standard-plugin",
 				format: "standard",
-				capabilities: ["read:content"],
+				capabilities: ["content:read"],
 			},
 		];
 
@@ -232,7 +162,7 @@ describe("generatePluginsModule() standard format", () => {
 				version: "1.0.0",
 				entrypoint: "@my/plugin",
 				format: "standard",
-				capabilities: ["read:content", "network:fetch"],
+				capabilities: ["content:read", "network:request"],
 				allowedHosts: ["api.example.com"],
 				storage: { events: { indexes: ["timestamp"] } },
 				adminPages: [{ path: "/settings", label: "Settings" }],
@@ -244,7 +174,7 @@ describe("generatePluginsModule() standard format", () => {
 		// The descriptor metadata should be serialized into the adapter call
 		expect(code).toContain('"id":"my-plugin"');
 		expect(code).toContain('"version":"1.0.0"');
-		expect(code).toContain('"capabilities":["read:content","network:fetch"]');
+		expect(code).toContain('"capabilities":["content:read","network:request"]');
 		expect(code).toContain('"allowedHosts":["api.example.com"]');
 		expect(code).toContain('"storage":{"events":{"indexes":["timestamp"]}}');
 	});

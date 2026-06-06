@@ -9,6 +9,7 @@ import { readFile } from "node:fs/promises";
 import { defineCommand } from "citty";
 import { consola } from "consola";
 
+import { convertDataForRead } from "../../client/portable-text.js";
 import { connectionArgs, createClientFromArgs } from "../client-factory.js";
 import { configureOutputMode, output } from "../output.js";
 
@@ -144,6 +145,13 @@ const getCommand = defineCommand({
 				const comparison = await client.compare(args.collection, args.id);
 				if (comparison.hasChanges && comparison.draft) {
 					item.data = comparison.draft;
+					// The comparison endpoint returns raw PT data. Apply the same
+					// PT-to-markdown conversion that `client.get` does, unless --raw.
+					if (!args.raw && item.data) {
+						const col = await client.collection(args.collection);
+						const fields = col.fields.map((f) => ({ slug: f.slug, type: f.type }));
+						item.data = convertDataForRead(item.data, fields, false);
+					}
 				}
 			}
 
@@ -225,6 +233,7 @@ const updateCommand = defineCommand({
 			description: "Revision token from get (prevents overwriting unseen changes)",
 			required: true,
 		},
+		locale: { type: "string", description: "Locale for slug resolution" },
 		draft: {
 			type: "boolean",
 			description: "Keep as draft instead of auto-publishing",
@@ -239,17 +248,18 @@ const updateCommand = defineCommand({
 			const updated = await client.update(args.collection, args.id, {
 				data,
 				_rev: args.rev,
+				locale: args.locale,
 			});
 
 			// Auto-publish unless --draft is set.
 			// Only publish if the update created a draft revision (i.e. the
 			// collection supports revisions and data went to a draft).
 			if (!args.draft && updated.draftRevisionId) {
-				await client.publish(args.collection, args.id);
+				await client.publish(args.collection, updated.id);
 			}
 
 			// Re-fetch to return the current state
-			const item = await client.get(args.collection, args.id);
+			const item = await client.get(args.collection, updated.id);
 			output(item, args);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");
@@ -278,6 +288,7 @@ const deleteCommand = defineCommand({
 		try {
 			const client = createClientFromArgs(args);
 			await client.delete(args.collection, args.id);
+			output({ success: true }, args);
 			consola.success(`Deleted ${args.collection}/${args.id}`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");
@@ -306,6 +317,7 @@ const publishCommand = defineCommand({
 		try {
 			const client = createClientFromArgs(args);
 			await client.publish(args.collection, args.id);
+			output({ success: true }, args);
 			consola.success(`Published ${args.collection}/${args.id}`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");
@@ -334,6 +346,7 @@ const unpublishCommand = defineCommand({
 		try {
 			const client = createClientFromArgs(args);
 			await client.unpublish(args.collection, args.id);
+			output({ success: true }, args);
 			consola.success(`Unpublished ${args.collection}/${args.id}`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");
@@ -367,6 +380,7 @@ const scheduleCommand = defineCommand({
 		try {
 			const client = createClientFromArgs(args);
 			await client.schedule(args.collection, args.id, { at: args.at });
+			output({ success: true }, args);
 			consola.success(`Scheduled ${args.collection}/${args.id} for ${args.at}`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");
@@ -395,6 +409,7 @@ const restoreCommand = defineCommand({
 		try {
 			const client = createClientFromArgs(args);
 			await client.restore(args.collection, args.id);
+			output({ success: true }, args);
 			consola.success(`Restored ${args.collection}/${args.id}`);
 		} catch (error) {
 			consola.error(error instanceof Error ? error.message : "Unknown error");

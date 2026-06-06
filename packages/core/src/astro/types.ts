@@ -45,6 +45,10 @@ export interface ManifestCollection {
 			 *     (e.g. a checkbox grid receiving its column definitions)
 			 */
 			options?: Array<{ value: string; label: string }> | Record<string, unknown>;
+			/** The `_emdash_fields` row ID. Used by the admin to forward to upload/media-list API calls. */
+			id?: string;
+			/** Validation config for the field (e.g. `allowedMimeTypes` for file/image fields, subFields for repeater). */
+			validation?: Record<string, unknown>;
 		}
 	>;
 }
@@ -113,6 +117,12 @@ export interface EmDashManifest {
 	version: string;
 	commit?: string;
 	hash: string;
+	/**
+	 * Version of Astro the host project is built with. Present when the
+	 * integration could resolve it. Surfaced so the admin can evaluate a
+	 * registry plugin's `env:astro` requirement against the running host.
+	 */
+	astroVersion?: string;
 	collections: Record<string, ManifestCollection>;
 	plugins: Record<string, ManifestPlugin>;
 	/**
@@ -149,8 +159,43 @@ export interface EmDashManifest {
 	/**
 	 * Whether the plugin marketplace is configured.
 	 * When true, the admin UI can show marketplace browse/install features.
+	 *
+	 * When `registry` is also present, the registry replaces the marketplace
+	 * for the admin UI's browse and install flows. Existing marketplace-installed
+	 * plugins continue to work; new installs and updates use the registry.
 	 */
 	marketplace?: boolean;
+	/**
+	 * Decentralized plugin registry configuration.
+	 *
+	 * When present, the admin UI uses the registry instead of the
+	 * centralized marketplace for browse and install. The aggregator URL
+	 * and policy fields are read by the browser; the `acceptLabelers`
+	 * header value is forwarded with every aggregator request.
+	 *
+	 * See the `registry` integration option in `astro.config.mjs`.
+	 */
+	registry?: {
+		aggregatorUrl: string;
+		acceptLabelers?: string;
+		policy?: {
+			/**
+			 * Minimum release age in seconds. The admin UI's
+			 * latest-release selection filter holds back releases younger
+			 * than this when computing the recommended install/update.
+			 *
+			 * Normalized from the integration option's duration string
+			 * (`"48h"`) to seconds at manifest build time so the browser
+			 * doesn't need a duration parser.
+			 */
+			minimumReleaseAgeSeconds?: number;
+			/**
+			 * Publishers / packages exempt from {@link minimumReleaseAgeSeconds}.
+			 * See `RegistryConfig.policy.minimumReleaseAgeExclude`.
+			 */
+			minimumReleaseAgeExclude?: string[];
+		};
+	};
 	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.
@@ -237,6 +282,16 @@ export interface EmDashHandlers {
 			slug?: string;
 			status?: string;
 			authorId?: string | null;
+			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
+			locale?: string;
+			seo?: {
+				title?: string | null;
+				description?: string | null;
+				image?: string | null;
+				canonical?: string | null;
+				noIndex?: boolean;
+			};
+			publishedAt?: string | null;
 			_rev?: string;
 		},
 	) => Promise<HandlerResponse>;
@@ -264,7 +319,11 @@ export interface EmDashHandlers {
 	) => Promise<HandlerResponse>;
 
 	// Publishing & Scheduling handlers
-	handleContentPublish: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentPublish: (
+		collection: string,
+		id: string,
+		options?: { publishedAt?: string },
+	) => Promise<HandlerResponse>;
 
 	handleContentUnpublish: (collection: string, id: string) => Promise<HandlerResponse>;
 
@@ -288,7 +347,7 @@ export interface EmDashHandlers {
 	handleMediaList: (params: {
 		cursor?: string;
 		limit?: number;
-		mimeType?: string;
+		mimeType?: string | readonly string[];
 	}) => Promise<HandlerResponse>;
 
 	handleMediaGet: (id: string) => Promise<HandlerResponse>;
@@ -342,6 +401,14 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
+	// Public-only plugin API route handler for SSR page components.
+	handlePublicPluginApiRoute: (
+		pluginId: string,
+		method: string,
+		path: string,
+		request: Request,
+	) => Promise<HandlerResponse>;
+
 	// Plugin route metadata (for auth decisions before dispatch)
 	getPluginRouteMeta: (pluginId: string, path: string) => { public: boolean } | null;
 
@@ -371,14 +438,28 @@ export interface EmDashHandlers {
 	// Configuration (for checking database type, auth mode, etc.)
 	config: import("./integration/runtime.js").EmDashConfig;
 
-	// Manifest invalidation (call after schema changes)
-	invalidateManifest: () => void;
+	// Build the admin manifest from the live database. Only used by admin
+	// routes; logged-out requests don't need it. Per-request, deduplicated
+	// by `requestCached`.
+	getManifest: () => Promise<EmDashManifest>;
+
+	// Clear the cached URL patterns used by `resolveEmDashPath`. Call after
+	// any schema mutation that creates/updates/deletes a collection's
+	// `urlPattern` so public routing picks up the change immediately.
+	invalidateUrlPatternCache: () => void;
 
 	// Sandbox runner (for marketplace plugin install/update)
 	getSandboxRunner: () => import("../plugins/sandbox/types.js").SandboxRunner | null;
 
+	// Whether sandbox bypass mode (sandbox: false) is active. Marketplace
+	// install/update routes use this to skip the SANDBOX_NOT_AVAILABLE gate.
+	isSandboxBypassed: () => boolean;
+
 	// Sync marketplace plugin states (after install/update/uninstall)
 	syncMarketplacePlugins: () => Promise<void>;
+
+	// Sync registry plugin states (after install/update/uninstall)
+	syncRegistryPlugins: () => Promise<void>;
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
 	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;

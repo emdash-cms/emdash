@@ -32,6 +32,16 @@ export const POST: APIRoute = async ({ params, locals }) => {
 
 	if (!result.success) return unwrapResult(result);
 
+	// If this is a runtime-installed plugin (marketplace or registry),
+	// the sandbox bundle may not be in memory yet -- a sync reloads it
+	// from R2 so the just-enabled plugin can actually run hooks.
+	const source = result.data.item.source;
+	if (source === "registry") {
+		await emdash.syncRegistryPlugins();
+	} else if (source === "marketplace") {
+		await emdash.syncMarketplacePlugins();
+	}
+
 	await emdash.setPluginStatus(id, "active");
 	await setCronTasksEnabled(emdash.db, id, true);
 

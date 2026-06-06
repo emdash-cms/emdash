@@ -8,7 +8,7 @@ const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
 });
 const { siteTitle, siteTagline } = resolveStarterSiteIdentity(await getSiteSettings());
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
 <Base title={siteTitle} description={siteTagline}>

@@ -1,5 +1,47 @@
 # @emdash-cms/blocks
 
+## 0.17.2
+
+## 0.17.1
+
+## 0.17.0
+
+## 0.16.1
+
+## 0.16.0
+
+## 0.15.0
+
+### Patch Changes
+
+- [#1177](https://github.com/emdash-cms/emdash/pull/1177) [`b9cc08e`](https://github.com/emdash-cms/emdash/commit/b9cc08e7556ccdbcbbcea6d3c06cae6abef18766) Thanks [@ascorbic](https://github.com/ascorbic)! - Bumps `@cloudflare/kumo` from 1.16 to 2.3. Two internal call sites picked up breaking API changes from Kumo 2.0: `Collapsible` is now a compound component (`Collapsible.Root` / `.DefaultTrigger` / `.DefaultPanel` instead of `<Collapsible label=...>`), used by the accordion block; and `ChartPalette.color()` was renamed to `ChartPalette.categorical()` in the chart block. No public API changes -- consumers see identical behaviour. Tests in `@emdash-cms/admin` that asserted on `Button`'s native `title` attribute now read `aria-label` instead, because Kumo 2 wraps `<Button title>` in a Tooltip popup rather than setting the DOM attribute.
+
+## 0.14.0
+
+## 0.13.0
+
+## 0.12.0
+
+## 0.11.1
+
+## 0.11.0
+
+## 0.10.0
+
+### Minor Changes
+
+- [#717](https://github.com/emdash-cms/emdash/pull/717) [`5eb4318`](https://github.com/emdash-cms/emdash/commit/5eb431876cbfb69a961735fbb6ab09c9de937f28) Thanks [@lsngmin](https://github.com/lsngmin)! - Add Tab block to Block Kit for tabbed panel layouts
+
+## 0.9.0
+
+### Minor Changes
+
+- [#790](https://github.com/emdash-cms/emdash/pull/790) [`7b8d496`](https://github.com/emdash-cms/emdash/commit/7b8d4964c619821937d1a738cbd6f81e98095a91) Thanks [@all3f0r1](https://github.com/all3f0r1)! - Adds an `accordion` Block Kit block: a collapsible container that wraps nested blocks under a labeled trigger. Open/closed state is local to the rendered component (with optional `default_open`), so plugin admin pages can hide advanced settings, FAQs, or auxiliary panels without paginating or round-tripping through `block_action`.
+
+- [#731](https://github.com/emdash-cms/emdash/pull/731) [`9dfc65c`](https://github.com/emdash-cms/emdash/commit/9dfc65c42c04c41088e0c8f5a8ca4347643e2fea) Thanks [@drudge](https://github.com/drudge)! - Adds a `media_picker` Block Kit element: a thumbnail preview with a modal library picker and mime-type filter. Usable in plugin block forms and in Block Kit field widgets. The stored value is the selected asset's URL string, so it is value-compatible with a plain `text_input` — existing content continues to work after swapping. The `mime_type_filter` is restricted to image MIME types (`image/` or `image/<subtype>`); wildcards and non-image types are rejected.
+
+- [#814](https://github.com/emdash-cms/emdash/pull/814) [`a838000`](https://github.com/emdash-cms/emdash/commit/a83800068678daf6391e02bba8acf27ff4db0e19) Thanks [@arashackdev](https://github.com/arashackdev)! - rtl srtyle improvements and LTR/RTL compatible arrow/caret icons
+
 ## 0.8.0
 
 ### Minor Changes

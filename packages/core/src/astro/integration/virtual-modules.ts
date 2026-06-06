@@ -283,16 +283,33 @@ ${entries.join("\n")}
 /**
  * Generates the sandbox runner module.
  * Imports the configured sandbox runner factory or provides a noop default.
+ *
+ * When sandbox is explicitly false (debugging escape hatch), we still mark
+ * sandboxEnabled = true so sandboxed plugin entries are loaded, but we use
+ * the noop runner which falls through to in-process loading via adaptSandboxEntry.
  */
-export function generateSandboxRunnerModule(sandboxRunner?: string): string {
+export function generateSandboxRunnerModule(sandboxRunner?: string, sandbox?: boolean): string {
 	if (!sandboxRunner) {
-		// No sandbox runner configured - use noop
+		// No sandbox runner configured - sandboxed plugins disabled
 		return `
 // No sandbox runner configured - sandboxed plugins disabled
 import { createNoopSandboxRunner } from "emdash";
 
 export const createSandboxRunner = createNoopSandboxRunner;
 export const sandboxEnabled = false;
+`;
+	}
+
+	if (sandbox === false) {
+		// sandbox: false escape hatch - plugins are loaded but run in-process
+		// (no isolation, for debugging)
+		return `
+// Sandbox explicitly disabled (sandbox: false) - plugins run in-process
+import { createNoopSandboxRunner } from "emdash";
+
+export const createSandboxRunner = createNoopSandboxRunner;
+export const sandboxEnabled = true;
+export const sandboxBypassed = true;
 `;
 	}
 
@@ -401,9 +418,20 @@ export function generateWaitUntilModule(adapterName: string | undefined): string
  * Reads the user's seed file at build time (in Node context) and embeds it,
  * so the runtime doesn't need filesystem access (required for workerd).
  *
+ * Search order:
+ *   1. `.emdash/seed.json`
+ *   2. `package.json` → `emdash.seed` reference
+ *   3. `seed/seed.json` (conventional template path)
+ *
  * Exports `userSeed` (user's seed or null) and `seed` (user's seed or default).
+ *
+ * When no user seed is found, falls back to the built-in default seed and
+ * (if `warnOnFallback` is true) logs a warning so misconfiguration is visible
+ * during `astro dev`. Build/preview/sync stay silent so sites that
+ * intentionally use the default seed (e.g. the blank template) don't
+ * generate noisy logs.
  */
-export function generateSeedModule(projectRoot: string): string {
+export function generateSeedModule(projectRoot: string, warnOnFallback = false): string {
 	let userSeedJson: string | null = null;
 
 	// Try .emdash/seed.json
@@ -434,11 +462,30 @@ export function generateSeedModule(projectRoot: string): string {
 		}
 	}
 
+	// Try conventional seed/seed.json fallback
+	if (!userSeedJson) {
+		try {
+			const seedPath = resolve(projectRoot, "seed", "seed.json");
+			const content = readFileSync(seedPath, "utf-8");
+			JSON.parse(content); // validate
+			userSeedJson = content;
+		} catch {
+			// Not found
+		}
+	}
+
 	if (userSeedJson) {
 		return [`export const userSeed = ${userSeedJson};`, `export const seed = userSeed;`].join("\n");
 	}
 
-	// No user seed — inline the default
+	// No user seed — inline the default. Caller (the Vite plugin) gates this
+	// to dev-only so production builds stay quiet for sites that intentionally
+	// rely on the default seed.
+	if (warnOnFallback) {
+		console.warn(
+			"[emdash] No user seed found at .emdash/seed.json, package.json#emdash.seed, or seed/seed.json. Falling back to the built-in default seed; the setup wizard will not offer demo content for this site.",
+		);
+	}
 	return [
 		`export const userSeed = null;`,
 		`export const seed = ${JSON.stringify(defaultSeed)};`,

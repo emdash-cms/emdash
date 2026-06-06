@@ -31,6 +31,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const options = await parseOptionalBody(request, orphanRegisterBody, {});
 	if (isParseError(options)) return options;
 
-	const result = await handleOrphanedTableRegister(emdash!.db, slug, options);
+	const result = await handleOrphanedTableRegister(emdash.db, slug, options);
 	return unwrapResult(result, 201);
 };

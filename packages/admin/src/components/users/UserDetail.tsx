@@ -212,7 +212,7 @@ export function UserDetail({
 								{/* Info cards */}
 								<div className="grid gap-4">
 									{/* Timestamps */}
-									<div className="rounded-lg border p-4">
+									<div className="rounded-lg border bg-kumo-base p-4">
 										<h4 className="text-sm font-medium text-kumo-subtle mb-3">{t`Account Info`}</h4>
 										<div className="space-y-2 text-sm">
 											<div className="flex justify-between">
@@ -239,7 +239,7 @@ export function UserDetail({
 									</div>
 
 									{/* Passkeys */}
-									<div className="rounded-lg border p-4">
+									<div className="rounded-lg border bg-kumo-base p-4">
 										<h4 className="text-sm font-medium text-kumo-subtle mb-3 flex items-center gap-2">
 											<Key className="h-4 w-4" aria-hidden="true" />
 											{t`Passkeys (${user.credentials.length})`}
@@ -270,7 +270,7 @@ export function UserDetail({
 
 									{/* OAuth accounts */}
 									{user.oauthAccounts.length > 0 && (
-										<div className="rounded-lg border p-4">
+										<div className="rounded-lg border bg-kumo-base p-4">
 											<h4 className="text-sm font-medium text-kumo-subtle mb-3 flex items-center gap-2">
 												<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
 												{t`Linked Accounts (${user.oauthAccounts.length})`}
@@ -365,7 +365,7 @@ function UserDetailSkeleton() {
 
 			{/* Cards skeleton */}
 			{Array.from({ length: 2 }, (_, i) => (
-				<div key={i} className="rounded-lg border p-4 space-y-3">
+				<div key={i} className="rounded-lg border bg-kumo-base p-4 space-y-3">
 					<div className="h-4 w-24 bg-kumo-tint rounded" />
 					<div className="space-y-2">
 						<div className="h-4 w-full bg-kumo-tint rounded" />

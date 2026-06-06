@@ -167,6 +167,7 @@ describe("applySeed", () => {
 			expect(row).not.toBeNull();
 			expect(row?.label).toBe("Topics");
 			expect(row?.hierarchical).toBe(1);
+			expect(row?.translation_group).toBe(row?.id);
 		});
 
 		it("should create flat taxonomy terms", async () => {
@@ -304,6 +305,16 @@ describe("applySeed", () => {
 
 			expect(menu).not.toBeNull();
 			expect(menu?.label).toBe("Main Navigation");
+			expect(menu?.translation_group).toBe(menu?.id);
+
+			const items = await db
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.where("menu_id", "=", menu?.id ?? "")
+				.execute();
+			for (const item of items) {
+				expect(item.translation_group, `item ${item.label}`).toBe(item.id);
+			}
 		});
 
 		it("should create nested menu items", async () => {
@@ -660,6 +671,138 @@ describe("applySeed", () => {
 			expect(credits[1]?.byline.slug).toBe("guest-writer");
 			expect(credits[1]?.roleLabel).toBe("Guest essay");
 			expect(entry?.primaryBylineId).toBe(credits[0]?.byline.id);
+		});
+
+		it("should seed a byline avatar as a media row and link it", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				bylines: [
+					{
+						id: "ada",
+						slug: "ada-lovelace",
+						displayName: "Ada Lovelace",
+						avatar: {
+							storageKey: "avatars/ada.jpg",
+							alt: "Ada Lovelace",
+							width: 200,
+							height: 200,
+						},
+					},
+				],
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.bylines.created).toBe(1);
+			// The avatar created a backing media row.
+			expect(result.media.created).toBe(1);
+
+			const bylineRepo = new BylineRepository(db);
+			const byline = await bylineRepo.findBySlug("ada-lovelace");
+			expect(byline?.avatarMediaId).toBeTruthy();
+
+			// The media row carries the supplied storage key (nothing downloaded).
+			const media = await db
+				.selectFrom("media")
+				.selectAll()
+				.where("id", "=", byline!.avatarMediaId!)
+				.executeTakeFirst();
+			expect(media?.storage_key).toBe("avatars/ada.jpg");
+			expect(media?.alt).toBe("Ada Lovelace");
+			expect(media?.status).toBe("ready");
+		});
+
+		it("links a byline avatar on update (onConflict: update)", async () => {
+			const bylineRepo = new BylineRepository(db);
+
+			// First seed: no avatar.
+			await applySeed(db, {
+				version: "1",
+				bylines: [{ id: "grace", slug: "grace-hopper", displayName: "Grace Hopper" }],
+			});
+			const before = await bylineRepo.findBySlug("grace-hopper");
+			expect(before?.avatarMediaId).toBeNull();
+
+			// Re-seed the same slug with an avatar in update mode.
+			const result = await applySeed(
+				db,
+				{
+					version: "1",
+					bylines: [
+						{
+							id: "grace",
+							slug: "grace-hopper",
+							displayName: "Grace Hopper",
+							avatar: { storageKey: "avatars/grace.jpg" },
+						},
+					],
+				},
+				{ onConflict: "update" },
+			);
+
+			expect(result.bylines.updated).toBe(1);
+			expect(result.media.created).toBe(1);
+			const after = await bylineRepo.findBySlug("grace-hopper");
+			expect(after?.avatarMediaId).toBeTruthy();
+
+			// Idempotency: re-running the same update reuses the existing media
+			// row (by storage key) rather than creating a duplicate.
+			const rerun = await applySeed(
+				db,
+				{
+					version: "1",
+					bylines: [
+						{
+							id: "grace",
+							slug: "grace-hopper",
+							displayName: "Grace Hopper",
+							avatar: { storageKey: "avatars/grace.jpg" },
+						},
+					],
+				},
+				{ onConflict: "update" },
+			);
+			expect(rerun.media.created).toBe(0);
+			const mediaRows = await db
+				.selectFrom("media")
+				.select("id")
+				.where("storage_key", "=", "avatars/grace.jpg")
+				.execute();
+			expect(mediaRows).toHaveLength(1);
+			const afterRerun = await bylineRepo.findBySlug("grace-hopper");
+			expect(afterRerun?.avatarMediaId).toBe(after?.avatarMediaId);
+		});
+
+		it("rejects a malformed byline avatar", async () => {
+			await expect(
+				applySeed(db, {
+					version: "1",
+					bylines: [{ id: "y", slug: "y", displayName: "Y", avatar: { storageKey: "" } }],
+				}),
+			).rejects.toThrow("Invalid seed file");
+
+			// whitespace-only storage key, and an explicitly empty filename, are
+			// both rejected.
+			await expect(
+				applySeed(db, {
+					version: "1",
+					bylines: [{ id: "z", slug: "z", displayName: "Z", avatar: { storageKey: "   " } }],
+				}),
+			).rejects.toThrow("Invalid seed file");
+
+			await expect(
+				applySeed(db, {
+					version: "1",
+					bylines: [
+						{
+							id: "w",
+							slug: "w",
+							displayName: "W",
+							avatar: { storageKey: "avatars/w.jpg", filename: "" },
+						},
+					],
+				}),
+			).rejects.toThrow("Invalid seed file");
 		});
 
 		it("should not create content by default", async () => {
@@ -1041,6 +1184,235 @@ describe("applySeed", () => {
 			expect(result2.widgetAreas.created).toBe(0);
 			expect(result2.redirects.created).toBe(0);
 			expect(result2.redirects.skipped).toBe(1);
+		});
+	});
+
+	describe("i18n round-trip", () => {
+		it("imports menu translations sharing one translation_group", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				menus: [
+					{
+						id: "menu:primary:en",
+						name: "primary",
+						label: "Primary",
+						locale: "en",
+						items: [{ type: "custom", label: "Home", url: "/" }],
+					},
+					{
+						id: "menu:primary:es",
+						name: "primary",
+						label: "Principal",
+						locale: "es",
+						translationOf: "menu:primary:en",
+						items: [{ type: "custom", label: "Inicio", url: "/" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const rows = await db
+				.selectFrom("_emdash_menus")
+				.selectAll()
+				.where("name", "=", "primary")
+				.orderBy("locale", "asc")
+				.execute();
+
+			expect(rows).toHaveLength(2);
+			expect(rows[0]?.locale).toBe("en");
+			expect(rows[1]?.locale).toBe("es");
+			expect(rows[0]?.translation_group).toBe(rows[1]?.translation_group);
+			expect(rows[0]?.translation_group).toBe(rows[0]?.id);
+		});
+
+		it("imports taxonomy def translations sharing one translation_group", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				taxonomies: [
+					{
+						id: "tax:topics:en",
+						name: "topics",
+						label: "Topics",
+						hierarchical: false,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{
+						id: "tax:topics:es",
+						name: "topics",
+						label: "Temas",
+						hierarchical: false,
+						collections: ["posts"],
+						locale: "es",
+						translationOf: "tax:topics:en",
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const rows = await db
+				.selectFrom("_emdash_taxonomy_defs")
+				.selectAll()
+				.where("name", "=", "topics")
+				.orderBy("locale", "asc")
+				.execute();
+
+			expect(rows).toHaveLength(2);
+			expect(rows[0]?.translation_group).toBe(rows[1]?.translation_group);
+		});
+
+		it("imports menu item translations sharing one translation_group", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				menus: [
+					{
+						id: "menu:primary:en",
+						name: "primary",
+						label: "Primary",
+						locale: "en",
+						items: [
+							{ id: "item:primary:home:en", type: "custom", label: "Home", url: "/", locale: "en" },
+							{
+								id: "item:primary:about:en",
+								type: "custom",
+								label: "About",
+								url: "/about",
+								locale: "en",
+							},
+						],
+					},
+					{
+						id: "menu:primary:es",
+						name: "primary",
+						label: "Principal",
+						locale: "es",
+						translationOf: "menu:primary:en",
+						items: [
+							{
+								id: "item:primary:home:es",
+								type: "custom",
+								label: "Inicio",
+								url: "/",
+								locale: "es",
+								translationOf: "item:primary:home:en",
+							},
+							{
+								id: "item:primary:about:es",
+								type: "custom",
+								label: "Acerca",
+								url: "/about",
+								locale: "es",
+								translationOf: "item:primary:about:en",
+							},
+						],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const items = await db
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.orderBy(["label", "locale"])
+				.execute();
+
+			expect(items).toHaveLength(4);
+
+			const enHome = items.find((i) => i.label === "Home");
+			const esHome = items.find((i) => i.label === "Inicio");
+			const enAbout = items.find((i) => i.label === "About");
+			const esAbout = items.find((i) => i.label === "Acerca");
+
+			expect(enHome?.translation_group).toBe(esHome?.translation_group);
+			expect(enHome?.translation_group).toBe(enHome?.id);
+			expect(enAbout?.translation_group).toBe(esAbout?.translation_group);
+			expect(enAbout?.translation_group).not.toBe(enHome?.translation_group);
+		});
+
+		it("falls back to fresh group when item translationOf is missing", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				menus: [
+					{
+						id: "menu:primary:es",
+						name: "primary",
+						label: "Principal",
+						locale: "es",
+						items: [
+							{
+								id: "item:primary:home:es",
+								type: "custom",
+								label: "Inicio",
+								url: "/",
+								locale: "es",
+								translationOf: "item:primary:home:en",
+							},
+						],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const item = await db
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.where("label", "=", "Inicio")
+				.executeTakeFirst();
+
+			expect(item?.translation_group).toBe(item?.id);
+		});
+
+		it("imports term translations sharing one translation_group", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				taxonomies: [
+					{
+						id: "tax:topics:en",
+						name: "topics",
+						label: "Topics",
+						hierarchical: false,
+						collections: ["posts"],
+						locale: "en",
+						terms: [{ id: "term:topics:tech:en", slug: "tech", label: "Tech", locale: "en" }],
+					},
+					{
+						id: "tax:topics:es",
+						name: "topics",
+						label: "Temas",
+						hierarchical: false,
+						collections: ["posts"],
+						locale: "es",
+						translationOf: "tax:topics:en",
+						terms: [
+							{
+								id: "term:topics:tech:es",
+								slug: "tecnologia",
+								label: "Tecnología",
+								locale: "es",
+								translationOf: "term:topics:tech:en",
+							},
+						],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const terms = await db
+				.selectFrom("taxonomies")
+				.selectAll()
+				.where("name", "=", "topics")
+				.orderBy("locale", "asc")
+				.execute();
+
+			expect(terms).toHaveLength(2);
+			expect(terms[0]?.slug).toBe("tech");
+			expect(terms[1]?.slug).toBe("tecnologia");
+			expect(terms[0]?.translation_group).toBe(terms[1]?.translation_group);
 		});
 	});
 });

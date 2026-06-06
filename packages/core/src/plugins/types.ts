@@ -10,56 +10,56 @@
  */
 
 import type { Element } from "@emdash-cms/blocks";
+// The plugin capability vocabulary, the legacy-rename map, and the manifest
+// shape are authored once in @emdash-cms/plugin-types and shared between core
+// (the manifest reader at install/runtime) and @emdash-cms/plugin-cli (the
+// manifest writer at bundle/publish time).
+//
+// We import-and-re-export here so existing internal callers keep working
+// (e.g. `import { PluginCapability } from "../plugins/types.js"`).
+import {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapabilities,
+	normalizeCapability,
+	type CurrentPluginCapability,
+	type DeprecatedPluginCapability,
+	type ManifestHookEntry,
+	type ManifestRouteEntry,
+	type PluginCapability,
+	type PluginStorageConfig,
+	type StorageCollectionConfig,
+} from "@emdash-cms/plugin-types";
 import type { JSX } from "astro/jsx-runtime";
 import type { z } from "astro/zod";
-
-import type { FieldType } from "../schema/types.js";
-
 // =============================================================================
 // Core Types
 // =============================================================================
 
-/**
- * Plugin capabilities determine what APIs are available in context
- */
-export type PluginCapability =
-	| "network:fetch" // ctx.http is available (host-restricted via allowedHosts)
-	| "network:fetch:any" // ctx.http is available (unrestricted outbound — use for user-configured URLs)
-	| "read:content" // ctx.content.get/list available
-	| "write:content" // ctx.content.create/update/delete available
-	| "read:media" // ctx.media.get/list available
-	| "write:media" // ctx.media.getUploadUrl/delete available
-	| "read:users" // ctx.users is available
-	| "email:send" // ctx.email is available (when a provider is configured)
-	| "email:provide" // can register email:deliver exclusive hook (transport provider)
-	| "email:intercept" // can register email:beforeSend / email:afterSend hooks
-	| "page:inject"; // can register page:fragments hook (inject scripts/styles into pages)
+import type { FieldType } from "../schema/types.js";
+
+export {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapabilities,
+	normalizeCapability,
+	type CurrentPluginCapability,
+	type DeprecatedPluginCapability,
+	type ManifestHookEntry,
+	type ManifestRouteEntry,
+	type PluginCapability,
+	type PluginStorageConfig,
+	type StorageCollectionConfig,
+};
 
 // =============================================================================
 // Storage Types
 // =============================================================================
-
-/**
- * Storage collection declaration in plugin definition
- */
-export interface StorageCollectionConfig {
-	/**
-	 * Fields to index for querying.
-	 * Each entry can be a single field name or an array for composite indexes.
-	 */
-	indexes: Array<string | string[]>;
-	/**
-	 * Fields with unique constraints.
-	 * Each entry can be a single field name or an array for composite unique indexes.
-	 * Unique indexes are also queryable (no need to duplicate in `indexes`).
-	 */
-	uniqueIndexes?: Array<string | string[]>;
-}
-
-/**
- * Plugin storage configuration
- */
-export type PluginStorageConfig = Record<string, StorageCollectionConfig>;
+//
+// `StorageCollectionConfig` and `PluginStorageConfig` are re-exported above
+// from `@emdash-cms/plugin-types`. The manifest carries these shapes
+// verbatim; both this package (reader) and plugin-cli (writer) agree on
+// the same types via the shared package.
 
 /**
  * Query filter operators
@@ -997,27 +997,14 @@ export interface PluginHooks {
 /**
  * Hook names
  */
+/**
+ * Hook name in a manifest. Core's exhaustive union of recognised hook names,
+ * derived from the `PluginHooks` registry. The serialised manifest carries
+ * these as opaque strings; this stricter type is only used for type-checking
+ * inside core. `ManifestHookEntry` is re-exported from
+ * `@emdash-cms/plugin-types` near the top of this file.
+ */
 export type HookName = keyof PluginHooks;
-
-/**
- * Hook metadata entry in a plugin manifest.
- * Replaces the plain hook name string with structured metadata.
- */
-export interface ManifestHookEntry {
-	name: string;
-	exclusive?: boolean;
-	priority?: number;
-	timeout?: number;
-}
-
-/**
- * Route metadata entry in a plugin manifest.
- * Replaces the plain route name string with structured metadata.
- */
-export interface ManifestRouteEntry {
-	name: string;
-	public?: boolean;
-}
 
 /**
  * Resolved hook with normalized config
@@ -1201,6 +1188,15 @@ export interface PortableTextBlockConfig {
 	placeholder?: string;
 	/** Block Kit form fields for the editing UI. If declared, replaces the simple URL input. */
 	fields?: PortableTextBlockField[];
+	/**
+	 * Optional. Display category in the slash menu. Defaults to "Embeds".
+	 *
+	 * Plugin authors should pick a meaningful category that reflects what the
+	 * block actually is — e.g. "Sections", "Marketing", "Media", "Embeds",
+	 * "Layout". Blocks with the same category are grouped together in the
+	 * editor's slash menu.
+	 */
+	category?: string;
 }
 
 /**
@@ -1354,83 +1350,6 @@ export interface ResolvedPluginHooks {
 }
 
 // =============================================================================
-// Standard Plugin Format (Unified Plugin Format)
-// =============================================================================
-
-/**
- * Standard plugin hook handler -- same as sandbox entry format.
- * Receives the event as the first argument and a PluginContext as the second.
- *
- * Plugin authors annotate their event parameters with specific types for IDE
- * support. At the type level, we accept any function with compatible arity.
- */
-// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event types
-export type StandardHookHandler = (...args: any[]) => Promise<any>;
-
-/**
- * Standard plugin hook entry -- either a bare handler or a config object.
- */
-export type StandardHookEntry =
-	| StandardHookHandler
-	| {
-			handler: StandardHookHandler;
-			priority?: number;
-			timeout?: number;
-			dependencies?: string[];
-			errorPolicy?: "continue" | "abort";
-			exclusive?: boolean;
-	  };
-
-/**
- * Standard plugin route handler -- takes (routeCtx, pluginCtx) like sandbox entries.
- * The routeCtx contains input and request info; pluginCtx is the full plugin context.
- *
- * Uses `any` for routeCtx to allow plugins to access properties like
- * `routeCtx.request.url` without needing exact type matches across
- * trusted (Request object) and sandboxed (plain object) modes.
- */
-// eslint-disable-next-line typescript-eslint/no-explicit-any -- see above
-export type StandardRouteHandler = (routeCtx: any, ctx: PluginContext) => Promise<unknown>;
-
-/**
- * Standard plugin route entry -- either a config object with handler, or just a handler.
- */
-export interface StandardRouteEntry {
-	handler: StandardRouteHandler;
-	input?: unknown;
-	public?: boolean;
-}
-
-/**
- * Standard plugin definition -- the sandbox entry format.
- * Used by standard plugins that work in both trusted and sandboxed modes.
- * No id/version/capabilities -- those come from the descriptor.
- *
- * This is the input to definePlugin() for standard-format plugins.
- *
- * The hooks and routes use permissive types (Record<string, any>) so that
- * plugin authors can annotate their handlers with specific event types
- * without type errors from strictFunctionTypes contravariance.
- */
-export interface StandardPluginDefinition {
-	// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event/route types
-	hooks?: Record<string, any>;
-	// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event/route types
-	routes?: Record<string, any>;
-}
-
-/**
- * Check if a value is a StandardPluginDefinition (has hooks/routes but no id/version).
- */
-export function isStandardPluginDefinition(value: unknown): value is StandardPluginDefinition {
-	if (typeof value !== "object" || value === null) return false;
-	// Standard format: has hooks or routes, but NOT id+version (which are on PluginDefinition)
-	const hasPluginShape = "hooks" in value || "routes" in value;
-	const hasNativeShape = "id" in value && "version" in value;
-	return hasPluginShape && !hasNativeShape;
-}
-
-// =============================================================================
 // Plugin Admin Exports
 // =============================================================================
 
@@ -1449,8 +1368,16 @@ export interface PluginAdminExports {
 // =============================================================================
 
 /**
- * Plugin manifest - the metadata portion of a plugin bundle
- * Used for sandboxed plugins loaded from marketplace
+ * Plugin manifest — the metadata portion of a plugin bundle, used for
+ * sandboxed plugins loaded from the marketplace.
+ *
+ * This interface is core's stricter version of the manifest contract: it
+ * uses the exhaustive `HookName` union and core's typed `PluginAdminConfig`.
+ * The wire-shape lives in `@emdash-cms/plugin-types` as `PluginManifest`
+ * with looser types (so the registry CLI can serialise hook names it
+ * doesn't know about). Both must stay structurally compatible: every value
+ * of this type must be assignable to the shared one. The static assertion
+ * below catches any drift at compile time.
  */
 export interface PluginManifest {
 	id: string;
@@ -1464,3 +1391,29 @@ export interface PluginManifest {
 	routes: Array<ManifestRouteEntry | string>;
 	admin: PluginAdminConfig;
 }
+
+// Type-level guard: core's `PluginManifest` is intentionally a SUBTYPE of
+// the shared wire shape (`@emdash-cms/plugin-types` `PluginManifest`). The
+// wire shape uses looser types like `string` for hook names so the registry
+// CLI can serialise plugins targeting hook versions this core doesn't yet
+// know about. Core narrows `string` to `HookName` and `Record<string,
+// unknown>` to `PluginAdminConfig` because core's loader actually executes
+// against those types.
+//
+// We assert one direction at compile time: `core extends shared`. The
+// reverse direction (`shared extends core`) intentionally does NOT hold
+// because shared is wider -- a manifest written against the wire shape
+// could carry a hook name core doesn't know. That runtime narrowing is the
+// job of `manifest-schema.ts` (zod-validated, called at every JSON.parse
+// of a manifest.json), not of the type system. The static check below
+// catches the OTHER failure mode: core adding a required field or
+// non-assignable type that the wire shape doesn't allow.
+//
+// `type X = never` is itself legal as a type alias, so the assertion has to
+// be in a value position (`const _check: T = true`) for the compiler to
+// error when T resolves to `never`. Don't replace this with a bare type
+// alias.
+type _AssertManifestCompat =
+	PluginManifest extends import("@emdash-cms/plugin-types").PluginManifest ? true : never;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _MANIFEST_COMPAT: _AssertManifestCompat = true;

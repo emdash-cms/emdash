@@ -248,7 +248,7 @@ describe("page:fragments hook execution", () => {
 
 		const plugin = createTestPlugin({
 			id: "test-fragment",
-			capabilities: ["page:inject"],
+			capabilities: ["hooks.page-fragments:register"],
 			hooks: {
 				"page:fragments": createTestHook("test-fragment", fragmentHandler),
 			},
@@ -270,7 +270,7 @@ describe("page:fragments hook execution", () => {
 		]);
 	});
 
-	it("requires page:inject capability for page:fragments", () => {
+	it("requires hooks.page-fragments:register capability for page:fragments", () => {
 		const handler: PageFragmentHandler = vi.fn(async () => null);
 
 		const pluginWithoutCap = createTestPlugin({
@@ -296,7 +296,7 @@ describe("page:fragments hook execution", () => {
 
 		const plugin = createTestPlugin({
 			id: "analytics",
-			capabilities: ["page:inject"],
+			capabilities: ["hooks.page-fragments:register"],
 			hooks: {
 				"page:fragments": createTestHook("analytics", fragmentHandler),
 			},

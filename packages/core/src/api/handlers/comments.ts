@@ -316,11 +316,13 @@ export async function checkRateLimit(
 /**
  * Hash an IP address for storage (never store cleartext IPs).
  *
- * Uses full SHA-256 with an application salt to prevent rainbow-table
- * recovery of IPs. The caller should pass a site-specific secret;
- * falls back to a static salt if none is provided.
+ * Uses full SHA-256 with a site-specific salt to prevent rainbow-table
+ * recovery of IPs. The salt must be provided by the caller — typically
+ * via `resolveSecretsCached(db).ipSalt` from `#config/secrets.js`. The
+ * salt is generated and persisted on first need so it's stable across
+ * requests within a deployment but unique per install.
  */
-export async function hashIp(ip: string, salt: string = "emdash-ip-salt"): Promise<string> {
+export async function hashIp(ip: string, salt: string): Promise<string> {
 	const data = `ip:${salt}:${ip}`;
 	const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(data));
 	return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");

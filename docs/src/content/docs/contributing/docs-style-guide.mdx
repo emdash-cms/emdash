@@ -1,0 +1,158 @@
+---
+title: Documentation Style Guide
+description: The writing, structure, and code-sample conventions for EmDash documentation.
+---
+
+This guide defines how EmDash documentation is written. Contributions are edited to match it. You do not need to memorize it — reviewers and editors will help — but following it makes a contribution merge faster.
+
+Documentation exists to help someone do something, then get back to their project. Write for a reader who is tired, in a hurry, reading in a second language, or new to the stack. Serve that reader above all else.
+
+## Readability
+
+Prefer:
+
+- Short sentences and short paragraphs.
+- Plain vocabulary over jargon.
+- Abbreviations and acronyms written out the first time.
+- Headings and lists to break up long passages.
+- Active voice.
+
+Document **how to build with EmDash**, not **how EmDash is built**. Implementation detail belongs in docs only when it changes a decision the reader has to make (when to pick a non-default value, a caveat that affects their project). It never replaces a usage example.
+
+For non-EmDash topics — TypeScript, the AT Protocol, web fonts, SQL — link to a reputable source instead of explaining them. Document what someone needs to know to use the feature **in EmDash**.
+
+## What to emphasise
+
+A page's emphasis must be set by what the reader needs to do their task, never by what was interesting or recent to the people who built EmDash. Three habits to actively resist:
+
+- **Authoring-recency weight.** A decision being new, or fresh in the writer's mind, is not a reason to feature it. The most-changed thing is rarely the most important thing to a reader. Order sections, list items, and headlines by how often a reader needs them, not by when they were added. If you are documenting something because it just changed, you are probably writing a changelog entry, not a doc.
+
+- **Builder-salience over reader-salience.** Internal architecture and design decisions that were significant to *make* are usually invisible and irrelevant to *use*. State the capability the reader gets, not the mechanism behind it. A reader defining a collection does not need to know where the schema is stored, any more than they need to know the parser's language. If the mechanism genuinely helps someone working on EmDash, it belongs in the internals doc, not in a user-facing page.
+
+- **Straw-man self-definition.** Do not define EmDash by contrast with a caricature of other tools ("Unlike most CMSs…", "Traditional CMSs force you to…", "in many CMSs you declare X in code"). Describe what EmDash does, directly, and let it stand on its own. Comparison is allowed only when the comparison is *the reader's own question*: on the evaluation page and the "Coming from…" orientation pages. Even there it must be specific and fair — concrete behaviours and trade-offs, not a strawman the reader is invited to dislike.
+
+- **Definition by negation.** Framing a capability as the work you _don't_ have to do — "no migration to write", "no rebuild", "without touching code", "no separate service" — is a straw-man in disguise: it only lands for a reader who is carrying the alternative you have invented for them. State what the reader _does_ and what _happens_. "Add a field in the admin panel; it takes effect immediately" — not "add a field with no migration, no rebuild, no code". The exception is a concrete, reader-relevant behaviour stated positively: "content is served at runtime, so edits appear immediately" is a fact about EmDash; "no rebuilds needed" is the same fact phrased as someone else's absent pain — prefer the first.
+
+The test for any sentence: would a reader trying to finish their task be worse off if it were deleted? If not, delete it. If it only makes sense to a reader comparing EmDash to something else, it is in the wrong place or should be cut.
+
+## Evergreen, not changelog
+
+User-facing pages describe how EmDash works now, for a reader who has no prior version in their head. No "now", "no longer", "used to", "instead of the old", "this changed". Version-to-version differences live only in an [upgrade guide](#upgrade-and-migration-guides). A concept being recently introduced is never a reason to mention that it is recent.
+
+## Voice and tone
+
+Write neutral, factual sentences. State facts directly.
+
+✅ Plugins run in an isolated runtime and can only reach the APIs they declare.
+
+❌ Plugins live in a cosy little sandbox where nothing bad can ever happen!
+
+- **Do not use _we_, _us_, _our_, or _let's_.** You are not sitting with the reader. Rephrase to address the reader directly or describe the system.
+- **Never use _I_.** Documentation is not about the author.
+- **Address the reader as _you_** when needed, especially to flag a step where something can go wrong.
+- **Do not narrate or tell a story.** No "now that we've set up X, let's move on to Y". Start a section with the goal, then the steps.
+- **Avoid whimsy, mascots, and cultural references.** They add reading effort and do not translate.
+- **Exclamation points are rare.** Use one only for something genuinely encouraging or surprising. When unsure, use a period.
+
+## Headings
+
+- Page title is the `<h1>` (from frontmatter `title`). Sections start at `<h2>`.
+- Keep headings short. `<h2>` and `<h3>` appear in the "On this page" sidebar; preview it and shorten anything that wraps.
+- No trailing punctuation, including a colon.
+- Format code as `<code>` in headings the same as in body text.
+
+## Lists
+
+- Use a bulleted list when order does not matter, such as a set of options or properties.
+- Use a numbered list for steps that must be followed in sequence. Use the Starlight `<Steps>` component for procedures.
+- When list items grow into multiple paragraphs or carry several code terms, switch to `<h3>` sections instead.
+
+## Examples
+
+- "for example" in full introduces a single example or hypothetical.
+- "e.g." inside parentheses introduces a non-exhaustive list (`e.g. GitHub, GitLab`).
+- A list that covers **every** option is not a list of examples — use parentheses without "e.g." (`the required properties (src, alt)`).
+
+## Code samples
+
+Code samples are as important as the prose around them.
+
+**Introduce every code block with a full, standalone sentence** on its own line, telling the reader what the block does. Do not lead in with a sentence fragment ending in a colon, a bare heading, or "like so:".
+
+✅ The following example registers a plugin in the `sandboxed` array:
+
+❌ Add the plugin like so:
+
+The introduction primes the reader for what the code does, so they only need to work out _how_. It also creates a fill-in-the-blank pattern for a reader doing something slightly different.
+
+Within a `<Steps>` procedure, a direct imperative instruction is the introduction ("Add a `tsconfig.json`:" followed by the file is fine in a numbered step).
+
+Other rules:
+
+- **Use real, working code.** No `foo`/`bar`. Show one realistic configuration, not every possible value — the reader will only have one.
+- **Add a `title=` filename** to any block that represents a file, so the reader knows where the code goes.
+
+  ````md
+  ```ts title="src/plugin.ts"
+  ````
+
+- **Use Expressive Code annotations**, not raw ` ```diff ` fences, for before/after changes. Mark changed lines with `del={n}` / `ins={n}` or changed text with `del="…"` / `ins="…"`. Keep diffs minimal and local to the lines that change.
+
+  The following example shows a single line changing:
+
+  ````md
+  ```ts del={1} ins={2}
+  import { definePlugin } from "emdash";
+  import type { SandboxedPlugin } from "emdash/plugin";
+  ```
+  ````
+
+- Preview rendered code locally before submitting. A typo can break the display.
+
+## Upgrade and migration guides
+
+A guide that helps a reader move an existing project to a new version follows a fixed structure. The "What should I do?" sections are the part readers value most — do not skimp on them.
+
+Open with: how to upgrade, a note that things may "just work" but to read on if not, and a link to the changelog.
+
+Then list each breaking change as its own entry:
+
+```md
+### [Renamed/Changed/Removed/Deprecated]: <feature>
+
+In earlier versions, <one sentence, past tense, what it did>.
+
+<One sentence, present tense, how it works now>.
+
+#### What should I do?
+
+<Imperative actions: Update… / Replace… / Remove…, with a minimal diff.>
+```
+
+Choose the verb by how the reader feels the impact. If a new default replaces their value, that is a "Changed: default value", not an "Added: option".
+
+A breaking change is one that requires a change to the reader's project or it stops working. Give the action, not just the fact. Not "the minimum Node.js version is now X" but "check your Node.js version with the following command, and upgrade if it is below X".
+
+## EmDash specifics
+
+Conventions for recurring situations, ordered by how often a contributor hits them. This is a list of conventions, not a ranking of which features matter.
+
+### Plugins: sandboxed vs native
+
+Sandboxed and native plugins are different formats with different authoring shapes. A change to one rarely affects the other. State which format a page or example is about. When editing a sandboxed-plugin page, do not change native-plugin examples, and the reverse.
+
+### Localization
+
+Do not include `messages.po` changes in a docs PR. A workflow extracts catalogs on merge to `main`. Including them creates churn and merge conflicts.
+
+### Experimental features
+
+A feature behind an experimental flag, or an unstable wire format under an RFC, can change without notice. Keep its documentation lean, flag it with a caution `<Aside>`, and point to the RFC or discussion as the source of truth. Do not document an unstable surface in exhaustive detail.
+
+### Atmosphere accounts
+
+When the portable, user-owned identity behind Bluesky and the wider AT Protocol network comes up, call it an **Atmosphere account** and use that term consistently. Link the first mention to [the Atmosphere login guide](/guides/atmosphere-auth/) or [atmosphereaccount.com](https://atmosphereaccount.com). `did:plc:…` and handles are its concrete identifiers; use them where a literal value is needed.
+
+## Docs are code
+
+The documentation site is an EmDash-adjacent Astro project. Documentation changes go through the same pull request and review flow as code. Every text change waits for a review; a wording change can shift the meaning of a sentence or need matching edits elsewhere on the site. Small, reviewed, consistent changes keep the whole site coherent.

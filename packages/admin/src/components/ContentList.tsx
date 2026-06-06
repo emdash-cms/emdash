@@ -1,4 +1,4 @@
-import { Badge, Button, buttonVariants, Dialog, Input, Tabs } from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, LinkButton, Loader, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -9,8 +9,6 @@ import {
 	ArrowSquareOut,
 	Copy,
 	MagnifyingGlass,
-	CaretLeft,
-	CaretRight,
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
@@ -19,9 +17,12 @@ import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import type { ContentItem, TrashedContentItem } from "../lib/api";
+import { useDebouncedValue } from "../lib/hooks.js";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
+import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /** Sortable content list columns. Maps to the server's order field whitelist. */
 export type ContentListSortField = "title" | "status" | "locale" | "updatedAt";
@@ -62,6 +63,19 @@ export interface ContentListProps {
 	 */
 	sort?: ContentListSort;
 	onSortChange?: (sort: ContentListSort) => void;
+	/**
+	 * Total rows matching the current filters (ignoring pagination). When
+	 * set, the pagination denominator reflects this stable count instead of
+	 * growing as more API pages are fetched.
+	 */
+	total?: number;
+	/**
+	 * When provided, search is performed server-side: the (debounced) query is
+	 * reported here so the caller can refetch, and `items`/`total` are assumed
+	 * to already reflect the filter. Without it, the list falls back to
+	 * filtering the loaded page client-side (legacy behavior).
+	 */
+	onSearchChange?: (q: string) => void;
 }
 
 type ViewTab = "all" | "trash";
@@ -104,11 +118,23 @@ export function ContentList({
 	urlPattern,
 	sort,
 	onSortChange,
+	total,
+	onSearchChange,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
+
+	// Server-side search mode: the caller refetches based on the (debounced)
+	// query, so `items`/`total` already reflect the filter and we must not
+	// re-filter client-side (that would re-introduce the "only matches the
+	// loaded page" bug for non-title columns).
+	const serverSearch = !!onSearchChange;
+	const debouncedSearch = useDebouncedValue(searchQuery, 300);
+	React.useEffect(() => {
+		if (onSearchChange) onSearchChange(debouncedSearch.trim());
+	}, [debouncedSearch, onSearchChange]);
 
 	// Reset page when search changes
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,22 +143,51 @@ export function ContentList({
 	};
 
 	const filteredItems = React.useMemo(() => {
-		if (!searchQuery) return items;
+		if (serverSearch || !searchQuery) return items;
 		const query = searchQuery.toLowerCase();
 		return items.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [items, searchQuery]);
+	}, [items, searchQuery, serverSearch]);
 
-	const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
-	const paginatedItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+	// The query the current `items` reflect: server-side filtering lags behind
+	// typing by the debounce, so the empty-state message must use the debounced
+	// term; client-side filtering is immediate, so it uses the live query.
+	const activeSearch = serverSearch ? debouncedSearch.trim() : searchQuery;
 
-	// Auto-fetch next API page when user reaches the last client-side page.
-	// skip when a search query is active
-	// filteredItems shrinking would otherwise collapse totalPages to 1 and trigger a spurious fetch
+	// When the server reports a total, it's the source of truth for the
+	// denominator. In server-search mode that total already reflects the query,
+	// so we use it even while searching; in client mode an active query falls
+	// back to the filtered client count.
+	const effectiveTotal =
+		typeof total === "number" && (serverSearch || !searchQuery) ? total : filteredItems.length;
+	const totalPages = Math.max(1, Math.ceil(effectiveTotal / PAGE_SIZE));
+
+	// Clamp the current page in case filters collapse the count (user was on
+	// page 5 of 10, then typed a query narrowing to 1 page). Without clamping
+	// we'd render an empty table until the next refetch.
+	const clampedPage = Math.min(page, totalPages - 1);
+	const paginatedItems = filteredItems.slice(
+		clampedPage * PAGE_SIZE,
+		(clampedPage + 1) * PAGE_SIZE,
+	);
+
+	// Auto-fetch the next API page when the user is on a client page whose
+	// items haven't been loaded yet. Skip during client-side search because
+	// filtering can collapse `filteredItems` below the loaded count and
+	// trigger a spurious fetch.
+	//
+	// Safety: relies on `onLoadMore` being deduped against concurrent calls.
+	// The router wires this to TanStack Query's `fetchNextPage`, which is
+	// idempotent while a fetch is in flight.
 	React.useEffect(() => {
-		if (page >= totalPages - 1 && hasMore && onLoadMore && !searchQuery) {
+		// In client-search mode we skip auto-fetch while a query is active
+		// (filtering can collapse the list). In server-search mode the loaded
+		// items already are the matches, so paging forward should keep fetching.
+		if (!hasMore || !onLoadMore || (!serverSearch && searchQuery)) return;
+		const loadedPages = Math.ceil(filteredItems.length / PAGE_SIZE);
+		if (clampedPage >= loadedPages - 1) {
 			onLoadMore();
 		}
-	}, [page, totalPages, hasMore, onLoadMore, searchQuery]);
+	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, searchQuery, serverSearch]);
 
 	return (
 		<div className="space-y-4">
@@ -150,19 +205,18 @@ export function ContentList({
 						/>
 					)}
 				</div>
-				<Link
+				<RouterLinkButton
 					to="/content/$collection/new"
 					params={{ collection }}
 					search={{ locale: activeLocale }}
-					className={buttonVariants()}
+					icon={<Plus />}
 				>
-					<Plus className="me-2 h-4 w-4" aria-hidden="true" />
 					{t`Add New`}
-				</Link>
+				</RouterLinkButton>
 			</div>
 
 			{/* Search */}
-			{items.length > 0 && (
+			{(serverSearch || items.length > 0) && (
 				<div className="relative max-w-sm">
 					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
 					<Input
@@ -202,7 +256,7 @@ export function ContentList({
 			{activeTab === "all" ? (
 				<>
 					{/* Table */}
-					<div className="rounded-md border overflow-x-auto">
+					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
@@ -237,25 +291,40 @@ export function ContentList({
 									</th>
 								</tr>
 							</thead>
-							<tbody>
-								{items.length === 0 && !isLoading ? (
+							<tbody className="divide-y divide-kumo-line">
+								{isLoading && items.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
-											<Link
-												to="/content/$collection/new"
-												params={{ collection }}
-												search={{ locale: activeLocale }}
-												className="text-kumo-brand underline"
-											>
-												{t`Create your first one`}
-											</Link>
+											<span className="inline-flex items-center gap-2">
+												<Loader size="sm" />
+												{t`Loading...`}
+											</span>
+										</td>
+									</tr>
+								) : items.length === 0 ? (
+									<tr>
+										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+											{activeSearch ? (
+												t`No results for "${activeSearch}"`
+											) : (
+												<>
+													{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
+													<Link
+														to="/content/$collection/new"
+														params={{ collection }}
+														search={{ locale: activeLocale }}
+														className="text-kumo-brand underline"
+													>
+														{t`Create your first one`}
+													</Link>
+												</>
+											)}
 										</td>
 									</tr>
 								) : paginatedItems.length === 0 ? (
 									<tr>
 										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
-											{t`No results for "${searchQuery}"`}
+											{t`No results for "${activeSearch}"`}
 										</td>
 									</tr>
 								) : (
@@ -279,37 +348,35 @@ export function ContentList({
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between">
 							<span className="text-sm text-kumo-subtle">
-								{searchQuery
-									? plural(filteredItems.length, {
-											one: `# item matching "${searchQuery}"`,
-											other: `# items matching "${searchQuery}"`,
-										})
-									: plural(filteredItems.length, {
-											one: `#${hasMore ? "+" : ""} item`,
-											other: `#${hasMore ? "+" : ""} items`,
-										})}
+								{renderItemCount({
+									searchQuery: activeSearch,
+									filteredCount: filteredItems.length,
+									total,
+									hasMore,
+									serverSearch,
+								})}
 							</span>
 							<div className="flex items-center gap-2">
 								<Button
 									variant="outline"
 									shape="square"
-									disabled={page === 0}
-									onClick={() => setPage(page - 1)}
+									disabled={clampedPage === 0}
+									onClick={() => setPage(clampedPage - 1)}
 									aria-label={t`Previous page`}
 								>
-									<CaretLeft className="h-4 w-4" aria-hidden="true" />
+									<CaretPrev className="h-4 w-4" aria-hidden="true" />
 								</Button>
 								<span className="text-sm">
-									{page + 1} / {totalPages}
+									{clampedPage + 1} / {totalPages}
 								</span>
 								<Button
 									variant="outline"
 									shape="square"
-									disabled={page >= totalPages - 1}
-									onClick={() => setPage(page + 1)}
+									disabled={clampedPage >= totalPages - 1}
+									onClick={() => setPage(clampedPage + 1)}
 									aria-label={t`Next page`}
 								>
-									<CaretRight className="h-4 w-4" aria-hidden="true" />
+									<CaretNext className="h-4 w-4" aria-hidden="true" />
 								</Button>
 							</div>
 						</div>
@@ -327,7 +394,7 @@ export function ContentList({
 			) : (
 				<>
 					{/* Trash Table */}
-					<div className="rounded-md border overflow-x-auto">
+					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
@@ -342,8 +409,17 @@ export function ContentList({
 									</th>
 								</tr>
 							</thead>
-							<tbody>
-								{trashedItems.length === 0 && !isTrashedLoading ? (
+							<tbody className="divide-y divide-kumo-line">
+								{isTrashedLoading && trashedItems.length === 0 ? (
+									<tr>
+										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
+											<span className="inline-flex items-center gap-2">
+												<Loader size="sm" />
+												{t`Loading...`}
+											</span>
+										</td>
+									</tr>
+								) : trashedItems.length === 0 ? (
 									<tr>
 										<td colSpan={3} className="px-4 py-8 text-center text-kumo-subtle">
 											{t`Trash is empty`}
@@ -431,9 +507,8 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 				type="button"
 				onClick={handleClick}
 				className={cn(
-					"inline-flex items-center gap-1 rounded hover:text-kumo-brand",
+					"inline-flex items-center gap-1 rounded text-kumo-default hover:text-kumo-brand",
 					"focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand",
-					isActive ? "text-kumo-fg" : "text-kumo-subtle",
 				)}
 			>
 				<span>{label}</span>
@@ -441,6 +516,48 @@ function SortableTh({ field, sort, onSortChange, label }: SortableThProps) {
 			</button>
 		</th>
 	);
+}
+
+/**
+ * Render the row-count line above pagination. The rules are:
+ * - A search query always wins — say how many matches there are. In
+ *   server-search mode the server reports the full match count via `total`;
+ *   `filteredCount` is only the loaded page, so it would undercount.
+ * - When the server reported a total, use it (no `+` suffix needed —
+ *   we know the count).
+ * - Otherwise fall back to the pre-refactor behavior: loaded count,
+ *   with `+` when there are more pages the user hasn't fetched yet.
+ */
+function renderItemCount({
+	searchQuery,
+	filteredCount,
+	total,
+	hasMore,
+	serverSearch,
+}: {
+	searchQuery: string;
+	filteredCount: number;
+	total: number | undefined;
+	hasMore: boolean | undefined;
+	serverSearch: boolean;
+}): string {
+	if (searchQuery) {
+		const matchCount = serverSearch && typeof total === "number" ? total : filteredCount;
+		return plural(matchCount, {
+			one: `# item matching "${searchQuery}"`,
+			other: `# items matching "${searchQuery}"`,
+		});
+	}
+	if (typeof total === "number") {
+		return plural(total, {
+			one: `# item`,
+			other: `# items`,
+		});
+	}
+	return plural(filteredCount, {
+		one: `#${hasMore ? "+" : ""} item`,
+		other: `#${hasMore ? "+" : ""} items`,
+	});
 }
 
 interface ContentListItemProps {
@@ -465,7 +582,7 @@ function ContentListItem({
 	const date = new Date(item.updatedAt || item.createdAt);
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
 				<Link
 					to="/content/$collection/$id"
@@ -492,24 +609,23 @@ function ContentListItem({
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					{item.status === "published" && item.slug && (
-						<a
+						<LinkButton
 							href={contentUrl(collection, item.slug, urlPattern)}
-							target="_blank"
-							rel="noopener noreferrer"
+							external
+							variant="ghost"
+							shape="square"
 							aria-label={t`View published ${title}`}
-							className={buttonVariants({ variant: "ghost", shape: "square" })}
-						>
-							<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
-						</a>
+							icon={<ArrowSquareOut />}
+						/>
 					)}
-					<Link
+					<RouterLinkButton
 						to="/content/$collection/$id"
 						params={{ collection, id: item.id }}
 						aria-label={t`Edit ${title}`}
-						className={buttonVariants({ variant: "ghost", shape: "square" })}
-					>
-						<Pencil className="h-4 w-4" aria-hidden="true" />
-					</Link>
+						variant="ghost"
+						shape="square"
+						icon={<Pencil />}
+					/>
 					<Button
 						variant="ghost"
 						shape="square"
@@ -572,7 +688,7 @@ function TrashedListItem({ item, onRestore, onPermanentDelete }: TrashedListItem
 	const deletedDate = new Date(item.deletedAt);
 
 	return (
-		<tr className="border-b hover:bg-kumo-tint/25">
+		<tr className="hover:bg-kumo-tint/25">
 			<td className="px-4 py-3">
 				<span className="font-medium text-kumo-subtle">{title}</span>
 			</td>

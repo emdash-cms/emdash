@@ -54,7 +54,8 @@ In addition to scopes, some tools require a minimum RBAC role. Both must be sati
 | Operation | Minimum role |
 | --- | --- |
 | Content read | Subscriber (10) for published items; Contributor (20) for drafts, scheduled, trash, and revisions |
-| Content create / edit own / delete own | Author (30) |
+| Content create | Contributor (20) |
+| Content edit own / delete own | Author (30) |
 | Content publish | Author (30) for own items; Editor (40) to act on others' items |
 | Schema read | Editor (40) |
 | Schema write | Admin (50) |
@@ -78,7 +79,7 @@ Responses follow the [JSON-RPC 2.0](https://www.jsonrpc.org/specification) forma
 
 ## Tools
 
-The server exposes 43 tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
+The server exposes 45 tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
 
 ### Content Tools
 
@@ -514,63 +515,84 @@ Permanently delete a term from a taxonomy. Any content tagged with the term lose
 
 #### `menu_list`
 
-List all navigation menus. Returns name, label, and timestamps.
+List navigation menus. Menus are per-locale: pass `locale` to return one locale's
+rows only, or omit it to list every locale variant.
 
-**No parameters.**
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `locale` | `string` | No | Filter by locale (omit for all locale variants) |
 
 **Scope:** `content:read` | **Read-only:** Yes
 
 #### `menu_get`
 
-Get a menu by name including all its items in order. Items have a label, URL, type, and optional parent for nesting.
+Get a menu by name including all its items in order. Items have a label, URL, type,
+and optional parent for nesting. When the same menu name exists in multiple locales,
+pass `locale` to resolve the intended translation.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Menu name (e.g. `main`, `footer`) |
+| `locale` | `string` | No | Locale to resolve the menu for |
 
 **Scope:** `content:read` | **Read-only:** Yes
 
 #### `menu_create`
 
-Create a new navigation menu. The `name` is the stable identifier used by site templates; `label` is the human-readable name shown in the admin. Add items afterwards with `menu_set_items`.
+Create a new navigation menu. The `name` is the stable identifier used by site
+templates; `label` is the human-readable name shown in the admin. Menus are
+per-locale, so pass `locale` when the same menu name exists in multiple
+translations. Add items afterwards with `menu_set_items`. If `translationOf` is
+set, `locale` must also be set.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Stable identifier (`/^[a-z][a-z0-9_]*$/`) |
 | `label` | `string` | Yes | Display name for the admin |
+| `locale` | `string` | No | Locale for this menu (e.g. `fr-fr`) |
+| `translationOf` | `string` | No | Existing menu id to create this locale variant from |
 
 **Scope:** `menus:manage` | **Minimum role:** Editor
 
 #### `menu_update`
 
-Update a menu's label. The `name` (stable identifier) cannot be changed.
+Update a menu's label. The `name` (stable identifier) cannot be changed. On
+multi-locale installs, pass `locale` so the correct translation is updated.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Menu name to update |
 | `label` | `string` | Yes | New display label |
+| `locale` | `string` | No | Locale of the menu to update |
 
 **Scope:** `menus:manage` | **Minimum role:** Editor
 
 #### `menu_delete`
 
-Delete a menu and all its items. Cannot be undone.
+Delete a menu and all its items. Cannot be undone. On multi-locale installs,
+pass `locale` so only the intended translation is removed.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Menu name to delete |
+| `locale` | `string` | No | Locale of the menu to delete |
 
 **Scope:** `menus:manage` | **Minimum role:** Editor | **Destructive:** Yes
 
 #### `menu_set_items`
 
-Replace the entire item list of a menu in one call. Atomic: existing items are deleted and the new list is inserted in the order provided. Use this rather than per-item add/remove operations so the resulting order and parent links are unambiguous.
+Replace the entire item list of a menu in one call. Atomic: existing items are
+deleted and the new list is inserted in the order provided. Use this rather
+than per-item add/remove operations so the resulting order and parent links are
+unambiguous. On multi-locale installs, pass `locale` so only the intended
+translation is rewritten.
 
 Items are positioned by array index. Nesting is expressed via `parentIndex` -- an item with `parentIndex: 0` is nested under the item at index `0`. The parent must appear earlier in the list. Items without `parentIndex` are top-level.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | `string` | Yes | Menu name to update |
+| `locale` | `string` | No | Locale of the menu to rewrite |
 | `items` | `MenuItem[]` | Yes | Ordered list of menu items (see below) |
 
 Each `MenuItem` has:
@@ -658,13 +680,17 @@ The `seo` object accepts:
 
 ## OAuth Discovery
 
-MCP clients that support OAuth 2.1 can automatically discover how to authenticate. The server publishes two metadata documents:
+Most MCP clients handle this for you; this section is for building an MCP client against EmDash directly. Clients that support OAuth 2.1 discover how to authenticate from two metadata documents the server publishes:
 
 ### Protected Resource Metadata
+
+Request the protected resource metadata at the following endpoint:
 
 ```http
 GET /.well-known/oauth-protected-resource
 ```
+
+The server responds with the resource identifier, its authorization server, and supported scopes:
 
 ```json
 {
@@ -684,9 +710,13 @@ GET /.well-known/oauth-protected-resource
 
 ### Authorization Server Metadata
 
+Request the authorization server metadata at the following endpoint:
+
 ```http
 GET /.well-known/oauth-authorization-server/_emdash
 ```
+
+The server responds with the endpoints, scopes, and grant types it supports:
 
 ```json
 {
@@ -717,25 +747,25 @@ This triggers the standard MCP client discovery flow.
 
 ## Error Handling
 
-Tool errors are returned as text content with `isError: true`:
+Tool errors are returned as text content with `isError: true`. The message is prefixed with a stable `[CODE]`, and the same code is repeated in `_meta.code`:
 
 ```json
 {
-  "content": [{ "type": "text", "text": "Collection 'nonexistent' not found" }],
-  "isError": true
+  "content": [{ "type": "text", "text": "[NOT_FOUND] Collection 'nonexistent' not found" }],
+  "isError": true,
+  "_meta": { "code": "NOT_FOUND" }
 }
 ```
 
-Scope and permission errors throw MCP protocol errors:
+Scope and permission errors use the same tool error envelope:
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "error": {
-    "code": -32600,
-    "message": "Insufficient scope: requires content:write"
-  },
-  "id": 1
+  "content": [
+    { "type": "text", "text": "[INSUFFICIENT_SCOPE] Insufficient scope: requires content:write" }
+  ],
+  "isError": true,
+  "_meta": { "code": "INSUFFICIENT_SCOPE" }
 }
 ```
 

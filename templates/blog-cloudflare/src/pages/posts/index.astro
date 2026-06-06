@@ -9,7 +9,7 @@ const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
 });
 
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 // Single batched query for tags across all posts, instead of one
 // getEntryTerms() call per post (which would be N round-trips).
@@ -240,8 +240,8 @@ const formatDate = (date: Date) =>
 
 	.post-tag {
 		display: inline-block;
-		padding: var(--tag-padding-y) var(--spacing-3);
-		font-size: var(--font-size-sm);
+		padding: var(--tag-padding-y) var(--spacing-2);
+		font-size: var(--font-size-xs);
 		color: var(--color-text-secondary);
 		background: var(--color-surface);
 		border-radius: var(--radius);

@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/blocks",
-  "version": "0.8.0",
+  "version": "0.17.2",
   "description": "Declarative plugin UI blocks for EmDash CMS",
   "type": "module",
   "main": "dist/index.js",
@@ -26,7 +26,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@cloudflare/kumo": "^1.10.0",
+    "@cloudflare/kumo": "catalog:",
     "@phosphor-icons/react": "catalog:",
     "clsx": "^2.1.1",
     "echarts": "^6.0.0",

@@ -19,21 +19,37 @@
 			"new_sqlite_classes": ["EmDashPreviewDB"],
 		},
 	],
+	"preview_urls": true,
 	"observability": {
 		"enabled": true,
 	},
 	"routes": [
 		{
-			"pattern": "emdashcms.com",
-			"zone_name": "emdashcms.com",
-			"custom_domain": true,
-		},
-		{
-			"pattern": "www.emdashcms.com",
+			"pattern": "try.emdashcms.com",
 			"zone_name": "emdashcms.com",
 			"custom_domain": true,
 		},
 	],
-	// No R2 -- media uploads are blocked in playground mode
-	// No D1 -- database is inside the Durable Object
+	"kv_namespaces": [
+		{
+			"binding": "SESSION",
+			"id": "753be2785dfb4da886e837a90cd9a21a",
+		},
+	],
+	"previews": {
+		"kv_namespaces": [
+			{
+				"binding": "SESSION",
+				"id": "753be2785dfb4da886e837a90cd9a21a",
+			},
+		],
+		"durable_objects": {
+			"bindings": [
+				{
+					"name": "PLAYGROUND_DB",
+					"class_name": "EmDashPreviewDB",
+				},
+			],
+		},
+	},
 }

@@ -36,7 +36,7 @@ export interface WpPluginImportResponse {
 }
 
 export const POST: APIRoute = async ({ request, locals }) => {
-	const { emdash, emdashManifest, user } = locals;
+	const { emdash, user } = locals;
 
 	const denied = requirePerm(user, "import:execute");
 	if (denied) return denied;
@@ -46,6 +46,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 
 	try {
+		const emdashManifest = await emdash.getManifest();
+
 		const body = await parseBody(request, wpPluginExecuteBody);
 		if (isParseError(body)) return body;
 
@@ -58,7 +60,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			return apiError("SSRF_BLOCKED", msg, 400);
 		}
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Zod schema output narrowed to WpPluginImportConfig
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Zod schema output narrowed to WpPluginImportConfig
 		const config = body.config as unknown as WpPluginImportConfig;
 
 		// Get the WordPress plugin source
@@ -314,7 +316,7 @@ async function importContent(
 
 				// Track translation group: first item in a group establishes the mapping
 				if (item.translationGroup && !translationGroupMap.has(item.translationGroup)) {
-					// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler success data includes id
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler success data includes id
 					const createdData = createResult.data as { id?: string } | undefined;
 					if (createdData?.id) {
 						translationGroupMap.set(item.translationGroup, createdData.id);

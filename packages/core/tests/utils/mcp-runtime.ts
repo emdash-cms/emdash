@@ -24,6 +24,7 @@ import { EmDashRuntime } from "../../src/emdash-runtime.js";
 import { createMcpServer } from "../../src/mcp/server.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
 import type { ResolvedPlugin } from "../../src/plugins/types.js";
+import { invalidateUrlPatternCache } from "../../src/query.js";
 
 // ---------------------------------------------------------------------------
 // Auth-injecting transport
@@ -44,7 +45,7 @@ class AuthInjectingTransport extends InMemoryTransport {
 	): Promise<void> {
 		const existingExtra =
 			options?.authInfo && typeof options.authInfo === "object" && "extra" in options.authInfo
-				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof + 'in' check
+				? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof + 'in' check
 					(options.authInfo.extra as Record<string, unknown>)
 				: {};
 		return super.send(message, {
@@ -122,7 +123,7 @@ export function createTestRuntime(
 	const runtimeDeps = {
 		config,
 		plugins,
-		// eslint-disable-next-line typescript-eslint(no-explicit-any) -- match RuntimeDependencies signature
+		// eslint-disable-next-line typescript/no-explicit-any -- match RuntimeDependencies signature
 		createDialect: (() => {
 			throw new Error("createDialect not available in test runtime");
 		}) as any,
@@ -151,7 +152,6 @@ export function createTestRuntime(
 		pipelineFactoryOptions,
 		runtimeDeps,
 		pipelineRef,
-		manifestCacheKey: "test",
 	});
 }
 
@@ -203,13 +203,17 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		email: runtime.email,
 		configuredPlugins: runtime.configuredPlugins,
 		config: runtime.config,
-		invalidateManifest: runtime.invalidateManifest.bind(runtime),
+		getManifest: runtime.getManifest.bind(runtime),
+		invalidateUrlPatternCache,
 
 		// Fields the MCP server doesn't currently call. Stub so the type
 		// checks; if a tool ever reaches for one, the test will throw a
 		// clear error rather than silently no-op.
 		handlePluginApiRoute: () => {
 			throw new Error("handlePluginApiRoute not implemented in test runtime");
+		},
+		handlePublicPluginApiRoute: () => {
+			throw new Error("handlePublicPluginApiRoute not implemented in test runtime");
 		},
 		getPluginRouteMeta: () => null,
 		getMediaProvider: runtime.getMediaProvider.bind(runtime),

@@ -32,7 +32,7 @@ import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-token
 import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
-import type { EmDashHandlers, EmDashManifest } from "../types.js";
+import type { EmDashHandlers } from "../types.js";
 import { buildEmDashCsp } from "./csp.js";
 
 declare global {
@@ -42,7 +42,6 @@ declare global {
 			/** Token scopes when authenticated via API token or OAuth token. Undefined for session auth. */
 			tokenScopes?: string[];
 			emdash?: EmDashHandlers;
-			emdashManifest?: EmDashManifest;
 		}
 		interface SessionData {
 			user: { id: string };
@@ -303,7 +302,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 		const response = await next();
 		if (!import.meta.env.DEV) {
-			response.headers.set("Content-Security-Policy", buildEmDashCsp());
+			response.headers.set(
+				"Content-Security-Policy",
+				buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+			);
 		}
 		return response;
 	}
@@ -312,7 +314,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	// Set strict CSP on all /_emdash responses (prod only)
 	if (!import.meta.env.DEV) {
-		response.headers.set("Content-Security-Policy", buildEmDashCsp());
+		response.headers.set(
+			"Content-Security-Policy",
+			buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+		);
 	}
 
 	return response;
@@ -470,11 +475,11 @@ async function handleExternalAuth(
 		const authResult = await virtualAuthenticate(request, authMode.config);
 
 		// Get external auth config for auto-provision settings
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
 		const externalConfig = authMode.config as ExternalAuthConfig;
 
 		// Find or create user
-		const adapter = createKyselyAdapter(emdash!.db);
+		const adapter = createKyselyAdapter(emdash.db);
 		let user = await adapter.getUserByEmail(authResult.email);
 
 		if (!user) {
@@ -487,9 +492,9 @@ async function handleExternalAuth(
 			}
 
 			// Check if this is the first user (they become admin)
-			const userCount = await emdash!.db
+			const userCount = await emdash.db
 				.selectFrom("users")
-				.select(emdash!.db.fn.count("id").as("count"))
+				.select(emdash.db.fn.count("id").as("count"))
 				.executeTakeFirst();
 
 			const isFirstUser = Number(userCount?.count ?? 0) === 0;
@@ -507,7 +512,7 @@ async function handleExternalAuth(
 				updated_at: now,
 			};
 
-			await emdash!.db.insertInto("users").values(newUser).execute();
+			await emdash.db.insertInto("users").values(newUser).execute();
 
 			user = await adapter.getUserByEmail(authResult.email);
 
@@ -534,7 +539,7 @@ async function handleExternalAuth(
 
 			if (Object.keys(updates).length > 0) {
 				updates.updated_at = new Date().toISOString();
-				await emdash!.db.updateTable("users").set(updates).where("id", "=", user.id).execute();
+				await emdash.db.updateTable("users").set(updates).where("id", "=", user.id).execute();
 
 				user = {
 					...user,
@@ -660,7 +665,7 @@ async function handlePasskeyAuth(
 		}
 
 		// Get full user from database
-		const adapter = createKyselyAdapter(emdash!.db);
+		const adapter = createKyselyAdapter(emdash.db);
 		const user = await adapter.getUserById(sessionUser.id);
 
 		if (!user) {
@@ -723,10 +728,14 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/schema", "WRITE", "schema:write"],
 
 	// Taxonomy, menu, section, widget, revision — all content domain
+	// GET uses content:read (implicit from taxonomies:read / menus:read via role).
+	// WRITE uses the granular scope so tokens with only taxonomies:manage or
+	// menus:manage are not rejected. content:write implicitly grants these via
+	// IMPLICIT_SCOPE_GRANTS in @emdash-cms/auth.
 	["/_emdash/api/taxonomies", "GET", "content:read"],
-	["/_emdash/api/taxonomies", "WRITE", "content:write"],
+	["/_emdash/api/taxonomies", "WRITE", "taxonomies:manage"],
 	["/_emdash/api/menus", "GET", "content:read"],
-	["/_emdash/api/menus", "WRITE", "content:write"],
+	["/_emdash/api/menus", "WRITE", "menus:manage"],
 	["/_emdash/api/sections", "GET", "content:read"],
 	["/_emdash/api/sections", "WRITE", "content:write"],
 	["/_emdash/api/widget-areas", "GET", "content:read"],
@@ -738,11 +747,15 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/search", "GET", "content:read"],
 	["/_emdash/api/search", "WRITE", "admin"],
 
-	// Import, admin, settings, plugins — all require admin scope
+	// Import, admin, plugins — all require admin scope
 	["/_emdash/api/import", "*", "admin"],
 	["/_emdash/api/admin", "*", "admin"],
-	["/_emdash/api/settings", "*", "admin"],
 	["/_emdash/api/plugins", "*", "admin"],
+
+	// Settings — use granular scopes so tokens with settings:read or
+	// settings:manage are not rejected at the middleware level.
+	["/_emdash/api/settings", "GET", "settings:read"],
+	["/_emdash/api/settings", "WRITE", "settings:manage"],
 
 	// MCP endpoint — scopes enforced per-tool inside mcp/server.ts
 	["/_emdash/api/mcp", "*", "content:read"],

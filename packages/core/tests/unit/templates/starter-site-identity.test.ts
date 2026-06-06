@@ -5,6 +5,9 @@ import { resolveStarterSiteIdentity as resolveStarterSiteIdentityNode } from "..
 
 describe("starter template site identity", () => {
 	it("uses CMS site title and tagline when provided", () => {
+		// Favicon is intentionally absent from the helper return: core's
+		// EmDashHead now emits the favicon link via renderSiteIdentity()
+		// (#831), so the template no longer needs to surface it.
 		const settings = {
 			title: "Example Site",
 			tagline: "Shipping notes",
@@ -16,13 +19,11 @@ describe("starter template site identity", () => {
 			siteTitle: "Example Site",
 			siteTagline: "Shipping notes",
 			siteLogo: { mediaId: "logo-1", alt: "My Logo", url: "/_emdash/api/media/file/logo.webp" },
-			siteFavicon: "/_emdash/api/media/file/favicon.svg",
 		});
 		expect(resolveStarterSiteIdentityCloudflare(settings)).toEqual({
 			siteTitle: "Example Site",
 			siteTagline: "Shipping notes",
 			siteLogo: { mediaId: "logo-1", alt: "My Logo", url: "/_emdash/api/media/file/logo.webp" },
-			siteFavicon: "/_emdash/api/media/file/favicon.svg",
 		});
 	});
 
@@ -31,35 +32,30 @@ describe("starter template site identity", () => {
 			siteTitle: "My Site",
 			siteTagline: "Built with EmDash",
 			siteLogo: null,
-			siteFavicon: null,
 		});
 		expect(resolveStarterSiteIdentityCloudflare({})).toEqual({
 			siteTitle: "My Site",
 			siteTagline: "Built with EmDash",
 			siteLogo: null,
-			siteFavicon: null,
 		});
 	});
 
-	it("returns null for logo/favicon without resolved URL", () => {
+	it("returns null for logo without resolved URL", () => {
 		const settings = {
 			title: "Example Site",
 			tagline: "",
 			logo: { mediaId: "logo-1" },
-			favicon: { mediaId: "fav-1" },
 		};
 
 		expect(resolveStarterSiteIdentityNode(settings)).toEqual({
 			siteTitle: "Example Site",
 			siteTagline: "",
 			siteLogo: null,
-			siteFavicon: null,
 		});
 		expect(resolveStarterSiteIdentityCloudflare(settings)).toEqual({
 			siteTitle: "Example Site",
 			siteTagline: "",
 			siteLogo: null,
-			siteFavicon: null,
 		});
 	});
 });

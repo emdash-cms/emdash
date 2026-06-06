@@ -113,6 +113,8 @@ where: { category: "news" },
 
 ### Getting a Single Entry
 
+The following examples fetch one entry by identifier and render it, in WordPress and in EmDash:
+
 <Tabs>
 	<TabItem label="WordPress">
 ```php title="single.php"
@@ -134,7 +136,8 @@ import { PortableText } from "emdash/ui";
 const { slug } = Astro.params;
 const { entry: post } = await getEmDashEntry("posts", slug);
 
-## if (!post) return Astro.redirect("/404");
+if (!post) return Astro.redirect("/404");
+---
 
 <article>
   <h1>{post.data.title}</h1>
@@ -198,6 +201,8 @@ const { post } = Astro.props;
 </article>
 ```
 
+The following page imports that component and renders it for each post:
+
 ```astro title="src/pages/index.astro"
 ---
 import PostCard from "../components/PostCard.astro";
@@ -233,7 +238,8 @@ wp_nav_menu([
 ---
 import { getMenu } from "emdash";
 
-## const menu = await getMenu("primary");
+const menu = await getMenu("primary");
+---
 
 <nav>
   <ul>
@@ -270,7 +276,8 @@ Widget areas work like sidebars in WordPress:
 import { getWidgetArea } from "emdash";
 import { PortableText } from "emdash/ui";
 
-## const sidebar = await getWidgetArea("sidebar");
+const sidebar = await getWidgetArea("sidebar");
+---
 
 {sidebar && (
 
@@ -298,6 +305,8 @@ Site options and customizer settings map to `getSiteSetting()`:
 | `get_custom_logo()`         | `getSiteSetting("logo")`       |
 | `get_option('date_format')` | `getSiteSetting("dateFormat")` |
 | `home_url()`                | `Astro.site`                   |
+
+The following example reads individual settings with `getSiteSetting()`:
 
 ```ts
 import { getSiteSetting } from "emdash";
@@ -339,29 +348,27 @@ WordPress hooks (`add_action`, `add_filter`) become EmDash plugin hooks:
 
 <CardGrid>
 	<Card title="Type Safety" icon="seti:typescript">
-		TypeScript throughout. Collections, queries, and components are fully typed. No more guessing
-		field names or return types.
+		TypeScript throughout. Collections, queries, and components are fully typed, so field names and
+		return types autocomplete and are checked at build time.
 	</Card>
 	<Card title="Performance" icon="rocket">
-		No PHP overhead. Static generation by default. Server rendering when needed. Edge deployment
-		ready.
+		Static generation by default, with server rendering when needed. Edge deployment ready.
 	</Card>
 	<Card title="Modern DX" icon="laptop">
 		Hot module replacement. Component-based architecture. Modern tooling (Vite, TypeScript, ESLint).
 	</Card>
 	<Card title="Git-based Deployments" icon="github">
-		Code and templates in git. Content in the database. No FTP, no file permissions, no hacked
-		sites.
+		Code and templates live in git; content lives in the database. Deploy by pushing code.
 	</Card>
 </CardGrid>
 
 ### Preview Links
 
-EmDash generates secure preview URLs with HMAC-signed tokens. Content editors can preview drafts without logging into production—share a link, not credentials.
+EmDash generates secure preview URLs with HMAC-signed tokens. Content editors share a preview link to show a draft, so reviewers can see it without a production login.
 
-### No Plugin Conflicts
+### Isolated Plugins
 
-WordPress plugin conflicts disappear. EmDash plugins run in isolated contexts with explicit APIs. No global state pollution.
+EmDash plugins run in isolated contexts with explicit APIs. Each plugin reaches only the APIs it declares, so plugins do not share or overwrite each other's global state.
 
 ## Content Editor Experience
 

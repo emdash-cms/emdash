@@ -20,6 +20,7 @@ const URL_PATTERN = /^https?:\/\//;
  * - `null`/`undefined` → `null`
  * - Bare URL string → `{ provider: "external", id: "", src: url }`
  * - Bare internal media URL → resolved via local provider's `get()`
+ * - Bare local media ID → resolved via local provider's `get()`
  * - Object with `provider` + `id` → enriched with missing fields from provider
  */
 export async function normalizeMediaValue(
@@ -79,7 +80,7 @@ export async function normalizeMediaValue(
 	return mergeProviderData(result, providerItem);
 }
 
-function normalizeStringUrl(
+async function normalizeStringUrl(
 	url: string,
 	getProvider: (id: string) => MediaProvider | undefined,
 ): Promise<MediaValue | null> {
@@ -97,12 +98,15 @@ function normalizeStringUrl(
 		});
 	}
 
-	// Unrecognized string — treat as external
-	return Promise.resolve({
+	const localMedia = await resolveLocalId(url, getProvider);
+	if (localMedia) return localMedia;
+
+	// Unrecognized string — preserve legacy behavior and treat as external
+	return {
 		provider: "external",
 		id: "",
 		src: url,
-	});
+	};
 }
 
 async function resolveInternalUrl(
@@ -126,6 +130,35 @@ async function resolveInternalUrl(
 	if (!item) {
 		return { provider: "external", id: "", src: url };
 	}
+
+	return {
+		provider: "local",
+		id: item.id,
+		filename: item.filename,
+		mimeType: item.mimeType,
+		width: item.width,
+		height: item.height,
+		alt: item.alt,
+		meta: item.meta,
+	};
+}
+
+async function resolveLocalId(
+	id: string,
+	getProvider: (id: string) => MediaProvider | undefined,
+): Promise<MediaValue | null> {
+	const localProvider = getProvider("local");
+
+	if (!localProvider?.get) return null;
+
+	let item: MediaProviderItem | null;
+	try {
+		item = await localProvider.get(id);
+	} catch {
+		return null;
+	}
+
+	if (!item) return null;
 
 	return {
 		provider: "local",

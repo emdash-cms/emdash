@@ -17,6 +17,9 @@ import { EmDashValidationError, encodeCursor, decodeCursor } from "./types.js";
 // Regex pattern for ULID validation
 const ULID_PATTERN = /^[0-9A-Z]{26}$/;
 
+// LIKE wildcards that must be escaped so user search input is matched literally.
+const LIKE_WILDCARD_RE = /[\\%_]/g;
+
 /**
  * System columns that exist in every ec_* table
  */
@@ -489,6 +492,8 @@ export class ContentRepository {
 			query = query.where("locale" as any, "=", options.where.locale);
 		}
 
+		query = this.applySearchFilter(query, options.where);
+
 		// Handle cursor pagination — decodeCursor throws InvalidCursorError
 		// on malformed input; let it propagate so handlers surface a
 		// structured INVALID_CURSOR rather than silently returning page 1.
@@ -518,12 +523,16 @@ export class ContentRepository {
 			.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc")
 			.limit(limit + 1);
 
-		const rows = await query.execute();
+		// Run the page fetch and the unbounded count together — the UI needs
+		// both to render a stable denominator (kept on every page intentionally),
+		// and issuing them in parallel on SQLite is essentially free.
+		const [rows, total] = await Promise.all([query.execute(), this.count(type, options.where)]);
 		const hasMore = rows.length > limit;
 		const items = rows.slice(0, limit);
 
 		const mappedResult: FindManyResult<ContentItem> = {
 			items: items.map((row) => this.mapRow(type, row as Record<string, unknown>)),
+			total,
 		};
 
 		if (hasMore && items.length > 0) {
@@ -637,12 +646,23 @@ export class ContentRepository {
 	/**
 	 * Permanently delete content (cannot be undone)
 	 */
+	/**
+	 * Permanently delete a soft-deleted content row.
+	 *
+	 * Returns `true` only when a soft-deleted (trashed) row was removed.
+	 * Returns `false` when no row exists OR when the row exists but is live —
+	 * the caller is responsible for distinguishing these cases (typically via
+	 * a follow-up `findByIdOrSlugIncludingTrashed` to surface NOT_FOUND vs
+	 * NOT_TRASHED). The `AND deleted_at IS NOT NULL` clause is the safety net
+	 * that prevents permanent delete from bypassing the trash workflow.
+	 */
 	async permanentDelete(type: string, id: string): Promise<boolean> {
 		const tableName = getTableName(type);
 
 		const result = await sql`
 			DELETE FROM ${sql.ref(tableName)}
 			WHERE id = ${id}
+			AND deleted_at IS NOT NULL
 		`.execute(this.db);
 
 		return (result.numAffectedRows ?? 0n) > 0n;
@@ -739,11 +759,44 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Apply the optional case-insensitive `q` substring filter across the
+	 * handler-resolved `searchColumns` (OR'd). User input is treated literally
+	 * (LIKE wildcards escaped) and `lower()` is applied on both sides for
+	 * SQLite/Postgres case-insensitive parity.
+	 */
+	private applySearchFilter<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
+		query: QB,
+		where?: { q?: string; searchColumns?: string[] },
+	): QB {
+		const term = where?.q?.trim();
+		const columns = where?.searchColumns;
+		if (!term || !columns || columns.length === 0) return query;
+
+		const escaped = term.replace(LIKE_WILDCARD_RE, (c) => `\\${c}`);
+		const pattern = `%${escaped}%`;
+
+		return query.where((eb) =>
+			eb.or(
+				columns.map((col) => {
+					validateIdentifier(col, "search column");
+					return eb(sql`lower(${sql.ref(col)})`, "like", sql`lower(${pattern}) escape '\\'`);
+				}),
+			),
+		);
+	}
+
+	/**
 	 * Count content items
 	 */
 	async count(
 		type: string,
-		where?: { status?: string; authorId?: string; locale?: string },
+		where?: {
+			status?: string;
+			authorId?: string;
+			locale?: string;
+			q?: string;
+			searchColumns?: string[];
+		},
 	): Promise<number> {
 		const tableName = getTableName(type);
 
@@ -763,6 +816,8 @@ export class ContentRepository {
 		if (where?.locale) {
 			query = query.where("locale" as any, "=", where.locale);
 		}
+
+		query = this.applySearchFilter(query, where);
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
@@ -917,8 +972,14 @@ export class ContentRepository {
 	 * Syncs the draft revision's data into the content table columns so the
 	 * content table always reflects the published version.
 	 * If no draft revision exists, creates one from current data and publishes it.
+	 *
+	 * `publishedAt` (optional) overrides the publication timestamp. If omitted,
+	 * the existing `published_at` is preserved (idempotent re-publish keeps the
+	 * original date) and falls back to the current time on first publish. Pass
+	 * an explicit value to backdate a publish (e.g. when migrating content from
+	 * another CMS).
 	 */
-	async publish(type: string, id: string): Promise<ContentItem> {
+	async publish(type: string, id: string, publishedAt?: string): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
@@ -956,17 +1017,35 @@ export class ContentRepository {
 			}
 		}
 
-		await sql`
-			UPDATE ${sql.ref(tableName)}
-			SET live_revision_id = ${revisionToPublish},
-				draft_revision_id = NULL,
-				status = 'published',
-				scheduled_at = NULL,
-				published_at = COALESCE(published_at, ${now}),
-				updated_at = ${now}
-			WHERE id = ${id}
-			AND deleted_at IS NULL
-		`.execute(this.db);
+		if (publishedAt !== undefined) {
+			// Caller supplied an explicit timestamp, so we overwrite published_at
+			// directly (used to backdate a publish, e.g. for content migrations).
+			await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET live_revision_id = ${revisionToPublish},
+					draft_revision_id = NULL,
+					status = 'published',
+					scheduled_at = NULL,
+					published_at = ${publishedAt},
+					updated_at = ${now}
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+			`.execute(this.db);
+		} else {
+			// No timestamp supplied — preserve existing published_at on
+			// idempotent re-publish, fall back to `now` on first publish.
+			await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET live_revision_id = ${revisionToPublish},
+					draft_revision_id = NULL,
+					status = 'published',
+					scheduled_at = NULL,
+					published_at = COALESCE(published_at, ${now}),
+					updated_at = ${now}
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+			`.execute(this.db);
+		}
 
 		const updated = await this.findById(type, id);
 		if (!updated) {

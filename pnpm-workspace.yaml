@@ -1,36 +1,115 @@
+# Supply-chain hardening.
+minimumReleaseAge: 1440
+# rolldown (vite 8's bundler) exact-pins these to its rc version, so the
+# cooldown has no mature alternative to fall back to and the install dies.
+# Scoped to the binaries/runtime only -- @rolldown/pluginutils etc. stay
+# under the cooldown.
+minimumReleaseAgeExclude:
+  - "@rolldown/binding-*"
+  - "@emnapi/core"
+  - "@emnapi/runtime"
+  # TEMPORARY: astro 6.3.6 + @astrojs/cloudflare 13.5.3 ship the upstream
+  # revert (withastro/astro#16801) of the broken frontmatter-scan plugin
+  # from 13.5.2 that we need this PR to pick up. Remove these exclusions
+  # once the 24h cooldown passes.
+  - astro
+  - "@astrojs/cloudflare"
+trustPolicy: no-downgrade
+strictDepBuilds: true
+dangerouslyAllowAllBuilds: false
+blockExoticSubdeps: true
+verifyStoreIntegrity: true
+strictStorePkgContentCheck: true
+verifyDepsBeforeRun: error
+allowBuilds:
+  "@parcel/watcher": true
+  sharp: true
+  core-js-pure: false
+  better-sqlite3: true
+  esbuild: true
+  workerd: true
+  # Transitive @flue/runtime deps. The reviewer ran end-to-end with these
+  # build scripts ignored, so none are needed at runtime.
+  "@google/genai": false
+  "@mongodb-js/zstd": false
+  node-liblzma: false
+  protobufjs: false
+# Reviewed benign trust downgrades (publish-method changes, not takeovers).
+trustPolicyExclude:
+  - "vite@6.4.1" # trusted-publisher -> provenance (vitejs CI change)
+  - "chokidar@4.0.3" # provenance -> none (Astro-pinned; pnpm's documented case)
+  - "semver@6.3.1" # provenance -> none (old pinned util via @babel/core)
+  - "@portabletext/toolkit@3.0.3" # provenance -> none (old pinned release)
+  - "reselect@5.1.1" # provenance -> none (old pinned util)
+
+overrides:
+  # blockExoticSubdeps: infra/cache-demo's pkg.pr.new Astro preview pulls
+  # this via URL. Remove when that preview pin is gone.
+  "@astrojs/telemetry": "3.3.0"
+  # 1.3.0 is deprecated (CWE-502); pin the patched line.
+  "@ungap/structured-clone": "^1.3.1"
+
+enablePrePostScripts: true
+
 packages:
   - packages/*
   - packages/plugins/*
+  - apps/*
   - demos/*
   - templates/*
   - packages/blocks/playground
   - e2e/fixture
+  - e2e/fixture-cloudflare
   - fixtures/*
   - docs
   - i18n
-  - infra/blog-demo
-  - infra/cache-demo
-  - infra/perf-monitor
-
+  - infra/*
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
   "@astrojs/check": ^0.9.7
-  "@astrojs/cloudflare": ^13.1.7
-  "@astrojs/node": ^10.0.0
+  "@astrojs/cloudflare": ^13.5.3
+  "@astrojs/node": ^10.1.1
   "@astrojs/react": ^5.0.0
+  "@atcute/atproto": ^3.1.11
+  "@atcute/car": ^6.0.0
+  "@atcute/cbor": ^2.3.3
+  "@atcute/cid": ^2.4.1
+  "@atcute/client": ^4.2.1
+  "@atcute/crypto": ^2.4.1
+  "@atcute/firehose": ^1.0.0
+  "@atcute/identity": ^2.0.0
+  "@atcute/identity-resolver": ^2.0.0
+  "@atcute/jetstream": ^2.0.0
+  "@atcute/lex-cli": ^2.8.1
+  "@atcute/lexicons": ^1.3.0
+  "@atcute/mst": ^1.0.1
+  "@atcute/multibase": ^1.2.0
+  "@atcute/oauth-node-client": ^1.1.0
+  "@atcute/repo": ^1.0.0
+  "@atcute/xrpc-server": ^2.0.0
+  "@atcute/xrpc-server-cloudflare": ^2.0.0
+  "@atproto/crypto": ^0.4.5
+  "@atproto/repo": ^0.9.1
+  "@cloudflare/kumo": ^2.4.0
+  "@cloudflare/vite-plugin": ^1.36.3
+  "@cloudflare/vitest-pool-workers": ^0.16.3
   "@cloudflare/workers-types": ^4.20260305.1
+  "@iconify-json/ph": ^1.2.2
   "@lingui/babel-plugin-lingui-macro": ^5.9.4
   "@lingui/cli": ^5.9.4
   "@lingui/conf": ^5.9.4
   "@lingui/core": ^5.9.4
   "@lingui/macro": ^5.9.4
   "@lingui/react": ^5.9.4
-  "@iconify-json/ph": ^1.2.2
+  "@oslojs/crypto": ^1.0.1
+  "@oslojs/encoding": ^1.1.0
+  "@oslojs/webauthn": ^1.0.0
   "@phosphor-icons/react": ^2.1.10
   "@tanstack/react-query": 5.90.21
   "@tanstack/react-router": 1.163.2
   "@tiptap/core": ^3.20.0
   "@tiptap/extension-character-count": ^3.20.0
+  "@tiptap/extension-code-block": ^3.20.0
   "@tiptap/extension-drag-handle": ^3.20.0
   "@tiptap/extension-drag-handle-react": ^3.20.0
   "@tiptap/extension-dropcursor": ^3.20.0
@@ -39,6 +118,10 @@ catalog:
   "@tiptap/extension-link": ^3.20.0
   "@tiptap/extension-node-range": ^3.20.0
   "@tiptap/extension-placeholder": ^3.20.0
+  "@tiptap/extension-table": ^3.20.0
+  "@tiptap/extension-table-cell": ^3.20.0
+  "@tiptap/extension-table-header": ^3.20.0
+  "@tiptap/extension-table-row": ^3.20.0
   "@tiptap/extension-text-align": ^3.20.0
   "@tiptap/extension-typography": ^3.20.0
   "@tiptap/extension-underline": ^3.20.0
@@ -47,15 +130,24 @@ catalog:
   "@tiptap/starter-kit": ^3.20.0
   "@tiptap/suggestion": ^3.20.0
   "@types/node": 24.10.13
+  "@types/better-sqlite3": ^7.6.12
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
-  astro: ^6.0.1
+  "@types/semver": ^7.5.8
+  astro: ^6.3.0
   astro-iconset: ^0.0.4
   better-sqlite3: ^12.8.0
+  chokidar: ^5.0.0
+  image-size: ^2.0.2
+  jsonc-parser: ^3.3.1
+  kysely: ^0.29.0
   publint: 0.3.17
   react: 19.2.4
   react-dom: 19.2.4
+  semver: ^7.6.3
   tsdown: 0.20.3
-  typescript: ^5.9.3
-  vitest: ^4.0.18
-  wrangler: ^4.80.0
+  typescript: ^6.0.3
+  vite: ^8.0.11
+  vitest: ^4.1.5
+  wrangler: ^4.95.0
+  zod: ^4.4.1

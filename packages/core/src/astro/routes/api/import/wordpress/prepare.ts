@@ -20,7 +20,7 @@ import { capitalize, sanitizeSlug, singularize, type ImportFieldDef } from "./an
 
 /** Validate that a string is a known FieldType, returning undefined if not */
 function asFieldType(value: string): FieldType | undefined {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- validated by includes check
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated by includes check
 	return (FIELD_TYPES as readonly string[]).includes(value) ? (value as FieldType) : undefined;
 }
 
@@ -55,17 +55,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, wpPrepareBody);
 		if (isParseError(body)) return body;
 
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Zod schema output narrowed to PrepareRequest
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Zod schema output narrowed to PrepareRequest
 		const result = await prepareImport(emdash.db, body as PrepareRequest);
 
-		// If prepare created any new collections or fields, invalidate the
-		// persisted manifest cache (`emdash:manifest_cache` in the options
-		// table) so that the execute endpoint -- a separate request -- sees
-		// the new schema. Without this the execute step reads a stale
-		// manifest and reports `Collection "<slug>" does not exist` for
-		// every item destined for a freshly-created collection. See #747.
-		if (result.collectionsCreated.length > 0 || result.fieldsCreated.length > 0) {
-			emdash.invalidateManifest();
+		// Invalidate the URL pattern cache when prepare adds new collections so
+		// public routing picks up their patterns immediately. The manifest
+		// itself is built fresh per admin request, so cross-request
+		// staleness (the original failure mode in #747) is no longer
+		// possible — the execute step always reads live schema.
+		if (result.collectionsCreated.length > 0) {
+			emdash.invalidateUrlPatternCache();
 		}
 
 		return apiSuccess(result, result.success ? 200 : 400);

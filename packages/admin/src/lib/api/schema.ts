@@ -2,6 +2,9 @@
  * Schema/collection/field management APIs (Content Type Builder)
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 export type FieldType =
@@ -59,6 +62,7 @@ export interface SchemaField {
 		maxLength?: number;
 		pattern?: string;
 		options?: string[];
+		allowedMimeTypes?: string[];
 	};
 	widget?: string;
 	options?: Record<string, unknown>;
@@ -110,7 +114,8 @@ export interface CreateFieldInput {
 		maxLength?: number;
 		pattern?: string;
 		options?: string[];
-	};
+		allowedMimeTypes?: string[];
+	} | null;
 	widget?: string;
 	options?: Record<string, unknown>;
 }
@@ -128,7 +133,8 @@ export interface UpdateFieldInput {
 		maxLength?: number;
 		pattern?: string;
 		options?: string[];
-	};
+		allowedMimeTypes?: string[];
+	} | null;
 	widget?: string;
 	options?: Record<string, unknown>;
 	sortOrder?: number;
@@ -161,11 +167,11 @@ export async function fetchCollection(
 		if (response.status === 404) {
 			throw new Error(`Collection "${slug}" not found`);
 		}
-		await throwResponseError(response, "Failed to fetch collection");
+		await throwResponseError(response, i18n._(msg`Failed to fetch collection`));
 	}
 	const data = await parseApiResponse<{ item: SchemaCollectionWithFields }>(
 		response,
-		"Failed to fetch collection",
+		i18n._(msg`Failed to fetch collection`),
 	);
 	return data.item;
 }
@@ -213,7 +219,7 @@ export async function deleteCollection(slug: string, force = false): Promise<voi
 		? `${API_BASE}/schema/collections/${slug}?force=true`
 		: `${API_BASE}/schema/collections/${slug}`;
 	const response = await apiFetch(url, { method: "DELETE" });
-	if (!response.ok) await throwResponseError(response, "Failed to delete collection");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete collection`));
 }
 
 /**
@@ -269,7 +275,7 @@ export async function deleteField(collectionSlug: string, fieldSlug: string): Pr
 		`${API_BASE}/schema/collections/${collectionSlug}/fields/${fieldSlug}`,
 		{ method: "DELETE" },
 	);
-	if (!response.ok) await throwResponseError(response, "Failed to delete field");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete field`));
 }
 
 /**
@@ -284,7 +290,7 @@ export async function reorderFields(collectionSlug: string, fieldSlugs: string[]
 			body: JSON.stringify({ fieldSlugs }),
 		},
 	);
-	if (!response.ok) await throwResponseError(response, "Failed to reorder fields");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to reorder fields`));
 }
 
 // ============================================

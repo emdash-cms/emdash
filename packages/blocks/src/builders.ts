@@ -1,4 +1,5 @@
 import type {
+	AccordionBlock,
 	ActionsBlock,
 	BannerBlock,
 	Block,
@@ -23,6 +24,7 @@ import type {
 	FormField,
 	HeaderBlock,
 	ImageBlock,
+	MediaPickerElement,
 	MeterBlock,
 	NumberInputElement,
 	SecretInputElement,
@@ -34,6 +36,8 @@ import type {
 	TableColumn,
 	TextInputElement,
 	ToggleElement,
+	TabBlock,
+	TabPanel,
 } from "./types.js";
 
 // ── Block Builders ───────────────────────────────────────────────────────────
@@ -351,6 +355,25 @@ function repeater(
 	};
 }
 
+function mediaPicker(
+	actionId: string,
+	label: string,
+	opts?: {
+		mimeTypeFilter?: string;
+		initialValue?: string;
+		placeholder?: string;
+	},
+): MediaPickerElement {
+	return {
+		type: "media_picker",
+		action_id: actionId,
+		label,
+		...(opts?.mimeTypeFilter !== undefined && { mime_type_filter: opts.mimeTypeFilter }),
+		...(opts?.initialValue !== undefined && { initial_value: opts.initialValue }),
+		...(opts?.placeholder !== undefined && { placeholder: opts.placeholder }),
+	};
+}
+
 function timeseriesChart(opts: {
 	blockId?: string;
 	series: ChartSeries[];
@@ -423,6 +446,21 @@ function codeBlock(opts: {
 	};
 }
 
+function tabBlock(
+	panels: TabPanel[],
+	opts?: {
+		defaultTab?: number;
+		blockId?: string;
+	},
+): TabBlock {
+	return {
+		type: "tab",
+		panels,
+		...(opts?.defaultTab !== undefined && { default_tab: opts.defaultTab }),
+		...(opts?.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
 function empty(opts: {
 	blockId?: string;
 	title: string;
@@ -438,6 +476,21 @@ function empty(opts: {
 		...(opts.commandLine !== undefined && { command_line: opts.commandLine }),
 		...(opts.size !== undefined && { size: opts.size }),
 		...(opts.actions !== undefined && { actions: opts.actions }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
+function accordion(opts: {
+	blockId?: string;
+	label: string;
+	blocks: Block[];
+	defaultOpen?: boolean;
+}): AccordionBlock {
+	return {
+		type: "accordion",
+		label: opts.label,
+		blocks: opts.blocks,
+		...(opts.defaultOpen !== undefined && { default_open: opts.defaultOpen }),
 		...(opts.blockId !== undefined && { block_id: opts.blockId }),
 	};
 }
@@ -461,7 +514,9 @@ export const blocks = {
 	banner: bannerBlock,
 	meter,
 	code: codeBlock,
+	tab: tabBlock,
 	empty,
+	accordion,
 };
 
 export const elements = {
@@ -476,4 +531,5 @@ export const elements = {
 	dateInput,
 	radio,
 	repeater,
+	mediaPicker,
 };

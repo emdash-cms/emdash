@@ -29,7 +29,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
 	if (denied) return denied;
 
 	try {
-		const registry = new SchemaRegistry(emdash!.db);
+		const registry = new SchemaRegistry(emdash.db);
 
 		// Get all collections with their fields
 		const collections = await registry.listCollections();
