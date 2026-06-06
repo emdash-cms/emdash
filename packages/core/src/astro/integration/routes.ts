@@ -8,6 +8,10 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { routeArtifactName } from "./route-naming.js";
+
+const TS_EXT = /\.tsx?$/;
+
 /**
  * Resolve path to a route file in the package
  * Uses Node.js APIs - only call at build time
@@ -18,12 +22,19 @@ function resolveRoute(route: string): string {
 	const require = createRequire(import.meta.url);
 	const __dirname = dirname(fileURLToPath(import.meta.url));
 
+	// .astro routes ship as source (the consumer's Astro build processes them);
+	// .ts/.tsx routes are compiled, exported extensionless via emdash/routes/*.
+	const isAstro = route.endsWith(".astro");
+	const specifier = isAstro ? route : routeArtifactName(route.replace(TS_EXT, ""));
+
 	try {
 		// Try to resolve as package export
-		return require.resolve(`emdash/routes/${route}`);
+		return require.resolve(`emdash/routes/${specifier}`);
 	} catch {
-		// Fallback to relative path (for development)
-		return resolve(__dirname, "../routes", route);
+		// Fallback for development (e.g. dist not yet built).
+		return isAstro
+			? resolve(__dirname, "../routes", route)
+			: resolve(__dirname, "../routes", `${specifier}.mjs`);
 	}
 }
 
@@ -44,6 +55,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/manifest",
 		entrypoint: resolveRoute("api/manifest.ts"),
+	});
+
+	// Auth mode endpoint (public — used by the login page to pick the right UI)
+	injectRoute({
+		pattern: "/_emdash/api/auth/mode",
+		entrypoint: resolveRoute("api/auth/mode.ts"),
 	});
 
 	injectRoute({
@@ -308,6 +325,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/taxonomies/[name]/terms/[slug]/translations",
+		entrypoint: resolveRoute("api/taxonomies/[name]/terms/[slug]/translations.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/terms/[taxonomy]",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/terms/[taxonomy].ts"),
 	});
@@ -352,6 +374,17 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/admin/plugins/marketplace/[id]/install",
 		entrypoint: resolveRoute("api/admin/plugins/marketplace/[id]/install.ts"),
+	});
+
+	// Experimental registry routes (see RFC 0001)
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/install",
+		entrypoint: resolveRoute("api/admin/plugins/registry/install.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/artifact",
+		entrypoint: resolveRoute("api/admin/plugins/registry/artifact.ts"),
 	});
 
 	injectRoute({
@@ -417,6 +450,38 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/admin/bylines/[id]",
 		entrypoint: resolveRoute("api/admin/bylines/[id]/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/bylines/[id]/translations",
+		entrypoint: resolveRoute("api/admin/bylines/[id]/translations.ts"),
+	});
+
+	// Byline custom-field schema routes (Discussion #1174, Phase 4).
+	// Order matters: the static `reorder` route must precede the dynamic
+	// `[slug]` route so Astro's resolver dispatches POST /byline-fields/reorder
+	// to the reorder handler instead of treating "reorder" as a slug. The
+	// `reorder` slug is also reserved at the data layer
+	// (RESERVED_BYLINE_FIELD_SLUGS) so the registry rejects field creation
+	// with that name — defence in depth.
+	injectRoute({
+		pattern: "/_emdash/api/admin/byline-fields",
+		entrypoint: resolveRoute("api/admin/byline-fields/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/byline-fields/reorder",
+		entrypoint: resolveRoute("api/admin/byline-fields/reorder.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/byline-fields/[slug]",
+		entrypoint: resolveRoute("api/admin/byline-fields/[slug].ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/byline-fields/[slug]/usage",
+		entrypoint: resolveRoute("api/admin/byline-fields/[slug]/usage.ts"),
 	});
 
 	injectRoute({
@@ -515,6 +580,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/well-known/oauth-authorization-server.ts"),
 	});
 
+	// RFC 7591 Dynamic Client Registration
+	injectRoute({
+		pattern: "/_emdash/api/oauth/register",
+		entrypoint: resolveRoute("api/oauth/register.ts"),
+	});
+
 	// Plugin-defined API routes
 	// All plugin routes are handled by a single catch-all handler
 	injectRoute({
@@ -539,8 +610,18 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/menus/[name]/items/[id]",
+		entrypoint: resolveRoute("api/menus/[name]/items/[id].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/menus/[name]/reorder",
 		entrypoint: resolveRoute("api/menus/[name]/reorder.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/menus/[name]/translations",
+		entrypoint: resolveRoute("api/menus/[name]/translations.ts"),
 	});
 
 	// Widget area routes
@@ -739,6 +820,28 @@ export function injectMcpRoute(injectRoute: InjectRoute): void {
 		pattern: "/_emdash/api/mcp",
 		entrypoint: resolveRoute("api/mcp.ts"),
 	});
+}
+
+/**
+ * Injects routes from pluggable auth providers.
+ *
+ * Each provider declares the routes it needs in its `AuthProviderDescriptor.routes` array.
+ * Routes are injected at build time so Vite can bundle them.
+ */
+export function injectAuthProviderRoutes(
+	injectRoute: InjectRoute,
+	providers: Array<{ routes?: Array<{ pattern: string; entrypoint: string }> }>,
+): void {
+	for (const provider of providers) {
+		if (provider.routes) {
+			for (const route of provider.routes) {
+				injectRoute({
+					pattern: route.pattern,
+					entrypoint: route.entrypoint,
+				});
+			}
+		}
+	}
 }
 
 /**

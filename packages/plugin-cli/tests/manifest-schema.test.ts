@@ -1,0 +1,494 @@
+/**
+ * Coverage for the `emdash-plugin.jsonc` Zod schema.
+ *
+ * The schema is the authoring contract with plugin publishers. A regression
+ * here means user-visible behaviour change in the field names, validation
+ * rules, or error messages that publishers rely on. Tests are organised by
+ * field so a future field add lands cleanly alongside its own test block.
+ *
+ * Where applicable, tests assert on the EXACT Zod issue path / message
+ * because those strings surface in `emdash-plugin validate` output --
+ * users see them, and silently changing them breaks anyone who built
+ * tooling around the strings.
+ */
+
+import { describe, expect, it } from "vitest";
+
+import {
+	ArtifactFileSchema,
+	ArtifactsSchema,
+	AuthorSchema,
+	LicenseSchema,
+	ManifestSchema,
+	RepoSchema,
+	RequiresSchema,
+	SECTION_KEYS,
+	SectionsSchema,
+	SecurityContactSchema,
+} from "../src/manifest/schema.js";
+
+describe("LicenseSchema", () => {
+	it("accepts a typical SPDX expression", () => {
+		expect(LicenseSchema.parse("MIT")).toBe("MIT");
+		expect(LicenseSchema.parse("Apache-2.0")).toBe("Apache-2.0");
+		expect(LicenseSchema.parse("MIT OR Apache-2.0")).toBe("MIT OR Apache-2.0");
+	});
+
+	it("rejects the empty string", () => {
+		const result = LicenseSchema.safeParse("");
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects a whitespace-only license", () => {
+		const result = LicenseSchema.safeParse("   ");
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects values over 256 characters", () => {
+		const result = LicenseSchema.safeParse("A".repeat(257));
+		expect(result.success).toBe(false);
+	});
+});
+
+describe("AuthorSchema", () => {
+	it("accepts the minimal name-only form", () => {
+		expect(AuthorSchema.parse({ name: "Jane Doe" })).toEqual({ name: "Jane Doe" });
+	});
+
+	it("accepts name + url + email", () => {
+		const author = {
+			name: "Jane Doe",
+			url: "https://example.com",
+			email: "jane@example.com",
+		};
+		expect(AuthorSchema.parse(author)).toEqual(author);
+	});
+
+	it("rejects an empty name", () => {
+		const result = AuthorSchema.safeParse({ name: "" });
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects unknown keys (strict mode)", () => {
+		const result = AuthorSchema.safeParse({ name: "Jane", website: "https://example.com" });
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects a malformed URL", () => {
+		const result = AuthorSchema.safeParse({ name: "Jane", url: "not-a-url" });
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects a malformed email", () => {
+		const result = AuthorSchema.safeParse({ name: "Jane", email: "not-an-email" });
+		expect(result.success).toBe(false);
+	});
+});
+
+describe("SecurityContactSchema", () => {
+	it("accepts an email-only contact", () => {
+		expect(SecurityContactSchema.parse({ email: "security@example.com" })).toEqual({
+			email: "security@example.com",
+		});
+	});
+
+	it("accepts a url-only contact", () => {
+		expect(SecurityContactSchema.parse({ url: "https://example.com/security" })).toEqual({
+			url: "https://example.com/security",
+		});
+	});
+
+	it("rejects an empty contact (no email or url)", () => {
+		const result = SecurityContactSchema.safeParse({});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			// The exact message users see at validate-time; pin it.
+			expect(result.error.issues[0]?.message).toContain("at least one of `url` or `email`");
+		}
+	});
+});
+
+describe("RepoSchema", () => {
+	it("accepts an https:// URL", () => {
+		expect(RepoSchema.parse("https://github.com/example/plugin")).toBe(
+			"https://github.com/example/plugin",
+		);
+	});
+
+	it("rejects http:// URLs", () => {
+		const result = RepoSchema.safeParse("http://github.com/example/plugin");
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects non-URL strings", () => {
+		const result = RepoSchema.safeParse("not a url");
+		expect(result.success).toBe(false);
+	});
+});
+
+describe("RequiresSchema", () => {
+	it("accepts env:* keys with semver-range values", () => {
+		expect(RequiresSchema.parse({ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" })).toEqual({
+			"env:emdash": ">=1.0.0",
+			"env:astro": ">=4.16",
+		});
+	});
+
+	it("accepts caret, tilde, and AND-set ranges", () => {
+		expect(
+			RequiresSchema.parse({
+				"env:astro": "^4.0.0",
+				"env:emdash": ">=1.0.0 <2.0.0",
+			}),
+		).toBeTruthy();
+		expect(RequiresSchema.parse({ "env:astro": "~4.16.0" })).toBeTruthy();
+	});
+
+	it("accepts forward-compat DID-shaped keys", () => {
+		expect(RequiresSchema.parse({ "did:plc:abc123": "^1.0.0" })).toEqual({
+			"did:plc:abc123": "^1.0.0",
+		});
+	});
+
+	it("rejects keys that are neither env:* nor DID-shaped", () => {
+		expect(RequiresSchema.safeParse({ astro: ">=4.16" }).success).toBe(false);
+		expect(RequiresSchema.safeParse({ "env:": ">=4.16" }).success).toBe(false);
+	});
+
+	it("rejects values that aren't valid semver ranges", () => {
+		expect(RequiresSchema.safeParse({ "env:astro": "not-a-range" }).success).toBe(false);
+		expect(RequiresSchema.safeParse({ "env:astro": "" }).success).toBe(false);
+		expect(RequiresSchema.safeParse({ "env:astro": ">=" }).success).toBe(false);
+	});
+});
+
+describe("ArtifactFileSchema", () => {
+	it("accepts a bare file ref", () => {
+		expect(ArtifactFileSchema.safeParse({ file: "./icon.png" }).success).toBe(true);
+	});
+
+	it("accepts a file ref with a lang tag", () => {
+		expect(ArtifactFileSchema.safeParse({ file: "./icon-fr.png", lang: "fr" }).success).toBe(true);
+	});
+
+	it("rejects an empty file path", () => {
+		expect(ArtifactFileSchema.safeParse({ file: "" }).success).toBe(false);
+	});
+
+	it("rejects unknown keys (e.g. a hand-written url/checksum)", () => {
+		const result = ArtifactFileSchema.safeParse({
+			file: "./icon.png",
+			url: "https://example.com/icon.png",
+		});
+		expect(result.success).toBe(false);
+	});
+});
+
+describe("ArtifactsSchema", () => {
+	it("accepts icon and banner as single file refs", () => {
+		const result = ArtifactsSchema.safeParse({
+			icon: { file: "./icon.png" },
+			banner: { file: "./banner.png" },
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("accepts screenshots as an array of file refs", () => {
+		const result = ArtifactsSchema.safeParse({
+			screenshots: [{ file: "./s1.png" }, { file: "./s2.png", lang: "de" }],
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects a single (non-array) screenshots value", () => {
+		const result = ArtifactsSchema.safeParse({ screenshots: { file: "./s1.png" } });
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects an empty screenshots array", () => {
+		expect(ArtifactsSchema.safeParse({ screenshots: [] }).success).toBe(false);
+	});
+
+	it("rejects more than eight screenshots", () => {
+		const screenshots = Array.from({ length: 9 }, (_, i) => ({ file: `./s${i}.png` }));
+		expect(ArtifactsSchema.safeParse({ screenshots }).success).toBe(false);
+	});
+
+	it("rejects the legacy singular `screenshot` key", () => {
+		const result = ArtifactsSchema.safeParse({ screenshot: [{ file: "./s1.png" }] });
+		expect(result.success).toBe(false);
+	});
+});
+
+describe("SectionsSchema", () => {
+	it("accepts an inline string for each of the five keys", () => {
+		for (const key of SECTION_KEYS) {
+			const result = SectionsSchema.safeParse({ [key]: "# Heading\n\nSome **markdown**." });
+			expect(result.success, key).toBe(true);
+		}
+	});
+
+	it("accepts a { file } ref for each of the five keys", () => {
+		for (const key of SECTION_KEYS) {
+			const result = SectionsSchema.safeParse({ [key]: { file: "./docs/x.md" } });
+			expect(result.success, key).toBe(true);
+		}
+	});
+
+	it("accepts a mix of inline and file refs", () => {
+		const result = SectionsSchema.safeParse({
+			description: "inline",
+			installation: { file: "./docs/install.md" },
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("treats every key as optional (empty object is valid)", () => {
+		expect(SectionsSchema.safeParse({}).success).toBe(true);
+	});
+
+	it("rejects an unknown section key", () => {
+		const result = SectionsSchema.safeParse({ instalation: "typo" });
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects an extra key in a file ref", () => {
+		const result = SectionsSchema.safeParse({ description: { file: "./x.md", lang: "en" } });
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects an inline section over the 20000-byte cap while under the grapheme cap", () => {
+		// A 25-byte family emoji (one grapheme via ZWJ). 1000 of them = 25000
+		// bytes (over the byte cap) but only 1000 graphemes (under the
+		// grapheme cap), so the byte check is the one that fires.
+		const result = SectionsSchema.safeParse({ description: "👨‍👩‍👧‍👦".repeat(1000) });
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.some((i) => i.message.includes("byte"))).toBe(true);
+		}
+	});
+
+	it("rejects an inline section over the 2000-grapheme cap while under the byte cap", () => {
+		// 2001 emoji. Each emoji is one grapheme but several UTF-8 bytes, so
+		// this trips the grapheme cap without reaching 20000 bytes (2001 * 4
+		// = 8004 bytes).
+		const result = SectionsSchema.safeParse({ faq: "😀".repeat(2001) });
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.some((i) => i.message.includes("grapheme"))).toBe(true);
+		}
+	});
+
+	it("accepts an inline section exactly at the grapheme cap", () => {
+		// 2000 ASCII chars: 2000 graphemes (at the cap) and 2000 bytes (under
+		// the byte cap). Both limits satisfied.
+		const result = SectionsSchema.safeParse({ changelog: "a".repeat(2000) });
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects an inline section one grapheme over the cap", () => {
+		const result = SectionsSchema.safeParse({ changelog: "a".repeat(2001) });
+		expect(result.success).toBe(false);
+	});
+});
+
+describe("ManifestSchema (full document)", () => {
+	const minimal = {
+		slug: "my-plugin",
+		version: "0.1.0",
+		publisher: "example.com",
+		license: "MIT",
+		author: { name: "Jane Doe" },
+		security: { email: "security@example.com" },
+	};
+
+	it("accepts the minimal required shape", () => {
+		const result = ManifestSchema.safeParse(minimal);
+		expect(result.success).toBe(true);
+	});
+
+	it("accepts a manifest with a release.artifacts block", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			release: {
+				artifacts: {
+					icon: { file: "./icon.png" },
+					banner: { file: "./banner.png" },
+					screenshots: [{ file: "./s1.png" }, { file: "./s2.png" }],
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("accepts a top-level sections block (inline + file refs)", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			sections: {
+				description: "Long description.",
+				installation: { file: "./docs/install.md" },
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects an unknown section key at the top level", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			sections: { changelog: "ok", bogus: "nope" },
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects an unknown key inside release", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			release: { artifacts: { icon: { file: "./icon.png" } }, bogus: true },
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("accepts a manifest with $schema for IDE completion", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			$schema: "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("accepts the multi-author/multi-contact form", () => {
+		const result = ManifestSchema.safeParse({
+			slug: "my-plugin",
+			version: "0.1.0",
+			publisher: "example.com",
+			license: "MIT",
+			authors: [{ name: "Alice" }, { name: "Bob" }],
+			securityContacts: [{ email: "alice@example.com" }, { url: "https://example.com/security" }],
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects mixing `author` and `authors`", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			authors: [{ name: "Bob" }],
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(
+				result.error.issues.some((i) => i.message.includes("both `author` and `authors`")),
+			).toBe(true);
+		}
+	});
+
+	it("rejects mixing `security` and `securityContacts`", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			securityContacts: [{ email: "b@example.com" }],
+		});
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(
+				result.error.issues.some((i) =>
+					i.message.includes("both `security` and `securityContacts`"),
+				),
+			).toBe(true);
+		}
+	});
+
+	it("requires either `author` or `authors`", () => {
+		const { author: _author, ...withoutAuthor } = minimal;
+		const result = ManifestSchema.safeParse(withoutAuthor);
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.some((i) => i.message.includes("`author: { ... }`"))).toBe(true);
+		}
+	});
+
+	it("requires either `security` or `securityContacts`", () => {
+		const { security: _security, ...withoutSecurity } = minimal;
+		const result = ManifestSchema.safeParse(withoutSecurity);
+		expect(result.success).toBe(false);
+		if (!result.success) {
+			expect(result.error.issues.some((i) => i.message.includes("`security: { ... }`"))).toBe(true);
+		}
+	});
+
+	it("rejects unknown top-level keys (strict mode catches typos)", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			licens: "MIT", // typo
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects an empty authors array (lexicon requires >= 1)", () => {
+		const { author: _author, ...rest } = minimal;
+		const result = ManifestSchema.safeParse({
+			...rest,
+			authors: [],
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects more than 32 authors (lexicon cap)", () => {
+		const authors = Array.from({ length: 33 }, (_, i) => ({ name: `Author ${i}` }));
+		const { author: _author, ...rest } = minimal;
+		const result = ManifestSchema.safeParse({
+			...rest,
+			authors,
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects more than 5 keywords (FAIR convention)", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			keywords: ["a", "b", "c", "d", "e", "f"],
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("accepts a full populated manifest", () => {
+		const result = ManifestSchema.safeParse({
+			$schema: "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+			slug: "gallery",
+			version: "0.1.0",
+			publisher: "example.com",
+			license: "MIT",
+			author: {
+				name: "Jane Doe",
+				url: "https://example.com",
+				email: "jane@example.com",
+			},
+			security: {
+				email: "security@example.com",
+				url: "https://example.com/security",
+			},
+			name: "Gallery",
+			description: "Image gallery block for EmDash.",
+			keywords: ["gallery", "images", "media"],
+			repo: "https://github.com/emdash-cms/plugin-gallery",
+			release: { requires: { "env:emdash": ">=1.0.0", "env:astro": ">=4.16" } },
+			capabilities: ["content:read"],
+			storage: { events: { indexes: ["timestamp"] } },
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("accepts a manifest with release-level requires", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			release: { requires: { "env:astro": ">=4.16" } },
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects a manifest with an invalid requires range", () => {
+		const result = ManifestSchema.safeParse({
+			...minimal,
+			release: { requires: { "env:astro": "not-a-range" } },
+		});
+		expect(result.success).toBe(false);
+	});
+});

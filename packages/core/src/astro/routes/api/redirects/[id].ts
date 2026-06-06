@@ -9,7 +9,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, handleError, unwrapResult } from "#api/error.js";
+import { apiError, handleError, requireDb, unwrapResult } from "#api/error.js";
 import {
 	handleRedirectDelete,
 	handleRedirectGet,
@@ -23,6 +23,8 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const db = emdash.db;
 	const { id } = params;
 
@@ -43,6 +45,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
 export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const db = emdash.db;
 	const { id } = params;
 
@@ -67,6 +71,8 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 
 export const DELETE: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const db = emdash.db;
 	const { id } = params;
 

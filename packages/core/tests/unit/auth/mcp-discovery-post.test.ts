@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("virtual:emdash/auth", () => ({ authenticate: vi.fn() }));
+vi.mock("virtual:emdash/config", () => ({ default: {} }));
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
 }));

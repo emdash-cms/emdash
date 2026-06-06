@@ -143,14 +143,12 @@ export class AuditRepository {
 
 		if (query.cursor) {
 			const decoded = decodeCursor(query.cursor);
-			if (decoded) {
-				q = q.where((eb) =>
-					eb.or([
-						eb("timestamp", "<", decoded.orderValue),
-						eb.and([eb("timestamp", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
-					]),
-				);
-			}
+			q = q.where((eb) =>
+				eb.or([
+					eb("timestamp", "<", decoded.orderValue),
+					eb.and([eb("timestamp", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
+				]),
+			);
 		}
 
 		const rows = await q.execute();
@@ -282,12 +280,12 @@ export class AuditRepository {
 			timestamp: row.timestamp,
 			actorId: row.actor_id,
 			actorIp: row.actor_ip,
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- DB stores string; validated at insert but linter can't follow
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- DB stores string; validated at insert but linter can't follow
 			action: row.action as AuditAction,
 			resourceType: row.resource_type,
 			resourceId: row.resource_id,
 			details: row.details ? JSON.parse(row.details) : null,
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- DB stores string; validated at insert but linter can't follow
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- DB stores string; validated at insert but linter can't follow
 			status: row.status as AuditStatus | null,
 		};
 	}

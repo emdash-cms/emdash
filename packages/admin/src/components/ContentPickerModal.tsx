@@ -5,7 +5,7 @@
  * Uses cursor pagination to allow browsing beyond the initial page.
  */
 
-import { Button, Dialog, Input, Loader } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Loader, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -145,21 +145,16 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 							autoFocus
 						/>
 					</div>
-					<select
+					<Select
 						value={selectedCollection}
-						onChange={(e) => {
-							setSelectedCollection(e.target.value);
+						onValueChange={(v) => {
+							setSelectedCollection(v ?? "");
 							setAllItems([]);
 							setNextCursor(undefined);
 						}}
-						className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-kumo-ring focus:ring-offset-2"
-					>
-						{collections.map((col) => (
-							<option key={col.slug} value={col.slug}>
-								{col.label}
-							</option>
-						))}
-					</select>
+						items={Object.fromEntries(collections.map((col) => [col.slug, col.label]))}
+						aria-label={t`Collection`}
+					/>
 				</div>
 
 				{/* Content list */}

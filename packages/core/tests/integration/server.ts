@@ -16,7 +16,7 @@
  */
 
 import { execFile, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -47,6 +47,8 @@ export interface TestServerOptions {
 	timeout?: number;
 	/** Seed test data after setup (default: true) */
 	seed?: boolean;
+	/** Additional environment variables to pass to the dev server */
+	env?: Record<string, string>;
 }
 
 export interface TestServerContext {
@@ -158,6 +160,8 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 	const workDir = FIXTURE_DIR;
 	const tempDataDir = mkdtempSync(join(tmpdir(), "emdash-integration-"));
 	const dbPath = join(tempDataDir, "test.db");
+	const uploadsDir = join(tempDataDir, "uploads");
+	mkdirSync(uploadsDir, { recursive: true });
 
 	// Ensure node_modules symlink exists in the fixture dir.
 	// Multiple test suites may race to create this — handle EEXIST gracefully.
@@ -179,6 +183,8 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 		env: {
 			...process.env,
 			EMDASH_TEST_DB: `file:${dbPath}`,
+			EMDASH_TEST_UPLOADS: uploadsDir,
+			...options.env,
 		},
 		stdio: "pipe",
 	});

@@ -11,7 +11,7 @@ Each translation is a full, independent content entry with its own slug, status,
 
 ## Configuration
 
-Enable i18n by adding an `i18n` block to your Astro config. EmDash reads this configuration automatically — there is no separate locale setup in EmDash.
+Enable i18n by adding an `i18n` block to your Astro config. EmDash reads this same configuration for its locale list, default locale, and fallback chain.
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -40,7 +40,7 @@ When `i18n` is not present in the Astro config, all i18n features are disabled a
 
 ## How Translations Work
 
-EmDash uses a **row-per-locale** model. Each translation is its own row in the database with its own ID, slug, and status, linked to other translations via a shared `translation_group` identifier.
+EmDash uses a **row-per-locale** model. Each translation is its own row in the database with its own ID, slug, and status, linked to other translations via a shared `translation_group` identifier. A posts table with three translations looks like this:
 
 ```
 ec_posts:
@@ -56,7 +56,7 @@ This design means:
 - **Per-locale slugs** — `/blog/my-post` and `/fr/blog/mon-article` work naturally
 - **Per-locale publishing** — publish the English version while keeping French in draft
 - **Per-locale revisions** — each translation has its own revision history
-- **No cross-locale query complexity** — list queries return entries for one locale only
+- **Single-locale queries** — list queries return entries for one locale only
 
 ## Querying Translated Content
 
@@ -89,11 +89,67 @@ When no content exists for the requested locale, EmDash follows the fallback cha
 2. Try the fallback locale (`en`)
 3. Try the default locale
 
-Fallback only applies to single-entry queries. List queries return entries for the requested locale only — no cross-locale mixing.
+Fallback only applies to single-entry queries. List queries return entries for the requested locale only.
 
 <Aside>
   When a fallback is used, the response metadata includes `fallbackLocale` so your template can display a "this content is not yet translated" notice.
 </Aside>
+
+### Menus
+
+Menus are per-locale — the same `name` (e.g. `"primary"`) can exist in several
+locales, all linked via a shared `translation_group`. Menu items resolve their
+content references against the active locale's version of the referenced
+content.
+
+The following component fetches the primary menu for the active locale:
+
+```astro title="src/components/PrimaryNav.astro"
+---
+import { getMenu } from "emdash";
+
+const menu = await getMenu("primary", { locale: Astro.currentLocale });
+---
+
+<nav aria-label="Primary">
+  <ul>
+    {menu?.items.map((item) => (
+      <li><a href={item.url}>{item.label}</a></li>
+    ))}
+  </ul>
+</nav>
+```
+
+Create translations of an existing menu from the admin's **Menus** list — the
+items are cloned with `reference_id` intact (it stores the referenced content's
+`translation_group`), so the new menu's links point at the right per-locale
+content automatically.
+
+### Taxonomies (categories, tags)
+
+Terms are per-locale. Definitions (`_emdash_taxonomy_defs`) are also per-locale,
+so `label` / `labelSingular` can be translated too. The pivot
+`content_taxonomies.taxonomy_id` stores the term's `translation_group`, so a
+single assignment spans every locale of the content.
+
+The following example fetches categories and a post's terms for the active locale:
+
+```astro
+---
+import { getTaxonomyTerms, getEntryTerms } from "emdash";
+
+const categories = await getTaxonomyTerms("category", {
+  locale: Astro.currentLocale,
+});
+const terms = await getEntryTerms("posts", post.id, undefined, {
+  locale: Astro.currentLocale,
+});
+---
+```
+
+Translating a piece of content automatically inherits the source's term
+assignments — you only need to translate the *terms themselves* once, and every
+post that uses them resolves to the right locale at read time.
 
 ### Collection listing
 
@@ -304,23 +360,35 @@ EmDash does not manage locale URLs — Astro handles routing. Common patterns:
 
 Use `getRelativeLocaleUrl` from `astro:i18n` to build correct URLs regardless of routing mode.
 
+## Sitemaps
+
+The per-collection sitemap at `/sitemap-{collection}.xml` is locale-aware. When i18n is enabled, each translation is emitted as its own `<url>` entry, with the locale prefix resolved through Astro's `getRelativeLocaleUrl`. Your `prefixDefaultLocale` setting and any custom locale `path` mappings are honoured automatically.
+
+Translation siblings are cross-linked with `xhtml:link` alternates so search engines can serve the correct language to each user:
+
+```xml title="/sitemap-post.xml"
+<url>
+  <loc>https://example.com/blog/hello</loc>
+  <lastmod>2026-05-28T16:33:15.461Z</lastmod>
+  <xhtml:link rel="alternate" hreflang="en" href="https://example.com/blog/hello" />
+  <xhtml:link rel="alternate" hreflang="fr" href="https://example.com/fr/blog/bonjour" />
+  <xhtml:link rel="alternate" hreflang="x-default" href="https://example.com/blog/hello" />
+</url>
+```
+
+Siblings are grouped by `translation_group`, so a row added later (a new locale variant of an existing post) automatically appears as an alternate on every other variant. Sites with a single locale produce a plain sitemap with no `xhtml` namespace.
+
 ## Importing Multilingual Content
 
-### WordPress with WPML or Polylang
+Import WordPress content through the admin migration tool — see [Content Import](/migration/content-import/) and [Migrate from WordPress](/migration/from-wordpress/). A WXR export does not carry the locale and translation-group structure that WPML or Polylang add, so imported content lands in your default locale.
 
-The WordPress plugin import source detects WPML and Polylang automatically. When detected, imported content includes locale and translation group metadata, preserving the multilingual structure.
-
-### WXR files
-
-WXR exports do not include WPML/Polylang metadata. Import as a single locale and create translations manually, or use the `--locale` flag to assign a locale to all imported items:
+To build translations from imported content, create the translated entry and link it to the original:
 
 ```bash
-# Import a French WXR export
-emdash import wordpress export-fr.xml --execute --locale fr
-
-# Match against existing English content by slug
-emdash import wordpress export-fr.xml --execute --locale fr --translation-of-locale en
+emdash content create posts --locale fr --translation-of 01ABC...
 ```
+
+This is the same `--locale` / `--translation-of` workflow shown in [Seeding multilingual content](#seeding-multilingual-content) above, applied after the import completes.
 
 ## Next Steps
 

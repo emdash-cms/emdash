@@ -1,17 +1,17 @@
 ---
-title: Why EmDash?
+title: Why EmDash
 description: Understand what problems EmDash solves and how it compares to other approaches.
 ---
 
 import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
 
-EmDash is an Astro-native CMS that combines traditional CMS patterns with modern web development: a content editing interface, Astro framework integration, and flexible deployment options.
+EmDash is a CMS built for Astro. It gives editors an admin interface, serves content to your Astro site at runtime, and runs on a range of databases and hosts.
 
 ## What Makes EmDash Different
 
 ### Astro-Native Architecture
 
-EmDash is built specifically for Astro, not adapted from a generic CMS. Content lives in the same deployment as your site, queried through Astro's Live Content Collections. No separate services, no API round-trips, no webhook synchronization.
+EmDash is built specifically for Astro, not adapted from a generic CMS. Content lives in the same deployment as your site and is queried through Astro's Live Content Collections within the same process.
 
 ### Familiar Content Model
 
@@ -28,16 +28,15 @@ EmDash is purpose-built for Astro. This tight integration enables type-safe quer
 		Content and frontend deploy together. One codebase, one deployment, one system to manage.
 	</Card>
 	<Card title="Type Safety" icon="approve-check">
-		Schema lives in the database. TypeScript types flow from database to template with full
-		autocomplete.
+		Generate TypeScript types from your content model for full autocomplete,
+		from query to template.
 	</Card>
 	<Card title="Live Updates" icon="star">
-		Built on Astro's Live Content Collections. Content changes appear instantly—no rebuilds
-		needed.
+		Built on Astro's Live Content Collections. Content changes appear instantly.
 	</Card>
 	<Card title="Cloud-Portable" icon="setting">
-		Runs on Cloudflare Workers with D1 and R2, and also works with Node.js, SQLite, and any
-		S3-compatible storage.
+		Runs on Cloudflare Workers with D1 and R2, and on Node.js with SQLite, libSQL, or
+		PostgreSQL and any S3-compatible storage.
 	</Card>
 </CardGrid>
 
@@ -47,17 +46,16 @@ Different CMS approaches suit different needs:
 
 | Aspect              | Traditional CMS  | Headless CMS    | EmDash              |
 | ------------------- | ---------------- | --------------- | --------------------- |
-| **Architecture**    | Monolithic       | Decoupled       | Integrated with Astro |
-| **Content editing** | Built-in admin   | Built-in admin  | Built-in admin        |
-| **Frontend**        | Themes/templates | Bring your own  | Astro components      |
-| **Deployment**      | Single server    | CMS + frontend  | Single deployment     |
-| **Type safety**     | Runtime          | API types       | Full TypeScript       |
-| **Content updates** | Immediate        | Webhook/rebuild | Immediate (SSR)       |
-| **Plugin model**    | Same-process     | API extensions  | Sandboxed with hooks  |
+| **Architecture**    | Monolithic       | Decoupled       | Integrated with Astro    |
+| **Frontend**        | Themes/templates | Bring your own  | Astro components         |
+| **Deployment**      | Single server    | CMS + frontend  | Single deployment        |
+| **Type safety**     | Runtime          | API types       | Full TypeScript          |
+| **Content updates** | Immediate        | Webhook/rebuild | Immediate (SSR)          |
+| **Plugin model**    | Same-process     | API extensions  | Native or sandboxed hooks |
 
 ## Cloudflare Deployment
 
-EmDash runs on any platform with SQLite and S3-compatible storage. It also supports Cloudflare-specific features:
+EmDash runs on any platform with a supported SQL database (SQLite, libSQL, or PostgreSQL) and S3-compatible storage. It also supports Cloudflare-specific features:
 
 - **D1** — SQLite at the edge with automatic replication
 - **R2** — S3-compatible storage with no egress fees

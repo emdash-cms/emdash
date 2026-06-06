@@ -34,7 +34,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	const query = parseQuery(url, collectionGetQuery);
 	if (isParseError(query)) return query;
 
-	const result = await handleSchemaCollectionGet(emdash!.db, slug, {
+	const result = await handleSchemaCollectionGet(emdash.db, slug, {
 		includeFields: query.includeFields ?? false,
 	});
 	return unwrapResult(result);
@@ -54,12 +54,12 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	if (isParseError(body)) return body;
 
 	const result = await handleSchemaCollectionUpdate(
-		emdash!.db,
+		emdash.db,
 		slug,
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- parseBody validates via Zod
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- parseBody validates via Zod
 		body as UpdateCollectionInput,
 	);
-	emdash!.invalidateManifest();
+	emdash.invalidateUrlPatternCache();
 	return unwrapResult(result);
 };
 
@@ -74,9 +74,9 @@ export const DELETE: APIRoute = async ({ params, url, locals }) => {
 	const denied = requirePerm(user, "schema:manage");
 	if (denied) return denied;
 
-	const result = await handleSchemaCollectionDelete(emdash!.db, slug, {
+	const result = await handleSchemaCollectionDelete(emdash.db, slug, {
 		force,
 	});
-	emdash!.invalidateManifest();
+	emdash.invalidateUrlPatternCache();
 	return unwrapResult(result);
 };

@@ -10,7 +10,7 @@
  */
 
 import { autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/react";
-import { Extension, type JSONContent, type Range } from "@tiptap/core";
+import { Extension, Node, mergeAttributes, type JSONContent, type Range } from "@tiptap/core";
 import Focus from "@tiptap/extension-focus";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -26,6 +26,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { computeThumbnailSize } from "../media/thumbnail.js";
+import { InlineCodeBlockExtension } from "./inline-code-block.js";
 
 // ── Portable Text types ────────────────────────────────────────────
 
@@ -182,6 +183,14 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 				language: attrStrOpt(node.attrs, "language"),
 			};
 		}
+		case "htmlBlock": {
+			const rawHtml = node.attrs?.html;
+			return {
+				_type: "htmlBlock",
+				_key: k(),
+				html: typeof rawHtml === "string" ? rawHtml : "",
+			};
+		}
 		case "image": {
 			const provider = attrStrOpt(node.attrs, "provider");
 			return {
@@ -202,12 +211,18 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 		}
 		case "horizontalRule":
 			return { _type: "break", _key: k(), style: "lineBreak" };
-		case "pluginBlock":
+		case "pluginBlock": {
+			// Spread the captured data back out so the block round-trips losslessly.
+			// `data` holds every field except _type / _key / id (which live on
+			// dedicated attrs).
+			const { blockType, id, data } = node.attrs ?? {};
 			return {
-				_type: attrStr(node.attrs, "blockType") || "embed",
+				...(data && typeof data === "object" ? data : {}),
+				_type: typeof blockType === "string" ? blockType : "embed",
 				_key: k(),
-				id: attrStr(node.attrs, "id"),
+				id: typeof id === "string" ? id : "",
 			};
+		}
 		default:
 			return null;
 	}
@@ -384,6 +399,13 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 	if (block._type === "break") {
 		return { type: "horizontalRule" };
 	}
+	if (block._type === "htmlBlock") {
+		const hb = block as PTBlock & { html?: string };
+		return {
+			type: "htmlBlock",
+			attrs: { html: hb.html || "" },
+		};
+	}
 	if (block._type === "image") {
 		const ib = block as PTBlock & {
 			asset?: { _ref?: string; url?: string; provider?: string };
@@ -412,21 +434,23 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 			},
 		};
 	}
-	// Unknown block types — treat as plugin blocks if they have an id
-	const embedBlock = block as { _type: string; url?: string; id?: string };
-	if (embedBlock.id || embedBlock.url) {
-		return {
-			type: "pluginBlock",
-			attrs: {
-				blockType: block._type,
-				id: embedBlock.id || embedBlock.url || "",
-			},
-		};
-	}
-	// Truly unknown — render as code-marked text
+	// Unknown block types — treat as plugin blocks. Capture every field other
+	// than the well-known ones into `data` so the block round-trips losslessly,
+	// even if no plugin currently registers this type. Matches the admin
+	// editor's behaviour at PortableTextEditor.tsx:572-588.
+	const { _type, _key, id, url, ...rest } = block as { _type: string; _key: string } & Record<
+		string,
+		unknown
+	>;
+	// Filter out _-prefixed keys to prevent accumulation across edit cycles.
+	const data = Object.fromEntries(Object.entries(rest).filter(([key]) => !key.startsWith("_")));
 	return {
-		type: "paragraph",
-		content: [{ type: "text", text: `[${block._type}]`, marks: [{ type: "code" }] }],
+		type: "pluginBlock",
+		attrs: {
+			blockType: typeof _type === "string" ? _type : "embed",
+			id: typeof id === "string" ? id : typeof url === "string" ? url : "",
+			data,
+		},
 	};
 }
 
@@ -723,6 +747,21 @@ const slashCommands: SlashCommandItem[] = [
 		},
 	},
 	{
+		id: "htmlBlock",
+		title: "HTML",
+		description: "Insert raw HTML",
+		icon: "< >",
+		aliases: ["html", "raw", "markup"],
+		command: ({ editor, range }) => {
+			editor
+				.chain()
+				.focus()
+				.deleteRange(range)
+				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+				.run();
+		},
+	},
+	{
 		id: "divider",
 		title: "Divider",
 		description: "Insert a horizontal rule",
@@ -761,6 +800,99 @@ const initialSlashMenuState: SlashMenuState = {
 	clientRect: null,
 	range: null,
 };
+
+/**
+ * Minimal `htmlBlock` TipTap node for the inline (visual-editing) editor.
+ *
+ * Like PluginBlockNode below, this renders as a read-only placeholder so the
+ * block's data is preserved across edits in the visual editor. Full editing
+ * (textarea + preview) is only available in the admin editor.
+ */
+const HtmlBlockNode = Node.create({
+	name: "htmlBlock",
+	group: "block",
+	atom: true,
+	selectable: true,
+	draggable: true,
+
+	addAttributes() {
+		const noDom = { rendered: false, parseHTML: () => null };
+		return {
+			html: { default: "", ...noDom },
+		};
+	},
+
+	parseHTML() {
+		return [{ tag: 'div[data-emdash-html-block="true"]' }];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return [
+			"div",
+			mergeAttributes(HTMLAttributes, {
+				"data-emdash-html-block": "true",
+				class: "emdash-plugin-block-placeholder",
+				contenteditable: "false",
+			}),
+			"HTML block (edit in admin)",
+		];
+	},
+});
+
+/**
+ * Minimal `pluginBlock` TipTap node for the inline (visual-editing) editor.
+ *
+ * Plugin-contributed Portable Text block types (e.g. `marketing.hero`) are
+ * editable in the admin via a Block Kit modal. The visual-editing surface
+ * deliberately does NOT offer that UX — it would need to fetch the manifest,
+ * mount the modal, and round-trip through plugin-block plumbing that lives in
+ * `@emdash-cms/admin`. Instead, the inline editor renders these blocks as a
+ * read-only placeholder so editors can see they exist and edit the surrounding
+ * content without losing the block's data.
+ *
+ * The full block payload is preserved on `data` and round-tripped losslessly
+ * through PT ↔ PM conversion (see convertPTBlock/convertPMNode). Without this
+ * extension, ProseMirror's schema would silently filter unknown nodes on load
+ * and the next save would persist the block's disappearance.
+ */
+const PluginBlockNode = Node.create({
+	name: "pluginBlock",
+	group: "block",
+	atom: true,
+	selectable: true,
+	draggable: true,
+
+	addAttributes() {
+		// All three attributes are stored on the ProseMirror node but not
+		// rendered as DOM attributes — they're metadata for the round-trip,
+		// not styling or behaviour the placeholder DOM needs to expose.
+		const noDom = { rendered: false, parseHTML: () => null };
+		return {
+			blockType: { default: "", ...noDom },
+			id: { default: "", ...noDom },
+			data: { default: {}, ...noDom },
+		};
+	},
+
+	parseHTML() {
+		return [{ tag: 'div[data-emdash-plugin-block="true"]' }];
+	},
+
+	renderHTML({ HTMLAttributes, node }) {
+		const blockType = typeof node.attrs.blockType === "string" ? node.attrs.blockType : "";
+		const label = blockType || "Block";
+		return [
+			"div",
+			mergeAttributes(HTMLAttributes, {
+				"data-emdash-plugin-block": "true",
+				"data-block-type": blockType,
+				class: "emdash-plugin-block-placeholder",
+				contenteditable: "false",
+			}),
+			`Plugin block: ${label} (edit in admin)`,
+		];
+	},
+});
 
 function createSlashCommandsExtension(options: {
 	filterCommands: (query: string) => SlashCommandItem[];
@@ -1074,7 +1206,7 @@ function InlineMediaPicker({
 				const r = await ecFetch(url);
 				const d = await r.json();
 				const raw = d.data.items ?? [];
-				// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- API response items mapped to MediaItem shape
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- API response items mapped to MediaItem shape
 				const typedRaw = raw as Array<{
 					id: string;
 					filename?: string;
@@ -1702,7 +1834,10 @@ export function InlinePortableTextEditor({
 			StarterKit.configure({
 				heading: { levels: [1, 2, 3] },
 				dropcursor: { color: "#3b82f6", width: 2 },
+				// Replaced with InlineCodeBlockExtension below (adds language picker).
+				codeBlock: false,
 			}),
+			InlineCodeBlockExtension,
 			Image.extend({
 				addAttributes() {
 					return {
@@ -1734,6 +1869,8 @@ export function InlinePortableTextEditor({
 				mode: "all",
 			}),
 			Typography,
+			HtmlBlockNode,
+			PluginBlockNode,
 			slashCommandsExtension,
 		],
 		content: initialContent,
@@ -1741,6 +1878,7 @@ export function InlinePortableTextEditor({
 		editorProps: {
 			attributes: {
 				class: "prose prose-sm sm:prose-base dark:prose-invert max-w-none emdash-inline-editor",
+				dir: "auto",
 			},
 		},
 		onUpdate: () => {
@@ -1795,7 +1933,7 @@ export function InlinePortableTextEditor({
 			// Don't save if focus moved to the slash menu (portalled to body)
 			if (related?.closest(".emdash-slash-menu")) return;
 			if (related?.closest(".emdash-media-picker")) return;
-			save();
+			void save();
 		},
 		[save, mediaPickerOpen],
 	);
@@ -1931,7 +2069,29 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor:focus {
 					outline: none;
 				}
+				.emdash-plugin-block-placeholder {
+					margin: 0.75rem 0;
+					padding: 0.625rem 0.875rem;
+					border: 1px dashed #d1d5db;
+					border-radius: 0.5rem;
+					background: #f9fafb;
+					color: #4b5563;
+					font-size: 0.875rem;
+					font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+					user-select: none;
+				}
+				@media (prefers-color-scheme: dark) {
+					.emdash-plugin-block-placeholder {
+						border-color: #374151;
+						background: #111827;
+						color: #9ca3af;
+					}
+				}
 			`}</style>
 		</div>
 	);
 }
+
+// Test-only exports for unit tests of the conversion functions.
+export { pmToPortableText as _pmToPortableText };
+export { portableTextToPM as _portableTextToPM };

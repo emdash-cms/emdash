@@ -99,13 +99,13 @@ export function UserDetail({
 			<Dialog.Portal>
 				<Dialog.Backdrop
 					className={cn(
-						"fixed inset-0 z-40 bg-black/50 transition-opacity duration-200",
+						"fixed inset-0 bg-black/50 transition-opacity duration-200",
 						"data-starting-style:opacity-0 data-ending-style:opacity-0",
 					)}
 				/>
 				<Dialog.Popup
 					className={cn(
-						"fixed top-0 end-0 z-50 flex h-full w-full max-w-md flex-col bg-kumo-base shadow-xl outline-none",
+						"fixed top-0 end-0 flex h-full w-full max-w-md flex-col bg-kumo-base shadow-xl outline-none",
 						"transform transition-transform duration-200 ease-out",
 						"data-starting-style:ltr:translate-x-full data-starting-style:rtl:-translate-x-full",
 						"data-ending-style:ltr:translate-x-full data-ending-style:rtl:-translate-x-full",
@@ -212,7 +212,7 @@ export function UserDetail({
 								{/* Info cards */}
 								<div className="grid gap-4">
 									{/* Timestamps */}
-									<div className="rounded-lg border p-4">
+									<div className="rounded-lg border bg-kumo-base p-4">
 										<h4 className="text-sm font-medium text-kumo-subtle mb-3">{t`Account Info`}</h4>
 										<div className="space-y-2 text-sm">
 											<div className="flex justify-between">
@@ -239,7 +239,7 @@ export function UserDetail({
 									</div>
 
 									{/* Passkeys */}
-									<div className="rounded-lg border p-4">
+									<div className="rounded-lg border bg-kumo-base p-4">
 										<h4 className="text-sm font-medium text-kumo-subtle mb-3 flex items-center gap-2">
 											<Key className="h-4 w-4" aria-hidden="true" />
 											{t`Passkeys (${user.credentials.length})`}
@@ -270,7 +270,7 @@ export function UserDetail({
 
 									{/* OAuth accounts */}
 									{user.oauthAccounts.length > 0 && (
-										<div className="rounded-lg border p-4">
+										<div className="rounded-lg border bg-kumo-base p-4">
 											<h4 className="text-sm font-medium text-kumo-subtle mb-3 flex items-center gap-2">
 												<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
 												{t`Linked Accounts (${user.oauthAccounts.length})`}
@@ -365,7 +365,7 @@ function UserDetailSkeleton() {
 
 			{/* Cards skeleton */}
 			{Array.from({ length: 2 }, (_, i) => (
-				<div key={i} className="rounded-lg border p-4 space-y-3">
+				<div key={i} className="rounded-lg border bg-kumo-base p-4 space-y-3">
 					<div className="h-4 w-24 bg-kumo-tint rounded" />
 					<div className="space-y-2">
 						<div className="h-4 w-full bg-kumo-tint rounded" />

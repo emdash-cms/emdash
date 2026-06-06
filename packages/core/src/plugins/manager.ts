@@ -62,6 +62,11 @@ export interface PluginManagerOptions {
 		filename: string,
 		contentType: string,
 	) => Promise<{ uploadUrl: string; mediaId: string }>;
+	/**
+	 * Pre-resolved list of trusted proxy header names for client-IP
+	 * resolution in plugin route handlers. Thread through from the runtime.
+	 */
+	trustedProxyHeaders?: string[];
 }
 
 /**
@@ -81,6 +86,7 @@ export class PluginManager {
 			db: options.db,
 			storage: options.storage,
 			getUploadUrl: options.getUploadUrl,
+			trustedProxyHeaders: options.trustedProxyHeaders,
 		};
 	}
 

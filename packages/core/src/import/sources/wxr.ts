@@ -288,10 +288,19 @@ function wxrPostToNormalizedItem(
 	const thumbnailId = post.meta.get("_thumbnail_id");
 	const featuredImage = thumbnailId ? attachmentMap.get(String(thumbnailId)) : undefined;
 
-	// Convert custom taxonomies Map to Record
+	// Convert custom taxonomies Map to Record.
+	// Strip Polylang's `language` taxonomy -- the parser already promoted it
+	// to `post.locale`, and exposing it as a content taxonomy here would
+	// (a) try to insert a `language` taxonomy on EmDash that doesn't exist
+	// and (b) duplicate the locale signal in two places.
 	let customTaxonomies: Record<string, string[]> | undefined;
 	if (post.customTaxonomies && post.customTaxonomies.size > 0) {
-		customTaxonomies = Object.fromEntries(post.customTaxonomies);
+		const filtered = Object.fromEntries(
+			[...post.customTaxonomies].filter(([taxonomy]) => taxonomy !== "language"),
+		);
+		if (Object.keys(filtered).length > 0) {
+			customTaxonomies = filtered;
+		}
 	}
 
 	return {
@@ -314,6 +323,11 @@ function wxrPostToNormalizedItem(
 		menuOrder: post.menuOrder,
 		// Custom taxonomy assignments
 		customTaxonomies,
+		// Multilingual plugin metadata (WPML / Polylang) promoted by the parser.
+		// When absent, the caller (e.g. execute route) falls back to the
+		// upload-wide locale.
+		locale: post.locale,
+		translationGroup: post.translationGroup,
 	};
 }
 

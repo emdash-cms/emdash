@@ -61,6 +61,19 @@ describe("renderToolbar", () => {
 		expect(html).toContain("/_emdash/api/manifest");
 	});
 
+	it("unwraps the { data } envelope returned by /_emdash/api/manifest", () => {
+		// Regression for #103 / #445: the manifest endpoint wraps the payload in
+		// { data: manifest } (ApiResponse shape), but getFieldKind reads
+		// manifest.collections directly. Without the unwrap, getFieldKind returns
+		// null for every field kind, and every click on an edit annotation opens
+		// the admin in a new tab instead of inline-editing.
+		const html = renderToolbar({ editMode: true, isPreview: false });
+		// The unwrap happens inside the fetchManifest .then() callback. Verify
+		// the generated HTML contains the conditional unwrap rather than
+		// assigning the raw response.
+		expect(html).toMatch(/manifestCache\s*=\s*m\s*&&\s*m\.data\s*\?\s*m\.data\s*:\s*m/);
+	});
+
 	it("skips toolbar interception for portableText (inline editor)", () => {
 		const html = renderToolbar({ editMode: true, isPreview: false });
 		expect(html).toContain("portableText");

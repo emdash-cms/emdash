@@ -96,6 +96,60 @@ export interface RadioElement {
 	initial_value?: string;
 }
 
+/**
+ * Sub-field types allowed inside a RepeaterElement. Limited to the scalar
+ * inputs the admin widget currently renders inline.
+ */
+export type RepeaterSubField =
+	| TextInputElement
+	| NumberInputElement
+	| SelectElement
+	| ToggleElement;
+
+/**
+ * Array-of-objects field. Renders as a list of collapsible cards with inline
+ * add/remove and drag-and-drop reordering. Sub-fields are scalar Block Kit
+ * elements keyed by their `action_id`.
+ *
+ * Admin-authoring only: this element is rendered by the admin widget so plugin
+ * blocks can capture repeating data. The runtime block renderer
+ * (`renderElement`) deliberately returns `null` for `repeater` — repeater
+ * values are persisted on the parent block and consumed by the plugin's own
+ * runtime component, not re-rendered as a stand-alone block.
+ */
+export interface RepeaterElement {
+	type: "repeater";
+	action_id: string;
+	label: string;
+	/** Singular label used in the UI (e.g. "FAQ" → "Add FAQ"). */
+	item_label?: string;
+	fields: RepeaterSubField[];
+	min_items?: number;
+	max_items?: number;
+	/**
+	 * Default rows for the field. Note: the admin widget seeds new rows from
+	 * the sub-field types (empty string / `false`), not from `initial_value`;
+	 * plugins should populate persisted state via the form `values` payload
+	 * instead of relying on `initial_value` for pre-filled rows.
+	 */
+	initial_value?: Array<Record<string, unknown>>;
+}
+
+/**
+ * Picks an item from the media library (or uploads a new one). The stored value
+ * is the selected asset's URL string, so this element is value-compatible with a
+ * plain `text_input` — existing content continues to work after swapping.
+ */
+export interface MediaPickerElement {
+	type: "media_picker";
+	action_id: string;
+	label: string;
+	/** Mime-type prefix filter (e.g. "image/"). Defaults to "image/". */
+	mime_type_filter?: string;
+	initial_value?: string;
+	placeholder?: string;
+}
+
 export type Element =
 	| ButtonElement
 	| TextInputElement
@@ -106,7 +160,9 @@ export type Element =
 	| CheckboxElement
 	| DateInputElement
 	| ComboboxElement
-	| RadioElement;
+	| RadioElement
+	| RepeaterElement
+	| MediaPickerElement;
 
 // ── Form Fields (elements + optional condition) ──────────────────────────────
 
@@ -281,6 +337,33 @@ export interface CodeBlock extends BlockBase {
 	language?: "ts" | "tsx" | "jsonc" | "bash" | "css";
 }
 
+export interface TabPanel {
+	label: string;
+	blocks: Block[];
+}
+
+export interface TabBlock extends BlockBase {
+	type: "tab";
+	panels: TabPanel[];
+	default_tab?: number;
+}
+
+export interface EmptyBlock extends BlockBase {
+	type: "empty";
+	title: string;
+	description?: string;
+	command_line?: string;
+	size?: "sm" | "base" | "lg";
+	actions?: Element[];
+}
+
+export interface AccordionBlock extends BlockBase {
+	type: "accordion";
+	label: string;
+	blocks: Block[];
+	default_open?: boolean;
+}
+
 export type Block =
 	| HeaderBlock
 	| SectionBlock
@@ -296,7 +379,10 @@ export type Block =
 	| ChartBlock
 	| BannerBlock
 	| MeterBlock
-	| CodeBlock;
+	| CodeBlock
+	| TabBlock
+	| EmptyBlock
+	| AccordionBlock;
 
 // ── Interactions ─────────────────────────────────────────────────────────────
 

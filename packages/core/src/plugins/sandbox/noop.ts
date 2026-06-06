@@ -7,7 +7,7 @@
  */
 
 import type { PluginManifest } from "../types.js";
-import type { SandboxRunner, SandboxedPlugin, SandboxOptions } from "./types.js";
+import type { SandboxRunner, SandboxedPluginInstance, SandboxOptions } from "./types.js";
 
 /**
  * Error thrown when attempting to use sandboxing on an unsupported platform.
@@ -15,9 +15,10 @@ import type { SandboxRunner, SandboxedPlugin, SandboxOptions } from "./types.js"
 export class SandboxNotAvailableError extends Error {
 	constructor() {
 		super(
-			"Plugin sandboxing is not available on this platform. " +
-				"Sandboxed plugins require Cloudflare Workers with Worker Loader. " +
-				"Use trusted plugins (from config) instead, or deploy to Cloudflare.",
+			"Plugin sandboxing is not available. " +
+				"Configure a sandbox runner: use @emdash-cms/cloudflare/sandbox on Cloudflare, " +
+				"or @emdash-cms/sandbox-workerd/sandbox on Node.js (requires workerd). " +
+				"Without sandboxing, use trusted plugins (from config) instead.",
 		);
 		this.name = "SandboxNotAvailableError";
 	}
@@ -41,6 +42,13 @@ export class NoopSandboxRunner implements SandboxRunner {
 	}
 
 	/**
+	 * Always returns false - no sandbox runtime to be healthy.
+	 */
+	isHealthy(): boolean {
+		return false;
+	}
+
+	/**
 	 * Always throws - can't load sandboxed plugins without isolation.
 	 */
 	async load(
@@ -48,7 +56,7 @@ export class NoopSandboxRunner implements SandboxRunner {
 		_manifest: PluginManifest,
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		_code: string,
-	): Promise<SandboxedPlugin> {
+	): Promise<SandboxedPluginInstance> {
 		throw new SandboxNotAvailableError();
 	}
 

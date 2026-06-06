@@ -1,4 +1,4 @@
-import type * as React from "react";
+import * as React from "react";
 
 /**
  * EmDash icon mark — the rounded-rect em dash symbol.
@@ -145,4 +145,44 @@ export function LogoLockup({ className, ...props }: React.SVGProps<SVGSVGElement
 			</defs>
 		</svg>
 	);
+}
+
+interface BrandLogoProps {
+	logoUrl?: string;
+	siteName?: string;
+	className?: string;
+}
+
+export function BrandLogo({ logoUrl, siteName, className }: BrandLogoProps) {
+	if (logoUrl) {
+		return (
+			<img
+				src={logoUrl}
+				alt={siteName || ""}
+				className={className}
+				style={{ objectFit: "contain" }}
+			/>
+		);
+	}
+	return <LogoLockup className={className} />;
+}
+
+interface BrandIconProps {
+	logoUrl?: string;
+	siteName?: string;
+	className?: string;
+}
+
+export function BrandIcon({ logoUrl, siteName, className }: BrandIconProps) {
+	if (logoUrl) {
+		return (
+			<img
+				src={logoUrl}
+				alt={siteName || ""}
+				className={className}
+				style={{ objectFit: "contain" }}
+			/>
+		);
+	}
+	return <LogoIcon className={className} />;
 }

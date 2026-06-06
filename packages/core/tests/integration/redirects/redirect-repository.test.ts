@@ -478,13 +478,15 @@ describe("RedirectRepository", () => {
 			expect(summary[1]!.count).toBe(1);
 		});
 
-		it("includes top referrer", async () => {
+		it("includes the most recently seen referrer", async () => {
+			// 404 rows are now deduped by path, so the stored referrer is the
+			// most recent one seen for that path rather than the most frequent.
 			await repo.log404({ path: "/x", referrer: "https://google.com" });
 			await repo.log404({ path: "/x", referrer: "https://google.com" });
 			await repo.log404({ path: "/x", referrer: "https://bing.com" });
 
 			const summary = await repo.get404Summary();
-			expect(summary[0]!.topReferrer).toBe("https://google.com");
+			expect(summary[0]!.topReferrer).toBe("https://bing.com");
 		});
 	});
 

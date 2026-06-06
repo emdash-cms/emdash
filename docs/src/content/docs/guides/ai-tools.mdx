@@ -7,6 +7,10 @@ import { Aside, Steps, Tabs, TabItem, LinkCard } from "@astrojs/starlight/compon
 
 EmDash has a built-in [MCP server](https://modelcontextprotocol.io) that lets AI assistants work directly with your site's content. You can ask Claude, ChatGPT, or other tools to draft posts, update pages, manage media, search your content, and more -- all through natural conversation.
 
+<Aside>
+	This guide covers your **site's** MCP server -- for managing the content of an EmDash site. If you want to give an AI coding assistant access to the EmDash documentation itself (so it can answer questions about EmDash as you build), see [Docs MCP for AI Tools](/docs-mcp) instead. Most developers connect both.
+</Aside>
+
 ## Enable the MCP Server
 
 The MCP server is disabled by default. Enable it in your Astro configuration:
@@ -84,7 +88,7 @@ Once connected, you can ask the AI assistant to perform any of these operations 
 - **Read content** -- "Get the post called 'hello-world' and summarize it"
 - **Create content** -- "Write a new blog post about our summer sale" or "Create a draft page for the About section"
 - **Edit content** -- "Update the pricing page to mention the new plan" or "Fix the typo in the FAQ post"
-- **Publish and schedule** -- "Publish the summer sale post" or "Schedule the announcement for June 1st at 9am"
+- **Publish and schedule** -- "Publish the summer sale post", "Schedule the announcement for June 1st at 9am", or "Cancel the schedule on the launch post"
 - **Compare versions** -- "Show me what changed in the homepage since it was last published"
 - **Manage drafts** -- "Discard the draft changes on the about page" or "Duplicate the newsletter template"
 - **Translations** -- "What translations exist for the welcome post?" (when i18n is enabled)
@@ -93,8 +97,13 @@ Once connected, you can ask the AI assistant to perform any of these operations 
 
 - **Browse media** -- "List all uploaded images" or "Show me PDFs in the media library"
 - **Check details** -- "Get the details for this media item"
+- **Register uploads** -- "Register the file I just uploaded to `media/2026/banner.png` as a media item"
 - **Update metadata** -- "Set the alt text on the hero image to 'Mountain sunset'"
 - **Remove files** -- "Delete the old banner image"
+
+<Aside>
+	The MCP transport can't carry binary uploads. To add a new image, upload the bytes via the admin UI (or your own signed-upload flow) and then ask the AI to register the metadata.
+</Aside>
 
 ### Search
 
@@ -104,10 +113,29 @@ Once connected, you can ask the AI assistant to perform any of these operations 
 
 - **Browse** -- "List all categories" or "Show me the tags"
 - **Create terms** -- "Add a 'tutorials' tag" or "Create a 'Frontend' subcategory under 'Engineering'"
+- **Rename terms** -- "Rename the 'frontend' category to 'Web Frontend'"
+- **Move terms** -- "Move the 'tutorials' tag under the 'guides' category" or "Detach 'react' from its parent"
+- **Delete terms** -- "Delete the unused 'archive' tag"
 
 ### Menus
 
 - **View menus** -- "Show me the main navigation menu" or "What's in the footer menu?"
+- **Create menus** -- "Create a new 'sidebar' menu"
+- **Edit menus** -- "Rename the 'main' menu to 'Primary navigation'"
+- **Set items** -- "Replace the items in the main menu with Home, Blog, About, and Contact"
+- **Delete menus** -- "Delete the unused 'mobile' menu"
+
+### Site Settings
+
+- **Inspect** -- "What's the current site title?" or "Show me the social links"
+- **Update identity** -- "Set the site title to 'Acme Blog' and tagline to 'Stories from the team'"
+- **Set logo / favicon** -- "Use this image as the site logo" (after registering it with `media_create`)
+- **SEO defaults** -- "Set the default OG image to the new banner" or "Update the title separator to a vertical bar"
+- **Social handles** -- "Add our Mastodon and YouTube links to the social settings"
+
+<Aside>
+	Reading site settings requires the Editor role; updating them requires Admin.
+</Aside>
 
 ### Schema (Admin only)
 
@@ -130,8 +158,8 @@ What you can do through an AI tool depends on your EmDash role. The AI assistant
 
 | Role | What the AI can do |
 | --- | --- |
-| **Admin** | Everything, including schema changes |
-| **Editor** | All content, media, taxonomies, and menus. Can view schema. |
+| **Admin** | Everything, including schema changes and updating site settings |
+| **Editor** | All content, media, taxonomies, and menus. Can view schema and read settings. |
 | **Author** | Own content and media |
 | **Contributor** | Own content (no publishing) and media |
 

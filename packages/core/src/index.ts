@@ -12,7 +12,11 @@ export type {
 export {
 	ContentRepository,
 	MediaRepository,
+	PluginStorageRepository,
+	UserRepository,
+	OptionsRepository,
 	EmDashValidationError,
+	InvalidCursorError,
 } from "./database/repositories/index.js";
 export type {
 	ContentItem,
@@ -26,7 +30,7 @@ export type {
 export type { MediaItem, CreateMediaInput } from "./database/repositories/media.js";
 
 // Fields
-export { portableText, image, reference } from "./fields/index.js";
+export { portableText, image, file, reference } from "./fields/index.js";
 export { normalizeMediaValue } from "./media/normalize.js";
 export { generatePlaceholder } from "./media/placeholder.js";
 export type { PlaceholderData } from "./media/placeholder.js";
@@ -92,6 +96,7 @@ export type {
 	PortableTextTextBlock,
 	PortableTextImageBlock,
 	PortableTextCodeBlock,
+	PortableTextHtmlBlock,
 	PortableTextUnknownBlock,
 	ProseMirrorMark,
 	ProseMirrorNode,
@@ -124,11 +129,17 @@ export type {
 	ResolvePathResult,
 	TranslationSummary,
 	TranslationsResult,
+	WhereRange,
+	WhereValue,
 } from "./query.js";
 
 // Request context (ALS-based ambient state for query functions)
 export { getRequestContext, runWithContext } from "./request-context.js";
 export type { EmDashRequestContext } from "./request-context.js";
+
+// Defer work past the response (waitUntil on workerd, fire-and-forget on Node)
+export { after } from "./after.js";
+export type { WaitUntilFn } from "./after.js";
 
 // i18n configuration (from Astro config)
 export { getI18nConfig, isI18nEnabled, getFallbackChain } from "./i18n/config.js";
@@ -159,6 +170,7 @@ export type {
 	WxrAttachment,
 	WxrCategory,
 	WxrTag,
+	WxrTerm,
 	WxrAuthor,
 } from "./cli/wxr/parser.js";
 
@@ -183,7 +195,6 @@ export { EmDashStorageError } from "./storage/types.js";
 export {
 	definePlugin,
 	adaptSandboxEntry,
-	isStandardPluginDefinition,
 	pluginManifestSchema,
 	createHookPipeline,
 	HookPipeline,
@@ -193,7 +204,11 @@ export {
 	// Sandbox
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
+	SandboxUnavailableError,
 	createNoopSandboxRunner,
+	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
+	createHttpAccess,
+	createUnrestrictedHttpAccess,
 } from "./plugins/index.js";
 export type {
 	PluginDefinition,
@@ -238,16 +253,9 @@ export type {
 	CollectionCommentSettings,
 	StoredComment,
 
-	// Standard plugin format
-	StandardPluginDefinition,
-	StandardHookHandler,
-	StandardHookEntry,
-	StandardRouteHandler,
-	StandardRouteEntry,
-
-	// Sandbox types
+	// Sandbox runtime types
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,
@@ -256,6 +264,15 @@ export type {
 	ValidatedPluginManifest,
 	SerializedRequest,
 } from "./plugins/index.js";
+
+// Capability normalization (legacy → canonical alias layer)
+export {
+	CAPABILITY_RENAMES,
+	isDeprecatedCapability,
+	normalizeCapability,
+	normalizeCapabilities,
+} from "./plugins/index.js";
+export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./plugins/index.js";
 
 // Plugin descriptor (for astro.config.mjs)
 export type { PluginDescriptor } from "./astro/integration/runtime.js";
@@ -400,7 +417,9 @@ export {
 	getTerm,
 	getEntryTerms,
 	getTermsForEntries,
+	getAllTermsForEntries,
 	getEntriesByTerm,
+	invalidateTermCache,
 } from "./taxonomies/index.js";
 export type {
 	TaxonomyDef,
@@ -474,11 +493,14 @@ export type {
 	SearchStats,
 } from "./search/index.js";
 
-// Auth types (for platform-specific auth providers)
+// Auth types (for platform-specific auth providers and pluggable login methods)
 export type {
 	AuthDescriptor,
+	AuthProviderDescriptor,
+	AuthProviderAdminExports,
 	AuthProviderModule,
 	AuthResult,
+	AuthRouteDescriptor,
 	ExternalAuthConfig,
 } from "./auth/types.js";
 

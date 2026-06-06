@@ -338,6 +338,49 @@ describe("FieldEditor", () => {
 		});
 	});
 
+	describe("config step (file field)", () => {
+		const fileField = makeField({
+			slug: "attachment",
+			label: "Attachment",
+			type: "file",
+			required: false,
+			unique: false,
+			searchable: false,
+		});
+
+		it("shows AllowedTypesEditor for file type", async () => {
+			const screen = await render(<FieldEditor {...defaultProps} field={fileField} />);
+			await expect.element(screen.getByText("Allowed types")).toBeInTheDocument();
+		});
+
+		it("shows AllowedTypesEditor for image type", async () => {
+			const imageField = makeField({
+				slug: "cover",
+				label: "Cover",
+				type: "image",
+				required: false,
+				unique: false,
+				searchable: false,
+			});
+			const screen = await render(<FieldEditor {...defaultProps} field={imageField} />);
+			await expect.element(screen.getByText("Allowed types")).toBeInTheDocument();
+		});
+
+		it("pre-populates allowedMimeTypes from existing field validation", async () => {
+			const fieldWithMimes = makeField({
+				slug: "document",
+				label: "Document",
+				type: "file",
+				required: false,
+				unique: false,
+				searchable: false,
+				validation: { allowedMimeTypes: ["application/pdf"] },
+			});
+			const screen = await render(<FieldEditor {...defaultProps} field={fieldWithMimes} />);
+			await expect.element(screen.getByText("application/pdf")).toBeInTheDocument();
+		});
+	});
+
 	describe("dialog closed", () => {
 		it("renders nothing visible when open is false", async () => {
 			const screen = await render(<FieldEditor {...defaultProps} open={false} />);

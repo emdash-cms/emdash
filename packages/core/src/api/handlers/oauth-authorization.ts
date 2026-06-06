@@ -8,7 +8,7 @@
  * utilities. Token infrastructure is shared with the device flow.
  */
 
-import { clampScopes, computeS256Challenge } from "@emdash-cms/auth";
+import { clampScopes, computeS256Challenge, secureCompare } from "@emdash-cms/auth";
 import type { RoleLevel } from "@emdash-cms/auth";
 import { generateCodeVerifier } from "arctic";
 import type { Kysely } from "kysely";
@@ -19,9 +19,12 @@ import {
 	TOKEN_PREFIXES,
 	VALID_SCOPES,
 } from "../../auth/api-tokens.js";
+import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
+import { validateRedirectUri } from "../oauth/redirect-uri.js";
 import type { ApiResult } from "../types.js";
 import { lookupOAuthClient, validateClientRedirectUri } from "./oauth-clients.js";
+import { lookupUserRoleAndStatus } from "./oauth-user-lookup.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -76,38 +79,7 @@ function expiresAt(seconds: number): string {
 	return new Date(Date.now() + seconds * 1000).toISOString();
 }
 
-/**
- * Validate a redirect URI per OAuth 2.1 security requirements.
- * Allows localhost (loopback) over HTTP, and any HTTPS URL.
- */
-export function validateRedirectUri(uri: string): string | null {
-	try {
-		const url = new URL(uri);
-
-		// Reject protocol-relative URLs
-		if (uri.startsWith("//")) {
-			return "Protocol-relative redirect URIs are not allowed";
-		}
-
-		// Allow localhost/loopback over HTTP (for desktop MCP clients)
-		if (url.protocol === "http:") {
-			const host = url.hostname;
-			if (host === "127.0.0.1" || host === "localhost" || host === "[::1]") {
-				return null; // OK
-			}
-			return "HTTP redirect URIs are only allowed for localhost";
-		}
-
-		// Allow HTTPS
-		if (url.protocol === "https:") {
-			return null; // OK
-		}
-
-		return `Unsupported redirect URI scheme: ${url.protocol}`;
-	} catch {
-		return "Invalid redirect URI";
-	}
-}
+export { validateRedirectUri };
 
 /**
  * Validate and normalize scopes. Returns validated scope list.
@@ -326,8 +298,9 @@ export async function handleAuthorizationCodeExchange(
 		}
 
 		// PKCE verification: SHA256(code_verifier) must match stored code_challenge
+		// Use constant-time comparison to prevent timing side-channels
 		const derivedChallenge = computeS256Challenge(params.code_verifier);
-		if (derivedChallenge !== row.code_challenge) {
+		if (!secureCompare(derivedChallenge, row.code_challenge)) {
 			return {
 				success: false,
 				error: { code: "invalid_grant", message: "PKCE verification failed" },
@@ -342,44 +315,80 @@ export async function handleAuthorizationCodeExchange(
 			};
 		}
 
-		// Issue tokens (same as device flow)
-		const scopes = JSON.parse(row.scopes) as string[];
+		// Revalidate user role before issuing tokens (same pattern as handleTokenRefresh).
+		// The user's role may have changed since the authorization code was issued.
+		const userInfo = await lookupUserRoleAndStatus(db, row.user_id);
+		if (!userInfo) {
+			return {
+				success: false,
+				error: { code: "invalid_grant", message: "User not found" },
+			};
+		}
 
+		if (userInfo.disabled) {
+			return {
+				success: false,
+				error: { code: "invalid_grant", message: "User account is disabled" },
+			};
+		}
+
+		// Re-clamp scopes against the user's current role
+		const storedScopes = JSON.parse(row.scopes) as string[];
+		let scopes = clampScopes(storedScopes, userInfo.role);
+
+		// Intersect with client's registered scopes (if restricted)
+		const client = await lookupOAuthClient(db, row.client_id);
+		if (client?.scopes?.length) {
+			scopes = scopes.filter((s: string) => client.scopes!.includes(s));
+		}
+
+		if (scopes.length === 0) {
+			return {
+				success: false,
+				error: {
+					code: "invalid_grant",
+					message: "User role no longer supports any of the requested scopes",
+				},
+			};
+		}
+
+		// Issue tokens (same as device flow)
 		const accessToken = generatePrefixedToken(TOKEN_PREFIXES.OAUTH_ACCESS);
 		const accessExpires = expiresAt(ACCESS_TOKEN_TTL_SECONDS);
 
 		const refreshToken = generatePrefixedToken(TOKEN_PREFIXES.OAUTH_REFRESH);
 		const refreshExpires = expiresAt(REFRESH_TOKEN_TTL_SECONDS);
 
-		// Store access token
-		await db
-			.insertInto("_emdash_oauth_tokens")
-			.values({
-				token_hash: accessToken.hash,
-				token_type: "access",
-				user_id: row.user_id,
-				scopes: JSON.stringify(scopes),
-				client_type: "mcp",
-				expires_at: accessExpires,
-				refresh_token_hash: refreshToken.hash,
-				client_id: row.client_id,
-			})
-			.execute();
+		// Atomically store both tokens in a transaction
+		await withTransaction(db, async (trx) => {
+			await trx
+				.insertInto("_emdash_oauth_tokens")
+				.values({
+					token_hash: accessToken.hash,
+					token_type: "access",
+					user_id: row.user_id,
+					scopes: JSON.stringify(scopes),
+					client_type: "mcp",
+					expires_at: accessExpires,
+					refresh_token_hash: refreshToken.hash,
+					client_id: row.client_id,
+				})
+				.execute();
 
-		// Store refresh token
-		await db
-			.insertInto("_emdash_oauth_tokens")
-			.values({
-				token_hash: refreshToken.hash,
-				token_type: "refresh",
-				user_id: row.user_id,
-				scopes: JSON.stringify(scopes),
-				client_type: "mcp",
-				expires_at: refreshExpires,
-				refresh_token_hash: null,
-				client_id: row.client_id,
-			})
-			.execute();
+			await trx
+				.insertInto("_emdash_oauth_tokens")
+				.values({
+					token_hash: refreshToken.hash,
+					token_type: "refresh",
+					user_id: row.user_id,
+					scopes: JSON.stringify(scopes),
+					client_type: "mcp",
+					expires_at: refreshExpires,
+					refresh_token_hash: null,
+					client_id: row.client_id,
+				})
+				.execute();
+		});
 
 		return {
 			success: true,

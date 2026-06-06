@@ -4,6 +4,7 @@
  * GET /_emdash/api/search?q=query&collections=posts,pages&limit=20
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
@@ -23,7 +24,7 @@ export const prerender = false;
  * - limit: Maximum results (optional, defaults to 20)
  */
 export const GET: APIRoute = async ({ url, locals }) => {
-	const { emdash } = locals;
+	const { emdash, user } = locals;
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash not configured", 500);
@@ -36,10 +37,22 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		? query.collections.split(",").map((c: string) => c.trim())
 		: undefined;
 
+	// Only users with content:read_drafts may search non-published statuses.
+	// Anonymous and subscriber requests are forced to "published".
+	const status =
+		query.status && query.status !== "published" && hasPermission(user, "content:read_drafts")
+			? query.status
+			: "published";
+
 	try {
+		// Verify FTS indexes are healthy on first use. At most once per worker
+		// lifetime; no-op after that. Moved off the cold-start hot path to
+		// keep anonymous public reads fast.
+		await emdash.ensureSearchHealthy?.();
+
 		const result = await searchWithDb(emdash.db, query.q, {
 			collections,
-			status: query.status,
+			status,
 			locale: query.locale,
 			limit: query.limit,
 		});

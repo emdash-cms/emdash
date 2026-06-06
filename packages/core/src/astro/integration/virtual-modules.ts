@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 
+import type { AuthProviderDescriptor } from "../../auth/types.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import { defaultSeed } from "../../seed/default.js";
 import type { PluginDescriptor } from "./runtime.js";
@@ -47,6 +48,9 @@ export const RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID = "\0" + VIRTUAL_SANDBOXED_PL
 export const VIRTUAL_AUTH_ID = "virtual:emdash/auth";
 export const RESOLVED_VIRTUAL_AUTH_ID = "\0" + VIRTUAL_AUTH_ID;
 
+export const VIRTUAL_AUTH_PROVIDERS_ID = "virtual:emdash/auth-providers";
+export const RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID = "\0" + VIRTUAL_AUTH_PROVIDERS_ID;
+
 export const VIRTUAL_MEDIA_PROVIDERS_ID = "virtual:emdash/media-providers";
 export const RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID = "\0" + VIRTUAL_MEDIA_PROVIDERS_ID;
 
@@ -55,6 +59,9 @@ export const RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID = "\0" + VIRTUAL_BLOCK_COMPONE
 
 export const VIRTUAL_SEED_ID = "virtual:emdash/seed";
 export const RESOLVED_VIRTUAL_SEED_ID = "\0" + VIRTUAL_SEED_ID;
+
+export const VIRTUAL_WAIT_UNTIL_ID = "virtual:emdash/wait-until";
+export const RESOLVED_VIRTUAL_WAIT_UNTIL_ID = "\0" + VIRTUAL_WAIT_UNTIL_ID;
 
 /**
  * Generates the config virtual module.
@@ -65,62 +72,42 @@ export function generateConfigModule(serializableConfig: Record<string, unknown>
 
 /**
  * Generates the dialect virtual module.
- * Statically imports the configured database dialect and exports the dialect type.
  *
- * For D1 adapters, also re-exports session helpers (isSessionEnabled, getD1Binding,
- * getDefaultConstraint, getBookmarkCookieName, createSessionDialect) used by
- * middleware for per-request read replica sessions.
- *
- * For non-D1 adapters, session exports are no-ops.
+ * Adapters that set `supportsRequestScope: true` on their descriptor are
+ * expected to export `createRequestScopedDb` from their runtime entrypoint;
+ * the generator re-exports it so middleware can ask for a per-request Kysely
+ * (used for D1 Sessions API, bookmark cookies, read-replica routing). Other
+ * adapters get a stub that returns null.
  */
-export function generateDialectModule(
-	dbEntrypoint?: string,
-	dbType?: string,
-	dbConfig?: unknown,
-): string {
-	if (!dbEntrypoint) {
+export function generateDialectModule(opts: {
+	entrypoint?: string;
+	type?: string;
+	supportsRequestScope: boolean;
+}): string {
+	const { entrypoint, supportsRequestScope } = opts;
+	if (!entrypoint) {
 		return [
 			`export const createDialect = undefined;`,
 			`export const dialectType = "sqlite";`,
-			`export const isSessionEnabled = () => false;`,
-			`export const getD1Binding = () => null;`,
-			`export const getDefaultConstraint = () => "first-unconstrained";`,
-			`export const getBookmarkCookieName = () => "";`,
-			`export const createSessionDialect = undefined;`,
+			`export const createRequestScopedDb = (_opts) => null;`,
 		].join("\n");
 	}
-	const type = dbType ?? "sqlite";
+	const type = opts.type ?? "sqlite";
 
-	// Check if the adapter is D1 (has session helpers)
-	const isD1 = dbEntrypoint.includes("cloudflare") && dbEntrypoint.includes("d1");
-
-	// Check if sessions are enabled in the config
-	const sessionMode =
-		isD1 && dbConfig && typeof dbConfig === "object" && "session" in dbConfig
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- runtime-checked above
-				(dbConfig as { session?: string }).session
-			: undefined;
-	const sessionEnabled = !!sessionMode && sessionMode !== "disabled";
-
-	if (isD1 && sessionEnabled) {
+	if (supportsRequestScope) {
 		return `
-import { createDialect as _createDialect } from "${dbEntrypoint}";
-export { isSessionEnabled, getD1Binding, getDefaultConstraint, getBookmarkCookieName, createSessionDialect } from "${dbEntrypoint}";
+import { createDialect as _createDialect } from "${entrypoint}";
+export { createRequestScopedDb } from "${entrypoint}";
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 `;
 	}
 
-	// Non-D1 or sessions disabled: export no-ops
 	return `
-import { createDialect as _createDialect } from "${dbEntrypoint}";
+import { createDialect as _createDialect } from "${entrypoint}";
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
-export const isSessionEnabled = () => false;
-export const getD1Binding = () => null;
-export const getDefaultConstraint = () => "first-unconstrained";
-export const getBookmarkCookieName = () => "";
-export const createSessionDialect = undefined;
+export const createRequestScopedDb = (_opts) => null;
 `;
 }
 
@@ -149,6 +136,43 @@ export function generateAuthModule(authEntrypoint?: string): string {
 	return `
 import { authenticate as _authenticate } from "${authEntrypoint}";
 export const authenticate = _authenticate;
+`;
+}
+
+/**
+ * Generates the auth providers module.
+ *
+ * Statically imports each auth provider's `adminEntry` module and exports
+ * a registry keyed by provider ID. The admin UI uses this to render
+ * provider-specific login buttons/forms and setup steps.
+ *
+ * Follows the same pattern as `generateAdminRegistryModule()` for plugins.
+ */
+export function generateAuthProvidersModule(descriptors: AuthProviderDescriptor[]): string {
+	const withAdmin = descriptors.filter((d) => d.adminEntry);
+
+	if (withAdmin.length === 0) {
+		return `export const authProviders = {};`;
+	}
+
+	const imports: string[] = [];
+	const entries: string[] = [];
+
+	withAdmin.forEach((descriptor, index) => {
+		const varName = `authProvider${index}`;
+		imports.push(`import * as ${varName} from ${JSON.stringify(descriptor.adminEntry)};`);
+		entries.push(
+			`  ${JSON.stringify(descriptor.id)}: { ...${varName}, id: ${JSON.stringify(descriptor.id)}, label: ${JSON.stringify(descriptor.label)} },`,
+		);
+	});
+
+	return `
+// Auto-generated auth provider registry
+${imports.join("\n")}
+
+export const authProviders = {
+${entries.join("\n")}
+};
 `;
 }
 
@@ -259,16 +283,33 @@ ${entries.join("\n")}
 /**
  * Generates the sandbox runner module.
  * Imports the configured sandbox runner factory or provides a noop default.
+ *
+ * When sandbox is explicitly false (debugging escape hatch), we still mark
+ * sandboxEnabled = true so sandboxed plugin entries are loaded, but we use
+ * the noop runner which falls through to in-process loading via adaptSandboxEntry.
  */
-export function generateSandboxRunnerModule(sandboxRunner?: string): string {
+export function generateSandboxRunnerModule(sandboxRunner?: string, sandbox?: boolean): string {
 	if (!sandboxRunner) {
-		// No sandbox runner configured - use noop
+		// No sandbox runner configured - sandboxed plugins disabled
 		return `
 // No sandbox runner configured - sandboxed plugins disabled
 import { createNoopSandboxRunner } from "emdash";
 
 export const createSandboxRunner = createNoopSandboxRunner;
 export const sandboxEnabled = false;
+`;
+	}
+
+	if (sandbox === false) {
+		// sandbox: false escape hatch - plugins are loaded but run in-process
+		// (no isolation, for debugging)
+		return `
+// Sandbox explicitly disabled (sandbox: false) - plugins run in-process
+import { createNoopSandboxRunner } from "emdash";
+
+export const createSandboxRunner = createNoopSandboxRunner;
+export const sandboxEnabled = true;
+export const sandboxBypassed = true;
 `;
 	}
 
@@ -354,13 +395,43 @@ export function generateBlockComponentsModule(descriptors: PluginDescriptor[]): 
 }
 
 /**
+ * Generates the wait-until virtual module.
+ *
+ * Under @astrojs/cloudflare, re-exports `waitUntil` from `cloudflare:workers`
+ * so `after(fn)` in core can extend the worker's lifetime past the response
+ * for deferred bookkeeping. For any other adapter, exports `undefined` —
+ * Node's long-lived event loop keeps deferred promises running without a
+ * lifetime extender.
+ *
+ * Keeping the adapter check here — rather than in core — means core itself
+ * has no Cloudflare-specific imports or code paths.
+ */
+export function generateWaitUntilModule(adapterName: string | undefined): string {
+	if (adapterName === "@astrojs/cloudflare") {
+		return `export { waitUntil } from "cloudflare:workers";`;
+	}
+	return `export const waitUntil = undefined;`;
+}
+
+/**
  * Generates the seed virtual module.
  * Reads the user's seed file at build time (in Node context) and embeds it,
  * so the runtime doesn't need filesystem access (required for workerd).
  *
+ * Search order:
+ *   1. `.emdash/seed.json`
+ *   2. `package.json` → `emdash.seed` reference
+ *   3. `seed/seed.json` (conventional template path)
+ *
  * Exports `userSeed` (user's seed or null) and `seed` (user's seed or default).
+ *
+ * When no user seed is found, falls back to the built-in default seed and
+ * (if `warnOnFallback` is true) logs a warning so misconfiguration is visible
+ * during `astro dev`. Build/preview/sync stay silent so sites that
+ * intentionally use the default seed (e.g. the blank template) don't
+ * generate noisy logs.
  */
-export function generateSeedModule(projectRoot: string): string {
+export function generateSeedModule(projectRoot: string, warnOnFallback = false): string {
 	let userSeedJson: string | null = null;
 
 	// Try .emdash/seed.json
@@ -391,11 +462,30 @@ export function generateSeedModule(projectRoot: string): string {
 		}
 	}
 
+	// Try conventional seed/seed.json fallback
+	if (!userSeedJson) {
+		try {
+			const seedPath = resolve(projectRoot, "seed", "seed.json");
+			const content = readFileSync(seedPath, "utf-8");
+			JSON.parse(content); // validate
+			userSeedJson = content;
+		} catch {
+			// Not found
+		}
+	}
+
 	if (userSeedJson) {
 		return [`export const userSeed = ${userSeedJson};`, `export const seed = userSeed;`].join("\n");
 	}
 
-	// No user seed — inline the default
+	// No user seed — inline the default. Caller (the Vite plugin) gates this
+	// to dev-only so production builds stay quiet for sites that intentionally
+	// rely on the default seed.
+	if (warnOnFallback) {
+		console.warn(
+			"[emdash] No user seed found at .emdash/seed.json, package.json#emdash.seed, or seed/seed.json. Falling back to the built-in default seed; the setup wizard will not offer demo content for this site.",
+		);
+	}
 	return [
 		`export const userSeed = null;`,
 		`export const seed = ${JSON.stringify(defaultSeed)};`,

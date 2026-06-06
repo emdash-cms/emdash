@@ -3,8 +3,10 @@ import {
 	getEmDashEntry,
 	getEmDashCollection,
 	getEntryTerms,
+	getTermsForEntries,
 	getSeoMeta,
 	decodeSlug,
+	getSiteSettings,
 } from "emdash";
 import {
 	Image,
@@ -16,6 +18,7 @@ import {
 import Base from "../../layouts/Base.astro";
 import PostCard from "../../components/PostCard.astro";
 import { getReadingTime } from "../../utils/reading-time";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
 
 const slug = decodeSlug(Astro.params.slug);
 
@@ -53,18 +56,15 @@ function getImageUrl(img: unknown): string | undefined {
 	return undefined;
 }
 const featuredImageUrl = getImageUrl(post.data.featured_image);
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
 
 // Generate SEO meta from content
 const seo = getSeoMeta(post, {
-	siteTitle: "My Blog",
+	siteTitle,
 	siteUrl: Astro.url.origin,
 	path: `/posts/${slug}`,
 	defaultOgImage: featuredImageUrl,
 });
-
-// Get tags for this post
-// Note: post.id is the slug, post.data.id is the database ULID
-const tags = await getEntryTerms("posts", post.data.id, "tag");
 
 // Bylines are already hydrated by getEmDashEntry
 const bylines = post.data.bylines ?? [];
@@ -72,22 +72,32 @@ const bylines = post.data.bylines ?? [];
 // Get reading time
 const readingTime = getReadingTime(post.data.content);
 
-// Get other posts for "More posts" section, with their tags
-// Fetch a few extra in case the current post is among them
-const { entries: recentPosts } = await getEmDashCollection("posts", {
-	orderBy: { published_at: "desc" },
-	limit: 4,
-});
+// Fetch this post's tags and the related-posts list in parallel — they're
+// independent queries, so running them concurrently halves the round-trip
+// cost on remote databases.
+// Note: post.id is the slug, post.data.id is the database ULID.
+const [tags, { entries: recentPosts }] = await Promise.all([
+	getEntryTerms("posts", post.data.id, "tag"),
+	// Fetch a few extra in case the current post is among them
+	getEmDashCollection("posts", {
+		orderBy: { published_at: "desc" },
+		limit: 4,
+	}),
+]);
 const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
 
-// Fetch tags for related posts (bylines are already hydrated by getEmDashCollection)
-const otherPostsWithTags = await Promise.all(
-	otherPosts.map(async (p) => {
-		const postTags = await getEntryTerms("posts", p.data.id, "tag");
-		const postBylines = p.data.bylines ?? [];
-		return { post: p, tags: postTags, bylines: postBylines };
-	})
+// Single batched query for related-posts tags, rather than one
+// getEntryTerms() call per related post.
+const otherTagsByEntry = await getTermsForEntries(
+	"posts",
+	otherPosts.map((p) => p.data.id),
+	"tag",
 );
+const otherPostsWithTags = otherPosts.map((p) => ({
+	post: p,
+	tags: otherTagsByEntry.get(p.data.id) ?? [],
+	bylines: p.data.bylines ?? [],
+}));
 
 const publishDate =
 	post.data.publishedAt?.toLocaleDateString("en-US", {
@@ -350,6 +360,7 @@ const publishDate =
 		margin: var(--spacing-16) var(--spacing-6);
 		border-radius: var(--radius-lg);
 		overflow: hidden;
+		background: var(--color-surface);
 	}
 
 	.article-hero img {
@@ -759,8 +770,8 @@ const publishDate =
 
 	.sidebar-widgets :global(.widget-tags__link) {
 		display: inline-block;
-		padding: var(--spacing-1) var(--spacing-3);
-		font-size: var(--font-size-sm);
+		padding: var(--tag-padding-y) var(--spacing-2);
+		font-size: var(--font-size-xs);
 		color: var(--color-text-secondary);
 		background: var(--color-surface);
 		border-radius: var(--radius);
@@ -912,7 +923,6 @@ const publishDate =
 	.more-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		grid-template-rows: repeat(5, auto);
 		gap: var(--spacing-8);
 	}
 

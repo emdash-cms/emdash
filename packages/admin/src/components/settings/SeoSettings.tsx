@@ -4,20 +4,23 @@
  * Title separator, search engine verification codes, and robots.txt.
  */
 
-import { Button, Input, InputArea } from "@cloudflare/kumo";
+import { Button, Input, InputArea, Label } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	FloppyDisk,
 	CheckCircle,
 	WarningCircle,
 	MagnifyingGlass,
+	Upload,
+	X,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import { fetchSettings, updateSettings, type SiteSettings } from "../../lib/api";
+import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
+import { EditorHeader } from "../EditorHeader";
+import { MediaPickerModal } from "../MediaPickerModal";
+import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
 export function SeoSettings() {
 	const { t } = useLingui();
@@ -34,6 +37,7 @@ export function SeoSettings() {
 		type: "success" | "error";
 		message: string;
 	} | null>(null);
+	const [ogImagePickerOpen, setOgImagePickerOpen] = React.useState(false);
 
 	React.useEffect(() => {
 		if (settings) setFormData(settings);
@@ -75,15 +79,29 @@ export function SeoSettings() {
 		}));
 	};
 
+	const handleDefaultOgImageSelect = (media: MediaItem) => {
+		setFormData((prev) => ({
+			...prev,
+			seo: {
+				...prev.seo,
+				defaultOgImage: { mediaId: media.id, alt: media.alt || "", url: media.url },
+			},
+		}));
+		setOgImagePickerOpen(false);
+	};
+
+	const handleDefaultOgImageRemove = () => {
+		setFormData((prev) => ({
+			...prev,
+			seo: { ...prev.seo, defaultOgImage: undefined },
+		}));
+	};
+
 	if (isLoading) {
 		return (
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
-					<Link to="/settings">
-						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowLeft className="h-4 w-4" />
-						</Button>
-					</Link>
+					<BackToSettingsLink />
 					<h1 className="text-2xl font-bold">{t`SEO Settings`}</h1>
 				</div>
 				<div className="rounded-lg border bg-kumo-base p-6">
@@ -95,15 +113,22 @@ export function SeoSettings() {
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center gap-3">
-				<Link to="/settings">
-					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-						<ArrowLeft className="h-4 w-4" />
+			{/* Sticky header — see GeneralSettings for the same pattern. */}
+			<EditorHeader
+				leading={<BackToSettingsLink />}
+				actions={
+					<Button
+						type="submit"
+						form="seo-settings-form"
+						disabled={saveMutation.isPending}
+						icon={<FloppyDisk />}
+					>
+						{saveMutation.isPending ? t`Saving...` : t`Save SEO Settings`}
 					</Button>
-				</Link>
-				<h1 className="text-2xl font-bold">{t`SEO Settings`}</h1>
-			</div>
+				}
+			>
+				<h1 className="text-2xl font-bold truncate">{t`SEO Settings`}</h1>
+			</EditorHeader>
 
 			{/* Status banner */}
 			{saveStatus && (
@@ -123,7 +148,7 @@ export function SeoSettings() {
 				</div>
 			)}
 
-			<form onSubmit={handleSubmit} className="space-y-6">
+			<form id="seo-settings-form" onSubmit={handleSubmit} className="space-y-6">
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<div className="flex items-center gap-2 mb-4">
 						<MagnifyingGlass className="h-5 w-5 text-kumo-subtle" />
@@ -136,6 +161,68 @@ export function SeoSettings() {
 							onChange={(e) => handleSeoChange("titleSeparator", e.target.value)}
 							description={t`Character between page title and site name (e.g., "My Post | My Site")`}
 						/>
+
+						{/* Default OG Image Picker --
+						    "configured" is determined by presence of `mediaId`, not `url`.
+						    When the referenced media row is deleted, the resolver returns the
+						    bare ref without a URL; we still need to show Remove so the user can
+						    clear the dangling reference. */}
+						<div>
+							<Label>{t`Default Social Image`}</Label>
+							<p className="mt-1 text-sm text-kumo-subtle">
+								{t`Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630.`}
+							</p>
+							{formData.seo?.defaultOgImage?.mediaId ? (
+								<div className="mt-2 space-y-2">
+									{formData.seo.defaultOgImage.url ? (
+										<img
+											src={formData.seo.defaultOgImage.url}
+											alt={formData.seo.defaultOgImage.alt || t`Default social image`}
+											className="h-32 rounded border bg-kumo-tint object-contain p-2"
+										/>
+									) : (
+										<div
+											className="flex min-h-32 items-center gap-2 rounded border border-dashed bg-kumo-tint px-3 py-2 text-sm text-kumo-subtle"
+											role="status"
+										>
+											<WarningCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+											<span>{t`The referenced image is no longer available. Pick a new one or remove the reference.`}</span>
+										</div>
+									)}
+									<div className="flex gap-2">
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											icon={<Upload />}
+											onClick={() => setOgImagePickerOpen(true)}
+										>
+											{t`Change Image`}
+										</Button>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											icon={<X />}
+											onClick={handleDefaultOgImageRemove}
+										>
+											{t`Remove`}
+										</Button>
+									</div>
+								</div>
+							) : (
+								<Button
+									type="button"
+									variant="outline"
+									icon={<Upload />}
+									onClick={() => setOgImagePickerOpen(true)}
+									className="mt-2"
+								>
+									{t`Select Image`}
+								</Button>
+							)}
+						</div>
+
 						<Input
 							label={t`Google Verification`}
 							value={formData.seo?.googleVerification || ""}
@@ -165,6 +252,21 @@ export function SeoSettings() {
 					</Button>
 				</div>
 			</form>
+
+			{/* Media Picker Modal --
+			    localOnly: storage shape is `{ mediaId }`, so URL/provider selections would
+			    yield references the server cannot resolve. See MediaPickerModalProps.localOnly.
+			    mimeTypeFilters: social-card scrapers expect rasterised content; SVG also gets
+			    served as `Content-Disposition: attachment` by the media file route, making it
+			    unusable as an OG image. */}
+			<MediaPickerModal
+				open={ogImagePickerOpen}
+				onOpenChange={setOgImagePickerOpen}
+				onSelect={handleDefaultOgImageSelect}
+				mimeTypeFilters={["image/jpeg", "image/png", "image/webp", "image/gif"]}
+				localOnly
+				title={t`Select Default Social Image`}
+			/>
 		</div>
 	);
 }

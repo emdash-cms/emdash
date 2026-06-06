@@ -81,8 +81,13 @@ export class FTSManager {
 		// id and locale are UNINDEXED (used for joining/filtering, not searched)
 		const columns = ["id UNINDEXED", "locale UNINDEXED", ...searchableFields].join(", ");
 
-		// Create the FTS5 virtual table
-		// Using content= to make it a contentless FTS table (we manage sync ourselves)
+		// Create the FTS5 virtual table.
+		// `content='<table>'` makes this an *external content* FTS5 table:
+		// the inverted index lives in the FTS shadow tables, but the actual
+		// row data lives in the backing content table. The triggers in
+		// `createTriggers` keep the index in sync; they MUST use the
+		// external-content-safe `'delete'` command (see notes there) to
+		// avoid `SQLITE_CORRUPT_VTAB` on UPDATE/DELETE.
 		// tokenize='porter unicode61' enables stemming (run matches running, ran, etc.)
 		await sql
 			.raw(`
@@ -106,13 +111,50 @@ export class FTSManager {
 	 * `deleted_at IS NULL`. This keeps soft-deleted content out of the
 	 * search index and ensures the FTS row count matches the non-deleted
 	 * content count (which `verifyAndRepairIndex` relies on).
+	 *
+	 * IMPORTANT: The FTS5 virtual table is created with `content='ec_<slug>'`
+	 * which makes it an *external content* FTS5 table. For external-content
+	 * tables, removing a row must use the documented `'delete'` command and
+	 * supply the OLD column values explicitly, e.g.:
+	 *
+	 *     INSERT INTO fts(fts, rowid, col1, col2)
+	 *     VALUES('delete', OLD.rowid, OLD.col1, OLD.col2);
+	 *
+	 * Using `DELETE FROM fts WHERE rowid = OLD.rowid` is the correct form
+	 * for *contentless* tables but is unsafe for external-content tables:
+	 * FTS5 then reads column values from the backing content table, which
+	 * in an AFTER UPDATE trigger already holds the NEW values. The wrong
+	 * tokens get removed and the inverted index drifts out of sync until
+	 * SQLite raises `SQLITE_CORRUPT_VTAB` on the next mutation. See
+	 * https://www.sqlite.org/fts5.html#external_content_tables.
+	 *
+	 * The UPDATE and DELETE triggers gate the `'delete'` on
+	 * `OLD.deleted_at IS NULL` because the INSERT trigger never indexed
+	 * rows that were already soft-deleted. Issuing `'delete'` for a rowid
+	 * that was never inserted into the FTS index is itself a corruption
+	 * trigger -- FTS5's `'delete'` is not a no-op on missing rowids and
+	 * raises `SQLITE_CORRUPT_VTAB`. Affected paths include restore-from-
+	 * trash (UPDATE where `OLD.deleted_at IS NOT NULL`), permanent-delete
+	 * from trash (DELETE on a soft-deleted row), and any edit on a row
+	 * that's currently in the trash.
 	 */
 	private async createTriggers(collectionSlug: string, searchableFields: string[]): Promise<void> {
 		this.validateInputs(collectionSlug, searchableFields);
+		if (searchableFields.length === 0) {
+			throw new Error(
+				`Cannot create FTS triggers for collection "${collectionSlug}": no searchable fields. ` +
+					`Mark at least one field as searchable before enabling search.`,
+			);
+		}
 		const ftsTable = this.getFtsTableName(collectionSlug);
 		const contentTable = this.getContentTableName(collectionSlug);
 		const fieldList = searchableFields.join(", ");
 		const newFieldList = searchableFields.map((f) => `NEW.${f}`).join(", ");
+		// `'delete'` takes the FTS5 virtual table name as the first column,
+		// then the rowid being removed, then the OLD value of every column
+		// declared on the FTS5 table (in declaration order: id, locale,
+		// then each searchable field).
+		const oldFieldList = searchableFields.map((f) => `OLD.${f}`).join(", ");
 
 		// Insert trigger - only index non-deleted content
 		await sql
@@ -127,15 +169,24 @@ export class FTSManager {
 		`)
 			.execute(this.db);
 
-		// Update trigger - always remove the old FTS row, only re-insert
-		// if the row is not soft-deleted. This handles both content edits
-		// and soft-delete operations (UPDATE SET deleted_at = ...).
+		// Update trigger - remove the old row from the FTS index using the
+		// external-content-safe `'delete'` command (which uses OLD column
+		// values, captured before the row was modified), then re-insert
+		// the new values when the row is still visible.
+		//
+		// `'delete'` is gated on `OLD.deleted_at IS NULL` because rows that
+		// were soft-deleted are not in the FTS index (the INSERT trigger
+		// skips them). Issuing `'delete'` for a missing rowid raises
+		// `SQLITE_CORRUPT_VTAB`, which would break restore-from-trash and
+		// edits to soft-deleted rows.
 		await sql
 			.raw(`
 			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_update" 
 			AFTER UPDATE ON "${contentTable}" 
 			BEGIN
-				DELETE FROM "${ftsTable}" WHERE rowid = OLD.rowid;
+				INSERT INTO "${ftsTable}"("${ftsTable}", rowid, id, locale, ${fieldList})
+				SELECT 'delete', OLD.rowid, OLD.id, OLD.locale, ${oldFieldList}
+				WHERE OLD.deleted_at IS NULL;
 				INSERT INTO "${ftsTable}"(rowid, id, locale, ${fieldList})
 				SELECT NEW.rowid, NEW.id, NEW.locale, ${newFieldList}
 				WHERE NEW.deleted_at IS NULL;
@@ -143,13 +194,18 @@ export class FTSManager {
 		`)
 			.execute(this.db);
 
-		// Delete trigger
+		// Delete trigger - same external-content-safe `'delete'` form,
+		// gated on `OLD.deleted_at IS NULL` for the same reason as the
+		// UPDATE trigger: permanent-delete from trash hits a row whose
+		// `deleted_at` is already set and which was never indexed.
 		await sql
 			.raw(`
 			CREATE TRIGGER IF NOT EXISTS "${ftsTable}_delete" 
 			AFTER DELETE ON "${contentTable}" 
 			BEGIN
-				DELETE FROM "${ftsTable}" WHERE rowid = OLD.rowid;
+				INSERT INTO "${ftsTable}"("${ftsTable}", rowid, id, locale, ${fieldList})
+				SELECT 'delete', OLD.rowid, OLD.id, OLD.locale, ${oldFieldList}
+				WHERE OLD.deleted_at IS NULL;
 			END
 		`)
 			.execute(this.db);
@@ -342,7 +398,8 @@ export class FTSManager {
 	async disableSearch(collectionSlug: string): Promise<void> {
 		if (!isSqlite(this.db)) return;
 		await this.dropFtsTable(collectionSlug);
-		await this.setSearchConfig(collectionSlug, { enabled: false });
+		const existing = await this.getSearchConfig(collectionSlug);
+		await this.setSearchConfig(collectionSlug, { enabled: false, weights: existing?.weights });
 	}
 
 	/**
@@ -354,6 +411,7 @@ export class FTSManager {
 		if (!isSqlite(this.db)) return null;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
+		const ftsDocsizeTable = `${ftsTable}_docsize`;
 
 		// Check if table exists
 		if (!(await this.ftsTableExists(collectionSlug))) {
@@ -362,7 +420,7 @@ export class FTSManager {
 
 		// Count indexed rows
 		const result = await sql<{ count: number }>`
-			SELECT COUNT(*) as count FROM "${sql.raw(ftsTable)}"
+			SELECT COUNT(*) as count FROM "${sql.raw(ftsDocsizeTable)}"
 		`.execute(this.db);
 
 		return {
@@ -371,9 +429,15 @@ export class FTSManager {
 	}
 
 	/**
-	 * Verify FTS index integrity and rebuild if corrupted.
+	 * Verify FTS index integrity and rebuild if drift is detected.
 	 *
-	 * Checks for row count mismatch between content table and FTS table.
+	 * Cheap belt-and-braces check, run lazily on the first search request
+	 * per isolate. The expensive cases (corrupted indexes from pre-fix
+	 * EmDash versions, broken legacy triggers) are handled at boot time by
+	 * migration `039_fix_fts5_triggers`, not here. This routine sticks to:
+	 *
+	 *   1. FTS table missing while config says search is enabled -> rebuild.
+	 *   2. Row count mismatch between content table and FTS docsize -> rebuild.
 	 *
 	 * Returns true if the index was rebuilt, false if it was healthy.
 	 */
@@ -381,20 +445,32 @@ export class FTSManager {
 		if (!isSqlite(this.db)) return false;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
+		const ftsDocsizeTable = `${ftsTable}_docsize`;
 		const contentTable = this.getContentTableName(collectionSlug);
+		const fields = await this.getSearchableFields(collectionSlug);
+		const config = await this.getSearchConfig(collectionSlug);
 
 		if (!(await this.ftsTableExists(collectionSlug))) {
-			return false;
+			if (!config?.enabled || fields.length === 0) {
+				return false;
+			}
+
+			console.warn(`FTS index for "${collectionSlug}" is missing. Rebuilding.`);
+			await this.rebuildIndex(collectionSlug, fields, config.weights);
+			return true;
 		}
 
-		// Check 1: Row count mismatch
+		// Row count parity check. For external-content FTS tables, COUNT(*)
+		// on the virtual table is answered from the backing content table
+		// (including soft-deleted rows), so we use the docsize shadow table
+		// which tracks rows actually present in the full-text index.
 		const contentCount = await sql<{ count: number }>`
 			SELECT COUNT(*) as count FROM ${sql.ref(contentTable)}
 			WHERE deleted_at IS NULL
 		`.execute(this.db);
 
 		const ftsCount = await sql<{ count: number }>`
-			SELECT COUNT(*) as count FROM "${sql.raw(ftsTable)}"
+			SELECT COUNT(*) as count FROM "${sql.raw(ftsDocsizeTable)}"
 		`.execute(this.db);
 
 		const contentRows = contentCount.rows[0]?.count ?? 0;
@@ -404,8 +480,6 @@ export class FTSManager {
 			console.warn(
 				`FTS index for "${collectionSlug}" has ${ftsRows} rows but content table has ${contentRows}. Rebuilding.`,
 			);
-			const fields = await this.getSearchableFields(collectionSlug);
-			const config = await this.getSearchConfig(collectionSlug);
 			if (fields.length > 0) {
 				await this.rebuildIndex(collectionSlug, fields, config?.weights);
 			}

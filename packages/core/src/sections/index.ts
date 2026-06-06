@@ -137,17 +137,15 @@ export async function getSectionsWithDb(
 	// Order by title ASC, id ASC for stable cursor pagination
 	query = query.orderBy("title", "asc").orderBy("id", "asc");
 
-	// Cursor-based pagination
+	// Cursor-based pagination — throws on invalid cursor.
 	if (options.cursor) {
 		const decoded = decodeCursor(options.cursor);
-		if (decoded) {
-			query = query.where((eb) =>
-				eb.or([
-					eb("title", ">", decoded.orderValue),
-					eb.and([eb("title", "=", decoded.orderValue), eb("id", ">", decoded.id)]),
-				]),
-			);
-		}
+		query = query.where((eb) =>
+			eb.or([
+				eb("title", ">", decoded.orderValue),
+				eb.and([eb("title", "=", decoded.orderValue), eb("id", ">", decoded.id)]),
+			]),
+		);
 	}
 
 	query = query.limit(limit + 1);

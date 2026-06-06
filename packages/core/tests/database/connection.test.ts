@@ -3,7 +3,11 @@ import { unlinkSync } from "node:fs";
 import type { Kysely } from "kysely";
 import { describe, it, expect, afterEach } from "vitest";
 
-import { createDatabase, EmDashDatabaseError } from "../../src/database/connection.js";
+import {
+	createDatabase,
+	EmDashDatabaseError,
+	formatNativeModuleVersionError,
+} from "../../src/database/connection.js";
 import type { Database } from "../../src/database/types.js";
 
 describe("createDatabase", () => {
@@ -135,6 +139,23 @@ describe("createDatabase", () => {
 				expect(error).toBeInstanceOf(EmDashDatabaseError);
 				expect(error).toHaveProperty("cause");
 			}
+		});
+	});
+
+	describe("formatNativeModuleVersionError", () => {
+		it("returns an actionable message for NODE_MODULE_VERSION mismatch", () => {
+			const err = new Error(
+				"The module '/path/better_sqlite3.node' was compiled against a different Node.js version using NODE_MODULE_VERSION 115. This version of Node.js requires NODE_MODULE_VERSION 127.",
+			);
+			const message = formatNativeModuleVersionError(err);
+			expect(message).not.toBeNull();
+			expect(message).toContain("better-sqlite3");
+			expect(message).toMatch(/rebuild/i);
+		});
+
+		it("returns null for unrelated errors", () => {
+			expect(formatNativeModuleVersionError(new Error("disk full"))).toBeNull();
+			expect(formatNativeModuleVersionError("some string")).toBeNull();
 		});
 	});
 

@@ -113,11 +113,13 @@ export {
 	handleMenuItemUpdate,
 	handleMenuItemDelete,
 	handleMenuItemReorder,
+	handleMenuSetItems,
 	type MenuListItem,
 	type MenuWithItems,
 	type CreateMenuItemInput,
 	type UpdateMenuItemInput,
 	type ReorderItem,
+	type MenuSetItemsInput,
 } from "./menus.js";
 
 // Section handlers
@@ -166,3 +168,18 @@ export {
 	type MarketplaceUpdateCheck,
 	type MarketplaceUninstallResult,
 } from "./marketplace.js";
+
+// Registry handlers (experimental)
+export {
+	assertEnvCompatible,
+	assertSafeArtifactUrl,
+	handleRegistryInstall,
+	handleRegistryUninstall,
+	handleRegistryUpdate,
+	handleRegistryUpdateCheck,
+	type RegistryInstallInput,
+	type RegistryInstallResult,
+	type RegistryUninstallResult,
+	type RegistryUpdateCheck,
+	type RegistryUpdateResult,
+} from "./registry.js";

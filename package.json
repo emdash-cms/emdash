@@ -10,7 +10,7 @@
 		"typecheck:templates": "pnpm run --workspace-concurrency=1 --filter {./templates/*} typecheck",
 		"check": "pnpm run typecheck && pnpm run --filter {./packages/*} check",
 		"test": "pnpm run --filter {./packages/*} test",
-		"test:unit": "pnpm run --filter emdash --filter @emdash-cms/auth --filter @emdash-cms/blocks --filter @emdash-cms/gutenberg-to-portable-text --filter @emdash-cms/marketplace test",
+		"test:unit": "pnpm run --filter emdash --filter @emdash-cms/auth --filter @emdash-cms/blocks --filter @emdash-cms/gutenberg-to-portable-text --filter @emdash-cms/marketplace --filter @emdash-cms/plugin-cli --filter @emdash-cms/plugin-forms --filter @emdash-cms/plugin-types --filter @emdash-cms/registry-client --filter @emdash-cms/registry-lexicons test",
 		"test:browser": "pnpm run --filter @emdash-cms/admin test",
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
@@ -19,44 +19,41 @@
 		"format": "oxfmt --ignore-path .gitignore && prettier --write .",
 		"format:check": "oxfmt --ignore-path .gitignore --check && prettier --check .",
 		"format:astro": "prettier --write .",
-		"lint": "oxlint --type-aware",
+		"lint": "oxlint --type-aware --deny-warnings",
 		"lint:quick": "oxlint -f json",
 		"lint:json": "oxlint --type-aware -f json",
 		"lint:fix": "oxlint --type-aware --fix",
 		"knip": "knip --no-exit-code --exclude unlisted,unresolved,exports,types,duplicates",
 		"new": "create-emdash",
 		"screenshots": "node scripts/screenshot-all-templates.mjs",
+		"query-counts": "node scripts/query-counts.mjs",
 		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
-		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile",
-		"changeset:version": "pnpm changeset version && pnpm install --no-frozen-lockfile"
+		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile"
 	},
 	"keywords": [],
 	"author": "Matt Kane",
 	"license": "MIT",
 	"devDependencies": {
-		"@axe-core/playwright": "^4.11.1",
-		"@changesets/changelog-github": "^0.5.2",
-		"@changesets/cli": "^2.29.8",
-		"@e18e/eslint-plugin": "^0.2.0",
+		"@axe-core/playwright": "^4.11.3",
+		"@changesets/changelog-github": "^0.7.0",
+		"@changesets/cli": "^2.31.0",
+		"@e18e/eslint-plugin": "^0.5.0",
 		"@lunariajs/core": "https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc",
-		"@playwright/test": "^1.58.0",
+		"@playwright/test": "^1.60.0",
 		"@types/node": "catalog:",
-		"@typescript/native-preview": "^7.0.0-dev",
+		"@typescript/native-preview": "7.0.0-dev.20260421.2",
 		"emdash": "workspace:*",
 		"knip": "^5.84.1",
-		"oxfmt": "^0.34.0",
-		"oxlint": "^1.49.0",
-		"oxlint-tsgolint": "^0.15.0",
-		"prettier": "^3.8.1",
+		"oxfmt": "^0.52.0",
+		"oxlint": "^1.67.0",
+		"oxlint-tsgolint": "^0.23.0",
+		"pkg-pr-new": "^0.0.75",
+		"prettier": "^3.8.3",
 		"prettier-plugin-astro": "^0.14.1",
 		"typescript": "6.0.0-beta"
 	},
-	"packageManager": "pnpm@10.28.0",
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"better-sqlite3",
-			"esbuild",
-			"workerd"
-		]
+	"packageManager": "pnpm@11.1.3+sha512.c85357fe17ca12dd23dd7071822666dfd7e3cb76fe214e3370b5ea2fb34f2a231185509b63e717f3cd0acb38dd3f8d82bcd5e8172400ae678b70ea4fbed0896d",
+	"engines": {
+		"node": ">=22"
 	}
 }

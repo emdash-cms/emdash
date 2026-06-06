@@ -6,11 +6,11 @@ description: Define content types with collections and fields—supported field 
 import { Aside, Card, CardGrid, Tabs, TabItem } from "@astrojs/starlight/components";
 import contentTypesImg from "../../../assets/screenshots/admin-content-types.png";
 
-Collections are the foundation of EmDash's content model. Each collection represents a content type (posts, pages, products) and contains field definitions that determine the shape of your data.
+A collection is a content type (posts, pages, products). Its field definitions set the shape of each entry's data.
 
-## Creating Collections
+## Creating collections
 
-Create collections through the admin panel under **Content Types**. Each collection has:
+Create collections through the admin panel under **Content Types**. Each collection has the following properties:
 
 <img src={contentTypesImg.src} alt="EmDash content types showing Pages, Posts, and custom collections with their features" />
 
@@ -28,7 +28,7 @@ Create collections through the admin panel under **Content Types**. Each collect
 	`options`, `audit_logs`.
 </Aside>
 
-## Collection Features
+## Collection features
 
 When creating a collection, enable the features you need:
 
@@ -39,8 +39,9 @@ When creating a collection, enable the features you need:
 | `preview`    | Generate signed preview URLs for draft content |
 | `scheduling` | Schedule content to publish at a future date   |
 
+The following collection enables all four features:
+
 ```ts
-// Example collection with all features enabled
 {
   slug: "posts",
   label: "Blog Posts",
@@ -49,11 +50,11 @@ When creating a collection, enable the features you need:
 }
 ```
 
-## Field Types
+## Field types
 
-EmDash supports 15 field types that map to SQLite column types:
+EmDash supports 16 field types that map to SQLite column types.
 
-### Text Fields
+### Text fields
 
 <Tabs>
   <TabItem label="string">
@@ -79,7 +80,7 @@ EmDash supports 15 field types that map to SQLite column types:
   </TabItem>
 </Tabs>
 
-### Rich Content
+### Rich content
 
 <Tabs>
   <TabItem label="portableText">
@@ -119,7 +120,7 @@ EmDash supports 15 field types that map to SQLite column types:
   </TabItem>
 </Tabs>
 
-### Booleans & Dates
+### Booleans and dates
 
 <Tabs>
   <TabItem label="boolean">
@@ -171,7 +172,7 @@ EmDash supports 15 field types that map to SQLite column types:
   </TabItem>
 </Tabs>
 
-### Media & References
+### Media and references
 
 <Tabs>
   <TabItem label="image">
@@ -204,7 +205,7 @@ EmDash supports 15 field types that map to SQLite column types:
   </TabItem>
 </Tabs>
 
-## Field Properties
+## Field properties
 
 Every field supports these properties:
 
@@ -212,7 +213,7 @@ Every field supports these properties:
 | -------------- | ----------- | -------------------------------------------- |
 | `slug`         | `string`    | Column name in the database                  |
 | `label`        | `string`    | Display label in admin UI                    |
-| `type`         | `FieldType` | One of the 15 field types                    |
+| `type`         | `FieldType` | One of the 16 field types                    |
 | `required`     | `boolean`   | Whether the field must have a value          |
 | `unique`       | `boolean`   | Whether values must be unique across entries |
 | `defaultValue` | `unknown`   | Default value for new entries                |
@@ -224,12 +225,12 @@ Every field supports these properties:
 <Aside type="caution">
 	Some field slugs are reserved and cannot be used: `id`, `slug`, `status`, `author_id`,
 	`primary_byline_id`, `created_at`, `updated_at`, `published_at`, `scheduled_at`, `deleted_at`,
-	`version`, `live_revision_id`, `draft_revision_id`.
+	`version`, `live_revision_id`, `draft_revision_id`, `terms`, `bylines`, `byline`.
 </Aside>
 
-## Validation Rules
+## Validation rules
 
-The `validation` object varies by field type:
+The `validation` object varies by field type. Its full shape is:
 
 ```ts
 interface FieldValidation {
@@ -243,7 +244,7 @@ interface FieldValidation {
 }
 ```
 
-Example with validation:
+The following field requires a unique, pattern-matched email address:
 
 ```ts
 {
@@ -258,9 +259,9 @@ Example with validation:
 }
 ```
 
-## Widget Options
+## Widget options
 
-The `options` object configures field-specific UI behavior:
+The `options` object configures field-specific UI behavior. Its full shape is:
 
 ```ts
 interface FieldWidgetOptions {
@@ -272,7 +273,7 @@ interface FieldWidgetOptions {
 }
 ```
 
-Example reference field:
+The following reference field links to multiple products:
 
 ```ts
 {
@@ -286,9 +287,9 @@ Example reference field:
 }
 ```
 
-## Querying Collections
+## Querying collections
 
-Use the provided query functions to fetch content. These follow Astro's live collections pattern, returning structured results:
+Use the provided query functions to fetch content. These follow Astro's live collections pattern, returning structured results. The following example shows the common query options:
 
 ```ts
 import { getEmDashCollection, getEmDashEntry } from "emdash";
@@ -321,12 +322,11 @@ if (error) {
 }
 ```
 
-## Type Generation
+## Type generation
 
-Run `npx emdash types` to generate TypeScript types from your schema:
+Run `npx emdash types` to generate TypeScript types from your schema. The generated file contains one interface per collection:
 
-```ts
-// .emdash/types.ts (generated)
+```ts title=".emdash/types.ts (generated)"
 export interface Post {
 	title: string;
 	content: PortableTextBlock[];
@@ -346,15 +346,16 @@ export interface Product {
 	Re-run `emdash types` after modifying collections in the admin panel to keep types in sync.
 </Aside>
 
-## Database Mapping
+## Database mapping
 
-Field types map to SQLite column types:
+Field types map to SQLite column types as follows:
 
 | Field Type     | SQLite Type | Notes                 |
 | -------------- | ----------- | --------------------- |
 | `string`       | `TEXT`      |                       |
 | `text`         | `TEXT`      |                       |
 | `slug`         | `TEXT`      |                       |
+| `url`          | `TEXT`      |                       |
 | `number`       | `REAL`      | 64-bit floating point |
 | `integer`      | `INTEGER`   | 64-bit signed integer |
 | `boolean`      | `INTEGER`   | 0 or 1                |
@@ -366,12 +367,13 @@ Field types map to SQLite column types:
 | `file`         | `TEXT`      | Media ID              |
 | `reference`    | `TEXT`      | Entry ID              |
 | `json`         | `JSON`      | Arbitrary JSON        |
+| `repeater`     | `JSON`      | Array of sub-fields   |
 
-## Next Steps
+## Next steps
 
 <CardGrid>
 	<Card title="Content Model" icon="open-book">
-		Understand the [database-first approach](/concepts/content-model/).
+		Understand the [content model](/concepts/content-model/).
 	</Card>
 	<Card title="Taxonomies" icon="list-format">
 		Organize content with [categories and tags](/guides/taxonomies/).

@@ -65,8 +65,10 @@ test.describe("Bylines", () => {
 			return body.data.id as string;
 		};
 
-		const firstBylineId = await createByline(primaryName, `primary-writer-${unique}`);
-		const secondBylineId = await createByline(secondaryName, `secondary-writer-${unique}`);
+		// Create two bylines for the test post. IDs aren't needed downstream;
+		// the test selects them by name via the bylines combobox.
+		await createByline(primaryName, `primary-writer-${unique}`);
+		await createByline(secondaryName, `secondary-writer-${unique}`);
 
 		await admin.goToNewContent("posts");
 		await admin.waitForLoading();
@@ -78,20 +80,38 @@ test.describe("Bylines", () => {
 		expect(contentId).toBeTruthy();
 		await admin.waitForLoading();
 
-		// Scope the byline select to the Bylines section to avoid hitting the Ownership combobox
+		// Scope the byline picker to the Bylines section to avoid hitting the Ownership combobox
 		const bylinesSidebar = page
 			.getByRole("heading", { name: "Bylines" })
 			.locator("xpath=ancestor::div[contains(@class,'p-4')]")
 			.first();
-		const bylineSelect = bylinesSidebar.locator("select").first();
-		await bylineSelect.selectOption({ value: firstBylineId });
-		await bylinesSidebar.getByRole("button", { name: "Add" }).click();
+		// The picker is a debounced server search: type a name, wait for the result
+		// button to appear, click it, then wait for the credit row to commit before
+		// the next add (the search debounce + React commit race otherwise drops one).
+		const bylineSearch = bylinesSidebar.getByLabel("Search bylines");
+		const creditRow = (displayName: string) =>
+			bylinesSidebar.locator("p.text-sm.font-medium").filter({ hasText: displayName });
+		const addByline = async (displayName: string) => {
+			await bylineSearch.fill(displayName);
+			const result = bylinesSidebar.getByRole("button", { name: displayName });
+			await expect(result).toBeVisible({ timeout: 5000 });
+			await result.click();
+			await expect(creditRow(displayName)).toBeVisible({ timeout: 5000 });
+		};
 
-		await bylineSelect.selectOption({ value: secondBylineId });
-		await bylinesSidebar.getByRole("button", { name: "Add" }).click();
+		await addByline(primaryName);
+		await addByline(secondaryName);
 
-		await page.getByLabel("Role label").nth(1).fill("Co-author");
-		await page.getByRole("button", { name: "Up" }).nth(1).click();
+		// Move the secondary credit above the primary via its own row's "Up" button,
+		// then confirm the reorder committed before saving.
+		const secondaryCreditRow = bylinesSidebar
+			.locator("div.rounded.border.p-2")
+			.filter({ hasText: secondaryName });
+		await secondaryCreditRow.getByLabel("Role label").fill("Co-author");
+		await secondaryCreditRow.getByRole("button", { name: "Up" }).click();
+		await expect(bylinesSidebar.locator("p.text-sm.font-medium").first()).toContainText(
+			secondaryName,
+		);
 
 		await admin.clickSave();
 		await admin.waitForSaveComplete();

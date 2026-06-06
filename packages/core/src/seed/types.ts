@@ -87,14 +87,19 @@ export interface SeedField {
 }
 
 /**
- * Taxonomy definition in seed
+ * Taxonomy definition in seed. For multi-locale exports each locale variant
+ * is its own entry, linked via `translationOf` (referencing another entry's `id`).
  */
 export interface SeedTaxonomy {
+	/** Optional seed-local id, e.g. "tax:category:en". Target of `translationOf`. */
+	id?: string;
 	name: string;
 	label: string;
 	labelSingular?: string;
 	hierarchical: boolean;
 	collections: string[];
+	locale?: string;
+	translationOf?: string;
 	terms?: SeedTaxonomyTerm[];
 }
 
@@ -102,18 +107,26 @@ export interface SeedTaxonomy {
  * Taxonomy term in seed
  */
 export interface SeedTaxonomyTerm {
+	/** Optional seed-local id, e.g. "term:category:news:en". */
+	id?: string;
 	slug: string;
 	label: string;
 	description?: string;
 	parent?: string; // Slug of parent term (for hierarchical taxonomies)
+	locale?: string;
+	translationOf?: string;
 }
 
 /**
  * Menu definition in seed
  */
 export interface SeedMenu {
+	/** Optional seed-local id, e.g. "menu:primary:en". */
+	id?: string;
 	name: string;
 	label: string;
+	locale?: string;
+	translationOf?: string;
 	items: SeedMenuItem[];
 }
 
@@ -121,6 +134,8 @@ export interface SeedMenu {
  * Menu item in seed
  */
 export interface SeedMenuItem {
+	/** Optional seed-local id, e.g. "item:primary:home:en". */
+	id?: string;
 	type: string;
 	label?: string;
 	url?: string; // For custom type
@@ -129,6 +144,8 @@ export interface SeedMenuItem {
 	target?: "_blank" | "_self";
 	titleAttr?: string;
 	cssClasses?: string;
+	locale?: string;
+	translationOf?: string;
 	children?: SeedMenuItem[];
 }
 
@@ -197,6 +214,27 @@ export interface SeedByline {
 	bio?: string;
 	websiteUrl?: string;
 	isGuest?: boolean;
+	/**
+	 * Avatar for the byline, seeded as an already-stored media item. Unlike a
+	 * content `$media` reference, nothing is downloaded: the caller supplies the
+	 * `storageKey` of a file that already exists in the configured storage (the
+	 * common case when seeding alongside a media migration). A `media` row is
+	 * created and linked via `avatarMediaId`.
+	 */
+	avatar?: SeedBylineAvatar;
+}
+
+export interface SeedBylineAvatar {
+	/** Storage key of an avatar file that already exists in the configured storage. */
+	storageKey: string;
+	/** Alt text for the avatar image. */
+	alt?: string;
+	/** Filename for the media record. Defaults to the storage key's basename. */
+	filename?: string;
+	/** MIME type for the media record. Defaults to `image/jpeg`. */
+	mimeType?: string;
+	width?: number;
+	height?: number;
 }
 
 /**

@@ -1,0 +1,21 @@
+---
+import { getEmDashEntry } from "emdash";
+import { PortableText, Comments, CommentForm } from "emdash/ui";
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect("/404");
+const { entry: post } = await getEmDashEntry("posts", slug);
+if (!post) return new Response("Not found", { status: 404 });
+---
+
+<html>
+	<body>
+		<article>
+			<h1 id="title">{post.data.title}</h1>
+			{post.data.excerpt && <p id="excerpt">{post.data.excerpt}</p>}
+			<div id="body"><PortableText value={post.data.body} /></div>
+		</article>
+		<Comments collection="posts" contentId={post.data.id} threaded />
+		<CommentForm collection="posts" contentId={post.data.id} />
+	</body>
+</html>

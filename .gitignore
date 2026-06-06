@@ -34,6 +34,7 @@ uploads/
 !packages/core/tests/e2e/fixture/.emdash/
 !packages/core/tests/integration/fixture/.emdash/
 !e2e/fixture/.emdash/
+!e2e/fixture-cloudflare/.emdash/
 !templates/*/.emdash/seed.json
 
 # macOS-specific files
@@ -66,4 +67,22 @@ __screenshots__/
 
 # Downloaded test data (fetched on demand in CI)
 examples/wp-theme-unit-test/
-.opencode
+# .opencode is local-only EXCEPT for agents/, which are shared with CI workflows
+# (review.yml, ultrareview.yml, bonk.yml, ultrabonk.yml). Use a contents-style
+# pattern so we can re-include the agents subdirectory.
+.opencode/*
+!.opencode/agents/
+
+# .claude is local-only EXCEPT for the symlinks pointing at AGENTS.md and skills/
+.claude/*
+!.claude/CLAUDE.md
+!.claude/skills
+
+.perf-query-counts
+query-counts-out/
+
+# Generated query-dump artefacts; tooling lives in scripts/query-dumps/ but
+# the per-run JSON and classification reports regenerate from the harness.
+scripts/query-dumps/sqlite/
+scripts/query-dumps/d1/
+scripts/query-dumps/classification.*.md

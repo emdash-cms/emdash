@@ -135,7 +135,7 @@ Use `getMenus()` to retrieve all menu definitions (without items):
 import { getMenus } from "emdash";
 
 const menus = await getMenus();
-// Returns: [{ id, name, label }, ...]
+// Returns: [{ id, name, label, locale }, ...]
 ```
 
 This is primarily useful for admin interfaces or debugging.
@@ -278,4 +278,4 @@ Fetch a menu by name with all items and resolved URLs.
 
 List all menu definitions without items.
 
-**Returns:** `Promise<Array<{ id: string; name: string; label: string }>>`
+**Returns:** `Promise<Array<{ id: string; name: string; label: string; locale: string }>>`

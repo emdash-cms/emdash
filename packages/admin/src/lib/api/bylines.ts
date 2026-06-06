@@ -1,3 +1,6 @@
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import {
 	API_BASE,
 	apiFetch,
@@ -5,6 +8,14 @@ import {
 	throwResponseError,
 	type FindManyResult,
 } from "./client.js";
+
+/**
+ * Runtime value type for a byline custom field (Discussion #1174).
+ * The five v1 field types collapse to this narrow union: string-shaped
+ * types (`string`, `text`, `url`, `select`) → string; `boolean` → boolean;
+ * `null` for explicitly cleared values.
+ */
+export type BylineCustomFieldValue = string | boolean | null;
 
 export interface BylineSummary {
 	id: string;
@@ -17,6 +28,20 @@ export interface BylineSummary {
 	isGuest: boolean;
 	createdAt: string;
 	updatedAt: string;
+	/** Locale this byline row is presented in (migration 040). */
+	locale: string;
+	/**
+	 * Shared across translations of the same byline (migration 040).
+	 * Nullable for backwards compatibility; new rows always populate it.
+	 */
+	translationGroup: string | null;
+	/**
+	 * Byline custom-field values keyed by field slug (Discussion #1174).
+	 * Optional in the type for backward-compat with pre-Phase-3 servers;
+	 * post-Phase-3 servers always populate as `{}` even when no fields
+	 * are registered.
+	 */
+	customFields?: Record<string, BylineCustomFieldValue>;
 }
 
 export interface BylineInput {
@@ -27,6 +52,36 @@ export interface BylineInput {
 	websiteUrl?: string | null;
 	userId?: string | null;
 	isGuest?: boolean;
+	/**
+	 * Locale this byline row belongs to. When omitted, the server uses the
+	 * configured `defaultLocale`.
+	 */
+	locale?: string;
+	/**
+	 * When set, the new row joins the source byline's `translation_group`.
+	 * Requires `locale` (the server returns a validation error otherwise).
+	 */
+	translationOf?: string;
+	/**
+	 * Custom-field value writes (Discussion #1174). Accepted by both
+	 * the create and update routes (Phase 6 added create-flow parity).
+	 * Keys are field slugs; values pass through to the byline
+	 * repository, which validates against the registered field type
+	 * and throws `EmDashValidationError` on mismatch.
+	 *
+	 * A value of `null` clears the row (Phase 3 storage semantics).
+	 * Unknown slugs return 400 `VALIDATION_ERROR`.
+	 */
+	customFields?: Record<string, unknown>;
+}
+
+export interface BylineTranslationInput {
+	locale: string;
+	slug?: string;
+	displayName?: string;
+	bio?: string | null;
+	avatarMediaId?: string | null;
+	websiteUrl?: string | null;
 }
 
 export interface BylineCreditInput {
@@ -38,6 +93,7 @@ export async function fetchBylines(options?: {
 	search?: string;
 	isGuest?: boolean;
 	userId?: string;
+	locale?: string;
 	cursor?: string;
 	limit?: number;
 }): Promise<FindManyResult<BylineSummary>> {
@@ -45,6 +101,7 @@ export async function fetchBylines(options?: {
 	if (options?.search) params.set("search", options.search);
 	if (options?.isGuest !== undefined) params.set("isGuest", String(options.isGuest));
 	if (options?.userId) params.set("userId", options.userId);
+	if (options?.locale) params.set("locale", options.locale);
 	if (options?.cursor) params.set("cursor", options.cursor);
 	if (options?.limit) params.set("limit", String(options.limit));
 
@@ -83,5 +140,35 @@ export async function deleteByline(id: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/admin/bylines/${id}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete byline");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete byline`));
+}
+
+/**
+ * Fetch every translation of a byline (siblings sharing the same
+ * translation_group).
+ */
+export async function fetchBylineTranslations(id: string): Promise<{ items: BylineSummary[] }> {
+	const response = await apiFetch(`${API_BASE}/admin/bylines/${id}/translations`);
+	return parseApiResponse<{ items: BylineSummary[] }>(
+		response,
+		"Failed to fetch byline translations",
+	);
+}
+
+/**
+ * Create a new locale variant of a byline. The new row joins the source's
+ * `translation_group`. Body defaults — slug, display name, avatar, website —
+ * inherit from the source when omitted, so editors only have to fill in the
+ * localized bio (and optionally a localized display name).
+ */
+export async function createBylineTranslation(
+	id: string,
+	input: BylineTranslationInput,
+): Promise<BylineSummary> {
+	const response = await apiFetch(`${API_BASE}/admin/bylines/${id}/translations`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
+	return parseApiResponse<BylineSummary>(response, "Failed to create byline translation");
 }

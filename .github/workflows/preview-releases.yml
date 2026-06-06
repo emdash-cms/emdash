@@ -2,7 +2,14 @@ name: Preview Releases
 
 on:
   push:
-    branches: [main]
+    # `bot/fix-*` branches are pushed by .github/workflows/investigate.yml
+    # before the bot asks the reporter to verify a candidate fix. The
+    # ask comment includes an `npm i https://pkg.pr.new/emdash@bot/fix-<n>`
+    # install URL (the full branch name -- pkg.pr.new resolves branches by
+    # their full ref) that only resolves once pkg.pr.new has actually
+    # published a preview release on the branch -- hence the explicit
+    # branch pattern here.
+    branches: [main, "bot/fix-*"]
   pull_request:
     branches: [main]
 
@@ -17,14 +24,23 @@ jobs:
     name: Publish Preview
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm dlx pkg-pr-new publish --pnpm './packages/core' './packages/admin' './packages/auth' './packages/blocks' './packages/cloudflare' './packages/create-emdash' './packages/gutenberg-to-portable-text' './packages/x402' './packages/plugins/ai-moderation' './packages/plugins/atproto' './packages/plugins/audit-log' './packages/plugins/color' './packages/plugins/embeds' './packages/plugins/forms' './packages/plugins/webhook-notifier'
+      # Publish a preview for every public package via globs rather than a
+      # hardcoded list. This keeps preview installs self-consistent: when
+      # `emdash`'s preview references a sibling like @emdash-cms/registry-client
+      # via `workspace:*`, pkg.pr.new can only rewrite that to a matching
+      # preview URL if the sibling is published in the same run. Omitting one
+      # makes the dep fall back to npm's released version, which breaks when the
+      # source has drifted (e.g. a new exports subpath added without a release).
+      # pkg.pr.new skips `private: true` packages automatically, so the test
+      # fixtures under packages/plugins/* are excluded without enumerating them.
+      - run: pnpm exec pkg-pr-new publish --pnpm './packages/*' './packages/plugins/*'

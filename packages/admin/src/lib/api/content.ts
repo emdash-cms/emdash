@@ -2,6 +2,9 @@
  * Content CRUD and revision APIs
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import type { BylineCreditInput, BylineSummary } from "./bylines.js";
 import {
 	API_BASE,
@@ -136,6 +139,12 @@ export async function fetchContentList(
 		limit?: number;
 		status?: string;
 		locale?: string;
+		/** Field name to order by, matching the server's whitelist. */
+		orderBy?: string;
+		/** Sort direction; defaults to "desc" on the server. */
+		order?: "asc" | "desc";
+		/** Case-insensitive substring search across title/name/slug. */
+		search?: string;
 	},
 ): Promise<FindManyResult<ContentItem>> {
 	const params = new URLSearchParams();
@@ -143,6 +152,9 @@ export async function fetchContentList(
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.status) params.set("status", options.status);
 	if (options?.locale) params.set("locale", options.locale);
+	if (options?.orderBy) params.set("orderBy", options.orderBy);
+	if (options?.order) params.set("order", options.order);
+	if (options?.search) params.set("q", options.search);
 
 	const url = `${API_BASE}/content/${collection}${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
@@ -205,7 +217,7 @@ export async function deleteContent(collection: string, id: string): Promise<voi
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete content");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete content`));
 }
 
 /**
@@ -237,7 +249,7 @@ export async function restoreContent(collection: string, id: string): Promise<vo
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/restore`, {
 		method: "POST",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to restore content");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to restore content`));
 }
 
 /**
@@ -247,7 +259,8 @@ export async function permanentDeleteContent(collection: string, id: string): Pr
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/permanent`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to permanently delete content");
+	if (!response.ok)
+		await throwResponseError(response, i18n._(msg`Failed to permanently delete content`));
 }
 
 /**
@@ -302,7 +315,9 @@ export async function unscheduleContent(collection: string, id: string): Promise
  * Get a preview URL for content
  *
  * Returns a signed URL that allows viewing draft content.
- * Returns null if preview is not configured (missing EMDASH_PREVIEW_SECRET).
+ * Returns null if the EmDash runtime isn't initialized on the server
+ * (responds with NOT_CONFIGURED). The preview secret itself no longer
+ * needs to be set explicitly — it auto-generates on first use.
  */
 export async function getPreviewUrl(
 	collection: string,
@@ -447,10 +462,13 @@ export async function fetchRevision(revisionId: string): Promise<Revision> {
 		if (response.status === 404) {
 			throw new Error(`Revision not found: ${revisionId}`);
 		}
-		await throwResponseError(response, "Failed to fetch revision");
+		await throwResponseError(response, i18n._(msg`Failed to fetch revision`));
 	}
 
-	const data = await parseApiResponse<{ item: Revision }>(response, "Failed to fetch revision");
+	const data = await parseApiResponse<{ item: Revision }>(
+		response,
+		i18n._(msg`Failed to fetch revision`),
+	);
 	return data.item;
 }
 
@@ -466,12 +484,12 @@ export async function restoreRevision(revisionId: string): Promise<ContentItem> 
 		if (response.status === 404) {
 			throw new Error(`Revision not found: ${revisionId}`);
 		}
-		await throwResponseError(response, "Failed to restore revision");
+		await throwResponseError(response, i18n._(msg`Failed to restore revision`));
 	}
 
 	const data = await parseApiResponse<{ item: ContentItem }>(
 		response,
-		"Failed to restore revision",
+		i18n._(msg`Failed to restore revision`),
 	);
 	return data.item;
 }

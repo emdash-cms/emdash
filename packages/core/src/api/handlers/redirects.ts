@@ -11,6 +11,7 @@ import {
 	type NotFoundEntry,
 	type NotFoundSummary,
 } from "../../database/repositories/redirect.js";
+import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { FindManyResult } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { wouldCreateLoop, detectLoops, type RedirectEdge } from "../../redirects/loops.js";
@@ -48,7 +49,13 @@ export async function handleRedirectList(
 				...(loopRedirectIds.length > 0 ? { loopRedirectIds } : {}),
 			},
 		};
-	} catch {
+	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
 		return {
 			success: false,
 			error: { code: "REDIRECT_LIST_ERROR", message: "Failed to fetch redirects" },
@@ -318,7 +325,7 @@ export async function handleRedirectDelete(
 function loopError(loopPath: string[]): ApiResult<never> {
 	const hops = loopPath
 		.slice(0, -1)
-		.map((p, i) => `${p} \u2192 ${loopPath[i + 1]!}`)
+		.map((p, i) => `${p} \u2192 ${loopPath[i + 1]}`)
 		.join("\n");
 	return {
 		success: false,
@@ -387,7 +394,13 @@ export async function handleNotFoundList(
 		const repo = new RedirectRepository(db);
 		const result = await repo.find404s(params);
 		return { success: true, data: result };
-	} catch {
+	} catch (error) {
+		if (error instanceof InvalidCursorError) {
+			return {
+				success: false,
+				error: { code: "INVALID_CURSOR", message: error.message },
+			};
+		}
 		return {
 			success: false,
 			error: { code: "NOT_FOUND_LIST_ERROR", message: "Failed to fetch 404 log" },

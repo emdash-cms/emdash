@@ -6,13 +6,27 @@
  * must be stripped to prevent credential leakage to untrusted hosts.
  */
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { setDefaultDnsResolver } from "../../../src/import/ssrf.js";
 import { createHttpAccess, createUnrestrictedHttpAccess } from "../../../src/plugins/context.js";
 
 // Intercept globalThis.fetch so we can simulate redirect chains
 const mockFetch = vi.fn<typeof globalThis.fetch>();
 vi.stubGlobal("fetch", mockFetch);
+
+// Bypass DoH so the fetch mock only sees the calls these tests model.
+// Returns a fixed public IP so resolveAndValidateExternalUrl passes.
+const STUB_RESOLVER = async () => ["93.184.216.34"];
+let previousResolver: ReturnType<typeof setDefaultDnsResolver> | undefined;
+
+beforeAll(() => {
+	previousResolver = setDefaultDnsResolver(STUB_RESOLVER);
+});
+
+afterAll(() => {
+	setDefaultDnsResolver(previousResolver ?? null);
+});
 
 afterEach(() => {
 	mockFetch.mockReset();

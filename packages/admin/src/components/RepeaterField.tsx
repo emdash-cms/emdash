@@ -5,7 +5,7 @@
  * Items can be added, removed, and reordered via drag-and-drop.
  */
 
-import { Button, Input, InputArea } from "@cloudflare/kumo";
+import { Button, Input, InputArea, Select, Switch } from "@cloudflare/kumo";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import {
@@ -17,10 +17,12 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Trash, DotsSixVertical, CaretDown, CaretRight } from "@phosphor-icons/react";
+import { Plus, Trash, DotsSixVertical, CaretDown } from "@phosphor-icons/react";
 import * as React from "react";
 
+import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { cn } from "../lib/utils.js";
+import { CaretNext } from "./ArrowIcons.js";
 
 interface RepeaterSubFieldDef {
 	slug: string;
@@ -68,10 +70,24 @@ export function RepeaterField({
 	const [items, setItems] = React.useState<RepeaterItem[]>(() => ensureKeys(rawItems));
 	const [collapsedItems, setCollapsedItems] = React.useState<Set<string>>(new Set());
 
-	// Sync from external value changes
+	// Sync from external value changes.
+	// Preserve each item's _key by position so round-trips through onChange
+	// (which strips _key) don't remount children on every keystroke.
 	React.useEffect(() => {
 		const incoming = Array.isArray(value) ? value : [];
-		setItems(ensureKeys(incoming));
+		setItems((prev) =>
+			incoming.map((item, i) => {
+				const obj = (typeof item === "object" && item !== null ? item : {}) as Record<
+					string,
+					unknown
+				>;
+				const existingKey = (obj._key as string) || prev[i]?._key;
+				return {
+					...obj,
+					_key: existingKey || `item-${i}-${Date.now()}`,
+				};
+			}),
+		);
 	}, [value]);
 
 	const emitChange = (updated: RepeaterItem[]) => {
@@ -238,7 +254,7 @@ function SortableRepeaterItem({
 					onClick={(e) => e.stopPropagation()}
 				/>
 				{isCollapsed ? (
-					<CaretRight className="h-4 w-4 text-kumo-subtle shrink-0" />
+					<CaretNext className="h-4 w-4 text-kumo-subtle shrink-0" />
 				) : (
 					<CaretDown className="h-4 w-4 text-kumo-subtle shrink-0" />
 				)}
@@ -291,6 +307,7 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
 					required={subField.required}
+					dir="auto"
 				/>
 			);
 		case "text":
@@ -301,6 +318,7 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 					onChange={(e) => onChange(e.target.value)}
 					required={subField.required}
 					rows={3}
+					dir="auto"
 				/>
 			);
 		case "number":
@@ -317,43 +335,33 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 			);
 		case "boolean":
 			return (
-				<label className="flex items-center gap-2">
-					<input
-						type="checkbox"
-						checked={Boolean(value)}
-						onChange={(e) => onChange(e.target.checked)}
-					/>
-					<span className="text-sm">{subField.label}</span>
-				</label>
+				<Switch
+					checked={Boolean(value)}
+					onCheckedChange={(checked) => onChange(checked)}
+					label={<span className="text-sm">{subField.label}</span>}
+				/>
 			);
 		case "datetime":
 			return (
 				<Input
 					label={subField.label}
 					type="datetime-local"
-					value={typeof value === "string" ? value : ""}
-					onChange={(e) => onChange(e.target.value)}
+					value={toDatetimeLocalInputValue(value)}
+					onChange={(e) => onChange(fromDatetimeLocalInputValue(e.target.value))}
 					required={subField.required}
 				/>
 			);
 		case "select":
 			return (
-				<div>
-					<label className="text-sm font-medium">{subField.label}</label>
-					<select
-						className="w-full mt-1 rounded-md border px-3 py-2 text-sm"
-						value={typeof value === "string" ? value : ""}
-						onChange={(e) => onChange(e.target.value)}
-						required={subField.required}
-					>
-						<option value="">{t`Select...`}</option>
-						{subField.options?.map((opt) => (
-							<option key={opt} value={opt}>
-								{opt}
-							</option>
-						))}
-					</select>
-				</div>
+				<Select
+					label={subField.label}
+					value={typeof value === "string" ? value : ""}
+					onValueChange={(v) => onChange(v ?? "")}
+					items={{
+						"": t`Select...`,
+						...Object.fromEntries((subField.options ?? []).map((opt) => [opt, opt])),
+					}}
+				/>
 			);
 		default:
 			return (

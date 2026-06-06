@@ -5,6 +5,7 @@
  * `new Response(JSON.stringify({ error: ... }), ...)` patterns.
  */
 
+import { InvalidCursorError } from "../database/repositories/types.js";
 import { mapErrorStatus } from "./errors.js";
 import type { ApiResult } from "./types.js";
 
@@ -27,8 +28,18 @@ const API_CACHE_HEADERS: HeadersInit = {
  * Always returns `{ error: { code, message } }` with correct Content-Type.
  * Use this for all error responses in API routes.
  */
-export function apiError(code: string, message: string, status: number): Response {
-	return Response.json({ error: { code, message } }, { status, headers: API_CACHE_HEADERS });
+export function apiError(
+	code: string,
+	message: string,
+	status: number,
+	details?: Record<string, unknown>,
+): Response {
+	const error: { code: string; message: string; details?: Record<string, unknown> } = {
+		code,
+		message,
+	};
+	if (details !== undefined) error.details = details;
+	return Response.json({ error }, { status, headers: API_CACHE_HEADERS });
 }
 
 /**
@@ -54,6 +65,11 @@ export function handleError(
 	fallbackMessage: string,
 	fallbackCode: string,
 ): Response {
+	// Bubble malformed-cursor errors as a structured 400 instead of a
+	// generic 500.
+	if (error instanceof InvalidCursorError) {
+		return apiError("INVALID_CURSOR", error.message, 400);
+	}
 	console.error(`[${fallbackCode}]`, error);
 	return apiError(fallbackCode, fallbackMessage, 500);
 }
@@ -93,7 +109,12 @@ export function requireDb(db: unknown): Response | null {
  */
 export function unwrapResult<T>(result: ApiResult<T>, successStatus = 200): Response {
 	if (!result.success) {
-		return apiError(result.error.code, result.error.message, mapErrorStatus(result.error.code));
+		return apiError(
+			result.error.code,
+			result.error.message,
+			mapErrorStatus(result.error.code),
+			result.error.details,
+		);
 	}
 	return apiSuccess(result.data, successStatus);
 }

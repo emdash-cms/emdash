@@ -60,12 +60,12 @@ test.describe("Setup wizard passkey with virtual authenticator (localhost)", () 
 			await page.getByLabel("Your Name").fill("Virtual Auth User");
 			await page.getByRole("button", { name: "Continue" }).click();
 
-			await expect(page.locator("text=Set up your passkey")).toBeVisible();
+			await expect(page.locator("text=Choose how to sign in")).toBeVisible();
 			await page.getByRole("button", { name: "Create Passkey" }).click();
 
 			// admin-verify creates the user but does not set a session; wizard sends user to /_emdash/admin and auth redirects to login.
 			await expect(page).toHaveURL(ADMIN_AFTER_SETUP_URL, { timeout: 60_000 });
-			await expect(page.locator("text=Set up your passkey")).toHaveCount(0);
+			await expect(page.locator("text=Choose how to sign in")).toHaveCount(0);
 			await expect(page.locator("text=Registration was cancelled or timed out")).toHaveCount(0);
 			await expect(page.locator("text=Invalid origin")).toHaveCount(0);
 		} finally {

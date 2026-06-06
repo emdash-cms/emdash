@@ -5,6 +5,8 @@
  * from EmDash content.
  */
 
+import { buildContentPath, getContentData, getContentString, getString } from "./content.js";
+
 // ── Types ───────────────────────────────────────────────────────
 
 export interface StandardPublication {
@@ -61,17 +63,21 @@ export function buildPublication(
  */
 export function buildDocument(opts: {
 	publicationUri: string;
+	collection?: string;
 	content: Record<string, unknown>;
 	coverImageBlob?: BlobRefLike;
 	bskyPostRef?: { uri: string; cid: string };
 }): StandardDocument {
-	const { publicationUri, content, coverImageBlob, bskyPostRef } = opts;
+	const { publicationUri, collection, content, coverImageBlob, bskyPostRef } = opts;
 
-	const slug = getString(content, "slug");
-	const title = getString(content, "title") || "Untitled";
-	const description = getString(content, "excerpt") || getString(content, "description");
-	const publishedAt = getString(content, "published_at") || new Date().toISOString();
-	const updatedAt = getString(content, "updated_at");
+	const title = getContentString(content, "title") || "Untitled";
+	const description =
+		getContentString(content, "excerpt") || getContentString(content, "description");
+	const publishedAt =
+		getString(content, "publishedAt") ||
+		getString(content, "published_at") ||
+		new Date().toISOString();
+	const updatedAt = getString(content, "updatedAt") || getString(content, "updated_at");
 	const tags = extractTags(content);
 
 	const doc: StandardDocument = {
@@ -81,9 +87,8 @@ export function buildDocument(opts: {
 		publishedAt,
 	};
 
-	if (slug) {
-		doc.path = `/${slug}`;
-	}
+	const path = buildContentPath(collection, content);
+	if (path) doc.path = path;
 
 	if (description) {
 		doc.description = description;
@@ -131,17 +136,12 @@ const WHITESPACE_RE = /\s+/g;
 const HASH_PREFIX_RE = /^#/;
 const MAX_TEXT_CONTENT_LENGTH = 10_000;
 
-function getString(obj: Record<string, unknown>, key: string): string | undefined {
-	const v = obj[key];
-	return typeof v === "string" && v.length > 0 ? v : undefined;
-}
-
 /**
  * Extract tags from content. Handles both string arrays and
  * tag objects with a name property.
  */
 function extractTags(content: Record<string, unknown>): string[] {
-	const raw = content.tags;
+	const raw = content.tags || getContentData(content).tags;
 	if (!Array.isArray(raw)) return [];
 
 	const tags: string[] = [];
@@ -167,7 +167,9 @@ function extractTags(content: Record<string, unknown>): string[] {
 export function extractPlainText(content: Record<string, unknown>): string | undefined {
 	// Try common content field names
 	const body =
-		getString(content, "body") || getString(content, "content") || getString(content, "text");
+		getContentString(content, "body") ||
+		getContentString(content, "content") ||
+		getContentString(content, "text");
 
 	if (!body) return undefined;
 

@@ -11,6 +11,8 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { createWidgetBody } from "#api/schemas.js";
+import { rowToWidget } from "#widgets/index.js";
+import type { WidgetRow } from "#widgets/types.js";
 
 export const prerender = false;
 
@@ -70,10 +72,11 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		const widget = await db
 			.selectFrom("_emdash_widgets")
 			.selectAll()
+			.$castTo<WidgetRow>()
 			.where("id", "=", id)
 			.executeTakeFirstOrThrow();
 
-		return apiSuccess(widget, 201);
+		return apiSuccess(rowToWidget(widget), 201);
 	} catch (error) {
 		return handleError(error, "Failed to create widget", "WIDGET_CREATE_ERROR");
 	}

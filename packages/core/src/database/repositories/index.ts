@@ -23,8 +23,22 @@ export {
 	deleteAllPluginStorage,
 	deletePluginCollection,
 } from "./plugin-storage.js";
+export { MenuGoneError, MenuRepository } from "./menu.js";
+export type {
+	Menu,
+	MenuItem,
+	MenuListItem,
+	MenuWithItems,
+	MenuTranslation,
+	CreateMenuInput,
+	UpdateMenuInput,
+	CreateMenuItemInput,
+	UpdateMenuItemInput,
+	SetMenuItem,
+	ReorderItem,
+} from "./menu.js";
 export { RedirectRepository } from "./redirect.js";
 export { BylineRepository } from "./byline.js";
 export type { CreateBylineInput, UpdateBylineInput, ContentBylineInput } from "./byline.js";
 export type * from "./types.js";
-export { EmDashValidationError, encodeCursor, decodeCursor } from "./types.js";
+export { EmDashValidationError, InvalidCursorError, encodeCursor, decodeCursor } from "./types.js";

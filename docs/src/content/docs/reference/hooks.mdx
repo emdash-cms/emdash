@@ -7,7 +7,9 @@ import { Aside } from "@astrojs/starlight/components";
 
 Hooks allow plugins to intercept and modify EmDash behavior at specific points in the content, media, email, comment, and page lifecycle.
 
-## Hook Overview
+## Hook overview
+
+The following table lists every hook, what triggers it, what it can modify, and whether it is exclusive:
 
 | Hook                    | Trigger                               | Can Modify        | Exclusive |
 | ----------------------- | ------------------------------------- | ----------------- | --------- |
@@ -329,11 +331,11 @@ interface CronEvent {
 
 ## Email Hooks
 
-Email hooks form a pipeline: `email:beforeSend` → `email:deliver` → `email:afterSend`.
+Email hooks run in order: `email:beforeSend`, then `email:deliver`, then `email:afterSend`.
 
 ### `email:beforeSend`
 
-**Capability:** `email:intercept`
+**Capability:** `hooks.email-events:register`
 
 Middleware hook that runs before delivery. Transform messages or cancel delivery.
 
@@ -368,7 +370,7 @@ interface EmailBeforeSendEvent {
 
 ### `email:deliver`
 
-**Capability:** `email:provide` | **Exclusive:** Yes
+**Capability:** `hooks.email-transport:register` | **Exclusive:** Yes
 
 The transport provider. Only one plugin can deliver emails. Responsible for actually sending the message via an email service.
 
@@ -385,7 +387,7 @@ hooks: {
 
 ### `email:afterSend`
 
-**Capability:** `email:intercept`
+**Capability:** `hooks.email-events:register`
 
 Fire-and-forget hook after successful delivery. Errors are logged but do not propagate.
 
@@ -402,11 +404,11 @@ hooks: {
 
 ## Comment Hooks
 
-Comment hooks form a pipeline: `comment:beforeCreate` → `comment:moderate` → `comment:afterCreate`. The `comment:afterModerate` hook fires separately when an admin changes a comment's status.
+Comment hooks run in order: `comment:beforeCreate`, then `comment:moderate`, then `comment:afterCreate`. The `comment:afterModerate` hook fires separately when an admin changes a comment's status.
 
 ### `comment:beforeCreate`
 
-**Capability:** `read:users`
+**Capability:** `users:read`
 
 Middleware hook before a comment is stored. Enrich, validate, or reject comments.
 
@@ -448,7 +450,7 @@ interface CommentBeforeCreateEvent {
 
 ### `comment:moderate`
 
-**Capability:** `read:users` | **Exclusive:** Yes
+**Capability:** `users:read` | **Exclusive:** Yes
 
 Decide whether a comment is approved, pending, or spam. Only one moderation provider is active.
 
@@ -491,7 +493,7 @@ interface CommentModerateEvent {
 
 ### `comment:afterCreate`
 
-**Capability:** `read:users`
+**Capability:** `users:read`
 
 Fire-and-forget hook after a comment is stored. Use for notifications.
 
@@ -511,7 +513,7 @@ hooks: {
 
 ### `comment:afterModerate`
 
-**Capability:** `read:users`
+**Capability:** `users:read`
 
 Fire-and-forget hook when an admin manually changes a comment's status.
 
@@ -532,7 +534,7 @@ Page hooks run when rendering public pages. They allow plugins to inject metadat
 
 ### `page:metadata`
 
-**Capability:** `page:inject`
+**Capability:** None required
 
 Contribute meta tags, Open Graph properties, JSON-LD structured data, or link tags to the page head.
 
@@ -554,17 +556,27 @@ hooks: {
 type PageMetadataContribution =
 	| { kind: "meta"; name: string; content: string; key?: string }
 	| { kind: "property"; property: string; content: string; key?: string }
-	| { kind: "link"; rel: string; href: string; hreflang?: string; key?: string }
-	| { kind: "jsonld"; id?: string; graph: Record<string, unknown> };
+	| {
+			kind: "link";
+			rel: "canonical" | "alternate" | "author" | "license" | "nlweb" | "site.standard.document";
+			href: string;
+			hreflang?: string;
+			key?: string;
+	  }
+	| {
+			kind: "jsonld";
+			id?: string;
+			graph: Record<string, unknown> | Array<Record<string, unknown>>;
+	  };
 ```
 
 The `key` field deduplicates contributions — only the last contribution with a given key is used.
 
 ### `page:fragments`
 
-**Capability:** `page:inject`
+**Capability:** `hooks.page-fragments:register`
 
-Inject scripts or HTML into pages. Only available to trusted (native) plugins.
+Inject scripts or HTML into pages. Only available to native plugins.
 
 ```ts
 hooks: {

@@ -1,5 +1,7 @@
 import type { z } from "astro/zod";
 
+import type { FieldValidation } from "../schema/types.js";
+
 /**
  * SQLite column types that map from field types
  */
@@ -19,6 +21,7 @@ export interface FieldDefinition<_T = unknown> {
 	schema: z.ZodTypeAny;
 	options?: unknown;
 	ui?: FieldUIHints;
+	validation?: FieldValidation;
 }
 
 /**

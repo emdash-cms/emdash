@@ -4,6 +4,16 @@
  * Provides functions to query byline profiles and byline credits
  * associated with content entries. Follows the same pattern as
  * the taxonomies runtime API.
+ *
+ * i18n model (migration 040): byline rows are per-locale and share a
+ * `translation_group`. Credits on `_emdash_content_bylines.byline_id` store
+ * the translation_group, so a single credit spans every locale of a byline.
+ *
+ * Hydration is strict per locale: a credit at locale X renders iff a byline
+ * row exists at locale X within the credited translation_group. There is no
+ * read-time fallback. Mirrors `getEntryTerms` and the convention in PR #916.
+ * Locale is passed in by callers — `query.ts` resolves it from the entry's
+ * own `data.locale` for the runtime path.
  */
 
 import { sql } from "kysely";
@@ -11,49 +21,22 @@ import { sql } from "kysely";
 import { BylineRepository } from "../database/repositories/byline.js";
 import type { BylineSummary, ContentBylineCredit } from "../database/repositories/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
-import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+import { requestCached } from "../request-cache.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 
 /**
- * Cached result of "does any byline exist in the database?"
- * null = not yet checked, true/false = cached result.
- * Invalidated when bylines are created or deleted.
- */
-let hasBylines: boolean | null = null;
-
-/**
- * Invalidate the cached "has any bylines" check.
- * Call this when bylines are created, updated, or deleted.
+ * No-op — kept for API compatibility.
+ *
+ * Used to invalidate a worker-lifetime "has any byline?" probe. That
+ * probe added a query on every cold isolate to save one query on sites
+ * with zero bylines (i.e. the wrong tradeoff), so we dropped it. The
+ * batch byline join below returns an empty map for empty sites at the
+ * same cost as the probe, without the pre-check.
  */
 export function invalidateBylineCache(): void {
-	hasBylines = null;
-}
-
-/**
- * Check if any bylines exist in the database. Result is cached
- * for the lifetime of the worker/process and invalidated on writes.
- */
-async function hasAnyBylines(): Promise<boolean> {
-	if (hasBylines !== null) return hasBylines;
-
-	try {
-		const db = await getDb();
-		const result = await sql<{ id: string }>`
-			SELECT id FROM _emdash_bylines LIMIT 1
-		`.execute(db);
-		hasBylines = result.rows.length > 0;
-	} catch (error: unknown) {
-		// Only treat "no such table" as a safe false -- anything else should
-		// not be cached so the next request retries.
-		const message = error instanceof Error ? error.message : "";
-		if (message.includes("no such table")) {
-			hasBylines = false;
-		} else {
-			return false;
-		}
-	}
-
-	return hasBylines;
+	// Intentionally empty.
 }
 
 /**
@@ -78,56 +61,90 @@ export async function getByline(id: string): Promise<BylineSummary | null> {
 /**
  * Get a byline by slug.
  *
+ * Standalone identity lookup (e.g. rendering an author profile page). Walks
+ * the configured locale fallback chain — same pattern as `getMenu` and
+ * `getTerm`, see PR #916. Returns the first match found, walking
+ * `[requestedLocale, ...fallbacks, defaultLocale]` in order.
+ *
+ * Note: this is intentionally different from credit hydration on a content
+ * entry (`getEntryBylines`), which is strict per locale with no fallback.
+ * The distinction: identity lookups answer "give me this byline", and
+ * falling back to another locale's display name is acceptable. Credit
+ * hydration answers "what should render on this entry", where falling back
+ * silently surfaces a stale-locale name and contradicts editorial intent.
+ *
  * @example
  * ```ts
  * import { getBylineBySlug } from "emdash";
  *
- * const byline = await getBylineBySlug("jane-doe");
+ * const byline = await getBylineBySlug("jane-doe", { locale: "de-de" });
  * if (byline) {
- *   console.log(byline.displayName); // "Jane Doe"
+ *   console.log(byline.displayName);
  * }
  * ```
  */
-export async function getBylineBySlug(slug: string): Promise<BylineSummary | null> {
-	const db = await getDb();
-	const repo = new BylineRepository(db);
-	return repo.findBySlug(slug);
+export async function getBylineBySlug(
+	slug: string,
+	options?: { locale?: string },
+): Promise<BylineSummary | null> {
+	const chain = resolveLocaleChain(options?.locale);
+	const cacheKey = `byline-by-slug:${slug}:${chain.length > 0 ? chain.join(",") : "*"}`;
+	return requestCached(cacheKey, async () => {
+		const db = await getDb();
+		const repo = new BylineRepository(db);
+
+		if (chain.length === 0) {
+			// No i18n or no resolved locale — fall back to the repo's
+			// "lowest-locale-code" deterministic match.
+			return repo.findBySlug(slug);
+		}
+
+		for (const locale of chain) {
+			const row = await repo.findBySlug(slug, { locale });
+			if (row) return row;
+		}
+		return null;
+	});
 }
 
 /**
  * Get byline credits for a single content entry.
  *
- * Returns explicit byline credits from the junction table. If none exist
- * but the entry has an `authorId`, falls back to the user-linked byline
- * (marked as source: "inferred").
+ * Strict per locale (post-migration 040): a credit renders iff a byline row
+ * exists at the requested locale within the credited translation_group.
+ * Callers wanting fallback behaviour apply it themselves. When `locale` is
+ * omitted, returns every locale variant of every credit on the entry —
+ * useful for admin tooling, not for end-user rendering.
  *
- * @example
- * ```ts
- * import { getEntryBylines } from "emdash";
- *
- * const bylines = await getEntryBylines("posts", post.data.id);
- * for (const credit of bylines) {
- *   console.log(credit.byline.displayName, credit.roleLabel);
- * }
- * ```
+ * Internal: not re-exported from the `emdash` package entry point. Every
+ * entry returned by `getEmDashCollection` / `getEmDashEntry` already has
+ * `data.bylines` populated by `hydrateEntryBylines` (which uses the batch
+ * helper `getBylinesForEntries` directly). Site code should read those
+ * fields rather than calling this function.
  */
 export async function getEntryBylines(
 	collection: string,
 	entryId: string,
+	options?: { locale?: string },
 ): Promise<ContentBylineCredit[]> {
 	validateIdentifier(collection, "collection");
 	const db = await getDb();
 	const repo = new BylineRepository(db);
 
-	const explicit = await repo.getContentBylines(collection, entryId);
+	const localeOpt = options?.locale !== undefined ? { locale: options.locale } : undefined;
+	const explicit = await repo.getContentBylines(collection, entryId, localeOpt);
 	if (explicit.length > 0) {
 		return explicit.map((c) => ({ ...c, source: "explicit" as const }));
 	}
 
-	// Fallback: look up user-linked byline from author_id
-	const authorId = await getAuthorId(db, collection, entryId);
-	if (authorId) {
-		const fallback = await repo.findByUserId(authorId);
+	// `primary_byline_id` is the explicit-credit sentinel: non-null
+	// suppresses author fallback even when the credit doesn't resolve
+	// at this locale.
+	const ctx = await getEntryContext(db, collection, entryId);
+	if (ctx.primaryBylineId) return [];
+
+	if (ctx.authorId) {
+		const fallback = await repo.findByUserId(ctx.authorId, localeOpt);
 		if (fallback) {
 			return [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }];
 		}
@@ -137,84 +154,155 @@ export async function getEntryBylines(
 }
 
 /**
- * Batch-fetch byline credits for multiple content entries in a single query.
+ * Entry reference for batch byline lookups. Passing `authorId`,
+ * `primaryBylineId`, and `locale` in directly avoids a per-entry
+ * `SELECT` against the content table during hydration.
  *
- * This is more efficient than calling getEntryBylines for each entry
- * when you need bylines for a list of entries (e.g., a blog index page).
+ * `primaryBylineId` is the explicit-credit sentinel — non-null suppresses
+ * author fallback. `locale` drives the strict per-locale join.
+ */
+export interface BylineEntry {
+	id: string;
+	authorId: string | null;
+	primaryBylineId?: string | null;
+	locale?: string | null;
+}
+
+/**
+ * Batch-fetch byline credits for multiple content entries.
+ *
+ * Per-entry strict-locale hydration: entries are bucketed by `entry.locale`
+ * and each bucket gets a single batched call to the strict-locale repo
+ * method. Items with no `locale` field (legacy / single-locale installs)
+ * share an unscoped bucket.
+ *
+ * Internal: consumed by `hydrateEntryBylines` in `query.ts` so that every
+ * entry returned from `getEmDashCollection` / `getEmDashEntry` already has
+ * `data.bylines` populated. Site code should rely on that eager hydration
+ * rather than calling this directly -- this function is not re-exported
+ * from the `emdash` package entry point.
  *
  * @param collection - The collection slug (e.g., "posts")
- * @param entryIds - Array of entry IDs
+ * @param entries - Entry id + authorId + locale (each entry resolves at its own locale)
  * @returns Map from entry ID to array of byline credits
- *
- * @example
- * ```ts
- * import { getBylinesForEntries, getEmDashCollection } from "emdash";
- *
- * const { entries } = await getEmDashCollection("posts");
- * const ids = entries.map(e => e.data.id);
- * const bylinesMap = await getBylinesForEntries("posts", ids);
- *
- * for (const entry of entries) {
- *   const bylines = bylinesMap.get(entry.data.id) ?? [];
- *   // render bylines
- * }
- * ```
  */
 export async function getBylinesForEntries(
 	collection: string,
-	entryIds: string[],
+	entries: BylineEntry[],
 ): Promise<Map<string, ContentBylineCredit[]>> {
 	validateIdentifier(collection, "collection");
 	const result = new Map<string, ContentBylineCredit[]>();
 
-	// Initialize all entry IDs with empty arrays
-	for (const id of entryIds) {
+	for (const { id } of entries) {
 		result.set(id, []);
 	}
 
-	if (entryIds.length === 0) {
-		return result;
-	}
-
-	// Skip DB queries entirely when no bylines have been created.
-	// The cache is invalidated when bylines are created/deleted.
-	if (!(await hasAnyBylines())) {
+	if (entries.length === 0) {
 		return result;
 	}
 
 	const db = await getDb();
 	const repo = new BylineRepository(db);
 
-	// 1. Batch fetch all explicit byline credits
-	const bylinesMap = await repo.getContentBylinesMany(collection, entryIds);
+	// Bucket entries by locale so each bucket fires a single strict-locale
+	// `getContentBylinesMany` call. Items with no locale field share a
+	// bucket keyed by null (no `WHERE locale = ?` applied — legacy
+	// pre-i18n shape).
+	const buckets = new Map<string | null, BylineEntry[]>();
+	for (const entry of entries) {
+		const key = entry.locale ?? null;
+		const bucket = buckets.get(key);
+		if (bucket) bucket.push(entry);
+		else buckets.set(key, [entry]);
+	}
 
-	// 2. Collect entry IDs that need fallback lookup
-	const fallbackEntryIds: string[] = [];
-	const needsFallback: Map<string, string> = new Map(); // entryId -> authorId
+	// Sites with no bylines get an empty map back at the same cost as the
+	// previous "has any bylines" probe, without the extra round-trip.
+	// Pre-migration databases (bylines table missing) fall through to the
+	// `isMissingTableError` catch below and return empty.
+	//
+	// Each bucket's `getContentBylinesMany` call uses `skipHydration: true`
+	// so the per-bucket fetches return bylines with `customFields = {}`.
+	// We then hydrate the union of returned bylines in a SINGLE batched
+	// pass via `hydrateBylineCustomFields`. This keeps mixed-locale list
+	// hydration at one batched group-shared query (and one batched
+	// translatable query) per request, even when locale buckets reference
+	// disjoint translation_groups — the strict reading of the Phase 3
+	// query-count envelope.
+	const explicitByEntry = new Map<string, ContentBylineCredit[]>();
+	const entriesNeedingAuthorCheck: BylineEntry[] = [];
+	const hydrationTargets: BylineSummary[] = [];
+	for (const [locale, bucket] of buckets) {
+		const localeOpt = locale ? { locale, skipHydration: true } : { skipHydration: true };
+		const bucketIds = bucket.map((e) => e.id);
+		let bylinesMap;
+		try {
+			bylinesMap = await repo.getContentBylinesMany(collection, bucketIds, localeOpt);
+		} catch (error) {
+			if (isMissingTableError(error)) return result;
+			throw error;
+		}
+		for (const [id, list] of bylinesMap) {
+			explicitByEntry.set(id, list);
+			for (const credit of list) hydrationTargets.push(credit.byline);
+		}
 
-	for (const id of entryIds) {
-		if (!bylinesMap.has(id)) {
-			// Need to check author_id for this entry — but we only have the IDs,
-			// so batch-fetch them from the content table
-			fallbackEntryIds.push(id);
+		for (const entry of bucket) {
+			const hasResolved = bylinesMap.has(entry.id) && bylinesMap.get(entry.id)!.length > 0;
+			if (hasResolved) continue;
+			if (entry.authorId) entriesNeedingAuthorCheck.push(entry);
 		}
 	}
 
-	// Batch-fetch author_ids for entries that need fallback
-	if (fallbackEntryIds.length > 0) {
-		const authorMap = await getAuthorIds(db, collection, fallbackEntryIds);
-		for (const [entryId, authorId] of authorMap) {
-			needsFallback.set(entryId, authorId);
+	// Only entries without an explicit credit (primaryBylineId null) are
+	// eligible for author fallback.
+	const fallbackByEntry = new Map<string, BylineSummary>();
+	if (entriesNeedingAuthorCheck.length > 0) {
+		const authorBuckets = new Map<string | null, BylineEntry[]>();
+		for (const entry of entriesNeedingAuthorCheck) {
+			if (entry.primaryBylineId) continue;
+			const key = entry.locale ?? null;
+			const bucket = authorBuckets.get(key);
+			if (bucket) bucket.push(entry);
+			else authorBuckets.set(key, [entry]);
+		}
+
+		for (const [locale, bucket] of authorBuckets) {
+			const localeOpt: { locale?: string; skipHydration: true } = locale
+				? { locale, skipHydration: true }
+				: { skipHydration: true };
+			const authorIds = bucket.map((e) => e.authorId).filter((id): id is string => id !== null);
+			const uniqueAuthorIds = [...new Set(authorIds)];
+			if (uniqueAuthorIds.length === 0) continue;
+			// `skipHydration: true` returns bylines with `customFields = {}`
+			// so the fallback path participates in the single batched
+			// `hydrateBylineCustomFields` call below — keeping the query
+			// envelope at "+1 group-shared query per hydration pass" even
+			// when author bylines across locale buckets reference disjoint
+			// translation_groups.
+			const authorBylineMap = await repo.findByUserIds(uniqueAuthorIds, localeOpt);
+			for (const entry of bucket) {
+				if (!entry.authorId) continue;
+				const f = authorBylineMap.get(entry.authorId);
+				if (f) {
+					fallbackByEntry.set(entry.id, f);
+					hydrationTargets.push(f);
+				}
+			}
 		}
 	}
 
-	// 3. Batch fetch user-linked bylines for fallback
-	const uniqueAuthorIds = [...new Set(needsFallback.values())];
-	const authorBylineMap = await repo.findByUserIds(uniqueAuthorIds);
+	// Single batched hydration over every byline returned from both the
+	// per-bucket explicit-credit fetches AND the per-bucket author-
+	// fallback fetches. One translatable query + one group-shared query
+	// for the whole pass, regardless of bucket count or whether
+	// translation_groups overlap across locales.
+	if (hydrationTargets.length > 0) {
+		await repo.hydrateBylineCustomFields(hydrationTargets);
+	}
 
-	// 4. Assign results
-	for (const id of entryIds) {
-		const explicit = bylinesMap.get(id);
+	for (const { id } of entries) {
+		const explicit = explicitByEntry.get(id);
 		if (explicit && explicit.length > 0) {
 			result.set(
 				id,
@@ -223,66 +311,36 @@ export async function getBylinesForEntries(
 			continue;
 		}
 
-		const authorId = needsFallback.get(id);
-		if (authorId) {
-			const fallback = authorBylineMap.get(authorId);
-			if (fallback) {
-				result.set(id, [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }]);
-				continue;
-			}
+		const fallback = fallbackByEntry.get(id);
+		if (fallback) {
+			result.set(id, [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }]);
 		}
-
-		// Already initialized with empty array
 	}
 
 	return result;
 }
 
-/**
- * Look up the author_id for a single content entry.
- * Uses raw SQL since we need dynamic table names.
- */
-async function getAuthorId(
+/** Reads `author_id` + `primary_byline_id` for one entry in a single query. */
+async function getEntryContext(
 	db: Awaited<ReturnType<typeof getDb>>,
 	collection: string,
 	entryId: string,
-): Promise<string | null> {
+): Promise<{ authorId: string | null; primaryBylineId: string | null }> {
 	validateIdentifier(collection, "collection");
 	const tableName = `ec_${collection}`;
 
-	const result = await sql<{ author_id: string | null }>`
-		SELECT author_id FROM ${sql.ref(tableName)}
+	const result = await sql<{
+		author_id: string | null;
+		primary_byline_id: string | null;
+	}>`
+		SELECT author_id, primary_byline_id FROM ${sql.ref(tableName)}
 		WHERE id = ${entryId}
 		LIMIT 1
 	`.execute(db);
 
-	return result.rows[0]?.author_id ?? null;
-}
-
-/**
- * Batch-fetch author_ids for multiple content entries.
- * Returns Map<entryId, authorId> (only entries with non-null author_id).
- */
-async function getAuthorIds(
-	db: Awaited<ReturnType<typeof getDb>>,
-	collection: string,
-	entryIds: string[],
-): Promise<Map<string, string>> {
-	validateIdentifier(collection, "collection");
-	const tableName = `ec_${collection}`;
-
-	const map = new Map<string, string>();
-	for (const chunk of chunks(entryIds, SQL_BATCH_SIZE)) {
-		const result = await sql<{ id: string; author_id: string | null }>`
-			SELECT id, author_id FROM ${sql.ref(tableName)}
-			WHERE id IN (${sql.join(chunk.map((id) => sql`${id}`))})
-		`.execute(db);
-
-		for (const row of result.rows) {
-			if (row.author_id) {
-				map.set(row.id, row.author_id);
-			}
-		}
-	}
-	return map;
+	const row = result.rows[0];
+	return {
+		authorId: row?.author_id ?? null,
+		primaryBylineId: row?.primary_byline_id ?? null,
+	};
 }

@@ -50,10 +50,12 @@ export interface InvokeRouteOptions {
 export class PluginRouteHandler {
 	private contextFactory: PluginContextFactory;
 	private plugin: ResolvedPlugin;
+	private trustedProxyHeaders: string[];
 
 	constructor(plugin: ResolvedPlugin, factoryOptions: PluginContextFactoryOptions) {
 		this.plugin = plugin;
 		this.contextFactory = new PluginContextFactory(factoryOptions);
+		this.trustedProxyHeaders = factoryOptions.trustedProxyHeaders ?? [];
 	}
 
 	/**
@@ -99,7 +101,7 @@ export class PluginRouteHandler {
 			...baseContext,
 			input: validatedInput,
 			request: options.request,
-			requestMeta: extractRequestMeta(options.request),
+			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
 		};
 
 		// Execute handler

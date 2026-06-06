@@ -2,6 +2,9 @@
  * API token management client functions
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse, throwResponseError } from "./client.js";
 
 // =============================================================================
@@ -46,6 +49,10 @@ export const API_TOKEN_SCOPES = {
 	MediaWrite: "media:write",
 	SchemaRead: "schema:read",
 	SchemaWrite: "schema:write",
+	TaxonomiesManage: "taxonomies:manage",
+	MenusManage: "menus:manage",
+	SettingsRead: "settings:read",
+	SettingsManage: "settings:manage",
 	Admin: "admin",
 } as const;
 
@@ -88,5 +95,5 @@ export async function revokeApiToken(id: string): Promise<void> {
 		method: "DELETE",
 	});
 
-	if (!response.ok) await throwResponseError(response, "Failed to revoke API token");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to revoke API token`));
 }

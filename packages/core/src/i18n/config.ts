@@ -51,7 +51,7 @@ export function getFallbackChain(locale: string): string[] {
 	const visited = new Set<string>([locale]);
 
 	while (_config.fallback?.[current]) {
-		// eslint-disable-next-line typescript-eslint(no-unnecessary-type-assertion) -- noUncheckedIndexedAccess
+		// eslint-disable-next-line typescript/no-unnecessary-type-assertion -- noUncheckedIndexedAccess
 		const next = _config.fallback[current]!;
 		if (visited.has(next)) break; // prevent cycles
 		chain.push(next);

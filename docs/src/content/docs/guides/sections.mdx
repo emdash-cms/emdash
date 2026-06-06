@@ -11,7 +11,7 @@ Sections are reusable content blocks that editors can insert into any content vi
 
 ### getSection
 
-Fetch a single section by slug:
+The following example fetches a single section by slug:
 
 ```typescript
 import { getSection } from "emdash";
@@ -26,7 +26,7 @@ if (cta) {
 
 ### getSections
 
-Fetch multiple sections with optional filters:
+The following example fetches multiple sections with optional filters:
 
 ```typescript
 import { getSections } from "emdash";
@@ -44,6 +44,8 @@ const { items: results } = await getSections({ search: "newsletter" });
 `getSections` returns `{ items: Section[], nextCursor?: string }` following the standard pagination pattern.
 
 ## Section Structure
+
+A section has the following shape:
 
 ```typescript
 interface Section {
@@ -71,7 +73,7 @@ interface Section {
 
 ## Using Sections in Content
 
-Editors insert sections using the `/section` slash command in the rich text editor:
+Editors insert sections using the `/section` slash command in the rich text editor.
 
 <Steps>
 
@@ -83,11 +85,7 @@ Editors insert sections using the `/section` slash command in the rich text edit
 
 </Steps>
 
-The section's Portable Text content is copied into the document. This means:
-
-- Changes to the section don't affect already-inserted content
-- Editors can customize the inserted content
-- Content remains self-contained
+The section's Portable Text content is copied into the document. The inserted content is self-contained: editors can customize it, and later changes to the section do not affect copies already placed in content.
 
 <Aside type="tip">
   For content that should stay synchronized, consider using [Widget Areas](/guides/widgets/) with component widgets instead.
@@ -112,9 +110,9 @@ The section's Portable Text content is copied into the document. This means:
 
 ### Via Seed Files
 
-Include sections in your theme's seed file:
+The following seed file defines two sections for a theme:
 
-```json
+```json title=".emdash/seed.json"
 {
   "sections": [
     {
@@ -159,7 +157,7 @@ WordPress reusable blocks (`wp_block` post type) are automatically imported as s
 
 ## Rendering Sections Programmatically
 
-For server-rendered section content outside the editor:
+The following example renders a section's content server-side, outside the editor:
 
 ```astro
 ---
@@ -204,13 +202,17 @@ List sections with optional filters.
 
 **Parameters:**
 - `options.source` — Filter by source: `"theme"`, `"user"`, or `"import"`
-- `options.search` — Search title and keywords
+- `options.search` — Search title, description, and keywords
+- `options.limit` — Page size (default 50, max 100)
+- `options.cursor` — Pagination cursor from a previous `nextCursor`
 
-**Returns:** `Promise<Section[]>`
+**Returns:** `Promise<{ items: Section[]; nextCursor?: string }>`
 
 ## REST API
 
 ### List Sections
+
+List sections, optionally filtered by source or search term:
 
 ```http
 GET /_emdash/api/sections
@@ -220,11 +222,15 @@ GET /_emdash/api/sections?search=newsletter
 
 ### Get Section
 
+Fetch a single section by slug:
+
 ```http
 GET /_emdash/api/sections/newsletter-cta
 ```
 
 ### Create Section
+
+Create a section with a POST request:
 
 ```http
 POST /_emdash/api/sections
@@ -241,6 +247,8 @@ Content-Type: application/json
 
 ### Update Section
 
+Update a section with a PUT request:
+
 ```http
 PUT /_emdash/api/sections/my-section
 Content-Type: application/json
@@ -252,6 +260,8 @@ Content-Type: application/json
 ```
 
 ### Delete Section
+
+Delete a section by slug:
 
 ```http
 DELETE /_emdash/api/sections/my-section

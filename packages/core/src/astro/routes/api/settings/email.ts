@@ -49,19 +49,14 @@ export const GET: APIRoute = async ({ locals }) => {
 			`emdash:exclusive_hook:${EMAIL_DELIVER_HOOK}`,
 		);
 
-		// Get middleware hooks (beforeSend / afterSend)
+		// Get middleware hooks (beforeSend / afterSend). These are non-exclusive —
+		// many plugins can subscribe — so we enumerate non-exclusive providers.
 		const beforeSendPlugins = pipeline
-			.getExclusiveHookProviders(EMAIL_BEFORE_SEND_HOOK)
+			.getHookProviders(EMAIL_BEFORE_SEND_HOOK)
 			.map((p) => p.pluginId);
 		const afterSendPlugins = pipeline
-			.getExclusiveHookProviders(EMAIL_AFTER_SEND_HOOK)
+			.getHookProviders(EMAIL_AFTER_SEND_HOOK)
 			.map((p) => p.pluginId);
-
-		// Note: beforeSend/afterSend are NOT exclusive hooks, but getExclusiveHookProviders
-		// only finds exclusive ones. We need all hooks for those names.
-		// For now, report what we can from the exclusive hook system.
-		// Middleware is non-exclusive so we'd need a different query.
-		// TODO: Add getHookProviders() for non-exclusive hooks to the pipeline.
 
 		return apiSuccess({
 			available: emdash.email?.isAvailable() ?? false,

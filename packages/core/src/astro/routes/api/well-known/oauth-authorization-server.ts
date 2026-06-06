@@ -33,8 +33,8 @@ export const GET: APIRoute = async ({ url, locals }) => {
 				"urn:ietf:params:oauth:grant-type:device_code",
 			],
 			code_challenge_methods_supported: ["S256"],
+			registration_endpoint: `${origin}/_emdash/api/oauth/register`,
 			token_endpoint_auth_methods_supported: ["none"],
-			client_id_metadata_document_supported: true,
 			device_authorization_endpoint: `${origin}/_emdash/api/oauth/device/code`,
 		},
 		{

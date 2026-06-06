@@ -50,7 +50,7 @@ function ColorPicker({ value, onChange, label, id, required, minimal }: FieldWid
 			{!minimal && (
 				<label htmlFor={id} className="text-sm font-medium leading-none mb-1.5 block">
 					{label}
-					{required && <span className="text-destructive ml-0.5">*</span>}
+					{required && <span className="text-destructive ms-0.5">*</span>}
 				</label>
 			)}
 			<div className="flex items-center gap-3">

@@ -147,11 +147,16 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (!taxonomy.name) {
 					errors.push(`${prefix}: name is required`);
 				} else {
-					// Check for duplicate taxonomy names
-					if (taxonomyNames.has(taxonomy.name)) {
-						errors.push(`${prefix}.name: duplicate taxonomy name "${taxonomy.name}"`);
+					// Uniqueness is per (name, locale).
+					const key = `${taxonomy.name}::${taxonomy.locale ?? ""}`;
+					if (taxonomyNames.has(key)) {
+						errors.push(
+							taxonomy.locale
+								? `${prefix}.name: duplicate taxonomy "${taxonomy.name}" in locale "${taxonomy.locale}"`
+								: `${prefix}.name: duplicate taxonomy name "${taxonomy.name}"`,
+						);
 					}
-					taxonomyNames.add(taxonomy.name);
+					taxonomyNames.add(key);
 				}
 
 				if (!taxonomy.label) {
@@ -184,13 +189,15 @@ export function validateSeed(data: unknown): ValidationResult {
 							if (!term.slug) {
 								errors.push(`${termPrefix}: slug is required`);
 							} else {
-								// Check for duplicate term slugs
-								if (termSlugs.has(term.slug)) {
+								// Uniqueness is per (slug, locale) so the same slug can repeat
+								// across locale variants of the def.
+								const key = `${term.slug}::${term.locale ?? taxonomy.locale ?? ""}`;
+								if (termSlugs.has(key)) {
 									errors.push(
 										`${termPrefix}.slug: duplicate term slug "${term.slug}" in taxonomy "${taxonomy.name}"`,
 									);
 								}
-								termSlugs.add(term.slug);
+								termSlugs.add(key);
 							}
 
 							if (!term.label) {
@@ -207,11 +214,12 @@ export function validateSeed(data: unknown): ValidationResult {
 							}
 						}
 
-						// Second pass: validate parent references
+						// Second pass: validate parent references (within the same locale).
 						if (taxonomy.hierarchical && taxonomy.terms) {
 							for (let j = 0; j < taxonomy.terms.length; j++) {
 								const term = taxonomy.terms[j];
-								if (term.parent && !termSlugs.has(term.parent)) {
+								const termLocale = term.locale ?? taxonomy.locale ?? "";
+								if (term.parent && !termSlugs.has(`${term.parent}::${termLocale}`)) {
 									errors.push(
 										`${prefix}.terms[${j}].parent: parent term "${term.parent}" not found in taxonomy`,
 									);
@@ -243,11 +251,17 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (!menu.name) {
 					errors.push(`${prefix}: name is required`);
 				} else {
-					// Check for duplicate menu names
-					if (menuNames.has(menu.name)) {
-						errors.push(`${prefix}.name: duplicate menu name "${menu.name}"`);
+					// Uniqueness is per (name, locale) — siblings of a translation
+					// group share name but differ in locale.
+					const key = `${menu.name}::${menu.locale ?? ""}`;
+					if (menuNames.has(key)) {
+						errors.push(
+							menu.locale
+								? `${prefix}.name: duplicate menu "${menu.name}" in locale "${menu.locale}"`
+								: `${prefix}.name: duplicate menu name "${menu.name}"`,
+						);
 					}
-					menuNames.add(menu.name);
+					menuNames.add(key);
 				}
 
 				if (!menu.label) {
@@ -456,6 +470,45 @@ export function validateSeed(data: unknown): ValidationResult {
 
 				if (!byline.displayName) {
 					errors.push(`${prefix}: displayName is required`);
+				}
+
+				if (byline.avatar !== undefined) {
+					const avatar: unknown = byline.avatar;
+					if (!isRecord(avatar)) {
+						errors.push(`${prefix}.avatar: must be an object`);
+					} else {
+						// storageKey is used verbatim in a `where storage_key = ?` lookup,
+						// so surrounding whitespace would silently never match a real key.
+						if (
+							typeof avatar.storageKey !== "string" ||
+							avatar.storageKey.length === 0 ||
+							avatar.storageKey !== avatar.storageKey.trim()
+						) {
+							errors.push(
+								`${prefix}.avatar.storageKey: must be a non-empty string with no leading or trailing whitespace`,
+							);
+						}
+						for (const key of ["alt", "filename", "mimeType"] as const) {
+							if (avatar[key] !== undefined && typeof avatar[key] !== "string") {
+								errors.push(`${prefix}.avatar.${key}: must be a string`);
+							}
+						}
+						// filename/mimeType are used verbatim, so reject blank or
+						// whitespace-padded values (an empty filename would create a
+						// media row with no basename; a padded mime type is invalid).
+						for (const key of ["filename", "mimeType"] as const) {
+							const v = avatar[key];
+							if (typeof v === "string" && (v.length === 0 || v !== v.trim())) {
+								errors.push(`${prefix}.avatar.${key}: must not be empty or whitespace-padded`);
+							}
+						}
+						for (const key of ["width", "height"] as const) {
+							const v = avatar[key];
+							if (v !== undefined && (typeof v !== "number" || !Number.isFinite(v) || v < 0)) {
+								errors.push(`${prefix}.avatar.${key}: must be a non-negative number`);
+							}
+						}
+					}
 				}
 			}
 		}

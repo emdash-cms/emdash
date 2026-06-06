@@ -98,6 +98,12 @@ describe("Authorization Server Metadata (RFC 8414)", () => {
 		expect(body.token_endpoint_auth_methods_supported).toEqual(["none"]);
 	});
 
+	it("advertises dynamic client registration", async () => {
+		const response = await getAuthorizationServer(mockContext());
+		const body = (await response.json()) as { registration_endpoint: string };
+		expect(body.registration_endpoint).toBe("https://example.com/_emdash/api/oauth/register");
+	});
+
 	it("includes all valid scopes", async () => {
 		const response = await getAuthorizationServer(mockContext());
 		const body = (await response.json()) as { scopes_supported: string[] };
@@ -110,9 +116,9 @@ describe("Authorization Server Metadata (RFC 8414)", () => {
 		expect(response.headers.get("Cache-Control")).toContain("public");
 	});
 
-	it("supports client_id_metadata_document", async () => {
+	it("does not advertise unsupported client_id metadata documents", async () => {
 		const response = await getAuthorizationServer(mockContext());
-		const body = (await response.json()) as { client_id_metadata_document_supported: boolean };
-		expect(body.client_id_metadata_document_supported).toBe(true);
+		const body = (await response.json()) as Record<string, unknown>;
+		expect(body).not.toHaveProperty("client_id_metadata_document_supported");
 	});
 });

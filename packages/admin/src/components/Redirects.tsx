@@ -1,8 +1,7 @@
-import { Badge, Button, Dialog, Input, Label, Switch } from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, Label, Select, Switch } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowRight,
 	MagnifyingGlass,
 	Plus,
 	ArrowsLeftRight,
@@ -28,6 +27,7 @@ import type {
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
 import { cn } from "../lib/utils.js";
+import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
@@ -126,7 +126,7 @@ function RedirectFormDialog({
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<Input
 						label={t`Source path`}
-						placeholder="/old-page or /blog/[slug]"
+						placeholder={t`/old-page or /blog/[slug]`}
 						value={source}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSource(e.target.value)}
 						required
@@ -134,7 +134,7 @@ function RedirectFormDialog({
 
 					<Input
 						label={t`Destination path`}
-						placeholder="/new-page or /articles/[slug]"
+						placeholder={t`/new-page or /articles/[slug]`}
 						value={destination}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDestination(e.target.value)}
 						required
@@ -142,23 +142,22 @@ function RedirectFormDialog({
 
 					<div className="grid grid-cols-2 gap-4">
 						<div>
-							<Label htmlFor="redirect-type">{t`Status code`}</Label>
-							<select
-								id="redirect-type"
+							<Select
+								label={t`Status code`}
 								value={type}
-								onChange={(e) => setType(e.target.value)}
-								className="flex h-10 w-full rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm"
-							>
-								<option value="301">{t`301 Permanent`}</option>
-								<option value="302">{t`302 Temporary`}</option>
-								<option value="307">{t`307 Temporary (Strict)`}</option>
-								<option value="308">{t`308 Permanent (Strict)`}</option>
-							</select>
+								onValueChange={(v) => setType(v ?? "301")}
+								items={{
+									"301": t`301 Permanent`,
+									"302": t`302 Temporary`,
+									"307": t`307 Temporary (Strict)`,
+									"308": t`308 Permanent (Strict)`,
+								}}
+							/>
 						</div>
 
 						<Input
 							label={t`Group (optional)`}
-							placeholder="e.g. import, blog"
+							placeholder={t`e.g. import, blog`}
 							value={groupName}
 							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGroupName(e.target.value)}
 						/>
@@ -387,24 +386,18 @@ export function Redirects() {
 								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
 							/>
 						</div>
-						<select
+						<Select
 							value={filterEnabled}
-							onChange={(e) => setFilterEnabled(e.target.value)}
-							className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 text-sm"
-						>
-							<option value="all">{t`All statuses`}</option>
-							<option value="true">{t`Enabled`}</option>
-							<option value="false">{t`Disabled`}</option>
-						</select>
-						<select
+							onValueChange={(v) => setFilterEnabled(v ?? "all")}
+							items={{ all: t`All statuses`, true: t`Enabled`, false: t`Disabled` }}
+							aria-label={t`Filter by status`}
+						/>
+						<Select
 							value={filterAuto}
-							onChange={(e) => setFilterAuto(e.target.value)}
-							className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 text-sm"
-						>
-							<option value="all">{t`All types`}</option>
-							<option value="false">{t`Manual`}</option>
-							<option value="true">{t`Auto (slug change)`}</option>
-						</select>
+							onValueChange={(v) => setFilterAuto(v ?? "all")}
+							items={{ all: t`All types`, false: t`Manual`, true: t`Auto (slug change)` }}
+							aria-label={t`Filter by type`}
+						/>
 					</div>
 
 					{/* Loop warning banner */}
@@ -464,7 +457,7 @@ export function Redirects() {
 										{r.source}
 									</div>
 									<div className="w-8 text-center text-kumo-subtle">
-										<ArrowRight size={14} />
+										<ArrowNext size={14} />
 									</div>
 									<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
 										{r.destination}

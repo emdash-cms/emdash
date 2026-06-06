@@ -427,6 +427,68 @@ describe("ContentRepository", () => {
 			expect(result.items).toEqual([]);
 			expect(result.nextCursor).toBeUndefined();
 		});
+
+		describe("orderBy", () => {
+			// Regression guard for "table headers aren't sort controls": the
+			// admin now sends orderBy={field,direction} — the repo must accept
+			// the columns the UI wants to expose, not just dates.
+			it("accepts status as an order field", async () => {
+				const result = await repo.findMany("post", {
+					orderBy: { field: "status", direction: "asc" },
+				});
+
+				// alphabetical asc places 'draft' before 'published'
+				expect(result.items[0]!.status).toBe("draft");
+			});
+
+			it("accepts locale as an order field", async () => {
+				await repo.findMany("post", {
+					orderBy: { field: "locale", direction: "desc" },
+				});
+				// no throw = pass
+			});
+
+			it("rejects unknown fields to block column enumeration", async () => {
+				await expect(
+					repo.findMany("post", {
+						orderBy: { field: "password", direction: "asc" },
+					}),
+				).rejects.toThrow(EmDashValidationError);
+			});
+		});
+
+		describe("total", () => {
+			// Regression guard for the admin "denominator grows as you page
+			// forward" bug: each list response must include the full count so
+			// the UI doesn't have to reverse-engineer it from accumulated
+			// pages.
+			it("reports total rows regardless of limit", async () => {
+				const result = await repo.findMany("post", { limit: 2 });
+
+				expect(result.items).toHaveLength(2);
+				expect(result.total).toBe(5);
+			});
+
+			it("total respects the where clause", async () => {
+				const result = await repo.findMany("post", {
+					limit: 2,
+					where: { status: "published" },
+				});
+
+				expect(result.total).toBe(3);
+			});
+
+			it("total stays stable across cursor pages", async () => {
+				const page1 = await repo.findMany("post", { limit: 2 });
+				const page2 = await repo.findMany("post", {
+					limit: 2,
+					cursor: page1.nextCursor,
+				});
+
+				expect(page1.total).toBe(5);
+				expect(page2.total).toBe(5);
+			});
+		});
 	});
 
 	describe("update", () => {

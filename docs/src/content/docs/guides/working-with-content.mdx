@@ -63,6 +63,7 @@ EmDash's editor supports:
 - **Links** - Internal and external
 - **Images** - Insert from media library
 - **Code blocks** - With syntax highlighting
+- **HTML blocks** - Raw HTML for custom embeds and widgets
 - **Embeds** - YouTube, Vimeo, Twitter
 - **Sections** - Reusable content blocks via `/section` command
 
@@ -75,6 +76,7 @@ Type `/` to access quick insert commands:
 | `/section`                   | Insert a reusable section           |
 | `/image`                     | Insert an image from media library  |
 | `/code`                      | Insert a code block                 |
+| `/html`                      | Insert a raw HTML block             |
 
 ### Keyboard Shortcuts
 
@@ -99,6 +101,61 @@ Type `/` to access quick insert commands:
 
 5. Click **Insert**
 
+### HTML Blocks
+
+Use `/html` to insert a raw HTML block. This is useful for embedding third-party widgets, custom markup, or content that doesn't fit the standard block types. HTML blocks are also created automatically when importing content from WordPress or Contentful that contains markup EmDash can't convert to native Portable Text blocks.
+
+<Aside type="caution">
+	HTML blocks are sanitized before rendering on the frontend to prevent XSS attacks. By default, iframes are only allowed from `www.youtube.com` and `player.vimeo.com`. Iframes from other providers (Cloudflare Stream, Loom, Wistia, Google Maps, etc.) will be stripped during sanitization.
+</Aside>
+
+To allow iframes from additional providers, override the `htmlBlock` component in your Portable Text rendering:
+
+```astro
+---
+// src/components/MyHtmlBlock.astro
+import sanitizeHtml from "sanitize-html";
+
+const { node } = Astro.props;
+
+if (!node?.html) {
+  return null;
+}
+
+const sanitized = sanitizeHtml(node.html, {
+  allowedTags: [...sanitizeHtml.defaults.allowedTags, "img", "span", "iframe"],
+  allowedAttributes: {
+    ...sanitizeHtml.defaults.allowedAttributes,
+    "*": ["class", "id", "data-*", "style"],
+    iframe: ["src", "width", "height", "frameborder", "allow", "allowfullscreen"],
+    img: ["src", "srcset", "alt", "title", "width", "height", "loading"],
+  },
+  allowedIframeHostnames: [
+    "www.youtube.com",
+    "player.vimeo.com",
+    "iframe.videodelivery.net", // Cloudflare Stream
+    // Add your providers here
+  ],
+});
+---
+
+<div class="html-block" set:html={sanitized} />
+```
+
+Then pass it to `<PortableText>`:
+
+```astro
+---
+import { PortableText } from "emdash/ui";
+import MyHtmlBlock from "../components/MyHtmlBlock.astro";
+---
+
+<PortableText
+  value={post.data.content}
+  components={{ type: { htmlBlock: MyHtmlBlock } }}
+/>
+```
+
 ## Editing Content
 
 1. Navigate to the collection containing the content
@@ -109,7 +166,7 @@ Type `/` to access quick insert commands:
 
 4. Click **Save**
 
-Changes to published content appear immediately on your site. No rebuild required.
+Changes to published content appear immediately on your site.
 
 ### Revision History
 
@@ -206,9 +263,11 @@ Delete content from the edit screen or content list:
 
 ## Content API
 
-For programmatic access, use the EmDash admin API:
+For programmatic access, use the EmDash admin API.
 
 ### Create Content
+
+The following request creates a draft post:
 
 ```bash
 POST /_emdash/api/content/posts
@@ -225,6 +284,8 @@ Authorization: Bearer YOUR_API_TOKEN
 
 ### Update Content
 
+The following request updates an existing post and publishes it:
+
 ```bash
 PUT /_emdash/api/content/posts/my-new-post
 Content-Type: application/json
@@ -237,6 +298,8 @@ Authorization: Bearer YOUR_API_TOKEN
 ```
 
 ### Delete Content
+
+The following request permanently deletes a post:
 
 ```bash
 DELETE /_emdash/api/content/posts/my-new-post

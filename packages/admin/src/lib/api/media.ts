@@ -2,6 +2,9 @@
  * Media upload, list, delete, and provider APIs
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import {
 	API_BASE,
 	apiFetch,
@@ -9,6 +12,17 @@ import {
 	throwResponseError,
 	type FindManyResult,
 } from "./client.js";
+
+/**
+ * Maximum length of the media filename search term. Mirrors the server-side
+ * zod schema (`q: z.string().trim().min(1).max(200)`); keep in sync.
+ */
+export const MEDIA_SEARCH_MAX_LENGTH = 200;
+
+/** Trim and clamp a search term to the server-accepted range. */
+export function normalizeMediaSearch(value: string | undefined | null): string {
+	return (value ?? "").trim().slice(0, MEDIA_SEARCH_MAX_LENGTH);
+}
 
 export interface MediaItem {
 	id: string;
@@ -35,12 +49,23 @@ export interface MediaItem {
 export async function fetchMediaList(options?: {
 	cursor?: string;
 	limit?: number;
-	mimeType?: string;
+	mimeType?: string | string[];
+	/** Case-insensitive filename substring search (also matches extensions). */
+	search?: string;
 }): Promise<FindManyResult<MediaItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
 	if (options?.limit) params.set("limit", String(options.limit));
-	if (options?.mimeType) params.set("mimeType", options.mimeType);
+	if (options?.mimeType) {
+		const value = Array.isArray(options.mimeType) ? options.mimeType.join(",") : options.mimeType;
+		if (value) params.set("mimeType", value);
+	}
+	if (options?.search) {
+		// Trim and clamp to the server's accepted range so a long or
+		// whitespace-only term can't trigger an avoidable 400.
+		const q = normalizeMediaSearch(options.search);
+		if (q) params.set("q", q);
+	}
 
 	const url = `${API_BASE}/media${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
@@ -63,7 +88,10 @@ interface UploadUrlResponse {
  * Try to get a signed upload URL
  * Returns null if signed URLs are not supported (e.g., local storage)
  */
-async function getUploadUrl(file: File): Promise<UploadUrlResponse | null> {
+async function getUploadUrl(
+	file: File,
+	opts?: { fieldId?: string },
+): Promise<UploadUrlResponse | null> {
 	try {
 		const response = await apiFetch(`${API_BASE}/media/upload-url`, {
 			method: "POST",
@@ -72,6 +100,7 @@ async function getUploadUrl(file: File): Promise<UploadUrlResponse | null> {
 				filename: file.name,
 				contentType: file.type,
 				size: file.size,
+				...(opts?.fieldId ? { fieldId: opts.fieldId } : {}),
 			}),
 		});
 
@@ -119,7 +148,7 @@ async function uploadToSignedUrl(file: File, uploadInfo: UploadUrlResponse): Pro
 		body: file,
 	});
 
-	if (!response.ok) await throwResponseError(response, "Failed to upload file");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to upload file`));
 }
 
 /**
@@ -147,7 +176,7 @@ async function getImageDimensions(file: File): Promise<{ width: number; height: 
 /**
  * Upload media file via direct upload (legacy/local storage)
  */
-async function uploadMediaDirect(file: File): Promise<MediaItem> {
+async function uploadMediaDirect(file: File, opts?: { fieldId?: string }): Promise<MediaItem> {
 	// Get image dimensions before upload
 	const dimensions = await getImageDimensions(file);
 
@@ -156,6 +185,7 @@ async function uploadMediaDirect(file: File): Promise<MediaItem> {
 	// Send dimensions as form fields
 	if (dimensions?.width) formData.append("width", String(dimensions.width));
 	if (dimensions?.height) formData.append("height", String(dimensions.height));
+	if (opts?.fieldId) formData.append("fieldId", opts.fieldId);
 
 	const response = await apiFetch(`${API_BASE}/media`, {
 		method: "POST",
@@ -171,13 +201,13 @@ async function uploadMediaDirect(file: File): Promise<MediaItem> {
  * Tries signed URL upload first (for S3/R2 storage), falls back to direct upload
  * (for local storage) if signed URLs are not supported.
  */
-export async function uploadMedia(file: File): Promise<MediaItem> {
+export async function uploadMedia(file: File, opts?: { fieldId?: string }): Promise<MediaItem> {
 	// Try to get a signed upload URL
-	const uploadInfo = await getUploadUrl(file);
+	const uploadInfo = await getUploadUrl(file, opts);
 
 	if (!uploadInfo) {
 		// Signed URLs not supported, use direct upload
-		return uploadMediaDirect(file);
+		return uploadMediaDirect(file, opts);
 	}
 
 	// Upload directly to storage via signed URL
@@ -201,7 +231,7 @@ export async function deleteMedia(id: string): Promise<void> {
 	const response = await apiFetch(`${API_BASE}/media/${id}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete media");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete media`));
 }
 
 /**
@@ -274,14 +304,17 @@ export async function fetchProviderMedia(
 		cursor?: string;
 		limit?: number;
 		query?: string;
-		mimeType?: string;
+		mimeType?: string | string[];
 	},
 ): Promise<FindManyResult<MediaProviderItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.query) params.set("query", options.query);
-	if (options?.mimeType) params.set("mimeType", options.mimeType);
+	if (options?.mimeType) {
+		const value = Array.isArray(options.mimeType) ? options.mimeType.join(",") : options.mimeType;
+		if (value) params.set("mimeType", value);
+	}
 
 	const url = `${API_BASE}/media/providers/${providerId}${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
@@ -321,5 +354,5 @@ export async function deleteFromProvider(providerId: string, itemId: string): Pr
 	const response = await apiFetch(`${API_BASE}/media/providers/${providerId}/${itemId}`, {
 		method: "DELETE",
 	});
-	if (!response.ok) await throwResponseError(response, "Failed to delete from provider");
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete from provider`));
 }

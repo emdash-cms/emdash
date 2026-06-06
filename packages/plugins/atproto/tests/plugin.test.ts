@@ -1,82 +1,75 @@
-import { describe, it, expect } from "vitest";
+/**
+ * Manifest assertions for the AT Protocol plugin.
+ *
+ * The redesigned sandboxed-plugin layout puts identity, trust contract,
+ * and admin surface in `emdash-plugin.jsonc` (the source of truth) and
+ * leaves `src/plugin.ts` for runtime code only. This test snapshots the
+ * manifest's structural shape so a refactor can't silently change the
+ * published trust contract or admin surface.
+ */
 
-import { atprotoPlugin, createPlugin } from "../src/index.js";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
-describe("atprotoPlugin descriptor", () => {
-	it("returns a valid PluginDescriptor", () => {
-		const descriptor = atprotoPlugin();
-		expect(descriptor.id).toBe("atproto");
-		expect(descriptor.version).toBe("0.1.0");
-		expect(descriptor.entrypoint).toBe("@emdash-cms/plugin-atproto");
-		expect(descriptor.adminPages).toHaveLength(1);
-		expect(descriptor.adminWidgets).toHaveLength(1);
+import { parse as parseJsonc } from "jsonc-parser";
+import { describe, expect, it } from "vitest";
+
+import { version } from "../package.json";
+
+const MANIFEST_PATH = fileURLToPath(new URL("../emdash-plugin.jsonc", import.meta.url));
+
+interface Manifest {
+	slug: string;
+	version: string;
+	publisher: string;
+	capabilities: string[];
+	allowedHosts: string[];
+	storage: Record<string, { indexes: string[] }>;
+	admin: {
+		pages: Array<{ path: string; label: string; icon?: string }>;
+		widgets: Array<{ id: string; title?: string; size?: string }>;
+	};
+}
+
+async function loadManifest(): Promise<Manifest> {
+	const source = await readFile(MANIFEST_PATH, "utf8");
+	const errors: import("jsonc-parser").ParseError[] = [];
+	const value: unknown = parseJsonc(source, errors, {
+		allowTrailingComma: true,
+		disallowComments: false,
+	});
+	if (errors.length > 0) {
+		throw new Error(`Manifest parse failed: ${JSON.stringify(errors)}`);
+	}
+	return value as Manifest;
+}
+
+describe("atproto plugin manifest", () => {
+	it("declares the expected identity", async () => {
+		const manifest = await loadManifest();
+		expect(manifest.slug).toBe("atproto");
+		expect(manifest.version).toBe(version);
 	});
 
-	it("passes options through", () => {
-		const descriptor = atprotoPlugin({});
-		expect(descriptor.options).toEqual({});
-	});
-});
-
-describe("createPlugin", () => {
-	it("returns a valid ResolvedPlugin", () => {
-		const plugin = createPlugin();
-		expect(plugin.id).toBe("atproto");
-		expect(plugin.version).toBe("0.1.0");
-		expect(plugin.capabilities).toContain("read:content");
-		expect(plugin.capabilities).toContain("network:fetch:any");
+	it("declares the required capabilities", async () => {
+		const manifest = await loadManifest();
+		expect(manifest.capabilities).toContain("content:read");
+		expect(manifest.capabilities).toContain("network:request:unrestricted");
 	});
 
-	it("uses unrestricted network access (implies network:fetch)", () => {
-		const plugin = createPlugin();
-		expect(plugin.capabilities).toContain("network:fetch:any");
-		// network:fetch:any implies network:fetch via definePlugin normalization
-		expect(plugin.capabilities).toContain("network:fetch");
+	it("declares the storage used by the runtime", async () => {
+		const manifest = await loadManifest();
+		expect(manifest.storage).toHaveProperty("records");
+		expect(manifest.storage.records.indexes).toContain("contentId");
+		expect(manifest.storage.records.indexes).toContain("status");
+		expect(manifest.storage.records.indexes).toContain("lastSyncedAt");
 	});
 
-	it("declares storage with records collection", () => {
-		const plugin = createPlugin();
-		expect(plugin.storage).toHaveProperty("records");
-		expect(plugin.storage!.records!.indexes).toContain("contentId");
-		expect(plugin.storage!.records!.indexes).toContain("status");
-	});
-
-	it("has content:afterSave hook with errorPolicy continue", () => {
-		const plugin = createPlugin();
-		const hook = plugin.hooks!["content:afterSave"];
-		expect(hook).toBeDefined();
-		// Hook is configured with full config object
-		expect((hook as { errorPolicy: string }).errorPolicy).toBe("continue");
-	});
-
-	it("has content:afterDelete hook", () => {
-		const plugin = createPlugin();
-		expect(plugin.hooks!["content:afterDelete"]).toBeDefined();
-	});
-
-	it("has page:metadata hook", () => {
-		const plugin = createPlugin();
-		expect(plugin.hooks!["page:metadata"]).toBeDefined();
-	});
-
-	it("has settings schema with required fields", () => {
-		const plugin = createPlugin();
-		const schema = plugin.admin!.settingsSchema!;
-		expect(schema).toHaveProperty("handle");
-		expect(schema).toHaveProperty("appPassword");
-		expect(schema).toHaveProperty("siteUrl");
-		expect(schema).toHaveProperty("enableBskyCrosspost");
-		expect(schema).toHaveProperty("crosspostTemplate");
-		expect(schema).toHaveProperty("langs");
-		expect(schema.appPassword!.type).toBe("secret");
-	});
-
-	it("has routes for status, test-connection, sync-publication", () => {
-		const plugin = createPlugin();
-		expect(plugin.routes).toHaveProperty("status");
-		expect(plugin.routes).toHaveProperty("test-connection");
-		expect(plugin.routes).toHaveProperty("sync-publication");
-		expect(plugin.routes).toHaveProperty("recent-syncs");
-		expect(plugin.routes).toHaveProperty("verification");
+	it("declares the admin pages and widgets", async () => {
+		const manifest = await loadManifest();
+		expect(manifest.admin.pages).toHaveLength(1);
+		expect(manifest.admin.pages[0]?.path).toBe("/status");
+		expect(manifest.admin.widgets).toHaveLength(1);
+		expect(manifest.admin.widgets[0]?.id).toBe("sync-status");
 	});
 });

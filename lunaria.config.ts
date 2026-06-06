@@ -11,6 +11,8 @@ export default defineConfig({
 		label: SOURCE_LOCALE.label,
 		lang: SOURCE_LOCALE.code,
 	},
+	// Lunaria requires a non-empty tuple; TARGET_LOCALES is authored with 10+ entries.
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- non-empty by construction (see packages/admin/src/locales/locales.ts)
 	locales: TARGET_LOCALES.map((l) => ({
 		label: l.label,
 		lang: l.code,

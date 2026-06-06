@@ -1,8 +1,8 @@
-import { Role } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { apiError, apiSuccess, handleError, requireDb, unwrapResult } from "#api/error.js";
+import { handleBylineUpdate } from "#api/handlers/bylines.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { bylineUpdateBody } from "#api/schemas.js";
 import { invalidateBylineCache } from "#bylines/index.js";
@@ -10,17 +10,9 @@ import { BylineRepository } from "#db/repositories/byline.js";
 
 export const prerender = false;
 
-function requireEditor(user: { role: number } | undefined): Response | null {
-	if (!user || user.role < Role.EDITOR) {
-		return apiError("FORBIDDEN", "Editor privileges required", 403);
-	}
-	return null;
-}
-
 export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
-	// Read access uses content:read so all authenticated roles can view byline data
-	const denied = requirePerm(user, "content:read");
+	const denied = requirePerm(user, "bylines:read");
 	if (denied) return denied;
 
 	if (!emdash?.db) {
@@ -39,39 +31,40 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
 export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
-	const denied = requireEditor(user);
+	const denied = requirePerm(user, "bylines:manage");
 	if (denied) return denied;
 
-	if (!emdash?.db) {
-		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-	}
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 
 	const body = await parseBody(request, bylineUpdateBody);
 	if (isParseError(body)) return body;
 
-	try {
-		const repo = new BylineRepository(emdash.db);
-		const byline = await repo.update(params.id!, {
-			slug: body.slug,
-			displayName: body.displayName,
-			bio: body.bio ?? null,
-			avatarMediaId: body.avatarMediaId ?? null,
-			websiteUrl: body.websiteUrl ?? null,
-			userId: body.userId ?? null,
-			isGuest: body.isGuest,
-		});
+	const result = await handleBylineUpdate(emdash.db, params.id!, {
+		slug: body.slug,
+		displayName: body.displayName,
+		bio: body.bio ?? null,
+		avatarMediaId: body.avatarMediaId ?? null,
+		websiteUrl: body.websiteUrl ?? null,
+		userId: body.userId ?? null,
+		isGuest: body.isGuest,
+		// Forward `customFields` only when present so the repo treats an
+		// omitted key as "leave existing values untouched". An empty
+		// object also no-ops by repo convention — see
+		// `BylineRepository.update`. Validation (unknown slug, type
+		// mismatch, select-choice) happens inside the repo and surfaces
+		// as `EmDashValidationError`, which the handler maps to a 400
+		// `VALIDATION_ERROR` for `unwrapResult` / `mapErrorStatus`.
+		customFields: body.customFields,
+	});
 
-		if (!byline) return apiError("NOT_FOUND", "Byline not found", 404);
-		invalidateBylineCache();
-		return apiSuccess(byline);
-	} catch (error) {
-		return handleError(error, "Failed to update byline", "BYLINE_UPDATE_ERROR");
-	}
+	if (result.success) invalidateBylineCache();
+	return unwrapResult(result);
 };
 
 export const DELETE: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
-	const denied = requireEditor(user);
+	const denied = requirePerm(user, "bylines:manage");
 	if (denied) return denied;
 
 	if (!emdash?.db) {

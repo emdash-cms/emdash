@@ -1,21 +1,40 @@
 ---
+interface RawPlan {
+	name: string;
+	price: string;
+	period?: string;
+	description?: string;
+	// Features are stored as a newline-separated string (Block Kit has no
+	// list-of-strings element, so a multiline text input is the closest fit).
+	features?: string;
+	// CTAs are flattened to sibling fields because Block Kit has no
+	// object-group element.
+	ctaLabel?: string;
+	ctaUrl?: string;
+	highlighted?: boolean;
+}
+
 interface Props {
 	node: {
 		headline?: string;
-		plans: Array<{
-			name: string;
-			price: string;
-			period?: string;
-			description?: string;
-			features: string[];
-			cta: { label: string; url: string };
-			highlighted?: boolean;
-		}>;
+		plans: RawPlan[];
 	};
 }
 
 const { node } = Astro.props;
-const { headline, plans } = node;
+const { headline, plans: rawPlans } = node;
+
+const plans = rawPlans.map((plan) => ({
+	...plan,
+	features: (plan.features ?? "")
+		.split("\n")
+		.map((s) => s.trim())
+		.filter(Boolean),
+	cta: {
+		label: plan.ctaLabel ?? "",
+		url: plan.ctaUrl ?? "#",
+	},
+}));
 ---
 
 <section class="pricing section">
