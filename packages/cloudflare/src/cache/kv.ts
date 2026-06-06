@@ -33,6 +33,28 @@ import type { CreateObjectCacheBackendFn, ObjectCacheBackend } from "emdash";
  */
 const KV_MIN_TTL_SECONDS = 60;
 
+/**
+ * Default ceiling (ms) for a single KV operation. A KV read can stall without
+ * ever resolving or rejecting — a cold cross-region read, or one queued behind
+ * the Workers six-simultaneous-connection limit. Left unbounded, that hangs the
+ * isolate. Racing against a timeout turns a stall into a rejection, which the
+ * object-cache read path treats as a benign cache miss.
+ */
+const DEFAULT_KV_TIMEOUT_MS = 2000;
+
+/**
+ * Reject `promise` if it hasn't settled within `ms`. A `ms <= 0` disables the
+ * timeout. The timer is always cleared so it can't keep the isolate alive.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+	if (!(ms > 0)) return promise;
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<never>((_resolve, reject) => {
+		timer = setTimeout(() => reject(new Error(`KV ${label} timed out after ${ms}ms`)), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export const createObjectCache: CreateObjectCacheBackendFn = (config): ObjectCacheBackend => {
 	const binding = typeof config.binding === "string" ? config.binding : "";
 	if (!binding) {
@@ -50,22 +72,27 @@ export const createObjectCache: CreateObjectCacheBackendFn = (config): ObjectCac
 		);
 	}
 
+	const timeout =
+		typeof config.timeout === "number" && config.timeout >= 0
+			? config.timeout
+			: DEFAULT_KV_TIMEOUT_MS;
+
 	return {
 		async get(key: string): Promise<string | null> {
-			return (await kv.get(key, "text")) ?? null;
+			return (await withTimeout(kv.get(key, "text"), timeout, "get")) ?? null;
 		},
 		async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
-			if (ttlSeconds && ttlSeconds > 0) {
-				await kv.put(key, value, {
-					expirationTtl: Math.max(KV_MIN_TTL_SECONDS, Math.floor(ttlSeconds)),
-				});
-			} else {
-				// No TTL: persistent key (used for epoch anchors).
-				await kv.put(key, value);
-			}
+			const put =
+				ttlSeconds && ttlSeconds > 0
+					? kv.put(key, value, {
+							expirationTtl: Math.max(KV_MIN_TTL_SECONDS, Math.floor(ttlSeconds)),
+						})
+					: // No TTL: persistent key (used for epoch anchors).
+						kv.put(key, value);
+			await withTimeout(put, timeout, "put");
 		},
 		async delete(key: string): Promise<void> {
-			await kv.delete(key);
+			await withTimeout(kv.delete(key), timeout, "delete");
 		},
 	};
 };

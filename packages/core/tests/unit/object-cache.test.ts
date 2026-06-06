@@ -188,4 +188,53 @@ describe("cachedQuery", () => {
 		expect(result).toEqual({ n: 1 });
 		expect(load).toHaveBeenCalledTimes(1);
 	});
+
+	it("does not hang when a backend read never settles — times out to a miss", async () => {
+		// A backend.get that never resolves or rejects (the production hang:
+		// a stalled KV read). With a short timeout the query must still settle.
+		const backend = spyBackend();
+		backend.get = vi.fn(() => new Promise<string | null>(() => {})); // never settles
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600, timeout: 20 });
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+
+		const result = await cachedQuery({ namespace: "t", key: "k", load });
+		expect(result).toEqual({ n: 1 });
+		expect(load).toHaveBeenCalledTimes(1);
+	});
+
+	it("self-heals after a stalled read instead of poisoning the namespace", async () => {
+		// First the backend stalls (epoch + value reads hang); after the timeout
+		// the namespace must recover and serve from cache on a healthy backend.
+		const store = new Map<string, string>();
+		let healthy = false;
+		const backend: ObjectCacheBackend = {
+			get: (key) =>
+				healthy ? Promise.resolve(store.get(key) ?? null) : new Promise<string | null>(() => {}), // stalls while unhealthy
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		};
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600, timeout: 20 });
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+
+		// While stalled: degrades to load() instead of hanging.
+		await expect(cachedQuery({ namespace: "posts", key: "k", load })).resolves.toEqual({ n: 1 });
+
+		// Backend recovers; the stuck epoch promise must have settled (timed out)
+		// and been replaced, so the namespace is usable again.
+		healthy = true;
+		await flush();
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		const calls = load.mock.calls.length;
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		// The second post-recovery call is served from cache (load not re-run).
+		expect(load.mock.calls.length).toBe(calls);
+	});
 });

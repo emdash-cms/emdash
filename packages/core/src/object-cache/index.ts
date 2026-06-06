@@ -37,6 +37,7 @@ import type {
 const DEFAULT_KEY_PREFIX = "em";
 const DEFAULT_TTL_SECONDS = 3600;
 const DEFAULT_REVALIDATE_MS = 1000;
+const DEFAULT_TIMEOUT_MS = 2000;
 
 interface BackendHolder {
 	/** Whether the virtual module has been loaded and the backend resolved. */
@@ -48,7 +49,26 @@ interface BackendHolder {
 	config: Required<Pick<ObjectCacheRuntimeConfig, "keyPrefix">> & {
 		defaultTtl: number;
 		revalidate: number;
+		timeout: number;
 	};
+}
+
+/**
+ * Race a backend operation against a timeout so a stalled call (e.g. a KV read
+ * that never resolves *and* never rejects — a cold cross-region read, or one
+ * queued behind the Workers simultaneous-connection limit) degrades to a
+ * rejection instead of hanging the isolate. A rejection is benign: callers
+ * already treat a failed read as a cache miss / last-known epoch.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+	if (!(ms > 0)) return promise;
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<never>((_resolve, reject) => {
+		timer = setTimeout(() => {
+			reject(new Error(`object-cache ${label} timed out after ${ms}ms`));
+		}, ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 interface EpochEntry {
@@ -76,6 +96,7 @@ const holder: BackendHolder =
 				keyPrefix: DEFAULT_KEY_PREFIX,
 				defaultTtl: DEFAULT_TTL_SECONDS,
 				revalidate: DEFAULT_REVALIDATE_MS,
+				timeout: DEFAULT_TIMEOUT_MS,
 			},
 		};
 		g[BACKEND_KEY] = h;
@@ -135,6 +156,10 @@ async function getBackend(): Promise<ObjectCacheBackend | null> {
 					typeof config.revalidate === "number" && config.revalidate >= 0
 						? config.revalidate
 						: DEFAULT_REVALIDATE_MS,
+				timeout:
+					typeof config.timeout === "number" && config.timeout >= 0
+						? config.timeout
+						: DEFAULT_TIMEOUT_MS,
 			};
 
 			holder.backend =
@@ -142,7 +167,7 @@ async function getBackend(): Promise<ObjectCacheBackend | null> {
 		} catch (error) {
 			// Importing the virtual module fails outside an Astro/Vite context
 			// (e.g. unit tests, CLI). Treat as "no cache configured".
-			if (process.env["EMDASH_DEBUG_OBJECT_CACHE"]) {
+			if (import.meta.env.DEV) {
 				console.warn("[object-cache] backend unavailable:", error);
 			}
 			holder.backend = null;
@@ -200,8 +225,10 @@ function shouldBypass(): boolean {
  * Read the current epoch for `namespace`, reusing an isolate-cached value for
  * up to `revalidate` ms. A missing epoch (never bumped) is treated as `0`.
  *
- * Backend errors are non-fatal: we fall back to the last known epoch (or `0`),
- * so a flaky cache degrades to "serve whatever's keyed" rather than throwing.
+ * Backend errors and stalls are non-fatal: the read is bounded by a timeout,
+ * and on failure we fall back to the last known epoch (or `0`), so a flaky or
+ * hung cache degrades to "serve whatever's keyed" rather than throwing or
+ * hanging.
  */
 async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise<number> {
 	const now = Date.now();
@@ -213,7 +240,11 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 
 	const promise = (async () => {
 		try {
-			const raw = await backend.get(epochKey(namespace));
+			const raw = await withTimeout(
+				backend.get(epochKey(namespace)),
+				holder.config.timeout,
+				"epoch read",
+			);
 			const parsed = raw === null ? 0 : Number(raw);
 			const value = Number.isFinite(parsed) ? parsed : 0;
 			epochCache.set(namespace, { value, at: Date.now() });
@@ -225,6 +256,11 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 		}
 	})();
 
+	// Concurrent callers share this in-flight read (dedup). The timeout above
+	// guarantees `promise` settles — its success/catch handler then replaces
+	// this entry with a fresh, promise-free one — so a stalled backend can no
+	// longer pin the namespace to a never-settling promise (the bug that
+	// poisoned an isolate until it was recycled).
 	epochCache.set(namespace, { value: cached?.value ?? 0, at: cached?.at ?? 0, promise });
 	return promise;
 }
@@ -277,7 +313,7 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 	const fullKey = valueKey(namespaces, epochs, options.key);
 
 	try {
-		const raw = await backend.get(fullKey);
+		const raw = await withTimeout(backend.get(fullKey), holder.config.timeout, "read");
 		if (raw !== null) {
 			const decoded = decode(raw);
 			if (decoded !== undefined) {
@@ -286,7 +322,7 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 			}
 		}
 	} catch {
-		// Treat backend read errors as a miss.
+		// Treat backend read errors and timeouts as a miss — fall through to load().
 	}
 
 	const value = await options.load();
@@ -300,7 +336,7 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 			try {
 				await backend.set(fullKey, raw, ttl);
 			} catch (error) {
-				if (process.env["EMDASH_DEBUG_OBJECT_CACHE"]) {
+				if (import.meta.env.DEV) {
 					console.warn("[object-cache] set failed:", error);
 				}
 			}

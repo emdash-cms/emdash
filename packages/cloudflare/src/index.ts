@@ -299,6 +299,12 @@ export interface KVCacheConfig {
 	 * reuses a cached namespace epoch before re-reading it. Default 1000.
 	 */
 	revalidate?: number;
+	/**
+	 * Maximum time (ms) for a single KV operation before it's treated as a
+	 * cache miss. Guards against KV reads that stall without settling. Set to
+	 * `0` to disable. Default 2000.
+	 */
+	timeout?: number;
 	/** Prefix applied to every cache key (lets multiple sites share a namespace). */
 	keyPrefix?: string;
 }
@@ -332,6 +338,7 @@ export function kvCache(config: KVCacheConfig): ObjectCacheDescriptor {
 			binding: config.binding,
 			...(config.defaultTtl !== undefined ? { defaultTtl: config.defaultTtl } : {}),
 			...(config.revalidate !== undefined ? { revalidate: config.revalidate } : {}),
+			...(config.timeout !== undefined ? { timeout: config.timeout } : {}),
 			...(config.keyPrefix !== undefined ? { keyPrefix: config.keyPrefix } : {}),
 		},
 	};

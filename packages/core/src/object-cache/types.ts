@@ -92,6 +92,21 @@ export interface ObjectCacheRuntimeConfig {
 	 * @default "em"
 	 */
 	keyPrefix?: string;
+	/**
+	 * Maximum time (milliseconds) to wait for a single backend read before
+	 * treating it as a cache miss and falling back to the database.
+	 *
+	 * Guards against a backend operation that stalls without resolving or
+	 * rejecting (e.g. a cold cross-region KV read, or one queued behind the
+	 * Workers simultaneous-connection limit), which would otherwise hang the
+	 * request. A timed-out read degrades to a miss; the database remains the
+	 * source of truth.
+	 *
+	 * Set to `0` to disable the timeout (not recommended on Cloudflare).
+	 *
+	 * @default 2000
+	 */
+	timeout?: number;
 	/** Backend-specific keys (e.g. the KV binding name). */
 	[key: string]: unknown;
 }
