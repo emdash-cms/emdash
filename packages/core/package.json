@@ -98,6 +98,10 @@
       "types": "./dist/storage/s3.d.mts",
       "default": "./dist/storage/s3.mjs"
     },
+    "./object-cache/memory": {
+      "types": "./dist/object-cache/memory.d.mts",
+      "default": "./dist/object-cache/memory.mjs"
+    },
     "./media": {
       "types": "./dist/media/index.d.mts",
       "default": "./dist/media/index.mjs"

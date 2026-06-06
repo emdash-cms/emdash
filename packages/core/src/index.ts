@@ -191,6 +191,26 @@ export type {
 } from "./storage/types.js";
 export { EmDashStorageError } from "./storage/types.js";
 
+// Object cache (distributed read-through query cache)
+export {
+	cachedQuery,
+	invalidateObjectCache,
+	invalidateCollectionCache,
+	invalidateTaxonomyObjectCache,
+	invalidateBylineObjectCache,
+	invalidateMenuObjectCache,
+	contentNamespace,
+	contentNamespaces,
+	CacheNamespace,
+} from "./object-cache/index.js";
+export type { CachedQueryOptions } from "./object-cache/index.js";
+export type {
+	ObjectCacheBackend,
+	ObjectCacheDescriptor,
+	ObjectCacheRuntimeConfig,
+	CreateObjectCacheBackendFn,
+} from "./object-cache/types.js";
+
 // Plugin system
 export {
 	definePlugin,

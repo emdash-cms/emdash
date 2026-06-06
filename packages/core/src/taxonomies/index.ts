@@ -13,6 +13,11 @@
 
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
+import {
+	cachedQuery,
+	CacheNamespace,
+	invalidateTaxonomyObjectCache,
+} from "../object-cache/index.js";
 import { peekRequestCache, requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
@@ -23,10 +28,12 @@ export interface TaxonomyQueryOptions {
 }
 
 /**
- * No-op — kept for API compatibility.
+ * Invalidate cached taxonomy data in the distributed object cache (and any
+ * content that hydrates taxonomy terms). The legacy in-isolate term cache was
+ * removed, so this used to be a no-op; it now drives object-cache invalidation.
  */
 export function invalidateTermCache(): void {
-	// Intentionally empty.
+	invalidateTaxonomyObjectCache();
 }
 
 /**
@@ -36,13 +43,19 @@ export function invalidateTermCache(): void {
  */
 export async function getTaxonomyDefs(options: TaxonomyQueryOptions = {}): Promise<TaxonomyDef[]> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`taxonomy-defs:${locale ?? "*"}`, async () => {
-		const db = await getDb();
-		let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
-		if (locale !== undefined) query = query.where("locale", "=", locale);
-		const rows = await query.execute();
-		return rows.map(rowToTaxonomyDef);
-	});
+	return requestCached(`taxonomy-defs:${locale ?? "*"}`, () =>
+		cachedQuery({
+			namespace: CacheNamespace.TAXONOMIES,
+			key: `defs:${locale ?? "*"}`,
+			load: async () => {
+				const db = await getDb();
+				let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+				if (locale !== undefined) query = query.where("locale", "=", locale);
+				const rows = await query.execute();
+				return rows.map(rowToTaxonomyDef);
+			},
+		}),
+	);
 }
 
 /**
@@ -106,54 +119,66 @@ export async function getTaxonomyTerms(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm[]> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`taxonomy-terms:${taxonomyName}:${locale ?? "*"}`, async () => {
-		const db = await getDb();
+	return requestCached(`taxonomy-terms:${taxonomyName}:${locale ?? "*"}`, () =>
+		cachedQuery({
+			namespace: CacheNamespace.TAXONOMIES,
+			key: `terms:${taxonomyName}:${locale ?? "*"}`,
+			load: () => loadTaxonomyTerms(taxonomyName, locale, options),
+		}),
+	);
+}
 
-		const def = await getTaxonomyDef(taxonomyName, options);
-		if (!def) return [];
+async function loadTaxonomyTerms(
+	taxonomyName: string,
+	locale: string | undefined,
+	options: TaxonomyQueryOptions,
+): Promise<TaxonomyTerm[]> {
+	const db = await getDb();
 
-		let termsQuery = db
-			.selectFrom("taxonomies")
-			.selectAll()
-			.where("name", "=", taxonomyName)
-			.orderBy("label", "asc");
-		if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
-		const rows = await termsQuery.execute();
+	const def = await getTaxonomyDef(taxonomyName, options);
+	if (!def) return [];
 
-		// Counts are keyed by translation_group (what the pivot stores).
-		const countsResult = await db
-			.selectFrom("content_taxonomies")
-			.select(["taxonomy_id"])
-			.select((eb) => eb.fn.count<number>("entry_id").as("count"))
-			.groupBy("taxonomy_id")
-			.execute();
-		const counts = new Map<string, number>();
-		for (const row of countsResult) counts.set(row.taxonomy_id, row.count);
+	let termsQuery = db
+		.selectFrom("taxonomies")
+		.selectAll()
+		.where("name", "=", taxonomyName)
+		.orderBy("label", "asc");
+	if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
+	const rows = await termsQuery.execute();
 
-		const flatTerms: TaxonomyTermRow[] = rows.map((row) => ({
-			id: row.id,
-			name: row.name,
-			slug: row.slug,
-			label: row.label,
-			parent_id: row.parent_id,
-			data: row.data,
-			locale: row.locale,
-			translation_group: row.translation_group,
-		}));
+	// Counts are keyed by translation_group (what the pivot stores).
+	const countsResult = await db
+		.selectFrom("content_taxonomies")
+		.select(["taxonomy_id"])
+		.select((eb) => eb.fn.count<number>("entry_id").as("count"))
+		.groupBy("taxonomy_id")
+		.execute();
+	const counts = new Map<string, number>();
+	for (const row of countsResult) counts.set(row.taxonomy_id, row.count);
 
-		if (def.hierarchical) return buildTree(flatTerms, counts);
+	const flatTerms: TaxonomyTermRow[] = rows.map((row) => ({
+		id: row.id,
+		name: row.name,
+		slug: row.slug,
+		label: row.label,
+		parent_id: row.parent_id,
+		data: row.data,
+		locale: row.locale,
+		translation_group: row.translation_group,
+	}));
 
-		return flatTerms.map((term) => ({
-			id: term.id,
-			name: term.name,
-			slug: term.slug,
-			label: term.label,
-			children: [],
-			count: counts.get(term.translation_group ?? term.id) ?? 0,
-			locale: term.locale,
-			translationGroup: term.translation_group,
-		}));
-	});
+	if (def.hierarchical) return buildTree(flatTerms, counts);
+
+	return flatTerms.map((term) => ({
+		id: term.id,
+		name: term.name,
+		slug: term.slug,
+		label: term.label,
+		children: [],
+		count: counts.get(term.translation_group ?? term.id) ?? 0,
+		locale: term.locale,
+		translationGroup: term.translation_group,
+	}));
 }
 
 /**

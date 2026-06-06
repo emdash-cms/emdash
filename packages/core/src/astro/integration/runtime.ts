@@ -10,6 +10,7 @@
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
+import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
@@ -151,6 +152,41 @@ export interface EmDashConfig {
 	 * Storage configuration (for media)
 	 */
 	storage?: StorageDescriptor;
+
+	/**
+	 * Optional distributed object cache for query results.
+	 *
+	 * Off by default. When configured, content and chrome (settings, menus,
+	 * taxonomies) reads are cached in a fast key/value store and served without
+	 * touching the database on repeat requests across isolates. This offloads
+	 * read pressure from D1/SQLite, which is especially valuable on Cloudflare
+	 * where D1 has far lower request capacity than KV.
+	 *
+	 * Use a backend adapter:
+	 * - `memoryCache()` from `emdash/astro` — in-isolate (Node / local dev)
+	 * - `kvCache({ binding: "CACHE" })` from `@emdash-cms/cloudflare` — KV
+	 *
+	 * Authenticated, preview, and visual-edit requests always bypass the cache,
+	 * so editors see live content immediately. Anonymous visitors may see
+	 * content up to `revalidate` ms stale after an edit (default 1s).
+	 *
+	 * Scheduled content becomes visible at query time (no write event fires when
+	 * its publish time passes), so a cached list/entry won't surface a newly-due
+	 * scheduled item until the next write to that collection or until the
+	 * entry's TTL lapses (`defaultTtl`, default 1h). Sites that rely on precise
+	 * scheduled publishing should lower `defaultTtl` accordingly.
+	 *
+	 * @example
+	 * ```ts
+	 * import { kvCache } from "@emdash-cms/cloudflare";
+	 *
+	 * emdash({
+	 *   database: d1({ binding: "DB" }),
+	 *   objectCache: kvCache({ binding: "CACHE" }),
+	 * })
+	 * ```
+	 */
+	objectCache?: ObjectCacheDescriptor;
 	/**
 	 * Trusted plugins to load (run in main isolate)
 	 *

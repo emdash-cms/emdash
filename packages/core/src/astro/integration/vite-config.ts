@@ -22,6 +22,8 @@ import {
 	RESOLVED_VIRTUAL_DIALECT_ID,
 	VIRTUAL_STORAGE_ID,
 	RESOLVED_VIRTUAL_STORAGE_ID,
+	VIRTUAL_OBJECT_CACHE_ID,
+	RESOLVED_VIRTUAL_OBJECT_CACHE_ID,
 	VIRTUAL_ADMIN_REGISTRY_ID,
 	RESOLVED_VIRTUAL_ADMIN_REGISTRY_ID,
 	VIRTUAL_PLUGINS_ID,
@@ -47,6 +49,7 @@ import {
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
+	generateObjectCacheModule,
 	generateAuthModule,
 	generateAuthProvidersModule,
 	generatePluginsModule,
@@ -173,6 +176,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_STORAGE_ID) {
 				return RESOLVED_VIRTUAL_STORAGE_ID;
 			}
+			if (id === VIRTUAL_OBJECT_CACHE_ID) {
+				return RESOLVED_VIRTUAL_OBJECT_CACHE_ID;
+			}
 			if (id === VIRTUAL_ADMIN_REGISTRY_ID) {
 				return RESOLVED_VIRTUAL_ADMIN_REGISTRY_ID;
 			}
@@ -220,6 +226,14 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// Generate a module that statically imports the configured storage
 			if (id === RESOLVED_VIRTUAL_STORAGE_ID) {
 				return generateStorageModule(resolvedConfig.storage?.entrypoint);
+			}
+			// Generate the object-cache module — statically imports the
+			// configured backend factory, or exports undefined (cache off).
+			if (id === RESOLVED_VIRTUAL_OBJECT_CACHE_ID) {
+				return generateObjectCacheModule(
+					resolvedConfig.objectCache?.entrypoint,
+					resolvedConfig.objectCache?.config,
+				);
 			}
 			// Generate plugins module that imports and instantiates all plugins
 			if (id === RESOLVED_VIRTUAL_PLUGINS_ID) {

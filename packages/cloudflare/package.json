@@ -60,6 +60,10 @@
     "./cache/config": {
       "types": "./dist/cache/config.d.mts",
       "default": "./dist/cache/config.mjs"
+    },
+    "./cache/kv": {
+      "types": "./dist/cache/kv.d.mts",
+      "default": "./dist/cache/kv.mjs"
     }
   },
   "scripts": {

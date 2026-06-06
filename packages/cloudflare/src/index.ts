@@ -33,7 +33,12 @@
  * ```
  */
 
-import type { AuthDescriptor, DatabaseDescriptor, StorageDescriptor } from "emdash";
+import type {
+	AuthDescriptor,
+	DatabaseDescriptor,
+	ObjectCacheDescriptor,
+	StorageDescriptor,
+} from "emdash";
 
 import type { PreviewDOConfig } from "./db/do-types.js";
 
@@ -276,6 +281,60 @@ export function access(config: AccessConfig): AuthDescriptor {
  */
 export function sandbox(): string {
 	return "@emdash-cms/cloudflare/sandbox";
+}
+
+/**
+ * Cloudflare KV object-cache configuration.
+ */
+export interface KVCacheConfig {
+	/** Name of the KV binding in wrangler.jsonc. */
+	binding: string;
+	/**
+	 * Default TTL for cached entries, in seconds. Backstop for epoch-orphaned
+	 * keys (KV clamps to a 60s minimum). Default 3600.
+	 */
+	defaultTtl?: number;
+	/**
+	 * Cross-isolate staleness window in milliseconds: how long an isolate
+	 * reuses a cached namespace epoch before re-reading it. Default 1000.
+	 */
+	revalidate?: number;
+	/** Prefix applied to every cache key (lets multiple sites share a namespace). */
+	keyPrefix?: string;
+}
+
+/**
+ * Cloudflare KV object-cache adapter.
+ *
+ * Backs EmDash's optional distributed object cache with a Workers KV
+ * namespace, offloading content and chrome reads from D1. Requires a KV
+ * binding in wrangler.jsonc.
+ *
+ * @example
+ * ```ts
+ * import { d1, kvCache } from "@emdash-cms/cloudflare";
+ *
+ * emdash({
+ *   database: d1({ binding: "DB" }),
+ *   objectCache: kvCache({ binding: "CACHE" }),
+ * })
+ * ```
+ *
+ * ```jsonc
+ * // wrangler.jsonc
+ * { "kv_namespaces": [{ "binding": "CACHE", "id": "<namespace-id>" }] }
+ * ```
+ */
+export function kvCache(config: KVCacheConfig): ObjectCacheDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/cache/kv",
+		config: {
+			binding: config.binding,
+			...(config.defaultTtl !== undefined ? { defaultTtl: config.defaultTtl } : {}),
+			...(config.revalidate !== undefined ? { revalidate: config.revalidate } : {}),
+			...(config.keyPrefix !== undefined ? { keyPrefix: config.keyPrefix } : {}),
+		},
+	};
 }
 
 // Re-export media providers (config-time)

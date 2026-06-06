@@ -14,9 +14,11 @@ export default defineConfig({
 		// Media provider runtimes
 		"src/media/images-runtime.ts",
 		"src/media/stream-runtime.ts",
-		// Cache provider
+		// Cache provider (full-page response cache)
 		"src/cache/runtime.ts",
 		"src/cache/config.ts",
+		// Object cache backend (KV)
+		"src/cache/kv.ts",
 	],
 	format: ["esm"],
 	dts: true,

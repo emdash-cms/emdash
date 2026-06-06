@@ -11,7 +11,11 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
+
+/** Object-cache namespace for site settings. */
+const SETTINGS_CACHE_NAMESPACE = "settings";
 import type { Storage } from "../storage/types.js";
 import type { SiteSettings, SiteSettingKey, MediaReference, SeoSettings } from "./types.js";
 
@@ -63,6 +67,8 @@ export function invalidateSiteSettingsCache(): void {
 	holder.version++;
 	holder.cached = null;
 	holder.cachedVersion = -1;
+	// Cross-isolate invalidation for the optional distributed object cache.
+	invalidateObjectCache(SETTINGS_CACHE_NAMESPACE);
 }
 
 /**
@@ -215,10 +221,14 @@ export function getSiteSettings(): Promise<Partial<SiteSettings>> {
 		if (holder.cached && holder.cachedVersion === versionAtCall) {
 			return holder.cached;
 		}
-		const fetchPromise = (async () => {
-			const db = await getDb();
-			return getSiteSettingsWithDb(db);
-		})().catch((error) => {
+		const fetchPromise = cachedQuery({
+			namespace: SETTINGS_CACHE_NAMESPACE,
+			key: "all",
+			load: async () => {
+				const db = await getDb();
+				return getSiteSettingsWithDb(db);
+			},
+		}).catch((error) => {
 			if (holder.cached === fetchPromise) {
 				holder.cached = null;
 				holder.cachedVersion = -1;

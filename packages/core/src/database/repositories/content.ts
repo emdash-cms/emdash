@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { invalidateCollectionCache } from "../../object-cache/index.js";
 import { slugify } from "../../utils/slugify.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -188,6 +189,8 @@ export class ContentRepository {
 			INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
 			VALUES (${sql.join(valuePlaceholders, sql`, `)})
 		`.execute(this.db);
+
+		invalidateCollectionCache(type);
 
 		// Fetch and return the created item
 		const item = await this.findById(type, id);
@@ -602,6 +605,8 @@ export class ContentRepository {
 			.where("deleted_at" as never, "is", null)
 			.execute();
 
+		invalidateCollectionCache(type);
+
 		const updated = await this.findById(type, id);
 		if (!updated) {
 			throw new Error("Content not found");
@@ -624,7 +629,9 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		return (result.numAffectedRows ?? 0n) > 0n;
+		const changed = (result.numAffectedRows ?? 0n) > 0n;
+		if (changed) invalidateCollectionCache(type);
+		return changed;
 	}
 
 	/**
@@ -640,7 +647,9 @@ export class ContentRepository {
 			AND deleted_at IS NOT NULL
 		`.execute(this.db);
 
-		return (result.numAffectedRows ?? 0n) > 0n;
+		const changed = (result.numAffectedRows ?? 0n) > 0n;
+		if (changed) invalidateCollectionCache(type);
+		return changed;
 	}
 
 	/**
@@ -665,7 +674,9 @@ export class ContentRepository {
 			AND deleted_at IS NOT NULL
 		`.execute(this.db);
 
-		return (result.numAffectedRows ?? 0n) > 0n;
+		const changed = (result.numAffectedRows ?? 0n) > 0n;
+		if (changed) invalidateCollectionCache(type);
+		return changed;
 	}
 
 	/**
@@ -882,6 +893,8 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		invalidateCollectionCache(type);
+
 		const updated = await this.findById(type, id);
 		if (!updated) {
 			throw new Error("Content not found");
@@ -918,6 +931,8 @@ export class ContentRepository {
 			AND scheduled_at IS NOT NULL
 			AND deleted_at IS NULL
 		`.execute(this.db);
+
+		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
@@ -1047,6 +1062,8 @@ export class ContentRepository {
 			`.execute(this.db);
 		}
 
+		invalidateCollectionCache(type);
+
 		const updated = await this.findById(type, id);
 		if (!updated) {
 			throw new Error("Content not found");
@@ -1099,6 +1116,8 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		invalidateCollectionCache(type);
+
 		const updated = await this.findById(type, id);
 		if (!updated) {
 			throw new Error("Content not found");
@@ -1144,6 +1163,8 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 		`.execute(this.db);
+
+		invalidateCollectionCache(type);
 	}
 
 	/**
@@ -1173,6 +1194,8 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 		`.execute(this.db);
+
+		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
