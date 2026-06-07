@@ -5,15 +5,13 @@
  * Regression test for https://github.com/emdash-cms/emdash/issues/1228
  */
 
-import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { describe, it, expect } from "vitest";
+
 const integrationSource = readFileSync(
-	resolve(
-		import.meta.dirname,
-		"../../../src/astro/integration/index.ts",
-	),
+	resolve(import.meta.dirname, "../../../src/astro/integration/index.ts"),
 	"utf-8",
 );
 
