@@ -590,7 +590,7 @@ export interface RelationTable {
 	parent_label: string;
 	child_label: string;
 	locale: Generated<string>;
-	translation_group: string | null;
+	translation_group: string;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }

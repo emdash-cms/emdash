@@ -34,35 +34,49 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.addColumn("parent_label", "text", (c) => c.notNull())
 		.addColumn("child_label", "text", (c) => c.notNull())
 		.addColumn("locale", "text", (c) => c.notNull().defaultTo(defaultLocale))
-		.addColumn("translation_group", "text")
+		.addColumn("translation_group", "text", (c) => c.notNull())
 		.addColumn("created_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
 		.addColumn("updated_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
 		.addUniqueConstraint("_emdash_relations_name_locale_unique", ["name", "locale"])
 		.execute();
 
 	await db.schema
-		.createIndex("idx_relations_locale")
+		.createIndex("idx__emdash_relations_locale")
 		.ifNotExists()
 		.on("_emdash_relations")
 		.column("locale")
 		.execute();
 	await db.schema
-		.createIndex("idx_relations_translation_group")
+		.createIndex("idx__emdash_relations_translation_group")
 		.ifNotExists()
 		.on("_emdash_relations")
 		.column("translation_group")
 		.execute();
 	await db.schema
-		.createIndex("idx_relations_parent_collection")
+		.createIndex("idx__emdash_relations_parent_collection")
 		.ifNotExists()
 		.on("_emdash_relations")
 		.column("parent_collection")
 		.execute();
 	await db.schema
-		.createIndex("idx_relations_child_collection")
+		.createIndex("idx__emdash_relations_child_collection")
 		.ifNotExists()
 		.on("_emdash_relations")
 		.column("child_collection")
+		.execute();
+
+	// One row per (translation_group, locale): the row-per-locale model wants a
+	// relation to have at most one variant per locale. Migration 040 enforces
+	// the same invariant for `_emdash_bylines` with a *partial* unique
+	// (`WHERE translation_group IS NOT NULL`) only because it back-fills an
+	// existing table; this table is new and `translation_group` is `NOT NULL`,
+	// so a plain unique index suffices.
+	await db.schema
+		.createIndex("idx__emdash_relations_group_locale_unique")
+		.ifNotExists()
+		.unique()
+		.on("_emdash_relations")
+		.columns(["translation_group", "locale"])
 		.execute();
 
 	await db.schema
@@ -82,19 +96,19 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		.execute();
 
 	await db.schema
-		.createIndex("idx_content_references_parent")
+		.createIndex("idx__emdash_content_references_parent")
 		.ifNotExists()
 		.on("_emdash_content_references")
 		.columns(["parent_group", "relation_group", "sort_order"])
 		.execute();
 	await db.schema
-		.createIndex("idx_content_references_child")
+		.createIndex("idx__emdash_content_references_child")
 		.ifNotExists()
 		.on("_emdash_content_references")
 		.columns(["child_group", "relation_group"])
 		.execute();
 	await db.schema
-		.createIndex("idx_content_references_relation")
+		.createIndex("idx__emdash_content_references_relation")
 		.ifNotExists()
 		.on("_emdash_content_references")
 		.column("relation_group")

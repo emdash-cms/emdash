@@ -128,6 +128,64 @@ describeEachDialect("Content references schema", (dialect) => {
 		expect(rows).toHaveLength(2);
 	});
 
+	it("rejects a duplicate (translation_group, locale), allows across locales", async () => {
+		const base = {
+			parent_collection: "employees",
+			child_collection: "employees",
+			parent_label: "Manager",
+			child_label: "Report",
+			translation_group: "shared_tg",
+		};
+
+		await ctx.db
+			.insertInto("_emdash_relations")
+			.values({ id: "g_en", name: "manages", locale: "en", ...base })
+			.execute();
+
+		// Same (translation_group, locale) -> rejected by the partial unique,
+		// even though `name` differs.
+		await expect(
+			ctx.db
+				.insertInto("_emdash_relations")
+				.values({ id: "g_en2", name: "leads", locale: "en", ...base })
+				.execute(),
+		).rejects.toThrow();
+
+		// Same translation_group, different locale -> allowed.
+		await ctx.db
+			.insertInto("_emdash_relations")
+			.values({ id: "g_fr", name: "gere", locale: "fr", ...base })
+			.execute();
+
+		const rows = await ctx.db
+			.selectFrom("_emdash_relations")
+			.select(["id", "locale"])
+			.where("translation_group", "=", "shared_tg")
+			.execute();
+		expect(rows).toHaveLength(2);
+	});
+
+	it("rejects a relation with a null translation_group", async () => {
+		// translation_group is NOT NULL: a relation must be addressable by edges
+		// (`_emdash_content_references.relation_group` is NOT NULL), so a null
+		// group would be an unreferenceable, dead row.
+		await expect(
+			ctx.db
+				.insertInto("_emdash_relations")
+				.values({
+					id: "n1",
+					name: "manages",
+					parent_collection: "employees",
+					child_collection: "employees",
+					parent_label: "Manager",
+					child_label: "Report",
+					locale: "en",
+					translation_group: null as unknown as string,
+				})
+				.execute(),
+		).rejects.toThrow();
+	});
+
 	it("forward and backlink traversal return the expected rows", async () => {
 		// Parent p1 references children c1, c2 (ordered); p2 also references c1.
 		await ctx.db
@@ -184,13 +242,14 @@ describeEachDialect("Content references schema", (dialect) => {
 		const names = new Set(result.rows.map((r) => r.name));
 
 		for (const idx of [
-			"idx_relations_locale",
-			"idx_relations_translation_group",
-			"idx_relations_parent_collection",
-			"idx_relations_child_collection",
-			"idx_content_references_parent",
-			"idx_content_references_child",
-			"idx_content_references_relation",
+			"idx__emdash_relations_locale",
+			"idx__emdash_relations_translation_group",
+			"idx__emdash_relations_parent_collection",
+			"idx__emdash_relations_child_collection",
+			"idx__emdash_relations_group_locale_unique",
+			"idx__emdash_content_references_parent",
+			"idx__emdash_content_references_child",
+			"idx__emdash_content_references_relation",
 		]) {
 			expect(names.has(idx), `missing index ${idx}`).toBe(true);
 		}
