@@ -135,11 +135,6 @@ describe("MediaDetailPanel", () => {
 		await expect
 			.element(screen.getByPlaceholder("Optional caption for display"), { timeout: 100 })
 			.not.toBeInTheDocument();
-	});
-
-	it("hides caption textarea for non-images", async () => {
-		const pdfItem = makePdfItem();
-		const screen = await renderPanel({ item: pdfItem });
 		await expect
 			.element(screen.getByLabelText("Caption"), { timeout: 100 })
 			.not.toBeInTheDocument();

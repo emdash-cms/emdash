@@ -1,0 +1,21 @@
+---
+import { getEmDashCollection } from "emdash";
+const { entries: posts } = await getEmDashCollection("posts");
+---
+
+<html>
+	<body>
+		<h1>Posts</h1>
+		<ul id="post-list">
+			{
+				posts.map((p) => (
+					<li>
+						<a href={`/posts/${p.id}`}>{p.data.title}</a>
+						{p.data.excerpt && <span class="excerpt">{p.data.excerpt}</span>}
+					</li>
+				))
+			}
+		</ul>
+		{posts.length === 0 && <p id="empty">No posts</p>}
+	</body>
+</html>

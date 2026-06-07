@@ -24,6 +24,8 @@ export const contentListQuery = cursorPaginationQuery
 		orderBy: z.string().optional(),
 		order: z.enum(["asc", "desc"]).optional(),
 		locale: localeCode.optional(),
+		/** Case-insensitive substring search across the collection's title/name/slug. */
+		q: z.string().trim().min(1).max(200).optional(),
 	})
 	.meta({ id: "ContentListQuery" });
 

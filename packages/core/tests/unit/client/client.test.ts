@@ -189,6 +189,46 @@ describe("EmDashClient", () => {
 			expect(updated.data.title).toBe("Updated");
 			expect(updated._rev).toBe("bmV3cmV2");
 		});
+
+		it("update() appends locale for slug resolution", async () => {
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/schema/collections/posts",
+					handler: () =>
+						jsonResponse({
+							item: {
+								slug: "posts",
+								label: "Posts",
+								fields: [{ slug: "title", type: "string", label: "Title" }],
+							},
+						}),
+				},
+				{
+					method: "PUT",
+					path: "/content/posts/shared?locale=fr",
+					handler: () =>
+						jsonResponse({
+							item: { id: "fr-id", locale: "fr", data: { title: "French Updated" } },
+							_rev: "bmV3cmV2",
+						}),
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const updated = await client.update("posts", "shared", {
+				data: { title: "French Updated" },
+				locale: "fr",
+			});
+
+			expect(updated.id).toBe("fr-id");
+			expect(updated.locale).toBe("fr");
+		});
 	});
 
 	describe("create()", () => {

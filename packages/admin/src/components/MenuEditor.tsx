@@ -199,8 +199,16 @@ export function MenuEditor() {
 	};
 
 	const handleAddContent = (item: { collection: string; id: string; title: string }) => {
+		// The API's menuItemTypeEnum accepts singular values
+		// ("custom" | "page" | "post" | "taxonomy" | "collection"), but the
+		// ContentPickerModal hands us the collection slug (e.g. "pages",
+		// "posts", or any custom collection slug). Map the slug to the
+		// matching enum value and let the API resolve the real URL from
+		// referenceCollection + referenceId.
+		const type =
+			item.collection === "pages" ? "page" : item.collection === "posts" ? "post" : "collection";
 		createMutation.mutate({
-			type: item.collection,
+			type,
 			label: item.title,
 			referenceCollection: item.collection,
 			referenceId: item.id,

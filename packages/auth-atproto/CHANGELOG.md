@@ -1,5 +1,26 @@
 # @emdash-cms/auth-atproto
 
+## 0.2.13
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/auth@0.17.2
+
+## 0.2.12
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/auth@0.17.1
+
+## 0.2.11
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/auth@0.17.0
+
 ## 0.2.10
 
 ### Patch Changes

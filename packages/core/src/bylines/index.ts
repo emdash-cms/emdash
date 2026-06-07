@@ -220,10 +220,20 @@ export async function getBylinesForEntries(
 	// previous "has any bylines" probe, without the extra round-trip.
 	// Pre-migration databases (bylines table missing) fall through to the
 	// `isMissingTableError` catch below and return empty.
+	//
+	// Each bucket's `getContentBylinesMany` call uses `skipHydration: true`
+	// so the per-bucket fetches return bylines with `customFields = {}`.
+	// We then hydrate the union of returned bylines in a SINGLE batched
+	// pass via `hydrateBylineCustomFields`. This keeps mixed-locale list
+	// hydration at one batched group-shared query (and one batched
+	// translatable query) per request, even when locale buckets reference
+	// disjoint translation_groups — the strict reading of the Phase 3
+	// query-count envelope.
 	const explicitByEntry = new Map<string, ContentBylineCredit[]>();
 	const entriesNeedingAuthorCheck: BylineEntry[] = [];
+	const hydrationTargets: BylineSummary[] = [];
 	for (const [locale, bucket] of buckets) {
-		const localeOpt = locale ? { locale } : undefined;
+		const localeOpt = locale ? { locale, skipHydration: true } : { skipHydration: true };
 		const bucketIds = bucket.map((e) => e.id);
 		let bylinesMap;
 		try {
@@ -232,7 +242,10 @@ export async function getBylinesForEntries(
 			if (isMissingTableError(error)) return result;
 			throw error;
 		}
-		for (const [id, list] of bylinesMap) explicitByEntry.set(id, list);
+		for (const [id, list] of bylinesMap) {
+			explicitByEntry.set(id, list);
+			for (const credit of list) hydrationTargets.push(credit.byline);
+		}
 
 		for (const entry of bucket) {
 			const hasResolved = bylinesMap.has(entry.id) && bylinesMap.get(entry.id)!.length > 0;
@@ -255,17 +268,37 @@ export async function getBylinesForEntries(
 		}
 
 		for (const [locale, bucket] of authorBuckets) {
-			const localeOpt = locale ? { locale } : undefined;
+			const localeOpt: { locale?: string; skipHydration: true } = locale
+				? { locale, skipHydration: true }
+				: { skipHydration: true };
 			const authorIds = bucket.map((e) => e.authorId).filter((id): id is string => id !== null);
 			const uniqueAuthorIds = [...new Set(authorIds)];
 			if (uniqueAuthorIds.length === 0) continue;
+			// `skipHydration: true` returns bylines with `customFields = {}`
+			// so the fallback path participates in the single batched
+			// `hydrateBylineCustomFields` call below — keeping the query
+			// envelope at "+1 group-shared query per hydration pass" even
+			// when author bylines across locale buckets reference disjoint
+			// translation_groups.
 			const authorBylineMap = await repo.findByUserIds(uniqueAuthorIds, localeOpt);
 			for (const entry of bucket) {
 				if (!entry.authorId) continue;
 				const f = authorBylineMap.get(entry.authorId);
-				if (f) fallbackByEntry.set(entry.id, f);
+				if (f) {
+					fallbackByEntry.set(entry.id, f);
+					hydrationTargets.push(f);
+				}
 			}
 		}
+	}
+
+	// Single batched hydration over every byline returned from both the
+	// per-bucket explicit-credit fetches AND the per-bucket author-
+	// fallback fetches. One translatable query + one group-shared query
+	// for the whole pass, regardless of bucket count or whether
+	// translation_groups overlap across locales.
+	if (hydrationTargets.length > 0) {
+		await repo.hydrateBylineCustomFields(hydrationTargets);
 	}
 
 	for (const { id } of entries) {

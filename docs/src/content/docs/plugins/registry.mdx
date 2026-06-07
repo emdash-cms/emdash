@@ -1,0 +1,110 @@
+---
+title: The plugin registry
+description: Install plugins from the experimental, federated EmDash plugin registry, and query it from your own site.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+The plugin registry is the decentralized successor to the central [marketplace](/plugins/installing/#from-the-marketplace). No single authority owns it or decides which plugins are listed, and the index that makes plugins discoverable — the **aggregator** — is something anyone can run. When you point your site at a registry, the admin dashboard browses and installs plugins from there instead of from the marketplace.
+
+It is built on the [AT Protocol](https://atproto.com/), the network behind [Bluesky](https://bsky.app).
+
+<Aside type="caution" title="Experimental">
+	The registry is experimental and under active development. It is intended to
+	replace the marketplace, but its behaviour and data shapes may change before
+	then — pin EmDash to an exact version while you depend on it, and check the
+	changelog before upgrading. The reference aggregator runs at
+	`registry.emdashcms.com`.
+</Aside>
+
+## Registry vs. marketplace
+
+Both the [marketplace](/plugins/installing/#from-the-marketplace) and the registry let an administrator browse, install, update, and remove sandboxed plugins from the admin dashboard. The install experience — capability consent, checksum verification, the sandbox runner — is the same. They differ in who controls the catalog and who you trust.
+
+| | Marketplace | Registry |
+| --- | --- | --- |
+| **Control** | One company owns and operates it | No central owner; anyone can run an aggregator |
+| **Discovery** | Served by the marketplace service | Served by an aggregator that indexes the network |
+| **Moderation** | The operator vets listings and can remove them | Labellers issue takedown and verification labels you choose to accept |
+| **Who you trust** | The marketplace operator | The aggregator you point at, plus any labellers you accept |
+
+You configure one or the other for a given site. When `experimental.registry` is set, the admin's browse and install flows use the registry.
+
+## Enable the registry
+
+The registry requires a `sandboxRunner`, because registry plugins always run sandboxed. See [Installing Plugins](/plugins/installing/#prerequisites) for the runner setup.
+
+The following configuration points a site at the reference aggregator:
+
+```typescript title="astro.config.mjs"
+import { defineConfig } from "astro/config";
+import emdash from "emdash/astro";
+
+export default defineConfig({
+  integrations: [
+    emdash({
+      sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+      experimental: {
+        registry: "https://registry.emdashcms.com",
+      },
+    }),
+  ],
+});
+```
+
+The bare URL string is shorthand. Use the object form when you need a labeller or a release-age policy:
+
+```typescript title="astro.config.mjs"
+emdash({
+  sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+  experimental: {
+    registry: {
+      aggregatorUrl: "https://registry.emdashcms.com",
+      acceptLabelers: "did:plc:emdashverification",
+      policy: {
+        minimumReleaseAge: "48h",
+        minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
+      },
+    },
+  },
+})
+```
+
+The aggregator URL must be HTTPS in production (`http://localhost` is allowed in development).
+
+### Configuration options
+
+- **`acceptLabelers`** — a comma-separated list of labeller DIDs forwarded to the aggregator. Labellers apply takedown and verification labels; the aggregator filters and annotates results according to the ones you accept. When unset, the aggregator applies its operator default set.
+- **`policy.minimumReleaseAge`** — hold back releases newer than this age when choosing the version to install or update to, widening the window for a takedown to land before a compromised release reaches your site. Accepts a duration string (`"24h"`, `"7d"`) or a number of seconds.
+- **`policy.minimumReleaseAgeExclude`** — DIDs exempt from the holdback, for publishers whose release tempo you have explicitly accepted (such as your own first-party plugins). Each entry is a bare publisher DID, or a `<did>/<slug>` pair to exempt a single package. Only DIDs are accepted, not handles.
+
+## Browse and install
+
+<Steps>
+1. Open the admin panel and navigate to **Plugins > Registry**.
+2. Browse or search. Each result shows the publisher's verified handle, the latest version, and any labels.
+3. Open a plugin to see its README, screenshots, declared access, and release history.
+4. Click **Install** and review the capability consent dialog.
+5. Confirm.
+</Steps>
+
+Installation verifies the downloaded bytes against the release checksum, confirms the bundle's plugin id and version match the release, and confirms its declared capabilities match what you approved. Updates and uninstalling work as they do for [marketplace plugins](/plugins/installing/#updates).
+
+### Trust model
+
+The registry is decentralized, so trust is explicit. Before activating a plugin, EmDash independently verifies that the artifact bytes hash to the release checksum, that the bundle addresses the plugin id and version it claims, and that its capabilities match the consent dialog.
+
+<Aside type="caution">
+	Point `aggregatorUrl` only at an aggregator you operate or trust with the same
+	authority as a central plugin source. `policy.minimumReleaseAge` and
+	`acceptLabelers` widen the takedown window but assume the labeller system is
+	operating.
+</Aside>
+
+## What to read next
+
+- [Installing Plugins](/plugins/installing/) — the marketplace and config-based install flows
+- [Bundling and publishing](/plugins/creating-plugins/publishing/) — publish your own plugin to the registry
+- [Querying the registry](/plugins/registry-client/) — build a plugin directory or search page against the registry's discovery API
+- [Capabilities and security](/plugins/creating-plugins/capabilities/) — the sandbox trust contract
+- [RFC 0001](https://github.com/emdash-cms/emdash/pull/694) — the protocol design, for contributors and aggregator operators

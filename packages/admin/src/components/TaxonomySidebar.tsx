@@ -15,7 +15,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
-import { createTerm } from "../lib/api/taxonomies.js";
+import { createTerm, withLocale } from "../lib/api/taxonomies.js";
 import { termExactMatches, termMatches } from "../lib/taxonomy-match.js";
 import { slugify } from "../lib/utils.js";
 
@@ -40,6 +40,9 @@ interface TaxonomyDef {
 interface TaxonomySidebarProps {
 	collection: string;
 	entryId?: string;
+	/** Locale of the entry being edited. Scopes term reads/writes so only the
+	 * matching translation variants are shown — see issue #1218. */
+	entryLocale?: string;
 	onChange?: (taxonomyName: string, termIds: string[]) => void;
 }
 
@@ -58,10 +61,11 @@ async function fetchTaxonomyDefs(): Promise<TaxonomyDef[]> {
 }
 
 /**
- * Fetch terms for a taxonomy
+ * Fetch terms for a taxonomy, scoped to the entry's locale so only the matching
+ * translation variants are offered.
  */
-async function fetchTerms(taxonomyName: string): Promise<TaxonomyTerm[]> {
-	const res = await apiFetch(`/_emdash/api/taxonomies/${taxonomyName}/terms`);
+async function fetchTerms(taxonomyName: string, locale?: string): Promise<TaxonomyTerm[]> {
+	const res = await apiFetch(withLocale(`/_emdash/api/taxonomies/${taxonomyName}/terms`, locale));
 	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(
 		res,
 		i18n._(msg`Failed to fetch terms`),
@@ -76,8 +80,11 @@ async function fetchEntryTerms(
 	collection: string,
 	entryId: string,
 	taxonomy: string,
+	locale?: string,
 ): Promise<TaxonomyTerm[]> {
-	const res = await apiFetch(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`);
+	const res = await apiFetch(
+		withLocale(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`, locale),
+	);
 	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(
 		res,
 		i18n._(msg`Failed to fetch entry terms`),
@@ -93,12 +100,16 @@ async function setEntryTerms(
 	entryId: string,
 	taxonomy: string,
 	termIds: string[],
+	locale?: string,
 ): Promise<void> {
-	const res = await apiFetch(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ termIds }),
-	});
+	const res = await apiFetch(
+		withLocale(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`, locale),
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ termIds }),
+		},
+	);
 	if (!res.ok) await throwResponseError(res, i18n._(msg`Failed to set entry terms`));
 }
 
@@ -293,11 +304,13 @@ function TaxonomySection({
 	taxonomy,
 	collection,
 	entryId,
+	entryLocale,
 	onChange,
 }: {
 	taxonomy: TaxonomyDef;
 	collection: string;
 	entryId?: string;
+	entryLocale?: string;
 	onChange?: (termIds: string[]) => void;
 }) {
 	const { t } = useLingui();
@@ -307,15 +320,15 @@ function TaxonomySection({
 	const [showCategoryInput, setShowCategoryInput] = React.useState(false);
 
 	const { data: terms = EMPTY_TERMS } = useQuery({
-		queryKey: ["taxonomy-terms", taxonomy.name],
-		queryFn: () => fetchTerms(taxonomy.name),
+		queryKey: ["taxonomy-terms", taxonomy.name, entryLocale],
+		queryFn: () => fetchTerms(taxonomy.name, entryLocale),
 	});
 
 	const { data: entryTerms = EMPTY_TERMS } = useQuery({
-		queryKey: ["entry-terms", collection, entryId, taxonomy.name],
+		queryKey: ["entry-terms", collection, entryId, taxonomy.name, entryLocale],
 		queryFn: () => {
 			if (!entryId) return [];
-			return fetchEntryTerms(collection, entryId, taxonomy.name);
+			return fetchEntryTerms(collection, entryId, taxonomy.name, entryLocale);
 		},
 		enabled: !!entryId,
 	});
@@ -323,11 +336,11 @@ function TaxonomySection({
 	const saveMutation = useMutation({
 		mutationFn: (termIds: string[]) => {
 			if (!entryId) throw new Error("No entry ID");
-			return setEntryTerms(collection, entryId, taxonomy.name, termIds);
+			return setEntryTerms(collection, entryId, taxonomy.name, termIds, entryLocale);
 		},
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["entry-terms", collection, entryId, taxonomy.name],
+				queryKey: ["entry-terms", collection, entryId, taxonomy.name, entryLocale],
 			});
 			toastManager.add({ title: t`${taxonomy.label} updated` });
 		},
@@ -341,9 +354,17 @@ function TaxonomySection({
 	});
 
 	const createTermMutation = useMutation({
-		mutationFn: (label: string) => createTerm(taxonomy.name, { slug: slugify(label), label }),
+		mutationFn: (label: string) =>
+			createTerm(taxonomy.name, {
+				slug: slugify(label),
+				label,
+				// Create the term in the entry's locale so it resolves on this entry.
+				...(entryLocale ? { locale: entryLocale } : {}),
+			}),
 		onSuccess: (newTerm) => {
-			void queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", taxonomy.name] });
+			void queryClient.invalidateQueries({
+				queryKey: ["taxonomy-terms", taxonomy.name, entryLocale],
+			});
 			// Auto-select the newly created term
 			const newSelected = new Set(selectedIds);
 			newSelected.add(newTerm.id);
@@ -491,7 +512,12 @@ function TaxonomySection({
 /**
  * Main TaxonomySidebar component
  */
-export function TaxonomySidebar({ collection, entryId, onChange }: TaxonomySidebarProps) {
+export function TaxonomySidebar({
+	collection,
+	entryId,
+	entryLocale,
+	onChange,
+}: TaxonomySidebarProps) {
 	const { t } = useLingui();
 	const { data: taxonomies = [] } = useQuery({
 		queryKey: ["taxonomy-defs"],
@@ -516,6 +542,7 @@ export function TaxonomySidebar({ collection, entryId, onChange }: TaxonomySideb
 							taxonomy={taxonomy}
 							collection={collection}
 							entryId={entryId}
+							entryLocale={entryLocale}
 							onChange={(termIds) => onChange?.(taxonomy.name, termIds)}
 						/>
 					))}
