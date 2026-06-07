@@ -37,7 +37,7 @@ msgstr "（已选择）"
 
 #: packages/admin/src/routes/bylines.tsx:689
 msgid "-- Select --"
-msgstr ""
+msgstr "-- 选择 --"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:310
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:307
@@ -171,7 +171,7 @@ msgstr "{0} 个字段"
 #. placeholder {2}: m.host
 #: packages/admin/src/components/RegistryPluginDetail.tsx:621
 msgid "{0} {1} required — you have {2}."
-msgstr ""
+msgstr "{0} {1} 必需 — 您有 {2}。"
 
 #. placeholder {0}: menu.name
 #. placeholder {1}: /** * Menu List component * * Displays all menus with ability to create, edit, and delete. */ import { Button, Dialog, Input, Toast } from "@cloudflare/kumo"; import { plural } from "@lingui/core/macro"; import { Trans } from "@lingui/react/macro"; import { useLingui } from "@lingui/react/macro"; import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react"; import { X } from "@phosphor-icons/react"; import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; import { Link, useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchMenus, createMenu, deleteMenu } from "../lib/api"; import { fetchManifest } from "../lib/api/client.js"; import { ConfirmDialog } from "./ConfirmDialog.js"; import { DialogError, getMutationError } from "./DialogError.js"; import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; export function MenuList() { const { t } = useLingui(); const queryClient = useQueryClient(); const navigate = useNavigate(); const toastManager = Toast.useToastManager(); const [isCreateOpen, setIsCreateOpen] = React.useState(false); const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null); const [createError, setCreateError] = React.useState<string | null>(null); const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest, }); const i18n = useI18nConfig(manifest); const [activeLocale, setActiveLocale] = React.useState<string | undefined>(undefined); React.useEffect(() => { if (i18n && !activeLocale) setActiveLocale(i18n.defaultLocale); }, [i18n, activeLocale]); const { data: menus, isLoading } = useQuery({ queryKey: ["menus", activeLocale], queryFn: () => fetchMenus({ locale: activeLocale }), }); const createMutation = useMutation({ mutationFn: createMenu, onSuccess: (menu) => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setIsCreateOpen(false); toastManager.add({ title: t`Menu created`, description: t`Menu "${menu.label}" has been created.`, }); void navigate({ to: "/menus/$name", params: { name: menu.name }, search: { locale: menu.locale }, }); }, onError: (error: Error) => { setCreateError(error.message); }, }); const deleteMutation = useMutation({ mutationFn: (name: string) => deleteMenu(name, { locale: activeLocale }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ["menus"] }); setDeleteMenuName(null); toastManager.add({ title: t`Menu deleted`, description: t`The menu has been deleted.`, }); }, }); const handleCreate = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); setCreateError(null); const formData = new FormData(e.currentTarget); const nameVal = formData.get("name"); const name = typeof nameVal === "string" ? nameVal : ""; const labelVal = formData.get("label"); const label = typeof labelVal === "string" ? labelVal : ""; createMutation.mutate({ name, label, locale: activeLocale }); }; if (isLoading) { return ( <div className="flex items-center justify-center h-64"> <div className="text-kumo-subtle">{t`Loading menus...`}</div> </div> ); } return ( <div className="space-y-6"> <div className="flex items-center justify-between gap-4 flex-wrap"> <div> <h1 className="text-3xl font-bold">{t`Menus`}</h1> <p className="text-kumo-subtle">{t`Manage navigation menus for your site`}</p> </div> <div className="flex items-center gap-2"> {i18n && activeLocale ? ( <LocaleSwitcher locales={i18n.locales} defaultLocale={i18n.defaultLocale} value={activeLocale} onChange={setActiveLocale} /> ) : null} </div> <Dialog.Root open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateError(null); }} > <Dialog.Trigger render={(props) => ( <Button {...props} icon={<Plus />}> {t`Create Menu`} </Button> )} /> <Dialog className="p-6" size="lg"> <div className="flex items-start justify-between gap-4 mb-4"> <Dialog.Title className="text-lg font-semibold leading-none tracking-tight"> {t`Create New Menu`} </Dialog.Title> <Dialog.Close aria-label={t`Close`} render={(props) => ( <Button {...props} variant="ghost" shape="square" aria-label={t`Close`} className="absolute end-4 top-4" > <X className="h-4 w-4" /> <span className="sr-only">{t`Close`}</span> </Button> )} /> </div> <form onSubmit={handleCreate} className="space-y-4"> <div> <Input label={t`Name`} name="name" required placeholder="primary" pattern="[a-z0-9\-]+" title={t`Only lowercase letters, numbers, and hyphens`} /> <p className="text-sm text-kumo-subtle mt-1"> {t`URL-friendly identifier (e.g., "primary", "footer")`} </p> </div> <div> <Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} /> <p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p> </div> <DialogError message={createError || getMutationError(createMutation.error)} /> <div className="flex justify-end gap-2"> <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}> {t`Cancel`} </Button> <Button type="submit" disabled={createMutation.isPending}> {createMutation.isPending ? t`Creating...` : t`Create`} </Button> </div> </form> </Dialog> </Dialog.Root> </div> {!menus || menus.length === 0 ? ( <div className="border rounded-lg p-12 text-center"> <ListIcon className="mx-auto h-12 w-12 text-kumo-subtle mb-4" /> <h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3> <p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p> <Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}> {t`Create Menu`} </Button> </div> ) : ( <div className="grid gap-4"> {menus.map((menu) => ( <div key={menu.id} className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors" > <Link to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} className="flex-1" > <div> <h3 className="font-semibold text-lg"> {menu.label} {i18n ? ( <span className="ms-2 text-xs font-mono uppercase text-kumo-subtle"> {menu.locale} </span> ) : null} </h3> <p className="text-sm text-kumo-subtle"> <Trans> {menu.name} •{" "} {plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })} </Trans> </p> </div> </Link> <div className="flex gap-2"> <RouterLinkButton to="/menus/$name" params={{ name: menu.name }} search={{ locale: menu.locale }} variant="outline" size="sm" icon={<Pencil />} > {t`Edit`} </RouterLinkButton> <Button variant="outline" size="sm" onClick={() => setDeleteMenuName(menu.name)} aria-label={t`Delete ${menu.name} menu`} > <Trash className="h-4 w-4" /> </Button> </div> </div> ))} </div> )} <ConfirmDialog open={deleteMenuName !== null} onClose={() => { setDeleteMenuName(null); deleteMutation.reset(); }} title={t`Delete Menu`} description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`} confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={deleteMutation.isPending} error={deleteMutation.error} onConfirm={() => deleteMenuName && deleteMutation.mutate(deleteMenuName)} /> </div> ); } 
@@ -182,7 +182,7 @@ msgstr "{0} • {1}"
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:410
 msgid "{0} banner"
-msgstr ""
+msgstr "{0} 横幅"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
 #: packages/admin/src/components/WordPressImport.tsx:1142
@@ -202,7 +202,7 @@ msgstr "{0} 已移除"
 #. placeholder {0}: displayName ?? slug
 #: packages/admin/src/components/RegistryPluginDetail.tsx:422
 msgid "{0} icon"
-msgstr ""
+msgstr "{0} 图标"
 
 #. placeholder {0}: plugin.installCount.toLocaleString()
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:202
@@ -302,7 +302,7 @@ msgstr "{label} — 查看翻译"
 
 #: packages/admin/src/components/ContentList.tsx:546
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr ""
+msgstr "{matchCount, plural, one {# 个项目匹配 \"{searchQuery}\"} other {# 个项目匹配 \"{searchQuery}\"}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2279
 msgid "{matchedCount} of {totalCount} assigned"
@@ -496,7 +496,7 @@ msgstr "接受邀请"
 
 #: packages/admin/src/routes/byline-schema.tsx:174
 msgid "Access denied"
-msgstr ""
+msgstr "访问被拒绝"
 
 #: packages/admin/src/router.tsx:1202
 msgid "Access Denied"
@@ -605,7 +605,7 @@ msgstr "添加字段"
 
 #: packages/admin/src/routes/byline-schema.tsx:293
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
-msgstr ""
+msgstr "添加如"职位"或"代词"等字段来丰富每个署名。"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:604
 msgid "Add fields to define the structure of your content"
@@ -847,7 +847,7 @@ msgstr "发生错误"
 
 #: packages/admin/src/routes/byline-schema.tsx:272
 msgid "An unexpected error occurred."
-msgstr ""
+msgstr "发生意外错误。"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:217
 msgid "An unknown error occurred"
@@ -921,7 +921,7 @@ msgstr "归档"
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:375
 msgid "Are you sure you want to delete \"{0}\"? No stored values reference this field."
-msgstr ""
+msgstr "您确定要删除"{0}"吗？没有存储值引用此字段。"
 
 #. placeholder {0}: deleteTarget.label
 #: packages/admin/src/components/ContentTypeList.tsx:145
@@ -1151,7 +1151,7 @@ msgstr "无序列表"
 #: packages/admin/src/routes/byline-schema.tsx:218
 #: packages/admin/src/routes/bylines.tsx:370
 msgid "Byline schema"
-msgstr ""
+msgstr "署名架构"
 
 #: packages/admin/src/components/ContentEditor.tsx:998
 #: packages/admin/src/components/Sidebar.tsx:363
@@ -1295,7 +1295,7 @@ msgstr "更改标志"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:791
 msgid "Changelog"
-msgstr ""
+msgstr "更新日志"
 
 #: packages/admin/src/router.tsx:818
 msgid "Changes discarded"
@@ -1330,7 +1330,7 @@ msgstr "正在检查认证..."
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:362
 msgid "Checking how many stored values reference \"{0}\"…"
-msgstr ""
+msgstr "正在检查有多少存储值引用了"{0}"…"
 
 #: packages/admin/src/components/SetupWizard.tsx:288
 msgid "Choose how to sign in"
@@ -1663,11 +1663,11 @@ msgstr "无法检测到 WordPress"
 
 #: packages/admin/src/routes/byline-schema.tsx:268
 msgid "Couldn't load byline fields."
-msgstr ""
+msgstr "无法加载署名字段。"
 
 #: packages/admin/src/routes/bylines.tsx:530
 msgid "Couldn't load custom fields."
-msgstr ""
+msgstr "无法加载自定义字段。"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:88
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -1675,12 +1675,12 @@ msgstr "无法将 \"{draft}\" 映射到 MIME 类型。请直接输入 MIME。"
 
 #: packages/admin/src/components/ContentEditor.tsx:2097
 msgid "Couldn't search bylines. Please try again."
-msgstr ""
+msgstr "无法搜索署名。请重试。"
 
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:369
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
-msgstr ""
+msgstr "无法验证有多少值引用了"{0}"。删除仍将移除此字段的所有存储值 — 但上方的计数无法被检查。"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:822
 msgid "Count"
@@ -1733,7 +1733,7 @@ msgstr "创建内容类型"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Create field"
-msgstr ""
+msgstr "创建字段"
 
 #: packages/admin/src/components/MenuList.tsx:126
 #: packages/admin/src/components/MenuList.tsx:189
@@ -1847,7 +1847,7 @@ msgstr "已创建"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:96
 msgid "Created \"{0}\"."
-msgstr ""
+msgstr "已创建"{0}"。"
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
@@ -1973,7 +1973,7 @@ msgstr "定义新的分类以对内容进行分类"
 
 #: packages/admin/src/routes/byline-schema.tsx:220
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
-msgstr ""
+msgstr "定义存储在每个署名上的自定义字段 — 职位、代词、社交账号等。"
 
 #: packages/admin/src/components/ContentTypeList.tsx:41
 msgid "Define the structure of your content"
@@ -2044,7 +2044,7 @@ msgstr "删除 {0}？"
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
-msgstr ""
+msgstr "删除署名字段？"
 
 #: packages/admin/src/routes/bylines.tsx:605
 msgid "Delete Byline?"
@@ -2072,7 +2072,7 @@ msgstr "删除字段？"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:131
 msgid "Delete HTML block"
-msgstr ""
+msgstr "删除 HTML 块"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:191
 #: packages/admin/src/components/editor/ImageNode.tsx:192
@@ -2137,7 +2137,7 @@ msgstr "已删除"
 #. placeholder {1}: deleteUsageQuery.data.totalAffectedRows
 #: packages/admin/src/routes/byline-schema.tsx:371
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
-msgstr ""
+msgstr "删除"{0}"将同时移除所有署名中的 {1, plural, one {# 个存储值} other {# 个存储值}}。此操作无法撤销。"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:664
@@ -2155,7 +2155,7 @@ msgstr "删除中..."
 
 #: packages/admin/src/routes/byline-schema.tsx:379
 msgid "Deleting…"
-msgstr ""
+msgstr "删除中…"
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:262
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:147
@@ -2362,7 +2362,7 @@ msgstr "下移"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:477
 msgid "Download SBOM"
-msgstr ""
+msgstr "下载 SBOM"
 
 #: packages/admin/src/components/WordPressImport.tsx:1962
 msgid "Downloading"
@@ -2491,7 +2491,7 @@ msgstr "编辑署名"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
-msgstr ""
+msgstr "编辑署名字段"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:364
 msgid "Edit Domain"
@@ -2542,6 +2542,9 @@ msgid ""
 "Reporter\n"
 "Photographer"
 msgstr ""
+"编辑\n"
+"记者\n"
+"摄影师"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:59
 #: packages/admin/src/components/Settings.tsx:115
@@ -2660,7 +2663,7 @@ msgstr "输入邮箱"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:144
 msgid "Enter HTML..."
-msgstr ""
+msgstr "输入 HTML..."
 
 #: packages/admin/src/components/ContentEditor.tsx:1255
 msgid "Enter markdown content..."
@@ -2795,11 +2798,11 @@ msgstr "创建署名失败"
 
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
-msgstr ""
+msgstr "创建署名字段失败"
 
 #: packages/admin/src/routes/byline-schema.tsx:102
 msgid "Failed to create field"
-msgstr ""
+msgstr "创建字段失败"
 
 #: packages/admin/src/components/WordPressImport.tsx:1553
 msgid "Failed to create some collections"
@@ -2829,7 +2832,7 @@ msgstr "删除署名失败"
 
 #: packages/admin/src/lib/api/byline-fields.ts:143
 msgid "Failed to delete byline field"
-msgstr ""
+msgstr "删除署名字段失败"
 
 #: packages/admin/src/lib/api/schema.ts:222
 msgid "Failed to delete collection"
@@ -2991,7 +2994,7 @@ msgstr "安装插件失败"
 
 #: packages/admin/src/lib/api/byline-fields.ts:98
 msgid "Failed to list byline fields"
-msgstr ""
+msgstr "列出署名字段失败"
 
 #: packages/admin/src/router.tsx:247
 msgid "Failed to load admin"
@@ -3070,7 +3073,7 @@ msgstr "发布失败"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
-msgstr ""
+msgstr "读取署名字段使用情况失败"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:130
 msgid "Failed to remove domain"
@@ -3087,7 +3090,7 @@ msgstr "重命名通行密钥失败"
 
 #: packages/admin/src/lib/api/byline-fields.ts:156
 msgid "Failed to reorder byline fields"
-msgstr ""
+msgstr "重新排序署名字段失败"
 
 #: packages/admin/src/lib/api/schema.ts:293
 #: packages/admin/src/routes/byline-schema.tsx:152
@@ -3126,7 +3129,7 @@ msgstr "保存失败"
 
 #: packages/admin/src/routes/byline-schema.tsx:122
 msgid "Failed to save field"
-msgstr ""
+msgstr "保存字段失败"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:58
 #: packages/admin/src/components/settings/SeoSettings.tsx:62
@@ -3183,7 +3186,7 @@ msgstr "更新署名失败"
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
-msgstr ""
+msgstr "更新署名字段失败"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
 msgid "Failed to update domain"
@@ -3212,7 +3215,7 @@ msgstr "验证注册失败"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:790
 msgid "FAQ"
-msgstr ""
+msgstr "常见问题"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:236
 #: packages/admin/src/components/settings/GeneralSettings.tsx:242
@@ -3233,11 +3236,11 @@ msgstr "正在从 EmDash Exporter API 获取内容。"
 
 #: packages/admin/src/routes/byline-schema.tsx:95
 msgid "Field created"
-msgstr ""
+msgstr "字段已创建"
 
 #: packages/admin/src/routes/byline-schema.tsx:133
 msgid "Field deleted"
-msgstr ""
+msgstr "字段已删除"
 
 #: packages/admin/src/components/FieldEditor.tsx:567
 msgid "Field label"
@@ -3253,11 +3256,11 @@ msgstr "字段别名创建后无法更改"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:268
 msgid "Field type cannot be changed after creation."
-msgstr ""
+msgstr "字段类型在创建后无法更改。"
 
 #: packages/admin/src/routes/byline-schema.tsx:115
 msgid "Field updated"
-msgstr ""
+msgstr "字段已更新"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:572
 msgid "Fields"
@@ -3463,11 +3466,11 @@ msgstr "如何创建应用程序密码"
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
 #: packages/admin/src/components/PortableTextEditor.tsx:953
 msgid "HTML"
-msgstr ""
+msgstr "HTML"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:147
 msgid "HTML source"
-msgstr ""
+msgstr "HTML 源代码"
 
 #: packages/admin/src/components/MenuEditor.tsx:345
 msgid "https://example.com or /about"
@@ -3616,7 +3619,7 @@ msgstr "不兼容"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:491
 msgid "Indexed"
-msgstr ""
+msgstr "已索引"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2875
 msgid "Inline Code"
@@ -3630,7 +3633,7 @@ msgstr "插入"
 #. placeholder {0}: block?.label || ""
 #: packages/admin/src/components/PortableTextEditor.tsx:1311
 msgid "Insert {0}"
-msgstr ""
+msgstr "插入 {0}"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:934
 msgid "Insert a blockquote"
@@ -3674,7 +3677,7 @@ msgstr "插入链接"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:954
 msgid "Insert raw HTML"
-msgstr ""
+msgstr "插入原始 HTML"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:57
 msgid "Insert Section"
@@ -3703,7 +3706,7 @@ msgstr "安装被阻止"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:789
 msgid "Installation"
-msgstr ""
+msgstr "安装"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:261
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:173
@@ -3793,11 +3796,11 @@ msgstr "张三"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:235
 msgid "Job title"
-msgstr ""
+msgstr "职位"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:246
 msgid "job_title"
-msgstr ""
+msgstr "job_title"
 
 #: packages/admin/src/components/FieldEditor.tsx:222
 msgid "JSON"
@@ -3805,7 +3808,7 @@ msgstr "JSON"
 
 #: packages/admin/src/components/ContentEditor.tsx:2102
 msgid "Keep typing to narrow down more bylines."
-msgstr ""
+msgstr "继续输入以缩小署名范围。"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:293
 #: packages/admin/src/components/SectionEditor.tsx:268
@@ -3956,7 +3959,7 @@ msgstr "加载更多"
 
 #: packages/admin/src/routes/byline-schema.tsx:257
 msgid "Loading byline fields…"
-msgstr ""
+msgstr "正在加载署名字段…"
 
 #: packages/admin/src/components/ContentTypeList.tsx:114
 msgid "Loading collections..."
@@ -4053,7 +4056,7 @@ msgstr "锁定宽高比"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:291
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
-msgstr ""
+msgstr "已锁定，因为此字段有存储值。删除这些值（或删除该字段）才能更改。"
 
 #: packages/admin/src/components/Header.tsx:101
 msgid "Log out"
@@ -4070,7 +4073,7 @@ msgstr "标志和网站图标"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:53
 msgid "Long text"
-msgstr ""
+msgstr "长文本"
 
 #: packages/admin/src/components/FieldEditor.tsx:156
 #: packages/admin/src/components/FieldEditor.tsx:580
@@ -4328,12 +4331,12 @@ msgstr "最受欢迎"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:439
 msgid "Move \"{0}\" down"
-msgstr ""
+msgstr "下移"{0}""
 
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:429
 msgid "Move \"{0}\" up"
-msgstr ""
+msgstr "上移"{0}""
 
 #: packages/admin/src/components/ContentList.tsx:653
 msgid "Move \"{title}\" to trash? You can restore it later."
@@ -4430,7 +4433,7 @@ msgstr "新建 {collectionLabel}"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
-msgstr ""
+msgstr "新建署名字段"
 
 #: packages/admin/src/components/WordPressImport.tsx:1818
 msgid "New collection"
@@ -4443,7 +4446,7 @@ msgstr "新内容类型"
 
 #: packages/admin/src/routes/byline-schema.tsx:224
 msgid "New field"
-msgstr ""
+msgstr "新建字段"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:116
 msgid "New public routes"
@@ -4502,7 +4505,7 @@ msgstr "否"
 
 #: packages/admin/src/routes/byline-schema.tsx:420
 msgid "No (shared across translations)"
-msgstr ""
+msgstr "否（跨翻译共享）"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:434
@@ -4538,7 +4541,7 @@ msgstr "暂无已审核评论。"
 
 #: packages/admin/src/routes/byline-schema.tsx:291
 msgid "No byline fields yet."
-msgstr ""
+msgstr "暂无署名字段。"
 
 #: packages/admin/src/components/ContentEditor.tsx:2057
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
@@ -4643,7 +4646,7 @@ msgstr "无匹配项"
 
 #: packages/admin/src/components/ContentEditor.tsx:2099
 msgid "No matching bylines."
-msgstr ""
+msgstr "没有匹配的署名。"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:266
 msgid "No matching passkey found for this account."
@@ -4728,7 +4731,7 @@ msgstr "无结果"
 #: packages/admin/src/components/ContentList.tsx:308
 #: packages/admin/src/components/ContentList.tsx:327
 msgid "No results for \"{activeSearch}\""
-msgstr ""
+msgstr "没有"{activeSearch}"的搜索结果"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:176
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:152
@@ -4783,7 +4786,7 @@ msgstr "无（顶级）"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:614
 msgid "Not compatible with this environment"
-msgstr ""
+msgstr "与此环境不兼容"
 
 #: packages/admin/src/components/FieldEditor.tsx:162
 #: packages/admin/src/components/FieldEditor.tsx:581
@@ -5082,7 +5085,7 @@ msgstr "插件"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:747
 msgid "Plugin details"
-msgstr ""
+msgstr "插件详情"
 
 #: packages/admin/src/components/PluginManager.tsx:110
 msgid "Plugin disabled"
@@ -5660,7 +5663,7 @@ msgstr "保存替代文本"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Save changes"
-msgstr ""
+msgstr "保存更改"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 #: packages/admin/src/components/users/UserDetail.tsx:311
@@ -5698,7 +5701,7 @@ msgstr "已保存"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:116
 msgid "Saved \"{0}\"."
-msgstr ""
+msgstr "已保存"{0}"。"
 
 #: packages/admin/src/components/ContentEditor.tsx:651
 #: packages/admin/src/components/ContentEditor.tsx:2279
@@ -5723,16 +5726,16 @@ msgstr "保存中..."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Saving…"
-msgstr ""
+msgstr "保存中…"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:467
 msgid "SBOM"
-msgstr ""
+msgstr "SBOM"
 
 #. placeholder {0}: sbom.format
 #: packages/admin/src/components/RegistryPluginDetail.tsx:465
 msgid "SBOM · {0}"
-msgstr ""
+msgstr "SBOM · {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:901
 msgid "Schedule"
@@ -5831,7 +5834,7 @@ msgstr "搜索 {0}..."
 #: packages/admin/src/components/MediaLibrary.tsx:376
 #: packages/admin/src/components/MediaPickerModal.tsx:573
 msgid "Search by filename..."
-msgstr ""
+msgstr "按文件名搜索..."
 
 #: packages/admin/src/components/users/UserList.tsx:69
 msgid "Search by name or email..."
@@ -5844,7 +5847,7 @@ msgstr "搜索署名"
 
 #: packages/admin/src/components/ContentEditor.tsx:2073
 msgid "Search bylines to add..."
-msgstr ""
+msgstr "搜索要添加的署名..."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:163
 msgid "Search comments"
@@ -5918,7 +5921,7 @@ msgstr "可搜索"
 
 #: packages/admin/src/components/ContentEditor.tsx:2077
 msgid "Searching..."
-msgstr ""
+msgstr "搜索中..."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2043
 msgid "Section"
@@ -6227,11 +6230,11 @@ msgstr "与此邀请用户分享此链接"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:294
 msgid "Shared across all translations of the same byline."
-msgstr ""
+msgstr "同一署名的所有翻译共享。"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:52
 msgid "Short text"
-msgstr ""
+msgstr "短文本"
 
 #: packages/admin/src/components/FieldEditor.tsx:150
 #: packages/admin/src/components/FieldEditor.tsx:579
@@ -6369,7 +6372,7 @@ msgstr "别名已复制到剪贴板"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:251
 msgid "Slugs cannot be changed after the field is created."
-msgstr ""
+msgstr "字段创建后无法更改标识符。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:904
 msgid "Small section heading"
@@ -6460,7 +6463,7 @@ msgstr "状态码"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:293
 msgid "Stored per locale — each translation of a byline gets its own value."
-msgstr ""
+msgstr "按语言环境存储 — 署名的每个翻译都有各自的值。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2562
 #: packages/admin/src/components/PortableTextEditor.tsx:2868
@@ -6705,7 +6708,7 @@ msgstr "此重定向规则将被永久移除。"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:616
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
-msgstr ""
+msgstr "此版本需要比您站点当前运行的更新版本的环境。请在安装前升级。"
 
 #: packages/admin/src/routes/bylines.tsx:606
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
@@ -6827,7 +6830,7 @@ msgstr "跟踪内容历史"
 #: packages/admin/src/components/BylineFieldEditor.tsx:287
 #: packages/admin/src/routes/byline-schema.tsx:243
 msgid "Translatable"
-msgstr ""
+msgstr "可翻译"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:83
 #: packages/admin/src/components/TaxonomyManager.tsx:194
@@ -7085,7 +7088,7 @@ msgstr "更新至 v{0}"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:486
 msgid "Updated"
-msgstr ""
+msgstr "已更新"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:129
 msgid "Updated At"
@@ -7309,15 +7312,15 @@ msgstr "已验证的发布者"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:446
 msgid "Verified publisher, confirmed by labeller {verifiedLabeller}"
-msgstr ""
+msgstr "已验证发布者，由标签者 {verifiedLabeller} 确认"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:437
 msgid "Verified publisher. A labeller ({verifiedLabeller}) has confirmed this publisher's identity."
-msgstr ""
+msgstr "已验证发布者。标签者（{verifiedLabeller}）已确认此发布者的身份。"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:438
 msgid "Verified publisher. A labeller has confirmed this publisher's identity."
-msgstr ""
+msgstr "已验证发布者。标签者已确认此发布者的身份。"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:194
 msgid "Verifying your invite..."
@@ -7548,7 +7551,7 @@ msgstr "您可以管理内容、媒体、菜单和分类。"
 
 #: packages/admin/src/routes/bylines.tsx:532
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
-msgstr ""
+msgstr "您仍可编辑上方的固定字段。保存不会影响任何已存储的自定义字段值。"
 
 #: packages/admin/src/components/WelcomeModal.tsx:44
 msgid "You can view and contribute to the site."
@@ -7564,7 +7567,7 @@ msgstr "您拥有完全访问权限来管理此网站，包括用户、设置和
 
 #: packages/admin/src/routes/byline-schema.tsx:175
 msgid "You need admin permissions to manage byline schema."
-msgstr ""
+msgstr "您需要管理员权限才能管理署名架构。"
 
 #: packages/admin/src/router.tsx:1203
 msgid "You need Editor permissions to moderate comments."
