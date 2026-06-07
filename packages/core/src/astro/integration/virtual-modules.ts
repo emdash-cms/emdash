@@ -6,13 +6,14 @@
  * so Vite can properly resolve and bundle them.
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 
 import type { AuthProviderDescriptor } from "../../auth/types.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import { defaultSeed } from "../../seed/default.js";
+import { loadSeedFromDirectorySync } from "../../seed/merge.js";
 import type { PluginDescriptor } from "./runtime.js";
 
 const TS_SOURCE_EXT_RE = /^\.(ts|tsx|mts|cts|jsx)$/;
@@ -434,14 +435,28 @@ export function generateWaitUntilModule(adapterName: string | undefined): string
 export function generateSeedModule(projectRoot: string, warnOnFallback = false): string {
 	let userSeedJson: string | null = null;
 
-	// Try .emdash/seed.json
+	// Try .emdash/seeds/ directory
 	try {
-		const seedPath = resolve(projectRoot, ".emdash", "seed.json");
-		const content = readFileSync(seedPath, "utf-8");
-		JSON.parse(content); // validate
-		userSeedJson = content;
+		const seedsDirPath = resolve(projectRoot, ".emdash", "seeds");
+		const stats = statSync(seedsDirPath);
+		if (stats.isDirectory()) {
+			const seedObj = loadSeedFromDirectorySync(seedsDirPath);
+			userSeedJson = JSON.stringify(seedObj);
+		}
 	} catch {
-		// Not found, try next
+		// Not found or not a directory, try next
+	}
+
+	// Try .emdash/seed.json
+	if (!userSeedJson) {
+		try {
+			const seedPath = resolve(projectRoot, ".emdash", "seed.json");
+			const content = readFileSync(seedPath, "utf-8");
+			JSON.parse(content); // validate
+			userSeedJson = content;
+		} catch {
+			// Not found, try next
+		}
 	}
 
 	// Try package.json → emdash.seed reference

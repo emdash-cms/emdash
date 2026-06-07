@@ -60,7 +60,19 @@ async function resolveSeedPath(cwd: string, positional?: string): Promise<string
 		return null;
 	}
 
-	// 2. Convention: .emdash/seed.json
+	// 2. Convention: .emdash/seeds/
+	const conventionDirPath = resolve(cwd, ".emdash", "seeds");
+	try {
+		const { stat } = await import("node:fs/promises");
+		const s = await stat(conventionDirPath);
+		if (s.isDirectory()) {
+			return conventionDirPath;
+		}
+	} catch {
+		// Not found
+	}
+
+	// 2b. Convention: .emdash/seed.json
 	const conventionPath = resolve(cwd, ".emdash", "seed.json");
 	if (await fileExists(conventionPath)) {
 		return conventionPath;
@@ -144,8 +156,15 @@ export const seedCommand = defineCommand({
 		// Load and parse seed file
 		let seed: SeedFile;
 		try {
-			const content = await readFile(seedPath, "utf-8");
-			seed = JSON.parse(content);
+			const { stat } = await import("node:fs/promises");
+			const s = await stat(seedPath);
+			if (s.isDirectory()) {
+				const { loadSeedFromDirectorySync } = await import("../../seed/merge.js");
+				seed = loadSeedFromDirectorySync(seedPath);
+			} else {
+				const content = await readFile(seedPath, "utf-8");
+				seed = JSON.parse(content);
+			}
 		} catch (error) {
 			consola.error("Failed to parse seed file:", error);
 			process.exit(1);
