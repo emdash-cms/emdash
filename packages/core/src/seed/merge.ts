@@ -1,5 +1,6 @@
 import { readdirSync, statSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+
 import type { SeedFile } from "./types.js";
 
 /**
@@ -11,7 +12,12 @@ export function deepMerge(target: any, source: any): any {
 		return [...target, ...source];
 	}
 
-	if (target !== null && typeof target === "object" && source !== null && typeof source === "object") {
+	if (
+		target !== null &&
+		typeof target === "object" &&
+		source !== null &&
+		typeof source === "object"
+	) {
 		const result = { ...target };
 		for (const key of Object.keys(source)) {
 			if (key in target) {
