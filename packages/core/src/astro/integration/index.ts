@@ -327,8 +327,8 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					injectBuiltinAuthRoutes(injectRoute);
 				}
 
-				// Inject MCP endpoint (always on — bearer-token-only, no cost if unused)
-				if (resolvedConfig.mcp !== false) {
+				// Inject MCP endpoint only when explicitly opted in
+				if (resolvedConfig.mcp === true) {
 					injectMcpRoute(injectRoute);
 				}
 

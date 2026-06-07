@@ -261,11 +261,11 @@ export interface EmDashConfig {
 	 * that allows AI agents and tools to interact with the CMS using
 	 * the standardized MCP protocol.
 	 *
-	 * Enabled by default. The endpoint requires bearer token auth, so
+	 * Disabled by default. The endpoint requires bearer token auth, so
 	 * it has no effect unless the user creates an API token and
-	 * configures a client. Set to `false` to disable.
+	 * configures a client. Set to `true` to enable.
 	 *
-	 * @default true
+	 * @default false
 	 */
 	mcp?: boolean;
 
