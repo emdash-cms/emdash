@@ -2137,7 +2137,7 @@ msgstr "已删除"
 #. placeholder {1}: deleteUsageQuery.data.totalAffectedRows
 #: packages/admin/src/routes/byline-schema.tsx:371
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
-msgstr "删除\”{0}\“将同时移除所有署名中的 {1， plural， one {# 个存储值} other {# 个存储值}}。此操作无法撤销。"
+msgstr "删除\”{0}\“将同时移除所有署名中的 {1, plural, one {# 个存储值} other {# 个存储值}}。此操作无法撤销。"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:664
