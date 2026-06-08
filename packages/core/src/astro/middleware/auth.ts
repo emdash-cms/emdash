@@ -119,6 +119,7 @@ const PUBLIC_API_EXACT = new Set([
 	// so unauthenticated callers only see published content. Admin endpoints
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.
 	"/_emdash/api/search",
+	"/_emdash/api/search/suggest",
 ]);
 
 // Build merged public routes at module load from auth provider descriptors.
