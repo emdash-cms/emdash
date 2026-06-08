@@ -34,8 +34,12 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
 function getImagesBinding(binding: string): ImagesBinding | undefined {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Workers bindings are exposed through an untyped env object.
 	const value = (env as Record<string, unknown>)[binding];
-	if (!value || typeof (value as { input?: unknown }).input !== "function") return undefined;
-	return value as ImagesBinding;
+	if (!isImagesBinding(value)) return undefined;
+	return value;
+}
+
+function isImagesBinding(value: unknown): value is ImagesBinding {
+	return typeof value === "object" && value !== null && "input" in value && typeof value.input === "function";
 }
 
 export const createMediaTransform: CreateMediaTransformFn<CloudflareImageTransformsConfig> = (
