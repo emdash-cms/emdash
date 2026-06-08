@@ -125,7 +125,7 @@ const config = {
 		buildLiveSearchResultUrl,
 		type LiveSearchRouteMap,
 		type LiveSearchRoutableResult,
-	} from "./live-search-routing";
+	} from "./live-search-routing.js";
 
 	interface SearchResult {
 		collection: string;
@@ -491,6 +491,7 @@ const config = {
 
 					link.dataset.id = suggestion.id;
 					link.dataset.collection = suggestion.collection;
+					link.dataset.slug = suggestion.slug ?? "";
 				}
 
 				this.resultsList.appendChild(clone);

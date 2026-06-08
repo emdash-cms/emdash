@@ -6,6 +6,10 @@ export interface LiveSearchRoutableResult {
 
 export type LiveSearchRouteMap = Record<string, string>;
 
+function replaceRouteToken(template: string, token: string, value: string): string {
+	return template.split(token).join(value);
+}
+
 export function buildLiveSearchResultUrl(
 	result: LiveSearchRoutableResult,
 	routeMap: LiveSearchRouteMap = {},
@@ -17,9 +21,10 @@ export function buildLiveSearchResultUrl(
 		return `/${result.collection}/${path}`;
 	}
 
-	return template
-		.replaceAll(":collection", result.collection)
-		.replaceAll(":id", result.id)
-		.replaceAll(":slug", result.slug ?? result.id)
-		.replaceAll(":path", path);
+	return [
+		[":collection", result.collection],
+		[":id", result.id],
+		[":slug", result.slug ?? result.id],
+		[":path", path],
+	].reduce((url, [token, value]) => replaceRouteToken(url, token, value), template);
 }

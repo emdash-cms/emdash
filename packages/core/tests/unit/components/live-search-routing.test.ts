@@ -52,4 +52,34 @@ describe("buildLiveSearchResultUrl", () => {
 			),
 		).toBe("/games/game-1/game-1/game-1");
 	});
+
+	it("treats dollar signs in route values as literal text", () => {
+		expect(
+			buildLiveSearchResultUrl(
+				{
+					collection: "game$collection",
+					id: "id$&$1",
+					slug: "slug$$",
+				},
+				{
+					game$collection: "/:collection/:id/:slug/:path",
+				},
+			),
+		).toBe("/game$collection/id$&$1/slug$$/slug$$");
+	});
+
+	it("treats dollar signs in fallback slug values as literal text", () => {
+		expect(
+			buildLiveSearchResultUrl(
+				{
+					collection: "games",
+					id: "id$&$1",
+					slug: null,
+				},
+				{
+					games: "/:slug/:path",
+				},
+			),
+		).toBe("/id$&$1/id$&$1");
+	});
 });
