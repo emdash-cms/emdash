@@ -46,7 +46,18 @@ interface InjectCoreRoutesOptions {
 	srcDir?: URL;
 }
 
-const ROUTE_OVERRIDE_EXTENSIONS = [".astro", ".js", ".ts", ".jsx", ".tsx", ".mjs", ".mts"];
+const ROUTE_OVERRIDE_EXTENSIONS = [
+	".astro",
+	".js",
+	".ts",
+	".jsx",
+	".tsx",
+	".mjs",
+	".mts",
+	".md",
+	".mdx",
+	".html",
+];
 
 /**
  * Detect whether the host site defines its own root-level public route file.

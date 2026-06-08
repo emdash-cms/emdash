@@ -112,6 +112,23 @@ describe("core media route injection", () => {
 			},
 		);
 	});
+
+	it("detects markdown and html route files for root public route overrides", async () => {
+		await withTempSrcDir(
+			{
+				"pages/robots.txt.md": "# Robots",
+				"pages/sitemap.xml/index.html": "<html></html>",
+			},
+			(srcDir) => {
+				const routes = collectRoutePatterns(srcDir);
+
+				expect(hasUserDefinedPublicRoute(srcDir, "robots.txt")).toBe(true);
+				expect(hasUserDefinedPublicRoute(srcDir, "sitemap.xml")).toBe(true);
+				expect(routes).not.toContain("/robots.txt");
+				expect(routes).not.toContain("/sitemap.xml");
+			},
+		);
+	});
 });
 
 describe("media file catch-all route", () => {
