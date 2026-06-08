@@ -43,6 +43,7 @@ describe("getSuggestions (Integration)", () => {
 		expect(suggestions).toHaveLength(1);
 		expect(suggestions[0]).toMatchObject({
 			collection: "post",
+			slug: "designing-things",
 			title: "Designing things",
 		});
 	});
