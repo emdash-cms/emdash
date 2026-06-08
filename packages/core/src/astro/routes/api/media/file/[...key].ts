@@ -5,6 +5,7 @@
  */
 
 import type { APIRoute } from "astro";
+import { transformableContentTypes, transformMedia } from "virtual:emdash/media-transform";
 
 import { apiError, handleError } from "#api/error.js";
 
@@ -28,7 +29,13 @@ const SAFE_INLINE_TYPES = new Set([
 	"audio/ogg",
 ]);
 
-export const GET: APIRoute = async ({ params, locals }) => {
+function shouldTransform(contentType: string): boolean {
+	if (!transformMedia) return false;
+	if (!transformableContentTypes) return true;
+	return transformableContentTypes.includes(contentType);
+}
+
+export const GET: APIRoute = async ({ params, locals, request }) => {
 	const { key } = params;
 	const { emdash } = locals;
 
@@ -42,30 +49,63 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
 	try {
 		const result = await emdash.storage.download(key);
+		let body: BodyInit = result.body;
+		let contentType = result.contentType;
+		let contentLength: number | undefined = result.size;
+		let transformHeaders: Record<string, string> | undefined;
+
+		if (shouldTransform(result.contentType)) {
+			const bodyBytes = await new Response(result.body).arrayBuffer();
+			body = bodyBytes;
+
+			try {
+				const transformed = await transformMedia?.({
+					body: bodyBytes,
+					contentType: result.contentType,
+					size: result.size,
+					key,
+					request,
+				});
+				if (transformed) {
+					body = transformed.body;
+					contentType = transformed.contentType;
+					contentLength = transformed.contentLength;
+					transformHeaders = transformed.headers;
+				}
+			} catch (error) {
+				console.error({
+					event: "emdash_media_transform_failed",
+					key,
+					contentType: result.contentType,
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
 
 		const headers: Record<string, string> = {
-			"Content-Type": result.contentType,
+			"Content-Type": contentType,
 			"Cache-Control": "public, max-age=31536000, immutable",
 			"X-Content-Type-Options": "nosniff",
 			// Sandbox CSP on all user-uploaded content — prevents script execution
 			// even for SVGs navigated to directly or content types that support scripting.
 			"Content-Security-Policy":
 				"sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
+			...transformHeaders,
 		};
 
-		if (result.size) {
-			headers["Content-Length"] = String(result.size);
+		if (contentLength) {
+			headers["Content-Length"] = String(contentLength);
 		}
 
 		// Safe image/media types can render inline; everything else (SVG, PDF,
 		// HTML, JS, etc.) must be downloaded to prevent stored XSS.
-		if (SAFE_INLINE_TYPES.has(result.contentType)) {
+		if (SAFE_INLINE_TYPES.has(contentType)) {
 			headers["Content-Disposition"] = "inline";
 		} else {
 			headers["Content-Disposition"] = "attachment";
 		}
 
-		return new Response(result.body, { status: 200, headers });
+		return new Response(body, { status: 200, headers });
 	} catch (error) {
 		// Check if it's a "not found" error
 		if (

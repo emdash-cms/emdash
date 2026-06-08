@@ -49,6 +49,10 @@
       "types": "./dist/media/images-runtime.d.mts",
       "default": "./dist/media/images-runtime.mjs"
     },
+    "./media/image-transforms": {
+      "types": "./dist/media/image-transforms-runtime.d.mts",
+      "default": "./dist/media/image-transforms-runtime.mjs"
+    },
     "./media/stream-runtime": {
       "types": "./dist/media/stream-runtime.d.mts",
       "default": "./dist/media/stream-runtime.mjs"

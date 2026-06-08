@@ -88,6 +88,30 @@ storage: s3({
 
 See [Storage Options](/deployment/storage/) for details.
 
+### `mediaTransforms`
+
+**Optional.** Media transform adapter for files served through `/_emdash/api/media/file/*`.
+Use this to resize or re-encode uploaded media on demand while keeping the original file in storage.
+
+Cloudflare Workers deployments can use Cloudflare Images transforms from `@emdash-cms/cloudflare`:
+
+```js
+import { cloudflareImageTransforms, r2 } from "@emdash-cms/cloudflare";
+
+emdash({
+	storage: r2({ binding: "MEDIA" }),
+	mediaTransforms: cloudflareImageTransforms({
+		binding: "IMAGES",
+		timeoutMs: 10_000,
+		defaultWidth: 1600,
+		maxWidth: 2400,
+		quality: 85,
+	}),
+});
+```
+
+The transform path is best-effort: if the adapter is not configured, the binding is missing, or a transform fails or times out, EmDash serves the original file from storage.
+
 ### `plugins`
 
 **Optional.** Array of EmDash plugins. The following example registers one plugin:
@@ -480,7 +504,7 @@ Import `local` and `s3` from `emdash/astro`. The `r2` adapter is imported from `
 
 ```js
 import emdash, { local, s3 } from "emdash/astro";
-import { r2 } from "@emdash-cms/cloudflare";
+import { cloudflareImageTransforms, r2 } from "@emdash-cms/cloudflare";
 ```
 
 ### `local(config)`
@@ -514,6 +538,30 @@ r2({
 	publicUrl: "https://pub-xxxx.r2.dev",
 });
 ```
+
+### `cloudflareImageTransforms(config)`
+
+Cloudflare Images binding adapter for on-the-fly transforms of media served by EmDash's media file route. This helper is imported from `@emdash-cms/cloudflare` and configured on the `mediaTransforms` integration option.
+
+| Option         | Type     | Description                                      |
+| -------------- | -------- | ------------------------------------------------ |
+| `binding`      | `string` | Images binding name                              |
+| `timeoutMs`    | `number` | Optional transform timeout, default `10000`      |
+| `defaultWidth` | `number` | Optional width when `?width=` is absent, default `1600` |
+| `maxWidth`     | `number` | Optional maximum requested width, default `2400` |
+| `quality`      | `number` | Optional output quality, default `85`            |
+
+```js
+cloudflareImageTransforms({
+	binding: "IMAGES",
+	timeoutMs: 10_000,
+	defaultWidth: 1600,
+	maxWidth: 2400,
+	quality: 85,
+});
+```
+
+The adapter transforms JPEG, PNG, WebP, and AVIF uploads. It selects AVIF when the request `Accept` header includes `image/avif`; otherwise it returns WebP. Requests may include `?width=800` to request a smaller variant, capped by `maxWidth`.
 
 ### `s3(config?)`
 

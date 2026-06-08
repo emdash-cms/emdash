@@ -190,6 +190,13 @@ export type {
 	CreateStorageFn,
 } from "./storage/types.js";
 export { EmDashStorageError } from "./storage/types.js";
+export type {
+	CreateMediaTransformFn,
+	MediaTransform,
+	MediaTransformDescriptor,
+	MediaTransformInput,
+	MediaTransformOutput,
+} from "./media/transform.js";
 
 // Plugin system
 export {

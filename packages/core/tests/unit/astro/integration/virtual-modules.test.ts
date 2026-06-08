@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	generateConfigModule,
 	generateDialectModule,
+	generateMediaTransformModule,
 	generateSeedModule,
 } from "../../../../src/astro/integration/virtual-modules.js";
 
@@ -64,6 +65,28 @@ describe("generateDialectModule", () => {
 			supportsRequestScope: false,
 		});
 		expect(out).toContain(`export const dialectType = "postgres"`);
+	});
+});
+
+describe("generateMediaTransformModule", () => {
+	it("emits undefined transform exports when no adapter is configured", () => {
+		const out = generateMediaTransformModule();
+		expect(out).toContain("export const transformMedia = undefined");
+		expect(out).toContain("export const transformableContentTypes = undefined");
+	});
+
+	it("imports and instantiates the configured adapter", () => {
+		const out = generateMediaTransformModule({
+			entrypoint: "@emdash-cms/cloudflare/media/image-transforms",
+			config: { binding: "IMAGES", timeoutMs: 5000 },
+			contentTypes: ["image/png"],
+		});
+
+		expect(out).toContain(
+			`import { createMediaTransform as _createMediaTransform } from "@emdash-cms/cloudflare/media/image-transforms"`,
+		);
+		expect(out).toContain(`"binding":"IMAGES"`);
+		expect(out).toContain(`export const transformableContentTypes = ["image/png"]`);
 	});
 });
 

@@ -134,6 +134,31 @@ Works with Cloudflare R2 (via S3 API), MinIO, and other S3-compatible services.
   </TabItem>
 </Tabs>
 
+## Image Transforms
+
+Uploaded images are always stored in their original form. Sites can optionally configure a media transform adapter to resize or re-encode images when they are served through `/_emdash/api/media/file/*`.
+
+On Cloudflare Workers, use the Cloudflare Images binding adapter:
+
+```js title="astro.config.mjs"
+import { cloudflareImageTransforms, r2 } from "@emdash-cms/cloudflare";
+
+emdash({
+  storage: r2({ binding: "MEDIA" }),
+  mediaTransforms: cloudflareImageTransforms({ binding: "IMAGES" }),
+});
+```
+
+```jsonc title="wrangler.jsonc"
+{
+  "images": {
+    "binding": "IMAGES"
+  }
+}
+```
+
+The Cloudflare adapter transforms JPEG, PNG, WebP, and AVIF files. Add `?width=800` to a media file URL to request a smaller image. EmDash negotiates AVIF or WebP from the request `Accept` header and falls back to the original file if the transform binding is unavailable, fails, or times out.
+
 ## How Uploads Work
 
 EmDash uses signed URLs for secure uploads:

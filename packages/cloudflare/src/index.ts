@@ -33,7 +33,12 @@
  * ```
  */
 
-import type { AuthDescriptor, DatabaseDescriptor, StorageDescriptor } from "emdash";
+import type {
+	AuthDescriptor,
+	DatabaseDescriptor,
+	MediaTransformDescriptor,
+	StorageDescriptor,
+} from "emdash";
 
 import type { PreviewDOConfig } from "./db/do-types.js";
 
@@ -85,6 +90,14 @@ export interface R2StorageConfig {
 	 */
 	publicUrl?: string;
 }
+
+export type { CloudflareImageTransformsConfig } from "./media/image-transforms.js";
+export {
+	cloudflareImageTransforms,
+	CLOUDFLARE_IMAGE_TRANSFORM_TYPES,
+} from "./media/image-transforms.js";
+
+export type { MediaTransformDescriptor };
 
 /**
  * Configuration for Cloudflare Access authentication

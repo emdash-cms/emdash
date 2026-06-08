@@ -24,6 +24,14 @@ export type {
 	ThumbnailOptions,
 } from "./types.js";
 
+export type {
+	CreateMediaTransformFn,
+	MediaTransform,
+	MediaTransformDescriptor,
+	MediaTransformInput,
+	MediaTransformOutput,
+} from "./transform.js";
+
 export { mediaItemToValue } from "./types.js";
 export { normalizeMediaValue } from "./normalize.js";
 export { generatePlaceholder, type PlaceholderData } from "./placeholder.js";

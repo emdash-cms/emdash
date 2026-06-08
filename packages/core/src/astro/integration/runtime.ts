@@ -9,6 +9,7 @@
 
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
+import type { MediaTransformDescriptor } from "../../media/transform.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import type { ExperimentalConfig } from "../../registry/types.js";
@@ -151,6 +152,15 @@ export interface EmDashConfig {
 	 * Storage configuration (for media)
 	 */
 	storage?: StorageDescriptor;
+	/**
+	 * Optional media transform adapter for files served through
+	 * `/_emdash/api/media/file/*`.
+	 *
+	 * Platform packages can provide adapters for on-the-fly image resizing or
+	 * format negotiation while core keeps serving the original file if the
+	 * transformer is absent or fails.
+	 */
+	mediaTransforms?: MediaTransformDescriptor;
 	/**
 	 * Trusted plugins to load (run in main isolate)
 	 *

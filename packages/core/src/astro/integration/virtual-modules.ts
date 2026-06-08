@@ -11,6 +11,7 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 
 import type { AuthProviderDescriptor } from "../../auth/types.js";
+import type { MediaTransformDescriptor } from "../../media/transform.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import { defaultSeed } from "../../seed/default.js";
 import type { PluginDescriptor } from "./runtime.js";
@@ -53,6 +54,9 @@ export const RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID = "\0" + VIRTUAL_AUTH_PROVIDERS_
 
 export const VIRTUAL_MEDIA_PROVIDERS_ID = "virtual:emdash/media-providers";
 export const RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID = "\0" + VIRTUAL_MEDIA_PROVIDERS_ID;
+
+export const VIRTUAL_MEDIA_TRANSFORM_ID = "virtual:emdash/media-transform";
+export const RESOLVED_VIRTUAL_MEDIA_TRANSFORM_ID = "\0" + VIRTUAL_MEDIA_TRANSFORM_ID;
 
 export const VIRTUAL_BLOCK_COMPONENTS_ID = "virtual:emdash/block-components";
 export const RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID = "\0" + VIRTUAL_BLOCK_COMPONENTS_ID;
@@ -122,6 +126,26 @@ export function generateStorageModule(storageEntrypoint?: string): string {
 	return `
 import { createStorage as _createStorage } from "${storageEntrypoint}";
 export const createStorage = _createStorage;
+`;
+}
+
+/**
+ * Generates the media transform module.
+ * Statically imports the configured transform adapter.
+ */
+export function generateMediaTransformModule(descriptor?: MediaTransformDescriptor): string {
+	if (!descriptor) {
+		return [
+			`export const transformMedia = undefined;`,
+			`export const transformableContentTypes = undefined;`,
+		].join("\n");
+	}
+
+	return `
+import { createMediaTransform as _createMediaTransform } from ${JSON.stringify(descriptor.entrypoint)};
+
+export const transformMedia = _createMediaTransform(${JSON.stringify(descriptor.config)});
+export const transformableContentTypes = ${JSON.stringify(descriptor.contentTypes ?? null)};
 `;
 }
 

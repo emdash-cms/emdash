@@ -15,7 +15,7 @@ Cloudflare Workers provides a fast, globally distributed runtime for EmDash. Thi
 
 ## Configure Bindings
 
-Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler provisions both resources on the first deploy if they don't already exist.
+Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Add an Images binding if you want EmDash to transform uploaded images on demand. Wrangler provisions D1 and R2 resources on the first deploy if they don't already exist.
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -37,6 +37,10 @@ Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler p
 			"bucket_name": "emdash-media",
 		},
 	],
+
+	"images": {
+		"binding": "IMAGES",
+	},
 }
 ```
 
@@ -48,7 +52,7 @@ Update your Astro configuration to use D1 and R2:
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import emdash from "emdash/astro";
-import { d1, r2 } from "@emdash-cms/cloudflare";
+import { cloudflareImageTransforms, d1, r2 } from "@emdash-cms/cloudflare";
 
 export default defineConfig({
 	output: "server",
@@ -57,6 +61,7 @@ export default defineConfig({
 		emdash({
 			database: d1({ binding: "DB" }),
 			storage: r2({ binding: "MEDIA" }),
+			mediaTransforms: cloudflareImageTransforms({ binding: "IMAGES" }),
 		}),
 	],
 });
@@ -95,6 +100,14 @@ emdash({
 You also need to enable read replication on the D1 database itself in the Cloudflare dashboard or via the REST API.
 
 See [Database Options — Read Replicas](/deployment/database/#read-replicas) for session modes and how bookmark-based consistency works.
+
+## Image Transforms
+
+When `mediaTransforms: cloudflareImageTransforms({ binding: "IMAGES" })` is configured, EmDash uses Cloudflare Images to transform JPEG, PNG, WebP, and AVIF files served through `/_emdash/api/media/file/*`.
+
+Transformed image requests can include `?width=800`. EmDash clamps requested widths to the configured `maxWidth`, returns AVIF when the browser advertises `image/avif`, otherwise returns WebP, and adds `Vary: Accept` only to transformed responses.
+
+Transforms are best-effort. If the Images binding is missing, the Images service fails, or a transform times out, EmDash serves the original R2 object instead.
 
 ## Custom Domain
 

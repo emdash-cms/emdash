@@ -11,6 +11,8 @@ const virtualStubs: Record<string, string> = {
 	// (e.g. `virtualConfig?.i18n?.defaultLocale`) don't blow up on import.
 	// Tests that need real config still `vi.mock(...)` their own.
 	"virtual:emdash/config": "export default {};",
+	"virtual:emdash/media-transform":
+		"export const transformMedia = undefined; export const transformableContentTypes = undefined;",
 };
 
 export default defineConfig({

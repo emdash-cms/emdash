@@ -11,12 +11,14 @@ declare module "virtual:emdash/config" {
 		AuthDescriptor,
 		AuthProviderDescriptor,
 		DatabaseDescriptor,
+		MediaTransformDescriptor,
 		StorageDescriptor,
 	} from "./index.js";
 
 	interface VirtualConfig {
 		database?: DatabaseDescriptor;
 		storage?: StorageDescriptor;
+		mediaTransforms?: MediaTransformDescriptor;
 		auth?: AuthDescriptor;
 		authProviders?: AuthProviderDescriptor[];
 		i18n?: I18nConfig | null;
@@ -84,6 +86,13 @@ declare module "virtual:emdash/auth" {
 	import type { AuthResult } from "./auth/types.js";
 
 	export const authenticate: ((request: Request, config: unknown) => Promise<AuthResult>) | null;
+}
+
+declare module "virtual:emdash/media-transform" {
+	import type { MediaTransform } from "./media/transform.js";
+
+	export const transformMedia: MediaTransform | undefined;
+	export const transformableContentTypes: string[] | null | undefined;
 }
 
 declare module "virtual:emdash/plugins" {

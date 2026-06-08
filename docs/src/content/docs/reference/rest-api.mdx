@@ -271,7 +271,7 @@ DELETE /_emdash/api/media/:id
 GET /_emdash/api/media/file/:key
 ```
 
-Serves the actual file content. For local storage only.
+Serves the actual file content from the configured storage adapter. When a media transform adapter is configured, image responses may be resized or re-encoded on demand. Transform failures fall back to the original stored file.
 
 ## Revision Endpoints
 

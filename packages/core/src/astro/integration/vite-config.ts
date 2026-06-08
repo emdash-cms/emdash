@@ -36,6 +36,8 @@ import {
 	RESOLVED_VIRTUAL_AUTH_PROVIDERS_ID,
 	VIRTUAL_MEDIA_PROVIDERS_ID,
 	RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID,
+	VIRTUAL_MEDIA_TRANSFORM_ID,
+	RESOLVED_VIRTUAL_MEDIA_TRANSFORM_ID,
 	VIRTUAL_BLOCK_COMPONENTS_ID,
 	RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID,
 	VIRTUAL_SEED_ID,
@@ -47,6 +49,7 @@ import {
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
+	generateMediaTransformModule,
 	generateAuthModule,
 	generateAuthProvidersModule,
 	generatePluginsModule,
@@ -194,6 +197,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_MEDIA_PROVIDERS_ID) {
 				return RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID;
 			}
+			if (id === VIRTUAL_MEDIA_TRANSFORM_ID) {
+				return RESOLVED_VIRTUAL_MEDIA_TRANSFORM_ID;
+			}
 			if (id === VIRTUAL_BLOCK_COMPONENTS_ID) {
 				return RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID;
 			}
@@ -256,6 +262,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// Generate media providers module
 			if (id === RESOLVED_VIRTUAL_MEDIA_PROVIDERS_ID) {
 				return generateMediaProvidersModule(resolvedConfig.mediaProviders ?? []);
+			}
+			if (id === RESOLVED_VIRTUAL_MEDIA_TRANSFORM_ID) {
+				return generateMediaTransformModule(resolvedConfig.mediaTransforms);
 			}
 			// Generate block components module (plugin rendering components for PortableText)
 			if (id === RESOLVED_VIRTUAL_BLOCK_COMPONENTS_ID) {

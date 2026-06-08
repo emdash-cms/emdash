@@ -13,6 +13,7 @@ export default defineConfig({
 		"src/plugins/index.ts",
 		// Media provider runtimes
 		"src/media/images-runtime.ts",
+		"src/media/image-transforms-runtime.ts",
 		"src/media/stream-runtime.ts",
 		// Cache provider
 		"src/cache/runtime.ts",
