@@ -39,7 +39,12 @@ function getImagesBinding(binding: string): ImagesBinding | undefined {
 }
 
 function isImagesBinding(value: unknown): value is ImagesBinding {
-	return typeof value === "object" && value !== null && "input" in value && typeof value.input === "function";
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"input" in value &&
+		typeof value.input === "function"
+	);
 }
 
 export const createMediaTransform: CreateMediaTransformFn<CloudflareImageTransformsConfig> = (
