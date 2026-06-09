@@ -33,8 +33,8 @@ describe("parseSubmitResponse", () => {
 	});
 
 	it("does not recursively unwrap nested envelopes", () => {
-		expect(
-			parseSubmitResponse({ data: { data: { success: true, message: "Nested" } } }),
-		).toEqual({ data: { success: true, message: "Nested" } });
+		expect(parseSubmitResponse({ data: { data: { success: true, message: "Nested" } } })).toEqual({
+			data: { success: true, message: "Nested" },
+		});
 	});
 });
