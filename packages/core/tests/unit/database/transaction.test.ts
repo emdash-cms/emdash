@@ -46,4 +46,31 @@ describe("withTransaction", () => {
 		expect(executeCalls).toBe(1);
 		expect(fn).toHaveBeenCalledTimes(2);
 	});
+
+	it("caches supported transaction support per adapter after the first successful transaction", async () => {
+		const adapter = {};
+		const trx = {};
+		let executeCalls = 0;
+		const db = {
+			getExecutor: () => ({ adapter }),
+			transaction: () => ({
+				execute: async (callback: (trx: unknown) => Promise<string>) => {
+					executeCalls += 1;
+					return callback(trx);
+				},
+			}),
+		};
+		const fn = vi.fn(async (receivedTrx: unknown) => {
+			expect(receivedTrx).toBe(trx);
+			return "ok";
+		});
+
+		const first = await withTransaction(db as never, fn);
+		const second = await withTransaction(db as never, fn);
+
+		expect(first).toBe("ok");
+		expect(second).toBe("ok");
+		expect(executeCalls).toBe(2);
+		expect(fn).toHaveBeenCalledTimes(2);
+	});
 });

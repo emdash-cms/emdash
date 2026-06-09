@@ -24,7 +24,19 @@ import type { Kysely, Transaction } from "kysely";
  */
 const TRANSACTIONS_NOT_SUPPORTED_RE = /transactions are not supported/i;
 const D1_ADAPTER_MARKER = Symbol.for("emdash:d1-adapter");
-const transactionSupportByAdapter = new WeakMap<object, boolean>();
+
+type TransactionSupportCache = WeakMap<object, boolean>;
+
+const TRANSACTION_SUPPORT_CACHE_KEY = Symbol.for("emdash:transaction-support-by-adapter");
+const g = globalThis as Record<symbol, unknown>;
+const transactionSupportByAdapter: TransactionSupportCache =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-cache.ts)
+	(g[TRANSACTION_SUPPORT_CACHE_KEY] as TransactionSupportCache | undefined) ??
+	(() => {
+		const wm: TransactionSupportCache = new WeakMap();
+		g[TRANSACTION_SUPPORT_CACHE_KEY] = wm;
+		return wm;
+	})();
 
 function getAdapter<DB>(db: Kysely<DB>): object {
 	return db.getExecutor().adapter as object;
