@@ -1,0 +1,75 @@
+---
+/**
+ * EmDash custom block override for `astro-portabletext`.
+ *
+ * Renders the same HTML as the upstream Block component (h1..h6, blockquote,
+ * `<p>` for `normal`) and additionally surfaces `textAlign` from the rich-text
+ * editor as a WordPress-style `has-text-align-{value}` class on the rendered
+ * paragraph or heading.
+ *
+ * `left` is the editor default and intentionally does not produce a class —
+ * paragraphs/headings without explicit alignment render exactly as they did
+ * before this fix, so existing content is byte-for-byte unchanged.
+ *
+ * Related: https://github.com/emdash-cms/emdash/issues/1201
+ */
+import type { BlockProps } from "astro-portabletext/types";
+import { usePortableText } from "astro-portabletext/utils";
+
+import { textAlignClassName } from "./portable-text-text-align.js";
+
+type TextAlignedNode = BlockProps["node"] & { textAlign?: string };
+type Props = Omit<BlockProps, "node"> & { node: TextAlignedNode };
+
+const props = Astro.props as Props;
+const { node, index: _index, isInline: _isInline, ...attrs } = props;
+
+const styleIs = (style: string) => style === node.style;
+
+const { getUnknownComponent } = usePortableText(node);
+const UnknownStyle = getUnknownComponent();
+
+// Allowlist-based; attacker-controlled PT data cannot inject arbitrary classes.
+// See `./portable-text-text-align.ts`.
+const alignClass = textAlignClassName(node.textAlign);
+---
+
+{
+	styleIs("h1") ? (
+		<h1 class={alignClass} {...attrs}>
+			<slot />
+		</h1>
+	) : styleIs("h2") ? (
+		<h2 class={alignClass} {...attrs}>
+			<slot />
+		</h2>
+	) : styleIs("h3") ? (
+		<h3 class={alignClass} {...attrs}>
+			<slot />
+		</h3>
+	) : styleIs("h4") ? (
+		<h4 class={alignClass} {...attrs}>
+			<slot />
+		</h4>
+	) : styleIs("h5") ? (
+		<h5 class={alignClass} {...attrs}>
+			<slot />
+		</h5>
+	) : styleIs("h6") ? (
+		<h6 class={alignClass} {...attrs}>
+			<slot />
+		</h6>
+	) : styleIs("blockquote") ? (
+		<blockquote class={alignClass} {...attrs}>
+			<slot />
+		</blockquote>
+	) : styleIs("normal") ? (
+		<p class={alignClass} {...attrs}>
+			<slot />
+		</p>
+	) : (
+		<UnknownStyle {...props}>
+			<slot />
+		</UnknownStyle>
+	)
+}

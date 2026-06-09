@@ -51,6 +51,7 @@ interface PTTextBlock {
 	level?: number;
 	children: PTSpan[];
 	markDefs?: PTMarkDef[];
+	textAlign?: "left" | "center" | "right" | "justify";
 }
 
 type PTBlock = PTTextBlock | { _type: string; _key: string; [key: string]: unknown };
@@ -119,12 +120,15 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 		case "paragraph": {
 			const { children, markDefs } = convertInline(node.content || []);
 			if (children.length === 0) return null;
+			const ta = node.attrs?.textAlign;
+			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
 				_key: k(),
 				style: "normal",
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(textAlign ? { textAlign } : {}),
 			};
 		}
 		case "heading": {
@@ -140,12 +144,15 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 				6: "h6",
 			};
 			const headingStyle = headingStyles[level] ?? "h1";
+			const ta = node.attrs?.textAlign;
+			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
 				_key: k(),
 				style: headingStyle,
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(textAlign ? { textAlign } : {}),
 			};
 		}
 		case "bulletList":
@@ -361,7 +368,7 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 
 function convertPTBlock(block: PTBlock): JSONContent | null {
 	if (isPTTextBlock(block)) {
-		const { style = "normal", children, markDefs = [] } = block;
+		const { style = "normal", children, markDefs = [], textAlign } = block;
 		const pmContent = convertPTSpans(children, markDefs);
 
 		if (style === "blockquote") {
@@ -379,12 +386,13 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 			const level = parseInt(style.substring(1), 10);
 			return {
 				type: "heading",
-				attrs: { level },
+				attrs: { level, ...(textAlign ? { textAlign } : {}) },
 				content: pmContent.length > 0 ? pmContent : undefined,
 			};
 		}
 		return {
 			type: "paragraph",
+			attrs: textAlign ? { textAlign } : undefined,
 			content: pmContent.length > 0 ? pmContent : undefined,
 		};
 	}
