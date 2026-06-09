@@ -171,7 +171,6 @@ const imgProps: Record<string, unknown> = {
 	alt: finalAlt,
 	loading: priority ? "eager" : "lazy",
 	fetchpriority: priority ? "high" : undefined,
-	"data-early-lazy-load": priority ? undefined : "",
 	decoding: "async",
 	style: placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseStyle,
 	...attrs,

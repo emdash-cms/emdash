@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Add fetch priority and early lazy-load marker attributes to EmDash image components so sites can prioritize above-the-fold images and selectively promote deferred lazy images after initial page load.
+Add `fetchpriority="high"` to priority EmDash images so above-the-fold images can be requested eagerly and prioritized by the browser.
