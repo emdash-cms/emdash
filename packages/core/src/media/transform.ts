@@ -3,12 +3,12 @@ export interface MediaTransformDescriptor {
 	entrypoint: string;
 	/** Serializable config passed to createMediaTransform at runtime. */
 	config: unknown;
-	/** Content types that should be buffered and passed to the transformer. */
+	/** Content types that should be passed to the transformer. */
 	contentTypes?: string[];
 }
 
 export interface MediaTransformInput {
-	body: ArrayBuffer;
+	body: ReadableStream<Uint8Array>;
 	contentType: string;
 	size?: number;
 	key: string;

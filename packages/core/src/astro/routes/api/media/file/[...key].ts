@@ -55,12 +55,12 @@ export const GET: APIRoute = async ({ params, locals, request }) => {
 		let transformHeaders: Record<string, string> | undefined;
 
 		if (shouldTransform(result.contentType)) {
-			const bodyBytes = await new Response(result.body).arrayBuffer();
-			body = bodyBytes;
+			const [transformBody, fallbackBody] = result.body.tee();
+			body = fallbackBody;
 
 			try {
 				const transformed = await transformMedia?.({
-					body: bodyBytes,
+					body: transformBody,
 					contentType: result.contentType,
 					size: result.size,
 					key,

@@ -15,7 +15,7 @@ async function loadRoute(
 
 function mediaContext(contentType = "image/png") {
 	const download = vi.fn().mockResolvedValue({
-		body: new Uint8Array([1, 2, 3]),
+		body: stream([1, 2, 3]),
 		contentType,
 		size: 3,
 	});
@@ -34,6 +34,12 @@ function mediaContext(contentType = "image/png") {
 		},
 		download,
 	};
+}
+
+function stream(bytes: number[]): ReadableStream<Uint8Array> {
+	const body = new Response(new Uint8Array(bytes)).body;
+	if (!body) throw new Error("Expected response body");
+	return body;
 }
 
 describe("media file route transforms", () => {
@@ -60,6 +66,7 @@ describe("media file route transforms", () => {
 		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([9, 8]));
 		expect(transformMedia).toHaveBeenCalledWith(
 			expect.objectContaining({
+				body: expect.any(ReadableStream),
 				contentType: "image/png",
 				key: "image.png",
 				size: 3,

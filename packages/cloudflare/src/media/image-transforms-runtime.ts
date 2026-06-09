@@ -10,7 +10,15 @@ const DEFAULT_QUALITY = 85;
 
 function imageFormatForRequest(request: Request): "image/avif" | "image/webp" {
 	const accept = request.headers.get("accept") || "";
-	return accept.includes("image/avif") ? "image/avif" : "image/webp";
+	const avifAccepted = accept.split(",").some((part) => {
+		const [mediaType, ...params] = part.split(";").map((value) => value.trim().toLowerCase());
+		if (mediaType !== "image/avif") return false;
+		const quality = params.find((param) => param.startsWith("q="));
+		if (!quality) return true;
+		const value = Number(quality.slice(2));
+		return !Number.isFinite(value) || value > 0;
+	});
+	return avifAccepted ? "image/avif" : "image/webp";
 }
 
 function imageWidthForRequest(request: Request, defaultWidth: number, maxWidth: number): number {
@@ -59,12 +67,9 @@ export const createMediaTransform: CreateMediaTransformFn<CloudflareImageTransfo
 		const images = getImagesBinding(config.binding);
 		if (!images) return null;
 
-		const input = new Response(body).body;
-		if (!input) throw new Error("Unable to create image transform input stream");
-
 		const transformed = await withTimeout(
 			images
-				.input(input)
+				.input(body)
 				.transform({
 					fit: "scale-down",
 					width: imageWidthForRequest(request, defaultWidth, maxWidth),
