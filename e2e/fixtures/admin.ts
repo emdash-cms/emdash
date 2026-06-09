@@ -155,6 +155,7 @@ export class AdminPage {
 			.locator(".animate-spin")
 			.waitFor({ state: "hidden", timeout: 10000 })
 			.catch(() => {});
+		await this.dismissOnboardingModal();
 	}
 
 	// ============================================
