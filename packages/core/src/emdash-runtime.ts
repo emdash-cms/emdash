@@ -311,8 +311,28 @@ function contentItemToRecord(item: ContentItemInternal): Record<string, unknown>
 }
 
 // Module-level caches (persist across requests within worker)
-const dbCache = new Map<string, Kysely<Database>>();
-let dbInitPromise: Promise<Kysely<Database>> | null = null;
+//
+// The DB instance cache + in-flight init promise live on globalThis behind a
+// Symbol key (same pattern as request-cache.ts / settings/index.ts) so that
+// bundler duplication of this module across SSR chunks can't produce two
+// independent caches. A plain module-scoped `const`/`let` becomes multiple
+// variables under Vite SSR chunking, which would let cold-start migrations +
+// bootstrap reads re-run on requests that should have hit the warm cache.
+interface DbInitHolder {
+	cache: Map<string, Kysely<Database>>;
+	initPromise: Promise<Kysely<Database>> | null;
+}
+
+const DB_INIT_HOLDER_KEY = Symbol.for("emdash:db-init-holder");
+const dbInitStore = globalThis as Record<symbol, unknown>;
+const dbInitHolder: DbInitHolder =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see settings/index.ts)
+	(dbInitStore[DB_INIT_HOLDER_KEY] as DbInitHolder | undefined) ??
+	(() => {
+		const h: DbInitHolder = { cache: new Map<string, Kysely<Database>>(), initPromise: null };
+		dbInitStore[DB_INIT_HOLDER_KEY] = h;
+		return h;
+	})();
 const storageCache = new Map<string, Storage>();
 const sandboxedPluginCache = new Map<string, SandboxedPluginInstance>();
 /**
@@ -1271,7 +1291,7 @@ export class EmDashRuntime {
 		const cacheKey = dbConfig.entrypoint;
 
 		// Return cached instance if available
-		const cached = dbCache.get(cacheKey);
+		const cached = dbInitHolder.cache.get(cacheKey);
 		if (cached) {
 			return cached;
 		}
@@ -1280,11 +1300,11 @@ export class EmDashRuntime {
 		// Sharing this promise across requests is safe because the Kysely instance
 		// doesn't hold a request-scoped resource — the DO dialect uses a getStub()
 		// factory that creates a fresh stub per query execution.
-		if (dbInitPromise) {
-			return dbInitPromise;
+		if (dbInitHolder.initPromise) {
+			return dbInitHolder.initPromise;
 		}
 
-		dbInitPromise = (async () => {
+		dbInitHolder.initPromise = (async () => {
 			const dialect = deps.createDialect(dbConfig.config);
 			const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
@@ -1338,14 +1358,14 @@ export class EmDashRuntime {
 				// Tables may not exist yet. Non-fatal.
 			}
 
-			dbCache.set(cacheKey, db);
+			dbInitHolder.cache.set(cacheKey, db);
 			return db;
 		})();
 
 		try {
-			return await dbInitPromise;
+			return await dbInitHolder.initPromise;
 		} finally {
-			dbInitPromise = null;
+			dbInitHolder.initPromise = null;
 		}
 	}
 

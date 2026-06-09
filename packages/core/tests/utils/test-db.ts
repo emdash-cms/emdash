@@ -9,6 +9,22 @@ import { getMigrationStatus, runMigrations } from "../../src/database/migrations
 import type { MigrationStatus } from "../../src/database/migrations/runner.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
+import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
+
+/**
+ * Clear the isolate-wide, schema-derived caches that live on globalThis and
+ * therefore persist across tests within a vitest worker. A freshly created
+ * test database must never be served another database's cached taxonomy
+ * definitions, so we reset every time a new test DB is created.
+ *
+ * Note: we deliberately don't import from `../../src/loader.js` here — several
+ * test files `vi.mock` that module to stub `getDb`, and pulling another export
+ * through this shared util would blow up under those mocks. The loader's own
+ * taxonomy-names cache predates this util and is reset via its public path.
+ */
+function resetSchemaCachesForTests(): void {
+	resetTaxonomyDefsCacheForTests();
+}
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -33,6 +49,7 @@ export const hasPgTestDatabase = PG_CONNECTION_STRING.length > 0;
  * Create an in-memory SQLite database for testing
  */
 export function createTestDatabase(): Kysely<DatabaseSchema> {
+	resetSchemaCachesForTests();
 	const sqlite = new Database(":memory:");
 
 	return new Kysely<DatabaseSchema>({
@@ -246,6 +263,7 @@ export interface PgTestContext {
  * Call `teardownTestPostgresDatabase()` in afterEach to drop the schema.
  */
 export async function createTestPostgresDatabase(): Promise<PgTestContext> {
+	resetSchemaCachesForTests();
 	const connectionString = await getWorkerConnectionString();
 	const pool = await getSharedPool();
 	const schemaName = uniqueSchemaName();

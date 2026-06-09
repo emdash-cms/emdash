@@ -12,7 +12,7 @@ import { ulid } from "ulidx";
 
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import type { Database, TaxonomyDefTable } from "../../database/types.js";
-import { invalidateTermCache } from "../../taxonomies/index.js";
+import { invalidateTaxonomyDefsCache, invalidateTermCache } from "../../taxonomies/index.js";
 import type { ApiResult } from "../types.js";
 
 const NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -280,6 +280,10 @@ export async function handleTaxonomyCreate(
 				translation_group: translationGroup ?? id,
 			})
 			.execute();
+
+		// A new def changes which taxonomies exist — drop the isolate-wide
+		// defs/names caches so this isolate reflects it immediately.
+		invalidateTaxonomyDefsCache();
 
 		const row = await db
 			.selectFrom("_emdash_taxonomy_defs")

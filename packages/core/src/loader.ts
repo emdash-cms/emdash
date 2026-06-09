@@ -153,6 +153,18 @@ async function getTaxonomyNames(db: Kysely<Database>): Promise<Set<string>> {
 }
 
 /**
+ * Reset the module-scoped taxonomy-names cache.
+ *
+ * Called from `invalidateTaxonomyDefsCache()` so that creating or seeding a
+ * taxonomy definition is reflected within the current isolate instead of
+ * waiting for the isolate to recycle. Keeps this cache consistent with the
+ * isolate-wide taxonomy-defs cache in `taxonomies/index.ts`.
+ */
+export function resetTaxonomyNamesCache(): void {
+	taxonomyNames = null;
+}
+
+/**
  * System columns to include in data (mapped to camelCase where needed)
  */
 const INCLUDE_IN_DATA: Record<string, string> = {

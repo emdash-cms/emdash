@@ -12,8 +12,9 @@
  */
 
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
-import { getDb } from "../loader.js";
+import { getDb, resetTaxonomyNamesCache } from "../loader.js";
 import { peekRequestCache, requestCached, setRequestCacheEntry } from "../request-cache.js";
+import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
@@ -30,19 +31,126 @@ export function invalidateTermCache(): void {
 }
 
 /**
+ * Worker-isolate cache for taxonomy definitions, keyed by resolved locale.
+ *
+ * Taxonomy *definitions* (the "category"/"tag" taxonomies themselves, not
+ * their terms) are read on every public render that hydrates entry terms —
+ * `getAllTermsForEntries` → `getCollectionTaxonomyNames` → `getTaxonomyDefs` —
+ * but change extremely rarely: they're created via the admin API or applied
+ * from a seed, and there is no edit/delete-def path. Caching them across the
+ * isolate lifetime drops the per-render `SELECT * FROM _emdash_taxonomy_defs`
+ * to once-per-isolate.
+ *
+ * Stored on globalThis behind a Symbol key (same pattern as
+ * `settings/index.ts`) so the bundler duplicating this module across SSR
+ * chunks can't produce two independent caches.
+ *
+ * **Invalidation is in-memory, not a persisted version probe.** A persisted
+ * `taxonomy_defs_version` row (the byline-field-defs approach) would force a
+ * cheap version read on every request — which would merely *replace* the
+ * query we're removing, yielding no net round-trip saving on warm isolates.
+ * Instead every def write calls `invalidateTaxonomyDefsCache()`, bumping an
+ * in-memory version within the writing isolate. Other isolates keep serving
+ * their cached copy until they recycle — staleness bounded by isolate
+ * lifetime, matching the long-standing `loader.ts` taxonomy-names cache and
+ * `settings/index.ts`.
+ *
+ * **Isolated databases bypass the cache.** Playground / DO preview requests
+ * set `requestContext.dbIsIsolated`; they point at a divergent schema, so we
+ * skip both reading and writing the global holder and fall back to the
+ * per-request cache (same precedent as `getTaxonomyNames` / byline field defs).
+ */
+interface TaxonomyDefsHolder {
+	version: number;
+	/** locale key ("*" for "all locales") → { version it was fetched at, promise }. */
+	cache: Map<string, { version: number; promise: Promise<TaxonomyDef[]> }>;
+}
+
+const TAXONOMY_DEFS_CACHE_KEY = Symbol.for("emdash:taxonomy-defs");
+const taxonomyDefsStore = globalThis as Record<symbol, unknown>;
+const defsHolder: TaxonomyDefsHolder =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see settings/index.ts)
+	(taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] as TaxonomyDefsHolder | undefined) ??
+	(() => {
+		const h: TaxonomyDefsHolder = { version: 0, cache: new Map() };
+		taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] = h;
+		return h;
+	})();
+
+/**
+ * Invalidate the isolate-wide taxonomy-definitions cache (and the related
+ * loader taxonomy-names cache). Called from every taxonomy-def write path
+ * (`handleTaxonomyCreate`, seed application). Other isolates refresh on their
+ * next recycle — staleness bounded by isolate lifetime.
+ */
+export function invalidateTaxonomyDefsCache(): void {
+	defsHolder.version++;
+	defsHolder.cache.clear();
+	resetTaxonomyNamesCache();
+}
+
+/**
+ * Test/internal helper: clear the per-isolate taxonomy-defs cache. Useful for
+ * unit tests that insert defs directly and need to force a refetch without
+ * going through a write path. Production code should rely on
+ * `invalidateTaxonomyDefsCache()`.
+ */
+export function resetTaxonomyDefsCacheForTests(): void {
+	defsHolder.version++;
+	defsHolder.cache.clear();
+}
+
+/**
+ * Fetch taxonomy definitions straight from the database (no caching).
+ */
+async function fetchTaxonomyDefs(locale: string | undefined): Promise<TaxonomyDef[]> {
+	const db = await getDb();
+	let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+	if (locale !== undefined) query = query.where("locale", "=", locale);
+	const rows = await query.execute();
+	return rows.map(rowToTaxonomyDef);
+}
+
+/**
+ * Resolve taxonomy defs through the isolate cache, bypassing it for isolated
+ * databases. The returned promise is cached (not the resolved value) so
+ * concurrent cold-isolate readers share one in-flight query; a rejection
+ * evicts the entry so the next caller retries.
+ */
+function loadTaxonomyDefs(localeKey: string, locale: string | undefined): Promise<TaxonomyDef[]> {
+	if (getRequestContext()?.dbIsIsolated === true) {
+		return fetchTaxonomyDefs(locale);
+	}
+	const existing = defsHolder.cache.get(localeKey);
+	if (existing && existing.version === defsHolder.version) {
+		return existing.promise;
+	}
+	const version = defsHolder.version;
+	const promise = fetchTaxonomyDefs(locale).catch((error: unknown) => {
+		const current = defsHolder.cache.get(localeKey);
+		if (current && current.promise === promise) {
+			defsHolder.cache.delete(localeKey);
+		}
+		throw error;
+	});
+	defsHolder.cache.set(localeKey, { version, promise });
+	return promise;
+}
+
+/**
  * Get every taxonomy definition. Definitions are per-locale (one row per
  * locale inside the same translation_group) — by default we resolve to the
  * active locale.
+ *
+ * Two-tier cache: per-request via `requestCached` (so a single render that
+ * hydrates terms for several collections pays at most one call), then
+ * per-isolate via the global holder (so warm renders issue zero queries).
+ * The `requestCached` key is unchanged so `getTaxonomyDef`'s peek still hits.
  */
 export async function getTaxonomyDefs(options: TaxonomyQueryOptions = {}): Promise<TaxonomyDef[]> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`taxonomy-defs:${locale ?? "*"}`, async () => {
-		const db = await getDb();
-		let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
-		if (locale !== undefined) query = query.where("locale", "=", locale);
-		const rows = await query.execute();
-		return rows.map(rowToTaxonomyDef);
-	});
+	const localeKey = locale ?? "*";
+	return requestCached(`taxonomy-defs:${localeKey}`, () => loadTaxonomyDefs(localeKey, locale));
 }
 
 /**

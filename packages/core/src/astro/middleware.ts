@@ -55,10 +55,33 @@ import type { EmDashConfig } from "./integration/runtime.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
 import type { EmDashHandlers } from "./types.js";
 
-// Cached runtime instance (persists across requests within worker)
-let runtimeInstance: EmDashRuntime | null = null;
-// Whether initialization is in progress (prevents concurrent init attempts)
-let runtimeInitializing = false;
+/**
+ * Cached runtime instance + in-progress flag, persisted across requests
+ * within a worker isolate.
+ *
+ * Stored on globalThis behind a Symbol key (same pattern as
+ * `SETUP_VERIFIED_KEY` below and `settings/index.ts`) so the bundler
+ * duplicating this module across SSR chunks can't produce two independent
+ * runtime singletons. A plain module-scoped `let` becomes multiple variables
+ * under Vite SSR chunking, which would let the cold-start init (and its ~8
+ * bootstrap D1 queries) re-run far more often than once-per-isolate.
+ */
+interface RuntimeHolder {
+	instance: EmDashRuntime | null;
+	/** Whether initialization is in progress (prevents concurrent init attempts). */
+	initializing: boolean;
+}
+
+const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
+const runtimeStore = globalThis as Record<symbol, unknown>;
+const runtimeHolder: RuntimeHolder =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see settings/index.ts)
+	(runtimeStore[RUNTIME_HOLDER_KEY] as RuntimeHolder | undefined) ??
+	(() => {
+		const h: RuntimeHolder = { instance: null, initializing: false };
+		runtimeStore[RUNTIME_HOLDER_KEY] = h;
+		return h;
+	})();
 
 /** Whether i18n config has been initialized from the virtual module */
 let i18nInitialized = false;
@@ -177,27 +200,27 @@ async function getRuntime(
 	initTimings?: Array<{ name: string; dur: number; desc?: string }>,
 ): Promise<EmDashRuntime> {
 	// Return cached instance if available
-	if (runtimeInstance) {
-		return runtimeInstance;
+	if (runtimeHolder.instance) {
+		return runtimeHolder.instance;
 	}
 
 	// If another request is already initializing, wait and retry.
 	// We don't share the promise across requests because workerd flags
 	// cross-request promise resolution (causes warnings + potential hangs).
-	if (runtimeInitializing) {
+	if (runtimeHolder.initializing) {
 		// Poll until the initializing request finishes
 		await new Promise((resolve) => setTimeout(resolve, 50));
 		return getRuntime(config, initTimings);
 	}
 
-	runtimeInitializing = true;
+	runtimeHolder.initializing = true;
 	try {
 		const deps = buildDependencies(config);
 		const runtime = await EmDashRuntime.create(deps, initTimings);
-		runtimeInstance = runtime;
+		runtimeHolder.instance = runtime;
 		return runtime;
 	} finally {
-		runtimeInitializing = false;
+		runtimeHolder.initializing = false;
 	}
 }
 

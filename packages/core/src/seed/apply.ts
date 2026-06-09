@@ -339,6 +339,12 @@ export async function applySeed(
 				}
 			}
 		}
+
+		// Seeded/updated defs change which taxonomies exist — clear the
+		// isolate-wide defs + names caches so later reads in this isolate
+		// (e.g. an auto-seed triggered mid-request) reflect them immediately.
+		const { invalidateTaxonomyDefsCache } = await import("../taxonomies/index.js");
+		invalidateTaxonomyDefsCache();
 	}
 
 	// 6. Bylines
