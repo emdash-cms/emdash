@@ -331,7 +331,9 @@ For directional icons (chevrons, arrows), flip them with `rtl:-scale-x-100` or u
 
 Import `env` directly from `"cloudflare:workers"` -- a virtual module that resolves to the right bindings for the current environment (Worker or local dev).
 
-Don't manually type the `Env` object. In a Worker context, run `pnpm wrangler types` to generate `worker-configuration.d.ts` (includes wrangler.jsonc bindings and `.dev.vars` secrets). Reference it in `tsconfig.json`'s `include`.
+Don't manually type the `Env` object. In a Worker context, run `pnpm wrangler types` to generate `worker-configuration.d.ts` (includes wrangler.jsonc bindings and `.env` secrets). Reference it in `tsconfig.json`'s `include`.
+
+Local-dev secrets go in `.env` (read by Wrangler and the Cloudflare Vite plugin since Aug 2025), not `.dev.vars`. Note Wrangler loads either `.dev.vars` or `.env` but never both -- if a `.dev.vars` file exists it wins and `.env` is ignored entirely. Production secrets are set with `wrangler secret put`.
 
 In libraries used in a Worker but not themselves Workers, install `@cloudflare/workers-types` and reference it in `tsconfig.compilerOptions.types`.
 
