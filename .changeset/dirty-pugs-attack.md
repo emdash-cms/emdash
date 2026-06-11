@@ -2,4 +2,12 @@
 "@emdash-cms/cloudflare": minor
 ---
 
-Adds an experimental opt-in `coalesce` option to the `d1()` adapter. When enabled (alongside `session`), SELECT queries issued in the same event-loop turn on the per-request session database are buffered and executed as a single D1 `batch()` call — one HTTP round trip instead of N fully-serialized ones. Writes, CTEs and other statements always execute immediately, and if a batch fails the buffered queries are retried individually so each keeps its own error semantics.
+New experimental `coalesce` option for the `d1()` adapter, for much faster uncached page loads:
+
+```ts
+emdash({
+	database: d1({ binding: "DB", session: "auto", coalesce: true }),
+});
+```
+
+When enabled, read queries that a page issues at the same time are sent to D1 as a single round trip instead of one at a time. A page that runs half a dozen queries — settings, menus, the entry, related posts — pays for one trip to the database instead of six, which can cut uncached render time by more than half. Each query still gets its own results and its own errors, and writes are unaffected. Requires `session` to be enabled; off by default while experimental.
