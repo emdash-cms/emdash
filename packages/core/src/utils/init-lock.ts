@@ -21,10 +21,17 @@
 export interface InitLock {
 	/** Epoch ms when the current owner claimed the lock, or null when free. */
 	ownerStartedAt: number | null;
+	/**
+	 * Monotonic claim counter identifying the current owner. Release is
+	 * gated on it: a slow owner that finishes after a waiter has reclaimed
+	 * the lock must not clear the reclaimer's claim — that would let yet
+	 * another caller claim the lock and start a third concurrent init.
+	 */
+	generation: number;
 }
 
 export function createInitLock(): InitLock {
-	return { ownerStartedAt: null };
+	return { ownerStartedAt: null, generation: 0 };
 }
 
 export interface InitLockOptions {
@@ -94,9 +101,13 @@ export async function initWithLock<T>(
 		if (ownerStartedAt === null || Date.now() - ownerStartedAt > deadlineMs) {
 			// Free, or the owner has been gone past the deadline — claim it.
 			// Synchronous between awaits, so two waiters can't both claim.
+			lock.generation += 1;
+			const claim = lock.generation;
 			lock.ownerStartedAt = Date.now();
 			try {
-				const initPromise = init();
+				// Promise.resolve().then(init) so a synchronous throw from
+				// init still becomes a rejection after the anchor attaches.
+				const initPromise = Promise.resolve().then(init);
 				options?.anchor?.(
 					initPromise.then(
 						() => undefined,
@@ -106,8 +117,13 @@ export async function initWithLock<T>(
 				return await initPromise;
 			} finally {
 				// If this request dies mid-init unanchored this never runs;
-				// the next waiter reclaims after deadlineMs instead.
-				lock.ownerStartedAt = null;
+				// the next waiter reclaims after deadlineMs instead. Release
+				// only while still the current owner: a reclaimer may have
+				// taken the lock while this (slow) init was running, and
+				// clearing its claim would admit a third concurrent init.
+				if (lock.generation === claim) {
+					lock.ownerStartedAt = null;
+				}
 			}
 		}
 

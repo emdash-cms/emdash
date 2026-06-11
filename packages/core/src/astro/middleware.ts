@@ -68,32 +68,6 @@ import type { EmDashHandlers } from "./types.js";
 const RUNTIME_INIT_DEADLINE_MS = DB_INIT_DEADLINE_MS + 15_000;
 
 /**
- * The runtime singleton and its init lock live on globalThis behind a
- * Symbol — same reasoning as SETUP_VERIFIED_KEY below: the bundler can
- * duplicate this module across SSR chunks, and a duplicated instance/lock
- * would mean multiple runtimes (each with its own cron scheduler) per
- * isolate, initializing and reclaiming independently.
- */
-const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
-interface RuntimeHolder {
-	instance: EmDashRuntime | null;
-	lock: InitLock;
-}
-
-function getRuntimeHolder(): RuntimeHolder {
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
-	let holder = setupFlagStore[RUNTIME_HOLDER_KEY] as RuntimeHolder | undefined;
-	if (!holder) {
-		holder = { instance: null, lock: createInitLock() };
-		setupFlagStore[RUNTIME_HOLDER_KEY] = holder;
-	}
-	return holder;
-}
-
-/** Whether i18n config has been initialized from the virtual module */
-let i18nInitialized = false;
-
-/**
  * Whether we've verified the database has been set up.
  * On a fresh deployment the first request may hit a public page, bypassing
  * runtime init. Without this check, template helpers like getSiteSettings()
@@ -118,6 +92,32 @@ function isSetupVerified(): boolean {
 function markSetupVerified(): void {
 	setupFlagStore[SETUP_VERIFIED_KEY] = true;
 }
+
+/**
+ * The runtime singleton and its init lock live on globalThis behind a
+ * Symbol — same reasoning as SETUP_VERIFIED_KEY above: the bundler can
+ * duplicate this module across SSR chunks, and a duplicated instance/lock
+ * would mean multiple runtimes (each with its own cron scheduler) per
+ * isolate, initializing and reclaiming independently.
+ */
+const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
+interface RuntimeHolder {
+	instance: EmDashRuntime | null;
+	lock: InitLock;
+}
+
+function getRuntimeHolder(): RuntimeHolder {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+	let holder = setupFlagStore[RUNTIME_HOLDER_KEY] as RuntimeHolder | undefined;
+	if (!holder) {
+		holder = { instance: null, lock: createInitLock() };
+		setupFlagStore[RUNTIME_HOLDER_KEY] = holder;
+	}
+	return holder;
+}
+
+/** Whether i18n config has been initialized from the virtual module */
+let i18nInitialized = false;
 
 /**
  * Get EmDash configuration from virtual module

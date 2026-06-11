@@ -183,6 +183,63 @@ describe("initWithLock", () => {
 		expect(initCalls).toBe(2);
 	});
 
+	it("does not let a finished stale owner release the reclaimer's lock", async () => {
+		// The clobber race: owner A is slow and eventually FAILS (so it never
+		// populates the cache), waiter B reclaims at the deadline, then A's
+		// cleanup runs while B is still mid-init. A must not release B's
+		// claim — if it does, a third caller C arriving in that window
+		// claims the lock and starts a third concurrent init.
+		const lock = createInitLock();
+		let cache: string | null = null;
+		let initCalls = 0;
+		const opts = { deadlineMs: 300, pollMs: 20, maxWaitMs: 3000 };
+
+		// A: claims at t=0, rejects at t≈400 (after B reclaimed at t≈300+).
+		const ownerA = initWithLock(
+			lock,
+			() => cache,
+			async () => {
+				initCalls++;
+				await sleep(400);
+				throw new Error("slow failure");
+			},
+			opts,
+		).catch((error: unknown) => error);
+
+		// B: arrives early, reclaims at t≈300-340, succeeds at t≈520-540.
+		await sleep(20);
+		const reclaimerB = initWithLock(
+			lock,
+			() => cache,
+			async () => {
+				initCalls++;
+				await sleep(200);
+				cache = "reclaimer";
+				return "reclaimer";
+			},
+			opts,
+		);
+
+		// C: arrives at t≈440 — after A's cleanup ran, while B is mid-init.
+		// C must wait for B's result, not start a third init.
+		await sleep(420);
+		const lateC = initWithLock(
+			lock,
+			() => cache,
+			async () => {
+				initCalls++;
+				cache = "late";
+				return "late";
+			},
+			opts,
+		);
+
+		expect(await reclaimerB).toBe("reclaimer");
+		expect(await lateC).toBe("reclaimer");
+		expect(await ownerA).toBeInstanceOf(Error);
+		expect(initCalls).toBe(2);
+	});
+
 	it("anchors the in-flight init promise and swallows its rejection", async () => {
 		const lock = createInitLock();
 		const anchored: Promise<void>[] = [];
