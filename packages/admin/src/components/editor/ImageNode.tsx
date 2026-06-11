@@ -136,8 +136,29 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 		}
 	}, [selected]);
 
+	const alignment = node.attrs.alignment as
+		| "left"
+		| "center"
+		| "right"
+		| "wide"
+		| "full"
+		| undefined;
+	// Mirror the published <Image> layout so the editor is WYSIWYG: left/right
+	// float (text wraps), center/wide/full size the block.
+	const alignmentStyle: React.CSSProperties =
+		alignment === "left"
+			? { float: "left", width: "fit-content", maxWidth: "50%", marginInlineEnd: "1.5rem" }
+			: alignment === "right"
+				? { float: "right", width: "fit-content", maxWidth: "50%", marginInlineStart: "1.5rem" }
+				: alignment === "center"
+					? { width: "fit-content", marginInline: "auto" }
+					: alignment === "wide" || alignment === "full"
+						? { width: "100%" }
+						: {};
+
 	return (
 		<NodeViewWrapper
+			style={alignmentStyle}
 			className={cn(
 				"relative my-4 group",
 				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
