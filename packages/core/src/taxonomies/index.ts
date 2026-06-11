@@ -189,13 +189,6 @@ export async function getTerm(
 
 	if (!row) return null;
 
-	const countResult = await db
-		.selectFrom("content_taxonomies")
-		.select((eb) => eb.fn.count<number>("entry_id").as("count"))
-		.where("taxonomy_id", "=", row.translation_group ?? row.id)
-		.executeTakeFirst();
-	const count = countResult?.count ?? 0;
-
 	let childrenQuery = db
 		.selectFrom("taxonomies")
 		.selectAll()
@@ -203,7 +196,18 @@ export async function getTerm(
 		.orderBy("label", "asc");
 	const termLocale = row.locale;
 	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);
-	const childRows = await childrenQuery.execute();
+
+	// The usage-count and children queries both depend only on the term row,
+	// so run them concurrently to save a round trip on remote databases.
+	const [countResult, childRows] = await Promise.all([
+		db
+			.selectFrom("content_taxonomies")
+			.select((eb) => eb.fn.count<number>("entry_id").as("count"))
+			.where("taxonomy_id", "=", row.translation_group ?? row.id)
+			.executeTakeFirst(),
+		childrenQuery.execute(),
+	]);
+	const count = countResult?.count ?? 0;
 
 	const children = childRows.map<TaxonomyTerm>((child) => ({
 		id: child.id,

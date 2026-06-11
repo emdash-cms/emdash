@@ -178,8 +178,13 @@ const MIGRATION_RACE_PATTERN = new RegExp(
 	"i",
 );
 
-/** How long to wait for a concurrent migrator to finish before giving up. */
-const MIGRATION_RACE_WAIT_MS = 10_000;
+/**
+ * How long to wait for a concurrent migrator to finish before giving up.
+ * Exported because the db init lock's reclaim deadline must comfortably
+ * exceed it (see DB_INIT_DEADLINE_MS in emdash-runtime.ts) — a healthy
+ * init can legitimately block this long inside waitForConcurrentMigrator.
+ */
+export const MIGRATION_RACE_WAIT_MS = 10_000;
 /** Polling interval while waiting for a concurrent migrator. */
 const MIGRATION_RACE_POLL_MS = 100;
 
