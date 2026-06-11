@@ -51,14 +51,16 @@ import {
 	runWithContext,
 } from "../request-context.js";
 import { isMissingTableError } from "../utils/db-errors.js";
+import { createInitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
 import type { EmDashHandlers } from "./types.js";
 
 // Cached runtime instance (persists across requests within worker)
 let runtimeInstance: EmDashRuntime | null = null;
-// Whether initialization is in progress (prevents concurrent init attempts)
-let runtimeInitializing = false;
+// Guards concurrent init attempts; reclaimable so a request cancelled
+// mid-init can't poison the isolate (see utils/init-lock.ts)
+const runtimeInitLock = createInitLock();
 
 /** Whether i18n config has been initialized from the virtual module */
 let i18nInitialized = false;
@@ -176,29 +178,22 @@ async function getRuntime(
 	config: EmDashConfig,
 	initTimings?: Array<{ name: string; dur: number; desc?: string }>,
 ): Promise<EmDashRuntime> {
-	// Return cached instance if available
-	if (runtimeInstance) {
-		return runtimeInstance;
-	}
-
-	// If another request is already initializing, wait and retry.
-	// We don't share the promise across requests because workerd flags
-	// cross-request promise resolution (causes warnings + potential hangs).
-	if (runtimeInitializing) {
-		// Poll until the initializing request finishes
-		await new Promise((resolve) => setTimeout(resolve, 50));
-		return getRuntime(config, initTimings);
-	}
-
-	runtimeInitializing = true;
-	try {
-		const deps = buildDependencies(config);
-		const runtime = await EmDashRuntime.create(deps, initTimings);
-		runtimeInstance = runtime;
-		return runtime;
-	} finally {
-		runtimeInitializing = false;
-	}
+	// Waiters poll rather than awaiting the initializing request's promise —
+	// workerd flags cross-request promise resolution (warnings + potential
+	// hangs). If the initializing request is cancelled mid-create (client
+	// disconnect tears down its continuation, skipping any `finally`), the
+	// lock is reclaimed after a deadline instead of hanging every subsequent
+	// request in the isolate until eviction.
+	return initWithLock(
+		runtimeInitLock,
+		() => runtimeInstance,
+		async () => {
+			const deps = buildDependencies(config);
+			const runtime = await EmDashRuntime.create(deps, initTimings);
+			runtimeInstance = runtime;
+			return runtime;
+		},
+	);
 }
 
 /**

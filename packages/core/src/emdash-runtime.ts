@@ -41,6 +41,7 @@ import type {
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
+import { createInitLock, initWithLock } from "./utils/init-lock.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
@@ -312,7 +313,9 @@ function contentItemToRecord(item: ContentItemInternal): Record<string, unknown>
 
 // Module-level caches (persist across requests within worker)
 const dbCache = new Map<string, Kysely<Database>>();
-let dbInitPromise: Promise<Kysely<Database>> | null = null;
+// Guards concurrent db init; reclaimable so a request cancelled mid-init
+// (migrations on cold D1) can't poison the isolate (see utils/init-lock.ts)
+const dbInitLock = createInitLock();
 const storageCache = new Map<string, Storage>();
 const sandboxedPluginCache = new Map<string, SandboxedPluginInstance>();
 /**
@@ -1270,83 +1273,73 @@ export class EmDashRuntime {
 
 		const cacheKey = dbConfig.entrypoint;
 
-		// Return cached instance if available
-		const cached = dbCache.get(cacheKey);
-		if (cached) {
-			return cached;
-		}
+		// Waiters poll the cache rather than sharing the initializing request's
+		// promise: if the request that owns the init is cancelled mid-await
+		// (e.g. client disconnect during cold migrations), a shared promise
+		// never settles — and the owner's `finally` that would clear it never
+		// runs — deadlocking every later request in the isolate. The lock is
+		// reclaimed after a deadline instead.
+		return initWithLock(
+			dbInitLock,
+			() => dbCache.get(cacheKey),
+			async () => {
+				const dialect = deps.createDialect(dbConfig.config);
+				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
-		// Use initialization lock to prevent race conditions.
-		// Sharing this promise across requests is safe because the Kysely instance
-		// doesn't hold a request-scoped resource — the DO dialect uses a getStub()
-		// factory that creates a fresh stub per query execution.
-		if (dbInitPromise) {
-			return dbInitPromise;
-		}
+				await runMigrations(db);
 
-		dbInitPromise = (async () => {
-			const dialect = deps.createDialect(dbConfig.config);
-			const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
+				// Note: legacy installs may carry a stray `emdash:manifest_cache`
+				// row in the options table from versions that persisted a JSON
+				// manifest. The runtime no longer reads or writes it. We do not
+				// proactively delete it: the row is a few hundred bytes of dead
+				// weight and is never on the read path, whereas a one-shot
+				// cleanup-flag check costs an extra `options.get()` on every
+				// isolate cold boot forever. Cheaper to leave it.
 
-			await runMigrations(db);
+				// Auto-seed schema if no collections exist and setup hasn't run.
+				// This covers first-load on sites that skip the setup wizard.
+				// Dev-bypass and the wizard apply seeds explicitly.
+				try {
+					const [collectionCount, setupOption] = await Promise.all([
+						db
+							.selectFrom("_emdash_collections")
+							.select((eb) => eb.fn.countAll<number>().as("count"))
+							.executeTakeFirstOrThrow(),
+						db
+							.selectFrom("options")
+							.select("value")
+							.where("name", "=", "emdash:setup_complete")
+							.executeTakeFirst(),
+					]);
 
-			// Note: legacy installs may carry a stray `emdash:manifest_cache`
-			// row in the options table from versions that persisted a JSON
-			// manifest. The runtime no longer reads or writes it. We do not
-			// proactively delete it: the row is a few hundred bytes of dead
-			// weight and is never on the read path, whereas a one-shot
-			// cleanup-flag check costs an extra `options.get()` on every
-			// isolate cold boot forever. Cheaper to leave it.
+					const setupDone = (() => {
+						try {
+							return setupOption && JSON.parse(setupOption.value) === true;
+						} catch {
+							return false;
+						}
+					})();
 
-			// Auto-seed schema if no collections exist and setup hasn't run.
-			// This covers first-load on sites that skip the setup wizard.
-			// Dev-bypass and the wizard apply seeds explicitly.
-			try {
-				const [collectionCount, setupOption] = await Promise.all([
-					db
-						.selectFrom("_emdash_collections")
-						.select((eb) => eb.fn.countAll<number>().as("count"))
-						.executeTakeFirstOrThrow(),
-					db
-						.selectFrom("options")
-						.select("value")
-						.where("name", "=", "emdash:setup_complete")
-						.executeTakeFirst(),
-				]);
+					if (collectionCount.count === 0 && !setupDone) {
+						const { applySeed } = await import("./seed/apply.js");
+						const { loadSeed } = await import("./seed/load.js");
+						const { validateSeed } = await import("./seed/validate.js");
 
-				const setupDone = (() => {
-					try {
-						return setupOption && JSON.parse(setupOption.value) === true;
-					} catch {
-						return false;
+						const seed = await loadSeed();
+						const validation = validateSeed(seed);
+						if (validation.valid) {
+							await applySeed(db, seed, { onConflict: "skip" });
+							console.log("Auto-seeded default collections");
+						}
 					}
-				})();
-
-				if (collectionCount.count === 0 && !setupDone) {
-					const { applySeed } = await import("./seed/apply.js");
-					const { loadSeed } = await import("./seed/load.js");
-					const { validateSeed } = await import("./seed/validate.js");
-
-					const seed = await loadSeed();
-					const validation = validateSeed(seed);
-					if (validation.valid) {
-						await applySeed(db, seed, { onConflict: "skip" });
-						console.log("Auto-seeded default collections");
-					}
+				} catch {
+					// Tables may not exist yet. Non-fatal.
 				}
-			} catch {
-				// Tables may not exist yet. Non-fatal.
-			}
 
-			dbCache.set(cacheKey, db);
-			return db;
-		})();
-
-		try {
-			return await dbInitPromise;
-		} finally {
-			dbInitPromise = null;
-		}
+				dbCache.set(cacheKey, db);
+				return db;
+			},
+		);
 	}
 
 	/**
