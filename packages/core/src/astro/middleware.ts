@@ -52,6 +52,7 @@ import {
 } from "../request-context.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
 import type { EmDashHandlers } from "./types.js";
 
@@ -429,7 +430,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 					timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
 					pushMetricsTimings(timings, metrics);
-					return finalizeResponse(response, timings);
+					// Server-Timing only sees pre-stream queries; the stream-end
+					// wrapper (instrumentation-gated, no-op otherwise) emits the
+					// final counters once the body finishes streaming.
+					return wrapBodyForStreamMetrics(finalizeResponse(response, timings));
 				};
 				if (anonScoped) {
 					const parent = getRequestContext();
@@ -596,7 +600,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
 				pushMetricsTimings(timings, metrics);
-				return finalizeResponse(response, timings);
+				// Server-Timing only sees pre-stream queries; the stream-end
+				// wrapper (instrumentation-gated, no-op otherwise) emits the
+				// final counters once the body finishes streaming.
+				return wrapBodyForStreamMetrics(finalizeResponse(response, timings));
 			};
 
 			if (scoped) {
