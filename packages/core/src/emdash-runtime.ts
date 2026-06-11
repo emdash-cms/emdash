@@ -887,19 +887,45 @@ export class EmDashRuntime {
 		// Initialize storage (sync)
 		const storage = EmDashRuntime.getStorage(deps);
 
-		// Fetch plugin states from database
+		// Fetch plugin states and site info concurrently — independent reads
+		// against different tables (_plugin_state vs options), so they share
+		// one round-trip window instead of paying two sequential ones. Each
+		// phase() wrapper still records that phase's own duration, and each
+		// body keeps its own non-fatal catch.
 		let pluginStates: Map<string, string> = new Map();
-		await phase("rt.plugins", "Plugin states", async () => {
-			try {
-				const states = await db
-					.selectFrom("_plugin_state")
-					.select(["plugin_id", "status"])
-					.execute();
-				pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-			} catch {
-				// Plugin state table may not exist yet
-			}
-		});
+		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
+		await Promise.all([
+			// Fetch plugin states from database
+			phase("rt.plugins", "Plugin states", async () => {
+				try {
+					const states = await db
+						.selectFrom("_plugin_state")
+						.select(["plugin_id", "status"])
+						.execute();
+					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+				} catch {
+					// Plugin state table may not exist yet
+				}
+			}),
+			// Load site info for plugin context extensions (1 batch query instead of 3)
+			phase("rt.site", "Site info options", async () => {
+				try {
+					const optionsRepo = new OptionsRepository(db);
+					const siteOpts = await optionsRepo.getMany<string>([
+						"emdash:site_title",
+						"emdash:site_url",
+						"emdash:locale",
+					]);
+					siteInfo = {
+						siteName: siteOpts.get("emdash:site_title") ?? undefined,
+						siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
+						locale: siteOpts.get("emdash:locale") ?? undefined,
+					};
+				} catch {
+					// Options table may not exist yet (pre-setup)
+				}
+			}),
+		]);
 
 		// Build set of enabled plugins
 		const enabledPlugins = new Set<string>();
@@ -909,26 +935,6 @@ export class EmDashRuntime {
 				enabledPlugins.add(plugin.id);
 			}
 		}
-
-		// Load site info for plugin context extensions (1 batch query instead of 3)
-		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
-		await phase("rt.site", "Site info options", async () => {
-			try {
-				const optionsRepo = new OptionsRepository(db);
-				const siteOpts = await optionsRepo.getMany<string>([
-					"emdash:site_title",
-					"emdash:site_url",
-					"emdash:locale",
-				]);
-				siteInfo = {
-					siteName: siteOpts.get("emdash:site_title") ?? undefined,
-					siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
-					locale: siteOpts.get("emdash:locale") ?? undefined,
-				};
-			} catch {
-				// Options table may not exist yet (pre-setup)
-			}
-		});
 
 		// Build the full list of pipeline-eligible plugins: all configured
 		// plugins (regardless of current enabled status) plus built-in plugins.
@@ -1050,31 +1056,42 @@ export class EmDashRuntime {
 			EmDashRuntime.loadSandboxedPlugins(deps, db, storage),
 		);
 
-		// Cold-start: load marketplace-installed plugins from site R2 via
-		// the sandbox runner. In bypass mode this was already handled above.
+		// Cold-start: load marketplace- and registry-installed plugins from
+		// site R2 via the sandbox runner. The two tiers only depend on the
+		// sandbox phase above, not on each other, so when both are enabled
+		// they run concurrently instead of paying two sequential loads.
+		// In bypass mode marketplace plugins were already handled above.
+		const installedTierPhases: Promise<void>[] = [];
 		if (deps.config.marketplace && storage && !deps.sandboxBypassed) {
-			await phase("rt.market", "Marketplace plugins", () =>
-				EmDashRuntime.loadInstalledSandboxedPlugins(
-					"marketplace",
-					db,
-					storage,
-					deps,
-					sandboxedPlugins,
+			installedTierPhases.push(
+				phase("rt.market", "Marketplace plugins", () =>
+					EmDashRuntime.loadInstalledSandboxedPlugins(
+						"marketplace",
+						db,
+						storage,
+						deps,
+						sandboxedPlugins,
+					),
 				),
 			);
 		}
 
 		// Cold-start: load registry-installed plugins from site R2
 		if (deps.config.experimental?.registry && storage) {
-			await phase("rt.registry", "Registry plugins", () =>
-				EmDashRuntime.loadInstalledSandboxedPlugins(
-					"registry",
-					db,
-					storage,
-					deps,
-					sandboxedPlugins,
+			installedTierPhases.push(
+				phase("rt.registry", "Registry plugins", () =>
+					EmDashRuntime.loadInstalledSandboxedPlugins(
+						"registry",
+						db,
+						storage,
+						deps,
+						sandboxedPlugins,
+					),
 				),
 			);
+		}
+		if (installedTierPhases.length > 0) {
+			await Promise.all(installedTierPhases);
 		}
 
 		// Initialize media providers
@@ -1778,6 +1795,7 @@ export class EmDashRuntime {
 			pipeline,
 			isActive: () => true,
 			getOption: (key) => optionsRepo.get<string>(key),
+			getOptions: (keys) => optionsRepo.getMany<string>(keys),
 			setOption: (key, value) => optionsRepo.set(key, value),
 			deleteOption: async (key) => {
 				await optionsRepo.delete(key);
