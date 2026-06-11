@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Emit stream-end metrics when query instrumentation is enabled. Server-Timing db.\* counters are snapshotted when headers are sent, but Astro streams the body afterwards and components issue further DB queries that the headers can't report. With `EMDASH_QUERY_LOG=1`, the middleware now pipes the response body through an identity transform and emits a final `[emdash-stream-end]` NDJSON snapshot (db count/total, cache hits/misses, total elapsed) when the body finishes streaming, so the full request cost is observable. Zero overhead when instrumentation is disabled.
+Query instrumentation (`EMDASH_QUERY_LOG=1`) now captures the whole request, not just the part before the response headers are sent. Queries issued by components while the page is still streaming were previously invisible to the Server-Timing numbers; a final `[emdash-stream-end]` log line now reports the complete query count, database time, and cache hits for each request, so you can see where a slow page really spends its time. No effect when instrumentation is off.
