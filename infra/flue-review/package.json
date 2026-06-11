@@ -11,7 +11,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {
-		"@flue/cli": "^0.8.1",
+		"@flue/cli": "^0.10.0",
 		"typescript": "catalog:",
 		"wrangler": "catalog:"
 	},
