@@ -70,6 +70,23 @@ export interface D1Config {
 	 * @default "__em_d1_bookmark"
 	 */
 	bookmarkCookie?: string;
+
+	/**
+	 * Experimental: batch concurrent read queries into one D1 round trip.
+	 *
+	 * SELECT queries issued in the same event-loop turn are buffered and
+	 * executed as a single D1 `batch()` call (one HTTP round trip) instead
+	 * of N serialized round trips. Writes, CTEs and other statements always
+	 * execute immediately. If the batch fails, queries are retried
+	 * individually so each query keeps its own error semantics.
+	 *
+	 * Only applies to the per-request session database, so `session` must
+	 * also be enabled (`"auto"` or `"primary-first"`); the shared singleton
+	 * never coalesces.
+	 *
+	 * @default false
+	 */
+	coalesce?: boolean;
 }
 
 /**
