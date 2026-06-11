@@ -36,6 +36,7 @@ declare module "@tiptap/react" {
 				height?: number;
 				displayWidth?: number;
 				displayHeight?: number;
+				alignment?: "left" | "center" | "right" | "wide" | "full";
 			}) => ReturnType;
 		};
 	}
@@ -80,6 +81,7 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 		height: node.attrs.height,
 		displayWidth: node.attrs.displayWidth,
 		displayHeight: node.attrs.displayHeight,
+		alignment: node.attrs.alignment,
 	});
 
 	const openSidebar = () => {
@@ -325,6 +327,9 @@ export const ImageExtension = Node.create({
 			displayHeight: {
 				default: null,
 			},
+			alignment: {
+				default: null,
+			},
 		};
 	},
 
@@ -358,6 +363,7 @@ export const ImageExtension = Node.create({
 					height?: number;
 					displayWidth?: number;
 					displayHeight?: number;
+					alignment?: "left" | "center" | "right" | "wide" | "full";
 				}) =>
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				({ commands }: any) => {

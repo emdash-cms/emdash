@@ -142,6 +142,7 @@ interface PortableTextImageBlock {
 	height?: number;
 	displayWidth?: number;
 	displayHeight?: number;
+	alignment?: "left" | "center" | "right" | "wide" | "full";
 }
 
 interface PortableTextCodeBlock {
@@ -312,6 +313,7 @@ function convertPMNode(node: {
 				height: attrNum(attrs.height),
 				displayWidth: attrNum(attrs.displayWidth),
 				displayHeight: attrNum(attrs.displayHeight),
+				alignment: attrStr(attrs.alignment) as PortableTextImageBlock["alignment"],
 			};
 		}
 
@@ -641,6 +643,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					height: imageBlock.height,
 					displayWidth: imageBlock.displayWidth,
 					displayHeight: imageBlock.displayHeight,
+					alignment: imageBlock.alignment,
 				},
 			};
 		}

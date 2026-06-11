@@ -22,7 +22,7 @@ const node = {
 		url: "/_emdash/api/media/file/01KTRTJ55S65SADEH9P9TSY89H.png",
 	},
 	alt: "",
-	align: "right",
+	alignment: "right",
 	displayWidth: 136,
 	displayHeight: 201,
 };
@@ -43,6 +43,8 @@ describe("faithful render of migrated image node", () => {
 		console.log("[default]   src =", imgSrc(html));
 		console.log("[default]   html =", html.replace(/\s+/g, " ").trim().slice(0, 400));
 		expect(imgSrc(html)).not.toBe("(no <img>)");
+		// #1404 fix: alignment now rendered as a figure class
+		expect(html).toContain("emdash-image--align-right");
 	});
 
 	test("2. delegating override -> emdash <Image>", async () => {
