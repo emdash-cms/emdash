@@ -28,6 +28,12 @@ interface D1Config {
 const DEFAULT_BOOKMARK_COOKIE = "__em_d1_bookmark";
 
 /**
+ * One-shot guard so the "coalesce opted in but the binding can't do sessions
+ * at runtime" warning fires once per worker, not on every request.
+ */
+let warnedCoalesceNoRuntimeSession = false;
+
+/**
  * D1 bookmarks are opaque, minted by Cloudflare. We don't validate the shape
  * (a tighter regex risks rejecting a format change and silently degrading
  * read-your-writes), but we do cap length and reject control characters so a
@@ -126,7 +132,20 @@ export interface RequestScopedDb {
 export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedDb | null {
 	if (!isSessionEnabled(opts.config)) return null;
 	const binding = getBinding(opts.config);
-	if (!binding || typeof binding.withSession !== "function") return null;
+	if (!binding || typeof binding.withSession !== "function") {
+		// Sessions are enabled in config, so createDialect's config-time warning
+		// didn't fire — but the live binding can't actually do sessions (older
+		// D1 binding / missing withSession). Coalescing silently falls back to
+		// the singleton, so surface that once rather than leaving the opt-in a
+		// mystery no-op.
+		if (opts.config.coalesce && binding && !warnedCoalesceNoRuntimeSession) {
+			warnedCoalesceNoRuntimeSession = true;
+			console.warn(
+				"[emdash] d1({ coalesce: true }) has no effect: the D1 binding does not support sessions (withSession() is unavailable at runtime). Query coalescing requires D1 sessions.",
+			);
+		}
+		return null;
+	}
 
 	const cookieName = opts.config.bookmarkCookie ?? DEFAULT_BOOKMARK_COOKIE;
 	const configConstraint =

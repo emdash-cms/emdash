@@ -212,6 +212,64 @@ describe("CoalescingD1Dialect", () => {
 		expect(mock.batchCalls[1]?.map((s) => s.sql)).toEqual(["select 3", "select 4"]);
 	});
 
+	it("never overlaps physical session calls: a write and a SELECT batch run serially", async () => {
+		// The driver flips supportsMultipleConnections to true, which removes
+		// Kysely's connection mutex. A same-turn write (direct path) must still
+		// not run concurrently with the buffered-SELECT batch on the shared D1
+		// session — overlapping calls could interleave the session bookmark.
+		// This mock counts how many physical calls are in flight at once; the
+		// pre-serialization code reaches 2 here.
+		let inFlight = 0;
+		let maxInFlight = 0;
+		const ops: string[] = [];
+		const okResult = () => ({ success: true, results: [], meta: { changes: 0, last_row_id: 0 } });
+		async function hold<T>(label: string, value: T): Promise<T> {
+			inFlight++;
+			maxInFlight = Math.max(maxInFlight, inFlight);
+			ops.push(label);
+			// Hold the "connection" across a macrotask so a concurrent call,
+			// if one were issued, would be observed in flight simultaneously.
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			inFlight--;
+			return value;
+		}
+		function makeStatement(sql: string): MockStatement {
+			const stmt: MockStatement = {
+				sql,
+				params: [],
+				bind(...params: unknown[]) {
+					stmt.params = params;
+					return stmt;
+				},
+				all: () => hold(`all:${stmt.sql}`, okResult()),
+			};
+			return stmt;
+		}
+		const database = {
+			prepare: (sql: string) => makeStatement(sql),
+			batch: (statements: MockStatement[]) =>
+				hold(
+					`batch:${statements.map((s) => s.sql).join("|")}`,
+					statements.map(() => okResult()),
+				),
+		};
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- mock implements the prepare/batch subset the dialect uses
+		const db = new Kysely<any>({
+			dialect: new CoalescingD1Dialect({ database: database as unknown as D1Database }),
+		});
+
+		await Promise.all([
+			db.executeQuery(CompiledQuery.raw("select * from a")),
+			db.executeQuery(CompiledQuery.raw("select * from b")),
+			db.executeQuery(CompiledQuery.raw("update a set n = ?", ["x"])),
+		]);
+
+		expect(maxInFlight).toBe(1);
+		// The write executes first (direct path, enqueued immediately), then the
+		// coalesced SELECT batch — never overlapping.
+		expect(ops).toEqual(["all:update a set n = ?", "batch:select * from a|select * from b"]);
+	});
+
 	it("rejects transactions", async () => {
 		const db = createDb(createMockD1());
 

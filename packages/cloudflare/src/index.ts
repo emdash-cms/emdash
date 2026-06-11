@@ -76,20 +76,23 @@ export interface D1Config {
 	 *
 	 * SELECT queries issued in the same event-loop turn are buffered and
 	 * executed as a single D1 `batch()` call (one HTTP round trip) instead
-	 * of N serialized round trips. Writes, CTEs and other statements always
-	 * execute immediately. If the batch fails, queries are retried
-	 * individually so each query keeps its own error semantics.
+	 * of N serialized round trips. Writes, CTEs and other statements are not
+	 * batched — they enqueue immediately on the direct path. If the batch
+	 * fails, queries are retried individually so each query keeps its own
+	 * error semantics. Every physical D1 call (writes and the SELECT batch
+	 * alike) is serialized per request, so the session bookmark always
+	 * advances in execution order.
 	 *
 	 * Only applies to the per-request session database, so `session` must
 	 * also be enabled (`"auto"` or `"primary-first"`); the shared singleton
 	 * never coalesces.
 	 *
 	 * Ordering caveat: buffered reads execute at the next flush window
-	 * (~one macrotask later), while writes execute immediately. A read and
+	 * (~one macrotask later), while a write enqueues immediately. A read and
 	 * a write issued concurrently in the same turn (e.g. under
-	 * `Promise.all`) may therefore execute write-first. Reads that must
-	 * observe pre-write state should be awaited before issuing the write —
-	 * which sequential `await` code already does.
+	 * `Promise.all`) may therefore execute write-first (they never overlap).
+	 * Reads that must observe pre-write state should be awaited before
+	 * issuing the write — which sequential `await` code already does.
 	 *
 	 * @default false
 	 */

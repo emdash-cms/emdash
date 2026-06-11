@@ -43,6 +43,11 @@ interface PendingQuery {
  * Map a D1 result to a Kysely QueryResult. Mirrors kysely-d1's mapping
  * exactly: rows from `results`, numAffectedRows from `meta.changes` as
  * BigInt when > 0, insertId from `meta.last_row_id`.
+ *
+ * No `success` check: the D1Result type declares `success: true`, i.e. a
+ * returned result is always a success — D1 rejects the `.all()`/`.batch()`
+ * promise on failure, which the callers handle (the batch catch-fallback,
+ * and Kysely's own error path on the direct path).
  */
 function mapD1Result<R>(result: D1Result<R>): QueryResult<R> {
 	if (result.error) {
@@ -63,19 +68,51 @@ export class CoalescingD1Connection implements DatabaseConnection {
 	#database: D1Database;
 	#buffer: PendingQuery[] = [];
 	#flushScheduled = false;
+	/**
+	 * Tail of a promise chain that serializes every physical call against the
+	 * shared D1DatabaseSession (direct-path statements and batch flushes
+	 * alike). See #enqueue.
+	 */
+	#opChain: Promise<unknown> = Promise.resolve();
 
 	constructor(database: D1Database) {
 		this.#database = database;
 	}
 
+	/**
+	 * Run `op` after all previously-enqueued session calls have settled, so
+	 * only one physical call is ever in flight against the shared
+	 * D1DatabaseSession at a time.
+	 *
+	 * The plain SqliteAdapter reports `supportsMultipleConnections: false`,
+	 * which makes Kysely serialize every query behind a connection mutex. We
+	 * override that to `true` so same-turn SELECTs can reach the buffer
+	 * together — but that also removes the mutex for writes and direct-path
+	 * statements. D1 sessions are sequentially consistent and advance a
+	 * bookmark per executed query; overlapping calls on one session could
+	 * interleave that bookmark and persist a stale one at commit(), breaking
+	 * read-your-writes. This chain restores the single-in-flight invariant
+	 * for physical calls while still letting SELECTs coalesce into one batch.
+	 *
+	 * A failed op must not break the chain, so the stored tail swallows the
+	 * outcome; the returned promise still rejects for the caller.
+	 */
+	#enqueue<T>(op: () => Promise<T>): Promise<T> {
+		const run = this.#opChain.then(op, op);
+		this.#opChain = run.then(
+			() => undefined,
+			() => undefined,
+		);
+		return run;
+	}
+
 	async executeQuery<R>(compiledQuery: CompiledQuery): Promise<QueryResult<R>> {
 		if (!SELECT_PATTERN.test(compiledQuery.sql.trim())) {
-			// Non-SELECT: execute immediately on the direct path, identical to
-			// kysely-d1's prepare/bind/all flow.
-			const result = await this.#database
-				.prepare(compiledQuery.sql)
-				.bind(...compiledQuery.parameters)
-				.all<R>();
+			// Non-SELECT: execute on the direct path (kysely-d1's prepare/bind/all
+			// flow), but through the op chain so it can't overlap an in-flight
+			// SELECT batch or another write on the shared session.
+			const statement = this.#database.prepare(compiledQuery.sql).bind(...compiledQuery.parameters);
+			const result = await this.#enqueue(() => statement.all<R>());
 			return mapD1Result(result);
 		}
 
@@ -83,73 +120,85 @@ export class CoalescingD1Connection implements DatabaseConnection {
 
 		return new Promise<QueryResult<R>>((resolve, reject) => {
 			this.#buffer.push({ statement, resolve, reject, sql: compiledQuery.sql });
-			if (!this.#flushScheduled) {
-				this.#flushScheduled = true;
-				// setTimeout(0) (macrotask), not queueMicrotask: Kysely awaits
-				// internally between acquiring the connection and executing each
-				// query, so a microtask window would close before sibling queries
-				// issued in the same turn reach the connection.
-				setTimeout(() => {
-					void this.#flush();
-				}, 0);
-			}
+			this.#scheduleFlush();
 		});
 	}
 
+	/**
+	 * Schedule a flush of buffered SELECTs unless one is already pending.
+	 *
+	 * setTimeout(0) (macrotask), not queueMicrotask: Kysely awaits internally
+	 * between acquiring the connection and executing each query, so a
+	 * microtask window would close before sibling queries issued in the same
+	 * turn reach the connection. Queries that arrive after the buffer is
+	 * drained (flag already cleared) simply schedule the next window; physical
+	 * ordering against any in-flight call is handled by #enqueue.
+	 */
+	#scheduleFlush(): void {
+		if (this.#flushScheduled) return;
+		this.#flushScheduled = true;
+		setTimeout(() => {
+			void this.#flush();
+		}, 0);
+	}
+
 	async #flush(): Promise<void> {
-		// Clear the flag before awaiting anything so queries arriving while the
-		// batch is in flight schedule a new flush window instead of being lost.
+		// Clear the scheduled flag before draining so queries arriving after
+		// this point schedule a fresh window rather than being stranded.
 		this.#flushScheduled = false;
 		const pending = this.#buffer.splice(0, this.#buffer.length);
 		if (pending.length === 0) return;
 
-		const first = pending[0];
-		if (pending.length === 1 && first) {
-			// A lone query gains nothing from batch(); execute it directly.
+		// Serialize the physical batch/all against every other session call.
+		await this.#enqueue(async () => {
+			const first = pending[0];
+			if (pending.length === 1 && first) {
+				// A lone query gains nothing from batch(); execute it directly.
+				try {
+					first.resolve(mapD1Result(await first.statement.all()));
+				} catch (error) {
+					first.reject(error);
+				}
+				return;
+			}
+
+			let results: D1Result[];
 			try {
-				first.resolve(mapD1Result(await first.statement.all()));
-			} catch (error) {
-				first.reject(error);
+				results = await this.#database.batch(pending.map((p) => p.statement));
+			} catch {
+				// D1 batches are atomic: one bad statement rejects the whole call.
+				// Fall back to executing every buffered statement individually
+				// (they are all SELECTs, safe to re-run) so innocent queries still
+				// resolve and only the genuinely failing one rejects with its own
+				// error. This preserves per-query error semantics. Sequential, in
+				// issue order: this is an error path where determinism matters
+				// more than latency, and it avoids piling concurrent retries onto
+				// a database that just failed.
+				for (const p of pending) {
+					try {
+						p.resolve(mapD1Result(await p.statement.all()));
+					} catch (error) {
+						p.reject(error);
+					}
+				}
+				return;
 			}
-			return;
-		}
 
-		let results: D1Result[];
-		try {
-			results = await this.#database.batch(pending.map((p) => p.statement));
-		} catch {
-			// D1 batches are atomic: one bad statement rejects the whole call.
-			// Fall back to executing every buffered statement individually
-			// (they are all SELECTs, safe to re-run) so innocent queries still
-			// resolve and only the genuinely failing one rejects with its own
-			// error. This preserves per-query error semantics. Sequential, in
-			// issue order: this is an error path where determinism matters
-			// more than latency, and it avoids piling concurrent retries onto
-			// a database that just failed.
-			for (const p of pending) {
-				try {
-					p.resolve(mapD1Result(await p.statement.all()));
-				} catch (error) {
-					p.reject(error);
+			for (let i = 0; i < pending.length; i++) {
+				const entry = pending[i];
+				if (!entry) continue;
+				const result = results[i];
+				if (result) {
+					try {
+						entry.resolve(mapD1Result(result));
+					} catch (error) {
+						entry.reject(error);
+					}
+				} else {
+					entry.reject(new Error(`D1 batch() returned no result for statement ${i}: ${entry.sql}`));
 				}
 			}
-			return;
-		}
-
-		for (let i = 0; i < pending.length; i++) {
-			const entry = pending[i];
-			if (!entry) continue;
-			const result = results[i];
-			if (result) {
-				try {
-					entry.resolve(mapD1Result(result));
-				} catch (error) {
-					entry.reject(error);
-				}
-			} else {
-				entry.reject(new Error(`D1 batch() returned no result for statement ${i}: ${entry.sql}`));
-			}
-		}
+		});
 	}
 
 	// eslint-disable-next-line require-yield -- D1 doesn't support streaming (same as kysely-d1)
