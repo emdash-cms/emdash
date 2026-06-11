@@ -204,4 +204,14 @@ const imgStyle = placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseSty
 	.emdash-image--align-full {
 		width: 100%;
 	}
+	/* On narrow screens, un-float left/right so the image is not cramped beside text. */
+	@media (max-width: 640px) {
+		.emdash-image--align-left,
+		.emdash-image--align-right {
+			float: none;
+			width: 100%;
+			max-width: 100%;
+			margin-inline: 0;
+		}
+	}
 </style>
