@@ -7,11 +7,15 @@ import "../styles/theme.css";
 
 interface Props {
 	title?: string;
-	description?: string;
-	image?: string;
+	pageTitle?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
+	/** Pass content reference for plugin page contributions on content pages */
+	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, description, image } = Astro.props;
+const { title, pageTitle, description, image, canonical, content } = Astro.props;
 const settings = await getSiteSettings();
 const siteTitle = settings?.title || "Acme";
 const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
@@ -35,14 +39,14 @@ const footerColumns = [
 
 const pageCtx = createPublicPageContext({
 	Astro,
-	kind: "custom",
+	kind: content ? "content" : "custom",
 	pageType: "website",
 	title: fullTitle,
-	pageTitle: title ?? siteTitle,
+	pageTitle: pageTitle ?? title ?? siteTitle,
 	description: description || siteDescription,
-	canonical: Astro.url.href,
+	canonical,
 	image,
-	seo: { ogImage: image },
+	content,
 	siteName: siteTitle,
 });
 ---

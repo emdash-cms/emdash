@@ -1,0 +1,38 @@
+---
+import { getEmDashEntry, getSeoMeta, decodeSlug, getSiteSettings } from "emdash";
+import Base from "../layouts/Base.astro";
+import MarketingBlocks from "../components/MarketingBlocks.astro";
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.redirect("/404");
+}
+
+const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
+
+if (!page) {
+	return Astro.redirect("/404");
+}
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+const settings = await getSiteSettings();
+const siteTitle = settings?.title || "Acme";
+
+const seo = getSeoMeta(page, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: `/${slug}`,
+});
+
+const pageContent = page.data.content;
+---
+
+<Base
+	title={seo.title}
+	description={seo.description}
+	content={{ collection: "pages", id: page.data.id, slug }}
+>
+	{pageContent && <MarketingBlocks value={pageContent} />}
+</Base>
