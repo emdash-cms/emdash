@@ -1303,7 +1303,7 @@ export interface ExclusiveHookResolutionOptions {
 	 * instead of one getOption() call per hook. Keys absent from the
 	 * returned map are treated as unset.
 	 */
-	getOptions?: (keys: string[]) => Promise<Map<string, string | null>>;
+	getOptions?: (keys: string[]) => Promise<ReadonlyMap<string, string>>;
 	/** Write an option value to persistent storage. */
 	setOption: (key: string, value: string) => Promise<void>;
 	/** Delete an option from persistent storage. */
@@ -1336,7 +1336,7 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 
 	// Batch-read current selections in one round trip when the caller
 	// provides a batch reader (1 query instead of N sequential gets).
-	let batchedSelections: Map<string, string | null> | undefined;
+	let batchedSelections: ReadonlyMap<string, string> | undefined;
 	if (getOptions) {
 		try {
 			batchedSelections = await getOptions(

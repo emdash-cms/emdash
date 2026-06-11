@@ -870,8 +870,8 @@ describe("resolveExclusiveHooks — batched option reads", () => {
 	function createStoreCallbacks(store: Map<string, string>) {
 		return {
 			getOption: vi.fn(async (key: string): Promise<string | null> => store.get(key) ?? null),
-			getOptions: vi.fn(async (keys: string[]): Promise<Map<string, string | null>> => {
-				const result = new Map<string, string | null>();
+			getOptions: vi.fn(async (keys: string[]): Promise<ReadonlyMap<string, string>> => {
+				const result = new Map<string, string>();
 				for (const key of keys) {
 					const value = store.get(key);
 					if (value !== undefined) result.set(key, value);
