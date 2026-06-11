@@ -2,10 +2,10 @@ import { PortableText } from "astro-portabletext";
 /**
  * Faithful container render for the #1404 follow-up.
  *
- * Renders the real migrated RAFYC image node through astro-portabletext using
+ * Renders a WordPress-migrated image node through astro-portabletext using
  * the SAME dispatch production uses (type.image -> Image.astro), three ways:
  *   1. default Image.astro directly
- *   2. via a delegating override (what RafycImage tried before its workaround)
+ *   2. via a delegating override (a custom component that re-invokes <Image>)
  *   3. with locals.emdash absent (the "component override" context theory)
  * Then we read the emitted <img src> to see if/when it is empty.
  */

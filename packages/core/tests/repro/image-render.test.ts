@@ -1,17 +1,16 @@
 /**
- * Repro for issue #1404 follow-up: the RafycImage.astro workaround claims
- * emdash <Image> "renders empty when re-invoked from a component override".
+ * Repro for issue #1404 follow-up: a downstream report claimed emdash <Image>
+ * "renders empty when re-invoked from a component override".
  *
  * src in Image.astro is resolved entirely via buildRenderMediaUrl(node), so we
- * test the real migrated RAFYC node three ways to see whether/when src is empty.
+ * test a WordPress-migrated node three ways to see whether/when src is empty.
  */
 import { describe, expect, test } from "vitest";
 
 import { buildRenderMediaUrl } from "../../src/media/url.js";
 
-// Real migrated node from rafyc-dev/seed/rafyc-content.json (_key img66).
-// Note: align (site term) is dropped by emdash render; _ref ULID differs from
-// the storage-key ULID embedded in asset.url.
+// A WordPress-migrated Portable Text image node. The _ref is a bare ULID that
+// differs from the storage-key ULID embedded in asset.url.
 const realNode = {
 	_type: "image",
 	_key: "img66",
