@@ -71,6 +71,13 @@ export function createDialect(config: D1Config): Dialect {
 				`Check your wrangler.jsonc configuration:\n\n${example}`,
 		);
 	}
+	// Coalescing only applies to the per-request session db; without
+	// sessions it silently does nothing, which would be a confusing no-op.
+	if (config.coalesce && !isSessionEnabled(config)) {
+		console.warn(
+			'[emdash] d1({ coalesce: true }) has no effect without sessions — set session: "auto" (or "primary-first") to enable query coalescing.',
+		);
+	}
 	return new EmDashD1Dialect({ database: db });
 }
 

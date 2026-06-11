@@ -35,6 +35,8 @@ interface PendingQuery {
 	statement: D1PreparedStatement;
 	resolve: (result: QueryResult<any>) => void;
 	reject: (error: unknown) => void;
+	/** SQL text, kept for error reporting. */
+	sql: string;
 }
 
 /**
@@ -80,7 +82,7 @@ export class CoalescingD1Connection implements DatabaseConnection {
 		const statement = this.#database.prepare(compiledQuery.sql).bind(...compiledQuery.parameters);
 
 		return new Promise<QueryResult<R>>((resolve, reject) => {
-			this.#buffer.push({ statement, resolve, reject });
+			this.#buffer.push({ statement, resolve, reject, sql: compiledQuery.sql });
 			if (!this.#flushScheduled) {
 				this.#flushScheduled = true;
 				// setTimeout(0) (macrotask), not queueMicrotask: Kysely awaits
@@ -120,16 +122,17 @@ export class CoalescingD1Connection implements DatabaseConnection {
 			// Fall back to executing every buffered statement individually
 			// (they are all SELECTs, safe to re-run) so innocent queries still
 			// resolve and only the genuinely failing one rejects with its own
-			// error. This preserves per-query error semantics.
-			await Promise.all(
-				pending.map(async (p) => {
-					try {
-						p.resolve(mapD1Result(await p.statement.all()));
-					} catch (error) {
-						p.reject(error);
-					}
-				}),
-			);
+			// error. This preserves per-query error semantics. Sequential, in
+			// issue order: this is an error path where determinism matters
+			// more than latency, and it avoids piling concurrent retries onto
+			// a database that just failed.
+			for (const p of pending) {
+				try {
+					p.resolve(mapD1Result(await p.statement.all()));
+				} catch (error) {
+					p.reject(error);
+				}
+			}
 			return;
 		}
 
@@ -144,7 +147,7 @@ export class CoalescingD1Connection implements DatabaseConnection {
 					entry.reject(error);
 				}
 			} else {
-				entry.reject(new Error("D1 batch() returned no result for statement"));
+				entry.reject(new Error(`D1 batch() returned no result for statement ${i}: ${entry.sql}`));
 			}
 		}
 	}

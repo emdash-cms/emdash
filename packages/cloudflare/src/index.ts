@@ -84,6 +84,13 @@ export interface D1Config {
 	 * also be enabled (`"auto"` or `"primary-first"`); the shared singleton
 	 * never coalesces.
 	 *
+	 * Ordering caveat: buffered reads execute at the next flush window
+	 * (~one macrotask later), while writes execute immediately. A read and
+	 * a write issued concurrently in the same turn (e.g. under
+	 * `Promise.all`) may therefore execute write-first. Reads that must
+	 * observe pre-write state should be awaited before issuing the write —
+	 * which sequential `await` code already does.
+	 *
 	 * @default false
 	 */
 	coalesce?: boolean;
