@@ -2,8 +2,8 @@
 "emdash": patch
 ---
 
-Removes three query waterfalls on content-site renders:
+Pages render with fewer database round trips:
 
-- `getTerm()` now runs its usage-count and children queries concurrently, saving a round trip on every tag/category archive page.
-- `getMenu()` request-caches the collection `url_pattern` lookup, so pages rendering several menus (header, footer, ...) only pay for it once per request.
-- Generated collection types (`emdash-env.d.ts`) now include the `terms` field that `getEmDashEntry`/`getEmDashCollection` already hydrate, so templates can read `entry.data.terms?.tag` instead of issuing a redundant `getEntryTerms()` query. The bundled templates and demos have been updated to do so.
+- Tag and category archive pages load faster — `getTerm()` fetches its details in parallel instead of one query at a time.
+- Pages with several menus (header, footer, …) no longer repeat the same lookup for each menu.
+- Entries fetched with `getEmDashEntry`/`getEmDashCollection` already include their taxonomy terms — you can now read `entry.data.terms?.tag` directly (it's typed in your generated `emdash-env.d.ts`) instead of making a separate `getEntryTerms()` call. The bundled templates have been updated to do this.
