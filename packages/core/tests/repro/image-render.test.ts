@@ -6,6 +6,7 @@
  * test the real migrated RAFYC node three ways to see whether/when src is empty.
  */
 import { describe, expect, test } from "vitest";
+
 import { buildRenderMediaUrl } from "../../src/media/url.js";
 
 // Real migrated node from rafyc-dev/seed/rafyc-content.json (_key img66).
@@ -29,7 +30,9 @@ function resolveSrc(node: any, getPublicMediaUrl: ((k: string) => string) | unde
 	const { asset } = node;
 	let src = "";
 	const providerId = asset.provider;
-	if (providerId && providerId !== "local") { /* external branch, n/a for migrated */ }
+	if (providerId && providerId !== "local") {
+		/* external branch, n/a for migrated */
+	}
 	if (!src) src = buildRenderMediaUrl(getPublicMediaUrl, { url: asset.url, id: asset._ref });
 	return src;
 }

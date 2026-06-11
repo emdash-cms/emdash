@@ -1,3 +1,4 @@
+import { PortableText } from "astro-portabletext";
 /**
  * Faithful container render for the #1404 follow-up.
  *
@@ -9,8 +10,8 @@
  * Then we read the emitted <img src> to see if/when it is empty.
  */
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
-import { PortableText } from "astro-portabletext";
 import { describe, expect, test } from "vitest";
+
 import Image from "../../src/components/Image.astro";
 import OverrideImage from "./OverrideImage.astro";
 
@@ -31,7 +32,7 @@ const locals = {
 	emdash: { getPublicMediaUrl: (k: string) => `/_emdash/api/media/file/${k}` },
 };
 
-const imgSrc = (html: string) => (html.match(/<img[^>]*\bsrc="([^"]*)"/)?.[1]) ?? "(no <img>)";
+const imgSrc = (html: string) => html.match(/<img[^>]*\bsrc="([^"]*)"/)?.[1] ?? "(no <img>)";
 
 describe("faithful render of migrated image node", () => {
 	test("1. default type.image=Image.astro", async () => {
