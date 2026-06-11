@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-perf(core): reduce sequential DB round trips during cold-isolate runtime init. Plugin-state and site-info reads now run concurrently, marketplace- and registry-installed plugin loads run concurrently when both are enabled, and exclusive hook resolution batches its per-hook option reads into a single query.
+Faster cold starts. The first request a fresh server instance handles — after a deploy, or when traffic picks up again after a quiet spell — now runs its startup steps concurrently instead of one at a time, shaving database and storage round trips off that first page load. Especially noticeable on Cloudflare, where new instances spin up frequently.
