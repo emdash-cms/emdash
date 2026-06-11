@@ -22,7 +22,7 @@ import { getAuthMode } from "./auth/mode.js";
 import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
-import { runMigrations } from "./database/migrations/runner.js";
+import { MIGRATION_RACE_WAIT_MS, runMigrations } from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { ContentItem as ContentItemInternal } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
@@ -41,7 +41,7 @@ import type {
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
-import { createInitLock, initWithLock } from "./utils/init-lock.js";
+import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
@@ -311,11 +311,38 @@ function contentItemToRecord(item: ContentItemInternal): Record<string, unknown>
 	return { ...item };
 }
 
-// Module-level caches (persist across requests within worker)
-const dbCache = new Map<string, Kysely<Database>>();
-// Guards concurrent db init; reclaimable so a request cancelled mid-init
-// (migrations on cold D1) can't poison the isolate (see utils/init-lock.ts)
-const dbInitLock = createInitLock();
+/**
+ * Db init lock reclaim deadline. Derived from the migration race wait so
+ * they can't drift apart: a healthy init can legitimately block for the
+ * full MIGRATION_RACE_WAIT_MS inside waitForConcurrentMigrator, plus cold
+ * connect and migrator work, before it should be presumed dead. The outer
+ * runtime init lock (middleware.ts) must use a strictly larger deadline —
+ * it wraps create() → getDatabase() → this lock, and equal deadlines would
+ * let the outer reclaim while the inner is legitimately still working.
+ */
+export const DB_INIT_DEADLINE_MS = MIGRATION_RACE_WAIT_MS + 20_000;
+
+/**
+ * Db cache + its init lock live on globalThis behind a Symbol: the bundler
+ * can duplicate this module across SSR chunks (same reasoning as
+ * request-cache.ts), and a duplicated cache/lock would mean concurrent
+ * independent db inits — and duplicate migrators — per isolate.
+ */
+const DB_HOLDER_KEY = Symbol.for("emdash:db-cache");
+interface DbHolder {
+	cache: Map<string, Kysely<Database>>;
+	lock: InitLock;
+}
+const globalSymbolStore = globalThis as Record<symbol, unknown>;
+function getDbHolder(): DbHolder {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+	let holder = globalSymbolStore[DB_HOLDER_KEY] as DbHolder | undefined;
+	if (!holder) {
+		holder = { cache: new Map<string, Kysely<Database>>(), lock: createInitLock() };
+		globalSymbolStore[DB_HOLDER_KEY] = holder;
+	}
+	return holder;
+}
 const storageCache = new Map<string, Storage>();
 const sandboxedPluginCache = new Map<string, SandboxedPluginInstance>();
 /**
@@ -1277,11 +1304,14 @@ export class EmDashRuntime {
 		// promise: if the request that owns the init is cancelled mid-await
 		// (e.g. client disconnect during cold migrations), a shared promise
 		// never settles — and the owner's `finally` that would clear it never
-		// runs — deadlocking every later request in the isolate. The lock is
-		// reclaimed after a deadline instead.
+		// runs — deadlocking every later request in the isolate. Prevention:
+		// the in-flight init is anchored via after()/waitUntil so a cancelled
+		// owner's init still completes and populates the cache. Net: a stale
+		// lock is reclaimed after a deadline.
+		const holder = getDbHolder();
 		return initWithLock(
-			dbInitLock,
-			() => dbCache.get(cacheKey),
+			holder.lock,
+			() => holder.cache.get(cacheKey),
 			async () => {
 				const dialect = deps.createDialect(dbConfig.config);
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
@@ -1336,8 +1366,12 @@ export class EmDashRuntime {
 					// Tables may not exist yet. Non-fatal.
 				}
 
-				dbCache.set(cacheKey, db);
+				holder.cache.set(cacheKey, db);
 				return db;
+			},
+			{
+				deadlineMs: DB_INIT_DEADLINE_MS,
+				anchor: (promise) => after(() => promise),
 			},
 		);
 	}

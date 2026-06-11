@@ -31,19 +31,34 @@ export interface InitLockOptions {
 	/**
 	 * Reclaim the lock if the owner has held it longer than this. Must be
 	 * comfortably above the slowest legitimate init (cold migrations on a
-	 * contended D1) — a too-short deadline risks two concurrent inits, a
-	 * too-long one delays recovery of a poisoned isolate.
+	 * contended D1, including the concurrent-migrator wait) — a too-short
+	 * deadline risks two concurrent inits, a too-long one delays recovery
+	 * of a poisoned isolate. Nested locks must compose: an outer lock's
+	 * deadline must exceed the deadline of any lock its init acquires.
 	 */
 	deadlineMs?: number;
 	/** Waiter poll interval. */
 	pollMs?: number;
-	/** Give up waiting after this long and throw instead of hanging. */
+	/**
+	 * Give up waiting after this long and throw instead of hanging.
+	 * Defaults to `deadlineMs` plus headroom so a waiter always survives
+	 * long enough to reclaim a dead owner before giving up.
+	 */
 	maxWaitMs?: number;
+	/**
+	 * Called with the in-flight init promise (errors pre-swallowed) so the
+	 * caller can hand it to the host's lifetime extender (waitUntil via
+	 * `after()`). If the owning request is cancelled mid-init, the anchored
+	 * promise keeps the context alive: init completes, populates the cache,
+	 * and the `finally` below releases the lock — preventing the poisoning
+	 * instead of merely recovering from it via reclaim.
+	 */
+	anchor?: (promise: Promise<void>) => void;
 }
 
 const DEFAULT_DEADLINE_MS = 15_000;
 const DEFAULT_POLL_MS = 50;
-const DEFAULT_MAX_WAIT_MS = 30_000;
+const MAX_WAIT_HEADROOM_MS = 15_000;
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -63,7 +78,10 @@ export async function initWithLock<T>(
 ): Promise<T> {
 	const deadlineMs = options?.deadlineMs ?? DEFAULT_DEADLINE_MS;
 	const pollMs = options?.pollMs ?? DEFAULT_POLL_MS;
-	const maxWaitMs = options?.maxWaitMs ?? DEFAULT_MAX_WAIT_MS;
+	const maxWaitMs = options?.maxWaitMs ?? deadlineMs + MAX_WAIT_HEADROOM_MS;
+	// Date.now() is deliberate and only works because every loop iteration
+	// awaits: in workerd the clock only advances across I/O, so a sync spin
+	// would never observe the deadline. Don't "optimize" away the sleep.
 	const waitStart = Date.now();
 
 	for (;;) {
@@ -78,10 +96,17 @@ export async function initWithLock<T>(
 			// Synchronous between awaits, so two waiters can't both claim.
 			lock.ownerStartedAt = Date.now();
 			try {
-				return await init();
+				const initPromise = init();
+				options?.anchor?.(
+					initPromise.then(
+						() => undefined,
+						() => undefined,
+					),
+				);
+				return await initPromise;
 			} finally {
-				// If this request dies mid-init this never runs; the next
-				// waiter reclaims after deadlineMs instead.
+				// If this request dies mid-init unanchored this never runs;
+				// the next waiter reclaims after deadlineMs instead.
 				lock.ownerStartedAt = null;
 			}
 		}

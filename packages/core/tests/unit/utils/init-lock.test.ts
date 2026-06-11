@@ -133,6 +133,78 @@ describe("initWithLock", () => {
 		).rejects.toThrow(/timed out/i);
 	});
 
+	it("reclaims from a live-but-slow owner without running init more than twice", async () => {
+		// The dangerous path for deadline tuning: the owner is healthy but
+		// slower than deadlineMs (e.g. contended migrations). A waiter
+		// reclaims and runs a second init; both must resolve, init must run
+		// at most twice, and the cache must converge.
+		const lock = createInitLock();
+		let cache: string | null = null;
+		let initCalls = 0;
+
+		const owner = initWithLock(
+			lock,
+			() => cache,
+			async () => {
+				initCalls++;
+				await sleep(250);
+				cache = "slow-owner";
+				return "slow-owner";
+			},
+			{ deadlineMs: 100, pollMs: 10, maxWaitMs: 2000 },
+		);
+		await sleep(10);
+		const waiter = initWithLock(
+			lock,
+			() => cache,
+			async () => {
+				initCalls++;
+				cache = "reclaimer";
+				return "reclaimer";
+			},
+			{ deadlineMs: 100, pollMs: 10, maxWaitMs: 2000 },
+		);
+
+		expect(await owner).toBe("slow-owner");
+		expect(await waiter).toBe("reclaimer");
+		expect(initCalls).toBe(2);
+
+		// Cache has converged: later callers are served from it, no third init.
+		const third = await initWithLock(
+			lock,
+			() => cache,
+			async () => {
+				initCalls++;
+				return "third";
+			},
+			{ deadlineMs: 100, pollMs: 10 },
+		);
+		expect(third).toBe(cache);
+		expect(initCalls).toBe(2);
+	});
+
+	it("anchors the in-flight init promise and swallows its rejection", async () => {
+		const lock = createInitLock();
+		const anchored: Promise<void>[] = [];
+
+		await expect(
+			initWithLock(
+				lock,
+				() => null,
+				() => Promise.reject(new Error("boom")),
+				{
+					pollMs: 10,
+					anchor: (promise) => anchored.push(promise),
+				},
+			),
+		).rejects.toThrow("boom");
+
+		expect(anchored).toHaveLength(1);
+		// The anchored copy must never reject (it goes to waitUntil, where a
+		// rejection would surface as an unhandled error in the host).
+		await expect(anchored[0]).resolves.toBeUndefined();
+	});
+
 	it("lets a waiter pick up a value cached by the owner mid-wait", async () => {
 		const lock = createInitLock();
 		let cache: string | null = null;

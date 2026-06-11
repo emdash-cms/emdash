@@ -27,12 +27,14 @@ import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sand
 // @ts-ignore - virtual module
 import { createStorage as virtualCreateStorage } from "virtual:emdash/storage";
 
+import { after } from "../after.js";
 import {
 	createRecorder,
 	flushRecorder,
 	isInstrumentationEnabled,
 } from "../database/instrumentation.js";
 import {
+	DB_INIT_DEADLINE_MS,
 	EmDashRuntime,
 	type RuntimeDependencies,
 	type SandboxedPluginEntry,
@@ -51,16 +53,42 @@ import {
 	runWithContext,
 } from "../request-context.js";
 import { isMissingTableError } from "../utils/db-errors.js";
-import { createInitLock, initWithLock } from "../utils/init-lock.js";
+import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
 import type { EmDashHandlers } from "./types.js";
 
-// Cached runtime instance (persists across requests within worker)
-let runtimeInstance: EmDashRuntime | null = null;
-// Guards concurrent init attempts; reclaimable so a request cancelled
-// mid-init can't poison the isolate (see utils/init-lock.ts)
-const runtimeInitLock = createInitLock();
+/**
+ * Runtime init lock reclaim deadline. Must be strictly larger than the db
+ * init deadline: this lock wraps EmDashRuntime.create() → getDatabase() →
+ * the db init lock, and equal deadlines would let this outer lock reclaim
+ * (spawning a second cron scheduler and sandbox runner) while the inner db
+ * init is legitimately still working through a contended migration.
+ */
+const RUNTIME_INIT_DEADLINE_MS = DB_INIT_DEADLINE_MS + 15_000;
+
+/**
+ * The runtime singleton and its init lock live on globalThis behind a
+ * Symbol — same reasoning as SETUP_VERIFIED_KEY below: the bundler can
+ * duplicate this module across SSR chunks, and a duplicated instance/lock
+ * would mean multiple runtimes (each with its own cron scheduler) per
+ * isolate, initializing and reclaiming independently.
+ */
+const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
+interface RuntimeHolder {
+	instance: EmDashRuntime | null;
+	lock: InitLock;
+}
+
+function getRuntimeHolder(): RuntimeHolder {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+	let holder = setupFlagStore[RUNTIME_HOLDER_KEY] as RuntimeHolder | undefined;
+	if (!holder) {
+		holder = { instance: null, lock: createInitLock() };
+		setupFlagStore[RUNTIME_HOLDER_KEY] = holder;
+	}
+	return holder;
+}
 
 /** Whether i18n config has been initialized from the virtual module */
 let i18nInitialized = false;
@@ -182,16 +210,22 @@ async function getRuntime(
 	// workerd flags cross-request promise resolution (warnings + potential
 	// hangs). If the initializing request is cancelled mid-create (client
 	// disconnect tears down its continuation, skipping any `finally`), the
-	// lock is reclaimed after a deadline instead of hanging every subsequent
-	// request in the isolate until eviction.
+	// anchored init keeps running under waitUntil and populates the cache;
+	// failing that, the stale lock is reclaimed after a deadline instead of
+	// hanging every subsequent request in the isolate until eviction.
+	const holder = getRuntimeHolder();
 	return initWithLock(
-		runtimeInitLock,
-		() => runtimeInstance,
+		holder.lock,
+		() => holder.instance,
 		async () => {
 			const deps = buildDependencies(config);
 			const runtime = await EmDashRuntime.create(deps, initTimings);
-			runtimeInstance = runtime;
+			holder.instance = runtime;
 			return runtime;
+		},
+		{
+			deadlineMs: RUNTIME_INIT_DEADLINE_MS,
+			anchor: (promise) => after(() => promise),
 		},
 	);
 }
