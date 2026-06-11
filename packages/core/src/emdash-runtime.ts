@@ -1312,7 +1312,7 @@ export class EmDashRuntime {
 		return initWithLock(
 			holder.lock,
 			() => holder.cache.get(cacheKey),
-			async () => {
+			async (isCurrentClaim) => {
 				const dialect = deps.createDialect(dbConfig.config);
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
@@ -1366,7 +1366,13 @@ export class EmDashRuntime {
 					// Tables may not exist yet. Non-fatal.
 				}
 
-				holder.cache.set(cacheKey, db);
+				// Publish only while still the current owner: a reclaimed slow
+				// init must not flip the cached Kysely identity back after the
+				// reclaimer has published its own. The unpublished instance is
+				// still returned and fully valid for the request that built it.
+				if (isCurrentClaim()) {
+					holder.cache.set(cacheKey, db);
+				}
 				return db;
 			},
 			{

@@ -170,6 +170,12 @@ describe("initWithLock", () => {
 		expect(initCalls).toBe(2);
 
 		// Cache has converged: later callers are served from it, no third init.
+		// Note which value converged: these test inits write the cache
+		// UNGATED, so the slow owner's late write wins (last-writer-wins) and
+		// `cache` is "slow-owner" here, not the reclaimer's value. Real
+		// callers gate publication on the isCurrentClaim predicate (see the
+		// "gates publication" test below), which makes the reclaimer win.
+		expect(cache).toBe("slow-owner");
 		const third = await initWithLock(
 			lock,
 			() => cache,
@@ -181,6 +187,42 @@ describe("initWithLock", () => {
 		);
 		expect(third).toBe(cache);
 		expect(initCalls).toBe(2);
+	});
+
+	it("gates publication so a reclaimed slow owner cannot overwrite the reclaimer's value", async () => {
+		// Real callers publish through the isCurrentClaim predicate: when a
+		// slow owner finishes after being reclaimed, its publication is
+		// suppressed and the reclaimer's published value survives.
+		const lock = createInitLock();
+		let cache: string | null = null;
+		const claimChecks: boolean[] = [];
+
+		const makeInit = (value: string, delayMs: number) => async (isCurrentClaim: () => boolean) => {
+			await sleep(delayMs);
+			const current = isCurrentClaim();
+			claimChecks.push(current);
+			if (current) cache = value;
+			return value;
+		};
+
+		const owner = initWithLock(lock, () => cache, makeInit("slow-owner", 250), {
+			deadlineMs: 100,
+			pollMs: 10,
+			maxWaitMs: 2000,
+		});
+		await sleep(10);
+		const reclaimer = initWithLock(lock, () => cache, makeInit("reclaimer", 50), {
+			deadlineMs: 100,
+			pollMs: 10,
+			maxWaitMs: 2000,
+		});
+
+		// Each init still returns its own value to its own caller...
+		expect(await owner).toBe("slow-owner");
+		expect(await reclaimer).toBe("reclaimer");
+		// ...but only the reclaimer (the current claim) published.
+		expect(cache).toBe("reclaimer");
+		expect(claimChecks).toEqual([true, false]);
 	});
 
 	it("does not let a finished stale owner release the reclaimer's lock", async () => {

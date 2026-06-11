@@ -76,11 +76,18 @@ function sleep(ms: number): Promise<void> {
  * lock. `init` is responsible for storing the value so that `getCached`
  * returns it on subsequent calls — waiters re-check `getCached` after the
  * owner finishes rather than sharing the owner's promise.
+ *
+ * `init` receives an `isCurrentClaim` predicate and must gate its cache
+ * publication on it: a slow init that was reclaimed past the deadline
+ * must not overwrite the value published by the reclaimer (for the
+ * runtime singleton that would orphan the reclaimer's active cron
+ * scheduler). A losing init should also tear down any side resources it
+ * started, since its result will never be published.
  */
 export async function initWithLock<T>(
 	lock: InitLock,
 	getCached: () => T | null | undefined,
-	init: () => Promise<T>,
+	init: (isCurrentClaim: () => boolean) => Promise<T>,
 	options?: InitLockOptions,
 ): Promise<T> {
 	const deadlineMs = options?.deadlineMs ?? DEFAULT_DEADLINE_MS;
@@ -105,9 +112,10 @@ export async function initWithLock<T>(
 			const claim = lock.generation;
 			lock.ownerStartedAt = Date.now();
 			try {
-				// Promise.resolve().then(init) so a synchronous throw from
+				// Promise.resolve().then(...) so a synchronous throw from
 				// init still becomes a rejection after the anchor attaches.
-				const initPromise = Promise.resolve().then(init);
+				const isCurrentClaim = () => lock.generation === claim;
+				const initPromise = Promise.resolve().then(() => init(isCurrentClaim));
 				options?.anchor?.(
 					initPromise.then(
 						() => undefined,

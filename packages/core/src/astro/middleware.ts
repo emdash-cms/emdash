@@ -217,10 +217,22 @@ async function getRuntime(
 	return initWithLock(
 		holder.lock,
 		() => holder.instance,
-		async () => {
+		async (isCurrentClaim) => {
 			const deps = buildDependencies(config);
 			const runtime = await EmDashRuntime.create(deps, initTimings);
-			holder.instance = runtime;
+			if (isCurrentClaim()) {
+				holder.instance = runtime;
+			} else {
+				// This init was reclaimed mid-flight (it ran past the deadline
+				// and a waiter started its own). Don't overwrite the
+				// reclaimer's published runtime, and stop this one's cron
+				// scheduler so it doesn't keep firing unreferenced. The
+				// runtime is still returned — it's fully functional for the
+				// request that built it.
+				runtime.stopCron().catch((error: unknown) => {
+					console.error("[emdash] failed to stop superseded runtime's cron:", error);
+				});
+			}
 			return runtime;
 		},
 		{
