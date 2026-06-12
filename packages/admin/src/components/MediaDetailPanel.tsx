@@ -7,7 +7,16 @@
 
 import { Button, Input, InputArea } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { X, Trash, Calendar, HardDrive, Ruler } from "@phosphor-icons/react";
+import {
+	X,
+	Trash,
+	Calendar,
+	Check,
+	CopySimple,
+	HardDrive,
+	LinkSimple,
+	Ruler,
+} from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -34,6 +43,7 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 	const [filename, setFilename] = React.useState(item?.filename ?? "");
 	const [alt, setAlt] = React.useState(item?.alt ?? "");
 	const [caption, setCaption] = React.useState(item?.caption ?? "");
+	const [urlCopied, setUrlCopied] = React.useState(false);
 
 	// Reset form when item changes
 	React.useEffect(() => {
@@ -42,7 +52,24 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 			setAlt(item.alt ?? "");
 			setCaption(item.caption ?? "");
 		}
+		setUrlCopied(false);
 	}, [item]);
+
+	// Public file URL — absolute so it can be pasted anywhere (relative API
+	// paths from local storage are resolved against the current origin).
+	const fileUrl = item ? new URL(item.url, window.location.origin).href : "";
+
+	const handleCopyUrl = async () => {
+		if (!fileUrl) return;
+		try {
+			await navigator.clipboard.writeText(fileUrl);
+			setUrlCopied(true);
+			window.setTimeout(() => setUrlCopied(false), 2000);
+		} catch {
+			// Clipboard unavailable (permissions/insecure context) — leave the
+			// URL selectable in the panel instead of failing loudly.
+		}
+	};
 
 	// Track if form has unsaved changes
 	const hasChanges = React.useMemo(() => {
@@ -183,6 +210,26 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 							<Calendar className="h-4 w-4 text-kumo-subtle" />
 							<span className="text-kumo-subtle">{t`Uploaded:`}</span>
 							<span>{formatDate(item.createdAt)}</span>
+						</div>
+						<div className="flex items-center gap-2 text-sm">
+							<LinkSimple className="h-4 w-4 text-kumo-subtle shrink-0" />
+							<span className="text-kumo-subtle shrink-0">{t`URL:`}</span>
+							<span className="truncate flex-1 select-all" dir="ltr" title={fileUrl}>
+								{fileUrl}
+							</span>
+							<Button variant="ghost" size="sm" onClick={handleCopyUrl} aria-label={t`Copy URL`}>
+								{urlCopied ? (
+									<>
+										<Check className="h-3.5 w-3.5" />
+										{t`Copied`}
+									</>
+								) : (
+									<>
+										<CopySimple className="h-3.5 w-3.5" />
+										{t`Copy URL`}
+									</>
+								)}
+							</Button>
 						</div>
 					</div>
 
