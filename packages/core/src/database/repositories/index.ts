@@ -42,3 +42,10 @@ export { BylineRepository } from "./byline.js";
 export type { CreateBylineInput, UpdateBylineInput, ContentBylineInput } from "./byline.js";
 export type * from "./types.js";
 export { EmDashValidationError, InvalidCursorError, encodeCursor, decodeCursor } from "./types.js";
+export { RelationRepository } from "./relation.js";
+export type {
+	Relation,
+	CreateRelationInput,
+	UpdateRelationInput,
+	ContentReference,
+} from "./relation.js";
