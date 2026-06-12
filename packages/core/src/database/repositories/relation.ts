@@ -180,8 +180,10 @@ export class RelationRepository {
 		return rows.map((row) => this.rowToRelation(row));
 	}
 
-	/** Update the localized labels of one relation row. Structural fields are
-	 * immutable here (a cross-group concern). No-ops when nothing is supplied. */
+	/**
+	 * Update the localized labels of one relation row. Structural fields are
+	 * immutable here (a cross-group concern). No-ops when nothing is supplied.
+	 */
 	async update(id: string, input: UpdateRelationInput): Promise<Relation | null> {
 		const existing = await this.findById(id);
 		if (!existing) return null;

@@ -149,7 +149,7 @@ describeEachDialect("RelationRepository", (dialect) => {
 		expect(forTags.map((r) => r.name)).toEqual(["tags_rel"]);
 	});
 
-	it("update changes only the localized labels and bumps updated_at", async () => {
+	it("update changes only the localized labels (no-op on missing id)", async () => {
 		const rel = await repo.create({ ...baseInput });
 		const updated = await repo.update(rel.id, { parentLabel: "Lead", childLabel: "Report" });
 
@@ -184,7 +184,9 @@ describeEachDialect("RelationRepository", (dialect) => {
 			.execute();
 
 		expect(await repo.delete(fr.id)).toBe(true);
-		// The relation still exists in 'en', so its edges survive.
+		// The 'en' anchor row must survive (only the 'fr' translation was deleted)...
+		expect(await repo.findById(anchor.id)).not.toBeNull();
+		// ...and so must its edges.
 		const edges = await ctx.db
 			.selectFrom("_emdash_content_references")
 			.selectAll()
