@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 
 import idCatalog from "../../src/locales/id/messages.po?raw";
-
 import {
 	DEFAULT_LOCALE,
 	getLocaleDir,
