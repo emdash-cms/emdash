@@ -375,8 +375,9 @@ async function paginateAndEnqueue(opts: PaginateOpts): Promise<number> {
 			let parsed: ParsedCanonicalResourceUri;
 			try {
 				parsed = parseCanonicalResourceUri(record.uri);
-			} catch {
-				continue;
+			} catch (err) {
+				if (err instanceof SyntaxError) continue;
+				throw err;
 			}
 			// Defence vs. a buggy/malicious PDS that returns records under
 			// a different DID (or a different collection) than the one we
