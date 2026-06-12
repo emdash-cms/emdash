@@ -18,10 +18,13 @@ import {
 	InvalidCursorError,
 	type BylineSummary,
 	type ContentBylineCredit,
+	type ContentDateField,
 	type ContentItem,
 	type ContentSeo,
 	type ContentSeoInput,
+	type FindManyOptions,
 } from "../../database/repositories/types.js";
+import { UserRepository } from "../../database/repositories/user.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
@@ -338,18 +341,28 @@ export async function handleContentList(
 		order?: "asc" | "desc";
 		locale?: string;
 		q?: string;
+		authorId?: string;
+		dateField?: ContentDateField;
+		dateFrom?: string;
+		dateTo?: string;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
 		const repo = new ContentRepository(db);
-		const where: {
-			status?: string;
-			locale?: string;
-			q?: string;
-			searchColumns?: string[];
-		} = {};
+		const where: FindManyOptions["where"] = {};
 		if (params.status) where.status = params.status;
 		if (params.locale) where.locale = params.locale;
+		if (params.authorId) where.authorId = params.authorId;
+
+		// A date range requires a target column; ignore stray from/to without
+		// a field so a half-specified filter doesn't silently drop all rows.
+		if (params.dateField && (params.dateFrom || params.dateTo)) {
+			where.dateFilter = {
+				field: params.dateField,
+				from: params.dateFrom,
+				to: params.dateTo,
+			};
+		}
 
 		const q = params.q?.trim();
 		if (q) {
@@ -408,6 +421,62 @@ export async function handleContentList(
 			error: {
 				code: "CONTENT_LIST_ERROR",
 				message: "Failed to list content",
+			},
+		};
+	}
+}
+
+/** A content author option for the admin author filter. */
+export interface ContentAuthor {
+	id: string;
+	name: string | null;
+	email: string;
+	avatarUrl: string | null;
+}
+
+/**
+ * List the distinct authors of a collection's live content.
+ *
+ * Backs the admin content-list author filter. Unlike `/admin/users` (ADMIN
+ * only), this is gated on `content:read`, so any editor can filter by author.
+ * Returns only users who have authored at least one non-trashed entry, sorted
+ * by display name then email for a stable dropdown order.
+ */
+export async function handleContentAuthors(
+	db: Kysely<Database>,
+	collection: string,
+): Promise<ApiResult<{ items: ContentAuthor[] }>> {
+	try {
+		const repo = new ContentRepository(db);
+		const authorIds = await repo.findDistinctAuthorIds(collection);
+		if (authorIds.length === 0) {
+			return { success: true, data: { items: [] } };
+		}
+
+		const userRepo = new UserRepository(db);
+		const users = await userRepo.findByIds(authorIds);
+
+		const items: ContentAuthor[] = users
+			.map((u) => ({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatarUrl }))
+			.toSorted((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email));
+
+		return { success: true, data: { items } };
+	} catch (error) {
+		if (isMissingTableError(error)) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_NOT_FOUND",
+					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		console.error("Content authors error:", error);
+		return {
+			success: false,
+			error: {
+				code: "CONTENT_AUTHORS_ERROR",
+				message: "Failed to list content authors",
 			},
 		};
 	}

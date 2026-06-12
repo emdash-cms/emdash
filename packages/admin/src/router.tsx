@@ -23,7 +23,13 @@ import * as React from "react";
 
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
-import { ContentList, type ContentListSort } from "./components/ContentList";
+import {
+	ContentList,
+	EMPTY_DATE_FILTER,
+	type ContentDateFilter,
+	type ContentListSort,
+	type ContentStatusFilter,
+} from "./components/ContentList";
 import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
@@ -63,6 +69,7 @@ import {
 	parseApiResponse,
 	fetchManifest,
 	fetchContentList,
+	fetchContentAuthors,
 	fetchContent,
 	createContent,
 	updateContent,
@@ -316,9 +323,50 @@ function ContentListPage() {
 	// key so a new term restarts the cursor chain from a filtered first page.
 	const [searchTerm, setSearchTerm] = React.useState("");
 
+	// Filter state (#1288). All are part of the query key so changing any of
+	// them restarts the cursor chain from a filtered first page.
+	const [statusFilter, setStatusFilter] = React.useState<ContentStatusFilter>("all");
+	const [authorFilter, setAuthorFilter] = React.useState("");
+	const [dateFilter, setDateFilter] = React.useState<ContentDateFilter>(EMPTY_DATE_FILTER);
+
+	// The date inputs yield calendar dates; widen them to UTC day boundaries so
+	// the inclusive `dateTo` covers the whole day (timestamps are stored in UTC).
+	const dateApiParams = React.useMemo(() => {
+		const hasRange = !!dateFilter.from || !!dateFilter.to;
+		if (!hasRange) return undefined;
+		return {
+			dateField: dateFilter.field,
+			dateFrom: dateFilter.from ? `${dateFilter.from}T00:00:00.000Z` : undefined,
+			dateTo: dateFilter.to ? `${dateFilter.to}T23:59:59.999Z` : undefined,
+		};
+	}, [dateFilter]);
+
+	// Reset the author filter when switching locales: an author who has content
+	// in one locale may not in another, leaving a dangling selection.
+	React.useEffect(() => {
+		setAuthorFilter("");
+	}, [activeLocale]);
+
+	const { data: authors } = useQuery({
+		queryKey: ["content", collection, "authors", { locale: activeLocale }],
+		queryFn: () => fetchContentAuthors(collection),
+		enabled: !!manifest,
+	});
+
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
 		useInfiniteQuery({
-			queryKey: ["content", collection, { locale: activeLocale, sort, search: searchTerm }],
+			queryKey: [
+				"content",
+				collection,
+				{
+					locale: activeLocale,
+					sort,
+					search: searchTerm,
+					status: statusFilter,
+					author: authorFilter,
+					date: dateApiParams,
+				},
+			],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(collection, {
 					locale: activeLocale,
@@ -327,6 +375,9 @@ function ContentListPage() {
 					orderBy: sort.field,
 					order: sort.direction,
 					search: searchTerm || undefined,
+					status: statusFilter === "all" ? undefined : statusFilter,
+					authorId: authorFilter || undefined,
+					...dateApiParams,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -452,6 +503,13 @@ function ContentListPage() {
 			onSortChange={setSort}
 			total={total}
 			onSearchChange={setSearchTerm}
+			statusFilter={statusFilter}
+			onStatusFilterChange={setStatusFilter}
+			authors={authors}
+			authorFilter={authorFilter}
+			onAuthorFilterChange={setAuthorFilter}
+			dateFilter={dateFilter}
+			onDateFilterChange={setDateFilter}
 		/>
 	);
 }

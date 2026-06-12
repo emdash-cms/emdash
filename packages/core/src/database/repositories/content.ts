@@ -11,6 +11,7 @@ import type {
 	FindManyOptions,
 	FindManyResult,
 	ContentItem,
+	ContentDateField,
 } from "./types.js";
 import {
 	EmDashValidationError,
@@ -24,6 +25,18 @@ const ULID_PATTERN = /^[0-9A-Z]{26}$/;
 
 // LIKE wildcards that must be escaped so user search input is matched literally.
 const LIKE_WILDCARD_RE = /[\\%_]/g;
+
+/**
+ * Whitelist mapping a public date-filter field to its physical column. Keeping
+ * this separate from `mapOrderField` makes the filterable set explicit and
+ * prevents filtering on arbitrary columns.
+ */
+const DATE_FILTER_COLUMNS: Record<ContentDateField, "created_at" | "updated_at" | "published_at"> =
+	{
+		createdAt: "created_at",
+		updatedAt: "updated_at",
+		publishedAt: "published_at",
+	};
 
 /**
  * System columns that exist in every ec_* table
@@ -498,6 +511,7 @@ export class ContentRepository {
 		}
 
 		query = this.applySearchFilter(query, options.where);
+		query = this.applyDateFilter(query, options.where);
 
 		// Handle cursor pagination — decodeCursor throws InvalidCursorError
 		// on malformed input; let it propagate so handlers surface a
@@ -791,18 +805,34 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Apply the optional inclusive date-range filter. The field is mapped
+	 * through `DATE_FILTER_COLUMNS` (a closed whitelist), and bounds compare
+	 * lexicographically against the stored ISO 8601 timestamps. A `publishedAt`
+	 * range naturally excludes never-published rows (their column is NULL).
+	 */
+	private applyDateFilter<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
+		query: QB,
+		where?: { dateFilter?: { field: string; from?: string; to?: string } },
+	): QB {
+		const filter = where?.dateFilter;
+		if (!filter) return query;
+		const column = DATE_FILTER_COLUMNS[filter.field as ContentDateField];
+		if (!column) {
+			throw new EmDashValidationError(`Invalid date filter field: ${filter.field}`);
+		}
+		const { from, to } = filter;
+		if (!from && !to) return query;
+
+		let next = query;
+		if (from) next = next.where((eb) => eb(column as any, ">=", from));
+		if (to) next = next.where((eb) => eb(column as any, "<=", to));
+		return next;
+	}
+
+	/**
 	 * Count content items
 	 */
-	async count(
-		type: string,
-		where?: {
-			status?: string;
-			authorId?: string;
-			locale?: string;
-			q?: string;
-			searchColumns?: string[];
-		},
-	): Promise<number> {
+	async count(type: string, where?: FindManyOptions["where"]): Promise<number> {
 		const tableName = getTableName(type);
 
 		let query = this.db
@@ -823,9 +853,32 @@ export class ContentRepository {
 		}
 
 		query = this.applySearchFilter(query, where);
+		query = this.applyDateFilter(query, where);
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
+	}
+
+	/**
+	 * Distinct, non-null `author_id` values across the collection's live
+	 * (non-trashed) content. Used to populate the admin author filter with
+	 * only the users who have actually authored entries, rather than the
+	 * full user directory (which requires admin privileges to read).
+	 */
+	async findDistinctAuthorIds(type: string): Promise<string[]> {
+		const tableName = getTableName(type);
+
+		const rows = await this.db
+			.selectFrom(tableName as keyof Database)
+			.select("author_id")
+			.distinct()
+			.where("deleted_at" as never, "is", null)
+			.where("author_id" as never, "is not", null)
+			.execute();
+
+		return rows
+			.map((row) => (row as { author_id: string | null }).author_id)
+			.filter((id): id is string => id !== null);
 	}
 
 	// get overall statistics (total, published, draft) for a content type in a single query

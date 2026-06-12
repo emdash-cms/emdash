@@ -24,7 +24,10 @@ import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { MIGRATION_RACE_WAIT_MS, runMigrations } from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
-import type { ContentItem as ContentItemInternal } from "./database/repositories/types.js";
+import type {
+	ContentItem as ContentItemInternal,
+	ContentDateField,
+} from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
@@ -115,6 +118,7 @@ import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import {
 	handleContentList,
+	handleContentAuthors,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,
@@ -2261,9 +2265,17 @@ export class EmDashRuntime {
 			order?: "asc" | "desc";
 			locale?: string;
 			q?: string;
+			authorId?: string;
+			dateField?: ContentDateField;
+			dateFrom?: string;
+			dateTo?: string;
 		},
 	) {
 		return handleContentList(this.db, collection, params);
+	}
+
+	async handleContentAuthors(collection: string) {
+		return handleContentAuthors(this.db, collection);
 	}
 
 	async handleContentGet(collection: string, id: string, locale?: string) {

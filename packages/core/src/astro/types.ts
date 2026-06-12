@@ -233,8 +233,15 @@ export interface EmDashHandlers {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			q?: string;
+			authorId?: string;
+			dateField?: "createdAt" | "updatedAt" | "publishedAt";
+			dateFrom?: string;
+			dateTo?: string;
 		},
 	) => Promise<HandlerResponse>;
+
+	handleContentAuthors: (collection: string) => Promise<HandlerResponse>;
 
 	handleContentGet: (
 		collection: string,

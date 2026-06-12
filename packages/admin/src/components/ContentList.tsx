@@ -1,4 +1,4 @@
-import { Badge, Button, Dialog, Input, LinkButton, Loader, Tabs } from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, LinkButton, Loader, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -12,11 +12,12 @@ import {
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
+	X,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import type { ContentItem, TrashedContentItem } from "../lib/api";
+import type { ContentAuthor, ContentDateField, ContentItem, TrashedContentItem } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { contentUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
@@ -30,6 +31,23 @@ export interface ContentListSort {
 	field: ContentListSortField;
 	direction: "asc" | "desc";
 }
+
+/** Status filter values. `"all"` clears the status filter. */
+export type ContentStatusFilter = "all" | "published" | "draft" | "scheduled" | "archived";
+
+/**
+ * Date-range filter state. `from`/`to` are raw `YYYY-MM-DD` values from the
+ * date inputs (empty string = unset); the parent converts them to UTC day
+ * boundaries before calling the API.
+ */
+export interface ContentDateFilter {
+	field: ContentDateField;
+	from: string;
+	to: string;
+}
+
+/** An empty (inactive) date filter, defaulting to the created-at column. */
+export const EMPTY_DATE_FILTER: ContentDateFilter = { field: "createdAt", from: "", to: "" };
 
 export interface ContentListProps {
 	collection: string;
@@ -76,6 +94,23 @@ export interface ContentListProps {
 	 * filtering the loaded page client-side (legacy behavior).
 	 */
 	onSearchChange?: (q: string) => void;
+	/**
+	 * Filter controls. The whole bar is opt-in: it only renders when
+	 * `onStatusFilterChange` is provided, keeping the component
+	 * backward-compatible for callers that haven't wired filters yet. Each
+	 * control renders independently based on the presence of its callback
+	 * (and, for the author filter, a non-empty `authors` list).
+	 */
+	statusFilter?: ContentStatusFilter;
+	onStatusFilterChange?: (status: ContentStatusFilter) => void;
+	/** Authors who have content in this collection, for the author filter. */
+	authors?: ContentAuthor[];
+	/** Selected author id; empty string means "all authors". */
+	authorFilter?: string;
+	onAuthorFilterChange?: (authorId: string) => void;
+	/** Controlled date-range filter state. */
+	dateFilter?: ContentDateFilter;
+	onDateFilterChange?: (filter: ContentDateFilter) => void;
 }
 
 type ViewTab = "all" | "trash";
@@ -120,6 +155,13 @@ export function ContentList({
 	onSortChange,
 	total,
 	onSearchChange,
+	statusFilter = "all",
+	onStatusFilterChange,
+	authors,
+	authorFilter = "",
+	onAuthorFilterChange,
+	dateFilter = EMPTY_DATE_FILTER,
+	onDateFilterChange,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
@@ -255,6 +297,19 @@ export function ContentList({
 			{/* Content based on active tab */}
 			{activeTab === "all" ? (
 				<>
+					{/* Filters */}
+					{onStatusFilterChange && (
+						<FilterBar
+							statusFilter={statusFilter}
+							onStatusFilterChange={onStatusFilterChange}
+							authors={authors}
+							authorFilter={authorFilter}
+							onAuthorFilterChange={onAuthorFilterChange}
+							dateFilter={dateFilter}
+							onDateFilterChange={onDateFilterChange}
+						/>
+					)}
+
 					{/* Table */}
 					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
@@ -448,6 +503,141 @@ export function ContentList({
 						</div>
 					)}
 				</>
+			)}
+		</div>
+	);
+}
+
+interface FilterBarProps {
+	statusFilter: ContentStatusFilter;
+	onStatusFilterChange: (status: ContentStatusFilter) => void;
+	authors?: ContentAuthor[];
+	authorFilter: string;
+	onAuthorFilterChange?: (authorId: string) => void;
+	dateFilter: ContentDateFilter;
+	onDateFilterChange?: (filter: ContentDateFilter) => void;
+}
+
+/**
+ * Filter controls for the content list: status, author, and a date range over
+ * a chosen timestamp column (#1288). All controls report changes to the
+ * parent, which owns the state and refetches. Filtering happens server-side,
+ * so it works across the whole collection rather than the loaded page.
+ */
+function FilterBar({
+	statusFilter,
+	onStatusFilterChange,
+	authors,
+	authorFilter,
+	onAuthorFilterChange,
+	dateFilter,
+	onDateFilterChange,
+}: FilterBarProps) {
+	const { t } = useLingui();
+
+	const showAuthorFilter = !!onAuthorFilterChange && !!authors && authors.length > 0;
+	const showDateFilter = !!onDateFilterChange;
+
+	const statusItems: Record<string, string> = {
+		all: t`All statuses`,
+		published: t`Published`,
+		draft: t`Draft`,
+		scheduled: t`Scheduled`,
+		archived: t`Archived`,
+	};
+
+	const dateFieldItems: Record<string, string> = {
+		createdAt: t`Created`,
+		updatedAt: t`Updated`,
+		publishedAt: t`Published`,
+	};
+
+	const hasActiveFilter =
+		statusFilter !== "all" || authorFilter !== "" || !!dateFilter.from || !!dateFilter.to;
+
+	const handleClear = () => {
+		onStatusFilterChange("all");
+		onAuthorFilterChange?.("");
+		onDateFilterChange?.(EMPTY_DATE_FILTER);
+	};
+
+	return (
+		<div className="flex flex-wrap items-end gap-3">
+			<Select
+				size="sm"
+				aria-label={t`Filter by status`}
+				value={statusFilter}
+				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
+				items={statusItems}
+			>
+				{Object.entries(statusItems).map(([value, label]) => (
+					<Select.Option key={value} value={value}>
+						{label}
+					</Select.Option>
+				))}
+			</Select>
+
+			{showAuthorFilter && (
+				<Select
+					size="sm"
+					aria-label={t`Filter by author`}
+					value={authorFilter}
+					onValueChange={(v) => onAuthorFilterChange?.(v ?? "")}
+					items={{
+						"": t`All authors`,
+						...Object.fromEntries(authors.map((a) => [a.id, a.name || a.email])),
+					}}
+				>
+					<Select.Option value="">{t`All authors`}</Select.Option>
+					{authors.map((a) => (
+						<Select.Option key={a.id} value={a.id}>
+							{a.name || a.email}
+						</Select.Option>
+					))}
+				</Select>
+			)}
+
+			{showDateFilter && (
+				<div className="flex flex-wrap items-end gap-2">
+					<Select
+						size="sm"
+						aria-label={t`Date field to filter on`}
+						value={dateFilter.field}
+						onValueChange={(v) =>
+							onDateFilterChange?.({ ...dateFilter, field: (v as ContentDateField) ?? "createdAt" })
+						}
+						items={dateFieldItems}
+					>
+						{Object.entries(dateFieldItems).map(([value, label]) => (
+							<Select.Option key={value} value={value}>
+								{label}
+							</Select.Option>
+						))}
+					</Select>
+					<Input
+						type="date"
+						size="sm"
+						aria-label={t`From date`}
+						value={dateFilter.from}
+						max={dateFilter.to || undefined}
+						onChange={(e) => onDateFilterChange?.({ ...dateFilter, from: e.target.value })}
+					/>
+					<span className="pb-2 text-sm text-kumo-subtle">{t`to`}</span>
+					<Input
+						type="date"
+						size="sm"
+						aria-label={t`To date`}
+						value={dateFilter.to}
+						min={dateFilter.from || undefined}
+						onChange={(e) => onDateFilterChange?.({ ...dateFilter, to: e.target.value })}
+					/>
+				</div>
+			)}
+
+			{hasActiveFilter && (
+				<Button variant="ghost" size="sm" onClick={handleClear} icon={<X />}>
+					{t`Clear filters`}
+				</Button>
 			)}
 		</div>
 	);

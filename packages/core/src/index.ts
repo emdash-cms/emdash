@@ -46,6 +46,7 @@ export type {
 // API handlers
 export {
 	handleContentList,
+	handleContentAuthors,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,

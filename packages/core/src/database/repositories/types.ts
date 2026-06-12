@@ -116,6 +116,22 @@ export interface ContentBylineCredit {
 	source?: "explicit" | "inferred";
 }
 
+/** A whitelisted timestamp column a content-list date range can filter on. */
+export type ContentDateField = "createdAt" | "updatedAt" | "publishedAt";
+
+/**
+ * Inclusive date-range filter for a single whitelisted timestamp column.
+ * Bounds are compared lexicographically against the stored ISO 8601 strings,
+ * which is correct because every timestamp is written via `toISOString()`.
+ * Callers wanting an inclusive upper bound should pass an end-of-day value
+ * (e.g. `2024-12-31T23:59:59.999Z`); the repository does not widen `to`.
+ */
+export interface ContentDateFilter {
+	field: ContentDateField;
+	from?: string;
+	to?: string;
+}
+
 export interface FindManyOptions {
 	where?: {
 		status?: string;
@@ -129,6 +145,8 @@ export interface FindManyOptions {
 		 * repository stays generic. Each name is validated as a SQL identifier.
 		 */
 		searchColumns?: string[];
+		/** Inclusive date range over a whitelisted timestamp column. */
+		dateFilter?: ContentDateFilter;
 	};
 	orderBy?: {
 		field: string;
