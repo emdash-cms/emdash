@@ -186,6 +186,7 @@ describe("Toolbar Presence and Structure", () => {
 		const { screen } = await renderEditor();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Insert Image" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Insert HTML" })).toBeVisible();
 		await expect
 			.element(screen.getByRole("button", { name: "Insert Horizontal Rule" }))
 			.toBeVisible();
@@ -546,6 +547,19 @@ describe("Undo/Redo", () => {
 // =============================================================================
 
 describe("Link Insertion", () => {
+	it("clicking Insert HTML inserts an empty HTML block", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus("end");
+
+		getToolbarButton(screen, "Insert HTML").element().click();
+
+		await vi.waitFor(() => {
+			const htmlBlock = editor.getJSON().content?.find((node) => node.type === "htmlBlock");
+			expect(htmlBlock).toBeDefined();
+			expect((htmlBlock as { attrs?: { html?: string } }).attrs?.html).toBe("");
+		});
+	});
+
 	it("clicking Insert Link opens a popover with URL input", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
