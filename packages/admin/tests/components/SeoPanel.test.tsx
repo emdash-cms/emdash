@@ -265,14 +265,16 @@ describe("SeoPanel", () => {
 
 		await userEvent.click(screen.getByRole("button", { name: "Hide panel" }));
 
-		expect(onChange).toHaveBeenCalledWith({
+		const expectedSeo = {
 			title: "SEO title",
 			description: null,
 			canonical: null,
 			noIndex: false,
-		});
+		};
+		expect(onChange).toHaveBeenCalledWith(expectedSeo);
 
 		await new Promise((resolve) => setTimeout(resolve, 700));
 		expect(onChange).toHaveBeenCalledTimes(1);
+		expect(onChange.mock.lastCall?.[0]).toEqual(expectedSeo);
 	});
 });

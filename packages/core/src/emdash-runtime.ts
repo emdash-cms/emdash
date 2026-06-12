@@ -24,7 +24,10 @@ import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import { MIGRATION_RACE_WAIT_MS, runMigrations } from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
-import type { ContentItem as ContentItemInternal } from "./database/repositories/types.js";
+import type {
+	ContentItem as ContentItemInternal,
+	ContentDateField,
+} from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
@@ -115,6 +118,7 @@ import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import {
 	handleContentList,
+	handleContentAuthors,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,
@@ -158,13 +162,12 @@ import {
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
 import { PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
-import { NodeCronScheduler } from "./plugins/scheduler/node.js";
-import { PiggybackScheduler } from "./plugins/scheduler/piggyback.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
 
@@ -238,6 +241,13 @@ export interface MediaProviderContext {
 }
 
 /**
+ * Builds the timer-based scheduler that drives cron ticks and maintenance.
+ * Injected via `virtual:emdash/scheduler` so the platform — not core — decides
+ * whether a long-lived heartbeat exists.
+ */
+export type CreateSchedulerFn = (executor: CronExecutor) => CronScheduler;
+
+/**
  * Dependencies injected from virtual modules (middleware reads these)
  */
 export interface RuntimeDependencies {
@@ -250,6 +260,16 @@ export interface RuntimeDependencies {
 	sandboxEnabled: boolean;
 	/** sandbox: false escape hatch - load sandboxed plugins in-process */
 	sandboxBypassed?: boolean;
+	/**
+	 * Factory for the timer-based cron/maintenance heartbeat. Supplied by the
+	 * generated `virtual:emdash/scheduler` module: a `NodeCronScheduler` factory
+	 * on long-lived runtimes (Node/Bun), or `null` on serverless adapters where
+	 * an external driver (e.g. the Cloudflare Worker's `scheduled()` Cron
+	 * Trigger) calls `runScheduledTasks()` instead. When absent or null, the
+	 * runtime starts no scheduler. Keeping the platform decision in the
+	 * integration means core has no adapter-specific runtime checks.
+	 */
+	createScheduler?: CreateSchedulerFn | null;
 	/** Media provider entries from virtual module */
 	mediaProviderEntries?: MediaProviderEntry[];
 	sandboxedPluginEntries: SandboxedPluginEntry[];
@@ -479,14 +499,65 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Tick the cron system from request context (piggyback mode).
-	 * Call this from middleware on each request to ensure cron tasks
-	 * execute even when no dedicated scheduler is available.
+	 * Publish any content whose scheduled time has passed.
+	 * Returns the items promoted so callers can invalidate their cache tags.
 	 */
-	tickCron(): void {
-		if (this.cronScheduler instanceof PiggybackScheduler) {
-			this.cronScheduler.onRequest();
+	async publishScheduled(): Promise<PublishedRef[]> {
+		return publishDueContent(this.db, {
+			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
+		});
+	}
+
+	/**
+	 * Run the full scheduled-maintenance batch: cron tasks, scheduled
+	 * publishing, and system cleanup. For request-less drivers — the
+	 * Cloudflare `scheduled()` handler invokes this from a Cron Trigger.
+	 * (On Node the timer-based scheduler drives the same work itself.)
+	 *
+	 * Each step is independent and non-fatal. Returns the content promoted
+	 * by the publishing sweep so the caller can purge edge-cache tags.
+	 *
+	 * `onPublished` (optional) is awaited after each collection's batch so a
+	 * request-less driver can invalidate edge-cache tags incrementally rather
+	 * than only after the whole sweep — bounding stale-cache exposure if the
+	 * runtime is killed mid-sweep.
+	 */
+	async runScheduledTasks(
+		options: {
+			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		} = {},
+	): Promise<{ published: PublishedRef[] }> {
+		if (this.cronExecutor) {
+			try {
+				await this.cronExecutor.tick();
+			} catch (error) {
+				console.error("[cron] Tick failed:", error);
+			}
+			try {
+				await this.cronExecutor.recoverStaleLocks();
+			} catch (error) {
+				console.error("[cron] Stale lock recovery failed:", error);
+			}
 		}
+
+		let published: PublishedRef[] = [];
+		try {
+			// Route through the runtime wrapper so content:afterPublish hooks fire.
+			published = await publishDueContent(this.db, {
+				publish: (collection, id, opts) => this.handleContentPublish(collection, id, opts),
+				onPublished: options.onPublished,
+			});
+		} catch (error) {
+			console.error("[scheduled-publish] Sweep failed:", error);
+		}
+
+		try {
+			await runSystemCleanup(this.db, this.storage ?? undefined);
+		} catch (error) {
+			console.error("[cleanup] System cleanup failed:", error);
+		}
+
+		return { published };
 	}
 
 	/**
@@ -1173,6 +1244,11 @@ export class EmDashRuntime {
 
 		let cronExecutor: CronExecutor | null = null;
 		let cronScheduler: CronScheduler | null = null;
+		// Populated with the constructed runtime just before this method returns,
+		// so the timer scheduler's cleanup can route scheduled publishing through
+		// the runtime wrapper (firing content:afterPublish hooks). The first tick
+		// is ≥1s out, well after the synchronous assignment below.
+		const runtimeRef: { current: EmDashRuntime | null } = { current: null };
 
 		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
@@ -1198,46 +1274,57 @@ export class EmDashRuntime {
 					}
 				});
 
-				// Detect platform and create appropriate scheduler.
-				// On Cloudflare Workers, setTimeout is available but unreliable for
-				// long durations — use PiggybackScheduler as default.
-				// In Node/Bun, use NodeCronScheduler with real timers.
-				const isWorkersRuntime =
-					typeof globalThis.navigator !== "undefined" &&
-					globalThis.navigator.userAgent === "Cloudflare-Workers";
+				// The platform decides whether a long-lived timer heartbeat exists.
+				// `createScheduler` is injected by the generated virtual:emdash/scheduler
+				// module: a NodeCronScheduler factory on Node/Bun, or null on serverless
+				// adapters (e.g. Cloudflare) where the Worker's `scheduled()` handler
+				// drives runScheduledTasks() instead. No adapter check lives here.
+				if (deps.createScheduler) {
+					const scheduler = deps.createScheduler(cronExecutor);
+					cronScheduler = scheduler;
 
-				if (isWorkersRuntime) {
-					cronScheduler = new PiggybackScheduler(cronExecutor);
-				} else {
-					cronScheduler = new NodeCronScheduler(cronExecutor);
+					// Run scheduled publishing and system cleanup alongside each tick.
+					// Pass storage so cleanupPendingUploads can delete orphaned files.
+					scheduler.setSystemCleanup(async () => {
+						try {
+							// Route through the runtime so content:afterPublish hooks fire.
+							// Falls back to the raw handler if (improbably) the tick beats
+							// the post-construction ref assignment.
+							const runtime = runtimeRef.current;
+							await publishDueContent(db, {
+								publish: runtime
+									? (collection, id, options) =>
+											runtime.handleContentPublish(collection, id, options)
+									: undefined,
+							});
+						} catch (error) {
+							console.error("[scheduled-publish] Sweep failed:", error);
+						}
+						try {
+							await runSystemCleanup(db, storage ?? undefined);
+						} catch (error) {
+							// Non-fatal -- individual cleanup failures are already logged
+							// by runSystemCleanup. This catches unexpected errors.
+							console.error("[cleanup] System cleanup failed:", error);
+						}
+					});
+
+					// Add cron reschedule callback (merges with existing factory options)
+					pipeline.setContextFactory({
+						cronReschedule: () => cronScheduler?.reschedule(),
+					});
+
+					// start() is void on the timer scheduler but the interface
+					// allows a promise (alarm-backed schedulers); we don't block on it.
+					void scheduler.start();
 				}
-
-				// Register system cleanup to run alongside each scheduler tick.
-				// Pass storage so cleanupPendingUploads can delete orphaned files.
-				cronScheduler.setSystemCleanup(async () => {
-					try {
-						await runSystemCleanup(db, storage ?? undefined);
-					} catch (error) {
-						// Non-fatal -- individual cleanup failures are already logged
-						// by runSystemCleanup. This catches unexpected errors.
-						console.error("[cleanup] System cleanup failed:", error);
-					}
-				});
-
-				// Add cron reschedule callback (merges with existing factory options)
-				pipeline.setContextFactory({
-					cronReschedule: () => cronScheduler?.reschedule(),
-				});
-
-				// Start the scheduler
-				await cronScheduler.start();
 			} catch (error) {
 				console.warn("[cron] Failed to initialize cron system:", error);
 				// Non-fatal — CMS works without cron
 			}
 		});
 
-		return new EmDashRuntime({
+		const runtime = new EmDashRuntime({
 			db,
 			storage,
 			// Include bypassed sandboxed plugins in configuredPlugins so route
@@ -1260,6 +1347,10 @@ export class EmDashRuntime {
 			runtimeDeps: deps,
 			pipelineRef,
 		});
+		// Hand the constructed instance to the scheduler-cleanup closure so the
+		// timer-driven sweep can fire publish hooks (see runtimeRef above).
+		runtimeRef.current = runtime;
+		return runtime;
 	}
 
 	/**
@@ -2174,9 +2265,17 @@ export class EmDashRuntime {
 			order?: "asc" | "desc";
 			locale?: string;
 			q?: string;
+			authorId?: string;
+			dateField?: ContentDateField;
+			dateFrom?: string;
+			dateTo?: string;
 		},
 	) {
 		return handleContentList(this.db, collection, params);
+	}
+
+	async handleContentAuthors(collection: string) {
+		return handleContentAuthors(this.db, collection);
 	}
 
 	async handleContentGet(collection: string, id: string, locale?: string) {
@@ -2553,7 +2652,7 @@ export class EmDashRuntime {
 	async handleContentPublish(
 		collection: string,
 		id: string,
-		options: { publishedAt?: string } = {},
+		options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
 

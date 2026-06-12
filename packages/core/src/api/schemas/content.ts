@@ -18,6 +18,14 @@ export const contentSeoInput = z
 	})
 	.meta({ id: "ContentSeoInput" });
 
+/** ISO 8601 date or datetime bound for the content-list date range filter. */
+const contentDateBound = z
+	.union([
+		z.iso.datetime({ offset: true, message: "must be an ISO 8601 datetime" }),
+		z.iso.date({ message: "must be an ISO 8601 date" }),
+	])
+	.optional();
+
 export const contentListQuery = cursorPaginationQuery
 	.extend({
 		status: z.string().optional(),
@@ -26,6 +34,14 @@ export const contentListQuery = cursorPaginationQuery
 		locale: localeCode.optional(),
 		/** Case-insensitive substring search across the collection's title/name/slug. */
 		q: z.string().trim().min(1).max(200).optional(),
+		/** Filter to entries authored by this user (the `author_id` column). */
+		authorId: z.string().min(1).max(64).optional(),
+		/** Which timestamp column the `dateFrom`/`dateTo` range applies to. */
+		dateField: z.enum(["createdAt", "updatedAt", "publishedAt"]).optional(),
+		/** Inclusive lower bound for the date range. Requires `dateField`. */
+		dateFrom: contentDateBound,
+		/** Inclusive upper bound for the date range. Requires `dateField`. */
+		dateTo: contentDateBound,
 	})
 	.meta({ id: "ContentListQuery" });
 
@@ -167,6 +183,23 @@ export const contentListResponseSchema = z
 		total: z.number().int().nonnegative().optional(),
 	})
 	.meta({ id: "ContentListResponse" });
+
+/** A distinct content author for the admin author filter */
+export const contentAuthorSchema = z
+	.object({
+		id: z.string(),
+		name: z.string().nullable(),
+		email: z.string(),
+		avatarUrl: z.string().nullable(),
+	})
+	.meta({ id: "ContentAuthor" });
+
+/** Response for the content authors endpoint */
+export const contentAuthorsResponseSchema = z
+	.object({
+		items: z.array(contentAuthorSchema),
+	})
+	.meta({ id: "ContentAuthorsResponse" });
 
 /** Trashed content item */
 export const trashedContentItemSchema = z
