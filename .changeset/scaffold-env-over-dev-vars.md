@@ -1,5 +1,5 @@
 ---
-"create-emdash": minor
+"create-emdash": patch
 ---
 
 Scaffold local secrets into `.env` for every platform, including Cloudflare — previously Cloudflare projects got `.dev.vars`.
