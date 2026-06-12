@@ -677,9 +677,6 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 				// Build cursor condition if cursor is provided
 				const cursorCondition = cursor ? buildCursorCondition(cursor, orderBy) : null;
-				const cursorConditionPrefixed = cursor
-					? buildCursorCondition(cursor, orderBy, tableName)
-					: null;
 
 				// Separate taxonomy / byline filters from field filters
 				let result: { rows: Record<string, unknown>[] };
@@ -727,70 +724,27 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					}
 				}
 
-				// A byline filter with no groups matches nothing — short-circuit
-				// before building SQL (an empty `IN ()` is invalid SQL anyway).
-				if (bylineFilter && bylineFilter.groups.length === 0) {
+				// A byline or taxonomy filter with no values matches nothing —
+				// short-circuit before building SQL (an empty `IN ()` is invalid
+				// SQL on both dialects).
+				if (
+					(bylineFilter && bylineFilter.groups.length === 0) ||
+					(taxonomyFilter && taxonomyFilter.slugs.length === 0)
+				) {
 					return { entries: [], cacheHint: { tags: [type] } };
 				}
 
-				if (taxonomyFilter || bylineFilter) {
-					// Joined path: filtering by taxonomy term and/or byline credit
-					// requires INNER JOINs onto junction tables. Column refs are
-					// table-prefixed to disambiguate, and SELECT DISTINCT dedupes
-					// the row fan-out a credit/term match can produce.
-					const orderByClause = buildOrderByClause(orderBy, tableName);
-					const statusCondition = buildStatusCondition(db, status, tableName);
-					const localeCondition = locale
-						? sql`AND ${sql.ref(tableName)}.locale = ${locale}`
-						: sql``;
-					const cursorCond = cursorConditionPrefixed ? sql`AND ${cursorConditionPrefixed}` : sql``;
-					const fieldConds = buildFieldConditions(fieldFilters, tableName);
-					const fieldCondsSQL =
-						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
-
-					const taxonomyJoin = taxonomyFilter
-						? sql`
-						INNER JOIN content_taxonomies ct
-							ON ct.collection = ${type}
-							AND ct.entry_id = ${sql.ref(tableName)}.id
-						INNER JOIN taxonomies t
-							ON t.id = ct.taxonomy_id`
-						: sql``;
-					const taxonomyCond = taxonomyFilter
-						? sql`
-							AND t.name = ${taxonomyFilter.name}
-							AND t.slug IN (${sql.join(taxonomyFilter.slugs.map((s) => sql`${s}`))})`
-						: sql``;
-
-					// `_emdash_content_bylines.byline_id` stores the byline's
-					// translation_group (migration 040), so a credit spans every
-					// locale variant of the byline and we match the group directly.
-					const bylineJoin = bylineFilter
-						? sql`
-						INNER JOIN _emdash_content_bylines cb
-							ON cb.collection_slug = ${type}
-							AND cb.content_id = ${sql.ref(tableName)}.id`
-						: sql``;
-					const bylineCond = bylineFilter
-						? sql`
-							AND cb.byline_id IN (${sql.join(bylineFilter.groups.map((g) => sql`${g}`))})`
-						: sql``;
-
-					result = await sql<Record<string, unknown>>`
-						SELECT DISTINCT ${sql.ref(tableName)}.* FROM ${sql.ref(tableName)}
-						${taxonomyJoin}
-						${bylineJoin}
-						WHERE ${sql.ref(tableName)}.deleted_at IS NULL
-							AND ${statusCondition}
-							${localeCondition}
-							${cursorCond}
-							${taxonomyCond}
-							${bylineCond}
-							${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
-						${orderByClause}
-						${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
-					`.execute(db);
-				} else {
+				{
+					// Taxonomy and byline filters are applied as correlated
+					// `EXISTS` semi-joins rather than `INNER JOIN ... DISTINCT`.
+					// A join fan-out would force `SELECT DISTINCT table.*`, and
+					// Postgres cannot apply DISTINCT to a row containing a `json`
+					// column (no equality operator), so the join approach throws
+					// there. EXISTS matches "credited/tagged at least once"
+					// without duplicating rows, needs no DISTINCT, and works on
+					// both SQLite and Postgres. The base query stays a single-
+					// table `SELECT *`, so all field/status/locale/cursor/order
+					// conditions reference unprefixed columns as before.
 					const orderByClause = buildOrderByClause(orderBy);
 					const statusCondition = buildStatusCondition(db, status);
 					const localeFilter = locale ? sql`AND locale = ${locale}` : sql``;
@@ -799,12 +753,37 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					const fieldCondsSQL =
 						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
 
+					const taxonomyCond = taxonomyFilter
+						? sql`AND EXISTS (
+							SELECT 1 FROM content_taxonomies ct
+							INNER JOIN taxonomies t ON t.id = ct.taxonomy_id
+							WHERE ct.collection = ${type}
+								AND ct.entry_id = ${sql.ref(tableName)}.id
+								AND t.name = ${taxonomyFilter.name}
+								AND t.slug IN (${sql.join(taxonomyFilter.slugs.map((s) => sql`${s}`))})
+						)`
+						: sql``;
+
+					// `_emdash_content_bylines.byline_id` stores the byline's
+					// translation_group (migration 040), so a credit spans every
+					// locale variant of the byline and we match the group directly.
+					const bylineCond = bylineFilter
+						? sql`AND EXISTS (
+							SELECT 1 FROM _emdash_content_bylines cb
+							WHERE cb.collection_slug = ${type}
+								AND cb.content_id = ${sql.ref(tableName)}.id
+								AND cb.byline_id IN (${sql.join(bylineFilter.groups.map((g) => sql`${g}`))})
+						)`
+						: sql``;
+
 					result = await sql<Record<string, unknown>>`
 						SELECT * FROM ${sql.ref(tableName)}
 						WHERE deleted_at IS NULL
 						AND ${statusCondition}
 						${localeFilter}
 						${cursorCond}
+						${taxonomyCond}
+						${bylineCond}
 						${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
 						${orderByClause}
 						${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}

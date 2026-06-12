@@ -181,14 +181,35 @@ describeEachDialect("Loader byline credit filter", (dialectName: DialectName) =>
 	});
 
 	it("ignores range operators on the byline key", async () => {
-		const post = await createPost("Solo");
-		await credit(post.id, "byline_alice", 0);
+		const credited = await createPost("Credited");
+		await credit(credited.id, "byline_alice", 0);
+		// A second published post with NO byline credit. If the byline filter
+		// were (incorrectly) applied, this entry would be excluded; if the
+		// range is correctly dropped, both entries return.
+		await createPost("Uncredited");
 
-		// A range on `byline` is meaningless; it is dropped with a warning and
-		// no byline filter is applied, so all published entries return.
 		const result = await load({ byline: { gte: "a" } });
 
-		expect(result.entries).toHaveLength(1);
-		expect(result.entries[0]!.data.title).toBe("Solo");
+		const titles = result.entries.map((e) => e.data.title);
+		expect(titles).toHaveLength(2);
+		expect(titles).toContain("Credited");
+		expect(titles).toContain("Uncredited");
+	});
+
+	it("returns no entries when a taxonomy filter is an empty array", async () => {
+		await db
+			.insertInto("taxonomies" as never)
+			.values({ id: "tax_cat_news", name: "category", slug: "news", label: "News" } as never)
+			.execute();
+		const post = await createPost("Anything");
+		await db
+			.insertInto("content_taxonomies" as never)
+			.values({ collection: "post", entry_id: post.id, taxonomy_id: "tax_cat_news" } as never)
+			.execute();
+
+		// An empty taxonomy array must short-circuit, not emit `t.slug IN ()`.
+		const result = await load({ category: [] });
+
+		expect(result.entries).toHaveLength(0);
 	});
 });
