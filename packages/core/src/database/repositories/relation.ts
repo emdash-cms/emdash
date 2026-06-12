@@ -120,6 +120,65 @@ export class RelationRepository {
 		return row ? this.rowToRelation(row) : null;
 	}
 
+	/**
+	 * Find a relation by name. With `locale`, filter by it; without, return the
+	 * lowest-locale-code match deterministically. Mirrors
+	 * `TaxonomyRepository.findBySlug`.
+	 */
+	async findByName(name: string, locale?: string): Promise<Relation | null> {
+		let query = this.db
+			.selectFrom("_emdash_relations")
+			.selectAll()
+			.where("name", "=", name);
+		if (locale !== undefined) query = query.where("locale", "=", locale);
+		const row = await query.orderBy("locale", "asc").executeTakeFirst();
+		return row ? this.rowToRelation(row) : null;
+	}
+
+	/** Every translation sibling (including itself) sharing a translation_group. */
+	async findTranslations(translationGroup: string): Promise<Relation[]> {
+		const rows = await this.db
+			.selectFrom("_emdash_relations")
+			.selectAll()
+			.where("translation_group", "=", translationGroup)
+			.orderBy("locale", "asc")
+			.execute();
+		return rows.map((row) => this.rowToRelation(row));
+	}
+
+	/**
+	 * All relations, ordered by name then id (id is a stable tiebreak for
+	 * relations sharing a name across locales). Optionally filtered by locale.
+	 */
+	async list(locale?: string): Promise<Relation[]> {
+		let query = this.db
+			.selectFrom("_emdash_relations")
+			.selectAll()
+			.orderBy("name", "asc")
+			.orderBy("id", "asc");
+		if (locale !== undefined) query = query.where("locale", "=", locale);
+		const rows = await query.execute();
+		return rows.map((row) => this.rowToRelation(row));
+	}
+
+	/** Relations where `collection` is the parent OR the child side. */
+	async findForCollection(collection: string, locale?: string): Promise<Relation[]> {
+		let query = this.db
+			.selectFrom("_emdash_relations")
+			.selectAll()
+			.where((eb) =>
+				eb.or([
+					eb("parent_collection", "=", collection),
+					eb("child_collection", "=", collection),
+				]),
+			)
+			.orderBy("name", "asc")
+			.orderBy("id", "asc");
+		if (locale !== undefined) query = query.where("locale", "=", locale);
+		const rows = await query.execute();
+		return rows.map((row) => this.rowToRelation(row));
+	}
+
 	private rowToRelation(row: Selectable<RelationTable>): Relation {
 		return {
 			id: row.id,

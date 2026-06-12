@@ -72,4 +72,69 @@ describeEachDialect("RelationRepository", (dialect) => {
 	it("findById returns null for an unknown id", async () => {
 		expect(await repo.findById("nope")).toBeNull();
 	});
+
+	it("findByName filters by locale, and resolves deterministically without one", async () => {
+		const anchor = await repo.create({ ...baseInput });
+		await repo.create({
+			...baseInput,
+			locale: "fr",
+			parentLabel: "Responsable",
+			childLabel: "Subordonné",
+			translationOf: anchor.id,
+		});
+
+		const fr = await repo.findByName("manages", "fr");
+		expect(fr?.locale).toBe("fr");
+
+		const any = await repo.findByName("manages");
+		expect(any?.locale).toBe("en"); // lowest locale code wins deterministically
+
+		expect(await repo.findByName("missing")).toBeNull();
+	});
+
+	it("findTranslations returns every locale sibling, ordered by locale", async () => {
+		const anchor = await repo.create({ ...baseInput });
+		await repo.create({
+			...baseInput,
+			locale: "fr",
+			parentLabel: "Responsable",
+			childLabel: "Subordonné",
+			translationOf: anchor.id,
+		});
+
+		const sibs = await repo.findTranslations(anchor.translationGroup);
+		expect(sibs.map((r) => r.locale)).toEqual(["en", "fr"]);
+	});
+
+	it("list returns relations ordered by name then id, optionally filtered by locale", async () => {
+		await repo.create({ ...baseInput, name: "writes", childCollection: "posts" });
+		await repo.create({ ...baseInput, name: "manages" });
+
+		const all = await repo.list();
+		expect(all.map((r) => r.name)).toEqual(["manages", "writes"]);
+
+		const enOnly = await repo.list("en");
+		expect(enOnly.every((r) => r.locale === "en")).toBe(true);
+	});
+
+	it("findForCollection matches parent OR child collection", async () => {
+		await repo.create({
+			...baseInput,
+			name: "writes",
+			parentCollection: "authors",
+			childCollection: "posts",
+		});
+		await repo.create({
+			...baseInput,
+			name: "tags_rel",
+			parentCollection: "posts",
+			childCollection: "tags",
+		});
+
+		const forPosts = await repo.findForCollection("posts");
+		expect(forPosts.map((r) => r.name).toSorted()).toEqual(["tags_rel", "writes"]);
+
+		const forTags = await repo.findForCollection("tags");
+		expect(forTags.map((r) => r.name)).toEqual(["tags_rel"]);
+	});
 });
