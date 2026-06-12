@@ -1,3 +1,5 @@
+import type { PluginContext } from "emdash";
+import type { EmailDeliverEvent } from "emdash/plugin";
 import { describe, it, expect, vi } from "vitest";
 
 import {
@@ -5,9 +7,6 @@ import {
 	createCloudflareEmailDeliver,
 	type CloudflareEmailConfig,
 } from "../src/plugins/cloudflare-email.js";
-
-import type { PluginContext } from "emdash";
-import type { EmailDeliverEvent } from "emdash/plugin";
 
 const message = {
 	to: "user@example.com",
