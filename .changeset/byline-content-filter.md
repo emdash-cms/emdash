@@ -7,8 +7,8 @@ Add content filtering by byline credit. `getEmDashCollection` now accepts a rese
 ```ts
 const byline = await getBylineBySlug("jane-doe");
 const { entries } = await getEmDashCollection("posts", {
-  where: { byline: byline.translationGroup ?? byline.id },
-  orderBy: { published_at: "desc" },
+	where: { byline: byline.translationGroup ?? byline.id },
+	orderBy: { published_at: "desc" },
 });
 ```
 
