@@ -374,6 +374,9 @@ export class RelationRepository {
 					created_at: now,
 				})),
 			)
+			// Belt-and-suspenders: the DELETE above already cleared this
+			// (relation, parent), so no conflict is possible within one call.
+			// This is NOT a concurrency guarantee — delete-then-insert is not atomic.
 			.onConflict((oc) => oc.doNothing())
 			.execute();
 	}

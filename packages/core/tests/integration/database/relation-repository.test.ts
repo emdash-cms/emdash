@@ -323,6 +323,19 @@ describeEachDialect("RelationRepository", (dialect) => {
 		expect(await repo.getChildren(rel.translationGroup, "b")).toHaveLength(1);
 	});
 
+	it("clearReferencesForGroup purges the group's edges across every relation", async () => {
+		const relA = await repo.create({ ...baseInput, name: "rel_a" });
+		const relB = await repo.create({ ...baseInput, name: "rel_b" });
+		// The same content group "X" participates in edges under two relations.
+		await repo.addReference(relA.id, "X", "a");
+		await repo.addReference(relB.id, "b", "X");
+
+		const removed = await repo.clearReferencesForGroup("X");
+		expect(removed).toBe(2);
+		expect(await repo.getChildren(relA.translationGroup, "X")).toHaveLength(0);
+		expect(await repo.getParents(relB.translationGroup, "X")).toHaveLength(0);
+	});
+
 	it("countChildren and countParents count edges", async () => {
 		const rel = await repo.create({ ...baseInput });
 		await repo.addReference(rel.id, "p1", "a");
