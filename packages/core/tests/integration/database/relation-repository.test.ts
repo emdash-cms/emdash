@@ -295,4 +295,17 @@ describeEachDialect("RelationRepository", (dialect) => {
 		await repo.setChildren(rel.id, "p1", []);
 		expect(await repo.getChildren(rel.translationGroup, "p1")).toEqual([]);
 	});
+
+	it("setChildren collapses duplicate childGroups (one edge per child)", async () => {
+		const rel = await repo.create({ ...baseInput });
+		await repo.setChildren(rel.id, "p1", ["a", "b", "a"]);
+		const children = await repo.getChildren(rel.translationGroup, "p1");
+		expect(children.map((c) => c.childGroup)).toEqual(["a", "b"]);
+		expect(children.map((c) => c.sortOrder)).toEqual([0, 1]);
+	});
+
+	it("setChildren no-ops for an unknown relation", async () => {
+		await expect(repo.setChildren("unknown-relation", "p1", ["a"])).resolves.toBeUndefined();
+		expect(await repo.getChildren("unknown-relation", "p1")).toEqual([]);
+	});
 });

@@ -351,10 +351,16 @@ export class RelationRepository {
 
 	/**
 	 * Replace all children of `parentGroup` under a relation with `childGroups`,
-	 * assigning positional sort_order (index in the array). Deletes the old set
-	 * for this (relation, parent) and re-inserts — simple and correct; the set
-	 * is small (one parent's children). Mirrors the intent of
+	 * assigning positional sort_order (index in the deduped array). Deletes the
+	 * old set for this (relation, parent) and re-inserts — simple and correct;
+	 * the set is small (one parent's children). Mirrors the intent of
 	 * `TaxonomyRepository.setTermsForEntry`.
+	 *
+	 * A parent references a given child at most once (the unique edge), so
+	 * duplicate `childGroups` are collapsed first-occurrence-wins rather than
+	 * relying on the insert's onConflict to silently drop them. Not wrapped in a
+	 * transaction: a crash between the delete and insert leaves the parent with
+	 * no children — acceptable for a replace-all, since a retry restores state.
 	 */
 	async setChildren(
 		relation: string,
@@ -370,13 +376,15 @@ export class RelationRepository {
 			.where("parent_group", "=", parentGroup)
 			.execute();
 
-		if (childGroups.length === 0) return;
+		// Collapse duplicates so positional sort_order has no gaps.
+		const uniqueChildGroups = [...new Set(childGroups)];
+		if (uniqueChildGroups.length === 0) return;
 
 		const now = new Date().toISOString();
 		await this.db
 			.insertInto("_emdash_content_references")
 			.values(
-				childGroups.map((childGroup, index) => ({
+				uniqueChildGroups.map((childGroup, index) => ({
 					id: ulid(),
 					relation_group: relationGroup,
 					parent_group: parentGroup,
