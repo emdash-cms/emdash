@@ -180,6 +180,57 @@ export class RelationRepository {
 		return rows.map((row) => this.rowToRelation(row));
 	}
 
+	/** Update the localized labels of one relation row. Structural fields are
+	 * immutable here (a cross-group concern). No-ops when nothing is supplied. */
+	async update(id: string, input: UpdateRelationInput): Promise<Relation | null> {
+		const existing = await this.findById(id);
+		if (!existing) return null;
+
+		const updates: Record<string, unknown> = {};
+		if (input.parentLabel !== undefined) updates.parent_label = input.parentLabel;
+		if (input.childLabel !== undefined) updates.child_label = input.childLabel;
+
+		if (Object.keys(updates).length > 0) {
+			updates.updated_at = new Date().toISOString();
+			await this.db
+				.updateTable("_emdash_relations")
+				.set(updates)
+				.where("id", "=", id)
+				.execute();
+		}
+
+		return this.findById(id);
+	}
+
+	/**
+	 * Delete one relation row. When it is the *last* translation of its group,
+	 * purge edges referencing that group (application-layer cascade — group
+	 * linking precludes a SQL FK). Mirrors `TaxonomyRepository.delete`.
+	 */
+	async delete(id: string): Promise<boolean> {
+		const relation = await this.findById(id);
+		if (!relation) return false;
+
+		const siblings = await this.db
+			.selectFrom("_emdash_relations")
+			.select("id")
+			.where("translation_group", "=", relation.translationGroup)
+			.where("id", "!=", id)
+			.execute();
+		if (siblings.length === 0) {
+			await this.db
+				.deleteFrom("_emdash_content_references")
+				.where("relation_group", "=", relation.translationGroup)
+				.execute();
+		}
+
+		const result = await this.db
+			.deleteFrom("_emdash_relations")
+			.where("id", "=", id)
+			.executeTakeFirst();
+		return (result.numDeletedRows ?? 0n) > 0n;
+	}
+
 	private rowToRelation(row: Selectable<RelationTable>): Relation {
 		return {
 			id: row.id,

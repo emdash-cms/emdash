@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
+import { ulid } from "ulidx";
 
 import { RelationRepository } from "../../../src/database/repositories/relation.js";
 import {
@@ -146,5 +147,72 @@ describeEachDialect("RelationRepository", (dialect) => {
 
 		const forTags = await repo.findForCollection("tags");
 		expect(forTags.map((r) => r.name)).toEqual(["tags_rel"]);
+	});
+
+	it("update changes only the localized labels and bumps updated_at", async () => {
+		const rel = await repo.create({ ...baseInput });
+		const updated = await repo.update(rel.id, { parentLabel: "Lead", childLabel: "Report" });
+
+		expect(updated?.parentLabel).toBe("Lead");
+		expect(updated?.childLabel).toBe("Report");
+		// Structural fields untouched.
+		expect(updated?.name).toBe("manages");
+		expect(updated?.parentCollection).toBe("employees");
+
+		expect(await repo.update("missing", { parentLabel: "x" })).toBeNull();
+	});
+
+	it("delete of a non-last translation leaves edges intact", async () => {
+		const anchor = await repo.create({ ...baseInput });
+		const fr = await repo.create({
+			...baseInput,
+			locale: "fr",
+			parentLabel: "Responsable",
+			childLabel: "Subordonné",
+			translationOf: anchor.id,
+		});
+		// Seed an edge directly (addReference arrives in Task 4).
+		await ctx.db
+			.insertInto("_emdash_content_references")
+			.values({
+				id: ulid(),
+				relation_group: anchor.translationGroup,
+				parent_group: "parentG",
+				child_group: "childG",
+				sort_order: 0,
+			})
+			.execute();
+
+		expect(await repo.delete(fr.id)).toBe(true);
+		// The relation still exists in 'en', so its edges survive.
+		const edges = await ctx.db
+			.selectFrom("_emdash_content_references")
+			.selectAll()
+			.where("relation_group", "=", anchor.translationGroup)
+			.execute();
+		expect(edges).toHaveLength(1);
+	});
+
+	it("delete of the last translation purges edges for that relation group", async () => {
+		const anchor = await repo.create({ ...baseInput });
+		await ctx.db
+			.insertInto("_emdash_content_references")
+			.values({
+				id: ulid(),
+				relation_group: anchor.translationGroup,
+				parent_group: "parentG",
+				child_group: "childG",
+				sort_order: 0,
+			})
+			.execute();
+
+		expect(await repo.delete(anchor.id)).toBe(true);
+		const edges = await ctx.db
+			.selectFrom("_emdash_content_references")
+			.selectAll()
+			.where("relation_group", "=", anchor.translationGroup)
+			.execute();
+		expect(edges).toHaveLength(0);
+		expect(await repo.findById(anchor.id)).toBeNull();
 	});
 });
