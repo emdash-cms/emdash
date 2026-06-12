@@ -15,7 +15,6 @@ import { useLingui } from "@lingui/react/macro";
 import {
 	Check,
 	Eye,
-	Image as ImageIcon,
 	MagnifyingGlass,
 	Paperclip,
 	X,
@@ -23,7 +22,6 @@ import {
 	ArrowsInSimple,
 	ArrowsOutSimple,
 	ArrowSquareOut,
-	ImageBroken,
 } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
