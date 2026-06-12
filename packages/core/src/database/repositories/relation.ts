@@ -1,8 +1,8 @@
 import type { Kysely, Selectable } from "kysely";
 import { ulid } from "ulidx";
 
-import type { Database, RelationTable, ContentReferenceTable } from "../types.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import type { Database, RelationTable, ContentReferenceTable } from "../types.js";
 
 export interface Relation {
 	id: string;
@@ -399,10 +399,11 @@ export class RelationRepository {
 	}
 
 	/**
-	 * Remove every edge where `group` is the parent OR the child. The primitive
-	 * for entry-deletion cleanup (parent spec write-path invariant 4). Wiring
-	 * this into the content-delete path is a later (handler) slice. Returns the
-	 * number of edges removed.
+	 * Remove every edge where `group` is the parent OR the child — i.e. ensure no
+	 * orphaned reference edges survive when a content entry is deleted. The
+	 * application-layer cascade that group-linking precludes at the SQL level.
+	 * Wiring this into the content-delete path is a later (handler) slice.
+	 * Returns the number of edges removed.
 	 */
 	async clearReferencesForGroup(group: string): Promise<number> {
 		const result = await this.db
@@ -464,7 +465,7 @@ export class RelationRepository {
 				.groupBy("parent_group")
 				.execute();
 			for (const row of rows) {
-				counts.set(row.parent_group, Number(row.count || 0));
+				counts.set(row.parent_group, Number(row.count ?? 0));
 			}
 		}
 		return counts;

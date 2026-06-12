@@ -331,6 +331,10 @@ describeEachDialect("RelationRepository", (dialect) => {
 
 		expect(await repo.countChildren(rel.id, "p1")).toBe(2);
 		expect(await repo.countParents(rel.id, "a")).toBe(2);
+
+		// Unknown relation resolves to no group → zero.
+		expect(await repo.countChildren("unknown-relation", "p1")).toBe(0);
+		expect(await repo.countParents("unknown-relation", "a")).toBe(0);
 	});
 
 	it("countChildrenForParents batches across more than SQL_BATCH_SIZE parents", async () => {
