@@ -298,7 +298,7 @@ msgstr "{label} — lihat terjemahan"
 
 #: packages/admin/src/components/ContentList.tsx:546
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr ""
+msgstr "{matchCount, plural, other {# item yang cocok dengan \"{searchQuery}\"}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2279
 msgid "{matchedCount} of {totalCount} assigned"
@@ -1635,7 +1635,7 @@ msgstr "Tidak dapat memetakan \"{draft}\" ke tipe MIME. Ketik MIME secara langsu
 
 #: packages/admin/src/components/ContentEditor.tsx:2097
 msgid "Couldn't search bylines. Please try again."
-msgstr ""
+msgstr "Tidak dapat mencari byline. Silakan coba lagi."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:822
 msgid "Count"
@@ -2012,7 +2012,7 @@ msgstr "Hapus Bidang?"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:131
 msgid "Delete HTML block"
-msgstr ""
+msgstr "Hapus blok HTML"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:191
 #: packages/admin/src/components/editor/ImageNode.tsx:192
@@ -2588,7 +2588,7 @@ msgstr "Masukkan email"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:144
 msgid "Enter HTML..."
-msgstr ""
+msgstr "Masukkan HTML..."
 
 #: packages/admin/src/components/ContentEditor.tsx:1255
 msgid "Enter markdown content..."
@@ -3349,11 +3349,11 @@ msgstr "Cara membuat Kata Sandi Aplikasi"
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
 #: packages/admin/src/components/PortableTextEditor.tsx:953
 msgid "HTML"
-msgstr ""
+msgstr "HTML"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:147
 msgid "HTML source"
-msgstr ""
+msgstr "Kode sumber HTML"
 
 #: packages/admin/src/components/MenuEditor.tsx:337
 msgid "https://example.com or /about"
@@ -3564,7 +3564,7 @@ msgstr "Sisipkan Tautan"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:954
 msgid "Insert raw HTML"
-msgstr ""
+msgstr "Sisipkan HTML mentah"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:57
 msgid "Insert Section"
@@ -3687,7 +3687,7 @@ msgstr "JSON"
 
 #: packages/admin/src/components/ContentEditor.tsx:2102
 msgid "Keep typing to narrow down more bylines."
-msgstr ""
+msgstr "Lanjutkan mengetik untuk mempersempit hasil byline."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:293
 #: packages/admin/src/components/SectionEditor.tsx:268
@@ -4484,7 +4484,7 @@ msgstr "Tidak ada hasil yang cocok"
 
 #: packages/admin/src/components/ContentEditor.tsx:2099
 msgid "No matching bylines."
-msgstr ""
+msgstr "Tidak ada byline yang cocok."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:266
 msgid "No matching passkey found for this account."
@@ -4569,7 +4569,7 @@ msgstr "Tidak ada hasil"
 #: packages/admin/src/components/ContentList.tsx:308
 #: packages/admin/src/components/ContentList.tsx:327
 msgid "No results for \"{activeSearch}\""
-msgstr ""
+msgstr "Tidak ada hasil untuk \"{activeSearch}\""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:176
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:152
@@ -5655,7 +5655,7 @@ msgstr "Cari {0}..."
 #: packages/admin/src/components/MediaLibrary.tsx:376
 #: packages/admin/src/components/MediaPickerModal.tsx:573
 msgid "Search by filename..."
-msgstr ""
+msgstr "Cari berdasarkan nama file..."
 
 #: packages/admin/src/components/users/UserList.tsx:69
 msgid "Search by name or email..."
@@ -5668,7 +5668,7 @@ msgstr "Cari byline"
 
 #: packages/admin/src/components/ContentEditor.tsx:2073
 msgid "Search bylines to add..."
-msgstr ""
+msgstr "Cari byline untuk ditambahkan..."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:163
 msgid "Search comments"
@@ -5742,7 +5742,7 @@ msgstr "Dapat Dicari"
 
 #: packages/admin/src/components/ContentEditor.tsx:2077
 msgid "Searching..."
-msgstr ""
+msgstr "Mencari..."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2043
 msgid "Section"

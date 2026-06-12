@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Updates the Indonesian admin translations for content-list filters, the HTML insert action, and byline field option placeholders.
+Completes the missing Indonesian admin translations for content-list filters, HTML editing actions, byline search UI, media search UI, and byline field option placeholders.
