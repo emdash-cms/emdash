@@ -698,12 +698,12 @@ msgid "Additional data to import."
 msgstr "要導入的其他數據。"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:472
+#: packages/admin/src/components/Sidebar.tsx:599
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "管理員"
 
-#: packages/admin/src/components/Sidebar.tsx:416
+#: packages/admin/src/components/Sidebar.tsx:543
 msgid "Admin navigation"
 msgstr "管理員導航"
 
@@ -1154,7 +1154,7 @@ msgid "Byline schema"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:998
-#: packages/admin/src/components/Sidebar.tsx:240
+#: packages/admin/src/components/Sidebar.tsx:363
 #: packages/admin/src/routes/bylines.tsx:362
 msgid "Bylines"
 msgstr "署名"
@@ -1476,7 +1476,7 @@ msgstr "評論詳情"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:146
 #: packages/admin/src/components/ContentTypeEditor.tsx:487
-#: packages/admin/src/components/Sidebar.tsx:224
+#: packages/admin/src/components/Sidebar.tsx:347
 msgid "Comments"
 msgstr "評論"
 
@@ -1528,7 +1528,7 @@ msgstr "已連接 {0}"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:2047
 #: packages/admin/src/components/SectionEditor.tsx:194
-#: packages/admin/src/components/Sidebar.tsx:450
+#: packages/admin/src/components/Sidebar.tsx:577
 #: packages/admin/src/components/Widgets.tsx:819
 msgid "Content"
 msgstr "內容"
@@ -1588,7 +1588,7 @@ msgstr "要導入的內容"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:244
+#: packages/admin/src/components/Sidebar.tsx:367
 msgid "Content Types"
 msgstr "內容類型"
 
@@ -1919,8 +1919,8 @@ msgstr "深色"
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
-#: packages/admin/src/components/Sidebar.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:439
+#: packages/admin/src/components/Sidebar.tsx:333
+#: packages/admin/src/components/Sidebar.tsx:566
 msgid "Dashboard"
 msgstr "儀表板"
 
@@ -3532,7 +3532,7 @@ msgid "Images"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
-#: packages/admin/src/components/Sidebar.tsx:275
+#: packages/admin/src/components/Sidebar.tsx:398
 #: packages/admin/src/components/WordPressImport.tsx:664
 msgid "Import"
 msgstr "導入"
@@ -4099,7 +4099,7 @@ msgstr ""
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:462
+#: packages/admin/src/components/Sidebar.tsx:589
 msgid "Manage"
 msgstr "管理"
 
@@ -4157,7 +4157,7 @@ msgstr "市場"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:167
 #: packages/admin/src/components/PluginManager.tsx:355
-#: packages/admin/src/components/Sidebar.tsx:259
+#: packages/admin/src/components/Sidebar.tsx:382
 msgid "Marketplace"
 msgstr "市場"
 
@@ -4174,7 +4174,7 @@ msgid "Max Value"
 msgstr "最大值"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2033
-#: packages/admin/src/components/Sidebar.tsx:219
+#: packages/admin/src/components/Sidebar.tsx:342
 #: packages/admin/src/components/WordPressImport.tsx:678
 #: packages/admin/src/components/WordPressImport.tsx:1173
 msgid "Media"
@@ -4264,7 +4264,7 @@ msgstr "菜單順序已更新。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:103
-#: packages/admin/src/components/Sidebar.tsx:229
+#: packages/admin/src/components/Sidebar.tsx:352
 msgid "Menus"
 msgstr "菜單"
 
@@ -5139,8 +5139,8 @@ msgstr "插件已更新"
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:144
 #: packages/admin/src/components/PluginManager.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:246
-#: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/components/Sidebar.tsx:369
+#: packages/admin/src/components/Sidebar.tsx:609
 msgid "Plugins"
 msgstr "插件"
 
@@ -5318,7 +5318,7 @@ msgstr "正在重定向到登錄..."
 
 #: packages/admin/src/components/Redirects.tsx:332
 #: packages/admin/src/components/Redirects.tsx:351
-#: packages/admin/src/components/Sidebar.tsx:230
+#: packages/admin/src/components/Sidebar.tsx:353
 msgid "Redirects"
 msgstr "重定向"
 
@@ -5355,7 +5355,7 @@ msgstr ""
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "註冊已取消或超時。請重試。"
 
-#: packages/admin/src/components/Sidebar.tsx:252
+#: packages/admin/src/components/Sidebar.tsx:375
 msgid "Registry"
 msgstr ""
 
@@ -5951,7 +5951,7 @@ msgstr "區塊標題"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:232
+#: packages/admin/src/components/Sidebar.tsx:355
 msgid "Sections"
 msgstr "區塊"
 
@@ -6197,7 +6197,7 @@ msgstr "正在設置..."
 #: packages/admin/src/components/Header.tsx:93
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
-#: packages/admin/src/components/Sidebar.tsx:276
+#: packages/admin/src/components/Sidebar.tsx:399
 #: packages/admin/src/components/WordPressImport.tsx:1647
 msgid "Settings"
 msgstr "設置"
@@ -6650,7 +6650,7 @@ msgstr "主題提供的區塊無法刪除。編輯區塊以創建自定義副本
 msgid "Theme: {label}"
 msgstr "主題：{label}"
 
-#: packages/admin/src/components/Sidebar.tsx:268
+#: packages/admin/src/components/Sidebar.tsx:391
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "主題"
@@ -7276,7 +7276,7 @@ msgid "User not found"
 msgstr "未找到用戶"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
-#: packages/admin/src/components/Sidebar.tsx:245
+#: packages/admin/src/components/Sidebar.tsx:368
 #: packages/admin/src/components/users/UserList.tsx:54
 msgid "Users"
 msgstr "用戶"
@@ -7491,7 +7491,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:379
-#: packages/admin/src/components/Sidebar.tsx:231
+#: packages/admin/src/components/Sidebar.tsx:354
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
 msgstr "小部件"

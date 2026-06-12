@@ -7,7 +7,7 @@
  */
 
 import { execFile, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,34 @@ const execAsync = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT = resolve(__dirname, "..");
-const FIXTURE_DIR = resolve(ROOT, "e2e/fixture");
+
+interface Target {
+	fixtureDir: string;
+	buildFilter: string;
+	depsMarkers: string[];
+	usesTempDb: boolean;
+}
+
+const COLOR_PLUGIN_DIST = resolve(ROOT, "packages/plugins/color/dist/index.mjs");
+const CLOUDFLARE_DIST = resolve(ROOT, "packages/cloudflare/dist/index.mjs");
+
+const TARGETS: Record<string, Target> = {
+	node: {
+		fixtureDir: resolve(ROOT, "e2e/fixture"),
+		buildFilter: "emdash-e2e-fixture...",
+		depsMarkers: [COLOR_PLUGIN_DIST],
+		usesTempDb: true,
+	},
+	cloudflare: {
+		fixtureDir: resolve(ROOT, "e2e/fixture-cloudflare"),
+		buildFilter: "emdash-e2e-fixture-cloudflare...",
+		depsMarkers: [CLOUDFLARE_DIST, COLOR_PLUGIN_DIST],
+		usesTempDb: false,
+	},
+};
+
+const TARGET = TARGETS[process.env.EMDASH_E2E_TARGET ?? "node"] ?? TARGETS.node!;
+const FIXTURE_DIR = TARGET.fixtureDir;
 const CLI_BINARY = resolve(ROOT, "packages/core/dist/cli/index.mjs");
 const PORT = 4444;
 const MARKETPLACE_PORT = 4445;
@@ -44,28 +71,40 @@ async function ensureBuilt(): Promise<void> {
  * not the fixture's plugin dependencies like @emdash-cms/plugin-color.
  */
 async function ensureFixtureDepsBuilt(): Promise<void> {
-	const colorDist = join(ROOT, "packages/plugins/color/dist/index.mjs");
-	if (existsSync(colorDist)) return;
+	if (TARGET.depsMarkers.every((marker) => existsSync(marker))) return;
 	console.log("[pw] Building e2e fixture dependencies...");
-	await execAsync("pnpm", ["run", "--filter", "emdash-e2e-fixture...", "build"], {
+	await execAsync("pnpm", ["run", "--filter", TARGET.buildFilter, "build"], {
 		cwd: ROOT,
-		timeout: 120_000,
+		timeout: 180_000,
 	});
 	console.log("[pw] Fixture deps built.");
 }
 
-async function waitForServer(url: string, timeoutMs: number): Promise<void> {
+/**
+ * Poll an endpoint until it returns a 2xx. We gate on a real success rather
+ * than "server responding" because the dev server's Vite dep optimizer 500s on
+ * cold start until it finishes pre-bundling -- pronounced under the Cloudflare
+ * (workerd) runner, where the first requests fail with optimize-deps errors.
+ */
+async function waitForOk(url: string, timeoutMs: number, token?: string): Promise<Response> {
 	const start = Date.now();
+	let lastStatus = 0;
+	let lastBody = "";
+	const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
 	while (Date.now() - start < timeoutMs) {
 		try {
-			const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
-			if (res.status > 0) return;
+			const res = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) });
+			if (res.ok) return res;
+			lastStatus = res.status;
+			lastBody = await res.text().catch(() => "");
 		} catch {
-			// Server not ready yet
+			// Server/optimizer not ready yet
 		}
-		await new Promise((r) => setTimeout(r, 500));
+		await new Promise((r) => setTimeout(r, 1000));
 	}
-	throw new Error(`Server at ${url} did not start within ${timeoutMs}ms`);
+	throw new Error(
+		`${url} did not return ok within ${timeoutMs}ms (last ${lastStatus}): ${lastBody.slice(0, 300)}`,
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -123,6 +162,39 @@ async function apiUploadMedia(
 	return { id: item.id, storageKey: item.storageKey, url: item.url };
 }
 
+async function apiGet(baseUrl: string, token: string, path: string): Promise<any> {
+	const res = await fetch(`${baseUrl}${path}`, {
+		headers: { Authorization: `Bearer ${token}`, Origin: baseUrl },
+	});
+	if (!res.ok) {
+		const text = await res.text().catch(() => "");
+		throw new Error(`GET ${path} failed (${res.status}): ${text}`);
+	}
+	const json: any = await res.json();
+	return json.data ?? json;
+}
+
+/**
+ * Resolve seeded entries to their ids, in the order of `slugs`. The list GET
+ * also warms the content route's module graph, so the media/image POSTs that
+ * follow don't race the dev runner's optimizer on a cold route.
+ */
+async function idsBySlug(
+	baseUrl: string,
+	token: string,
+	collection: string,
+	slugs: string[],
+): Promise<string[]> {
+	const list = await apiGet(baseUrl, token, `/_emdash/api/content/${collection}?limit=100`);
+	const items: Array<{ id: string; slug: string }> = list.items ?? list;
+	const bySlug = new Map(items.map((i) => [i.slug, i.id]));
+	return slugs.map((slug) => {
+		const id = bySlug.get(slug);
+		if (!id) throw new Error(`Seeded ${collection} entry not found for slug "${slug}"`);
+		return id;
+	});
+}
+
 async function seedTestData(
 	baseUrl: string,
 	token: string,
@@ -132,41 +204,25 @@ async function seedTestData(
 	mediaIds: Record<string, string>;
 }> {
 	const collections: string[] = ["posts", "pages"];
-	const contentIds: Record<string, string[]> = {};
 	const mediaIds: Record<string, string> = {};
 
-	// Collections and fields are created by the fixture seed file
-	// (fixture/.emdash/seed.json) during dev-bypass setup.
+	// Collections, fields, taxonomies, sections, and the plain posts/pages are
+	// seeded server-side from the fixture's .emdash/seed.json during dev-bypass.
+	// Resolve their ids by slug (the list GETs also warm the content routes).
+	const postIds = await idsBySlug(baseUrl, token, "posts", [
+		"first-post",
+		"second-post",
+		"draft-post",
+	]);
+	const pageIds = await idsBySlug(baseUrl, token, "pages", ["about", "contact"]);
 
-	const postIds: string[] = [];
-	let result: any;
-
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
-		data: { title: "First Post", excerpt: "The very first post" },
-		slug: "first-post",
-	});
-	postIds.push(result.item?.id ?? result.id);
-	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${postIds[0]}/publish`, {});
-
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
-		data: { title: "Second Post", excerpt: "Another post" },
-		slug: "second-post",
-	});
-	postIds.push(result.item?.id ?? result.id);
-	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${postIds[1]}/publish`, {});
-
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
-		data: { title: "Draft Post", excerpt: "Not published yet" },
-		slug: "draft-post",
-	});
-	postIds.push(result.item?.id ?? result.id);
-
-	// --- Upload test image and create post with image block ---
+	// The image post needs real bytes in storage, so it stays an API flow. The
+	// content route is already warm from the GET above.
 	const testImagePath = join(ROOT, "e2e/fixtures/assets/test-image.png");
 	const media = await apiUploadMedia(baseUrl, token, testImagePath, "test-image.png", "image/png");
 	mediaIds["testImage"] = media.id;
 
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
+	const imagePost = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
 		data: {
 			title: "Post With Image",
 			excerpt: "A post containing an image block",
@@ -197,28 +253,15 @@ async function seedTestData(
 		},
 		slug: "post-with-image",
 	});
-	postIds.push(result.item?.id ?? result.id);
-	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${postIds[3]}/publish`, {});
+	const imagePostId = imagePost.item?.id ?? imagePost.id;
+	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${imagePostId}/publish`, {});
+	postIds.push(imagePostId);
 
-	contentIds["posts"] = postIds;
-
-	const pageIds: string[] = [];
-
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/pages", {
-		data: { title: "About" },
-		slug: "about",
-	});
-	pageIds.push(result.item?.id ?? result.id);
-	await apiPost(baseUrl, token, `/_emdash/api/content/pages/${pageIds[0]}/publish`, {});
-
-	result = await apiPost(baseUrl, token, "/_emdash/api/content/pages", {
-		data: { title: "Contact" },
-		slug: "contact",
-	});
-	pageIds.push(result.item?.id ?? result.id);
-	contentIds["pages"] = pageIds;
-
-	return { collections, contentIds, mediaIds };
+	return {
+		collections,
+		contentIds: { posts: postIds, pages: pageIds },
+		mediaIds,
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -247,6 +290,13 @@ export default async function globalSetup(): Promise<void> {
 
 	const baseUrl = `http://localhost:${PORT}`;
 
+	// Cloudflare target: start from fresh miniflare D1/R2 state each run so the
+	// fixture's seed isn't duplicated across runs (the Node target gets this for
+	// free via its per-run temp database).
+	if (!TARGET.usesTempDb) {
+		rmSync(join(FIXTURE_DIR, ".wrangler"), { recursive: true, force: true });
+	}
+
 	// 2. Start dev server (with marketplace URL injected via env)
 	const astroBin = join(fixtureNodeModules, ".bin", "astro");
 	const server = spawn(astroBin, ["dev", "--port", String(PORT)], {
@@ -267,16 +317,11 @@ export default async function globalSetup(): Promise<void> {
 	});
 
 	try {
-		// 3. Wait for server
-		console.log("[pw] Waiting for server...");
-		await waitForServer(`${baseUrl}/_emdash/api/setup/dev-bypass`, 60_000);
-
-		// 4. Run setup + create PAT
-		const setupRes = await fetch(`${baseUrl}/_emdash/api/setup/dev-bypass?token=1`);
-		if (!setupRes.ok) {
-			const body = await setupRes.text().catch(() => "");
-			throw new Error(`Setup bypass failed (${setupRes.status}): ${body}`);
-		}
+		// 3 + 4. Wait for the server and dev optimizer to settle, then run setup
+		// + create a PAT. The gate polls until dev-bypass actually returns 200,
+		// absorbing the optimizer's cold-start failures.
+		console.log("[pw] Waiting for server + setup...");
+		const setupRes = await waitForOk(`${baseUrl}/_emdash/api/setup/dev-bypass?token=1`, 120_000);
 		const setupJson: { data: { user: { id: string }; token?: string } } = await setupRes.json();
 		const setupData = setupJson.data;
 		const token = setupData.token;
@@ -305,6 +350,18 @@ export default async function globalSetup(): Promise<void> {
 			} catch {
 				await new Promise((r) => setTimeout(r, 1000));
 			}
+		}
+
+		// 5c. Warm the admin's data routes so the SPA's first client-side fetches
+		// don't race the dev optimizer. On a slow CI runner the Cloudflare runner
+		// otherwise serves a cold 500 for these, rendering an empty admin and
+		// failing the first specs before the route finishes compiling.
+		console.log("[pw] Warming up admin API routes...");
+		for (const path of [
+			"/_emdash/api/schema/collections?includeFields=true",
+			"/_emdash/api/media",
+		]) {
+			await waitForOk(`${baseUrl}${path}`, 60_000, token);
 		}
 
 		// 6. Write server info

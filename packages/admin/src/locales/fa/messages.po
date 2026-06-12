@@ -700,12 +700,12 @@ msgid "Additional data to import."
 msgstr "داده‌های اضافی برای درون‌ریزی."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:472
+#: packages/admin/src/components/Sidebar.tsx:599
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "مدیر"
 
-#: packages/admin/src/components/Sidebar.tsx:416
+#: packages/admin/src/components/Sidebar.tsx:543
 msgid "Admin navigation"
 msgstr "ناوبری مدیریت"
 
@@ -1156,7 +1156,7 @@ msgid "Byline schema"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:998
-#: packages/admin/src/components/Sidebar.tsx:240
+#: packages/admin/src/components/Sidebar.tsx:363
 #: packages/admin/src/routes/bylines.tsx:362
 msgid "Bylines"
 msgstr "نام نگارندگان"
@@ -1478,7 +1478,7 @@ msgstr "جزئیات دیدگاه"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:146
 #: packages/admin/src/components/ContentTypeEditor.tsx:487
-#: packages/admin/src/components/Sidebar.tsx:224
+#: packages/admin/src/components/Sidebar.tsx:347
 msgid "Comments"
 msgstr "دیدگاه‌ها"
 
@@ -1530,7 +1530,7 @@ msgstr "متصل شده در {0}"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:2047
 #: packages/admin/src/components/SectionEditor.tsx:194
-#: packages/admin/src/components/Sidebar.tsx:450
+#: packages/admin/src/components/Sidebar.tsx:577
 #: packages/admin/src/components/Widgets.tsx:819
 msgid "Content"
 msgstr "محتوا"
@@ -1590,7 +1590,7 @@ msgstr "محتوا برای درون‌ریزی"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:244
+#: packages/admin/src/components/Sidebar.tsx:367
 msgid "Content Types"
 msgstr "انواع محتوا"
 
@@ -1921,8 +1921,8 @@ msgstr "تیره"
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
-#: packages/admin/src/components/Sidebar.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:439
+#: packages/admin/src/components/Sidebar.tsx:333
+#: packages/admin/src/components/Sidebar.tsx:566
 msgid "Dashboard"
 msgstr "داشبورد"
 
@@ -3534,7 +3534,7 @@ msgid "Images"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
-#: packages/admin/src/components/Sidebar.tsx:275
+#: packages/admin/src/components/Sidebar.tsx:398
 #: packages/admin/src/components/WordPressImport.tsx:664
 msgid "Import"
 msgstr "درون‌ریزی"
@@ -4101,7 +4101,7 @@ msgstr ""
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:462
+#: packages/admin/src/components/Sidebar.tsx:589
 msgid "Manage"
 msgstr "مدیریت"
 
@@ -4159,7 +4159,7 @@ msgstr "فروشگاه"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:167
 #: packages/admin/src/components/PluginManager.tsx:355
-#: packages/admin/src/components/Sidebar.tsx:259
+#: packages/admin/src/components/Sidebar.tsx:382
 msgid "Marketplace"
 msgstr "فروشگاه"
 
@@ -4176,7 +4176,7 @@ msgid "Max Value"
 msgstr "حداکثر مقدار"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2033
-#: packages/admin/src/components/Sidebar.tsx:219
+#: packages/admin/src/components/Sidebar.tsx:342
 #: packages/admin/src/components/WordPressImport.tsx:678
 #: packages/admin/src/components/WordPressImport.tsx:1173
 msgid "Media"
@@ -4266,7 +4266,7 @@ msgstr "ترتیب فهرست به‌روزرسانی شد."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:103
-#: packages/admin/src/components/Sidebar.tsx:229
+#: packages/admin/src/components/Sidebar.tsx:352
 msgid "Menus"
 msgstr "فهرستها"
 
@@ -5141,8 +5141,8 @@ msgstr "افزونه به‌روزرسانی شد"
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:144
 #: packages/admin/src/components/PluginManager.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:246
-#: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/components/Sidebar.tsx:369
+#: packages/admin/src/components/Sidebar.tsx:609
 msgid "Plugins"
 msgstr "پلاگین‌ها"
 
@@ -5320,7 +5320,7 @@ msgstr "در حال هدایت به صفحه ورود..."
 
 #: packages/admin/src/components/Redirects.tsx:332
 #: packages/admin/src/components/Redirects.tsx:351
-#: packages/admin/src/components/Sidebar.tsx:230
+#: packages/admin/src/components/Sidebar.tsx:353
 msgid "Redirects"
 msgstr "تغییر مسیر‌ها"
 
@@ -5357,7 +5357,7 @@ msgstr ""
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "ثبت‌نام لغو شد یا زمان آن به پایان رسید. لطفاً دوباره تلاش کنید."
 
-#: packages/admin/src/components/Sidebar.tsx:252
+#: packages/admin/src/components/Sidebar.tsx:375
 msgid "Registry"
 msgstr ""
 
@@ -5953,7 +5953,7 @@ msgstr "عنوان بخش"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:232
+#: packages/admin/src/components/Sidebar.tsx:355
 msgid "Sections"
 msgstr "بخش‌ها"
 
@@ -6199,7 +6199,7 @@ msgstr "در حال راه‌اندازی..."
 #: packages/admin/src/components/Header.tsx:93
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
-#: packages/admin/src/components/Sidebar.tsx:276
+#: packages/admin/src/components/Sidebar.tsx:399
 #: packages/admin/src/components/WordPressImport.tsx:1647
 msgid "Settings"
 msgstr "تنظیمات"
@@ -6652,7 +6652,7 @@ msgstr "بخش‌های ارائه‌شده توسط قالب قابل حذف ن
 msgid "Theme: {label}"
 msgstr "قالب: {label}"
 
-#: packages/admin/src/components/Sidebar.tsx:268
+#: packages/admin/src/components/Sidebar.tsx:391
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "پوسته‌ها"
@@ -7278,7 +7278,7 @@ msgid "User not found"
 msgstr "کاربر یافت نشد"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
-#: packages/admin/src/components/Sidebar.tsx:245
+#: packages/admin/src/components/Sidebar.tsx:368
 #: packages/admin/src/components/users/UserList.tsx:54
 msgid "Users"
 msgstr "کاربران"
@@ -7493,7 +7493,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:379
-#: packages/admin/src/components/Sidebar.tsx:231
+#: packages/admin/src/components/Sidebar.tsx:354
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
 msgstr "ابزارک‌ها"
