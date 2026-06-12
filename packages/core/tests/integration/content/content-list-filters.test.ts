@@ -92,6 +92,18 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		expect(slugsOf(result)).toEqual(["y2025"]);
 	});
 
+	it("treats a date-only upper bound as inclusive of the whole day", async () => {
+		// Regression: a bare `YYYY-MM-DD` upper bound must be widened to the
+		// end of the day server-side, otherwise the 2024 post at 12:00 would
+		// be excluded (since `2024-06-01T12:00:00Z` sorts after `2024-06-01`).
+		const result = await handleContentList(ctx.db, "posts", {
+			dateField: "createdAt",
+			dateFrom: "2024-06-01",
+			dateTo: "2024-06-01",
+		});
+		expect(slugsOf(result)).toEqual(["y2024"]);
+	});
+
 	it("supports an open-ended (from-only) range", async () => {
 		const result = await handleContentList(ctx.db, "posts", {
 			dateField: "createdAt",

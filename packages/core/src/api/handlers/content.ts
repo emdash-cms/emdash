@@ -327,6 +327,24 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 	return columns;
 }
 
+/** Matches a date-only `YYYY-MM-DD` bound (no time component). */
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Normalize a date-range bound to an ISO datetime for lexicographic comparison
+ * against stored ISO 8601 timestamps. A bare `YYYY-MM-DD` is widened to the
+ * appropriate UTC day boundary so the range stays inclusive: a `start` bound
+ * becomes the start of the day and an `end` bound the end of the day.
+ * Otherwise a date-only upper bound would exclude every same-day row (since
+ * `2024-06-01T12:00:00Z` sorts after `2024-06-01`). Full datetimes pass
+ * through unchanged.
+ */
+function normalizeDateBound(value: string | undefined, edge: "start" | "end"): string | undefined {
+	if (!value) return undefined;
+	if (!DATE_ONLY_RE.test(value)) return value;
+	return edge === "start" ? `${value}T00:00:00.000Z` : `${value}T23:59:59.999Z`;
+}
+
 /**
  * Create content list handler
  */
@@ -359,8 +377,8 @@ export async function handleContentList(
 		if (params.dateField && (params.dateFrom || params.dateTo)) {
 			where.dateFilter = {
 				field: params.dateField,
-				from: params.dateFrom,
-				to: params.dateTo,
+				from: normalizeDateBound(params.dateFrom, "start"),
+				to: normalizeDateBound(params.dateTo, "end"),
 			};
 		}
 

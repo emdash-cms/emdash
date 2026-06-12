@@ -16,7 +16,12 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 
-	const denied = requirePerm(user, "content:read");
+	// Editorial capability, not plain read. This response carries author
+	// emails (PII) and reveals the authors of unpublished entries, so it must
+	// not be reachable by subscribers (content:read). content:read_drafts is
+	// the same tier the list route requires before it stops forcing
+	// status=published, so the visibility surfaces line up.
+	const denied = requirePerm(user, "content:read_drafts");
 	if (denied) return denied;
 
 	if (!emdash?.handleContentAuthors) {

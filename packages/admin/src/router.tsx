@@ -341,14 +341,11 @@ function ContentListPage() {
 		};
 	}, [dateFilter]);
 
-	// Reset the author filter when switching locales: an author who has content
-	// in one locale may not in another, leaving a dangling selection.
-	React.useEffect(() => {
-		setAuthorFilter("");
-	}, [activeLocale]);
-
+	// Authors are collection-wide (the endpoint doesn't scope by locale), so the
+	// query key omits locale to avoid refetching/cache-fragmenting on locale
+	// switches, and the selection stays valid across locales.
 	const { data: authors } = useQuery({
-		queryKey: ["content", collection, "authors", { locale: activeLocale }],
+		queryKey: ["content", collection, "authors"],
 		queryFn: () => fetchContentAuthors(collection),
 		enabled: !!manifest,
 	});
