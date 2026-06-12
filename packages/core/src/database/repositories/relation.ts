@@ -261,6 +261,11 @@ export class RelationRepository {
 	 * Link `parentGroup → childGroup` under a relation. `relation` is a relation
 	 * id or group. Idempotent (onConflict doNothing against the unique edge).
 	 * `sortOrder` defaults to append: max(sort_order)+1 within (relation, parent).
+	 *
+	 * The default-append MAX→INSERT is not atomic: concurrent appends without an
+	 * explicit `sortOrder` may both read the same max and collide on sort_order,
+	 * and onConflict silently drops the loser. Callers needing strict ordering
+	 * under concurrency should pass `sortOrder` explicitly (or serialize).
 	 */
 	async addReference(
 		relation: string,

@@ -268,4 +268,9 @@ describeEachDialect("RelationRepository", (dialect) => {
 		await repo.addReference("unknown-relation", "p1", "cA");
 		expect(await repo.getChildren("unknown-relation", "p1")).toEqual([]);
 	});
+
+	it("removeReference of a nonexistent edge is a no-op", async () => {
+		const rel = await repo.create({ ...baseInput });
+		await expect(repo.removeReference(rel.id, "p1", "never-added")).resolves.toBeUndefined();
+	});
 });
