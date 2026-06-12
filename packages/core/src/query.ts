@@ -539,7 +539,9 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	// round-trip cost on remote databases (D1 replicas, etc.).
 	await Promise.all([
 		hydrateEntryBylines(type, entriesWithEdit),
-		hydrateEntryTerms(type, entriesWithEdit),
+		// Hydrate terms in the same locale the content rows were resolved to,
+		// otherwise localized entries get default-locale taxonomy terms (#1441).
+		hydrateEntryTerms(type, entriesWithEdit, resolvedLocale),
 	]);
 
 	return { entries: entriesWithEdit, nextCursor, cacheHint: cacheHint ?? {} };
@@ -617,7 +619,17 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 		wrapped: ContentEntry<D>,
 		opts: { isPreview: boolean; fallbackLocale?: string; cacheHint: CacheHint },
 	): Promise<EntryResult<D>> {
-		await Promise.all([hydrateEntryBylines(type, [wrapped]), hydrateEntryTerms(type, [wrapped])]);
+		// Hydrate terms in the entry's resolved locale (fallback-aware) so a
+		// localized entry never picks up default-locale taxonomy terms (#1441).
+		// When i18n is disabled we leave the locale unset to preserve the
+		// legacy "do not filter by locale" behaviour.
+		const termLocale = isI18nEnabled()
+			? dataStr(entryData(wrapped), "locale") || undefined
+			: undefined;
+		await Promise.all([
+			hydrateEntryBylines(type, [wrapped]),
+			hydrateEntryTerms(type, [wrapped], termLocale),
+		]);
 		return {
 			entry: wrapped,
 			isPreview: opts.isPreview,
@@ -794,9 +806,18 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
  * results and call getEntryTerms() per entry. With hydration, the list page
  * stays at a single round-trip for term data.
  *
+ * `locale` must be the locale the entries were resolved to. It is forwarded to
+ * `getAllTermsForEntries` so terms are returned in the entry's locale rather
+ * than falling back to the request-context / default locale (#1441). Pass
+ * `undefined` to keep the legacy "do not filter by locale" behaviour.
+ *
  * Fails silently if the taxonomy tables don't exist yet (pre-migration).
  */
-async function hydrateEntryTerms<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
+async function hydrateEntryTerms<D>(
+	type: string,
+	entries: ContentEntry<D>[],
+	locale?: string,
+): Promise<void> {
 	if (entries.length === 0) return;
 
 	try {
@@ -805,7 +826,7 @@ async function hydrateEntryTerms<D>(type: string, entries: ContentEntry<D>[]): P
 		const ids = entries.map((e) => dataStr(entryData(e), "id")).filter(Boolean);
 		if (ids.length === 0) return;
 
-		const termsMap = await getAllTermsForEntries(type, ids);
+		const termsMap = await getAllTermsForEntries(type, ids, { locale });
 
 		for (const entry of entries) {
 			const data = entryData(entry);
