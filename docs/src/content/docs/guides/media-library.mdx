@@ -230,11 +230,11 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 
 ### Responsive Images
 
-For responsive images, use Astro's Image component with external URLs:
+For EmDash media fields, use the `Image` component from `emdash/ui`:
 
 ```astro
 ---
-import { Image } from "astro:assets";
+import { Image } from "emdash/ui";
 import { getEmDashEntry } from "emdash";
 
 const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
@@ -242,26 +242,15 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 
 {post?.data.featured_image && (
   <Image
-    src={post.data.featured_image}
-    alt={post.data.featured_image_alt ?? ""}
+    image={post.data.featured_image}
     width={800}
     height={450}
+    priority
   />
 )}
 ```
 
-<Aside type="tip">
-Configure allowed image domains in `astro.config.mjs` to use the Image component with external URLs:
-
-```js title="astro.config.mjs"
-export default defineConfig({
-	image: {
-		domains: ["media.example.com"],
-	},
-});
-```
-
-</Aside>
+`priority` is for the primary above-the-fold image. It sets `loading="eager"` and `fetchpriority="high"`: `loading` controls whether loading is deferred, and `fetchpriority` gives the browser a priority hint for the request.
 
 ## Deleting Media
 
