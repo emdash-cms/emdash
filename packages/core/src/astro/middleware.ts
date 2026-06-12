@@ -437,6 +437,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					try {
 						const runtime = await getRuntime(config, initSubTimings);
 						markSetupVerified();
+						// Drive the piggyback cron scheduler. On platforms without a
+						// dedicated scheduler (Cloudflare Workers) this is the only
+						// thing that executes due plugin cron tasks. Debounced
+						// internally (60s) and fire-and-forget — adds no latency.
+						runtime.tickCron();
 						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
@@ -520,6 +525,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 				// Runtime init runs migrations, so the DB is guaranteed set up
 				markSetupVerified();
+
+				// Drive the piggyback cron scheduler (see the anonymous fast path
+				// above for rationale) — admin/API traffic must tick it too.
+				runtime.tickCron();
 
 				// The manifest is no longer pre-loaded here. It's admin-only
 				// content that public/anonymous requests never read, and

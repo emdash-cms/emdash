@@ -76,6 +76,7 @@ const {
 			syncMarketplacePlugins: async () => undefined,
 			syncRegistryPlugins: async () => undefined,
 			setPluginStatus: async () => undefined,
+			tickCron: () => undefined,
 		},
 		PUBLIC_PLUGIN_RESULT: publicPluginResult,
 		mockGetPluginRouteMeta: getPluginRouteMeta,
