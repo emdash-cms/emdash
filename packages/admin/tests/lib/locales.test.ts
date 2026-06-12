@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 
+import idCatalog from "../../src/locales/id/messages.po?raw";
+
 import {
 	DEFAULT_LOCALE,
 	getLocaleDir,
@@ -20,6 +22,20 @@ for (const { code } of SUPPORTED_LOCALES) {
 test("loadMessages falls back to English for unknown locale", async () => {
 	const [fallback, english] = await Promise.all([loadMessages("xx"), loadMessages("en")]);
 	expect(fallback).toEqual(english);
+});
+
+test("Indonesian catalog has no untranslated entries", () => {
+	const entries = idCatalog.split(/\n{2,}/);
+	const untranslated = entries.filter((entry) => {
+		if (!entry.includes("msgid") || !entry.includes("msgstr")) return false;
+		const lines = entry.split("\n").filter(Boolean);
+		const msgstrIndex = lines.findIndex((line) => line.startsWith("msgstr"));
+		if (msgstrIndex === -1) return false;
+		const nextLine = lines[msgstrIndex + 1];
+		return lines[msgstrIndex] === 'msgstr ""' && (nextLine === undefined || !nextLine.startsWith('"'));
+	});
+
+	expect(untranslated).toEqual([]);
 });
 
 // -- getLocaleDir ----------------------------------------------------------

@@ -718,7 +718,12 @@ msgstr "Rata Kanan"
 msgid "All"
 msgstr "Semua"
 
-#: packages/admin/src/routes/bylines.tsx:336
+#: packages/admin/src/components/ContentList.tsx:587
+#: packages/admin/src/components/ContentList.tsx:591
+msgid "All authors"
+msgstr "Semua penulis"
+
+#: packages/admin/src/routes/bylines.tsx:399
 msgid "All bylines"
 msgstr "Semua byline"
 
@@ -892,6 +897,10 @@ msgstr "Data JSON bebas"
 #: packages/admin/src/components/ContentList.tsx:771
 msgid "archived"
 msgstr "diarsipkan"
+
+#: packages/admin/src/components/ContentList.tsx:546
+msgid "Archived"
+msgstr "Diarsipkan"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:65
 msgid "Archives"
@@ -1875,6 +1884,10 @@ msgstr "Tanggal & Waktu"
 msgid "Date and time picker"
 msgstr "Pemilih tanggal dan waktu"
 
+#: packages/admin/src/components/ContentList.tsx:604
+msgid "Date field to filter on"
+msgstr "Bidang tanggal untuk difilter"
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:304
 msgid "Date Format"
 msgstr "Format Tanggal"
@@ -2447,6 +2460,16 @@ msgstr "Sunting URL"
 #: packages/admin/src/components/WelcomeModal.tsx:26
 msgid "Editor"
 msgstr "Editor"
+
+#: packages/admin/src/components/BylineFieldEditor.tsx:305
+msgid ""
+"Editor\n"
+"Reporter\n"
+"Photographer"
+msgstr ""
+"Editor\n"
+"Reporter\n"
+"Fotografer"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:59
 #: packages/admin/src/components/Settings.tsx:115
@@ -3148,6 +3171,10 @@ msgstr "Nama file tidak dapat diubah setelah diunggah"
 msgid "files imported"
 msgstr "file diimpor"
 
+#: packages/admin/src/components/ContentList.tsx:583
+msgid "Filter by author"
+msgstr "Filter berdasarkan penulis"
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:113
 msgid "Filter by capability"
 msgstr "Filter berdasarkan kapabilitas"
@@ -3192,6 +3219,10 @@ msgstr "Untuk impor lengkap termasuk draf dan semua konten, ekspor dari WordPres
 #: packages/admin/src/components/WordPressImport.tsx:1046
 msgid "For the best import experience, install the"
 msgstr "Untuk pengalaman impor terbaik, pasang"
+
+#: packages/admin/src/components/ContentList.tsx:620
+msgid "From date"
+msgstr "Dari tanggal"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:43
 msgid "Full access"
@@ -3518,6 +3549,10 @@ msgstr "Sisipkan dari URL"
 #: packages/admin/src/components/PortableTextEditor.tsx:3045
 msgid "Insert Horizontal Rule"
 msgstr "Sisipkan Garis Horizontal"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:3137
+msgid "Insert HTML"
+msgstr "Sisipkan HTML"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3040
 msgid "Insert Image"
@@ -6556,9 +6591,17 @@ msgstr "Judul (Tooltip)"
 msgid "Title Separator"
 msgstr "Pemisah Judul"
 
+#: packages/admin/src/components/ContentList.tsx:625
+msgid "to"
+msgstr "sampai"
+
 #: packages/admin/src/components/AdminCommandPalette.tsx:470
 msgid "to close"
 msgstr "untuk menutup"
+
+#: packages/admin/src/components/ContentList.tsx:629
+msgid "To date"
+msgstr "Sampai tanggal"
 
 #: packages/admin/src/components/PluginManager.tsx:203
 msgid "to install plugins, or add them to your astro.config.mjs."
