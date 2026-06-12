@@ -22,8 +22,8 @@ catalogs:
       specifier: ^5.0.0
       version: 5.0.0
     '@atcute/atproto':
-      specifier: ^3.1.11
-      version: 3.1.11
+      specifier: ^4.0.2
+      version: 4.0.2
     '@atcute/car':
       specifier: ^6.0.0
       version: 6.0.0
@@ -34,8 +34,8 @@ catalogs:
       specifier: ^2.4.1
       version: 2.4.1
     '@atcute/client':
-      specifier: ^4.2.1
-      version: 4.2.1
+      specifier: ^5.0.0
+      version: 5.0.0
     '@atcute/crypto':
       specifier: ^2.4.1
       version: 2.4.1
@@ -55,8 +55,8 @@ catalogs:
       specifier: ^2.8.1
       version: 2.8.1
     '@atcute/lexicons':
-      specifier: ^1.3.0
-      version: 1.3.0
+      specifier: ^2.0.0
+      version: 2.0.0
     '@atcute/mst':
       specifier: ^1.0.1
       version: 1.0.1
@@ -64,8 +64,8 @@ catalogs:
       specifier: ^1.2.0
       version: 1.2.0
     '@atcute/oauth-node-client':
-      specifier: ^1.1.0
-      version: 1.1.0
+      specifier: ^2.0.0
+      version: 2.0.0
     '@atcute/repo':
       specifier: ^1.0.0
       version: 1.0.0
@@ -326,7 +326,7 @@ importers:
     dependencies:
       '@atcute/atproto':
         specifier: 'catalog:'
-        version: 3.1.11
+        version: 4.0.2(@atcute/lexicons@2.0.0)
       '@atcute/car':
         specifier: 'catalog:'
         version: 6.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)
@@ -338,25 +338,25 @@ importers:
         version: 2.4.1
       '@atcute/client':
         specifier: 'catalog:'
-        version: 4.2.1
+        version: 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/crypto':
         specifier: 'catalog:'
         version: 2.4.1
       '@atcute/firehose':
         specifier: 'catalog:'
-        version: 1.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@1.3.0)(react@19.2.4)
+        version: 1.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)(react@19.2.4)
       '@atcute/identity':
         specifier: 'catalog:'
-        version: 2.0.0(@atcute/lexicons@1.3.0)(typescript@6.0.3)
+        version: 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/identity-resolver':
         specifier: 'catalog:'
-        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@1.3.0)(typescript@6.0.3))(@atcute/lexicons@1.3.0)(typescript@6.0.3)
+        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/jetstream':
         specifier: 'catalog:'
-        version: 2.0.0(@atcute/lexicons@1.3.0)(react@19.2.4)(typescript@6.0.3)
+        version: 2.0.0(@atcute/lexicons@2.0.0)(react@19.2.4)(typescript@6.0.3)
       '@atcute/lexicons':
         specifier: 'catalog:'
-        version: 1.3.0
+        version: 2.0.0
       '@atcute/mst':
         specifier: 'catalog:'
         version: 1.0.1(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)
@@ -365,13 +365,13 @@ importers:
         version: 1.2.0
       '@atcute/repo':
         specifier: 'catalog:'
-        version: 1.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)(@atcute/lexicons@1.3.0)
+        version: 1.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)
       '@atcute/xrpc-server':
         specifier: 'catalog:'
-        version: 2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@1.3.0)(typescript@6.0.3)
+        version: 2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/xrpc-server-cloudflare':
         specifier: 'catalog:'
-        version: 2.0.0(@atcute/xrpc-server@2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@1.3.0)(typescript@6.0.3))
+        version: 2.0.0(@atcute/xrpc-server@2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)(typescript@6.0.3))
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../../packages/registry-lexicons
@@ -959,10 +959,10 @@ importers:
     dependencies:
       '@atcute/identity-resolver':
         specifier: 'catalog:'
-        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@1.3.0)(typescript@6.0.3))(@atcute/lexicons@1.3.0)(typescript@6.0.3)
+        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/lexicons':
         specifier: 'catalog:'
-        version: 1.3.0
+        version: 2.0.0
       '@cloudflare/kumo':
         specifier: 'catalog:'
         version: 2.4.1(@date-fns/tz@1.4.1)(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(date-fns@4.1.0)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.4.1)
@@ -1167,13 +1167,13 @@ importers:
         version: 2.4.1
       '@atcute/client':
         specifier: 'catalog:'
-        version: 4.2.1
+        version: 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/crypto':
         specifier: 'catalog:'
         version: 2.4.1
       '@atcute/lexicons':
         specifier: 'catalog:'
-        version: 1.3.0
+        version: 2.0.0
       '@atcute/mst':
         specifier: 'catalog:'
         version: 1.0.1(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)
@@ -1182,7 +1182,7 @@ importers:
         version: 1.2.0
       '@atcute/repo':
         specifier: 'catalog:'
-        version: 1.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)(@atcute/lexicons@1.3.0)
+        version: 1.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)
       '@atproto/crypto':
         specifier: 'catalog:'
         version: 0.4.5
@@ -1246,11 +1246,11 @@ importers:
   packages/auth-atproto:
     dependencies:
       '@atcute/identity-resolver':
-        specifier: ^1.2.2
-        version: 1.2.2(@atcute/identity@2.0.0(@atcute/lexicons@1.2.10)(typescript@6.0.0-beta))
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta))(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)
       '@atcute/oauth-node-client':
-        specifier: ^1.1.0
-        version: 1.1.0
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/identity-resolver@2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta))(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta))(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)
       '@emdash-cms/auth':
         specifier: workspace:*
         version: link:../auth
@@ -1268,8 +1268,8 @@ importers:
         version: 19.2.4
     devDependencies:
       '@atcute/lexicons':
-        specifier: ^1.2.10
-        version: 1.2.10
+        specifier: 'catalog:'
+        version: 2.0.0
       '@cloudflare/kumo':
         specifier: 'catalog:'
         version: 2.4.1(@date-fns/tz@1.4.1)(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(date-fns@4.1.0)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.4.1)
@@ -1453,10 +1453,10 @@ importers:
         version: 5.0.0-beta.4(@types/node@25.9.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(jiti@2.7.0)(lightningcss@1.32.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.9.0)
       '@atcute/client':
         specifier: 'catalog:'
-        version: 4.2.1
+        version: 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/lexicons':
         specifier: 'catalog:'
-        version: 1.3.0
+        version: 2.0.0
       '@atcute/multibase':
         specifier: 'catalog:'
         version: 1.2.0
@@ -1740,19 +1740,19 @@ importers:
     dependencies:
       '@atcute/client':
         specifier: 'catalog:'
-        version: 4.2.1
+        version: 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/identity-resolver':
         specifier: 'catalog:'
-        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@1.3.0)(typescript@6.0.3))(@atcute/lexicons@1.3.0)(typescript@6.0.3)
+        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/lexicons':
         specifier: 'catalog:'
-        version: 1.3.0
+        version: 2.0.0
       '@atcute/multibase':
         specifier: 'catalog:'
         version: 1.2.0
       '@atcute/oauth-node-client':
         specifier: 'catalog:'
-        version: 1.1.0
+        version: 2.0.0(@atcute/identity-resolver@2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@clack/prompts':
         specifier: ^1.4.0
         version: 1.4.0
@@ -2047,13 +2047,13 @@ importers:
     dependencies:
       '@atcute/atproto':
         specifier: 'catalog:'
-        version: 3.1.11
+        version: 4.0.2(@atcute/lexicons@2.0.0)
       '@atcute/client':
         specifier: 'catalog:'
-        version: 4.2.1
+        version: 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/lexicons':
         specifier: 'catalog:'
-        version: 1.3.0
+        version: 2.0.0
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../registry-lexicons
@@ -2087,10 +2087,10 @@ importers:
     dependencies:
       '@atcute/atproto':
         specifier: 'catalog:'
-        version: 3.1.11
+        version: 4.0.2(@atcute/lexicons@2.0.0)
       '@atcute/lexicons':
         specifier: 'catalog:'
-        version: 1.3.0
+        version: 2.0.0
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
@@ -2710,8 +2710,10 @@ packages:
   '@astrojs/yaml2ts@0.2.2':
     resolution: {integrity: sha512-GOfvSr5Nqy2z5XiwqTouBBpy5FyI6DEe+/g/Mk5am9SjILN1S5fOEvYK0GuWHg98yS/dobP4m8qyqw/URW35fQ==}
 
-  '@atcute/atproto@3.1.11':
-    resolution: {integrity: sha512-yh+ASvA+iHHQij6UeHEKp2+rwvFvQR8A6/5Dk/xvqDslIikWEFx9VlprNwm/clQIPl2bLuQg+LHS8uY9o5nFTA==}
+  '@atcute/atproto@4.0.2':
+    resolution: {integrity: sha512-hLnvjiIOStpdUm0cEN+R5YydvbV0d6ap17Iv+t7i/nhSCN3TGMya7M0ftCWtCo+xoQ1EU6HK74R8jqXWlyrM0w==}
+    peerDependencies:
+      '@atcute/lexicons': ^2.0.0
 
   '@atcute/car@5.1.1':
     resolution: {integrity: sha512-MeRUJNXYgAHrJZw7mMoZJb9xIqv3LZLQw90rRRAVAo8SGNdICwyqe6Bf2LGesX73QM04MBuYO6Kqhvold3TFfg==}
@@ -2733,8 +2735,10 @@ packages:
   '@atcute/cid@2.4.1':
     resolution: {integrity: sha512-bwhna69RCv7yetXudtj+2qrMPYvhhIQqvJz6YUpUS98v7OdF3X2dnye9Nig2NDrklZcuyOsu7sQo7GOykJXRLQ==}
 
-  '@atcute/client@4.2.1':
-    resolution: {integrity: sha512-ZBFM2pW075JtgGFu5g7HHZBecrClhlcNH8GVP9Zz1aViWR+cjjBsTpeE63rJs+FCOHFYlirUyo5L8SGZ4kMINw==}
+  '@atcute/client@5.0.0':
+    resolution: {integrity: sha512-Dtrc1no1oAtpUTmkBxH0xKSgy8qcnk8orPf/PkEATW+MB3k8FPHtPH2fshiKd55rioZkb+xaN+7A29WtqPQHRA==}
+    peerDependencies:
+      '@atcute/lexicons': ^2.0.0
 
   '@atcute/crypto@2.4.1':
     resolution: {integrity: sha512-tJ3Pi/XYcAsABKtqSlSOTKfO5YiQ4XdqlTuPS8HiRZSezOPcXBFFzAFWpSIJPURbVPFQL3LLrrK0Ea24wl5qeQ==}
@@ -2781,11 +2785,11 @@ packages:
       '@atcute/identity': ^1.1.0
       '@atcute/identity-resolver': ^1.1.3
 
-  '@atcute/lexicons@1.2.10':
-    resolution: {integrity: sha512-0EfRDQQjOgb06VSFOUWXLnqKY11ljWB2bXS3cJVPYJp0jTWudgRp6OTW4vReNAeVZaY4kVr2ud/I/Zn9mjix3g==}
-
   '@atcute/lexicons@1.3.0':
     resolution: {integrity: sha512-Eq5y+9onnCXNVUlNiMf31beSXHKqptB7lUo/68YbhlmxdaR7ooywHmahya9goP5AsmlYEA1z+dRPXIDAa9O7cg==}
+
+  '@atcute/lexicons@2.0.0':
+    resolution: {integrity: sha512-fIlwP+TPEAGoF5aU5s+f8N5sOjOu8Mww/sQL1B57Dp2hj3G/EWG9XwOHPokzycBCgXx+UxIIrzZCGy8whsVDZw==}
 
   '@atcute/mst@1.0.0':
     resolution: {integrity: sha512-pMce2efib+dmKtnGnIvJZitVncJkpr3AmhyfgfYllni8KzsaDGsJmuGavSVpuojAhQe+6jYwHFtpm/beiiH4uw==}
@@ -2799,17 +2803,20 @@ packages:
   '@atcute/multibase@1.2.0':
     resolution: {integrity: sha512-ZK2GRra+qIYq9nNuQB52m2ul0hOmCQEtPobGfTSUxm7pF0OGEkWGkWHugFhNEDVzHzTwPxHp6VGotdZFue4lYQ==}
 
-  '@atcute/oauth-crypto@0.1.0':
-    resolution: {integrity: sha512-qZYDCNLF/4B6AndYT1rsQelN8621AC5u/sL5PHvlr/qqAbmmUwCBGjEgRSyZtHE1AqD60VNiSMlOgAuEQTSl3w==}
+  '@atcute/oauth-crypto@1.0.0':
+    resolution: {integrity: sha512-2UC1msk4PyUArk/5Pl8zgtz1T8O+LZdFfB8ENLHjQVYitpqzGj2ZpDJaWZvCF3Y8lly4KoeUHLpFPDzbP+3u+g==}
 
-  '@atcute/oauth-keyset@0.1.0':
-    resolution: {integrity: sha512-+wqT/+I5Lg9VzKnKY3g88+N45xbq+wsdT6bHDGqCVa2u57gRvolFF4dY+weMfc/OX641BIZO6/o+zFtKBsMQnQ==}
+  '@atcute/oauth-keyset@0.1.1':
+    resolution: {integrity: sha512-BpaaXSuMawxILhWTOR0YIpKzFSA0MQC1W5Hn0HGE+giTqYFAKcdf0oA+2RZG9ZLVIzfO2txBsTeMpxB5qL6lEQ==}
 
-  '@atcute/oauth-node-client@1.1.0':
-    resolution: {integrity: sha512-xCp/VfjtvTeKscKR/oI2hdMTp1/DaF/7ll8b6yZOCgbKlVDDfhCn5mmKNVARGTNaoywxrXG3XffbWCIx3/E87w==}
+  '@atcute/oauth-node-client@2.0.0':
+    resolution: {integrity: sha512-1+q7eszInPXR/aTmYyyhW6RD+rnNTpHXF3vgum3mmCt44oSCTeKuzCBrR538LORpspgNwhopotvKJ1AN5UD4kQ==}
+    peerDependencies:
+      '@atcute/identity-resolver': ^2.0.0
+      '@atcute/lexicons': ^2.0.0
 
-  '@atcute/oauth-types@0.1.1':
-    resolution: {integrity: sha512-u+3KMjse3Uc/9hDyilu1QVN7IpcnjVXgRzhddzBB8Uh6wePHNVBDdi9wQvFTVVA3zmxtMJVptXRyLLg6Ou9bqg==}
+  '@atcute/oauth-types@1.0.0':
+    resolution: {integrity: sha512-YOpjLU8H5PG6oKfgau+dx7rSmGsLxIA36MeGL7BDeopcyq80RqPSBAzOasEEsmbMRJ/nTsMRJhnmGkp3RCa/Zw==}
 
   '@atcute/repo@0.1.4':
     resolution: {integrity: sha512-uzbGJkE+1A8UFviosJrtw7HW87u8nCCH1V3yOQ79FPrRhS67EvEHF6GTg4aMkP21ze/pRtttJ1k9pFfDmyTlTg==}
@@ -2832,6 +2839,9 @@ packages:
 
   '@atcute/util-text@1.2.0':
     resolution: {integrity: sha512-b8WSh+Z7K601eUFFmTFj8QPKDO8Ic0VDDj63sdKzpkm+ySQKsYT5nXekViGqFVKbyKj1V5FyvZvgXad6/aI4QQ==}
+
+  '@atcute/util-text@1.3.1':
+    resolution: {integrity: sha512-MRgJXkx67znuBXuoAYCJkBZyd3OApL7zZlNf5kXhuoCXcdiu1nblRDycYTADSkym4epBSQWxh26kmI9sewaq6A==}
 
   '@atcute/varint@2.0.0':
     resolution: {integrity: sha512-CEY/oVK/nVpL4e5y3sdenLETDL6/Xu5xsE/0TupK+f0Yv8jcD60t2gD8SHROWSvUwYLdkjczLCSA7YrtnjCzWw==}
@@ -9183,11 +9193,6 @@ packages:
     engines: {node: ^18 || >=20}
     hasBin: true
 
-  nanoid@5.1.7:
-    resolution: {integrity: sha512-ua3NDgISf6jdwezAheMOk4mbE1LXjm1DfMUDMuJf4AqxLFK3ccGpgWizwa5YV7Yz9EpXwEaWoRXSb/BnV0t5dQ==}
-    engines: {node: ^18 || >=20}
-    hasBin: true
-
   napi-build-utils@2.0.0:
     resolution: {integrity: sha512-GEbrYkbfF7MoNaoh2iGG84Mnf/WZfB0GdGEsM8wz7Expx/LlWf5U8t9nvJKXSp3qr5IsEbK04cBGhol/KwOsWA==}
 
@@ -12187,9 +12192,9 @@ snapshots:
     dependencies:
       yaml: 2.8.2
 
-  '@atcute/atproto@3.1.11':
+  '@atcute/atproto@4.0.2(@atcute/lexicons@2.0.0)':
     dependencies:
-      '@atcute/lexicons': 1.3.0
+      '@atcute/lexicons': 2.0.0
 
   '@atcute/car@5.1.1':
     dependencies:
@@ -12222,10 +12227,19 @@ snapshots:
       '@atcute/multibase': 1.2.0
       '@atcute/uint8array': 1.1.1
 
-  '@atcute/client@4.2.1':
+  '@atcute/client@5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)':
     dependencies:
-      '@atcute/identity': 1.1.4
-      '@atcute/lexicons': 1.3.0
+      '@atcute/identity': 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)
+      '@atcute/lexicons': 2.0.0
+    transitivePeerDependencies:
+      - typescript
+
+  '@atcute/client@5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)':
+    dependencies:
+      '@atcute/identity': 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/lexicons': 2.0.0
+    transitivePeerDependencies:
+      - typescript
 
   '@atcute/crypto@2.4.1':
     dependencies:
@@ -12233,10 +12247,10 @@ snapshots:
       '@atcute/uint8array': 1.1.1
       '@noble/secp256k1': 3.1.0
 
-  '@atcute/firehose@1.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@1.3.0)(react@19.2.4)':
+  '@atcute/firehose@1.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)(react@19.2.4)':
     dependencies:
       '@atcute/cbor': 2.3.3(@atcute/cid@2.4.1)
-      '@atcute/lexicons': 1.3.0
+      '@atcute/lexicons': 2.0.0
       '@atcute/uint8array': 1.1.1
       '@mary-ext/event-iterator': 1.0.0
       '@mary-ext/simple-event-emitter': 1.0.1
@@ -12253,17 +12267,19 @@ snapshots:
       '@atcute/util-fetch': 1.0.5
       '@badrap/valita': 0.4.6
 
-  '@atcute/identity-resolver@1.2.2(@atcute/identity@2.0.0(@atcute/lexicons@1.2.10)(typescript@6.0.0-beta))':
+  '@atcute/identity-resolver@2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta))(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)':
     dependencies:
-      '@atcute/identity': 2.0.0(@atcute/lexicons@1.2.10)(typescript@6.0.0-beta)
-      '@atcute/lexicons': 1.3.0
-      '@atcute/util-fetch': 1.0.5
-      '@badrap/valita': 0.4.6
+      '@atcute/identity': 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)
+      '@atcute/lexicons': 2.0.0
+      '@atcute/util-fetch': 2.0.0(typescript@6.0.0-beta)
+      valibot: 1.4.0(typescript@6.0.0-beta)
+    transitivePeerDependencies:
+      - typescript
 
-  '@atcute/identity-resolver@2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@1.3.0)(typescript@6.0.3))(@atcute/lexicons@1.3.0)(typescript@6.0.3)':
+  '@atcute/identity-resolver@2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)':
     dependencies:
-      '@atcute/identity': 2.0.0(@atcute/lexicons@1.3.0)(typescript@6.0.3)
-      '@atcute/lexicons': 1.3.0
+      '@atcute/identity': 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/lexicons': 2.0.0
       '@atcute/util-fetch': 2.0.0(typescript@6.0.3)
       valibot: 1.4.0(typescript@6.0.3)
     transitivePeerDependencies:
@@ -12274,23 +12290,23 @@ snapshots:
       '@atcute/lexicons': 1.3.0
       '@badrap/valita': 0.4.6
 
-  '@atcute/identity@2.0.0(@atcute/lexicons@1.2.10)(typescript@6.0.0-beta)':
+  '@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)':
     dependencies:
-      '@atcute/lexicons': 1.2.10
+      '@atcute/lexicons': 2.0.0
       valibot: 1.4.0(typescript@6.0.0-beta)
     transitivePeerDependencies:
       - typescript
 
-  '@atcute/identity@2.0.0(@atcute/lexicons@1.3.0)(typescript@6.0.3)':
+  '@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)':
     dependencies:
-      '@atcute/lexicons': 1.3.0
+      '@atcute/lexicons': 2.0.0
       valibot: 1.4.0(typescript@6.0.3)
     transitivePeerDependencies:
       - typescript
 
-  '@atcute/jetstream@2.0.0(@atcute/lexicons@1.3.0)(react@19.2.4)(typescript@6.0.3)':
+  '@atcute/jetstream@2.0.0(@atcute/lexicons@2.0.0)(react@19.2.4)(typescript@6.0.3)':
     dependencies:
-      '@atcute/lexicons': 1.3.0
+      '@atcute/lexicons': 2.0.0
       '@mary-ext/event-iterator': 1.0.0
       '@mary-ext/simple-event-emitter': 1.0.1
       partysocket: 1.1.18(react@19.2.4)
@@ -12332,17 +12348,17 @@ snapshots:
       '@atcute/util-fetch': 1.0.5
       '@badrap/valita': 0.4.6
 
-  '@atcute/lexicons@1.2.10':
+  '@atcute/lexicons@1.3.0':
     dependencies:
       '@atcute/uint8array': 1.1.1
       '@atcute/util-text': 1.2.0
       '@standard-schema/spec': 1.1.0
       esm-env: 1.2.2
 
-  '@atcute/lexicons@1.3.0':
+  '@atcute/lexicons@2.0.0':
     dependencies:
       '@atcute/uint8array': 1.1.1
-      '@atcute/util-text': 1.2.0
+      '@atcute/util-text': 1.3.1
       '@standard-schema/spec': 1.1.0
       esm-env: 1.2.2
 
@@ -12362,36 +12378,83 @@ snapshots:
     dependencies:
       '@atcute/uint8array': 1.1.1
 
-  '@atcute/oauth-crypto@0.1.0':
+  '@atcute/oauth-crypto@1.0.0(typescript@6.0.0-beta)':
     dependencies:
       '@atcute/multibase': 1.2.0
       '@atcute/uint8array': 1.1.1
-      '@badrap/valita': 0.4.6
       nanoid: 5.1.11
+      valibot: 1.4.1(typescript@6.0.0-beta)
+    transitivePeerDependencies:
+      - typescript
 
-  '@atcute/oauth-keyset@0.1.0':
+  '@atcute/oauth-crypto@1.0.0(typescript@6.0.3)':
     dependencies:
-      '@atcute/oauth-crypto': 0.1.0
+      '@atcute/multibase': 1.2.0
+      '@atcute/uint8array': 1.1.1
+      nanoid: 5.1.11
+      valibot: 1.4.1(typescript@6.0.3)
+    transitivePeerDependencies:
+      - typescript
 
-  '@atcute/oauth-node-client@1.1.0':
+  '@atcute/oauth-keyset@0.1.1(typescript@6.0.0-beta)':
     dependencies:
-      '@atcute/client': 4.2.1
-      '@atcute/identity': 1.1.4
-      '@atcute/identity-resolver': 1.2.2(@atcute/identity@1.1.4)
-      '@atcute/lexicons': 1.3.0
-      '@atcute/oauth-crypto': 0.1.0
-      '@atcute/oauth-keyset': 0.1.0
-      '@atcute/oauth-types': 0.1.1
-      '@atcute/util-fetch': 1.0.5
-      '@badrap/valita': 0.4.6
-      nanoid: 5.1.7
+      '@atcute/oauth-crypto': 1.0.0(typescript@6.0.0-beta)
+    transitivePeerDependencies:
+      - typescript
 
-  '@atcute/oauth-types@0.1.1':
+  '@atcute/oauth-keyset@0.1.1(typescript@6.0.3)':
     dependencies:
-      '@atcute/identity': 1.1.4
-      '@atcute/lexicons': 1.3.0
-      '@atcute/oauth-keyset': 0.1.0
-      '@badrap/valita': 0.4.6
+      '@atcute/oauth-crypto': 1.0.0(typescript@6.0.3)
+    transitivePeerDependencies:
+      - typescript
+
+  '@atcute/oauth-node-client@2.0.0(@atcute/identity-resolver@2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta))(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta))(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)':
+    dependencies:
+      '@atcute/client': 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)
+      '@atcute/identity': 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)
+      '@atcute/identity-resolver': 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta))(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)
+      '@atcute/lexicons': 2.0.0
+      '@atcute/oauth-crypto': 1.0.0(typescript@6.0.0-beta)
+      '@atcute/oauth-keyset': 0.1.1(typescript@6.0.0-beta)
+      '@atcute/oauth-types': 1.0.0(typescript@6.0.0-beta)
+      '@atcute/util-fetch': 2.0.0(typescript@6.0.0-beta)
+      nanoid: 5.1.11
+      valibot: 1.4.1(typescript@6.0.0-beta)
+    transitivePeerDependencies:
+      - typescript
+
+  '@atcute/oauth-node-client@2.0.0(@atcute/identity-resolver@2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)':
+    dependencies:
+      '@atcute/client': 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/identity': 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/identity-resolver': 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/lexicons': 2.0.0
+      '@atcute/oauth-crypto': 1.0.0(typescript@6.0.3)
+      '@atcute/oauth-keyset': 0.1.1(typescript@6.0.3)
+      '@atcute/oauth-types': 1.0.0(typescript@6.0.3)
+      '@atcute/util-fetch': 2.0.0(typescript@6.0.3)
+      nanoid: 5.1.11
+      valibot: 1.4.1(typescript@6.0.3)
+    transitivePeerDependencies:
+      - typescript
+
+  '@atcute/oauth-types@1.0.0(typescript@6.0.0-beta)':
+    dependencies:
+      '@atcute/identity': 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.0-beta)
+      '@atcute/lexicons': 2.0.0
+      '@atcute/oauth-keyset': 0.1.1(typescript@6.0.0-beta)
+      valibot: 1.4.1(typescript@6.0.0-beta)
+    transitivePeerDependencies:
+      - typescript
+
+  '@atcute/oauth-types@1.0.0(typescript@6.0.3)':
+    dependencies:
+      '@atcute/identity': 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/lexicons': 2.0.0
+      '@atcute/oauth-keyset': 0.1.1(typescript@6.0.3)
+      valibot: 1.4.1(typescript@6.0.3)
+    transitivePeerDependencies:
+      - typescript
 
   '@atcute/repo@0.1.4':
     dependencies:
@@ -12403,13 +12466,13 @@ snapshots:
       '@atcute/mst': 1.0.0
       '@atcute/uint8array': 1.1.1
 
-  '@atcute/repo@1.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)(@atcute/lexicons@1.3.0)':
+  '@atcute/repo@1.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)':
     dependencies:
       '@atcute/car': 6.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)
       '@atcute/cbor': 2.3.3(@atcute/cid@2.4.1)
       '@atcute/cid': 2.4.1
       '@atcute/crypto': 2.4.1
-      '@atcute/lexicons': 1.3.0
+      '@atcute/lexicons': 2.0.0
       '@atcute/mst': 1.0.1(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)
       '@atcute/uint8array': 1.1.1
 
@@ -12418,6 +12481,12 @@ snapshots:
   '@atcute/util-fetch@1.0.5':
     dependencies:
       '@badrap/valita': 0.4.6
+
+  '@atcute/util-fetch@2.0.0(typescript@6.0.0-beta)':
+    dependencies:
+      valibot: 1.4.0(typescript@6.0.0-beta)
+    transitivePeerDependencies:
+      - typescript
 
   '@atcute/util-fetch@2.0.0(typescript@6.0.3)':
     dependencies:
@@ -12429,19 +12498,23 @@ snapshots:
     dependencies:
       unicode-segmenter: 0.14.5
 
+  '@atcute/util-text@1.3.1':
+    dependencies:
+      unicode-segmenter: 0.14.5
+
   '@atcute/varint@2.0.0': {}
 
-  '@atcute/xrpc-server-cloudflare@2.0.0(@atcute/xrpc-server@2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@1.3.0)(typescript@6.0.3))':
+  '@atcute/xrpc-server-cloudflare@2.0.0(@atcute/xrpc-server@2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)(typescript@6.0.3))':
     dependencies:
-      '@atcute/xrpc-server': 2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@1.3.0)(typescript@6.0.3)
+      '@atcute/xrpc-server': 2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)(typescript@6.0.3)
 
-  '@atcute/xrpc-server@2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@1.3.0)(typescript@6.0.3)':
+  '@atcute/xrpc-server@2.0.0(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)(typescript@6.0.3)':
     dependencies:
       '@atcute/cbor': 2.3.3(@atcute/cid@2.4.1)
       '@atcute/crypto': 2.4.1
-      '@atcute/identity': 2.0.0(@atcute/lexicons@1.3.0)(typescript@6.0.3)
-      '@atcute/identity-resolver': 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@1.3.0)(typescript@6.0.3))(@atcute/lexicons@1.3.0)(typescript@6.0.3)
-      '@atcute/lexicons': 1.3.0
+      '@atcute/identity': 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/identity-resolver': 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/lexicons': 2.0.0
       '@atcute/multibase': 1.2.0
       '@atcute/uint8array': 1.1.1
       nanoid: 5.1.11
@@ -19941,8 +20014,6 @@ snapshots:
 
   nanoid@5.1.11: {}
 
-  nanoid@5.1.7: {}
-
   napi-build-utils@2.0.0: {}
 
   negotiator@1.0.0: {}
@@ -21828,6 +21899,10 @@ snapshots:
   valibot@1.4.0(typescript@6.0.3):
     optionalDependencies:
       typescript: 6.0.3
+
+  valibot@1.4.1(typescript@6.0.0-beta):
+    optionalDependencies:
+      typescript: 6.0.0-beta
 
   valibot@1.4.1(typescript@6.0.3):
     optionalDependencies:
