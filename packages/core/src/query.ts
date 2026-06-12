@@ -101,13 +101,19 @@ export interface CollectionFilter {
 	 */
 	cursor?: string;
 	/**
-	 * Filter by field values, taxonomy terms, or ranges.
+	 * Filter by field values, taxonomy terms, byline credits, or ranges.
 	 *
 	 * Taxonomy names are detected automatically and filtered via JOIN.
+	 * The reserved `byline` key filters by byline credit (any credit, not
+	 * just the primary one) via the `_emdash_content_bylines` junction
+	 * table; its value is one or more byline translation groups. This
+	 * matches co-authored entries, which `primary_byline_id` alone misses.
 	 * Other keys are treated as column filters on the content table.
 	 *
 	 * @example { category: 'news' } - Filter by taxonomy term
 	 * @example { category: ['news', 'featured'] } - Filter by multiple terms (OR)
+	 * @example { byline: '01HXYZ...' } - Entries credited to a byline (any position)
+	 * @example { byline: ['01HXYZ...', '01HABC...'] } - Credited to any of these bylines (OR)
 	 * @example { series: 'main' } - Exact match on a content field
 	 * @example { published_at: { gte: '2024-01-01', lt: '2025-01-01' } } - Date range
 	 */

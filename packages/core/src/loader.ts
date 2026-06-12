@@ -540,12 +540,16 @@ export interface CollectionFilter {
 	 */
 	cursor?: string;
 	/**
-	 * Filter by field values, taxonomy terms, or ranges.
+	 * Filter by field values, taxonomy terms, byline credits, or ranges.
 	 *
 	 * Taxonomy names are detected automatically and filtered via JOIN.
+	 * The reserved `byline` key filters by byline credit (any credit, not
+	 * just the primary one) via the `_emdash_content_bylines` junction
+	 * table; its value is one or more byline translation groups.
 	 * Other keys are treated as column filters on the content table.
 	 *
 	 * @example { category: 'news' } - taxonomy term
+	 * @example { byline: '01HXYZ...' } - entries credited to a byline (any position)
 	 * @example { series: 'main' } - exact match on a content field
 	 * @example { published_at: { gte: '2024-01-01', lt: '2025-01-01' } } - date range
 	 */
@@ -677,9 +681,15 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					? buildCursorCondition(cursor, orderBy, tableName)
 					: null;
 
-				// Separate taxonomy filters from field filters
+				// Separate taxonomy / byline filters from field filters
 				let result: { rows: Record<string, unknown>[] };
 				let taxonomyFilter: { name: string; slugs: string[] } | null = null;
+				// A byline filter matches entries credited to any of the given
+				// byline translation groups via the `_emdash_content_bylines`
+				// junction table. `null` means no byline filter; an empty
+				// `groups` array means the filter was requested but matches
+				// nothing (short-circuited to an empty result below).
+				let bylineFilter: { groups: string[] } | null = null;
 				const fieldFilters: Record<string, WhereValue> = {};
 
 				if (where && Object.keys(where).length > 0) {
@@ -687,7 +697,16 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 					for (const [key, value] of Object.entries(where)) {
 						if (value == null) continue;
-						if (taxNames.has(key)) {
+						if (key === "byline") {
+							if (isWhereRange(value)) {
+								console.warn(
+									`[emdash] where filter: range operators are not supported on "byline", ignored`,
+								);
+								continue;
+							}
+							const groups = Array.isArray(value) ? value : [value];
+							bylineFilter = { groups };
+						} else if (taxNames.has(key)) {
 							if (isWhereRange(value)) {
 								console.warn(
 									`[emdash] where filter: range operators are not supported on taxonomy "${key}", ignored`,
@@ -708,7 +727,17 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					}
 				}
 
-				if (taxonomyFilter) {
+				// A byline filter with no groups matches nothing — short-circuit
+				// before building SQL (an empty `IN ()` is invalid SQL anyway).
+				if (bylineFilter && bylineFilter.groups.length === 0) {
+					return { entries: [], cacheHint: { tags: [type] } };
+				}
+
+				if (taxonomyFilter || bylineFilter) {
+					// Joined path: filtering by taxonomy term and/or byline credit
+					// requires INNER JOINs onto junction tables. Column refs are
+					// table-prefixed to disambiguate, and SELECT DISTINCT dedupes
+					// the row fan-out a credit/term match can produce.
 					const orderByClause = buildOrderByClause(orderBy, tableName);
 					const statusCondition = buildStatusCondition(db, status, tableName);
 					const localeCondition = locale
@@ -719,19 +748,44 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					const fieldCondsSQL =
 						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
 
-					result = await sql<Record<string, unknown>>`
-						SELECT DISTINCT ${sql.ref(tableName)}.* FROM ${sql.ref(tableName)}
+					const taxonomyJoin = taxonomyFilter
+						? sql`
 						INNER JOIN content_taxonomies ct
 							ON ct.collection = ${type}
 							AND ct.entry_id = ${sql.ref(tableName)}.id
 						INNER JOIN taxonomies t
-							ON t.id = ct.taxonomy_id
+							ON t.id = ct.taxonomy_id`
+						: sql``;
+					const taxonomyCond = taxonomyFilter
+						? sql`
+							AND t.name = ${taxonomyFilter.name}
+							AND t.slug IN (${sql.join(taxonomyFilter.slugs.map((s) => sql`${s}`))})`
+						: sql``;
+
+					// `_emdash_content_bylines.byline_id` stores the byline's
+					// translation_group (migration 040), so a credit spans every
+					// locale variant of the byline and we match the group directly.
+					const bylineJoin = bylineFilter
+						? sql`
+						INNER JOIN _emdash_content_bylines cb
+							ON cb.collection_slug = ${type}
+							AND cb.content_id = ${sql.ref(tableName)}.id`
+						: sql``;
+					const bylineCond = bylineFilter
+						? sql`
+							AND cb.byline_id IN (${sql.join(bylineFilter.groups.map((g) => sql`${g}`))})`
+						: sql``;
+
+					result = await sql<Record<string, unknown>>`
+						SELECT DISTINCT ${sql.ref(tableName)}.* FROM ${sql.ref(tableName)}
+						${taxonomyJoin}
+						${bylineJoin}
 						WHERE ${sql.ref(tableName)}.deleted_at IS NULL
 							AND ${statusCondition}
 							${localeCondition}
 							${cursorCond}
-							AND t.name = ${taxonomyFilter.name}
-							AND t.slug IN (${sql.join(taxonomyFilter.slugs.map((s) => sql`${s}`))})
+							${taxonomyCond}
+							${bylineCond}
 							${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
 						${orderByClause}
 						${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
