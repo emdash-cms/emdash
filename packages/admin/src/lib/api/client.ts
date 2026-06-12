@@ -6,6 +6,42 @@ import type { Element } from "@emdash-cms/blocks";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
+// ---------------------------------------------------------------------------
+// Editor style manifest types (mirror of core's plugin types — admin can't
+// import from `emdash` directly because it's a sibling workspace package)
+// ---------------------------------------------------------------------------
+
+/** A style item that toggles CSS classes on inline text or block elements */
+export interface EditorStyleItem {
+	label: string;
+	scope: "inline" | "block";
+	classes: string;
+	/** Restrict block styles to specific node types. Ignored for inline scope. */
+	nodes?: string[];
+}
+
+/** A visual separator inside a dropdown */
+export interface EditorStyleSeparator {
+	type: "separator";
+}
+
+/** A standalone toggle button in the toolbar */
+export interface EditorStyleButton extends EditorStyleItem {
+	type: "button";
+	icon: string;
+}
+
+/** A dropdown menu grouping multiple style items */
+export interface EditorStyleDropdown {
+	type: "dropdown";
+	label: string;
+	icon: string;
+	items: Array<EditorStyleItem | EditorStyleSeparator>;
+}
+
+/** Top-level editor style entry — either a button or a dropdown */
+export type EditorStyleEntry = EditorStyleButton | EditorStyleDropdown;
+
 export const API_BASE = "/_emdash/api";
 
 /**
@@ -126,6 +162,8 @@ export interface AdminManifest {
 				fields?: Element[];
 				category?: string;
 			}>;
+			/** Editor toolbar styles — buttons and dropdowns for CSS class toggles */
+			editorStyles?: EditorStyleEntry[];
 		}
 	>;
 	/**

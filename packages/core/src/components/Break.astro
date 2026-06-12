@@ -2,27 +2,34 @@
 /**
  * Portable Text Break/Separator block component
  *
- * Renders horizontal rules and page breaks.
+ * Renders horizontal rules and page breaks. Honors block-level `cssClasses`
+ * set via the editor's BlockStyleExtension by appending them to the default
+ * EmDash classes.
  */
 export interface Props {
 	node: {
 		_type: "break";
 		_key: string;
-		style?: "line" | "dots" | "space";
+		style?: "line" | "lineBreak" | "dots" | "space";
+		cssClasses?: string;
 	};
 }
 
 const { node } = Astro.props;
-const style = node?.style || "line";
+const style = node?.style === "lineBreak" ? "line" : node?.style || "line";
+const extra =
+	typeof node?.cssClasses === "string" && node.cssClasses.trim().length > 0
+		? node.cssClasses.trim()
+		: undefined;
 ---
 
 {
 	style === "dots" ? (
-		<div class="emdash-break emdash-break-dots">• • •</div>
+		<div class:list={["emdash-break emdash-break-dots", extra]}>• • •</div>
 	) : style === "space" ? (
-		<div class="emdash-break emdash-break-space" />
+		<div class:list={["emdash-break emdash-break-space", extra]} />
 	) : (
-		<hr class="emdash-break emdash-break-line" />
+		<hr class:list={["emdash-break emdash-break-line", extra]} />
 	)
 }
 

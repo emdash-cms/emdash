@@ -1,0 +1,30 @@
+---
+/**
+ * Portable Text cssClass mark component
+ *
+ * Renders an inline `<span class="...">` wrapper for text spans tagged with
+ * a `cssClass` markDef. This is the inline counterpart to BlockStyleExtension
+ * — plugin authors define the available class strings via `editorStyles` in
+ * their plugin admin config, users toggle them per-selection in the editor,
+ * and this component applies them to the published HTML.
+ *
+ * Multiple cssClass marks on the same span nest as separate spans (one per
+ * mark) — astro-portabletext walks marks outer-to-inner so the first mark
+ * applied is the outermost span.
+ */
+export interface Props {
+	node: {
+		markDef: {
+			_type: "cssClass";
+			_key: string;
+			classes?: string;
+		};
+	};
+}
+
+const { node } = Astro.props;
+const raw = typeof node?.markDef?.classes === "string" ? node.markDef.classes.trim() : "";
+const classes = raw.length > 0 ? raw : undefined;
+---
+
+{classes ? <span class={classes}><slot /></span> : <slot />}

@@ -2,7 +2,9 @@
 /**
  * Portable Text Code block component
  *
- * Renders code blocks with optional syntax highlighting class.
+ * Renders code blocks with optional syntax highlighting class. Honors
+ * block-level `cssClasses` set via the editor's BlockStyleExtension by
+ * appending them to the wrapping `<div class="emdash-code">`.
  */
 export interface Props {
 	node: {
@@ -11,6 +13,7 @@ export interface Props {
 		code: string;
 		language?: string;
 		filename?: string;
+		cssClasses?: string;
 	};
 }
 
@@ -22,9 +25,13 @@ if (!node?.code) {
 
 const { code, language, filename } = node;
 const languageClass = language ? `language-${language}` : "";
+const extra =
+	typeof node.cssClasses === "string" && node.cssClasses.trim().length > 0
+		? node.cssClasses.trim()
+		: undefined;
 ---
 
-<div class="emdash-code">
+<div class:list={["emdash-code", extra]}>
 	{filename && <div class="emdash-code-filename">{filename}</div>}
 	<pre class={languageClass}><code class={languageClass}>{code}</code></pre>
 </div>
