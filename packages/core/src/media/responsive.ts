@@ -33,20 +33,27 @@ export function responsiveSizes(width: number | undefined): string {
 }
 
 /**
- * Make a media URL absolute so Astro's image service can optimize it.
+ * Make a same-origin media URL absolute so Astro's image service can optimize it.
  *
  * Astro only optimizes absolute http(s) URLs; a same-origin proxy path like
  * `/_emdash/api/media/file/x.jpg` is otherwise treated as an unoptimizable
  * public asset. Resolving it against the site's public origin (and authorizing
  * that origin via `image.remotePatterns`) lets the service transform it.
  *
- * Already-absolute URLs (CDN/public bucket) and non-path values (data:, blob:)
- * are returned unchanged.
+ * Only **same-origin** root-relative paths are resolved. Protocol-relative
+ * URLs (`//evil.com/x`) and backslash tricks (`/\evil.com`) also start with `/`
+ * but resolve to a different origin -- a classic SSRF vector once a
+ * remotePattern authorizes the media path -- so anything that escapes the
+ * origin is returned unchanged (and then skipped by `buildResponsiveImage`,
+ * which only accepts absolute http(s) URLs). Already-absolute URLs (CDN/public
+ * bucket) and non-path values (`data:`, `blob:`) are returned unchanged too.
  */
 export function toAbsoluteMediaUrl(src: string, origin: string | undefined): string {
 	if (!src || !origin || !src.startsWith("/")) return src;
 	try {
-		return new URL(src, origin).href;
+		const resolved = new URL(src, origin);
+		if (resolved.origin !== new URL(origin).origin) return src;
+		return resolved.href;
 	} catch {
 		return src;
 	}

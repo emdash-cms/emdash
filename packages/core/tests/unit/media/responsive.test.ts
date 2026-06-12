@@ -5,6 +5,7 @@ import {
 	buildResponsiveImage,
 	responsiveSizes,
 	responsiveWidths,
+	toAbsoluteMediaUrl,
 	type GetImage,
 } from "../../../src/media/responsive.js";
 
@@ -101,5 +102,51 @@ describe("buildResponsiveImage", () => {
 			throw new Error("no image service");
 		};
 		expect(await buildResponsiveImage(getImage, { src: ABS, width: 800, height: 600 })).toBeNull();
+	});
+});
+
+describe("toAbsoluteMediaUrl", () => {
+	const ORIGIN = "https://example.com";
+
+	it("resolves a relative media path against the origin", () => {
+		expect(toAbsoluteMediaUrl("/_emdash/api/media/file/01ABC.jpg", ORIGIN)).toBe(
+			"https://example.com/_emdash/api/media/file/01ABC.jpg",
+		);
+	});
+
+	it("returns already-absolute URLs unchanged", () => {
+		expect(toAbsoluteMediaUrl("https://cdn.example.com/a.jpg", ORIGIN)).toBe(
+			"https://cdn.example.com/a.jpg",
+		);
+	});
+
+	it("returns the source unchanged when origin is missing", () => {
+		expect(toAbsoluteMediaUrl("/path.jpg", undefined)).toBe("/path.jpg");
+	});
+
+	it("returns the source unchanged for an empty string", () => {
+		expect(toAbsoluteMediaUrl("", ORIGIN)).toBe("");
+	});
+
+	it("returns non-path values unchanged (data:, blob:)", () => {
+		expect(toAbsoluteMediaUrl("data:image/png;base64,abc", ORIGIN)).toBe(
+			"data:image/png;base64,abc",
+		);
+		expect(toAbsoluteMediaUrl("blob:https://example.com/uuid", ORIGIN)).toBe(
+			"blob:https://example.com/uuid",
+		);
+	});
+
+	it("does not absolutize protocol-relative URLs (SSRF guard)", () => {
+		expect(toAbsoluteMediaUrl("//evil.com/_emdash/api/media/file/x.jpg", ORIGIN)).toBe(
+			"//evil.com/_emdash/api/media/file/x.jpg",
+		);
+	});
+
+	it("does not let backslash tricks escape the origin (SSRF guard)", () => {
+		// WHATWG URL normalizes backslashes to slashes for http(s), so
+		// "/\\evil.com" would otherwise resolve to https://evil.com.
+		expect(toAbsoluteMediaUrl("/\\evil.com/x.jpg", ORIGIN)).toBe("/\\evil.com/x.jpg");
+		expect(toAbsoluteMediaUrl("/\\/evil.com/x.jpg", ORIGIN)).toBe("/\\/evil.com/x.jpg");
 	});
 });
