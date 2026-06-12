@@ -7,4 +7,6 @@
 "@emdash-cms/registry-lexicons": patch
 ---
 
-Align the Atcute dependency tree on v2 to clear peer warnings on install (#1435). `@atcute/identity-resolver@2` and `@atcute/identity@2` require `@atcute/lexicons@^2`, but the catalog still pinned `@atcute/client@4`, `@atcute/lexicons@1`, `@atcute/atproto@3`, and `@atcute/oauth-node-client@1`, which dragged v1 `lexicons`/`identity` into the published tree. Bumps `@atcute/client` to `^5`, `@atcute/lexicons` to `^2`, `@atcute/atproto` to `^4`, and `@atcute/oauth-node-client` to `^2`. The only API change is `parseCanonicalResourceUri` now throwing instead of returning a result object.
+Fix `@atcute` peer dependency warnings on install (#1435)
+
+Installing EmDash pulled in mismatched `@atcute` package versions, so `pnpm install` / `npm install` reported unmet peer warnings for `@atcute/identity` and `@atcute/lexicons`. The bundled `@atcute` dependencies are now aligned on v2 and installs are clean. If your project also depends on `@atcute` packages directly, note they have moved to v2 (`@atcute/client` 5, `@atcute/lexicons` 2, `@atcute/atproto` 4, `@atcute/oauth-node-client` 2).
