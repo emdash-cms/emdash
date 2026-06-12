@@ -148,6 +148,7 @@ export async function getTaxonomyTerms(
 			name: term.name,
 			slug: term.slug,
 			label: term.label,
+			description: term.data ? JSON.parse(term.data).description : undefined,
 			children: [],
 			count: counts.get(term.translation_group ?? term.id) ?? 0,
 			locale: term.locale,
