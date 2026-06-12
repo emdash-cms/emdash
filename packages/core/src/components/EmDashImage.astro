@@ -18,9 +18,12 @@
  */
 import type { MediaValue } from "../fields/types.js";
 import type { HTMLAttributes } from "astro/types";
+import { getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
+import { buildResponsiveImage, toAbsoluteMediaUrl } from "../media/responsive.js";
+import { getPublicOrigin } from "../api/public-url.js";
 // Standard responsive breakpoints
 const BREAKPOINTS = [640, 750, 828, 960, 1080, 1280, 1600, 1920];
 
@@ -98,8 +101,21 @@ if (img) {
 	const providerId = img.provider ?? "local";
 
 	if (providerId === "local" || img.src) {
-		// Local provider or direct src URL
+		// Local provider or direct src URL. Route through Astro's image service
+		// (`astro:assets`) to generate a responsive srcset; on Cloudflare this is
+		// the Images binding, on Node it is sharp. Falls back to a plain <img>
+		// when the service is unavailable or the source can't be optimized.
 		src = img.src || buildLocalImageUrl(img);
+		const optimized = await buildResponsiveImage(getImage, {
+			src: toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config)),
+			width: finalWidth,
+			height: finalHeight,
+		});
+		if (optimized) {
+			src = optimized.src;
+			srcset = optimized.srcset;
+			sizes = optimized.sizes;
+		}
 	} else {
 		// External provider
 		try {
