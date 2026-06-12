@@ -89,8 +89,10 @@ interface ImageRemotePattern {
  * Returns an empty array when no source is statically known (e.g. a production
  * build using local storage with no `siteUrl`), in which case media renders as
  * a plain `<img>`.
+ *
+ * @internal Exported for unit testing.
  */
-function buildImageRemotePatterns(
+export function buildImageRemotePatterns(
 	storage: { config?: unknown } | undefined,
 	siteUrl: string | undefined,
 	command: "dev" | "build" | "preview" | "sync",
@@ -105,10 +107,22 @@ function buildImageRemotePatterns(
 	if (typeof publicUrl === "string" && publicUrl) {
 		try {
 			const url = new URL(publicUrl);
-			patterns.push({
-				protocol: url.protocol === "http:" ? "http" : "https",
-				hostname: url.hostname,
-			});
+			// Only authorize http(s) hosts — a `file:`/`ftp:` URL is not a media
+			// origin Astro can fetch.
+			if (url.protocol === "http:" || url.protocol === "https:") {
+				const pattern: ImageRemotePattern = {
+					protocol: url.protocol === "http:" ? "http" : "https",
+					hostname: url.hostname,
+				};
+				// When the public URL has a path prefix (CDN sub-path), scope the
+				// pattern to it so we don't authorize the entire host. Media keys
+				// are appended as `${publicUrl}/${key}`, so the prefix is exact.
+				const prefix = url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname;
+				if (prefix && prefix !== "/") {
+					pattern.pathname = `${prefix}/**`;
+				}
+				patterns.push(pattern);
+			}
 		} catch {
 			// ignore an unparseable public URL
 		}

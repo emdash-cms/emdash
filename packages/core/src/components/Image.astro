@@ -9,10 +9,12 @@ import { getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
-import { buildResponsiveImage, toAbsoluteMediaUrl } from "../media/responsive.js";
+import {
+	buildResponsiveImage,
+	toAbsoluteMediaUrl,
+	RESPONSIVE_BREAKPOINTS,
+} from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
-// Standard responsive breakpoints
-const BREAKPOINTS = [640, 750, 828, 960, 1080, 1280, 1600, 1920];
 
 export interface Props {
 	node: {
@@ -47,7 +49,7 @@ function generateSrcset(
 	maxWidth: number,
 	aspectRatio?: number,
 ): string {
-	return BREAKPOINTS.filter((w) => w <= maxWidth * 2)
+	return RESPONSIVE_BREAKPOINTS.filter((w) => w <= maxWidth * 2)
 		.map((w) => {
 			const h = aspectRatio ? Math.round(w / aspectRatio) : undefined;
 			return `${getSrc({ width: w, height: h })} ${w}w`;
