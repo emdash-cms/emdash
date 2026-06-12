@@ -217,4 +217,55 @@ describeEachDialect("RelationRepository", (dialect) => {
 		expect(edges).toHaveLength(0);
 		expect(await repo.findById(anchor.id)).toBeNull();
 	});
+
+	it("addReference appends by sort_order and dedupes on conflict", async () => {
+		const rel = await repo.create({ ...baseInput });
+		await repo.addReference(rel.id, "p1", "cA");
+		await repo.addReference(rel.id, "p1", "cB");
+		await repo.addReference(rel.id, "p1", "cA"); // duplicate — no-op
+
+		const children = await repo.getChildren(rel.translationGroup, "p1");
+		expect(children.map((c) => c.childGroup)).toEqual(["cA", "cB"]);
+		expect(children.map((c) => c.sortOrder)).toEqual([0, 1]);
+	});
+
+	it("addReference accepts a relation id OR its group, and an explicit sortOrder", async () => {
+		const rel = await repo.create({ ...baseInput });
+		await repo.addReference(rel.translationGroup, "p1", "cA", 5);
+		const children = await repo.getChildren(rel.translationGroup, "p1");
+		expect(children).toEqual([
+			{
+				id: expect.any(String),
+				relationGroup: rel.translationGroup,
+				parentGroup: "p1",
+				childGroup: "cA",
+				sortOrder: 5,
+			},
+		]);
+	});
+
+	it("getParents is the backlink view; removeReference removes one edge", async () => {
+		const rel = await repo.create({ ...baseInput });
+		await repo.addReference(rel.id, "p1", "shared");
+		await repo.addReference(rel.id, "p2", "shared");
+
+		const parents = await repo.getParents(rel.translationGroup, "shared");
+		expect(parents.map((p) => p.parentGroup).toSorted()).toEqual(["p1", "p2"]);
+
+		await repo.removeReference(rel.id, "p1", "shared");
+		const after = await repo.getParents(rel.translationGroup, "shared");
+		expect(after.map((p) => p.parentGroup)).toEqual(["p2"]);
+	});
+
+	it("self-reference (same group as parent and child) is allowed", async () => {
+		const rel = await repo.create({ ...baseInput });
+		await repo.addReference(rel.id, "self", "self");
+		const children = await repo.getChildren(rel.translationGroup, "self");
+		expect(children.map((c) => c.childGroup)).toEqual(["self"]);
+	});
+
+	it("edge methods no-op for an unknown relation", async () => {
+		await repo.addReference("unknown-relation", "p1", "cA");
+		expect(await repo.getChildren("unknown-relation", "p1")).toEqual([]);
+	});
 });

@@ -1,7 +1,7 @@
 import type { Kysely, Selectable } from "kysely";
 import { ulid } from "ulidx";
 
-import type { Database, RelationTable } from "../types.js";
+import type { Database, RelationTable, ContentReferenceTable } from "../types.js";
 
 export interface Relation {
 	id: string;
@@ -231,6 +231,117 @@ export class RelationRepository {
 			.where("id", "=", id)
 			.executeTakeFirst();
 		return (result.numDeletedRows ?? 0n) > 0n;
+	}
+
+	/** Normalize a relation id OR group to its translation_group. Returns null
+	 * for an unknown relation (edge methods then no-op, matching
+	 * `TaxonomyRepository.attachToEntry`). */
+	private async resolveRelationGroup(idOrGroup: string): Promise<string | null> {
+		const row = await this.db
+			.selectFrom("_emdash_relations")
+			.select(["translation_group"])
+			.where((eb) =>
+				eb.or([eb("id", "=", idOrGroup), eb("translation_group", "=", idOrGroup)]),
+			)
+			.executeTakeFirst();
+		return row?.translation_group ?? null;
+	}
+
+	private rowToReference(row: Selectable<ContentReferenceTable>): ContentReference {
+		return {
+			id: row.id,
+			relationGroup: row.relation_group,
+			parentGroup: row.parent_group,
+			childGroup: row.child_group,
+			sortOrder: row.sort_order,
+		};
+	}
+
+	/**
+	 * Link `parentGroup → childGroup` under a relation. `relation` is a relation
+	 * id or group. Idempotent (onConflict doNothing against the unique edge).
+	 * `sortOrder` defaults to append: max(sort_order)+1 within (relation, parent).
+	 */
+	async addReference(
+		relation: string,
+		parentGroup: string,
+		childGroup: string,
+		sortOrder?: number,
+	): Promise<void> {
+		const relationGroup = await this.resolveRelationGroup(relation);
+		if (!relationGroup) return;
+
+		let order = sortOrder;
+		if (order === undefined) {
+			const max = await this.db
+				.selectFrom("_emdash_content_references")
+				.select((eb) => eb.fn.max("sort_order").as("max"))
+				.where("relation_group", "=", relationGroup)
+				.where("parent_group", "=", parentGroup)
+				.executeTakeFirst();
+			order = max?.max === null || max?.max === undefined ? 0 : Number(max.max) + 1;
+		}
+
+		await this.db
+			.insertInto("_emdash_content_references")
+			.values({
+				id: ulid(),
+				relation_group: relationGroup,
+				parent_group: parentGroup,
+				child_group: childGroup,
+				sort_order: order,
+				created_at: new Date().toISOString(),
+			})
+			.onConflict((oc) => oc.doNothing())
+			.execute();
+	}
+
+	/** Remove one `parentGroup → childGroup` edge under a relation. */
+	async removeReference(
+		relation: string,
+		parentGroup: string,
+		childGroup: string,
+	): Promise<void> {
+		const relationGroup = await this.resolveRelationGroup(relation);
+		if (!relationGroup) return;
+
+		await this.db
+			.deleteFrom("_emdash_content_references")
+			.where("relation_group", "=", relationGroup)
+			.where("parent_group", "=", parentGroup)
+			.where("child_group", "=", childGroup)
+			.execute();
+	}
+
+	/** Forward traversal: a parent's children for a relation, ordered. */
+	async getChildren(relation: string, parentGroup: string): Promise<ContentReference[]> {
+		const relationGroup = await this.resolveRelationGroup(relation);
+		if (!relationGroup) return [];
+
+		const rows = await this.db
+			.selectFrom("_emdash_content_references")
+			.selectAll()
+			.where("relation_group", "=", relationGroup)
+			.where("parent_group", "=", parentGroup)
+			.orderBy("sort_order", "asc")
+			.orderBy("id", "asc")
+			.execute();
+		return rows.map((row) => this.rowToReference(row));
+	}
+
+	/** Backlink traversal: the parents that reference a child for a relation. */
+	async getParents(relation: string, childGroup: string): Promise<ContentReference[]> {
+		const relationGroup = await this.resolveRelationGroup(relation);
+		if (!relationGroup) return [];
+
+		const rows = await this.db
+			.selectFrom("_emdash_content_references")
+			.selectAll()
+			.where("relation_group", "=", relationGroup)
+			.where("child_group", "=", childGroup)
+			.orderBy("id", "asc")
+			.execute();
+		return rows.map((row) => this.rowToReference(row));
 	}
 
 	private rowToRelation(row: Selectable<RelationTable>): Relation {
