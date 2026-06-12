@@ -938,10 +938,22 @@ export class ContentRepository {
 	 * Returns all content where scheduled_at <= now, regardless of status.
 	 * This covers both draft-scheduled posts (status='scheduled') and
 	 * published posts with scheduled draft changes (status='published').
+	 *
+	 * `limit` (optional) caps how many due rows are returned, oldest-due first.
+	 * The scheduled-publishing sweep passes a limit so a large backlog can't
+	 * fan out unbounded publish/webhook work in a single tick (and blow a Worker
+	 * invocation's CPU/subrequest budget); the remainder drains on later ticks.
 	 */
-	async findReadyToPublish(type: string): Promise<ContentItem[]> {
+	async findReadyToPublish(type: string, limit?: number): Promise<ContentItem[]> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
+
+		// Embed an empty fragment when unbounded so callers that want every due
+		// row (manual flows, tests) keep the original behaviour.
+		const limitClause =
+			typeof limit === "number" && Number.isInteger(limit) && limit > 0
+				? sql`LIMIT ${limit}`
+				: sql``;
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT * FROM ${sql.ref(tableName)}
@@ -949,6 +961,7 @@ export class ContentRepository {
 			AND scheduled_at <= ${now}
 			AND deleted_at IS NULL
 			ORDER BY scheduled_at ASC
+			${limitClause}
 		`.execute(this.db);
 
 		return result.rows.map((row) => this.mapRow(type, row));
@@ -1013,6 +1026,7 @@ export class ContentRepository {
 		// or another sweep already claimed it, this affects 0 rows and we bail
 		// before promoting any revision — so the row can't be double-published.
 		let claimedScheduledAt: string | null = null;
+		let claimedUpdatedAt: string | null = null;
 		if (requireDue) {
 			const claim = await sql`
 				UPDATE ${sql.ref(tableName)}
@@ -1027,8 +1041,14 @@ export class ContentRepository {
 				throw new ScheduledNotDueError();
 			}
 			// Remember what we cleared so we can put it back if the publish work
-			// below fails on a driver without transactions (see catch).
+			// below fails on a driver without transactions (see catch). Both
+			// values come from the pre-claim snapshot: if a concurrent
+			// reschedule-to-a-different-past-time landed between findById and the
+			// claim, the restore writes the snapshot value rather than the one the
+			// claim actually cleared. That window is tiny and the restore is
+			// best-effort retry bookkeeping, so the imprecision is acceptable.
 			claimedScheduledAt = existing.scheduledAt;
+			claimedUpdatedAt = existing.updatedAt;
 		}
 
 		// Track whether the final publish write committed. On D1 the claim above
@@ -1116,9 +1136,14 @@ export class ContentRepository {
 					// queued. This avoids re-adding a stale schedule (and triggering a
 					// redundant republish) when another actor fully published the row
 					// in the failure window — that publish clears draft_revision_id.
+					// Restore updated_at to its pre-claim value too — the claim bumped
+					// it to `now`, and a failed publish made no real change, so leaving
+					// it advanced would be a phantom modification for "changed since"
+					// consumers (sync, ETags, incremental indexers).
 					await sql`
 						UPDATE ${sql.ref(tableName)}
-						SET scheduled_at = ${claimedScheduledAt}
+						SET scheduled_at = ${claimedScheduledAt},
+							updated_at = ${claimedUpdatedAt ?? now}
 						WHERE id = ${id}
 						AND scheduled_at IS NULL
 						AND deleted_at IS NULL

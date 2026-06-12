@@ -56,9 +56,13 @@ async function invalidatePublishedTags(
 export function createScheduledHandler(): ExportedHandlerScheduledHandler {
 	return (_controller, _env, ctx) => {
 		ctx.waitUntil(
-			runScheduledTasks()
-				.then(async ({ published }) => {
-					await invalidatePublishedTags(published);
+			// Invalidate incrementally as each collection batch publishes, so a
+			// scheduled() invocation killed mid-sweep (CPU/wall-clock limits on a
+			// large backlog) still purged the cache tags for everything it managed
+			// to publish — not just whatever completed before a single end-of-sweep
+			// purge that may never run.
+			runScheduledTasks({ onPublished: invalidatePublishedTags })
+				.then(({ published }) => {
 					if (published.length > 0) {
 						console.log(`[scheduled] Published ${published.length} scheduled item(s)`);
 					}

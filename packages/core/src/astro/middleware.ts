@@ -258,13 +258,17 @@ async function getRuntime(
  * timer-based scheduler already drives the same work, so this isn't needed there.
  *
  * Returns the content promoted by the publishing sweep so the caller can purge
- * edge-cache tags for it.
+ * edge-cache tags for it. `onPublished` (optional) is awaited after each
+ * collection's batch so the caller can invalidate edge-cache tags incrementally
+ * rather than only after the whole sweep.
  */
-export async function runScheduledTasks(): Promise<{ published: PublishedRef[] }> {
+export async function runScheduledTasks(
+	options: { onPublished?: (refs: PublishedRef[]) => Promise<void> } = {},
+): Promise<{ published: PublishedRef[] }> {
 	const config = getConfig();
 	if (!config) return { published: [] };
 	const runtime = await getRuntime(config);
-	return runtime.runScheduledTasks();
+	return runtime.runScheduledTasks(options);
 }
 
 /**

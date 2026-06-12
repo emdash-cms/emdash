@@ -24,6 +24,13 @@ export interface PublishedRef {
 }
 
 /**
+ * Default cap on items promoted per collection in a single sweep. Bounds the
+ * publish/webhook fan-out of one tick so a large backlog can't exhaust a Worker
+ * invocation's CPU/subrequest budget; the remainder drains on later ticks.
+ */
+export const SCHEDULED_PUBLISH_BATCH_LIMIT = 100;
+
+/**
  * Publishes a single content item. Mirrors the relevant subset of
  * `handleContentPublish`'s return shape. Production callers pass
  * `EmDashRuntime.handleContentPublish` so `content:afterPublish` hooks fire
@@ -36,6 +43,28 @@ export type ScheduledPublishFn = (
 	options: { publishedAt?: string; requireScheduledDue?: boolean },
 ) => Promise<{ success: boolean; error?: { code?: string } }>;
 
+export interface PublishDueContentOptions {
+	/**
+	 * Publish callback. Production callers pass the runtime's
+	 * `handleContentPublish` so `content:afterPublish` hooks fire (search
+	 * indexing, webhooks, syndication). Defaults to the raw DB handler (no hooks).
+	 */
+	publish?: ScheduledPublishFn;
+	/**
+	 * Invoked after each collection's batch with the items promoted in that
+	 * batch. Lets request-less callers (the Cloudflare `scheduled()` handler)
+	 * purge edge-cache tags incrementally instead of only after the whole sweep,
+	 * so a runtime killed mid-sweep strands at most one batch behind stale cache
+	 * rather than everything published so far. Failures are logged, never fatal.
+	 */
+	onPublished?: (refs: PublishedRef[]) => Promise<void>;
+	/**
+	 * Maximum items promoted per collection per sweep. Defaults to
+	 * `SCHEDULED_PUBLISH_BATCH_LIMIT`. Pass `0` (or a negative) for unbounded.
+	 */
+	limit?: number;
+}
+
 /**
  * Publish every content item whose `scheduled_at` is in the past.
  *
@@ -44,16 +73,19 @@ export type ScheduledPublishFn = (
  * publishes each. `publish()` clears `scheduled_at`, so a second sweep is a
  * no-op — safe to run on every tick.
  *
- * Pass `publish` (the runtime's `handleContentPublish`) so publish hooks fire;
- * without it the sweep falls back to the raw DB handler and hooks are skipped.
+ * Bounded per collection by `limit` (default `SCHEDULED_PUBLISH_BATCH_LIMIT`):
+ * a large backlog drains across successive ticks rather than in one unbounded
+ * pass. After each collection's batch, `onPublished` (if given) is awaited so
+ * cache-tag invalidation happens incrementally, not just at the very end.
  *
- * Returns the items it promoted so request-less callers (the Cloudflare
- * `scheduled()` handler) can invalidate edge-cache tags for them.
+ * Returns every item it promoted so request-less callers (the Cloudflare
+ * `scheduled()` handler) can also act on the full set.
  */
 export async function publishDueContent(
 	db: Kysely<Database>,
-	publish?: ScheduledPublishFn,
+	options: PublishDueContentOptions = {},
 ): Promise<PublishedRef[]> {
+	const { publish, onPublished, limit = SCHEDULED_PUBLISH_BATCH_LIMIT } = options;
 	const published: PublishedRef[] = [];
 
 	let collections;
@@ -66,11 +98,14 @@ export async function publishDueContent(
 
 	const repo = new ContentRepository(db);
 	const doPublish: ScheduledPublishFn =
-		publish ?? ((collection, id, options) => handleContentPublish(db, collection, id, options));
+		publish ?? ((collection, id, opts) => handleContentPublish(db, collection, id, opts));
+	// 0 / negative means unbounded; findReadyToPublish treats that as "no LIMIT".
+	const batchLimit = limit > 0 ? limit : undefined;
 
 	for (const collection of collections) {
 		try {
-			const due = await repo.findReadyToPublish(collection.slug);
+			const due = await repo.findReadyToPublish(collection.slug, batchLimit);
+			const batch: PublishedRef[] = [];
 			for (const item of due) {
 				// First publication of a scheduled draft should record the intended
 				// scheduled time, not the (later) sweep time. Items already published
@@ -81,7 +116,7 @@ export async function publishDueContent(
 					requireScheduledDue: true,
 				});
 				if (result.success) {
-					published.push({ collection: collection.slug, id: item.id });
+					batch.push({ collection: collection.slug, id: item.id });
 				} else if (result.error?.code === "NOT_DUE") {
 					// Unscheduled or rescheduled between selection and publish — the
 					// editor changed their mind; skip quietly, not a failure.
@@ -90,6 +125,23 @@ export async function publishDueContent(
 						`[scheduled-publish] Failed to publish ${collection.slug}/${item.id}:`,
 						result.error,
 					);
+				}
+			}
+
+			if (batch.length > 0) {
+				published.push(...batch);
+				if (onPublished) {
+					// Purge this batch's cache tags before moving to the next
+					// collection, so a mid-sweep kill can't strand already-published
+					// content behind stale cache.
+					try {
+						await onPublished(batch);
+					} catch (error) {
+						console.error(
+							`[scheduled-publish] onPublished failed after "${collection.slug}" batch:`,
+							error,
+						);
+					}
 				}
 			}
 		} catch (error) {

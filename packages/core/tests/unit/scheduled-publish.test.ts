@@ -9,7 +9,11 @@ import { ScheduledNotDueError } from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
 import { EmDashRuntime } from "../../src/emdash-runtime.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
-import { publishDueContent, type ScheduledPublishFn } from "../../src/scheduled-publish.js";
+import {
+	publishDueContent,
+	type PublishedRef,
+	type ScheduledPublishFn,
+} from "../../src/scheduled-publish.js";
 import { createPostFixture, createPageFixture } from "../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
@@ -118,7 +122,7 @@ describe("publishDueContent()", () => {
 			return handleContentPublish(db, collection, id, options);
 		};
 
-		const published = await publishDueContent(db, spy);
+		const published = await publishDueContent(db, { publish: spy });
 
 		expect(published).toEqual([{ collection: "post", id: post.id }]);
 		expect(calls).toHaveLength(1);
@@ -135,10 +139,12 @@ describe("publishDueContent()", () => {
 
 		// Simulate the unschedule-during-sweep race: the callback reports the
 		// item is no longer due. The sweep must treat this as a quiet skip.
-		const published = await publishDueContent(db, async () => ({
-			success: false,
-			error: { code: "NOT_DUE" },
-		}));
+		const published = await publishDueContent(db, {
+			publish: async () => ({
+				success: false,
+				error: { code: "NOT_DUE" },
+			}),
+		});
 
 		expect(published).toEqual([]);
 	});
@@ -157,6 +163,66 @@ describe("publishDueContent()", () => {
 		// A second sweep finds nothing — publish cleared scheduled_at.
 		const second = await publishDueContent(db);
 		expect(second).toEqual([]);
+	});
+
+	it("bounds promotions per collection per sweep and drains the rest on later sweeps", async () => {
+		const past = new Date(Date.now() - 60_000).toISOString();
+		for (let i = 0; i < 3; i++) {
+			const post = await repo.create(createPostFixture({ slug: `due-${i}` }));
+			await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		}
+
+		// limit 2 → first sweep promotes 2, leaves 1 for the next tick.
+		const first = await publishDueContent(db, { limit: 2 });
+		expect(first).toHaveLength(2);
+
+		const second = await publishDueContent(db, { limit: 2 });
+		expect(second).toHaveLength(1);
+
+		const third = await publishDueContent(db, { limit: 2 });
+		expect(third).toEqual([]);
+	});
+
+	it("invokes onPublished once per non-empty collection batch with only that batch's refs", async () => {
+		const past = new Date(Date.now() - 60_000).toISOString();
+		const post = await repo.create(createPostFixture());
+		const page = await repo.create(createPageFixture());
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		await repo.update("page", page.id, { status: "scheduled", scheduledAt: past });
+
+		const batches: PublishedRef[][] = [];
+		const published = await publishDueContent(db, {
+			onPublished: async (refs) => {
+				batches.push(refs);
+			},
+		});
+
+		expect(published).toHaveLength(2);
+		// One invocation per collection that published something.
+		expect(batches).toHaveLength(2);
+		// Each batch carries refs for exactly one collection (incremental purge).
+		for (const batch of batches) {
+			expect(new Set(batch.map((r) => r.collection)).size).toBe(1);
+		}
+	});
+
+	it("treats an onPublished failure as non-fatal — content still publishes", async () => {
+		const past = new Date(Date.now() - 60_000).toISOString();
+		const post = await repo.create(createPostFixture());
+		const page = await repo.create(createPageFixture());
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		await repo.update("page", page.id, { status: "scheduled", scheduledAt: past });
+
+		const published = await publishDueContent(db, {
+			onPublished: async () => {
+				throw new Error("invalidate boom");
+			},
+		});
+
+		// Both still published despite the hook throwing on every batch.
+		expect(published).toHaveLength(2);
+		expect((await repo.findById("post", post.id))?.status).toBe("published");
+		expect((await repo.findById("page", page.id))?.status).toBe("published");
 	});
 });
 
@@ -260,6 +326,11 @@ describe("ContentRepository.publish() requireDue gate", () => {
 		const past = new Date(Date.now() - 60_000).toISOString();
 		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
 
+		// Capture the pre-claim updated_at; the failed claim must not leave it
+		// advanced (phantom modification for "changed since" consumers).
+		const before = await repo.findById("post", post.id);
+		const beforeUpdatedAt = before?.updatedAt;
+
 		// Force a failure AFTER the atomic claim has cleared scheduled_at. This
 		// repo is unwrapped (no withTransaction), mimicking D1 where the claim is
 		// already durable when later work throws.
@@ -274,6 +345,8 @@ describe("ContentRepository.publish() requireDue gate", () => {
 		// Schedule put back so a later sweep retries — not silently dropped.
 		expect(after?.scheduledAt).toBe(past);
 		expect(after?.status).toBe("scheduled");
+		// updated_at restored to its pre-claim value, not the claim's bumped time.
+		expect(after?.updatedAt).toBe(beforeUpdatedAt);
 	});
 
 	it("does not re-add a schedule when the row was fully published in the failure window", async () => {

@@ -499,9 +499,9 @@ export class EmDashRuntime {
 	 * Returns the items promoted so callers can invalidate their cache tags.
 	 */
 	async publishScheduled(): Promise<PublishedRef[]> {
-		return publishDueContent(this.db, (collection, id, options) =>
-			this.handleContentPublish(collection, id, options),
-		);
+		return publishDueContent(this.db, {
+			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
+		});
 	}
 
 	/**
@@ -512,8 +512,17 @@ export class EmDashRuntime {
 	 *
 	 * Each step is independent and non-fatal. Returns the content promoted
 	 * by the publishing sweep so the caller can purge edge-cache tags.
+	 *
+	 * `onPublished` (optional) is awaited after each collection's batch so a
+	 * request-less driver can invalidate edge-cache tags incrementally rather
+	 * than only after the whole sweep — bounding stale-cache exposure if the
+	 * runtime is killed mid-sweep.
 	 */
-	async runScheduledTasks(): Promise<{ published: PublishedRef[] }> {
+	async runScheduledTasks(
+		options: {
+			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		} = {},
+	): Promise<{ published: PublishedRef[] }> {
 		if (this.cronExecutor) {
 			try {
 				await this.cronExecutor.tick();
@@ -530,9 +539,10 @@ export class EmDashRuntime {
 		let published: PublishedRef[] = [];
 		try {
 			// Route through the runtime wrapper so content:afterPublish hooks fire.
-			published = await publishDueContent(this.db, (collection, id, options) =>
-				this.handleContentPublish(collection, id, options),
-			);
+			published = await publishDueContent(this.db, {
+				publish: (collection, id, opts) => this.handleContentPublish(collection, id, opts),
+				onPublished: options.onPublished,
+			});
 		} catch (error) {
 			console.error("[scheduled-publish] Sweep failed:", error);
 		}
@@ -1277,13 +1287,12 @@ export class EmDashRuntime {
 							// Falls back to the raw handler if (improbably) the tick beats
 							// the post-construction ref assignment.
 							const runtime = runtimeRef.current;
-							await publishDueContent(
-								db,
-								runtime
+							await publishDueContent(db, {
+								publish: runtime
 									? (collection, id, options) =>
 											runtime.handleContentPublish(collection, id, options)
 									: undefined,
-							);
+							});
 						} catch (error) {
 							console.error("[scheduled-publish] Sweep failed:", error);
 						}
