@@ -128,10 +128,7 @@ export class RelationRepository {
 	 * `TaxonomyRepository.findByName` which returns every term in a taxonomy.
 	 */
 	async findByName(name: string, locale?: string): Promise<Relation | null> {
-		let query = this.db
-			.selectFrom("_emdash_relations")
-			.selectAll()
-			.where("name", "=", name);
+		let query = this.db.selectFrom("_emdash_relations").selectAll().where("name", "=", name);
 		if (locale !== undefined) query = query.where("locale", "=", locale);
 		const row = await query.orderBy("locale", "asc").executeTakeFirst();
 		return row ? this.rowToRelation(row) : null;
@@ -169,10 +166,7 @@ export class RelationRepository {
 			.selectFrom("_emdash_relations")
 			.selectAll()
 			.where((eb) =>
-				eb.or([
-					eb("parent_collection", "=", collection),
-					eb("child_collection", "=", collection),
-				]),
+				eb.or([eb("parent_collection", "=", collection), eb("child_collection", "=", collection)]),
 			)
 			.orderBy("name", "asc")
 			.orderBy("id", "asc");
@@ -195,11 +189,7 @@ export class RelationRepository {
 
 		if (Object.keys(updates).length > 0) {
 			updates.updated_at = new Date().toISOString();
-			await this.db
-				.updateTable("_emdash_relations")
-				.set(updates)
-				.where("id", "=", id)
-				.execute();
+			await this.db.updateTable("_emdash_relations").set(updates).where("id", "=", id).execute();
 		}
 
 		return this.findById(id);
@@ -241,9 +231,7 @@ export class RelationRepository {
 		const row = await this.db
 			.selectFrom("_emdash_relations")
 			.select(["translation_group"])
-			.where((eb) =>
-				eb.or([eb("id", "=", idOrGroup), eb("translation_group", "=", idOrGroup)]),
-			)
+			.where((eb) => eb.or([eb("id", "=", idOrGroup), eb("translation_group", "=", idOrGroup)]))
 			.executeTakeFirst();
 		return row?.translation_group ?? null;
 	}
@@ -303,11 +291,7 @@ export class RelationRepository {
 	}
 
 	/** Remove one `parentGroup → childGroup` edge under a relation. */
-	async removeReference(
-		relation: string,
-		parentGroup: string,
-		childGroup: string,
-	): Promise<void> {
+	async removeReference(relation: string, parentGroup: string, childGroup: string): Promise<void> {
 		const relationGroup = await this.resolveRelationGroup(relation);
 		if (!relationGroup) return;
 
@@ -363,11 +347,7 @@ export class RelationRepository {
 	 * transaction: a crash between the delete and insert leaves the parent with
 	 * no children — acceptable for a replace-all, since a retry restores state.
 	 */
-	async setChildren(
-		relation: string,
-		parentGroup: string,
-		childGroups: string[],
-	): Promise<void> {
+	async setChildren(relation: string, parentGroup: string, childGroups: string[]): Promise<void> {
 		const relationGroup = await this.resolveRelationGroup(relation);
 		if (!relationGroup) return;
 
@@ -408,9 +388,7 @@ export class RelationRepository {
 	async clearReferencesForGroup(group: string): Promise<number> {
 		const result = await this.db
 			.deleteFrom("_emdash_content_references")
-			.where((eb) =>
-				eb.or([eb("parent_group", "=", group), eb("child_group", "=", group)]),
-			)
+			.where((eb) => eb.or([eb("parent_group", "=", group), eb("child_group", "=", group)]))
 			.executeTakeFirst();
 		return Number(result.numDeletedRows ?? 0);
 	}

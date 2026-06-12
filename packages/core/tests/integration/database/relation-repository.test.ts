@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, expect, it } from "vitest";
 import { ulid } from "ulidx";
+import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { RelationRepository } from "../../../src/database/repositories/relation.js";
 import {
