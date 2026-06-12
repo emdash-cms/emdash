@@ -8,7 +8,7 @@
 import { Button, Dialog, Input, Loader, Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { MagnifyingGlass, FolderOpen, X } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchCollections, fetchContentList, getDraftStatus } from "../lib/api";
@@ -38,9 +38,6 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const debouncedSearch = useDebouncedValue(searchQuery, 300);
 	const [selectedCollection, setSelectedCollection] = React.useState<string>("");
-	const [allItems, setAllItems] = React.useState<ContentItem[]>([]);
-	const [nextCursor, setNextCursor] = React.useState<string | undefined>();
-	const [isLoadingMore, setIsLoadingMore] = React.useState(false);
 
 	const { data: collections = [] } = useQuery({
 		queryKey: ["collections"],
@@ -55,48 +52,42 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 		}
 	}, [collections, selectedCollection]);
 
-	const { data: contentResult, isLoading: contentLoading } = useQuery({
-		queryKey: ["content-picker", selectedCollection, { limit: 50 }],
-		queryFn: () => fetchContentList(selectedCollection, { limit: 50 }),
+	// Push search to the server so the picker can find items across the
+	// entire collection, not just whatever has already been scrolled into
+	// view. Falls back to no-search when the box is empty.
+	const searchParam = debouncedSearch.trim() || undefined;
+	const {
+		data,
+		isLoading: contentLoading,
+		fetchNextPage,
+		hasNextPage,
+		isFetchingNextPage,
+	} = useInfiniteQuery({
+		// `search` is part of the key, so switching searches starts a fresh
+		// page chain rather than appending to the old query's cursor.
+		queryKey: ["content-picker", selectedCollection, { limit: 50, search: searchParam }],
+		queryFn: ({ pageParam }) =>
+			fetchContentList(selectedCollection, { limit: 50, cursor: pageParam, search: searchParam }),
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor,
 		enabled: open && !!selectedCollection,
+		// Keep the previous query's pages visible while the debounced search
+		// refetches, so the list doesn't flash to empty between keystrokes.
+		placeholderData: keepPreviousData,
 	});
 
-	// Sync initial page into accumulated items
-	React.useEffect(() => {
-		if (contentResult) {
-			setAllItems(contentResult.items);
-			setNextCursor(contentResult.nextCursor);
-		}
-	}, [contentResult]);
+	// Items arrive pre-filtered and paginated from the server. Deriving the
+	// list straight from the query pages (instead of mirroring into local
+	// state) means a background refetch can't wipe out loaded pages and a
+	// search change can't fetch with a stale cursor.
+	const filteredItems = React.useMemo(() => data?.pages.flatMap((p) => p.items) ?? [], [data]);
 
-	const handleLoadMore = async () => {
-		if (!nextCursor || isLoadingMore) return;
-		setIsLoadingMore(true);
-		try {
-			const result = await fetchContentList(selectedCollection, {
-				limit: 50,
-				cursor: nextCursor,
-			});
-			setAllItems((prev) => [...prev, ...result.items]);
-			setNextCursor(result.nextCursor);
-		} finally {
-			setIsLoadingMore(false);
-		}
-	};
-
-	const filteredItems = React.useMemo(() => {
-		if (!debouncedSearch) return allItems;
-		const query = debouncedSearch.toLowerCase();
-		return allItems.filter((item) => getItemTitle(item).toLowerCase().includes(query));
-	}, [allItems, debouncedSearch]);
-
-	// Reset state when modal opens or collection changes
+	// Reset transient UI state when the modal opens. The query itself resets
+	// via its key, so there's no accumulator to clear here.
 	React.useEffect(() => {
 		if (open) {
 			setSearchQuery("");
 			setSelectedCollection("");
-			setAllItems([]);
-			setNextCursor(undefined);
 		}
 	}, [open]);
 
@@ -147,11 +138,7 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 					</div>
 					<Select
 						value={selectedCollection}
-						onValueChange={(v) => {
-							setSelectedCollection(v ?? "");
-							setAllItems([]);
-							setNextCursor(undefined);
-						}}
+						onValueChange={(v) => setSelectedCollection(v ?? "")}
 						items={Object.fromEntries(collections.map((col) => [col.slug, col.label]))}
 						aria-label={t`Collection`}
 					/>
@@ -220,15 +207,17 @@ export function ContentPickerModal({ open, onOpenChange, onSelect }: ContentPick
 									</button>
 								);
 							})}
-							{nextCursor && !searchQuery && (
+							{/* Search is server-side and paginated, so results can span
+							    multiple pages too — keep load-more available while searching. */}
+							{hasNextPage && (
 								<div className="pt-2 text-center">
 									<Button
 										variant="outline"
 										size="sm"
-										onClick={handleLoadMore}
-										disabled={isLoadingMore}
+										onClick={() => void fetchNextPage()}
+										disabled={isFetchingNextPage}
 									>
-										{isLoadingMore ? (
+										{isFetchingNextPage ? (
 											<>
 												<Loader size="sm" /> {t`Loading...`}
 											</>
