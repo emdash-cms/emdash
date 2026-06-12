@@ -734,7 +734,7 @@ msgstr "Semua"
 #: packages/admin/src/components/ContentList.tsx:587
 #: packages/admin/src/components/ContentList.tsx:591
 msgid "All authors"
-msgstr ""
+msgstr "Semua penulis"
 
 #: packages/admin/src/routes/bylines.tsx:399
 msgid "All bylines"
@@ -922,7 +922,7 @@ msgstr "diarsipkan"
 
 #: packages/admin/src/components/ContentList.tsx:546
 msgid "Archived"
-msgstr ""
+msgstr "Diarsipkan"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:65
 msgid "Archives"
@@ -1952,7 +1952,7 @@ msgstr "Pemilih tanggal dan waktu"
 
 #: packages/admin/src/components/ContentList.tsx:604
 msgid "Date field to filter on"
-msgstr ""
+msgstr "Bidang tanggal untuk difilter"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:304
 msgid "Date Format"
@@ -2559,6 +2559,9 @@ msgid ""
 "Reporter\n"
 "Photographer"
 msgstr ""
+"Editor\n"
+"Reporter\n"
+"Fotografer"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:59
 #: packages/admin/src/components/Settings.tsx:115
@@ -3312,7 +3315,7 @@ msgstr "file diimpor"
 
 #: packages/admin/src/components/ContentList.tsx:583
 msgid "Filter by author"
-msgstr ""
+msgstr "Filter berdasarkan penulis"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:113
 msgid "Filter by capability"
@@ -3362,7 +3365,7 @@ msgstr "Untuk pengalaman impor terbaik, pasang"
 
 #: packages/admin/src/components/ContentList.tsx:620
 msgid "From date"
-msgstr ""
+msgstr "Dari tanggal"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:43
 msgid "Full access"
@@ -3693,7 +3696,7 @@ msgstr "Sisipkan Garis Horizontal"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3137
 msgid "Insert HTML"
-msgstr ""
+msgstr "Sisipkan HTML"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3126
 msgid "Insert Image"
@@ -6822,7 +6825,7 @@ msgstr "Pemisah Judul"
 
 #: packages/admin/src/components/ContentList.tsx:625
 msgid "to"
-msgstr ""
+msgstr "sampai"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:470
 msgid "to close"
@@ -6830,7 +6833,7 @@ msgstr "untuk menutup"
 
 #: packages/admin/src/components/ContentList.tsx:629
 msgid "To date"
-msgstr ""
+msgstr "Sampai tanggal"
 
 #: packages/admin/src/components/PluginManager.tsx:203
 msgid "to install plugins, or add them to your astro.config.mjs."
