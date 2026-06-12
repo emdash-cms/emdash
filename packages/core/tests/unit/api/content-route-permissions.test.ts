@@ -275,5 +275,43 @@ describe("content route — publishedAt / createdAt permission gate", () => {
 			expect(response.status).toBe(200);
 			expect(handleContentUpdate).toHaveBeenCalled();
 		});
+
+		it("passes locale query through slug ownership lookup and update", async () => {
+			const handleContentGet = vi.fn().mockResolvedValue({
+				success: true,
+				data: { item: { id: "fr-id", authorId: "user-1" }, _rev: "rev1" },
+			});
+			const handleContentUpdate = vi.fn().mockResolvedValue({
+				success: true,
+				data: { item: { id: "fr-id" }, _rev: "rev2" },
+			});
+
+			const request = new Request("http://localhost/_emdash/api/content/post/shared?locale=fr", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ data: { title: "FR" } }),
+			});
+
+			const response = await updateContent({
+				params: { collection: "post", id: "shared" },
+				request,
+				locals: {
+					emdash: { handleContentUpdate, handleContentGet },
+					user: makeUser(Role.AUTHOR),
+				},
+				cache: makeCache(),
+			} as Parameters<typeof updateContent>[0]);
+
+			expect(response.status).toBe(200);
+			expect(handleContentGet).toHaveBeenCalledWith("post", "shared", "fr");
+			expect(handleContentUpdate).toHaveBeenCalledWith(
+				"post",
+				"fr-id",
+				expect.objectContaining({
+					data: { title: "FR" },
+					locale: "fr",
+				}),
+			);
+		});
 	});
 });

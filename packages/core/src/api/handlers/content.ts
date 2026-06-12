@@ -296,6 +296,34 @@ export interface TrashedContentItem {
 }
 
 /**
+ * Resolve the columns a content-list search should match against. Always
+ * includes `slug` (a standard column) and adds the `title`/`name` display
+ * fields when the collection actually defines them, mirroring the admin's
+ * item-title resolution (title -> name -> slug). Returning only existing
+ * columns avoids "no such column" errors on collections without them.
+ */
+async function resolveSearchColumns(db: Kysely<Database>, collection: string): Promise<string[]> {
+	const columns = ["slug"];
+	const row = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	if (!row) return columns;
+
+	const fields = await db
+		.selectFrom("_emdash_fields")
+		.select("slug")
+		.where("collection_id", "=", row.id)
+		.execute();
+	const fieldSlugs = new Set(fields.map((f) => f.slug));
+	for (const candidate of ["title", "name"]) {
+		if (fieldSlugs.has(candidate)) columns.push(candidate);
+	}
+	return columns;
+}
+
+/**
  * Create content list handler
  */
 export async function handleContentList(
@@ -308,13 +336,25 @@ export async function handleContentList(
 		orderBy?: string;
 		order?: "asc" | "desc";
 		locale?: string;
+		q?: string;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
 		const repo = new ContentRepository(db);
-		const where: { status?: string; locale?: string } = {};
+		const where: {
+			status?: string;
+			locale?: string;
+			q?: string;
+			searchColumns?: string[];
+		} = {};
 		if (params.status) where.status = params.status;
 		if (params.locale) where.locale = params.locale;
+
+		const q = params.q?.trim();
+		if (q) {
+			where.q = q;
+			where.searchColumns = await resolveSearchColumns(db, collection);
+		}
 
 		const result = await repo.findMany(collection, {
 			cursor: params.cursor,
@@ -655,6 +695,7 @@ export async function handleContentUpdate(
 		status?: string;
 		authorId?: string | null;
 		bylines?: ContentBylineInput[];
+		locale?: string;
 		_rev?: string;
 		seo?: ContentSeoInput;
 		publishedAt?: string | null;
@@ -682,7 +723,7 @@ export async function handleContentUpdate(
 		const repo = new ContentRepository(db);
 
 		// Resolve slug → ID if needed
-		const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+		const resolvedId = (await resolveId(repo, collection, id, body.locale)) ?? id;
 
 		// Wrap content + SEO writes in a transaction for atomicity.
 		// The _rev check is inside the transaction so the read-then-write

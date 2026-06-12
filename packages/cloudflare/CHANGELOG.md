@@ -1,5 +1,78 @@
 # @emdash-cms/cloudflare
 
+## 0.18.0
+
+### Minor Changes
+
+- [#1410](https://github.com/emdash-cms/emdash/pull/1410) [`aa815aa`](https://github.com/emdash-cms/emdash/commit/aa815aacfc7e2bf32d26924ff011a58f03f81dae) Thanks [@ascorbic](https://github.com/ascorbic)! - New experimental `coalesce` option for the `d1()` adapter, for much faster uncached page loads:
+
+  ```ts
+  emdash({
+  	database: d1({ binding: "DB", session: "auto", coalesce: true }),
+  });
+  ```
+
+  When enabled, read queries that a page issues at the same time are sent to D1 as a single round trip instead of one at a time. A page that runs half a dozen queries — settings, menus, the entry, related posts — pays for one trip to the database instead of six, which can cut uncached render time by more than half. Each query still gets its own results and its own errors, and writes are unaffected. Requires `session` to be enabled; off by default while experimental.
+
+### Patch Changes
+
+- Updated dependencies [[`8a766b8`](https://github.com/emdash-cms/emdash/commit/8a766b876117bbb2b7a2179615e83666cdc769e8), [`bdabff7`](https://github.com/emdash-cms/emdash/commit/bdabff7e4b5fb699ef25002508b7edd3ed184061), [`afc065c`](https://github.com/emdash-cms/emdash/commit/afc065c12e6b9a19c30d2cf179fd1ba9667c5b17), [`7ee9467`](https://github.com/emdash-cms/emdash/commit/7ee94677193fb8dd39b87a23b69883f7055ab296), [`f9362d7`](https://github.com/emdash-cms/emdash/commit/f9362d7a89db14420a4a8f7af4e6568f15905ea7)]:
+  - emdash@0.18.0
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [[`4e11daa`](https://github.com/emdash-cms/emdash/commit/4e11daaaf7c07b20903527626391e31799675da8), [`fe6bc78`](https://github.com/emdash-cms/emdash/commit/fe6bc78e74ecbc41bcae495e070eec9f25e23da2), [`80f2925`](https://github.com/emdash-cms/emdash/commit/80f2925bfbc5f4418363c499c36e0a1c1af04242)]:
+  - emdash@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [[`149fc49`](https://github.com/emdash-cms/emdash/commit/149fc4904326174075d100ccb4f203b2a250ec64), [`64d5675`](https://github.com/emdash-cms/emdash/commit/64d56759250016fb4bfb2a2ab83106407ffd61a7), [`77fff0a`](https://github.com/emdash-cms/emdash/commit/77fff0a36cd4d6dc242c1d8dd58934ca14cd6dbd), [`87c40d3`](https://github.com/emdash-cms/emdash/commit/87c40d34b3a0130f67bf7d31caf40572f14135e6)]:
+  - emdash@0.17.1
+
+## 0.17.0
+
+### Patch Changes
+
+- Updated dependencies [[`cd2dcc6`](https://github.com/emdash-cms/emdash/commit/cd2dcc6a56d19f38d6e13ba55e8563ceaab90ef8), [`62c170f`](https://github.com/emdash-cms/emdash/commit/62c170f11403d76370d6c89f8fa25b0bbcf003fd), [`ee67273`](https://github.com/emdash-cms/emdash/commit/ee67273df089d7ed858542fb0df16650f80cbb15), [`28432b9`](https://github.com/emdash-cms/emdash/commit/28432b9b5a045c9227d59f7762bf9cb37067a950), [`9422d6a`](https://github.com/emdash-cms/emdash/commit/9422d6a744b17f477a3966c3c7e07a087a3345e6), [`1f8190d`](https://github.com/emdash-cms/emdash/commit/1f8190d2dee2f93a0a64ddfbe4f481cb6892ce2b), [`67f5992`](https://github.com/emdash-cms/emdash/commit/67f5992aec23d02c724505632ce951e5b7af9cdb), [`a40e455`](https://github.com/emdash-cms/emdash/commit/a40e455a8de730a61291798a3fe0ee32dde24ed0), [`69bdc97`](https://github.com/emdash-cms/emdash/commit/69bdc97e3e4b69a111b3e5210900e23f35134f8d), [`5e7f835`](https://github.com/emdash-cms/emdash/commit/5e7f83571dbc4832e91881aafbb470407c19b482), [`590b2f9`](https://github.com/emdash-cms/emdash/commit/590b2f97367d6881d8c59e5f0a88e7ad69138acb), [`cd2dcc6`](https://github.com/emdash-cms/emdash/commit/cd2dcc6a56d19f38d6e13ba55e8563ceaab90ef8)]:
+  - emdash@0.17.0
+
+## 0.16.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - emdash@0.16.1
+
+## 0.16.0
+
+### Patch Changes
+
+- Updated dependencies [[`e312528`](https://github.com/emdash-cms/emdash/commit/e312528c4560946a43e2e65bd5617733cd98ea75), [`668c5e1`](https://github.com/emdash-cms/emdash/commit/668c5e1a9d2465d1d255ac00375b3d49d67538ba), [`f62c004`](https://github.com/emdash-cms/emdash/commit/f62c0042a2ded0265aed1157054c7326beb125ac), [`47a8350`](https://github.com/emdash-cms/emdash/commit/47a83502fef22d837eb1269ac107858c59cb13e3), [`5456514`](https://github.com/emdash-cms/emdash/commit/54565143205035e475dabb16075e09ade046a74c), [`60c0b2e`](https://github.com/emdash-cms/emdash/commit/60c0b2eeab7726471b313d0c453de82df1e08558), [`1a4918f`](https://github.com/emdash-cms/emdash/commit/1a4918ff989d57b4f12e44b647542e406dce7cb9), [`7554bd3`](https://github.com/emdash-cms/emdash/commit/7554bd3ba81477383d2616df209050cb29e6ad17), [`33f76b8`](https://github.com/emdash-cms/emdash/commit/33f76b863542a5d040f0e3882cab036e1a410eca), [`e9877e1`](https://github.com/emdash-cms/emdash/commit/e9877e15e4e4ab6906f06342d3e1dbe4532a8acc)]:
+  - emdash@0.16.0
+
+## 0.15.0
+
+### Patch Changes
+
+- [#426](https://github.com/emdash-cms/emdash/pull/426) [`02ed8ba`](https://github.com/emdash-cms/emdash/commit/02ed8ba32ef1f4301d84465b934430eee08eef74) Thanks [@BenjaminPrice](https://github.com/BenjaminPrice)! - Adds workerd-based plugin sandboxing for Node.js deployments.
+  - **emdash**: Adds `isHealthy()` to `SandboxRunner` interface, `SandboxUnavailableError` class, `sandbox: false` config option, `mediaStorage` field on `SandboxOptions`, and exports `createHttpAccess`/`createUnrestrictedHttpAccess`/`PluginStorageRepository`/`UserRepository`/`OptionsRepository` for platform adapters.
+  - **@emdash-cms/cloudflare**: Implements `isHealthy()` on `CloudflareSandboxRunner`. Fixes `storageQuery()` and `storageCount()` to honor `where`, `orderBy`, and `cursor` options (previously ignored, causing infinite pagination loops and incorrect filtered counts). Adds `storageConfig` to `PluginBridgeProps` so `PluginStorageRepository` can use declared indexes.
+  - **@emdash-cms/sandbox-workerd**: New package. `WorkerdSandboxRunner` for production (workerd child process + capnp config + authenticated HTTP backing service) and `MiniflareDevRunner` for development.
+
+- [#1139](https://github.com/emdash-cms/emdash/pull/1139) [`88f544d`](https://github.com/emdash-cms/emdash/commit/88f544db4b8e2f30060a3b4d670ff72aa8760d61) Thanks [@ask-bonk](https://github.com/apps/ask-bonk)! - Upgrades `kysely` to `^0.29.0` (was `^0.27.0`) to resolve three high-severity advisories fixed in `>=0.28.17`:
+  - GHSA-wmrf-hv6w-mr66 – SQL injection via unsanitized JSON path keys
+  - GHSA-pv5w-4p9q-p3v2 – JSON-path traversal injection via `JSONPathBuilder.key()` / `.at()`
+  - GHSA-8cpq-38p9-67gx – MySQL SQL injection via `sql.lit(string)`
+
+  Also updates import paths for `Migrator` and `Migration` types to `kysely/migration` to comply with kysely 0.29 export changes.
+
+- Updated dependencies [[`02ed8ba`](https://github.com/emdash-cms/emdash/commit/02ed8ba32ef1f4301d84465b934430eee08eef74), [`11b3001`](https://github.com/emdash-cms/emdash/commit/11b300100e066c6b3463070a9b65fba868f37e9b), [`fae97ee`](https://github.com/emdash-cms/emdash/commit/fae97ee5465934365864557e9fa3ee8754cfd49c), [`88f544d`](https://github.com/emdash-cms/emdash/commit/88f544db4b8e2f30060a3b4d670ff72aa8760d61), [`9a30607`](https://github.com/emdash-cms/emdash/commit/9a30607791a2f27473b1d2fe7700291e0be1ea1c), [`d0ff94b`](https://github.com/emdash-cms/emdash/commit/d0ff94bd476e7fd4b5d18c94904cfb5c071fea92)]:
+  - emdash@0.15.0
+
 ## 0.14.0
 
 ### Patch Changes

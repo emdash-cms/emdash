@@ -257,6 +257,9 @@ const contentPaths = {
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
+				query: z.object({
+					locale: z.string().optional().meta({ description: "Locale filter" }),
+				}),
 			},
 			requestBody: {
 				content: { [JSON_CONTENT]: { schema: contentUpdateBody } },

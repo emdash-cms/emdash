@@ -75,6 +75,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			isGuest: body.isGuest,
 			locale: body.locale,
 			translationOf: body.translationOf,
+			customFields: body.customFields,
 		});
 
 		if (result.success) invalidateBylineCache();

@@ -90,7 +90,7 @@ export interface LocaleOptions {
 	locale?: string;
 }
 
-function withLocale(path: string, locale?: string): string {
+export function withLocale(path: string, locale?: string): string {
 	return locale
 		? `${path}${path.includes("?") ? "&" : "?"}locale=${encodeURIComponent(locale)}`
 		: path;

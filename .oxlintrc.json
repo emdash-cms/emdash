@@ -125,6 +125,7 @@
 		"skills/**/scaffold/**",
 		".agents/skills/**/scaffold/**",
 		".claude/skills/**/scaffold/**",
-		"scripts/query-dumps/**"
+		"scripts/query-dumps/**",
+		".flue/**"
 	]
 }

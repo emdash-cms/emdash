@@ -172,6 +172,76 @@ describe("CLI Integration", () => {
 			await cli("content", "delete", "posts", created.id);
 		});
 
+		it("updates content by slug scoped to locale", async () => {
+			const slug = "cli-shared-locale";
+			const en = await cliJson<{ id: string; data: { title: string } }>(
+				"content",
+				"create",
+				"posts",
+				"--data",
+				JSON.stringify({ title: "CLI EN" }),
+				"--slug",
+				slug,
+				"--locale",
+				"en",
+			);
+			const fr = await cliJson<{ id: string; data: { title: string } }>(
+				"content",
+				"create",
+				"posts",
+				"--data",
+				JSON.stringify({ title: "CLI FR" }),
+				"--slug",
+				slug,
+				"--locale",
+				"fr",
+			);
+
+			const currentFr = await cliJson<{ _rev: string }>(
+				"content",
+				"get",
+				"posts",
+				slug,
+				"--locale",
+				"fr",
+			);
+			await cliJson<{ id: string; locale: string; data: { title: string } }>(
+				"content",
+				"update",
+				"posts",
+				slug,
+				"--locale",
+				"fr",
+				"--rev",
+				currentFr._rev,
+				"--data",
+				JSON.stringify({ title: "CLI FR Updated" }),
+			);
+
+			const fetchedEn = await cliJson<{ data: { title: string } }>(
+				"content",
+				"get",
+				"posts",
+				slug,
+				"--locale",
+				"en",
+			);
+			const fetchedFr = await cliJson<{ locale: string; data: { title: string } }>(
+				"content",
+				"get",
+				"posts",
+				slug,
+				"--locale",
+				"fr",
+			);
+			expect(fetchedEn.data.title).toBe("CLI EN");
+			expect(fetchedFr.locale).toBe("fr");
+			expect(fetchedFr.data.title).toBe("CLI FR Updated");
+
+			await cli("content", "delete", "posts", en.id);
+			await cli("content", "delete", "posts", fr.id);
+		});
+
 		it("publishes and unpublishes content", async () => {
 			const item = await cliJson<{ id: string }>(
 				"content",

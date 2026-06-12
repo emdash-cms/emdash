@@ -26,6 +26,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { computeThumbnailSize } from "../media/thumbnail.js";
+import { InlineCodeBlockExtension } from "./inline-code-block.js";
 
 // ── Portable Text types ────────────────────────────────────────────
 
@@ -180,6 +181,14 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 				_key: k(),
 				code,
 				language: attrStrOpt(node.attrs, "language"),
+			};
+		}
+		case "htmlBlock": {
+			const rawHtml = node.attrs?.html;
+			return {
+				_type: "htmlBlock",
+				_key: k(),
+				html: typeof rawHtml === "string" ? rawHtml : "",
 			};
 		}
 		case "image": {
@@ -389,6 +398,13 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 	}
 	if (block._type === "break") {
 		return { type: "horizontalRule" };
+	}
+	if (block._type === "htmlBlock") {
+		const hb = block as PTBlock & { html?: string };
+		return {
+			type: "htmlBlock",
+			attrs: { html: hb.html || "" },
+		};
 	}
 	if (block._type === "image") {
 		const ib = block as PTBlock & {
@@ -731,6 +747,21 @@ const slashCommands: SlashCommandItem[] = [
 		},
 	},
 	{
+		id: "htmlBlock",
+		title: "HTML",
+		description: "Insert raw HTML",
+		icon: "< >",
+		aliases: ["html", "raw", "markup"],
+		command: ({ editor, range }) => {
+			editor
+				.chain()
+				.focus()
+				.deleteRange(range)
+				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+				.run();
+		},
+	},
+	{
 		id: "divider",
 		title: "Divider",
 		description: "Insert a horizontal rule",
@@ -769,6 +800,44 @@ const initialSlashMenuState: SlashMenuState = {
 	clientRect: null,
 	range: null,
 };
+
+/**
+ * Minimal `htmlBlock` TipTap node for the inline (visual-editing) editor.
+ *
+ * Like PluginBlockNode below, this renders as a read-only placeholder so the
+ * block's data is preserved across edits in the visual editor. Full editing
+ * (textarea + preview) is only available in the admin editor.
+ */
+const HtmlBlockNode = Node.create({
+	name: "htmlBlock",
+	group: "block",
+	atom: true,
+	selectable: true,
+	draggable: true,
+
+	addAttributes() {
+		const noDom = { rendered: false, parseHTML: () => null };
+		return {
+			html: { default: "", ...noDom },
+		};
+	},
+
+	parseHTML() {
+		return [{ tag: 'div[data-emdash-html-block="true"]' }];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return [
+			"div",
+			mergeAttributes(HTMLAttributes, {
+				"data-emdash-html-block": "true",
+				class: "emdash-plugin-block-placeholder",
+				contenteditable: "false",
+			}),
+			"HTML block (edit in admin)",
+		];
+	},
+});
 
 /**
  * Minimal `pluginBlock` TipTap node for the inline (visual-editing) editor.
@@ -1765,7 +1834,10 @@ export function InlinePortableTextEditor({
 			StarterKit.configure({
 				heading: { levels: [1, 2, 3] },
 				dropcursor: { color: "#3b82f6", width: 2 },
+				// Replaced with InlineCodeBlockExtension below (adds language picker).
+				codeBlock: false,
 			}),
+			InlineCodeBlockExtension,
 			Image.extend({
 				addAttributes() {
 					return {
@@ -1797,6 +1869,7 @@ export function InlinePortableTextEditor({
 				mode: "all",
 			}),
 			Typography,
+			HtmlBlockNode,
 			PluginBlockNode,
 			slashCommandsExtension,
 		],

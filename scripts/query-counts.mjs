@@ -68,11 +68,20 @@ const ROUTES = [
 	["GET", "/tag/webdev"],
 	["GET", "/rss.xml"],
 	["GET", "/search?q=static"],
+	// Byline-avatar list pages. /contributors uses the avatar storage key folded
+	// into byline hydration; /contributors-naive resolves each avatar with a
+	// per-byline media lookup. The gap between them is the N+1 the join removes.
+	["GET", "/contributors"],
+	["GET", "/contributors-naive"],
 ];
 
 const TRACKED_PHASES = new Set(["cold", "warm"]);
 const VALID_TARGETS = new Set(["sqlite", "d1"]);
 const QUERY_LOG_PREFIX = "[emdash-query-log] ";
+// Emitted by stream-end-metrics.ts when the response body finishes
+// streaming — captures the FULL request cost, including queries issued
+// during body streaming that Server-Timing headers can't see.
+const STREAM_END_PREFIX = "[emdash-stream-end] ";
 
 /**
  * Resolve once a TCP connection to (host, port) succeeds, or reject on
@@ -216,6 +225,8 @@ async function seedD1ViaDevBypass(events) {
 			}
 			return;
 		}
+		// Stream-end snapshots from seeding aren't measurements; swallow them.
+		if (line.includes(STREAM_END_PREFIX)) return;
 		process.stdout.write(line + "\n");
 	});
 	const exited = new Promise((res) => child.once("exit", res));
@@ -249,7 +260,7 @@ async function seedD1ViaDevBypass(events) {
  * `ready` resolves on a successful TCP connection — no HTTP probing,
  * so a fresh workerd isolate stays cold until our first tagged request.
  */
-function startServer({ collectedEvents }) {
+function startServer({ collectedEvents, streamEndSnapshots = [] }) {
 	let cmd;
 	let args;
 	if (target === "sqlite") {
@@ -285,6 +296,18 @@ function startServer({ collectedEvents }) {
 				collectedEvents.push(JSON.parse(payload));
 			} catch {
 				process.stderr.write(`bad query-log line: ${payload}\n`);
+			}
+			return;
+		}
+		const seIdx = line.indexOf(STREAM_END_PREFIX);
+		if (seIdx !== -1) {
+			const before = line.slice(0, seIdx);
+			if (before.trim().length > 0) process.stdout.write(before + "\n");
+			const payload = line.slice(seIdx + STREAM_END_PREFIX.length);
+			try {
+				streamEndSnapshots.push(JSON.parse(payload));
+			} catch {
+				process.stderr.write(`bad stream-end line: ${payload}\n`);
 			}
 			return;
 		}
@@ -383,14 +406,14 @@ function diffSnapshot(actual) {
 // SQLite: seed the file DB via CLI, build, then run one long-lived node
 // entry. Warmup hit absorbs runtime init queries (filtered as "default"
 // phase). Tagged cold = first visit to route (runtime warm); warm = second.
-async function runSqlite(events) {
+async function runSqlite(events, streamEndSnapshots) {
 	if (!skipSeed) {
 		resetSqliteState();
 		seedSqliteCli();
 	}
 	if (skipBuild) assertExistingBuildMatchesTarget();
 	else buildFixture();
-	const server = startServer({ collectedEvents: events });
+	const server = startServer({ collectedEvents: events, streamEndSnapshots });
 	try {
 		await server.ready;
 		await warmup();
@@ -410,7 +433,7 @@ async function runSqlite(events) {
 // Seed must precede build: `astro dev` leaves `.wrangler/deploy/`
 // without the build-time `config.json` that `astro preview` requires,
 // so building afterwards is what makes the subsequent previews work.
-async function runD1(events) {
+async function runD1(events, streamEndSnapshots) {
 	if (!skipSeed) {
 		resetD1State();
 		// seeding uses its own event sink; we don't want to commingle
@@ -423,7 +446,7 @@ async function runD1(events) {
 
 	for (const [m, p] of ROUTES) {
 		process.stdout.write(`--- fresh isolate for ${m} ${p} ---\n`);
-		const server = startServer({ collectedEvents: events });
+		const server = startServer({ collectedEvents: events, streamEndSnapshots });
 		try {
 			await server.ready;
 			await hit(m, p, "cold");
@@ -434,10 +457,37 @@ async function runD1(events) {
 	}
 }
 
+/**
+ * Print the per-route stream-end snapshots (full request cost measured
+ * when the body finished streaming). Informational only — not part of
+ * the snapshot files, since timings are machine-dependent. The value is
+ * `dbCount` here vs. the header-time count: the difference is queries
+ * issued during body streaming, invisible to Server-Timing.
+ */
+function reportStreamEnd(snapshots) {
+	const tracked = snapshots
+		.filter((s) => TRACKED_PHASES.has(s.phase))
+		.toSorted((a, b) =>
+			`${a.method} ${a.route} ${a.phase}`.localeCompare(`${b.method} ${b.route} ${b.phase}`),
+		);
+	if (tracked.length === 0) return;
+	process.stdout.write("\nStream-end metrics (full request, incl. post-header queries):\n");
+	for (const s of tracked) {
+		const dbMs = typeof s.dbTotalMs === "number" ? s.dbTotalMs.toFixed(1) : "?";
+		const totalMs = typeof s.totalMs === "number" ? s.totalMs.toFixed(1) : "?";
+		process.stdout.write(
+			`  ${s.method} ${s.route} (${s.phase}): db.count=${s.dbCount} db.total=${dbMs}ms total=${totalMs}ms cache=${s.cacheHits}/${s.cacheHits + s.cacheMisses}\n`,
+		);
+	}
+}
+
 async function main() {
 	const events = [];
-	if (target === "sqlite") await runSqlite(events);
-	else await runD1(events);
+	const streamEndSnapshots = [];
+	if (target === "sqlite") await runSqlite(events, streamEndSnapshots);
+	else await runD1(events, streamEndSnapshots);
+
+	reportStreamEnd(streamEndSnapshots);
 
 	const counts = aggregate(events);
 	if (update) {

@@ -34,6 +34,7 @@ uploads/
 !packages/core/tests/e2e/fixture/.emdash/
 !packages/core/tests/integration/fixture/.emdash/
 !e2e/fixture/.emdash/
+!e2e/fixture-cloudflare/.emdash/
 !templates/*/.emdash/seed.json
 
 # macOS-specific files

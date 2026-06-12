@@ -60,6 +60,7 @@ import {
 	PLUGIN_VERSION_MAX_LENGTH,
 	PLUGIN_VERSION_RE,
 } from "@emdash-cms/plugin-types";
+import { isValidVersionRange } from "@emdash-cms/registry-client/env";
 import { z } from "zod";
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -243,6 +244,42 @@ export const RepoSchema = z
 		title: "Source repository",
 		description: "HTTPS URL of the plugin's source repository. Surfaced in registry listings.",
 		examples: ["https://github.com/emdash-cms/plugin-gallery"],
+	});
+
+/** `env:<name>` requirement keys (one or more non-colon characters). */
+const REQUIRES_ENV_KEY_RE = /^env:[^:]+$/;
+
+/**
+ * Release-level environment constraints. Mirrors `release.json#requires`: a
+ * map of `env:*` keys (host environment requirements) or package DIDs to
+ * semver-range constraint strings. EmDash uses `env:emdash` and `env:astro`.
+ *
+ * Keys are validated structurally (`env:<name>` or `did:<method>:<id>`) and
+ * values against the shared range grammar in `@emdash-cms/registry-client/env`,
+ * the same evaluator the install gate and the admin compatibility warning use,
+ * so a publisher can't ship a constraint that no consumer can evaluate.
+ */
+export const RequiresSchema = z
+	.record(
+		z
+			.string()
+			.refine(
+				(k) => REQUIRES_ENV_KEY_RE.test(k) || isDid(k),
+				'requires key must be an `env:*` requirement (e.g. "env:astro") or a package DID',
+			),
+		z
+			.string()
+			.min(1, "requires range must be a non-empty semver range")
+			.refine(
+				isValidVersionRange,
+				'requires range must be a valid semver range (e.g. ">=4.16", "^4.0.0", ">=4.16.0 <5.0.0")',
+			),
+	)
+	.meta({
+		title: "Environment requirements",
+		description:
+			'Host environment constraints for this release, keyed by `env:*` (e.g. "env:astro", "env:emdash") with semver-range values. EmDash refuses to install a release whose constraints the host does not satisfy.',
+		examples: [{ "env:emdash": ">=1.0.0", "env:astro": ">=4.16" }],
 	});
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -527,6 +564,212 @@ export const AdminSchema = z
 	});
 
 // ──────────────────────────────────────────────────────────────────────────
+// Long-form profile sections (description / installation / faq / changelog /
+// security)
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Per-section size caps, mirroring `profile.json#sections`. */
+export const SECTION_MAX_BYTES = 20000;
+export const SECTION_MAX_GRAPHEMES = 2000;
+
+/** The five FAIR-recognised section keys the lexicon enumerates. */
+export const SECTION_KEYS = [
+	"description",
+	"installation",
+	"faq",
+	"changelog",
+	"security",
+] as const;
+
+export type SectionKey = (typeof SECTION_KEYS)[number];
+
+const sectionGraphemeSegmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+
+/** Grapheme count via `Intl.Segmenter` — the codebase's grapheme-aware measure. */
+export function countGraphemes(value: string): number {
+	let count = 0;
+	for (const _ of sectionGraphemeSegmenter.segment(value)) count++;
+	return count;
+}
+
+/**
+ * Enforce the per-section size caps on a resolved markdown string. Returns
+ * an error message when over a cap, or `null` when within both. Shared by the
+ * inline-string schema check and the load-time file-ref check so an inline
+ * section and a `{ file }` section fail with the same message.
+ */
+export function sectionCapError(value: string): string | null {
+	const bytes = Buffer.byteLength(value, "utf8");
+	if (bytes > SECTION_MAX_BYTES) {
+		return `content is ${bytes} bytes, exceeding the ${SECTION_MAX_BYTES}-byte cap`;
+	}
+	const graphemes = countGraphemes(value);
+	if (graphemes > SECTION_MAX_GRAPHEMES) {
+		return `content is ${graphemes} graphemes, exceeding the ${SECTION_MAX_GRAPHEMES}-grapheme cap`;
+	}
+	return null;
+}
+
+/**
+ * A single section file reference. The `file` path is resolved relative to the
+ * manifest at LOAD time; the CLI reads the file's content directly into the
+ * section string (sections are inlined into the profile record, unlike media
+ * artifacts whose bytes are uploaded). Only the authoring input lives here.
+ */
+export const SectionFileSchema = z
+	.object({
+		file: z
+			.string()
+			.min(1, "section `file` path cannot be empty")
+			.max(1024, "section `file` path must be <= 1024 characters")
+			.meta({
+				description:
+					"Path to a CommonMark Markdown file, relative to the manifest. Its content is read inline into the section at publish time.",
+			}),
+	})
+	.strict()
+	.meta({
+		title: "Section file reference",
+		description:
+			"Loads the section's Markdown from a sibling file instead of inlining it in the manifest.",
+	});
+
+/**
+ * A single section value: either an inline CommonMark string or a `{ file }`
+ * reference. Inline strings are capped here (20000 bytes / 2000 graphemes); a
+ * file ref's content is capped at load time once the file is read, because the
+ * bytes aren't known until then.
+ */
+export const SectionValueSchema = z
+	.union([
+		z
+			.string()
+			.superRefine((value, ctx) => {
+				const error = sectionCapError(value);
+				if (error) ctx.addIssue({ code: "custom", message: error });
+			})
+			.meta({
+				description:
+					"Inline CommonMark Markdown for this section. Capped at 20000 bytes / 2000 graphemes.",
+			}),
+		SectionFileSchema,
+	])
+	.meta({
+		title: "Section value",
+		description:
+			"Either inline CommonMark Markdown or a `{ file }` reference to a sibling Markdown file.",
+	});
+
+/**
+ * Long-form profile sections. Profile-level (not per-release): the same map of
+ * human-readable Markdown carries across every release of a package. Keys are
+ * the five FAIR-recognised section names; `.strict()` rejects any other key so
+ * a typo (`instalation`) fails locally rather than producing an unrecognised
+ * section in the published profile.
+ */
+export const SectionsSchema = z
+	.object({
+		description: SectionValueSchema.optional(),
+		installation: SectionValueSchema.optional(),
+		faq: SectionValueSchema.optional(),
+		changelog: SectionValueSchema.optional(),
+		security: SectionValueSchema.optional(),
+	})
+	.strict()
+	.meta({
+		title: "Profile sections",
+		description:
+			"Long-form package documentation (description / installation / faq / changelog / security). Each value is CommonMark Markdown (inline or a `{ file }` ref) capped at 20000 bytes / 2000 graphemes. Rendered on the package's registry page.",
+	});
+
+// ──────────────────────────────────────────────────────────────────────────
+// Media artifacts (icon / screenshot / banner)
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * BCP 47 language tag for a localised artifact. Mirrors `release.json#artifact.lang`.
+ * Structural check only — the registry aggregator owns the strict grammar.
+ */
+const ArtifactLangSchema = z
+	.string()
+	.min(2, 'lang must be a BCP 47 language tag (e.g. "en", "pt-BR")')
+	.max(64, "lang must be <= 64 characters")
+	.meta({
+		description: 'BCP 47 language tag for a localised artifact (e.g. "en", "pt-BR").',
+		examples: ["en", "pt-BR"],
+	});
+
+/**
+ * A single media-artifact file reference. The `file` path is resolved relative
+ * to the manifest at publish time; the CLI reads the bytes, computes the
+ * checksum and pixel dimensions, uploads them to the publisher's artifact
+ * hosting, and writes a `#artifact` record (url, checksum, contentType, width,
+ * height, lang?) into the release. Only the authoring inputs live here — the
+ * derived fields never appear in the manifest.
+ */
+export const ArtifactFileSchema = z
+	.object({
+		file: z
+			.string()
+			.min(1, "artifact `file` path cannot be empty")
+			.max(1024, "artifact `file` path must be <= 1024 characters")
+			.meta({
+				description:
+					"Path to the image file, relative to the manifest. Resolved, hashed, measured, and uploaded at publish time.",
+			}),
+		lang: ArtifactLangSchema.optional(),
+	})
+	.strict()
+	.meta({
+		title: "Artifact file reference",
+		description:
+			"A media file (PNG / JPEG / WebP / GIF / AVIF) bundled into a release as an icon, screenshot, or banner.",
+	});
+
+/**
+ * Release media artifacts. `icon` and `banner` are single files; `screenshots`
+ * is an array (a plugin can ship a gallery). Mirrors `release.json#artifacts`
+ * minus the `package` entry, which the CLI derives from the tarball.
+ */
+export const ArtifactsSchema = z
+	.object({
+		icon: ArtifactFileSchema.optional(),
+		banner: ArtifactFileSchema.optional(),
+		screenshots: z
+			.array(ArtifactFileSchema)
+			.min(1, "screenshots[] must have at least one entry when set")
+			.max(8, "screenshots[] must have <= 8 entries")
+			.meta({
+				title: "Screenshots",
+				description: "Screenshot gallery for the plugin's detail page (<= 8 entries).",
+			})
+			.optional(),
+	})
+	.strict()
+	.meta({
+		title: "Artifacts",
+		description:
+			"Release media artifacts. `icon` and `banner` are single images; `screenshots` is a gallery array.",
+	});
+
+/**
+ * Release-level block. Holds fields scoped to a single version rather than the
+ * package profile. Today that's media `artifacts`; the source `repo` stays at
+ * the top level for backwards compatibility.
+ */
+export const ReleaseSchema = z
+	.object({
+		requires: RequiresSchema.optional(),
+		artifacts: ArtifactsSchema.optional(),
+	})
+	.strict()
+	.meta({
+		title: "Release",
+		description:
+			"Per-release fields: environment constraints (`requires`) and media artifacts (icon / screenshot / banner).",
+	});
+
+// ──────────────────────────────────────────────────────────────────────────
 // Top-level manifest
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -629,8 +872,18 @@ export const ManifestSchema = z
 		description: DescriptionSchema.optional(),
 		keywords: KeywordsSchema.optional(),
 
+		// Long-form profile sections (description / installation / faq /
+		// changelog / security). Profile-level, like the fields above. File
+		// refs are read inline at load time relative to the manifest.
+		sections: SectionsSchema.optional(),
+
 		// Optional release fields.
 		repo: RepoSchema.optional(),
+
+		// Per-release block: environment constraints (`requires`) and media
+		// artifacts (icon / screenshot / banner). File refs are resolved
+		// relative to the manifest at publish time.
+		release: ReleaseSchema.optional(),
 	})
 	.strict()
 	.refine((v) => !(v.author !== undefined && v.authors !== undefined), {
@@ -706,3 +959,15 @@ export type ManifestAuthor = z.infer<typeof AuthorSchema>;
 
 /** A single security contact entry, normalised. */
 export type ManifestSecurityContact = z.infer<typeof SecurityContactSchema>;
+
+/** A single media-artifact file reference (icon / screenshot / banner). */
+export type ManifestArtifactFile = z.infer<typeof ArtifactFileSchema>;
+
+/** A single section file reference (`{ file }`). */
+export type ManifestSectionFile = z.infer<typeof SectionFileSchema>;
+
+/** The long-form sections block, as authored (inline strings or file refs). */
+export type ManifestSections = z.infer<typeof SectionsSchema>;
+
+/** The release media-artifacts block. */
+export type ManifestArtifacts = z.infer<typeof ArtifactsSchema>;

@@ -527,6 +527,14 @@ export interface EmDashConfig {
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
 	};
+
+	/**
+	 * Version of Astro the host project is building with. Populated by the
+	 * integration's `astro:config:setup` hook (not authored by the user) and
+	 * surfaced to the admin and the registry install gate so a plugin's
+	 * `env:astro` requirement can be evaluated against the real host version.
+	 */
+	astroVersion?: string;
 }
 
 const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");

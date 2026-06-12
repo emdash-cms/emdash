@@ -105,7 +105,7 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("test.jpg")).toBeInTheDocument();
 			// Table headers should be visible
 			await expect.element(screen.getByText("Filename")).toBeInTheDocument();
-			await expect.element(screen.getByText("Type")).toBeInTheDocument();
+			await expect.element(screen.getByText("Type", { exact: true })).toBeInTheDocument();
 			await expect.element(screen.getByText("Size")).toBeInTheDocument();
 		});
 	});
@@ -216,6 +216,33 @@ describe("MediaLibrary", () => {
 				onLoadMore: vi.fn(),
 			});
 			await expect.element(screen.getByAltText("first-page.jpg")).toBeInTheDocument();
+		});
+	});
+
+	// #1221: the local library gained filename search + a type filter.
+	describe("local search and filter", () => {
+		it("reports the debounced filename query upward", async () => {
+			const onLocalSearchChange = vi.fn();
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, onLocalSearchChange });
+
+			await screen.getByRole("searchbox", { name: "Search media" }).fill("vacation");
+
+			await vi.waitFor(() => {
+				expect(onLocalSearchChange).toHaveBeenCalledWith("vacation");
+			});
+		});
+
+		it("reports a MIME filter when a type is chosen", async () => {
+			const onLocalMimeFilterChange = vi.fn();
+			const items = [makeMediaItem({ id: "1", filename: "a.jpg" })];
+			const screen = await renderLibrary({ items, onLocalMimeFilterChange });
+
+			// Open the type filter and choose Images.
+			await screen.getByRole("combobox", { name: "Filter by type" }).click();
+			await screen.getByRole("option", { name: "Images" }).click();
+
+			expect(onLocalMimeFilterChange).toHaveBeenCalledWith("image/");
 		});
 	});
 });

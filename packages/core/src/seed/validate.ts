@@ -471,6 +471,45 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (!byline.displayName) {
 					errors.push(`${prefix}: displayName is required`);
 				}
+
+				if (byline.avatar !== undefined) {
+					const avatar: unknown = byline.avatar;
+					if (!isRecord(avatar)) {
+						errors.push(`${prefix}.avatar: must be an object`);
+					} else {
+						// storageKey is used verbatim in a `where storage_key = ?` lookup,
+						// so surrounding whitespace would silently never match a real key.
+						if (
+							typeof avatar.storageKey !== "string" ||
+							avatar.storageKey.length === 0 ||
+							avatar.storageKey !== avatar.storageKey.trim()
+						) {
+							errors.push(
+								`${prefix}.avatar.storageKey: must be a non-empty string with no leading or trailing whitespace`,
+							);
+						}
+						for (const key of ["alt", "filename", "mimeType"] as const) {
+							if (avatar[key] !== undefined && typeof avatar[key] !== "string") {
+								errors.push(`${prefix}.avatar.${key}: must be a string`);
+							}
+						}
+						// filename/mimeType are used verbatim, so reject blank or
+						// whitespace-padded values (an empty filename would create a
+						// media row with no basename; a padded mime type is invalid).
+						for (const key of ["filename", "mimeType"] as const) {
+							const v = avatar[key];
+							if (typeof v === "string" && (v.length === 0 || v !== v.trim())) {
+								errors.push(`${prefix}.avatar.${key}: must not be empty or whitespace-padded`);
+							}
+						}
+						for (const key of ["width", "height"] as const) {
+							const v = avatar[key];
+							if (v !== undefined && (typeof v !== "number" || !Number.isFinite(v) || v < 0)) {
+								errors.push(`${prefix}.avatar.${key}: must be a non-negative number`);
+							}
+						}
+					}
+				}
 			}
 		}
 	}

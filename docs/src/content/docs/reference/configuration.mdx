@@ -351,6 +351,45 @@ emdash({
 
 Uploads that exceed the configured limit are rejected with a `413 Payload Too Large` response on the direct upload path, or a `400 Validation Error` on the signed-URL path.
 
+### `experimental`
+
+**Optional.** Opt-in features whose behaviour or wire format may change, or be removed, in a minor release. Each field is independently enabled.
+
+<Aside type="caution">
+	Experimental options are unstable. Pin EmDash to an exact version when you depend on one, and check the changelog before upgrading.
+</Aside>
+
+#### `experimental.registry`
+
+**Optional.** Point the admin dashboard's plugin browse and install flows at a federated [plugin registry](/plugins/registry/) instead of the central marketplace. Requires `sandboxRunner`, because registry plugins run sandboxed.
+
+Pass a bare aggregator URL string, or an object when you need a labeller or a release-age policy. The following example uses the object form:
+
+```js title="astro.config.mjs"
+emdash({
+	sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	experimental: {
+		registry: {
+			aggregatorUrl: "https://registry.emdashcms.com",
+			acceptLabelers: "did:plc:emdashverification",
+			policy: {
+				minimumReleaseAge: "48h",
+				minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
+			},
+		},
+	},
+});
+```
+
+| Option                            | Type                   | Description                                                                                   |
+| --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
+| `aggregatorUrl`                   | `string`               | Aggregator origin where the registry's XRPC endpoints are mounted. HTTPS in production.        |
+| `acceptLabelers`                  | `string`               | Comma-separated labeller DIDs forwarded to the aggregator for takedown and verification labels. |
+| `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
+| `policy.minimumReleaseAgeExclude` | `string[]`             | DIDs (or `<did>/<slug>` pairs) exempt from the holdback.                                        |
+
+See [The plugin registry](/plugins/registry/) for the full workflow, trust model, and how to query the registry from your own site.
+
 ## Database adapters
 
 Import the adapters from `emdash/db`:

@@ -17,6 +17,9 @@ import { EmDashValidationError, encodeCursor, decodeCursor } from "./types.js";
 // Regex pattern for ULID validation
 const ULID_PATTERN = /^[0-9A-Z]{26}$/;
 
+// LIKE wildcards that must be escaped so user search input is matched literally.
+const LIKE_WILDCARD_RE = /[\\%_]/g;
+
 /**
  * System columns that exist in every ec_* table
  */
@@ -489,6 +492,8 @@ export class ContentRepository {
 			query = query.where("locale" as any, "=", options.where.locale);
 		}
 
+		query = this.applySearchFilter(query, options.where);
+
 		// Handle cursor pagination — decodeCursor throws InvalidCursorError
 		// on malformed input; let it propagate so handlers surface a
 		// structured INVALID_CURSOR rather than silently returning page 1.
@@ -519,8 +524,8 @@ export class ContentRepository {
 			.limit(limit + 1);
 
 		// Run the page fetch and the unbounded count together — the UI needs
-		// both to render a stable denominator, and issuing them in parallel
-		// on SQLite is essentially free.
+		// both to render a stable denominator (kept on every page intentionally),
+		// and issuing them in parallel on SQLite is essentially free.
 		const [rows, total] = await Promise.all([query.execute(), this.count(type, options.where)]);
 		const hasMore = rows.length > limit;
 		const items = rows.slice(0, limit);
@@ -754,11 +759,44 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Apply the optional case-insensitive `q` substring filter across the
+	 * handler-resolved `searchColumns` (OR'd). User input is treated literally
+	 * (LIKE wildcards escaped) and `lower()` is applied on both sides for
+	 * SQLite/Postgres case-insensitive parity.
+	 */
+	private applySearchFilter<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
+		query: QB,
+		where?: { q?: string; searchColumns?: string[] },
+	): QB {
+		const term = where?.q?.trim();
+		const columns = where?.searchColumns;
+		if (!term || !columns || columns.length === 0) return query;
+
+		const escaped = term.replace(LIKE_WILDCARD_RE, (c) => `\\${c}`);
+		const pattern = `%${escaped}%`;
+
+		return query.where((eb) =>
+			eb.or(
+				columns.map((col) => {
+					validateIdentifier(col, "search column");
+					return eb(sql`lower(${sql.ref(col)})`, "like", sql`lower(${pattern}) escape '\\'`);
+				}),
+			),
+		);
+	}
+
+	/**
 	 * Count content items
 	 */
 	async count(
 		type: string,
-		where?: { status?: string; authorId?: string; locale?: string },
+		where?: {
+			status?: string;
+			authorId?: string;
+			locale?: string;
+			q?: string;
+			searchColumns?: string[];
+		},
 	): Promise<number> {
 		const tableName = getTableName(type);
 
@@ -778,6 +816,8 @@ export class ContentRepository {
 		if (where?.locale) {
 			query = query.where("locale" as any, "=", where.locale);
 		}
+
+		query = this.applySearchFilter(query, where);
 
 		const result = await query.executeTakeFirst();
 		return Number(result?.count || 0);
