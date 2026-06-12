@@ -1,5 +1,36 @@
 # @emdash-cms/admin
 
+## 0.18.0
+
+### Patch Changes
+
+- [#1384](https://github.com/emdash-cms/emdash/pull/1384) [`d2829e3`](https://github.com/emdash-cms/emdash/commit/d2829e36c0e568db4ec92f500b166e03f0c36973) Thanks [@ahliweb](https://github.com/ahliweb)! - Updates the Indonesian admin catalog for the byline schema and custom-field management UI with formal, complete translations.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.18.0
+
+## 0.17.2
+
+### Patch Changes
+
+- [#1305](https://github.com/emdash-cms/emdash/pull/1305) [`4ee75f8`](https://github.com/emdash-cms/emdash/commit/4ee75f851da4461a599f892c820152377625ef70) Thanks [@eyupcanakman](https://github.com/eyupcanakman)! - Fixes plugin admin pages showing a Plugin Error when opened from the Plugin Manager. The Settings gear opens a plugin at its root (`/plugins/<id>/`), but a plugin that registers its page at `/settings` rather than `/` had no page there, so the admin fell through to a 404. Plugin page resolution now resolves the plugin root to the first registered page and treats `/settings` and `/settings/` as the same path, so a single registration works from the Plugin Manager gear and the sidebar regardless of trailing slash.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- [#1342](https://github.com/emdash-cms/emdash/pull/1342) [`83daa41`](https://github.com/emdash-cms/emdash/commit/83daa4149ed0d1ccf23d9f90304ef6ba3545d46f) Thanks [@bergaaberg](https://github.com/bergaaberg)! - Adds Norwegian Bokmål (nb) locale to the admin UI.
+
+- [#1334](https://github.com/emdash-cms/emdash/pull/1334) [`dfabafe`](https://github.com/emdash-cms/emdash/commit/dfabafeb5db9c27c861015e7d426eb40d6ed940a) Thanks [@theobaidur](https://github.com/theobaidur)! - Honor the `icon` field on plugin `adminPages` in the sidebar nav.
+
+  Plugin admin pages declared via `adminPages: [{ path, label, icon }]` previously rendered with a hardcoded `PuzzlePiece` glyph — the `icon` field was accepted in the types but never read at runtime. The sidebar now resolves the icon name to its `@phosphor-icons/react` component: common documented names (`settings`, `chart`, `history`, `image`, `trophy`, …) are statically mapped so they resolve synchronously, and any other name is matched against the full Phosphor set by converting it to PascalCase (e.g. `chart-bar` → `ChartBar`) and lazy-loading it from a code-split chunk. The full set is therefore reachable without bundling it into the admin's main chunk. Unknown or omitted names fall back to `PuzzlePiece`, so the change is purely additive.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.17.1
+
 ## 0.17.0
 
 ### Minor Changes

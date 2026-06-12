@@ -698,12 +698,12 @@ msgid "Additional data to import."
 msgstr "가져올 추가 데이터입니다."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:472
+#: packages/admin/src/components/Sidebar.tsx:599
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "관리자"
 
-#: packages/admin/src/components/Sidebar.tsx:416
+#: packages/admin/src/components/Sidebar.tsx:543
 msgid "Admin navigation"
 msgstr "관리자 탐색 메뉴"
 
@@ -1154,7 +1154,7 @@ msgid "Byline schema"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:998
-#: packages/admin/src/components/Sidebar.tsx:240
+#: packages/admin/src/components/Sidebar.tsx:363
 #: packages/admin/src/routes/bylines.tsx:362
 msgid "Bylines"
 msgstr "작성자 정보"
@@ -1476,7 +1476,7 @@ msgstr "댓글 세부정보"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:146
 #: packages/admin/src/components/ContentTypeEditor.tsx:487
-#: packages/admin/src/components/Sidebar.tsx:224
+#: packages/admin/src/components/Sidebar.tsx:347
 msgid "Comments"
 msgstr "댓글"
 
@@ -1528,7 +1528,7 @@ msgstr "연결됨 {0}"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:2047
 #: packages/admin/src/components/SectionEditor.tsx:194
-#: packages/admin/src/components/Sidebar.tsx:450
+#: packages/admin/src/components/Sidebar.tsx:577
 #: packages/admin/src/components/Widgets.tsx:819
 msgid "Content"
 msgstr "콘텐츠"
@@ -1588,7 +1588,7 @@ msgstr "가져올 콘텐츠"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:244
+#: packages/admin/src/components/Sidebar.tsx:367
 msgid "Content Types"
 msgstr "콘텐츠 유형"
 
@@ -1919,8 +1919,8 @@ msgstr "어두운 테마"
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
-#: packages/admin/src/components/Sidebar.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:439
+#: packages/admin/src/components/Sidebar.tsx:333
+#: packages/admin/src/components/Sidebar.tsx:566
 msgid "Dashboard"
 msgstr "대시보드"
 
@@ -3532,7 +3532,7 @@ msgid "Images"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
-#: packages/admin/src/components/Sidebar.tsx:275
+#: packages/admin/src/components/Sidebar.tsx:398
 #: packages/admin/src/components/WordPressImport.tsx:664
 msgid "Import"
 msgstr "가져오기"
@@ -4099,7 +4099,7 @@ msgstr ""
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:462
+#: packages/admin/src/components/Sidebar.tsx:589
 msgid "Manage"
 msgstr "관리"
 
@@ -4157,7 +4157,7 @@ msgstr "마켓플레이스"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:167
 #: packages/admin/src/components/PluginManager.tsx:355
-#: packages/admin/src/components/Sidebar.tsx:259
+#: packages/admin/src/components/Sidebar.tsx:382
 msgid "Marketplace"
 msgstr "마켓플레이스"
 
@@ -4174,7 +4174,7 @@ msgid "Max Value"
 msgstr "최대값"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2033
-#: packages/admin/src/components/Sidebar.tsx:219
+#: packages/admin/src/components/Sidebar.tsx:342
 #: packages/admin/src/components/WordPressImport.tsx:678
 #: packages/admin/src/components/WordPressImport.tsx:1173
 msgid "Media"
@@ -4264,7 +4264,7 @@ msgstr "메뉴 순서가 업데이트되었습니다."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:103
-#: packages/admin/src/components/Sidebar.tsx:229
+#: packages/admin/src/components/Sidebar.tsx:352
 msgid "Menus"
 msgstr "메뉴"
 
@@ -5139,8 +5139,8 @@ msgstr "플러그인이 업데이트되었습니다."
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:144
 #: packages/admin/src/components/PluginManager.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:246
-#: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/components/Sidebar.tsx:369
+#: packages/admin/src/components/Sidebar.tsx:609
 msgid "Plugins"
 msgstr "플러그인"
 
@@ -5318,7 +5318,7 @@ msgstr "로그인으로 리디렉션 중..."
 
 #: packages/admin/src/components/Redirects.tsx:332
 #: packages/admin/src/components/Redirects.tsx:351
-#: packages/admin/src/components/Sidebar.tsx:230
+#: packages/admin/src/components/Sidebar.tsx:353
 msgid "Redirects"
 msgstr "리디렉션"
 
@@ -5355,7 +5355,7 @@ msgstr ""
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "등록이 취소되었거나 시간이 초과되었습니다. 다시 시도해 주세요."
 
-#: packages/admin/src/components/Sidebar.tsx:252
+#: packages/admin/src/components/Sidebar.tsx:375
 msgid "Registry"
 msgstr ""
 
@@ -5951,7 +5951,7 @@ msgstr "섹션 제목"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:232
+#: packages/admin/src/components/Sidebar.tsx:355
 msgid "Sections"
 msgstr "섹션"
 
@@ -6197,7 +6197,7 @@ msgstr "설정 중..."
 #: packages/admin/src/components/Header.tsx:93
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
-#: packages/admin/src/components/Sidebar.tsx:276
+#: packages/admin/src/components/Sidebar.tsx:399
 #: packages/admin/src/components/WordPressImport.tsx:1647
 msgid "Settings"
 msgstr "설정"
@@ -6650,7 +6650,7 @@ msgstr "테마가 제공되는 섹션은 삭제할 수 없습니다. 섹션을 �
 msgid "Theme: {label}"
 msgstr "테마: {label}"
 
-#: packages/admin/src/components/Sidebar.tsx:268
+#: packages/admin/src/components/Sidebar.tsx:391
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "테마 마켓플레이스"
@@ -7276,7 +7276,7 @@ msgid "User not found"
 msgstr "사용자를 찾을 수 없습니다"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
-#: packages/admin/src/components/Sidebar.tsx:245
+#: packages/admin/src/components/Sidebar.tsx:368
 #: packages/admin/src/components/users/UserList.tsx:54
 msgid "Users"
 msgstr "사용자"
@@ -7491,7 +7491,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:379
-#: packages/admin/src/components/Sidebar.tsx:231
+#: packages/admin/src/components/Sidebar.tsx:354
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
 msgstr "위젯"

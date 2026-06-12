@@ -37,14 +37,17 @@ describe("PreviewDODriver", () => {
 	});
 
 	it("transaction methods are no-ops (preview is read-only)", async () => {
-		const dialect = new PreviewDODialect(createConfig());
+		const queryFn = vi.fn();
+		const dialect = new PreviewDODialect(createConfig(queryFn));
 		const driver = dialect.createDriver();
 		const conn = await driver.acquireConnection();
 
-		// These should not throw
 		await driver.beginTransaction(conn, {});
 		await driver.commitTransaction(conn);
 		await driver.rollbackTransaction(conn);
+
+		// Preview is read-only: transaction control must not issue any SQL to the stub.
+		expect(queryFn).not.toHaveBeenCalled();
 	});
 });
 

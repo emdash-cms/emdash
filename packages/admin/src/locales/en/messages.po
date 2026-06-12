@@ -698,12 +698,12 @@ msgid "Additional data to import."
 msgstr "Additional data to import."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:472
+#: packages/admin/src/components/Sidebar.tsx:599
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Admin"
 
-#: packages/admin/src/components/Sidebar.tsx:416
+#: packages/admin/src/components/Sidebar.tsx:543
 msgid "Admin navigation"
 msgstr "Admin navigation"
 
@@ -1154,7 +1154,7 @@ msgid "Byline schema"
 msgstr "Byline schema"
 
 #: packages/admin/src/components/ContentEditor.tsx:998
-#: packages/admin/src/components/Sidebar.tsx:240
+#: packages/admin/src/components/Sidebar.tsx:363
 #: packages/admin/src/routes/bylines.tsx:362
 msgid "Bylines"
 msgstr "Bylines"
@@ -1476,7 +1476,7 @@ msgstr "Comment Detail"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:146
 #: packages/admin/src/components/ContentTypeEditor.tsx:487
-#: packages/admin/src/components/Sidebar.tsx:224
+#: packages/admin/src/components/Sidebar.tsx:347
 msgid "Comments"
 msgstr "Comments"
 
@@ -1528,7 +1528,7 @@ msgstr "Connected {0}"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:2047
 #: packages/admin/src/components/SectionEditor.tsx:194
-#: packages/admin/src/components/Sidebar.tsx:450
+#: packages/admin/src/components/Sidebar.tsx:577
 #: packages/admin/src/components/Widgets.tsx:819
 msgid "Content"
 msgstr "Content"
@@ -1588,7 +1588,7 @@ msgstr "Content to Import"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:244
+#: packages/admin/src/components/Sidebar.tsx:367
 msgid "Content Types"
 msgstr "Content Types"
 
@@ -1919,8 +1919,8 @@ msgstr "Dark"
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
-#: packages/admin/src/components/Sidebar.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:439
+#: packages/admin/src/components/Sidebar.tsx:333
+#: packages/admin/src/components/Sidebar.tsx:566
 msgid "Dashboard"
 msgstr "Dashboard"
 
@@ -3535,7 +3535,7 @@ msgid "Images"
 msgstr "Images"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
-#: packages/admin/src/components/Sidebar.tsx:275
+#: packages/admin/src/components/Sidebar.tsx:398
 #: packages/admin/src/components/WordPressImport.tsx:664
 msgid "Import"
 msgstr "Import"
@@ -4102,7 +4102,7 @@ msgstr "Make network requests"
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Make network requests to any host (unrestricted)"
 
-#: packages/admin/src/components/Sidebar.tsx:462
+#: packages/admin/src/components/Sidebar.tsx:589
 msgid "Manage"
 msgstr "Manage"
 
@@ -4160,7 +4160,7 @@ msgstr "marketplace"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:167
 #: packages/admin/src/components/PluginManager.tsx:355
-#: packages/admin/src/components/Sidebar.tsx:259
+#: packages/admin/src/components/Sidebar.tsx:382
 msgid "Marketplace"
 msgstr "Marketplace"
 
@@ -4177,7 +4177,7 @@ msgid "Max Value"
 msgstr "Max Value"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2033
-#: packages/admin/src/components/Sidebar.tsx:219
+#: packages/admin/src/components/Sidebar.tsx:342
 #: packages/admin/src/components/WordPressImport.tsx:678
 #: packages/admin/src/components/WordPressImport.tsx:1173
 msgid "Media"
@@ -4267,7 +4267,7 @@ msgstr "Menu order has been updated."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:103
-#: packages/admin/src/components/Sidebar.tsx:229
+#: packages/admin/src/components/Sidebar.tsx:352
 msgid "Menus"
 msgstr "Menus"
 
@@ -5145,8 +5145,8 @@ msgstr "Plugin updated"
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:144
 #: packages/admin/src/components/PluginManager.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:246
-#: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/components/Sidebar.tsx:369
+#: packages/admin/src/components/Sidebar.tsx:609
 msgid "Plugins"
 msgstr "Plugins"
 
@@ -5324,7 +5324,7 @@ msgstr "Redirecting to login..."
 
 #: packages/admin/src/components/Redirects.tsx:332
 #: packages/admin/src/components/Redirects.tsx:351
-#: packages/admin/src/components/Sidebar.tsx:230
+#: packages/admin/src/components/Sidebar.tsx:353
 msgid "Redirects"
 msgstr "Redirects"
 
@@ -5361,7 +5361,7 @@ msgstr "Registration failed"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Registration was cancelled or timed out. Please try again."
 
-#: packages/admin/src/components/Sidebar.tsx:252
+#: packages/admin/src/components/Sidebar.tsx:375
 msgid "Registry"
 msgstr "Registry"
 
@@ -5957,7 +5957,7 @@ msgstr "Section title"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:232
+#: packages/admin/src/components/Sidebar.tsx:355
 msgid "Sections"
 msgstr "Sections"
 
@@ -6203,7 +6203,7 @@ msgstr "Setting up..."
 #: packages/admin/src/components/Header.tsx:93
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
-#: packages/admin/src/components/Sidebar.tsx:276
+#: packages/admin/src/components/Sidebar.tsx:399
 #: packages/admin/src/components/WordPressImport.tsx:1647
 msgid "Settings"
 msgstr "Settings"
@@ -6656,7 +6656,7 @@ msgstr "Theme-provided sections cannot be deleted. Edit the section to create a 
 msgid "Theme: {label}"
 msgstr "Theme: {label}"
 
-#: packages/admin/src/components/Sidebar.tsx:268
+#: packages/admin/src/components/Sidebar.tsx:391
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "Themes"
@@ -7282,7 +7282,7 @@ msgid "User not found"
 msgstr "User not found"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
-#: packages/admin/src/components/Sidebar.tsx:245
+#: packages/admin/src/components/Sidebar.tsx:368
 #: packages/admin/src/components/users/UserList.tsx:54
 msgid "Users"
 msgstr "Users"
@@ -7497,7 +7497,7 @@ msgstr "Widget updated"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:379
-#: packages/admin/src/components/Sidebar.tsx:231
+#: packages/admin/src/components/Sidebar.tsx:354
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
 msgstr "Widgets"

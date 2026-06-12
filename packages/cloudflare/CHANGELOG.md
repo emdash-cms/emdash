@@ -1,5 +1,38 @@
 # @emdash-cms/cloudflare
 
+## 0.18.0
+
+### Minor Changes
+
+- [#1410](https://github.com/emdash-cms/emdash/pull/1410) [`aa815aa`](https://github.com/emdash-cms/emdash/commit/aa815aacfc7e2bf32d26924ff011a58f03f81dae) Thanks [@ascorbic](https://github.com/ascorbic)! - New experimental `coalesce` option for the `d1()` adapter, for much faster uncached page loads:
+
+  ```ts
+  emdash({
+  	database: d1({ binding: "DB", session: "auto", coalesce: true }),
+  });
+  ```
+
+  When enabled, read queries that a page issues at the same time are sent to D1 as a single round trip instead of one at a time. A page that runs half a dozen queries — settings, menus, the entry, related posts — pays for one trip to the database instead of six, which can cut uncached render time by more than half. Each query still gets its own results and its own errors, and writes are unaffected. Requires `session` to be enabled; off by default while experimental.
+
+### Patch Changes
+
+- Updated dependencies [[`8a766b8`](https://github.com/emdash-cms/emdash/commit/8a766b876117bbb2b7a2179615e83666cdc769e8), [`bdabff7`](https://github.com/emdash-cms/emdash/commit/bdabff7e4b5fb699ef25002508b7edd3ed184061), [`afc065c`](https://github.com/emdash-cms/emdash/commit/afc065c12e6b9a19c30d2cf179fd1ba9667c5b17), [`7ee9467`](https://github.com/emdash-cms/emdash/commit/7ee94677193fb8dd39b87a23b69883f7055ab296), [`f9362d7`](https://github.com/emdash-cms/emdash/commit/f9362d7a89db14420a4a8f7af4e6568f15905ea7)]:
+  - emdash@0.18.0
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [[`4e11daa`](https://github.com/emdash-cms/emdash/commit/4e11daaaf7c07b20903527626391e31799675da8), [`fe6bc78`](https://github.com/emdash-cms/emdash/commit/fe6bc78e74ecbc41bcae495e070eec9f25e23da2), [`80f2925`](https://github.com/emdash-cms/emdash/commit/80f2925bfbc5f4418363c499c36e0a1c1af04242)]:
+  - emdash@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [[`149fc49`](https://github.com/emdash-cms/emdash/commit/149fc4904326174075d100ccb4f203b2a250ec64), [`64d5675`](https://github.com/emdash-cms/emdash/commit/64d56759250016fb4bfb2a2ab83106407ffd61a7), [`77fff0a`](https://github.com/emdash-cms/emdash/commit/77fff0a36cd4d6dc242c1d8dd58934ca14cd6dbd), [`87c40d3`](https://github.com/emdash-cms/emdash/commit/87c40d34b3a0130f67bf7d31caf40572f14135e6)]:
+  - emdash@0.17.1
+
 ## 0.17.0
 
 ### Patch Changes

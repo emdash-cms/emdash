@@ -37,7 +37,7 @@ msgstr " (terpilih)"
 
 #: packages/admin/src/routes/bylines.tsx:689
 msgid "-- Select --"
-msgstr ""
+msgstr "-- Pilih --"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:310
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:307
@@ -496,7 +496,7 @@ msgstr "Terima Undangan"
 
 #: packages/admin/src/routes/byline-schema.tsx:174
 msgid "Access denied"
-msgstr ""
+msgstr "Akses ditolak"
 
 #: packages/admin/src/router.tsx:1202
 msgid "Access Denied"
@@ -605,7 +605,7 @@ msgstr "Tambah field"
 
 #: packages/admin/src/routes/byline-schema.tsx:293
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
-msgstr ""
+msgstr "Tambahkan bidang seperti \"Jabatan\" atau \"Kata ganti\" untuk melengkapi setiap byline."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:604
 msgid "Add fields to define the structure of your content"
@@ -698,12 +698,12 @@ msgid "Additional data to import."
 msgstr "Data tambahan untuk diimpor."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:472
+#: packages/admin/src/components/Sidebar.tsx:599
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Admin"
 
-#: packages/admin/src/components/Sidebar.tsx:416
+#: packages/admin/src/components/Sidebar.tsx:543
 msgid "Admin navigation"
 msgstr "Navigasi admin"
 
@@ -847,7 +847,7 @@ msgstr "Terjadi kesalahan"
 
 #: packages/admin/src/routes/byline-schema.tsx:272
 msgid "An unexpected error occurred."
-msgstr ""
+msgstr "Terjadi kesalahan yang tidak terduga."
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:217
 msgid "An unknown error occurred"
@@ -921,7 +921,7 @@ msgstr "Arsip"
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:375
 msgid "Are you sure you want to delete \"{0}\"? No stored values reference this field."
-msgstr ""
+msgstr "Apakah Anda yakin ingin menghapus \"{0}\"? Tidak ada nilai tersimpan yang merujuk ke bidang ini."
 
 #. placeholder {0}: deleteTarget.label
 #: packages/admin/src/components/ContentTypeList.tsx:145
@@ -1151,10 +1151,10 @@ msgstr "Daftar Poin"
 #: packages/admin/src/routes/byline-schema.tsx:218
 #: packages/admin/src/routes/bylines.tsx:370
 msgid "Byline schema"
-msgstr ""
+msgstr "Skema byline"
 
 #: packages/admin/src/components/ContentEditor.tsx:998
-#: packages/admin/src/components/Sidebar.tsx:240
+#: packages/admin/src/components/Sidebar.tsx:363
 #: packages/admin/src/routes/bylines.tsx:362
 msgid "Bylines"
 msgstr "Byline"
@@ -1330,7 +1330,7 @@ msgstr "Memeriksa autentikasi..."
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:362
 msgid "Checking how many stored values reference \"{0}\"…"
-msgstr ""
+msgstr "Memeriksa berapa banyak nilai tersimpan yang merujuk ke \"{0}\"..."
 
 #: packages/admin/src/components/SetupWizard.tsx:288
 msgid "Choose how to sign in"
@@ -1476,7 +1476,7 @@ msgstr "Detail Komentar"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:146
 #: packages/admin/src/components/ContentTypeEditor.tsx:487
-#: packages/admin/src/components/Sidebar.tsx:224
+#: packages/admin/src/components/Sidebar.tsx:347
 msgid "Comments"
 msgstr "Komentar"
 
@@ -1528,7 +1528,7 @@ msgstr "Terhubung {0}"
 #: packages/admin/src/components/Dashboard.tsx:164
 #: packages/admin/src/components/PortableTextEditor.tsx:2047
 #: packages/admin/src/components/SectionEditor.tsx:194
-#: packages/admin/src/components/Sidebar.tsx:450
+#: packages/admin/src/components/Sidebar.tsx:577
 #: packages/admin/src/components/Widgets.tsx:819
 msgid "Content"
 msgstr "Konten"
@@ -1588,7 +1588,7 @@ msgstr "Konten untuk Diimpor"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:244
+#: packages/admin/src/components/Sidebar.tsx:367
 msgid "Content Types"
 msgstr "Tipe Konten"
 
@@ -1663,11 +1663,11 @@ msgstr "Tidak dapat mendeteksi WordPress"
 
 #: packages/admin/src/routes/byline-schema.tsx:268
 msgid "Couldn't load byline fields."
-msgstr ""
+msgstr "Tidak dapat memuat bidang byline."
 
 #: packages/admin/src/routes/bylines.tsx:530
 msgid "Couldn't load custom fields."
-msgstr ""
+msgstr "Tidak dapat memuat bidang kustom."
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:88
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -1680,7 +1680,7 @@ msgstr "Tidak dapat mencari byline. Silakan coba lagi."
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:369
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
-msgstr ""
+msgstr "Tidak dapat memverifikasi berapa banyak nilai yang merujuk ke \"{0}\". Penghapusan tetap akan menghapus semua nilai tersimpan untuk bidang ini, tetapi jumlah di atas tidak dapat diperiksa."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:822
 msgid "Count"
@@ -1733,7 +1733,7 @@ msgstr "Buat Tipe Konten"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Create field"
-msgstr ""
+msgstr "Buat bidang"
 
 #: packages/admin/src/components/MenuList.tsx:126
 #: packages/admin/src/components/MenuList.tsx:189
@@ -1847,7 +1847,7 @@ msgstr "Dibuat"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:96
 msgid "Created \"{0}\"."
-msgstr ""
+msgstr "\"{0}\" dibuat."
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
@@ -1919,8 +1919,8 @@ msgstr "Gelap"
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
-#: packages/admin/src/components/Sidebar.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:439
+#: packages/admin/src/components/Sidebar.tsx:333
+#: packages/admin/src/components/Sidebar.tsx:566
 msgid "Dashboard"
 msgstr "Dasbor"
 
@@ -1973,7 +1973,7 @@ msgstr "Tentukan taksonomi baru untuk mengklasifikasikan konten"
 
 #: packages/admin/src/routes/byline-schema.tsx:220
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
-msgstr ""
+msgstr "Tentukan bidang kustom yang disimpan pada setiap byline - jabatan, kata ganti, akun media sosial, dan lainnya."
 
 #: packages/admin/src/components/ContentTypeList.tsx:41
 msgid "Define the structure of your content"
@@ -2044,7 +2044,7 @@ msgstr "Hapus {0}?"
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
-msgstr ""
+msgstr "Hapus bidang byline?"
 
 #: packages/admin/src/routes/bylines.tsx:605
 msgid "Delete Byline?"
@@ -2137,7 +2137,7 @@ msgstr "Dihapus"
 #. placeholder {1}: deleteUsageQuery.data.totalAffectedRows
 #: packages/admin/src/routes/byline-schema.tsx:371
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
-msgstr ""
+msgstr "Menghapus \"{0}\" juga akan menghapus {1, plural, one {# nilai tersimpan} other {# nilai tersimpan}} di semua byline. Tindakan ini tidak dapat dibatalkan."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:664
@@ -2155,7 +2155,7 @@ msgstr "Menghapus..."
 
 #: packages/admin/src/routes/byline-schema.tsx:379
 msgid "Deleting…"
-msgstr ""
+msgstr "Menghapus..."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:262
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:147
@@ -2491,7 +2491,7 @@ msgstr "Sunting byline"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
-msgstr ""
+msgstr "Edit bidang byline"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:364
 msgid "Edit Domain"
@@ -2795,11 +2795,11 @@ msgstr "Gagal membuat kredit penulis"
 
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
-msgstr ""
+msgstr "Gagal membuat bidang byline"
 
 #: packages/admin/src/routes/byline-schema.tsx:102
 msgid "Failed to create field"
-msgstr ""
+msgstr "Gagal membuat bidang"
 
 #: packages/admin/src/components/WordPressImport.tsx:1553
 msgid "Failed to create some collections"
@@ -2829,7 +2829,7 @@ msgstr "Gagal menghapus byline"
 
 #: packages/admin/src/lib/api/byline-fields.ts:143
 msgid "Failed to delete byline field"
-msgstr ""
+msgstr "Gagal menghapus bidang byline"
 
 #: packages/admin/src/lib/api/schema.ts:222
 msgid "Failed to delete collection"
@@ -2991,7 +2991,7 @@ msgstr "Gagal memasang plugin"
 
 #: packages/admin/src/lib/api/byline-fields.ts:98
 msgid "Failed to list byline fields"
-msgstr ""
+msgstr "Gagal memuat daftar bidang byline"
 
 #: packages/admin/src/router.tsx:247
 msgid "Failed to load admin"
@@ -3070,7 +3070,7 @@ msgstr "Gagal menerbitkan"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
-msgstr ""
+msgstr "Gagal membaca penggunaan bidang byline"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:130
 msgid "Failed to remove domain"
@@ -3087,7 +3087,7 @@ msgstr "Gagal mengganti nama passkey"
 
 #: packages/admin/src/lib/api/byline-fields.ts:156
 msgid "Failed to reorder byline fields"
-msgstr ""
+msgstr "Gagal mengurutkan ulang bidang byline"
 
 #: packages/admin/src/lib/api/schema.ts:293
 #: packages/admin/src/routes/byline-schema.tsx:152
@@ -3126,7 +3126,7 @@ msgstr "Gagal menyimpan"
 
 #: packages/admin/src/routes/byline-schema.tsx:122
 msgid "Failed to save field"
-msgstr ""
+msgstr "Gagal menyimpan bidang"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:58
 #: packages/admin/src/components/settings/SeoSettings.tsx:62
@@ -3183,7 +3183,7 @@ msgstr "Gagal memperbarui kredit penulis"
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
-msgstr ""
+msgstr "Gagal memperbarui bidang byline"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
 msgid "Failed to update domain"
@@ -3233,11 +3233,11 @@ msgstr "Mengambil konten dari API Eksportir EmDash."
 
 #: packages/admin/src/routes/byline-schema.tsx:95
 msgid "Field created"
-msgstr ""
+msgstr "Bidang dibuat"
 
 #: packages/admin/src/routes/byline-schema.tsx:133
 msgid "Field deleted"
-msgstr ""
+msgstr "Bidang dihapus"
 
 #: packages/admin/src/components/FieldEditor.tsx:567
 msgid "Field label"
@@ -3253,11 +3253,11 @@ msgstr "Slug field tidak dapat diubah setelah dibuat"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:268
 msgid "Field type cannot be changed after creation."
-msgstr ""
+msgstr "Tipe bidang tidak dapat diubah setelah dibuat."
 
 #: packages/admin/src/routes/byline-schema.tsx:115
 msgid "Field updated"
-msgstr ""
+msgstr "Bidang diperbarui"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:572
 msgid "Fields"
@@ -3532,7 +3532,7 @@ msgid "Images"
 msgstr "Gambar"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
-#: packages/admin/src/components/Sidebar.tsx:275
+#: packages/admin/src/components/Sidebar.tsx:398
 #: packages/admin/src/components/WordPressImport.tsx:664
 msgid "Import"
 msgstr "Impor"
@@ -3793,11 +3793,11 @@ msgstr "Jane Doe"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:235
 msgid "Job title"
-msgstr ""
+msgstr "Jabatan"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:246
 msgid "job_title"
-msgstr ""
+msgstr "jabatan"
 
 #: packages/admin/src/components/FieldEditor.tsx:222
 msgid "JSON"
@@ -3956,7 +3956,7 @@ msgstr "Muat Lebih"
 
 #: packages/admin/src/routes/byline-schema.tsx:257
 msgid "Loading byline fields…"
-msgstr ""
+msgstr "Memuat bidang byline..."
 
 #: packages/admin/src/components/ContentTypeList.tsx:114
 msgid "Loading collections..."
@@ -4053,7 +4053,7 @@ msgstr "Kunci rasio aspek"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:291
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
-msgstr ""
+msgstr "Dikunci karena bidang ini memiliki nilai tersimpan. Hapus nilainya (atau bidangnya) untuk mengubahnya."
 
 #: packages/admin/src/components/Header.tsx:101
 msgid "Log out"
@@ -4070,7 +4070,7 @@ msgstr "Logo & favicon"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:53
 msgid "Long text"
-msgstr ""
+msgstr "Teks panjang"
 
 #: packages/admin/src/components/FieldEditor.tsx:156
 #: packages/admin/src/components/FieldEditor.tsx:580
@@ -4099,7 +4099,7 @@ msgstr "Membuat permintaan jaringan"
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Membuat permintaan jaringan ke host mana pun (tidak terbatas)"
 
-#: packages/admin/src/components/Sidebar.tsx:462
+#: packages/admin/src/components/Sidebar.tsx:589
 msgid "Manage"
 msgstr "Kelola"
 
@@ -4157,7 +4157,7 @@ msgstr "marketplace"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:167
 #: packages/admin/src/components/PluginManager.tsx:355
-#: packages/admin/src/components/Sidebar.tsx:259
+#: packages/admin/src/components/Sidebar.tsx:382
 msgid "Marketplace"
 msgstr "Marketplace"
 
@@ -4174,7 +4174,7 @@ msgid "Max Value"
 msgstr "Nilai Maks"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2033
-#: packages/admin/src/components/Sidebar.tsx:219
+#: packages/admin/src/components/Sidebar.tsx:342
 #: packages/admin/src/components/WordPressImport.tsx:678
 #: packages/admin/src/components/WordPressImport.tsx:1173
 msgid "Media"
@@ -4264,7 +4264,7 @@ msgstr "Urutan menu telah diperbarui."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:103
-#: packages/admin/src/components/Sidebar.tsx:229
+#: packages/admin/src/components/Sidebar.tsx:352
 msgid "Menus"
 msgstr "Menu"
 
@@ -4328,12 +4328,12 @@ msgstr "Terpopuler"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:439
 msgid "Move \"{0}\" down"
-msgstr ""
+msgstr "Pindahkan \"{0}\" ke bawah"
 
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:429
 msgid "Move \"{0}\" up"
-msgstr ""
+msgstr "Pindahkan \"{0}\" ke atas"
 
 #: packages/admin/src/components/ContentList.tsx:653
 msgid "Move \"{title}\" to trash? You can restore it later."
@@ -4430,7 +4430,7 @@ msgstr "{collectionLabel} Baru"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
-msgstr ""
+msgstr "Bidang byline baru"
 
 #: packages/admin/src/components/WordPressImport.tsx:1818
 msgid "New collection"
@@ -4443,7 +4443,7 @@ msgstr "Tipe Konten Baru"
 
 #: packages/admin/src/routes/byline-schema.tsx:224
 msgid "New field"
-msgstr ""
+msgstr "Bidang baru"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:116
 msgid "New public routes"
@@ -4502,7 +4502,7 @@ msgstr "Tidak"
 
 #: packages/admin/src/routes/byline-schema.tsx:420
 msgid "No (shared across translations)"
-msgstr ""
+msgstr "Tidak (dibagikan di semua terjemahan)"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:434
@@ -4538,7 +4538,7 @@ msgstr "Belum ada komentar disetujui."
 
 #: packages/admin/src/routes/byline-schema.tsx:291
 msgid "No byline fields yet."
-msgstr ""
+msgstr "Belum ada bidang byline."
 
 #: packages/admin/src/components/ContentEditor.tsx:2057
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
@@ -5142,8 +5142,8 @@ msgstr "Plugin diperbarui"
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:144
 #: packages/admin/src/components/PluginManager.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:246
-#: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/components/Sidebar.tsx:369
+#: packages/admin/src/components/Sidebar.tsx:609
 msgid "Plugins"
 msgstr "Plugin"
 
@@ -5321,7 +5321,7 @@ msgstr "Mengalihkan ke login..."
 
 #: packages/admin/src/components/Redirects.tsx:332
 #: packages/admin/src/components/Redirects.tsx:351
-#: packages/admin/src/components/Sidebar.tsx:230
+#: packages/admin/src/components/Sidebar.tsx:353
 msgid "Redirects"
 msgstr "Pengalihan"
 
@@ -5358,7 +5358,7 @@ msgstr "Registrasi gagal"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Pendaftaran dibatalkan atau waktu telah habis. Silakan coba lagi."
 
-#: packages/admin/src/components/Sidebar.tsx:252
+#: packages/admin/src/components/Sidebar.tsx:375
 msgid "Registry"
 msgstr "Registri"
 
@@ -5660,7 +5660,7 @@ msgstr "Simpan teks alternatif"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Save changes"
-msgstr ""
+msgstr "Simpan perubahan"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 #: packages/admin/src/components/users/UserDetail.tsx:311
@@ -5698,7 +5698,7 @@ msgstr "Tersimpan"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:116
 msgid "Saved \"{0}\"."
-msgstr ""
+msgstr "\"{0}\" disimpan."
 
 #: packages/admin/src/components/ContentEditor.tsx:651
 #: packages/admin/src/components/ContentEditor.tsx:2279
@@ -5723,7 +5723,7 @@ msgstr "Menyimpan..."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Saving…"
-msgstr ""
+msgstr "Menyimpan..."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:467
 msgid "SBOM"
@@ -5954,7 +5954,7 @@ msgstr "Judul bagian"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:232
+#: packages/admin/src/components/Sidebar.tsx:355
 msgid "Sections"
 msgstr "Bagian"
 
@@ -6200,7 +6200,7 @@ msgstr "Mengatur..."
 #: packages/admin/src/components/Header.tsx:93
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
-#: packages/admin/src/components/Sidebar.tsx:276
+#: packages/admin/src/components/Sidebar.tsx:399
 #: packages/admin/src/components/WordPressImport.tsx:1647
 msgid "Settings"
 msgstr "Pengaturan"
@@ -6227,11 +6227,11 @@ msgstr "Bagikan tautan ini dengan pengguna yang diundang"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:294
 msgid "Shared across all translations of the same byline."
-msgstr ""
+msgstr "Dibagikan di semua terjemahan untuk byline yang sama."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:52
 msgid "Short text"
-msgstr ""
+msgstr "Teks pendek"
 
 #: packages/admin/src/components/FieldEditor.tsx:150
 #: packages/admin/src/components/FieldEditor.tsx:579
@@ -6369,7 +6369,7 @@ msgstr "Slug disalin ke papan klip"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:251
 msgid "Slugs cannot be changed after the field is created."
-msgstr ""
+msgstr "Slug tidak dapat diubah setelah bidang dibuat."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:904
 msgid "Small section heading"
@@ -6460,7 +6460,7 @@ msgstr "Kode status"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:293
 msgid "Stored per locale — each translation of a byline gets its own value."
-msgstr ""
+msgstr "Disimpan per lokal - setiap terjemahan byline memiliki nilainya sendiri."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2562
 #: packages/admin/src/components/PortableTextEditor.tsx:2868
@@ -6653,7 +6653,7 @@ msgstr "Bagian yang disediakan tema tidak dapat dihapus. Edit bagian untuk membu
 msgid "Theme: {label}"
 msgstr "Tema: {label}"
 
-#: packages/admin/src/components/Sidebar.tsx:268
+#: packages/admin/src/components/Sidebar.tsx:391
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "Tema"
@@ -6827,7 +6827,7 @@ msgstr "Lacak riwayat konten"
 #: packages/admin/src/components/BylineFieldEditor.tsx:287
 #: packages/admin/src/routes/byline-schema.tsx:243
 msgid "Translatable"
-msgstr ""
+msgstr "Dapat diterjemahkan"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:83
 #: packages/admin/src/components/TaxonomyManager.tsx:194
@@ -7279,7 +7279,7 @@ msgid "User not found"
 msgstr "Pengguna tidak ditemukan"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
-#: packages/admin/src/components/Sidebar.tsx:245
+#: packages/admin/src/components/Sidebar.tsx:368
 #: packages/admin/src/components/users/UserList.tsx:54
 msgid "Users"
 msgstr "Pengguna"
@@ -7494,7 +7494,7 @@ msgstr "Widget diperbarui"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:379
-#: packages/admin/src/components/Sidebar.tsx:231
+#: packages/admin/src/components/Sidebar.tsx:354
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
 msgstr "Widget"
@@ -7548,7 +7548,7 @@ msgstr "Anda dapat mengelola konten, media, menu, dan taksonomi."
 
 #: packages/admin/src/routes/bylines.tsx:532
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
-msgstr ""
+msgstr "Anda masih dapat mengedit bidang tetap di atas. Penyimpanan tidak akan mengubah nilai bidang kustom yang sudah tersimpan."
 
 #: packages/admin/src/components/WelcomeModal.tsx:44
 msgid "You can view and contribute to the site."
@@ -7564,7 +7564,7 @@ msgstr "Anda memiliki akses penuh untuk mengelola situs ini, termasuk pengguna, 
 
 #: packages/admin/src/routes/byline-schema.tsx:175
 msgid "You need admin permissions to manage byline schema."
-msgstr ""
+msgstr "Anda memerlukan izin admin untuk mengelola skema byline."
 
 #: packages/admin/src/router.tsx:1203
 msgid "You need Editor permissions to moderate comments."

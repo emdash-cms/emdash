@@ -153,12 +153,17 @@ test.describe("Content CRUD", () => {
 				timeout: 10000,
 			});
 
-			// Look for publish button
-			const publishButton = admin.page.getByRole("button", { name: "Publish" });
-			if (await publishButton.isVisible()) {
-				await publishButton.click();
-				await admin.waitForLoading();
-			}
+			// Publish the draft
+			const publishButton = admin.page.getByRole("button", { name: "Publish", exact: true });
+			await expect(publishButton).toBeVisible();
+			await publishButton.click();
+			await admin.waitForLoading();
+
+			// Once live with no pending changes, the action flips to "Unpublish",
+			// confirming the status actually changed.
+			await expect(admin.page.getByRole("button", { name: "Unpublish" })).toBeVisible({
+				timeout: 10000,
+			});
 		});
 	});
 });

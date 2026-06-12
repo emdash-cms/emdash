@@ -1,5 +1,61 @@
 # emdash
 
+## 0.18.0
+
+### Patch Changes
+
+- [#1391](https://github.com/emdash-cms/emdash/pull/1391) [`8a766b8`](https://github.com/emdash-cms/emdash/commit/8a766b876117bbb2b7a2179615e83666cdc769e8) Thanks [@mvvmm](https://github.com/mvvmm)! - Add `fetchpriority="high"` to priority EmDash images so above-the-fold images can be requested eagerly and prioritized by the browser.
+
+- [#1405](https://github.com/emdash-cms/emdash/pull/1405) [`bdabff7`](https://github.com/emdash-cms/emdash/commit/bdabff7e4b5fb699ef25002508b7edd3ed184061) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixed a bug where a visitor disconnecting at the wrong moment during a cold start could leave that server instance permanently broken: every subsequent request to it would hang until the platform timed it out (a 524 error on Cloudflare, after 100 seconds), and the instance stayed broken until it was recycled. Sites no longer get stuck — startup now recovers automatically, and in the worst case a request fails fast with an error instead of hanging.
+
+- [#1408](https://github.com/emdash-cms/emdash/pull/1408) [`afc065c`](https://github.com/emdash-cms/emdash/commit/afc065c12e6b9a19c30d2cf179fd1ba9667c5b17) Thanks [@ascorbic](https://github.com/ascorbic)! - Faster cold starts. The first request a fresh server instance handles — after a deploy, or when traffic picks up again after a quiet spell — now runs its startup steps concurrently instead of one at a time, shaving database and storage round trips off that first page load. Especially noticeable on Cloudflare, where new instances spin up frequently.
+
+- [#1409](https://github.com/emdash-cms/emdash/pull/1409) [`7ee9467`](https://github.com/emdash-cms/emdash/commit/7ee94677193fb8dd39b87a23b69883f7055ab296) Thanks [@ascorbic](https://github.com/ascorbic)! - Pages render with fewer database round trips:
+  - Tag and category archive pages load faster — `getTerm()` fetches its details in parallel instead of one query at a time.
+  - Pages with several menus (header, footer, …) no longer repeat the same lookup for each menu.
+  - Entries fetched with `getEmDashEntry`/`getEmDashCollection` already include their taxonomy terms — you can now read `entry.data.terms?.tag` directly (it's typed in your generated `emdash-env.d.ts`) instead of making a separate `getEntryTerms()` call. The bundled templates have been updated to do this.
+
+- [#1407](https://github.com/emdash-cms/emdash/pull/1407) [`f9362d7`](https://github.com/emdash-cms/emdash/commit/f9362d7a89db14420a4a8f7af4e6568f15905ea7) Thanks [@ascorbic](https://github.com/ascorbic)! - Query instrumentation (`EMDASH_QUERY_LOG=1`) now captures the whole request, not just the part before the response headers are sent. Queries issued by components while the page is still streaming were previously invisible to the Server-Timing numbers; a final `[emdash-stream-end]` log line now reports the complete query count, database time, and cache hits for each request, so you can see where a slow page really spends its time. No effect when instrumentation is off.
+
+- Updated dependencies [[`d2829e3`](https://github.com/emdash-cms/emdash/commit/d2829e36c0e568db4ec92f500b166e03f0c36973)]:
+  - @emdash-cms/admin@0.18.0
+  - @emdash-cms/auth@0.18.0
+  - @emdash-cms/gutenberg-to-portable-text@0.18.0
+
+## 0.17.2
+
+### Patch Changes
+
+- [#1356](https://github.com/emdash-cms/emdash/pull/1356) [`4e11daa`](https://github.com/emdash-cms/emdash/commit/4e11daaaf7c07b20903527626391e31799675da8) Thanks [@ascorbic](https://github.com/ascorbic)! - Scope Postgres table/column introspection to the connection's active schema instead of hardcoding `public`. `tableExists` and `listTablesLike` (`database/dialect-helpers.ts`) and two idempotency checks in the `019_i18n` migration queried `information_schema` with `table_schema = 'public'`, so a Postgres deployment using a non-public schema (per-tenant or shared-cluster setups) would see tables from the wrong schema or none at all, causing collection/schema operations to misbehave and the i18n migration to skip its column additions. These now use `current_schema()`, matching the already-correct `indexExists`/`columnExists` helpers and migration `038`.
+
+- [#1167](https://github.com/emdash-cms/emdash/pull/1167) [`fe6bc78`](https://github.com/emdash-cms/emdash/commit/fe6bc78e74ecbc41bcae495e070eec9f25e23da2) Thanks [@abhishekshankar](https://github.com/abhishekshankar)! - fix(seo): buildMediaUrl handles root-relative paths without doubling the API prefix
+
+- [#1345](https://github.com/emdash-cms/emdash/pull/1345) [`80f2925`](https://github.com/emdash-cms/emdash/commit/80f2925bfbc5f4418363c499c36e0a1c1af04242) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fix frontend pages redirecting to `/_emdash/admin/setup` on a fully set-up site. The anonymous fast-path "setup probe" in the Astro middleware queries `_emdash_migrations` to detect a fresh, un-migrated database, but its `catch` block treated **every** error as "fresh install" — so a transient DB failure (D1 connection loss, replica unavailable, query timeout, cold-start race, locked SQLite) wrongly bounced real visitors to the setup wizard. The probe now only redirects when the error is a genuinely-missing table (via the shared `isMissingTableError` helper) and otherwise renders the page normally. The `setupVerified` flag is also moved onto a `globalThis` `Symbol.for` singleton so it isn't duplicated across SSR chunks, which had caused the probe to re-run far more often than intended (and each re-run was another chance to hit the bug).
+
+- Updated dependencies [[`4ee75f8`](https://github.com/emdash-cms/emdash/commit/4ee75f851da4461a599f892c820152377625ef70)]:
+  - @emdash-cms/admin@0.17.2
+  - @emdash-cms/auth@0.17.2
+  - @emdash-cms/gutenberg-to-portable-text@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- [#1328](https://github.com/emdash-cms/emdash/pull/1328) [`149fc49`](https://github.com/emdash-cms/emdash/commit/149fc4904326174075d100ccb4f203b2a250ec64) Thanks [@MA2153](https://github.com/MA2153)! - Fix `emdash export-seed` omitting bylines. The exporter now emits byline profiles as the root `bylines[]` array (one entry per translation group, since `SeedByline` has no locale axis) and, when content is exported, attaches each entry's ordered byline credits as `bylines[]` referencing those profiles. Credits are read straight from `_emdash_content_bylines` (whose `byline_id` already stores the translation group), so the exported seed round-trips back through `applySeed` with profiles and credits intact.
+
+- [#1336](https://github.com/emdash-cms/emdash/pull/1336) [`64d5675`](https://github.com/emdash-cms/emdash/commit/64d56759250016fb4bfb2a2ab83106407ffd61a7) Thanks [@ascorbic](https://github.com/ascorbic)! - Pre-bundle EmDash's auth, MCP, and admin-shell dependencies so `astro dev` on Cloudflare no longer triggers a re-optimize + full-reload cascade on the first authenticated/admin/MCP request.
+
+  These deps (`@oslojs/crypto/{hmac,subtle,rsa}`, `arctic`, the MCP server entrypoints, `@lingui/react`, `@cloudflare/kumo/primitives`, `astro/assets/services/noop`) are only imported on routes the initial Vite scan never reaches, so the workerd runtime discovered them one at a time. Each discovery invalidated the optimize cache mid-flight, producing `The file does not exist at ".../deps_ssr/chunk-*.js"` errors and repeated full reloads on cold start. Adding them to the Cloudflare SSR `optimizeDeps.include` list front-loads them into a single startup optimize pass.
+
+- [#1331](https://github.com/emdash-cms/emdash/pull/1331) [`77fff0a`](https://github.com/emdash-cms/emdash/commit/77fff0a36cd4d6dc242c1d8dd58934ca14cd6dbd) Thanks [@MA2153](https://github.com/MA2153)! - Fix `emdash export-seed` collapsing locale variants into duplicate seed ids on i18n projects. The CLI never initializes the runtime i18n config, so `isI18nEnabled()` was always `false` and the exporter stripped the `:locale` suffix from taxonomy, menu, and content seed ids — merging every locale variant into one bare id and producing duplicates that `validateSeed` rejected. The exporter now derives locale-awareness from the data (a project is multi-locale when its i18n-aware tables hold more than one distinct locale), so multi-locale exports keep their per-locale suffixes and `translationOf` links while genuinely single-locale projects still export bare ids.
+
+- [#1340](https://github.com/emdash-cms/emdash/pull/1340) [`87c40d3`](https://github.com/emdash-cms/emdash/commit/87c40d34b3a0130f67bf7d31caf40572f14135e6) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fix `getEmDashCollection` pagination losing `nextCursor` with Astro 6 live collections. Astro's `getLiveCollection` repacks loader results and drops the `nextCursor` field before it reaches the caller. The wrapper now over-fetches by one entry whenever a `limit` is provided, slices the extra row locally, and synthesizes `nextCursor` via the existing `encodeEntryCursor` helper — matching the strategy already used by the bucketing path.
+
+- Updated dependencies [[`83daa41`](https://github.com/emdash-cms/emdash/commit/83daa4149ed0d1ccf23d9f90304ef6ba3545d46f), [`dfabafe`](https://github.com/emdash-cms/emdash/commit/dfabafeb5db9c27c861015e7d426eb40d6ed940a)]:
+  - @emdash-cms/admin@0.17.1
+  - @emdash-cms/auth@0.17.1
+  - @emdash-cms/gutenberg-to-portable-text@0.17.1
+
 ## 0.17.0
 
 ### Minor Changes
