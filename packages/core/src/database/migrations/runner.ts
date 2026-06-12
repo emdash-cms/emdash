@@ -43,6 +43,7 @@ import * as m038 from "./038_registry_plugin_state.js";
 import * as m039 from "./039_fix_fts5_triggers.js";
 import * as m040 from "./040_byline_i18n.js";
 import * as m041 from "./041_content_locale_list_index.js";
+import * as m042 from "./042_byline_fields.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -85,6 +86,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"039_fix_fts5_triggers": m039,
 	"040_byline_i18n": m040,
 	"041_content_locale_list_index": m041,
+	"042_byline_fields": m042,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */
@@ -176,8 +178,13 @@ const MIGRATION_RACE_PATTERN = new RegExp(
 	"i",
 );
 
-/** How long to wait for a concurrent migrator to finish before giving up. */
-const MIGRATION_RACE_WAIT_MS = 10_000;
+/**
+ * How long to wait for a concurrent migrator to finish before giving up.
+ * Exported because the db init lock's reclaim deadline must comfortably
+ * exceed it (see DB_INIT_DEADLINE_MS in emdash-runtime.ts) — a healthy
+ * init can legitimately block this long inside waitForConcurrentMigrator.
+ */
+export const MIGRATION_RACE_WAIT_MS = 10_000;
 /** Polling interval while waiting for a concurrent migrator. */
 const MIGRATION_RACE_POLL_MS = 100;
 

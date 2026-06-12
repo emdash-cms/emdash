@@ -1,3 +1,4 @@
+import type { CustomFieldValue } from "../../schema/types.js";
 import { encodeBase64, decodeBase64 } from "../../utils/base64.js";
 
 /**
@@ -95,6 +96,16 @@ export interface BylineSummary {
 	 * populate it.
 	 */
 	translationGroup: string | null;
+	/**
+	 * Custom field values registered via the byline-fields schema (migration
+	 * 041, Discussion #1174). Optional in the TypeScript shape so existing
+	 * object-literal consumers (test fixtures, plugin renderers) stay
+	 * source-compatible; the runtime always returns `{}` when no fields are
+	 * registered. Translatable values reflect this row's locale; non-
+	 * translatable values are shared across every locale variant of the
+	 * byline's `translation_group`.
+	 */
+	customFields?: Record<string, CustomFieldValue>;
 }
 
 export interface ContentBylineCredit {

@@ -26,6 +26,8 @@ During work:
 
 Before opening a PR: tests pass, lint clean, formatted, changeset added if a published package changed. See [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets).
 
+When opening a PR with `gh`/the API, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body and fill every section -- the GitHub UI injects it automatically but the CLI does not, and PRs missing it are auto-closed. Check the AI-generated code disclosure box and name the model. Tick checklist items only for what you actually verified; for test-only/docs/CI PRs, note why changeset/i18n/Discussion items are n/a.
+
 ## Architecture
 
 EmDash is an Astro-native CMS on Cloudflare (D1 + R2 + Workers) or Node + SQLite.

@@ -74,10 +74,12 @@ export function currentTimestampValue(db: Kysely<any>): RawBuilder<string> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export async function tableExists(db: Kysely<any>, tableName: string): Promise<boolean> {
 	if (isPostgres(db)) {
+		// Scope to the active schema (matches indexExists/columnExists below).
+		// Hardcoding 'public' breaks non-public-schema Postgres deployments.
 		const result = await sql<{ exists: boolean }>`
 			SELECT EXISTS(
 				SELECT 1 FROM information_schema.tables
-				WHERE table_schema = 'public' AND table_name = ${tableName}
+				WHERE table_schema = current_schema() AND table_name = ${tableName}
 			) as exists
 		`.execute(db);
 		return result.rows[0]?.exists === true;
@@ -146,9 +148,13 @@ export async function columnExists(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export async function listTablesLike(db: Kysely<any>, pattern: string): Promise<string[]> {
 	if (isPostgres(db)) {
+		// Scope to the connection's active schema rather than hardcoding
+		// 'public'. A Postgres deployment using a non-public schema (per-tenant
+		// or shared-cluster setups), or per-test schemas, otherwise sees tables
+		// from the wrong schema — or none at all. Mirrors migration 038.
 		const result = await sql<{ table_name: string }>`
 			SELECT table_name FROM information_schema.tables
-			WHERE table_schema = 'public' AND table_name LIKE ${pattern}
+			WHERE table_schema = current_schema() AND table_name LIKE ${pattern}
 		`.execute(db);
 		return result.rows.map((r) => r.table_name);
 	}

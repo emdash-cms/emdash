@@ -111,3 +111,26 @@ export function setRequestCacheEntry<T>(key: string, value: T): void {
 	if (cache.has(key)) return;
 	cache.set(key, Promise.resolve(value));
 }
+
+/**
+ * Remove a key from the request-scoped cache.
+ *
+ * Used by write paths that need to invalidate a downstream read cache —
+ * `setRequestCacheEntry` deliberately doesn't overwrite, and `requestCached`
+ * returns the cached promise even after the underlying data has changed.
+ * Without an explicit clear, a `read → write → read` sequence in a single
+ * request can return stale data on the second read.
+ *
+ * Concrete case: `BylineRepository.update` invalidates
+ * `byline-field-group-values:${translation_group}` after writing a
+ * non-translatable custom-field value, so the post-update `findById`
+ * (and any later reads in the same request) see the fresh value.
+ *
+ * No-ops outside a request context.
+ */
+export function clearRequestCacheEntry(key: string): void {
+	const ctx = getRequestContext();
+	if (!ctx) return;
+	const cache = store.get(ctx);
+	cache?.delete(key);
+}

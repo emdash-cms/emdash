@@ -696,6 +696,7 @@ export async function handleContentUpdate(
 		status?: string;
 		authorId?: string | null;
 		bylines?: ContentBylineInput[];
+		locale?: string;
 		_rev?: string;
 		seo?: ContentSeoInput;
 		publishedAt?: string | null;
@@ -723,7 +724,7 @@ export async function handleContentUpdate(
 		const repo = new ContentRepository(db);
 
 		// Resolve slug → ID if needed
-		const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+		const resolvedId = (await resolveId(repo, collection, id, body.locale)) ?? id;
 
 		// Wrap content + SEO writes in a transaction for atomicity.
 		// The _rev check is inside the transaction so the read-then-write

@@ -32,6 +32,16 @@ export const bylineSummarySchema = z
 		 * source. Nullable in storage for backwards compatibility.
 		 */
 		translationGroup: z.string().nullable(),
+		/**
+		 * Byline custom-field values (Discussion #1174). Keys are slugs
+		 * registered via the byline-fields admin API; values follow
+		 * `CustomFieldValue` (`string | boolean | null`). Always present
+		 * on hydrated responses — empty `{}` when no fields are
+		 * registered (Phase 3 AC #6). Marked optional in the schema for
+		 * historic-payload compatibility with pre-Phase-3 clients that
+		 * may not send the key on writes; hydration always populates it.
+		 */
+		customFields: z.record(z.string(), z.union([z.string(), z.boolean(), z.null()])).optional(),
 	})
 	.meta({ id: "BylineSummary" });
 
@@ -90,6 +100,19 @@ export const bylineCreateBody = z
 		 * rather than minting a fresh one. Requires `locale`.
 		 */
 		translationOf: z.string().min(1).optional(),
+		/**
+		 * Byline custom-field values (Discussion #1174, Phase 6 — create-flow
+		 * parity with update). Keys are field slugs; values are unknown at
+		 * the API layer because the per-field type contract lives in the
+		 * registry and would require an extra query to enforce here. The
+		 * repository's `coerceFieldValue` validates against the field's
+		 * type and throws `EmDashValidationError` on mismatch — the route
+		 * maps that to a 400 `VALIDATION_ERROR`. Reserved-slug write
+		 * attempts fall out as `EmDashValidationError("Unknown byline
+		 * custom field …")` because no registered field claims a reserved
+		 * slug.
+		 */
+		customFields: z.record(z.string(), z.unknown()).optional(),
 	})
 	.meta({ id: "BylineCreateBody" });
 
@@ -127,6 +150,18 @@ export const bylineUpdateBody = z
 		websiteUrl: httpUrl.nullish(),
 		userId: z.string().nullish(),
 		isGuest: z.boolean().optional(),
+		/**
+		 * Byline custom-field values (Discussion #1174, Phase 3+4). Keys
+		 * are field slugs; values are unknown at the API layer because
+		 * the per-field type contract lives in the registry and would
+		 * require an extra query to enforce here. The repository's
+		 * `coerceFieldValue` validates against the field's type and
+		 * throws `EmDashValidationError` on mismatch — the route maps
+		 * that to a 400 `VALIDATION_ERROR`. Reserved-slug write attempts
+		 * fall out as `EmDashValidationError("Unknown byline custom
+		 * field …")` because no registered field claims a reserved slug.
+		 */
+		customFields: z.record(z.string(), z.unknown()).optional(),
 	})
 	.meta({ id: "BylineUpdateBody" });
 

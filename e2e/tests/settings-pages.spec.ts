@@ -213,15 +213,6 @@ test.describe("Email Settings", () => {
 		await expect(page.locator("h1")).toContainText("Email Settings");
 
 		// Should show the Email Pipeline section
-		await expect(page.locator("text=Email Pipeline")).toBeVisible({ timeout: 10000 });
-	});
-
-	test("shows pipeline section without crashing", async ({ admin, page }) => {
-		await admin.goto("/settings/email");
-		await admin.waitForShell();
-		await admin.waitForLoading();
-
-		// The Email Pipeline section heading should be visible
 		await expect(page.getByRole("heading", { name: "Email Pipeline" })).toBeVisible({
 			timeout: 10000,
 		});
