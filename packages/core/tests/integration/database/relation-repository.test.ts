@@ -308,4 +308,41 @@ describeEachDialect("RelationRepository", (dialect) => {
 		await expect(repo.setChildren("unknown-relation", "p1", ["a"])).resolves.toBeUndefined();
 		expect(await repo.getChildren("unknown-relation", "p1")).toEqual([]);
 	});
+
+	it("clearReferencesForGroup removes edges where the group is parent OR child", async () => {
+		const rel = await repo.create({ ...baseInput });
+		await repo.addReference(rel.id, "X", "a"); // X as parent
+		await repo.addReference(rel.id, "b", "X"); // X as child
+		await repo.addReference(rel.id, "b", "c"); // unrelated
+
+		const removed = await repo.clearReferencesForGroup("X");
+		expect(removed).toBe(2);
+
+		expect(await repo.getChildren(rel.translationGroup, "X")).toHaveLength(0);
+		expect(await repo.getParents(rel.translationGroup, "X")).toHaveLength(0);
+		expect(await repo.getChildren(rel.translationGroup, "b")).toHaveLength(1);
+	});
+
+	it("countChildren and countParents count edges", async () => {
+		const rel = await repo.create({ ...baseInput });
+		await repo.addReference(rel.id, "p1", "a");
+		await repo.addReference(rel.id, "p1", "b");
+		await repo.addReference(rel.id, "p2", "a");
+
+		expect(await repo.countChildren(rel.id, "p1")).toBe(2);
+		expect(await repo.countParents(rel.id, "a")).toBe(2);
+	});
+
+	it("countChildrenForParents batches across more than SQL_BATCH_SIZE parents", async () => {
+		const rel = await repo.create({ ...baseInput });
+		const parents = Array.from({ length: 120 }, (_, i) => `p${i}`);
+		for (const p of parents) await repo.addReference(rel.id, p, "child");
+
+		const counts = await repo.countChildrenForParents(rel.id, parents);
+		expect(counts.size).toBe(120);
+		expect(counts.get("p0")).toBe(1);
+		expect(counts.get("p119")).toBe(1);
+
+		expect((await repo.countChildrenForParents(rel.id, [])).size).toBe(0);
+	});
 });

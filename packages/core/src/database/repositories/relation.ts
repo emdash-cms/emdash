@@ -2,6 +2,7 @@ import type { Kysely, Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import type { Database, RelationTable, ContentReferenceTable } from "../types.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 
 export interface Relation {
 	id: string;
@@ -395,6 +396,78 @@ export class RelationRepository {
 			)
 			.onConflict((oc) => oc.doNothing())
 			.execute();
+	}
+
+	/**
+	 * Remove every edge where `group` is the parent OR the child. The primitive
+	 * for entry-deletion cleanup (parent spec write-path invariant 4). Wiring
+	 * this into the content-delete path is a later (handler) slice. Returns the
+	 * number of edges removed.
+	 */
+	async clearReferencesForGroup(group: string): Promise<number> {
+		const result = await this.db
+			.deleteFrom("_emdash_content_references")
+			.where((eb) =>
+				eb.or([eb("parent_group", "=", group), eb("child_group", "=", group)]),
+			)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
+	}
+
+	/** Count a parent's children under a relation. */
+	async countChildren(relation: string, parentGroup: string): Promise<number> {
+		const relationGroup = await this.resolveRelationGroup(relation);
+		if (!relationGroup) return 0;
+		const result = await this.db
+			.selectFrom("_emdash_content_references")
+			.select((eb) => eb.fn.count("id").as("count"))
+			.where("relation_group", "=", relationGroup)
+			.where("parent_group", "=", parentGroup)
+			.executeTakeFirst();
+		return Number(result?.count ?? 0);
+	}
+
+	/** Count a child's parents (backlinks) under a relation. */
+	async countParents(relation: string, childGroup: string): Promise<number> {
+		const relationGroup = await this.resolveRelationGroup(relation);
+		if (!relationGroup) return 0;
+		const result = await this.db
+			.selectFrom("_emdash_content_references")
+			.select((eb) => eb.fn.count("id").as("count"))
+			.where("relation_group", "=", relationGroup)
+			.where("child_group", "=", childGroup)
+			.executeTakeFirst();
+		return Number(result?.count ?? 0);
+	}
+
+	/**
+	 * Batch child-counts for many parents under a relation. Chunks at
+	 * SQL_BATCH_SIZE for D1's bind-parameter limit. Returns parent_group → count
+	 * (parents with no children are absent from the map). Mirrors
+	 * `TaxonomyRepository.countEntriesForTerms`.
+	 */
+	async countChildrenForParents(
+		relation: string,
+		parentGroups: string[],
+	): Promise<Map<string, number>> {
+		const counts = new Map<string, number>();
+		if (parentGroups.length === 0) return counts;
+		const relationGroup = await this.resolveRelationGroup(relation);
+		if (!relationGroup) return counts;
+
+		for (const chunk of chunks(parentGroups, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("_emdash_content_references")
+				.select(["parent_group", (eb) => eb.fn.count("id").as("count")])
+				.where("relation_group", "=", relationGroup)
+				.where("parent_group", "in", chunk)
+				.groupBy("parent_group")
+				.execute();
+			for (const row of rows) {
+				counts.set(row.parent_group, Number(row.count || 0));
+			}
+		}
+		return counts;
 	}
 
 	private rowToRelation(row: Selectable<RelationTable>): Relation {
