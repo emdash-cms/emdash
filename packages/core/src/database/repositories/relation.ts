@@ -63,8 +63,9 @@ export class RelationRepository {
 	/**
 	 * Create a relation. Without `translationOf`, mints a fresh group
 	 * (`translation_group = id`, matching the migration backfill pattern). With
-	 * `translationOf`, joins the source's group and inherits its structural
-	 * fields (name + both collections); only locale + labels vary per locale.
+	 * `translationOf`, the structural fields (name, parentCollection,
+	 * childCollection) and the translation_group are inherited from the source;
+	 * locale and the two labels are taken from `input`.
 	 */
 	async create(input: CreateRelationInput): Promise<Relation> {
 		const id = ulid();
@@ -77,6 +78,9 @@ export class RelationRepository {
 
 		if (input.translationOf) {
 			const source = await this.findById(input.translationOf);
+			// translation_group is NOT NULL here, so we cannot fall back to a
+			// fresh group like TaxonomyRepository does — a bad translationOf must
+			// fail loudly rather than silently mint an unlinked relation.
 			if (!source) throw new Error("Source relation for translation not found");
 			translationGroup = source.translationGroup;
 			name = source.name;

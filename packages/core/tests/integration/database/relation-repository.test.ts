@@ -66,7 +66,7 @@ describeEachDialect("RelationRepository", (dialect) => {
 	it("create with a missing translationOf source throws", async () => {
 		await expect(
 			repo.create({ ...baseInput, locale: "fr", translationOf: "does-not-exist" }),
-		).rejects.toThrow();
+		).rejects.toThrow("Source relation for translation not found");
 	});
 
 	it("findById returns null for an unknown id", async () => {
