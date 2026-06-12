@@ -64,7 +64,7 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 		try {
 			await navigator.clipboard.writeText(fileUrl);
 			setUrlCopied(true);
-			window.setTimeout(() => setUrlCopied(false), 2000);
+			window.setTimeout(setUrlCopied, 2000, false);
 		} catch {
 			// Clipboard unavailable (permissions/insecure context) — leave the
 			// URL selectable in the panel instead of failing loudly.
