@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 
 import idCatalog from "../../src/locales/id/messages.po?raw";
-
 import {
 	DEFAULT_LOCALE,
 	getLocaleDir,
@@ -32,7 +31,9 @@ test("Indonesian catalog has no untranslated entries", () => {
 		const msgstrIndex = lines.findIndex((line) => line.startsWith("msgstr"));
 		if (msgstrIndex === -1) return false;
 		const nextLine = lines[msgstrIndex + 1];
-		return lines[msgstrIndex] === 'msgstr ""' && (nextLine === undefined || !nextLine.startsWith('"'));
+		return (
+			lines[msgstrIndex] === 'msgstr ""' && (nextLine === undefined || !nextLine.startsWith('"'))
+		);
 	});
 
 	expect(untranslated).toEqual([]);
