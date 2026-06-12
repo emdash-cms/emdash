@@ -543,10 +543,10 @@ describe("Undo/Redo", () => {
 });
 
 // =============================================================================
-// 5. Link Insertion (Toolbar Popover)
+// 5. HTML Block Insertion
 // =============================================================================
 
-describe("Link Insertion", () => {
+describe("HTML Block Insertion", () => {
 	it("clicking Insert HTML inserts an empty HTML block", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus("end");
@@ -559,7 +559,13 @@ describe("Link Insertion", () => {
 			expect((htmlBlock as { attrs?: { html?: string } }).attrs?.html).toBe("");
 		});
 	});
+});
 
+// =============================================================================
+// 6. Link Insertion (Toolbar Popover)
+// =============================================================================
+
+describe("Link Insertion", () => {
 	it("clicking Insert Link opens a popover with URL input", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
@@ -656,7 +662,7 @@ describe("Link Insertion", () => {
 });
 
 // =============================================================================
-// 6. Focus Mode Toggle
+// 7. Focus Mode Toggle
 // =============================================================================
 
 describe("Focus Mode Toggle", () => {
@@ -726,7 +732,7 @@ describe("Focus Mode Toggle", () => {
 });
 
 // =============================================================================
-// 7. WAI-ARIA Keyboard Navigation
+// 8. WAI-ARIA Keyboard Navigation
 // =============================================================================
 
 describe("WAI-ARIA Keyboard Navigation", () => {
