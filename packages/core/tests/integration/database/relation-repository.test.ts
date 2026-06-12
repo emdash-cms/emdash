@@ -108,12 +108,21 @@ describeEachDialect("RelationRepository", (dialect) => {
 
 	it("list returns relations ordered by name then id, optionally filtered by locale", async () => {
 		await repo.create({ ...baseInput, name: "writes", childCollection: "posts" });
-		await repo.create({ ...baseInput, name: "manages" });
+		const manages = await repo.create({ ...baseInput, name: "manages" });
+		await repo.create({
+			...baseInput,
+			locale: "fr",
+			parentLabel: "Responsable",
+			childLabel: "Subordonné",
+			translationOf: manages.id,
+		});
 
 		const all = await repo.list();
-		expect(all.map((r) => r.name)).toEqual(["manages", "writes"]);
+		expect(all.map((r) => r.name)).toEqual(["manages", "manages", "writes"]);
 
 		const enOnly = await repo.list("en");
+		// The 'fr' row must be filtered out — assert the filter actually removes it.
+		expect(enOnly.length).toBeLessThan(all.length);
 		expect(enOnly.every((r) => r.locale === "en")).toBe(true);
 	});
 
@@ -132,7 +141,8 @@ describeEachDialect("RelationRepository", (dialect) => {
 		});
 
 		const forPosts = await repo.findForCollection("posts");
-		expect(forPosts.map((r) => r.name).toSorted()).toEqual(["tags_rel", "writes"]);
+		// Asserted in returned order to also verify the (name, id) ORDER BY.
+		expect(forPosts.map((r) => r.name)).toEqual(["tags_rel", "writes"]);
 
 		const forTags = await repo.findForCollection("tags");
 		expect(forTags.map((r) => r.name)).toEqual(["tags_rel"]);

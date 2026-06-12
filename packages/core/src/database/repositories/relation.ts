@@ -123,7 +123,8 @@ export class RelationRepository {
 	/**
 	 * Find a relation by name. With `locale`, filter by it; without, return the
 	 * lowest-locale-code match deterministically. Mirrors
-	 * `TaxonomyRepository.findBySlug`.
+	 * `TaxonomyRepository.findBySlug` — note this returns a single row, unlike
+	 * `TaxonomyRepository.findByName` which returns every term in a taxonomy.
 	 */
 	async findByName(name: string, locale?: string): Promise<Relation | null> {
 		let query = this.db
