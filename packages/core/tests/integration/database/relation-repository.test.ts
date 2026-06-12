@@ -273,4 +273,26 @@ describeEachDialect("RelationRepository", (dialect) => {
 		const rel = await repo.create({ ...baseInput });
 		await expect(repo.removeReference(rel.id, "p1", "never-added")).resolves.toBeUndefined();
 	});
+
+	it("setChildren replaces the set and assigns positional sort_order", async () => {
+		const rel = await repo.create({ ...baseInput });
+		await repo.setChildren(rel.id, "p1", ["a", "b", "c"]);
+
+		let children = await repo.getChildren(rel.translationGroup, "p1");
+		expect(children.map((c) => c.childGroup)).toEqual(["a", "b", "c"]);
+		expect(children.map((c) => c.sortOrder)).toEqual([0, 1, 2]);
+
+		// Reorder + drop 'a' + add 'd'.
+		await repo.setChildren(rel.id, "p1", ["c", "b", "d"]);
+		children = await repo.getChildren(rel.translationGroup, "p1");
+		expect(children.map((c) => c.childGroup)).toEqual(["c", "b", "d"]);
+		expect(children.map((c) => c.sortOrder)).toEqual([0, 1, 2]);
+	});
+
+	it("setChildren with an empty list clears the parent's children", async () => {
+		const rel = await repo.create({ ...baseInput });
+		await repo.setChildren(rel.id, "p1", ["a", "b"]);
+		await repo.setChildren(rel.id, "p1", []);
+		expect(await repo.getChildren(rel.translationGroup, "p1")).toEqual([]);
+	});
 });

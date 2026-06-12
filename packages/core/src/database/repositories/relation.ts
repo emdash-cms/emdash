@@ -349,6 +349,46 @@ export class RelationRepository {
 		return rows.map((row) => this.rowToReference(row));
 	}
 
+	/**
+	 * Replace all children of `parentGroup` under a relation with `childGroups`,
+	 * assigning positional sort_order (index in the array). Deletes the old set
+	 * for this (relation, parent) and re-inserts — simple and correct; the set
+	 * is small (one parent's children). Mirrors the intent of
+	 * `TaxonomyRepository.setTermsForEntry`.
+	 */
+	async setChildren(
+		relation: string,
+		parentGroup: string,
+		childGroups: string[],
+	): Promise<void> {
+		const relationGroup = await this.resolveRelationGroup(relation);
+		if (!relationGroup) return;
+
+		await this.db
+			.deleteFrom("_emdash_content_references")
+			.where("relation_group", "=", relationGroup)
+			.where("parent_group", "=", parentGroup)
+			.execute();
+
+		if (childGroups.length === 0) return;
+
+		const now = new Date().toISOString();
+		await this.db
+			.insertInto("_emdash_content_references")
+			.values(
+				childGroups.map((childGroup, index) => ({
+					id: ulid(),
+					relation_group: relationGroup,
+					parent_group: parentGroup,
+					child_group: childGroup,
+					sort_order: index,
+					created_at: now,
+				})),
+			)
+			.onConflict((oc) => oc.doNothing())
+			.execute();
+	}
+
 	private rowToRelation(row: Selectable<RelationTable>): Relation {
 		return {
 			id: row.id,
