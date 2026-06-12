@@ -1297,6 +1297,13 @@ export interface ExclusiveHookResolutionOptions {
 	isActive: (pluginId: string) => boolean;
 	/** Read an option value from persistent storage. */
 	getOption: (key: string) => Promise<string | null>;
+	/**
+	 * Batch-read option values for many keys in a single round trip.
+	 * When provided, resolution reads all current selections through this
+	 * instead of one getOption() call per hook. Keys absent from the
+	 * returned map are treated as unset.
+	 */
+	getOptions?: (keys: string[]) => Promise<ReadonlyMap<string, string>>;
 	/** Write an option value to persistent storage. */
 	setOption: (key: string, value: string) => Promise<void>;
 	/** Delete an option from persistent storage. */
@@ -1322,8 +1329,26 @@ const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
 export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions): Promise<void> {
-	const { pipeline, isActive, getOption, setOption, deleteOption, preferredHints } = opts;
+	const { pipeline, isActive, getOption, getOptions, setOption, deleteOption, preferredHints } =
+		opts;
 	const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
+	if (exclusiveHookNames.length === 0) return;
+
+	// Batch-read current selections in one round trip when the caller
+	// provides a batch reader (1 query instead of N sequential gets).
+	let batchedSelections: ReadonlyMap<string, string> | undefined;
+	if (getOptions) {
+		try {
+			batchedSelections = await getOptions(
+				exclusiveHookNames.map((hookName) => `${EXCLUSIVE_HOOK_KEY_PREFIX}${hookName}`),
+			);
+		} catch {
+			// Options table may not be ready. Matches the per-key tolerance
+			// below: every hook's read would fail, so resolution is skipped
+			// entirely without touching any selection.
+			return;
+		}
+	}
 
 	for (const hookName of exclusiveHookNames) {
 		const providers = pipeline.getExclusiveHookProviders(hookName);
@@ -1333,11 +1358,15 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 
 		const key = `${EXCLUSIVE_HOOK_KEY_PREFIX}${hookName}`;
 		let currentSelection: string | null = null;
-		try {
-			currentSelection = await getOption(key);
-		} catch {
-			// Options table may not be ready
-			continue;
+		if (batchedSelections) {
+			currentSelection = batchedSelections.get(key) ?? null;
+		} else {
+			try {
+				currentSelection = await getOption(key);
+			} catch {
+				// Options table may not be ready
+				continue;
+			}
 		}
 
 		// If selection exists and the plugin is still active → keep it
