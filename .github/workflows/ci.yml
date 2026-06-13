@@ -124,6 +124,9 @@ jobs:
       - run: pnpm test:unit
         env:
           EMDASH_TEST_PG: postgres://postgres:test@localhost:5432/emdash_test
+      # Render tests use the Astro Vite plugin (vitest.repro.config.ts);
+      # they can't run under the plain-node config in test:unit.
+      - run: pnpm --filter emdash exec vitest run --config vitest.repro.config.ts
 
   test-smoke:
     name: Smoke Tests
