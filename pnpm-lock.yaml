@@ -290,9 +290,6 @@ importers:
       '@changesets/cli':
         specifier: ^2.31.0
         version: 2.31.0(@types/node@24.10.13)
-      '@e18e/eslint-plugin':
-        specifier: ^0.5.1
-        version: 0.5.1(oxlint@1.71.0(oxlint-tsgolint@0.23.0))
       '@lunariajs/core':
         specifier: https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc
         version: https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc
@@ -3908,17 +3905,6 @@ packages:
   '@durable-streams/client@0.2.6':
     resolution: {integrity: sha512-uHKKbWpsKLhFMeGjG0PgM6LXE3oEIi7FHKlJZkmYGxcqd4Yjjd/QEvnQnDzteRP4Av1uJVM8qjTL7kfKsgeS/w==}
     engines: {node: '>=18.0.0'}
-
-  '@e18e/eslint-plugin@0.5.1':
-    resolution: {integrity: sha512-mqUozeyNI9xvJbjrOO7y765dT7Kud3bwCm/DHwctxdEngPdJWQaS9BNGgpM1wCCzZfOtlKQh4ZRhm3VRomT9KA==}
-    peerDependencies:
-      eslint: ^9.0.0 || ^10.0.0
-      oxlint: ^1.68.0
-    peerDependenciesMeta:
-      eslint:
-        optional: true
-      oxlint:
-        optional: true
 
   '@earendil-works/pi-agent-core@0.79.4':
     resolution: {integrity: sha512-xkaZ3yK2XbP9HYdHrrdj/6HqZPM0o/mwbjMSU4RTJyR3HjDG0ZrPz76Hg6s0W+G4u6PpJr1mGx/srCG+3eQA8A==}
@@ -14124,14 +14110,6 @@ snapshots:
       '@microsoft/fetch-event-source': 2.0.1
       fastq: 1.20.1
 
-  '@e18e/eslint-plugin@0.5.1(oxlint@1.71.0(oxlint-tsgolint@0.23.0))':
-    dependencies:
-      empathic: 2.0.1
-      module-replacements: 3.0.0-beta.8
-      semver: 7.8.4
-    optionalDependencies:
-      oxlint: 1.71.0(oxlint-tsgolint@0.23.0)
-
   '@earendil-works/pi-agent-core@0.79.4(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.1))(ws@8.21.0)(zod@4.4.1)':
     dependencies:
       '@earendil-works/pi-ai': 0.79.4(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.1))(ws@8.21.0)(zod@4.4.1)
@@ -18667,8 +18645,6 @@ snapshots:
 
   empathic@2.0.0: {}
 
-  empathic@2.0.1: {}
-
   encodeurl@2.0.0: {}
 
   encoding@0.1.13:
@@ -20563,8 +20539,6 @@ snapshots:
   modern-tar@0.7.5: {}
 
   modern-tar@0.7.6: {}
-
-  module-replacements@3.0.0-beta.8: {}
 
   moo@0.5.3: {}
 
