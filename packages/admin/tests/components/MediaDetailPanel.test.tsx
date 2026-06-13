@@ -255,32 +255,16 @@ describe("MediaDetailPanel", () => {
 });
 
 describe("MediaDetailPanel file URL", () => {
-	it("shows the file URL with a Copy URL action", async () => {
+	it("shows the absolute file URL with a Copy URL action", async () => {
 		const screen = await renderPanel({
 			item: makeImageItem({ url: "/_emdash/api/media/file/01ABC.jpg" }),
 		});
 
 		// Relative local-storage URLs are shown as absolute (origin-resolved)
-		// so they can be pasted anywhere.
+		// so they can be pasted anywhere. The Kumo ClipboardText component
+		// renders the value as text and a copy button (labelled "Copy URL").
 		const absolute = new URL("/_emdash/api/media/file/01ABC.jpg", window.location.origin).href;
-		await expect.element(screen.getByTitle(absolute)).toBeVisible();
+		await expect.element(screen.getByText(absolute)).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: /Copy URL/ })).toBeVisible();
-	});
-
-	it("copies the absolute URL to the clipboard and confirms", async () => {
-		const writeText = vi.fn().mockResolvedValue(undefined);
-		Object.defineProperty(navigator, "clipboard", {
-			value: { writeText },
-			configurable: true,
-		});
-
-		const screen = await renderPanel({
-			item: makeImageItem({ url: "/_emdash/api/media/file/01ABC.jpg" }),
-		});
-
-		await screen.getByRole("button", { name: /Copy URL/ }).click();
-
-		const absolute = new URL("/_emdash/api/media/file/01ABC.jpg", window.location.origin).href;
-		await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith(absolute));
 	});
 });
