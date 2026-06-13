@@ -7,14 +7,7 @@
 
 import { Button, ClipboardText, Input, InputArea } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import {
-	X,
-	Trash,
-	Calendar,
-	HardDrive,
-	LinkSimple,
-	Ruler,
-} from "@phosphor-icons/react";
+import { X, Trash, Calendar, HardDrive, LinkSimple, Ruler } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
