@@ -553,7 +553,9 @@ For the package type `emdash-plugin`, every operation declared in `declaredAcces
 
 The sandbox recognises the access categories and operations listed below. Categories not enumerated here cannot be declared today; clients MUST reject release records that include unrecognised top-level fields under `declaredAccess`. Within a known category, an unrecognised _operation_ key is also a hard reject. Constraint keys, in contrast, are part of an open vocabulary — see [Constraints](#constraints).
 
-The set is deliberately narrow — it covers what existing first-party EmDash plugins actually use. Categories that would make sense to add later but aren't normatively defined here include reading user records, declaring that the plugin _provides_ a host-pluggable hook (email transport, page fragment, etc.), and finer-grained scopes within `content`. Adding any of these is a purely additive lexicon change: a new optional field on `declaredAccess` (or a new operation inside an existing category) can be defined in a follow-on RFC without invalidating any existing record. We're shipping narrow on purpose, because the lexicon evolution rules let us expand cheaply but don't let us contract.
+The set covers what first-party EmDash plugins actually use, including the privileged host extension points a plugin registers into (email transport, email events, page fragments) and reading user records. Categories and operations that would make sense to add later but aren't normatively defined here include filesystem and subprocess access, environment-variable reads, and finer-grained scopes within `content`. Adding any of these is a purely additive lexicon change: a new optional field on `declaredAccess` (or a new operation inside an existing category) can be defined in a follow-on RFC without invalidating any existing record. The vocabulary expands cheaply but the lexicon evolution rules don't let us contract, so each addition is deliberate.
+
+Operations come in two flavours. Most are **resource access** — the plugin reads or writes something the host owns (`content.read`, `media.write`, `network.request`, `email.send`). A few are **participation in a host extension point** — the plugin registers to observe, intercept, or _become_ a piece of host machinery (`email.events`, `email.transport`, `page.fragments`). The two are enforced at different boundaries: resource access is denied at the API surface when an undeclared call is made; participation is denied at **load time** — the runtime refuses to wire a hook into an extension point the plugin didn't declare. Participation operations are the system's highest-trust grants — `email.transport` sees every message the site and every other plugin sends — and the consent UI surfaces them accordingly. Where an extension point is exclusive (a site has at most one), that exclusivity is a property of the host, not a publisher-declared constraint: installing a plugin that declares `email.transport` replaces the current transport, and clients treat the operation as exclusive regardless of record contents.
 
 **`content`** — access to site content (posts, pages, custom collections).
 
@@ -581,11 +583,25 @@ The set is deliberately narrow — it covers what existing first-party EmDash pl
 | -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `allowedHosts` | string[] | Allow-list of outbound host patterns. Each entry is a hostname pattern with no scheme, path, or port; a leading `*.` wildcard is permitted for subdomains. Absence means no host restriction (the plugin can call anywhere). Strongly recommended in practice; a plugin that doesn't constrain its outbound hosts is harder to reason about. |
 
-**`email`** — sending mail through the host's mail service.
+**`email`** — sending mail through the host's mail service and participating in its delivery pipeline.
 
-| Operation | Description                                                                                                                                          |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `send`    | Plugin may send mail. Constraint vocabulary reserved for follow-on RFCs (rate limits, recipient allow-lists, etc., per [Constraints](#constraints)). |
+| Operation   | Description                                                                                                                                                                  |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `send`      | Plugin may send mail. Constraint vocabulary reserved for follow-on RFCs (rate limits, recipient allow-lists, etc., per [Constraints](#constraints)).                        |
+| `events`    | Plugin observes and may mutate every outgoing message, before and/or after send — including mail originated by the host and by other plugins, not just its own.             |
+| `transport` | Plugin becomes the host's mail transport: every message the site sends is delivered through it. Exclusive — a site has at most one transport; installing replaces the current one. |
+
+**`page`** — participation in rendered page output.
+
+| Operation   | Description                                                                                                       |
+| ----------- | --------------------------------------------------------------------------------------------------------------- |
+| `fragments` | Plugin injects script and/or style fragments into rendered pages. Active content in the page origin; high trust. |
+
+**`users`** — access to site user records.
+
+| Operation | Description                                                                            |
+| --------- | ------------------------------------------------------------------------------------- |
+| `read`    | Plugin may read site user records. Constraint vocabulary reserved for follow-on RFCs. |
 
 #### Constraints
 
@@ -735,7 +751,7 @@ The client always verifies the downloaded bytes against the artifact's `checksum
 The default aggregator auto-mirrors releases whose redistribution is unambiguous:
 
 1. On indexing a new release record, the aggregator fetches the `package` artifact from its declared `url`.
-2. It validates: the bytes hash to the artifact's `checksum`; the archive parses as a valid gzipped tar; the archive root contains `manifest.json` and `backend.js`; the decompressed contents conform to the [bundle size limits](#bundle-size-limits); the parsed manifest's `capabilities` and `allowedHosts` match the release's `emdash` extension data.
+2. It validates: the bytes hash to the artifact's `checksum`; the archive parses as a valid gzipped tar; the archive root contains `manifest.json` and `backend.js`; the decompressed contents conform to the [bundle size limits](#bundle-size-limits); the parsed manifest's `declaredAccess` is deep-equal to the release's `emdash` extension `declaredAccess`, after the canonicalisation in [EmDash extension](#emdash-extension).
 3. It checks the redistribution policy (see [Mirror policy](#mirror-policy)) and either stores the validated bytes in its own content-addressed object store and advertises mirror URLs on subsequent release responses, or indexes the record metadata-only and leaves `mirrors` empty.
 
 This validation exists to keep the mirror honest — the aggregator operator does not want to become a dumping ground for arbitrary binaries published under `pm.fair.package.release` records. It is _not_ a trust signal for clients. The client re-verifies integrity on download regardless, because a mirror operator might be compromised, stale, or lazy.
@@ -1191,10 +1207,10 @@ The verification mechanism extends naturally to delegation. A `com.emdashcms.pub
 - **Round-trip tests:** Create package and release records on a test PDS, verify they appear in the aggregator index, verify the EmDash client can resolve and install from them.
 - **Integrity verification:** Test that the EmDash client correctly rejects artifacts whose multibase checksum does not match the release record's artifact entry.
 - **Provenance verification:** Test that install fetches package and release records from the author's repo (or equivalent verified proof) and rejects aggregator metadata that does not match source records.
-- **Manifest consistency:** Test that the EmDash client refuses to install a release whose bundle `manifest.json` declares `capabilities` or `allowedHosts` that don't exactly match the release's `emdash` extension data.
+- **Manifest consistency:** Test that the EmDash client refuses to install a release whose bundle `manifest.json` declares a `declaredAccess` that isn't deep-equal (after canonicalisation) to the release's `emdash` extension data.
 - **Metadata fallback:** Test that the EmDash client falls back to PDS-direct record lookup when the aggregator is unreachable.
 - **Artifact source fallback:** Test that the client walks the local mirror → aggregator mirror → artifact's declared `url` chain correctly when earlier sources are unavailable, and that the checksum is re-verified at each source.
-- **Aggregator mirror validation:** Test that the aggregator rejects artifacts that violate any of the [bundle size limits](#bundle-size-limits) (total decompressed size, per-file size, file count), fail to parse as valid `.tar.gz`, are missing required root entries, or whose parsed manifest capabilities/allowedHosts disagree with the release record's `emdash` extension. Verify decompression aborts on cap violation without buffering the full archive.
+- **Aggregator mirror validation:** Test that the aggregator rejects artifacts that violate any of the [bundle size limits](#bundle-size-limits) (total decompressed size, per-file size, file count), fail to parse as valid `.tar.gz`, are missing required root entries, or whose parsed manifest `declaredAccess` disagrees with the release record's `emdash` extension. Verify decompression aborts on cap violation without buffering the full archive.
 - **Missing extension handling:** Test that the EmDash install client refuses to install a release with no `emdash` extension data, and that a generic directory can still render the release's metadata.
 - **Deletion handling:** Delete package and release records on a test PDS, verify the aggregator retains tombstones (per FAIR's deletion semantics), removes the mirrored artifact from its object store, and removes them from search and install flows. Verify deletion does not trigger automatic uninstall on already-installed clients.
 - **Labeller-driven yank:** Apply a `security:yanked` label (via a configured labeller) to a release's AT URI; verify the EmDash admin UI surfaces this on already-installed sites and excludes the release from latest-release selection.
