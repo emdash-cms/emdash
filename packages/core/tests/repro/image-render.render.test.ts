@@ -1,7 +1,5 @@
 import { PortableText } from "astro-portabletext";
 /**
- * Faithful container render for the #1404 follow-up.
- *
  * Renders a WordPress-migrated image node through astro-portabletext using
  * the SAME dispatch production uses (type.image -> Image.astro), three ways:
  *   1. default Image.astro directly
@@ -35,7 +33,7 @@ const locals = {
 const imgSrc = (html: string) => html.match(/<img[^>]*\bsrc="([^"]*)"/)?.[1] ?? "(no <img>)";
 
 describe("faithful render of migrated image node", () => {
-	test("1. default type.image=Image.astro", async () => {
+	test("default type.image=Image.astro", async () => {
 		const c = await AstroContainer.create();
 		const html = await c.renderToString(PortableText, {
 			props: { value, components: { type: { image: Image } } },
@@ -48,7 +46,7 @@ describe("faithful render of migrated image node", () => {
 		expect(html).toContain("emdash-image--align-right");
 	});
 
-	test("2. delegating override -> emdash <Image>", async () => {
+	test("delegating override -> emdash <Image>", async () => {
 		const c = await AstroContainer.create();
 		const html = await c.renderToString(PortableText, {
 			props: { value, components: { type: { image: OverrideImage } } },
@@ -59,7 +57,7 @@ describe("faithful render of migrated image node", () => {
 		expect(imgSrc(html)).not.toBe("(no <img>)");
 	});
 
-	test("3. default render with locals.emdash ABSENT", async () => {
+	test("default render with locals.emdash ABSENT", async () => {
 		const c = await AstroContainer.create();
 		const html = await c.renderToString(PortableText, {
 			props: { value, components: { type: { image: Image } } },
