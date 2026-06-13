@@ -585,21 +585,21 @@ Operations come in two flavours. Most are **resource access** — the plugin rea
 
 **`email`** — sending mail through the host's mail service and participating in its delivery pipeline.
 
-| Operation   | Description                                                                                                                                                                  |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `send`      | Plugin may send mail. Constraint vocabulary reserved for follow-on RFCs (rate limits, recipient allow-lists, etc., per [Constraints](#constraints)).                        |
-| `events`    | Plugin observes and may mutate every outgoing message, before and/or after send — including mail originated by the host and by other plugins, not just its own.             |
+| Operation   | Description                                                                                                                                                                        |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `send`      | Plugin may send mail. Constraint vocabulary reserved for follow-on RFCs (rate limits, recipient allow-lists, etc., per [Constraints](#constraints)).                               |
+| `events`    | Plugin observes and may mutate every outgoing message, before and/or after send — including mail originated by the host and by other plugins, not just its own.                    |
 | `transport` | Plugin becomes the host's mail transport: every message the site sends is delivered through it. Exclusive — a site has at most one transport; installing replaces the current one. |
 
 **`page`** — participation in rendered page output.
 
-| Operation   | Description                                                                                                       |
-| ----------- | --------------------------------------------------------------------------------------------------------------- |
+| Operation   | Description                                                                                                      |
+| ----------- | ---------------------------------------------------------------------------------------------------------------- |
 | `fragments` | Plugin injects script and/or style fragments into rendered pages. Active content in the page origin; high trust. |
 
 **`users`** — access to site user records.
 
-| Operation | Description                                                                            |
+| Operation | Description                                                                           |
 | --------- | ------------------------------------------------------------------------------------- |
 | `read`    | Plugin may read site user records. Constraint vocabulary reserved for follow-on RFCs. |
 
