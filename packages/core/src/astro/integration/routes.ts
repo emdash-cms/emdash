@@ -88,6 +88,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/content/[collection]/[id]/preview-url.ts"),
 	});
 
+	// Content authors (for the admin author filter)
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/authors",
+		entrypoint: resolveRoute("api/content/[collection]/authors.ts"),
+	});
+
 	// Trash/restore routes
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/trash",

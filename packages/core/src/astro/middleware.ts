@@ -25,18 +25,23 @@ import * as virtualSandboxRunnerModule from "virtual:emdash/sandbox-runner";
 // @ts-ignore - virtual module
 import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sandboxed-plugins";
 // @ts-ignore - virtual module
+import { createScheduler as virtualCreateScheduler } from "virtual:emdash/scheduler";
+// @ts-ignore - virtual module
 import { createStorage as virtualCreateStorage } from "virtual:emdash/storage";
 
+import { after } from "../after.js";
 import {
 	createRecorder,
 	flushRecorder,
 	isInstrumentationEnabled,
 } from "../database/instrumentation.js";
 import {
+	DB_INIT_DEADLINE_MS,
 	EmDashRuntime,
 	type RuntimeDependencies,
 	type SandboxedPluginEntry,
 	type MediaProviderEntry,
+	type CreateSchedulerFn,
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
@@ -50,18 +55,22 @@ import {
 	type RequestMetrics,
 	runWithContext,
 } from "../request-context.js";
+import type { PublishedRef } from "../scheduled-publish.js";
 import { isMissingTableError } from "../utils/db-errors.js";
+import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
 import type { EmDashHandlers } from "./types.js";
 
-// Cached runtime instance (persists across requests within worker)
-let runtimeInstance: EmDashRuntime | null = null;
-// Whether initialization is in progress (prevents concurrent init attempts)
-let runtimeInitializing = false;
-
-/** Whether i18n config has been initialized from the virtual module */
-let i18nInitialized = false;
+/**
+ * Runtime init lock reclaim deadline. Must be strictly larger than the db
+ * init deadline: this lock wraps EmDashRuntime.create() → getDatabase() →
+ * the db init lock, and equal deadlines would let this outer lock reclaim
+ * (spawning a second cron scheduler and sandbox runner) while the inner db
+ * init is legitimately still working through a contended migration.
+ */
+const RUNTIME_INIT_DEADLINE_MS = DB_INIT_DEADLINE_MS + 15_000;
 
 /**
  * Whether we've verified the database has been set up.
@@ -88,6 +97,32 @@ function isSetupVerified(): boolean {
 function markSetupVerified(): void {
 	setupFlagStore[SETUP_VERIFIED_KEY] = true;
 }
+
+/**
+ * The runtime singleton and its init lock live on globalThis behind a
+ * Symbol — same reasoning as SETUP_VERIFIED_KEY above: the bundler can
+ * duplicate this module across SSR chunks, and a duplicated instance/lock
+ * would mean multiple runtimes (each with its own cron scheduler) per
+ * isolate, initializing and reclaiming independently.
+ */
+const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
+interface RuntimeHolder {
+	instance: EmDashRuntime | null;
+	lock: InitLock;
+}
+
+function getRuntimeHolder(): RuntimeHolder {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+	let holder = setupFlagStore[RUNTIME_HOLDER_KEY] as RuntimeHolder | undefined;
+	if (!holder) {
+		holder = { instance: null, lock: createInitLock() };
+		setupFlagStore[RUNTIME_HOLDER_KEY] = holder;
+	}
+	return holder;
+}
+
+/** Whether i18n config has been initialized from the virtual module */
+let i18nInitialized = false;
 
 /**
  * Get EmDash configuration from virtual module
@@ -143,6 +178,7 @@ function buildDependencies(config: EmDashConfig): RuntimeDependencies {
 		plugins: getPlugins(),
 		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
+		createScheduler: virtualCreateScheduler as CreateSchedulerFn | null,
 		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
 		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],
@@ -176,29 +212,63 @@ async function getRuntime(
 	config: EmDashConfig,
 	initTimings?: Array<{ name: string; dur: number; desc?: string }>,
 ): Promise<EmDashRuntime> {
-	// Return cached instance if available
-	if (runtimeInstance) {
-		return runtimeInstance;
-	}
+	// Waiters poll rather than awaiting the initializing request's promise —
+	// workerd flags cross-request promise resolution (warnings + potential
+	// hangs). If the initializing request is cancelled mid-create (client
+	// disconnect tears down its continuation, skipping any `finally`), the
+	// anchored init keeps running under waitUntil and populates the cache;
+	// failing that, the stale lock is reclaimed after a deadline instead of
+	// hanging every subsequent request in the isolate until eviction.
+	const holder = getRuntimeHolder();
+	return initWithLock(
+		holder.lock,
+		() => holder.instance,
+		async (isCurrentClaim) => {
+			const deps = buildDependencies(config);
+			const runtime = await EmDashRuntime.create(deps, initTimings);
+			if (isCurrentClaim()) {
+				holder.instance = runtime;
+			} else {
+				// This init was reclaimed mid-flight (it ran past the deadline
+				// and a waiter started its own). Don't overwrite the
+				// reclaimer's published runtime, and stop this one's cron
+				// scheduler so it doesn't keep firing unreferenced. The
+				// runtime is still returned — it's fully functional for the
+				// request that built it.
+				runtime.stopCron().catch((error: unknown) => {
+					console.error("[emdash] failed to stop superseded runtime's cron:", error);
+				});
+			}
+			return runtime;
+		},
+		{
+			deadlineMs: RUNTIME_INIT_DEADLINE_MS,
+			anchor: (promise) => after(() => promise),
+		},
+	);
+}
 
-	// If another request is already initializing, wait and retry.
-	// We don't share the promise across requests because workerd flags
-	// cross-request promise resolution (causes warnings + potential hangs).
-	if (runtimeInitializing) {
-		// Poll until the initializing request finishes
-		await new Promise((resolve) => setTimeout(resolve, 50));
-		return getRuntime(config, initTimings);
-	}
-
-	runtimeInitializing = true;
-	try {
-		const deps = buildDependencies(config);
-		const runtime = await EmDashRuntime.create(deps, initTimings);
-		runtimeInstance = runtime;
-		return runtime;
-	} finally {
-		runtimeInitializing = false;
-	}
+/**
+ * Run scheduled maintenance (cron tasks, scheduled publishing, system cleanup)
+ * outside any request. Resolves the runtime from the build-time virtual config
+ * and the cached singleton — the same instance request handlers use.
+ *
+ * Wired into a platform heartbeat that is not a request: the Cloudflare Worker's
+ * `scheduled()` handler (Cron Trigger) calls this. On Node the runtime's own
+ * timer-based scheduler already drives the same work, so this isn't needed there.
+ *
+ * Returns the content promoted by the publishing sweep so the caller can purge
+ * edge-cache tags for it. `onPublished` (optional) is awaited after each
+ * collection's batch so the caller can invalidate edge-cache tags incrementally
+ * rather than only after the whole sweep.
+ */
+export async function runScheduledTasks(
+	options: { onPublished?: (refs: PublishedRef[]) => Promise<void> } = {},
+): Promise<{ published: PublishedRef[] }> {
+	const config = getConfig();
+	if (!config) return { published: [] };
+	const runtime = await getRuntime(config);
+	return runtime.runScheduledTasks(options);
 }
 
 /**
@@ -429,7 +499,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 					timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
 					pushMetricsTimings(timings, metrics);
-					return finalizeResponse(response, timings);
+					// Server-Timing only sees pre-stream queries; the stream-end
+					// wrapper (instrumentation-gated, no-op otherwise) emits the
+					// final counters once the body finishes streaming.
+					return wrapBodyForStreamMetrics(finalizeResponse(response, timings));
 				};
 				if (anonScoped) {
 					const parent = getRequestContext();
@@ -596,7 +669,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
 				pushMetricsTimings(timings, metrics);
-				return finalizeResponse(response, timings);
+				// Server-Timing only sees pre-stream queries; the stream-end
+				// wrapper (instrumentation-gated, no-op otherwise) emits the
+				// final counters once the body finishes streaming.
+				return wrapBodyForStreamMetrics(finalizeResponse(response, timings));
 			};
 
 			if (scoped) {

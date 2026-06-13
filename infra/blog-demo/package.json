@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/perf-demo-site",
-	"version": "0.0.16",
+	"version": "0.0.18",
 	"private": true,
 	"type": "module",
 	"scripts": {

@@ -43,7 +43,7 @@ export default defineConfig({
 			// R2 storage for media
 			storage: r2({ binding: "MEDIA" }),
 			// Cloudflare Access authentication
-			// Reads CF_ACCESS_AUDIENCE from env (wrangler secret or .dev.vars)
+			// Reads CF_ACCESS_AUDIENCE from env (wrangler secret or .env)
 			auth: access({
 				teamDomain: "cloudflare-cto.cloudflareaccess.com",
 				autoProvision: true,

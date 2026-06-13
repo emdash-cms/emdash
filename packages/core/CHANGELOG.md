@@ -1,5 +1,112 @@
 # emdash
 
+## 0.19.0
+
+### Minor Changes
+
+- [#1442](https://github.com/emdash-cms/emdash/pull/1442) [`e96587f`](https://github.com/emdash-cms/emdash/commit/e96587f8ff393939355d3d643a322fe7b2c07c86) Thanks [@ascorbic](https://github.com/ascorbic)! - Add status, author, and date-range filtering to the admin content list ([#1288](https://github.com/emdash-cms/emdash/issues/1288)). The content list API gains `authorId`, `dateField`, `dateFrom`, and `dateTo` query params (all additive and optional), and a new `GET /_emdash/api/content/{collection}/authors` endpoint lists the distinct authors of a collection's content (gated on `content:read`). Filtering runs server-side, so it works across the whole collection rather than only the loaded page.
+
+- [#1439](https://github.com/emdash-cms/emdash/pull/1439) [`023893a`](https://github.com/emdash-cms/emdash/commit/023893a0fa966b95aad4ff533fc2966b3e3dfe03) Thanks [@ascorbic](https://github.com/ascorbic)! - Add content filtering by byline credit. `getEmDashCollection` now accepts a reserved `byline` key in `where` that returns entries credited to a byline in any position, including co-authored entries where the byline is a secondary credit. This makes author archive pages possible without querying the database directly. Pass a single byline translation group or an array to match any of several.
+
+  ```ts
+  const byline = await getBylineBySlug("jane-doe");
+  const { entries } = await getEmDashCollection("posts", {
+  	where: { byline: byline.translationGroup ?? byline.id },
+  	orderBy: { published_at: "desc" },
+  });
+  ```
+
+  A `getEntriesByByline(collection, byline, options)` helper wraps the same filter, mirroring `getEntriesByTerm`.
+
+- [#1367](https://github.com/emdash-cms/emdash/pull/1367) [`f41092b`](https://github.com/emdash-cms/emdash/commit/f41092bd847f1eb161034f1d2c67976e8473e794) Thanks [@MA2153](https://github.com/MA2153)! - Add content-reference database schema: `_emdash_relations` (relationship-type definitions, row-per-locale) and `_emdash_content_references` (directed, locale-agnostic edges between content entries linked by `translation_group`). Additive, forward-only migration `043`; no existing tables change. Groundwork for reference fields — no field type, API, or admin UI yet.
+
+- [#1438](https://github.com/emdash-cms/emdash/pull/1438) [`850c1b7`](https://github.com/emdash-cms/emdash/commit/850c1b7e23eb1b083c0fcb753762effa1d3a207a) Thanks [@ascorbic](https://github.com/ascorbic)! - Generate responsive `srcset`s for media rendered with the `Image` and Portable Text image components. EmDash now routes locally/R2-stored media through Astro's configured image service (`astro:assets`) -- the Cloudflare Images binding on Workers, sharp on Node -- producing width-appropriate candidates and modern formats (e.g. WebP) instead of a single full-size `<img>`.
+
+  This works automatically:
+  - Media served from a configured storage `publicUrl` (R2 custom domain, S3/CDN) is authorized and optimized.
+  - Same-origin proxied media (local storage, or R2 without a public URL) is optimized when `siteUrl` is set; the matching `image.remotePatterns` entry is registered for you, scoped to the media route.
+  - In `astro dev` it works out of the box without configuration.
+
+  When optimization isn't possible (no image service available, an unauthorized host, or unknown dimensions) the components fall back to a plain `<img>`, so existing sites keep rendering exactly as before. No template changes are required.
+
+- [#1312](https://github.com/emdash-cms/emdash/pull/1312) [`c39789c`](https://github.com/emdash-cms/emdash/commit/c39789c383e94125d8874a516988c7d9ca6f5484) Thanks [@ascorbic](https://github.com/ascorbic)! - Drive scheduled publishing from a real heartbeat instead of request side effects ([#1303](https://github.com/emdash-cms/emdash/issues/1303)).
+
+  Content scheduled via the admin now actually transitions to `published` when its time arrives. Previously nothing promoted the row — `status` stayed `scheduled` and `published_at` stayed null forever.
+
+  A new sweep (`publishDueContent`) promotes due content and runs alongside the existing cron tick and system cleanup:
+  - **Node / single-process:** the timer-based scheduler already drives it — no action needed.
+  - **Cloudflare Workers:** a `scheduled()` handler driven by a Cron Trigger now runs the sweep. The request-driven `PiggybackScheduler` is gone, so there are no maintenance side effects on visitor requests.
+
+  `@emdash-cms/cloudflare` ships a Worker entry that wraps Astro's handler with the `scheduled()` handler (`@emdash-cms/cloudflare/worker`, plus `createScheduledHandler()` for hand-assembled Workers). When a cache provider is configured, the handler also purges edge-cache tags for whatever it published, so stale snapshots produced before the scheduled time are evicted.
+
+  **Migration for existing Cloudflare sites.** New sites get this from the templates. Existing deployments must update two files:
+
+  ```ts
+  // src/worker.ts
+  export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
+  ```
+
+  ```jsonc
+  // wrangler.jsonc
+  "triggers": { "crons": ["* * * * *"] }
+  ```
+
+  Without the Cron Trigger, scheduled publishing and plugin cron do not run on Workers.
+
+  Scheduled publishing matches manual publishing exactly: it fires `content:afterPublish` hooks (search indexing, webhooks, syndication), and records the _scheduled_ time as `published_at` on first publication rather than the (later) sweep time. The sweep claims each row atomically before promoting it, so an entry unscheduled or rescheduled just before its time is never published, and overlapping sweeps can't double-publish. Local `astro dev` keeps running the timer-driven sweep even under the Cloudflare adapter (where production relies on the Cron Trigger).
+
+  Each tick promotes at most 100 items per collection (a large backlog drains over successive ticks) so a single Worker invocation can't exhaust its CPU/subrequest budget, and edge-cache tags are purged incrementally after each collection's batch rather than only at the end. On Node, the maintenance interval is capped at 60s so scheduled-publish latency matches the Cloudflare Cron Trigger cadence instead of lagging up to five minutes when no plugin cron is due.
+
+### Patch Changes
+
+- [#1307](https://github.com/emdash-cms/emdash/pull/1307) [`cedfcc5`](https://github.com/emdash-cms/emdash/commit/cedfcc527d47131baaa5dcfb29fb7b4a966265d5) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Read `?locale=` in content write routes (DELETE, publish, unpublish, discard-draft, schedule, unschedule) and forward it to `handleContentGet` for locale-aware slug resolution ([#1242](https://github.com/emdash-cms/emdash/issues/1242))
+
+- [#1420](https://github.com/emdash-cms/emdash/pull/1420) [`c63f9ca`](https://github.com/emdash-cms/emdash/commit/c63f9ca56a8fc0cf4e1843887291fee0d78d89a2) Thanks [@swissky](https://github.com/swissky)! - `getTaxonomyTerms()` now returns the term `description` for flat
+  (non-hierarchical) taxonomies ([#1419](https://github.com/emdash-cms/emdash/issues/1419))
+
+  The query already fetched the `data` column, but the non-hierarchical branch
+  dropped it when mapping rows to `TaxonomyTerm` — only hierarchical taxonomies
+  (via `buildTree`) parsed the description. Descriptions set in the admin UI are
+  now returned for both kinds of taxonomies.
+
+- [#1426](https://github.com/emdash-cms/emdash/pull/1426) [`61ea3c9`](https://github.com/emdash-cms/emdash/commit/61ea3c9fee5b0f11974895a278d8297c56abec0b) Thanks [@MA2153](https://github.com/MA2153)! - Fix seed CLI hardcoding `en` as the default locale ([#1421](https://github.com/emdash-cms/emdash/issues/1421))
+
+  `emdash export-seed` now emits a top-level `defaultLocale` for single-locale
+  projects, and `emdash seed` (`applySeed`) honors it when backfilling the locale
+  of menus, taxonomies, and content rows that omit an explicit `locale`. Previously
+  an `export-seed` → `seed` round-trip silently rewrote a non-`en` default locale
+  (e.g. `de`) to `en`, since the CLI runs outside the Astro runtime and the
+  fallback collapsed to `en`. Projects whose default locale is `en` are unaffected.
+
+- [#1445](https://github.com/emdash-cms/emdash/pull/1445) [`a4c2af2`](https://github.com/emdash-cms/emdash/commit/a4c2af20ee27fef891290a442f7a20d4db64600d) Thanks [@ascorbic](https://github.com/ascorbic)! - Fix `getEmDashEntry` / `getEmDashCollection` hydrating taxonomy terms in the request-context or default locale instead of the entry's resolved locale ([#1441](https://github.com/emdash-cms/emdash/issues/1441)). When querying with an explicit `locale` (or via a localized route), `entry.data.terms` could return default-locale term variants even though the content row was correctly localized. Term hydration now uses the same resolved locale as the content query.
+
+- Updated dependencies [[`e96587f`](https://github.com/emdash-cms/emdash/commit/e96587f8ff393939355d3d643a322fe7b2c07c86), [`cedfcc5`](https://github.com/emdash-cms/emdash/commit/cedfcc527d47131baaa5dcfb29fb7b4a966265d5), [`7e70abc`](https://github.com/emdash-cms/emdash/commit/7e70abcc1434dc2fd94c1f51c8c8c76acc9aa536), [`783e663`](https://github.com/emdash-cms/emdash/commit/783e66365d5800e01ab445cbb411237240ff2ab4), [`157237d`](https://github.com/emdash-cms/emdash/commit/157237d6b3db0301f059534c9390bdef0a02b0cf)]:
+  - @emdash-cms/admin@0.19.0
+  - @emdash-cms/auth@0.19.0
+  - @emdash-cms/gutenberg-to-portable-text@0.19.0
+
+## 0.18.0
+
+### Patch Changes
+
+- [#1391](https://github.com/emdash-cms/emdash/pull/1391) [`8a766b8`](https://github.com/emdash-cms/emdash/commit/8a766b876117bbb2b7a2179615e83666cdc769e8) Thanks [@mvvmm](https://github.com/mvvmm)! - Add `fetchpriority="high"` to priority EmDash images so above-the-fold images can be requested eagerly and prioritized by the browser.
+
+- [#1405](https://github.com/emdash-cms/emdash/pull/1405) [`bdabff7`](https://github.com/emdash-cms/emdash/commit/bdabff7e4b5fb699ef25002508b7edd3ed184061) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixed a bug where a visitor disconnecting at the wrong moment during a cold start could leave that server instance permanently broken: every subsequent request to it would hang until the platform timed it out (a 524 error on Cloudflare, after 100 seconds), and the instance stayed broken until it was recycled. Sites no longer get stuck — startup now recovers automatically, and in the worst case a request fails fast with an error instead of hanging.
+
+- [#1408](https://github.com/emdash-cms/emdash/pull/1408) [`afc065c`](https://github.com/emdash-cms/emdash/commit/afc065c12e6b9a19c30d2cf179fd1ba9667c5b17) Thanks [@ascorbic](https://github.com/ascorbic)! - Faster cold starts. The first request a fresh server instance handles — after a deploy, or when traffic picks up again after a quiet spell — now runs its startup steps concurrently instead of one at a time, shaving database and storage round trips off that first page load. Especially noticeable on Cloudflare, where new instances spin up frequently.
+
+- [#1409](https://github.com/emdash-cms/emdash/pull/1409) [`7ee9467`](https://github.com/emdash-cms/emdash/commit/7ee94677193fb8dd39b87a23b69883f7055ab296) Thanks [@ascorbic](https://github.com/ascorbic)! - Pages render with fewer database round trips:
+  - Tag and category archive pages load faster — `getTerm()` fetches its details in parallel instead of one query at a time.
+  - Pages with several menus (header, footer, …) no longer repeat the same lookup for each menu.
+  - Entries fetched with `getEmDashEntry`/`getEmDashCollection` already include their taxonomy terms — you can now read `entry.data.terms?.tag` directly (it's typed in your generated `emdash-env.d.ts`) instead of making a separate `getEntryTerms()` call. The bundled templates have been updated to do this.
+
+- [#1407](https://github.com/emdash-cms/emdash/pull/1407) [`f9362d7`](https://github.com/emdash-cms/emdash/commit/f9362d7a89db14420a4a8f7af4e6568f15905ea7) Thanks [@ascorbic](https://github.com/ascorbic)! - Query instrumentation (`EMDASH_QUERY_LOG=1`) now captures the whole request, not just the part before the response headers are sent. Queries issued by components while the page is still streaming were previously invisible to the Server-Timing numbers; a final `[emdash-stream-end]` log line now reports the complete query count, database time, and cache hits for each request, so you can see where a slow page really spends its time. No effect when instrumentation is off.
+
+- Updated dependencies [[`d2829e3`](https://github.com/emdash-cms/emdash/commit/d2829e36c0e568db4ec92f500b166e03f0c36973)]:
+  - @emdash-cms/admin@0.18.0
+  - @emdash-cms/auth@0.18.0
+  - @emdash-cms/gutenberg-to-portable-text@0.18.0
+
 ## 0.17.2
 
 ### Patch Changes

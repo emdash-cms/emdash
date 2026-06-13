@@ -1,5 +1,38 @@
 # @emdash-cms/admin
 
+## 0.19.0
+
+### Minor Changes
+
+- [#1442](https://github.com/emdash-cms/emdash/pull/1442) [`e96587f`](https://github.com/emdash-cms/emdash/commit/e96587f8ff393939355d3d643a322fe7b2c07c86) Thanks [@ascorbic](https://github.com/ascorbic)! - Add status, author, and date-range filtering to the admin content list ([#1288](https://github.com/emdash-cms/emdash/issues/1288)). The content list API gains `authorId`, `dateField`, `dateFrom`, and `dateTo` query params (all additive and optional), and a new `GET /_emdash/api/content/{collection}/authors` endpoint lists the distinct authors of a collection's content (gated on `content:read`). Filtering runs server-side, so it works across the whole collection rather than only the loaded page.
+
+### Patch Changes
+
+- [#1307](https://github.com/emdash-cms/emdash/pull/1307) [`cedfcc5`](https://github.com/emdash-cms/emdash/commit/cedfcc527d47131baaa5dcfb29fb7b4a966265d5) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Forward `locale` query param through admin content edit route, content list navigation links, and API client to resolve correct i18n variant for slug-based lookups ([#1242](https://github.com/emdash-cms/emdash/issues/1242))
+
+- [#1417](https://github.com/emdash-cms/emdash/pull/1417) [`7e70abc`](https://github.com/emdash-cms/emdash/commit/7e70abcc1434dc2fd94c1f51c8c8c76acc9aa536) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fix taxonomy term edit dialog overflow with many locales ([#1269](https://github.com/emdash-cms/emdash/issues/1269))
+
+  Adds `max-h-[85vh] flex flex-col` to the `TermFormDialog` and makes its body
+  scrollable with `flex-1 overflow-y-auto`, keeping the header and footer pinned.
+  This prevents the Cancel/Update buttons from falling off-screen when the
+  Translations panel lists a large number of locales.
+
+- [#1440](https://github.com/emdash-cms/emdash/pull/1440) [`783e663`](https://github.com/emdash-cms/emdash/commit/783e66365d5800e01ab445cbb411237240ff2ab4) Thanks [@diogoascarneiro](https://github.com/diogoascarneiro)! - Add a visible WYSIWYG toolbar button for inserting HTML blocks, matching the existing `/html` shortcut.
+
+- [#1142](https://github.com/emdash-cms/emdash/pull/1142) [`157237d`](https://github.com/emdash-cms/emdash/commit/157237d6b3db0301f059534c9390bdef0a02b0cf) Thanks [@OrangeManLi](https://github.com/OrangeManLi)! - Fixes nested-list serialization in the Portable Text editor. `convertList` now recurses into nested `bulletList`/`orderedList` children and emits each block with the correct `level` value, so Tab-indented list items in the editor round-trip through `onChange` as real nested portable-text blocks instead of being flattened to a single top-level list with every item at `level: 1`.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.19.0
+
+## 0.18.0
+
+### Patch Changes
+
+- [#1384](https://github.com/emdash-cms/emdash/pull/1384) [`d2829e3`](https://github.com/emdash-cms/emdash/commit/d2829e36c0e568db4ec92f500b166e03f0c36973) Thanks [@ahliweb](https://github.com/ahliweb)! - Updates the Indonesian admin catalog for the byline schema and custom-field management UI with formal, complete translations.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.18.0
+
 ## 0.17.2
 
 ### Patch Changes

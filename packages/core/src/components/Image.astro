@@ -5,11 +5,16 @@
  * Renders image blocks from WordPress imports and EmDash media.
  * Uses the provider's getSrc function for responsive srcset generation.
  */
+import { getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
-// Standard responsive breakpoints
-const BREAKPOINTS = [640, 750, 828, 960, 1080, 1280, 1600, 1920];
+import {
+	buildResponsiveImage,
+	toAbsoluteMediaUrl,
+	RESPONSIVE_BREAKPOINTS,
+} from "../media/responsive.js";
+import { getPublicOrigin } from "../api/public-url.js";
 
 export interface Props {
 	node: {
@@ -46,7 +51,7 @@ function generateSrcset(
 	maxWidth: number,
 	aspectRatio?: number,
 ): string {
-	return BREAKPOINTS.filter((w) => w <= maxWidth * 2)
+	return RESPONSIVE_BREAKPOINTS.filter((w) => w <= maxWidth * 2)
 		.map((w) => {
 			const h = aspectRatio ? Math.round(w / aspectRatio) : undefined;
 			return `${getSrc({ width: w, height: h })} ${w}w`;
@@ -133,6 +138,18 @@ if (!src) {
 		url: asset.url,
 		id: asset._ref,
 	});
+	// Generate a responsive srcset via Astro's image service for local/R2 media.
+	// Falls back to the plain URL when optimization isn't possible.
+	const optimized = await buildResponsiveImage(getImage, {
+		src: toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config)),
+		width: renderWidth,
+		height: renderHeight,
+	});
+	if (optimized) {
+		src = optimized.src;
+		srcset = optimized.srcset;
+		sizes = optimized.sizes;
+	}
 }
 
 // Build placeholder background style

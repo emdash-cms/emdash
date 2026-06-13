@@ -10,10 +10,10 @@
 
 import { env } from "cloudflare:workers";
 import { kyselyLogOption } from "emdash/database/instrumentation";
-import { type DatabaseIntrospector, type Dialect, Kysely } from "kysely";
-import { D1Dialect } from "kysely-d1";
+import { type Dialect, Kysely } from "kysely";
 
-import { D1Introspector } from "./d1-introspector.js";
+import { CoalescingD1Dialect } from "./coalescing-d1.js";
+import { EmDashD1Dialect } from "./d1-dialect.js";
 
 /**
  * D1 configuration (runtime type — matches the config-time type in index.ts)
@@ -22,9 +22,16 @@ interface D1Config {
 	binding: string;
 	session?: "disabled" | "auto" | "primary-first";
 	bookmarkCookie?: string;
+	coalesce?: boolean;
 }
 
 const DEFAULT_BOOKMARK_COOKIE = "__em_d1_bookmark";
+
+/**
+ * One-shot guard so the "coalesce opted in but the binding can't do sessions
+ * at runtime" warning fires once per worker, not on every request.
+ */
+let warnedCoalesceNoRuntimeSession = false;
 
 /**
  * D1 bookmarks are opaque, minted by Cloudflare. We don't validate the shape
@@ -43,18 +50,6 @@ function hasControlChars(value: string): boolean {
 		if (code < 0x20 || code === 0x7f) return true;
 	}
 	return false;
-}
-
-/**
- * Custom D1 Dialect that uses our D1-compatible introspector
- *
- * The default kysely-d1 dialect uses SqliteIntrospector which does a
- * cross-join with pragma_table_info() that D1 doesn't allow.
- */
-class EmDashD1Dialect extends D1Dialect {
-	override createIntrospector(db: Kysely<any>): DatabaseIntrospector {
-		return new D1Introspector(db);
-	}
 }
 
 /**
@@ -80,6 +75,13 @@ export function createDialect(config: D1Config): Dialect {
 		throw new Error(
 			`D1 binding "${config.binding}" not found in environment. ` +
 				`Check your wrangler.jsonc configuration:\n\n${example}`,
+		);
+	}
+	// Coalescing only applies to the per-request session db; without
+	// sessions it silently does nothing, which would be a confusing no-op.
+	if (config.coalesce && !isSessionEnabled(config)) {
+		console.warn(
+			'[emdash] d1({ coalesce: true }) has no effect without sessions — set session: "auto" (or "primary-first") to enable query coalescing.',
 		);
 	}
 	return new EmDashD1Dialect({ database: db });
@@ -130,7 +132,20 @@ export interface RequestScopedDb {
 export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedDb | null {
 	if (!isSessionEnabled(opts.config)) return null;
 	const binding = getBinding(opts.config);
-	if (!binding || typeof binding.withSession !== "function") return null;
+	if (!binding || typeof binding.withSession !== "function") {
+		// Sessions are enabled in config, so createDialect's config-time warning
+		// didn't fire — but the live binding can't actually do sessions (older
+		// D1 binding / missing withSession). Coalescing silently falls back to
+		// the singleton, so surface that once rather than leaving the opt-in a
+		// mystery no-op.
+		if (opts.config.coalesce && binding && !warnedCoalesceNoRuntimeSession) {
+			warnedCoalesceNoRuntimeSession = true;
+			console.warn(
+				"[emdash] d1({ coalesce: true }) has no effect: the D1 binding does not support sessions (withSession() is unavailable at runtime). Query coalescing requires D1 sessions.",
+			);
+		}
+		return null;
+	}
 
 	const cookieName = opts.config.bookmarkCookie ?? DEFAULT_BOOKMARK_COOKIE;
 	const configConstraint =
@@ -162,8 +177,17 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	// both of which D1DatabaseSession implements.
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- session is structurally compatible with the subset D1Dialect uses
 	const sessionAsDatabase = session as unknown as D1Database;
+	// Coalescing is per-request only by construction: this Kysely (and its
+	// driver buffer) lives for a single request, so there is no cross-request
+	// buffering. The shared singleton from createDialect must never coalesce.
+	const dialect = opts.config.coalesce
+		? new CoalescingD1Dialect({ database: sessionAsDatabase })
+		: new EmDashD1Dialect({ database: sessionAsDatabase });
 	const db = new Kysely<any>({
-		dialect: new EmDashD1Dialect({ database: sessionAsDatabase }),
+		dialect,
+		// Kysely measures around the driver call, so per-query metrics still
+		// count each query. With coalescing, durations reflect the shared batch
+		// window rather than per-statement time — acceptable.
 		log: kyselyLogOption(),
 	});
 

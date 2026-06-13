@@ -132,6 +132,17 @@ declare module "virtual:emdash/wait-until" {
 	export const waitUntil: ((promise: Promise<unknown>) => void) | undefined;
 }
 
+declare module "virtual:emdash/scheduler" {
+	import type { CreateSchedulerFn } from "./emdash-runtime.js";
+	/**
+	 * Factory for the timer-based cron/maintenance heartbeat. A
+	 * `NodeCronScheduler` factory on long-lived runtimes (Node/Bun); `null`
+	 * under serverless adapters (e.g. Cloudflare) where an external Cron
+	 * Trigger drives scheduled work instead.
+	 */
+	export const createScheduler: CreateSchedulerFn | null;
+}
+
 declare module "virtual:emdash/admin-registry" {
 	/**
 	 * Plugin admin module registry.

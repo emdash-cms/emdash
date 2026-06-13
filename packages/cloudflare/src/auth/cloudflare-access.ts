@@ -137,7 +137,7 @@ function resolveAudience(config: AccessConfig): string {
 
 	throw new Error(
 		`Environment variable "${envVarName}" not found or empty. ` +
-			`Set it via wrangler secret, .dev.vars, or environment.`,
+			`Set it via wrangler secret, .env, or environment.`,
 	);
 }
 

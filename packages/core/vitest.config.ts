@@ -7,6 +7,8 @@ import { defineConfig } from "vitest/config";
 // Astro integration's vite plugin uses at build time.
 const virtualStubs: Record<string, string> = {
 	"virtual:emdash/wait-until": "export const waitUntil = undefined;",
+	// No timer heartbeat under test — like the Cloudflare adapter's output.
+	"virtual:emdash/scheduler": "export const createScheduler = null;",
 	// Default-export an empty config so modules that read top-level fields
 	// (e.g. `virtualConfig?.i18n?.defaultLocale`) don't blow up on import.
 	// Tests that need real config still `vi.mock(...)` their own.
