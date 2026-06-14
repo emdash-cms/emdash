@@ -194,10 +194,13 @@ export interface DeclaredAccess {
  * the inverse of {@link declaredAccessToCapabilities} for implication-closed
  * inputs (the shape `definePlugin` produces).
  *
- * `network.request` with an empty constraint object means unrestricted (per the
- * lexicon); a host-restricted plugin carries a non-empty `allowedHosts`. The
- * lexicon forbids an empty `allowedHosts` array, so "restricted to nothing" is
- * not representable -- and publish rejects `network:request` with no hosts.
+ * Network semantics are faithful to the legacy capability/allowedHosts model:
+ * an ABSENT `allowedHosts` key means unrestricted (`network:request:unrestricted`);
+ * a PRESENT `allowedHosts` -- even an empty array -- means host-restricted
+ * (`network:request`), where the empty list is deny-all at the runtime boundary.
+ * An empty list never widens to unrestricted. (The record lexicon forbids the
+ * empty array and publish rejects `network:request` with no hosts, so deny-all
+ * only arises for non-registry/in-process plugins.)
  */
 export function capabilitiesToDeclaredAccess(
 	capabilities: readonly string[],
@@ -214,12 +217,15 @@ export function capabilitiesToDeclaredAccess(
 		out.media = { read: {} };
 		if (caps.has("media:write")) out.media.write = {};
 	}
-	if (caps.has("network:request") || caps.has("network:request:unrestricted")) {
-		const request: { allowedHosts?: string[] } = {};
-		if (!caps.has("network:request:unrestricted") && allowedHosts.length > 0) {
-			request.allowedHosts = [...allowedHosts];
-		}
-		out.network = { request };
+	if (caps.has("network:request:unrestricted")) {
+		// Unrestricted: omit allowedHosts entirely (its absence is what the
+		// lexicon and the decoder read as "no host restriction").
+		out.network = { request: {} };
+	} else if (caps.has("network:request")) {
+		// Host-restricted: carry the list verbatim, INCLUDING an empty list,
+		// which is deny-all at the runtime boundary. Never collapse an empty
+		// list to `{}` -- that would silently widen deny-all to unrestricted.
+		out.network = { request: { allowedHosts: [...allowedHosts] } };
 	}
 	if (caps.has("email:send")) (out.email ??= {}).send = {};
 	if (caps.has("hooks.email-events:register")) (out.email ??= {}).events = {};
@@ -256,12 +262,16 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 	}
 	if (declaredAccess.network?.request) {
 		const hosts = declaredAccess.network.request.allowedHosts;
-		if (hosts && hosts.length > 0) {
-			caps.add("network:request");
-			allowedHosts = [...hosts];
-		} else {
+		if (hosts === undefined) {
+			// No allowedHosts key = unrestricted (lexicon semantics).
 			caps.add("network:request:unrestricted");
 			caps.add("network:request");
+		} else {
+			// allowedHosts present (even empty) = host-restricted. An empty list
+			// is deny-all at the runtime boundary -- NEVER widen it to
+			// unrestricted, or the most-restrictive spelling grants the most.
+			caps.add("network:request");
+			allowedHosts = [...hosts];
 		}
 	}
 	if (declaredAccess.email?.send) caps.add("email:send");

@@ -245,7 +245,13 @@ const declaredAccessSchema = z.object({
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
 		.optional(),
 	network: z
-		.object({ request: z.object({ allowedHosts: z.array(z.string()).optional() }).optional() })
+		.object({
+			// allowedHosts: absent = unrestricted; present = host-restricted. Reject
+			// an empty array (which the decoder would otherwise have to treat as
+			// deny-all) to match the record lexicon's `minLength: 1` and keep the
+			// "absent vs empty" distinction from ever reaching enforcement ambiguous.
+			request: z.object({ allowedHosts: z.array(z.string()).min(1).optional() }).optional(),
+		})
 		.optional(),
 	email: z
 		.object({

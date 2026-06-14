@@ -103,6 +103,17 @@ describe("declaredAccess facet mapping", () => {
 		).toEqual({ network: { request: {} } });
 	});
 
+	it("never widens an empty allowedHosts (deny-all) to unrestricted", () => {
+		// Finding 1: empty allowedHosts is the most-restrictive spelling and MUST
+		// NOT decode to unrestricted. Both directions must keep it host-restricted.
+		expect(capabilitiesToDeclaredAccess(["network:request"], [])).toEqual({
+			network: { request: { allowedHosts: [] } },
+		});
+		const decoded = declaredAccessToCapabilities({ network: { request: { allowedHosts: [] } } });
+		expect(decoded.capabilities).not.toContain("network:request:unrestricted");
+		expect(decoded).toEqual({ capabilities: ["network:request"], allowedHosts: [] });
+	});
+
 	it("carries every facet of the email+network plugin that surfaced the consent bug", () => {
 		// The plugin behind the original DECLARED_ACCESS_DRIFT: an email transport
 		// that also makes outbound calls and observes events. declaredAccess must
@@ -133,6 +144,9 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 	const networkChoices: { caps: string[]; hosts: string[] }[] = [
 		{ caps: [], hosts: [] },
 		{ caps: ["network:request", "network:request:unrestricted"], hosts: [] },
+		// Host-restricted with an empty allow-list = deny-all. Must round-trip
+		// as restricted, NOT widen to unrestricted (the Finding-1 inversion).
+		{ caps: ["network:request"], hosts: [] },
 		{ caps: ["network:request"], hosts: ["api.example.com"] },
 		{ caps: ["network:request"], hosts: ["api.example.com", "*.cdn.example.com"] },
 	];
@@ -170,7 +184,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
 			count++;
 		}
-		// 3 content x 3 media x 4 network x 2^5 singleton subsets.
-		expect(count).toBe(1152);
+		// 3 content x 3 media x 5 network x 2^5 singleton subsets.
+		expect(count).toBe(1440);
 	});
 });
