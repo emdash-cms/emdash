@@ -2,6 +2,9 @@
  * Current user query — shared across Shell, Header, Sidebar, and CommandPalette.
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { useQuery } from "@tanstack/react-query";
 
 import { apiFetch, parseApiResponse } from "./client.js";
@@ -17,7 +20,7 @@ export interface CurrentUser {
 
 async function fetchCurrentUser(): Promise<CurrentUser> {
 	const response = await apiFetch("/_emdash/api/auth/me");
-	return parseApiResponse<CurrentUser>(response, "Failed to fetch user");
+	return parseApiResponse<CurrentUser>(response, i18n._(msg`Failed to fetch user`));
 }
 
 export function useCurrentUser() {
