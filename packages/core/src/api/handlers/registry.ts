@@ -1028,10 +1028,11 @@ export async function handleRegistryInstall(
 		// outside what the user reviewed. The capability-set consent gate below
 		// is blind to constraint content (host scope), so compare the full
 		// enforced access of record vs bundle here and refuse on any difference.
-		const recordExt = (
+		const recordExt =
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- extensions is the lexicon's open `unknown` map; narrow to read our own extension
-			release?.extensions as Record<string, { declaredAccess?: DeclaredAccess }> | undefined
-		)?.[RELEASE_EXTENSION_NSID];
+			(release?.extensions as Record<string, { declaredAccess?: DeclaredAccess }> | undefined)?.[
+				RELEASE_EXTENSION_NSID
+			];
 		if (
 			!enforcedAccessEqual(recordExt?.declaredAccess ?? {}, bundle.manifest.declaredAccess ?? {})
 		) {
