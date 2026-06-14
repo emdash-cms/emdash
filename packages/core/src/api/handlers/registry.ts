@@ -1535,6 +1535,29 @@ export async function handleRegistryUpdate(
 		// and R2 layout stay in sync across install and update.
 		bundle.manifest = { ...bundle.manifest, id: pluginId };
 
+		// Integrity: same gate as install. The new bundle must declare exactly
+		// the access its signed release record advertises. Without it, an update
+		// that changes only the host scope (e.g. api.good.com -> evil.com) keeps
+		// the capability set identical, sails through the escalation diff below,
+		// and installs a bundle enforcing a scope the record never showed.
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- extensions is the lexicon's open `unknown` map; narrow to read our own extension
+		const updateRecordExtensions = signedRelease?.extensions as
+			| Record<string, { declaredAccess?: DeclaredAccess }>
+			| undefined;
+		const recordExt = updateRecordExtensions?.[RELEASE_EXTENSION_NSID];
+		if (
+			!enforcedAccessEqual(recordExt?.declaredAccess ?? {}, bundle.manifest.declaredAccess ?? {})
+		) {
+			return {
+				success: false,
+				error: {
+					code: "DECLARED_ACCESS_DRIFT",
+					message:
+						"The plugin bundle declares different permissions than its published record. Update refused.",
+				},
+			};
+		}
+
 		// Diff capabilities + route visibility against the currently
 		// installed bundle. Loading from R2 keeps us honest: the diff is
 		// against the bytes the sandbox is actually running, not whatever
