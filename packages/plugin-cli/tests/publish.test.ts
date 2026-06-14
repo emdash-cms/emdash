@@ -460,6 +460,56 @@ describe("publishRelease", () => {
 		});
 	});
 
+	describe("release extension declaredAccess (install-consent contract)", () => {
+		function getDeclaredAccess(pds: MockPds): Record<string, unknown> {
+			const release = pds.records.get(`at://${TEST_DID}/${NSID.packageRelease}/test-plugin:1.0.0`);
+			const ext = (
+				release!.value as {
+					extensions: Record<string, { declaredAccess: Record<string, unknown> }>;
+				}
+			).extensions[NSID.packageReleaseExtension];
+			return ext!.declaredAccess;
+		}
+
+		it("carries every facet, including hook registrations, when derived from a legacy bundle", async () => {
+			// The plugin behind the original DECLARED_ACCESS_DRIFT: a bundle with
+			// no declaredAccess (pre-migration) whose hook capabilities must still
+			// reach the record so the consent dialog can show them.
+			const pds = new MockPds({ did: TEST_DID });
+			await publishRelease(
+				buildOptions(pds, {
+					manifest: buildManifest({
+						capabilities: [
+							"hooks.email-transport:register",
+							"network:request",
+							"hooks.email-events:register",
+						],
+						allowedHosts: ["api.cloudflare.com"],
+					}),
+				}),
+			);
+			expect(getDeclaredAccess(pds)).toEqual({
+				network: { request: { allowedHosts: ["api.cloudflare.com"] } },
+				email: { transport: {}, events: {} },
+			});
+		});
+
+		it("carries the bundle manifest's declaredAccess verbatim when present", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			const declaredAccess = { content: { read: {} }, email: { transport: {} } };
+			await publishRelease(
+				buildOptions(pds, {
+					manifest: buildManifest({
+						capabilities: ["content:read", "hooks.email-transport:register"],
+						allowedHosts: [],
+						declaredAccess,
+					}),
+				}),
+			);
+			expect(getDeclaredAccess(pds)).toEqual(declaredAccess);
+		});
+	});
+
 	describe("slug derivation", () => {
 		it("strips a leading @ and replaces / with - for scoped npm names", async () => {
 			const pds = new MockPds({ did: TEST_DID });
