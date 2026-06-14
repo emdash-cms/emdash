@@ -158,6 +158,121 @@ export function normalizeCapabilities(caps: readonly string[]): string[] {
 	return out;
 }
 
+// ── declaredAccess: the structured trust contract ────────────────────────────
+
+/**
+ * Constraint object attached to a declaredAccess operation. An open vocabulary
+ * (`true` is sugar for `{}`): keys the runtime recognises are enforced, unknown
+ * keys are advisory and surfaced in install-consent UI. The only normatively
+ * enforced key today is `network.request.allowedHosts`.
+ */
+export type AccessConstraints = Record<string, unknown>;
+
+/**
+ * Structured per-category access manifest -- the trust contract the registry
+ * record, the bundle manifest, and the install-consent dialog all agree on.
+ * Categories are host subsystems; operations are modes of participation in
+ * them. Resource-access operations (read/write/request/send) gate host calls;
+ * participation operations (email.events/transport, page.fragments) gate
+ * privileged hook registration at load time.
+ *
+ * Isomorphic to a normalized `PluginCapability[]` + `allowedHosts` via
+ * {@link capabilitiesToDeclaredAccess} / {@link declaredAccessToCapabilities}.
+ */
+export interface DeclaredAccess {
+	content?: { read?: AccessConstraints; write?: AccessConstraints };
+	media?: { read?: AccessConstraints; write?: AccessConstraints };
+	network?: { request?: { allowedHosts?: string[] } };
+	email?: { send?: AccessConstraints; events?: AccessConstraints; transport?: AccessConstraints };
+	page?: { fragments?: AccessConstraints };
+	users?: { read?: AccessConstraints };
+}
+
+/**
+ * Lower a normalized capability list + `allowedHosts` into the structured
+ * `declaredAccess` contract. Total over the current capability vocabulary and
+ * the inverse of {@link declaredAccessToCapabilities} for implication-closed
+ * inputs (the shape `definePlugin` produces).
+ *
+ * `network.request` with an empty constraint object means unrestricted (per the
+ * lexicon); a host-restricted plugin carries a non-empty `allowedHosts`. The
+ * lexicon forbids an empty `allowedHosts` array, so "restricted to nothing" is
+ * not representable -- and publish rejects `network:request` with no hosts.
+ */
+export function capabilitiesToDeclaredAccess(
+	capabilities: readonly string[],
+	allowedHosts: readonly string[],
+): DeclaredAccess {
+	const caps = new Set(capabilities.map((c) => normalizeCapability(c)));
+	const out: DeclaredAccess = {};
+
+	if (caps.has("content:read") || caps.has("content:write")) {
+		out.content = { read: {} };
+		if (caps.has("content:write")) out.content.write = {};
+	}
+	if (caps.has("media:read") || caps.has("media:write")) {
+		out.media = { read: {} };
+		if (caps.has("media:write")) out.media.write = {};
+	}
+	if (caps.has("network:request") || caps.has("network:request:unrestricted")) {
+		const request: { allowedHosts?: string[] } = {};
+		if (!caps.has("network:request:unrestricted") && allowedHosts.length > 0) {
+			request.allowedHosts = [...allowedHosts];
+		}
+		out.network = { request };
+	}
+	if (caps.has("email:send")) (out.email ??= {}).send = {};
+	if (caps.has("hooks.email-events:register")) (out.email ??= {}).events = {};
+	if (caps.has("hooks.email-transport:register")) (out.email ??= {}).transport = {};
+	if (caps.has("hooks.page-fragments:register")) out.page = { fragments: {} };
+	if (caps.has("users:read")) out.users = { read: {} };
+
+	return out;
+}
+
+/**
+ * Raise a `declaredAccess` block back to normalized capability strings +
+ * `allowedHosts` -- the runtime's internal enforcement currency. Total: every
+ * facet maps to exactly one capability. The result is closed under the same
+ * implications `definePlugin` applies (write implies read; unrestricted implies
+ * request), so it round-trips with {@link capabilitiesToDeclaredAccess}.
+ */
+export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
+	capabilities: PluginCapability[];
+	allowedHosts: string[];
+} {
+	const caps = new Set<PluginCapability>();
+	let allowedHosts: string[] = [];
+
+	if (declaredAccess.content?.read) caps.add("content:read");
+	if (declaredAccess.content?.write) {
+		caps.add("content:write");
+		caps.add("content:read");
+	}
+	if (declaredAccess.media?.read) caps.add("media:read");
+	if (declaredAccess.media?.write) {
+		caps.add("media:write");
+		caps.add("media:read");
+	}
+	if (declaredAccess.network?.request) {
+		const hosts = declaredAccess.network.request.allowedHosts;
+		if (hosts && hosts.length > 0) {
+			caps.add("network:request");
+			allowedHosts = [...hosts];
+		} else {
+			caps.add("network:request:unrestricted");
+			caps.add("network:request");
+		}
+	}
+	if (declaredAccess.email?.send) caps.add("email:send");
+	if (declaredAccess.email?.events) caps.add("hooks.email-events:register");
+	if (declaredAccess.email?.transport) caps.add("hooks.email-transport:register");
+	if (declaredAccess.page?.fragments) caps.add("hooks.page-fragments:register");
+	if (declaredAccess.users?.read) caps.add("users:read");
+
+	return { capabilities: [...caps], allowedHosts };
+}
+
 // ── Manifest shape ───────────────────────────────────────────────────────────
 
 /**
@@ -249,6 +364,18 @@ export interface PluginAdminConfig {
 export interface PluginManifest {
 	id: string;
 	version: string;
+	/**
+	 * The trust contract: the structured access the plugin declares. Authoritative
+	 * for the registry record, install consent, and the publish/install deep-equal.
+	 * `capabilities` and `allowedHosts` are the runtime's enforcement currency,
+	 * derived from this via `declaredAccessToCapabilities` at the parse boundary --
+	 * never the other way around.
+	 *
+	 * Optional during the migration to a declaredAccess-only wire manifest; once
+	 * every producer populates it (bundler, definePlugin path) and the parse
+	 * boundary derives the strings, this tightens to required.
+	 */
+	declaredAccess?: DeclaredAccess;
 	capabilities: PluginCapability[];
 	allowedHosts: string[];
 	storage: PluginStorageConfig;

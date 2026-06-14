@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
 	CAPABILITY_RENAMES,
+	capabilitiesToDeclaredAccess,
+	declaredAccessToCapabilities,
 	isDeprecatedCapability,
 	normalizeCapabilities,
 	normalizeCapability,
@@ -74,5 +76,105 @@ describe("normalizeCapabilities", () => {
 
 	it("handles an empty array", () => {
 		expect(normalizeCapabilities([])).toEqual([]);
+	});
+});
+
+describe("declaredAccess facet mapping", () => {
+	it("maps each hook-registration capability to its participation facet", () => {
+		expect(capabilitiesToDeclaredAccess(["hooks.email-transport:register"], [])).toEqual({
+			email: { transport: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["hooks.email-events:register"], [])).toEqual({
+			email: { events: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["hooks.page-fragments:register"], [])).toEqual({
+			page: { fragments: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["users:read"], [])).toEqual({ users: { read: {} } });
+	});
+
+	it("distinguishes host-restricted from unrestricted network", () => {
+		expect(capabilitiesToDeclaredAccess(["network:request"], ["api.example.com"])).toEqual({
+			network: { request: { allowedHosts: ["api.example.com"] } },
+		});
+		// An empty constraint object is the lexicon's spelling of "unrestricted".
+		expect(
+			capabilitiesToDeclaredAccess(["network:request:unrestricted", "network:request"], []),
+		).toEqual({ network: { request: {} } });
+	});
+
+	it("carries every facet of the email+network plugin that surfaced the consent bug", () => {
+		// The plugin behind the original DECLARED_ACCESS_DRIFT: an email transport
+		// that also makes outbound calls and observes events. declaredAccess must
+		// carry all three so consent matches the bundle.
+		const da = capabilitiesToDeclaredAccess(
+			["hooks.email-transport:register", "network:request", "hooks.email-events:register"],
+			["api.cloudflare.com"],
+		);
+		expect(da).toEqual({
+			network: { request: { allowedHosts: ["api.cloudflare.com"] } },
+			email: { transport: {}, events: {} },
+		});
+		expect(new Set(declaredAccessToCapabilities(da).capabilities)).toEqual(
+			new Set([
+				"hooks.email-transport:register",
+				"network:request",
+				"hooks.email-events:register",
+			]),
+		);
+	});
+});
+
+describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)", () => {
+	// The full enumeration of implication-closed, valid capability states.
+	// definePlugin closes write->read and unrestricted->request, and publish
+	// rejects network:request with no hosts, so these are the only states that
+	// can reach a published manifest. Every one must round-trip to identity --
+	// the guard that the two representations are isomorphic, which is the
+	// property whose absence caused the original drift bug.
+	const contentChoices = [[], ["content:read"], ["content:read", "content:write"]];
+	const mediaChoices = [[], ["media:read"], ["media:read", "media:write"]];
+	const networkChoices: { caps: string[]; hosts: string[] }[] = [
+		{ caps: [], hosts: [] },
+		{ caps: ["network:request", "network:request:unrestricted"], hosts: [] },
+		{ caps: ["network:request"], hosts: ["api.example.com"] },
+		{ caps: ["network:request"], hosts: ["api.example.com", "*.cdn.example.com"] },
+	];
+	const singletonFacets = [
+		"email:send",
+		"hooks.email-events:register",
+		"hooks.email-transport:register",
+		"hooks.page-fragments:register",
+		"users:read",
+	];
+
+	function* states() {
+		for (const content of contentChoices) {
+			for (const media of mediaChoices) {
+				for (const network of networkChoices) {
+					for (let mask = 0; mask < 1 << singletonFacets.length; mask++) {
+						const extra = singletonFacets.filter((_, i) => mask & (1 << i));
+						yield {
+							capabilities: [...content, ...media, ...network.caps, ...extra],
+							allowedHosts: network.hosts,
+						};
+					}
+				}
+			}
+		}
+	}
+
+	it("recovers every implication-closed valid state exactly", () => {
+		let count = 0;
+		for (const input of states()) {
+			const back = declaredAccessToCapabilities(
+				capabilitiesToDeclaredAccess(input.capabilities, input.allowedHosts),
+			);
+			expect(new Set(back.capabilities)).toEqual(new Set(input.capabilities));
+			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
+			count++;
+		}
+		// 3 content x 3 media x 4 network x 2^5 singleton subsets.
+		expect(count).toBe(1152);
 	});
 });
