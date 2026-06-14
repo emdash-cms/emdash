@@ -190,12 +190,6 @@ Access environment variables in your configuration using `import.meta.env` or th
 
 ## Preview Deployments
 
-Deploy a preview branch:
-
-```bash
-wrangler deploy --env preview
-```
-
 Add an environment section to `wrangler.jsonc`:
 
 ```jsonc
@@ -211,6 +205,12 @@ Add an environment section to `wrangler.jsonc`:
 		},
 	},
 }
+```
+
+Then deploy for preview environment using this command:
+
+```
+CLOUDFLARE_ENV=preview astro build && wrangler deploy
 ```
 
 ## Troubleshooting
