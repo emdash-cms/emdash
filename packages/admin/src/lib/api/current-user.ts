@@ -4,7 +4,6 @@
 
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
-
 import { useQuery } from "@tanstack/react-query";
 
 import { apiFetch, parseApiResponse } from "./client.js";
