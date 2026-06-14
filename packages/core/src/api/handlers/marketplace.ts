@@ -9,7 +9,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 import { validatePluginIdentifier } from "../../database/validate.js";
-import { pluginManifestSchema } from "../../plugins/manifest-schema.js";
+import { pluginManifestSchema, reconcileManifestAccess } from "../../plugins/manifest-schema.js";
 import { normalizeManifestRoute } from "../../plugins/manifest-schema.js";
 import {
 	createMarketplaceClient,
@@ -274,7 +274,7 @@ export async function loadBundleFromR2(
 		// Elements are validated as unknown[] by Zod; cast to PluginManifest
 		// for the Element[] type (Block Kit validation happens at render time).
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Zod types elements as unknown[]; Element type validated at render time
-		const manifest = result.data as unknown as PluginManifest;
+		const manifest = reconcileManifestAccess(result.data) as unknown as PluginManifest;
 
 		// Try to load admin code (optional)
 		let adminCode: string | undefined;

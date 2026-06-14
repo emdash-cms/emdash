@@ -8,6 +8,10 @@
  * - Marketplace ingest extends this with publishing-specific fields
  */
 
+import {
+	capabilitiesToDeclaredAccess,
+	declaredAccessToCapabilities,
+} from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
 // ── Enum values (must stay in sync with types.ts) ───────────────
@@ -219,16 +223,57 @@ const pluginAdminConfigSchema = z.object({
 		.optional(),
 });
 
+// ── declaredAccess ──────────────────────────────────────────────
+
+/**
+ * An operation's constraint object. Open vocabulary: keys the runtime
+ * recognises are enforced, others are advisory. The bundler emits `{}` for a
+ * granted operation; presence (not value) signals the grant.
+ */
+const accessConstraints = z.record(z.string(), z.unknown());
+
+/**
+ * Structured trust contract embedded in the bundle manifest. Mirrors
+ * `DeclaredAccess` in `@emdash-cms/plugin-types`. Categories are host
+ * subsystems; operations are modes of participation.
+ */
+const declaredAccessSchema = z.object({
+	content: z
+		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
+		.optional(),
+	media: z
+		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
+		.optional(),
+	network: z
+		.object({ request: z.object({ allowedHosts: z.array(z.string()).optional() }).optional() })
+		.optional(),
+	email: z
+		.object({
+			send: accessConstraints.optional(),
+			events: accessConstraints.optional(),
+			transport: accessConstraints.optional(),
+		})
+		.optional(),
+	page: z.object({ fragments: accessConstraints.optional() }).optional(),
+	users: z.object({ read: accessConstraints.optional() }).optional(),
+});
+
 // ── Main schema ─────────────────────────────────────────────────
 
 /**
  * Zod schema matching the PluginManifest interface from types.ts.
  *
  * Every JSON.parse of a manifest.json should validate through this.
+ *
+ * `declaredAccess` is the trust contract; `capabilities`/`allowedHosts` are the
+ * runtime's enforcement currency. Apply `reconcileManifestAccess` after parsing
+ * to make them consistent (declaredAccess authoritative when present). Kept a
+ * plain object (no `.transform`) because callers `.pick()`/`.extend()` it.
  */
 export const pluginManifestSchema = z.object({
 	id: z.string().min(1),
 	version: z.string().min(1),
+	declaredAccess: declaredAccessSchema.optional(),
 	capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)),
 	allowedHosts: z.array(z.string()),
 	storage: z.record(z.string(), storageCollectionSchema),
@@ -253,6 +298,27 @@ export const pluginManifestSchema = z.object({
 });
 
 export type ValidatedPluginManifest = z.infer<typeof pluginManifestSchema>;
+
+/**
+ * Reconcile a parsed manifest's trust contract with its enforcement currency.
+ * `declaredAccess` is authoritative: when present, `capabilities`/`allowedHosts`
+ * are re-derived from it so what the runtime enforces always matches what was
+ * recorded and consented to. A pre-migration bundle without `declaredAccess`
+ * has it derived from the legacy capability list instead. The result always
+ * carries both, mutually consistent. Apply this at every bundle-parse site.
+ */
+export function reconcileManifestAccess(
+	manifest: ValidatedPluginManifest,
+): ValidatedPluginManifest {
+	if (manifest.declaredAccess) {
+		const { capabilities, allowedHosts } = declaredAccessToCapabilities(manifest.declaredAccess);
+		return { ...manifest, capabilities, allowedHosts };
+	}
+	return {
+		...manifest,
+		declaredAccess: capabilitiesToDeclaredAccess(manifest.capabilities, manifest.allowedHosts),
+	};
+}
 
 /**
  * Normalize a manifest hook entry — plain strings become `{ name }` objects.

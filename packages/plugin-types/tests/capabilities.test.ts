@@ -116,11 +116,7 @@ describe("declaredAccess facet mapping", () => {
 			email: { transport: {}, events: {} },
 		});
 		expect(new Set(declaredAccessToCapabilities(da).capabilities)).toEqual(
-			new Set([
-				"hooks.email-transport:register",
-				"network:request",
-				"hooks.email-events:register",
-			]),
+			new Set(["hooks.email-transport:register", "network:request", "hooks.email-events:register"]),
 		);
 	});
 });
