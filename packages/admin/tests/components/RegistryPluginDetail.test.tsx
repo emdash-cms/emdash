@@ -85,6 +85,7 @@ function makePackage(overrides: PkgOverrides = {}): RegistryPackageView {
 
 interface ReleaseOverrides {
 	sbom?: { format?: string; url?: string; checksum?: string };
+	extensions?: Record<string, unknown>;
 }
 
 function makeRelease(overrides: ReleaseOverrides = {}): RegistryReleaseView {
@@ -94,10 +95,13 @@ function makeRelease(overrides: ReleaseOverrides = {}): RegistryReleaseView {
 		labels: [],
 		release: {
 			sbom: overrides.sbom,
+			extensions: overrides.extensions,
 		},
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- test fixture cast to the validated view shape
 	} as any;
 }
+
+const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
 
 function Wrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
@@ -206,6 +210,38 @@ describe("RegistryPluginDetail SBOM", () => {
 		);
 		await expect.element(screen.getByText("SBOM · spdx")).toBeInTheDocument();
 		expect(screen.getByRole("link", { name: "Download SBOM" }).query()).toBeNull();
+	});
+});
+
+describe("RegistryPluginDetail declared permissions", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("derives the consent list faithfully from declaredAccess, including hook facets", async () => {
+		// declaredAccess carries the hook facets; the consent list must show the
+		// canonical capability strings the install handler enforces. The earlier
+		// component-local flattener dropped these and broke every such install.
+		setup(makePackage(), [
+			makeRelease({
+				extensions: {
+					[RELEASE_EXTENSION_NSID]: {
+						declaredAccess: {
+							network: { request: { allowedHosts: ["api.cloudflare.com"] } },
+							email: { transport: {}, events: {} },
+						},
+					},
+				},
+			}),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText("hooks.email-transport:register")).toBeInTheDocument();
+		await expect.element(screen.getByText("hooks.email-events:register")).toBeInTheDocument();
+		await expect.element(screen.getByText("network:request")).toBeInTheDocument();
 	});
 });
 
