@@ -680,7 +680,12 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 				// Separate taxonomy / byline filters from field filters
 				let result: { rows: Record<string, unknown>[] };
-				let taxonomyFilter: { name: string; slugs: string[] } | null = null;
+				// Taxonomy filters AND together: each entry constrains the base
+				// row to match at least one of its slugs *within that taxonomy*.
+				// Term slugs are unique only within a taxonomy, so every filter
+				// keeps its own `name` and emits its own `EXISTS` clause rather
+				// than pooling slugs into one `IN`.
+				const taxonomyFilters: { name: string; slugs: string[] }[] = [];
 				// A byline filter matches entries credited to any of the given
 				// byline translation groups via the `_emdash_content_bylines`
 				// junction table. `null` means no byline filter; an empty
@@ -710,14 +715,8 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 								);
 								continue;
 							}
-							if (taxonomyFilter) {
-								console.warn(
-									`[emdash] where filter: only one taxonomy is supported per query, "${key}" ignored`,
-								);
-								continue;
-							}
 							const slugs = Array.isArray(value) ? value : [value];
-							taxonomyFilter = { name: key, slugs };
+							taxonomyFilters.push({ name: key, slugs });
 						} else {
 							fieldFilters[key] = value;
 						}
@@ -729,7 +728,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// SQL on both dialects).
 				if (
 					(bylineFilter && bylineFilter.groups.length === 0) ||
-					(taxonomyFilter && taxonomyFilter.slugs.length === 0)
+					taxonomyFilters.some((f) => f.slugs.length === 0)
 				) {
 					return { entries: [], cacheHint: { tags: [type] } };
 				}
@@ -753,16 +752,26 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					const fieldCondsSQL =
 						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
 
-					const taxonomyCond = taxonomyFilter
-						? sql`AND EXISTS (
+					// One `EXISTS` per taxonomy, AND'd together: an entry must be
+					// tagged with a matching term in *every* requested taxonomy.
+					// Each clause pins its own `t.name`, so slugs never pool
+					// across taxonomies (they're only unique within one).
+					const taxonomyCond =
+						taxonomyFilters.length > 0
+							? sql`${sql.join(
+									taxonomyFilters.map(
+										(f) => sql`AND EXISTS (
 							SELECT 1 FROM content_taxonomies ct
 							INNER JOIN taxonomies t ON t.id = ct.taxonomy_id
 							WHERE ct.collection = ${type}
 								AND ct.entry_id = ${sql.ref(tableName)}.id
-								AND t.name = ${taxonomyFilter.name}
-								AND t.slug IN (${sql.join(taxonomyFilter.slugs.map((s) => sql`${s}`))})
-						)`
-						: sql``;
+								AND t.name = ${f.name}
+								AND t.slug IN (${sql.join(f.slugs.map((s) => sql`${s}`))})
+						)`,
+									),
+									sql` `,
+								)}`
+							: sql``;
 
 					// `_emdash_content_bylines.byline_id` stores the byline's
 					// translation_group (migration 040), so a credit spans every
