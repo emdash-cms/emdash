@@ -209,7 +209,8 @@ Add an environment section to `wrangler.jsonc`:
 
 Then deploy for preview environment using this command:
 
-```
+```bash
+CLOUDFLARE_ENV=preview astro build && wrangler deploy
 CLOUDFLARE_ENV=preview astro build && wrangler deploy
 ```
 
