@@ -14,6 +14,8 @@ import {
 } from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
+import type { PluginManifest } from "./types.js";
+
 // ── Enum values (must stay in sync with types.ts) ───────────────
 
 /**
@@ -313,17 +315,18 @@ export type ValidatedPluginManifest = z.infer<typeof pluginManifestSchema>;
  * has it derived from the legacy capability list instead. The result always
  * carries both, mutually consistent. Apply this at every bundle-parse site.
  */
-export function reconcileManifestAccess(
-	manifest: ValidatedPluginManifest,
-): ValidatedPluginManifest {
-	if (manifest.declaredAccess) {
-		const { capabilities, allowedHosts } = declaredAccessToCapabilities(manifest.declaredAccess);
-		return { ...manifest, capabilities, allowedHosts };
-	}
-	return {
-		...manifest,
-		declaredAccess: capabilitiesToDeclaredAccess(manifest.capabilities, manifest.allowedHosts),
-	};
+export function reconcileManifestAccess(manifest: ValidatedPluginManifest): PluginManifest {
+	const reconciled: ValidatedPluginManifest = manifest.declaredAccess
+		? { ...manifest, ...declaredAccessToCapabilities(manifest.declaredAccess) }
+		: {
+				...manifest,
+				declaredAccess: capabilitiesToDeclaredAccess(manifest.capabilities, manifest.allowedHosts),
+			};
+	// Block Kit admin elements are typed as `unknown` by the Zod schema (their
+	// Element shape is validated at render time), so the validated manifest
+	// needs a structural cast up to the runtime PluginManifest.
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- admin elements are unknown[] in Zod; Element type checked at render time
+	return reconciled as unknown as PluginManifest;
 }
 
 /**

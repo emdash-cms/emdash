@@ -220,8 +220,8 @@ describe("RegistryPluginDetail declared permissions", () => {
 
 	it("derives the consent list faithfully from declaredAccess, including hook facets", async () => {
 		// declaredAccess carries the hook facets; the consent list must show the
-		// canonical capability strings the install handler enforces. The earlier
-		// component-local flattener dropped these and broke every such install.
+		// canonical capability strings the install handler enforces, derived via
+		// the shared converter rather than a component-local flattener.
 		setup(makePackage(), [
 			makeRelease({
 				extensions: {

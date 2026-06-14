@@ -104,8 +104,8 @@ describe("declaredAccess facet mapping", () => {
 	});
 
 	it("never widens an empty allowedHosts (deny-all) to unrestricted", () => {
-		// Finding 1: empty allowedHosts is the most-restrictive spelling and MUST
-		// NOT decode to unrestricted. Both directions must keep it host-restricted.
+		// An empty allowedHosts is the most-restrictive spelling (deny-all); it must
+		// never decode to unrestricted, or the tightest declaration grants the most.
 		expect(capabilitiesToDeclaredAccess(["network:request"], [])).toEqual({
 			network: { request: { allowedHosts: [] } },
 		});
@@ -114,10 +114,9 @@ describe("declaredAccess facet mapping", () => {
 		expect(decoded).toEqual({ capabilities: ["network:request"], allowedHosts: [] });
 	});
 
-	it("carries every facet of the email+network plugin that surfaced the consent bug", () => {
-		// The plugin behind the original DECLARED_ACCESS_DRIFT: an email transport
-		// that also makes outbound calls and observes events. declaredAccess must
-		// carry all three so consent matches the bundle.
+	it("carries every facet of an email transport that also calls out and observes events", () => {
+		// declaredAccess must carry all three facets so the consent list matches
+		// the capability set the runtime enforces.
 		const da = capabilitiesToDeclaredAccess(
 			["hooks.email-transport:register", "network:request", "hooks.email-events:register"],
 			["api.cloudflare.com"],
@@ -137,15 +136,15 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 	// definePlugin closes write->read and unrestricted->request, and publish
 	// rejects network:request with no hosts, so these are the only states that
 	// can reach a published manifest. Every one must round-trip to identity --
-	// the guard that the two representations are isomorphic, which is the
-	// property whose absence caused the original drift bug.
+	// the guard that the two representations are isomorphic, so the consent list
+	// always equals the capability set the runtime enforces.
 	const contentChoices = [[], ["content:read"], ["content:read", "content:write"]];
 	const mediaChoices = [[], ["media:read"], ["media:read", "media:write"]];
 	const networkChoices: { caps: string[]; hosts: string[] }[] = [
 		{ caps: [], hosts: [] },
 		{ caps: ["network:request", "network:request:unrestricted"], hosts: [] },
 		// Host-restricted with an empty allow-list = deny-all. Must round-trip
-		// as restricted, NOT widen to unrestricted (the Finding-1 inversion).
+		// as restricted, never widening to unrestricted.
 		{ caps: ["network:request"], hosts: [] },
 		{ caps: ["network:request"], hosts: ["api.example.com"] },
 		{ caps: ["network:request"], hosts: ["api.example.com", "*.cdn.example.com"] },

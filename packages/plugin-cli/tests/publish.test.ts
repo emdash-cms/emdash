@@ -472,9 +472,9 @@ describe("publishRelease", () => {
 		}
 
 		it("carries every facet, including hook registrations, when derived from a legacy bundle", async () => {
-			// The plugin behind the original DECLARED_ACCESS_DRIFT: a bundle with
-			// no declaredAccess (pre-migration) whose hook capabilities must still
-			// reach the record so the consent dialog can show them.
+			// A bundle with no declaredAccess (a pre-migration tarball) whose hook
+			// capabilities must still reach the record so the consent dialog can
+			// show them.
 			const pds = new MockPds({ did: TEST_DID });
 			await publishRelease(
 				buildOptions(pds, {
