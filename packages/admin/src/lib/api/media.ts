@@ -69,7 +69,7 @@ export async function fetchMediaList(options?: {
 
 	const url = `${API_BASE}/media${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
-	return parseApiResponse<FindManyResult<MediaItem>>(response, "Failed to fetch media");
+	return parseApiResponse<FindManyResult<MediaItem>>(response, i18n._(msg`Failed to fetch media`));
 }
 
 /**
@@ -109,7 +109,7 @@ async function getUploadUrl(
 			return null;
 		}
 
-		return parseApiResponse<UploadUrlResponse>(response, "Failed to get upload URL");
+		return parseApiResponse<UploadUrlResponse>(response, i18n._(msg`Failed to get upload URL`));
 	} catch (error) {
 		// If the endpoint doesn't exist, fall back to direct upload
 		if (error instanceof TypeError && error.message.includes("fetch")) {
@@ -131,7 +131,10 @@ async function confirmUpload(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(metadata || {}),
 	});
-	const data = await parseApiResponse<{ item: MediaItem }>(response, "Failed to confirm upload");
+	const data = await parseApiResponse<{ item: MediaItem }>(
+		response,
+		i18n._(msg`Failed to confirm upload`),
+	);
 	return data.item;
 }
 
@@ -191,7 +194,10 @@ async function uploadMediaDirect(file: File, opts?: { fieldId?: string }): Promi
 		method: "POST",
 		body: formData,
 	});
-	const data = await parseApiResponse<{ item: MediaItem }>(response, "Failed to upload media");
+	const data = await parseApiResponse<{ item: MediaItem }>(
+		response,
+		i18n._(msg`Failed to upload media`),
+	);
 	return data.item;
 }
 
@@ -246,7 +252,10 @@ export async function updateMedia(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const data = await parseApiResponse<{ item: MediaItem }>(response, "Failed to update media");
+	const data = await parseApiResponse<{ item: MediaItem }>(
+		response,
+		i18n._(msg`Failed to update media`),
+	);
 	return data.item;
 }
 
@@ -290,7 +299,7 @@ export async function fetchMediaProviders(): Promise<MediaProviderInfo[]> {
 	const response = await apiFetch(`${API_BASE}/media/providers`);
 	const data = await parseApiResponse<{ items: MediaProviderInfo[] }>(
 		response,
-		"Failed to fetch media providers",
+		i18n._(msg`Failed to fetch media providers`),
 	);
 	return data.items;
 }
@@ -320,7 +329,7 @@ export async function fetchProviderMedia(
 	const response = await apiFetch(url);
 	return parseApiResponse<FindManyResult<MediaProviderItem>>(
 		response,
-		"Failed to fetch provider media",
+		i18n._(msg`Failed to fetch provider media`),
 	);
 }
 
@@ -342,7 +351,7 @@ export async function uploadToProvider(
 	});
 	const data = await parseApiResponse<{ item: MediaProviderItem }>(
 		response,
-		"Failed to upload to provider",
+		i18n._(msg`Failed to upload to provider`),
 	);
 	return data.item;
 }
