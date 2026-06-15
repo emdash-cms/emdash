@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	generateConfigModule,
 	generateDialectModule,
+	generateSchedulerModule,
 	generateSeedModule,
 } from "../../../../src/astro/integration/virtual-modules.js";
 
@@ -64,6 +65,36 @@ describe("generateDialectModule", () => {
 			supportsRequestScope: false,
 		});
 		expect(out).toContain(`export const dialectType = "postgres"`);
+	});
+});
+
+describe("generateSchedulerModule", () => {
+	it("disables the timer for a Cloudflare production build (Cron Trigger drives it)", () => {
+		const out = generateSchedulerModule("@astrojs/cloudflare", "build");
+		expect(out).toContain("export const createScheduler = null");
+		expect(out).not.toContain("NodeCronScheduler");
+	});
+
+	it("keeps the Node timer in local dev even under the Cloudflare adapter", () => {
+		// No Cron Trigger fires in `astro dev`, so scheduled publishing/cron
+		// must still run via the in-process timer.
+		const out = generateSchedulerModule("@astrojs/cloudflare", "serve");
+		expect(out).toContain('import { NodeCronScheduler } from "emdash"');
+		expect(out).toContain("export function createScheduler(executor)");
+		expect(out).not.toContain("createScheduler = null");
+	});
+
+	it("emits a NodeCronScheduler factory for non-Cloudflare adapters", () => {
+		for (const cmd of ["build", "serve", undefined] as const) {
+			const out = generateSchedulerModule("@astrojs/node", cmd);
+			expect(out).toContain('import { NodeCronScheduler } from "emdash"');
+			expect(out).not.toContain("createScheduler = null");
+		}
+	});
+
+	it("emits a NodeCronScheduler factory when no adapter is configured", () => {
+		const out = generateSchedulerModule(undefined, "build");
+		expect(out).toContain("export function createScheduler(executor)");
 	});
 });
 

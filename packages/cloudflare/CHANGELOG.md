@@ -1,5 +1,75 @@
 # @emdash-cms/cloudflare
 
+## 0.19.0
+
+### Minor Changes
+
+- [#1312](https://github.com/emdash-cms/emdash/pull/1312) [`c39789c`](https://github.com/emdash-cms/emdash/commit/c39789c383e94125d8874a516988c7d9ca6f5484) Thanks [@ascorbic](https://github.com/ascorbic)! - Drive scheduled publishing from a real heartbeat instead of request side effects ([#1303](https://github.com/emdash-cms/emdash/issues/1303)).
+
+  Content scheduled via the admin now actually transitions to `published` when its time arrives. Previously nothing promoted the row — `status` stayed `scheduled` and `published_at` stayed null forever.
+
+  A new sweep (`publishDueContent`) promotes due content and runs alongside the existing cron tick and system cleanup:
+  - **Node / single-process:** the timer-based scheduler already drives it — no action needed.
+  - **Cloudflare Workers:** a `scheduled()` handler driven by a Cron Trigger now runs the sweep. The request-driven `PiggybackScheduler` is gone, so there are no maintenance side effects on visitor requests.
+
+  `@emdash-cms/cloudflare` ships a Worker entry that wraps Astro's handler with the `scheduled()` handler (`@emdash-cms/cloudflare/worker`, plus `createScheduledHandler()` for hand-assembled Workers). When a cache provider is configured, the handler also purges edge-cache tags for whatever it published, so stale snapshots produced before the scheduled time are evicted.
+
+  **Migration for existing Cloudflare sites.** New sites get this from the templates. Existing deployments must update two files:
+
+  ```ts
+  // src/worker.ts
+  export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
+  ```
+
+  ```jsonc
+  // wrangler.jsonc
+  "triggers": { "crons": ["* * * * *"] }
+  ```
+
+  Without the Cron Trigger, scheduled publishing and plugin cron do not run on Workers.
+
+  Scheduled publishing matches manual publishing exactly: it fires `content:afterPublish` hooks (search indexing, webhooks, syndication), and records the _scheduled_ time as `published_at` on first publication rather than the (later) sweep time. The sweep claims each row atomically before promoting it, so an entry unscheduled or rescheduled just before its time is never published, and overlapping sweeps can't double-publish. Local `astro dev` keeps running the timer-driven sweep even under the Cloudflare adapter (where production relies on the Cron Trigger).
+
+  Each tick promotes at most 100 items per collection (a large backlog drains over successive ticks) so a single Worker invocation can't exhaust its CPU/subrequest budget, and edge-cache tags are purged incrementally after each collection's batch rather than only at the end. On Node, the maintenance interval is capped at 60s so scheduled-publish latency matches the Cloudflare Cron Trigger cadence instead of lagging up to five minutes when no plugin cron is due.
+
+### Patch Changes
+
+- Updated dependencies [[`e96587f`](https://github.com/emdash-cms/emdash/commit/e96587f8ff393939355d3d643a322fe7b2c07c86), [`023893a`](https://github.com/emdash-cms/emdash/commit/023893a0fa966b95aad4ff533fc2966b3e3dfe03), [`f41092b`](https://github.com/emdash-cms/emdash/commit/f41092bd847f1eb161034f1d2c67976e8473e794), [`cedfcc5`](https://github.com/emdash-cms/emdash/commit/cedfcc527d47131baaa5dcfb29fb7b4a966265d5), [`c63f9ca`](https://github.com/emdash-cms/emdash/commit/c63f9ca56a8fc0cf4e1843887291fee0d78d89a2), [`61ea3c9`](https://github.com/emdash-cms/emdash/commit/61ea3c9fee5b0f11974895a278d8297c56abec0b), [`a4c2af2`](https://github.com/emdash-cms/emdash/commit/a4c2af20ee27fef891290a442f7a20d4db64600d), [`850c1b7`](https://github.com/emdash-cms/emdash/commit/850c1b7e23eb1b083c0fcb753762effa1d3a207a), [`c39789c`](https://github.com/emdash-cms/emdash/commit/c39789c383e94125d8874a516988c7d9ca6f5484)]:
+  - emdash@0.19.0
+
+## 0.18.0
+
+### Minor Changes
+
+- [#1410](https://github.com/emdash-cms/emdash/pull/1410) [`aa815aa`](https://github.com/emdash-cms/emdash/commit/aa815aacfc7e2bf32d26924ff011a58f03f81dae) Thanks [@ascorbic](https://github.com/ascorbic)! - New experimental `coalesce` option for the `d1()` adapter, for much faster uncached page loads:
+
+  ```ts
+  emdash({
+  	database: d1({ binding: "DB", session: "auto", coalesce: true }),
+  });
+  ```
+
+  When enabled, read queries that a page issues at the same time are sent to D1 as a single round trip instead of one at a time. A page that runs half a dozen queries — settings, menus, the entry, related posts — pays for one trip to the database instead of six, which can cut uncached render time by more than half. Each query still gets its own results and its own errors, and writes are unaffected. Requires `session` to be enabled; off by default while experimental.
+
+### Patch Changes
+
+- Updated dependencies [[`8a766b8`](https://github.com/emdash-cms/emdash/commit/8a766b876117bbb2b7a2179615e83666cdc769e8), [`bdabff7`](https://github.com/emdash-cms/emdash/commit/bdabff7e4b5fb699ef25002508b7edd3ed184061), [`afc065c`](https://github.com/emdash-cms/emdash/commit/afc065c12e6b9a19c30d2cf179fd1ba9667c5b17), [`7ee9467`](https://github.com/emdash-cms/emdash/commit/7ee94677193fb8dd39b87a23b69883f7055ab296), [`f9362d7`](https://github.com/emdash-cms/emdash/commit/f9362d7a89db14420a4a8f7af4e6568f15905ea7)]:
+  - emdash@0.18.0
+
+## 0.17.2
+
+### Patch Changes
+
+- Updated dependencies [[`4e11daa`](https://github.com/emdash-cms/emdash/commit/4e11daaaf7c07b20903527626391e31799675da8), [`fe6bc78`](https://github.com/emdash-cms/emdash/commit/fe6bc78e74ecbc41bcae495e070eec9f25e23da2), [`80f2925`](https://github.com/emdash-cms/emdash/commit/80f2925bfbc5f4418363c499c36e0a1c1af04242)]:
+  - emdash@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- Updated dependencies [[`149fc49`](https://github.com/emdash-cms/emdash/commit/149fc4904326174075d100ccb4f203b2a250ec64), [`64d5675`](https://github.com/emdash-cms/emdash/commit/64d56759250016fb4bfb2a2ab83106407ffd61a7), [`77fff0a`](https://github.com/emdash-cms/emdash/commit/77fff0a36cd4d6dc242c1d8dd58934ca14cd6dbd), [`87c40d3`](https://github.com/emdash-cms/emdash/commit/87c40d34b3a0130f67bf7d31caf40572f14135e6)]:
+  - emdash@0.17.1
+
 ## 0.17.0
 
 ### Patch Changes

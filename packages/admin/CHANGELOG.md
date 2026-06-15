@@ -1,5 +1,60 @@
 # @emdash-cms/admin
 
+## 0.19.0
+
+### Minor Changes
+
+- [#1442](https://github.com/emdash-cms/emdash/pull/1442) [`e96587f`](https://github.com/emdash-cms/emdash/commit/e96587f8ff393939355d3d643a322fe7b2c07c86) Thanks [@ascorbic](https://github.com/ascorbic)! - Add status, author, and date-range filtering to the admin content list ([#1288](https://github.com/emdash-cms/emdash/issues/1288)). The content list API gains `authorId`, `dateField`, `dateFrom`, and `dateTo` query params (all additive and optional), and a new `GET /_emdash/api/content/{collection}/authors` endpoint lists the distinct authors of a collection's content (gated on `content:read`). Filtering runs server-side, so it works across the whole collection rather than only the loaded page.
+
+### Patch Changes
+
+- [#1307](https://github.com/emdash-cms/emdash/pull/1307) [`cedfcc5`](https://github.com/emdash-cms/emdash/commit/cedfcc527d47131baaa5dcfb29fb7b4a966265d5) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Forward `locale` query param through admin content edit route, content list navigation links, and API client to resolve correct i18n variant for slug-based lookups ([#1242](https://github.com/emdash-cms/emdash/issues/1242))
+
+- [#1417](https://github.com/emdash-cms/emdash/pull/1417) [`7e70abc`](https://github.com/emdash-cms/emdash/commit/7e70abcc1434dc2fd94c1f51c8c8c76acc9aa536) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fix taxonomy term edit dialog overflow with many locales ([#1269](https://github.com/emdash-cms/emdash/issues/1269))
+
+  Adds `max-h-[85vh] flex flex-col` to the `TermFormDialog` and makes its body
+  scrollable with `flex-1 overflow-y-auto`, keeping the header and footer pinned.
+  This prevents the Cancel/Update buttons from falling off-screen when the
+  Translations panel lists a large number of locales.
+
+- [#1440](https://github.com/emdash-cms/emdash/pull/1440) [`783e663`](https://github.com/emdash-cms/emdash/commit/783e66365d5800e01ab445cbb411237240ff2ab4) Thanks [@diogoascarneiro](https://github.com/diogoascarneiro)! - Add a visible WYSIWYG toolbar button for inserting HTML blocks, matching the existing `/html` shortcut.
+
+- [#1142](https://github.com/emdash-cms/emdash/pull/1142) [`157237d`](https://github.com/emdash-cms/emdash/commit/157237d6b3db0301f059534c9390bdef0a02b0cf) Thanks [@OrangeManLi](https://github.com/OrangeManLi)! - Fixes nested-list serialization in the Portable Text editor. `convertList` now recurses into nested `bulletList`/`orderedList` children and emits each block with the correct `level` value, so Tab-indented list items in the editor round-trip through `onChange` as real nested portable-text blocks instead of being flattened to a single top-level list with every item at `level: 1`.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.19.0
+
+## 0.18.0
+
+### Patch Changes
+
+- [#1384](https://github.com/emdash-cms/emdash/pull/1384) [`d2829e3`](https://github.com/emdash-cms/emdash/commit/d2829e36c0e568db4ec92f500b166e03f0c36973) Thanks [@ahliweb](https://github.com/ahliweb)! - Updates the Indonesian admin catalog for the byline schema and custom-field management UI with formal, complete translations.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.18.0
+
+## 0.17.2
+
+### Patch Changes
+
+- [#1305](https://github.com/emdash-cms/emdash/pull/1305) [`4ee75f8`](https://github.com/emdash-cms/emdash/commit/4ee75f851da4461a599f892c820152377625ef70) Thanks [@eyupcanakman](https://github.com/eyupcanakman)! - Fixes plugin admin pages showing a Plugin Error when opened from the Plugin Manager. The Settings gear opens a plugin at its root (`/plugins/<id>/`), but a plugin that registers its page at `/settings` rather than `/` had no page there, so the admin fell through to a 404. Plugin page resolution now resolves the plugin root to the first registered page and treats `/settings` and `/settings/` as the same path, so a single registration works from the Plugin Manager gear and the sidebar regardless of trailing slash.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.17.2
+
+## 0.17.1
+
+### Patch Changes
+
+- [#1342](https://github.com/emdash-cms/emdash/pull/1342) [`83daa41`](https://github.com/emdash-cms/emdash/commit/83daa4149ed0d1ccf23d9f90304ef6ba3545d46f) Thanks [@bergaaberg](https://github.com/bergaaberg)! - Adds Norwegian Bokmål (nb) locale to the admin UI.
+
+- [#1334](https://github.com/emdash-cms/emdash/pull/1334) [`dfabafe`](https://github.com/emdash-cms/emdash/commit/dfabafeb5db9c27c861015e7d426eb40d6ed940a) Thanks [@theobaidur](https://github.com/theobaidur)! - Honor the `icon` field on plugin `adminPages` in the sidebar nav.
+
+  Plugin admin pages declared via `adminPages: [{ path, label, icon }]` previously rendered with a hardcoded `PuzzlePiece` glyph — the `icon` field was accepted in the types but never read at runtime. The sidebar now resolves the icon name to its `@phosphor-icons/react` component: common documented names (`settings`, `chart`, `history`, `image`, `trophy`, …) are statically mapped so they resolve synchronously, and any other name is matched against the full Phosphor set by converting it to PascalCase (e.g. `chart-bar` → `ChartBar`) and lazy-loading it from a code-split chunk. The full set is therefore reachable without bundling it into the admin's main chunk. Unknown or omitted names fall back to `PuzzlePiece`, so the change is purely additive.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.17.1
+
 ## 0.17.0
 
 ### Minor Changes

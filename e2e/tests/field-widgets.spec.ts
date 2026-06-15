@@ -14,7 +14,9 @@
 
 import { test, expect } from "../fixtures";
 
-const CONTENT_EDIT_URL_PATTERN = /\/content\/posts\/[A-Z0-9]+$/;
+// The edit route preserves the entry's locale as a `?locale=` search param
+// (see #1242), so the URL may carry a query string after the ULID.
+const CONTENT_EDIT_URL_PATTERN = /\/content\/posts\/[A-Z0-9]+(?:\?.*)?$/;
 
 test.describe("Field Widgets", () => {
 	test.beforeEach(async ({ admin }) => {

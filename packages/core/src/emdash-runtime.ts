@@ -22,9 +22,12 @@ import { getAuthMode } from "./auth/mode.js";
 import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
-import { runMigrations } from "./database/migrations/runner.js";
+import { MIGRATION_RACE_WAIT_MS, runMigrations } from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
-import type { ContentItem as ContentItemInternal } from "./database/repositories/types.js";
+import type {
+	ContentItem as ContentItemInternal,
+	ContentDateField,
+} from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
@@ -41,6 +44,7 @@ import type {
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
+import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
@@ -114,6 +118,7 @@ import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import {
 	handleContentList,
+	handleContentAuthors,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,
@@ -157,13 +162,12 @@ import {
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
 import { PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
-import { NodeCronScheduler } from "./plugins/scheduler/node.js";
-import { PiggybackScheduler } from "./plugins/scheduler/piggyback.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
 
@@ -237,6 +241,13 @@ export interface MediaProviderContext {
 }
 
 /**
+ * Builds the timer-based scheduler that drives cron ticks and maintenance.
+ * Injected via `virtual:emdash/scheduler` so the platform — not core — decides
+ * whether a long-lived heartbeat exists.
+ */
+export type CreateSchedulerFn = (executor: CronExecutor) => CronScheduler;
+
+/**
  * Dependencies injected from virtual modules (middleware reads these)
  */
 export interface RuntimeDependencies {
@@ -249,6 +260,16 @@ export interface RuntimeDependencies {
 	sandboxEnabled: boolean;
 	/** sandbox: false escape hatch - load sandboxed plugins in-process */
 	sandboxBypassed?: boolean;
+	/**
+	 * Factory for the timer-based cron/maintenance heartbeat. Supplied by the
+	 * generated `virtual:emdash/scheduler` module: a `NodeCronScheduler` factory
+	 * on long-lived runtimes (Node/Bun), or `null` on serverless adapters where
+	 * an external driver (e.g. the Cloudflare Worker's `scheduled()` Cron
+	 * Trigger) calls `runScheduledTasks()` instead. When absent or null, the
+	 * runtime starts no scheduler. Keeping the platform decision in the
+	 * integration means core has no adapter-specific runtime checks.
+	 */
+	createScheduler?: CreateSchedulerFn | null;
 	/** Media provider entries from virtual module */
 	mediaProviderEntries?: MediaProviderEntry[];
 	sandboxedPluginEntries: SandboxedPluginEntry[];
@@ -310,9 +331,38 @@ function contentItemToRecord(item: ContentItemInternal): Record<string, unknown>
 	return { ...item };
 }
 
-// Module-level caches (persist across requests within worker)
-const dbCache = new Map<string, Kysely<Database>>();
-let dbInitPromise: Promise<Kysely<Database>> | null = null;
+/**
+ * Db init lock reclaim deadline. Derived from the migration race wait so
+ * they can't drift apart: a healthy init can legitimately block for the
+ * full MIGRATION_RACE_WAIT_MS inside waitForConcurrentMigrator, plus cold
+ * connect and migrator work, before it should be presumed dead. The outer
+ * runtime init lock (middleware.ts) must use a strictly larger deadline —
+ * it wraps create() → getDatabase() → this lock, and equal deadlines would
+ * let the outer reclaim while the inner is legitimately still working.
+ */
+export const DB_INIT_DEADLINE_MS = MIGRATION_RACE_WAIT_MS + 20_000;
+
+/**
+ * Db cache + its init lock live on globalThis behind a Symbol: the bundler
+ * can duplicate this module across SSR chunks (same reasoning as
+ * request-cache.ts), and a duplicated cache/lock would mean concurrent
+ * independent db inits — and duplicate migrators — per isolate.
+ */
+const DB_HOLDER_KEY = Symbol.for("emdash:db-cache");
+interface DbHolder {
+	cache: Map<string, Kysely<Database>>;
+	lock: InitLock;
+}
+const globalSymbolStore = globalThis as Record<symbol, unknown>;
+function getDbHolder(): DbHolder {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+	let holder = globalSymbolStore[DB_HOLDER_KEY] as DbHolder | undefined;
+	if (!holder) {
+		holder = { cache: new Map<string, Kysely<Database>>(), lock: createInitLock() };
+		globalSymbolStore[DB_HOLDER_KEY] = holder;
+	}
+	return holder;
+}
 const storageCache = new Map<string, Storage>();
 const sandboxedPluginCache = new Map<string, SandboxedPluginInstance>();
 /**
@@ -449,14 +499,65 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Tick the cron system from request context (piggyback mode).
-	 * Call this from middleware on each request to ensure cron tasks
-	 * execute even when no dedicated scheduler is available.
+	 * Publish any content whose scheduled time has passed.
+	 * Returns the items promoted so callers can invalidate their cache tags.
 	 */
-	tickCron(): void {
-		if (this.cronScheduler instanceof PiggybackScheduler) {
-			this.cronScheduler.onRequest();
+	async publishScheduled(): Promise<PublishedRef[]> {
+		return publishDueContent(this.db, {
+			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
+		});
+	}
+
+	/**
+	 * Run the full scheduled-maintenance batch: cron tasks, scheduled
+	 * publishing, and system cleanup. For request-less drivers — the
+	 * Cloudflare `scheduled()` handler invokes this from a Cron Trigger.
+	 * (On Node the timer-based scheduler drives the same work itself.)
+	 *
+	 * Each step is independent and non-fatal. Returns the content promoted
+	 * by the publishing sweep so the caller can purge edge-cache tags.
+	 *
+	 * `onPublished` (optional) is awaited after each collection's batch so a
+	 * request-less driver can invalidate edge-cache tags incrementally rather
+	 * than only after the whole sweep — bounding stale-cache exposure if the
+	 * runtime is killed mid-sweep.
+	 */
+	async runScheduledTasks(
+		options: {
+			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		} = {},
+	): Promise<{ published: PublishedRef[] }> {
+		if (this.cronExecutor) {
+			try {
+				await this.cronExecutor.tick();
+			} catch (error) {
+				console.error("[cron] Tick failed:", error);
+			}
+			try {
+				await this.cronExecutor.recoverStaleLocks();
+			} catch (error) {
+				console.error("[cron] Stale lock recovery failed:", error);
+			}
 		}
+
+		let published: PublishedRef[] = [];
+		try {
+			// Route through the runtime wrapper so content:afterPublish hooks fire.
+			published = await publishDueContent(this.db, {
+				publish: (collection, id, opts) => this.handleContentPublish(collection, id, opts),
+				onPublished: options.onPublished,
+			});
+		} catch (error) {
+			console.error("[scheduled-publish] Sweep failed:", error);
+		}
+
+		try {
+			await runSystemCleanup(this.db, this.storage ?? undefined);
+		} catch (error) {
+			console.error("[cleanup] System cleanup failed:", error);
+		}
+
+		return { published };
 	}
 
 	/**
@@ -887,19 +988,45 @@ export class EmDashRuntime {
 		// Initialize storage (sync)
 		const storage = EmDashRuntime.getStorage(deps);
 
-		// Fetch plugin states from database
+		// Fetch plugin states and site info concurrently — independent reads
+		// against different tables (_plugin_state vs options), so they share
+		// one round-trip window instead of paying two sequential ones. Each
+		// phase() wrapper still records that phase's own duration, and each
+		// body keeps its own non-fatal catch.
 		let pluginStates: Map<string, string> = new Map();
-		await phase("rt.plugins", "Plugin states", async () => {
-			try {
-				const states = await db
-					.selectFrom("_plugin_state")
-					.select(["plugin_id", "status"])
-					.execute();
-				pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-			} catch {
-				// Plugin state table may not exist yet
-			}
-		});
+		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
+		await Promise.all([
+			// Fetch plugin states from database
+			phase("rt.plugins", "Plugin states", async () => {
+				try {
+					const states = await db
+						.selectFrom("_plugin_state")
+						.select(["plugin_id", "status"])
+						.execute();
+					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+				} catch {
+					// Plugin state table may not exist yet
+				}
+			}),
+			// Load site info for plugin context extensions (1 batch query instead of 3)
+			phase("rt.site", "Site info options", async () => {
+				try {
+					const optionsRepo = new OptionsRepository(db);
+					const siteOpts = await optionsRepo.getMany<string>([
+						"emdash:site_title",
+						"emdash:site_url",
+						"emdash:locale",
+					]);
+					siteInfo = {
+						siteName: siteOpts.get("emdash:site_title") ?? undefined,
+						siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
+						locale: siteOpts.get("emdash:locale") ?? undefined,
+					};
+				} catch {
+					// Options table may not exist yet (pre-setup)
+				}
+			}),
+		]);
 
 		// Build set of enabled plugins
 		const enabledPlugins = new Set<string>();
@@ -909,26 +1036,6 @@ export class EmDashRuntime {
 				enabledPlugins.add(plugin.id);
 			}
 		}
-
-		// Load site info for plugin context extensions (1 batch query instead of 3)
-		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
-		await phase("rt.site", "Site info options", async () => {
-			try {
-				const optionsRepo = new OptionsRepository(db);
-				const siteOpts = await optionsRepo.getMany<string>([
-					"emdash:site_title",
-					"emdash:site_url",
-					"emdash:locale",
-				]);
-				siteInfo = {
-					siteName: siteOpts.get("emdash:site_title") ?? undefined,
-					siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
-					locale: siteOpts.get("emdash:locale") ?? undefined,
-				};
-			} catch {
-				// Options table may not exist yet (pre-setup)
-			}
-		});
 
 		// Build the full list of pipeline-eligible plugins: all configured
 		// plugins (regardless of current enabled status) plus built-in plugins.
@@ -1050,31 +1157,42 @@ export class EmDashRuntime {
 			EmDashRuntime.loadSandboxedPlugins(deps, db, storage),
 		);
 
-		// Cold-start: load marketplace-installed plugins from site R2 via
-		// the sandbox runner. In bypass mode this was already handled above.
+		// Cold-start: load marketplace- and registry-installed plugins from
+		// site R2 via the sandbox runner. The two tiers only depend on the
+		// sandbox phase above, not on each other, so when both are enabled
+		// they run concurrently instead of paying two sequential loads.
+		// In bypass mode marketplace plugins were already handled above.
+		const installedTierPhases: Promise<void>[] = [];
 		if (deps.config.marketplace && storage && !deps.sandboxBypassed) {
-			await phase("rt.market", "Marketplace plugins", () =>
-				EmDashRuntime.loadInstalledSandboxedPlugins(
-					"marketplace",
-					db,
-					storage,
-					deps,
-					sandboxedPlugins,
+			installedTierPhases.push(
+				phase("rt.market", "Marketplace plugins", () =>
+					EmDashRuntime.loadInstalledSandboxedPlugins(
+						"marketplace",
+						db,
+						storage,
+						deps,
+						sandboxedPlugins,
+					),
 				),
 			);
 		}
 
 		// Cold-start: load registry-installed plugins from site R2
 		if (deps.config.experimental?.registry && storage) {
-			await phase("rt.registry", "Registry plugins", () =>
-				EmDashRuntime.loadInstalledSandboxedPlugins(
-					"registry",
-					db,
-					storage,
-					deps,
-					sandboxedPlugins,
+			installedTierPhases.push(
+				phase("rt.registry", "Registry plugins", () =>
+					EmDashRuntime.loadInstalledSandboxedPlugins(
+						"registry",
+						db,
+						storage,
+						deps,
+						sandboxedPlugins,
+					),
 				),
 			);
+		}
+		if (installedTierPhases.length > 0) {
+			await Promise.all(installedTierPhases);
 		}
 
 		// Initialize media providers
@@ -1126,6 +1244,11 @@ export class EmDashRuntime {
 
 		let cronExecutor: CronExecutor | null = null;
 		let cronScheduler: CronScheduler | null = null;
+		// Populated with the constructed runtime just before this method returns,
+		// so the timer scheduler's cleanup can route scheduled publishing through
+		// the runtime wrapper (firing content:afterPublish hooks). The first tick
+		// is ≥1s out, well after the synchronous assignment below.
+		const runtimeRef: { current: EmDashRuntime | null } = { current: null };
 
 		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
@@ -1151,46 +1274,57 @@ export class EmDashRuntime {
 					}
 				});
 
-				// Detect platform and create appropriate scheduler.
-				// On Cloudflare Workers, setTimeout is available but unreliable for
-				// long durations — use PiggybackScheduler as default.
-				// In Node/Bun, use NodeCronScheduler with real timers.
-				const isWorkersRuntime =
-					typeof globalThis.navigator !== "undefined" &&
-					globalThis.navigator.userAgent === "Cloudflare-Workers";
+				// The platform decides whether a long-lived timer heartbeat exists.
+				// `createScheduler` is injected by the generated virtual:emdash/scheduler
+				// module: a NodeCronScheduler factory on Node/Bun, or null on serverless
+				// adapters (e.g. Cloudflare) where the Worker's `scheduled()` handler
+				// drives runScheduledTasks() instead. No adapter check lives here.
+				if (deps.createScheduler) {
+					const scheduler = deps.createScheduler(cronExecutor);
+					cronScheduler = scheduler;
 
-				if (isWorkersRuntime) {
-					cronScheduler = new PiggybackScheduler(cronExecutor);
-				} else {
-					cronScheduler = new NodeCronScheduler(cronExecutor);
+					// Run scheduled publishing and system cleanup alongside each tick.
+					// Pass storage so cleanupPendingUploads can delete orphaned files.
+					scheduler.setSystemCleanup(async () => {
+						try {
+							// Route through the runtime so content:afterPublish hooks fire.
+							// Falls back to the raw handler if (improbably) the tick beats
+							// the post-construction ref assignment.
+							const runtime = runtimeRef.current;
+							await publishDueContent(db, {
+								publish: runtime
+									? (collection, id, options) =>
+											runtime.handleContentPublish(collection, id, options)
+									: undefined,
+							});
+						} catch (error) {
+							console.error("[scheduled-publish] Sweep failed:", error);
+						}
+						try {
+							await runSystemCleanup(db, storage ?? undefined);
+						} catch (error) {
+							// Non-fatal -- individual cleanup failures are already logged
+							// by runSystemCleanup. This catches unexpected errors.
+							console.error("[cleanup] System cleanup failed:", error);
+						}
+					});
+
+					// Add cron reschedule callback (merges with existing factory options)
+					pipeline.setContextFactory({
+						cronReschedule: () => cronScheduler?.reschedule(),
+					});
+
+					// start() is void on the timer scheduler but the interface
+					// allows a promise (alarm-backed schedulers); we don't block on it.
+					void scheduler.start();
 				}
-
-				// Register system cleanup to run alongside each scheduler tick.
-				// Pass storage so cleanupPendingUploads can delete orphaned files.
-				cronScheduler.setSystemCleanup(async () => {
-					try {
-						await runSystemCleanup(db, storage ?? undefined);
-					} catch (error) {
-						// Non-fatal -- individual cleanup failures are already logged
-						// by runSystemCleanup. This catches unexpected errors.
-						console.error("[cleanup] System cleanup failed:", error);
-					}
-				});
-
-				// Add cron reschedule callback (merges with existing factory options)
-				pipeline.setContextFactory({
-					cronReschedule: () => cronScheduler?.reschedule(),
-				});
-
-				// Start the scheduler
-				await cronScheduler.start();
 			} catch (error) {
 				console.warn("[cron] Failed to initialize cron system:", error);
 				// Non-fatal — CMS works without cron
 			}
 		});
 
-		return new EmDashRuntime({
+		const runtime = new EmDashRuntime({
 			db,
 			storage,
 			// Include bypassed sandboxed plugins in configuredPlugins so route
@@ -1213,6 +1347,10 @@ export class EmDashRuntime {
 			runtimeDeps: deps,
 			pipelineRef,
 		});
+		// Hand the constructed instance to the scheduler-cleanup closure so the
+		// timer-driven sweep can fire publish hooks (see runtimeRef above).
+		runtimeRef.current = runtime;
+		return runtime;
 	}
 
 	/**
@@ -1270,83 +1408,86 @@ export class EmDashRuntime {
 
 		const cacheKey = dbConfig.entrypoint;
 
-		// Return cached instance if available
-		const cached = dbCache.get(cacheKey);
-		if (cached) {
-			return cached;
-		}
+		// Waiters poll the cache rather than sharing the initializing request's
+		// promise: if the request that owns the init is cancelled mid-await
+		// (e.g. client disconnect during cold migrations), a shared promise
+		// never settles — and the owner's `finally` that would clear it never
+		// runs — deadlocking every later request in the isolate. Prevention:
+		// the in-flight init is anchored via after()/waitUntil so a cancelled
+		// owner's init still completes and populates the cache. Net: a stale
+		// lock is reclaimed after a deadline.
+		const holder = getDbHolder();
+		return initWithLock(
+			holder.lock,
+			() => holder.cache.get(cacheKey),
+			async (isCurrentClaim) => {
+				const dialect = deps.createDialect(dbConfig.config);
+				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
-		// Use initialization lock to prevent race conditions.
-		// Sharing this promise across requests is safe because the Kysely instance
-		// doesn't hold a request-scoped resource — the DO dialect uses a getStub()
-		// factory that creates a fresh stub per query execution.
-		if (dbInitPromise) {
-			return dbInitPromise;
-		}
+				await runMigrations(db);
 
-		dbInitPromise = (async () => {
-			const dialect = deps.createDialect(dbConfig.config);
-			const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
+				// Note: legacy installs may carry a stray `emdash:manifest_cache`
+				// row in the options table from versions that persisted a JSON
+				// manifest. The runtime no longer reads or writes it. We do not
+				// proactively delete it: the row is a few hundred bytes of dead
+				// weight and is never on the read path, whereas a one-shot
+				// cleanup-flag check costs an extra `options.get()` on every
+				// isolate cold boot forever. Cheaper to leave it.
 
-			await runMigrations(db);
+				// Auto-seed schema if no collections exist and setup hasn't run.
+				// This covers first-load on sites that skip the setup wizard.
+				// Dev-bypass and the wizard apply seeds explicitly.
+				try {
+					const [collectionCount, setupOption] = await Promise.all([
+						db
+							.selectFrom("_emdash_collections")
+							.select((eb) => eb.fn.countAll<number>().as("count"))
+							.executeTakeFirstOrThrow(),
+						db
+							.selectFrom("options")
+							.select("value")
+							.where("name", "=", "emdash:setup_complete")
+							.executeTakeFirst(),
+					]);
 
-			// Note: legacy installs may carry a stray `emdash:manifest_cache`
-			// row in the options table from versions that persisted a JSON
-			// manifest. The runtime no longer reads or writes it. We do not
-			// proactively delete it: the row is a few hundred bytes of dead
-			// weight and is never on the read path, whereas a one-shot
-			// cleanup-flag check costs an extra `options.get()` on every
-			// isolate cold boot forever. Cheaper to leave it.
+					const setupDone = (() => {
+						try {
+							return setupOption && JSON.parse(setupOption.value) === true;
+						} catch {
+							return false;
+						}
+					})();
 
-			// Auto-seed schema if no collections exist and setup hasn't run.
-			// This covers first-load on sites that skip the setup wizard.
-			// Dev-bypass and the wizard apply seeds explicitly.
-			try {
-				const [collectionCount, setupOption] = await Promise.all([
-					db
-						.selectFrom("_emdash_collections")
-						.select((eb) => eb.fn.countAll<number>().as("count"))
-						.executeTakeFirstOrThrow(),
-					db
-						.selectFrom("options")
-						.select("value")
-						.where("name", "=", "emdash:setup_complete")
-						.executeTakeFirst(),
-				]);
+					if (collectionCount.count === 0 && !setupDone) {
+						const { applySeed } = await import("./seed/apply.js");
+						const { loadSeed } = await import("./seed/load.js");
+						const { validateSeed } = await import("./seed/validate.js");
 
-				const setupDone = (() => {
-					try {
-						return setupOption && JSON.parse(setupOption.value) === true;
-					} catch {
-						return false;
+						const seed = await loadSeed();
+						const validation = validateSeed(seed);
+						if (validation.valid) {
+							await applySeed(db, seed, { onConflict: "skip" });
+							console.log("Auto-seeded default collections");
+						}
 					}
-				})();
-
-				if (collectionCount.count === 0 && !setupDone) {
-					const { applySeed } = await import("./seed/apply.js");
-					const { loadSeed } = await import("./seed/load.js");
-					const { validateSeed } = await import("./seed/validate.js");
-
-					const seed = await loadSeed();
-					const validation = validateSeed(seed);
-					if (validation.valid) {
-						await applySeed(db, seed, { onConflict: "skip" });
-						console.log("Auto-seeded default collections");
-					}
+				} catch {
+					// Tables may not exist yet. Non-fatal.
 				}
-			} catch {
-				// Tables may not exist yet. Non-fatal.
-			}
 
-			dbCache.set(cacheKey, db);
-			return db;
-		})();
-
-		try {
-			return await dbInitPromise;
-		} finally {
-			dbInitPromise = null;
-		}
+				// Publish only while still the current owner: a reclaimed slow
+				// init must not flip the cached Kysely identity back after the
+				// reclaimer has published its own. The unpublished instance is
+				// still returned and fully valid for the request that built it.
+				if (isCurrentClaim()) {
+					holder.cache.set(cacheKey, db);
+				}
+				return db;
+			},
+			{
+				deadlineMs: DB_INIT_DEADLINE_MS,
+				anchor: (promise) => after(() => promise),
+			},
+		);
 	}
 
 	/**
@@ -1778,6 +1919,7 @@ export class EmDashRuntime {
 			pipeline,
 			isActive: () => true,
 			getOption: (key) => optionsRepo.get<string>(key),
+			getOptions: (keys) => optionsRepo.getMany<string>(keys),
 			setOption: (key, value) => optionsRepo.set(key, value),
 			deleteOption: async (key) => {
 				await optionsRepo.delete(key);
@@ -2123,9 +2265,17 @@ export class EmDashRuntime {
 			order?: "asc" | "desc";
 			locale?: string;
 			q?: string;
+			authorId?: string;
+			dateField?: ContentDateField;
+			dateFrom?: string;
+			dateTo?: string;
 		},
 	) {
 		return handleContentList(this.db, collection, params);
+	}
+
+	async handleContentAuthors(collection: string) {
+		return handleContentAuthors(this.db, collection);
 	}
 
 	async handleContentGet(collection: string, id: string, locale?: string) {
@@ -2502,7 +2652,7 @@ export class EmDashRuntime {
 	async handleContentPublish(
 		collection: string,
 		id: string,
-		options: { publishedAt?: string } = {},
+		options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
 

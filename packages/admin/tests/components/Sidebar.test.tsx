@@ -23,9 +23,17 @@
  * the contract, the filter pins the gate.
  */
 
+import { PuzzlePiece, Gear, Trophy, ClockCounterClockwise } from "@phosphor-icons/react";
+import * as React from "react";
 import { describe, it, expect } from "vitest";
 
-import { BYLINE_SCHEMA_NAV_ITEM, filterNavItemsByRole } from "../../src/components/Sidebar";
+import {
+	BYLINE_SCHEMA_NAV_ITEM,
+	filterNavItemsByRole,
+	resolveNavIcon,
+	toPhosphorIconName,
+} from "../../src/components/Sidebar";
+import { render } from "../utils/render.tsx";
 
 // Mirror @emdash-cms/auth Role levels. Kept inline (matching Sidebar.tsx)
 // to avoid a runtime dependency just to read two numeric constants.
@@ -86,5 +94,62 @@ describe("filterNavItemsByRole", () => {
 		// must strip every gated entry at role=0.
 		const visible = filterNavItemsByRole(items, 0).map((i) => i.to);
 		expect(visible).toEqual(["/"]);
+	});
+});
+
+describe("toPhosphorIconName", () => {
+	it("converts kebab/snake/space names to PascalCase (the lazy-path key)", () => {
+		// Any Phosphor icon is reachable by its own kebab name.
+		expect(toPhosphorIconName("chart-bar")).toBe("ChartBar");
+		expect(toPhosphorIconName("clock-counter-clockwise")).toBe("ClockCounterClockwise");
+		expect(toPhosphorIconName("magnifying-glass")).toBe("MagnifyingGlass");
+		expect(toPhosphorIconName("heart")).toBe("Heart");
+	});
+});
+
+describe("resolveNavIcon", () => {
+	it("falls back to PuzzlePiece when no icon is provided", () => {
+		// `icon` is optional on adminPages; an omitted value is the
+		// common case and must resolve synchronously to the default
+		// (no Suspense boundary needed for the icon-less page).
+		expect(resolveNavIcon(undefined)).toBe(PuzzlePiece);
+		expect(resolveNavIcon("")).toBe(PuzzlePiece);
+	});
+
+	it("resolves common/documented names synchronously from the static map", () => {
+		// These ship in the main bundle and must NOT be lazy — the
+		// everyday case never loads the full Phosphor set. Includes a
+		// lucide-style alias (`settings` → Gear) and a Phosphor-named one.
+		expect(resolveNavIcon("settings")).toBe(Gear);
+		expect(resolveNavIcon("trophy")).toBe(Trophy);
+		expect(resolveNavIcon("history")).toBe(ClockCounterClockwise);
+	});
+
+	it("returns a stable (memoized) lazy component for a name outside the map", () => {
+		// `heart` isn't in the static map, so it takes the lazy path.
+		// React.lazy identity must be stable across renders, otherwise the
+		// icon remounts and re-suspends — repeated calls return the same ref.
+		const first = resolveNavIcon("heart");
+		const second = resolveNavIcon("heart");
+		expect(first).toBe(second);
+		expect(first).not.toBe(PuzzlePiece);
+		expect((first as { $$typeof?: symbol }).$$typeof).toBe(Symbol.for("react.lazy"));
+	});
+
+	it("renders the PuzzlePiece fallback for a name that doesn't exist in Phosphor", async () => {
+		// The lazy path resolves `mod[componentName] ?? PuzzlePiece`. Drive
+		// it through a real render (not the Kumo Sidebar — just the icon) and
+		// confirm the rendered glyph IS PuzzlePiece by comparing the SVG body
+		// against a directly-rendered reference.
+		const Unknown = resolveNavIcon("definitely-not-a-real-icon-xyz");
+		const screen = await render(
+			<React.Suspense fallback={<span>loading</span>}>
+				<Unknown data-testid="resolved" />
+				<PuzzlePiece data-testid="expected" />
+			</React.Suspense>,
+		);
+		const resolved = screen.getByTestId("resolved");
+		await expect.element(resolved).toBeInTheDocument();
+		expect(resolved.element().innerHTML).toBe(screen.getByTestId("expected").element().innerHTML);
 	});
 });

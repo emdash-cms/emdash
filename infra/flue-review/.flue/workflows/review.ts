@@ -46,7 +46,7 @@ interface ReviewPayload {
 // reserved by Flue's generated CF entry and routed through `env.AI`, so no
 // model API key is needed anywhere.
 const reviewAgent = createAgent<ReviewPayload, Env>(({ env }) => ({
-	model: "cloudflare/@cf/moonshotai/kimi-k2.6",
+	model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
 	// The container's working dir is the checked-out PR. AGENTS.md at the repo
 	// root is auto-discovered into the agent's context from here.
 	cwd: "/workspace",

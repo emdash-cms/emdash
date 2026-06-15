@@ -42,8 +42,11 @@ import {
 	RESOLVED_VIRTUAL_SEED_ID,
 	VIRTUAL_WAIT_UNTIL_ID,
 	RESOLVED_VIRTUAL_WAIT_UNTIL_ID,
+	VIRTUAL_SCHEDULER_ID,
+	RESOLVED_VIRTUAL_SCHEDULER_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
+	generateSchedulerModule,
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
@@ -203,6 +206,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_WAIT_UNTIL_ID) {
 				return RESOLVED_VIRTUAL_WAIT_UNTIL_ID;
 			}
+			if (id === VIRTUAL_SCHEDULER_ID) {
+				return RESOLVED_VIRTUAL_SCHEDULER_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -270,6 +276,12 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// waitUntil under the Cloudflare adapter, undefined otherwise.
 			if (id === RESOLVED_VIRTUAL_WAIT_UNTIL_ID) {
 				return generateWaitUntilModule(astroConfig.adapter?.name);
+			}
+			// Generate scheduler module — a NodeCronScheduler factory on
+			// long-lived runtimes, or null under the Cloudflare adapter where
+			// a Cron Trigger drives scheduled work instead.
+			if (id === RESOLVED_VIRTUAL_SCHEDULER_ID) {
+				return generateSchedulerModule(astroConfig.adapter?.name, viteCommand);
 			}
 		},
 	};
@@ -395,10 +407,25 @@ export function createViteConfig(
 							"emdash > @emdash-cms/auth > @oslojs/crypto/ecdsa",
 							"emdash > @emdash-cms/auth > @oslojs/crypto/sha2",
 							"emdash > @emdash-cms/auth > @oslojs/webauthn",
+							// Auth deps imported only on auth/login/callback routes, so
+							// the initial page scan misses them. Pre-bundle to avoid a
+							// re-optimize + reload cascade on first authenticated request.
+							"emdash > @oslojs/crypto/hmac",
+							"emdash > @oslojs/crypto/subtle",
+							"emdash > @oslojs/crypto/rsa",
+							"emdash > arctic",
 							// MCP SDK — server/index.js statically imports ajv (CJS-only).
 							// Pre-bundling converts CJS to ESM so workerd can load it.
 							"emdash > @modelcontextprotocol/sdk > ajv",
 							"emdash > @modelcontextprotocol/sdk > ajv-formats",
+							// MCP server entrypoints — only imported on the MCP route, so
+							// also missed by the initial scan.
+							"emdash > @modelcontextprotocol/sdk/server/mcp.js",
+							"emdash > @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js",
+							// Admin shell SSR deps, reached only when the admin route is
+							// first rendered.
+							"emdash > @emdash-cms/admin > @lingui/react",
+							"emdash > @emdash-cms/admin > @cloudflare/kumo/primitives",
 							// React (commonly used, may be hoisted)
 							"react",
 							"react/jsx-dev-runtime",
@@ -415,6 +442,7 @@ export function createViteConfig(
 							"astro/content/runtime",
 							"astro/assets/utils/inferRemoteSize.js",
 							"astro/assets/fonts/runtime.js",
+							"astro/assets/services/noop",
 							"@astrojs/cloudflare/image-service",
 						],
 					},

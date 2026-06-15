@@ -115,6 +115,13 @@ export async function applySeed(
 	const seedIdMap = new Map<string, string>(); // seed id -> real entry id
 	const seedBylineIdMap = new Map<string, string>(); // seed byline id -> real byline id
 
+	// Fallback locale for rows that omit an explicit `locale`. Prefer the runtime
+	// config (runtime-driven seeds), then the seed's self-described `defaultLocale`
+	// (CLI exports run outside the runtime), and only then `en`. Without the
+	// seed-carried default, a non-`en` single-locale project would be rewritten to
+	// `en` on apply (#1421).
+	const defaultLocale = getI18nConfig()?.defaultLocale ?? seed.defaultLocale ?? "en";
+
 	// 1. Site settings
 	if (seed.settings) {
 		await setSiteSettings(seed.settings, db);
@@ -224,10 +231,9 @@ export async function applySeed(
 		// seed-local id -> resolved info, used to wire `translationOf` refs.
 		const defSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 		const termSeedIdMap = new Map<string, string>();
-		const fallbackLocale = getI18nConfig()?.defaultLocale ?? "en";
 
 		for (const taxonomy of seed.taxonomies) {
-			const defLocale = taxonomy.locale ?? fallbackLocale;
+			const defLocale = taxonomy.locale ?? defaultLocale;
 
 			// (name, locale) is the UNIQUE key after migration 036.
 			const existingDef = await db
@@ -418,8 +424,13 @@ export async function applySeed(
 		// Create content entries
 		for (const [collectionSlug, entries] of Object.entries(seed.content)) {
 			for (const entry of entries) {
+				// Resolve the entry's locale up front so a non-`en` single-locale
+				// export (which omits `locale`) is filed under the project default
+				// rather than `en` (#1421).
+				const entryLocale = entry.locale ?? defaultLocale;
+
 				// Check if entry exists (by slug + locale for locale-aware lookup)
-				const existing = await contentRepo.findBySlug(collectionSlug, entry.slug, entry.locale);
+				const existing = await contentRepo.findBySlug(collectionSlug, entry.slug, entryLocale);
 
 				if (existing) {
 					if (onConflict === "error") {
@@ -515,7 +526,7 @@ export async function applySeed(
 						slug: entry.slug,
 						status,
 						data: resolvedData,
-						locale: entry.locale,
+						locale: entryLocale,
 						translationOf,
 						publishedAt: status === "published" ? new Date().toISOString() : null,
 					});
@@ -545,10 +556,9 @@ export async function applySeed(
 		const menuSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 		// Shared across menus: translated items reference anchor items in sibling menus.
 		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
-		const fallbackLocale = getI18nConfig()?.defaultLocale ?? "en";
 
 		for (const menu of seed.menus) {
-			const locale = menu.locale ?? fallbackLocale;
+			const locale = menu.locale ?? defaultLocale;
 			let lookup = db
 				.selectFrom("_emdash_menus")
 				.selectAll()

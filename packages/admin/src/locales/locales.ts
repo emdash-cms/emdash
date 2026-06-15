@@ -36,12 +36,14 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "eu", label: "Euskara", enabled: true }, // Basque
 	{ code: "zh-CN", label: "简体中文", enabled: true }, // Chinese (Simplified)
 	{ code: "zh-TW", label: "繁體中文", enabled: true }, // Chinese (Traditional)
+	{ code: "en-GB", label: "English (UK)", enabled: true }, // English (United Kingdom)
 	{ code: "fa", label: "فارسی", enabled: true, dir: "rtl" }, // Farsi (also known as Persian)
 	{ code: "fr", label: "Français", enabled: true }, // French
 	{ code: "de", label: "Deutsch", enabled: true }, // German
 	{ code: "id", label: "Bahasa Indonesia", enabled: true }, // Indonesian
 	{ code: "ja", label: "日本語", enabled: true }, // Japanese
 	{ code: "ko", label: "한국어", enabled: false }, // Korean
+	{ code: "nb", label: "Norsk bokmål", enabled: true }, // Norwegian Bokmål
 	{ code: "pl", label: "Polski", enabled: true }, // Polish
 	{ code: "pt-BR", label: "Português (Brasil)", enabled: true }, // Portuguese (Brazil)
 	{ code: "es-419", label: "Español (Latinoamérica)", enabled: true }, // Spanish (Latin America)

@@ -116,6 +116,7 @@ test.describe("Invite Accept Page", () => {
 
 			await expect(admin.page.locator("h1")).toContainText("Invite Error", { timeout: 15000 });
 			await expect(admin.page.locator("text=No invite token provided")).toBeVisible();
+			await expect(admin.page.locator("text=Back to login")).toBeVisible();
 		});
 
 		test("shows error for invalid token", async ({ admin }) => {
@@ -127,14 +128,6 @@ test.describe("Invite Accept Page", () => {
 			// The error step renders an h2 with an error title and a
 			// "Back to login" link regardless of the specific error code.
 			await expect(admin.page.locator("h2")).toBeVisible({ timeout: 15000 });
-			await expect(admin.page.locator("text=Back to login")).toBeVisible();
-		});
-
-		test("shows back to login link on error", async ({ admin }) => {
-			await admin.page.goto("/_emdash/admin/invite/accept");
-			await admin.waitForHydration();
-
-			await expect(admin.page.locator("h1")).toContainText("Invite Error", { timeout: 15000 });
 			await expect(admin.page.locator("text=Back to login")).toBeVisible();
 		});
 	});
@@ -236,12 +229,16 @@ test.describe("Full invite flow with passkey registration", () => {
 		// not visible in the users list after the passkey-invite registration
 		// above — reproducible in isolation, passes on Node. The registration
 		// ceremony completes (redirects to admin, no errors) but the user row
-		// isn't read back. Suspected D1 Sessions read-after-write under miniflare
-		// dev rather than a production bug, but unconfirmed. Tracked for the
-		// EmDash maintainers to investigate; skipped here so the CF lane stays green.
+		// isn't read back. NOT a consistency artifact: miniflare D1 is a local
+		// SQLite file (strongly consistent), so if the read misses a committed
+		// write it's a real code bug — likely a SQLite-vs-D1-dialect difference in
+		// the invite-registration write or the user-list read. Needs a
+		// browser-driven repro (passkey-gated) to confirm backend vs front-end.
+		// Flagged for maintainers as possibly a real Cloudflare bug; skipped so
+		// the CF lane stays green.
 		test.skip(
 			process.env.EMDASH_E2E_TARGET === "cloudflare",
-			"CF: invited user not read back after passkey-invite registration (under investigation)",
+			"CF: invited user not read back after passkey-invite registration (possible real bug, under investigation)",
 		);
 		await admin.devBypassAuth();
 		await admin.goto("/users");

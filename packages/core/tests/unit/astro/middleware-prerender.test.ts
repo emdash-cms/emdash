@@ -118,8 +118,10 @@ vi.mock(
 vi.mock("virtual:emdash/sandboxed-plugins", () => ({ sandboxedPlugins: [] }), { virtual: true });
 vi.mock("virtual:emdash/storage", () => ({ createStorage: null }), { virtual: true });
 vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
+vi.mock("virtual:emdash/scheduler", () => ({ createScheduler: null }), { virtual: true });
 
 vi.mock("../../../src/emdash-runtime.js", () => ({
+	DB_INIT_DEADLINE_MS: 30_000,
 	EmDashRuntime: {
 		create: async () => MOCK_RUNTIME,
 	},
@@ -140,7 +142,31 @@ vi.mock("../../../src/loader.js", () => ({
 import { createRequestScopedDb } from "virtual:emdash/dialect";
 
 import onRequest from "../../../src/astro/middleware.js";
+import { getDb } from "../../../src/loader.js";
 import { getRequestContext } from "../../../src/request-context.js";
+
+/** Reset the globalThis-backed singletons between tests. */
+const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
+const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
+function resetSetupVerified() {
+	delete (globalThis as Record<symbol, unknown>)[SETUP_VERIFIED_KEY];
+	delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
+}
+
+/** A getDb stub whose migrations-probe query throws `error`. */
+function getDbThatFailsProbe(error: Error) {
+	return {
+		selectFrom: () => ({
+			selectAll: () => ({
+				limit: () => ({
+					execute: async () => {
+						throw error;
+					},
+				}),
+			}),
+		}),
+	};
+}
 
 function createAnonymousPublicPageContext(locals: Record<string, unknown> = {}) {
 	const cookies = {
@@ -494,5 +520,77 @@ describe("astro middleware request-scoped db", () => {
 			isAuthenticated: false,
 			isWrite: true,
 		});
+	});
+});
+
+describe("astro middleware setup probe", () => {
+	beforeEach(() => {
+		// The "setup verified" flag is a globalThis singleton that latches once a
+		// probe (or runtime init) succeeds. Reset it so each test exercises a
+		// fresh probe.
+		resetSetupVerified();
+		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
+		vi.mocked(getDb).mockReset();
+	});
+
+	/** Anonymous GET to a public frontend page (e.g. a category page). */
+	function anonymousCategoryPageContext() {
+		const cookies = {
+			get: vi.fn((name: string) => {
+				if (name === "astro-session") return undefined;
+				return undefined;
+			}),
+			set: vi.fn(),
+		};
+		const redirect = vi.fn(
+			(location: string) => new Response(null, { status: 302, headers: { Location: location } }),
+		);
+		return {
+			context: {
+				request: new Request("https://example.com/category/news"),
+				url: new URL("https://example.com/category/news"),
+				cookies,
+				locals: {} as Record<string, unknown>,
+				redirect,
+				isPrerendered: false,
+				session: { get: vi.fn(async () => null) },
+			} as Record<string, unknown>,
+			redirect,
+		};
+	}
+
+	it("redirects to setup when the migrations table is genuinely missing", async () => {
+		// Fresh, un-migrated database: the probe query reports a missing table.
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
+		);
+
+		const { context, redirect } = anonymousCategoryPageContext();
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(redirect).toHaveBeenCalledWith("/_emdash/admin/setup");
+		expect(response.status).toBe(302);
+		expect(response.headers.get("Location")).toBe("/_emdash/admin/setup");
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("does NOT redirect to setup on a transient DB error (regression)", async () => {
+		// A set-up site whose probe hits a transient failure (D1 connection
+		// loss, replica unavailable, timeout, locked SQLite) must keep serving
+		// the page — never bounce real visitors to the setup wizard.
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+
+		const { context, redirect } = anonymousCategoryPageContext();
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(redirect).not.toHaveBeenCalled();
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
 	});
 });

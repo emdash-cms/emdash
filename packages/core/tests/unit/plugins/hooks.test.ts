@@ -9,10 +9,13 @@
  * - Error handling and error policies
  */
 
-import { describe, it, expect, vi } from "vitest";
+import Database from "better-sqlite3";
+import { Kysely, SqliteDialect } from "kysely";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+import type { Database as DbSchema } from "../../../src/database/types.js";
 import { HookPipeline, createHookPipeline } from "../../../src/plugins/hooks.js";
-import type { ResolvedPlugin, ResolvedHook } from "../../../src/plugins/types.js";
+import type { ResolvedPlugin, ResolvedHook, ContentHookEvent } from "../../../src/plugins/types.js";
 
 /**
  * Create a minimal resolved plugin for testing
@@ -55,6 +58,21 @@ function createTestHook<T>(
 }
 
 describe("HookPipeline", () => {
+	// A real in-memory DB is needed for the context factory so hooks can
+	// actually execute (getContext throws without one).
+	let db: Kysely<DbSchema>;
+	let sqliteDb: Database.Database;
+
+	beforeEach(() => {
+		sqliteDb = new Database(":memory:");
+		db = new Kysely<DbSchema>({ dialect: new SqliteDialect({ database: sqliteDb }) });
+	});
+
+	afterEach(async () => {
+		await db.destroy();
+		sqliteDb.close();
+	});
+
 	describe("construction and registration", () => {
 		it("creates empty pipeline with no plugins", () => {
 			const pipeline = new HookPipeline([]);
@@ -100,83 +118,80 @@ describe("HookPipeline", () => {
 	});
 
 	describe("hook sorting", () => {
-		it("sorts hooks by priority (lower first)", () => {
-			const handler1 = vi.fn();
-			const handler2 = vi.fn();
-			const handler3 = vi.fn();
+		it("executes hooks in priority order (lower priority first)", async () => {
+			const order: string[] = [];
+			const make = (id: string, priority: number) =>
+				createTestPlugin({
+					id,
+					capabilities: ["content:write"],
+					hooks: {
+						"content:beforeSave": createTestHook(
+							id,
+							async (event: ContentHookEvent) => {
+								order.push(id);
+								return event.content;
+							},
+							{ priority },
+						),
+					},
+				});
 
-			const plugin1 = createTestPlugin({
-				id: "plugin-1",
-				capabilities: ["content:write"],
-				hooks: {
-					"content:beforeSave": createTestHook("plugin-1", handler1, {
-						priority: 200,
-					}),
-				},
-			});
+			// Registered out of priority order on purpose.
+			const pipeline = new HookPipeline(
+				[make("plugin-200", 200), make("plugin-50", 50), make("plugin-100", 100)],
+				{ db },
+			);
 
-			const plugin2 = createTestPlugin({
-				id: "plugin-2",
-				capabilities: ["content:write"],
-				hooks: {
-					"content:beforeSave": createTestHook("plugin-2", handler2, {
-						priority: 50,
-					}),
-				},
-			});
+			await pipeline.runContentBeforeSave({ title: "hi" }, "posts", true);
 
-			const plugin3 = createTestPlugin({
-				id: "plugin-3",
-				capabilities: ["content:write"],
-				hooks: {
-					"content:beforeSave": createTestHook("plugin-3", handler3, {
-						priority: 100,
-					}),
-				},
-			});
-
-			// Create pipeline and manually verify order through execution
-			const pipeline = new HookPipeline([plugin1, plugin2, plugin3]);
-
-			expect(pipeline.getHookCount("content:beforeSave")).toBe(3);
+			expect(order).toEqual(["plugin-50", "plugin-100", "plugin-200"]);
 		});
 
-		it("respects dependencies when sorting", () => {
-			const handler1 = vi.fn();
-			const handler2 = vi.fn();
+		it("runs a dependency before the dependent hook despite lower priority", async () => {
+			const order: string[] = [];
 
-			const plugin1 = createTestPlugin({
-				id: "plugin-1",
+			const dependent = createTestPlugin({
+				id: "dependent",
 				capabilities: ["content:write"],
 				hooks: {
-					"content:beforeSave": createTestHook("plugin-1", handler1, {
-						priority: 50, // Lower priority but...
-						dependencies: ["plugin-2"], // depends on plugin-2
-					}),
+					"content:beforeSave": createTestHook(
+						"dependent",
+						async (event: ContentHookEvent) => {
+							order.push("dependent");
+							return event.content;
+						},
+						{ priority: 50, dependencies: ["dependency"] },
+					),
 				},
 			});
 
-			const plugin2 = createTestPlugin({
-				id: "plugin-2",
+			const dependency = createTestPlugin({
+				id: "dependency",
 				capabilities: ["content:write"],
 				hooks: {
-					"content:beforeSave": createTestHook("plugin-2", handler2, {
-						priority: 100, // Higher priority
-					}),
+					"content:beforeSave": createTestHook(
+						"dependency",
+						async (event: ContentHookEvent) => {
+							order.push("dependency");
+							return event.content;
+						},
+						{ priority: 100 },
+					),
 				},
 			});
 
-			const pipeline = new HookPipeline([plugin1, plugin2]);
+			const pipeline = new HookPipeline([dependent, dependency], { db });
 
-			// plugin-2 should run before plugin-1 despite priority
-			// because plugin-1 depends on plugin-2
-			expect(pipeline.getHookCount("content:beforeSave")).toBe(2);
+			await pipeline.runContentBeforeSave({ title: "hi" }, "posts", true);
+
+			// "dependency" must run first even though "dependent" has the lower priority.
+			expect(order).toEqual(["dependency", "dependent"]);
 		});
 	});
 
 	describe("content:beforeSave", () => {
-		it("runs hooks and returns modified content", async () => {
-			const handler = vi.fn(async (event) => ({
+		it("runs the hook and returns modified content", async () => {
+			const handler = vi.fn(async (event: ContentHookEvent) => ({
 				...event.content,
 				modified: true,
 			}));
@@ -189,21 +204,20 @@ describe("HookPipeline", () => {
 				},
 			});
 
-			// Need context factory for actual execution
-			// Without it, getContext will throw
-			const pipeline = new HookPipeline([plugin]);
+			const pipeline = new HookPipeline([plugin], { db });
 
-			// For unit test without DB, we can verify the hook count
-			expect(pipeline.hasHooks("content:beforeSave")).toBe(true);
+			const { content } = await pipeline.runContentBeforeSave({ title: "Hello" }, "posts", true);
+
+			expect(handler).toHaveBeenCalledOnce();
+			expect(content).toEqual({ title: "Hello", modified: true });
 		});
 
-		it("chains content through multiple hooks", async () => {
-			const handler1 = vi.fn(async (event) => ({
+		it("chains content through multiple hooks in priority order", async () => {
+			const handler1 = vi.fn(async (event: ContentHookEvent) => ({
 				...event.content,
 				step1: true,
 			}));
-
-			const handler2 = vi.fn(async (event) => ({
+			const handler2 = vi.fn(async (event: ContentHookEvent) => ({
 				...event.content,
 				step2: true,
 			}));
@@ -212,9 +226,7 @@ describe("HookPipeline", () => {
 				id: "plugin-1",
 				capabilities: ["content:write"],
 				hooks: {
-					"content:beforeSave": createTestHook("plugin-1", handler1, {
-						priority: 1,
-					}),
+					"content:beforeSave": createTestHook("plugin-1", handler1, { priority: 1 }),
 				},
 			});
 
@@ -222,14 +234,17 @@ describe("HookPipeline", () => {
 				id: "plugin-2",
 				capabilities: ["content:write"],
 				hooks: {
-					"content:beforeSave": createTestHook("plugin-2", handler2, {
-						priority: 2,
-					}),
+					"content:beforeSave": createTestHook("plugin-2", handler2, { priority: 2 }),
 				},
 			});
 
-			const pipeline = new HookPipeline([plugin1, plugin2]);
-			expect(pipeline.getHookCount("content:beforeSave")).toBe(2);
+			const pipeline = new HookPipeline([plugin1, plugin2], { db });
+
+			const { content } = await pipeline.runContentBeforeSave({ title: "x" }, "posts", true);
+
+			// Both transformations land, and handler2 received handler1's output.
+			expect(content).toEqual({ title: "x", step1: true, step2: true });
+			expect(handler2.mock.calls[0]?.[0]?.content).toEqual({ title: "x", step1: true });
 		});
 	});
 
