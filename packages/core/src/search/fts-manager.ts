@@ -332,27 +332,30 @@ export class FTSManager {
 	}
 
 	/**
+	 * Get field info for a collection in a single query: the searchable field
+	 * slugs plus whether the collection defines a title field.
+	 */
+	async getSearchableFieldInfo(
+		collectionSlug: string,
+	): Promise<{ searchableFields: string[]; hasTitleField: boolean }> {
+		const rows = await this.db
+			.selectFrom("_emdash_collections as c")
+			.innerJoin("_emdash_fields as f", "f.collection_id", "c.id")
+			.select(["f.slug", "f.searchable"])
+			.where("c.slug", "=", collectionSlug)
+			.execute();
+
+		return {
+			searchableFields: rows.filter((r) => r.searchable === 1).map((r) => r.slug),
+			hasTitleField: rows.some((r) => r.slug === "title"),
+		};
+	}
+
+	/**
 	 * Get searchable fields for a collection
 	 */
 	async getSearchableFields(collectionSlug: string): Promise<string[]> {
-		const collection = await this.db
-			.selectFrom("_emdash_collections")
-			.select("id")
-			.where("slug", "=", collectionSlug)
-			.executeTakeFirst();
-
-		if (!collection) {
-			return [];
-		}
-
-		const fields = await this.db
-			.selectFrom("_emdash_fields")
-			.select("slug")
-			.where("collection_id", "=", collection.id)
-			.where("searchable", "=", 1)
-			.execute();
-
-		return fields.map((f) => f.slug);
+		return (await this.getSearchableFieldInfo(collectionSlug)).searchableFields;
 	}
 
 	/**

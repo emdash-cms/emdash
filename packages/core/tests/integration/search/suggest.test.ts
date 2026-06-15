@@ -54,4 +54,36 @@ describe("getSuggestions (Integration)", () => {
 
 		expect(suggestions).toEqual([]);
 	});
+
+	it("returns suggestions across all collections when one searchable collection has no title field", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "note",
+			label: "Notes",
+			supports: ["search"],
+		});
+		await registry.createField("note", {
+			slug: "body",
+			label: "Body",
+			type: "text",
+			searchable: true,
+		});
+		await new FTSManager(db).enableSearch("note");
+		await repo.create(
+			createPostFixture({
+				type: "note",
+				slug: "design-note",
+				status: "published",
+				data: { body: "Design note" },
+			}),
+		);
+
+		const suggestions = await getSuggestions(db, "note");
+
+		expect(suggestions).toContainEqual({
+			collection: "note",
+			id: expect.any(String),
+			title: "design-note",
+		});
+	});
 });

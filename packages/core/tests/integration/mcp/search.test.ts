@@ -54,6 +54,22 @@ async function setupSearchablePostCollection(db: Kysely<Database>): Promise<void
 	await new FTSManager(db).enableSearch("post");
 }
 
+async function setupSearchableNoteCollection(db: Kysely<Database>): Promise<void> {
+	const registry = new SchemaRegistry(db);
+	await registry.createCollection({
+		slug: "note",
+		label: "Notes",
+		supports: ["drafts", "revisions", "search"],
+	});
+	await registry.createField("note", {
+		slug: "body",
+		label: "Body",
+		type: "text",
+		searchable: true,
+	});
+	await new FTSManager(db).enableSearch("note");
+}
+
 describe("search", () => {
 	let db: Kysely<Database>;
 	let harness: McpHarness;
@@ -128,6 +144,51 @@ describe("search", () => {
 		const data = extractJson<{ items: Array<{ id: string }> }>(result);
 		expect(data.items.length).toBeGreaterThan(0);
 		expect(data.items.find((i) => i.id === id)).toBeTruthy();
+	});
+
+	it("searches all collections when one searchable collection has no title field", async () => {
+		await setupSearchablePostCollection(db);
+		await setupSearchableNoteCollection(db);
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+
+		const post = await harness.client.callTool({
+			name: "content_create",
+			arguments: {
+				collection: "post",
+				data: { title: "needle post", body: "searchable text" },
+			},
+		});
+		const note = await harness.client.callTool({
+			name: "content_create",
+			arguments: {
+				collection: "note",
+				data: { body: "needle note" },
+			},
+		});
+		await harness.client.callTool({
+			name: "content_publish",
+			arguments: {
+				collection: "post",
+				id: extractJson<{ item: { id: string } }>(post).item.id,
+			},
+		});
+		await harness.client.callTool({
+			name: "content_publish",
+			arguments: {
+				collection: "note",
+				id: extractJson<{ item: { id: string } }>(note).item.id,
+			},
+		});
+
+		const result = await harness.client.callTool({
+			name: "search",
+			arguments: { query: "needle" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const data = extractJson<{ items: Array<{ collection?: string; type?: string }> }>(result);
+		const collections = data.items.map((item) => item.collection ?? item.type);
+		expect(collections).toContain("post");
+		expect(collections).toContain("note");
 	});
 
 	it("scopes search by collections argument", async () => {
