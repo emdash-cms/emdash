@@ -278,13 +278,23 @@ export function adaptSandboxEntry(
 		};
 	}
 
-	// Build admin config from descriptor
+	// Build admin config from descriptor.
+	// Portable Text blocks and field widgets are declarative (Block Kit), so they
+	// are forwarded for standard/sandboxed plugins just like pages and widgets —
+	// the admin editor consumes them from the manifest. Only the site-side render
+	// component (`componentsEntry`) stays native-only.
 	const admin: PluginAdminConfig = {};
 	if (descriptor.adminPages) {
 		admin.pages = descriptor.adminPages;
 	}
 	if (descriptor.adminWidgets) {
 		admin.widgets = descriptor.adminWidgets;
+	}
+	if (descriptor.portableTextBlocks) {
+		admin.portableTextBlocks = descriptor.portableTextBlocks;
+	}
+	if (descriptor.fieldWidgets) {
+		admin.fieldWidgets = descriptor.fieldWidgets;
 	}
 
 	return {

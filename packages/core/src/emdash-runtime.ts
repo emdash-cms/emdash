@@ -41,6 +41,8 @@ import type {
 	PublicPageContext,
 	PageMetadataContribution,
 	PageFragmentContribution,
+	PortableTextBlockConfig,
+	FieldWidgetConfig,
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
@@ -211,6 +213,10 @@ export interface SandboxedPluginEntry {
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
+	/** Portable Text block types contributed to the editor (declarative Block Kit) */
+	portableTextBlocks?: PortableTextBlockConfig[];
+	/** Field widget types contributed for schema-field editing UIs */
+	fieldWidgets?: FieldWidgetConfig[];
 	/** Admin entry module */
 	adminEntry?: string;
 	/**
@@ -383,7 +389,12 @@ const marketplaceManifestCache = new Map<
 	{
 		id: string;
 		version: string;
-		admin?: { pages?: PluginAdminPage[]; widgets?: PluginDashboardWidget[] };
+		admin?: {
+			pages?: PluginAdminPage[];
+			widgets?: PluginDashboardWidget[];
+			portableTextBlocks?: PortableTextBlockConfig[];
+			fieldWidgets?: FieldWidgetConfig[];
+		};
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -928,6 +939,8 @@ export class EmDashRuntime {
 							size:
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
+						portableTextBlocks: bundle.manifest.admin?.portableTextBlocks,
+						fieldWidgets: bundle.manifest.admin?.fieldWidgets,
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
@@ -1569,6 +1582,8 @@ export class EmDashRuntime {
 					storage: entry.storage as never,
 					adminPages,
 					adminWidgets,
+					portableTextBlocks: entry.portableTextBlocks,
+					fieldWidgets: entry.fieldWidgets,
 				});
 				plugins.push(resolved);
 				console.log(
@@ -1865,6 +1880,8 @@ export class EmDashRuntime {
 							size:
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
+						portableTextBlocks: bundle.manifest.admin?.portableTextBlocks,
+						fieldWidgets: bundle.manifest.admin?.fieldWidgets,
 					});
 					resolved.push(adapted);
 					console.log(
@@ -2095,9 +2112,6 @@ export class EmDashRuntime {
 		}
 
 		// Add sandboxed plugins (use entries for admin config)
-		// TODO: sandboxed plugins need fieldWidgets extracted from their manifest
-		// to support Block Kit field widgets. Currently only trusted plugins carry
-		// fieldWidgets through the admin.fieldWidgets path.
 		for (const entry of this.sandboxedPluginEntries) {
 			const status = this.pluginStates.get(entry.id);
 			const enabled = status === undefined || status === "active";
@@ -2112,6 +2126,8 @@ export class EmDashRuntime {
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
 				adminPages: entry.adminPages ?? [],
 				dashboardWidgets: entry.adminWidgets ?? [],
+				portableTextBlocks: entry.portableTextBlocks,
+				fieldWidgets: entry.fieldWidgets,
 			};
 		}
 
@@ -2135,6 +2151,8 @@ export class EmDashRuntime {
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
 				adminPages: pages ?? [],
 				dashboardWidgets: widgets ?? [],
+				portableTextBlocks: meta.admin?.portableTextBlocks,
+				fieldWidgets: meta.admin?.fieldWidgets,
 			};
 		}
 
