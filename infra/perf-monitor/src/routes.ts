@@ -112,7 +112,7 @@ export const TARGET_ROUTES: TargetRoute[] = [
 	},
 ];
 
-export const REGIONS = ["use", "euw", "ape", "aps"] as const;
+export const REGIONS = ["use", "euw", "ape", "aps", "sae", "oce"] as const;
 export type Region = (typeof REGIONS)[number];
 
 export const REGION_LABELS: Record<Region, string> = {
@@ -120,6 +120,8 @@ export const REGION_LABELS: Record<Region, string> = {
 	euw: "Europe West",
 	ape: "Asia Pacific East",
 	aps: "Asia Pacific South",
+	sae: "South America",
+	oce: "Oceania",
 };
 
 /** Number of warm requests per route (we take the median). */
