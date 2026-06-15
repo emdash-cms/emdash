@@ -91,7 +91,7 @@ export const TARGET_ROUTES: TargetRoute[] = [
 		expectedStatuses: [200],
 	},
 	{
-		path: "/posts/marshland-birds-at-the-lake-havasu-national-wildlife-refuge",
+		path: "/posts/notes-on-simplicity",
 		label: "Single Post",
 		coldThresholdMs: 2000,
 		expectedStatuses: [200],
