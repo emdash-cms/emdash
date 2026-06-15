@@ -73,6 +73,21 @@ export async function fetchMediaList(options?: {
 }
 
 /**
+ * Fetch a single media item by id.
+ *
+ * Used to resolve an id-only reference (e.g. a byline's `avatarMediaId`)
+ * back into a full media item for display.
+ */
+export async function fetchMediaItem(id: string): Promise<MediaItem> {
+	const response = await apiFetch(`${API_BASE}/media/${id}`);
+	const data = await parseApiResponse<{ item: MediaItem }>(
+		response,
+		i18n._(msg`Failed to fetch media item`),
+	);
+	return data.item;
+}
+
+/**
  * Upload URL response from the API
  */
 interface UploadUrlResponse {
