@@ -47,11 +47,17 @@ export interface DOSqlDialectConfig {
 	 */
 	resolveStub: () => EmDashDBStub;
 	/**
-	 * Bookmark to pass on reads for read-your-writes consistency. Set for
-	 * authenticated requests that carry a prior bookmark cookie.
+	 * The request's initial read-your-writes bookmark, from the client's cookie
+	 * (authenticated requests only). Used as the floor for reads until a write
+	 * in this request mints a fresher one into the sink.
 	 */
 	readBookmark?: string;
-	/** Updated with the bookmark returned by each write, for the request `commit()`. */
+	/**
+	 * Carries the latest write bookmark. Updated with the bookmark returned by
+	 * each write, and consulted on subsequent reads (taking precedence over
+	 * `readBookmark`) so read-after-write within a request is consistent. Also
+	 * read by the request `commit()` to persist the bookmark cookie.
+	 */
 	bookmarkSink?: BookmarkSink;
 }
 
@@ -134,12 +140,18 @@ class DOSqlConnection implements DatabaseConnection {
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- CompiledQuery.parameters is ReadonlyArray<unknown>, stub expects unknown[]
 		const params = compiledQuery.parameters as unknown[];
 
-		// Only forward the read-your-writes bookmark on reads; writes always go
-		// to the primary and mint a fresh bookmark.
-		const opts =
-			this.#config.readBookmark && isReadStatement(sqlText)
-				? { bookmark: this.#config.readBookmark }
-				: undefined;
+		// Forward a read-your-writes bookmark only on reads. Prefer the freshest
+		// write bookmark seen this request (sink) over the request's initial
+		// cookie bookmark, so a read issued AFTER a write in the same request
+		// waits for that write to replicate before serving. Without this, a
+		// read-after-write (e.g. create() then findById()) on a replica would
+		// miss the just-written row. Writes always proxy to the primary and mint
+		// a fresh bookmark, so they don't carry one inbound.
+		let opts: { bookmark: string } | undefined;
+		if (isReadStatement(sqlText)) {
+			const bookmark = this.#config.bookmarkSink?.latest ?? this.#config.readBookmark;
+			if (bookmark) opts = { bookmark };
+		}
 
 		const result = await this.#stub.query(sqlText, params, opts);
 

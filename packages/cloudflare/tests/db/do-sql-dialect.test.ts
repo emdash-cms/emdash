@@ -6,7 +6,7 @@ import type { BookmarkSink, DOSqlDialectConfig } from "../../src/db/do-sql-diale
 import type { EmDashDBStub } from "../../src/db/do-sql-types.js";
 
 function createMockStub(queryFn = vi.fn()): EmDashDBStub {
-	return { query: queryFn, batch: vi.fn() };
+	return { query: queryFn };
 }
 
 function createConfig(
@@ -52,7 +52,7 @@ describe("DOSqlDriver", () => {
 
 	it("a memoizing resolveStub (the request-scoped pattern) yields one stub per request", async () => {
 		const queryFn = vi.fn().mockResolvedValue({ rows: [] });
-		const stub: EmDashDBStub = { query: queryFn, batch: vi.fn() };
+		const stub: EmDashDBStub = { query: queryFn };
 		const make = vi.fn(() => stub);
 		// Mirrors createRequestScopedDb: a per-request closure memoizes the stub.
 		let cached: EmDashDBStub | undefined;
@@ -122,5 +122,39 @@ describe("DOSqlConnection", () => {
 		await conn.executeQuery(CompiledQuery.raw("INSERT INTO posts (id) VALUES (?)", ["1"]));
 
 		expect(sink.latest).toBe("bm-new");
+	});
+
+	it("read-after-write: a read uses the fresh write bookmark, not the stale cookie one", async () => {
+		// Simulates create() then findById() in one request: the write mints a
+		// new bookmark; the follow-up read must wait for THAT, not the request's
+		// initial cookie bookmark, or it would miss the row on a lagging replica.
+		const queryFn = vi
+			.fn()
+			.mockResolvedValueOnce({ rows: [], changes: 1, bookmark: "bm-after-write" })
+			.mockResolvedValueOnce({ rows: [{ id: "1" }] });
+		const sink: BookmarkSink = {};
+		const { config } = createConfig(queryFn, {
+			readBookmark: "bm-stale-cookie",
+			bookmarkSink: sink,
+		});
+		const conn = await new DOSqlDialect(config).createDriver().acquireConnection();
+
+		await conn.executeQuery(CompiledQuery.raw("INSERT INTO posts (id) VALUES (?)", ["1"]));
+		await conn.executeQuery(CompiledQuery.raw("SELECT * FROM posts WHERE id = ?", ["1"]));
+
+		expect(queryFn).toHaveBeenLastCalledWith("SELECT * FROM posts WHERE id = ?", ["1"], {
+			bookmark: "bm-after-write",
+		});
+	});
+
+	it("falls back to the initial cookie bookmark for reads before any write", async () => {
+		const queryFn = vi.fn().mockResolvedValue({ rows: [] });
+		const sink: BookmarkSink = {};
+		const { config } = createConfig(queryFn, { readBookmark: "bm-cookie", bookmarkSink: sink });
+		const conn = await new DOSqlDialect(config).createDriver().acquireConnection();
+
+		await conn.executeQuery(CompiledQuery.raw("SELECT * FROM posts"));
+
+		expect(queryFn).toHaveBeenLastCalledWith("SELECT * FROM posts", [], { bookmark: "bm-cookie" });
 	});
 });

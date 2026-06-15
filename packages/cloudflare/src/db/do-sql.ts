@@ -62,20 +62,39 @@ function bindingError(binding: string): Error {
 
 /**
  * Create a DO SQL dialect from config. Used for the singleton Kysely instance
- * (runtime-init migrations and any query outside a request scope).
+ * (runtime-init migrations, scheduled tasks, and any query outside a request
+ * scope).
  *
  * This dialect is cached across requests on globalThis, so it must NOT hold a
  * stub: a DO stub is a per-request I/O object. We resolve a fresh stub on every
  * query instead. The hot read/write path uses `createRequestScopedDb`, which
  * reuses one stub for the whole request.
+ *
+ * The singleton gets its own bookmark sink so read-after-write on these paths
+ * stays consistent even when replicas exist. Migrations probe schema right
+ * after altering it (`hasColumn` after `ALTER TABLE`), and scheduled publishing
+ * reads due rows then writes status. With a sink, each write records its
+ * bookmark and the following read waits for it -- correct regardless of which
+ * (fresh-per-query) stub instance serves the read, because bookmarks are global.
  */
 export function createDialect(config: DurableObjectsConfig): Dialect {
 	const ns = getNamespace(config);
 	if (!ns) throw bindingError(config.binding);
 	const id = ns.idFromName(config.name ?? DEFAULT_NAME);
+	// Best-effort under concurrency: this sink is shared across all concurrent
+	// callers of the singleton (cron, after()-deferred maintenance). Bookmarks
+	// are opaque so we can't enforce monotonic advance; if two concurrent writes
+	// return out of order, a later read on the singleton may wait for the older
+	// bookmark and serve a slightly stale read. It never loses or corrupts a
+	// write, and never affects request traffic (which uses isolated per-request
+	// sinks). The consumers that need read-after-write here (migrations under the
+	// init lock, the sequential publishDueContent loop) are strictly awaited, so
+	// the sink stays monotonic for them.
+	const bookmarkSink: BookmarkSink = {};
 	return new DOSqlDialect({
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown row types
 		resolveStub: () => ns.get(id) as unknown as EmDashDBStub,
+		bookmarkSink,
 	});
 }
 
@@ -96,6 +115,15 @@ interface CookieJar {
 export interface RequestScopedDbOpts {
 	config: DurableObjectsConfig;
 	isAuthenticated: boolean;
+	/**
+	 * Whether this request mutates. Part of the shared adapter contract (the D1
+	 * adapter pins writes to `first-primary`). The DO backend does NOT use it for
+	 * routing: DO exposes no Worker-side "give me the primary" handle -- a write
+	 * is proxied to the primary by the DO itself, and read-your-writes is
+	 * provided by the per-request bookmark feedback (a write records its bookmark
+	 * in the sink; later reads in the same request wait for it). So correctness
+	 * doesn't depend on knowing up front that the request writes.
+	 */
 	isWrite: boolean;
 	cookies: CookieJar;
 	url: URL;
@@ -152,11 +180,17 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 			if (!opts.isAuthenticated) return;
 			const newBookmark = bookmarkSink.latest;
 			if (!newBookmark) return;
+			// Don't emit a cookie the browser will silently drop (~4 KB limit),
+			// which would break read-your-writes with no signal. Bookmarks are
+			// far smaller than this in practice; the guard is belt-and-braces.
+			if (newBookmark.length > MAX_BOOKMARK_LENGTH) return;
 			opts.cookies.set(cookieName, newBookmark, {
 				path: "/",
 				httpOnly: true,
 				sameSite: "lax",
 				secure: opts.url.protocol === "https:",
+				// Bound the lifetime so a stale bookmark can't linger indefinitely.
+				maxAge: 60 * 60 * 24,
 			});
 		},
 	};

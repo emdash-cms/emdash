@@ -66,12 +66,6 @@ export interface DOQueryResult {
 	bookmark?: string;
 }
 
-/** A single statement for batch execution. */
-export interface DOBatchStatement {
-	sql: string;
-	params?: unknown[];
-}
-
 /**
  * Minimal RPC surface of an `EmDashDB` Durable Object stub.
  *
@@ -82,7 +76,6 @@ export interface DOBatchStatement {
  */
 export interface EmDashDBStub {
 	query(sql: string, params?: unknown[], opts?: { bookmark?: string }): Promise<DOQueryResult>;
-	batch(statements: DOBatchStatement[]): Promise<DOQueryResult>;
 }
 
 /** SQL command prefixes that indicate read-only statements. */
