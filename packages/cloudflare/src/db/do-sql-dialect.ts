@@ -1,0 +1,154 @@
+/**
+ * Kysely dialect for the production Durable Object SQL database.
+ *
+ * Proxies queries to an `EmDashDB` stub via RPC. Two properties matter for
+ * latency and correctness:
+ *
+ *   1. **One stub, reused.** The dialect resolves a single DO stub lazily (on
+ *      the first query, inside a request's I/O context) and reuses it for every
+ *      query. Resolving a fresh stub per query is the main source of D1-style
+ *      per-query round-trip overhead; the request-scoped factory in `do-sql.ts`
+ *      gives each request its own dialect, so this is "one stub per request".
+ *
+ *   2. **No interactive transactions**, matching D1 (kysely-d1). The driver
+ *      rejects `beginTransaction` with the message EmDash's `withTransaction`
+ *      helper probes for, so transaction callbacks degrade to direct execution
+ *      against the primary-routed connection — the same atomicity profile the
+ *      codebase already runs under on D1.
+ */
+
+import type {
+	CompiledQuery,
+	DatabaseConnection,
+	DatabaseIntrospector,
+	Dialect,
+	Driver,
+	Kysely,
+	QueryResult,
+} from "kysely";
+import { SqliteAdapter, SqliteQueryCompiler } from "kysely";
+
+import { D1Introspector } from "./d1-introspector.js";
+import type { EmDashDBStub } from "./do-sql-types.js";
+import { isReadStatement } from "./do-sql-types.js";
+
+/** Mutable holder for the latest write bookmark, read by the request `commit()`. */
+export interface BookmarkSink {
+	latest?: string;
+}
+
+export interface DOSqlDialectConfig {
+	/**
+	 * Resolves the DO stub. Called at most once per dialect (memoized in the
+	 * driver) so a single stub is reused across every query.
+	 */
+	resolveStub: () => EmDashDBStub;
+	/**
+	 * Bookmark to pass on reads for read-your-writes consistency. Set for
+	 * authenticated requests that carry a prior bookmark cookie.
+	 */
+	readBookmark?: string;
+	/** Updated with the bookmark returned by each write, for the request `commit()`. */
+	bookmarkSink?: BookmarkSink;
+}
+
+export class DOSqlDialect implements Dialect {
+	readonly #config: DOSqlDialectConfig;
+
+	constructor(config: DOSqlDialectConfig) {
+		this.#config = config;
+	}
+
+	createAdapter(): SqliteAdapter {
+		return new SqliteAdapter();
+	}
+
+	createDriver(): Driver {
+		return new DOSqlDriver(this.#config);
+	}
+
+	createQueryCompiler(): SqliteQueryCompiler {
+		return new SqliteQueryCompiler();
+	}
+
+	createIntrospector(db: Kysely<any>): DatabaseIntrospector {
+		return new D1Introspector(db);
+	}
+}
+
+class DOSqlDriver implements Driver {
+	readonly #config: DOSqlDialectConfig;
+	#stub: EmDashDBStub | undefined;
+
+	constructor(config: DOSqlDialectConfig) {
+		this.#config = config;
+	}
+
+	async init(): Promise<void> {}
+
+	async acquireConnection(): Promise<DatabaseConnection> {
+		// Memoize: one stub for the lifetime of this dialect (= one request, or
+		// the lifetime of the singleton isolate), reused across every query.
+		this.#stub ??= this.#config.resolveStub();
+		return new DOSqlConnection(this.#stub, this.#config);
+	}
+
+	async beginTransaction(): Promise<void> {
+		// Match kysely-d1: interactive transactions are unsupported. EmDash's
+		// withTransaction() probes for this exact message and falls back to
+		// running the callback directly against the connection.
+		throw new Error("Transactions are not supported");
+	}
+
+	async commitTransaction(): Promise<void> {
+		throw new Error("Transactions are not supported");
+	}
+
+	async rollbackTransaction(): Promise<void> {
+		throw new Error("Transactions are not supported");
+	}
+
+	async releaseConnection(): Promise<void> {}
+
+	async destroy(): Promise<void> {}
+}
+
+class DOSqlConnection implements DatabaseConnection {
+	readonly #stub: EmDashDBStub;
+	readonly #config: DOSqlDialectConfig;
+
+	constructor(stub: EmDashDBStub, config: DOSqlDialectConfig) {
+		this.#stub = stub;
+		this.#config = config;
+	}
+
+	async executeQuery<O>(compiledQuery: CompiledQuery): Promise<QueryResult<O>> {
+		const sqlText = compiledQuery.sql;
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- CompiledQuery.parameters is ReadonlyArray<unknown>, stub expects unknown[]
+		const params = compiledQuery.parameters as unknown[];
+
+		// Only forward the read-your-writes bookmark on reads; writes always go
+		// to the primary and mint a fresh bookmark.
+		const opts =
+			this.#config.readBookmark && isReadStatement(sqlText)
+				? { bookmark: this.#config.readBookmark }
+				: undefined;
+
+		const result = await this.#stub.query(sqlText, params, opts);
+
+		if (result.bookmark && this.#config.bookmarkSink) {
+			this.#config.bookmarkSink.latest = result.bookmark;
+		}
+
+		return {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely generic O is the caller's row type; we trust the DB returned matching rows
+			rows: result.rows as O[],
+			numAffectedRows: result.changes !== undefined ? BigInt(result.changes) : undefined,
+		};
+	}
+
+	// eslint-disable-next-line require-yield -- interface requires AsyncIterableIterator but DO RPC doesn't stream
+	async *streamQuery<O>(): AsyncIterableIterator<QueryResult<O>> {
+		throw new Error("DO SQL dialect does not support streaming");
+	}
+}

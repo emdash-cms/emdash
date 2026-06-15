@@ -21,6 +21,10 @@
       "types": "./dist/db/do.d.mts",
       "default": "./dist/db/do.mjs"
     },
+    "./db/do-sql": {
+      "types": "./dist/db/do-sql.d.mts",
+      "default": "./dist/db/do-sql.mjs"
+    },
     "./db/playground": {
       "types": "./dist/db/playground.d.mts",
       "default": "./dist/db/playground.mjs"
