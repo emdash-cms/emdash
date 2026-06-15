@@ -19,8 +19,9 @@ export interface TargetRoute {
 
 /**
  * A deployed demo we measure. Sites share the same route set and are compared
- * head-to-head on the dashboard. `blog` is the baseline; `cache` runs with
- * Astro's experimental cache provider enabled.
+ * head-to-head on the dashboard. `blog` is the baseline (D1, smart placement);
+ * `cache` runs with Astro's experimental cache provider enabled; `do` runs on
+ * the Durable Objects SQL backend with read replicas.
  */
 export interface Site {
 	/** Stable slug stored in `perf_results.site`. */
@@ -43,6 +44,12 @@ export const SITES: readonly Site[] = [
 		label: "Astro cache",
 		targetUrl: "https://cache-demo.emdashcms.com",
 		workerName: "emdash-demo-cache",
+	},
+	{
+		id: "do",
+		label: "DO read replica",
+		targetUrl: "https://do-demo.emdashcms.com",
+		workerName: "emdash-demo-do",
 	},
 ] as const;
 
