@@ -13,8 +13,8 @@ To enable it on Cloudflare, add an `IMAGES` binding to your wrangler config and 
 import { imageBinding } from "@emdash-cms/cloudflare";
 
 emdash({
-  storage: r2({ binding: "MEDIA" }),
-  images: imageBinding({ binding: "IMAGES" }),
+	storage: r2({ binding: "MEDIA" }),
+	images: imageBinding({ binding: "IMAGES" }),
 });
 ```
 
