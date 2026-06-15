@@ -16,6 +16,7 @@ import { env } from "cloudflare:workers";
 import { kyselyLogOption } from "emdash/database/instrumentation";
 import { type Dialect, Kysely } from "kysely";
 
+import { CoalescingDOSqlDialect } from "./coalescing-do-sql.js";
 import type { EmDashDB } from "./do-sql-class.js";
 import { type BookmarkSink, DOSqlDialect } from "./do-sql-dialect.js";
 import type { DurableObjectsConfig, EmDashDBStub } from "./do-sql-types.js";
@@ -167,9 +168,13 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 		}
 	}
 
+	// The per-request path always coalesces: same-turn SELECTs become one
+	// batchQuery RPC instead of one round trip per read. (The singleton in
+	// createDialect uses the plain DOSqlDialect -- it must never coalesce, since
+	// concurrent requests would share a buffer.)
 	const bookmarkSink: BookmarkSink = {};
 	const db = new Kysely<any>({
-		dialect: new DOSqlDialect({ resolveStub, readBookmark, bookmarkSink }),
+		dialect: new CoalescingDOSqlDialect({ resolveStub, readBookmark, bookmarkSink }),
 		log: kyselyLogOption(),
 	});
 

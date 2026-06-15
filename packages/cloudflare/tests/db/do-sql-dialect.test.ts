@@ -6,7 +6,7 @@ import type { BookmarkSink, DOSqlDialectConfig } from "../../src/db/do-sql-diale
 import type { EmDashDBStub } from "../../src/db/do-sql-types.js";
 
 function createMockStub(queryFn = vi.fn()): EmDashDBStub {
-	return { query: queryFn };
+	return { query: queryFn, batchQuery: vi.fn() } as unknown as EmDashDBStub;
 }
 
 function createConfig(
@@ -52,7 +52,7 @@ describe("DOSqlDriver", () => {
 
 	it("a memoizing resolveStub (the request-scoped pattern) yields one stub per request", async () => {
 		const queryFn = vi.fn().mockResolvedValue({ rows: [] });
-		const stub: EmDashDBStub = { query: queryFn };
+		const stub = { query: queryFn, batchQuery: vi.fn() } as unknown as EmDashDBStub;
 		const make = vi.fn(() => stub);
 		// Mirrors createRequestScopedDb: a per-request closure memoizes the stub.
 		let cached: EmDashDBStub | undefined;

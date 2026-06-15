@@ -54,6 +54,12 @@ export interface DurableObjectsConfig {
 	bookmarkCookie?: string;
 }
 
+/** A single statement for `batchQuery`. */
+export interface DOQueryStatement {
+	sql: string;
+	params?: unknown[];
+}
+
 /** Result shape returned by the `EmDashDB` RPC methods. */
 export interface DOQueryResult {
 	rows: Record<string, unknown>[];
@@ -76,6 +82,10 @@ export interface DOQueryResult {
  */
 export interface EmDashDBStub {
 	query(sql: string, params?: unknown[], opts?: { bookmark?: string }): Promise<DOQueryResult>;
+	batchQuery(
+		statements: DOQueryStatement[],
+		opts?: { bookmark?: string },
+	): Promise<DOQueryResult[]>;
 }
 
 /** SQL command prefixes that indicate read-only statements. */

@@ -29,7 +29,7 @@
 
 import { DurableObject } from "cloudflare:workers";
 
-import type { DOQueryResult, EmDashDBStub } from "./do-sql-types.js";
+import type { DOQueryResult, DOQueryStatement, EmDashDBStub } from "./do-sql-types.js";
 import { isReadStatement } from "./do-sql-types.js";
 
 /**
@@ -168,5 +168,53 @@ export class EmDashDB extends DurableObject {
 			return { rows };
 		}
 		return { rows, changes: cursor.rowsWritten, bookmark: await this.#currentBookmark() };
+	}
+
+	/**
+	 * Execute several read statements in a single RPC, returning one result per
+	 * statement in order. This is the round-trip win: a page that issues ~17
+	 * reads becomes one RPC instead of N.
+	 *
+	 * Read-only by construction -- the coalescing dialect only ever buffers
+	 * plain SELECTs (writes take the single-`query` path). So we wait on the
+	 * bookmark once for the whole batch, then run each `exec` synchronously
+	 * (a consistent snapshot, since a DO is single-threaded and there are no
+	 * awaits between execs) and return just rows. No per-statement bookmark is
+	 * minted (reads don't advance the write bookmark).
+	 *
+	 * If any statement throws, the whole RPC rejects; the caller falls back to
+	 * running each statement via `query()` individually, which preserves
+	 * per-statement error semantics and the readonly-retry path.
+	 */
+	async batchQuery(
+		statements: DOQueryStatement[],
+		opts?: { bookmark?: string },
+	): Promise<DOQueryResult[]> {
+		this.#ensureReplication();
+
+		if (opts?.bookmark && this.#isReplica) {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- experimental replication API not yet in workers-types
+			const storage = this.ctx.storage as unknown as ReplicationStorage;
+			try {
+				await storage.waitForBookmark?.(opts.bookmark);
+			} catch (error) {
+				console.error(
+					"[emdash:do] waitForBookmark failed (batch); serving possibly-stale reads:",
+					error,
+				);
+			}
+		}
+
+		return statements.map((statement) => {
+			const cursor = statement.params?.length
+				? this.ctx.storage.sql.exec(statement.sql, ...statement.params)
+				: this.ctx.storage.sql.exec(statement.sql);
+			const rows: Record<string, unknown>[] = [];
+			for (const row of cursor) {
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- SqlStorageCursor yields record-like objects
+				rows.push(row as Record<string, unknown>);
+			}
+			return { rows };
+		});
 	}
 }
