@@ -26,6 +26,8 @@ import type {
 const SIMPLE_ID = /^[a-z0-9-]+$/;
 const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
+const MCP_TOOL_NAME_PATTERN = /^(?!.*__)[a-z][a-z0-9_]*$/;
+const LEADING_SLASH_PATTERN = /^\/+/;
 
 /**
  * Define a native EmDash plugin.
@@ -101,6 +103,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		allowedHosts = [],
 		hooks = {},
 		routes = {},
+		mcpTools = {},
 		admin = {},
 	} = definition;
 
@@ -137,6 +140,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		"media:write",
 		"users:read",
 		"email:send",
+		"mcp:tools",
 		"hooks.email-transport:register",
 		"hooks.email-events:register",
 		"hooks.page-fragments:register",
@@ -181,6 +185,25 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		normalizedCapabilities.push("network:request");
 	}
 
+	const mcpToolEntries = Object.entries(mcpTools);
+	if (mcpToolEntries.length > 0 && !normalizedCapabilities.includes("mcp:tools")) {
+		throw new Error(`Plugin "${id}" declares MCP tools but is missing the "mcp:tools" capability.`);
+	}
+	for (const [toolName, tool] of mcpToolEntries) {
+		if (!MCP_TOOL_NAME_PATTERN.test(toolName)) {
+			throw new Error(
+				`Invalid MCP tool name "${toolName}" in plugin "${id}". Must be lowercase snake_case and must not contain double underscores.`,
+			);
+		}
+
+		const routeName = tool.route.replace(LEADING_SLASH_PATTERN, "");
+		if (!(routeName in routes)) {
+			throw new Error(
+				`Invalid MCP tool route "${tool.route}" in plugin "${id}". MCP tool routes must be declared in routes.`,
+			);
+		}
+	}
+
 	// Normalize hooks
 	const resolvedHooks = resolveHooks(hooks, id);
 
@@ -192,6 +215,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		storage,
 		hooks: resolvedHooks,
 		routes,
+		mcpTools,
 		admin,
 	};
 }

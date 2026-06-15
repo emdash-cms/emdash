@@ -17,6 +17,9 @@ import { definePlugin } from "../../../src/plugins/define-plugin.js";
 const INVALID_PLUGIN_ID_PATTERN = /Invalid plugin id/;
 const INVALID_PLUGIN_VERSION_PATTERN = /Invalid plugin version/;
 const INVALID_CAPABILITY_PATTERN = /Invalid capability/;
+const INVALID_MCP_TOOL_NAME_PATTERN = /Invalid MCP tool name/;
+const INVALID_MCP_TOOL_ROUTE_PATTERN = /Invalid MCP tool route/;
+const MISSING_MCP_CAPABILITY_PATTERN = /missing the "mcp:tools" capability/;
 
 describe("definePlugin", () => {
 	describe("ID validation", () => {
@@ -172,6 +175,16 @@ describe("definePlugin", () => {
 			expect(plugin.capabilities).toContain("content:read");
 			expect(plugin.capabilities).toContain("content:write");
 			expect(plugin.capabilities).toContain("network:request");
+		});
+
+		it("accepts the mcp:tools capability", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["mcp:tools"],
+			});
+
+			expect(plugin.capabilities).toContain("mcp:tools");
 		});
 
 		it("accepts media:read and media:write", () => {
@@ -498,6 +511,102 @@ describe("definePlugin", () => {
 			expect(plugin.routes.sync).toBeDefined();
 			expect(plugin.routes.sync.handler).toBe(handler);
 			expect(plugin.routes.webhook).toBeDefined();
+		});
+	});
+
+	describe("MCP tools", () => {
+		it("rejects sandboxed-format MCP tool declarations passed to definePlugin", () => {
+			const sandboxedDefinition = {
+				routes: {
+					summarize: {
+						handler: async () => ({ ok: true }),
+					},
+				},
+				mcpTools: {
+					summarize: {
+						description: "Summarize text.",
+						route: "summarize",
+					},
+				},
+			} as unknown as Parameters<typeof definePlugin>[0];
+
+			expect(() => definePlugin(sandboxedDefinition)).toThrow(/requires `id`/);
+		});
+
+		it("preserves MCP tool definitions", () => {
+			const handler = vi.fn();
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["mcp:tools"],
+				routes: {
+					summarize: { handler },
+				},
+				mcpTools: {
+					summarize: {
+						description: "Summarize text.",
+						route: "summarize",
+					},
+				},
+			});
+
+			expect(plugin.mcpTools?.summarize?.route).toBe("summarize");
+		});
+
+		it("rejects MCP tools without the mcp:tools capability", () => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					routes: {
+						summarize: { handler: vi.fn() },
+					},
+					mcpTools: {
+						summarize: {
+							description: "Summarize text.",
+							route: "summarize",
+						},
+					},
+				}),
+			).toThrow(MISSING_MCP_CAPABILITY_PATTERN);
+		});
+
+		it("rejects invalid MCP tool names", () => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					capabilities: ["mcp:tools"],
+					routes: {
+						summarize: { handler: vi.fn() },
+					},
+					mcpTools: {
+						bad__name: {
+							description: "Summarize text.",
+							route: "summarize",
+						},
+					},
+				}),
+			).toThrow(INVALID_MCP_TOOL_NAME_PATTERN);
+		});
+
+		it("rejects MCP tools that reference undeclared routes", () => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					capabilities: ["mcp:tools"],
+					routes: {
+						other: { handler: vi.fn() },
+					},
+					mcpTools: {
+						summarize: {
+							description: "Summarize text.",
+							route: "summarize",
+						},
+					},
+				}),
+			).toThrow(INVALID_MCP_TOOL_ROUTE_PATTERN);
 		});
 	});
 

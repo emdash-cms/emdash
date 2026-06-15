@@ -55,6 +55,8 @@ export type PluginCapability =
 	| "users:read"
 	// Email
 	| "email:send"
+	// MCP
+	| "mcp:tools"
 	// Hook registration
 	| "hooks.email-transport:register" // exclusive `email:deliver` (transport)
 	| "hooks.email-events:register" // `email:beforeSend` / `email:afterSend`
@@ -184,6 +186,70 @@ export interface ManifestRouteEntry {
 	public?: boolean;
 }
 
+export interface ManifestJsonSchemaBase {
+	title?: string;
+	description?: string;
+	default?: unknown;
+}
+
+export interface ManifestJsonStringSchema extends ManifestJsonSchemaBase {
+	type: "string";
+	enum?: string[];
+	format?: "date-time" | "email" | "uri" | "uuid";
+	minLength?: number;
+	maxLength?: number;
+	pattern?: string;
+}
+
+export interface ManifestJsonNumberSchema extends ManifestJsonSchemaBase {
+	type: "number" | "integer";
+	enum?: number[];
+	minimum?: number;
+	maximum?: number;
+}
+
+export interface ManifestJsonBooleanSchema extends ManifestJsonSchemaBase {
+	type: "boolean";
+	enum?: boolean[];
+}
+
+export interface ManifestJsonArraySchema extends ManifestJsonSchemaBase {
+	type: "array";
+	items: ManifestJsonSchema;
+	minItems?: number;
+	maxItems?: number;
+}
+
+export interface ManifestJsonObjectSchema extends ManifestJsonSchemaBase {
+	type: "object";
+	properties?: Record<string, ManifestJsonSchema>;
+	required?: string[];
+	additionalProperties?: boolean;
+}
+
+export type ManifestJsonSchema =
+	| ManifestJsonStringSchema
+	| ManifestJsonNumberSchema
+	| ManifestJsonBooleanSchema
+	| ManifestJsonArraySchema
+	| ManifestJsonObjectSchema;
+
+/**
+ * MCP tool entry in a plugin manifest.
+ *
+ * The tool itself is exposed through EmDash's native MCP endpoint. Execution
+ * is delegated to a plugin route so trusted and sandboxed plugins share the
+ * same implementation path.
+ */
+export interface ManifestMcpToolEntry {
+	name: string;
+	title?: string;
+	description: string;
+	route: string;
+	/** JSON Schema object used for MCP input validation and client introspection. */
+	inputSchema?: ManifestJsonObjectSchema;
+}
+
 /**
  * Per-collection storage config in a plugin manifest.
  *
@@ -261,6 +327,8 @@ export interface PluginManifest {
 	hooks: Array<ManifestHookEntry | string>;
 	/** Route declarations -- plain name strings or structured objects. */
 	routes: Array<ManifestRouteEntry | string>;
+	/** MCP tools declared by the plugin. */
+	mcpTools?: ManifestMcpToolEntry[];
 	admin: PluginAdminConfig;
 }
 

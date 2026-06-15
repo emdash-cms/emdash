@@ -237,6 +237,8 @@ export type {
 	HookResult,
 	PluginRoute,
 	RouteContext,
+	PluginMcpTool,
+	PluginMcpToolRegistration,
 	PluginAdminConfig,
 	PluginAdminPage,
 	PluginAdminExports,
@@ -269,6 +271,7 @@ export type {
 	SandboxEmailSendCallback,
 	PluginManifest,
 	ValidatedPluginManifest,
+	ManifestMcpToolEntry,
 	SerializedRequest,
 } from "./plugins/index.js";
 

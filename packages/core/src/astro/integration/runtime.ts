@@ -37,6 +37,14 @@ export interface PluginDashboardWidget {
 	title?: string;
 }
 
+export interface PluginMcpToolDescriptor {
+	name: string;
+	title?: string;
+	description: string;
+	route: string;
+	inputSchema?: import("../../plugins/types.js").ManifestJsonObjectSchema;
+}
+
 /**
  * Plugin descriptor - returned by plugin factory functions
  *
@@ -98,6 +106,8 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	adminPages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	adminWidgets?: PluginDashboardWidget[];
+	/** MCP tools exposed through EmDash's MCP endpoint */
+	mcpTools?: PluginMcpToolDescriptor[];
 
 	// === Sandbox-specific fields (for sandboxed plugins) ===
 

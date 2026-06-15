@@ -220,6 +220,7 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 					storage: descriptor.storage,
 					adminPages: descriptor.adminPages,
 					adminWidgets: descriptor.adminWidgets,
+					mcpTools: descriptor.mcpTools,
 				})})`,
 			);
 		} else {
@@ -589,6 +590,7 @@ export const sandboxedPlugins = [];
     storage: ${JSON.stringify(descriptor.storage ?? {})},
     adminPages: ${JSON.stringify(descriptor.adminPages ?? [])},
     adminWidgets: ${JSON.stringify(descriptor.adminWidgets ?? [])},
+    mcpTools: ${JSON.stringify(descriptor.mcpTools ?? [])},
     adminEntry: ${JSON.stringify(descriptor.adminEntry)},
     // Code read from: ${filePath}
     code: ${JSON.stringify(code)},

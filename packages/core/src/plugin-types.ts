@@ -38,6 +38,8 @@
  * per-hook return contracts so misuse fails at compile time.
  */
 
+import type { ManifestJsonObjectSchema } from "@emdash-cms/plugin-types";
+
 import type {
 	CommentAfterCreateEvent,
 	CommentAfterCreateHandler,
@@ -195,6 +197,21 @@ export type RouteEntry =
 	  };
 
 /**
+ * MCP tool entry declared by a sandboxed plugin's default export.
+ *
+ * Execution is delegated to a plugin route. `input` is the optional
+ * trusted-mode Zod schema used at runtime; `inputSchema` is the portable
+ * JSON Schema object emitted to manifests for MCP client introspection.
+ */
+export interface SandboxedMcpToolEntry {
+	title?: string;
+	description: string;
+	route: string;
+	input?: unknown;
+	inputSchema?: ManifestJsonObjectSchema;
+}
+
+/**
  * The shape of a sandboxed plugin's default export.
  *
  * Both `hooks` and `routes` are optional — a plugin that only declares
@@ -208,6 +225,7 @@ export interface SandboxedPlugin {
 		[K in keyof HookHandlers]?: HookEntry<K>;
 	};
 	routes?: Record<string, RouteEntry>;
+	mcpTools?: Record<string, SandboxedMcpToolEntry>;
 }
 
 /**

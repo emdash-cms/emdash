@@ -81,6 +81,10 @@ Responses follow the [JSON-RPC 2.0](https://www.jsonrpc.org/specification) forma
 
 The server exposes 45 tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
 
+Enabled plugins can also add MCP tools. Plugin tool names are generated from the plugin id and local tool name, using double underscores between plugin id segments and the tool name. For example, `@emdash-cms/plugin-forms` with `submit_form` becomes `emdash_cms__plugin_forms__submit_form`.
+
+Plugin MCP tools always require the `admin` token scope and an Admin user role, even when the underlying plugin route is public. Plugin authors can provide JSON input schemas so MCP clients can validate and describe tool arguments. See [Plugin MCP Tools](/plugins/creating-plugins/mcp-tools/) for authoring details.
+
 ### Content Tools
 
 #### `content_list`

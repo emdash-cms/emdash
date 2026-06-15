@@ -76,9 +76,9 @@ export const infoCommand = defineCommand({
 			);
 		}
 
-		const name = profile?.name ?? result.slug;
-		const description = profile?.description;
-		const license = profile?.license;
+		const name = typeof profile?.name === "string" ? profile.name : result.slug;
+		const description = typeof profile?.description === "string" ? profile.description : undefined;
+		const license = typeof profile?.license === "string" ? profile.license : undefined;
 
 		console.log();
 		console.log(pc.bold(name));

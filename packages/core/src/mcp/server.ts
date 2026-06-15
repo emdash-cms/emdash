@@ -18,8 +18,13 @@ import { contentBylineInputSchema, contentSeoInput } from "#api/schemas.js";
 
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
+import { jsonSchemaObjectToZod } from "./json-schema.js";
+import { pluginToolName } from "./plugin-tool-name.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
+const MCP_TOOL_NAME_PATTERN = /^(?!.*__)[a-z][a-z0-9_]*$/;
+const LEADING_SLASH_PATTERN = /^\/+/;
+const FORWARD_SLASH_PATTERN = "/";
 /** http(s) scheme matcher used by `settings_update` URL validation. */
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
 
@@ -232,6 +237,47 @@ function jsonResult(data: unknown): SuccessEnvelope {
 	return respondData(data);
 }
 
+function fallbackPluginToolInputSchema(): z.ZodType<Record<string, unknown>> {
+	return z.record(z.string(), z.unknown());
+}
+
+function safeJsonSchemaObjectToZod(
+	schema: Parameters<typeof jsonSchemaObjectToZod>[0],
+	pluginId: string,
+	toolName: string,
+): z.ZodType<Record<string, unknown>> {
+	try {
+		return jsonSchemaObjectToZod(schema);
+	} catch (error) {
+		console.warn(
+			`[emdash] Ignoring invalid MCP inputSchema for plugin tool ${pluginId}/${toolName}:`,
+			error,
+		);
+		return fallbackPluginToolInputSchema();
+	}
+}
+
+function normalizePluginToolRoute(route: string): string {
+	return route.replace(LEADING_SLASH_PATTERN, "");
+}
+
+function createPluginToolRequest(
+	pluginId: string,
+	route: string,
+	args: Record<string, unknown>,
+): Request {
+	const routePath = normalizePluginToolRoute(route)
+		.split(FORWARD_SLASH_PATTERN)
+		.map((segment) => encodeURIComponent(segment))
+		.join("/");
+	const encodedPluginId = encodeURIComponent(pluginId);
+	return new Request(`http://localhost/_emdash/api/plugins/${encodedPluginId}/${routePath}`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+		body: JSON.stringify(args),
+	});
+}
+
 // ---------------------------------------------------------------------------
 // Context extraction
 //
@@ -385,7 +431,7 @@ function extractContentId(data: unknown): string | undefined {
 // Server factory
 // ---------------------------------------------------------------------------
 
-export function createMcpServer(): McpServer {
+export function createMcpServer(emdashForToolList?: EmDashHandlers): McpServer {
 	const server = new McpServer(
 		{ name: "emdash", version: "0.1.0" },
 		{ capabilities: { logging: {} } },
@@ -418,6 +464,66 @@ export function createMcpServer(): McpServer {
 			originalRegisterTool as unknown as (n: string, c: unknown, cb: typeof wrapped) => unknown
 		)(name, config, wrapped);
 	}) as typeof server.registerTool;
+
+	const registeredToolNames = new Set<string>();
+	for (const tool of emdashForToolList?.getPluginMcpTools() ?? []) {
+		if (!MCP_TOOL_NAME_PATTERN.test(tool.name)) continue;
+
+		const name = pluginToolName(tool.pluginId, tool.name);
+		if (registeredToolNames.has(name)) continue;
+		registeredToolNames.add(name);
+
+		server.registerTool(
+			name,
+			{
+				title: tool.title,
+				description: tool.description,
+				inputSchema:
+					tool.input ??
+					(tool.inputSchema
+						? safeJsonSchemaObjectToZod(tool.inputSchema, tool.pluginId, tool.name)
+						: fallbackPluginToolInputSchema()),
+			},
+			async (args: Record<string, unknown>, extra) => {
+				requireScope(extra, "admin");
+				requireRole(extra, Role.ADMIN);
+
+				const emdash = getEmDash(extra);
+				const routePath = normalizePluginToolRoute(tool.route);
+				// Plugin MCP tools are always admin-only, even when the underlying route is public.
+				const routeMeta = emdash.getPluginRouteMeta(tool.pluginId, `/${routePath}`);
+				if (!routeMeta) {
+					return respondError("NOT_FOUND", `Plugin MCP tool route not found: ${tool.route}`);
+				}
+
+				const request = createPluginToolRequest(tool.pluginId, routePath, args);
+				const result = await emdash.handlePluginApiRoute(
+					tool.pluginId,
+					"POST",
+					`/${routePath}`,
+					request,
+				);
+				if (!result.success) {
+					const err =
+						result.error && typeof result.error === "object"
+							? (result.error as { code?: unknown; message?: unknown; details?: unknown })
+							: undefined;
+					const code = typeof err?.code === "string" && err.code ? err.code : "PLUGIN_ERROR";
+					const message =
+						typeof err?.message === "string" && err.message
+							? err.message
+							: "Plugin MCP tool failed";
+					const details =
+						err?.details && typeof err.details === "object"
+							? (err.details as Record<string, unknown>)
+							: undefined;
+					return respondError(code, message, details);
+				}
+
+				return respondData(result.data ?? null);
+			},
+		);
+	}
 
 	// =====================================================================
 	// Content tools

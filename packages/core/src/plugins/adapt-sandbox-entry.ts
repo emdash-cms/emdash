@@ -22,6 +22,7 @@ import type {
 	PluginCapability,
 	PluginStorageConfig,
 	PluginAdminConfig,
+	PluginMcpTool,
 } from "./types.js";
 
 /**
@@ -53,6 +54,8 @@ type AnyHookEntry =
 const DEFAULT_PRIORITY = 100;
 const DEFAULT_TIMEOUT = 5000;
 const DEFAULT_ERROR_POLICY = "abort" as const;
+const MCP_TOOL_NAME_PATTERN = /^(?!.*__)[a-z][a-z0-9_]*$/;
+const LEADING_SLASH_PATTERN = /^\/+/;
 
 /**
  * Check if a hook entry is the config form (has a `handler` property).
@@ -228,6 +231,28 @@ export function adaptSandboxEntry(
 		}
 	}
 
+	const mcpTools: Record<string, PluginMcpTool> = {};
+	for (const toolEntry of descriptor.mcpTools ?? []) {
+		mcpTools[toolEntry.name] = {
+			title: toolEntry.title,
+			description: toolEntry.description,
+			route: toolEntry.route,
+			inputSchema: toolEntry.inputSchema,
+		};
+	}
+	if (definition.mcpTools) {
+		for (const [toolName, toolEntry] of Object.entries(definition.mcpTools)) {
+			mcpTools[toolName] = {
+				title: toolEntry.title,
+				description: toolEntry.description,
+				route: toolEntry.route,
+				inputSchema: toolEntry.inputSchema,
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Standard MCP tool input is intentionally loosely typed; callers validate at runtime
+				input: toolEntry.input as PluginMcpTool["input"],
+			};
+		}
+	}
+
 	// Build capabilities from descriptor.
 	// Validate against the known set (same as defineNativePlugin). Both
 	// current and deprecated names are accepted; deprecated names are
@@ -266,6 +291,26 @@ export function adaptSandboxEntry(
 		capabilities.push("network:request");
 	}
 
+	if (Object.keys(mcpTools).length > 0 && !capabilities.includes("mcp:tools")) {
+		throw new Error(
+			`Plugin "${pluginId}" declares MCP tools but is missing the "mcp:tools" capability.`,
+		);
+	}
+	for (const [toolName, tool] of Object.entries(mcpTools)) {
+		if (!MCP_TOOL_NAME_PATTERN.test(toolName)) {
+			throw new Error(
+				`Invalid MCP tool name "${toolName}" in plugin "${pluginId}". Must be lowercase snake_case and must not contain double underscores.`,
+			);
+		}
+
+		const routeName = tool.route.replace(LEADING_SLASH_PATTERN, "");
+		if (!(routeName in resolvedRoutes)) {
+			throw new Error(
+				`Invalid MCP tool route "${tool.route}" in plugin "${pluginId}". MCP tool routes must be declared in routes.`,
+			);
+		}
+	}
+
 	// Build storage config from descriptor.
 	// StorageCollectionDeclaration uses optional indexes, but PluginStorageConfig
 	// requires them. Ensure every collection has an indexes array.
@@ -295,6 +340,7 @@ export function adaptSandboxEntry(
 		storage,
 		hooks: resolvedHooks,
 		routes: resolvedRoutes,
+		mcpTools,
 		admin,
 	};
 }

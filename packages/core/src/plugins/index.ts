@@ -173,6 +173,8 @@ export type {
 	// Route types
 	PluginRoute,
 	RouteContext,
+	PluginMcpTool,
+	PluginMcpToolRegistration,
 
 	// Admin types
 	PluginAdminConfig,
@@ -189,6 +191,7 @@ export type {
 	PluginDefinition,
 	ResolvedPlugin,
 	PluginManifest,
+	ManifestMcpToolEntry,
 } from "./types.js";
 
 // Capability normalization (legacy → canonical alias layer)

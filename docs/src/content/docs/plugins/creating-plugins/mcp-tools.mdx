@@ -1,0 +1,116 @@
+---
+title: MCP Tools
+description: Expose sandboxed plugin routes as tools on the site's MCP server.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Plugin MCP tools let an AI assistant call one of your plugin routes through the site's built-in MCP server. Use them for admin-only actions that are useful from an assistant, such as summarizing plugin data, running an import preview, or querying plugin-owned storage.
+
+## Requirements
+
+Plugin MCP tools are opt-in:
+
+- Add the `mcp:tools` capability.
+- Declare the route in `routes`.
+- Add an `mcpTools` entry that points at that route.
+- Use a lowercase snake_case tool name without double underscores.
+
+MCP tool calls always require the `admin` token scope and an Admin user role. This is true even if the underlying plugin route is public.
+
+## Define a Tool
+
+```ts
+import { definePlugin } from "emdash";
+
+export default definePlugin({
+	routes: {
+		summarize: {
+			handler: async ({ input }) => {
+				const { text } = input as { text: string };
+				return { summary: text.slice(0, 120) };
+			},
+		},
+	},
+	mcpTools: {
+		summarize: {
+			title: "Summarize Text",
+			description: "Summarize text using this plugin.",
+			route: "summarize",
+			inputSchema: {
+				type: "object",
+				properties: {
+					text: {
+						type: "string",
+						description: "Text to summarize.",
+						minLength: 1,
+					},
+				},
+				required: ["text"],
+				additionalProperties: false,
+			},
+		},
+	},
+});
+```
+
+Add the capability in the plugin descriptor or manifest:
+
+```ts
+export default {
+	id: "my-plugin",
+	version: "1.0.0",
+	capabilities: ["mcp:tools"],
+	mcpTools: [
+		{
+			name: "summarize",
+			title: "Summarize Text",
+			description: "Summarize text using this plugin.",
+			route: "summarize",
+			inputSchema: {
+				type: "object",
+				properties: {
+					text: { type: "string", description: "Text to summarize." },
+				},
+				required: ["text"],
+				additionalProperties: false,
+			},
+		},
+	],
+};
+```
+
+## Input Schemas
+
+Sandboxed plugin manifests cannot serialize Zod schemas, so MCP tools use a constrained JSON Schema object for input validation and client-facing descriptions.
+
+Supported fields:
+
+| Field | Applies to |
+| --- | --- |
+| `type` | `object`, `string`, `number`, `integer`, `boolean`, `array` |
+| `description`, `default` | all schemas |
+| `properties`, `required`, `additionalProperties` | object |
+| `items`, `minItems`, `maxItems` | array |
+| `enum` | string, number, integer, boolean |
+| `format` | string: `date-time`, `email`, `uri`, `uuid` |
+| `minLength`, `maxLength`, `pattern` | string |
+| `minimum`, `maximum` | number, integer |
+
+The root `inputSchema` must be an object. `$ref`, `$defs`, recursive schemas, `oneOf`, `anyOf`, and `allOf` are not supported.
+
+<Aside>
+	Your route handler should still validate or narrow `input` before using it. The MCP input schema gives clients useful parameter information and rejects malformed MCP calls before dispatch.
+</Aside>
+
+## Tool Names
+
+The host generates the MCP tool name from the plugin id and the local tool name:
+
+```txt
+@emdash-cms/plugin-forms + submit_form -> emdash_cms__plugin_forms__submit_form
+```
+
+Plugin id segments are joined with double underscores. Local tool names cannot contain double underscores so generated names stay unambiguous.
+
+If a plugin id contains consecutive dashes, the host appends a short stable hash to keep the generated name collision-free.

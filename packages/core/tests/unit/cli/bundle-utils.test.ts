@@ -85,6 +85,43 @@ describe("extractManifest", () => {
 		expect(manifest.routes).toEqual(["sync", "webhook"]);
 	});
 
+	it("converts MCP tools to serializable manifest metadata", () => {
+		const plugin = mockPlugin({
+			mcpTools: {
+				summarize: {
+					title: "Summarize",
+					description: "Summarize text.",
+					route: "summarize",
+					inputSchema: {
+						type: "object",
+						properties: {
+							text: { type: "string" },
+						},
+						required: ["text"],
+					},
+				},
+			},
+		});
+
+		const manifest = extractManifest(plugin);
+
+		expect(manifest.mcpTools).toEqual([
+			{
+				name: "summarize",
+				title: "Summarize",
+				description: "Summarize text.",
+				route: "summarize",
+				inputSchema: {
+					type: "object",
+					properties: {
+						text: { type: "string" },
+					},
+					required: ["text"],
+				},
+			},
+		]);
+	});
+
 	it("strips admin.entry (host-only concern, not in bundles)", () => {
 		const plugin = mockPlugin({
 			admin: {

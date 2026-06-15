@@ -25,6 +25,7 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"media:write",
 	"users:read",
 	"email:send",
+	"mcp:tools",
 	"hooks.email-transport:register",
 	"hooks.email-events:register",
 	"hooks.page-fragments:register",
@@ -129,6 +130,102 @@ const manifestRouteEntrySchema = z.object({
 	public: z.boolean().optional(),
 });
 
+const mcpToolNamePattern = /^(?!.*__)[a-z][a-z0-9_]*$/;
+
+const jsonSchemaPattern = z.string().refine(
+	(pattern) => {
+		try {
+			RegExp(pattern);
+			return true;
+		} catch {
+			return false;
+		}
+	},
+	{ message: "Pattern must be a valid regular expression" },
+);
+
+const manifestJsonSchemaBase = z.object({
+	title: z.string().min(1).optional(),
+	description: z.string().min(1).optional(),
+	default: z.unknown().optional(),
+});
+
+const manifestJsonSchema: z.ZodType = z.lazy(() =>
+	z.discriminatedUnion("type", [
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("string"),
+				enum: z.array(z.string()).min(1).optional(),
+				format: z.enum(["date-time", "email", "uri", "uuid"]).optional(),
+				minLength: z.number().int().nonnegative().optional(),
+				maxLength: z.number().int().nonnegative().optional(),
+				pattern: jsonSchemaPattern.optional(),
+			})
+			.strict(),
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("number"),
+				enum: z.array(z.number()).min(1).optional(),
+				minimum: z.number().optional(),
+				maximum: z.number().optional(),
+			})
+			.strict(),
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("integer"),
+				enum: z.array(z.number().int()).min(1).optional(),
+				minimum: z.number().optional(),
+				maximum: z.number().optional(),
+			})
+			.strict(),
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("boolean"),
+				enum: z.array(z.boolean()).min(1).optional(),
+			})
+			.strict(),
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("array"),
+				items: manifestJsonSchema,
+				minItems: z.number().int().nonnegative().optional(),
+				maxItems: z.number().int().nonnegative().optional(),
+			})
+			.strict(),
+		manifestJsonSchemaBase
+			.extend({
+				type: z.literal("object"),
+				properties: z.record(z.string(), manifestJsonSchema).optional(),
+				required: z.array(z.string()).optional(),
+				additionalProperties: z.boolean().optional(),
+			})
+			.strict(),
+	]),
+);
+
+const manifestJsonObjectSchema = manifestJsonSchemaBase
+	.extend({
+		type: z.literal("object"),
+		properties: z.record(z.string(), manifestJsonSchema).optional(),
+		required: z.array(z.string()).optional(),
+		additionalProperties: z.boolean().optional(),
+	})
+	.strict();
+
+const manifestMcpToolEntrySchema = z.object({
+	name: z
+		.string()
+		.min(1)
+		.regex(
+			mcpToolNamePattern,
+			"MCP tool name must be lowercase snake_case and must not contain double underscores",
+		),
+	title: z.string().min(1).optional(),
+	description: z.string().min(1),
+	route: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
+	inputSchema: manifestJsonObjectSchema.optional(),
+});
+
 // ── Sub-schemas ─────────────────────────────────────────────────
 
 /** Index field names must be valid identifiers to prevent SQL injection via JSON path expressions */
@@ -222,11 +319,12 @@ const pluginAdminConfigSchema = z.object({
 // ── Main schema ─────────────────────────────────────────────────
 
 /**
- * Zod schema matching the PluginManifest interface from types.ts.
+ * Refinement-free manifest object schema.
  *
- * Every JSON.parse of a manifest.json should validate through this.
+ * Use this for projections such as `.pick()` where Zod cannot operate on
+ * refined schemas. Full manifest parsing should use `pluginManifestSchema`.
  */
-export const pluginManifestSchema = z.object({
+export const pluginManifestBaseSchema = z.object({
 	id: z.string().min(1),
 	version: z.string().min(1),
 	capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)),
@@ -249,7 +347,36 @@ export const pluginManifestSchema = z.object({
 			manifestRouteEntrySchema,
 		]),
 	),
+	mcpTools: z.array(manifestMcpToolEntrySchema).optional().default([]),
 	admin: pluginAdminConfigSchema,
+});
+
+/**
+ * Zod schema matching the PluginManifest interface from types.ts.
+ *
+ * Every JSON.parse of a manifest.json should validate through this.
+ */
+export const pluginManifestSchema = pluginManifestBaseSchema.superRefine((manifest, ctx) => {
+	if (manifest.mcpTools.length === 0) return;
+
+	if (!manifest.capabilities.includes("mcp:tools")) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ["capabilities"],
+			message: 'Manifest with MCP tools must include the "mcp:tools" capability',
+		});
+	}
+
+	const routeNames = new Set(manifest.routes.map((route) => normalizeManifestRoute(route).name));
+	for (const [index, tool] of manifest.mcpTools.entries()) {
+		if (!routeNames.has(tool.route)) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["mcpTools", index, "route"],
+				message: "MCP tool route must be declared in routes",
+			});
+		}
+	}
 });
 
 export type ValidatedPluginManifest = z.infer<typeof pluginManifestSchema>;

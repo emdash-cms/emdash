@@ -72,6 +72,43 @@ describe("extractManifest", () => {
 		expect(manifest.routes.toSorted((a, b) => a.localeCompare(b))).toEqual(["admin", "api"]);
 	});
 
+	it("emits MCP tool metadata", () => {
+		const manifest = extractManifest(
+			minimalResolved({
+				mcpTools: {
+					summarize: {
+						title: "Summarize",
+						description: "Summarize text.",
+						route: "summarize",
+						inputSchema: {
+							type: "object",
+							properties: {
+								text: { type: "string" },
+							},
+							required: ["text"],
+						},
+					},
+				},
+			}),
+		);
+
+		expect(manifest.mcpTools).toEqual([
+			{
+				name: "summarize",
+				title: "Summarize",
+				description: "Summarize text.",
+				route: "summarize",
+				inputSchema: {
+					type: "object",
+					properties: {
+						text: { type: "string" },
+					},
+					required: ["text"],
+				},
+			},
+		]);
+	});
+
 	it("strips the runtime entry pointer from admin", () => {
 		const manifest = extractManifest(
 			minimalResolved({

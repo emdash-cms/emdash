@@ -65,6 +65,7 @@ const {
 			handleRevisionRestore: ok,
 			getPluginRouteMeta,
 			handlePluginApiRoute,
+			getPluginMcpTools: () => [],
 			getMediaProvider: () => undefined,
 			getMediaProviderList: () => [],
 			collectPageMetadata: async () => [],
