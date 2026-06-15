@@ -39,7 +39,7 @@ export interface DurableObjectsConfig {
 	 *
 	 * `"auto"` requires the `experimental` and `replica_routing` compatibility
 	 * flags in wrangler. `EmDashDB` enables replication on the primary
-	 * automatically (via `configureReadReplication`).
+	 * automatically (via `ctx.storage.enableReplicas()`).
 	 *
 	 * @default "disabled"
 	 */

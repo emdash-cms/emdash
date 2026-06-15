@@ -33,20 +33,20 @@ import type { DOQueryResult, DOQueryStatement, EmDashDBStub } from "./do-sql-typ
 import { isReadStatement } from "./do-sql-types.js";
 
 /**
- * Experimental Durable Object replication surface, not yet present in
- * `@cloudflare/workers-types`. Declared narrowly and accessed via feature
- * detection so the class still works (as a plain single-instance database)
- * before the `replica_routing` flag is enabled.
+ * Experimental Durable Object read-replication surface on `ctx.storage`, not
+ * yet present in `@cloudflare/workers-types`. Declared narrowly and accessed
+ * via feature detection so the class still works (as a plain single-instance
+ * database) before the `replica_routing` flag is enabled.
  *
- * The wiki documents `primaryStub` on the state in some places and on storage
- * in others, so we probe both.
+ *   - `primary`: RPC stub to the primary DO when THIS instance is a replica;
+ *     `undefined` when this instance is the primary.
+ *   - `enableReplicas()`: called on the primary to turn on read replication.
+ *   - `getCurrentBookmark()` / `waitForBookmark()`: the bookmarks API for
+ *     read-your-writes.
  */
-interface ReplicationState {
-	primaryStub?: EmDashDBStub;
-	configureReadReplication?: (opts: { mode: "auto" | "disabled" }) => void;
-}
 interface ReplicationStorage {
-	primaryStub?: EmDashDBStub;
+	primary?: EmDashDBStub;
+	enableReplicas?: () => void;
 	getCurrentBookmark?: () => Promise<string>;
 	waitForBookmark?: (bookmark: string) => Promise<void>;
 }
@@ -61,13 +61,15 @@ export class EmDashDB extends DurableObject {
 	/** Whether we've already asked the primary to enable replication. */
 	#replicationConfigured = false;
 
+	/** The replication surface on `ctx.storage` (experimental, feature-detected). */
+	get #replication(): ReplicationStorage {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- experimental replication API not yet in workers-types
+		return this.ctx.storage as unknown as ReplicationStorage;
+	}
+
 	/** The primary stub when this instance is a replica; `undefined` on the primary. */
 	get #primaryStub(): EmDashDBStub | undefined {
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- experimental replication API not yet in workers-types
-		const state = this.ctx as unknown as ReplicationState;
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- experimental replication API not yet in workers-types
-		const storage = this.ctx.storage as unknown as ReplicationStorage;
-		return state.primaryStub ?? storage.primaryStub;
+		return this.#replication.primary;
 	}
 
 	get #isReplica(): boolean {
@@ -75,22 +77,18 @@ export class EmDashDB extends DurableObject {
 	}
 
 	/**
-	 * Enable automatic read replication on the primary. Idempotent and cheap;
-	 * Cloudflare allows calling it repeatedly. No-op on a replica (only the
-	 * primary configures replication) and when the flag isn't enabled.
+	 * Enable read replication on the primary. Idempotent and cheap; Cloudflare
+	 * allows calling it repeatedly. No-op on a replica (only the primary enables
+	 * replication) and when the flag/API isn't present.
 	 */
 	#ensureReplication(): void {
 		if (this.#replicationConfigured || this.#isReplica) return;
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- experimental replication API not yet in workers-types
-		const state = this.ctx as unknown as ReplicationState;
-		state.configureReadReplication?.({ mode: "auto" });
+		this.#replication.enableReplicas?.();
 		this.#replicationConfigured = true;
 	}
 
 	async #currentBookmark(): Promise<string | undefined> {
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- experimental replication API not yet in workers-types
-		const storage = this.ctx.storage as unknown as ReplicationStorage;
-		return storage.getCurrentBookmark?.();
+		return this.#replication.getCurrentBookmark?.();
 	}
 
 	/**
@@ -119,10 +117,8 @@ export class EmDashDB extends DurableObject {
 		// self-heal. Log and serve a possibly-stale read instead (it heals on
 		// the next request once a fresh bookmark is minted).
 		if (isRead && opts?.bookmark && this.#isReplica) {
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- experimental replication API not yet in workers-types
-			const storage = this.ctx.storage as unknown as ReplicationStorage;
 			try {
-				await storage.waitForBookmark?.(opts.bookmark);
+				await this.#replication.waitForBookmark?.(opts.bookmark);
 			} catch (error) {
 				// Tension worth naming: we can't tell a stale/expired cookie bookmark
 				// (swallowing is correct -- it self-heals next request) from a
@@ -193,10 +189,8 @@ export class EmDashDB extends DurableObject {
 		this.#ensureReplication();
 
 		if (opts?.bookmark && this.#isReplica) {
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- experimental replication API not yet in workers-types
-			const storage = this.ctx.storage as unknown as ReplicationStorage;
 			try {
-				await storage.waitForBookmark?.(opts.bookmark);
+				await this.#replication.waitForBookmark?.(opts.bookmark);
 			} catch (error) {
 				console.error(
 					"[emdash:do] waitForBookmark failed (batch); serving possibly-stale reads:",
