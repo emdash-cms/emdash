@@ -8,12 +8,16 @@
 
 type OAuthEnvLoader = () => Promise<Record<string, unknown>>;
 
+function hasEnv(value: unknown): value is { env: Record<string, unknown> } {
+	if (typeof value !== "object" || value === null || !("env" in value)) return false;
+	return typeof value.env === "object" && value.env !== null;
+}
+
 async function loadCloudflareOAuthEnv(): Promise<Record<string, unknown>> {
-	const specifier = "cloudflare:workers";
-	const module = (await import(/* @vite-ignore */ specifier)) as {
-		env?: Record<string, unknown>;
-	};
-	return module.env ?? {};
+	const dynamicImport = async (specifier: string): Promise<unknown> =>
+		new Function("specifier", "return import(specifier);")(specifier);
+	const module = await dynamicImport("cloudflare:workers");
+	return hasEnv(module) ? module.env : {};
 }
 
 function isMissingCloudflareWorkersModule(error: unknown): boolean {
@@ -36,6 +40,6 @@ export async function getOAuthEnv(
 		return await loadEnv();
 	} catch (error) {
 		if (!isMissingCloudflareWorkersModule(error)) throw error;
-		return import.meta.env as Record<string, unknown>;
+		return import.meta.env;
 	}
 }
