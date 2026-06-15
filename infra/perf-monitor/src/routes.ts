@@ -21,7 +21,9 @@ export interface TargetRoute {
  * A deployed demo we measure. Sites share the same route set and are compared
  * head-to-head on the dashboard. `blog` is the baseline (D1, smart placement);
  * `cache` runs with Astro's experimental cache provider enabled; `do` runs on
- * the Durable Objects SQL backend with read replicas.
+ * the Durable Objects SQL backend with read replicas; `do-solo` runs the same
+ * DO backend with a single primary (no replica routing), isolating the
+ * DO-architecture cost from the replica-routing win.
  */
 export interface Site {
 	/** Stable slug stored in `perf_results.site`. */
@@ -50,6 +52,12 @@ export const SITES: readonly Site[] = [
 		label: "DO read replica",
 		targetUrl: "https://do-demo.emdashcms.com",
 		workerName: "emdash-demo-do",
+	},
+	{
+		id: "do-solo",
+		label: "DO single primary",
+		targetUrl: "https://do-solo-demo.emdashcms.com",
+		workerName: "emdash-demo-do-solo",
 	},
 ] as const;
 
