@@ -9,6 +9,7 @@
 
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
+import type { ImageServiceDescriptor } from "../../media/image-transform.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import type { ExperimentalConfig } from "../../registry/types.js";
@@ -151,6 +152,24 @@ export interface EmDashConfig {
 	 * Storage configuration (for media)
 	 */
 	storage?: StorageDescriptor;
+	/**
+	 * Image transform service (for resizing same-origin media at request time).
+	 *
+	 * Serves binding-based transforms from `/_emdash/api/media/transform/{key}`,
+	 * reading source bytes straight from the storage adapter — no server-side
+	 * fetch of the media URL, so it works behind Cloudflare Access and with
+	 * loopback fetches disabled.
+	 *
+	 * @example
+	 * ```ts
+	 * import { imageBinding } from "@emdash-cms/cloudflare";
+	 *
+	 * emdash({
+	 *   images: imageBinding({ binding: "IMAGES" }),
+	 * })
+	 * ```
+	 */
+	images?: ImageServiceDescriptor;
 	/**
 	 * Trusted plugins to load (run in main isolate)
 	 *

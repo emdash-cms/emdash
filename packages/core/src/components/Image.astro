@@ -14,6 +14,7 @@ import {
 	toAbsoluteMediaUrl,
 	RESPONSIVE_BREAKPOINTS,
 } from "../media/responsive.js";
+import { buildTransformedImage } from "../media/image-transform.js";
 import { getPublicOrigin } from "../api/public-url.js";
 
 export interface Props {
@@ -136,17 +137,31 @@ if (!src) {
 		url: asset.url,
 		id: asset._ref,
 	});
-	// Generate a responsive srcset via Astro's image service for local/R2 media.
-	// Falls back to the plain URL when optimization isn't possible.
-	const optimized = await buildResponsiveImage(getImage, {
-		src: toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config)),
+	// Prefer EmDash's own transform route for same-origin media when an image
+	// transformer is configured (e.g. the Cloudflare IMAGES binding): it reads
+	// bytes straight from storage with no server-side fetch, so it works behind
+	// Cloudflare Access. Otherwise generate a responsive srcset via Astro's
+	// image service for local/R2 media, falling back to the plain URL when
+	// optimization isn't possible.
+	const transformed = buildTransformedImage(Boolean(Astro.locals.emdash?.transformImage), src, {
 		width: renderWidth,
 		height: renderHeight,
 	});
-	if (optimized) {
-		src = optimized.src;
-		srcset = optimized.srcset;
-		sizes = optimized.sizes;
+	if (transformed) {
+		src = transformed.src;
+		srcset = transformed.srcset;
+		sizes = transformed.sizes;
+	} else {
+		const optimized = await buildResponsiveImage(getImage, {
+			src: toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config)),
+			width: renderWidth,
+			height: renderHeight,
+		});
+		if (optimized) {
+			src = optimized.src;
+			srcset = optimized.srcset;
+			sizes = optimized.sizes;
+		}
 	}
 }
 

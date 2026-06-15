@@ -424,6 +424,13 @@ export interface EmDashHandlers {
 	db: Kysely<import("../index.js").Database>;
 	getPublicMediaUrl?: (storageKey: string) => string;
 
+	// Resize same-origin media at request time, reading bytes from the storage
+	// adapter and transforming via the configured image service (e.g. the
+	// Cloudflare IMAGES binding). Present only when `images` is configured.
+	// Used by the transform route; the Image components check its presence to
+	// decide whether to emit transform-route URLs.
+	transformImage?: import("../media/image-transform.js").TransformImageFn;
+
 	// Hook pipeline for plugin integrations
 	hooks: import("../plugins/hooks.js").HookPipeline;
 

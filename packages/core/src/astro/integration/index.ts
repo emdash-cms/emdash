@@ -284,6 +284,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	const serializableConfig: Record<string, unknown> = {
 		database: resolvedConfig.database,
 		storage: resolvedConfig.storage,
+		images: resolvedConfig.images,
 		auth: resolvedConfig.auth,
 		authProviders: resolvedConfig.authProviders,
 		marketplace: resolvedConfig.marketplace,

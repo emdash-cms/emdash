@@ -17,6 +17,8 @@ import {
 } from "virtual:emdash/dialect";
 import type { RequestScopedDbOpts } from "virtual:emdash/dialect";
 // @ts-ignore - virtual module
+import { createImageTransformer as virtualCreateImageTransformer } from "virtual:emdash/images";
+// @ts-ignore - virtual module
 import { mediaProviders as virtualMediaProviders } from "virtual:emdash/media-providers";
 // @ts-ignore - virtual module
 import { plugins as virtualPlugins } from "virtual:emdash/plugins";
@@ -45,6 +47,7 @@ import {
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
+import type { CreateImageTransformerFn, TransformImageFn } from "../media/image-transform.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
@@ -160,6 +163,38 @@ function getConfig(): EmDashConfig | null {
 function getPlugins(): ResolvedPlugin[] {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
 	return (virtualPlugins as ResolvedPlugin[]) || [];
+}
+
+// Image transformer is stateless and configured once per deployment; build it
+// lazily on first use and reuse it. `null` records "tried and unavailable" so
+// a missing binding doesn't re-throw and re-log on every request.
+let _transformImage: TransformImageFn | null | undefined;
+
+/**
+ * Resolve the request-time image transform function from the virtual module and
+ * config. Returns `undefined` when no image service is configured or the
+ * adapter fails to initialize (e.g. a missing binding), in which case the
+ * transform route streams the original bytes through unchanged.
+ */
+function getTransformImage(config: EmDashConfig): TransformImageFn | undefined {
+	if (_transformImage !== undefined) return _transformImage ?? undefined;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- virtual module import is untyped (@ts-ignore above)
+	const create = virtualCreateImageTransformer as CreateImageTransformerFn | undefined;
+	const descriptor = config.images;
+	if (!create || !descriptor) {
+		_transformImage = null;
+		return undefined;
+	}
+	try {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- descriptor.config is a serialized `unknown`; the adapter validates its own shape
+		const transformer = create((descriptor.config ?? {}) as Record<string, unknown>);
+		_transformImage = transformer.transform.bind(transformer);
+		return _transformImage;
+	} catch (error) {
+		console.error("[emdash] image transformer init failed:", error);
+		_transformImage = null;
+		return undefined;
+	}
 }
 
 /**
@@ -472,6 +507,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+							transformImage: getTransformImage(config),
 						} as EmDashHandlers;
 					} catch {
 						// Non-fatal — EmDashHead will fall back to base SEO contributions
@@ -618,6 +654,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					storage: runtime.storage,
 					db: runtime.db,
 					getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+					transformImage: getTransformImage(config),
 					hooks: runtime.hooks,
 					email: runtime.email,
 					configuredPlugins: runtime.configuredPlugins,

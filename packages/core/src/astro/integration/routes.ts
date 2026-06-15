@@ -176,6 +176,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/media/transform/[...key]",
+		entrypoint: resolveRoute("api/media/transform/[...key].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/media/[id]",
 		entrypoint: resolveRoute("api/media/[id].ts"),
 	});

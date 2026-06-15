@@ -192,6 +192,17 @@ export type {
 } from "./storage/types.js";
 export { EmDashStorageError } from "./storage/types.js";
 
+// Image transform service (binding-based, same-origin media)
+export type {
+	ImageServiceDescriptor,
+	ImageTransformer,
+	ImageTransformOptions,
+	ImageTransformFormat,
+	TransformImageFn,
+	TransformedImage,
+	CreateImageTransformerFn,
+} from "./media/image-transform.js";
+
 // Plugin system
 export {
 	definePlugin,

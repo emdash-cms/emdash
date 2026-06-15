@@ -65,6 +65,13 @@ declare module "virtual:emdash/storage" {
 	export const createStorage: ((config: Record<string, unknown>) => Storage) | undefined;
 }
 
+declare module "virtual:emdash/images" {
+	import type { CreateImageTransformerFn } from "./media/image-transform.js";
+
+	// Can be undefined if no image service configured, or the actual factory
+	export const createImageTransformer: CreateImageTransformerFn | undefined;
+}
+
 declare module "virtual:emdash/auth" {
 	import type { AuthResult } from "./auth/types.js";
 

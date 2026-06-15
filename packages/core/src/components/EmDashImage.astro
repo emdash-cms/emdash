@@ -27,6 +27,7 @@ import {
 	toAbsoluteMediaUrl,
 	RESPONSIVE_BREAKPOINTS,
 } from "../media/responsive.js";
+import { buildTransformedImage } from "../media/image-transform.js";
 import { getPublicOrigin } from "../api/public-url.js";
 
 interface Props extends Omit<
@@ -103,20 +104,35 @@ if (img) {
 	const providerId = img.provider ?? "local";
 
 	if (providerId === "local" || img.src) {
-		// Local provider or direct src URL. Route through Astro's image service
-		// (`astro:assets`) to generate a responsive srcset; on Cloudflare this is
-		// the Images binding, on Node it is sharp. Falls back to a plain <img>
-		// when the service is unavailable or the source can't be optimized.
+		// Local provider or direct src URL.
 		src = img.src || buildLocalImageUrl(img);
-		const optimized = await buildResponsiveImage(getImage, {
-			src: toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config)),
-			width: finalWidth,
-			height: finalHeight,
-		});
-		if (optimized) {
-			src = optimized.src;
-			srcset = optimized.srcset;
-			sizes = optimized.sizes;
+
+		// Prefer EmDash's own transform route for same-origin media when an
+		// image transformer is configured (e.g. the Cloudflare IMAGES binding):
+		// it reads bytes straight from storage with no server-side fetch, so it
+		// works behind Cloudflare Access. Otherwise route through Astro's image
+		// service (`astro:assets`) — sharp on Node, or a CDN/publicUrl host —
+		// falling back to a plain <img> when the source can't be optimized.
+		const transformed = buildTransformedImage(
+			Boolean(Astro.locals.emdash?.transformImage),
+			src,
+			{ width: finalWidth, height: finalHeight },
+		);
+		if (transformed) {
+			src = transformed.src;
+			srcset = transformed.srcset;
+			sizes = transformed.sizes;
+		} else {
+			const optimized = await buildResponsiveImage(getImage, {
+				src: toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config)),
+				width: finalWidth,
+				height: finalHeight,
+			});
+			if (optimized) {
+				src = optimized.src;
+				srcset = optimized.srcset;
+				sizes = optimized.sizes;
+			}
 		}
 	} else {
 		// External provider

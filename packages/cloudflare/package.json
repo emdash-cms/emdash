@@ -57,6 +57,10 @@
       "types": "./dist/media/stream-runtime.d.mts",
       "default": "./dist/media/stream-runtime.mjs"
     },
+    "./media/transform-runtime": {
+      "types": "./dist/media/transform-runtime.d.mts",
+      "default": "./dist/media/transform-runtime.mjs"
+    },
     "./cache": {
       "types": "./dist/cache/runtime.d.mts",
       "default": "./dist/cache/runtime.mjs"

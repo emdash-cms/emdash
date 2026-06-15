@@ -15,6 +15,8 @@ export default defineConfig({
 		// Media provider runtimes
 		"src/media/images-runtime.ts",
 		"src/media/stream-runtime.ts",
+		// Image transform binding runtime
+		"src/media/transform-runtime.ts",
 		// Cache provider
 		"src/cache/runtime.ts",
 		"src/cache/config.ts",

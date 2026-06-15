@@ -33,7 +33,12 @@
  * ```
  */
 
-import type { AuthDescriptor, DatabaseDescriptor, StorageDescriptor } from "emdash";
+import type {
+	AuthDescriptor,
+	DatabaseDescriptor,
+	ImageServiceDescriptor,
+	StorageDescriptor,
+} from "emdash";
 
 import type { PreviewDOConfig } from "./db/do-types.js";
 
@@ -287,6 +292,48 @@ export function access(config: AccessConfig): AuthDescriptor {
 		type: "cloudflare-access",
 		entrypoint: "@emdash-cms/cloudflare/auth",
 		config,
+	};
+}
+
+/**
+ * Cloudflare Images binding configuration.
+ */
+export interface ImageBindingConfig {
+	/**
+	 * Name of the Images binding in wrangler config.
+	 * @default "IMAGES"
+	 */
+	binding?: string;
+}
+
+/**
+ * Cloudflare Images binding adapter for request-time media transforms.
+ *
+ * Wires EmDash's transform route (`/_emdash/api/media/transform/{key}`) to the
+ * Cloudflare `IMAGES` binding. The route reads source bytes straight from the
+ * storage adapter (R2) and resizes them with the binding — there is no
+ * server-side fetch of the media URL, so responsive images work even when the
+ * site is behind Cloudflare Access or loopback fetches are disabled.
+ *
+ * Requires an Images binding in wrangler config:
+ * ```jsonc
+ * { "images": { "binding": "IMAGES" } }
+ * ```
+ *
+ * @example
+ * ```ts
+ * import { imageBinding } from "@emdash-cms/cloudflare";
+ *
+ * emdash({
+ *   storage: r2({ binding: "MEDIA" }),
+ *   images: imageBinding({ binding: "IMAGES" }),
+ * })
+ * ```
+ */
+export function imageBinding(config: ImageBindingConfig = {}): ImageServiceDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/media/transform-runtime",
+		config: { binding: config.binding ?? "IMAGES" },
 	};
 }
 

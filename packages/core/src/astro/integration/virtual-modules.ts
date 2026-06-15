@@ -33,6 +33,9 @@ export const RESOLVED_VIRTUAL_DIALECT_ID = "\0" + VIRTUAL_DIALECT_ID;
 export const VIRTUAL_STORAGE_ID = "virtual:emdash/storage";
 export const RESOLVED_VIRTUAL_STORAGE_ID = "\0" + VIRTUAL_STORAGE_ID;
 
+export const VIRTUAL_IMAGES_ID = "virtual:emdash/images";
+export const RESOLVED_VIRTUAL_IMAGES_ID = "\0" + VIRTUAL_IMAGES_ID;
+
 export const VIRTUAL_ADMIN_REGISTRY_ID = "virtual:emdash/admin-registry";
 export const RESOLVED_VIRTUAL_ADMIN_REGISTRY_ID = "\0" + VIRTUAL_ADMIN_REGISTRY_ID;
 
@@ -125,6 +128,22 @@ export function generateStorageModule(storageEntrypoint?: string): string {
 	return `
 import { createStorage as _createStorage } from "${storageEntrypoint}";
 export const createStorage = _createStorage;
+`;
+}
+
+/**
+ * Generates the image-transformer virtual module.
+ * Statically imports the configured image service (e.g. the Cloudflare IMAGES
+ * binding). Exports `undefined` when no image service is configured, in which
+ * case the transform route streams the original bytes through unchanged.
+ */
+export function generateImagesModule(imagesEntrypoint?: string): string {
+	if (!imagesEntrypoint) {
+		return `export const createImageTransformer = undefined;`;
+	}
+	return `
+import { createImageTransformer as _createImageTransformer } from "${imagesEntrypoint}";
+export const createImageTransformer = _createImageTransformer;
 `;
 }
 

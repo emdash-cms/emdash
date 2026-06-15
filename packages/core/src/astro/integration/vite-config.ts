@@ -22,6 +22,8 @@ import {
 	RESOLVED_VIRTUAL_DIALECT_ID,
 	VIRTUAL_STORAGE_ID,
 	RESOLVED_VIRTUAL_STORAGE_ID,
+	VIRTUAL_IMAGES_ID,
+	RESOLVED_VIRTUAL_IMAGES_ID,
 	VIRTUAL_ADMIN_REGISTRY_ID,
 	RESOLVED_VIRTUAL_ADMIN_REGISTRY_ID,
 	VIRTUAL_PLUGINS_ID,
@@ -50,6 +52,7 @@ import {
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
+	generateImagesModule,
 	generateAuthModule,
 	generateAuthProvidersModule,
 	generatePluginsModule,
@@ -176,6 +179,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_STORAGE_ID) {
 				return RESOLVED_VIRTUAL_STORAGE_ID;
 			}
+			if (id === VIRTUAL_IMAGES_ID) {
+				return RESOLVED_VIRTUAL_IMAGES_ID;
+			}
 			if (id === VIRTUAL_ADMIN_REGISTRY_ID) {
 				return RESOLVED_VIRTUAL_ADMIN_REGISTRY_ID;
 			}
@@ -226,6 +232,13 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// Generate a module that statically imports the configured storage
 			if (id === RESOLVED_VIRTUAL_STORAGE_ID) {
 				return generateStorageModule(resolvedConfig.storage?.entrypoint);
+			}
+
+			// Generate a module that statically imports the configured image
+			// transformer (e.g. the Cloudflare IMAGES binding), or exports
+			// undefined when none is configured.
+			if (id === RESOLVED_VIRTUAL_IMAGES_ID) {
+				return generateImagesModule(resolvedConfig.images?.entrypoint);
 			}
 			// Generate plugins module that imports and instantiates all plugins
 			if (id === RESOLVED_VIRTUAL_PLUGINS_ID) {
