@@ -734,7 +734,7 @@ msgstr "Semua"
 #: packages/admin/src/components/ContentList.tsx:587
 #: packages/admin/src/components/ContentList.tsx:591
 msgid "All authors"
-msgstr ""
+msgstr "Semua penulis"
 
 #: packages/admin/src/routes/bylines.tsx:406
 msgid "All bylines"
@@ -923,7 +923,7 @@ msgstr "diarsipkan"
 
 #: packages/admin/src/components/ContentList.tsx:546
 msgid "Archived"
-msgstr ""
+msgstr "Diarsipkan"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:65
 msgid "Archives"
@@ -958,7 +958,7 @@ msgstr "Tetapkan penulis WordPress ke pengguna EmDash. Pos akan diatribusikan ke
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:28
 msgid "Astro"
-msgstr ""
+msgstr "Astro"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
 #: packages/admin/src/components/MediaLibrary.tsx:396
@@ -1062,7 +1062,7 @@ msgstr "Widget Tersedia"
 #: packages/admin/src/components/BylineAvatarField.tsx:46
 #: packages/admin/src/components/BylineAvatarField.tsx:71
 msgid "Avatar"
-msgstr ""
+msgstr "Avatar"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:257
 #: packages/admin/src/components/MenuEditor.tsx:283
@@ -1112,7 +1112,7 @@ msgstr "Kembali ke Tema"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:29
 msgid "Bash"
-msgstr ""
+msgstr "Bash"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:219
 msgid "Before send:"
@@ -1185,15 +1185,15 @@ msgstr "Byline"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:30
 msgid "C"
-msgstr ""
+msgstr "C"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:32
 msgid "C#"
-msgstr ""
+msgstr "C#"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:31
 msgid "C++"
-msgstr ""
+msgstr "C++"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:25
 msgid "Can create content"
@@ -1924,7 +1924,7 @@ msgstr "Membuat..."
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:33
 msgid "CSS"
-msgstr ""
+msgstr "CSS"
 
 #: packages/admin/src/components/TranslationsPanel.tsx:78
 msgid "current"
@@ -1982,7 +1982,7 @@ msgstr "Pemilih tanggal dan waktu"
 
 #: packages/admin/src/components/ContentList.tsx:604
 msgid "Date field to filter on"
-msgstr ""
+msgstr "Bidang tanggal untuk pemfilteran"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:304
 msgid "Date Format"
@@ -2284,7 +2284,7 @@ msgstr "Tidak menerima email?"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:34
 msgid "Diff"
-msgstr ""
+msgstr "Diff"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:176
 msgid "Dimensions:"
@@ -2378,7 +2378,7 @@ msgstr "Pemisah"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:35
 msgid "Dockerfile"
-msgstr ""
+msgstr "Dockerfile"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:63
 #: packages/admin/src/components/MediaLibrary.tsx:397
@@ -2597,6 +2597,9 @@ msgid ""
 "Reporter\n"
 "Photographer"
 msgstr ""
+"Editor\n"
+"Reporter\n"
+"Fotografer"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:59
 #: packages/admin/src/components/Settings.tsx:115
@@ -2842,7 +2845,7 @@ msgstr "Gagal berkomunikasi dengan plugin"
 
 #: packages/admin/src/lib/api/media.ts:151
 msgid "Failed to confirm upload"
-msgstr ""
+msgstr "Gagal mengonfirmasi unggahan"
 
 #: packages/admin/src/components/SetupWizard.tsx:493
 msgid "Failed to create admin"
@@ -2862,7 +2865,7 @@ msgstr "Gagal membuat bidang"
 
 #: packages/admin/src/lib/api/sections.ts:88
 msgid "Failed to create section"
-msgstr ""
+msgstr "Gagal membuat bagian"
 
 #: packages/admin/src/components/WordPressImport.tsx:1553
 msgid "Failed to create some collections"
@@ -2959,7 +2962,7 @@ msgstr "Gagal menonaktifkan plugin"
 
 #: packages/admin/src/lib/api/search.ts:32
 msgid "Failed to disable search"
-msgstr ""
+msgstr "Gagal menonaktifkan pencarian"
 
 #: packages/admin/src/lib/api/users.ts:118
 msgid "Failed to disable user"
@@ -2984,7 +2987,7 @@ msgstr "Gagal mengaktifkan plugin"
 
 #: packages/admin/src/lib/api/search.ts:31
 msgid "Failed to enable search"
-msgstr ""
+msgstr "Gagal mengaktifkan pencarian"
 
 #: packages/admin/src/lib/api/users.ts:138
 msgid "Failed to enable user"
@@ -2996,7 +2999,7 @@ msgstr "Gagal menjalankan impor"
 
 #: packages/admin/src/lib/api/client.ts:227
 msgid "Failed to fetch auth mode"
-msgstr ""
+msgstr "Gagal mengambil mode autentikasi"
 
 #: packages/admin/src/lib/api/schema.ts:170
 #: packages/admin/src/lib/api/schema.ts:174
@@ -3005,11 +3008,11 @@ msgstr "Gagal mengambil koleksi"
 
 #: packages/admin/src/lib/api/dashboard.ts:41
 msgid "Failed to fetch dashboard stats"
-msgstr ""
+msgstr "Gagal mengambil statistik dasbor"
 
 #: packages/admin/src/lib/api/email-settings.ts:34
 msgid "Failed to fetch email settings"
-msgstr ""
+msgstr "Gagal mengambil pengaturan email"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:90
 msgid "Failed to fetch entry terms"
@@ -3021,15 +3024,15 @@ msgstr "Gagal mengambil manifes"
 
 #: packages/admin/src/lib/api/media.ts:72
 msgid "Failed to fetch media"
-msgstr ""
+msgstr "Gagal mengambil media"
 
 #: packages/admin/src/lib/api/media.ts:85
 msgid "Failed to fetch media item"
-msgstr ""
+msgstr "Gagal mengambil item media"
 
 #: packages/admin/src/lib/api/media.ts:317
 msgid "Failed to fetch media providers"
-msgstr ""
+msgstr "Gagal mengambil penyedia media"
 
 #: packages/admin/src/lib/api/plugins.ts:59
 #: packages/admin/src/lib/api/plugins.ts:63
@@ -3038,11 +3041,11 @@ msgstr "Gagal mengambil plugin"
 
 #: packages/admin/src/lib/api/plugins.ts:45
 msgid "Failed to fetch plugins"
-msgstr ""
+msgstr "Gagal mengambil plugin"
 
 #: packages/admin/src/lib/api/media.ts:347
 msgid "Failed to fetch provider media"
-msgstr ""
+msgstr "Gagal mengambil media penyedia"
 
 #: packages/admin/src/lib/api/content.ts:556
 #: packages/admin/src/lib/api/content.ts:561
@@ -3051,15 +3054,15 @@ msgstr "Gagal mengambil revisi"
 
 #: packages/admin/src/lib/api/sections.ts:76
 msgid "Failed to fetch section"
-msgstr ""
+msgstr "Gagal mengambil bagian"
 
 #: packages/admin/src/lib/api/sections.ts:68
 msgid "Failed to fetch sections"
-msgstr ""
+msgstr "Gagal mengambil bagian"
 
 #: packages/admin/src/lib/api/settings.ts:50
 msgid "Failed to fetch settings"
-msgstr ""
+msgstr "Gagal mengambil pengaturan"
 
 #: packages/admin/src/components/SetupWizard.tsx:446
 msgid "Failed to fetch setup status"
@@ -3095,7 +3098,7 @@ msgstr "Gagal mendapatkan opsi registrasi"
 
 #: packages/admin/src/lib/api/media.ts:127
 msgid "Failed to get upload URL"
-msgstr ""
+msgstr "Gagal mendapatkan URL unggah"
 
 #: packages/admin/src/components/WordPressImport.tsx:386
 msgid "Failed to import from WordPress"
@@ -3314,7 +3317,7 @@ msgstr "Gagal memperbarui domain"
 
 #: packages/admin/src/lib/api/media.ts:272
 msgid "Failed to update media"
-msgstr ""
+msgstr "Gagal memperbarui media"
 
 #: packages/admin/src/lib/api/marketplace.ts:176
 #: packages/admin/src/lib/api/registry.ts:763
@@ -3323,11 +3326,11 @@ msgstr "Gagal memperbarui plugin"
 
 #: packages/admin/src/lib/api/sections.ts:100
 msgid "Failed to update section"
-msgstr ""
+msgstr "Gagal memperbarui bagian"
 
 #: packages/admin/src/lib/api/settings.ts:64
 msgid "Failed to update settings"
-msgstr ""
+msgstr "Gagal memperbarui pengaturan"
 
 #: packages/admin/src/router.tsx:1231
 msgid "Failed to update status"
@@ -3339,11 +3342,11 @@ msgstr "Gagal mengunggah file"
 
 #: packages/admin/src/lib/api/media.ts:214
 msgid "Failed to upload media"
-msgstr ""
+msgstr "Gagal mengunggah media"
 
 #: packages/admin/src/lib/api/media.ts:369
 msgid "Failed to upload to provider"
-msgstr ""
+msgstr "Gagal mengunggah ke penyedia"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:250
 msgid "Failed to verify authentication"
@@ -3439,7 +3442,7 @@ msgstr "file diimpor"
 
 #: packages/admin/src/components/ContentList.tsx:583
 msgid "Filter by author"
-msgstr ""
+msgstr "Filter berdasarkan penulis"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:113
 msgid "Filter by capability"
@@ -3489,7 +3492,7 @@ msgstr "Untuk pengalaman impor terbaik, pasang"
 
 #: packages/admin/src/components/ContentList.tsx:620
 msgid "From date"
-msgstr ""
+msgstr "Tanggal mulai"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:43
 msgid "Full access"
@@ -3526,7 +3529,7 @@ msgstr "Beri passkey ini nama untuk mengidentifikasinya nanti."
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:36
 msgid "Go"
-msgstr ""
+msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
 #: packages/admin/src/router.tsx:1957
@@ -3539,7 +3542,7 @@ msgstr "Verifikasi Google"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:37
 msgid "GraphQL"
-msgstr ""
+msgstr "GraphQL"
 
 #: packages/admin/src/components/MediaLibrary.tsx:270
 msgid "Grid view"
@@ -3829,7 +3832,7 @@ msgstr "Sisipkan Garis Horizontal"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3137
 msgid "Insert HTML"
-msgstr ""
+msgstr "Sisipkan HTML"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3126
 msgid "Insert Image"
@@ -3960,11 +3963,11 @@ msgstr "Jane Doe"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:39
 msgid "Java"
-msgstr ""
+msgstr "Java"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:40
 msgid "JavaScript"
-msgstr ""
+msgstr "JavaScript"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:235
 msgid "Job title"
@@ -3981,7 +3984,7 @@ msgstr "JSON"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:42
 msgid "JSX"
-msgstr ""
+msgstr "JSX"
 
 #: packages/admin/src/components/ContentEditor.tsx:1930
 msgid "Keep typing to narrow down more bylines."
@@ -3995,7 +3998,7 @@ msgstr "Kata Kunci"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:43
 msgid "Kotlin"
-msgstr ""
+msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:232
 #: packages/admin/src/components/FieldEditor.tsx:411
@@ -4338,7 +4341,7 @@ msgstr "Tandai sebagai spam"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:44
 msgid "Markdown"
-msgstr ""
+msgstr "Markdown"
 
 #: packages/admin/src/components/PluginManager.tsx:201
 msgid "marketplace"
@@ -4365,7 +4368,7 @@ msgstr "Nilai Maks"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:45
 msgid "MDX"
-msgstr ""
+msgstr "MDX"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2119
 #: packages/admin/src/components/Sidebar.tsx:342
@@ -5247,7 +5250,7 @@ msgstr "Izin"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:46
 msgid "PHP"
-msgstr ""
+msgstr "PHP"
 
 #: packages/admin/src/components/SetupWizard.tsx:290
 msgid "Pick any method to create your admin account."
@@ -5261,7 +5264,7 @@ msgstr "Biasa"
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:27
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:120
 msgid "Plain text"
-msgstr ""
+msgstr "Teks biasa"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:133
 msgid "Please ask your administrator to send a new invite."
@@ -5285,7 +5288,7 @@ msgstr "Plugin"
 
 #: packages/admin/src/lib/api/plugins.ts:57
 msgid "Plugin \"{pluginId}\" not found"
-msgstr ""
+msgstr "Plugin \"{pluginId}\" tidak ditemukan"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:747
 msgid "Plugin details"
@@ -5347,7 +5350,7 @@ msgstr "Plugin diperbarui"
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:34
 msgid "Plugin widget error"
-msgstr ""
+msgstr "Kesalahan widget plugin"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:219
 #: packages/admin/src/components/PluginManager.tsx:135
@@ -5364,7 +5367,7 @@ msgstr "Arahkan mesin pencari ke versi asli halaman ini, jika diduplikasi dari U
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:389
 msgid "Post"
-msgstr ""
+msgstr "Pos"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:397
 #: packages/admin/src/components/WordPressImport.tsx:1161
@@ -5464,7 +5467,7 @@ msgstr "Diterbitkan oleh"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:47
 msgid "Python"
-msgstr ""
+msgstr "Python"
 
 #: packages/admin/src/components/ContentEditor.tsx:2000
 msgid "Quick create byline"
@@ -5712,7 +5715,7 @@ msgstr "Minta tautan baru"
 
 #: packages/admin/src/lib/api/client.ts:198
 msgid "Request failed"
-msgstr ""
+msgstr "Permintaan gagal"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:280
 #: packages/admin/src/components/ContentTypeEditor.tsx:721
@@ -5858,11 +5861,11 @@ msgstr "Label peran"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:48
 msgid "Ruby"
-msgstr ""
+msgstr "Ruby"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:49
 msgid "Rust"
-msgstr ""
+msgstr "Rust"
 
 #: packages/admin/src/components/MenuEditor.tsx:351
 #: packages/admin/src/components/MenuEditor.tsx:353
@@ -6052,7 +6055,7 @@ msgstr "Tangkapan Layar"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:50
 msgid "SCSS"
-msgstr ""
+msgstr "SCSS"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:86
 msgid "Search"
@@ -6684,7 +6687,7 @@ msgstr "Spreadsheet"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:51
 msgid "SQL"
-msgstr ""
+msgstr "SQL"
 
 #: packages/admin/src/components/WordPressImport.tsx:1758
 msgid "Start Import"
@@ -6726,11 +6729,11 @@ msgstr "Pelanggan"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:52
 msgid "Svelte"
-msgstr ""
+msgstr "Svelte"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:53
 msgid "Swift"
-msgstr ""
+msgstr "Swift"
 
 #: packages/admin/src/components/users/UserDetail.tsx:256
 msgid "Synced"
@@ -6866,7 +6869,7 @@ msgstr "Halaman yang Anda cari tidak ada."
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:37
 msgid "The plugin field widget failed to render."
-msgstr ""
+msgstr "Widget bidang plugin gagal ditampilkan."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:172
 msgid "The public URL of your site (used for canonical links and sitemaps)"
@@ -7044,7 +7047,7 @@ msgstr "Pemisah Judul"
 
 #: packages/admin/src/components/ContentList.tsx:625
 msgid "to"
-msgstr ""
+msgstr "sampai"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:470
 msgid "to close"
@@ -7052,7 +7055,7 @@ msgstr "untuk menutup"
 
 #: packages/admin/src/components/ContentList.tsx:629
 msgid "To date"
-msgstr ""
+msgstr "Tanggal akhir"
 
 #: packages/admin/src/components/PluginManager.tsx:203
 msgid "to install plugins, or add them to your astro.config.mjs."
@@ -7082,7 +7085,7 @@ msgstr "Nama Token"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:54
 msgid "TOML"
-msgstr ""
+msgstr "TOML"
 
 #: packages/admin/src/components/WordPressImport.tsx:1116
 msgid "Tools → Export"
@@ -7190,7 +7193,7 @@ msgstr "Coba dengan data saya"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:55
 msgid "TSX"
-msgstr ""
+msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:282
 msgid "Turn into"
@@ -7214,7 +7217,7 @@ msgstr "Ketidakcocokan tipe ({0})"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:56
 msgid "TypeScript"
-msgstr ""
+msgstr "TypeScript"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:131
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:112
@@ -7658,7 +7661,7 @@ msgstr "Pengunjung yang mengakses jalur ini akan melihat kesalahan."
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:57
 msgid "Vue"
-msgstr ""
+msgstr "Vue"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:180
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:184
@@ -7811,11 +7814,11 @@ msgstr "File WXR"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:58
 msgid "XML"
-msgstr ""
+msgstr "XML"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:59
 msgid "YAML"
-msgstr ""
+msgstr "YAML"
 
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
