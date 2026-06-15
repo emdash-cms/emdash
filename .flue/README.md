@@ -15,7 +15,7 @@ When a maintainer adds `bot:repro` to an issue:
    - `repro-public` — `agent-browser` against the rendered public site
 3. **Diagnose** — read the source paths that explain the symptom, rate confidence in the root cause, choose a fix approach (`mechanical` / `clear-best-option` / `needs-design-decision`), and write a concrete proposed fix.
 4. **Verify** — decide whether the behaviour is a bug or intended-by-design. Gates the fix stage.
-5. **Fix** — conditional on `verdict=bug`, `confidence!=low`, and `fixApproach!=needs-design-decision`. Runs on a cheaper model (kimi-k2.6) in its own session — diagnose already produced the plan, so this stage is guided implementation. Writes the change, runs the reproduce test, the broader package tests, typecheck, lint, format. Stages but does not commit.
+5. **Fix** — conditional on `verdict=bug`, `confidence!=low`, and `fixApproach!=needs-design-decision`. Runs on a cheaper coding model (kimi-k2.7-code) in its own session — diagnose already produced the plan, so this stage is guided implementation. Writes the change, runs the reproduce test, the broader package tests, typecheck, lint, format. Stages but does not commit.
 
 The orchestrator (`.github/workflows/investigate.yml`) reads the structured JSON output and performs all GitHub writes — labels, comments, branch pushes, PR creation. The agent itself has no write access to GitHub.
 

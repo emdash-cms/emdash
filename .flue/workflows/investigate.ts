@@ -245,7 +245,7 @@ const investigatorAgent = createAgent(() => {
 	};
 });
 
-// Fix implementer: a cheaper model (Kimi) is enough here because the
+// Fix implementer: a cheaper coding model (Kimi K2.7 Code) is enough here because the
 // expensive reasoning is already done -- diagnose hands over a concrete
 // `proposedFix`, and this stage only runs for `mechanical` /
 // `clear-best-option` approaches. Its job is guided implementation:
@@ -257,7 +257,8 @@ const fixAgent = createAgent(() => {
 	const cwd = process.env.GITHUB_WORKSPACE ?? process.cwd();
 	return {
 		model:
-			process.env.FLUE_FIX_MODEL ?? "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6",
+			process.env.FLUE_FIX_MODEL ??
+			"cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code",
 		cwd,
 		sandbox: investigateSandbox(cwd),
 		instructions: [
