@@ -62,18 +62,20 @@ function bindingError(binding: string): Error {
 
 /**
  * Create a DO SQL dialect from config. Used for the singleton Kysely instance
- * (migrations and any query outside a request). Resolves a single stub lazily
- * and reuses it.
+ * (runtime-init migrations and any query outside a request scope).
+ *
+ * This dialect is cached across requests on globalThis, so it must NOT hold a
+ * stub: a DO stub is a per-request I/O object. We resolve a fresh stub on every
+ * query instead. The hot read/write path uses `createRequestScopedDb`, which
+ * reuses one stub for the whole request.
  */
 export function createDialect(config: DurableObjectsConfig): Dialect {
 	const ns = getNamespace(config);
 	if (!ns) throw bindingError(config.binding);
 	const id = ns.idFromName(config.name ?? DEFAULT_NAME);
 	return new DOSqlDialect({
-		resolveStub: () => {
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown row types
-			return ns.get(id) as unknown as EmDashDBStub;
-		},
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown row types
+		resolveStub: () => ns.get(id) as unknown as EmDashDBStub,
 	});
 }
 

@@ -37,17 +37,34 @@ describe("DOSqlDriver", () => {
 		);
 	});
 
-	it("resolves the stub once and reuses it across queries", async () => {
+	it("resolves a stub per acquire (driver must not cache a per-request stub)", async () => {
 		const queryFn = vi.fn().mockResolvedValue({ rows: [] });
 		const { config, resolveStub } = createConfig(queryFn);
 		const driver = new DOSqlDialect(config).createDriver();
+
+		await driver.acquireConnection();
+		await driver.acquireConnection();
+
+		// The driver never caches: a DO stub is a per-request I/O object, so the
+		// cross-request-cached singleton dialect would otherwise reuse a stale stub.
+		expect(resolveStub).toHaveBeenCalledTimes(2);
+	});
+
+	it("a memoizing resolveStub (the request-scoped pattern) yields one stub per request", async () => {
+		const queryFn = vi.fn().mockResolvedValue({ rows: [] });
+		const stub: EmDashDBStub = { query: queryFn, batch: vi.fn() };
+		const make = vi.fn(() => stub);
+		// Mirrors createRequestScopedDb: a per-request closure memoizes the stub.
+		let cached: EmDashDBStub | undefined;
+		const resolveStub = () => (cached ??= make());
+		const driver = new DOSqlDialect({ resolveStub }).createDriver();
 
 		const c1 = await driver.acquireConnection();
 		await c1.executeQuery(CompiledQuery.raw("SELECT 1"));
 		const c2 = await driver.acquireConnection();
 		await c2.executeQuery(CompiledQuery.raw("SELECT 2"));
 
-		expect(resolveStub).toHaveBeenCalledTimes(1);
+		expect(make).toHaveBeenCalledTimes(1);
 	});
 });
 

@@ -39,8 +39,11 @@ export interface BookmarkSink {
 
 export interface DOSqlDialectConfig {
 	/**
-	 * Resolves the DO stub. Called at most once per dialect (memoized in the
-	 * driver) so a single stub is reused across every query.
+	 * Resolves the DO stub. Called once per query (per `acquireConnection`).
+	 * The implementation owns the stub's lifetime: the request-scoped factory
+	 * memoizes within a single request ("one stub per request"); the singleton
+	 * factory returns a fresh stub each call because a DO stub cannot cross
+	 * request boundaries.
 	 */
 	resolveStub: () => EmDashDBStub;
 	/**
@@ -78,7 +81,6 @@ export class DOSqlDialect implements Dialect {
 
 class DOSqlDriver implements Driver {
 	readonly #config: DOSqlDialectConfig;
-	#stub: EmDashDBStub | undefined;
 
 	constructor(config: DOSqlDialectConfig) {
 		this.#config = config;
@@ -87,10 +89,15 @@ class DOSqlDriver implements Driver {
 	async init(): Promise<void> {}
 
 	async acquireConnection(): Promise<DatabaseConnection> {
-		// Memoize: one stub for the lifetime of this dialect (= one request, or
-		// the lifetime of the singleton isolate), reused across every query.
-		this.#stub ??= this.#config.resolveStub();
-		return new DOSqlConnection(this.#stub, this.#config);
+		// Resolve the stub on every acquire and let `resolveStub` decide its
+		// lifetime. A DO stub is a per-request I/O object: it cannot be reused
+		// across requests, so the driver must NOT cache it (the singleton dialect
+		// is itself cached across requests on globalThis — caching a stub here
+		// would bind it to a stale request and throw "Cannot perform I/O on
+		// behalf of a different request"). The request-scoped factory passes a
+		// closure that memoizes per request, giving "one stub per request"
+		// without crossing request boundaries.
+		return new DOSqlConnection(this.#config.resolveStub(), this.#config);
 	}
 
 	async beginTransaction(): Promise<void> {

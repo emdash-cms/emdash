@@ -6,6 +6,10 @@
 	"compatibility_date": "2026-02-24",
 	// `experimental` + `replica_routing` enable Durable Object read replicas:
 	// namespace.get() routes to the nearest replica, writes proxy to the primary.
+	// NOTE: local `pnpm dev` (miniflare/workerd) does not implement replica
+	// routing and throws "workerd does not support replica routing". To run this
+	// site locally, temporarily drop "replica_routing" from this list; the DO
+	// driver works without it (single primary, no replicas).
 	"compatibility_flags": ["nodejs_compat", "experimental", "replica_routing"],
 	// No smart placement: we want the Worker at the edge near the reader so it
 	// hits the nearest read replica. Writes/auth proxy to the primary internally.
