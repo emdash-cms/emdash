@@ -401,24 +401,16 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// is listening. Only in `astro dev` -- the dev-bypass shortcut is
 				// dev-only and the port is unknown until now.
 				if (astroCommand === "dev") {
-				server.httpServer?.once("listening", () => {
-					const address = server.httpServer?.address();
-					if (!address || typeof address === "string") return;
-					let host = address.address;
-					if (host === "::1" || host === "::" || host === "0.0.0.0") {
-						host = "localhost";
-					} else if (address.family === "IPv6") {
-						host = `[${host}]`;
-					}
-					printDevServerInfo(
-						`http://${host}:${address.port}`,
-						resolvedConfig.mcp !== false,
-					);
-				});
-						printDevServerInfo(
-							`http://${address.address === "::1" ? "localhost" : address.address}:${address.port}`,
-							resolvedConfig.mcp !== false,
-						);
+					server.httpServer?.once("listening", () => {
+						const address = server.httpServer?.address();
+						if (!address || typeof address === "string") return;
+						let host = address.address;
+						if (host === "::1" || host === "::" || host === "0.0.0.0") {
+							host = "localhost";
+						} else if (address.family === "IPv6") {
+							host = `[${host}]`;
+						}
+						printDevServerInfo(`http://${host}:${address.port}`, resolvedConfig.mcp !== false);
 					});
 				}
 
