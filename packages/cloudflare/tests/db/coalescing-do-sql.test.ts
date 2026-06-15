@@ -11,6 +11,7 @@ function setup(
 		batchQuery?: ReturnType<typeof vi.fn>;
 		readBookmark?: string;
 		bookmarkSink?: BookmarkSink;
+		onRpc?: () => void;
 	} = {},
 ) {
 	const query = opts.query ?? vi.fn().mockResolvedValue({ rows: [] });
@@ -20,6 +21,7 @@ function setup(
 		resolveStub: () => stub,
 		readBookmark: opts.readBookmark,
 		bookmarkSink: opts.bookmarkSink,
+		onRpc: opts.onRpc,
 	});
 	return { query, batchQuery, dialect };
 }
@@ -59,6 +61,23 @@ describe("CoalescingDOSqlDialect", () => {
 		expect(r1.rows).toEqual([{ id: "a" }]);
 		expect(r2.rows).toEqual([{ id: "b" }]);
 		expect(query).not.toHaveBeenCalled();
+	});
+
+	it("counts one RPC for a coalesced batch (N queries -> 1 round trip)", async () => {
+		const batchQuery = vi
+			.fn()
+			.mockResolvedValue([{ rows: [] }, { rows: [] }, { rows: [] }] as DOQueryResult[]);
+		const onRpc = vi.fn();
+		const { dialect } = setup({ batchQuery, onRpc });
+		const conn = await dialect.createDriver().acquireConnection();
+
+		await Promise.all([
+			conn.executeQuery(CompiledQuery.raw("SELECT 1")),
+			conn.executeQuery(CompiledQuery.raw("SELECT 2")),
+			conn.executeQuery(CompiledQuery.raw("SELECT 3")),
+		]);
+
+		expect(onRpc).toHaveBeenCalledTimes(1);
 	});
 
 	it("runs a lone SELECT via query(), not batchQuery", async () => {

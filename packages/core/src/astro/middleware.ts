@@ -333,6 +333,9 @@ function pushMetricsTimings(
 			timings.push({ name: "db.last", dur: metrics.dbLastOffset, desc: "Last query at" });
 		}
 	}
+	if (metrics.rpcCount > 0) {
+		timings.push({ name: "rpc.count", dur: metrics.rpcCount, desc: "DB round trips" });
+	}
 	if (metrics.cacheHits + metrics.cacheMisses > 0) {
 		timings.push({ name: "cache.hit", dur: metrics.cacheHits, desc: "Cache hits" });
 		timings.push({ name: "cache.miss", dur: metrics.cacheMisses, desc: "Cache misses" });

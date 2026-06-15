@@ -13,7 +13,7 @@
  */
 
 import { env } from "cloudflare:workers";
-import { kyselyLogOption } from "emdash/database/instrumentation";
+import { kyselyLogOption, recordRpc } from "emdash/database/instrumentation";
 import { type Dialect, Kysely } from "kysely";
 
 import { CoalescingDOSqlDialect } from "./coalescing-do-sql.js";
@@ -96,6 +96,7 @@ export function createDialect(config: DurableObjectsConfig): Dialect {
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Rpc type limitation with unknown row types
 		resolveStub: () => ns.get(id) as unknown as EmDashDBStub,
 		bookmarkSink,
+		onRpc: recordRpc,
 	});
 }
 
@@ -174,7 +175,12 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	// concurrent requests would share a buffer.)
 	const bookmarkSink: BookmarkSink = {};
 	const db = new Kysely<any>({
-		dialect: new CoalescingDOSqlDialect({ resolveStub, readBookmark, bookmarkSink }),
+		dialect: new CoalescingDOSqlDialect({
+			resolveStub,
+			readBookmark,
+			bookmarkSink,
+			onRpc: recordRpc,
+		}),
 		log: kyselyLogOption(),
 	});
 

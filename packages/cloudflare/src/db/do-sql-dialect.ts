@@ -59,6 +59,12 @@ export interface DOSqlDialectConfig {
 	 * read by the request `commit()` to persist the bookmark cookie.
 	 */
 	bookmarkSink?: BookmarkSink;
+	/**
+	 * Called once per physical RPC to the DO (each `query`/`batchQuery`). Lets
+	 * the runtime count round trips separately from logical queries. Injected
+	 * rather than imported so the dialect stays decoupled from core.
+	 */
+	onRpc?: () => void;
 }
 
 export class DOSqlDialect implements Dialect {
@@ -153,6 +159,7 @@ class DOSqlConnection implements DatabaseConnection {
 			if (bookmark) opts = { bookmark };
 		}
 
+		this.#config.onRpc?.();
 		const result = await this.#stub.query(sqlText, params, opts);
 
 		if (result.bookmark && this.#config.bookmarkSink) {

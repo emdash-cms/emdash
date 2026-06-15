@@ -89,6 +89,7 @@ class CoalescingDOSqlConnection implements DatabaseConnection {
 	/** Single-statement path: full `query()` semantics (bookmark, sink, writes). */
 	async #single<R>(sql: string, params: unknown[]): Promise<QueryResult<R>> {
 		const bookmark = isReadStatement(sql) ? this.#effectiveBookmark() : undefined;
+		this.#config.onRpc?.();
 		const result = await this.#stub.query(sql, params, bookmark ? { bookmark } : undefined);
 		if (result.bookmark && this.#config.bookmarkSink) {
 			this.#config.bookmarkSink.latest = result.bookmark;
@@ -153,6 +154,7 @@ class CoalescingDOSqlConnection implements DatabaseConnection {
 			const bookmark = this.#effectiveBookmark();
 			let results;
 			try {
+				this.#config.onRpc?.();
 				results = await this.#stub.batchQuery(
 					pending.map((p) => ({ sql: p.sql, params: p.params })),
 					bookmark ? { bookmark } : undefined,
