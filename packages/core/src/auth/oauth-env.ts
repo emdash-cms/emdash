@@ -5,12 +5,37 @@
  * now read from `cloudflare:workers`. On Node-based adapters that module does
  * not exist, so fall back to `import.meta.env`.
  */
-export async function getOAuthEnv(): Promise<Record<string, unknown>> {
+
+type OAuthEnvLoader = () => Promise<Record<string, unknown>>;
+
+async function loadCloudflareOAuthEnv(): Promise<Record<string, unknown>> {
+	const specifier = "cloudflare:workers";
+	const module = (await import(
+		/* @vite-ignore */ specifier
+	)) as {
+		env?: Record<string, unknown>;
+	};
+	return module.env ?? {};
+}
+
+function isMissingCloudflareWorkersModule(error: unknown): boolean {
+	if (!(error instanceof Error)) return false;
+	const message = error.message;
+	return (
+		message.includes("cloudflare:workers") &&
+		(message.includes("Cannot find package") ||
+			message.includes("ERR_MODULE_NOT_FOUND") ||
+			message.includes("Failed to resolve") ||
+			message.includes("Could not resolve") ||
+			message.includes("No such module"))
+	);
+}
+
+export async function getOAuthEnv(loadEnv: OAuthEnvLoader = loadCloudflareOAuthEnv): Promise<Record<string, unknown>> {
 	try {
-		// @ts-ignore - runtime-only Cloudflare Workers virtual module
-		const { env } = await import("cloudflare:workers");
-		return env as Record<string, unknown>;
-	} catch {
+		return await loadEnv();
+	} catch (error) {
+		if (!isMissingCloudflareWorkersModule(error)) throw error;
 		return import.meta.env as Record<string, unknown>;
 	}
 }
