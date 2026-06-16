@@ -741,4 +741,55 @@ describe("Content Handlers — permanent delete cleanup", () => {
 		);
 		expect(after.rows.length).toBe(0);
 	});
+
+	it("should clean up _emdash_seo on permanent delete", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "SEO Test" },
+		});
+		const id = created.data!.item.id;
+
+		await sql`INSERT INTO _emdash_seo (collection, content_id, seo_title) VALUES ('post', ${id}, 'Test Title')`.execute(
+			db,
+		);
+
+		await handleContentDelete(db, "post", id);
+		await handleContentPermanentDelete(db, "post", id);
+
+		const after = await sql`SELECT * FROM _emdash_seo WHERE content_id = ${id}`.execute(db);
+		expect(after.rows.length).toBe(0);
+	});
+
+	it("should clean up _emdash_comments on permanent delete", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Comments Test" },
+		});
+		const id = created.data!.item.id;
+
+		await sql`INSERT INTO _emdash_comments (id, collection, content_id, author_name, author_email, body) VALUES ('c1', 'post', ${id}, 'Test', 'test@test.com', 'A comment')`.execute(
+			db,
+		);
+
+		await handleContentDelete(db, "post", id);
+		await handleContentPermanentDelete(db, "post", id);
+
+		const after = await sql`SELECT * FROM _emdash_comments WHERE content_id = ${id}`.execute(db);
+		expect(after.rows.length).toBe(0);
+	});
+
+	it("should clean up revisions on permanent delete", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Revisions Test" },
+		});
+		const id = created.data!.item.id;
+
+		await sql`INSERT INTO revisions (id, collection, entry_id, data, author_id) VALUES ('r1', 'post', ${id}, '{}', 'user1')`.execute(
+			db,
+		);
+
+		await handleContentDelete(db, "post", id);
+		await handleContentPermanentDelete(db, "post", id);
+
+		const after = await sql`SELECT * FROM revisions WHERE entry_id = ${id}`.execute(db);
+		expect(after.rows.length).toBe(0);
+	});
 });
