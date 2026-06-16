@@ -52,18 +52,19 @@ const reviewAgent = createAgent<ReviewPayload, Env>(({ env }) => ({
 	// root is auto-discovered into the agent's context from here.
 	cwd: "/workspace",
 	// Wire the @cloudflare/sandbox container into Flue via its CF adapter.
-	// (The deploy doc's bare `sandbox: getSandbox(...)` is unreleased sugar; on
-	// @flue/runtime 0.8.1 the supported path is a SandboxFactory that calls
-	// cfSandboxToSessionEnv.) `id` here is the per-session id Flue supplies, so
-	// each review run gets its own container instance.
+	// (The deploy doc's bare `sandbox: getSandbox(...)` is unreleased sugar; the
+	// supported path is a SandboxFactory that calls cfSandboxToSessionEnv.) `id`
+	// here is the per-session id Flue supplies, so each review run gets its own
+	// container instance. As of @flue/runtime 0.11 the factory no longer receives
+	// a `cwd`; the session cwd matches the agent's `cwd` above.
 	sandbox: {
-		createSessionEnv: ({ id: sessionId, cwd: sessionCwd }) =>
+		createSessionEnv: ({ id: sessionId }) =>
 			cfSandboxToSessionEnv(
 				// wrangler types the auto-wired DO as DurableObjectNamespace<undefined>;
 				// Flue re-exports the real Sandbox class into the bundle at build.
 				// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 				getSandbox(env.Sandbox as DurableObjectNamespace<Sandbox>, sessionId),
-				sessionCwd ?? "/workspace",
+				"/workspace",
 			),
 	},
 	instructions: [

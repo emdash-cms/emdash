@@ -37,7 +37,17 @@
 				"email": {
 					"type": "ref",
 					"ref": "#emailAccess",
-					"description": "Sending mail through the host's mail service."
+					"description": "Sending mail through the host's mail service, and participating in its delivery pipeline."
+				},
+				"page": {
+					"type": "ref",
+					"ref": "#pageAccess",
+					"description": "Participation in rendered page output."
+				},
+				"users": {
+					"type": "ref",
+					"ref": "#usersAccess",
+					"description": "Access to site user records."
 				}
 			}
 		},
@@ -124,12 +134,60 @@
 					"type": "ref",
 					"ref": "#emailSendConstraints",
 					"description": "Plugin may send mail."
+				},
+				"events": {
+					"type": "ref",
+					"ref": "#emailEventsConstraints",
+					"description": "Plugin observes and may mutate every outgoing message (before and/or after send), including mail from the host and other plugins."
+				},
+				"transport": {
+					"type": "ref",
+					"ref": "#emailTransportConstraints",
+					"description": "Plugin becomes the host's mail transport; every message the site sends is delivered through it. Exclusive: installing replaces the current transport."
 				}
 			}
 		},
 		"emailSendConstraints": {
 			"type": "object",
 			"description": "Constraint object for email.send. No constraint keys are normatively defined here; vocabulary for rate limits and recipient allow-lists is reserved for a follow-on RFC."
+		},
+		"emailEventsConstraints": {
+			"type": "object",
+			"description": "Constraint object for email.events. No constraint keys are normatively defined here; phase scoping (beforeSend/afterSend) is reserved for a follow-on RFC and surfaced advisorily until then."
+		},
+		"emailTransportConstraints": {
+			"type": "object",
+			"description": "Constraint object for email.transport. No constraint keys are normatively defined here. Exclusivity is a property of the host extension point: clients treat email.transport as exclusive regardless of record contents."
+		},
+		"pageAccess": {
+			"type": "object",
+			"description": "Operations under page (rendered-output participation).",
+			"properties": {
+				"fragments": {
+					"type": "ref",
+					"ref": "#pageFragmentsConstraints",
+					"description": "Plugin injects script and/or style fragments into rendered pages."
+				}
+			}
+		},
+		"pageFragmentsConstraints": {
+			"type": "object",
+			"description": "Constraint object for page.fragments. No constraint keys are normatively defined here; position/placement scoping is reserved for a follow-on RFC."
+		},
+		"usersAccess": {
+			"type": "object",
+			"description": "Operations under users.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#usersReadConstraints",
+					"description": "Plugin may read site user records."
+				}
+			}
+		},
+		"usersReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for users.read. No constraint keys are normatively defined here."
 		}
 	}
 }

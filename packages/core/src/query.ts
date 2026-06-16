@@ -247,6 +247,17 @@ function dataStr(data: Record<string, unknown>, key: string, fallback = ""): str
 	return typeof val === "string" ? val : fallback;
 }
 
+/** Safely read a date-like field from a Record */
+function dataDate(data: Record<string, unknown>, key: string): Date | undefined {
+	const val = data[key];
+	if (val instanceof Date) {
+		return Number.isNaN(val.getTime()) ? undefined : val;
+	}
+	if (typeof val !== "string" && typeof val !== "number") return undefined;
+	const date = new Date(val);
+	return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 /** Type guard for Record<string, unknown> */
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -602,10 +613,10 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 	function isVisible(entry: ContentEntry<D>): boolean {
 		const data = entryData(entry);
 		const status = dataStr(data, "status");
-		const scheduledAt = dataStr(data, "scheduledAt") || undefined;
+		const scheduledAt = dataDate(data, "scheduledAt");
 		const isPublished = status === "published";
 		const isScheduledAndReady =
-			status === "scheduled" && scheduledAt && new Date(scheduledAt) <= new Date();
+			status === "scheduled" && scheduledAt !== undefined && scheduledAt.getTime() <= Date.now();
 		return isPublished || !!isScheduledAndReady;
 	}
 
