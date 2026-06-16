@@ -339,6 +339,69 @@ describe("Zod Generator", () => {
 			expect(schema.parse("abc")).toBe("abc");
 		});
 
+		it("should generate repeater schema", () => {
+			const field: Field = {
+				id: "f1",
+				collectionId: "c1",
+				slug: "items",
+				label: "Items",
+				type: "repeater",
+				columnType: "JSON",
+				required: true,
+				unique: false,
+				sortOrder: 0,
+				createdAt: new Date().toISOString(),
+			};
+
+			const schema = generateFieldSchema(field);
+			expect(schema.parse([{ name: "a" }, { name: "b" }])).toEqual([{ name: "a" }, { name: "b" }]);
+			expect(schema.parse([])).toEqual([]);
+			expect(() => schema.parse("not an array")).toThrow();
+		});
+
+		it("should apply minItems/maxItems to multiSelect", () => {
+			const field: Field = {
+				id: "f1",
+				collectionId: "c1",
+				slug: "tags",
+				label: "Tags",
+				type: "multiSelect",
+				columnType: "JSON",
+				required: true,
+				unique: false,
+				validation: { options: ["a", "b", "c", "d"], minItems: 1, maxItems: 3 },
+				sortOrder: 0,
+				createdAt: new Date().toISOString(),
+			};
+
+			const schema = generateFieldSchema(field);
+			expect(() => schema.parse([])).toThrow();
+			expect(schema.parse(["a"])).toEqual(["a"]);
+			expect(schema.parse(["a", "b", "c"])).toEqual(["a", "b", "c"]);
+			expect(() => schema.parse(["a", "b", "c", "d"])).toThrow();
+		});
+
+		it("should apply minItems/maxItems to repeater", () => {
+			const field: Field = {
+				id: "f1",
+				collectionId: "c1",
+				slug: "rows",
+				label: "Rows",
+				type: "repeater",
+				columnType: "JSON",
+				required: true,
+				unique: false,
+				validation: { minItems: 2, maxItems: 5 },
+				sortOrder: 0,
+				createdAt: new Date().toISOString(),
+			};
+
+			const schema = generateFieldSchema(field);
+			expect(() => schema.parse([{ x: 1 }])).toThrow();
+			expect(schema.parse([{ x: 1 }, { x: 2 }])).toEqual([{ x: 1 }, { x: 2 }]);
+			expect(() => schema.parse(Array.from({ length: 6 }, (_, i) => ({ x: i })))).toThrow();
+		});
+
 		it("should apply number validation rules", () => {
 			const field: Field = {
 				id: "f1",

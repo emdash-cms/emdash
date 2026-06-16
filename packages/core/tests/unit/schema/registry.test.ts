@@ -1291,9 +1291,9 @@ describe("SchemaRegistry", () => {
 				type: "multiSelect",
 			});
 
-			await expect(
-				registry.updateField("posts", "tags", { indexed: true }),
-			).rejects.toThrow("does not support indexes");
+			await expect(registry.updateField("posts", "tags", { indexed: true })).rejects.toThrow(
+				"does not support indexes",
+			);
 		});
 
 		it("should create plain index on updateField indexed false→true", async () => {

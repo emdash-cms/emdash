@@ -155,6 +155,9 @@ function getBaseSchema(type: FieldType, field: Field): ZodTypeAny {
 		case "reference":
 			return z.string(); // Reference ID
 
+		case "repeater":
+			return z.array(z.object({}).passthrough());
+
 		case "json":
 			return z.unknown();
 
@@ -195,6 +198,18 @@ function applyValidation(schema: ZodTypeAny, field: Field): ZodTypeAny {
 			numSchema = numSchema.max(validation.max);
 		}
 		return numSchema;
+	}
+
+	// Array validations (multiSelect, repeater, portableText)
+	if (schema instanceof z.ZodArray) {
+		let arrSchema = schema;
+		if (validation.minItems !== undefined) {
+			arrSchema = arrSchema.min(validation.minItems);
+		}
+		if (validation.maxItems !== undefined) {
+			arrSchema = arrSchema.max(validation.maxItems);
+		}
+		return arrSchema;
 	}
 
 	return schema;
