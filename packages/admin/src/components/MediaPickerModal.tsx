@@ -27,7 +27,12 @@ import {
 	type MediaProviderItem,
 } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
-import { providerItemToMediaItem, getFileIcon } from "../lib/media-utils";
+import {
+	providerItemToMediaItem,
+	getFileIcon,
+	getMediaThumbnailUrl,
+	fallbackToOriginalThumbnail,
+} from "../lib/media-utils";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
 import { DialogError } from "./DialogError.js";
@@ -195,13 +200,13 @@ export function MediaPickerModal({
 		if (activeProvider === "local") {
 			return {
 				id: "local",
-				name: "Library",
+				name: t`Library`,
 				icon: undefined,
 				capabilities: { browse: true, search: false, upload: true, delete: true },
 			} as MediaProviderInfo;
 		}
 		return providers?.find((p) => p.id === activeProvider);
-	}, [activeProvider, providers]);
+	}, [activeProvider, providers, t]);
 
 	// Fetch local media list (cursor-paginated so libraries beyond the
 	// first page remain selectable from the picker, not just the first 50).
@@ -454,7 +459,7 @@ export function MediaPickerModal({
 	// picker can only return locally-stored media (see prop docs).
 	const providerTabs = React.useMemo(() => {
 		const tabs: Array<{ id: string; name: string; icon?: string }> = [
-			{ id: "local", name: "Library", icon: undefined },
+			{ id: "local", name: t`Library`, icon: undefined },
 		];
 		if (providers && !localOnly) {
 			for (const p of providers) {
@@ -464,7 +469,7 @@ export function MediaPickerModal({
 			}
 		}
 		return tabs;
-	}, [providers, localOnly]);
+	}, [providers, localOnly, t]);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={handleClose}>
@@ -766,6 +771,12 @@ function MediaPickerItem({
 	const isImage = item.mimeType.startsWith("image/");
 	const needsDimensions = isImage && (!item.width || !item.height);
 
+	// Serve a resized thumbnail only when the original dimensions are already
+	// known. When they're missing we display the original so `onLoad` can read
+	// the true `naturalWidth`/`naturalHeight` to backfill them — a resized
+	// rendition would report the thumbnail's dimensions and corrupt the record.
+	const displayUrl = needsDimensions ? item.url : getMediaThumbnailUrl(item.url, item.mimeType);
+
 	const handleImageLoad = React.useCallback(
 		(e: React.SyntheticEvent<HTMLImageElement>) => {
 			if (needsDimensions && onDimensionsDetected) {
@@ -793,10 +804,11 @@ function MediaPickerItem({
 			>
 				{isImage ? (
 					<img
-						src={item.url}
+						src={displayUrl}
 						alt=""
 						className="h-full w-full object-cover"
 						onLoad={handleImageLoad}
+						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
 					/>
 				) : (
 					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">
