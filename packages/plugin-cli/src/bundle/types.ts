@@ -15,8 +15,11 @@
 
 export {
 	CAPABILITY_RENAMES,
+	capabilitiesToDeclaredAccess,
+	declaredAccessToCapabilities,
 	isDeprecatedCapability,
 	type CurrentPluginCapability,
+	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
 	type ManifestRouteEntry,
