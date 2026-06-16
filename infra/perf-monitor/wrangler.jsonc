@@ -37,6 +37,14 @@
 			"binding": "PROBE_APS",
 			"service": "emdash-perf-probe-aps",
 		},
+		{
+			"binding": "PROBE_SAE",
+			"service": "emdash-perf-probe-sae",
+		},
+		{
+			"binding": "PROBE_OCE",
+			"service": "emdash-perf-probe-oce",
+		},
 	],
 	"triggers": {
 		"crons": ["*/30 * * * *"],

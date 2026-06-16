@@ -1,0 +1,50 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-demo-do-solo",
+	"main": "./src/worker.ts",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-02-24",
+	// NO "replica_routing": this is the single-primary DO baseline. It isolates
+	// the cost of the DO/RPC architecture itself from the read-replica routing,
+	// so the perf dashboard can attribute any do-demo vs do-solo-demo delta to
+	// replicas specifically. "experimental" is kept for parity with do-demo.
+	"compatibility_flags": ["nodejs_compat", "experimental"],
+	"routes": [
+		{
+			"pattern": "do-solo-demo.emdashcms.com",
+			"zone_name": "emdashcms.com",
+			"custom_domain": true,
+		},
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "DB_DO",
+				"class_name": "EmDashDB",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["EmDashDB"],
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "emdash-demo-media",
+		},
+	],
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+	"kv_namespaces": [
+		{
+			"binding": "SESSION",
+			"id": "7d54671b952a4df5987e475f9e6d3c6a",
+		},
+	],
+}

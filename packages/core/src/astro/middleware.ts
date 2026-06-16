@@ -334,6 +334,9 @@ function pushMetricsTimings(
 			timings.push({ name: "db.last", dur: metrics.dbLastOffset, desc: "Last query at" });
 		}
 	}
+	if (metrics.rpcCount > 0) {
+		timings.push({ name: "rpc.count", dur: metrics.rpcCount, desc: "DB round trips" });
+	}
 	if (metrics.cacheHits + metrics.cacheMisses > 0) {
 		timings.push({ name: "cache.hit", dur: metrics.cacheHits, desc: "Cache hits" });
 		timings.push({ name: "cache.miss", dur: metrics.cacheMisses, desc: "Cache misses" });
@@ -532,9 +535,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
 						if (acceptsHtml) after(() => prefetchLayoutData());
-						const response = await runAnon();
-						anonScoped.commit();
-						return response;
+						// commit() in finally: the write reached the primary independently
+						// of render, so the bookmark cookie must be persisted even if
+						// render throws -- otherwise a write-then-failed-render leaves the
+						// next request able to read pre-write state off a lagging replica.
+						try {
+							return await runAnon();
+						} finally {
+							anonScoped.commit();
+						}
 					});
 				}
 				return runAnon();
@@ -703,9 +712,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					? { ...parent, db: scoped.db }
 					: { editMode: false, db: scoped.db, metrics };
 				return runWithContext(ctx, async () => {
-					const response = await renderAndFinalize();
-					scoped.commit();
-					return response;
+					// commit() in finally: persist the bookmark cookie even if render
+					// throws -- the write already reached the primary, so a failed
+					// render must not strand the next request on a stale replica read.
+					try {
+						return await renderAndFinalize();
+					} finally {
+						scoped.commit();
+					}
 				});
 			}
 
