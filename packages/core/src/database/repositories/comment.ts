@@ -39,6 +39,8 @@ export interface PublicComment {
 	body: string;
 	createdAt: string;
 	replies?: PublicComment[];
+	/** Aggregate reaction counts (`{ like: 12 }`), attached when requested. */
+	reactions?: Record<string, number>;
 }
 
 export interface CreateCommentInput {
