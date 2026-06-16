@@ -49,8 +49,8 @@ export async function checkUniqueFieldConflicts(
 	const uniqueFields = await getUniqueFields(db, collectionSlug);
 	if (uniqueFields.length === 0) return null;
 
-	const tableName = `ec_${collectionSlug}`;
 	validateIdentifier(collectionSlug, "collection");
+	const tableName = `ec_${collectionSlug}`;
 
 	for (const field of uniqueFields) {
 		const value = data[field.slug];
@@ -77,7 +77,9 @@ export async function checkUniqueFieldConflicts(
 		}
 
 		// Check 2: draft revisions of other entries
-		// field.slug is validated by validateIdentifier above
+		// Inline dialect branching required: jsonExtractExpr doesn't support
+		// table-qualified columns, and "data" must be qualified as "r.data"
+		// to avoid ambiguity if a user-defined field named "data" exists.
 		const jsonExpr = isPostgres(db)
 			? sql.raw(`r.data->>'${field.slug}'`)
 			: sql.raw(`json_extract(r.data, '$.${field.slug}')`);

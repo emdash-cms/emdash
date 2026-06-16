@@ -300,15 +300,19 @@ export class ContentRepository {
 		const newData = { ...original.data };
 
 		// Append "(Copy)" to title if present
+		const handledSlugs = new Set<string>();
 		if (typeof newData.title === "string") {
 			newData.title = `${newData.title} (Copy)`;
+			handledSlugs.add("title");
 		} else if (typeof newData.name === "string") {
 			newData.name = `${newData.name} (Copy)`;
+			handledSlugs.add("name");
 		}
 
 		// Clear unique field values to avoid constraint violations
 		if (uniqueFields) {
 			for (const field of uniqueFields) {
+				if (handledSlugs.has(field.slug)) continue;
 				if (field.slug in newData) {
 					if (field.required && typeof newData[field.slug] === "string") {
 						newData[field.slug] = `${newData[field.slug]} (Copy)`;

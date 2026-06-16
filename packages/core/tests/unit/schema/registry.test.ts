@@ -994,9 +994,9 @@ describe("SchemaRegistry", () => {
 			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group)
 				VALUES ('id2', 'p2', 'published', 'en', 'tg2')`.execute(db);
 
-			await expect(
-				registry.updateField("posts", "code", { required: true }),
-			).rejects.toThrow("multiple NULL values exist");
+			await expect(registry.updateField("posts", "code", { required: true })).rejects.toThrow(
+				"multiple NULL values exist",
+			);
 		});
 
 		it("should allow making unique field required when only one NULL exists", async () => {
@@ -1302,6 +1302,48 @@ describe("SchemaRegistry", () => {
 				WHERE type = 'index' AND name = 'idx_ec_posts_email_unique'
 			`.execute(db);
 			expect(indexes.rows.length).toBe(0);
+		});
+
+		it("should rebuild unique index when required changes on a unique field", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			// Non-required unique: multiple NULLs allowed
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id1', 'post-1', 'published', NULL, 'en')`.execute(db);
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id2', 'post-2', 'published', NULL, 'en')`.execute(db);
+
+			const rows = await sql`SELECT id FROM ec_posts WHERE email IS NULL`.execute(db);
+			expect(rows.rows.length).toBe(2);
+
+			// Clean up for the required=true transition
+			await sql`DELETE FROM ec_posts WHERE id = 'id2'`.execute(db);
+
+			await registry.updateField("posts", "email", { required: true });
+
+			// Required unique: NULLs are backfilled — duplicate non-null values rejected
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id3', 'post-3', 'published', 'x@test.com', 'en')`.execute(db);
+			await expect(
+				sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+					VALUES ('id4', 'post-4', 'published', 'x@test.com', 'en')`.execute(db),
+			).rejects.toThrow();
+
+			// Switch back to non-required: multiple NULLs should be allowed again
+			await registry.updateField("posts", "email", { required: false });
+
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id5', 'post-5', 'published', NULL, 'en')`.execute(db);
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id6', 'post-6', 'published', NULL, 'en')`.execute(db);
+
+			const nullRows = await sql`SELECT id FROM ec_posts WHERE email IS NULL`.execute(db);
+			expect(nullRows.rows.length).toBeGreaterThanOrEqual(2);
 		});
 	});
 

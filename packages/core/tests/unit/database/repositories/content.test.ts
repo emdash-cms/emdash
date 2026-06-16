@@ -703,5 +703,17 @@ describe("ContentRepository", () => {
 
 			expect(dup.data.code).toBe("ABC123 (Copy)");
 		});
+
+		it("should not double-append (Copy) when title is a unique field", async () => {
+			const item = await repo.create(
+				createPostFixture({ slug: "orig", data: { title: "My Post" } }),
+			);
+
+			const dup = await repo.duplicate("post", item.id, undefined, [
+				{ slug: "title", required: true },
+			]);
+
+			expect(dup.data.title).toBe("My Post (Copy)");
+		});
 	});
 });

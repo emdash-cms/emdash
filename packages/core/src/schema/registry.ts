@@ -681,6 +681,13 @@ export class SchemaRegistry {
 					input.defaultValue ?? field.defaultValue,
 					trx,
 				);
+
+				// Unique index predicate depends on required (NULL handling differs)
+				// — rebuild if the index block above didn't already handle it
+				if (willBeUnique && !uniqueChanged && !indexedChanged) {
+					await this.dropFieldIndexes(collectionSlug, fieldSlug, trx);
+					await this.createUniqueIndex(collectionSlug, fieldSlug, input.required!, trx);
+				}
 			}
 
 			// If searchable changed, sync FTS state for this collection
