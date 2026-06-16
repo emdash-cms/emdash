@@ -6,7 +6,7 @@ name: Review PR
 #
 #   /review                              -> default model (currently opus)
 #   /review opus                         -> Claude Opus 4.7 (default)
-#   /review kimi                         -> Kimi K2.6 (cheap pass for tiny PRs)
+#   /review kimi                         -> Kimi K2.7 Code (cheap pass for tiny PRs)
 #
 # Add new aliases by editing .github/bonk-models.json.
 

@@ -8,12 +8,15 @@
 // durable workflow run, and returns. The review and the GitHub post happen
 // inside the workflow's Durable Object, which is not bound by that budget.
 
-import { flue } from "@flue/runtime/app";
+// @flue/runtime 0.11 removed the `@flue/runtime/app` entry; `createDefaultFlueApp`
+// is the replacement factory and still mounts the `/workflows/:name` admission
+// route we fetch internally below.
+import { createDefaultFlueApp } from "@flue/runtime/internal";
 import { Hono } from "hono";
 
 import { verifyWebhookSignature, gatePullRequestEvent } from "./lib/webhook.js";
 
-const flueApp = flue();
+const flueApp = createDefaultFlueApp();
 
 const app = new Hono<{ Bindings: Env }>();
 

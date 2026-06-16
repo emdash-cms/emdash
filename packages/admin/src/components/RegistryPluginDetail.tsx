@@ -15,6 +15,7 @@
 
 import { Badge, Button, LinkButton, Select, Tabs, Tooltip } from "@cloudflare/kumo";
 import type { TabsItem } from "@cloudflare/kumo";
+import { declaredAccessToCapabilities, type DeclaredAccess } from "@emdash-cms/plugin-types";
 import { checkEnvCompatibility } from "@emdash-cms/registry-client/env";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
@@ -178,34 +179,35 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const isPreRelease = release ? isPreReleaseVersion(release.version) : false;
 
 	// `release.extensions[com.emdashcms.experimental.package.releaseExtension]`
-	// carries the structured `declaredAccess`. The EmDash bundle manifest
-	// uses the legacy `capabilities: string[]` shape that the sandbox
-	// enforces today, so we lift that from the release's extension when
-	// available and fall back to the structured declaredAccess flattened
-	// to a string list otherwise. This keeps `CapabilityConsentDialog` --
-	// which only understands `capabilities` -- working unchanged.
+	// carries the structured `declaredAccess` -- the trust contract. The sandbox
+	// enforces the legacy `capabilities: string[]` shape, so we derive that list
+	// from declaredAccess using the SAME total converter the bundler and runtime
+	// use (`@emdash-cms/plugin-types`). Deriving via the shared converter -- not
+	// a component-local reimplementation -- is what keeps the consent list equal
+	// to what the install handler enforces; an earlier divergent local flattener
+	// dropped hook-registration capabilities and broke every such install.
 	//
-	// `canonicalCapabilitiesForDriftCheck` filters non-strings, dedupes,
-	// and sorts so an aggregator-supplied array with unstable order or
-	// junk entries can't trigger a spurious server-side drift rejection
-	// later.
+	// `canonicalCapabilitiesForDriftCheck` filters non-strings, dedupes, and
+	// sorts so an aggregator-supplied array with unstable order can't trigger a
+	// spurious server-side drift rejection later.
 	//
-	// NSID is exact-matched, not prefix-matched. RFC 0001 fixes the NSID
-	// for this extension; accepting variants like `…releaseExtensionV2`
-	// or `…releaseExtension.deprecated` would let a publisher render a
-	// different permissions list than another publisher would for the
+	// NSID is exact-matched, not prefix-matched. RFC 0001 fixes the NSID for
+	// this extension; accepting variants like `…releaseExtensionV2` would let a
+	// publisher render a different permissions list than another would for the
 	// same RFC-0001 fields.
 	const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
 	// `release` is lexicon-validated at the boundary; `extensions` is the
 	// lexicon's open `unknown` map, so its inner shape still needs narrowing.
 	const extensions = release?.release?.extensions as
-		| Record<string, { declaredAccess?: unknown; capabilities?: unknown }>
+		| Record<string, { declaredAccess?: DeclaredAccess }>
 		| undefined;
 	const ext = extensions?.[RELEASE_EXTENSION_NSID];
 
-	const capabilities: string[] = Array.isArray(ext?.capabilities)
-		? canonicalCapabilitiesForDriftCheck(ext?.capabilities)
-		: canonicalCapabilitiesForDriftCheck(declaredAccessToCapabilityList(ext?.declaredAccess));
+	const capabilities: string[] = ext?.declaredAccess
+		? canonicalCapabilitiesForDriftCheck(
+				declaredAccessToCapabilities(ext.declaredAccess).capabilities,
+			)
+		: [];
 
 	// `profile` / `release` are validated against their lexicons at the
 	// DiscoveryClient boundary, so the shape here is trustworthy (or `null`).
@@ -803,28 +805,6 @@ function BackLink() {
 			{t`Back to plugins`}
 		</Link>
 	);
-}
-
-/**
- * Flatten an RFC-0001 `declaredAccess` block (`{ content: { read: true },
- * email: { send: { allowedHosts: [...] } }, ... }`) into the legacy
- * `capabilities: string[]` shape that the existing sandbox runtime
- * enforces today. One entry per declared operation under each
- * category. Unknown values are skipped silently -- the consent dialog
- * shows only what the current runtime recognises.
- */
-function declaredAccessToCapabilityList(declaredAccess: unknown): string[] {
-	if (!declaredAccess || typeof declaredAccess !== "object") return [];
-	const out: string[] = [];
-	for (const [category, value] of Object.entries(declaredAccess as Record<string, unknown>)) {
-		if (!value || typeof value !== "object") continue;
-		for (const [operation, opValue] of Object.entries(value as Record<string, unknown>)) {
-			// Skip operations explicitly opted out (`false`).
-			if (opValue === false) continue;
-			out.push(`${category}:${operation}`);
-		}
-	}
-	return out;
 }
 
 const PRE_RELEASE_VERSION_RE = /^\d+\.\d+\.\d+-/;
