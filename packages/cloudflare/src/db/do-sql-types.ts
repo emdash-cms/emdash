@@ -88,8 +88,16 @@ export interface EmDashDBStub {
 	): Promise<DOQueryResult[]>;
 }
 
-/** SQL command prefixes that indicate read-only statements. */
-const READ_PREFIXES = ["SELECT", "PRAGMA", "EXPLAIN", "WITH"];
+/**
+ * Leading-keyword match for read-only statements. Anchored at the start so it
+ * only inspects the first token -- it never upper-cases the whole SQL body
+ * (content queries can carry many KB of portable-text JSON / IN-lists, and this
+ * runs on every query, both in the dialect and the DO RPC handler).
+ */
+const READ_STATEMENT_PATTERN = /^\s*(?:select|pragma|explain|with)\b/i;
+
+/** Leading-keyword match for PRAGMA statements. */
+const PRAGMA_STATEMENT_PATTERN = /^\s*pragma\b/i;
 
 /**
  * Heuristic: does this statement only read?
@@ -101,6 +109,14 @@ const READ_PREFIXES = ["SELECT", "PRAGMA", "EXPLAIN", "WITH"];
  * correctness.
  */
 export function isReadStatement(sql: string): boolean {
-	const trimmed = sql.trimStart().toUpperCase();
-	return READ_PREFIXES.some((prefix) => trimmed.startsWith(prefix));
+	return READ_STATEMENT_PATTERN.test(sql);
+}
+
+/**
+ * Whether the statement is a PRAGMA. PRAGMA mutations (e.g. `PRAGMA user_version`)
+ * change no rows, so the row-count write heuristic misses them; callers use this
+ * to still capture a replication bookmark for read-your-writes.
+ */
+export function isPragmaStatement(sql: string): boolean {
+	return PRAGMA_STATEMENT_PATTERN.test(sql);
 }

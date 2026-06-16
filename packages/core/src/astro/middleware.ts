@@ -513,9 +513,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						? { ...parent, db: anonScoped.db }
 						: { editMode: false, db: anonScoped.db, metrics };
 					return runWithContext(ctx, async () => {
-						const response = await runAnon();
-						anonScoped.commit();
-						return response;
+						// commit() in finally: the write reached the primary independently
+						// of render, so the bookmark cookie must be persisted even if
+						// render throws -- otherwise a write-then-failed-render leaves the
+						// next request able to read pre-write state off a lagging replica.
+						try {
+							return await runAnon();
+						} finally {
+							anonScoped.commit();
+						}
 					});
 				}
 				return runAnon();
@@ -684,9 +690,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					? { ...parent, db: scoped.db }
 					: { editMode: false, db: scoped.db, metrics };
 				return runWithContext(ctx, async () => {
-					const response = await renderAndFinalize();
-					scoped.commit();
-					return response;
+					// commit() in finally: persist the bookmark cookie even if render
+					// throws -- the write already reached the primary, so a failed
+					// render must not strand the next request on a stale replica read.
+					try {
+						return await renderAndFinalize();
+					} finally {
+						scoped.commit();
+					}
 				});
 			}
 

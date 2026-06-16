@@ -30,7 +30,7 @@
 import { DurableObject } from "cloudflare:workers";
 
 import type { DOQueryResult, DOQueryStatement, EmDashDBStub } from "./do-sql-types.js";
-import { isReadStatement } from "./do-sql-types.js";
+import { isPragmaStatement, isReadStatement } from "./do-sql-types.js";
 
 /**
  * Experimental Durable Object read-replication surface on `ctx.storage`, not
@@ -52,6 +52,16 @@ interface ReplicationStorage {
 }
 
 const READONLY_ERROR_PATTERN = /readonly database/i;
+
+/**
+ * Upper bound on how long a read will block waiting for a replica to catch up to
+ * a read-your-writes bookmark. A stale or unreachable bookmark (e.g. one minted
+ * by a different DO id after a rename, or an expired one) must not make every
+ * read pay the platform's full wait budget for the cookie's whole lifetime. On
+ * timeout we serve a possibly-stale read; it self-heals once a fresh bookmark is
+ * minted.
+ */
+const WAIT_FOR_BOOKMARK_TIMEOUT_MS = 250;
 
 function isReadonlyError(error: unknown): boolean {
 	return error instanceof Error && READONLY_ERROR_PATTERN.test(error.message);
@@ -92,6 +102,31 @@ export class EmDashDB extends DurableObject {
 	}
 
 	/**
+	 * Read-your-writes wait, bounded and best-effort. Waits for this replica to
+	 * reach `bookmark`, but never longer than WAIT_FOR_BOOKMARK_TIMEOUT_MS, and
+	 * never fails the read: a stale/expired/cross-id bookmark would otherwise make
+	 * every read block (and, unbounded, on every request for the cookie's life).
+	 * On timeout or error we serve a possibly-stale read, which self-heals once a
+	 * fresh bookmark is minted. No-op on the primary / when the API is absent.
+	 */
+	async #waitForBookmarkBounded(bookmark: string): Promise<void> {
+		const replication = this.#replication;
+		if (!replication.waitForBookmark) return;
+		try {
+			await Promise.race([
+				replication.waitForBookmark(bookmark),
+				new Promise<void>((resolve) => setTimeout(resolve, WAIT_FOR_BOOKMARK_TIMEOUT_MS)),
+			]);
+		} catch (error) {
+			// Can't distinguish a stale cookie bookmark (swallow is correct) from a
+			// transient failure on a fresh in-request write bookmark (swallow briefly
+			// hides a read-after-write); swallowing wins because the alternative --
+			// 500ing every read until the cookie clears -- is strictly worse.
+			console.error("[emdash:do] waitForBookmark failed; serving possibly-stale read:", error);
+		}
+	}
+
+	/**
 	 * Execute a single SQL statement. Called via RPC from the Kysely driver.
 	 *
 	 * @param opts.bookmark On a replica read, wait until this instance has
@@ -110,26 +145,10 @@ export class EmDashDB extends DurableObject {
 			return this.#primaryStub!.query(sql, params);
 		}
 
-		// Read-your-writes: on a replica, wait until our copy reflects the
-		// bookmark the caller last observed before reading. Best-effort: a
-		// stale, expired, or malformed bookmark must NOT fail the read -- that
-		// would 500 every read for a client until its cookie cleared, with no
-		// self-heal. Log and serve a possibly-stale read instead (it heals on
-		// the next request once a fresh bookmark is minted).
+		// Read-your-writes: on a replica, wait (bounded, best-effort) until our
+		// copy reflects the bookmark the caller last observed before reading.
 		if (isRead && opts?.bookmark && this.#isReplica) {
-			try {
-				await this.#replication.waitForBookmark?.(opts.bookmark);
-			} catch (error) {
-				// Tension worth naming: we can't tell a stale/expired cookie bookmark
-				// (swallowing is correct -- it self-heals next request) from a
-				// transient failure on a fresh in-request write bookmark (swallowing
-				// briefly hides a real read-after-write inconsistency, e.g. create()
-				// then findById()). Swallowing wins because the alternative -- 500ing
-				// every read until a bad cookie clears -- is strictly worse and has no
-				// self-heal. Fresh-bookmark failures are rare (same-primary) and retry
-				// on the next request.
-				console.error("[emdash:do] waitForBookmark failed; serving possibly-stale read:", error);
-			}
+			await this.#waitForBookmarkBounded(opts.bookmark);
 		}
 
 		let cursor;
@@ -153,13 +172,15 @@ export class EmDashDB extends DurableObject {
 			rows.push(row as Record<string, unknown>);
 		}
 
-		// Treat the statement as a write if the prefix heuristic said so OR it
-		// actually mutated rows. The rowsWritten check catches write-CTEs and
-		// PRAGMA writes the heuristic classifies as reads: on the primary those
-		// would otherwise drop their bookmark (breaking read-your-writes) and
-		// report no affected rows. (On a replica a misclassified write throws
-		// readonly above and is retried on the primary, so it never reaches here.)
-		const wrote = !isRead || cursor.rowsWritten > 0;
+		// Treat the statement as a write if the prefix heuristic said so, it
+		// actually mutated rows, OR it's a PRAGMA. The rowsWritten check catches
+		// write-CTEs the heuristic classifies as reads; the PRAGMA check catches
+		// mutating PRAGMAs (e.g. `PRAGMA user_version = N`) that change no rows so
+		// rowsWritten is 0 -- without it those would drop their bookmark and a
+		// follow-up read on a replica wouldn't wait for the schema change. (On a
+		// replica a misclassified write throws readonly above and is retried on the
+		// primary, so it never reaches here.)
+		const wrote = !isRead || cursor.rowsWritten > 0 || isPragmaStatement(sql);
 		if (!wrote) {
 			return { rows };
 		}
@@ -189,14 +210,7 @@ export class EmDashDB extends DurableObject {
 		this.#ensureReplication();
 
 		if (opts?.bookmark && this.#isReplica) {
-			try {
-				await this.#replication.waitForBookmark?.(opts.bookmark);
-			} catch (error) {
-				console.error(
-					"[emdash:do] waitForBookmark failed (batch); serving possibly-stale reads:",
-					error,
-				);
-			}
+			await this.#waitForBookmarkBounded(opts.bookmark);
 		}
 
 		return statements.map((statement) => {
