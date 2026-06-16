@@ -547,6 +547,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 										<Input
 											label={t`Min Selections`}
 											type="number"
+											min={0}
 											value={formState.minItems}
 											onChange={(e) => setField("minItems", e.target.value)}
 											placeholder="0"
@@ -554,6 +555,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 										<Input
 											label={t`Max Selections`}
 											type="number"
+											min={1}
 											value={formState.maxItems}
 											onChange={(e) => setField("maxItems", e.target.value)}
 											placeholder={t`No limit`}
@@ -665,6 +667,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 									<Input
 										label={t`Min Items`}
 										type="number"
+										min={0}
 										value={formState.minItems}
 										onChange={(e) => setField("minItems", e.target.value)}
 										placeholder="0"
@@ -672,6 +675,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 									<Input
 										label={t`Max Items`}
 										type="number"
+										min={1}
 										value={formState.maxItems}
 										onChange={(e) => setField("maxItems", e.target.value)}
 										placeholder={t`No limit`}
