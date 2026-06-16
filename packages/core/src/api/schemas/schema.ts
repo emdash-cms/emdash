@@ -71,6 +71,10 @@ const fieldValidation = z
 			.max(64, "allowedMimeTypes may contain at most 64 entries")
 			.optional(),
 	})
+	.refine((v) => !v || v.minItems == null || v.maxItems == null || v.minItems <= v.maxItems, {
+		message: "minItems must be less than or equal to maxItems",
+		path: ["minItems"],
+	})
 	.optional();
 
 const fieldWidgetOptions = z.record(z.string(), z.unknown()).optional();
@@ -194,6 +198,7 @@ export const fieldSchema = z
 		type: fieldTypeValues,
 		required: z.boolean(),
 		unique: z.boolean(),
+		indexed: z.boolean(),
 		defaultValue: z.unknown().nullable(),
 		validation: z.record(z.string(), z.unknown()).nullable(),
 		widget: z.string().nullable(),
