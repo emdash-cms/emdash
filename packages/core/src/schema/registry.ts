@@ -686,7 +686,7 @@ export class SchemaRegistry {
 				// — rebuild if the index block above didn't already handle it
 				if (willBeUnique && !uniqueChanged && !indexedChanged) {
 					await this.dropFieldIndexes(collectionSlug, fieldSlug, trx);
-					await this.createUniqueIndex(collectionSlug, fieldSlug, input.required!, trx);
+					await this.createUniqueIndex(collectionSlug, fieldSlug, input.required, trx);
 				}
 			}
 

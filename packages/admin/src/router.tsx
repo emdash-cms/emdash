@@ -1780,10 +1780,10 @@ function ContentTypesEditPage() {
 			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 		},
-		onError: (error) => {
+		onError: (err) => {
 			toastManager.add({
 				title: t`Failed to create field`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
+				description: err instanceof Error ? err.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -1798,10 +1798,10 @@ function ContentTypesEditPage() {
 			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 		},
-		onError: (error) => {
+		onError: (err) => {
 			toastManager.add({
 				title: t`Failed to update field`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
+				description: err instanceof Error ? err.message : t`An error occurred`,
 				type: "error",
 			});
 		},
@@ -1815,10 +1815,10 @@ function ContentTypesEditPage() {
 			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 		},
-		onError: (error) => {
+		onError: (err) => {
 			toastManager.add({
 				title: t`Failed to delete field`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
+				description: err instanceof Error ? err.message : t`An error occurred`,
 				type: "error",
 			});
 		},

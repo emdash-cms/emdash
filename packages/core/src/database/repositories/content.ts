@@ -315,7 +315,7 @@ export class ContentRepository {
 				if (handledSlugs.has(field.slug)) continue;
 				if (field.slug in newData) {
 					if (field.required && typeof newData[field.slug] === "string") {
-						newData[field.slug] = `${newData[field.slug]} (Copy)`;
+						newData[field.slug] = `${String(newData[field.slug])} (Copy)`;
 					} else if (!field.required) {
 						delete newData[field.slug];
 					}
