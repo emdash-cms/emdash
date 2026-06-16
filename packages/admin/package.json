@@ -38,6 +38,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@emdash-cms/blocks": "workspace:*",
+    "@emdash-cms/plugin-types": "workspace:*",
     "@emdash-cms/registry-client": "workspace:*",
     "@emdash-cms/registry-lexicons": "workspace:*",
     "@floating-ui/react": "^0.27.16",

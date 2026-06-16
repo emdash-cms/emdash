@@ -17,6 +17,7 @@ import { getSandbox, type Sandbox } from "@cloudflare/sandbox";
 import { createAgent, type FlueContext, type WorkflowRouteHandler } from "@flue/runtime";
 import { cfSandboxToSessionEnv } from "@flue/runtime/cloudflare";
 
+import { withCapacityRetry } from "../lib/capacity.js";
 import {
 	readAppCreds,
 	mintInstallationToken,
@@ -51,18 +52,19 @@ const reviewAgent = createAgent<ReviewPayload, Env>(({ env }) => ({
 	// root is auto-discovered into the agent's context from here.
 	cwd: "/workspace",
 	// Wire the @cloudflare/sandbox container into Flue via its CF adapter.
-	// (The deploy doc's bare `sandbox: getSandbox(...)` is unreleased sugar; on
-	// @flue/runtime 0.8.1 the supported path is a SandboxFactory that calls
-	// cfSandboxToSessionEnv.) `id` here is the per-session id Flue supplies, so
-	// each review run gets its own container instance.
+	// (The deploy doc's bare `sandbox: getSandbox(...)` is unreleased sugar; the
+	// supported path is a SandboxFactory that calls cfSandboxToSessionEnv.) `id`
+	// here is the per-session id Flue supplies, so each review run gets its own
+	// container instance. As of @flue/runtime 0.11 the factory no longer receives
+	// a `cwd`; the session cwd matches the agent's `cwd` above.
 	sandbox: {
-		createSessionEnv: ({ id: sessionId, cwd: sessionCwd }) =>
+		createSessionEnv: ({ id: sessionId }) =>
 			cfSandboxToSessionEnv(
 				// wrangler types the auto-wired DO as DurableObjectNamespace<undefined>;
 				// Flue re-exports the real Sandbox class into the bundle at build.
 				// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 				getSandbox(env.Sandbox as DurableObjectNamespace<Sandbox>, sessionId),
-				sessionCwd ?? "/workspace",
+				"/workspace",
 			),
 	},
 	instructions: [
@@ -171,17 +173,38 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 			);
 		}
 
-		const { data } = await session.skill(review, {
-			args: {
-				prContext: buildPrContext(payload, priorReview),
-				owner: payload.owner,
-				repo: payload.repo,
-				prNumber: payload.prNumber,
-				baseRef: payload.baseRef,
-				headRef: payload.headRef,
+		// Workers AI returns 429 when kimi is over capacity, and under sustained
+		// load the binding can hold the request open indefinitely. Bound each
+		// attempt and retry genuine capacity errors so a transient spike doesn't
+		// silently hang the review forever (it used to: no result, no post, just
+		// the container's keep-alive alarm firing for minutes).
+		const { data } = await withCapacityRetry(
+			(signal) =>
+				session.skill(review, {
+					args: {
+						prContext: buildPrContext(payload, priorReview),
+						owner: payload.owner,
+						repo: payload.repo,
+						prNumber: payload.prNumber,
+						baseRef: payload.baseRef,
+						headRef: payload.headRef,
+					},
+					result: reviewResultSchema,
+					signal,
+				}),
+			{
+				label: `review#${payload.prNumber}`,
+				attempts: 3,
+				perAttemptTimeoutMs: 6 * 60_000,
+				onRetry: ({ attempt, delayMs, error }) =>
+					ctx.log.warn?.("[review] model over capacity, backing off", {
+						prNumber: payload.prNumber,
+						attempt,
+						delayMs,
+						error: String(error),
+					}),
 			},
-			result: reviewResultSchema,
-		});
+		);
 
 		// Post from this trusted DO context (durable, not bound by the webhook's
 		// 30s waitUntil budget). In dev (no creds) we just log and return.

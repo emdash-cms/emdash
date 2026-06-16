@@ -97,13 +97,64 @@ describe("sitemap-[collection].xml route", () => {
 		expect(res.status).toBe(200);
 		const xml = await res.text();
 
-		// Plain urlset namespace -- no xhtml when i18n is off.
-		expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
+		// Sitemap + image namespaces declared; no xhtml when i18n is off.
+		expect(xml).toContain('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"');
+		expect(xml).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
 		expect(xml).not.toContain("xmlns:xhtml");
 		expect(xml).not.toContain("xhtml:link");
 
 		expect(xml).toContain("<loc>http://localhost:4321/blog/hello</loc>");
 		expect(xml).toContain("<loc>http://localhost:4321/blog/world</loc>");
+	});
+
+	it("emits an <image:image> entry for rows with an SEO image", async () => {
+		setI18nConfig(null);
+		const post = await repo.create({
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			status: "published",
+		});
+		// SEO panel stores seo_image as a root-relative media API path.
+		await db
+			.insertInto("_emdash_seo")
+			.values({
+				collection: "post",
+				content_id: post.id,
+				seo_title: null,
+				seo_description: null,
+				seo_image: "/_emdash/api/media/file/01ABCDEF.webp",
+				seo_canonical: null,
+				seo_no_index: 0,
+			})
+			.execute();
+
+		const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+		expect(res.status).toBe(200);
+		const xml = await res.text();
+
+		// image namespace declared + absolute <image:loc> emitted.
+		expect(xml).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
+		expect(xml).toContain(
+			"<image:loc>http://localhost:4321/_emdash/api/media/file/01ABCDEF.webp</image:loc>",
+		);
+	});
+
+	it("omits <image:image> for rows without an SEO image", async () => {
+		setI18nConfig(null);
+		await repo.create({
+			type: "post",
+			slug: "no-image",
+			data: { title: "No image" },
+			status: "published",
+		});
+
+		const res = await getSitemap(mockContext({ collectionSlug: "post", db }));
+		expect(res.status).toBe(200);
+		const xml = await res.text();
+
+		expect(xml).toContain("<loc>http://localhost:4321/blog/no-image</loc>");
+		expect(xml).not.toContain("<image:image>");
 	});
 
 	it("emits hreflang alternates for translation siblings when i18n is enabled", async () => {
