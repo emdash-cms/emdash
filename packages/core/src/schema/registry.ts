@@ -970,12 +970,12 @@ export class SchemaRegistry {
 		if (required) {
 			const fillValue =
 				defaultValue !== undefined
-					? this.formatDefaultValue(defaultValue, fieldType)
-					: this.getEmptyDefault(fieldType);
+					? this.toColumnValue(defaultValue, fieldType)
+					: this.getEmptyColumnValue(fieldType);
 
 			await sql`
 				UPDATE ${sql.ref(tableName)}
-				SET ${sql.ref(columnName)} = ${sql.raw(fillValue)}
+				SET ${sql.ref(columnName)} = ${fillValue}
 				WHERE ${sql.ref(columnName)} IS NULL
 			`.execute(db);
 
@@ -1200,6 +1200,44 @@ export class SchemaRegistry {
 				return "'null'";
 			default:
 				return "''";
+		}
+	}
+
+	/**
+	 * Convert a value to its JS representation for parameterized queries.
+	 */
+	private toColumnValue(value: unknown, fieldType: FieldType): string | number | null {
+		if (value === null || value === undefined) return null;
+
+		const columnType = FIELD_TYPE_TO_COLUMN[fieldType];
+
+		if (columnType === "JSON") return JSON.stringify(value);
+		if (columnType === "INTEGER") {
+			if (typeof value === "boolean") return value ? 1 : 0;
+			const num = Number(value);
+			return Number.isFinite(num) ? Math.trunc(num) : 0;
+		}
+		if (columnType === "REAL") {
+			const num = Number(value);
+			return Number.isFinite(num) ? num : 0;
+		}
+		if (typeof value === "string") return value;
+		if (typeof value === "number" || typeof value === "boolean") return String(value);
+		if (typeof value === "object" && value !== null) return JSON.stringify(value);
+		return "";
+	}
+
+	private getEmptyColumnValue(fieldType: FieldType): string | number {
+		const columnType = FIELD_TYPE_TO_COLUMN[fieldType];
+		switch (columnType) {
+			case "INTEGER":
+				return 0;
+			case "REAL":
+				return 0;
+			case "JSON":
+				return "null";
+			default:
+				return "";
 		}
 	}
 
