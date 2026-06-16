@@ -47,8 +47,8 @@ export interface ContentTypeEditorProps {
 	isNew?: boolean;
 	isSaving?: boolean;
 	onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void;
-	onAddField?: (input: CreateFieldInput) => void;
-	onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void;
+	onAddField?: (input: CreateFieldInput) => void | Promise<unknown>;
+	onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void | Promise<unknown>;
 	onDeleteField?: (fieldSlug: string) => void;
 	onReorderFields?: (fieldSlugs: string[]) => void;
 }
@@ -284,12 +284,15 @@ export function ContentTypeEditor({
 		setFieldSaving(true);
 		try {
 			if (editingField) {
-				onUpdateField?.(editingField.slug, input);
+				await onUpdateField?.(editingField.slug, input);
 			} else {
-				onAddField?.(input);
+				await onAddField?.(input);
 			}
 			setFieldEditorOpen(false);
 			setEditingField(undefined);
+		} catch {
+			// Error is handled by the mutation's onError callback (toast).
+			// Keep the dialog open so the user can retry or cancel.
 		} finally {
 			setFieldSaving(false);
 		}

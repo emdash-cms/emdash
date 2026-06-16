@@ -859,6 +859,46 @@ describe("SchemaRegistry", () => {
 			).rejects.toThrow();
 		});
 
+		it("should enforce unique constraint across different statuses", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id1', 'post-1', 'draft', 'a@b.com', 'en')`.execute(db);
+
+			await expect(
+				sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+					VALUES ('id2', 'post-2', 'published', 'a@b.com', 'en')`.execute(db),
+			).rejects.toThrow();
+		});
+
+		it("should enforce unique constraint on restore when draft exists with same value", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			// Insert published article, then soft-delete it
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id1', 'post-1', 'published', 'a@b.com', 'en')`.execute(db);
+			await sql`UPDATE ec_posts SET deleted_at = '2024-01-01' WHERE id = 'id1'`.execute(db);
+
+			// Insert a draft with the same email
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id2', 'post-2', 'draft', 'a@b.com', 'en')`.execute(db);
+
+			// Restore should fail — draft occupies the unique slot
+			await expect(
+				sql`UPDATE ec_posts SET deleted_at = NULL WHERE id = 'id1'`.execute(db),
+			).rejects.toThrow();
+		});
+
 		it("should allow same value in different locales", async () => {
 			await registry.createField("posts", {
 				slug: "email",

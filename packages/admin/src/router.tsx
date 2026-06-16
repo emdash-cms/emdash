@@ -526,6 +526,8 @@ function ContentNewPage() {
 	const { locale } = useSearch({ from: "/_admin/content/$collection/new" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const toastManager = Toast.useToastManager();
+	const { t } = useLingui();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 
 	const { data: manifest } = useQuery({
@@ -553,6 +555,13 @@ function ContentNewPage() {
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
 				search: { locale: result.locale },
+			});
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to create`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				type: "error",
 			});
 		},
 	});
@@ -1771,6 +1780,13 @@ function ContentTypesEditPage() {
 			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to create field`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				type: "error",
+			});
+		},
 	});
 
 	const updateFieldMutation = useMutation({
@@ -1782,6 +1798,13 @@ function ContentTypesEditPage() {
 			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to update field`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				type: "error",
+			});
+		},
 	});
 
 	const deleteFieldMutation = useMutation({
@@ -1791,6 +1814,13 @@ function ContentTypesEditPage() {
 				queryKey: ["schema", "collections", slug],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to delete field`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				type: "error",
+			});
 		},
 	});
 
