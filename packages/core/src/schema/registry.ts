@@ -652,6 +652,27 @@ export class SchemaRegistry {
 			// Sync required column constraint
 			const requiredChanged = input.required !== undefined && input.required !== field.required;
 			if (requiredChanged) {
+				// When making a unique field required, the backfill would set all NULL
+				// rows to the same default value — reject if that would violate uniqueness
+				if (input.required && willBeUnique) {
+					const tableName = this.getTableName(collectionSlug);
+					const columnName = this.getColumnName(fieldSlug);
+					const nullCounts = await sql<{ locale: string; cnt: number }>`
+						SELECT locale, COUNT(*) AS cnt
+						FROM ${sql.ref(tableName)}
+						WHERE ${sql.ref(columnName)} IS NULL AND deleted_at IS NULL
+						GROUP BY locale
+						HAVING COUNT(*) > 1
+					`.execute(trx);
+
+					if (nullCounts.rows.length > 0) {
+						throw new SchemaError(
+							`Cannot make unique field "${fieldSlug}" required: multiple NULL values exist in the same locale and would be backfilled to the same default, violating the unique constraint`,
+							"BACKFILL_UNIQUE_CONFLICT",
+						);
+					}
+				}
+
 				await this.syncRequiredConstraint(
 					collectionSlug,
 					fieldSlug,

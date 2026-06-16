@@ -980,6 +980,39 @@ describe("SchemaRegistry", () => {
 			});
 			expect(reverted.required).toBe(false);
 		});
+
+		it("should reject making unique field required when multiple NULLs exist", async () => {
+			await registry.createField("posts", {
+				slug: "code",
+				label: "Code",
+				type: "string",
+				unique: true,
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group)
+				VALUES ('id1', 'p1', 'published', 'en', 'tg1')`.execute(db);
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group)
+				VALUES ('id2', 'p2', 'published', 'en', 'tg2')`.execute(db);
+
+			await expect(
+				registry.updateField("posts", "code", { required: true }),
+			).rejects.toThrow("multiple NULL values exist");
+		});
+
+		it("should allow making unique field required when only one NULL exists", async () => {
+			await registry.createField("posts", {
+				slug: "code",
+				label: "Code",
+				type: "string",
+				unique: true,
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group)
+				VALUES ('id1', 'p1', 'published', 'en', 'tg1')`.execute(db);
+
+			const updated = await registry.updateField("posts", "code", { required: true });
+			expect(updated.required).toBe(true);
+		});
 	});
 
 	describe("Unique Constraints", () => {
@@ -1077,6 +1110,24 @@ describe("SchemaRegistry", () => {
 			await expect(
 				sql`INSERT INTO ec_posts (id, slug, status, email, locale)
 					VALUES ('id2', 'post-2', 'published', 'a@b.com', 'en')`.execute(db),
+			).rejects.toThrow();
+		});
+
+		it("should enforce unique constraint on required=true field (no NULL guard)", async () => {
+			await registry.createField("posts", {
+				slug: "code",
+				label: "Code",
+				type: "string",
+				unique: true,
+				required: true,
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, code, locale)
+				VALUES ('id1', 'post-1', 'published', 'ABC', 'en')`.execute(db);
+
+			await expect(
+				sql`INSERT INTO ec_posts (id, slug, status, code, locale)
+					VALUES ('id2', 'post-2', 'published', 'ABC', 'en')`.execute(db),
 			).rejects.toThrow();
 		});
 
@@ -1444,6 +1495,25 @@ describe("SchemaRegistry", () => {
 				WHERE type = 'index' AND name = 'idx_ec_posts_code'
 			`.execute(db);
 			expect(plain.rows.length).toBe(1);
+		});
+
+		it("should allow duplicate values after switching from unique to plain index", async () => {
+			await registry.createField("posts", {
+				slug: "code",
+				label: "Code",
+				type: "string",
+				unique: true,
+			});
+
+			await registry.updateField("posts", "code", { unique: false, indexed: true });
+
+			await sql`INSERT INTO ec_posts (id, slug, status, code, locale)
+				VALUES ('id1', 'post-1', 'published', 'SAME', 'en')`.execute(db);
+			await sql`INSERT INTO ec_posts (id, slug, status, code, locale)
+				VALUES ('id2', 'post-2', 'published', 'SAME', 'en')`.execute(db);
+
+			const rows = await sql`SELECT id FROM ec_posts WHERE code = 'SAME'`.execute(db);
+			expect(rows.rows.length).toBe(2);
 		});
 
 		it("should only create unique index when both unique and indexed are true", async () => {
