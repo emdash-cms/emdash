@@ -143,6 +143,61 @@ describe("SchemaRegistry", () => {
 			expect(collection).toBeNull();
 		});
 
+		it("should clean up associated data when deleting a collection", async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+			await registry.createField("posts", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+			});
+
+			// Insert a content row
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group) VALUES ('p1', 'test', 'published', 'en', 'tg1')`.execute(
+				db,
+			);
+
+			// Insert associated data across all 5 tables
+			await sql`INSERT INTO revisions (id, collection, entry_id, data) VALUES ('r1', 'posts', 'p1', '{}')`.execute(
+				db,
+			);
+			await sql`INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id) VALUES ('posts', 'p1', 'tax1')`.execute(
+				db,
+			);
+			await sql`INSERT INTO _emdash_comments (id, collection, content_id, author_name, author_email, body, status) VALUES ('c1', 'posts', 'p1', 'Test', 'test@test.com', 'hi', 'approved')`.execute(
+				db,
+			);
+			await sql`INSERT INTO _emdash_seo (collection, content_id) VALUES ('posts', 'p1')`.execute(
+				db,
+			);
+			await sql`INSERT INTO _emdash_content_bylines (id, collection_slug, content_id, byline_id, sort_order) VALUES ('b1', 'posts', 'p1', 'by1', 0)`.execute(
+				db,
+			);
+
+			await registry.deleteCollection("posts", { force: true });
+
+			// All 5 tables should be clean
+			const revisions = await sql`SELECT * FROM revisions WHERE collection = 'posts'`.execute(db);
+			expect(revisions.rows.length).toBe(0);
+
+			const taxonomies =
+				await sql`SELECT * FROM content_taxonomies WHERE collection = 'posts'`.execute(db);
+			expect(taxonomies.rows.length).toBe(0);
+
+			const comments = await sql`SELECT * FROM _emdash_comments WHERE collection = 'posts'`.execute(
+				db,
+			);
+			expect(comments.rows.length).toBe(0);
+
+			const seo = await sql`SELECT * FROM _emdash_seo WHERE collection = 'posts'`.execute(db);
+			expect(seo.rows.length).toBe(0);
+
+			const bylines =
+				await sql`SELECT * FROM _emdash_content_bylines WHERE collection_slug = 'posts'`.execute(
+					db,
+				);
+			expect(bylines.rows.length).toBe(0);
+		});
+
 		it("should throw when creating duplicate collection", async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts" });
 

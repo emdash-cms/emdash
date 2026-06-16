@@ -1,11 +1,14 @@
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import {
 	handleContentCreate,
+	handleContentDelete,
 	handleContentDuplicate,
 	handleContentGet,
 	handleContentList,
+	handleContentPermanentDelete,
 	handleContentUpdate,
 } from "../../../src/api/index.js";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
@@ -688,5 +691,54 @@ describe("Content Handlers — list total", () => {
 		expect(result.success).toBe(true);
 		expect(result.data?.items).toHaveLength(2);
 		expect(result.data?.total).toBe(8);
+	});
+});
+
+describe("Content Handlers — permanent delete cleanup", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("should clean up content_taxonomies on permanent delete", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Taxonomy Test" },
+		});
+		const id = created.data!.item.id;
+
+		await sql`INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id) VALUES ('post', ${id}, 'tax1')`.execute(
+			db,
+		);
+
+		// Soft-delete first (permanent delete requires deleted_at IS NOT NULL)
+		await handleContentDelete(db, "post", id);
+		await handleContentPermanentDelete(db, "post", id);
+
+		const after = await sql`SELECT * FROM content_taxonomies WHERE entry_id = ${id}`.execute(db);
+		expect(after.rows.length).toBe(0);
+	});
+
+	it("should clean up _emdash_content_bylines on permanent delete", async () => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Byline Test" },
+		});
+		const id = created.data!.item.id;
+
+		await sql`INSERT INTO _emdash_content_bylines (id, collection_slug, content_id, byline_id, sort_order) VALUES ('bl1', 'post', ${id}, 'byline1', 0)`.execute(
+			db,
+		);
+
+		await handleContentDelete(db, "post", id);
+		await handleContentPermanentDelete(db, "post", id);
+
+		const after = await sql`SELECT * FROM _emdash_content_bylines WHERE content_id = ${id}`.execute(
+			db,
+		);
+		expect(after.rows.length).toBe(0);
 	});
 });

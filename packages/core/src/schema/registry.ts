@@ -376,6 +376,13 @@ export class SchemaRegistry {
 			const ftsManager = new FTSManager(trx);
 			await ftsManager.dropFtsTable(slug);
 
+			// Clean up associated data before dropping the content table
+			await trx.deleteFrom("revisions").where("collection", "=", slug).execute();
+			await trx.deleteFrom("content_taxonomies").where("collection", "=", slug).execute();
+			await trx.deleteFrom("_emdash_comments").where("collection", "=", slug).execute();
+			await trx.deleteFrom("_emdash_seo").where("collection", "=", slug).execute();
+			await trx.deleteFrom("_emdash_content_bylines").where("collection_slug", "=", slug).execute();
+
 			// Drop the content table
 			const tableName = this.getTableName(slug);
 			await sql`DROP TABLE IF EXISTS ${sql.ref(tableName)}`.execute(trx);

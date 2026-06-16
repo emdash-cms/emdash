@@ -1171,6 +1171,18 @@ export async function handleContentPermanentDelete(
 				// Clean up revisions for permanently deleted content
 				const revisionRepo = new RevisionRepository(trx);
 				await revisionRepo.deleteByEntry(collection, resolvedId);
+				// Clean up taxonomy assignments
+				await trx
+					.deleteFrom("content_taxonomies")
+					.where("collection", "=", collection)
+					.where("entry_id", "=", resolvedId)
+					.execute();
+				// Clean up byline assignments
+				await trx
+					.deleteFrom("_emdash_content_bylines")
+					.where("collection_slug", "=", collection)
+					.where("content_id", "=", resolvedId)
+					.execute();
 			}
 
 			return wasDeleted;
