@@ -303,6 +303,50 @@ describe("SchemaRegistry", () => {
 			).rejects.toThrow(SchemaError);
 		});
 
+		it("should reject built-in column names as field slugs", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "locale",
+					label: "Locale",
+					type: "string",
+				}),
+			).rejects.toThrow(SchemaError);
+
+			await expect(
+				registry.createField("posts", {
+					slug: "translation_group",
+					label: "Translation Group",
+					type: "string",
+				}),
+			).rejects.toThrow(SchemaError);
+		});
+
+		it("should reject field slugs that collide with built-in index names", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "author",
+					label: "Author",
+					type: "string",
+				}),
+			).rejects.toThrow(SchemaError);
+
+			await expect(
+				registry.createField("posts", {
+					slug: "scheduled",
+					label: "Scheduled",
+					type: "string",
+				}),
+			).rejects.toThrow(SchemaError);
+
+			await expect(
+				registry.createField("posts", {
+					slug: "deleted_status",
+					label: "Deleted Status",
+					type: "string",
+				}),
+			).rejects.toThrow(SchemaError);
+		});
+
 		it("should map field types to correct column types", async () => {
 			const testCases: Array<{ type: any; slug: string; expected: string }> = [
 				{ type: "string", slug: "f_string", expected: "TEXT" },
@@ -339,17 +383,17 @@ describe("SchemaRegistry", () => {
 				type: "portableText",
 			});
 			await registry.createField("posts", {
-				slug: "author",
-				label: "Author",
+				slug: "writer",
+				label: "Writer",
 				type: "reference",
 			});
 
-			await registry.reorderFields("posts", ["author", "title", "content"]);
+			await registry.reorderFields("posts", ["writer", "title", "content"]);
 
 			const collection = await registry.getCollection("posts");
 			const fields = await registry.listFields(collection!.id);
 
-			expect(fields[0].slug).toBe("author");
+			expect(fields[0].slug).toBe("writer");
 			expect(fields[1].slug).toBe("title");
 			expect(fields[2].slug).toBe("content");
 		});

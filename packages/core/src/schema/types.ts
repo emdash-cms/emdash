@@ -304,10 +304,24 @@ export const RESERVED_FIELD_SLUGS = [
 	"version",
 	"live_revision_id",
 	"draft_revision_id",
+	// Built-in columns added by migrations (i18n)
+	"locale",
+	"translation_group",
 	// Runtime-hydrated fields
 	"terms",
 	"bylines",
 	"byline",
+	// Index name collision prevention: these slugs would produce idx_{table}_{slug}
+	// names that collide with indexes created by createContentTable()
+	"author",
+	"scheduled",
+	"primary_byline",
+	"live_revision",
+	"draft_revision",
+	"deleted_status",
+	"deleted_created_id",
+	"deleted_updated_id",
+	"deleted_published_id",
 ];
 
 /**
