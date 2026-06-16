@@ -340,6 +340,9 @@ export const RESERVED_FIELD_SLUGS = [
 	"deleted_created_id",
 	"deleted_updated_id",
 	"deleted_published_id",
+	// Locale composite index suffixes (migration 041)
+	"loc_upd",
+	"loc_crt",
 ];
 
 /**

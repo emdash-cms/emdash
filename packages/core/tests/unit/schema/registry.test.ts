@@ -400,6 +400,22 @@ describe("SchemaRegistry", () => {
 					type: "string",
 				}),
 			).rejects.toThrow(SchemaError);
+
+			await expect(
+				registry.createField("posts", {
+					slug: "loc_upd",
+					label: "Loc Upd",
+					type: "string",
+				}),
+			).rejects.toThrow(SchemaError);
+
+			await expect(
+				registry.createField("posts", {
+					slug: "loc_crt",
+					label: "Loc Crt",
+					type: "string",
+				}),
+			).rejects.toThrow(SchemaError);
 		});
 
 		it("should map field types to correct column types", async () => {
