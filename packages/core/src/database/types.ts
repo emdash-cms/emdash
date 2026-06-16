@@ -253,6 +253,7 @@ export interface FieldTable {
 	sort_order: number;
 	searchable: Generated<number>; // boolean as 0/1, defaults to 0
 	translatable: Generated<number>; // boolean as 0/1, defaults to 1
+	indexed: Generated<number>; // boolean as 0/1, defaults to 0
 	created_at: Generated<string>;
 }
 

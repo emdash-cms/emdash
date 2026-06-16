@@ -436,20 +436,18 @@ export class SchemaRegistry {
 			throw new SchemaError(`Field slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
 
-		// Validate unique constraints
-		if (input.unique) {
-			if (NON_INDEXABLE_FIELD_TYPES.has(input.type)) {
-				throw new SchemaError(
-					`Field type "${input.type}" does not support unique constraints`,
-					"UNSUPPORTED_INDEX_TYPE",
-				);
-			}
-			if (input.translatable === false) {
-				throw new SchemaError(
-					"Non-translatable fields cannot have unique constraints",
-					"INCOMPATIBLE_OPTIONS",
-				);
-			}
+		// Validate unique/indexed constraints
+		if ((input.unique || input.indexed) && NON_INDEXABLE_FIELD_TYPES.has(input.type)) {
+			throw new SchemaError(
+				`Field type "${input.type}" does not support ${input.unique ? "unique constraints" : "indexes"}`,
+				"UNSUPPORTED_INDEX_TYPE",
+			);
+		}
+		if (input.unique && input.translatable === false) {
+			throw new SchemaError(
+				"Non-translatable fields cannot have unique constraints",
+				"INCOMPATIBLE_OPTIONS",
+			);
 		}
 
 		// Check if field already exists
@@ -494,6 +492,7 @@ export class SchemaRegistry {
 					sort_order: sortOrder,
 					searchable: input.searchable ? 1 : 0,
 					translatable: input.translatable === false ? 0 : 1,
+					indexed: input.indexed ? 1 : 0,
 				})
 				.execute();
 
@@ -523,9 +522,11 @@ export class SchemaRegistry {
 
 			const field = this.mapFieldRow(fieldRow);
 
-			// Create unique index if requested
+			// Create unique index if requested (unique supersedes plain indexed)
 			if (input.unique) {
 				await this.createUniqueIndex(collectionSlug, input.slug, input.required, trx);
+			} else if (input.indexed) {
+				await this.createPlainIndex(collectionSlug, input.slug, trx);
 			}
 
 			// Sync search state if this field is searchable; support checks are handled by syncSearchState()
@@ -553,12 +554,13 @@ export class SchemaRegistry {
 			);
 		}
 
-		// Validate unique constraints
+		// Validate unique/indexed constraints
 		const willBeUnique = input.unique ?? field.unique;
+		const willBeIndexed = input.indexed ?? field.indexed;
 		const willBeTranslatable = input.translatable ?? field.translatable;
-		if (willBeUnique && NON_INDEXABLE_FIELD_TYPES.has(field.type)) {
+		if ((willBeUnique || willBeIndexed) && NON_INDEXABLE_FIELD_TYPES.has(field.type)) {
 			throw new SchemaError(
-				`Field type "${field.type}" does not support unique constraints`,
+				`Field type "${field.type}" does not support ${willBeUnique ? "unique constraints" : "indexes"}`,
 				"UNSUPPORTED_INDEX_TYPE",
 			);
 		}
@@ -604,6 +606,7 @@ export class SchemaRegistry {
 						: field.options
 							? JSON.stringify(field.options)
 							: null,
+					indexed: input.indexed !== undefined ? (input.indexed ? 1 : 0) : field.indexed ? 1 : 0,
 					sort_order: input.sortOrder ?? field.sortOrder,
 				})
 				.where("id", "=", field.id)
@@ -623,14 +626,19 @@ export class SchemaRegistry {
 
 			const updated = this.mapFieldRow(updatedRow);
 
-			// Handle unique index changes
+			// Handle index state transitions (unique and/or indexed changes)
 			const uniqueChanged = input.unique !== undefined && input.unique !== field.unique;
-			if (uniqueChanged) {
-				if (input.unique) {
-					await this.checkDuplicateValues(collectionSlug, fieldSlug, trx);
+			const indexedChanged = input.indexed !== undefined && input.indexed !== field.indexed;
+			if (uniqueChanged || indexedChanged) {
+				await this.dropFieldIndexes(collectionSlug, fieldSlug, trx);
+
+				if (willBeUnique) {
+					if (uniqueChanged && input.unique) {
+						await this.checkDuplicateValues(collectionSlug, fieldSlug, trx);
+					}
 					await this.createUniqueIndex(collectionSlug, fieldSlug, updated.required, trx);
-				} else {
-					await this.dropFieldIndexes(collectionSlug, fieldSlug, trx);
+				} else if (willBeIndexed) {
+					await this.createPlainIndex(collectionSlug, fieldSlug, trx);
 				}
 			}
 
@@ -722,7 +730,7 @@ export class SchemaRegistry {
 			}
 
 			// Drop any indexes before DROP COLUMN (required for SQLite, harmless on Postgres)
-			if (field.unique) {
+			if (field.unique || field.indexed) {
 				await this.dropFieldIndexes(collectionSlug, fieldSlug, trx);
 			}
 
@@ -981,6 +989,25 @@ export class SchemaRegistry {
 	}
 
 	/**
+	 * Create a plain B-tree index on a single column.
+	 */
+	private async createPlainIndex(
+		collectionSlug: string,
+		fieldSlug: string,
+		db: Kysely<Database>,
+	): Promise<void> {
+		const tableName = this.getTableName(collectionSlug);
+		const columnName = this.getColumnName(fieldSlug);
+		const indexName = `idx_${tableName}_${columnName}`;
+		validateIdentifier(indexName);
+
+		await sql`
+			CREATE INDEX IF NOT EXISTS ${sql.ref(indexName)}
+			ON ${sql.ref(tableName)} (${sql.ref(columnName)})
+		`.execute(db);
+	}
+
+	/**
 	 * Create a partial unique index scoped by locale, excluding soft-deleted rows.
 	 */
 	private async createUniqueIndex(
@@ -1210,6 +1237,7 @@ export class SchemaRegistry {
 			columnType: isColumnType(row.column_type) ? row.column_type : "TEXT",
 			required: row.required === 1,
 			unique: row.unique === 1,
+			indexed: row.indexed === 1,
 			defaultValue: row.default_value ? JSON.parse(row.default_value) : undefined,
 			validation: row.validation ? JSON.parse(row.validation) : undefined,
 			widget: row.widget ?? undefined,

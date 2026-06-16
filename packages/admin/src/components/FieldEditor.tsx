@@ -33,6 +33,16 @@ import { AllowedTypesEditor } from "./AllowedTypesEditor";
 const SLUG_INVALID_CHARS_REGEX = /[^a-z0-9]+/g;
 const SLUG_LEADING_TRAILING_REGEX = /^_|_$/g;
 
+// Must match NON_INDEXABLE_FIELD_TYPES in packages/core/src/schema/types.ts
+const NON_INDEXABLE_TYPES: ReadonlySet<FieldType> = new Set([
+	"multiSelect",
+	"portableText",
+	"json",
+	"repeater",
+	"image",
+	"file",
+]);
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -66,6 +76,7 @@ interface FieldFormState {
 	label: string;
 	required: boolean;
 	unique: boolean;
+	indexed: boolean;
 	searchable: boolean;
 	minLength: string;
 	maxLength: string;
@@ -88,6 +99,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 			label: field.label,
 			required: field.required,
 			unique: field.unique,
+			indexed: field.indexed,
 			searchable: field.searchable,
 			minLength: field.validation?.minLength?.toString() ?? "",
 			maxLength: field.validation?.maxLength?.toString() ?? "",
@@ -110,6 +122,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 		label: "",
 		required: false,
 		unique: false,
+		indexed: false,
 		searchable: false,
 		minLength: "",
 		maxLength: "",
@@ -138,7 +151,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 		}
 	}, [open, field]);
 
-	const { step, selectedType, slug, label, required, unique, searchable } = formState;
+	const { step, selectedType, slug, label, required, unique, indexed, searchable } = formState;
 	const { minLength, maxLength, min, max, pattern, options } = formState;
 	const setField = <K extends keyof FieldFormState>(key: K, value: FieldFormState[K]) =>
 		setFormState((prev) => ({ ...prev, [key]: value }));
@@ -319,12 +332,15 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			selectedType === "slug" ||
 			selectedType === "url";
 
+		const isIndexableType = !NON_INDEXABLE_TYPES.has(selectedType);
+
 		const input: CreateFieldInput = {
 			slug,
 			label,
 			type: selectedType,
 			required,
 			unique,
+			indexed: isIndexableType ? indexed : undefined,
 			searchable: isSearchableType ? searchable : undefined,
 			validation: Object.keys(validation).length > 0 ? validation : null,
 		};
@@ -406,7 +422,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 						)}
 
 						{/* Basic info */}
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-2 gap-4 items-start">
 							<Input
 								label={t`Label`}
 								value={label}
@@ -450,6 +466,13 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 									checked={searchable}
 									onCheckedChange={(checked) => setField("searchable", checked)}
 									label={<span className="text-sm">{t`Searchable`}</span>}
+								/>
+							)}
+							{selectedType && !NON_INDEXABLE_TYPES.has(selectedType) && (
+								<Switch
+									checked={indexed}
+									onCheckedChange={(checked) => setField("indexed", checked)}
+									label={<span className="text-sm">{t`Indexed`}</span>}
 								/>
 							)}
 						</div>

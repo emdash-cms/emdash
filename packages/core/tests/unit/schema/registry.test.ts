@@ -1182,4 +1182,239 @@ describe("SchemaRegistry", () => {
 			expect(indexes.rows.length).toBe(0);
 		});
 	});
+
+	describe("Indexed Fields", () => {
+		beforeEach(async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+		});
+
+		it("should create a plain index when indexed is true", async () => {
+			const field = await registry.createField("posts", {
+				slug: "series",
+				label: "Series",
+				type: "string",
+				indexed: true,
+			});
+
+			expect(field.indexed).toBe(true);
+
+			const indexes = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_series'
+			`.execute(db);
+			expect(indexes.rows.length).toBe(1);
+		});
+
+		it("should reject indexed on JSON field types", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "tags",
+					label: "Tags",
+					type: "multiSelect",
+					indexed: true,
+				}),
+			).rejects.toThrow("does not support indexes");
+
+			await expect(
+				registry.createField("posts", {
+					slug: "body",
+					label: "Body",
+					type: "portableText",
+					indexed: true,
+				}),
+			).rejects.toThrow("does not support indexes");
+
+			await expect(
+				registry.createField("posts", {
+					slug: "meta",
+					label: "Meta",
+					type: "json",
+					indexed: true,
+				}),
+			).rejects.toThrow("does not support indexes");
+		});
+
+		it("should reject indexed on image and file types", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "photo",
+					label: "Photo",
+					type: "image",
+					indexed: true,
+				}),
+			).rejects.toThrow("does not support indexes");
+
+			await expect(
+				registry.createField("posts", {
+					slug: "attachment",
+					label: "Attachment",
+					type: "file",
+					indexed: true,
+				}),
+			).rejects.toThrow("does not support indexes");
+		});
+
+		it("should reject indexed on repeater type", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "items",
+					label: "Items",
+					type: "repeater",
+					indexed: true,
+				}),
+			).rejects.toThrow("does not support indexes");
+		});
+
+		it("should default indexed to false when not specified", async () => {
+			const field = await registry.createField("posts", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+			});
+			expect(field.indexed).toBe(false);
+		});
+
+		it("should allow indexed on reference type", async () => {
+			const field = await registry.createField("posts", {
+				slug: "related",
+				label: "Related",
+				type: "reference",
+				indexed: true,
+			});
+			expect(field.indexed).toBe(true);
+		});
+
+		it("should reject updateField indexed=true on non-indexable type", async () => {
+			await registry.createField("posts", {
+				slug: "tags",
+				label: "Tags",
+				type: "multiSelect",
+			});
+
+			await expect(
+				registry.updateField("posts", "tags", { indexed: true }),
+			).rejects.toThrow("does not support indexes");
+		});
+
+		it("should create plain index on updateField indexed false→true", async () => {
+			await registry.createField("posts", {
+				slug: "series",
+				label: "Series",
+				type: "string",
+			});
+
+			await registry.updateField("posts", "series", { indexed: true });
+
+			const indexes = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_series'
+			`.execute(db);
+			expect(indexes.rows.length).toBe(1);
+		});
+
+		it("should drop plain index on updateField indexed true→false", async () => {
+			await registry.createField("posts", {
+				slug: "series",
+				label: "Series",
+				type: "string",
+				indexed: true,
+			});
+
+			await registry.updateField("posts", "series", { indexed: false });
+
+			const indexes = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_series'
+			`.execute(db);
+			expect(indexes.rows.length).toBe(0);
+		});
+
+		it("should switch from plain index to unique index", async () => {
+			await registry.createField("posts", {
+				slug: "code",
+				label: "Code",
+				type: "string",
+				indexed: true,
+			});
+
+			await registry.updateField("posts", "code", { unique: true });
+
+			const plain = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_code'
+			`.execute(db);
+			expect(plain.rows.length).toBe(0);
+
+			const unique = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_code_unique'
+			`.execute(db);
+			expect(unique.rows.length).toBe(1);
+		});
+
+		it("should switch from unique index to plain index", async () => {
+			await registry.createField("posts", {
+				slug: "code",
+				label: "Code",
+				type: "string",
+				unique: true,
+			});
+
+			await registry.updateField("posts", "code", { unique: false, indexed: true });
+
+			const unique = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_code_unique'
+			`.execute(db);
+			expect(unique.rows.length).toBe(0);
+
+			const plain = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_code'
+			`.execute(db);
+			expect(plain.rows.length).toBe(1);
+		});
+
+		it("should only create unique index when both unique and indexed are true", async () => {
+			const field = await registry.createField("posts", {
+				slug: "sku",
+				label: "SKU",
+				type: "string",
+				unique: true,
+				indexed: true,
+			});
+
+			expect(field.unique).toBe(true);
+			expect(field.indexed).toBe(true);
+
+			const plain = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_sku'
+			`.execute(db);
+			expect(plain.rows.length).toBe(0);
+
+			const unique = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_sku_unique'
+			`.execute(db);
+			expect(unique.rows.length).toBe(1);
+		});
+
+		it("should clean up plain index on deleteField", async () => {
+			await registry.createField("posts", {
+				slug: "series",
+				label: "Series",
+				type: "string",
+				indexed: true,
+			});
+
+			await registry.deleteField("posts", "series");
+
+			const indexes = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_series'
+			`.execute(db);
+			expect(indexes.rows.length).toBe(0);
+		});
+	});
 });

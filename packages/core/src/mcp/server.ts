@@ -1675,6 +1675,10 @@ export function createMcpServer(): McpServer {
 						"Whether this field is translatable (default true). " +
 							"Non-translatable fields are synced across all locales in a translation group.",
 					),
+				indexed: z
+					.boolean()
+					.optional()
+					.describe("Create a B-tree index on this column (default false)"),
 			}),
 		},
 		async (args, extra) => {
@@ -1695,6 +1699,7 @@ export function createMcpServer(): McpServer {
 					options: args.options,
 					searchable: args.searchable,
 					translatable: args.translatable,
+					indexed: args.indexed,
 				});
 				return jsonResult(field);
 			} catch (error) {

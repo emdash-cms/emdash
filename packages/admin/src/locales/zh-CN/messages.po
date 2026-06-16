@@ -3804,7 +3804,7 @@ msgstr "不兼容"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:493
 msgid "Indexed"
-msgstr "已索引"
+msgstr "索引"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2972
 msgid "Inline Code"

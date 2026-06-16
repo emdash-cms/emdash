@@ -171,6 +171,18 @@ const addFieldCommand = defineCommand({
 			type: "boolean",
 			description: "Whether the field is required",
 		},
+		unique: {
+			type: "boolean",
+			description: "Whether values must be unique",
+		},
+		searchable: {
+			type: "boolean",
+			description: "Include in full-text search index",
+		},
+		indexed: {
+			type: "boolean",
+			description: "Create a B-tree index on this column",
+		},
 		...commonArgs,
 	},
 	async run({ args }) {
@@ -182,6 +194,9 @@ const addFieldCommand = defineCommand({
 				type: args.type,
 				label: args.label || args.field,
 				required: args.required,
+				unique: args.unique,
+				searchable: args.searchable,
+				indexed: args.indexed,
 			});
 			consola.success(`Added field "${args.field}" to "${args.collection}"`);
 			output(data, args);

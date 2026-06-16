@@ -354,6 +354,8 @@ export class EmDashClient {
 			label: string;
 			required?: boolean;
 			unique?: boolean;
+			indexed?: boolean;
+			searchable?: boolean;
 			defaultValue?: unknown;
 			validation?: unknown;
 			widget?: string;

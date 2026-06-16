@@ -119,6 +119,7 @@ export const createFieldBody = z
 		sortOrder: z.number().int().min(0).optional(),
 		searchable: z.boolean().optional(),
 		translatable: z.boolean().optional(),
+		indexed: z.boolean().optional(),
 	})
 	.meta({ id: "CreateFieldBody" });
 
@@ -134,6 +135,7 @@ export const updateFieldBody = z
 		sortOrder: z.number().int().min(0).optional(),
 		searchable: z.boolean().optional(),
 		translatable: z.boolean().optional(),
+		indexed: z.boolean().optional(),
 	})
 	.meta({ id: "UpdateFieldBody" });
 

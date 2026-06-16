@@ -723,6 +723,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 					<span className="text-xs text-kumo-subtle capitalize">{field.type}</span>
 					{field.required && <Badge variant="secondary">{t`Required`}</Badge>}
 					{field.unique && <Badge variant="secondary">{t`Unique`}</Badge>}
+					{field.indexed && !field.unique && <Badge variant="secondary">{t`Indexed`}</Badge>}
 					{field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>}
 				</div>
 			</div>

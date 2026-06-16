@@ -53,6 +53,7 @@ export interface SchemaField {
 	columnType: string;
 	required: boolean;
 	unique: boolean;
+	indexed: boolean;
 	searchable: boolean;
 	defaultValue?: unknown;
 	validation?: {
@@ -105,6 +106,7 @@ export interface CreateFieldInput {
 	type: FieldType;
 	required?: boolean;
 	unique?: boolean;
+	indexed?: boolean;
 	searchable?: boolean;
 	defaultValue?: unknown;
 	validation?: {
@@ -124,6 +126,7 @@ export interface UpdateFieldInput {
 	label?: string;
 	required?: boolean;
 	unique?: boolean;
+	indexed?: boolean;
 	searchable?: boolean;
 	defaultValue?: unknown;
 	validation?: {

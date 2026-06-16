@@ -208,6 +208,7 @@ export interface Field {
 	columnType: ColumnType;
 	required: boolean;
 	unique: boolean;
+	indexed: boolean;
 	defaultValue?: unknown;
 	validation?: FieldValidation;
 	widget?: string;
@@ -270,6 +271,8 @@ export interface CreateFieldInput {
 	searchable?: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable?: boolean;
+	/** Whether to create a B-tree index on this column */
+	indexed?: boolean;
 }
 
 /**
@@ -288,6 +291,8 @@ export interface UpdateFieldInput {
 	searchable?: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable?: boolean;
+	/** Whether to create a B-tree index on this column */
+	indexed?: boolean;
 }
 
 /**
