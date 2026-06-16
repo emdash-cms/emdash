@@ -157,7 +157,7 @@ function RedirectFormDialog({
 									"307": t`307 Temporary (Strict)`,
 									"308": t`308 Permanent (Strict)`,
 									"410": t`410 Content Deleted (Gone)`,
-									"451": t`451 Unavailable (legal)`,
+									"451": t`451 Unavailable for legal reasons`,
 								}}
 							/>
 						</div>
