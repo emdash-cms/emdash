@@ -978,6 +978,9 @@ importers:
       '@emdash-cms/blocks':
         specifier: workspace:*
         version: link:../blocks
+      '@emdash-cms/plugin-types':
+        specifier: workspace:*
+        version: link:../plugin-types
       '@emdash-cms/registry-client':
         specifier: workspace:*
         version: link:../registry-client

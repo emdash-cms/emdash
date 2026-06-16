@@ -19,10 +19,13 @@ import type { Element } from "@emdash-cms/blocks";
 // (e.g. `import { PluginCapability } from "../plugins/types.js"`).
 import {
 	CAPABILITY_RENAMES,
+	capabilitiesToDeclaredAccess,
+	declaredAccessToCapabilities,
 	isDeprecatedCapability,
 	normalizeCapabilities,
 	normalizeCapability,
 	type CurrentPluginCapability,
+	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
 	type ManifestRouteEntry,
@@ -40,10 +43,13 @@ import type { FieldType } from "../schema/types.js";
 
 export {
 	CAPABILITY_RENAMES,
+	capabilitiesToDeclaredAccess,
+	declaredAccessToCapabilities,
 	isDeprecatedCapability,
 	normalizeCapabilities,
 	normalizeCapability,
 	type CurrentPluginCapability,
+	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
 	type ManifestRouteEntry,
@@ -1336,6 +1342,12 @@ export interface PluginAdminExports {
 export interface PluginManifest {
 	id: string;
 	version: string;
+	/**
+	 * The trust contract (see `@emdash-cms/plugin-types`). Authoritative;
+	 * `capabilities`/`allowedHosts` are derived from it at the parse boundary
+	 * via `reconcileManifestAccess`. Optional during the wire-format migration.
+	 */
+	declaredAccess?: DeclaredAccess;
 	capabilities: PluginCapability[];
 	allowedHosts: string[];
 	storage: PluginStorageConfig;

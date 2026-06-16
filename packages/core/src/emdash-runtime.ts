@@ -45,6 +45,7 @@ import type {
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
+import { createIsolateCache, isolateCachedAsync } from "./utils/isolate-cache.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
@@ -417,12 +418,12 @@ export class EmDashRuntime {
 	private pluginStates: Map<string, string>;
 
 	/**
-	 * Set to true after FTS indexes have been verified for this worker
-	 * lifetime so we don't re-scan on every admin request. See
-	 * ensureSearchHealthy().
+	 * Isolate-lifetime guard so FTS indexes are verified at most once per
+	 * worker rather than on every admin request. See ensureSearchHealthy().
+	 * Uses the poison-immune isolate cache (never a shared awaitable promise)
+	 * so a cancelled first caller can't wedge later ones.
 	 */
-	private _searchHealthChecked = false;
-	private _searchHealthPromise: Promise<void> | null = null;
+	private readonly _searchHealthCache = createIsolateCache<void>();
 
 	/** Current hook pipeline. Use the `hooks` getter for external access. */
 	get hooks(): HookPipeline {
@@ -2228,27 +2229,32 @@ export class EmDashRuntime {
 	 * defend against FTS not existing yet (pre-setup).
 	 */
 	async ensureSearchHealthy(): Promise<void> {
-		if (this._searchHealthChecked) return;
-		if (this._searchHealthPromise) return this._searchHealthPromise;
-		if (!isSqlite(this._db)) {
-			this._searchHealthChecked = true;
-			return;
+		// Non-SQLite has no FTS to verify; the check is a cheap synchronous
+		// branch, no need to cache it.
+		if (!isSqlite(this._db)) return;
+		try {
+			await isolateCachedAsync(
+				this._searchHealthCache,
+				async () => {
+					try {
+						const ftsManager = new FTSManager(this._db);
+						const repaired = await ftsManager.verifyAndRepairAll();
+						if (repaired > 0) {
+							console.log(`Repaired ${repaired} corrupted FTS index(es)`);
+						}
+					} catch {
+						// FTS tables may not exist yet (pre-setup). Non-fatal — cache
+						// the "checked" state regardless so we don't re-scan.
+					}
+				},
+				{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
+			);
+		} catch {
+			// This check is best-effort and must never fail the calling request.
+			// The inner body already swallows verify errors; this guards the
+			// outer failure modes (owner timeout, waiter give-up) so a slow FTS
+			// scan degrades to "unverified", not a 500 on admin/search routes.
 		}
-		this._searchHealthPromise = (async () => {
-			try {
-				const ftsManager = new FTSManager(this._db);
-				const repaired = await ftsManager.verifyAndRepairAll();
-				if (repaired > 0) {
-					console.log(`Repaired ${repaired} corrupted FTS index(es)`);
-				}
-			} catch {
-				// FTS tables may not exist yet (pre-setup). Non-fatal.
-			} finally {
-				this._searchHealthChecked = true;
-				this._searchHealthPromise = null;
-			}
-		})();
-		return this._searchHealthPromise;
 	}
 
 	// =========================================================================
