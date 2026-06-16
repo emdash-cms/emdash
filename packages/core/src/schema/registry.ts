@@ -968,10 +968,9 @@ export class SchemaRegistry {
 		const columnName = this.getColumnName(fieldSlug);
 
 		if (required) {
-			const fillValue =
-				defaultValue !== undefined
-					? this.toColumnValue(defaultValue, fieldType)
-					: this.getEmptyColumnValue(fieldType);
+			const rawValue =
+				defaultValue !== undefined ? this.toColumnValue(defaultValue, fieldType) : null;
+			const fillValue = rawValue ?? this.getEmptyColumnValue(fieldType);
 
 			await sql`
 				UPDATE ${sql.ref(tableName)}
@@ -1060,7 +1059,7 @@ export class SchemaRegistry {
 			FROM ${sql.ref(tableName)}
 			WHERE ${sql.ref(columnName)} IS NOT NULL AND deleted_at IS NULL
 			GROUP BY ${sql.ref(columnName)}, locale
-			HAVING cnt > 1
+			HAVING COUNT(*) > 1
 		`.execute(db);
 
 		if (dupes.rows.length > 0) {

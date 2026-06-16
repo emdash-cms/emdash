@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { isPostgres } from "../../database/dialect-helpers.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 
@@ -76,13 +77,18 @@ export async function checkUniqueFieldConflicts(
 		}
 
 		// Check 2: draft revisions of other entries
+		// field.slug is validated by validateIdentifier above
+		const jsonExpr = isPostgres(db)
+			? sql.raw(`r.data->>'${field.slug}'`)
+			: sql.raw(`json_extract(r.data, '$.${field.slug}')`);
+
 		const draftConflict = await sql<{ id: string }>`
 			SELECT e.id FROM ${sql.ref(tableName)} e
 			JOIN revisions r ON r.id = e.draft_revision_id
 			WHERE e.id != ${entryId}
 			AND e.deleted_at IS NULL
 			AND e.locale = ${resolvedLocale}
-			AND json_extract(r.data, ${`$.${field.slug}`}) = ${value}
+			AND ${jsonExpr} = ${value}
 			LIMIT 1
 		`.execute(db);
 

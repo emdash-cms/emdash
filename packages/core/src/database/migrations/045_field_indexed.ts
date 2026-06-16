@@ -12,5 +12,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-	await sql`ALTER TABLE _emdash_fields DROP COLUMN indexed`.execute(db);
+	if (await columnExists(db, "_emdash_fields", "indexed")) {
+		await sql`ALTER TABLE _emdash_fields DROP COLUMN indexed`.execute(db);
+	}
 }
