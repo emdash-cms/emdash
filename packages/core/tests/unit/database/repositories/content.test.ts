@@ -608,4 +608,100 @@ describe("ContentRepository", () => {
 			expect(count).toBe(2);
 		});
 	});
+
+	describe("restore() with unique fields", () => {
+		it("should throw when restoring conflicts with existing unique value", async () => {
+			const registry = (await import("../../../../src/schema/registry.js")).SchemaRegistry;
+			const reg = new registry(db);
+
+			await reg.createField("post", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			const item = await repo.create(
+				createPostFixture({ slug: "orig", data: { title: "A", email: "a@b.com" } }),
+			);
+
+			await repo.delete("post", item.id);
+
+			await repo.create(
+				createPostFixture({ slug: "new-one", data: { title: "B", email: "a@b.com" } }),
+			);
+
+			await expect(repo.restore("post", item.id, [{ slug: "email" }])).rejects.toThrow(
+				EmDashValidationError,
+			);
+		});
+
+		it("should allow restore when no unique conflict", async () => {
+			const registry = (await import("../../../../src/schema/registry.js")).SchemaRegistry;
+			const reg = new registry(db);
+
+			await reg.createField("post", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			const item = await repo.create(
+				createPostFixture({ slug: "orig", data: { title: "A", email: "a@b.com" } }),
+			);
+
+			await repo.delete("post", item.id);
+
+			const restored = await repo.restore("post", item.id, [{ slug: "email" }]);
+			expect(restored).toBe(true);
+		});
+	});
+
+	describe("duplicate() with unique fields", () => {
+		it("should clear optional unique fields on duplicate", async () => {
+			const registry = (await import("../../../../src/schema/registry.js")).SchemaRegistry;
+			const reg = new registry(db);
+
+			await reg.createField("post", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			const item = await repo.create(
+				createPostFixture({ slug: "orig", data: { title: "A", email: "a@b.com" } }),
+			);
+
+			const dup = await repo.duplicate("post", item.id, undefined, [
+				{ slug: "email", required: false },
+			]);
+
+			expect(dup.data.email).toBeUndefined();
+		});
+
+		it("should append suffix to required unique fields on duplicate", async () => {
+			const registry = (await import("../../../../src/schema/registry.js")).SchemaRegistry;
+			const reg = new registry(db);
+
+			await reg.createField("post", {
+				slug: "code",
+				label: "Code",
+				type: "string",
+				unique: true,
+				required: true,
+			});
+
+			const item = await repo.create(
+				createPostFixture({ slug: "orig", data: { title: "A", code: "ABC123" } }),
+			);
+
+			const dup = await repo.duplicate("post", item.id, undefined, [
+				{ slug: "code", required: true },
+			]);
+
+			expect(dup.data.code).toBe("ABC123 (Copy)");
+		});
+	});
 });

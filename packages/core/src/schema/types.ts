@@ -54,6 +54,19 @@ export const FIELD_TYPES: readonly FieldType[] = [
 export type ColumnType = "TEXT" | "REAL" | "INTEGER" | "JSON";
 
 /**
+ * Field types that cannot have unique or indexed constraints.
+ * JSON columns store structured data; image/file store serialized JSON strings.
+ */
+export const NON_INDEXABLE_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
+	"multiSelect",
+	"portableText",
+	"json",
+	"repeater",
+	"image",
+	"file",
+]);
+
+/**
  * Map field types to their SQLite column types
  */
 export const FIELD_TYPE_TO_COLUMN: Record<FieldType, ColumnType> = {

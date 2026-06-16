@@ -281,9 +281,15 @@ export class ContentRepository {
 	/**
 	 * Duplicate a content item
 	 * Creates a new draft copy with "(Copy)" appended to the title.
+	 * Unique field values are cleared to avoid constraint violations.
 	 * A slug is auto-generated from the new title by the handler layer.
 	 */
-	async duplicate(type: string, id: string, authorId?: string): Promise<ContentItem> {
+	async duplicate(
+		type: string,
+		id: string,
+		authorId?: string,
+		uniqueFields?: Array<{ slug: string; required: boolean }>,
+	): Promise<ContentItem> {
 		// Fetch the original item
 		const original = await this.findById(type, id);
 		if (!original) {
@@ -298,6 +304,19 @@ export class ContentRepository {
 			newData.title = `${newData.title} (Copy)`;
 		} else if (typeof newData.name === "string") {
 			newData.name = `${newData.name} (Copy)`;
+		}
+
+		// Clear unique field values to avoid constraint violations
+		if (uniqueFields) {
+			for (const field of uniqueFields) {
+				if (field.slug in newData) {
+					if (field.required && typeof newData[field.slug] === "string") {
+						newData[field.slug] = `${newData[field.slug]} (Copy)`;
+					} else {
+						delete newData[field.slug];
+					}
+				}
+			}
 		}
 
 		// Auto-generate a unique slug from the new title/name
@@ -654,10 +673,45 @@ export class ContentRepository {
 	}
 
 	/**
-	 * Restore content from trash
+	 * Restore content from trash.
+	 * Checks for unique constraint conflicts before restoring.
 	 */
-	async restore(type: string, id: string): Promise<boolean> {
+	async restore(
+		type: string,
+		id: string,
+		uniqueFields?: Array<{ slug: string }>,
+	): Promise<boolean> {
 		const tableName = getTableName(type);
+
+		if (uniqueFields && uniqueFields.length > 0) {
+			const row = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE id = ${id} AND deleted_at IS NOT NULL
+			`.execute(this.db);
+
+			const item = row.rows[0];
+			if (item) {
+				for (const field of uniqueFields) {
+					const value = item[field.slug];
+					if (value == null) continue;
+
+					const conflict = await sql<{ id: string }>`
+						SELECT id FROM ${sql.ref(tableName)}
+						WHERE ${sql.ref(field.slug)} = ${value}
+						AND locale = ${item.locale ?? "en"}
+						AND deleted_at IS NULL
+						AND id != ${id}
+						LIMIT 1
+					`.execute(this.db);
+
+					if (conflict.rows.length > 0) {
+						throw new EmDashValidationError(
+							`Cannot restore: unique field "${field.slug}" conflicts with existing content`,
+						);
+					}
+				}
+			}
+		}
 
 		const result = await sql`
 			UPDATE ${sql.ref(tableName)}

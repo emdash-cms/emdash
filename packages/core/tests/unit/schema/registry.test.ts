@@ -760,4 +760,236 @@ describe("SchemaRegistry", () => {
 			expect(field).toBeNull();
 		});
 	});
+
+	describe("Unique Constraints", () => {
+		beforeEach(async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+		});
+
+		it("should create a unique index when unique is true", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			const indexes = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name LIKE '%email_unique%'
+			`.execute(db);
+			expect(indexes.rows.length).toBe(1);
+		});
+
+		it("should reject unique on JSON field types", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "tags",
+					label: "Tags",
+					type: "multiSelect",
+					unique: true,
+				}),
+			).rejects.toThrow(SchemaError);
+
+			await expect(
+				registry.createField("posts", {
+					slug: "body",
+					label: "Body",
+					type: "portableText",
+					unique: true,
+				}),
+			).rejects.toThrow(SchemaError);
+
+			await expect(
+				registry.createField("posts", {
+					slug: "meta",
+					label: "Meta",
+					type: "json",
+					unique: true,
+				}),
+			).rejects.toThrow(SchemaError);
+		});
+
+		it("should reject unique on image and file types", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "photo",
+					label: "Photo",
+					type: "image",
+					unique: true,
+				}),
+			).rejects.toThrow(SchemaError);
+
+			await expect(
+				registry.createField("posts", {
+					slug: "attachment",
+					label: "Attachment",
+					type: "file",
+					unique: true,
+				}),
+			).rejects.toThrow(SchemaError);
+		});
+
+		it("should reject unique + non-translatable combination", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "code",
+					label: "Code",
+					type: "string",
+					unique: true,
+					translatable: false,
+				}),
+			).rejects.toThrow(SchemaError);
+		});
+
+		it("should enforce unique constraint — reject duplicate values same locale", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id1', 'post-1', 'published', 'a@b.com', 'en')`.execute(db);
+
+			await expect(
+				sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+					VALUES ('id2', 'post-2', 'published', 'a@b.com', 'en')`.execute(db),
+			).rejects.toThrow();
+		});
+
+		it("should allow same value in different locales", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id1', 'post-1', 'published', 'a@b.com', 'en')`.execute(db);
+
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id2', 'post-2', 'published', 'a@b.com', 'fr')`.execute(db);
+
+			const rows = await sql`SELECT id FROM ec_posts WHERE email = 'a@b.com'`.execute(db);
+			expect(rows.rows.length).toBe(2);
+		});
+
+		it("should allow multiple NULL values in unique field", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id1', 'post-1', 'published', NULL, 'en')`.execute(db);
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id2', 'post-2', 'published', NULL, 'en')`.execute(db);
+
+			const rows = await sql`SELECT id FROM ec_posts WHERE email IS NULL`.execute(db);
+			expect(rows.rows.length).toBe(2);
+		});
+
+		it("should exclude soft-deleted rows from unique constraint", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale, deleted_at)
+				VALUES ('id1', 'post-1', 'published', 'a@b.com', 'en', '2024-01-01')`.execute(db);
+
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id2', 'post-2', 'published', 'a@b.com', 'en')`.execute(db);
+
+			const rows = await sql`SELECT id FROM ec_posts WHERE email = 'a@b.com'`.execute(db);
+			expect(rows.rows.length).toBe(2);
+		});
+
+		it("should create unique index on updateField unique false→true", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+			});
+
+			await registry.updateField("posts", "email", { unique: true });
+
+			const indexes = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name LIKE '%email_unique%'
+			`.execute(db);
+			expect(indexes.rows.length).toBe(1);
+		});
+
+		it("should drop unique index on updateField unique true→false", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			await registry.updateField("posts", "email", { unique: false });
+
+			const indexes = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name LIKE '%email_unique%'
+			`.execute(db);
+			expect(indexes.rows.length).toBe(0);
+		});
+
+		it("should reject updateField unique=true when duplicates exist", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id1', 'post-1', 'published', 'a@b.com', 'en')`.execute(db);
+			await sql`INSERT INTO ec_posts (id, slug, status, email, locale)
+				VALUES ('id2', 'post-2', 'published', 'a@b.com', 'en')`.execute(db);
+
+			await expect(registry.updateField("posts", "email", { unique: true })).rejects.toThrow(
+				SchemaError,
+			);
+		});
+
+		it("should reject update setting unique=true + translatable=false", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			await expect(registry.updateField("posts", "email", { translatable: false })).rejects.toThrow(
+				SchemaError,
+			);
+		});
+
+		it("should clean up unique index on deleteField", async () => {
+			await registry.createField("posts", {
+				slug: "email",
+				label: "Email",
+				type: "string",
+				unique: true,
+			});
+
+			await registry.deleteField("posts", "email");
+
+			const indexes = await sql`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_ec_posts_email_unique'
+			`.execute(db);
+			expect(indexes.rows.length).toBe(0);
+		});
+	});
 });

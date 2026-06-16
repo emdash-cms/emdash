@@ -22,6 +22,7 @@ import {
 	type CollectionWithFields,
 	type FieldType,
 	FIELD_TYPE_TO_COLUMN,
+	NON_INDEXABLE_FIELD_TYPES,
 	RESERVED_FIELD_SLUGS,
 	RESERVED_COLLECTION_SLUGS,
 } from "./types.js";
@@ -430,6 +431,22 @@ export class SchemaRegistry {
 			throw new SchemaError(`Field slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
 
+		// Validate unique constraints
+		if (input.unique) {
+			if (NON_INDEXABLE_FIELD_TYPES.has(input.type)) {
+				throw new SchemaError(
+					`Field type "${input.type}" does not support unique constraints`,
+					"UNSUPPORTED_INDEX_TYPE",
+				);
+			}
+			if (input.translatable === false) {
+				throw new SchemaError(
+					"Non-translatable fields cannot have unique constraints",
+					"INCOMPATIBLE_OPTIONS",
+				);
+			}
+		}
+
 		// Check if field already exists
 		const existing = await this.getField(collectionSlug, input.slug);
 		if (existing) {
@@ -501,6 +518,11 @@ export class SchemaRegistry {
 
 			const field = this.mapFieldRow(fieldRow);
 
+			// Create unique index if requested
+			if (input.unique) {
+				await this.createUniqueIndex(collectionSlug, input.slug, input.required, trx);
+			}
+
 			// Sync search state if this field is searchable; support checks are handled by syncSearchState()
 			if (input.searchable) {
 				await this.syncSearchState(collectionSlug, trx);
@@ -523,6 +545,22 @@ export class SchemaRegistry {
 			throw new SchemaError(
 				`Field "${fieldSlug}" not found in collection "${collectionSlug}"`,
 				"FIELD_NOT_FOUND",
+			);
+		}
+
+		// Validate unique constraints
+		const willBeUnique = input.unique ?? field.unique;
+		const willBeTranslatable = input.translatable ?? field.translatable;
+		if (willBeUnique && NON_INDEXABLE_FIELD_TYPES.has(field.type)) {
+			throw new SchemaError(
+				`Field type "${field.type}" does not support unique constraints`,
+				"UNSUPPORTED_INDEX_TYPE",
+			);
+		}
+		if (willBeUnique && !willBeTranslatable) {
+			throw new SchemaError(
+				"Non-translatable fields cannot have unique constraints",
+				"INCOMPATIBLE_OPTIONS",
 			);
 		}
 
@@ -579,6 +617,17 @@ export class SchemaRegistry {
 			}
 
 			const updated = this.mapFieldRow(updatedRow);
+
+			// Handle unique index changes
+			const uniqueChanged = input.unique !== undefined && input.unique !== field.unique;
+			if (uniqueChanged) {
+				if (input.unique) {
+					await this.checkDuplicateValues(collectionSlug, fieldSlug, trx);
+					await this.createUniqueIndex(collectionSlug, fieldSlug, updated.required, trx);
+				} else {
+					await this.dropFieldIndexes(collectionSlug, fieldSlug, trx);
+				}
+			}
 
 			// If searchable changed, sync FTS state for this collection
 			const searchableChanged =
@@ -652,6 +701,11 @@ export class SchemaRegistry {
 			// If the deleted field was searchable, sync FTS state (removes old triggers)
 			if (field.searchable) {
 				await this.syncSearchState(collectionSlug, trx);
+			}
+
+			// Drop any indexes before DROP COLUMN (required for SQLite, harmless on Postgres)
+			if (field.unique) {
+				await this.dropFieldIndexes(collectionSlug, fieldSlug, trx);
 			}
 
 			// Drop column from content table — safe now because FTS triggers are gone
@@ -841,6 +895,84 @@ export class SchemaRegistry {
 			ALTER TABLE ${sql.ref(tableName)}
 			DROP COLUMN ${sql.ref(columnName)}
 		`.execute(db ?? this.db);
+	}
+
+	// ============================================
+	// Index Management
+	// ============================================
+
+	/**
+	 * Drop all field-level indexes (unique and plain) for a column.
+	 * Required before DROP COLUMN on SQLite; harmless on Postgres.
+	 */
+	private async dropFieldIndexes(
+		collectionSlug: string,
+		fieldSlug: string,
+		db: Kysely<Database>,
+	): Promise<void> {
+		const tableName = this.getTableName(collectionSlug);
+		const columnName = this.getColumnName(fieldSlug);
+		validateIdentifier(`idx_${tableName}_${columnName}`);
+		validateIdentifier(`idx_${tableName}_${columnName}_unique`);
+		await sql`DROP INDEX IF EXISTS ${sql.ref(`idx_${tableName}_${columnName}`)}`.execute(db);
+		await sql`DROP INDEX IF EXISTS ${sql.ref(`idx_${tableName}_${columnName}_unique`)}`.execute(db);
+	}
+
+	/**
+	 * Create a partial unique index scoped by locale, excluding soft-deleted rows.
+	 */
+	private async createUniqueIndex(
+		collectionSlug: string,
+		fieldSlug: string,
+		required: boolean | undefined,
+		db: Kysely<Database>,
+	): Promise<void> {
+		const tableName = this.getTableName(collectionSlug);
+		const columnName = this.getColumnName(fieldSlug);
+		const indexName = `idx_${tableName}_${columnName}_unique`;
+		validateIdentifier(indexName);
+
+		if (required) {
+			await sql`
+				CREATE UNIQUE INDEX IF NOT EXISTS ${sql.ref(indexName)}
+				ON ${sql.ref(tableName)} (${sql.ref(columnName)}, locale)
+				WHERE deleted_at IS NULL
+			`.execute(db);
+		} else {
+			await sql`
+				CREATE UNIQUE INDEX IF NOT EXISTS ${sql.ref(indexName)}
+				ON ${sql.ref(tableName)} (${sql.ref(columnName)}, locale)
+				WHERE ${sql.ref(columnName)} IS NOT NULL AND deleted_at IS NULL
+			`.execute(db);
+		}
+	}
+
+	/**
+	 * Check for duplicate values before enabling a unique constraint.
+	 * Throws DUPLICATE_VALUES if any duplicates are found.
+	 */
+	private async checkDuplicateValues(
+		collectionSlug: string,
+		fieldSlug: string,
+		db: Kysely<Database>,
+	): Promise<void> {
+		const tableName = this.getTableName(collectionSlug);
+		const columnName = this.getColumnName(fieldSlug);
+
+		const dupes = await sql<{ cnt: number }>`
+			SELECT ${sql.ref(columnName)}, locale, COUNT(*) AS cnt
+			FROM ${sql.ref(tableName)}
+			WHERE ${sql.ref(columnName)} IS NOT NULL AND deleted_at IS NULL
+			GROUP BY ${sql.ref(columnName)}, locale
+			HAVING cnt > 1
+		`.execute(db);
+
+		if (dupes.rows.length > 0) {
+			throw new SchemaError(
+				`Cannot enable unique constraint: duplicate values exist for field "${fieldSlug}"`,
+				"DUPLICATE_VALUES",
+			);
+		}
 	}
 
 	// ============================================

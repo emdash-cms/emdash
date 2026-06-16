@@ -981,13 +981,19 @@ export async function handleContentDuplicate(
 ): Promise<ApiResult<{ item: ContentItem }>> {
 	try {
 		const hasSeo = await collectionHasSeo(db, collection);
+		const uniqueFields = await getUniqueFields(db, collection);
 
 		// Wrap duplicate + SEO copy in a transaction for atomicity
 		const duplicate = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			const dup = await repo.duplicate(collection, resolvedId, authorId);
+			const dup = await repo.duplicate(
+				collection,
+				resolvedId,
+				authorId,
+				uniqueFields.length > 0 ? uniqueFields : undefined,
+			);
 
 			const existingBylines = await bylineRepo.getContentBylines(collection, resolvedId);
 			if (existingBylines.length > 0) {
@@ -1089,10 +1095,16 @@ export async function handleContentRestore(
 	id: string,
 ): Promise<ApiResult<{ restored: true }>> {
 	try {
+		const uniqueFields = await getUniqueFields(db, collection);
+
 		const restored = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
-			return repo.restore(collection, resolvedId);
+			return repo.restore(
+				collection,
+				resolvedId,
+				uniqueFields.length > 0 ? uniqueFields : undefined,
+			);
 		});
 
 		if (!restored) {
@@ -1109,8 +1121,17 @@ export async function handleContentRestore(
 			success: true,
 			data: { restored: true },
 		};
-	} catch (error) {
-		console.error("Content restore error:", error);
+	} catch (err) {
+		if (err instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: err.message,
+				},
+			};
+		}
+		console.error("Content restore error:", err);
 		return {
 			success: false,
 			error: {
@@ -1722,4 +1743,30 @@ async function syncNonTranslatableFields(
 		WHERE translation_group = ${translationGroup}
 		AND id != ${updatedItemId}
 	`.execute(trx);
+}
+
+/**
+ * Get unique fields for a collection.
+ * Used by restore/duplicate to check for constraint conflicts.
+ */
+async function getUniqueFields(
+	db: Kysely<Database>,
+	collectionSlug: string,
+): Promise<Array<{ slug: string; required: boolean }>> {
+	const collection = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collectionSlug)
+		.executeTakeFirst();
+
+	if (!collection) return [];
+
+	const fields = await db
+		.selectFrom("_emdash_fields")
+		.select(["slug", "required"])
+		.where("collection_id", "=", collection.id)
+		.where("unique", "=", 1)
+		.execute();
+
+	return fields.map((f) => ({ slug: f.slug, required: f.required === 1 }));
 }
