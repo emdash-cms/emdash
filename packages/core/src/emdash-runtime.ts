@@ -393,8 +393,6 @@ const marketplaceManifestCache = new Map<
 		admin?: {
 			pages?: PluginAdminPage[];
 			widgets?: PluginDashboardWidget[];
-			portableTextBlocks?: PortableTextBlockConfig[];
-			fieldWidgets?: FieldWidgetConfig[];
 		};
 	}
 >();
@@ -940,8 +938,6 @@ export class EmDashRuntime {
 							size:
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
-						portableTextBlocks: bundle.manifest.admin?.portableTextBlocks,
-						fieldWidgets: bundle.manifest.admin?.fieldWidgets,
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
@@ -1881,8 +1877,6 @@ export class EmDashRuntime {
 							size:
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
-						portableTextBlocks: bundle.manifest.admin?.portableTextBlocks,
-						fieldWidgets: bundle.manifest.admin?.fieldWidgets,
 					});
 					resolved.push(adapted);
 					console.log(
@@ -2124,6 +2118,10 @@ export class EmDashRuntime {
 				version: entry.version,
 				enabled,
 				sandboxed: true,
+				// `adminMode` reflects only admin pages/widgets. A plugin can
+				// contribute portableTextBlocks/fieldWidgets with adminMode "none" —
+				// the admin reads those from the manifest regardless, so don't gate
+				// admin contributions on `adminMode`.
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
 				adminPages: entry.adminPages ?? [],
 				dashboardWidgets: entry.adminWidgets ?? [],
@@ -2152,8 +2150,6 @@ export class EmDashRuntime {
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
 				adminPages: pages ?? [],
 				dashboardWidgets: widgets ?? [],
-				portableTextBlocks: meta.admin?.portableTextBlocks,
-				fieldWidgets: meta.admin?.fieldWidgets,
 			};
 		}
 
