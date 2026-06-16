@@ -26,6 +26,8 @@ During work:
 
 Before opening a PR: tests pass, lint clean, formatted, changeset added if a published package changed. See [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets).
 
+A changeset is release notes a user reads while upgrading -- **not** a commit message, PR description, or summary of your diff. Do not paste your PR prose into it. Write for someone who will run the new version and wants to know what changed for them: lead with a present-tense verb (`Fixes`, `Adds`, `Updates`, `Removes`), describe the observable effect, and leave out internal mechanics (file names, refactors, how you implemented it). For a breaking change, include the migration step. One sentence is often enough.
+
 When opening a PR with `gh`/the API, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body and fill every section -- the GitHub UI injects it automatically but the CLI does not, and PRs missing it are auto-closed. Check the AI-generated code disclosure box and name the model. Tick checklist items only for what you actually verified; for test-only/docs/CI PRs, note why changeset/i18n/Discussion items are n/a.
 
 ## Architecture
@@ -331,7 +333,9 @@ For directional icons (chevrons, arrows), flip them with `rtl:-scale-x-100` or u
 
 Import `env` directly from `"cloudflare:workers"` -- a virtual module that resolves to the right bindings for the current environment (Worker or local dev).
 
-Don't manually type the `Env` object. In a Worker context, run `pnpm wrangler types` to generate `worker-configuration.d.ts` (includes wrangler.jsonc bindings and `.dev.vars` secrets). Reference it in `tsconfig.json`'s `include`.
+Don't manually type the `Env` object. In a Worker context, run `pnpm wrangler types` to generate `worker-configuration.d.ts` (includes wrangler.jsonc bindings and `.env` secrets). Reference it in `tsconfig.json`'s `include`.
+
+Local-dev secrets go in `.env` (read by Wrangler and the Cloudflare Vite plugin since Aug 2025), not `.dev.vars`. Note Wrangler loads either `.dev.vars` or `.env` but never both -- if a `.dev.vars` file exists it wins and `.env` is ignored entirely. Production secrets are set with `wrangler secret put`.
 
 In libraries used in a Worker but not themselves Workers, install `@cloudflare/workers-types` and reference it in `tsconfig.compilerOptions.types`.
 

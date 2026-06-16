@@ -6,7 +6,7 @@
 	"compatibility_flags": ["nodejs_compat"],
 	// Workers AI binding. Flue's generated Cloudflare entry reserves the
 	// `cloudflare/` model prefix and routes it through this binding, so the
-	// reviewer model (`cloudflare/@cf/moonshotai/kimi-k2.6`) needs no API key.
+	// reviewer model (`cloudflare/@cf/moonshotai/kimi-k2.7-code`) needs no API key.
 	"ai": {
 		"binding": "AI",
 	},

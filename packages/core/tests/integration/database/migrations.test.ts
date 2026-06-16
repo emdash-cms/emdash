@@ -125,6 +125,7 @@ describe("Database Migrations (Integration)", () => {
 			"040_byline_i18n",
 			"041_content_locale_list_index",
 			"042_byline_fields",
+			"043_content_references",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

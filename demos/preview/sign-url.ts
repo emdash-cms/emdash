@@ -8,7 +8,7 @@
  * Defaults:
  *   source:  http://localhost:4321
  *   preview: http://localhost:4322
- *   secret:  reads PREVIEW_SECRET from .dev.vars, falls back to "dev-secret"
+ *   secret:  reads PREVIEW_SECRET from .env, falls back to "dev-secret"
  */
 
 import { readFileSync } from "node:fs";
@@ -18,11 +18,11 @@ const preview = process.argv[3] || "http://localhost:4322";
 
 let secret = "dev-secret";
 try {
-	const devVars = readFileSync(new URL(".dev.vars", import.meta.url), "utf-8");
-	const match = devVars.match(/^PREVIEW_SECRET\s*=\s*"?([^"\n]+)"?/m);
+	const envFile = readFileSync(new URL(".env", import.meta.url), "utf-8");
+	const match = envFile.match(/^PREVIEW_SECRET\s*=\s*"?([^"\n]+)"?/m);
 	if (match) secret = match[1]!;
 } catch {
-	// no .dev.vars, use default
+	// no .env, use default
 }
 
 const exp = Math.floor(Date.now() / 1000) + 3600;

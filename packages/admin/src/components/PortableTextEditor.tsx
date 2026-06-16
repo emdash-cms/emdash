@@ -3127,6 +3127,18 @@ function EditorToolbar({
 					<ImageIcon className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
+					onClick={() =>
+						editor
+							.chain()
+							.focus()
+							.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+							.run()
+					}
+					title={t`Insert HTML`}
+				>
+					<BracketsAngle className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton
 					onClick={() => editor.chain().focus().setHorizontalRule().run()}
 					title={t`Insert Horizontal Rule`}
 				>
