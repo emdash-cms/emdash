@@ -4393,6 +4393,10 @@ msgstr "市场"
 msgid "Max Items"
 msgstr "最大项目数"
 
+#: packages/admin/src/components/FieldEditor.tsx
+msgid "Max Selections"
+msgstr "最多选择数"
+
 #: packages/admin/src/components/FieldEditor.tsx:470
 msgid "Max Length"
 msgstr "最大长度"
@@ -4528,6 +4532,10 @@ msgstr "元标题、描述和社交图片"
 #: packages/admin/src/components/FieldEditor.tsx:620
 msgid "Min Items"
 msgstr "最小项目数"
+
+#: packages/admin/src/components/FieldEditor.tsx
+msgid "Min Selections"
+msgstr "最少选择数"
 
 #: packages/admin/src/components/FieldEditor.tsx:463
 msgid "Min Length"

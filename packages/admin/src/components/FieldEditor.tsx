@@ -311,6 +311,9 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 					required: sf.required || undefined,
 				}));
 			}
+		}
+
+		if (selectedType === "repeater" || selectedType === "multiSelect") {
 			if (formState.minItems)
 				(validation as Record<string, unknown>).minItems = parseInt(formState.minItems, 10);
 			if (formState.maxItems)
@@ -531,13 +534,33 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 						)}
 
 						{(selectedType === "select" || selectedType === "multiSelect") && (
-							<InputArea
-								label={t`Options (one per line)`}
-								value={options}
-								onChange={(e) => setField("options", e.target.value)}
-								placeholder={t`Option 1\nOption 2\nOption 3`}
-								rows={5}
-							/>
+							<div className="space-y-4">
+								<InputArea
+									label={t`Options (one per line)`}
+									value={options}
+									onChange={(e) => setField("options", e.target.value)}
+									placeholder={t`Option 1\nOption 2\nOption 3`}
+									rows={5}
+								/>
+								{selectedType === "multiSelect" && (
+									<div className="grid grid-cols-2 gap-4">
+										<Input
+											label={t`Min Selections`}
+											type="number"
+											value={formState.minItems}
+											onChange={(e) => setField("minItems", e.target.value)}
+											placeholder="0"
+										/>
+										<Input
+											label={t`Max Selections`}
+											type="number"
+											value={formState.maxItems}
+											onChange={(e) => setField("maxItems", e.target.value)}
+											placeholder={t`No limit`}
+										/>
+									</div>
+								)}
+							</div>
 						)}
 
 						{selectedType === "repeater" && (
