@@ -16,7 +16,24 @@
 	"durable_objects": {
 		"bindings": [{ "class_name": "Sandbox", "name": "Sandbox" }],
 	},
-	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sandbox"] }],
+	// Migration history must stay append-only and keep every previously applied
+	// tag so Cloudflare can locate the deployed cursor and apply only what's new.
+	// The live worker's cursor is `flue-class-ReviewWorkflow` (it has Sandbox,
+	// ReviewWorkflow, and FlueRegistry). @flue 0.11 renamed the workflow DO class
+	// `ReviewWorkflow` -> `FlueReviewWorkflow`; the v2 rename below bridges to it
+	// without re-creating or resetting any class. The first two tags are already
+	// applied (their bodies are not re-executed) and exist only to anchor the cursor.
+	"migrations": [
+		{ "tag": "v1", "new_sqlite_classes": ["Sandbox"] },
+		{
+			"tag": "flue-class-ReviewWorkflow",
+			"new_sqlite_classes": ["ReviewWorkflow", "FlueRegistry"],
+		},
+		{
+			"tag": "v2-flue-0.11",
+			"renamed_classes": [{ "from": "ReviewWorkflow", "to": "FlueReviewWorkflow" }],
+		},
+	],
 	"containers": [{ "class_name": "Sandbox", "image": "./Dockerfile" }],
 	"vars": {
 		// emdashbot GitHub App. Not secret (app id is public; installation id is
