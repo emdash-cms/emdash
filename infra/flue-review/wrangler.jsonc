@@ -25,7 +25,10 @@
 	// applied (their bodies are not re-executed) and exist only to anchor the cursor.
 	"migrations": [
 		{ "tag": "v1", "new_sqlite_classes": ["Sandbox"] },
-		{ "tag": "flue-class-ReviewWorkflow", "new_sqlite_classes": ["ReviewWorkflow", "FlueRegistry"] },
+		{
+			"tag": "flue-class-ReviewWorkflow",
+			"new_sqlite_classes": ["ReviewWorkflow", "FlueRegistry"],
+		},
 		{
 			"tag": "v2-flue-0.11",
 			"renamed_classes": [{ "from": "ReviewWorkflow", "to": "FlueReviewWorkflow" }],
