@@ -2660,6 +2660,21 @@ export class EmDashRuntime {
 			}
 		}
 
+		// Check unique constraints before any writes (draft revision or content table).
+		if (processedData) {
+			const { checkUniqueFieldConflicts } = await import("./api/handlers/unique-check.js");
+			const uniqueConflict = await checkUniqueFieldConflicts(
+				this.db,
+				collection,
+				resolvedId,
+				processedData,
+				resolvedItem?.locale ?? body.locale,
+			);
+			if (uniqueConflict) {
+				return { success: false as const, error: uniqueConflict };
+			}
+		}
+
 		// Draft-aware revision handling (if collection supports revisions)
 		// Content table columns = published data (never written by saves).
 		// Draft data lives only in the revisions table.

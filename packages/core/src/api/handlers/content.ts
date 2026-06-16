@@ -33,6 +33,7 @@ import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
+import { getUniqueFields } from "./unique-check.js";
 import { validateMediaFields } from "./validate-media-fields.js";
 
 /**
@@ -1743,30 +1744,4 @@ async function syncNonTranslatableFields(
 		WHERE translation_group = ${translationGroup}
 		AND id != ${updatedItemId}
 	`.execute(trx);
-}
-
-/**
- * Get unique fields for a collection.
- * Used by restore/duplicate to check for constraint conflicts.
- */
-async function getUniqueFields(
-	db: Kysely<Database>,
-	collectionSlug: string,
-): Promise<Array<{ slug: string; required: boolean }>> {
-	const collection = await db
-		.selectFrom("_emdash_collections")
-		.select("id")
-		.where("slug", "=", collectionSlug)
-		.executeTakeFirst();
-
-	if (!collection) return [];
-
-	const fields = await db
-		.selectFrom("_emdash_fields")
-		.select(["slug", "required"])
-		.where("collection_id", "=", collection.id)
-		.where("unique", "=", 1)
-		.execute();
-
-	return fields.map((f) => ({ slug: f.slug, required: f.required === 1 }));
 }
