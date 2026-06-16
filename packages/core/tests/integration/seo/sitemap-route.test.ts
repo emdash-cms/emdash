@@ -134,9 +134,7 @@ describe("sitemap-[collection].xml route", () => {
 		const xml = await res.text();
 
 		// image namespace declared + absolute <image:loc> emitted.
-		expect(xml).toContain(
-			'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"',
-		);
+		expect(xml).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
 		expect(xml).toContain(
 			"<image:loc>http://localhost:4321/_emdash/api/media/file/01ABCDEF.webp</image:loc>",
 		);
