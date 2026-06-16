@@ -17,11 +17,11 @@ msgstr ""
 "Language: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/routes/bylines.tsx:433
+#: packages/admin/src/routes/bylines.tsx:440
 msgid " - Guest"
 msgstr " - ضيف"
 
-#: packages/admin/src/routes/bylines.tsx:433
+#: packages/admin/src/routes/bylines.tsx:440
 msgid " - Linked"
 msgstr " - مرتبط"
 
@@ -39,7 +39,7 @@ msgstr " (يفتح في نافذة جديدة)"
 msgid " (selected)"
 msgstr " (محدد)"
 
-#: packages/admin/src/routes/bylines.tsx:689
+#: packages/admin/src/routes/bylines.tsx:700
 msgid "-- Select --"
 msgstr ""
 
@@ -241,7 +241,7 @@ msgstr "معاينة {0}"
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
-#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="text-2xl font-bold truncate"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && ( <span className="ms-2 text-purple-600 dark:text-purple-400">{t`Defined in code`}</span> )} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950 p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" /> <p className="text-sm text-purple-700 dark:text-purple-300"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder="Post" disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder="Posts" disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>Features</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && ( <Button type="submit" disabled={!hasChanges || !urlPatternValid || isSaving} className="w-full" > {isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`} </Button> )} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
+#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="text-2xl font-bold truncate"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && ( <span className="ms-2 text-purple-600 dark:text-purple-400">{t`Defined in code`}</span> )} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950 p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" /> <p className="text-sm text-purple-700 dark:text-purple-300"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && ( <Button type="submit" disabled={!hasChanges || !urlPatternValid || isSaving} className="w-full" > {isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`} </Button> )} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
 #: packages/admin/src/components/ContentTypeEditor.tsx:574
 msgid "{0} system + {1} custom {2}"
 msgstr "{0} نظام + {1} مخصص {2}"
@@ -740,7 +740,7 @@ msgstr "الكل"
 msgid "All authors"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:399
+#: packages/admin/src/routes/bylines.tsx:406
 msgid "All bylines"
 msgstr "جميع الكُتّاب"
 
@@ -826,6 +826,7 @@ msgstr "تم تعيين النص البديل"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "كبديل عن ذلك، يمكنك التصدير من WordPress (الأدوات > التصدير) ورفع الملف."
 
+#: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:133
 #: packages/admin/src/components/PluginManager.tsx:98
 #: packages/admin/src/components/PluginManager.tsx:117
@@ -892,8 +893,8 @@ msgstr "كلمة مرور التطبيق"
 msgid "Apply"
 msgstr "تطبيق"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:144
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:145
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:170
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:171
 msgid "Apply language"
 msgstr "تطبيق اللغة"
 
@@ -958,6 +959,10 @@ msgstr "كمسؤول، يمكنك دعوة مستخدمين آخرين من من
 #: packages/admin/src/components/WordPressImport.tsx:2262
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "قم بتعيين مؤلفي WordPress إلى مستخدمي EmDash. سيتم نسب المنشورات إلى المستخدم المحدد."
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:28
+msgid "Astro"
+msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
 #: packages/admin/src/components/MediaLibrary.tsx:396
@@ -1058,6 +1063,11 @@ msgstr "المزودون المتاحون"
 msgid "Available Widgets"
 msgstr "عناصر الواجهة المتاحة"
 
+#: packages/admin/src/components/BylineAvatarField.tsx:46
+#: packages/admin/src/components/BylineAvatarField.tsx:71
+msgid "Avatar"
+msgstr ""
+
 #: packages/admin/src/components/editor/BlockMenu.tsx:257
 #: packages/admin/src/components/MenuEditor.tsx:283
 #: packages/admin/src/components/WordPressImport.tsx:1349
@@ -1104,6 +1114,10 @@ msgstr "العودة إلى الإعدادات"
 msgid "Back to Themes"
 msgstr "العودة إلى المظاهر"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:29
+msgid "Bash"
+msgstr ""
+
 #: packages/admin/src/components/settings/EmailSettings.tsx:219
 msgid "Before send:"
 msgstr "قبل الإرسال:"
@@ -1112,7 +1126,7 @@ msgstr "قبل الإرسال:"
 msgid "Bing Verification"
 msgstr "تحقق Bing"
 
-#: packages/admin/src/routes/bylines.tsx:483
+#: packages/admin/src/routes/bylines.tsx:490
 msgid "Bio"
 msgstr "نبذة"
 
@@ -1163,15 +1177,27 @@ msgid "Bullet List"
 msgstr "قائمة نقطية"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:370
+#: packages/admin/src/routes/bylines.tsx:377
 msgid "Byline schema"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:997
 #: packages/admin/src/components/Sidebar.tsx:363
-#: packages/admin/src/routes/bylines.tsx:362
+#: packages/admin/src/routes/bylines.tsx:369
 msgid "Bylines"
 msgstr "الكُتّاب"
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:30
+msgid "C"
+msgstr ""
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:32
+msgid "C#"
+msgstr ""
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:31
+msgid "C++"
+msgstr ""
 
 #: packages/admin/src/components/users/roleDefinitions.ts:25
 msgid "Can create content"
@@ -1200,8 +1226,8 @@ msgstr "يمكنه عرض المحتوى"
 #: packages/admin/src/components/ContentList.tsx:851
 #: packages/admin/src/components/ContentList.tsx:922
 #: packages/admin/src/components/ContentPickerModal.tsx:248
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:156
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:157
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:182
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:183
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/editor/ImageNode.tsx:223
 #: packages/admin/src/components/editor/ImageNode.tsx:224
@@ -1680,7 +1706,7 @@ msgstr "تعذّر اكتشاف WordPress"
 msgid "Couldn't load byline fields."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:530
+#: packages/admin/src/routes/bylines.tsx:541
 msgid "Couldn't load custom fields."
 msgstr ""
 
@@ -1707,7 +1733,7 @@ msgstr "العدد"
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:479
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/routes/bylines.tsx:562
+#: packages/admin/src/routes/bylines.tsx:573
 msgid "Create"
 msgstr "إنشاء"
 
@@ -1738,7 +1764,7 @@ msgid "Create an account"
 msgstr "إنشاء حساب"
 
 #: packages/admin/src/components/ContentEditor.tsx:2005
-#: packages/admin/src/routes/bylines.tsx:463
+#: packages/admin/src/routes/bylines.tsx:470
 msgid "Create byline"
 msgstr "إنشاء كاتب"
 
@@ -1900,6 +1926,10 @@ msgstr "جاري إنشاء المجموعات والحقول..."
 msgid "Creating..."
 msgstr "جاري الإنشاء..."
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:33
+msgid "CSS"
+msgstr ""
+
 #: packages/admin/src/components/TranslationsPanel.tsx:78
 msgid "current"
 msgstr "الحالي"
@@ -2020,8 +2050,8 @@ msgstr "مُعرَّف في الكود"
 #: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:636
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:571
-#: packages/admin/src/routes/bylines.tsx:607
+#: packages/admin/src/routes/bylines.tsx:582
+#: packages/admin/src/routes/bylines.tsx:618
 msgid "Delete"
 msgstr "حذف"
 
@@ -2066,7 +2096,7 @@ msgstr "حذف {0}؟"
 msgid "Delete byline field?"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:605
+#: packages/admin/src/routes/bylines.tsx:616
 msgid "Delete Byline?"
 msgstr "حذف الكاتب؟"
 
@@ -2169,7 +2199,7 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:637
-#: packages/admin/src/routes/bylines.tsx:608
+#: packages/admin/src/routes/bylines.tsx:619
 msgid "Deleting..."
 msgstr "جاري الحذف..."
 
@@ -2256,6 +2286,10 @@ msgstr "مفتاح مرور مرتبط بالجهاز"
 msgid "Didn't receive the email?"
 msgstr "لم تتلقى البريد الإلكتروني؟"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:34
+msgid "Diff"
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:176
 msgid "Dimensions:"
 msgstr "الأبعاد:"
@@ -2320,7 +2354,7 @@ msgstr "عرض قائمة تنقل"
 
 #: packages/admin/src/components/ContentEditor.tsx:2008
 #: packages/admin/src/components/ContentEditor.tsx:2070
-#: packages/admin/src/routes/bylines.tsx:468
+#: packages/admin/src/routes/bylines.tsx:475
 msgid "Display name"
 msgstr "اسم العرض"
 
@@ -2345,6 +2379,10 @@ msgstr "وضع الخلو من التشتيت (⌘⇧\\)"
 #: packages/admin/src/components/PortableTextEditor.tsx:1054
 msgid "Divider"
 msgstr "فاصل"
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:35
+msgid "Dockerfile"
+msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:63
 #: packages/admin/src/components/MediaLibrary.tsx:397
@@ -2489,7 +2527,7 @@ msgstr "تعديل"
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:463
+#: packages/admin/src/routes/bylines.tsx:470
 msgid "Edit {0}"
 msgstr "تعديل {0}"
 
@@ -2806,6 +2844,10 @@ msgstr "فشل تحليل موقع ووردبريس"
 msgid "Failed to communicate with plugin"
 msgstr "فشل التواصل مع الإضافة"
 
+#: packages/admin/src/lib/api/media.ts:151
+msgid "Failed to confirm upload"
+msgstr ""
+
 #: packages/admin/src/components/SetupWizard.tsx:493
 msgid "Failed to create admin"
 msgstr "فشل إنشاء حساب المسؤول"
@@ -2820,6 +2862,10 @@ msgstr ""
 
 #: packages/admin/src/routes/byline-schema.tsx:102
 msgid "Failed to create field"
+msgstr ""
+
+#: packages/admin/src/lib/api/sections.ts:88
+msgid "Failed to create section"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1553
@@ -2870,11 +2916,11 @@ msgstr "فشل حذف المحتوى"
 msgid "Failed to delete field"
 msgstr "فشل حذف الحقل"
 
-#: packages/admin/src/lib/api/media.ts:357
+#: packages/admin/src/lib/api/media.ts:381
 msgid "Failed to delete from provider"
 msgstr "فشل الحذف من المزوّد"
 
-#: packages/admin/src/lib/api/media.ts:234
+#: packages/admin/src/lib/api/media.ts:255
 msgid "Failed to delete media"
 msgstr "فشل حذف الوسائط"
 
@@ -2911,8 +2957,13 @@ msgid "Failed to delete widget area"
 msgstr "فشل حذف منطقة عناصر الواجهة"
 
 #: packages/admin/src/components/PluginManager.tsx:116
+#: packages/admin/src/lib/api/plugins.ts:91
 msgid "Failed to disable plugin"
 msgstr "فشل في تعطيل الإضافة"
+
+#: packages/admin/src/lib/api/search.ts:32
+msgid "Failed to disable search"
+msgstr ""
 
 #: packages/admin/src/lib/api/users.ts:118
 msgid "Failed to disable user"
@@ -2931,8 +2982,13 @@ msgid "Failed to duplicate"
 msgstr "فشل التكرار"
 
 #: packages/admin/src/components/PluginManager.tsx:97
+#: packages/admin/src/lib/api/plugins.ts:77
 msgid "Failed to enable plugin"
 msgstr "فشل في تفعيل الإضافة"
+
+#: packages/admin/src/lib/api/search.ts:31
+msgid "Failed to enable search"
+msgstr ""
 
 #: packages/admin/src/lib/api/users.ts:138
 msgid "Failed to enable user"
@@ -2942,10 +2998,22 @@ msgstr "فشل تفعيل المستخدم"
 msgid "Failed to execute import"
 msgstr "فشل تنفيذ الاستيراد"
 
+#: packages/admin/src/lib/api/client.ts:227
+msgid "Failed to fetch auth mode"
+msgstr ""
+
 #: packages/admin/src/lib/api/schema.ts:170
 #: packages/admin/src/lib/api/schema.ts:174
 msgid "Failed to fetch collection"
 msgstr "فشل جلب المجموعة"
+
+#: packages/admin/src/lib/api/dashboard.ts:41
+msgid "Failed to fetch dashboard stats"
+msgstr ""
+
+#: packages/admin/src/lib/api/email-settings.ts:34
+msgid "Failed to fetch email settings"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:90
 msgid "Failed to fetch entry terms"
@@ -2955,15 +3023,47 @@ msgstr "فشل جلب مصطلحات المدخل"
 msgid "Failed to fetch manifest"
 msgstr "فشل جلب ملف البيان"
 
+#: packages/admin/src/lib/api/media.ts:72
+msgid "Failed to fetch media"
+msgstr ""
+
+#: packages/admin/src/lib/api/media.ts:85
+msgid "Failed to fetch media item"
+msgstr ""
+
+#: packages/admin/src/lib/api/media.ts:317
+msgid "Failed to fetch media providers"
+msgstr ""
+
 #: packages/admin/src/lib/api/plugins.ts:59
 #: packages/admin/src/lib/api/plugins.ts:63
 msgid "Failed to fetch plugin"
 msgstr "فشل جلب الإضافة"
 
+#: packages/admin/src/lib/api/plugins.ts:45
+msgid "Failed to fetch plugins"
+msgstr ""
+
+#: packages/admin/src/lib/api/media.ts:347
+msgid "Failed to fetch provider media"
+msgstr ""
+
 #: packages/admin/src/lib/api/content.ts:556
 #: packages/admin/src/lib/api/content.ts:561
 msgid "Failed to fetch revision"
 msgstr "فشل جلب المراجعة"
+
+#: packages/admin/src/lib/api/sections.ts:76
+msgid "Failed to fetch section"
+msgstr ""
+
+#: packages/admin/src/lib/api/sections.ts:68
+msgid "Failed to fetch sections"
+msgstr ""
+
+#: packages/admin/src/lib/api/settings.ts:50
+msgid "Failed to fetch settings"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:446
 msgid "Failed to fetch setup status"
@@ -2973,6 +3073,7 @@ msgstr "فشل جلب حالة الإعداد"
 msgid "Failed to fetch terms"
 msgstr "فشل جلب المصطلحات"
 
+#: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
 #: packages/admin/src/router.tsx:737
@@ -2995,6 +3096,10 @@ msgstr "فشل الحصول على خيارات المصادقة"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Failed to get registration options"
 msgstr "فشل الحصول على خيارات التسجيل"
+
+#: packages/admin/src/lib/api/media.ts:127
+msgid "Failed to get upload URL"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:386
 msgid "Failed to import from WordPress"
@@ -3023,7 +3128,7 @@ msgid "Failed to load allowed domains"
 msgstr "فشل في تحميل النطاقات المسموح بها"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:352
+#: packages/admin/src/routes/bylines.tsx:359
 msgid "Failed to load bylines: {0}"
 msgstr "فشل تحميل الكُتّاب: {0}"
 
@@ -3169,6 +3274,7 @@ msgid "Failed to send recovery link"
 msgstr "فشل إرسال رابط الاسترداد"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:61
+#: packages/admin/src/lib/api/email-settings.ts:45
 msgid "Failed to send test email"
 msgstr "فشل في إرسال البريد الإلكتروني التجريبي"
 
@@ -3210,18 +3316,38 @@ msgstr ""
 msgid "Failed to update domain"
 msgstr "فشل في تحديث النطاق"
 
+#: packages/admin/src/lib/api/media.ts:272
+msgid "Failed to update media"
+msgstr ""
+
 #: packages/admin/src/lib/api/marketplace.ts:176
 #: packages/admin/src/lib/api/registry.ts:763
 msgid "Failed to update plugin"
 msgstr "فشل تحديث الإضافة"
 
+#: packages/admin/src/lib/api/sections.ts:100
+msgid "Failed to update section"
+msgstr ""
+
+#: packages/admin/src/lib/api/settings.ts:64
+msgid "Failed to update settings"
+msgstr ""
+
 #: packages/admin/src/router.tsx:1231
 msgid "Failed to update status"
 msgstr "فشل تحديث الحالة"
 
-#: packages/admin/src/lib/api/media.ts:151
+#: packages/admin/src/lib/api/media.ts:169
 msgid "Failed to upload file"
 msgstr "فشل رفع الملف"
+
+#: packages/admin/src/lib/api/media.ts:214
+msgid "Failed to upload media"
+msgstr ""
+
+#: packages/admin/src/lib/api/media.ts:369
+msgid "Failed to upload to provider"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:250
 msgid "Failed to verify authentication"
@@ -3244,6 +3370,7 @@ msgstr "أيقونة المتصفح"
 msgid "Feature"
 msgstr "ميزة"
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:442
 #: packages/admin/src/components/ContentTypeList.tsx:103
 msgid "Features"
 msgstr "الميزات"
@@ -3344,7 +3471,7 @@ msgstr "تصفية حسب الحالة"
 msgid "Filter by type"
 msgstr "تصفية حسب النوع"
 
-#: packages/admin/src/routes/bylines.tsx:395
+#: packages/admin/src/routes/bylines.tsx:402
 msgid "Filter byline type"
 msgstr "تصفية حسب نوع الكاتب"
 
@@ -3401,6 +3528,10 @@ msgstr "GitHub"
 msgid "Give this passkey a name to help you identify it later."
 msgstr "أعط مفتاح المرور هذا اسمًا لمساعدتك في التعرف عليه لاحقًا."
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:36
+msgid "Go"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2224
 #: packages/admin/src/router.tsx:1957
 msgid "Go to Dashboard"
@@ -3410,6 +3541,10 @@ msgstr "الذهاب إلى لوحة المعلومات"
 msgid "Google Verification"
 msgstr "تحقق Google"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:37
+msgid "GraphQL"
+msgstr ""
+
 #: packages/admin/src/components/MediaLibrary.tsx:270
 msgid "Grid view"
 msgstr "عرض شبكي"
@@ -3418,11 +3553,11 @@ msgstr "عرض شبكي"
 msgid "Group (optional)"
 msgstr "المجموعة (اختياري)"
 
-#: packages/admin/src/routes/bylines.tsx:538
+#: packages/admin/src/routes/bylines.tsx:549
 msgid "Guest byline"
 msgstr "كاتب ضيف"
 
-#: packages/admin/src/routes/bylines.tsx:400
+#: packages/admin/src/routes/bylines.tsx:407
 msgid "Guest only"
 msgstr "ضيف فقط"
 
@@ -3490,6 +3625,7 @@ msgstr "المُشعرات"
 msgid "How to create an Application Password"
 msgstr "كيفية إنشاء كلمة مرور التطبيق"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
 #: packages/admin/src/components/PortableTextEditor.tsx:1039
 msgid "HTML"
@@ -3826,6 +3962,14 @@ msgstr "تم تحديث العنصر"
 msgid "Jane Doe"
 msgstr "جين دو"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:39
+msgid "Java"
+msgstr ""
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:40
+msgid "JavaScript"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:235
 msgid "Job title"
 msgstr ""
@@ -3834,9 +3978,14 @@ msgstr ""
 msgid "job_title"
 msgstr ""
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:41
 #: packages/admin/src/components/FieldEditor.tsx:222
 msgid "JSON"
 msgstr "JSON"
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:42
+msgid "JSX"
+msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1930
 msgid "Keep typing to narrow down more bylines."
@@ -3847,6 +3996,10 @@ msgstr ""
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:189
 msgid "Keywords"
 msgstr "الكلمات المفتاحية"
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:43
+msgid "Kotlin"
+msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:232
 #: packages/admin/src/components/FieldEditor.tsx:411
@@ -3868,7 +4021,7 @@ msgstr "التسمية (الجمع)"
 msgid "Label (Singular)"
 msgstr "التسمية (المفرد)"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:125
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:151
 #: packages/admin/src/components/LoginPage.tsx:345
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
@@ -3921,6 +4074,8 @@ msgstr "تركه دون تعيين"
 #: packages/admin/src/components/MediaLibrary.tsx:120
 #: packages/admin/src/components/MediaLibrary.tsx:240
 #: packages/admin/src/components/MediaLibrary.tsx:352
+#: packages/admin/src/components/MediaPickerModal.tsx:198
+#: packages/admin/src/components/MediaPickerModal.tsx:457
 msgid "Library"
 msgstr "المكتبة"
 
@@ -3949,11 +4104,11 @@ msgstr "الربط مع عنصر محتوى آخر"
 msgid "Linked Accounts ({0})"
 msgstr "الحسابات المربوطة ({0})"
 
-#: packages/admin/src/routes/bylines.tsx:401
+#: packages/admin/src/routes/bylines.tsx:408
 msgid "Linked only"
 msgstr "مرتبط فقط"
 
-#: packages/admin/src/routes/bylines.tsx:489
+#: packages/admin/src/routes/bylines.tsx:500
 msgid "Linked user"
 msgstr "مستخدم مرتبط"
 
@@ -3977,7 +4132,7 @@ msgstr "العرض المباشر"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:455
+#: packages/admin/src/routes/bylines.tsx:462
 msgid "Load more"
 msgstr "تحميل المزيد"
 
@@ -4070,7 +4225,7 @@ msgstr "جارٍ تحميل عناصر الواجهة..."
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
 #: packages/admin/src/components/WelcomeModal.tsx:143
-#: packages/admin/src/routes/bylines.tsx:455
+#: packages/admin/src/routes/bylines.tsx:462
 msgid "Loading..."
 msgstr "جاري التحميل..."
 
@@ -4185,6 +4340,10 @@ msgstr "ربط مستخدم ووردبريس {0} بمستخدم EmDash"
 msgid "Mark as spam"
 msgstr "تحديد كغير مرغوب فيه"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:44
+msgid "Markdown"
+msgstr ""
+
 #: packages/admin/src/components/PluginManager.tsx:201
 msgid "marketplace"
 msgstr "السوق"
@@ -4207,6 +4366,10 @@ msgstr "الحد الأقصى للطول"
 #: packages/admin/src/components/FieldEditor.tsx:500
 msgid "Max Value"
 msgstr "القيمة القصوى"
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:45
+msgid "MDX"
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2119
 #: packages/admin/src/components/Sidebar.tsx:342
@@ -4446,7 +4609,7 @@ msgstr "أبدًا"
 msgid "new"
 msgstr "جديد"
 
-#: packages/admin/src/routes/bylines.tsx:413
+#: packages/admin/src/routes/bylines.tsx:420
 msgid "New"
 msgstr "جديد"
 
@@ -4579,7 +4742,7 @@ msgstr ""
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "لا يوجد كُتّاب متاحون في {entryLocale}. أنشئ نسخة من صفحة الكُتّاب قبل إسناد كاتب لهذا المدخل."
 
-#: packages/admin/src/routes/bylines.tsx:439
+#: packages/admin/src/routes/bylines.tsx:446
 msgid "No bylines found"
 msgstr "لم يُعثر على كُتّاب"
 
@@ -4668,11 +4831,11 @@ msgstr "لا توجد عناصر بعد"
 msgid "No limit"
 msgstr "بدون حد"
 
-#: packages/admin/src/routes/bylines.tsx:500
+#: packages/admin/src/routes/bylines.tsx:511
 msgid "No linked user"
 msgstr "لا يوجد مستخدم مرتبط"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:134
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:160
 msgid "No matches"
 msgstr "لا توجد نتائج"
 
@@ -5086,6 +5249,10 @@ msgstr "حذف {title} نهائيًا"
 msgid "Permissions"
 msgstr "الصلاحيات"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:46
+msgid "PHP"
+msgstr ""
+
 #: packages/admin/src/components/SetupWizard.tsx:290
 msgid "Pick any method to create your admin account."
 msgstr "اختر أي طريقة لإنشاء حساب المسؤول."
@@ -5094,6 +5261,11 @@ msgstr "اختر أي طريقة لإنشاء حساب المسؤول."
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
 msgid "Plain"
 msgstr "عادي"
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:27
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:120
+msgid "Plain text"
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:133
 msgid "Please ask your administrator to send a new invite."
@@ -5114,6 +5286,10 @@ msgstr "يرجى إدخال رابط صحيح"
 #: packages/admin/src/components/WordPressImport.tsx:1024
 msgid "Plugin"
 msgstr "إضافة"
+
+#: packages/admin/src/lib/api/plugins.ts:57
+msgid "Plugin \"{pluginId}\" not found"
+msgstr ""
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:747
 msgid "Plugin details"
@@ -5173,6 +5349,10 @@ msgstr "تحديث الإضافة يستلزم الموافقة من جديد"
 msgid "Plugin updated"
 msgstr "تم تحديث الإضافة"
 
+#: packages/admin/src/components/PluginFieldErrorBoundary.tsx:34
+msgid "Plugin widget error"
+msgstr ""
+
 #: packages/admin/src/components/AdminCommandPalette.tsx:219
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:144
@@ -5186,6 +5366,11 @@ msgstr "الإضافات"
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
 msgstr "يرشد محركات البحث إلى النسخة الأصلية من هذه الصفحة، إذا كانت مكررة من رابط آخر"
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:389
+msgid "Post"
+msgstr ""
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:397
 #: packages/admin/src/components/WordPressImport.tsx:1161
 msgid "Posts"
 msgstr "المنشورات"
@@ -5280,6 +5465,10 @@ msgstr "تم النشر في"
 #: packages/admin/src/components/RegistryPluginDetail.tsx:457
 msgid "Published by"
 msgstr "بقلم"
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:47
+msgid "Python"
+msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:2000
 msgid "Quick create byline"
@@ -5525,6 +5714,10 @@ msgstr "المستودع"
 msgid "Request a new link"
 msgstr "طلب رابط جديد"
 
+#: packages/admin/src/lib/api/client.ts:198
+msgid "Request failed"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:280
 #: packages/admin/src/components/ContentTypeEditor.tsx:721
 #: packages/admin/src/components/FieldEditor.tsx:437
@@ -5591,6 +5784,7 @@ msgid "Restoring..."
 msgstr "جاري الاستعادة..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
+#: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/router.tsx:1940
 #: packages/admin/src/routes/byline-schema.tsx:280
@@ -5666,6 +5860,14 @@ msgstr "الدور {role}"
 msgid "Role label"
 msgstr "تسمية الدور"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:48
+msgid "Ruby"
+msgstr ""
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:49
+msgid "Rust"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:351
 #: packages/admin/src/components/MenuEditor.tsx:353
 #: packages/admin/src/components/MenuEditor.tsx:522
@@ -5683,7 +5885,7 @@ msgstr "نفس النافذة"
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:562
+#: packages/admin/src/routes/bylines.tsx:573
 msgid "Save"
 msgstr "حفظ"
 
@@ -5754,7 +5956,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:562
+#: packages/admin/src/routes/bylines.tsx:573
 msgid "Saving..."
 msgstr "جاري الحفظ..."
 
@@ -5852,6 +6054,10 @@ msgstr "عارض لقطات الشاشة"
 msgid "Screenshots"
 msgstr "لقطات الشاشة"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:50
+msgid "SCSS"
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeEditor.tsx:86
 msgid "Search"
 msgstr "بحث"
@@ -5876,7 +6082,7 @@ msgid "Search by name or email..."
 msgstr "ابحث بالاسم أو البريد الإلكتروني..."
 
 #: packages/admin/src/components/ContentEditor.tsx:1902
-#: packages/admin/src/routes/bylines.tsx:388
+#: packages/admin/src/routes/bylines.tsx:395
 msgid "Search bylines"
 msgstr "البحث في الكُتّاب"
 
@@ -6212,12 +6418,12 @@ msgstr "عنوان تحسين محركات البحث"
 msgid "Set a custom display size for this image instance."
 msgstr "عيّن حجم عرض مخصص لنسخة هذه الصورة."
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:170
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:174
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:196
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:200
 msgid "Set language"
 msgstr "تعيين اللغة"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:171
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:197
 msgid "Set language (current: {label})"
 msgstr "تعيين اللغة (الحالية: {label})"
 
@@ -6397,7 +6603,7 @@ msgstr "تم التخطي"
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:398
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:473
+#: packages/admin/src/routes/bylines.tsx:480
 msgid "Slug"
 msgstr "جزء الرابط"
 
@@ -6480,6 +6686,10 @@ msgstr "وضع التسليط"
 msgid "Spreadsheets"
 msgstr "جداول البيانات"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:51
+msgid "SQL"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1758
 msgid "Start Import"
 msgstr "بدء الاستيراد"
@@ -6517,6 +6727,14 @@ msgstr "الحقول الفرعية"
 #: packages/admin/src/components/WelcomeModal.tsx:29
 msgid "Subscriber"
 msgstr "مشترك"
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:52
+msgid "Svelte"
+msgstr ""
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:53
+msgid "Swift"
+msgstr ""
 
 #: packages/admin/src/components/users/UserDetail.tsx:256
 msgid "Synced"
@@ -6650,6 +6868,10 @@ msgstr "اسم موقعك، يُستخدم في الترويسة والبيان�
 msgid "The page you're looking for doesn't exist."
 msgstr "الصفحة التي تبحث عنها غير موجودة."
 
+#: packages/admin/src/components/PluginFieldErrorBoundary.tsx:37
+msgid "The plugin field widget failed to render."
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:172
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "الرابط العام لموقعك (يُستخدم للروابط الأساسية وخرائط الموقع)"
@@ -6745,7 +6967,7 @@ msgstr "سيتم إزالة قاعدة إعادة التوجيه هذه بشكل
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:606
+#: packages/admin/src/routes/bylines.tsx:617
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "سيُزال ملف الكاتب. ستُحذف روابط الكُتّاب في المحتوى وتُمسح مؤشرات القيادة."
 
@@ -6862,6 +7084,10 @@ msgstr "تم إنشاء الرمز: {0}"
 msgid "Token Name"
 msgstr "اسم الرمز"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:54
+msgid "TOML"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1116
 msgid "Tools → Export"
 msgstr "الأدوات > التصدير"
@@ -6966,6 +7192,10 @@ msgstr "جرّب رابطًا آخر"
 msgid "Try with my data"
 msgstr "جرّب مع بياناتي"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:55
+msgid "TSX"
+msgstr ""
+
 #: packages/admin/src/components/editor/BlockMenu.tsx:282
 msgid "Turn into"
 msgstr "حوّل إلى"
@@ -6985,6 +7215,10 @@ msgstr "النوع"
 #: packages/admin/src/components/WordPressImport.tsx:1854
 msgid "Type mismatch ({0})"
 msgstr "عدم تطابق النوع ({0})"
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:56
+msgid "TypeScript"
+msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:131
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:112
@@ -7426,6 +7660,10 @@ msgstr "عرض رخصة {license} على spdx.org"
 msgid "Visitors hitting these paths will see an error."
 msgstr "الزوار الذين يصلون إلى هذه المسارات سيرون خطأً."
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:57
+msgid "Vue"
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:180
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:184
 msgid "Waiting for passkey..."
@@ -7470,7 +7708,7 @@ msgstr "WebAuthn غير مدعوم في هذا المتصفح"
 msgid "Website"
 msgstr "الموقع الإلكتروني"
 
-#: packages/admin/src/routes/bylines.tsx:478
+#: packages/admin/src/routes/bylines.tsx:485
 msgid "Website URL"
 msgstr "رابط الموقع الإلكتروني"
 
@@ -7575,6 +7813,14 @@ msgstr "اكتب محتوى عنصر الواجهة..."
 msgid "WXR File"
 msgstr "ملف WXR"
 
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:58
+msgid "XML"
+msgstr ""
+
+#: packages/admin/src/components/editor/codeBlockLanguages.ts:59
+msgid "YAML"
+msgstr ""
+
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
 #: packages/admin/src/routes/byline-schema.tsx:422
@@ -7593,7 +7839,7 @@ msgstr "يمكنك إنشاء وتحرير محتواك الخاص."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "يمكنك إدارة المحتوى، الوسائط، القوائم، والتصنيفات."
 
-#: packages/admin/src/routes/bylines.tsx:532
+#: packages/admin/src/routes/bylines.tsx:543
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr ""
 

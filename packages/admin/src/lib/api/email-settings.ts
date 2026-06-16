@@ -2,6 +2,9 @@
  * Email settings API client functions
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+
 import { API_BASE, apiFetch, parseApiResponse } from "./client.js";
 
 // =============================================================================
@@ -28,7 +31,7 @@ export interface EmailSettings {
 
 export async function fetchEmailSettings(): Promise<EmailSettings> {
 	const res = await apiFetch(`${API_BASE}/settings/email`);
-	return parseApiResponse<EmailSettings>(res, "Failed to fetch email settings");
+	return parseApiResponse<EmailSettings>(res, i18n._(msg`Failed to fetch email settings`));
 }
 
 export async function sendTestEmail(to: string): Promise<{ success: boolean; message: string }> {
@@ -37,5 +40,8 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; mes
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ to }),
 	});
-	return parseApiResponse<{ success: boolean; message: string }>(res, "Failed to send test email");
+	return parseApiResponse<{ success: boolean; message: string }>(
+		res,
+		i18n._(msg`Failed to send test email`),
+	);
 }

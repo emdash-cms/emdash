@@ -195,7 +195,7 @@ export interface AdminManifest {
  */
 export async function parseApiResponse<T>(
 	response: Response,
-	fallbackMessage = "Request failed",
+	fallbackMessage = i18n._(msg`Request failed`),
 ): Promise<T> {
 	if (!response.ok) await throwResponseError(response, fallbackMessage);
 	const body: { data: T } = await response.json();
@@ -224,5 +224,5 @@ export async function fetchAuthMode(): Promise<{
 		authMode: string;
 		signupEnabled?: boolean;
 		providers?: Array<{ id: string; label: string }>;
-	}>(response, "Failed to fetch auth mode");
+	}>(response, i18n._(msg`Failed to fetch auth mode`));
 }

@@ -195,13 +195,13 @@ export function MediaPickerModal({
 		if (activeProvider === "local") {
 			return {
 				id: "local",
-				name: "Library",
+				name: t`Library`,
 				icon: undefined,
 				capabilities: { browse: true, search: false, upload: true, delete: true },
 			} as MediaProviderInfo;
 		}
 		return providers?.find((p) => p.id === activeProvider);
-	}, [activeProvider, providers]);
+	}, [activeProvider, providers, t]);
 
 	// Fetch local media list (cursor-paginated so libraries beyond the
 	// first page remain selectable from the picker, not just the first 50).
@@ -454,7 +454,7 @@ export function MediaPickerModal({
 	// picker can only return locally-stored media (see prop docs).
 	const providerTabs = React.useMemo(() => {
 		const tabs: Array<{ id: string; name: string; icon?: string }> = [
-			{ id: "local", name: "Library", icon: undefined },
+			{ id: "local", name: t`Library`, icon: undefined },
 		];
 		if (providers && !localOnly) {
 			for (const p of providers) {
@@ -464,7 +464,7 @@ export function MediaPickerModal({
 			}
 		}
 		return tabs;
-	}, [providers, localOnly]);
+	}, [providers, localOnly, t]);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={handleClose}>

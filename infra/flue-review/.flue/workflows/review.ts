@@ -17,6 +17,7 @@ import { getSandbox, type Sandbox } from "@cloudflare/sandbox";
 import { createAgent, type FlueContext, type WorkflowRouteHandler } from "@flue/runtime";
 import { cfSandboxToSessionEnv } from "@flue/runtime/cloudflare";
 
+import { withCapacityRetry } from "../lib/capacity.js";
 import {
 	readAppCreds,
 	mintInstallationToken,
@@ -46,7 +47,7 @@ interface ReviewPayload {
 // reserved by Flue's generated CF entry and routed through `env.AI`, so no
 // model API key is needed anywhere.
 const reviewAgent = createAgent<ReviewPayload, Env>(({ env }) => ({
-	model: "cloudflare/@cf/moonshotai/kimi-k2.6",
+	model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
 	// The container's working dir is the checked-out PR. AGENTS.md at the repo
 	// root is auto-discovered into the agent's context from here.
 	cwd: "/workspace",
@@ -171,17 +172,38 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 			);
 		}
 
-		const { data } = await session.skill(review, {
-			args: {
-				prContext: buildPrContext(payload, priorReview),
-				owner: payload.owner,
-				repo: payload.repo,
-				prNumber: payload.prNumber,
-				baseRef: payload.baseRef,
-				headRef: payload.headRef,
+		// Workers AI returns 429 when kimi is over capacity, and under sustained
+		// load the binding can hold the request open indefinitely. Bound each
+		// attempt and retry genuine capacity errors so a transient spike doesn't
+		// silently hang the review forever (it used to: no result, no post, just
+		// the container's keep-alive alarm firing for minutes).
+		const { data } = await withCapacityRetry(
+			(signal) =>
+				session.skill(review, {
+					args: {
+						prContext: buildPrContext(payload, priorReview),
+						owner: payload.owner,
+						repo: payload.repo,
+						prNumber: payload.prNumber,
+						baseRef: payload.baseRef,
+						headRef: payload.headRef,
+					},
+					result: reviewResultSchema,
+					signal,
+				}),
+			{
+				label: `review#${payload.prNumber}`,
+				attempts: 3,
+				perAttemptTimeoutMs: 6 * 60_000,
+				onRetry: ({ attempt, delayMs, error }) =>
+					ctx.log.warn?.("[review] model over capacity, backing off", {
+						prNumber: payload.prNumber,
+						attempt,
+						delayMs,
+						error: String(error),
+					}),
 			},
-			result: reviewResultSchema,
-		});
+		);
 
 		// Post from this trusted DO context (durable, not bound by the webhook's
 		// 30s waitUntil budget). In dev (no creds) we just log and return.
