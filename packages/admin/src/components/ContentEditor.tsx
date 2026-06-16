@@ -851,11 +851,9 @@ export function ContentEditor({
 										<div className="mt-1 flex flex-wrap items-center gap-1.5">
 											{supportsDrafts ? (
 												<>
-													{isLive && (
-														<Badge variant="primary" className="text-white">
-															{t`Published`}
-														</Badge>
-													)}
+												{isLive && (
+													<Badge variant="success">{t`Published`}</Badge>
+												)}
 													{hasPendingChanges && (
 														<Badge variant="secondary">{t`Pending changes`}</Badge>
 													)}
