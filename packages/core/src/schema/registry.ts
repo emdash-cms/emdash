@@ -3,7 +3,12 @@ import type { Selectable } from "kysely";
 import { sql } from "kysely";
 import { ulid } from "ulidx";
 
-import { currentTimestamp, listTablesLike, tableExists } from "../database/dialect-helpers.js";
+import {
+	currentTimestamp,
+	isPostgres,
+	listTablesLike,
+	tableExists,
+} from "../database/dialect-helpers.js";
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
@@ -629,6 +634,19 @@ export class SchemaRegistry {
 				}
 			}
 
+			// Sync required column constraint
+			const requiredChanged = input.required !== undefined && input.required !== field.required;
+			if (requiredChanged) {
+				await this.syncRequiredConstraint(
+					collectionSlug,
+					fieldSlug,
+					field.type,
+					input.required!,
+					input.defaultValue ?? field.defaultValue,
+					trx,
+				);
+			}
+
 			// If searchable changed, sync FTS state for this collection
 			const searchableChanged =
 				input.searchable !== undefined && input.searchable !== field.searchable;
@@ -916,6 +934,50 @@ export class SchemaRegistry {
 		validateIdentifier(`idx_${tableName}_${columnName}_unique`);
 		await sql`DROP INDEX IF EXISTS ${sql.ref(`idx_${tableName}_${columnName}`)}`.execute(db);
 		await sql`DROP INDEX IF EXISTS ${sql.ref(`idx_${tableName}_${columnName}_unique`)}`.execute(db);
+	}
+
+	/**
+	 * Sync the column constraint when required changes.
+	 * false→true: backfill NULL rows with default, SET NOT NULL on Postgres.
+	 * true→false: DROP NOT NULL on Postgres. SQLite has no ALTER COLUMN.
+	 */
+	private async syncRequiredConstraint(
+		collectionSlug: string,
+		fieldSlug: string,
+		fieldType: FieldType,
+		required: boolean,
+		defaultValue: unknown,
+		db: Kysely<Database>,
+	): Promise<void> {
+		const tableName = this.getTableName(collectionSlug);
+		const columnName = this.getColumnName(fieldSlug);
+
+		if (required) {
+			const fillValue =
+				defaultValue !== undefined
+					? this.formatDefaultValue(defaultValue, fieldType)
+					: this.getEmptyDefault(fieldType);
+
+			await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET ${sql.ref(columnName)} = ${sql.raw(fillValue)}
+				WHERE ${sql.ref(columnName)} IS NULL
+			`.execute(db);
+
+			if (isPostgres(db)) {
+				await sql`
+					ALTER TABLE ${sql.ref(tableName)}
+					ALTER COLUMN ${sql.ref(columnName)} SET NOT NULL
+				`.execute(db);
+			}
+		} else {
+			if (isPostgres(db)) {
+				await sql`
+					ALTER TABLE ${sql.ref(tableName)}
+					ALTER COLUMN ${sql.ref(columnName)} DROP NOT NULL
+				`.execute(db);
+			}
+		}
 	}
 
 	/**

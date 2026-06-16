@@ -761,6 +761,156 @@ describe("SchemaRegistry", () => {
 		});
 	});
 
+	describe("Required Constraint Sync", () => {
+		beforeEach(async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+		});
+
+		it("should backfill NULL rows when required changes false→true", async () => {
+			await registry.createField("posts", {
+				slug: "subtitle",
+				label: "Subtitle",
+				type: "string",
+			});
+
+			// Insert rows with NULL subtitle
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group) VALUES ('1', 'a', 'draft', 'en', 'tg1')`.execute(
+				db,
+			);
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group) VALUES ('2', 'b', 'draft', 'en', 'tg2')`.execute(
+				db,
+			);
+
+			// Verify NULLs
+			const before = await sql<{
+				subtitle: string | null;
+			}>`SELECT subtitle FROM ec_posts ORDER BY id`.execute(db);
+			expect(before.rows[0]!.subtitle).toBeNull();
+			expect(before.rows[1]!.subtitle).toBeNull();
+
+			await registry.updateField("posts", "subtitle", { required: true });
+
+			const after = await sql<{
+				subtitle: string;
+			}>`SELECT subtitle FROM ec_posts ORDER BY id`.execute(db);
+			expect(after.rows[0]!.subtitle).toBe("");
+			expect(after.rows[1]!.subtitle).toBe("");
+		});
+
+		it("should backfill with defaultValue when provided", async () => {
+			await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "integer",
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group) VALUES ('1', 'a', 'draft', 'en', 'tg1')`.execute(
+				db,
+			);
+
+			await registry.updateField("posts", "priority", {
+				required: true,
+				defaultValue: 5,
+			});
+
+			const after = await sql<{ priority: number }>`SELECT priority FROM ec_posts`.execute(db);
+			expect(after.rows[0]!.priority).toBe(5);
+		});
+
+		it("should backfill with field's existing defaultValue", async () => {
+			await registry.createField("posts", {
+				slug: "category",
+				label: "Category",
+				type: "string",
+				defaultValue: "general",
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group, category) VALUES ('1', 'a', 'draft', 'en', 'tg1', NULL)`.execute(
+				db,
+			);
+
+			await registry.updateField("posts", "category", { required: true });
+
+			const after = await sql<{
+				category: string;
+			}>`SELECT category FROM ec_posts`.execute(db);
+			expect(after.rows[0]!.category).toBe("general");
+		});
+
+		it("should not change non-null rows during backfill", async () => {
+			await registry.createField("posts", {
+				slug: "subtitle",
+				label: "Subtitle",
+				type: "string",
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group, subtitle) VALUES ('1', 'a', 'draft', 'en', 'tg1', 'existing')`.execute(
+				db,
+			);
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group) VALUES ('2', 'b', 'draft', 'en', 'tg2')`.execute(
+				db,
+			);
+
+			await registry.updateField("posts", "subtitle", { required: true });
+
+			const after = await sql<{
+				subtitle: string;
+			}>`SELECT subtitle FROM ec_posts ORDER BY id`.execute(db);
+			expect(after.rows[0]!.subtitle).toBe("existing");
+			expect(after.rows[1]!.subtitle).toBe("");
+		});
+
+		it("should backfill numeric types with 0", async () => {
+			await registry.createField("posts", {
+				slug: "views",
+				label: "Views",
+				type: "integer",
+			});
+
+			await sql`INSERT INTO ec_posts (id, slug, status, locale, translation_group) VALUES ('1', 'a', 'draft', 'en', 'tg1')`.execute(
+				db,
+			);
+
+			await registry.updateField("posts", "views", { required: true });
+
+			const after = await sql<{ views: number }>`SELECT views FROM ec_posts`.execute(db);
+			expect(after.rows[0]!.views).toBe(0);
+		});
+
+		it("should allow required true→false without error on SQLite", async () => {
+			await registry.createField("posts", {
+				slug: "subtitle",
+				label: "Subtitle",
+				type: "string",
+				required: true,
+			});
+
+			const updated = await registry.updateField("posts", "subtitle", {
+				required: false,
+			});
+
+			expect(updated.required).toBe(false);
+		});
+
+		it("should update metadata when required changes", async () => {
+			await registry.createField("posts", {
+				slug: "subtitle",
+				label: "Subtitle",
+				type: "string",
+			});
+
+			const updated = await registry.updateField("posts", "subtitle", {
+				required: true,
+			});
+			expect(updated.required).toBe(true);
+
+			const reverted = await registry.updateField("posts", "subtitle", {
+				required: false,
+			});
+			expect(reverted.required).toBe(false);
+		});
+	});
+
 	describe("Unique Constraints", () => {
 		beforeEach(async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts" });
