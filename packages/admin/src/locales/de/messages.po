@@ -919,7 +919,7 @@ msgstr "Beliebige JSON-Daten"
 
 #: packages/admin/src/components/ContentList.tsx:963
 msgid "archived"
-msgstr "archiviert"
+msgstr "Archiviert"
 
 #: packages/admin/src/components/ContentList.tsx:546
 msgid "Archived"
@@ -5223,7 +5223,7 @@ msgstr "PDF"
 #: packages/admin/src/components/comments/CommentDetail.tsx:196
 #: packages/admin/src/components/ContentList.tsx:982
 msgid "pending"
-msgstr "ausstehend"
+msgstr "Ausstehend"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:197
 msgid "Pending"
@@ -5438,7 +5438,7 @@ msgstr "Änderungen publizieren"
 
 #: packages/admin/src/components/ContentList.tsx:957
 msgid "published"
-msgstr "publiziert"
+msgstr "Publiziert"
 
 #: packages/admin/src/components/ContentEditor.tsx:856
 #: packages/admin/src/components/ContentList.tsx:543
@@ -5983,7 +5983,7 @@ msgstr "Später publizieren"
 
 #: packages/admin/src/components/ContentList.tsx:961
 msgid "scheduled"
-msgstr "geplant"
+msgstr "Geplant"
 
 #: packages/admin/src/components/ContentEditor.tsx:863
 #: packages/admin/src/components/ContentList.tsx:545
