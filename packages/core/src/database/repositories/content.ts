@@ -312,9 +312,10 @@ export class ContentRepository {
 				if (field.slug in newData) {
 					if (field.required && typeof newData[field.slug] === "string") {
 						newData[field.slug] = `${newData[field.slug]} (Copy)`;
-					} else {
+					} else if (!field.required) {
 						delete newData[field.slug];
 					}
+					// required non-string: leave value, DB unique index will surface the conflict
 				}
 			}
 		}
@@ -692,6 +693,7 @@ export class ContentRepository {
 			const item = row.rows[0];
 			if (item) {
 				for (const field of uniqueFields) {
+					validateIdentifier(field.slug, "unique field slug");
 					const value = item[field.slug];
 					if (value == null) continue;
 

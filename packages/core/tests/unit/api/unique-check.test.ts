@@ -161,15 +161,25 @@ describe("checkUniqueFieldConflicts", () => {
 			db,
 		);
 
-		// Same value in different locale should not conflict
-		const result = await checkUniqueFieldConflicts(
+		// Same locale should conflict
+		const sameLocale = await checkUniqueFieldConflicts(
 			db,
-			"posts",
+			"post",
+			"id2",
+			{ email: "dup@test.com" },
+			"en",
+		);
+		expect(sameLocale).not.toBeNull();
+
+		// Different locale should not conflict
+		const diffLocale = await checkUniqueFieldConflicts(
+			db,
+			"post",
 			"id2",
 			{ email: "dup@test.com" },
 			"fr",
 		);
-		expect(result).toBeNull();
+		expect(diffLocale).toBeNull();
 	});
 });
 
