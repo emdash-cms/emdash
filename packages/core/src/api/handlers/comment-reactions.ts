@@ -19,6 +19,14 @@ import type { ApiResult } from "../types.js";
 const REACTION_RATE_LIMIT = 30;
 const REACTION_RATE_WINDOW_MINUTES = 10;
 
+/**
+ * Reactions the system accepts. Positive-only for now (matches the shipped
+ * widget); kept as an allowlist so a voter can't spam arbitrary reaction
+ * strings and bloat a comment's count map. Extend (or make configurable) as
+ * the UI grows.
+ */
+const ALLOWED_REACTIONS: ReadonlySet<string> = new Set(["like"]);
+
 export interface ReactionToggleResult {
 	commentId: string;
 	reaction: string;
@@ -51,6 +59,13 @@ export async function handleReactionToggle(
 ): Promise<ApiResult<ReactionToggleResult>> {
 	try {
 		const { collection, contentId, commentId, reaction, voterHash } = params;
+
+		if (!ALLOWED_REACTIONS.has(reaction)) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: "Unsupported reaction" },
+			};
+		}
 
 		// The comment must exist, be approved, and belong to this content item.
 		const comment = await db

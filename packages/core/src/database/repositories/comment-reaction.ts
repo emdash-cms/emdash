@@ -29,20 +29,12 @@ export class CommentReactionRepository {
 	 *   if an existing reaction was removed.
 	 */
 	async toggle(input: ToggleReactionInput): Promise<{ reacted: boolean }> {
-		const existing = await this.db
-			.selectFrom("_emdash_comment_reactions")
-			.select("id")
-			.where("comment_id", "=", input.commentId)
-			.where("voter_hash", "=", input.voterHash)
-			.where("reaction", "=", input.reaction)
-			.executeTakeFirst();
-
-		if (existing) {
-			await this.db.deleteFrom("_emdash_comment_reactions").where("id", "=", existing.id).execute();
-			return { reacted: false };
-		}
-
-		await this.db
+		// Idempotent add: insert, or no-op if this voter already has this
+		// reaction. Using ON CONFLICT (rather than read-then-write) avoids a
+		// TOCTOU race where two concurrent toggles both see "no row" and the
+		// second INSERT violates the unique index — the old path surfaced that
+		// as a 500. The unique index doubles as the conflict target.
+		const inserted = await this.db
 			.insertInto("_emdash_comment_reactions")
 			.values({
 				id: ulid(),
@@ -51,8 +43,21 @@ export class CommentReactionRepository {
 				voter_hash: input.voterHash,
 				created_at: new Date().toISOString(),
 			})
+			.onConflict((oc) => oc.columns(["comment_id", "voter_hash", "reaction"]).doNothing())
+			.executeTakeFirst();
+
+		if ((inserted.numInsertedOrUpdatedRows ?? 0n) > 0n) {
+			return { reacted: true };
+		}
+
+		// The reaction already existed → toggle it off.
+		await this.db
+			.deleteFrom("_emdash_comment_reactions")
+			.where("comment_id", "=", input.commentId)
+			.where("voter_hash", "=", input.voterHash)
+			.where("reaction", "=", input.reaction)
 			.execute();
-		return { reacted: true };
+		return { reacted: false };
 	}
 
 	/**

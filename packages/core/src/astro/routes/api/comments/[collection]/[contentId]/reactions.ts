@@ -35,8 +35,12 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	if (dbErr) return dbErr;
 
 	try {
-		// Salted voter hash from request IP (same primitive as comment ip_hash);
-		// shared "unknown" bucket when no trusted IP is available.
+		// Salted voter hash from request IP (same primitive as comment ip_hash).
+		// Behind Cloudflare (CF-Connecting-IP) or a configured trusted proxy this
+		// is per-visitor. Without a trusted IP it collapses to a shared "unknown"
+		// bucket, so reaction dedup degrades for those visitors — a real
+		// per-visitor token is Tier 2 (visitor identity). Operators should set
+		// trustedProxyHeaders; see the comment ingest route for the same note.
 		const meta = extractRequestMeta(request, emdash.config);
 		let voterHash = "unknown";
 		if (meta.ip) {

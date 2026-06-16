@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { handleReactionToggle } from "../../../src/api/handlers/comment-reactions.js";
 import { getCommentsWithDb } from "../../../src/comments/query.js";
 import { CommentReactionRepository } from "../../../src/database/repositories/comment-reaction.js";
 import { CommentRepository } from "../../../src/database/repositories/comment.js";
@@ -129,6 +130,75 @@ describe("CommentReactionRepository", () => {
 			});
 
 			expect(items[0]?.reactions).toEqual({ like: 1 });
+		});
+	});
+
+	describe("handleReactionToggle", () => {
+		const base = { collection: "post", contentId: "content-1" };
+
+		it("toggles a reaction and returns updated counts", async () => {
+			const c = await approvedComment();
+			const r = await handleReactionToggle(db, {
+				...base,
+				commentId: c.id,
+				reaction: "like",
+				voterHash: "v1",
+			});
+			expect(r.success).toBe(true);
+			if (r.success) {
+				expect(r.data.reacted).toBe(true);
+				expect(r.data.counts).toEqual({ like: 1 });
+			}
+		});
+
+		it("rejects an unsupported reaction with VALIDATION_ERROR", async () => {
+			const c = await approvedComment();
+			const r = await handleReactionToggle(db, {
+				...base,
+				commentId: c.id,
+				reaction: "spam",
+				voterHash: "v1",
+			});
+			expect(r.success).toBe(false);
+			if (!r.success) expect(r.error.code).toBe("VALIDATION_ERROR");
+		});
+
+		it("rejects reacting to a non-approved comment", async () => {
+			const c = await approvedComment({ status: "pending" });
+			const r = await handleReactionToggle(db, {
+				...base,
+				commentId: c.id,
+				reaction: "like",
+				voterHash: "v1",
+			});
+			expect(r.success).toBe(false);
+			if (!r.success) expect(r.error.code).toBe("COMMENT_NOT_APPROVED");
+		});
+
+		it("rejects reacting to a missing comment", async () => {
+			const r = await handleReactionToggle(db, {
+				...base,
+				commentId: "does-not-exist",
+				reaction: "like",
+				voterHash: "v1",
+			});
+			expect(r.success).toBe(false);
+			if (!r.success) expect(r.error.code).toBe("NOT_FOUND");
+		});
+
+		it("does not error when two toggles for the same voter race (idempotent add)", async () => {
+			const c = await approvedComment();
+			// Fire both concurrently — the old read-then-write path could throw a
+			// unique-constraint 500 here; ON CONFLICT makes it safe.
+			const [a, b] = await Promise.all([
+				handleReactionToggle(db, { ...base, commentId: c.id, reaction: "like", voterHash: "v1" }),
+				handleReactionToggle(db, { ...base, commentId: c.id, reaction: "like", voterHash: "v1" }),
+			]);
+			expect(a.success).toBe(true);
+			expect(b.success).toBe(true);
+			// Invariant: never more than one row for the same (comment, voter, reaction).
+			const counts = await reactions.countsForComments([c.id]);
+			expect((counts.get(c.id)?.like ?? 0) <= 1).toBe(true);
 		});
 	});
 });
