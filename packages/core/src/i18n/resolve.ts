@@ -37,9 +37,36 @@ export function resolveLocaleChain(explicit?: string): string[] {
 }
 
 const REPEATED_SLASHES = /\/{2,}/g;
+const DATE_TOKEN = /\{(year|month|day|hour|minute|second)\}/g;
+const pad2 = (n: number) => String(n).padStart(2, "0");
 
 /**
- * Interpolate a collection `url_pattern` with a row's slug and id.
+ * Substitute WordPress-style date tokens (`{year}`, `{month}`, `{day}`,
+ * `{hour}`, `{minute}`, `{second}`) from a publish date. Month/day/time parts
+ * are zero-padded, mirroring WordPress (`%monthnum%`, `%day%`, ...). Tokens are
+ * left untouched when no valid date is available, so callers without a date
+ * (or unpublished entries) never produce a half-resolved URL.
+ */
+function applyDateTokens(path: string, date: string | Date | null | undefined): string {
+	const d = date == null ? null : new Date(date);
+	if (!d || Number.isNaN(d.getTime())) return path;
+	const parts: Record<string, string> = {
+		year: String(d.getUTCFullYear()),
+		month: pad2(d.getUTCMonth() + 1),
+		day: pad2(d.getUTCDate()),
+		hour: pad2(d.getUTCHours()),
+		minute: pad2(d.getUTCMinutes()),
+		second: pad2(d.getUTCSeconds()),
+	};
+	return path.replace(DATE_TOKEN, (match, key: string) => parts[key] ?? match);
+}
+
+/**
+ * Interpolate a collection `url_pattern` with a row's slug, id and publish date.
+ *
+ * Supported tokens: `{slug}`, `{id}`, and the date tokens `{year}`,
+ * `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}` (resolved from `date`,
+ * for WordPress-style permalinks like `/{year}/{month}/{day}/{slug}.html`).
  *
  * Falls back to `/{collection}/{slug}` when no pattern is configured.
  * Does NOT apply any locale prefix — pass the result through
@@ -51,12 +78,15 @@ export function interpolateUrlPattern(options: {
 	collection: string;
 	slug: string;
 	id: string;
+	/** Publish date used for date tokens; tokens stay literal when absent. */
+	date?: string | Date | null;
 }): string {
-	const { pattern, collection, slug, id } = options;
+	const { pattern, collection, slug, id, date } = options;
 	const basePattern = pattern ?? `/${encodeURIComponent(collection)}/{slug}`;
 	let path = basePattern
-		.replace("{slug}", encodeURIComponent(slug))
-		.replace("{id}", encodeURIComponent(id));
+		.replaceAll("{slug}", encodeURIComponent(slug))
+		.replaceAll("{id}", encodeURIComponent(id));
+	path = applyDateTokens(path, date);
 	path = path.replace(REPEATED_SLASHES, "/");
 	if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
 	if (!path.startsWith("/")) path = `/${path}`;

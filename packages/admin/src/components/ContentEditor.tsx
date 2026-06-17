@@ -507,14 +507,14 @@ export function ContentEditor({
 				window.open(result.url, "_blank", "noopener,noreferrer");
 			} else {
 				window.open(
-					contentUrl(collection, slug || item.id, urlPattern),
+					contentUrl(collection, slug || item.id, urlPattern, item.publishedAt ?? item.updatedAt),
 					"_blank",
 					"noopener,noreferrer",
 				);
 			}
 		} catch {
 			window.open(
-				contentUrl(collection, slug || item?.id || "", urlPattern),
+				contentUrl(collection, slug || item?.id || "", urlPattern, item?.publishedAt ?? item?.updatedAt),
 				"_blank",
 				"noopener,noreferrer",
 			);
@@ -737,7 +737,7 @@ export function ContentEditor({
 							)}
 							{isLive && item?.slug && (
 								<LinkButton
-									href={contentUrl(collection, item.slug, urlPattern)}
+									href={contentUrl(collection, item.slug, urlPattern, item.publishedAt ?? item.updatedAt)}
 									external
 									variant="outline"
 									icon={<ArrowSquareOut />}

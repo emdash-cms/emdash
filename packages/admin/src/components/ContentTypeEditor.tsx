@@ -434,7 +434,7 @@ export function ContentTypeEditor({
 									</p>
 								)}
 								<p className="text-xs text-kumo-subtle mt-1">
-									{t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`}
+									{t`Pattern for generating URLs, e.g. /blog/${"{slug}"}. Tokens: ${"{slug}"}, ${"{id}"}, and date tokens ${"{year}"}/${"{month}"}/${"{day}"} (also ${"{hour}"}/${"{minute}"}/${"{second}"}) from the publish date — e.g. ${"/{year}/{month}/{day}/{slug}.html"} for WordPress-style permalinks.`}
 								</p>
 							</div>
 
