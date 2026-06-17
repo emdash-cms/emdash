@@ -3,21 +3,19 @@
 	"name": "emdash-flue-review",
 	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
 	"compatibility_date": "2026-04-01",
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
+	"compatibility_flags": ["nodejs_compat"],
 	"ai": {
 		"binding": "AI",
 	},
 	// Container sandbox. Flue auto-wires any Durable Object class whose
 	// class_name ends in `Sandbox` to @cloudflare/sandbox's Sandbox class in
-	// the generated bundle. 
+	// the generated bundle.
 	"durable_objects": {
 		"bindings": [
 			{
 				"class_name": "Sandbox",
-				"name": "Sandbox"
-			}
+				"name": "Sandbox",
+			},
 		],
 	},
 	// Migration history must stay append-only and keep every previously applied
@@ -30,24 +28,19 @@
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": [
-				"Sandbox"
-			]
+			"new_sqlite_classes": ["Sandbox"],
 		},
 		{
 			"tag": "flue-class-ReviewWorkflow",
-			"new_sqlite_classes": [
-				"ReviewWorkflow",
-				"FlueRegistry"
-			]
+			"new_sqlite_classes": ["ReviewWorkflow", "FlueRegistry"],
 		},
 		{
 			"tag": "v2-flue-0.11",
 			"renamed_classes": [
 				{
 					"from": "ReviewWorkflow",
-					"to": "FlueReviewWorkflow"
-				}
+					"to": "FlueReviewWorkflow",
+				},
 			],
 		},
 		// Reset the FlueRegistry run-index DO. Upgrading @flue in place left its
@@ -62,22 +55,18 @@
 		// (drops + recreates the class, unbound), then a normal deploy rebinds it.
 		{
 			"tag": "v3-reset-registry-drop",
-			"deleted_classes": [
-				"FlueRegistry"
-			]
+			"deleted_classes": ["FlueRegistry"],
 		},
 		{
 			"tag": "v4-reset-registry-new",
-			"new_sqlite_classes": [
-				"FlueRegistry"
-			]
+			"new_sqlite_classes": ["FlueRegistry"],
 		},
 	],
 	"containers": [
 		{
 			"class_name": "Sandbox",
-			"image": "./Dockerfile"
-		}
+			"image": "./Dockerfile",
+		},
 	],
 	"vars": {
 		// emdashbot GitHub App. Not secret (app id is public; installation id is
@@ -93,10 +82,7 @@
 	// container). GITHUB_APP_PRIVATE_KEY must be a PKCS#8 PEM (convert GitHub's
 	// download with `openssl pkcs8 -topk8 -nocrypt -in key.pem`).
 	"secrets": {
-		"required": [
-			"GITHUB_WEBHOOK_SECRET",
-			"GITHUB_APP_PRIVATE_KEY"
-		],
+		"required": ["GITHUB_WEBHOOK_SECRET", "GITHUB_APP_PRIVATE_KEY"],
 	},
 	"observability": {
 		"enabled": true,
