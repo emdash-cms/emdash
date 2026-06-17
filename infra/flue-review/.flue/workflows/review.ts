@@ -213,11 +213,13 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 		const harness = await init(reviewAgent);
 		const session = await harness.session();
 
-		// Workers AI returns 429 when kimi is over capacity, and under sustained
-		// load the binding can hold the request open indefinitely. Bound each
-		// attempt and retry genuine capacity errors so a transient spike doesn't
-		// silently hang the review forever (it used to: no result, no post, just
-		// the container's keep-alive alarm firing for minutes).
+		// Workers AI returns 429 when the model is over capacity; retry genuine
+		// capacity errors with backoff. The per-attempt timeout is a backstop
+		// against a wedged inference call, not a budget for the review itself: a
+		// thorough agentic review (many tool calls + turns) legitimately runs many
+		// minutes, so 20m gives real headroom (Flue's submission durability caps
+		// the whole run at 1h). It is deliberately NOT 6m -- that killed real
+		// reviews mid-flight.
 		const { data } = await withCapacityRetry(
 			(signal) =>
 				session.skill("review", {
@@ -235,7 +237,7 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 			{
 				label: `review#${payload.prNumber}`,
 				attempts: 3,
-				perAttemptTimeoutMs: 6 * 60_000,
+				perAttemptTimeoutMs: 20 * 60_000,
 				onRetry: ({ attempt, delayMs, error }) =>
 					ctx.log.warn?.("[review] model over capacity, backing off", {
 						prNumber: payload.prNumber,
