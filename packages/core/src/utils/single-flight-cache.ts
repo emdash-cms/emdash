@@ -1,16 +1,21 @@
 /**
- * Isolate-lifetime async value cache with single-flight and poison-immunity.
+ * Global-scope async value cache with single-flight and poison-immunity.
  *
- * Built for the "compute once per isolate, read on every request" caches
- * (site settings, search-health verification, ...). These must coalesce
- * concurrent cold-isolate reads into one query — but the obvious way to do
- * that, caching the in-flight *promise* on an isolate-global and awaiting it
- * from later requests, is unsafe on workerd: if the request that created the
- * promise is cancelled mid-await (client disconnect, context teardown), its
- * continuation never runs, so the promise neither resolves nor rejects. Every
- * later request that awaits that shared promise then hangs until the isolate
- * is evicted (observed as 524s at the 100s wall, near-zero CPU). A `.catch`
- * that clears the cache doesn't help — a cancelled request doesn't reject.
+ * Built for the "compute once for the lifetime of the JS global scope, read
+ * on every request" caches (site settings, search-health verification, ...).
+ * That global scope is the process on Node and the isolate on Cloudflare
+ * Workers — this helper is platform-neutral; the hazard it defends against is
+ * specific to workerd but the cache itself is not.
+ *
+ * These caches must coalesce concurrent cold reads into one query — but the
+ * obvious way to do that, caching the in-flight *promise* on a global and
+ * awaiting it from later requests, is unsafe on workerd: if the request that
+ * created the promise is cancelled mid-await (client disconnect, context
+ * teardown), its continuation never runs, so the promise neither resolves nor
+ * rejects. Every later request that awaits that shared promise then hangs
+ * until the isolate is evicted (observed as 524s at the 100s wall, near-zero
+ * CPU). A `.catch`/`.finally` that clears the cache doesn't help — a cancelled
+ * request settles neither way.
  *
  * This cache stores the resolved *value* (not a promise) and coalesces via
  * `initWithLock`: one request becomes the owner and runs `fetch`, everyone
@@ -27,7 +32,7 @@
 
 import { createInitLock, type InitLock, initWithLock } from "./init-lock.js";
 
-export interface IsolateCache<T> {
+export interface SingleFlightCache<T> {
 	/** Last resolved value, valid only when `hasValue` is true. */
 	value: T | null;
 	/**
@@ -36,7 +41,7 @@ export interface IsolateCache<T> {
 	 * undefined" from "never fetched").
 	 */
 	hasValue: boolean;
-	/** Invalidation counter; bumped by `invalidateIsolateCache`. */
+	/** Invalidation counter; bumped by `invalidateSingleFlightCache`. */
 	version: number;
 	/** The `version` the cached value was fetched at. */
 	valueVersion: number;
@@ -44,16 +49,16 @@ export interface IsolateCache<T> {
 	lock: InitLock;
 }
 
-export function createIsolateCache<T>(): IsolateCache<T> {
+export function createSingleFlightCache<T>(): SingleFlightCache<T> {
 	return { value: null, hasValue: false, version: 0, valueVersion: -1, lock: createInitLock() };
 }
 
 /**
- * Force the next `isolateCachedAsync` call to refetch. An in-flight owner
+ * Force the next `singleFlightCached` call to refetch. An in-flight owner
  * fetched at the old version will not publish into the new version, so its
  * result is ignored by subsequent reads.
  */
-export function invalidateIsolateCache(cache: IsolateCache<unknown>): void {
+export function invalidateSingleFlightCache(cache: SingleFlightCache<unknown>): void {
 	cache.version++;
 	cache.hasValue = false;
 	cache.value = null;
@@ -75,7 +80,7 @@ export function invalidateIsolateCache(cache: IsolateCache<unknown>): void {
  */
 const RECLAIM_HEADROOM_MS = 5_000;
 
-export interface IsolateCachedOptions {
+export interface SingleFlightCachedOptions {
 	/**
 	 * Hand the in-flight fetch to the host's lifetime extender (waitUntil via
 	 * `after()`), so a cancelled originating request still drives it to
@@ -105,7 +110,7 @@ interface Box<T> {
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 	return new Promise<T>((resolve, reject) => {
 		const timer = setTimeout(() => {
-			reject(new Error(`isolateCachedAsync: owner fetch exceeded ${ms}ms`));
+			reject(new Error(`singleFlightCached: owner fetch exceeded ${ms}ms`));
 		}, ms);
 		// Settle from the underlying promise (whichever wins the race with the
 		// timer), and always clear the timer so a resolved fetch doesn't leave
@@ -121,10 +126,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  * single-flight lock on a miss. Concurrent callers coalesce onto one fetch;
  * a cancelled owner cannot poison later callers (see file header).
  */
-export function isolateCachedAsync<T>(
-	cache: IsolateCache<T>,
+export function singleFlightCached<T>(
+	cache: SingleFlightCache<T>,
 	fetch: () => Promise<T>,
-	options: IsolateCachedOptions = {},
+	options: SingleFlightCachedOptions = {},
 ): Promise<T> {
 	// Capture the version once: a value published at this version satisfies
 	// this call; an invalidation that lands mid-fetch makes the published

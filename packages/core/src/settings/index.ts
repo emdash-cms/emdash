@@ -15,11 +15,11 @@ import { getDb } from "../loader.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
 import type { Storage } from "../storage/types.js";
 import {
-	createIsolateCache,
-	type IsolateCache,
-	invalidateIsolateCache,
-	isolateCachedAsync,
-} from "../utils/isolate-cache.js";
+	createSingleFlightCache,
+	type SingleFlightCache,
+	invalidateSingleFlightCache,
+	singleFlightCached,
+} from "../utils/single-flight-cache.js";
 import type { SiteSettings, SiteSettingKey, MediaReference, SeoSettings } from "./types.js";
 
 /** Prefix for site settings in the options table */
@@ -34,7 +34,7 @@ const SETTINGS_PREFIX = "site:";
  * once-per-isolate. Cross-isolate staleness is bounded by isolate lifetime
  * (workerd typically recycles within minutes); acceptable for chrome.
  *
- * Backed by isolate-cache.ts: concurrent cold-isolate reads coalesce onto one
+ * Backed by single-flight-cache.ts: concurrent cold reads coalesce onto one
  * query via a reclaimable single-flight lock and the resolved *value* is
  * cached — never a shared in-flight promise, so a cancelled request can't
  * poison the isolate (see that file's header). Stored on globalThis with a
@@ -43,11 +43,11 @@ const SETTINGS_PREFIX = "site:";
  */
 const SITE_SETTINGS_CACHE_KEY = Symbol.for("emdash:site-settings");
 const g = globalThis as Record<symbol, unknown>;
-const settingsCache: IsolateCache<Partial<SiteSettings>> =
+const settingsCache: SingleFlightCache<Partial<SiteSettings>> =
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
-	(g[SITE_SETTINGS_CACHE_KEY] as IsolateCache<Partial<SiteSettings>> | undefined) ??
+	(g[SITE_SETTINGS_CACHE_KEY] as SingleFlightCache<Partial<SiteSettings>> | undefined) ??
 	(() => {
-		const c = createIsolateCache<Partial<SiteSettings>>();
+		const c = createSingleFlightCache<Partial<SiteSettings>>();
 		g[SITE_SETTINGS_CACHE_KEY] = c;
 		return c;
 	})();
@@ -60,7 +60,7 @@ const settingsCache: IsolateCache<Partial<SiteSettings>> =
  * own cached copy until they expire — staleness bounded by isolate lifetime.
  */
 export function invalidateSiteSettingsCache(): void {
-	invalidateIsolateCache(settingsCache);
+	invalidateSingleFlightCache(settingsCache);
 }
 
 /**
@@ -208,11 +208,11 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
  * ```
  */
 export function getSiteSettings(): Promise<Partial<SiteSettings>> {
-	// requestCached dedupes within a single request; isolateCachedAsync
+	// requestCached dedupes within a single request; singleFlightCached
 	// coalesces across requests and caches the resolved value for the
-	// isolate's lifetime without ever sharing an awaitable promise.
+	// global scope's lifetime without ever sharing an awaitable promise.
 	return requestCached("siteSettings", () =>
-		isolateCachedAsync(
+		singleFlightCached(
 			settingsCache,
 			async () => {
 				const db = await getDb();
