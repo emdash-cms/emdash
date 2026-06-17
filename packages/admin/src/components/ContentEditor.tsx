@@ -514,7 +514,12 @@ export function ContentEditor({
 			}
 		} catch {
 			window.open(
-				contentUrl(collection, slug || item?.id || "", urlPattern, item?.publishedAt ?? item?.updatedAt),
+				contentUrl(
+					collection,
+					slug || item?.id || "",
+					urlPattern,
+					item?.publishedAt ?? item?.updatedAt,
+				),
 				"_blank",
 				"noopener,noreferrer",
 			);
@@ -737,7 +742,12 @@ export function ContentEditor({
 							)}
 							{isLive && item?.slug && (
 								<LinkButton
-									href={contentUrl(collection, item.slug, urlPattern, item.publishedAt ?? item.updatedAt)}
+									href={contentUrl(
+										collection,
+										item.slug,
+										urlPattern,
+										item.publishedAt ?? item.updatedAt,
+									)}
 									external
 									variant="outline"
 									icon={<ArrowSquareOut />}
