@@ -544,6 +544,7 @@ export class PluginManager {
 			pipeline: this.hookPipeline!,
 			isActive: (pluginId) => this.isActive(pluginId),
 			getOption: (key) => optionsRepo.get<string>(key),
+			getOptions: (keys) => optionsRepo.getMany<string>(keys),
 			setOption: (key, value) => optionsRepo.set(key, value),
 			deleteOption: async (key) => {
 				await optionsRepo.delete(key);

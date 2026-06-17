@@ -4,7 +4,7 @@
  * Pure (no-DB) commands for working with EmDash secrets:
  *
  * - `emdash secrets generate` — emits a fresh `EMDASH_ENCRYPTION_KEY`.
- *   Optionally writes it to `.dev.vars` (Workers) or `.env` (Node).
+ *   Optionally writes it to a local-secrets file (`.env`).
  * - `emdash secrets fingerprint <key>` — prints the kid for a key,
  *   useful in CI for verifying what's been deployed without exposing
  *   the raw value.
@@ -87,7 +87,7 @@ const generateCommand = defineCommand({
 		write: {
 			type: "string",
 			description:
-				"Optional path to write the key to (e.g. .dev.vars or .env). " +
+				"Optional path to write the key to (e.g. .env). " +
 				"Won't overwrite an existing entry without --force.",
 		},
 		force: {

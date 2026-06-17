@@ -1,5 +1,5 @@
 ---
-import { getEmDashEntry, getEntryTerms, getSeoMeta, decodeSlug, getSiteSettings } from "emdash";
+import { getEmDashEntry, getSeoMeta, decodeSlug, getSiteSettings } from "emdash";
 import { Image, PortableText, WidgetArea } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 import { resolveStarterSiteIdentity } from "../../utils/site-identity";
@@ -26,9 +26,9 @@ const seo = getSeoMeta(post, {
 	path: `/posts/${slug}`,
 });
 
-// Taxonomy terms for this post (use post.data.id, not post.id)
-const tags = await getEntryTerms("posts", post.data.id, "tag");
-const categories = await getEntryTerms("posts", post.data.id, "category");
+// Taxonomy terms are already hydrated onto the entry by getEmDashEntry.
+const tags = post.data.terms?.tag ?? [];
+const categories = post.data.terms?.category ?? [];
 ---
 
 <Base

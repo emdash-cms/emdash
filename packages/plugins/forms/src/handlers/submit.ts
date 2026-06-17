@@ -97,7 +97,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 	const result = validateSubmission(allFields, input.data);
 
 	if (!result.valid) {
-		throw PluginRouteError.badRequest("Validation failed", { errors: result.errors });
+		return { success: false, errors: result.errors };
 	}
 
 	// 4. Upload files

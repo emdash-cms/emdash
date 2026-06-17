@@ -33,7 +33,12 @@ import {
 	runUploadBatch,
 	type UploadBatchResult,
 } from "../lib/media-upload-batch.js";
-import { providerItemToMediaItem, getFileIcon } from "../lib/media-utils";
+import {
+	providerItemToMediaItem,
+	getFileIcon,
+	getMediaThumbnailUrl,
+	fallbackToOriginalThumbnail,
+} from "../lib/media-utils";
 import { matchesMimeAllowlist, mimeFromFile, mimeFromUrl } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
 import { DialogError } from "./DialogError.js";
@@ -1213,6 +1218,12 @@ function MediaPickerItem({
 		.filter(Boolean)
 		.join(", ");
 
+	// Serve a resized thumbnail only when the original dimensions are already
+	// known. When they're missing we display the original so `onLoad` can read
+	// the true `naturalWidth`/`naturalHeight` to backfill them — a resized
+	// rendition would report the thumbnail's dimensions and corrupt the record.
+	const displayUrl = needsDimensions ? item.url : getMediaThumbnailUrl(item.url, item.mimeType);
+
 	const handleImageLoad = React.useCallback(
 		(e: React.SyntheticEvent<HTMLImageElement>) => {
 			if (needsDimensions && onDimensionsDetected) {
@@ -1240,10 +1251,11 @@ function MediaPickerItem({
 			>
 				{isImage ? (
 					<img
-						src={item.url}
+						src={displayUrl}
 						alt=""
 						className="h-full w-full object-cover"
 						onLoad={handleImageLoad}
+						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
 					/>
 				) : (
 					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">

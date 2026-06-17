@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/cloudflare",
-  "version": "0.17.2",
+  "version": "0.20.0",
   "description": "Cloudflare adapters for EmDash - D1, R2, Access, and Worker Loader sandbox",
   "type": "module",
   "main": "dist/index.mjs",
@@ -21,6 +21,10 @@
       "types": "./dist/db/do.d.mts",
       "default": "./dist/db/do.mjs"
     },
+    "./db/do-sql": {
+      "types": "./dist/db/do-sql.d.mts",
+      "default": "./dist/db/do-sql.mjs"
+    },
     "./db/playground": {
       "types": "./dist/db/playground.d.mts",
       "default": "./dist/db/playground.mjs"
@@ -40,6 +44,10 @@
     "./sandbox": {
       "types": "./dist/sandbox/index.d.mts",
       "default": "./dist/sandbox/index.mjs"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.mts",
+      "default": "./dist/worker.mjs"
     },
     "./plugins": {
       "types": "./dist/plugins/index.d.mts",
@@ -77,12 +85,14 @@
     "ulidx": "^2.4.1"
   },
   "peerDependencies": {
+    "@astrojs/cloudflare": ">=12.0.0",
     "@cloudflare/workers-types": ">=4.0.0",
     "astro": ">=6.0.0-beta.0",
     "kysely": ">=0.28.17"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
+    "@astrojs/cloudflare": "catalog:",
     "@cloudflare/workers-types": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",

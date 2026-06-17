@@ -102,7 +102,16 @@ export type CollectionSource =
 /** Sub-field definition for repeater fields */
 export interface RepeaterSubField {
 	slug: string;
-	type: "string" | "text" | "url" | "number" | "integer" | "boolean" | "datetime" | "select";
+	type:
+		| "string"
+		| "text"
+		| "url"
+		| "number"
+		| "integer"
+		| "boolean"
+		| "datetime"
+		| "select"
+		| "image";
 	label: string;
 	required?: boolean;
 	options?: string[]; // For select sub-fields
@@ -118,6 +127,7 @@ export const REPEATER_SUB_FIELD_TYPES = [
 	"boolean",
 	"datetime",
 	"select",
+	"image",
 ] as const;
 
 export interface FieldValidation {

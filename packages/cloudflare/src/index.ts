@@ -35,6 +35,7 @@
 
 import type { AuthDescriptor, DatabaseDescriptor, StorageDescriptor } from "emdash";
 
+import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
 
 /**
@@ -70,6 +71,33 @@ export interface D1Config {
 	 * @default "__em_d1_bookmark"
 	 */
 	bookmarkCookie?: string;
+
+	/**
+	 * Experimental: batch concurrent read queries into one D1 round trip.
+	 *
+	 * SELECT queries issued in the same event-loop turn are buffered and
+	 * executed as a single D1 `batch()` call (one HTTP round trip) instead
+	 * of N serialized round trips. Writes, CTEs and other statements are not
+	 * batched — they enqueue immediately on the direct path. If the batch
+	 * fails, queries are retried individually so each query keeps its own
+	 * error semantics. Every physical D1 call (writes and the SELECT batch
+	 * alike) is serialized per request, so the session bookmark always
+	 * advances in execution order.
+	 *
+	 * Only applies to the per-request session database, so `session` must
+	 * also be enabled (`"auto"` or `"primary-first"`); the shared singleton
+	 * never coalesces.
+	 *
+	 * Ordering caveat: buffered reads execute at the next flush window
+	 * (~one macrotask later), while a write enqueues immediately. A read and
+	 * a write issued concurrently in the same turn (e.g. under
+	 * `Promise.all`) may therefore execute write-first (they never overlap).
+	 * Reads that must observe pre-write state should be awaited before
+	 * issuing the write — which sequential `await` code already does.
+	 *
+	 * @default false
+	 */
+	coalesce?: boolean;
 }
 
 /**
@@ -168,6 +196,32 @@ export function d1(config: D1Config): DatabaseDescriptor {
 }
 
 export type { PreviewDOConfig } from "./db/do-types.js";
+export type { DurableObjectsConfig } from "./db/do-sql-types.js";
+
+/**
+ * Durable Object SQL database adapter (production)
+ *
+ * Stores the whole CMS in a single Durable Object's SQLite. With
+ * `session: "auto"` and the `experimental` + `replica_routing` compatibility
+ * flags, reads route to the nearest replica and writes proxy to the primary,
+ * cutting read round-trip latency versus a single-region primary.
+ *
+ * Requires the `EmDashDB` class to be registered in your worker entry and a
+ * `new_sqlite_classes` migration in wrangler.
+ *
+ * @example
+ * ```ts
+ * database: durableObjects({ binding: "DB_DO", session: "auto" })
+ * ```
+ */
+export function durableObjects(config: DurableObjectsConfig): DatabaseDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/db/do-sql",
+		config,
+		type: "sqlite",
+		supportsRequestScope: true,
+	};
+}
 
 /**
  * Durable Object preview database adapter

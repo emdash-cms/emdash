@@ -21,7 +21,14 @@ import {
 	runUploadBatch,
 	type UploadBatchResult,
 } from "../lib/media-upload-batch.js";
-import { providerItemToMediaItem, getFileIcon, formatFileSize } from "../lib/media-utils";
+import {
+	providerItemToMediaItem,
+	getFileIcon,
+	formatFileSize,
+	getMediaThumbnailUrl,
+	fallbackToOriginalThumbnail,
+	MEDIA_THUMBNAIL_WIDTH,
+} from "../lib/media-utils";
 import { matchesMimeAllowlist, mimeFromFile } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
 import { MediaDetailPanel } from "./MediaDetailPanel";
@@ -691,9 +698,10 @@ function MediaGridItem({ item, selected, onClick }: MediaGridItemProps) {
 			<div className="aspect-square">
 				{isImage ? (
 					<img
-						src={item.url}
+						src={getMediaThumbnailUrl(item.url, item.mimeType, MEDIA_THUMBNAIL_WIDTH)}
 						alt={item.alt || item.filename}
 						className="h-full w-full object-cover"
+						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
 					/>
 				) : (
 					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">
@@ -784,9 +792,10 @@ function MediaListItem({ item, selected, onClick }: MediaListItemProps) {
 				<div className="h-10 w-10 overflow-hidden rounded">
 					{isImage ? (
 						<img
-							src={item.url}
+							src={getMediaThumbnailUrl(item.url, item.mimeType, 80)}
 							alt={item.alt || item.filename}
 							className="h-full w-full object-cover"
+							onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
 						/>
 					) : (
 						<div className="flex h-full w-full items-center justify-center bg-kumo-tint text-xl">
