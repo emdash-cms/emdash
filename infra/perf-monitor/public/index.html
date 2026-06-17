@@ -362,26 +362,21 @@
 	</head>
 	<body>
 		<div class="agent-note" aria-hidden="true">
-			EmDash Perf Monitor — HTTP API for agents (humans: use the dashboard below). Same
-			origin, JSON responses. Query these directly instead of scraping the rendered charts.
-
-			GET /api/config — { sites:[{id,label,targetUrl}], defaultSite, routes, regions:[{id,label}] }.
-			Authoritative list of valid site/route/region ids and their display labels.
-
-			GET /api/summary?site=ID — latest sample per route+region plus rolling 7-day averages:
-			{ site, latest:[…], medians:[{route,region,median_cold,median_warm,count}], config }.
-
-			GET /api/chart?route=PATH&region=ID&site=ID&since=ISO8601[&bucket=day][&limit=N] — time
-			series for one route+region. Pass bucket=day for ranges beyond ~2 days: it returns one
-			true-median point per UTC day, so the window isn't truncated. Without bucket=day you get
-			raw samples newest-first capped at limit (default 200) — at 48 samples/day that only spans
-			~7-10 days regardless of since. Response: { route, region, site,
-			data:[{timestamp,coldTtfbMs,warmTtfbMs,p95TtfbMs}], deployMarkers:[…] }.
-
-			GET /api/results?route=&region=&source=deploy|cron|manual&site=&since=ISO8601&limit=N — raw
-			rows newest-first; all filters optional; omit site to span every site. → { results:[…] }.
-
-			POST /api/trigger — JSON body, all optional { note, sha, prNumber, ephemeral, site }. Runs an
+			EmDash Perf Monitor — HTTP API for agents (humans: use the dashboard below). Same origin, JSON
+			responses. Query these directly instead of scraping the rendered charts. GET /api/config — {
+			sites:[{id,label,targetUrl}], defaultSite, routes, regions:[{id,label}] }. Authoritative list
+			of valid site/route/region ids and their display labels. GET /api/summary?site=ID — latest
+			sample per route+region plus rolling 7-day averages: { site, latest:[…],
+			medians:[{route,region,median_cold,median_warm,count}], config }. GET
+			/api/chart?route=PATH&region=ID&site=ID&since=ISO8601[&bucket=day][&limit=N] — time series for
+			one route+region. Pass bucket=day for ranges beyond ~2 days: it returns one true-median point
+			per UTC day, so the window isn't truncated. Without bucket=day you get raw samples
+			newest-first capped at limit (default 200) — at 48 samples/day that only spans ~7-10 days
+			regardless of since. Response: { route, region, site,
+			data:[{timestamp,coldTtfbMs,warmTtfbMs,p95TtfbMs}], deployMarkers:[…] }. GET
+			/api/results?route=&region=&source=deploy|cron|manual&site=&since=ISO8601&limit=N — raw rows
+			newest-first; all filters optional; omit site to span every site. → { results:[…] }. POST
+			/api/trigger — JSON body, all optional { note, sha, prNumber, ephemeral, site }. Runs an
 			on-demand measurement (source=manual) and returns its summary.
 		</div>
 		<div class="container">
