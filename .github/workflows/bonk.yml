@@ -6,7 +6,7 @@ name: Bonk
 #
 #   /bonk <task>                         -> default model (currently opus)
 #   /bonk opus <task>                    -> Claude Opus 4.7 (default)
-#   /bonk kimi <task>                    -> Kimi K2.6 (cheap pass for tiny tasks)
+#   /bonk kimi <task>                    -> Kimi K2.7 Code (cheap pass for tiny tasks)
 #   @ask-bonk opus how would you do X?   -> Claude Opus 4.7
 #
 # Add new aliases by editing .github/bonk-models.json -- the resolver script

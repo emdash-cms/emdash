@@ -57,6 +57,21 @@ export function validateSeed(data: unknown): ValidationResult {
 		errors.push(`Unsupported seed version: ${String(seed.version)}`);
 	}
 
+	// defaultLocale backfills the locale of rows that omit one, so a blank or
+	// whitespace-padded value would silently write empty/invalid locales to the DB.
+	// Exported seeds never hit this, but it's part of the public schema now.
+	if (seed.defaultLocale !== undefined) {
+		if (
+			typeof seed.defaultLocale !== "string" ||
+			seed.defaultLocale.length === 0 ||
+			seed.defaultLocale !== seed.defaultLocale.trim()
+		) {
+			errors.push(
+				"defaultLocale: must be a non-empty string with no leading or trailing whitespace",
+			);
+		}
+	}
+
 	// Validate collections
 	if (seed.collections) {
 		if (!Array.isArray(seed.collections)) {

@@ -7,6 +7,8 @@
 // Content handlers
 export {
 	handleContentList,
+	handleContentAuthors,
+	type ContentAuthor,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,

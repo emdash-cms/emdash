@@ -15,6 +15,7 @@ import { createRequire } from "node:module";
 import type { AstroIntegration, AstroIntegrationLogger } from "astro";
 
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
+import { INTERNAL_MEDIA_PREFIX } from "../../media/normalize.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
@@ -59,6 +60,92 @@ const DEFAULT_STORAGE = local({
 	directory: "./.emdash/uploads",
 	baseUrl: "/_emdash/api/media/file",
 });
+
+interface ImageRemotePattern {
+	protocol?: "http" | "https";
+	hostname?: string;
+	pathname?: string;
+}
+
+/**
+ * Build `image.remotePatterns` entries so Astro will optimize EmDash media.
+ *
+ * Astro's image services only transform **absolute** URLs whose host is
+ * authorized; everything else is passed through unoptimized. We authorize the
+ * media sources automatically:
+ *
+ *  1. The storage adapter's public URL host (R2 custom domain, S3/CDN), so
+ *     media served directly from a public bucket is optimized.
+ *  2. The site's own origin, scoped to the media proxy route
+ *     (`/_emdash/api/media/file/**`), so same-origin proxied media (local
+ *     storage, or R2 without a public URL) is optimized too. The pathname
+ *     scope keeps Astro's image endpoint from acting as an open proxy for the
+ *     whole origin. Only registered when `siteUrl` is known at build time;
+ *     `getPublicOrigin` resolves the matching origin at render time.
+ *  3. In `astro dev` the dev-server origin (`localhost:<port>`) isn't known at
+ *     build time, so we register a host-agnostic pattern scoped to the media
+ *     route. This is dev-only — it never ships in a production build — so the
+ *     missing host check can't be abused on a deployed site.
+ *
+ * Returns an empty array when no source is statically known (e.g. a production
+ * build using local storage with no `siteUrl`), in which case media renders as
+ * a plain `<img>`.
+ *
+ * @internal Exported for unit testing.
+ */
+export function buildImageRemotePatterns(
+	storage: { config?: unknown } | undefined,
+	siteUrl: string | undefined,
+	command: "dev" | "build" | "preview" | "sync",
+): ImageRemotePattern[] {
+	const patterns: ImageRemotePattern[] = [];
+
+	const config = storage?.config;
+	const publicUrl =
+		config && typeof config === "object"
+			? (config as { publicUrl?: unknown }).publicUrl
+			: undefined;
+	if (typeof publicUrl === "string" && publicUrl) {
+		try {
+			const url = new URL(publicUrl);
+			// Only authorize http(s) hosts — a `file:`/`ftp:` URL is not a media
+			// origin Astro can fetch.
+			if (url.protocol === "http:" || url.protocol === "https:") {
+				const pattern: ImageRemotePattern = {
+					protocol: url.protocol === "http:" ? "http" : "https",
+					hostname: url.hostname,
+				};
+				// When the public URL has a path prefix (CDN sub-path), scope the
+				// pattern to it so we don't authorize the entire host. Media keys
+				// are appended as `${publicUrl}/${key}`, so the prefix is exact.
+				const prefix = url.pathname.endsWith("/") ? url.pathname.slice(0, -1) : url.pathname;
+				if (prefix && prefix !== "/") {
+					pattern.pathname = `${prefix}/**`;
+				}
+				patterns.push(pattern);
+			}
+		} catch {
+			// ignore an unparseable public URL
+		}
+	}
+
+	if (siteUrl) {
+		try {
+			patterns.push({
+				hostname: new URL(siteUrl).hostname,
+				pathname: `${INTERNAL_MEDIA_PREFIX}**`,
+			});
+		} catch {
+			// ignore an unparseable site URL
+		}
+	}
+
+	if (command === "dev") {
+		patterns.push({ pathname: `${INTERNAL_MEDIA_PREFIX}**` });
+	}
+
+	return patterns;
+}
 
 // Terminal formatting
 const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
@@ -315,8 +402,19 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 								},
 							];
 
+				// Authorize media sources for Astro image optimization so the
+				// Image components can generate a responsive srcset for R2/S3 and
+				// same-origin proxied media. `updateConfig` merges arrays, so any
+				// user-configured remotePatterns are preserved.
+				const imageRemotePatterns = buildImageRemotePatterns(
+					resolvedConfig.storage,
+					resolvedConfig.siteUrl,
+					command,
+				);
+
 				updateConfig({
 					security: securityConfig,
+					...(imageRemotePatterns.length ? { image: { remotePatterns: imageRemotePatterns } } : {}),
 					// fonts is a valid AstroConfig key but may not be in the
 					// type definition for the minimum supported Astro version
 					...({ fonts: emdashFonts } as Record<string, unknown>),

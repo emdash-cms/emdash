@@ -25,6 +25,8 @@ import * as virtualSandboxRunnerModule from "virtual:emdash/sandbox-runner";
 // @ts-ignore - virtual module
 import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sandboxed-plugins";
 // @ts-ignore - virtual module
+import { createScheduler as virtualCreateScheduler } from "virtual:emdash/scheduler";
+// @ts-ignore - virtual module
 import { createStorage as virtualCreateStorage } from "virtual:emdash/storage";
 
 import { after } from "../after.js";
@@ -39,6 +41,7 @@ import {
 	type RuntimeDependencies,
 	type SandboxedPluginEntry,
 	type MediaProviderEntry,
+	type CreateSchedulerFn,
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
@@ -52,6 +55,7 @@ import {
 	type RequestMetrics,
 	runWithContext,
 } from "../request-context.js";
+import type { PublishedRef } from "../scheduled-publish.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
@@ -174,6 +178,7 @@ function buildDependencies(config: EmDashConfig): RuntimeDependencies {
 		plugins: getPlugins(),
 		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
+		createScheduler: virtualCreateScheduler as CreateSchedulerFn | null,
 		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
 		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],
@@ -244,6 +249,29 @@ async function getRuntime(
 }
 
 /**
+ * Run scheduled maintenance (cron tasks, scheduled publishing, system cleanup)
+ * outside any request. Resolves the runtime from the build-time virtual config
+ * and the cached singleton — the same instance request handlers use.
+ *
+ * Wired into a platform heartbeat that is not a request: the Cloudflare Worker's
+ * `scheduled()` handler (Cron Trigger) calls this. On Node the runtime's own
+ * timer-based scheduler already drives the same work, so this isn't needed there.
+ *
+ * Returns the content promoted by the publishing sweep so the caller can purge
+ * edge-cache tags for it. `onPublished` (optional) is awaited after each
+ * collection's batch so the caller can invalidate edge-cache tags incrementally
+ * rather than only after the whole sweep.
+ */
+export async function runScheduledTasks(
+	options: { onPublished?: (refs: PublishedRef[]) => Promise<void> } = {},
+): Promise<{ published: PublishedRef[] }> {
+	const config = getConfig();
+	if (!config) return { published: [] };
+	const runtime = await getRuntime(config);
+	return runtime.runScheduledTasks(options);
+}
+
+/**
  * Astro attaches AstroCookies to outgoing responses via a well-known global
  * symbol. Cloning a Response (`new Response(body, init)`) drops non-header
  * metadata, so any middleware that wraps the response must explicitly forward
@@ -304,6 +332,9 @@ function pushMetricsTimings(
 		if (metrics.dbLastOffset !== null) {
 			timings.push({ name: "db.last", dur: metrics.dbLastOffset, desc: "Last query at" });
 		}
+	}
+	if (metrics.rpcCount > 0) {
+		timings.push({ name: "rpc.count", dur: metrics.rpcCount, desc: "DB round trips" });
 	}
 	if (metrics.cacheHits + metrics.cacheMisses > 0) {
 		timings.push({ name: "cache.hit", dur: metrics.cacheHits, desc: "Cache hits" });
@@ -482,9 +513,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						? { ...parent, db: anonScoped.db }
 						: { editMode: false, db: anonScoped.db, metrics };
 					return runWithContext(ctx, async () => {
-						const response = await runAnon();
-						anonScoped.commit();
-						return response;
+						// commit() in finally: the write reached the primary independently
+						// of render, so the bookmark cookie must be persisted even if
+						// render throws -- otherwise a write-then-failed-render leaves the
+						// next request able to read pre-write state off a lagging replica.
+						try {
+							return await runAnon();
+						} finally {
+							anonScoped.commit();
+						}
 					});
 				}
 				return runAnon();
@@ -653,9 +690,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					? { ...parent, db: scoped.db }
 					: { editMode: false, db: scoped.db, metrics };
 				return runWithContext(ctx, async () => {
-					const response = await renderAndFinalize();
-					scoped.commit();
-					return response;
+					// commit() in finally: persist the bookmark cookie even if render
+					// throws -- the write already reached the primary, so a failed
+					// render must not strand the next request on a stale replica read.
+					try {
+						return await renderAndFinalize();
+					} finally {
+						scoped.commit();
+					}
 				});
 			}
 

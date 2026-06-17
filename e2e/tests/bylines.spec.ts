@@ -1,6 +1,13 @@
+import { join } from "node:path";
+
 import { test, expect } from "../fixtures";
 
-const CONTENT_EDIT_URL_PATTERN = /\/content\/posts\/[A-Z0-9]+$/;
+// The edit route preserves the entry's locale as a `?locale=` search param
+// (see #1242), so the URL may carry a query string after the ULID.
+const CONTENT_EDIT_URL_PATTERN = /\/content\/posts\/[A-Z0-9]+(?:\?.*)?$/;
+
+// Shared 1x1 PNG fixture used by the media upload flows.
+const TEST_IMAGE_PATH = join(process.cwd(), "e2e/fixtures/assets/test-image.png");
 
 function apiHeaders(token: string, baseUrl: string) {
 	return {
@@ -38,6 +45,98 @@ test.describe("Bylines", () => {
 		await page.getByRole("button", { name: "Save" }).click();
 
 		await expect(page.getByRole("button", { name: updatedName })).toBeVisible({ timeout: 5000 });
+	});
+
+	test("sets a byline avatar via the media picker and preserves it across edits (#1250)", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		const unique = Date.now();
+		const name = `Avatar Byline ${unique}`;
+		const slug = `avatar-byline-${unique}`;
+		const headers = apiHeaders(serverInfo.token, serverInfo.baseUrl);
+
+		const getByline = async (id: string) => {
+			const response = await fetch(`${serverInfo.baseUrl}/_emdash/api/admin/bylines/${id}`, {
+				headers,
+			});
+			expect(response.ok).toBe(true);
+			const body: any = await response.json();
+			return body.data as { avatarMediaId: string | null };
+		};
+
+		// Create the byline up front via API so there's a stable id to assert
+		// against. It starts with no avatar — the field had no UI control before
+		// this fix, so the only way to set it was programmatically.
+		const createResponse = await fetch(`${serverInfo.baseUrl}/_emdash/api/admin/bylines`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ displayName: name, slug, isGuest: true }),
+		});
+		expect(createResponse.ok).toBe(true);
+		const createBody: any = await createResponse.json();
+		const bylineId = createBody.data.id as string;
+		expect(createBody.data.avatarMediaId).toBeNull();
+
+		await admin.goto("/bylines");
+		await admin.waitForShell();
+		await admin.waitForLoading();
+
+		// Open the byline in the editor and confirm the avatar field renders.
+		await page.getByRole("button", { name }).click();
+		await expect(page.getByText("Avatar", { exact: true })).toBeVisible();
+
+		// Open the avatar picker and upload an image. The picker auto-selects
+		// the freshly uploaded item, enabling the Insert button.
+		await page.getByRole("button", { name: "Select image" }).click();
+		const dialog = page.locator('[role="dialog"]').filter({ hasText: "Select Avatar" });
+		await expect(dialog).toBeVisible();
+
+		const uploadDone = page.waitForResponse(
+			(res) => /\/api\/media/.test(res.url()) && res.request().method() === "POST" && res.ok(),
+			{ timeout: 15000 },
+		);
+		await dialog.locator('input[type="file"]').setInputFiles(TEST_IMAGE_PATH);
+		await uploadDone;
+
+		// Two "Insert" buttons exist (the disabled "Insert from URL" action and
+		// the footer confirm); the confirm enables once an item is selected.
+		await dialog.getByRole("button", { name: "Insert", disabled: false }).click();
+		await expect(dialog).not.toBeVisible();
+
+		// Persist the byline and wait for the PUT to land.
+		const firstSave = page.waitForResponse(
+			(res) =>
+				res.url().includes(`/api/admin/bylines/${bylineId}`) &&
+				res.request().method() === "PUT" &&
+				res.ok(),
+			{ timeout: 10000 },
+		);
+		await page.getByRole("button", { name: "Save" }).click();
+		await firstSave;
+
+		// The avatar id is now persisted through the UI.
+		const afterSet = await getByline(bylineId);
+		expect(afterSet.avatarMediaId).toBeTruthy();
+		const avatarId = afterSet.avatarMediaId;
+
+		// Regression guard for #1250: editing another field through the UI must
+		// not wipe the avatar. The PUT route coerces a missing `avatarMediaId`
+		// back to null, so before the fix every save dropped the avatar.
+		await page.getByLabel("Display name").fill(`${name} edited`);
+		const secondSave = page.waitForResponse(
+			(res) =>
+				res.url().includes(`/api/admin/bylines/${bylineId}`) &&
+				res.request().method() === "PUT" &&
+				res.ok(),
+			{ timeout: 10000 },
+		);
+		await page.getByRole("button", { name: "Save" }).click();
+		await secondSave;
+
+		const afterEdit = await getByline(bylineId);
+		expect(afterEdit.avatarMediaId).toBe(avatarId);
 	});
 
 	test("assigns and reorders bylines, preserves bylines on ownership change", async ({

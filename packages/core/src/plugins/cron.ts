@@ -34,8 +34,9 @@ export type RescheduleFn = () => void;
 /**
  * Executes overdue cron tasks.
  *
- * Called by platform-specific schedulers (NodeCronScheduler, EmDashScheduler DO,
- * PiggybackScheduler). Stateless — all state lives in the database.
+ * Called by the platform driver: the NodeCronScheduler timer on Node, or the
+ * Worker's `scheduled()` handler (via runScheduledTasks) on Cloudflare.
+ * Stateless — all state lives in the database.
  */
 export class CronExecutor {
 	constructor(

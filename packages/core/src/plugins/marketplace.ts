@@ -8,7 +8,7 @@
 
 import { createGzipDecoder, unpackTar } from "modern-tar";
 
-import { pluginManifestSchema } from "./manifest-schema.js";
+import { pluginManifestSchema, reconcileManifestAccess } from "./manifest-schema.js";
 import type { PluginManifest } from "./types.js";
 
 // ── Module-level regex patterns ───────────────────────────────────
@@ -495,10 +495,7 @@ export async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBun
 				"INVALID_BUNDLE",
 			);
 		}
-		// Elements are validated as unknown[] by Zod; cast to PluginManifest
-		// for the Element[] type (Block Kit validation happens at render time).
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Zod types elements as unknown[]; Element type validated at render time
-		manifest = result.data as unknown as PluginManifest;
+		manifest = reconcileManifestAccess(result.data);
 	} catch (err) {
 		if (err instanceof MarketplaceError) throw err;
 		throw new MarketplaceError(

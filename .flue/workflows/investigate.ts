@@ -37,6 +37,7 @@ import { createAgent, type FlueContext } from "@flue/runtime";
 import { local } from "@flue/runtime/node";
 import * as v from "valibot";
 
+import { withCapacityRetry } from "../lib/capacity.js";
 import { issueClassificationSchema, type IssueClassification } from "../lib/classifier.js";
 // Skill imports. Each is bundled as a SkillReference by the Flue build
 // and works the same on Node (this workflow runs on GH Actions) or
@@ -184,7 +185,7 @@ interface InvestigateResult {
 // correct `area` instead of guessing. Without it, kimi spends most of
 // its budget reasoning about what EmDash is and where a bug lives.
 const classifierAgent = createAgent(() => ({
-	model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6",
+	model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code",
 	instructions: [
 		"You classify GitHub issues for the EmDash CMS investigation bot. Output strictly matches the requested schema.",
 		"",
@@ -245,7 +246,7 @@ const investigatorAgent = createAgent(() => {
 	};
 });
 
-// Fix implementer: a cheaper model (Kimi) is enough here because the
+// Fix implementer: a cheaper coding model (Kimi K2.7 Code) is enough here because the
 // expensive reasoning is already done -- diagnose hands over a concrete
 // `proposedFix`, and this stage only runs for `mechanical` /
 // `clear-best-option` approaches. Its job is guided implementation:
@@ -257,7 +258,8 @@ const fixAgent = createAgent(() => {
 	const cwd = process.env.GITHUB_WORKSPACE ?? process.cwd();
 	return {
 		model:
-			process.env.FLUE_FIX_MODEL ?? "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.6",
+			process.env.FLUE_FIX_MODEL ??
+			"cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code",
 		cwd,
 		sandbox: investigateSandbox(cwd),
 		instructions: [
@@ -369,26 +371,54 @@ async function runImpl({
 	// couldn't be carried out rather than getting a silent no-op.
 	const directed = Boolean(payload.maintainerDirective);
 
+	// Every model-bearing stage goes through this: it bounds each attempt with a
+	// hard timeout (so a stalled Workers AI call fails loudly instead of hanging
+	// the run) and retries genuine capacity (429) errors with backoff. Workers AI
+	// returns 429 under load, which is why the classifier and fix stages (kimi)
+	// are the most exposed.
+	const withRetry = <T>(
+		label: string,
+		fn: (signal: AbortSignal) => PromiseLike<T>,
+		perAttemptTimeoutMs: number,
+	): Promise<T> =>
+		withCapacityRetry(fn, {
+			label: `${label}#${payload.issueNumber}`,
+			attempts: 3,
+			perAttemptTimeoutMs,
+			onRetry: ({ attempt, delayMs, error }) =>
+				log.warn?.(`${label}: model over capacity, backing off`, {
+					issueNumber: payload.issueNumber,
+					attempt,
+					delayMs,
+					error: String(error),
+				}),
+		});
+
 	// --- Stage 0: classify ---
 
 	const classifierHarness = await init(classifierAgent, { name: "classify" });
 	const classifierSession = await classifierHarness.session();
-	const { data: classification } = await classifierSession.prompt(
-		[
-			"Classify the following EmDash issue.",
-			"",
-			issueContext(payload),
-			"",
-			"## Decide",
-			"",
-			"- kind: bug | enhancement | documentation | question",
-			"- area: api | admin | public | migration | build | other",
-			"- requiresBrowser: true for admin/public bugs, false otherwise",
-			"- summary: one factual sentence describing the reported behaviour",
-			"",
-			"Return strictly the requested schema. No prose outside it.",
-		].join("\n"),
-		{ result: issueClassificationSchema },
+	const { data: classification } = await withRetry(
+		"classify",
+		(signal) =>
+			classifierSession.prompt(
+				[
+					"Classify the following EmDash issue.",
+					"",
+					issueContext(payload),
+					"",
+					"## Decide",
+					"",
+					"- kind: bug | enhancement | documentation | question",
+					"- area: api | admin | public | migration | build | other",
+					"- requiresBrowser: true for admin/public bugs, false otherwise",
+					"- summary: one factual sentence describing the reported behaviour",
+					"",
+					"Return strictly the requested schema. No prose outside it.",
+				].join("\n"),
+				{ result: issueClassificationSchema, signal },
+			),
+		90_000,
 	);
 	log.info("classified", { issueNumber: payload.issueNumber, ...classification });
 
@@ -414,13 +444,19 @@ async function runImpl({
 	const investigatorSession = await investigatorHarness.session();
 
 	const reproduceSkill = pickReproduceSkill(classification.area);
-	const { data: reproduce } = await investigatorSession.skill(reproduceSkill, {
-		args: {
-			issueContext: issueContext(payload),
-			classification,
-		},
-		result: reproduceResultSchema,
-	});
+	const { data: reproduce } = await withRetry(
+		"reproduce",
+		(signal) =>
+			investigatorSession.skill(reproduceSkill, {
+				args: {
+					issueContext: issueContext(payload),
+					classification,
+				},
+				result: reproduceResultSchema,
+				signal,
+			}),
+		12 * 60_000,
+	);
 	log.info("reproduce", {
 		issueNumber: payload.issueNumber,
 		reproduced: reproduce.reproduced,
@@ -448,14 +484,20 @@ async function runImpl({
 	// --- Stage 2: diagnose (runs even if reproduce failed; the body alone
 	// is often enough to point at the code path, with lower confidence). ---
 
-	const { data: diagnoseOut } = await investigatorSession.skill(diagnose, {
-		args: {
-			issueContext: issueContext(payload),
-			classification,
-			reproduce,
-		},
-		result: diagnoseResultSchema,
-	});
+	const { data: diagnoseOut } = await withRetry(
+		"diagnose",
+		(signal) =>
+			investigatorSession.skill(diagnose, {
+				args: {
+					issueContext: issueContext(payload),
+					classification,
+					reproduce,
+				},
+				result: diagnoseResultSchema,
+				signal,
+			}),
+		12 * 60_000,
+	);
 	log.info("diagnose", {
 		issueNumber: payload.issueNumber,
 		confidence: diagnoseOut.confidence,
@@ -463,14 +505,20 @@ async function runImpl({
 
 	// --- Stage 3: verify ---
 
-	const { data: verifyOut } = await investigatorSession.skill(verify, {
-		args: {
-			issueContext: issueContext(payload),
-			classification,
-			diagnose: diagnoseOut,
-		},
-		result: verifyResultSchema,
-	});
+	const { data: verifyOut } = await withRetry(
+		"verify",
+		(signal) =>
+			investigatorSession.skill(verify, {
+				args: {
+					issueContext: issueContext(payload),
+					classification,
+					diagnose: diagnoseOut,
+				},
+				result: verifyResultSchema,
+				signal,
+			}),
+		12 * 60_000,
+	);
 	log.info("verify", { issueNumber: payload.issueNumber, verdict: verifyOut.verdict });
 
 	if (verifyOut.verdict === "intended-behavior" && !directed) {
@@ -584,15 +632,21 @@ async function runImpl({
 	// what the orchestrator commits.
 	const fixHarness = await init(fixAgent, { name: "fix" });
 	const fixSession = await fixHarness.session();
-	const { data: fixOut } = await fixSession.skill(fix, {
-		args: {
-			issueContext: issueContext(payload),
-			classification,
-			reproduce,
-			diagnose: diagnoseOut,
-		},
-		result: fixResultSchema,
-	});
+	const { data: fixOut } = await withRetry(
+		"fix",
+		(signal) =>
+			fixSession.skill(fix, {
+				args: {
+					issueContext: issueContext(payload),
+					classification,
+					reproduce,
+					diagnose: diagnoseOut,
+				},
+				result: fixResultSchema,
+				signal,
+			}),
+		12 * 60_000,
+	);
 	log.info("fix", { issueNumber: payload.issueNumber, fixed: fixOut.fixed });
 
 	if (!fixOut.fixed) {
