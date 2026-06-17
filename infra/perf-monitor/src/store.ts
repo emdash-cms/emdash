@@ -251,6 +251,16 @@ export interface DailyMedian {
 	median_p95: number | null;
 }
 
+const dailyMedianCte = (column: string, alias: string) => `
+	${alias} AS (
+		SELECT day, AVG(${column}) AS m FROM (
+			SELECT day, ${column},
+				ROW_NUMBER() OVER (PARTITION BY day ORDER BY ${column}) AS rn,
+				COUNT(*) OVER (PARTITION BY day) AS cnt
+			FROM samples WHERE ${column} IS NOT NULL
+		) WHERE rn IN ((cnt + 1) / 2, (cnt + 2) / 2) GROUP BY day
+	)`;
+
 /**
  * Per-UTC-day true median of each TTFB metric for one route/region/site.
  *
@@ -273,25 +283,15 @@ export async function getDailyMedians(
 	const bindings: string[] = [route, region, site];
 	if (since) bindings.push(normalizeSince(since));
 
-	const medianCte = (column: string, alias: string) => `
-		${alias} AS (
-			SELECT day, AVG(${column}) AS m FROM (
-				SELECT day, ${column},
-					ROW_NUMBER() OVER (PARTITION BY day ORDER BY ${column}) AS rn,
-					COUNT(*) OVER (PARTITION BY day) AS cnt
-				FROM samples WHERE ${column} IS NOT NULL
-			) WHERE rn IN ((cnt + 1) / 2, (cnt + 2) / 2) GROUP BY day
-		)`;
-
 	const query = `
 		WITH samples AS (
 			SELECT date(timestamp) AS day, cold_ttfb_ms, warm_ttfb_ms, p95_ttfb_ms
 			FROM perf_results
 			WHERE route = ? AND region = ? AND site = ? AND source != 'manual' ${sinceClause}
 		),
-		${medianCte("cold_ttfb_ms", "cold")},
-		${medianCte("warm_ttfb_ms", "warm")},
-		${medianCte("p95_ttfb_ms", "p95")}
+		${dailyMedianCte("cold_ttfb_ms", "cold")},
+		${dailyMedianCte("warm_ttfb_ms", "warm")},
+		${dailyMedianCte("p95_ttfb_ms", "p95")}
 		SELECT d.day AS day, cold.m AS median_cold, warm.m AS median_warm, p95.m AS median_p95
 		FROM (SELECT DISTINCT day FROM samples) d
 		LEFT JOIN cold ON cold.day = d.day
