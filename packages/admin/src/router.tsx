@@ -445,6 +445,80 @@ function ContentListPage() {
 		},
 	});
 
+	// Bulk actions run the existing per-entry endpoints in parallel. allSettled
+	// keeps a single failure from aborting the rest; the count of failures is
+	// surfaced via the error toast, and the list is refetched either way.
+	const bulkPublishMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const results = await Promise.allSettled(
+				ids.map((id) => publishContent(collection, id, { locale: activeLocale })),
+			);
+			const failed = results.filter((r) => r.status === "rejected").length;
+			if (failed > 0) throw new Error(t`${failed} of ${ids.length} could not be published`);
+			return ids.length;
+		},
+		onSuccess: (count) => {
+			toastManager.add({ title: t`Published ${count} items`, type: "success" });
+		},
+		onError: (mutationError) => {
+			toastManager.add({
+				title: t`Failed to publish`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				type: "error",
+			});
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+		},
+	});
+
+	const bulkUnpublishMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const results = await Promise.allSettled(
+				ids.map((id) => unpublishContent(collection, id, { locale: activeLocale })),
+			);
+			const failed = results.filter((r) => r.status === "rejected").length;
+			if (failed > 0) throw new Error(t`${failed} of ${ids.length} could not be updated`);
+			return ids.length;
+		},
+		onSuccess: (count) => {
+			toastManager.add({ title: t`Moved ${count} items to draft`, type: "success" });
+		},
+		onError: (mutationError) => {
+			toastManager.add({
+				title: t`Failed to update`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				type: "error",
+			});
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+		},
+	});
+
+	const bulkDeleteMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const results = await Promise.allSettled(ids.map((id) => deleteContent(collection, id)));
+			const failed = results.filter((r) => r.status === "rejected").length;
+			if (failed > 0) throw new Error(t`${failed} of ${ids.length} could not be deleted`);
+			return ids.length;
+		},
+		onSuccess: (count) => {
+			toastManager.add({ title: t`Moved ${count} items to trash`, type: "success" });
+		},
+		onError: (mutationError) => {
+			toastManager.add({
+				title: t`Failed to delete`,
+				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
+				type: "error",
+			});
+		},
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+		},
+	});
+
 	const items = React.useMemo(() => {
 		return data?.pages.flatMap((page) => page.items) || [];
 	}, [data]);
@@ -507,6 +581,9 @@ function ContentListPage() {
 			onAuthorFilterChange={setAuthorFilter}
 			dateFilter={dateFilter}
 			onDateFilterChange={setDateFilter}
+			onBulkPublish={(ids) => bulkPublishMutation.mutate(ids)}
+			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutate(ids)}
+			onBulkDelete={(ids) => bulkDeleteMutation.mutate(ids)}
 		/>
 	);
 }

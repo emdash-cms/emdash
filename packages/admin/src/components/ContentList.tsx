@@ -1,4 +1,14 @@
-import { Badge, Button, Dialog, Input, LinkButton, Loader, Select, Tabs } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	Checkbox,
+	Dialog,
+	Input,
+	LinkButton,
+	Loader,
+	Select,
+	Tabs,
+} from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -111,6 +121,14 @@ export interface ContentListProps {
 	/** Controlled date-range filter state. */
 	dateFilter?: ContentDateFilter;
 	onDateFilterChange?: (filter: ContentDateFilter) => void;
+	/**
+	 * Bulk actions. Each is opt-in: the selection checkboxes only appear when at
+	 * least one bulk handler is provided, and each toolbar button renders only
+	 * when its handler is present. Handlers receive the selected entry ids.
+	 */
+	onBulkPublish?: (ids: string[]) => void;
+	onBulkUnpublish?: (ids: string[]) => void;
+	onBulkDelete?: (ids: string[]) => void;
 }
 
 type ViewTab = "all" | "trash";
@@ -162,11 +180,19 @@ export function ContentList({
 	onAuthorFilterChange,
 	dateFilter = EMPTY_DATE_FILTER,
 	onDateFilterChange,
+	onBulkPublish,
+	onBulkUnpublish,
+	onBulkDelete,
 }: ContentListProps) {
 	const { t } = useLingui();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
+	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
+
+	// Bulk selection is opt-in: the checkbox column + toolbar only render when
+	// the parent wired at least one bulk handler.
+	const bulkEnabled = !!(onBulkPublish || onBulkUnpublish || onBulkDelete);
 
 	// Server-side search mode: the caller refetches based on the (debounced)
 	// query, so `items`/`total` already reflect the filter and we must not
@@ -230,6 +256,47 @@ export function ContentList({
 			onLoadMore();
 		}
 	}, [clampedPage, filteredItems.length, hasMore, onLoadMore, searchQuery, serverSearch]);
+
+	// Drop selections for rows that left the current result set (filter/locale
+	// change, deletion) so a bulk action never targets a now-hidden id.
+	React.useEffect(() => {
+		setSelectedIds((prev) => {
+			if (prev.size === 0) return prev;
+			const present = new Set(items.map((i) => i.id));
+			let changed = false;
+			const next = new Set<string>();
+			for (const id of prev) {
+				if (present.has(id)) next.add(id);
+				else changed = true;
+			}
+			return changed ? next : prev;
+		});
+	}, [items]);
+
+	const clearSelection = React.useCallback(() => setSelectedIds(new Set()), []);
+	const toggleOne = (id: string) =>
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	const pageIds = paginatedItems.map((i) => i.id);
+	const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+	const togglePage = () =>
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (allPageSelected) for (const id of pageIds) next.delete(id);
+			else for (const id of pageIds) next.add(id);
+			return next;
+		});
+	const selectedCount = selectedIds.size;
+	const runBulk = (fn?: (ids: string[]) => void) => {
+		if (!fn || selectedCount === 0) return;
+		fn([...selectedIds]);
+		clearSelection();
+	};
+	const colSpan = (i18n ? 5 : 4) + (bulkEnabled ? 1 : 0);
 
 	return (
 		<div className="space-y-4">
@@ -310,11 +377,84 @@ export function ContentList({
 						/>
 					)}
 
+					{/* Bulk action toolbar — appears once one or more rows are selected */}
+					{bulkEnabled && selectedCount > 0 && (
+						<div className="flex flex-wrap items-center gap-3 rounded-md border bg-kumo-tint/40 px-4 py-2">
+							<span className="text-sm font-medium">
+								{plural(selectedCount, { one: "# selected", other: "# selected" })}
+							</span>
+							<div className="flex flex-wrap items-center gap-2">
+								{onBulkPublish && (
+									<Button size="sm" variant="secondary" onClick={() => runBulk(onBulkPublish)}>
+										{t`Publish`}
+									</Button>
+								)}
+								{onBulkUnpublish && (
+									<Button size="sm" variant="secondary" onClick={() => runBulk(onBulkUnpublish)}>
+										{t`Set to draft`}
+									</Button>
+								)}
+								{onBulkDelete && (
+									<Dialog.Root disablePointerDismissal>
+										<Dialog.Trigger
+											render={(p) => (
+												<Button {...p} size="sm" variant="destructive" icon={<Trash />}>
+													{t`Move to trash`}
+												</Button>
+											)}
+										/>
+										<Dialog className="p-6" size="sm">
+											<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
+											<Dialog.Description className="text-kumo-subtle">
+												{plural(selectedCount, {
+													one: "Move # item to trash? You can restore it later.",
+													other: "Move # items to trash? You can restore them later.",
+												})}
+											</Dialog.Description>
+											<div className="mt-6 flex justify-end gap-2">
+												<Dialog.Close
+													render={(p) => (
+														<Button {...p} variant="secondary">
+															{t`Cancel`}
+														</Button>
+													)}
+												/>
+												<Dialog.Close
+													render={(p) => (
+														<Button
+															{...p}
+															variant="destructive"
+															onClick={() => runBulk(onBulkDelete)}
+														>
+															{t`Move to Trash`}
+														</Button>
+													)}
+												/>
+											</div>
+										</Dialog>
+									</Dialog.Root>
+								)}
+								<Button size="sm" variant="ghost" icon={<X />} onClick={clearSelection}>
+									{t`Clear`}
+								</Button>
+							</div>
+						</div>
+					)}
+
 					{/* Table */}
 					<div className="rounded-md border bg-kumo-base overflow-x-auto">
 						<table className="w-full">
 							<thead>
 								<tr className="border-b bg-kumo-tint/50">
+									{bulkEnabled && (
+										<th scope="col" className="w-10 px-4 py-3">
+											<Checkbox
+												checked={allPageSelected}
+												onCheckedChange={togglePage}
+												aria-label={t`Select all on this page`}
+											/>
+										</th>
+									)}
 									<SortableTh
 										field="title"
 										sort={sort}
@@ -349,7 +489,7 @@ export function ContentList({
 							<tbody className="divide-y divide-kumo-line">
 								{isLoading && items.length === 0 ? (
 									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
 											<span className="inline-flex items-center gap-2">
 												<Loader size="sm" />
 												{t`Loading...`}
@@ -358,7 +498,7 @@ export function ContentList({
 									</tr>
 								) : items.length === 0 ? (
 									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
 											{activeSearch ? (
 												t`No results for "${activeSearch}"`
 											) : (
@@ -378,7 +518,7 @@ export function ContentList({
 									</tr>
 								) : paginatedItems.length === 0 ? (
 									<tr>
-										<td colSpan={i18n ? 5 : 4} className="px-4 py-8 text-center text-kumo-subtle">
+										<td colSpan={colSpan} className="px-4 py-8 text-center text-kumo-subtle">
 											{t`No results for "${activeSearch}"`}
 										</td>
 									</tr>
@@ -392,6 +532,9 @@ export function ContentList({
 											onDuplicate={onDuplicate}
 											showLocale={!!i18n}
 											urlPattern={urlPattern}
+											selectable={bulkEnabled}
+											selected={selectedIds.has(item.id)}
+											onToggleSelect={toggleOne}
 										/>
 									))
 								)}
@@ -757,6 +900,9 @@ interface ContentListItemProps {
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	urlPattern?: string;
+	selectable?: boolean;
+	selected?: boolean;
+	onToggleSelect?: (id: string) => void;
 }
 
 function ContentListItem({
@@ -766,13 +912,25 @@ function ContentListItem({
 	onDuplicate,
 	showLocale,
 	urlPattern,
+	selectable,
+	selected,
+	onToggleSelect,
 }: ContentListItemProps) {
 	const { t } = useLingui();
 	const title = getItemTitle(item);
 	const date = new Date(item.updatedAt || item.createdAt);
 
 	return (
-		<tr className="hover:bg-kumo-tint/25">
+		<tr className={cn("hover:bg-kumo-tint/25", selected && "bg-kumo-tint/40")}>
+			{selectable && (
+				<td className="px-4 py-3">
+					<Checkbox
+						checked={!!selected}
+						onCheckedChange={() => onToggleSelect?.(item.id)}
+						aria-label={t`Select ${title}`}
+					/>
+				</td>
+			)}
 			<td className="px-4 py-3">
 				<Link
 					to="/content/$collection/$id"
