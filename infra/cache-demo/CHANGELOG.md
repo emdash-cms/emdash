@@ -1,5 +1,13 @@
 # @emdash-cms/cache-demo-site
 
+## 0.0.20
+
+### Patch Changes
+
+- Updated dependencies [[`b6a5fac`](https://github.com/emdash-cms/emdash/commit/b6a5fac6d3bc88cc5ab49889de264c37262cc5f7), [`23c37f3`](https://github.com/emdash-cms/emdash/commit/23c37f35dfe9ce23fca0d48acea228299d25e19e), [`997d7ee`](https://github.com/emdash-cms/emdash/commit/997d7eea8f39c16eef28577bb8ace0c0413fc38b), [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527), [`37e848b`](https://github.com/emdash-cms/emdash/commit/37e848bf005950a4b312cf5f0a50f7c8820b01fc)]:
+  - emdash@0.21.0
+  - @emdash-cms/cloudflare@0.21.0
+
 ## 0.0.19
 
 ### Patch Changes

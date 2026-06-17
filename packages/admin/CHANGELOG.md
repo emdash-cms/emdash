@@ -1,5 +1,18 @@
 # @emdash-cms/admin
 
+## 0.21.0
+
+### Minor Changes
+
+- [#1508](https://github.com/emdash-cms/emdash/pull/1508) [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527) Thanks [@swissky](https://github.com/swissky)! - Add a "Gone (410)" rule type. Redirect rules now support `410` (Content Deleted) and `451` (Unavailable For Legal Reasons) as terminal statuses — served directly with no destination — and the 404 log offers a one-click "Mark as Gone (410)" action next to "Create redirect". A 410 tells search engines a URL was intentionally and permanently removed, so it is deindexed faster than a 404.
+
+### Patch Changes
+
+- [#1521](https://github.com/emdash-cms/emdash/pull/1521) [`1b10c1d`](https://github.com/emdash-cms/emdash/commit/1b10c1d64d5975c5fef94e61e8cbff251260184c) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the byline search box still blanking the page while you type. Searching now keeps the current results on screen as the new query loads, instead of collapsing into a full-page loader and dropping the input's focus on each settled keystroke.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.21.0
+
 ## 0.20.0
 
 ### Minor Changes
