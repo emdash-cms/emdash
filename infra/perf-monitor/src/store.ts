@@ -243,3 +243,65 @@ export async function getDeployResults(
 		.all<PerfResult>();
 	return result.results;
 }
+
+export interface DailyMedian {
+	day: string;
+	median_cold: number | null;
+	median_warm: number | null;
+	median_p95: number | null;
+}
+
+/**
+ * Per-UTC-day true median of each TTFB metric for one route/region/site.
+ *
+ * The chart spans 7-90 days at 48 cron samples/day, so returning raw rows and
+ * letting the client bucket means `ORDER BY timestamp DESC LIMIT n` truncates
+ * the window to the newest n samples (~7-10 days) regardless of `since`.
+ * Aggregating per day bounds the result by day count instead.
+ *
+ * SQLite has no PERCENTILE_CONT, so the median is the AVG of the middle
+ * row(s): for odd counts `(cnt+1)/2` and `(cnt+2)/2` are the same middle index;
+ * for even counts they straddle the two middle values. Each metric is medianed
+ * independently because warm/p95 go null on different rows than cold.
+ */
+export async function getDailyMedians(
+	db: D1Database,
+	params: { route: string; region: string; site: string; since?: string },
+): Promise<DailyMedian[]> {
+	const { route, region, site, since } = params;
+	const sinceClause = since ? "AND timestamp >= ?" : "";
+	const bindings: string[] = [route, region, site];
+	if (since) bindings.push(normalizeSince(since));
+
+	const medianCte = (column: string, alias: string) => `
+		${alias} AS (
+			SELECT day, AVG(${column}) AS m FROM (
+				SELECT day, ${column},
+					ROW_NUMBER() OVER (PARTITION BY day ORDER BY ${column}) AS rn,
+					COUNT(*) OVER (PARTITION BY day) AS cnt
+				FROM samples WHERE ${column} IS NOT NULL
+			) WHERE rn IN ((cnt + 1) / 2, (cnt + 2) / 2) GROUP BY day
+		)`;
+
+	const query = `
+		WITH samples AS (
+			SELECT date(timestamp) AS day, cold_ttfb_ms, warm_ttfb_ms, p95_ttfb_ms
+			FROM perf_results
+			WHERE route = ? AND region = ? AND site = ? AND source != 'manual' ${sinceClause}
+		),
+		${medianCte("cold_ttfb_ms", "cold")},
+		${medianCte("warm_ttfb_ms", "warm")},
+		${medianCte("p95_ttfb_ms", "p95")}
+		SELECT d.day AS day, cold.m AS median_cold, warm.m AS median_warm, p95.m AS median_p95
+		FROM (SELECT DISTINCT day FROM samples) d
+		LEFT JOIN cold ON cold.day = d.day
+		LEFT JOIN warm ON warm.day = d.day
+		LEFT JOIN p95 ON p95.day = d.day
+		ORDER BY d.day ASC`;
+
+	const result = await db
+		.prepare(query)
+		.bind(...bindings)
+		.all<DailyMedian>();
+	return result.results;
+}

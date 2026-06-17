@@ -301,6 +301,14 @@
 				background: #3a2a1a;
 				color: var(--orange);
 			}
+			.region-sae {
+				background: #3a1a2a;
+				color: #f783ac;
+			}
+			.region-oce {
+				background: #1a3a32;
+				color: #20c997;
+			}
 
 			.loading {
 				text-align: center;
@@ -346,9 +354,36 @@
 				border: 2px solid var(--red);
 				background: transparent;
 			}
+
+			.agent-note {
+				display: none;
+			}
 		</style>
 	</head>
 	<body>
+		<div class="agent-note" aria-hidden="true">
+			EmDash Perf Monitor — HTTP API for agents (humans: use the dashboard below). Same
+			origin, JSON responses. Query these directly instead of scraping the rendered charts.
+
+			GET /api/config — { sites:[{id,label,targetUrl}], defaultSite, routes, regions:[{id,label}] }.
+			Authoritative list of valid site/route/region ids and their display labels.
+
+			GET /api/summary?site=ID — latest sample per route+region plus rolling 7-day averages:
+			{ site, latest:[…], medians:[{route,region,median_cold,median_warm,count}], config }.
+
+			GET /api/chart?route=PATH&region=ID&site=ID&since=ISO8601[&bucket=day][&limit=N] — time
+			series for one route+region. Pass bucket=day for ranges beyond ~2 days: it returns one
+			true-median point per UTC day, so the window isn't truncated. Without bucket=day you get
+			raw samples newest-first capped at limit (default 200) — at 48 samples/day that only spans
+			~7-10 days regardless of since. Response: { route, region, site,
+			data:[{timestamp,coldTtfbMs,warmTtfbMs,p95TtfbMs}], deployMarkers:[…] }.
+
+			GET /api/results?route=&region=&source=deploy|cron|manual&site=&since=ISO8601&limit=N — raw
+			rows newest-first; all filters optional; omit site to span every site. → { results:[…] }.
+
+			POST /api/trigger — JSON body, all optional { note, sha, prNumber, ephemeral, site }. Runs an
+			on-demand measurement (source=manual) and returns its summary.
+		</div>
 		<div class="container">
 			<header>
 				<h1>emdash perf</h1>
@@ -376,6 +411,7 @@
 					<select id="period-select">
 						<option value="1h">1 hour</option>
 						<option value="24h">24 hours</option>
+						<option value="48h">48 hours</option>
 						<option value="7d" selected>7 days</option>
 						<option value="30d">30 days</option>
 						<option value="90d">90 days</option>
@@ -461,14 +497,15 @@
 				euw: "#4dabf7",
 				ape: "#b197fc",
 				aps: "#ff922b",
+				sae: "#f783ac",
+				oce: "#20c997",
 			};
 
-			const REGION_LABELS = {
-				use: "US East",
-				euw: "Europe West",
-				ape: "Asia Pacific East",
-				aps: "Asia Pacific South",
-			};
+			// Region display names come from /api/config so a new region added
+			// server-side appears without a client edit.
+			function regionLabel(id) {
+				return configData?.regions.find((r) => r.id === id)?.label || id;
+			}
 
 			let coldChart = null;
 			let warmChart = null;
@@ -487,6 +524,8 @@
 						return new Date(now - 60 * 60 * 1000).toISOString();
 					case "24h":
 						return new Date(now - 24 * 60 * 60 * 1000).toISOString();
+					case "48h":
+						return new Date(now - 48 * 60 * 60 * 1000).toISOString();
 					case "7d":
 						return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
 					case "30d":
@@ -498,45 +537,21 @@
 				}
 			}
 
-			// 7d/30d/90d views show per-point samples that are too spiky to read.
-			// Bucket by UTC day so the trend is visible. Median, not mean, so a
-			// single cron spike doesn't pull the bucket.
+			// Periods with too many samples (48 cron runs/day) to plot raw. The API
+			// buckets these to a daily median server-side via `bucket=day`; shorter
+			// periods return raw samples.
 			const DAILY_BUCKET_PERIODS = new Set(["7d", "30d", "90d"]);
 
 			/**
 			 * Parse a D1-stored timestamp ("YYYY-MM-DD HH:MM:SS", no TZ) as UTC.
 			 * `new Date("YYYY-MM-DD HH:MM:SS")` is implementation-defined and most
-			 * browsers treat it as *local* time, which shifts samples across UTC
-			 * day boundaries when we bucket with `getUTC*`. Normalize first.
+			 * browsers treat it as *local* time, which shifts each point off its
+			 * true position on the UTC time axis. Normalize first.
 			 */
 			function parseStoredTimestamp(ts) {
 				if (!ts) return null;
 				if (ts.includes("T") || ts.endsWith("Z")) return new Date(ts);
 				return new Date(ts.replace(" ", "T") + "Z");
-			}
-
-			function median(nums) {
-				const sorted = nums.filter((n) => n != null).sort((a, b) => a - b);
-				if (sorted.length === 0) return null;
-				const mid = sorted.length >> 1;
-				return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-			}
-
-			function bucketByUtcDay(points) {
-				const byDay = new Map();
-				for (const p of points) {
-					const d = p.x instanceof Date ? p.x : new Date(p.x);
-					const day = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-					if (!byDay.has(day)) byDay.set(day, []);
-					byDay.get(day).push(p.y);
-				}
-				return [...byDay.entries()]
-					.map(([day, ys]) => ({
-						x: new Date(`${day}T12:00:00Z`),
-						y: median(ys),
-					}))
-					.filter((p) => p.y != null)
-					.sort((a, b) => a.x - b.x);
 			}
 
 			function formatMs(ms) {
@@ -766,10 +781,13 @@
 				const site = currentSite();
 				const bucketDaily = DAILY_BUCKET_PERIODS.has(period);
 
-				// Fetch chart data for each region in parallel
+				// Fetch chart data for each region in parallel. Daily views bucket
+				// server-side so the window isn't truncated by a row limit; sub-day
+				// views fetch raw samples (with deploy markers).
+				const tail = bucketDaily ? "&bucket=day" : "&limit=500";
 				const chartDataPromises = regions.map((region) =>
 					fetchJson(
-						`/api/chart?site=${encodeURIComponent(site)}&route=${encodeURIComponent(route)}&region=${region}&since=${since}&limit=500`,
+						`/api/chart?site=${encodeURIComponent(site)}&route=${encodeURIComponent(route)}&region=${region}&since=${since}${tail}`,
 					),
 				);
 				const chartResults = await Promise.all(chartDataPromises);
@@ -784,25 +802,23 @@
 					const result = chartResults[i];
 					const color = REGION_COLORS[region] || "#888";
 
-					const rawCold = result.data.map((d) => ({
+					const coldPoints = result.data.map((d) => ({
 						x: parseStoredTimestamp(d.timestamp),
 						y: d.coldTtfbMs,
 						prNumber: d.prNumber,
 						sha: d.sha,
 						source: d.source,
 					}));
-					const rawWarm = result.data.map((d) => ({
+					const warmPoints = result.data.map((d) => ({
 						x: parseStoredTimestamp(d.timestamp),
 						y: d.warmTtfbMs,
 						prNumber: d.prNumber,
 						sha: d.sha,
 						source: d.source,
 					}));
-					const coldPoints = bucketDaily ? bucketByUtcDay(rawCold) : rawCold;
-					const warmPoints = bucketDaily ? bucketByUtcDay(rawWarm) : rawWarm;
 
 					coldDatasets.push({
-						label: REGION_LABELS[region] || region,
+						label: regionLabel(region),
 						data: coldPoints,
 						borderColor: color,
 						backgroundColor: color + "20",
@@ -828,7 +844,7 @@
 					});
 
 					warmDatasets.push({
-						label: REGION_LABELS[region] || region,
+						label: regionLabel(region),
 						data: warmPoints,
 						borderColor: color,
 						backgroundColor: color + "20",
@@ -962,19 +978,60 @@
 				}
 			}
 
+			// Each control mirrors into the URL hash (#site=…&route=…&region=…&period=…)
+			// so a view is shareable, bookmarkable, and restored on reload.
+			const HASH_CONTROLS = [
+				["site", "site-select"],
+				["route", "route-select"],
+				["region", "region-select"],
+				["period", "period-select"],
+			];
+
+			function applyHashToSelects() {
+				const params = new URLSearchParams(location.hash.slice(1));
+				for (const [key, id] of HASH_CONTROLS) {
+					const value = params.get(key);
+					const select = document.getElementById(id);
+					if (value != null && [...select.options].some((o) => o.value === value)) {
+						select.value = value;
+					}
+				}
+				updateTargetLabel();
+			}
+
+			function writeHashFromSelects() {
+				const params = new URLSearchParams();
+				for (const [key, id] of HASH_CONTROLS) {
+					params.set(key, document.getElementById(id).value);
+				}
+				const hash = `#${params}`;
+				if (hash !== location.hash) history.replaceState(null, "", hash);
+			}
+
 			async function init() {
 				try {
 					await loadConfig();
+					applyHashToSelects();
+					writeHashFromSelects();
 					await refresh();
 
-					// Refresh on control changes
+					const syncAndRefresh = () => {
+						writeHashFromSelects();
+						refresh();
+					};
 					document.getElementById("site-select").addEventListener("change", () => {
 						updateTargetLabel();
+						syncAndRefresh();
+					});
+					document.getElementById("route-select").addEventListener("change", syncAndRefresh);
+					document.getElementById("region-select").addEventListener("change", syncAndRefresh);
+					document.getElementById("period-select").addEventListener("change", syncAndRefresh);
+
+					// Reflect external hash changes (manual edit, back/forward).
+					window.addEventListener("hashchange", () => {
+						applyHashToSelects();
 						refresh();
 					});
-					document.getElementById("route-select").addEventListener("change", refresh);
-					document.getElementById("region-select").addEventListener("change", refresh);
-					document.getElementById("period-select").addEventListener("change", refresh);
 
 					// Auto-refresh every 5 minutes
 					setInterval(refresh, 5 * 60 * 1000);
