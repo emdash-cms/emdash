@@ -14,8 +14,13 @@
 // space.
 
 import { getSandbox, type Sandbox } from "@cloudflare/sandbox";
-import { createAgent, type FlueContext, type WorkflowRouteHandler } from "@flue/runtime";
-import { cfSandboxToSessionEnv } from "@flue/runtime/cloudflare";
+import {
+	createAgent,
+	type FlueContext,
+	type SandboxFactory,
+	type WorkflowRouteHandler,
+} from "@flue/runtime";
+import { cloudflareSandbox } from "@flue/runtime/cloudflare";
 
 import { withCapacityRetry } from "../lib/capacity.js";
 import {
@@ -43,30 +48,51 @@ interface ReviewPayload {
 	repo: string;
 }
 
-// Kimi via the Cloudflare Workers AI binding: the `cloudflare/` prefix is
-// reserved by Flue's generated CF entry and routed through `env.AI`, so no
-// model API key is needed anywhere.
-const reviewAgent = createAgent<ReviewPayload, Env>(({ env }) => ({
-	model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
-	// The container's working dir is the checked-out PR. AGENTS.md at the repo
-	// root is auto-discovered into the agent's context from here.
+/**
+ * Container sandbox factory, wrapping Flue's `cloudflareSandbox(...)` to drop the
+ * `AbortSignal` before each `exec()`.
+ *
+ * `getSandbox(...).exec(command, options)` is a Worker -> Durable Object RPC call
+ * (the @cloudflare/sandbox SDK forwards the whole options bag, including any
+ * `AbortSignal`, to the Sandbox DO). An `AbortSignal` created outside the target
+ * DO cannot cross that RPC boundary -- the call hangs forever and the command
+ * never runs. Flue's session/agent shell path *always* attaches a signal (via
+ * `createCallHandle`), so every container command -- our git setup AND the
+ * agent's own bash/grep/find tool calls -- would hang. Verified: an identical
+ * `exec` with the signal omitted (or `undefined`) returns in ~50ms; with a live
+ * signal it never returns. Holds across @cloudflare/sandbox 0.10.3/0.12.1 and
+ * both the `http` and `rpc` transports, so it is not a version/transport issue.
+ *
+ * We don't need cooperative exec cancellation: the model-call timeout in
+ * `withCapacityRetry` bounds a stalled review, and the container has its own
+ * lifecycle. So we strip the signal. (Upstream: Flue's `cloudflareSandbox`
+ * adapter should not forward a cross-DO `AbortSignal` to `exec`.)
+ */
+function reviewSandbox(stub: DurableObjectNamespace<Sandbox>, id: string): SandboxFactory {
+	const base = cloudflareSandbox(getSandbox(stub, id), { cwd: "/workspace" });
+	return {
+		createSessionEnv: async (options) => {
+			const sessionEnv = await base.createSessionEnv(options);
+			const exec = sessionEnv.exec.bind(sessionEnv);
+			return {
+				...sessionEnv,
+				exec: (command, execOptions) => exec(command, { ...execOptions, signal: undefined }),
+			};
+		},
+	};
+}
+
+// GLM-5.2 (Z.ai's agentic-coding model) via the Cloudflare Workers AI binding:
+// the `cloudflare/` prefix is reserved by Flue's generated CF entry and routed
+// through `env.AI`, so no model API key is needed anywhere. Workers AI 429s are
+// handled by `withCapacityRetry` below.
+const reviewAgent = createAgent<ReviewPayload, Env>(({ id, env }) => ({
+	model: "cloudflare/@cf/zai-org/glm-5.2",
+	// Container-backed Linux sandbox (git/rg). `id` is the per-instance id, so
+	// each review run gets its own container. `cwd` is the checked-out PR root.
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+	sandbox: reviewSandbox(env.Sandbox as DurableObjectNamespace<Sandbox>, id),
 	cwd: "/workspace",
-	// Wire the @cloudflare/sandbox container into Flue via its CF adapter.
-	// (The deploy doc's bare `sandbox: getSandbox(...)` is unreleased sugar; the
-	// supported path is a SandboxFactory that calls cfSandboxToSessionEnv.) `id`
-	// here is the per-session id Flue supplies, so each review run gets its own
-	// container instance. As of @flue/runtime 0.11 the factory no longer receives
-	// a `cwd`; the session cwd matches the agent's `cwd` above.
-	sandbox: {
-		createSessionEnv: ({ id: sessionId }) =>
-			cfSandboxToSessionEnv(
-				// wrangler types the auto-wired DO as DurableObjectNamespace<undefined>;
-				// Flue re-exports the real Sandbox class into the bundle at build.
-				// oxlint-disable-next-line typescript/no-unsafe-type-assertion
-				getSandbox(env.Sandbox as DurableObjectNamespace<Sandbox>, sessionId),
-				"/workspace",
-			),
-	},
 	instructions: [
 		"You are EmDash's automated pull request reviewer.",
 		"You investigate one PR in depth and return structured, line-anchored findings plus an overall verdict.",
@@ -148,13 +174,20 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 	}
 
 	try {
-		const harness = await init(reviewAgent);
-		const session = await harness.session();
-
-		// Set up the checkout inside the container: init in /workspace, fetch the
-		// base branch and the PR head, check out the PR head (detached). Full fetch
-		// (no shallow/depth) so `git diff origin/<base>...HEAD` can resolve a merge
-		// base. emdash is public, so anonymous https is sufficient.
+		// Check out the PR into the container BEFORE init(): init in /workspace,
+		// fetch the base branch and the PR head, check out the PR head (detached).
+		// Full fetch (no shallow/depth) so `git diff origin/<base>...HEAD` can
+		// resolve a merge base. emdash is public, so anonymous https is sufficient.
+		//
+		// Ordering matters: Flue's init-time workspace scan reads `<cwd>/AGENTS.md`
+		// and `<cwd>/.agents/skills/*` into the agent's context. The container must
+		// already hold the checkout when init() runs, or AGENTS.md is never
+		// discovered (the review skill checks the PR against AGENTS.md conventions).
+		//
+		// We run setup through the raw @cloudflare/sandbox stub (same container id
+		// as the agent's sandbox below) with a plain `exec` and no AbortSignal.
+		// Flue's shell path always attaches a signal, which hangs across the DO RPC
+		// boundary (see reviewSandbox); a direct signal-less exec does not.
 		const cloneUrl = `https://github.com/${payload.owner}/${payload.repo}.git`;
 		const setup = [
 			"set -euo pipefail",
@@ -166,12 +199,19 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 			"git checkout -q -f refs/remotes/origin/pr",
 		].join("\n");
 
-		const setupResult = await session.shell(setup);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+		const containerStub = getSandbox(env.Sandbox as DurableObjectNamespace<Sandbox>, ctx.id);
+		const setupResult = await containerStub.exec(setup);
 		if (setupResult.exitCode !== 0) {
 			throw new Error(
 				`git setup failed (exit ${setupResult.exitCode}): ${setupResult.stderr || setupResult.stdout}`,
 			);
 		}
+
+		// Init now that /workspace holds the checkout (AGENTS.md is discovered
+		// here); the agent's tool calls run against this same container.
+		const harness = await init(reviewAgent);
+		const session = await harness.session();
 
 		// Workers AI returns 429 when kimi is over capacity, and under sustained
 		// load the binding can hold the request open indefinitely. Bound each
@@ -180,7 +220,7 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 		// the container's keep-alive alarm firing for minutes).
 		const { data } = await withCapacityRetry(
 			(signal) =>
-				session.skill(review, {
+				session.skill("review", {
 					args: {
 						prContext: buildPrContext(payload, priorReview),
 						owner: payload.owner,
@@ -206,22 +246,29 @@ export async function run(ctx: FlueContext<ReviewPayload, Env>): Promise<ReviewR
 			},
 		);
 
+		// Telemetry (Workers Logs / dashboard): records what the model produced
+		// and whether we're about to post.
+		console.log("[review] result", {
+			prNumber: payload.prNumber,
+			hasToken: Boolean(token),
+			verdict: data.verdict,
+			summaryLen: data.summary.length,
+			findings: data.findings.length,
+		});
+
 		// Post from this trusted DO context (durable, not bound by the webhook's
 		// 30s waitUntil budget). In dev (no creds) we just log and return.
 		if (token) {
-			// Don't let a transient GitHub failure throw: that would discard the
-			// completed review AND trigger Flue's at-least-once workflow restart
-			// (a full re-review). Log and return the result instead.
 			try {
 				await postReview(token, payload.owner, payload.repo, payload.prNumber, data);
 			} catch (err) {
-				ctx.log.error?.("[review] postReview failed", {
-					error: String(err),
+				console.error("[review] postReview failed", {
+					error: err instanceof Error ? err.message : String(err),
 					prNumber: payload.prNumber,
 				});
 			}
 		} else {
-			ctx.log.info?.("[review] no GitHub App creds; skipping post", { prNumber: payload.prNumber });
+			console.log("[review] no GitHub App creds; skipping post", { prNumber: payload.prNumber });
 		}
 
 		return data;
