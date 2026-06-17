@@ -19,6 +19,13 @@ export interface SitemapContentEntry {
 	/** ISO date of last modification */
 	updatedAt: string;
 	/**
+	 * ISO publish date, or null when never published. Used to resolve
+	 * date tokens (`{year}`/`{month}`/`{day}`) in the collection's
+	 * `url_pattern` — the published date keeps permalinks stable across
+	 * later edits (unlike `updatedAt`).
+	 */
+	publishedAt: string | null;
+	/**
 	 * Locale of this row (e.g. `"en"`, `"fr"`). Always present — rows in
 	 * pre-i18n databases are backfilled to the configured `defaultLocale`.
 	 */
@@ -138,11 +145,12 @@ export async function handleSitemapData(
 					slug: string | null;
 					id: string;
 					updated_at: string;
+					published_at: string | null;
 					locale: string;
 					translation_group: string | null;
 					seo_image: string | null;
 				}>`
-					SELECT c.slug, c.id, c.updated_at, c.locale, c.translation_group, s.seo_image
+					SELECT c.slug, c.id, c.updated_at, c.published_at, c.locale, c.translation_group, s.seo_image
 					FROM ${sql.ref(tableName)} c
 					LEFT JOIN _emdash_seo s
 						ON s.collection = ${col.slug}
@@ -162,6 +170,7 @@ export async function handleSitemapData(
 						id: row.id,
 						slug: row.slug,
 						updatedAt: toW3CDate(row.updated_at),
+						publishedAt: row.published_at ?? null,
 						locale: row.locale,
 						translationGroup: row.translation_group,
 						image: row.seo_image ?? null,
