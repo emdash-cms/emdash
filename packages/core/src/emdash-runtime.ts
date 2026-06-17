@@ -45,7 +45,7 @@ import type {
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
-import { createIsolateCache, isolateCachedAsync } from "./utils/isolate-cache.js";
+import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
@@ -420,10 +420,10 @@ export class EmDashRuntime {
 	/**
 	 * Isolate-lifetime guard so FTS indexes are verified at most once per
 	 * worker rather than on every admin request. See ensureSearchHealthy().
-	 * Uses the poison-immune isolate cache (never a shared awaitable promise)
-	 * so a cancelled first caller can't wedge later ones.
+	 * Uses the poison-immune single-flight cache (never a shared awaitable
+	 * promise) so a cancelled first caller can't wedge later ones.
 	 */
-	private readonly _searchHealthCache = createIsolateCache<void>();
+	private readonly _searchHealthCache = createSingleFlightCache<void>();
 
 	/** Current hook pipeline. Use the `hooks` getter for external access. */
 	get hooks(): HookPipeline {
@@ -2233,7 +2233,7 @@ export class EmDashRuntime {
 		// branch, no need to cache it.
 		if (!isSqlite(this._db)) return;
 		try {
-			await isolateCachedAsync(
+			await singleFlightCached(
 				this._searchHealthCache,
 				async () => {
 					try {
