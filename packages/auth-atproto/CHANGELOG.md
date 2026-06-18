@@ -1,5 +1,30 @@
 # @emdash-cms/auth-atproto
 
+## 0.2.17
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/auth@0.21.0
+
+## 0.2.16
+
+### Patch Changes
+
+- [#1447](https://github.com/emdash-cms/emdash/pull/1447) [`141aa11`](https://github.com/emdash-cms/emdash/commit/141aa11213206d9ea5e14d1f1cd75c07cfacae7b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes `@atcute` peer dependency warnings on install ([#1435](https://github.com/emdash-cms/emdash/issues/1435))
+
+  Installing EmDash pulled in mismatched `@atcute` package versions, so `pnpm install` / `npm install` reported unmet peer warnings for `@atcute/identity` and `@atcute/lexicons`. The bundled `@atcute` dependencies are now aligned on v2 and installs are clean. If your project also depends on `@atcute` packages directly, note they have moved to v2 (`@atcute/client` 5, `@atcute/lexicons` 2, `@atcute/atproto` 4, `@atcute/oauth-node-client` 2).
+
+- Updated dependencies []:
+  - @emdash-cms/auth@0.20.0
+
+## 0.2.15
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/auth@0.19.0
+
 ## 0.2.14
 
 ### Patch Changes

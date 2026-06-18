@@ -36,6 +36,43 @@ describe("validateSeed", () => {
 		});
 	});
 
+	describe("defaultLocale validation", () => {
+		it("should accept an omitted defaultLocale", () => {
+			const result = validateSeed({ version: "1" });
+			expect(result.valid).toBe(true);
+		});
+
+		it("should accept a non-en defaultLocale", () => {
+			const result = validateSeed({ version: "1", defaultLocale: "de" });
+			expect(result.valid).toBe(true);
+			expect(result.errors).toHaveLength(0);
+		});
+
+		it("should reject a non-string defaultLocale", () => {
+			const result = validateSeed({ version: "1", defaultLocale: 5 });
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"defaultLocale: must be a non-empty string with no leading or trailing whitespace",
+			);
+		});
+
+		it("should reject an empty defaultLocale", () => {
+			const result = validateSeed({ version: "1", defaultLocale: "" });
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"defaultLocale: must be a non-empty string with no leading or trailing whitespace",
+			);
+		});
+
+		it("should reject a whitespace-padded defaultLocale", () => {
+			const result = validateSeed({ version: "1", defaultLocale: " de " });
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"defaultLocale: must be a non-empty string with no leading or trailing whitespace",
+			);
+		});
+	});
+
 	describe("collection validation", () => {
 		it("should require collections to be an array", () => {
 			const result = validateSeed({

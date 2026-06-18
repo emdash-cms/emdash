@@ -1,5 +1,60 @@
 # @emdash-cms/cloudflare
 
+## 0.21.0
+
+### Patch Changes
+
+- Updated dependencies [[`b6a5fac`](https://github.com/emdash-cms/emdash/commit/b6a5fac6d3bc88cc5ab49889de264c37262cc5f7), [`23c37f3`](https://github.com/emdash-cms/emdash/commit/23c37f35dfe9ce23fca0d48acea228299d25e19e), [`997d7ee`](https://github.com/emdash-cms/emdash/commit/997d7eea8f39c16eef28577bb8ace0c0413fc38b), [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527), [`37e848b`](https://github.com/emdash-cms/emdash/commit/37e848bf005950a4b312cf5f0a50f7c8820b01fc)]:
+  - emdash@0.21.0
+
+## 0.20.0
+
+### Minor Changes
+
+- [#1492](https://github.com/emdash-cms/emdash/pull/1492) [`7688f0b`](https://github.com/emdash-cms/emdash/commit/7688f0b6a92ccfdcea6244100c07679e81014161) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a `durableObjects()` database adapter that stores the whole CMS in a single Durable Object's SQLite. With `session: "auto"` (plus the `experimental` and `replica_routing` compatibility flags) reads route to the nearest read replica and writes proxy to the primary, cutting read latency for globally distributed traffic. Register the exported `EmDashDB` class in your worker and add a `new_sqlite_classes` migration.
+
+### Patch Changes
+
+- Updated dependencies [[`141aa11`](https://github.com/emdash-cms/emdash/commit/141aa11213206d9ea5e14d1f1cd75c07cfacae7b), [`7688f0b`](https://github.com/emdash-cms/emdash/commit/7688f0b6a92ccfdcea6244100c07679e81014161), [`c7166b0`](https://github.com/emdash-cms/emdash/commit/c7166b083eaa2ceb37f8d9682f4a521e5e360a19), [`9c994ad`](https://github.com/emdash-cms/emdash/commit/9c994ada4692d34517ab458f29b8613aa9341ecc), [`eddaf91`](https://github.com/emdash-cms/emdash/commit/eddaf91a6a818cad12bc8f5e14ee16f8189cc073), [`afc3a0f`](https://github.com/emdash-cms/emdash/commit/afc3a0f6f3f0fa831b6c2e7e8ddebb4a7c631007), [`3d423a7`](https://github.com/emdash-cms/emdash/commit/3d423a796d7d000160dc7d8d0a582ba7734f214f), [`b01aa9b`](https://github.com/emdash-cms/emdash/commit/b01aa9bbb436bcec07516b499eb0516cfbe414b4), [`3e344af`](https://github.com/emdash-cms/emdash/commit/3e344af2c162e37dfa389b9cb88c2c826590b678), [`7688f0b`](https://github.com/emdash-cms/emdash/commit/7688f0b6a92ccfdcea6244100c07679e81014161), [`8807701`](https://github.com/emdash-cms/emdash/commit/880770148329fa14ccb1c35d438ae6e53c8e2c97)]:
+  - emdash@0.20.0
+
+## 0.19.0
+
+### Minor Changes
+
+- [#1312](https://github.com/emdash-cms/emdash/pull/1312) [`c39789c`](https://github.com/emdash-cms/emdash/commit/c39789c383e94125d8874a516988c7d9ca6f5484) Thanks [@ascorbic](https://github.com/ascorbic)! - Drive scheduled publishing from a real heartbeat instead of request side effects ([#1303](https://github.com/emdash-cms/emdash/issues/1303)).
+
+  Content scheduled via the admin now actually transitions to `published` when its time arrives. Previously nothing promoted the row — `status` stayed `scheduled` and `published_at` stayed null forever.
+
+  A new sweep (`publishDueContent`) promotes due content and runs alongside the existing cron tick and system cleanup:
+  - **Node / single-process:** the timer-based scheduler already drives it — no action needed.
+  - **Cloudflare Workers:** a `scheduled()` handler driven by a Cron Trigger now runs the sweep. The request-driven `PiggybackScheduler` is gone, so there are no maintenance side effects on visitor requests.
+
+  `@emdash-cms/cloudflare` ships a Worker entry that wraps Astro's handler with the `scheduled()` handler (`@emdash-cms/cloudflare/worker`, plus `createScheduledHandler()` for hand-assembled Workers). When a cache provider is configured, the handler also purges edge-cache tags for whatever it published, so stale snapshots produced before the scheduled time are evicted.
+
+  **Migration for existing Cloudflare sites.** New sites get this from the templates. Existing deployments must update two files:
+
+  ```ts
+  // src/worker.ts
+  export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
+  ```
+
+  ```jsonc
+  // wrangler.jsonc
+  "triggers": { "crons": ["* * * * *"] }
+  ```
+
+  Without the Cron Trigger, scheduled publishing and plugin cron do not run on Workers.
+
+  Scheduled publishing matches manual publishing exactly: it fires `content:afterPublish` hooks (search indexing, webhooks, syndication), and records the _scheduled_ time as `published_at` on first publication rather than the (later) sweep time. The sweep claims each row atomically before promoting it, so an entry unscheduled or rescheduled just before its time is never published, and overlapping sweeps can't double-publish. Local `astro dev` keeps running the timer-driven sweep even under the Cloudflare adapter (where production relies on the Cron Trigger).
+
+  Each tick promotes at most 100 items per collection (a large backlog drains over successive ticks) so a single Worker invocation can't exhaust its CPU/subrequest budget, and edge-cache tags are purged incrementally after each collection's batch rather than only at the end. On Node, the maintenance interval is capped at 60s so scheduled-publish latency matches the Cloudflare Cron Trigger cadence instead of lagging up to five minutes when no plugin cron is due.
+
+### Patch Changes
+
+- Updated dependencies [[`e96587f`](https://github.com/emdash-cms/emdash/commit/e96587f8ff393939355d3d643a322fe7b2c07c86), [`023893a`](https://github.com/emdash-cms/emdash/commit/023893a0fa966b95aad4ff533fc2966b3e3dfe03), [`f41092b`](https://github.com/emdash-cms/emdash/commit/f41092bd847f1eb161034f1d2c67976e8473e794), [`cedfcc5`](https://github.com/emdash-cms/emdash/commit/cedfcc527d47131baaa5dcfb29fb7b4a966265d5), [`c63f9ca`](https://github.com/emdash-cms/emdash/commit/c63f9ca56a8fc0cf4e1843887291fee0d78d89a2), [`61ea3c9`](https://github.com/emdash-cms/emdash/commit/61ea3c9fee5b0f11974895a278d8297c56abec0b), [`a4c2af2`](https://github.com/emdash-cms/emdash/commit/a4c2af20ee27fef891290a442f7a20d4db64600d), [`850c1b7`](https://github.com/emdash-cms/emdash/commit/850c1b7e23eb1b083c0fcb753762effa1d3a207a), [`c39789c`](https://github.com/emdash-cms/emdash/commit/c39789c383e94125d8874a516988c7d9ca6f5484)]:
+  - emdash@0.19.0
+
 ## 0.18.0
 
 ### Minor Changes

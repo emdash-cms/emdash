@@ -47,7 +47,7 @@ const _declaredAccessSchema = /*#__PURE__*/ v.object({
 		return /*#__PURE__*/ v.optional(contentAccessSchema);
 	},
 	/**
-	 * Sending mail through the host's mail service.
+	 * Sending mail through the host's mail service, and participating in its delivery pipeline.
 	 */
 	get email() {
 		return /*#__PURE__*/ v.optional(emailAccessSchema);
@@ -64,6 +64,18 @@ const _declaredAccessSchema = /*#__PURE__*/ v.object({
 	get network() {
 		return /*#__PURE__*/ v.optional(networkAccessSchema);
 	},
+	/**
+	 * Participation in rendered page output.
+	 */
+	get page() {
+		return /*#__PURE__*/ v.optional(pageAccessSchema);
+	},
+	/**
+	 * Access to site user records.
+	 */
+	get users() {
+		return /*#__PURE__*/ v.optional(usersAccessSchema);
+	},
 });
 const _emailAccessSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
@@ -72,16 +84,42 @@ const _emailAccessSchema = /*#__PURE__*/ v.object({
 		),
 	),
 	/**
+	 * Plugin observes and may mutate every outgoing message (before and/or after send), including mail from the host and other plugins.
+	 */
+	get events() {
+		return /*#__PURE__*/ v.optional(emailEventsConstraintsSchema);
+	},
+	/**
 	 * Plugin may send mail.
 	 */
 	get send() {
 		return /*#__PURE__*/ v.optional(emailSendConstraintsSchema);
 	},
+	/**
+	 * Plugin becomes the host's mail transport; every message the site sends is delivered through it. Exclusive: installing replaces the current transport.
+	 */
+	get transport() {
+		return /*#__PURE__*/ v.optional(emailTransportConstraintsSchema);
+	},
+});
+const _emailEventsConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#emailEventsConstraints",
+		),
+	),
 });
 const _emailSendConstraintsSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
 			"com.emdashcms.experimental.package.releaseExtension#emailSendConstraints",
+		),
+	),
+});
+const _emailTransportConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#emailTransportConstraints",
 		),
 	),
 });
@@ -166,13 +204,56 @@ const _networkRequestConstraintsSchema = /*#__PURE__*/ v.object({
 		),
 	),
 });
+const _pageAccessSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#pageAccess",
+		),
+	),
+	/**
+	 * Plugin injects script and/or style fragments into rendered pages.
+	 */
+	get fragments() {
+		return /*#__PURE__*/ v.optional(pageFragmentsConstraintsSchema);
+	},
+});
+const _pageFragmentsConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#pageFragmentsConstraints",
+		),
+	),
+});
+const _usersAccessSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#usersAccess",
+		),
+	),
+	/**
+	 * Plugin may read site user records.
+	 */
+	get read() {
+		return /*#__PURE__*/ v.optional(usersReadConstraintsSchema);
+	},
+});
+const _usersReadConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#usersReadConstraints",
+		),
+	),
+});
 
 type contentAccess$schematype = typeof _contentAccessSchema;
 type contentReadConstraints$schematype = typeof _contentReadConstraintsSchema;
 type contentWriteConstraints$schematype = typeof _contentWriteConstraintsSchema;
 type declaredAccess$schematype = typeof _declaredAccessSchema;
 type emailAccess$schematype = typeof _emailAccessSchema;
+type emailEventsConstraints$schematype = typeof _emailEventsConstraintsSchema;
 type emailSendConstraints$schematype = typeof _emailSendConstraintsSchema;
+type emailTransportConstraints$schematype =
+	typeof _emailTransportConstraintsSchema;
 type main$schematype = typeof _mainSchema;
 type mediaAccess$schematype = typeof _mediaAccessSchema;
 type mediaReadConstraints$schematype = typeof _mediaReadConstraintsSchema;
@@ -180,19 +261,30 @@ type mediaWriteConstraints$schematype = typeof _mediaWriteConstraintsSchema;
 type networkAccess$schematype = typeof _networkAccessSchema;
 type networkRequestConstraints$schematype =
 	typeof _networkRequestConstraintsSchema;
+type pageAccess$schematype = typeof _pageAccessSchema;
+type pageFragmentsConstraints$schematype =
+	typeof _pageFragmentsConstraintsSchema;
+type usersAccess$schematype = typeof _usersAccessSchema;
+type usersReadConstraints$schematype = typeof _usersReadConstraintsSchema;
 
 export interface contentAccessSchema extends contentAccess$schematype {}
 export interface contentReadConstraintsSchema extends contentReadConstraints$schematype {}
 export interface contentWriteConstraintsSchema extends contentWriteConstraints$schematype {}
 export interface declaredAccessSchema extends declaredAccess$schematype {}
 export interface emailAccessSchema extends emailAccess$schematype {}
+export interface emailEventsConstraintsSchema extends emailEventsConstraints$schematype {}
 export interface emailSendConstraintsSchema extends emailSendConstraints$schematype {}
+export interface emailTransportConstraintsSchema extends emailTransportConstraints$schematype {}
 export interface mainSchema extends main$schematype {}
 export interface mediaAccessSchema extends mediaAccess$schematype {}
 export interface mediaReadConstraintsSchema extends mediaReadConstraints$schematype {}
 export interface mediaWriteConstraintsSchema extends mediaWriteConstraints$schematype {}
 export interface networkAccessSchema extends networkAccess$schematype {}
 export interface networkRequestConstraintsSchema extends networkRequestConstraints$schematype {}
+export interface pageAccessSchema extends pageAccess$schematype {}
+export interface pageFragmentsConstraintsSchema extends pageFragmentsConstraints$schematype {}
+export interface usersAccessSchema extends usersAccess$schematype {}
+export interface usersReadConstraintsSchema extends usersReadConstraints$schematype {}
 
 export const contentAccessSchema = _contentAccessSchema as contentAccessSchema;
 export const contentReadConstraintsSchema =
@@ -202,8 +294,12 @@ export const contentWriteConstraintsSchema =
 export const declaredAccessSchema =
 	_declaredAccessSchema as declaredAccessSchema;
 export const emailAccessSchema = _emailAccessSchema as emailAccessSchema;
+export const emailEventsConstraintsSchema =
+	_emailEventsConstraintsSchema as emailEventsConstraintsSchema;
 export const emailSendConstraintsSchema =
 	_emailSendConstraintsSchema as emailSendConstraintsSchema;
+export const emailTransportConstraintsSchema =
+	_emailTransportConstraintsSchema as emailTransportConstraintsSchema;
 export const mainSchema = _mainSchema as mainSchema;
 export const mediaAccessSchema = _mediaAccessSchema as mediaAccessSchema;
 export const mediaReadConstraintsSchema =
@@ -213,6 +309,12 @@ export const mediaWriteConstraintsSchema =
 export const networkAccessSchema = _networkAccessSchema as networkAccessSchema;
 export const networkRequestConstraintsSchema =
 	_networkRequestConstraintsSchema as networkRequestConstraintsSchema;
+export const pageAccessSchema = _pageAccessSchema as pageAccessSchema;
+export const pageFragmentsConstraintsSchema =
+	_pageFragmentsConstraintsSchema as pageFragmentsConstraintsSchema;
+export const usersAccessSchema = _usersAccessSchema as usersAccessSchema;
+export const usersReadConstraintsSchema =
+	_usersReadConstraintsSchema as usersReadConstraintsSchema;
 
 export interface ContentAccess extends v.InferInput<
 	typeof contentAccessSchema
@@ -227,8 +329,14 @@ export interface DeclaredAccess extends v.InferInput<
 	typeof declaredAccessSchema
 > {}
 export interface EmailAccess extends v.InferInput<typeof emailAccessSchema> {}
+export interface EmailEventsConstraints extends v.InferInput<
+	typeof emailEventsConstraintsSchema
+> {}
 export interface EmailSendConstraints extends v.InferInput<
 	typeof emailSendConstraintsSchema
+> {}
+export interface EmailTransportConstraints extends v.InferInput<
+	typeof emailTransportConstraintsSchema
 > {}
 export interface Main extends v.InferInput<typeof mainSchema> {}
 export interface MediaAccess extends v.InferInput<typeof mediaAccessSchema> {}
@@ -243,4 +351,12 @@ export interface NetworkAccess extends v.InferInput<
 > {}
 export interface NetworkRequestConstraints extends v.InferInput<
 	typeof networkRequestConstraintsSchema
+> {}
+export interface PageAccess extends v.InferInput<typeof pageAccessSchema> {}
+export interface PageFragmentsConstraints extends v.InferInput<
+	typeof pageFragmentsConstraintsSchema
+> {}
+export interface UsersAccess extends v.InferInput<typeof usersAccessSchema> {}
+export interface UsersReadConstraints extends v.InferInput<
+	typeof usersReadConstraintsSchema
 > {}

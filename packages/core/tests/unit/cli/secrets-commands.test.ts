@@ -23,7 +23,7 @@ describe("secrets CLI: writeEncryptionKeyToFile", () => {
 
 	beforeEach(async () => {
 		dir = await mkdtemp(join(tmpdir(), "emdash-secrets-cli-"));
-		target = join(dir, ".dev.vars");
+		target = join(dir, ".env");
 	});
 
 	afterEach(async () => {

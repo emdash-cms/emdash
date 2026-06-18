@@ -22,25 +22,50 @@ import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import * as React from "react";
 
-import { CODE_BLOCK_LANGUAGES, languageLabel, normalizeLanguage } from "./codeBlockLanguages";
-
-const LANGUAGE_ITEMS = CODE_BLOCK_LANGUAGES.map((l) => l.label);
-
-function filterLanguages(item: string, query: string) {
-	if (!query) return true;
-	const needle = query.toLowerCase();
-	const lang = CODE_BLOCK_LANGUAGES.find((l) => l.label === item);
-	if (!lang) return false;
-	if (lang.label.toLowerCase().includes(needle)) return true;
-	if (lang.id.toLowerCase().includes(needle)) return true;
-	return lang.aliases?.some((alias) => alias.toLowerCase().includes(needle)) ?? false;
-}
+import {
+	CODE_BLOCK_LANGUAGES,
+	languageLabelDescriptor,
+	normalizeLanguage,
+} from "./codeBlockLanguages";
 
 function CodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) {
 	const { t } = useLingui();
 	const [isEditing, setIsEditing] = React.useState(false);
 	const storedLanguage = typeof node.attrs.language === "string" ? node.attrs.language : "";
-	const [draft, setDraft] = React.useState(() => languageLabel(storedLanguage));
+
+	const labelText = React.useCallback(
+		(value: string | null | undefined) => {
+			const label = languageLabelDescriptor(value);
+			return typeof label === "string" ? label : t(label);
+		},
+		[t],
+	);
+
+	const languageItems = React.useMemo(
+		() => CODE_BLOCK_LANGUAGES.map((language) => t(language.label)),
+		[t],
+	);
+
+	const findLanguageByDisplayLabel = React.useCallback(
+		(label: string) => CODE_BLOCK_LANGUAGES.find((language) => t(language.label) === label),
+		[t],
+	);
+
+	const filterLanguages = React.useCallback(
+		(item: string, query: string) => {
+			if (!query) return true;
+			const searchText = query.toLowerCase();
+			const lang = findLanguageByDisplayLabel(item);
+			if (!lang) return false;
+
+			if (t(lang.label).toLowerCase().includes(searchText)) return true;
+			if (lang.id.toLowerCase().includes(searchText)) return true;
+			return lang.aliases?.some((alias) => alias.toLowerCase().includes(searchText)) ?? false;
+		},
+		[findLanguageByDisplayLabel, t],
+	);
+
+	const [draft, setDraft] = React.useState(() => labelText(storedLanguage));
 	const popoverRef = React.useRef<HTMLDivElement>(null);
 
 	// Sync draft when the stored language changes from outside the node view
@@ -48,28 +73,29 @@ function CodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) 
 	// content). Don't clobber an in-progress edit.
 	React.useEffect(() => {
 		if (!isEditing) {
-			setDraft(languageLabel(storedLanguage));
+			setDraft(labelText(storedLanguage));
 		}
-	}, [storedLanguage, isEditing]);
+	}, [storedLanguage, isEditing, labelText]);
 
 	const openPicker = React.useCallback(() => {
-		setDraft(storedLanguage ? languageLabel(storedLanguage) : "");
+		setDraft(storedLanguage ? labelText(storedLanguage) : "");
 		setIsEditing(true);
-	}, [storedLanguage]);
+	}, [storedLanguage, labelText]);
 
 	const closePicker = React.useCallback(() => {
 		setIsEditing(false);
-		setDraft(languageLabel(storedLanguage));
-	}, [storedLanguage]);
+		setDraft(labelText(storedLanguage));
+	}, [storedLanguage, labelText]);
 
 	const commit = React.useCallback(
 		(value?: string) => {
 			const raw = value ?? draft;
-			const next = normalizeLanguage(raw);
+			const selectedLanguage = findLanguageByDisplayLabel(raw);
+			const next = selectedLanguage?.id ?? normalizeLanguage(raw);
 			updateAttributes({ language: next ?? null });
 			setIsEditing(false);
 		},
-		[draft, updateAttributes],
+		[draft, findLanguageByDisplayLabel, updateAttributes],
 	);
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -95,7 +121,7 @@ function CodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) 
 		return () => document.removeEventListener("mousedown", onMouseDown);
 	}, [isEditing, closePicker]);
 
-	const label = languageLabel(storedLanguage);
+	const label = labelText(storedLanguage);
 	// The chip is always rendered (so it can be discovered via hover) but its
 	// opacity is controlled by CSS: invisible by default, visible on hover,
 	// when this block is selected, when the picker is open, or when the
@@ -117,7 +143,7 @@ function CodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) 
 						onKeyDown={handleKeyDown}
 					>
 						<Autocomplete
-							items={LANGUAGE_ITEMS}
+							items={languageItems}
 							value={draft}
 							onValueChange={(next: string) => setDraft(next)}
 							filter={filterLanguages}
