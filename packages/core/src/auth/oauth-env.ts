@@ -14,8 +14,13 @@ function hasEnv(value: unknown): value is { env: Record<string, unknown> } {
 }
 
 async function loadCloudflareOAuthEnv(): Promise<Record<string, unknown>> {
-	const specifier = "cloudflare:workers";
-	const module = await import(/* @vite-ignore */ specifier);
+	// Keep the Cloudflare virtual module out of Node-target bundles. Otherwise
+	// non-Cloudflare builds try to resolve it before the runtime fallback runs.
+	// oxlint-disable-next-line no-new-func
+	const dynamicImport = new Function("specifier", "return import(specifier);") as (
+		specifier: string,
+	) => Promise<unknown>;
+	const module = await dynamicImport("cloudflare:workers");
 	return hasEnv(module) ? module.env : {};
 }
 
