@@ -8,7 +8,7 @@
 
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import type { AuthProviderDescriptor } from "../../auth/types.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
@@ -543,6 +543,53 @@ function resolveModulePathFromProject(specifier: string, projectRoot: string): s
 }
 
 /**
+ * Read declared hook + route names from a sandboxed plugin's built
+ * `manifest.json`, located alongside its entry file.
+ *
+ * Manifest `hooks` entries are either bare hook-name strings or
+ * `{ name, priority?, timeout? }` objects; `routes` are either strings or
+ * `{ name }` objects. Both are normalized to a flat list of names. Returns
+ * empty arrays when the manifest is missing or unreadable — the runtime treats
+ * that as "unknown" and falls back to loading the plugin, so an older plugin
+ * build without this metadata still works (just without the lazy-load win).
+ */
+/** Extract a hook/route name from a manifest entry (string or `{ name }`). */
+function manifestEntryName(entry: unknown): string | null {
+	if (typeof entry === "string") return entry;
+	if (typeof entry === "object" && entry !== null) {
+		const name = (entry as { name?: unknown }).name;
+		if (typeof name === "string") return name;
+	}
+	return null;
+}
+
+function readSandboxedPluginManifestMeta(entryFilePath: string): {
+	hooks?: string[];
+	routes?: string[];
+} {
+	try {
+		const manifestPath = resolve(dirname(entryFilePath), "manifest.json");
+		const parsed: unknown = JSON.parse(readFileSync(manifestPath, "utf-8"));
+		if (typeof parsed !== "object" || parsed === null) return {};
+		const manifest = parsed as { hooks?: unknown; routes?: unknown };
+
+		const names = (value: unknown): string[] =>
+			Array.isArray(value)
+				? value.map(manifestEntryName).filter((n): n is string => n !== null)
+				: [];
+
+		// A present manifest is authoritative: an absent `hooks` key means the
+		// plugin declares none (→ never loaded for a hook). A *missing* manifest
+		// (the catch below) returns undefined → treated as "unknown" so the
+		// plugin still loads to stay correct.
+		return { hooks: names(manifest.hooks), routes: names(manifest.routes) };
+	} catch {
+		// No manifest, or unparseable — leave undefined ("unknown").
+		return {};
+	}
+}
+
+/**
  * Generates the sandboxed plugins module.
  * Resolves plugin entrypoints to files, reads them, and embeds the code.
  *
@@ -579,6 +626,12 @@ export const sandboxedPlugins = [];
 
 		const code = readFileSync(filePath, "utf-8");
 
+		// Read declared hooks/routes from the plugin's built manifest (a sibling
+		// of the entry file). These let the runtime lazily load the plugin only
+		// when a hook it declares fires or a route it owns is hit — a content
+		// read that touches none of its extension points never provisions it.
+		const { hooks, routes } = readSandboxedPluginManifestMeta(filePath);
+
 		// Create the plugin entry with embedded code and sandbox config
 		pluginEntries.push(`{
     id: ${JSON.stringify(descriptor.id)},
@@ -590,6 +643,8 @@ export const sandboxedPlugins = [];
     adminPages: ${JSON.stringify(descriptor.adminPages ?? [])},
     adminWidgets: ${JSON.stringify(descriptor.adminWidgets ?? [])},
     adminEntry: ${JSON.stringify(descriptor.adminEntry)},
+    hooks: ${JSON.stringify(hooks)},
+    routes: ${JSON.stringify(routes)},
     // Code read from: ${filePath}
     code: ${JSON.stringify(code)},
   }`);

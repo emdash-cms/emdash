@@ -219,6 +219,19 @@ export interface SandboxedPluginEntry {
 	 * Weaker than an existing admin DB selection — config order wins when no selection exists.
 	 */
 	preferred?: string[];
+	/**
+	 * Hook names the plugin declares (from its built `manifest.json`). Used to
+	 * decide, without loading the plugin, whether a given hook dispatch needs
+	 * it. Absent/empty means "unknown" — the runtime then falls back to loading
+	 * the plugin to preserve correctness (legacy behaviour for plugins built
+	 * before manifests carried hook metadata).
+	 */
+	hooks?: string[];
+	/**
+	 * Route names the plugin declares (from its built `manifest.json`). Lets
+	 * route auth resolve without loading the plugin.
+	 */
+	routes?: string[];
 }
 
 /**
@@ -385,11 +398,38 @@ const marketplaceManifestCache = new Map<
 		id: string;
 		version: string;
 		admin?: { pages?: PluginAdminPage[]; widgets?: PluginDashboardWidget[] };
+		/** Declared hook names — lets dispatch decide whether to load the plugin. */
+		hooks?: string[];
+		/** Declared route names. */
+		routes?: string[];
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
+/**
+ * In-flight on-demand loads, keyed by `${id}:${version}`. Dedupes concurrent
+ * first-use loads of the same sandboxed plugin so two simultaneous dispatches
+ * don't both provision it (mirrors the dbInitPromise pattern).
+ */
+const sandboxedLoadPromises = new Map<string, Promise<SandboxedPluginInstance | null>>();
+
+/**
+ * Reset the per-isolate sandboxed-plugin module state.
+ *
+ * @internal Test-only. These caches are module-level so they persist across
+ * requests within a worker isolate (the intended production behavior); tests
+ * that construct multiple runtimes need to clear them for isolation.
+ */
+export function __resetSandboxStateForTests(): void {
+	sandboxedPluginCache.clear();
+	marketplacePluginKeys.clear();
+	registryPluginKeys.clear();
+	marketplaceManifestCache.clear();
+	sandboxedRouteMetaCache.clear();
+	sandboxedLoadPromises.clear();
+	sandboxRunner = null;
+}
 
 /**
  * EmDashRuntime - singleton per worker
@@ -761,18 +801,21 @@ export class EmDashRuntime {
 				this.sandboxedPlugins.set(key, loaded);
 				keySet.add(key);
 
-				// Cache manifest admin config for getManifest()
+				// Cache manifest admin config + declared hooks/routes for
+				// getManifest() and lazy hook/route dispatch.
+				const normalizedRoutes = bundle.manifest.routes.map(normalizeManifestRoute);
 				marketplaceManifestCache.set(pluginId, {
 					id: bundle.manifest.id,
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
+					hooks: bundle.manifest.hooks.map((h) => (typeof h === "string" ? h : h.name)),
+					routes: normalizedRoutes.map((r) => r.name),
 				});
 
 				// Cache route metadata from manifest for auth decisions
-				if (bundle.manifest.routes.length > 0) {
+				if (normalizedRoutes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
-					for (const entry of bundle.manifest.routes) {
-						const normalized = normalizeManifestRoute(entry);
+					for (const normalized of normalizedRoutes) {
 						routeMetaMap.set(normalized.name, { public: normalized.public === true });
 					}
 					sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
@@ -1153,10 +1196,13 @@ export class EmDashRuntime {
 		};
 		const pipeline = createHookPipeline(enabledPluginList, pipelineFactoryOptions);
 
-		// Load sandboxed plugins (build-time, sandbox runner path)
-		const sandboxedPlugins = await phase("rt.sandbox", "Sandboxed plugins", () =>
-			EmDashRuntime.loadSandboxedPlugins(deps, db, storage),
-		);
+		// Register build-time sandboxed plugins WITHOUT loading them. Each is
+		// provisioned on first use (hook fire / route hit / page-metadata
+		// contribution), so cold reads aren't blocked on the Worker Loader.
+		// Registration is cheap and synchronous; the loaded-instance cache
+		// starts empty and fills lazily.
+		EmDashRuntime.registerSandboxedPlugins(deps, db, storage);
+		const sandboxedPlugins = sandboxedPluginCache;
 
 		// Cold-start: load marketplace- and registry-installed plugins from
 		// site R2 via the sandbox runner. The two tiers only depend on the
@@ -1585,75 +1631,110 @@ export class EmDashRuntime {
 	/**
 	 * Load sandboxed plugins using SandboxRunner
 	 */
-	private static async loadSandboxedPlugins(
+	/**
+	 * Lazily construct the per-isolate sandbox runner (cheap — it only reads
+	 * bindings; it does not provision any isolate). Returns null when sandboxing
+	 * is disabled or no factory is configured.
+	 */
+	private static ensureSandboxRunner(
 		deps: RuntimeDependencies,
 		db: Kysely<Database>,
 		mediaStorage?: Storage | null,
-	): Promise<Map<string, SandboxedPluginInstance>> {
-		// Return cached plugins if already loaded
-		if (sandboxedPluginCache.size > 0) {
-			return sandboxedPluginCache;
-		}
+	): SandboxRunner | null {
+		if (sandboxRunner) return sandboxRunner;
+		if (!deps.sandboxEnabled || !deps.createSandboxRunner) return null;
+		sandboxRunner = deps.createSandboxRunner({
+			db,
+			mediaStorage: mediaStorage
+				? {
+						upload: (opts) =>
+							mediaStorage.upload({
+								key: opts.key,
+								body: opts.body,
+								contentType: opts.contentType,
+							}),
+						delete: (key) => mediaStorage.delete(key),
+					}
+				: undefined,
+		});
+		return sandboxRunner;
+	}
 
-		// Check if sandboxing is enabled
-		if (!deps.sandboxEnabled) {
-			return sandboxedPluginCache;
-		}
+	/**
+	 * Register build-time sandboxed plugins WITHOUT provisioning them.
+	 *
+	 * Each plugin is loaded on demand the first time one of its extension
+	 * points is actually exercised (a hook it declares fires, a route it owns
+	 * is hit, or it contributes page metadata) — see
+	 * {@link ensureSandboxedPluginLoaded}. A content read that touches none of
+	 * a plugin's extension points never provisions it, so cold reads aren't
+	 * blocked on the Worker Loader.
+	 *
+	 * Registration is cheap and synchronous: it constructs the runner (to warn
+	 * early if the platform can't run sandboxes) and seeds route-auth metadata
+	 * from each plugin's declared routes so route authorization resolves
+	 * without loading the isolate.
+	 */
+	private static registerSandboxedPlugins(
+		deps: RuntimeDependencies,
+		db: Kysely<Database>,
+		mediaStorage?: Storage | null,
+	): void {
+		if (!deps.sandboxEnabled || deps.sandboxBypassed) return;
+		if (deps.sandboxedPluginEntries.length === 0) return;
 
-		// Create sandbox runner if not exists
-		if (!sandboxRunner && deps.createSandboxRunner) {
-			sandboxRunner = deps.createSandboxRunner({
-				db,
-				mediaStorage: mediaStorage
-					? {
-							upload: (opts) =>
-								mediaStorage.upload({
-									key: opts.key,
-									body: opts.body,
-									contentType: opts.contentType,
-								}),
-							delete: (key) => mediaStorage.delete(key),
-						}
-					: undefined,
-			});
-		}
-
-		if (!sandboxRunner) {
-			return sandboxedPluginCache;
-		}
-
-		// Check if the runner is actually available (has required bindings).
-		// Warn regardless of whether there are plugins to load, so operators
-		// see the issue even if no marketplace plugins are installed yet.
-		if (!sandboxRunner.isAvailable()) {
+		const runner = EmDashRuntime.ensureSandboxRunner(deps, db, mediaStorage);
+		if (!runner) return;
+		if (!runner.isAvailable()) {
 			console.warn(
 				"EmDash: Plugin sandbox is configured but not available on this platform. " +
 					"Sandboxed plugins will not be loaded. " +
 					"If using @emdash-cms/sandbox-workerd/sandbox, ensure workerd is installed.",
 			);
-			return sandboxedPluginCache;
+			return;
 		}
 
-		if (deps.sandboxedPluginEntries.length === 0) {
-			return sandboxedPluginCache;
-		}
-
-		// sandbox: false escape hatch is handled separately (before pipeline
-		// creation) via loadBypassedPlugins. If we somehow reach here with the
-		// flag set, just return — the plugins are already in the trusted pipeline.
-		if (deps.sandboxBypassed) {
-			return sandboxedPluginCache;
-		}
-
-		// Load each sandboxed plugin via sandbox runner
+		// Seed route-auth metadata from declared routes so getPluginRouteMeta()
+		// can authorize a sandboxed route without provisioning the isolate.
+		// (Build-time sandboxed routes are private, matching prior behavior.)
 		for (const entry of deps.sandboxedPluginEntries) {
-			const pluginKey = `${entry.id}:${entry.version}`;
-			if (sandboxedPluginCache.has(pluginKey)) {
-				continue;
-			}
+			if (!entry.routes || entry.routes.length === 0) continue;
+			if (sandboxedRouteMetaCache.has(entry.id)) continue;
+			const routeMeta = new Map<string, RouteMeta>();
+			for (const name of entry.routes) routeMeta.set(name, { public: false });
+			sandboxedRouteMetaCache.set(entry.id, routeMeta);
+		}
+	}
 
+	/**
+	 * Provision a sandboxed plugin on first use and memoize it for the isolate.
+	 *
+	 * Returns the already-loaded instance when present (covers eagerly-loaded
+	 * marketplace/registry plugins and previously lazy-loaded build plugins).
+	 * Otherwise loads the matching build-time entry via the sandbox runner,
+	 * deduping concurrent first-loads. Returns null when the plugin isn't a
+	 * loadable build entry, the runner is unavailable, the load fails, or the
+	 * plugin was disabled while loading.
+	 */
+	async ensureSandboxedPluginLoaded(pluginId: string): Promise<SandboxedPluginInstance | null> {
+		const existing = this.findSandboxedPlugin(pluginId);
+		if (existing) return existing;
+		if (!this.isPluginEnabled(pluginId)) return null;
+
+		// Only build-time entries are lazily loadable here; marketplace/registry
+		// plugins are provisioned at cold start.
+		const entry = this.sandboxedPluginEntries.find((e) => e.id === pluginId);
+		if (!entry) return null;
+
+		const key = `${entry.id}:${entry.version}`;
+		const inflight = sandboxedLoadPromises.get(key);
+		if (inflight) return inflight;
+
+		const loadPromise = (async (): Promise<SandboxedPluginInstance | null> => {
 			try {
-				// Build manifest from entry's declared config
+				const runner = EmDashRuntime.ensureSandboxRunner(this.runtimeDeps, this._db, this.storage);
+				if (!runner || !runner.isAvailable()) return null;
+
 				const manifest: PluginManifest = {
 					id: entry.id,
 					version: entry.version,
@@ -1665,17 +1746,71 @@ export class EmDashRuntime {
 					admin: {},
 				};
 
-				const plugin = await sandboxRunner.load(manifest, entry.code);
-				sandboxedPluginCache.set(pluginKey, plugin);
+				const loaded = await runner.load(manifest, entry.code);
+
+				// State can change while awaiting the load; don't cache a plugin
+				// that was disabled in the meantime.
+				if (!this.isPluginEnabled(pluginId)) {
+					await loaded.terminate().catch(() => {});
+					return null;
+				}
+
+				// Write both the module cache (per-isolate) and the instance map
+				// (`findSandboxedPlugin` reads the latter); in production they are
+				// the same Map, but keep them in sync defensively — mirrors the
+				// marketplace/registry sync path.
+				sandboxedPluginCache.set(key, loaded);
+				this.sandboxedPlugins.set(key, loaded);
 				console.log(
-					`EmDash: Loaded sandboxed plugin ${pluginKey} with capabilities: [${manifest.capabilities.join(", ")}]`,
+					`EmDash: Loaded sandboxed plugin ${key} with capabilities: [${manifest.capabilities.join(", ")}]`,
 				);
+				return loaded;
 			} catch (error) {
 				console.error(`EmDash: Failed to load sandboxed plugin ${entry.id}:`, error);
+				return null;
+			} finally {
+				sandboxedLoadPromises.delete(key);
 			}
-		}
+		})();
 
-		return sandboxedPluginCache;
+		sandboxedLoadPromises.set(key, loadPromise);
+		return loadPromise;
+	}
+
+	/**
+	 * All sandboxed plugins that *could* run in this isolate, with their
+	 * declared hook names — build-time entries first (config order), then
+	 * runtime-installed (marketplace, then registry). Iterated by hook/route
+	 * dispatch to decide which plugins to load on demand, without provisioning
+	 * any. Insertion order preserves the previous dispatch order.
+	 */
+	private *sandboxedCandidates(): Generator<{
+		id: string;
+		version: string;
+		hooks?: string[];
+	}> {
+		for (const entry of this.sandboxedPluginEntries) {
+			yield { id: entry.id, version: entry.version, hooks: entry.hooks };
+		}
+		for (const manifest of marketplaceManifestCache.values()) {
+			yield { id: manifest.id, version: manifest.version, hooks: manifest.hooks };
+		}
+	}
+
+	/**
+	 * Whether a candidate declares the given hook. Unknown declared-hook
+	 * metadata (`undefined`, e.g. a plugin built before manifests carried hook
+	 * lists) is treated as "might declare it" → load to stay correct.
+	 */
+	private static candidateDeclaresHook(hooks: string[] | undefined, event: string): boolean {
+		return hooks === undefined || hooks.includes(event);
+	}
+
+	/** Whether a plugin id is a registered sandboxed plugin (loaded or not). */
+	private isSandboxedPluginRegistered(pluginId: string): boolean {
+		if (this.sandboxedPluginEntries.some((e) => e.id === pluginId)) return true;
+		if (marketplaceManifestCache.has(pluginId)) return true;
+		return this.findSandboxedPlugin(pluginId) !== undefined;
 	}
 
 	/**
@@ -1701,25 +1836,12 @@ export class EmDashRuntime {
 	): Promise<void> {
 		// Ensure sandbox runner exists with media storage wired up.
 		// (storage here is the media Storage adapter from the runtime.)
-		if (!sandboxRunner && deps.createSandboxRunner) {
-			sandboxRunner = deps.createSandboxRunner({
-				db,
-				mediaStorage: {
-					upload: (opts) =>
-						storage.upload({
-							key: opts.key,
-							body: opts.body,
-							contentType: opts.contentType,
-						}),
-					delete: (key) => storage.delete(key),
-				},
-			});
-		}
+		const runner = EmDashRuntime.ensureSandboxRunner(deps, db, storage);
 		// In sandbox bypass mode, marketplace plugins are loaded in-process
 		// BEFORE pipeline creation by EmDashRuntime.create(). Skip here.
 		if (deps.sandboxBypassed) return;
 
-		if (!sandboxRunner || !sandboxRunner.isAvailable()) {
+		if (!runner || !runner.isAvailable()) {
 			return;
 		}
 
@@ -1751,22 +1873,29 @@ export class EmDashRuntime {
 						continue;
 					}
 
-					const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
+					const loaded = await runner.load(bundle.manifest, bundle.backendCode);
 					cache.set(pluginKey, loaded);
 					keySet.add(pluginKey);
 
-					// Cache manifest admin config for getManifest()
+					// Normalize declared route names (preserving public flags for
+					// route auth) and hook names (for lazy dispatch decisions).
+					const normalizedRoutes = bundle.manifest.routes.map(normalizeManifestRoute);
+					const hookNames = bundle.manifest.hooks.map((h) => (typeof h === "string" ? h : h.name));
+
+					// Cache manifest admin config + declared hooks/routes for
+					// getManifest() and the lazy hook/route dispatch candidate list.
 					marketplaceManifestCache.set(plugin.pluginId, {
 						id: bundle.manifest.id,
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
+						hooks: hookNames,
+						routes: normalizedRoutes.map((r) => r.name),
 					});
 
 					// Cache route metadata from manifest for auth decisions
-					if (bundle.manifest.routes.length > 0) {
+					if (normalizedRoutes.length > 0) {
 						const routeMeta = new Map<string, RouteMeta>();
-						for (const entry of bundle.manifest.routes) {
-							const normalized = normalizeManifestRoute(entry);
+						for (const normalized of normalizedRoutes) {
 							routeMeta.set(normalized.name, { public: normalized.public === true });
 						}
 						sandboxedRouteMetaCache.set(plugin.pluginId, routeMeta);
@@ -2928,9 +3057,12 @@ export class EmDashRuntime {
 			}
 		}
 
-		// Fallback: if the plugin exists in the sandbox cache, allow the route.
-		// The sandbox runner will return an error if the route doesn't actually exist.
-		if (this.findSandboxedPlugin(pluginId)) {
+		// Fallback: if the plugin is a registered sandboxed plugin, allow the
+		// route (private). Checked against registered metadata, not the loaded
+		// instance, so route auth resolves without provisioning the isolate —
+		// the actual load happens in handlePluginApiRoute. The sandbox runner
+		// returns an error if the route doesn't actually exist.
+		if (this.isSandboxedPluginRegistered(pluginId)) {
 			return { public: false };
 		}
 
@@ -2968,8 +3100,9 @@ export class EmDashRuntime {
 			return routeRegistry.invoke(pluginId, routeKey, { request, body });
 		}
 
-		// Check sandboxed (marketplace) plugins second
-		const sandboxedPlugin = this.findSandboxedPlugin(pluginId);
+		// Check sandboxed plugins second — provision on demand (build-time
+		// plugins are loaded lazily; marketplace/registry are already loaded).
+		const sandboxedPlugin = await this.ensureSandboxedPluginLoaded(pluginId);
 		if (sandboxedPlugin) {
 			return this.handleSandboxedRoute(sandboxedPlugin, path, request);
 		}
@@ -3041,9 +3174,12 @@ export class EmDashRuntime {
 	): Promise<Record<string, unknown>> {
 		let result = content;
 
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [id] = pluginKey.split(":");
-			if (!id || !this.isPluginEnabled(id)) continue;
+		// Sequential to preserve the mutation chain order across plugins.
+		for (const cand of this.sandboxedCandidates()) {
+			if (!EmDashRuntime.candidateDeclaresHook(cand.hooks, "content:beforeSave")) continue;
+			if (!this.isPluginEnabled(cand.id)) continue;
+			const plugin = await this.ensureSandboxedPluginLoaded(cand.id);
+			if (!plugin) continue;
 
 			try {
 				const hookResult = await plugin.invokeHook("content:beforeSave", {
@@ -3060,7 +3196,7 @@ export class EmDashRuntime {
 					result = record;
 				}
 			} catch (error) {
-				console.error(`EmDash: Sandboxed plugin ${id} beforeSave hook error:`, error);
+				console.error(`EmDash: Sandboxed plugin ${cand.id} beforeSave hook error:`, error);
 			}
 		}
 
@@ -3068,9 +3204,11 @@ export class EmDashRuntime {
 	}
 
 	private async runSandboxedBeforeDelete(id: string, collection: string): Promise<boolean> {
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+		for (const cand of this.sandboxedCandidates()) {
+			if (!EmDashRuntime.candidateDeclaresHook(cand.hooks, "content:beforeDelete")) continue;
+			if (!this.isPluginEnabled(cand.id)) continue;
+			const plugin = await this.ensureSandboxedPluginLoaded(cand.id);
+			if (!plugin) continue;
 
 			try {
 				const result = await plugin.invokeHook("content:beforeDelete", {
@@ -3081,7 +3219,7 @@ export class EmDashRuntime {
 					return false;
 				}
 			} catch (error) {
-				console.error(`EmDash: Sandboxed plugin ${pluginId} beforeDelete hook error:`, error);
+				console.error(`EmDash: Sandboxed plugin ${cand.id} beforeDelete hook error:`, error);
 			}
 		}
 
@@ -3103,18 +3241,20 @@ export class EmDashRuntime {
 				}
 			}
 
-			// Sandboxed plugins
+			// Sandboxed plugins — load (on demand) and invoke only those that
+			// declare the hook.
 			const tasks: Promise<void>[] = [];
-			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-				const [id] = pluginKey.split(":");
-				if (!id || !this.isPluginEnabled(id)) continue;
-
+			for (const cand of this.sandboxedCandidates()) {
+				if (!EmDashRuntime.candidateDeclaresHook(cand.hooks, "content:afterSave")) continue;
+				if (!this.isPluginEnabled(cand.id)) continue;
 				tasks.push(
 					(async () => {
 						try {
+							const plugin = await this.ensureSandboxedPluginLoaded(cand.id);
+							if (!plugin) return;
 							await plugin.invokeHook("content:afterSave", { content, collection, isNew });
 						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err);
+							console.error(`EmDash: Sandboxed plugin ${cand.id} afterSave error:`, err);
 						}
 					})(),
 				);
@@ -3132,15 +3272,18 @@ export class EmDashRuntime {
 		}
 
 		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
-
-			plugin
-				.invokeHook("content:afterDelete", { id, collection, permanent })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err),
-				);
+		for (const cand of this.sandboxedCandidates()) {
+			if (!EmDashRuntime.candidateDeclaresHook(cand.hooks, "content:afterDelete")) continue;
+			if (!this.isPluginEnabled(cand.id)) continue;
+			void (async () => {
+				try {
+					const plugin = await this.ensureSandboxedPluginLoaded(cand.id);
+					if (!plugin) return;
+					await plugin.invokeHook("content:afterDelete", { id, collection, permanent });
+				} catch (err) {
+					console.error(`EmDash: Sandboxed plugin ${cand.id} afterDelete error:`, err);
+				}
+			})();
 		}
 	}
 
@@ -3157,16 +3300,17 @@ export class EmDashRuntime {
 
 			// Sandboxed plugins
 			const tasks: Promise<void>[] = [];
-			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-				const [pluginId] = pluginKey.split(":");
-				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
-
+			for (const cand of this.sandboxedCandidates()) {
+				if (!EmDashRuntime.candidateDeclaresHook(cand.hooks, "content:afterPublish")) continue;
+				if (!this.isPluginEnabled(cand.id)) continue;
 				tasks.push(
 					(async () => {
 						try {
+							const plugin = await this.ensureSandboxedPluginLoaded(cand.id);
+							if (!plugin) return;
 							await plugin.invokeHook("content:afterPublish", { content, collection });
 						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err);
+							console.error(`EmDash: Sandboxed plugin ${cand.id} afterPublish error:`, err);
 						}
 					})(),
 				);
@@ -3184,15 +3328,18 @@ export class EmDashRuntime {
 		}
 
 		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
-
-			plugin
-				.invokeHook("content:afterUnpublish", { content, collection })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterUnpublish error:`, err),
-				);
+		for (const cand of this.sandboxedCandidates()) {
+			if (!EmDashRuntime.candidateDeclaresHook(cand.hooks, "content:afterUnpublish")) continue;
+			if (!this.isPluginEnabled(cand.id)) continue;
+			void (async () => {
+				try {
+					const plugin = await this.ensureSandboxedPluginLoaded(cand.id);
+					if (!plugin) return;
+					await plugin.invokeHook("content:afterUnpublish", { content, collection });
+				} catch (err) {
+					console.error(`EmDash: Sandboxed plugin ${cand.id} afterUnpublish error:`, err);
+				}
+			})();
 		}
 	}
 
@@ -3280,10 +3427,15 @@ export class EmDashRuntime {
 			}
 		}
 
-		// Sandboxed plugins — metadata only, never fragments
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [id] = pluginKey.split(":");
-			if (!id || !this.isPluginEnabled(id)) continue;
+		// Sandboxed plugins — metadata only, never fragments. Only plugins that
+		// declare `page:metadata` are loaded; a plugin that contributes nothing
+		// to page metadata (e.g. a write-only webhook plugin) is never
+		// provisioned on a public render — keeping cold reads fast.
+		for (const cand of this.sandboxedCandidates()) {
+			if (!EmDashRuntime.candidateDeclaresHook(cand.hooks, "page:metadata")) continue;
+			if (!this.isPluginEnabled(cand.id)) continue;
+			const plugin = await this.ensureSandboxedPluginLoaded(cand.id);
+			if (!plugin) continue;
 
 			try {
 				const result = await plugin.invokeHook("page:metadata", { page });
@@ -3296,7 +3448,7 @@ export class EmDashRuntime {
 					}
 				}
 			} catch (error) {
-				console.error(`EmDash: Sandboxed plugin ${id} page:metadata error:`, error);
+				console.error(`EmDash: Sandboxed plugin ${cand.id} page:metadata error:`, error);
 			}
 		}
 

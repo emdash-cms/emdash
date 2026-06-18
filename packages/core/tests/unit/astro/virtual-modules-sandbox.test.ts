@@ -110,4 +110,40 @@ describe("generateSandboxedPluginsModule", () => {
 			),
 		).toThrow(/my-broken-plugin/);
 	});
+
+	it("emits declared hooks and routes from the sibling manifest.json", async () => {
+		await setupFakeProject("dist/sandbox-entry.mjs", "export default {};");
+		await writeFile(
+			join(tmpDir, "node_modules", "@test", "plugin", "dist", "manifest.json"),
+			JSON.stringify({
+				id: "test-plugin",
+				version: "1.0.0",
+				// Mix of object form (with priority) and bare-string form.
+				hooks: [{ name: "content:afterSave", priority: 210 }, "media:afterUpload"],
+				routes: ["status", { name: "settings" }],
+			}),
+		);
+
+		const result = generateSandboxedPluginsModule(
+			[descriptor({ entrypoint: "@test/plugin/sandbox" })],
+			tmpDir,
+		);
+
+		expect(result).toContain('hooks: ["content:afterSave","media:afterUpload"]');
+		expect(result).toContain('routes: ["status","settings"]');
+	});
+
+	it("emits undefined hooks/routes when no manifest.json is present (unknown)", async () => {
+		await setupFakeProject("dist/sandbox-entry.mjs", "export default {};");
+
+		const result = generateSandboxedPluginsModule(
+			[descriptor({ entrypoint: "@test/plugin/sandbox" })],
+			tmpDir,
+		);
+
+		// Unknown metadata → undefined, so the runtime loads the plugin to stay
+		// correct rather than skipping it as "declares no hooks".
+		expect(result).toContain("hooks: undefined");
+		expect(result).toContain("routes: undefined");
+	});
 });
