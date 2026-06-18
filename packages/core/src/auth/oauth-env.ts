@@ -17,6 +17,7 @@ async function loadCloudflareOAuthEnv(): Promise<Record<string, unknown>> {
 	// Keep the Cloudflare virtual module out of Node-target bundles. Otherwise
 	// non-Cloudflare builds try to resolve it before the runtime fallback runs.
 	// oxlint-disable-next-line no-new-func
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 	const dynamicImport = new Function("specifier", "return import(specifier);") as (
 		specifier: string,
 	) => Promise<unknown>;
