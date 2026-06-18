@@ -12,6 +12,7 @@ vi.mock("../../../src/loader.js", () => ({
 	getDb: vi.fn(),
 }));
 
+import { prefetchLayoutData } from "../../../src/astro/prefetch.js";
 import { getDb } from "../../../src/loader.js";
 import { getMenu } from "../../../src/menus/index.js";
 import { runWithContext } from "../../../src/request-context.js";
@@ -117,5 +118,22 @@ describe("getMenu collection-pattern request cache", () => {
 		await runWithContext({ editMode: false }, () => getMenu("footer"));
 
 		expect(collectionPatternQueries()).toHaveLength(1);
+	});
+
+	it("prefetchLayoutData warms menus so layout getMenu calls hit the cache", async () => {
+		await runWithContext({ editMode: false }, async () => {
+			// Eager prefetch discovers every menu name and warms them up front.
+			await prefetchLayoutData();
+
+			// Anything the layout reads afterwards must be served from the
+			// request cache the prefetch populated -- zero further queries.
+			queries = [];
+			const primary = await getMenu("primary");
+			const footer = await getMenu("footer");
+
+			expect(primary?.items.map((i) => i.url)).toEqual(["/blog/hello"]);
+			expect(footer?.items.map((i) => i.url)).toEqual(["/blog/hello"]);
+			expect(queries).toHaveLength(0);
+		});
 	});
 });

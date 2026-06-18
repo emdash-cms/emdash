@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Guest"
 msgstr " - Invitado"
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Linked"
 msgstr " - Vinculado"
 
@@ -35,7 +35,7 @@ msgstr " (se abre en una nueva ventana)"
 msgid " (selected)"
 msgstr " (seleccionado)"
 
-#: packages/admin/src/routes/bylines.tsx:700
+#: packages/admin/src/routes/bylines.tsx:707
 msgid "-- Select --"
 msgstr ""
 
@@ -744,7 +744,7 @@ msgstr "Todo"
 msgid "All authors"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:406
+#: packages/admin/src/routes/bylines.tsx:413
 msgid "All bylines"
 msgstr "Todas las firmas"
 
@@ -1130,7 +1130,7 @@ msgstr "Antes de enviar:"
 msgid "Bing Verification"
 msgstr "Verificación de Bing"
 
-#: packages/admin/src/routes/bylines.tsx:490
+#: packages/admin/src/routes/bylines.tsx:497
 msgid "Bio"
 msgstr "Biografía"
 
@@ -1181,13 +1181,13 @@ msgid "Bullet List"
 msgstr "Lista de viñetas"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:377
+#: packages/admin/src/routes/bylines.tsx:384
 msgid "Byline schema"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:993
 #: packages/admin/src/components/Sidebar.tsx:363
-#: packages/admin/src/routes/bylines.tsx:369
+#: packages/admin/src/routes/bylines.tsx:376
 msgid "Bylines"
 msgstr "Firmas"
 
@@ -1711,7 +1711,7 @@ msgstr "No se pudo detectar WordPress"
 msgid "Couldn't load byline fields."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:541
+#: packages/admin/src/routes/bylines.tsx:548
 msgid "Couldn't load custom fields."
 msgstr ""
 
@@ -1738,7 +1738,7 @@ msgstr "Contar"
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:479
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Create"
 msgstr "Crear"
 
@@ -1769,7 +1769,7 @@ msgid "Create an account"
 msgstr "Crea una cuenta"
 
 #: packages/admin/src/components/ContentEditor.tsx:2001
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Create byline"
 msgstr "Crear firma"
 
@@ -2055,8 +2055,8 @@ msgstr "Definido en código"
 #: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:636
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:582
-#: packages/admin/src/routes/bylines.tsx:618
+#: packages/admin/src/routes/bylines.tsx:589
+#: packages/admin/src/routes/bylines.tsx:625
 msgid "Delete"
 msgstr "Borrar"
 
@@ -2101,7 +2101,7 @@ msgstr "¿Eliminar {0}?"
 msgid "Delete byline field?"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:616
+#: packages/admin/src/routes/bylines.tsx:623
 msgid "Delete Byline?"
 msgstr "¿Eliminar firma?"
 
@@ -2204,7 +2204,7 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:637
-#: packages/admin/src/routes/bylines.tsx:619
+#: packages/admin/src/routes/bylines.tsx:626
 msgid "Deleting..."
 msgstr "Eliminando..."
 
@@ -2359,7 +2359,7 @@ msgstr "Mostrar un menú de navegación"
 
 #: packages/admin/src/components/ContentEditor.tsx:2004
 #: packages/admin/src/components/ContentEditor.tsx:2066
-#: packages/admin/src/routes/bylines.tsx:475
+#: packages/admin/src/routes/bylines.tsx:482
 msgid "Display name"
 msgstr "Nombre para mostrar"
 
@@ -2532,7 +2532,7 @@ msgstr "Editar"
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Edit {0}"
 msgstr "Editar {0}"
 
@@ -3133,7 +3133,7 @@ msgid "Failed to load allowed domains"
 msgstr "No se pudieron cargar los dominios permitidos"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:359
+#: packages/admin/src/routes/bylines.tsx:366
 msgid "Failed to load bylines: {0}"
 msgstr "Error al cargar las firmas: {0}"
 
@@ -3476,7 +3476,7 @@ msgstr "Filtrar por estado"
 msgid "Filter by type"
 msgstr "Filtrar por tipo"
 
-#: packages/admin/src/routes/bylines.tsx:402
+#: packages/admin/src/routes/bylines.tsx:409
 msgid "Filter byline type"
 msgstr "Filtrar por tipo de firma"
 
@@ -3558,11 +3558,11 @@ msgstr "Vista de cuadrícula"
 msgid "Group (optional)"
 msgstr "Grupo (opcional)"
 
-#: packages/admin/src/routes/bylines.tsx:549
+#: packages/admin/src/routes/bylines.tsx:556
 msgid "Guest byline"
 msgstr "Firma invitada"
 
-#: packages/admin/src/routes/bylines.tsx:407
+#: packages/admin/src/routes/bylines.tsx:414
 msgid "Guest only"
 msgstr "Solo invitado"
 
@@ -4109,11 +4109,11 @@ msgstr "Enlace a otro elemento de contenido"
 msgid "Linked Accounts ({0})"
 msgstr "Cuentas vinculadas ({0})"
 
-#: packages/admin/src/routes/bylines.tsx:408
+#: packages/admin/src/routes/bylines.tsx:415
 msgid "Linked only"
 msgstr "Solo vinculado"
 
-#: packages/admin/src/routes/bylines.tsx:500
+#: packages/admin/src/routes/bylines.tsx:507
 msgid "Linked user"
 msgstr "Usuario vinculado"
 
@@ -4137,7 +4137,7 @@ msgstr "Vista en vivo"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Load more"
 msgstr "Cargar más"
 
@@ -4230,7 +4230,7 @@ msgstr "Cargando widgets..."
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
 #: packages/admin/src/components/WelcomeModal.tsx:143
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Loading..."
 msgstr "Cargando..."
 
@@ -4623,7 +4623,7 @@ msgstr "Nunca"
 msgid "new"
 msgstr "nuevo"
 
-#: packages/admin/src/routes/bylines.tsx:420
+#: packages/admin/src/routes/bylines.tsx:427
 msgid "New"
 msgstr "Nuevo"
 
@@ -4756,7 +4756,7 @@ msgstr ""
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "No hay firmas disponibles en {entryLocale}. Crea una variante desde la página de Firmas antes de acreditar una en esta entrada."
 
-#: packages/admin/src/routes/bylines.tsx:446
+#: packages/admin/src/routes/bylines.tsx:453
 msgid "No bylines found"
 msgstr "No se han encontrado firmas"
 
@@ -4845,7 +4845,7 @@ msgstr "Aún no hay artículos"
 msgid "No limit"
 msgstr "Sin límite"
 
-#: packages/admin/src/routes/bylines.tsx:511
+#: packages/admin/src/routes/bylines.tsx:518
 msgid "No linked user"
 msgstr "Sin usuario vinculado"
 
@@ -5899,7 +5899,7 @@ msgstr "Misma ventana"
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Save"
 msgstr "Guardar"
 
@@ -5970,7 +5970,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Saving..."
 msgstr "Salvando..."
 
@@ -6096,7 +6096,7 @@ msgid "Search by name or email..."
 msgstr "Buscar por nombre o correo..."
 
 #: packages/admin/src/components/ContentEditor.tsx:1898
-#: packages/admin/src/routes/bylines.tsx:395
+#: packages/admin/src/routes/bylines.tsx:402
 msgid "Search bylines"
 msgstr "Buscar firmas"
 
@@ -6617,7 +6617,7 @@ msgstr "Saltado"
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:398
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:480
+#: packages/admin/src/routes/bylines.tsx:487
 msgid "Slug"
 msgstr "Slug"
 
@@ -6981,7 +6981,7 @@ msgstr "Esta regla de redirección se eliminará permanentemente."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Esta versión requiere un entorno más reciente que el que ejecuta tu sitio actualmente. Actualiza antes de instalar."
 
-#: packages/admin/src/routes/bylines.tsx:617
+#: packages/admin/src/routes/bylines.tsx:624
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "Esto elimina el perfil de la firma. Se quitarán los enlaces de firma del contenido y se borrarán los punteros principales."
 
@@ -7726,7 +7726,7 @@ msgstr "WebAuthn no es compatible con este navegador"
 msgid "Website"
 msgstr "Sitio web"
 
-#: packages/admin/src/routes/bylines.tsx:485
+#: packages/admin/src/routes/bylines.tsx:492
 msgid "Website URL"
 msgstr "URL del sitio web"
 
@@ -7857,7 +7857,7 @@ msgstr "Puedes crear y editar tu propio contenido."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "Puede gestionar contenido, medios, menús y taxonomías."
 
-#: packages/admin/src/routes/bylines.tsx:543
+#: packages/admin/src/routes/bylines.tsx:550
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr ""
 

@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Guest"
 msgstr " - Gjest"
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Linked"
 msgstr " - Lenket"
 
@@ -35,7 +35,7 @@ msgstr " (åpnes i nytt vindu)"
 msgid " (selected)"
 msgstr " (valgt)"
 
-#: packages/admin/src/routes/bylines.tsx:700
+#: packages/admin/src/routes/bylines.tsx:707
 msgid "-- Select --"
 msgstr "-- Velg --"
 
@@ -744,7 +744,7 @@ msgstr "Alle"
 msgid "All authors"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:406
+#: packages/admin/src/routes/bylines.tsx:413
 msgid "All bylines"
 msgstr "Alle bylines"
 
@@ -1130,7 +1130,7 @@ msgstr "Før sending:"
 msgid "Bing Verification"
 msgstr "Bing-verifisering"
 
-#: packages/admin/src/routes/bylines.tsx:490
+#: packages/admin/src/routes/bylines.tsx:497
 msgid "Bio"
 msgstr "Biografi"
 
@@ -1181,13 +1181,13 @@ msgid "Bullet List"
 msgstr "Punktliste"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:377
+#: packages/admin/src/routes/bylines.tsx:384
 msgid "Byline schema"
 msgstr "Byline-skjema"
 
 #: packages/admin/src/components/ContentEditor.tsx:993
 #: packages/admin/src/components/Sidebar.tsx:363
-#: packages/admin/src/routes/bylines.tsx:369
+#: packages/admin/src/routes/bylines.tsx:376
 msgid "Bylines"
 msgstr "Bylines"
 
@@ -1711,7 +1711,7 @@ msgstr "Kunne ikke oppdage WordPress"
 msgid "Couldn't load byline fields."
 msgstr "Kunne ikke laste byline-felt."
 
-#: packages/admin/src/routes/bylines.tsx:541
+#: packages/admin/src/routes/bylines.tsx:548
 msgid "Couldn't load custom fields."
 msgstr "Kunne ikke laste egendefinerte felt."
 
@@ -1738,7 +1738,7 @@ msgstr "Antall"
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:479
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Create"
 msgstr "Opprett"
 
@@ -1769,7 +1769,7 @@ msgid "Create an account"
 msgstr "Opprett en konto"
 
 #: packages/admin/src/components/ContentEditor.tsx:2001
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Create byline"
 msgstr "Opprett byline"
 
@@ -2055,8 +2055,8 @@ msgstr "Definert i kode"
 #: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:636
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:582
-#: packages/admin/src/routes/bylines.tsx:618
+#: packages/admin/src/routes/bylines.tsx:589
+#: packages/admin/src/routes/bylines.tsx:625
 msgid "Delete"
 msgstr "Slett"
 
@@ -2101,7 +2101,7 @@ msgstr "Slette {0}?"
 msgid "Delete byline field?"
 msgstr "Slette byline-felt?"
 
-#: packages/admin/src/routes/bylines.tsx:616
+#: packages/admin/src/routes/bylines.tsx:623
 msgid "Delete Byline?"
 msgstr "Slette byline?"
 
@@ -2204,7 +2204,7 @@ msgstr "Sletting av \"{0}\" fjerner også {1, plural, one {# lagret verdi} other
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:637
-#: packages/admin/src/routes/bylines.tsx:619
+#: packages/admin/src/routes/bylines.tsx:626
 msgid "Deleting..."
 msgstr "Sletter …"
 
@@ -2359,7 +2359,7 @@ msgstr "Vis en navigasjonsmeny"
 
 #: packages/admin/src/components/ContentEditor.tsx:2004
 #: packages/admin/src/components/ContentEditor.tsx:2066
-#: packages/admin/src/routes/bylines.tsx:475
+#: packages/admin/src/routes/bylines.tsx:482
 msgid "Display name"
 msgstr "Visningsnavn"
 
@@ -2532,7 +2532,7 @@ msgstr "Rediger"
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Edit {0}"
 msgstr "Rediger {0}"
 
@@ -3136,7 +3136,7 @@ msgid "Failed to load allowed domains"
 msgstr "Kunne ikke laste inn tillatte domener"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:359
+#: packages/admin/src/routes/bylines.tsx:366
 msgid "Failed to load bylines: {0}"
 msgstr "Kunne ikke laste inn bylines: {0}"
 
@@ -3479,7 +3479,7 @@ msgstr "Filtrer etter status"
 msgid "Filter by type"
 msgstr "Filtrer etter type"
 
-#: packages/admin/src/routes/bylines.tsx:402
+#: packages/admin/src/routes/bylines.tsx:409
 msgid "Filter byline type"
 msgstr "Filtrer byline-type"
 
@@ -3561,11 +3561,11 @@ msgstr "Rutenettvisning"
 msgid "Group (optional)"
 msgstr "Gruppe (valgfri)"
 
-#: packages/admin/src/routes/bylines.tsx:549
+#: packages/admin/src/routes/bylines.tsx:556
 msgid "Guest byline"
 msgstr "Gjestebyline"
 
-#: packages/admin/src/routes/bylines.tsx:407
+#: packages/admin/src/routes/bylines.tsx:414
 msgid "Guest only"
 msgstr "Kun gjest"
 
@@ -4112,11 +4112,11 @@ msgstr "Lenke til et annet innholdselement"
 msgid "Linked Accounts ({0})"
 msgstr "Tilknyttede kontoer ({0})"
 
-#: packages/admin/src/routes/bylines.tsx:408
+#: packages/admin/src/routes/bylines.tsx:415
 msgid "Linked only"
 msgstr "Kun tilknyttet"
 
-#: packages/admin/src/routes/bylines.tsx:500
+#: packages/admin/src/routes/bylines.tsx:507
 msgid "Linked user"
 msgstr "Tilknyttet bruker"
 
@@ -4140,7 +4140,7 @@ msgstr "Live-visning"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Load more"
 msgstr "Last inn mer"
 
@@ -4233,7 +4233,7 @@ msgstr "Laster moduler..."
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
 #: packages/admin/src/components/WelcomeModal.tsx:143
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Loading..."
 msgstr "Laster..."
 
@@ -4626,7 +4626,7 @@ msgstr "Aldri"
 msgid "new"
 msgstr "ny"
 
-#: packages/admin/src/routes/bylines.tsx:420
+#: packages/admin/src/routes/bylines.tsx:427
 msgid "New"
 msgstr "Ny"
 
@@ -4759,7 +4759,7 @@ msgstr "Ingen byline-felt ennå."
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "Ingen bylines tilgjengelig på {entryLocale}. Opprett en variant fra Bylines-siden før du krediterer en på denne oppføringen."
 
-#: packages/admin/src/routes/bylines.tsx:446
+#: packages/admin/src/routes/bylines.tsx:453
 msgid "No bylines found"
 msgstr "Fant ingen bylines"
 
@@ -4848,7 +4848,7 @@ msgstr "Ingen elementer ennå"
 msgid "No limit"
 msgstr "Ingen grense"
 
-#: packages/admin/src/routes/bylines.tsx:511
+#: packages/admin/src/routes/bylines.tsx:518
 msgid "No linked user"
 msgstr "Ingen tilknyttet bruker"
 
@@ -5902,7 +5902,7 @@ msgstr "Samme vindu"
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Save"
 msgstr "Lagre"
 
@@ -5973,7 +5973,7 @@ msgstr "Lagret \"{0}\"."
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Saving..."
 msgstr "Lagrer …"
 
@@ -6099,7 +6099,7 @@ msgid "Search by name or email..."
 msgstr "Søk etter navn eller e-post …"
 
 #: packages/admin/src/components/ContentEditor.tsx:1898
-#: packages/admin/src/routes/bylines.tsx:395
+#: packages/admin/src/routes/bylines.tsx:402
 msgid "Search bylines"
 msgstr "Søk i bylines"
 
@@ -6620,7 +6620,7 @@ msgstr "Hoppet over"
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:398
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:480
+#: packages/admin/src/routes/bylines.tsx:487
 msgid "Slug"
 msgstr "Slug"
 
@@ -6984,7 +6984,7 @@ msgstr "Denne omdirigeringsregelen vil bli fjernet permanent."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Denne versjonen krever et nyere miljø enn nettstedet ditt kjører på nå. Oppgrader før du installerer."
 
-#: packages/admin/src/routes/bylines.tsx:617
+#: packages/admin/src/routes/bylines.tsx:624
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "Dette fjerner forfatterprofilen. Lenker til forfattersignaturer i innhold fjernes, og hovedpekere tømmes."
 
@@ -7729,7 +7729,7 @@ msgstr "WebAuthn støttes ikke i denne nettleseren"
 msgid "Website"
 msgstr "Nettsted"
 
-#: packages/admin/src/routes/bylines.tsx:485
+#: packages/admin/src/routes/bylines.tsx:492
 msgid "Website URL"
 msgstr "Nettsted-URL"
 
@@ -7860,7 +7860,7 @@ msgstr "Du kan opprette og redigere ditt eget innhold."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "Du kan administrere innhold, medier, menyer og taksonomier."
 
-#: packages/admin/src/routes/bylines.tsx:543
+#: packages/admin/src/routes/bylines.tsx:550
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "Du kan fortsatt redigere de faste feltene over. Lagring berører ikke lagrede verdier for tilpassede felt."
 
