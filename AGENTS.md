@@ -16,6 +16,8 @@ For human-facing contributor info (setup, repo layout, PR policy, changesets, i1
 
 ## Workflow
 
+**CRITICAL: If this repository is being worked from a fork, check upstream before doing substantive work.** Run `git fetch upstream --prune` and compare your branch or `origin/main` against `upstream/main` first. If the fork is substantially behind, sync or explicitly account for that drift before editing code.
+
 Run `pnpm lint:json | jq '.diagnostics | length'` before starting and confirm it's clean -- if it's failing after your edits, your changes caused it.
 
 During work:

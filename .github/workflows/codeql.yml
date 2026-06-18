@@ -76,7 +76,14 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           CHANGED: ${{ steps.changes.outputs.code }}
+          REPOSITORY: ${{ github.repository }}
         run: |
+          # Fork sync PRs should not fail on upstream's existing alert backlog.
+          if [ "$EVENT_NAME" = "pull_request" ] && [ "$REPOSITORY" != "emdash-cms/emdash" ]; then
+            echo "analyze=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if [ "$EVENT_NAME" != "pull_request" ] || [ "$CHANGED" = "true" ]; then
             echo "analyze=true" >> "$GITHUB_OUTPUT"
           else

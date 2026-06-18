@@ -31,7 +31,30 @@ jobs:
       id-token: write
       pull-requests: write
     steps:
+      - name: Check release automation availability
+        id: config
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ "${{ github.repository }}" != "emdash-cms/emdash" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Skip release automation outside canonical repo
+        if: steps.config.outputs.enabled != 'true'
+        run: echo "Release automation is only enabled on emdash-cms/emdash."
+
       - name: Generate token
+        if: steps.config.outputs.enabled == 'true'
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
@@ -39,6 +62,7 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Checkout
+        if: steps.config.outputs.enabled == 'true'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
@@ -48,9 +72,11 @@ jobs:
           persist-credentials: true
 
       - name: Setup pnpm
+        if: steps.config.outputs.enabled == 'true'
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
 
       - name: Setup Node
+        if: steps.config.outputs.enabled == 'true'
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 24
@@ -58,16 +84,19 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
+        if: steps.config.outputs.enabled == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Build packages
+        if: steps.config.outputs.enabled == 'true'
         run: pnpm build
 
       - name: Block 1.x releases (we are in 0.x)
+        if: steps.config.outputs.enabled == 'true'
         run: node .github/scripts/check-no-major.mjs
 
       - name: Create Release Pull Request or Publish
-        if: ${{ !inputs.publish-only }}
+        if: ${{ steps.config.outputs.enabled == 'true' && !inputs.publish-only }}
         id: changesets
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
@@ -85,7 +114,7 @@ jobs:
       # below neither runs changesets/action nor creates GitHub releases, so
       # assets for that path must be backfilled manually.
       - name: Attach plugin tarballs to releases
-        if: ${{ steps.changesets.outputs.published == 'true' }}
+        if: ${{ steps.config.outputs.enabled == 'true' && steps.changesets.outputs.published == 'true' }}
         run: node .github/scripts/attach-plugin-tarballs.mjs
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -93,15 +122,15 @@ jobs:
           PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
 
       - name: Publish (manual)
-        if: ${{ inputs.publish-only }}
+        if: ${{ steps.config.outputs.enabled == 'true' && inputs.publish-only }}
         run: node .github/scripts/release.mjs publish
 
   sync-templates:
     name: Sync Templates
     needs: release
     if: >-
-      needs.release.outputs.published == 'true' ||
-      inputs.publish-only
+      github.repository == 'emdash-cms/emdash' &&
+      (needs.release.outputs.published == 'true' || inputs.publish-only)
     permissions:
       contents: read
     uses: ./.github/workflows/sync-templates.yml
