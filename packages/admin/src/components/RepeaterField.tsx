@@ -5,7 +5,7 @@
  * Items can be added, removed, and reordered via drag-and-drop.
  */
 
-import { Button, Input, InputArea, Select, Switch } from "@cloudflare/kumo";
+import { Button, Combobox, Input, InputArea, Select, Switch } from "@cloudflare/kumo";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import {
@@ -357,16 +357,28 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 				/>
 			);
 		case "select":
+			// Searchable dropdown (Kumo Combobox) so long option lists in a
+			// repeater row stay usable. Falls back gracefully for short lists.
 			return (
-				<Select
+				<Combobox
 					label={subField.label}
-					value={typeof value === "string" ? value : ""}
-					onValueChange={(v) => onChange(v ?? "")}
-					items={{
-						"": t`Select...`,
-						...Object.fromEntries((subField.options ?? []).map((opt) => [opt, opt])),
-					}}
-				/>
+					value={typeof value === "string" && value ? value : null}
+					onValueChange={(v) => onChange((v as string | null) ?? "")}
+					items={subField.options ?? []}
+				>
+					<Combobox.TriggerValue placeholder={t`Select...`} />
+					<Combobox.Content>
+						<Combobox.Input placeholder={t`Search...`} />
+						<Combobox.Empty />
+						<Combobox.List>
+							{(opt: string) => (
+								<Combobox.Item key={opt} value={opt}>
+									{opt}
+								</Combobox.Item>
+							)}
+						</Combobox.List>
+					</Combobox.Content>
+				</Combobox>
 			);
 		case "image":
 			return (
