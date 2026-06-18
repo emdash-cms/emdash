@@ -62,6 +62,7 @@ import type { EmDashConfig } from "./integration/runtime.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { prefetchLayoutData } from "./prefetch.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
+import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
 /**
@@ -416,7 +417,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// turns normal traffic into a flood of KV read misses. See #733.
 		const hasSessionCookie = cookies.get("astro-session") !== undefined;
 		const sessionUser =
-			context.isPrerendered || !hasSessionCookie ? null : await context.session?.get("user");
+			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
 
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
