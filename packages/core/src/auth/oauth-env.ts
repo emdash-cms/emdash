@@ -14,9 +14,8 @@ function hasEnv(value: unknown): value is { env: Record<string, unknown> } {
 }
 
 async function loadCloudflareOAuthEnv(): Promise<Record<string, unknown>> {
-	const dynamicImport = async (specifier: string): Promise<unknown> =>
-		new Function("specifier", "return import(specifier);")(specifier);
-	const module = await dynamicImport("cloudflare:workers");
+	const specifier = "cloudflare:workers";
+	const module = await import(/* @vite-ignore */ specifier);
 	return hasEnv(module) ? module.env : {};
 }
 
