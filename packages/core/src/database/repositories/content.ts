@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { slugify } from "../../utils/slugify.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -1034,6 +1035,33 @@ export class ContentRepository {
 		`.execute(this.db);
 
 		return result.rows.map((row) => this.mapRow(type, row));
+	}
+
+	/**
+	 * Batch variant of {@link findTranslations}: every (non-deleted) locale
+	 * variant for any of `translationGroups`, in one `WHERE translation_group IN
+	 * (...)` query chunked at `SQL_BATCH_SIZE` for D1's bind-parameter limit.
+	 * Lets callers resolve many edge groups without an N+1 per group. The caller
+	 * groups the flat result by `translationGroup` itself.
+	 */
+	async findTranslationsForGroups(
+		type: string,
+		translationGroups: string[],
+	): Promise<ContentItem[]> {
+		if (translationGroups.length === 0) return [];
+		const tableName = getTableName(type);
+
+		const items: ContentItem[] = [];
+		for (const chunk of chunks(translationGroups, SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE translation_group IN (${sql.join(chunk)})
+				AND deleted_at IS NULL
+				ORDER BY locale ASC
+			`.execute(this.db);
+			for (const row of result.rows) items.push(this.mapRow(type, row));
+		}
+		return items;
 	}
 
 	/**

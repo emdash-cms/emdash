@@ -16,3 +16,4 @@ export * from "./widgets.js";
 export * from "./redirects.js";
 export * from "./bylines.js";
 export * from "./byline-fields.js";
+export * from "./relations.js";
