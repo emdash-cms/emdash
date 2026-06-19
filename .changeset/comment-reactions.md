@@ -2,14 +2,10 @@
 "emdash": minor
 ---
 
-Add comment reactions (Tier 1 of the best-in-class comments RFC).
+Add comment reactions
 
 Visitors can now react to approved comments (positive-only "like" by default,
-extensible to other reaction types). Reactions are stored first-party in a new
-`_emdash_comment_reactions` table, deduped per voter via a salted IP hash (the
-same privacy primitive as comment `ip_hash`), and exposed through a public,
-honeypot- and rate-limited endpoint at
-`POST/GET /_emdash/api/comments/:collection/:contentId/reactions`.
+extensible to other reaction types). Reactions are deduped per voter via IP hash.
 
 The `<Comments>` component gains two opt-in props:
 
