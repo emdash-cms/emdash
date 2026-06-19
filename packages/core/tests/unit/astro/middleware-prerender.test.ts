@@ -38,6 +38,7 @@ const {
 			configuredPlugins: [],
 			handleContentList: ok,
 			handleContentGet: ok,
+			handleContentAuthors: ok,
 			handleContentCreate: ok,
 			handleContentUpdate: ok,
 			handleContentDelete: ok,
@@ -232,6 +233,10 @@ describe("astro middleware prerendered routes", () => {
 		const emdash = locals.emdash as Record<string, unknown>;
 		expect(typeof emdash.handlePluginApiRoute).toBe("function");
 		expect(typeof emdash.handlePublicPluginApiRoute).toBe("function");
+		// Regression for #1462: the author filter route reads
+		// `locals.emdash.handleContentAuthors`; it must be wired onto the
+		// runtime helpers object or every `/authors` request 500s.
+		expect(typeof emdash.handleContentAuthors).toBe("function");
 	});
 
 	it("does not access context.session when prerendering public pages", async () => {
