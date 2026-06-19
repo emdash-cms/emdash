@@ -248,6 +248,10 @@ function pickVariant(items: ContentItem[], locale: string | null): ContentItem |
  * rather than a `findTranslations` per edge, so a parent with N children costs
  * a constant number of queries, not N+1. Edge order (the caller's `sort_order`)
  * is preserved by iterating `edges`.
+ *
+ * `includeDrafts` is false for callers without `content:read_drafts`: the load
+ * is restricted to published entries so a draft/scheduled entry referenced by an
+ * edge is skipped exactly like a dangling one, never leaking its id/slug/locale.
  */
 async function resolveEntries(
 	content: ContentRepository,
@@ -255,9 +259,12 @@ async function resolveEntries(
 	edges: ContentReference[],
 	pick: (e: ContentReference) => string,
 	locale: string | null,
+	includeDrafts: boolean,
 ): Promise<EntryRef[]> {
 	const groups = edges.map(pick);
-	const all = await content.findTranslationsForGroups(collection, groups);
+	const all = await content.findTranslationsForGroups(collection, groups, {
+		publishedOnly: !includeDrafts,
+	});
 
 	// Group the flat variant list by translation_group so each edge can pick its
 	// own locale variant.
@@ -295,6 +302,7 @@ export async function handleReferenceChildrenGet(
 	entryId: string,
 	relation: string,
 	page: PageOptions = {},
+	includeDrafts = false,
 ): Promise<ApiResult<{ children: EntryRef[]; nextCursor?: string }>> {
 	try {
 		const repo = new RelationRepository(db);
@@ -314,7 +322,10 @@ export async function handleReferenceChildrenGet(
 		}
 
 		const entry = await content.findByIdOrSlug(collection, entryId);
-		if (!entry?.translationGroup) {
+		// A caller without draft access must not anchor on a non-published entry —
+		// return NOT_FOUND (not 403) so they can't probe draft ids by status code,
+		// mirroring the single-item content read.
+		if (!entry?.translationGroup || (!includeDrafts && entry.status !== "published")) {
 			return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
 		}
 
@@ -325,6 +336,7 @@ export async function handleReferenceChildrenGet(
 			edges.items,
 			(e) => e.childGroup,
 			entry.locale,
+			includeDrafts,
 		);
 		return { success: true, data: { children, nextCursor: edges.nextCursor } };
 	} catch (error) {
@@ -361,11 +373,14 @@ export async function handleReferenceChildrenSet(
 			return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
 		}
 
-		// Resolve each child within the relation's child_collection. A child id
-		// that does not resolve there fails collection-agreement (invariant 3).
+		// Resolve every child within the relation's child_collection in one batch
+		// (constant queries, not an N+1 of point lookups for a set up to 1000). A
+		// child id that does not resolve there fails collection-agreement
+		// (invariant 3); order is preserved by iterating the caller's `childIds`.
+		const resolvedChildren = await content.findManyByIdOrSlug(rel.childCollection, childIds);
 		const childGroups: string[] = [];
 		for (const childId of childIds) {
-			const child = await content.findByIdOrSlug(rel.childCollection, childId);
+			const child = resolvedChildren.get(childId);
 			if (!child?.translationGroup) {
 				return {
 					success: false,
@@ -380,7 +395,9 @@ export async function handleReferenceChildrenSet(
 
 		await repo.setChildren(rel.translationGroup, entry.translationGroup, childGroups);
 
-		// Return the first page of the new set, mirroring the GET shape.
+		// Return the first page of the new set, mirroring the GET shape. The actor
+		// holds an edit permission (gated by the route), so draft children are
+		// included in the echo.
 		const edges = await repo.getChildrenPage(rel.translationGroup, entry.translationGroup);
 		const children = await resolveEntries(
 			content,
@@ -388,6 +405,7 @@ export async function handleReferenceChildrenSet(
 			edges.items,
 			(e) => e.childGroup,
 			entry.locale,
+			true,
 		);
 		return { success: true, data: { children, nextCursor: edges.nextCursor } };
 	} catch {
@@ -404,6 +422,7 @@ export async function handleReferenceParentsGet(
 	entryId: string,
 	relation: string,
 	page: PageOptions = {},
+	includeDrafts = false,
 ): Promise<ApiResult<{ parents: EntryRef[]; nextCursor?: string }>> {
 	try {
 		const repo = new RelationRepository(db);
@@ -423,7 +442,9 @@ export async function handleReferenceParentsGet(
 		}
 
 		const entry = await content.findByIdOrSlug(collection, entryId);
-		if (!entry?.translationGroup) {
+		// Same draft-anchor guard as the children read: a non-draft-reader anchoring
+		// on an unpublished entry gets NOT_FOUND, not its backlinks.
+		if (!entry?.translationGroup || (!includeDrafts && entry.status !== "published")) {
 			return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
 		}
 
@@ -434,6 +455,7 @@ export async function handleReferenceParentsGet(
 			edges.items,
 			(e) => e.parentGroup,
 			entry.locale,
+			includeDrafts,
 		);
 		return { success: true, data: { parents, nextCursor: edges.nextCursor } };
 	} catch (error) {

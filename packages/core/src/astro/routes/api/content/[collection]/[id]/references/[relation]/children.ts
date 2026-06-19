@@ -5,6 +5,7 @@
  * POST /_emdash/api/content/:collection/:id/references/:relation/children
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
@@ -34,10 +35,14 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	if (isParseError(query)) return query;
 
 	try {
-		const result = await handleReferenceChildrenGet(emdash.db, collection, id, relation, {
-			limit: query.limit,
-			cursor: query.cursor,
-		});
+		const result = await handleReferenceChildrenGet(
+			emdash.db,
+			collection,
+			id,
+			relation,
+			{ limit: query.limit, cursor: query.cursor },
+			hasPermission(user, "content:read_drafts"),
+		);
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to get references", "REFERENCES_GET_ERROR");

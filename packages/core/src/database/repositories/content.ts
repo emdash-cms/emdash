@@ -2,6 +2,7 @@ import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -1043,25 +1044,98 @@ export class ContentRepository {
 	 * (...)` query chunked at `SQL_BATCH_SIZE` for D1's bind-parameter limit.
 	 * Lets callers resolve many edge groups without an N+1 per group. The caller
 	 * groups the flat result by `translationGroup` itself.
+	 *
+	 * `publishedOnly` restricts the result to `status = 'published'` — reference
+	 * reads pass this for callers without `content:read_drafts` so draft/scheduled
+	 * entries never leak through an edge traversal.
+	 *
+	 * A reference edge stores only a collection slug (no SQL FK), so the table may
+	 * have been dropped since the edge was written. That is a tolerated dangling
+	 * state, not an error: a missing table resolves to no rows, mirroring how the
+	 * content read handlers treat `isMissingTableError`.
 	 */
 	async findTranslationsForGroups(
 		type: string,
 		translationGroups: string[],
+		options: { publishedOnly?: boolean } = {},
 	): Promise<ContentItem[]> {
 		if (translationGroups.length === 0) return [];
 		const tableName = getTableName(type);
+		const publishedFilter = options.publishedOnly ? sql`AND status = 'published'` : sql``;
 
 		const items: ContentItem[] = [];
-		for (const chunk of chunks(translationGroups, SQL_BATCH_SIZE)) {
-			const result = await sql<Record<string, unknown>>`
+		try {
+			for (const chunk of chunks(translationGroups, SQL_BATCH_SIZE)) {
+				const result = await sql<Record<string, unknown>>`
+					SELECT * FROM ${sql.ref(tableName)}
+					WHERE translation_group IN (${sql.join(chunk)})
+					AND deleted_at IS NULL
+					${publishedFilter}
+					ORDER BY locale ASC
+				`.execute(this.db);
+				for (const row of result.rows) items.push(this.mapRow(type, row));
+			}
+		} catch (error) {
+			if (isMissingTableError(error)) return [];
+			throw error;
+		}
+		return items;
+	}
+
+	/**
+	 * Batch variant of {@link findByIdOrSlug}: resolve many identifiers (each an
+	 * id OR a slug) within `type` in a constant number of queries — one `WHERE id
+	 * IN (...)` and one `WHERE slug IN (...)`, each chunked at `SQL_BATCH_SIZE`.
+	 * Returns a map from the input identifier to its resolved item; identifiers
+	 * that match nothing are absent. Used on write paths that accept a list of
+	 * references, so a single request doesn't fan out to an N+1 of point lookups.
+	 *
+	 * Resolution mirrors {@link findByIdOrSlug}: a ULID-shaped identifier prefers
+	 * the id match and falls back to slug; anything else prefers the slug match
+	 * and falls back to id. Slug matches collapse to the lowest-locale variant
+	 * (`ORDER BY locale ASC`), matching the slug-without-locale lookup.
+	 */
+	async findManyByIdOrSlug(type: string, identifiers: string[]): Promise<Map<string, ContentItem>> {
+		const resolved = new Map<string, ContentItem>();
+		const unique = [...new Set(identifiers)];
+		if (unique.length === 0) return resolved;
+
+		const tableName = getTableName(type);
+		const byId = new Map<string, ContentItem>();
+		const bySlug = new Map<string, ContentItem>();
+
+		for (const chunk of chunks(unique, SQL_BATCH_SIZE)) {
+			const idRows = await sql<Record<string, unknown>>`
 				SELECT * FROM ${sql.ref(tableName)}
-				WHERE translation_group IN (${sql.join(chunk)})
+				WHERE id IN (${sql.join(chunk)})
+				AND deleted_at IS NULL
+			`.execute(this.db);
+			for (const row of idRows.rows) {
+				const item = this.mapRow(type, row);
+				byId.set(item.id, item);
+			}
+
+			const slugRows = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE slug IN (${sql.join(chunk)})
 				AND deleted_at IS NULL
 				ORDER BY locale ASC
 			`.execute(this.db);
-			for (const row of result.rows) items.push(this.mapRow(type, row));
+			for (const row of slugRows.rows) {
+				const item = this.mapRow(type, row);
+				// First write wins → lowest locale, matching findBySlug without a locale.
+				if (item.slug != null && !bySlug.has(item.slug)) bySlug.set(item.slug, item);
+			}
 		}
-		return items;
+
+		for (const identifier of unique) {
+			const looksLikeUlid = ULID_PATTERN.test(identifier);
+			const item = looksLikeUlid
+				? (byId.get(identifier) ?? bySlug.get(identifier))
+				: (bySlug.get(identifier) ?? byId.get(identifier));
+			if (item) resolved.set(identifier, item);
+		}
+		return resolved;
 	}
 
 	/**

@@ -74,7 +74,7 @@ describeEachDialect("reference children handlers", (dialect) => {
 		expect(set.data.children.map((c) => c.sortOrder)).toEqual([0, 1]);
 		expect(set.data.children.every((c) => c.collection === "page")).toBe(true);
 
-		const get = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id);
+		const get = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id, {}, true);
 		if (!get.success) return;
 		expect(get.data.children.map((c) => c.slug)).toEqual(["a", "b"]);
 	});
@@ -99,15 +99,26 @@ describeEachDialect("reference children handlers", (dialect) => {
 		const c = await content.create({ type: "page", slug: "c", data: { title: "C" } });
 		await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [a.id, b.id, c.id]);
 
-		const page1 = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id, { limit: 2 });
+		const page1 = await handleReferenceChildrenGet(
+			ctx.db,
+			"post",
+			parent.id,
+			rel.id,
+			{ limit: 2 },
+			true,
+		);
 		if (!page1.success) return;
 		expect(page1.data.children.map((ref) => ref.slug)).toEqual(["a", "b"]);
 		expect(page1.data.nextCursor).toBeDefined();
 
-		const page2 = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id, {
-			limit: 2,
-			cursor: page1.data.nextCursor,
-		});
+		const page2 = await handleReferenceChildrenGet(
+			ctx.db,
+			"post",
+			parent.id,
+			rel.id,
+			{ limit: 2, cursor: page1.data.nextCursor },
+			true,
+		);
 		if (!page2.success) return;
 		expect(page2.data.children.map((ref) => ref.slug)).toEqual(["c"]);
 		expect(page2.data.nextCursor).toBeUndefined();
@@ -123,15 +134,26 @@ describeEachDialect("reference children handlers", (dialect) => {
 			await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [shared.id]);
 		}
 
-		const page1 = await handleReferenceParentsGet(ctx.db, "page", shared.id, rel.id, { limit: 2 });
+		const page1 = await handleReferenceParentsGet(
+			ctx.db,
+			"page",
+			shared.id,
+			rel.id,
+			{ limit: 2 },
+			true,
+		);
 		if (!page1.success) return;
 		expect(page1.data.parents).toHaveLength(2);
 		expect(page1.data.nextCursor).toBeDefined();
 
-		const page2 = await handleReferenceParentsGet(ctx.db, "page", shared.id, rel.id, {
-			limit: 2,
-			cursor: page1.data.nextCursor,
-		});
+		const page2 = await handleReferenceParentsGet(
+			ctx.db,
+			"page",
+			shared.id,
+			rel.id,
+			{ limit: 2, cursor: page1.data.nextCursor },
+			true,
+		);
 		if (!page2.success) return;
 		expect(page2.data.parents).toHaveLength(1);
 		expect(page2.data.nextCursor).toBeUndefined();
@@ -141,9 +163,14 @@ describeEachDialect("reference children handlers", (dialect) => {
 		const rel = await makeRelation();
 		const content = new ContentRepository(ctx.db);
 		const parent = await content.create({ type: "post", slug: "p", data: { title: "P" } });
-		const result = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id, {
-			cursor: "!!!not-a-cursor!!!",
-		});
+		const result = await handleReferenceChildrenGet(
+			ctx.db,
+			"post",
+			parent.id,
+			rel.id,
+			{ cursor: "!!!not-a-cursor!!!" },
+			true,
+		);
 		expect(result.success).toBe(false);
 		if (result.success) return;
 		expect(result.error.code).toBe("INVALID_CURSOR");
@@ -190,7 +217,7 @@ describeEachDialect("reference children handlers", (dialect) => {
 		const child = await content.create({ type: "page", slug: "c", data: { title: "C" } });
 		await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [child.id]);
 
-		const result = await handleReferenceParentsGet(ctx.db, "page", child.id, rel.id);
+		const result = await handleReferenceParentsGet(ctx.db, "page", child.id, rel.id, {}, true);
 		expect(result.success).toBe(true);
 		if (!result.success) return;
 		expect(result.data.parents.map((p) => p.slug)).toEqual(["p"]);
@@ -205,6 +232,284 @@ describeEachDialect("reference children handlers", (dialect) => {
 		expect(result.success).toBe(false);
 		if (result.success) return;
 		expect(result.error.code).toBe("VALIDATION_ERROR");
+	});
+
+	it("set replaces the whole child set (set [a,b] then [c] yields [c])", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({ type: "post", slug: "p", data: { title: "P" } });
+		const a = await content.create({ type: "page", slug: "a", data: { title: "A" } });
+		const b = await content.create({ type: "page", slug: "b", data: { title: "B" } });
+		const c = await content.create({ type: "page", slug: "c", data: { title: "C" } });
+
+		await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [a.id, b.id]);
+		await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [c.id]);
+
+		const get = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id, {}, true);
+		if (!get.success) return;
+		expect(get.data.children.map((r) => r.slug)).toEqual(["c"]);
+	});
+
+	it("set with an empty list clears the child set", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({ type: "post", slug: "p", data: { title: "P" } });
+		const a = await content.create({ type: "page", slug: "a", data: { title: "A" } });
+		await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [a.id]);
+
+		const cleared = await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, []);
+		if (!cleared.success) return;
+		expect(cleared.data.children).toEqual([]);
+
+		const get = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id, {}, true);
+		if (!get.success) return;
+		expect(get.data.children).toEqual([]);
+	});
+
+	it("set resolves a large mixed id/slug child set correctly (batched)", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({ type: "post", slug: "p", data: { title: "P" } });
+		const slugs = Array.from({ length: 60 }, (_, i) => `child-${i}`);
+		const ids: string[] = [];
+		for (const slug of slugs) {
+			const child = await content.create({
+				type: "page",
+				slug,
+				data: { title: slug },
+				status: "published",
+			});
+			ids.push(child.id);
+		}
+		// Mix ids and slugs in the request to exercise both resolution paths.
+		const childIds = ids.map((id, i) => (i % 2 === 0 ? id : slugs[i]!));
+
+		const set = await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, childIds);
+		expect(set.success).toBe(true);
+		if (!set.success) return;
+		expect(set.data.children).toHaveLength(50); // first page
+		expect(set.data.nextCursor).toBeDefined();
+		// sort_order is positional over the full deduped set.
+		expect(set.data.children.map((r) => r.sortOrder)).toEqual(
+			Array.from({ length: 50 }, (_, i) => i),
+		);
+	});
+
+	it("a dangling edge (child deleted) is skipped, not surfaced as an error", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({ type: "post", slug: "p", data: { title: "P" } });
+		const a = await content.create({
+			type: "page",
+			slug: "a",
+			data: { title: "A" },
+			status: "published",
+		});
+		const b = await content.create({
+			type: "page",
+			slug: "b",
+			data: { title: "B" },
+			status: "published",
+		});
+		await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [a.id, b.id]);
+		// Hard-delete the underlying row so the edge dangles.
+		await ctx.db
+			.deleteFrom("ec_page" as never)
+			.where("id" as never, "=", a.id)
+			.execute();
+
+		const get = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id, {}, true);
+		expect(get.success).toBe(true);
+		if (!get.success) return;
+		expect(get.data.children.map((r) => r.slug)).toEqual(["b"]);
+	});
+
+	it("a hand-crafted cursor with a non-numeric order value is INVALID_CURSOR", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({
+			type: "post",
+			slug: "p",
+			data: { title: "P" },
+			status: "published",
+		});
+		// Base64 of {"orderValue":"x","id":"y"} — structurally valid, semantically bad.
+		const cursor = Buffer.from(JSON.stringify({ orderValue: "x", id: "y" })).toString("base64url");
+		const result = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id, { cursor });
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.code).toBe("INVALID_CURSOR");
+	});
+});
+
+// The reference reads must honour the same draft-visibility boundary every other
+// content read enforces: a caller without `content:read_drafts` may not see
+// non-published entries — neither as resolved children/parents nor as the anchor.
+describeEachDialect("reference reads: draft visibility", (dialect) => {
+	let ctx: DialectTestContext;
+	beforeEach(async () => {
+		ctx = await setupForDialectWithCollections(dialect);
+	});
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	async function makeRelation() {
+		return new RelationRepository(ctx.db).create({
+			name: "related_pages",
+			parentCollection: "post",
+			childCollection: "page",
+			parentLabel: "Post",
+			childLabel: "Related page",
+		});
+	}
+
+	it("hides a draft child from a caller without draft access", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({
+			type: "post",
+			slug: "p",
+			data: { title: "P" },
+			status: "published",
+		});
+		const published = await content.create({
+			type: "page",
+			slug: "pub",
+			data: { title: "Pub" },
+			status: "published",
+		});
+		const draft = await content.create({
+			type: "page",
+			slug: "secret-unpublished",
+			data: { title: "Draft" },
+			status: "draft",
+		});
+		await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [published.id, draft.id]);
+
+		// includeDrafts=false: only the published child is visible.
+		const subscriber = await handleReferenceChildrenGet(
+			ctx.db,
+			"post",
+			parent.id,
+			rel.id,
+			{},
+			false,
+		);
+		if (!subscriber.success) return;
+		expect(subscriber.data.children.map((r) => r.slug)).toEqual(["pub"]);
+
+		// includeDrafts=true: both are visible.
+		const editor = await handleReferenceChildrenGet(ctx.db, "post", parent.id, rel.id, {}, true);
+		if (!editor.success) return;
+		expect(
+			editor.data.children.map((r) => r.slug).toSorted((a, b) => (a ?? "").localeCompare(b ?? "")),
+		).toEqual(["pub", "secret-unpublished"]);
+	});
+
+	it("hides a draft parent (backlink) from a caller without draft access", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const child = await content.create({
+			type: "page",
+			slug: "c",
+			data: { title: "C" },
+			status: "published",
+		});
+		const publishedParent = await content.create({
+			type: "post",
+			slug: "pub-parent",
+			data: { title: "PP" },
+			status: "published",
+		});
+		const draftParent = await content.create({
+			type: "post",
+			slug: "draft-parent",
+			data: { title: "DP" },
+			status: "draft",
+		});
+		await handleReferenceChildrenSet(ctx.db, "post", publishedParent.id, rel.id, [child.id]);
+		await handleReferenceChildrenSet(ctx.db, "post", draftParent.id, rel.id, [child.id]);
+
+		const subscriber = await handleReferenceParentsGet(ctx.db, "page", child.id, rel.id, {}, false);
+		if (!subscriber.success) return;
+		expect(subscriber.data.parents.map((r) => r.slug)).toEqual(["pub-parent"]);
+	});
+
+	it("treats a draft anchor as NOT_FOUND for a caller without draft access", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const draftParent = await content.create({
+			type: "post",
+			slug: "p",
+			data: { title: "P" },
+			status: "draft",
+		});
+
+		const result = await handleReferenceChildrenGet(
+			ctx.db,
+			"post",
+			draftParent.id,
+			rel.id,
+			{},
+			false,
+		);
+		expect(result.success).toBe(false);
+		if (result.success) return;
+		expect(result.error.code).toBe("NOT_FOUND");
+
+		// A caller with draft access can still anchor on it.
+		const withDrafts = await handleReferenceChildrenGet(
+			ctx.db,
+			"post",
+			draftParent.id,
+			rel.id,
+			{},
+			true,
+		);
+		expect(withDrafts.success).toBe(true);
+	});
+
+	it("route: a SUBSCRIBER cannot read a draft anchor's children (404)", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const draftParent = await content.create({
+			type: "post",
+			slug: "p",
+			data: { title: "P" },
+			status: "draft",
+		});
+		const params = { collection: "post", id: draftParent.id, relation: rel.id };
+		const res = await getChildren(
+			edgeCtx(ctx.db, params, { id: "sub", role: Role.SUBSCRIBER as RoleLevel }),
+		);
+		expect(res.status).toBe(404);
+	});
+
+	it("route: a SUBSCRIBER does not see draft children of a published anchor", async () => {
+		const rel = await makeRelation();
+		const content = new ContentRepository(ctx.db);
+		const parent = await content.create({
+			type: "post",
+			slug: "p",
+			data: { title: "P" },
+			status: "published",
+		});
+		const draft = await content.create({
+			type: "page",
+			slug: "secret-unpublished",
+			data: { title: "Draft" },
+			status: "draft",
+		});
+		await handleReferenceChildrenSet(ctx.db, "post", parent.id, rel.id, [draft.id]);
+
+		const params = { collection: "post", id: parent.id, relation: rel.id };
+		const res = await getChildren(
+			edgeCtx(ctx.db, params, { id: "sub", role: Role.SUBSCRIBER as RoleLevel }),
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: { children: { slug: string }[] } };
+		expect(body.data.children).toEqual([]);
 	});
 });
 
@@ -232,6 +537,7 @@ describeEachDialect("reference children route (auth + ownership)", (dialect) => 
 			slug: "p",
 			data: { title: "P" },
 			authorId: "author-1",
+			status: "published",
 		});
 		const child = await content.create({ type: "page", slug: "c", data: { title: "C" } });
 		const params = { collection: "post", id: parent.id, relation: rel.id };

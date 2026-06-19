@@ -3,7 +3,7 @@ import { ulid } from "ulidx";
 
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import type { Database, RelationTable, ContentReferenceTable } from "../types.js";
-import { decodeCursor, encodeCursor, type FindManyResult } from "./types.js";
+import { decodeCursor, encodeCursor, InvalidCursorError, type FindManyResult } from "./types.js";
 
 export interface Relation {
 	id: string;
@@ -346,6 +346,11 @@ export class RelationRepository {
 		if (options.cursor) {
 			const decoded = decodeCursor(options.cursor);
 			const sortOrder = Number(decoded.orderValue);
+			// `decodeCursor` only guarantees `orderValue` is a string; a hand-crafted
+			// cursor with a non-numeric order value would coerce to NaN and blow up at
+			// the driver bind as a 500. A bad cursor is a client error — surface it as
+			// INVALID_CURSOR (400). Server-issued cursors are always numeric here.
+			if (!Number.isFinite(sortOrder)) throw new InvalidCursorError(options.cursor);
 			query = query.where((eb) =>
 				eb.or([
 					eb("sort_order", ">", sortOrder),
@@ -397,6 +402,15 @@ export class RelationRepository {
 	 * relying on the insert's onConflict to silently drop them. Not wrapped in a
 	 * transaction: a crash between the delete and insert leaves the parent with
 	 * no children — acceptable for a replace-all, since a retry restores state.
+	 *
+	 * Concurrency: two simultaneous replace-all calls for the same (relation,
+	 * parent) can interleave their deletes and inserts and merge into the union of
+	 * both sets (a lost update — neither "replace" wins). This is non-corrupting —
+	 * keyset pagination stays totally ordered via the `(sort_order, id)` tiebreak
+	 * even with duplicate sort_orders — and a single client editing one parent's
+	 * children serially never hits it. A D1-portable fix isn't available (no
+	 * multi-statement transactions), so concurrent replace-all on one parent is
+	 * unsupported by design rather than guarded here.
 	 */
 	async setChildren(relation: string, parentGroup: string, childGroups: string[]): Promise<void> {
 		const relationGroup = await this.resolveRelationGroup(relation);
