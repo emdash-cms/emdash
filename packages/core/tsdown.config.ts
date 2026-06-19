@@ -94,6 +94,9 @@ export default defineConfig({
 		// Media providers
 		"src/media/index.ts",
 		"src/media/local-runtime.ts",
+		// Image-endpoint helpers (portable) + the Node image endpoint
+		"src/media/image-endpoint.ts",
+		"src/astro/image-endpoint.ts",
 		// Runtime exports (depends on virtual modules - for live.config.ts)
 		"src/runtime.ts",
 		// Seed engine

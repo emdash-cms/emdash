@@ -152,6 +152,17 @@ export interface EmDashConfig {
 	 */
 	storage?: StorageDescriptor;
 	/**
+	 * Image optimization.
+	 *
+	 * By default EmDash wraps Astro's image endpoint so media served from
+	 * storage is optimized through the normal `<Image>` / `getImage` pipeline,
+	 * loading source bytes directly from the storage adapter (works behind
+	 * Cloudflare Access). Set to `false` to leave Astro's image endpoint
+	 * untouched -- media then renders as a plain `<img>` unless your image
+	 * service can fetch it over HTTP.
+	 */
+	images?: boolean;
+	/**
 	 * Trusted plugins to load (run in main isolate)
 	 *
 	 * @example

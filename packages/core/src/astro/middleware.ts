@@ -475,6 +475,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+							// Exposed so the wrapped image endpoint (`/_image`) can read media
+							// bytes from storage on the anonymous fast path -- public `<img>`
+							// requests carry no session.
+							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch {
 						// Non-fatal — EmDashHead will fall back to base SEO contributions

@@ -37,6 +37,10 @@
       "types": "./dist/storage/r2.d.mts",
       "default": "./dist/storage/r2.mjs"
     },
+    "./image-endpoint": {
+      "types": "./dist/image-endpoint.d.mts",
+      "default": "./dist/image-endpoint.mjs"
+    },
     "./auth": {
       "types": "./dist/auth/index.d.mts",
       "default": "./dist/auth/index.mjs"

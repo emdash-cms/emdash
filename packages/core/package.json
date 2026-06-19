@@ -106,6 +106,14 @@
       "types": "./dist/media/local-runtime.d.mts",
       "default": "./dist/media/local-runtime.mjs"
     },
+    "./media/image-endpoint": {
+      "types": "./dist/media/image-endpoint.d.mts",
+      "default": "./dist/media/image-endpoint.mjs"
+    },
+    "./image-endpoint": {
+      "types": "./dist/astro/image-endpoint.d.mts",
+      "default": "./dist/astro/image-endpoint.mjs"
+    },
     "./runtime": {
       "types": "./dist/runtime.d.mts",
       "default": "./dist/runtime.mjs"
