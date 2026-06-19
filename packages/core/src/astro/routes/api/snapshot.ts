@@ -20,6 +20,8 @@ import {
 import { getPublicOrigin } from "#api/public-url.js";
 import { resolveSecretsCached } from "#config/secrets.js";
 
+import { resolveSessionUser } from "../../session-user.js";
+
 export const prerender = false;
 
 export const GET: APIRoute = async ({ request, locals, url, session }) => {
@@ -31,7 +33,7 @@ export const GET: APIRoute = async ({ request, locals, url, session }) => {
 	if (!user && session && emdash?.db) {
 		try {
 			const { createKyselyAdapter } = await import("@emdash-cms/auth/adapters/kysely");
-			const sessionUser = await session.get("user");
+			const sessionUser = await resolveSessionUser(session);
 			if (sessionUser?.id) {
 				const adapter = createKyselyAdapter(emdash.db);
 				const resolved = await adapter.getUserById(sessionUser.id);

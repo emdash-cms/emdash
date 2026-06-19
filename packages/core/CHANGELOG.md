@@ -1,5 +1,26 @@
 # emdash
 
+## 0.21.0
+
+### Minor Changes
+
+- [#1382](https://github.com/emdash-cms/emdash/pull/1382) [`b6a5fac`](https://github.com/emdash-cms/emdash/commit/b6a5fac6d3bc88cc5ab49889de264c37262cc5f7) Thanks [@ascorbic](https://github.com/ascorbic)! - The Astro dev server now prints absolute, clickable URLs for the admin UI and (when enabled) the MCP server, along with a dev-bypass shortcut link that signs you in as a dev admin without going through passkey setup or auth. The startup banner also shows the installed EmDash version. The dev-bypass link is dev-only and the underlying endpoint returns 403 in production.
+
+- [#1508](https://github.com/emdash-cms/emdash/pull/1508) [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527) Thanks [@swissky](https://github.com/swissky)! - Add a "Gone (410)" rule type. Redirect rules now support `410` (Content Deleted) and `451` (Unavailable For Legal Reasons) as terminal statuses — served directly with no destination — and the 404 log offers a one-click "Mark as Gone (410)" action next to "Create redirect". A 410 tells search engines a URL was intentionally and permanently removed, so it is deindexed faster than a 404.
+
+### Patch Changes
+
+- [#1511](https://github.com/emdash-cms/emdash/pull/1511) [`23c37f3`](https://github.com/emdash-cms/emdash/commit/23c37f35dfe9ce23fca0d48acea228299d25e19e) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Fixes `emdash doctor` always reporting "could not query users table". The users check now queries the correct table and reports the actual user count.
+
+- [#1530](https://github.com/emdash-cms/emdash/pull/1530) [`997d7ee`](https://github.com/emdash-cms/emdash/commit/997d7eea8f39c16eef28577bb8ace0c0413fc38b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes admin and content pages intermittently hanging and returning 524 timeouts on Cloudflare Workers. The per-isolate caches for byline custom-field definitions and resolved site secrets could retain a never-settling promise left behind by a cancelled request, which wedged every later request on that isolate until it was evicted. Both caches now cache the resolved value behind a reclaimable single-flight lock, so a cancelled request can no longer stall the isolate.
+
+- [#1386](https://github.com/emdash-cms/emdash/pull/1386) [`37e848b`](https://github.com/emdash-cms/emdash/commit/37e848bf005950a4b312cf5f0a50f7c8820b01fc) Thanks [@auggernaut](https://github.com/auggernaut)! - Skips default robots.txt and sitemap.xml route injection when the host site defines its own root routes.
+
+- Updated dependencies [[`1b10c1d`](https://github.com/emdash-cms/emdash/commit/1b10c1d64d5975c5fef94e61e8cbff251260184c), [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527)]:
+  - @emdash-cms/admin@0.21.0
+  - @emdash-cms/auth@0.21.0
+  - @emdash-cms/gutenberg-to-portable-text@0.21.0
+
 ## 0.20.0
 
 ### Minor Changes

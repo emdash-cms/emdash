@@ -220,6 +220,8 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 					storage: descriptor.storage,
 					adminPages: descriptor.adminPages,
 					adminWidgets: descriptor.adminWidgets,
+					portableTextBlocks: descriptor.portableTextBlocks,
+					fieldWidgets: descriptor.fieldWidgets,
 				})})`,
 			);
 		} else {
@@ -589,6 +591,8 @@ export const sandboxedPlugins = [];
     storage: ${JSON.stringify(descriptor.storage ?? {})},
     adminPages: ${JSON.stringify(descriptor.adminPages ?? [])},
     adminWidgets: ${JSON.stringify(descriptor.adminWidgets ?? [])},
+    portableTextBlocks: ${JSON.stringify(descriptor.portableTextBlocks ?? [])},
+    fieldWidgets: ${JSON.stringify(descriptor.fieldWidgets ?? [])},
     adminEntry: ${JSON.stringify(descriptor.adminEntry)},
     // Code read from: ${filePath}
     code: ${JSON.stringify(code)},

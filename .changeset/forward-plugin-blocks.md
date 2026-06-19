@@ -1,0 +1,11 @@
+---
+"emdash": minor
+---
+
+Forward declarative `portableTextBlocks` and `fieldWidgets` from standard and sandboxed (from-config) plugins
+
+Standard- and sandboxed-format plugins could already declare admin pages and dashboard widgets, but their declarative Portable Text block types and field widgets were dropped during adaptation — only native-format plugins surfaced them. Since the admin editor reads these from the manifest, the slash-menu entries and Block Kit forms never appeared for non-native plugins.
+
+`adaptSandboxEntry` now forwards both for standard plugins and sandboxed plugins resolved from config (the `virtual-modules.ts` codegen path), so those formats can contribute Portable Text blocks and field widgets. The site-side render component (`componentsEntry`) still requires native format, which is unchanged.
+
+Note: marketplace bundles loaded from R2 are not covered yet — the bundle manifest schema, both `extractManifest()` implementations, and the bundler don't carry these fields, so this is scoped to standard/sandboxed-from-config. Full marketplace support is tracked as a follow-up.

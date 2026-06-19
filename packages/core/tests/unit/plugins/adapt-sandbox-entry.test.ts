@@ -121,6 +121,63 @@ describe("adaptSandboxEntry", () => {
 
 			expect(result.admin.widgets).toEqual([{ id: "status", title: "Status", size: "half" }]);
 		});
+
+		it("carries portable text blocks from descriptor", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({
+				portableTextBlocks: [
+					{
+						type: "faq",
+						label: "FAQ",
+						icon: "list",
+						category: "Sections",
+						fields: [
+							{
+								type: "repeater",
+								action_id: "items",
+								label: "Questions",
+								item_label: "Question",
+								fields: [
+									{ type: "text_input", action_id: "q", label: "Question" },
+									{ type: "text_input", action_id: "a", label: "Answer", multiline: true },
+								],
+							},
+						],
+					},
+				],
+			});
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.admin.portableTextBlocks).toEqual(descriptor.portableTextBlocks);
+		});
+
+		it("carries field widgets from descriptor", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({
+				fieldWidgets: [
+					{
+						name: "color-picker",
+						label: "Color Picker",
+						fieldTypes: ["string"],
+					},
+				],
+			});
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.admin.fieldWidgets).toEqual(descriptor.fieldWidgets);
+		});
+
+		it("leaves admin block config undefined when the descriptor omits it", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor();
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.admin.portableTextBlocks).toBeUndefined();
+			expect(result.admin.fieldWidgets).toBeUndefined();
+		});
 	});
 
 	describe("hook adaptation", () => {

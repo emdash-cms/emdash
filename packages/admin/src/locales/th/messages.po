@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Guest"
 msgstr " - ผู้เยี่ยมชม"
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Linked"
 msgstr " - เชื่อมโยงแล้ว"
 
@@ -35,7 +35,7 @@ msgstr " (เปิดในหน้าต่างใหม่)"
 msgid " (selected)"
 msgstr " (เลือกแล้ว)"
 
-#: packages/admin/src/routes/bylines.tsx:700
+#: packages/admin/src/routes/bylines.tsx:707
 msgid "-- Select --"
 msgstr ""
 
@@ -142,7 +142,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# โพสต์} other {# โพสต์}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:418
+#: packages/admin/src/components/Redirects.tsx:444
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {การเปลี่ยนเส้นทาง # รายการเป็นส่วนหนึ่งของลูป} other {การเปลี่ยนเส้นทาง # รายการเป็นส่วนหนึ่งของลูป}}"
 
@@ -367,11 +367,11 @@ msgstr "{unchangedCount, plural, one {แสดงรายการที่ไ
 msgid "{uploaded} uploaded, {failed} failed"
 msgstr "อัปโหลดแล้ว {uploaded} รายการ, ล้มเหลว {failed} รายการ"
 
-#: packages/admin/src/components/Redirects.tsx:137
+#: packages/admin/src/components/Redirects.tsx:141
 msgid "/new-page or /articles/[slug]"
 msgstr "/new-page หรือ /articles/[slug]"
 
-#: packages/admin/src/components/Redirects.tsx:129
+#: packages/admin/src/components/Redirects.tsx:132
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page หรือ /blog/[slug]"
 
@@ -426,19 +426,19 @@ msgstr "3. เลือก \"All content\""
 msgid "30 days"
 msgstr "30 วัน"
 
-#: packages/admin/src/components/Redirects.tsx:150
+#: packages/admin/src/components/Redirects.tsx:155
 msgid "301 Permanent"
 msgstr "301 ถาวร"
 
-#: packages/admin/src/components/Redirects.tsx:151
+#: packages/admin/src/components/Redirects.tsx:156
 msgid "302 Temporary"
 msgstr "302 ชั่วคราว"
 
-#: packages/admin/src/components/Redirects.tsx:152
+#: packages/admin/src/components/Redirects.tsx:157
 msgid "307 Temporary (Strict)"
 msgstr "307 ชั่วคราว (Strict)"
 
-#: packages/admin/src/components/Redirects.tsx:153
+#: packages/admin/src/components/Redirects.tsx:158
 msgid "308 Permanent (Strict)"
 msgstr "308 ถาวร (Strict)"
 
@@ -450,9 +450,17 @@ msgstr "4. คลิก \"Download Export File\""
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. ป้อน \"EmDash\" แล้วคลิก \"Add New\""
 
-#: packages/admin/src/components/Redirects.tsx:368
+#: packages/admin/src/components/Redirects.tsx:394
 msgid "404 Errors"
 msgstr "ข้อผิดพลาด 404"
+
+#: packages/admin/src/components/Redirects.tsx:159
+msgid "410 Content Deleted (Gone)"
+msgstr ""
+
+#: packages/admin/src/components/Redirects.tsx:160
+msgid "451 Unavailable for legal reasons"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1365
 msgid "5. Copy the generated password"
@@ -736,7 +744,7 @@ msgstr "ทั้งหมด"
 msgid "All authors"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:406
+#: packages/admin/src/routes/bylines.tsx:413
 msgid "All bylines"
 msgstr "ชื่อผู้เขียนทั้งหมด"
 
@@ -770,12 +778,12 @@ msgid "All Sources"
 msgstr "ทุกแหล่งที่มา"
 
 #: packages/admin/src/components/ContentList.tsx:542
-#: packages/admin/src/components/Redirects.tsx:392
+#: packages/admin/src/components/Redirects.tsx:418
 msgid "All statuses"
 msgstr "ทุกสถานะ"
 
 #: packages/admin/src/components/MediaLibrary.tsx:400
-#: packages/admin/src/components/Redirects.tsx:398
+#: packages/admin/src/components/Redirects.tsx:424
 msgid "All types"
 msgstr "ทุกประเภท"
 
@@ -1023,11 +1031,11 @@ msgstr "กำลังอนุญาตสิทธิ์..."
 msgid "Authors"
 msgstr "ผู้เขียน"
 
-#: packages/admin/src/components/Redirects.tsx:495
+#: packages/admin/src/components/Redirects.tsx:521
 msgid "auto"
 msgstr "อัตโนมัติ"
 
-#: packages/admin/src/components/Redirects.tsx:398
+#: packages/admin/src/components/Redirects.tsx:424
 msgid "Auto (slug change)"
 msgstr "อัตโนมัติ (เปลี่ยน slug)"
 
@@ -1122,7 +1130,7 @@ msgstr "ก่อนส่ง:"
 msgid "Bing Verification"
 msgstr "การยืนยัน Bing"
 
-#: packages/admin/src/routes/bylines.tsx:490
+#: packages/admin/src/routes/bylines.tsx:497
 msgid "Bio"
 msgstr "ประวัติย่อ"
 
@@ -1173,13 +1181,13 @@ msgid "Bullet List"
 msgstr "รายการแบบจุด"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:377
+#: packages/admin/src/routes/bylines.tsx:384
 msgid "Byline schema"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:993
 #: packages/admin/src/components/Sidebar.tsx:363
-#: packages/admin/src/routes/bylines.tsx:369
+#: packages/admin/src/routes/bylines.tsx:376
 msgid "Bylines"
 msgstr "ชื่อผู้เขียน"
 
@@ -1236,7 +1244,7 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/MenuList.tsx:172
 #: packages/admin/src/components/PluginManager.tsx:640
 #: packages/admin/src/components/PortableTextEditor.tsx:3102
-#: packages/admin/src/components/Redirects.tsx:175
+#: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/SectionPickerModal.tsx:130
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:313
@@ -1421,8 +1429,8 @@ msgstr "คลิกลิงก์ในอีเมลเพื่อเข้
 #: packages/admin/src/components/PortableTextEditor.tsx:1400
 #: packages/admin/src/components/PortableTextEditor.tsx:1406
 #: packages/admin/src/components/PortableTextEditor.tsx:1410
-#: packages/admin/src/components/Redirects.tsx:111
-#: packages/admin/src/components/Redirects.tsx:117
+#: packages/admin/src/components/Redirects.tsx:114
+#: packages/admin/src/components/Redirects.tsx:120
 #: packages/admin/src/components/SectionPickerModal.tsx:60
 #: packages/admin/src/components/SectionPickerModal.tsx:66
 #: packages/admin/src/components/SectionPickerModal.tsx:70
@@ -1460,7 +1468,7 @@ msgstr "ปิดแผง"
 
 #: packages/admin/src/components/ContentTypeList.tsx:244
 #: packages/admin/src/components/PortableTextEditor.tsx:2655
-#: packages/admin/src/components/Redirects.tsx:443
+#: packages/admin/src/components/Redirects.tsx:469
 msgid "Code"
 msgstr "โค้ด"
 
@@ -1703,7 +1711,7 @@ msgstr "ตรวจไม่พบ WordPress"
 msgid "Couldn't load byline fields."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:541
+#: packages/admin/src/routes/bylines.tsx:548
 msgid "Couldn't load custom fields."
 msgstr ""
 
@@ -1726,11 +1734,11 @@ msgstr "จำนวน"
 
 #: packages/admin/src/components/ContentEditor.tsx:2053
 #: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/Redirects.tsx:184
+#: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:479
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Create"
 msgstr "สร้าง"
 
@@ -1761,7 +1769,7 @@ msgid "Create an account"
 msgstr "สร้างบัญชี"
 
 #: packages/admin/src/components/ContentEditor.tsx:2001
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Create byline"
 msgstr "สร้างชื่อผู้เขียน"
 
@@ -1800,15 +1808,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "สร้างโทเค็นการเข้าถึงส่วนบุคคลสำหรับการเข้าถึง API แบบเป็นโปรแกรม"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:238
+#: packages/admin/src/components/Redirects.tsx:247
 msgid "Create redirect for {0}"
 msgstr "สร้างการเปลี่ยนเส้นทางสำหรับ {0}"
 
-#: packages/admin/src/components/Redirects.tsx:237
+#: packages/admin/src/components/Redirects.tsx:246
 msgid "Create redirect for this path"
 msgstr "สร้างการเปลี่ยนเส้นทางสำหรับเส้นทางนี้"
 
-#: packages/admin/src/components/Redirects.tsx:435
+#: packages/admin/src/components/Redirects.tsx:461
 msgid "Create redirect rules to manage URL changes."
 msgstr "สร้างกฎการเปลี่ยนเส้นทางเพื่อจัดการการเปลี่ยนแปลง URL"
 
@@ -1915,7 +1923,7 @@ msgstr "กำลังสร้างคอลเลกชันและฟิ
 
 #: packages/admin/src/components/ContentEditor.tsx:2053
 #: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/Redirects.tsx:181
+#: packages/admin/src/components/Redirects.tsx:188
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:450
 #: packages/admin/src/components/TaxonomyManager.tsx:689
@@ -2041,14 +2049,14 @@ msgstr "กำหนดไว้ในโค้ด"
 #: packages/admin/src/components/MediaDetailPanel.tsx:269
 #: packages/admin/src/components/MenuEditor.tsx:463
 #: packages/admin/src/components/MenuList.tsx:255
-#: packages/admin/src/components/Redirects.tsx:552
+#: packages/admin/src/components/Redirects.tsx:582
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:636
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:582
-#: packages/admin/src/routes/bylines.tsx:618
+#: packages/admin/src/routes/bylines.tsx:589
+#: packages/admin/src/routes/bylines.tsx:625
 msgid "Delete"
 msgstr "ลบ"
 
@@ -2093,7 +2101,7 @@ msgstr "ลบ {0} หรือไม่?"
 msgid "Delete byline field?"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:616
+#: packages/admin/src/routes/bylines.tsx:623
 msgid "Delete Byline?"
 msgstr "ลบชื่อผู้เขียนหรือไม่?"
 
@@ -2147,16 +2155,16 @@ msgstr "ลบถาวร"
 msgid "Delete Permanently?"
 msgstr "ลบถาวรหรือไม่?"
 
-#: packages/admin/src/components/Redirects.tsx:509
+#: packages/admin/src/components/Redirects.tsx:535
 msgid "Delete redirect"
 msgstr "ลบการเปลี่ยนเส้นทาง"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:510
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Delete redirect {0}"
 msgstr "ลบการเปลี่ยนเส้นทาง {0}"
 
-#: packages/admin/src/components/Redirects.tsx:550
+#: packages/admin/src/components/Redirects.tsx:580
 msgid "Delete Redirect?"
 msgstr "ลบการเปลี่ยนเส้นทางหรือไม่?"
 
@@ -2192,11 +2200,11 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:244
 #: packages/admin/src/components/MediaDetailPanel.tsx:270
 #: packages/admin/src/components/MenuList.tsx:256
-#: packages/admin/src/components/Redirects.tsx:553
+#: packages/admin/src/components/Redirects.tsx:583
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:637
-#: packages/admin/src/routes/bylines.tsx:619
+#: packages/admin/src/routes/bylines.tsx:626
 msgid "Deleting..."
 msgstr "กำลังลบ..."
 
@@ -2251,11 +2259,11 @@ msgstr "คำอธิบาย"
 msgid "Description (optional)"
 msgstr "คำอธิบาย (ไม่บังคับ)"
 
-#: packages/admin/src/components/Redirects.tsx:442
+#: packages/admin/src/components/Redirects.tsx:468
 msgid "Destination"
 msgstr "ปลายทาง"
 
-#: packages/admin/src/components/Redirects.tsx:136
+#: packages/admin/src/components/Redirects.tsx:140
 msgid "Destination path"
 msgstr "เส้นทางปลายทาง"
 
@@ -2299,7 +2307,7 @@ msgstr "ปิดใช้งาน"
 msgid "Disable plugin"
 msgstr "ปิดใช้งานปลั๊กอิน"
 
-#: packages/admin/src/components/Redirects.tsx:478
+#: packages/admin/src/components/Redirects.tsx:504
 msgid "Disable redirect"
 msgstr "ปิดใช้งานการเปลี่ยนเส้นทาง"
 
@@ -2312,7 +2320,7 @@ msgid "Disable User?"
 msgstr "ปิดใช้งานผู้ใช้หรือไม่?"
 
 #: packages/admin/src/components/PluginManager.tsx:354
-#: packages/admin/src/components/Redirects.tsx:392
+#: packages/admin/src/components/Redirects.tsx:418
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
@@ -2351,7 +2359,7 @@ msgstr "แสดงเมนูนำทาง"
 
 #: packages/admin/src/components/ContentEditor.tsx:2004
 #: packages/admin/src/components/ContentEditor.tsx:2066
-#: packages/admin/src/routes/bylines.tsx:475
+#: packages/admin/src/routes/bylines.tsx:482
 msgid "Display name"
 msgstr "ชื่อที่แสดง"
 
@@ -2493,7 +2501,7 @@ msgstr "ทำสำเนา {title}"
 msgid "e.g. application/zip or .pdf"
 msgstr "เช่น application/zip หรือ .pdf"
 
-#: packages/admin/src/components/Redirects.tsx:160
+#: packages/admin/src/components/Redirects.tsx:167
 msgid "e.g. import, blog"
 msgstr "เช่น import, blog"
 
@@ -2524,7 +2532,7 @@ msgstr "แก้ไข"
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Edit {0}"
 msgstr "แก้ไข {0}"
 
@@ -2569,16 +2577,16 @@ msgstr "แก้ไขรายการเมนู"
 msgid "Edit menu items"
 msgstr "แก้ไขรายการเมนู"
 
-#: packages/admin/src/components/Redirects.tsx:501
+#: packages/admin/src/components/Redirects.tsx:527
 msgid "Edit redirect"
 msgstr "แก้ไขการเปลี่ยนเส้นทาง"
 
-#: packages/admin/src/components/Redirects.tsx:102
+#: packages/admin/src/components/Redirects.tsx:105
 msgid "Edit Redirect"
 msgstr "แก้ไขการเปลี่ยนเส้นทาง"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:502
+#: packages/admin/src/components/Redirects.tsx:528
 msgid "Edit redirect {0}"
 msgstr "แก้ไขการเปลี่ยนเส้นทาง {0}"
 
@@ -2679,12 +2687,12 @@ msgstr "เปิดใช้งานการค้นหาแบบเต็
 msgid "Enable plugin"
 msgstr "เปิดใช้งานปลั๊กอิน"
 
-#: packages/admin/src/components/Redirects.tsx:478
+#: packages/admin/src/components/Redirects.tsx:504
 msgid "Enable redirect"
 msgstr "เปิดใช้งานการเปลี่ยนเส้นทาง"
 
-#: packages/admin/src/components/Redirects.tsx:168
-#: packages/admin/src/components/Redirects.tsx:392
+#: packages/admin/src/components/Redirects.tsx:175
+#: packages/admin/src/components/Redirects.tsx:418
 msgid "Enabled"
 msgstr "เปิดใช้งาน"
 
@@ -3125,7 +3133,7 @@ msgid "Failed to load allowed domains"
 msgstr "โหลดโดเมนที่อนุญาตไม่สำเร็จ"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:359
+#: packages/admin/src/routes/bylines.tsx:366
 msgid "Failed to load bylines: {0}"
 msgstr "โหลดชื่อผู้เขียนไม่สำเร็จ: {0}"
 
@@ -3459,16 +3467,16 @@ msgid "Filter by source"
 msgstr "กรองตามแหล่งที่มา"
 
 #: packages/admin/src/components/ContentList.tsx:568
-#: packages/admin/src/components/Redirects.tsx:393
+#: packages/admin/src/components/Redirects.tsx:419
 msgid "Filter by status"
 msgstr "กรองตามสถานะ"
 
 #: packages/admin/src/components/MediaLibrary.tsx:406
-#: packages/admin/src/components/Redirects.tsx:399
+#: packages/admin/src/components/Redirects.tsx:425
 msgid "Filter by type"
 msgstr "กรองตามประเภท"
 
-#: packages/admin/src/routes/bylines.tsx:402
+#: packages/admin/src/routes/bylines.tsx:409
 msgid "Filter byline type"
 msgstr "กรองตามประเภทชื่อผู้เขียน"
 
@@ -3546,15 +3554,15 @@ msgstr ""
 msgid "Grid view"
 msgstr "มุมมองตาราง"
 
-#: packages/admin/src/components/Redirects.tsx:159
+#: packages/admin/src/components/Redirects.tsx:166
 msgid "Group (optional)"
 msgstr "กลุ่ม (ไม่บังคับ)"
 
-#: packages/admin/src/routes/bylines.tsx:549
+#: packages/admin/src/routes/bylines.tsx:556
 msgid "Guest byline"
 msgstr "ชื่อผู้เขียนรับเชิญ"
 
-#: packages/admin/src/routes/bylines.tsx:407
+#: packages/admin/src/routes/bylines.tsx:414
 msgid "Guest only"
 msgstr "เฉพาะผู้มาเยือนเท่านั้น"
 
@@ -3601,8 +3609,8 @@ msgstr "ซ่อนโทเค็น"
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "แบบลำดับชั้น (เหมือนหมวดหมู่ ที่มีความสัมพันธ์แม่/ลูก)"
 
-#: packages/admin/src/components/Redirects.tsx:216
-#: packages/admin/src/components/Redirects.tsx:444
+#: packages/admin/src/components/Redirects.tsx:225
+#: packages/admin/src/components/Redirects.tsx:470
 msgid "Hits"
 msgstr "การเข้าชม"
 
@@ -4041,7 +4049,7 @@ msgstr "เข้าสู่ระบบล่าสุด"
 msgid "Last Login"
 msgstr "เข้าสู่ระบบล่าสุด"
 
-#: packages/admin/src/components/Redirects.tsx:217
+#: packages/admin/src/components/Redirects.tsx:226
 msgid "Last seen"
 msgstr "พบครั้งล่าสุด"
 
@@ -4101,11 +4109,11 @@ msgstr "ลิงก์ไปยังรายการเนื้อหาอ
 msgid "Linked Accounts ({0})"
 msgstr "บัญชีที่เชื่อมโยง ({0})"
 
-#: packages/admin/src/routes/bylines.tsx:408
+#: packages/admin/src/routes/bylines.tsx:415
 msgid "Linked only"
 msgstr "เชื่อมโยงเท่านั้น"
 
-#: packages/admin/src/routes/bylines.tsx:500
+#: packages/admin/src/routes/bylines.tsx:507
 msgid "Linked user"
 msgstr "ผู้ใช้ที่เชื่อมโยง"
 
@@ -4129,7 +4137,7 @@ msgstr "มุมมองสด"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Load more"
 msgstr "โหลดเพิ่มเติม"
 
@@ -4177,7 +4185,7 @@ msgstr "กำลังโหลดเมนู..."
 msgid "Loading plugins..."
 msgstr "กำลังโหลดปลั๊กอิน..."
 
-#: packages/admin/src/components/Redirects.tsx:430
+#: packages/admin/src/components/Redirects.tsx:456
 msgid "Loading redirects..."
 msgstr "กำลังโหลดการเปลี่ยนเส้นทาง..."
 
@@ -4222,7 +4230,7 @@ msgstr "กำลังโหลดวิดเจ็ต..."
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
 #: packages/admin/src/components/WelcomeModal.tsx:143
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Loading..."
 msgstr "กำลังโหลด..."
 
@@ -4312,7 +4320,7 @@ msgstr "จัดการปลั๊กอินที่ติดตั้ง
 msgid "Manage navigation menus for your site"
 msgstr "จัดการเมนูนำทางสำหรับเว็บไซต์ของคุณ"
 
-#: packages/admin/src/components/Redirects.tsx:333
+#: packages/admin/src/components/Redirects.tsx:359
 msgid "Manage URL redirects and view 404 errors."
 msgstr "จัดการการเปลี่ยนเส้นทาง URL และดูข้อผิดพลาด 404"
 
@@ -4320,7 +4328,7 @@ msgstr "จัดการการเปลี่ยนเส้นทาง UR
 msgid "Manage your passkeys and authentication"
 msgstr "จัดการ Passkey และการยืนยันตัวตนของคุณ"
 
-#: packages/admin/src/components/Redirects.tsx:398
+#: packages/admin/src/components/Redirects.tsx:424
 msgid "Manual"
 msgstr "กำหนดเอง"
 
@@ -4332,6 +4340,15 @@ msgstr "จับคู่ผู้เขียน"
 #: packages/admin/src/components/WordPressImport.tsx:2308
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "จับคู่ผู้ใช้ WordPress {0} กับผู้ใช้ EmDash"
+
+#. placeholder {0}: item.path
+#: packages/admin/src/components/Redirects.tsx:255
+msgid "Mark {0} as Gone (410)"
+msgstr ""
+
+#: packages/admin/src/components/Redirects.tsx:254
+msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:501
 msgid "Mark as spam"
@@ -4606,7 +4623,7 @@ msgstr "ไม่เลย"
 msgid "new"
 msgstr "ใหม่"
 
-#: packages/admin/src/routes/bylines.tsx:420
+#: packages/admin/src/routes/bylines.tsx:427
 msgid "New"
 msgstr "ใหม่"
 
@@ -4644,8 +4661,8 @@ msgstr ""
 msgid "New public routes"
 msgstr "เส้นทางสาธารณะใหม่"
 
-#: packages/admin/src/components/Redirects.tsx:102
-#: packages/admin/src/components/Redirects.tsx:336
+#: packages/admin/src/components/Redirects.tsx:105
+#: packages/admin/src/components/Redirects.tsx:362
 msgid "New Redirect"
 msgstr "การเปลี่ยนเส้นทางใหม่"
 
@@ -4714,7 +4731,7 @@ msgstr "ยังไม่มี{0}"
 msgid "No {0} yet. Create one to get started."
 msgstr "ยังไม่มี{0} สร้างขึ้นมาเพื่อเริ่มต้นใช้งาน"
 
-#: packages/admin/src/components/Redirects.tsx:208
+#: packages/admin/src/components/Redirects.tsx:217
 msgid "No 404 errors recorded yet."
 msgstr "ยังไม่มีการบันทึกข้อผิดพลาด 404"
 
@@ -4739,7 +4756,7 @@ msgstr ""
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "ไม่มีชื่อผู้เขียนให้ใช้งานใน {entryLocale} สร้างรูปแบบจากหน้าชื่อผู้เขียนก่อนที่จะระบุเครดิตในรายการนี้"
 
-#: packages/admin/src/routes/bylines.tsx:446
+#: packages/admin/src/routes/bylines.tsx:453
 msgid "No bylines found"
 msgstr "ไม่พบชื่อผู้เขียน"
 
@@ -4828,7 +4845,7 @@ msgstr "ยังไม่มีรายการ"
 msgid "No limit"
 msgstr "ไม่จำกัด"
 
-#: packages/admin/src/routes/bylines.tsx:511
+#: packages/admin/src/routes/bylines.tsx:518
 msgid "No linked user"
 msgstr "ไม่มีผู้ใช้ที่เชื่อมโยง"
 
@@ -4912,7 +4929,7 @@ msgstr "ไม่มีตัวอย่าง"
 msgid "No recent activity"
 msgstr "ไม่มีกิจกรรมล่าสุด"
 
-#: packages/admin/src/components/Redirects.tsx:434
+#: packages/admin/src/components/Redirects.tsx:460
 msgid "No redirects yet"
 msgstr "ยังไม่มีการเปลี่ยนเส้นทาง"
 
@@ -5133,8 +5150,8 @@ msgstr "ย่อหน้า"
 msgid "Parent"
 msgstr "รายการแม่"
 
-#: packages/admin/src/components/Redirects.tsx:483
-#: packages/admin/src/components/Redirects.tsx:489
+#: packages/admin/src/components/Redirects.tsx:509
+#: packages/admin/src/components/Redirects.tsx:515
 msgid "Part of a redirect loop"
 msgstr "เป็นส่วนหนึ่งของวงวนการเปลี่ยนเส้นทาง"
 
@@ -5199,7 +5216,7 @@ msgstr "Passkey ต้องการ"
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
 msgstr "Passkey ต้องใช้ HTTPS หรือ http://localhost (พร้อมพอร์ตของคุณ) ชื่อโฮสต์นี้ไม่ใช่บริบทเบราว์เซอร์ที่ปลอดภัย"
 
-#: packages/admin/src/components/Redirects.tsx:215
+#: packages/admin/src/components/Redirects.tsx:224
 msgid "Path"
 msgstr "เส้นทาง"
 
@@ -5534,7 +5551,7 @@ msgstr "อีเมลผู้รับ"
 msgid "Recovery link sent to {0}"
 msgstr "ส่งลิงก์กู้คืนไปยัง {0} แล้ว"
 
-#: packages/admin/src/components/Redirects.tsx:416
+#: packages/admin/src/components/Redirects.tsx:442
 msgid "Redirect loop detected"
 msgstr "ตรวจพบการวนซ้ำของการเปลี่ยนเส้นทาง"
 
@@ -5542,8 +5559,8 @@ msgstr "ตรวจพบการวนซ้ำของการเปลี
 msgid "Redirecting to login..."
 msgstr "กำลังเปลี่ยนเส้นทางไปยังหน้าเข้าสู่ระบบ..."
 
-#: packages/admin/src/components/Redirects.tsx:332
-#: packages/admin/src/components/Redirects.tsx:351
+#: packages/admin/src/components/Redirects.tsx:358
+#: packages/admin/src/components/Redirects.tsx:377
 #: packages/admin/src/components/Sidebar.tsx:353
 msgid "Redirects"
 msgstr "การเปลี่ยนเส้นทาง"
@@ -5879,10 +5896,10 @@ msgstr "หน้าต่างเดียวกัน"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
 #: packages/admin/src/components/MediaDetailPanel.tsx:255
 #: packages/admin/src/components/MenuEditor.tsx:533
-#: packages/admin/src/components/Redirects.tsx:183
+#: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Save"
 msgstr "บันทึก"
 
@@ -5942,7 +5959,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:255
 #: packages/admin/src/components/MenuEditor.tsx:533
-#: packages/admin/src/components/Redirects.tsx:180
+#: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/settings/GeneralSettings.tsx:125
 #: packages/admin/src/components/settings/GeneralSettings.tsx:321
@@ -5953,7 +5970,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Saving..."
 msgstr "กำลังบันทึก..."
 
@@ -6079,7 +6096,7 @@ msgid "Search by name or email..."
 msgstr "ค้นหาตามชื่อหรืออีเมล..."
 
 #: packages/admin/src/components/ContentEditor.tsx:1898
-#: packages/admin/src/routes/bylines.tsx:395
+#: packages/admin/src/routes/bylines.tsx:402
 msgid "Search bylines"
 msgstr "ค้นหาชื่อผู้เขียน"
 
@@ -6131,7 +6148,7 @@ msgstr "ค้นหาปลั๊กอิน..."
 msgid "Search sections..."
 msgstr "ค้นหาส่วน..."
 
-#: packages/admin/src/components/Redirects.tsx:383
+#: packages/admin/src/components/Redirects.tsx:409
 msgid "Search source or destination..."
 msgstr "ค้นหาต้นทางหรือปลายทาง..."
 
@@ -6600,7 +6617,7 @@ msgstr "ข้ามแล้ว"
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:398
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:480
+#: packages/admin/src/routes/bylines.tsx:487
 msgid "Slug"
 msgstr "Slug"
 
@@ -6656,12 +6673,12 @@ msgstr "จัดเรียงธีม"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:214
 #: packages/admin/src/components/PluginManager.tsx:497
-#: packages/admin/src/components/Redirects.tsx:440
+#: packages/admin/src/components/Redirects.tsx:466
 #: packages/admin/src/components/SectionEditor.tsx:279
 msgid "Source"
 msgstr "แหล่งที่มา"
 
-#: packages/admin/src/components/Redirects.tsx:128
+#: packages/admin/src/components/Redirects.tsx:131
 msgid "Source path"
 msgstr "พาธแหล่งที่มา"
 
@@ -6694,12 +6711,12 @@ msgstr "เริ่มการนำเข้า"
 #: packages/admin/src/components/ContentEditor.tsx:850
 #: packages/admin/src/components/ContentList.tsx:328
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
-#: packages/admin/src/components/Redirects.tsx:445
+#: packages/admin/src/components/Redirects.tsx:471
 #: packages/admin/src/components/users/UserList.tsx:104
 msgid "Status"
 msgstr "สถานะ"
 
-#: packages/admin/src/components/Redirects.tsx:146
+#: packages/admin/src/components/Redirects.tsx:151
 msgid "Status code"
 msgstr "รหัสสถานะ"
 
@@ -6956,7 +6973,7 @@ msgstr "ปลั๊กอินนี้ไม่ต้องการสิท
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr "ผู้เผยแพร่นี้อ้างชื่อที่ไม่สามารถพิสูจน์ความเป็นเจ้าของได้ — อาจกำลังแอบอ้างเป็นบุคคลอื่น การติดตั้งถูกปิดใช้งาน หากคุณรู้จักผู้เผยแพร่และไว้วางใจพวกเขา ให้ขอให้พวกเขาแก้ไขการตั้งค่าตัวตนก่อนลองอีกครั้ง"
 
-#: packages/admin/src/components/Redirects.tsx:551
+#: packages/admin/src/components/Redirects.tsx:581
 msgid "This redirect rule will be permanently removed."
 msgstr "กฎการเปลี่ยนเส้นทางนี้จะถูกนำออกอย่างถาวร"
 
@@ -6964,7 +6981,7 @@ msgstr "กฎการเปลี่ยนเส้นทางนี้จะ
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "รุ่นนี้ต้องการสภาพแวดล้อมที่ใหม่กว่าที่เว็บไซต์ของคุณใช้อยู่ กรุณาอัปเกรดก่อนติดตั้ง"
 
-#: packages/admin/src/routes/bylines.tsx:617
+#: packages/admin/src/routes/bylines.tsx:624
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "การดำเนินการนี้จะนำโปรไฟล์ชื่อผู้เขียนออก ลิงก์ชื่อผู้เขียนในเนื้อหาจะถูกนำออกและตัวชี้รายการนำจะถูกล้าง"
 
@@ -7351,7 +7368,7 @@ msgstr "อัปเดตการตั้งค่าเว็บไซต์
 msgid "Update the {0} details"
 msgstr "อัปเดตรายละเอียดของ {0}"
 
-#: packages/admin/src/components/Redirects.tsx:106
+#: packages/admin/src/components/Redirects.tsx:109
 msgid "Update this redirect rule."
 msgstr "อัปเดตกฎการเปลี่ยนเส้นทางนี้"
 
@@ -7503,7 +7520,7 @@ msgstr "ตัวระบุที่เหมาะกับ URL (เช่น
 msgid "URL:"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:107
+#: packages/admin/src/components/Redirects.tsx:110
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "ใช้ [param] หรือ [...rest] ในเส้นทางเพื่อจับคู่รูปแบบ"
 
@@ -7657,7 +7674,7 @@ msgstr "ดูซอร์ส"
 msgid "View the {license} license on spdx.org"
 msgstr "ดูสัญญาอนุญาต {license} บน spdx.org"
 
-#: packages/admin/src/components/Redirects.tsx:422
+#: packages/admin/src/components/Redirects.tsx:448
 msgid "Visitors hitting these paths will see an error."
 msgstr "ผู้เข้าชมที่เข้าถึงเส้นทางเหล่านี้จะพบข้อผิดพลาด"
 
@@ -7709,7 +7726,7 @@ msgstr "WebAuthn ไม่รองรับในเบราว์เซอร
 msgid "Website"
 msgstr "เว็บไซต์"
 
-#: packages/admin/src/routes/bylines.tsx:485
+#: packages/admin/src/routes/bylines.tsx:492
 msgid "Website URL"
 msgstr "URL ของเว็บไซต์"
 
@@ -7840,7 +7857,7 @@ msgstr "คุณสามารถสร้างและแก้ไขเน
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "คุณสามารถจัดการเนื้อหา มีเดีย เมนู และอนุกรมวิธานได้"
 
-#: packages/admin/src/routes/bylines.tsx:543
+#: packages/admin/src/routes/bylines.tsx:550
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr ""
 
