@@ -456,11 +456,11 @@ msgstr "404 错误"
 
 #: packages/admin/src/components/Redirects.tsx:159
 msgid "410 Content Deleted (Gone)"
-msgstr ""
+msgstr "410 内容已删除（已移除）"
 
 #: packages/admin/src/components/Redirects.tsx:160
 msgid "451 Unavailable for legal reasons"
-msgstr ""
+msgstr "451 因法律原因不可用"
 
 #: packages/admin/src/components/WordPressImport.tsx:1365
 msgid "5. Copy the generated password"
@@ -4347,11 +4347,11 @@ msgstr "将 WordPress 用户 {0} 映射到 EmDash 用户"
 #. placeholder {0}: item.path
 #: packages/admin/src/components/Redirects.tsx:255
 msgid "Mark {0} as Gone (410)"
-msgstr ""
+msgstr "标记 {0} 已删除（410）"
 
 #: packages/admin/src/components/Redirects.tsx:254
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
-msgstr ""
+msgstr "标记为已删除（410）— 告知搜索引擎该内容已被永久删除"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:501
 msgid "Mark as spam"
@@ -7521,7 +7521,7 @@ msgstr "URL 友好的标识符（例如：\"primary\"、\"footer\"）"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:193
 msgid "URL:"
-msgstr ""
+msgstr "URL:"
 
 #: packages/admin/src/components/Redirects.tsx:110
 msgid "Use [param] or [...rest] in paths for pattern matching."
