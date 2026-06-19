@@ -50,6 +50,7 @@
     "@tiptap/core": "catalog:",
     "@tiptap/extension-character-count": "catalog:",
     "@tiptap/extension-code-block": "catalog:",
+    "@tiptap/extension-collaboration": "catalog:",
     "@tiptap/extension-drag-handle": "catalog:",
     "@tiptap/extension-drag-handle-react": "catalog:",
     "@tiptap/extension-dropcursor": "catalog:",
@@ -67,12 +68,15 @@
     "@tiptap/pm": "catalog:",
     "@tiptap/react": "catalog:",
     "@tiptap/starter-kit": "catalog:",
+    "@tiptap/y-tiptap": "catalog:",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.3.2",
     "marked": "^17.0.3",
     "react-hotkeys-hook": "^5.2.4",
-    "tailwind-merge": "^3.3.0"
+    "tailwind-merge": "^3.3.0",
+    "y-protocols": "catalog:",
+    "yjs": "catalog:"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
