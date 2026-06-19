@@ -36,15 +36,17 @@ describe("cloudflare cache runtime", () => {
 
 		expect(onRequest).toBeDefined();
 
-		const response = await onRequest!({
-			request,
-			url: new URL(request.url),
-		}, () =>
-			Promise.resolve(
-				new Response("fresh page", {
-					headers: { "CDN-Cache-Control": "max-age=60, stale-while-revalidate=120" },
-				}),
-			),
+		const response = await onRequest!(
+			{
+				request,
+				url: new URL(request.url),
+			},
+			() =>
+				Promise.resolve(
+					new Response("fresh page", {
+						headers: { "CDN-Cache-Control": "max-age=60, stale-while-revalidate=120" },
+					}),
+				),
 		);
 
 		expect(response.headers.get("X-Astro-Cache")).toBe("MISS");
