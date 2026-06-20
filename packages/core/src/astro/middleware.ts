@@ -294,9 +294,19 @@ function finalizeResponse(
 	if (astroCookies !== undefined) {
 		Reflect.set(res, ASTRO_COOKIES_SYMBOL, astroCookies);
 	}
-	res.headers.set("X-Content-Type-Options", "nosniff");
-	res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-	res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+	// Set-if-absent so a host app that sets stricter values on its own routes
+	// wins. The middleware registers `order: 'pre'` (#1282), so on the response
+	// path it runs *after* host middleware; unconditional `set()` would clobber
+	// the host's headers on every public route (#1393). Mirrors the CSP guard.
+	if (!res.headers.has("X-Content-Type-Options")) {
+		res.headers.set("X-Content-Type-Options", "nosniff");
+	}
+	if (!res.headers.has("Referrer-Policy")) {
+		res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+	}
+	if (!res.headers.has("Permissions-Policy")) {
+		res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+	}
 	if (!res.headers.has("Content-Security-Policy")) {
 		res.headers.set("X-Frame-Options", "SAMEORIGIN");
 	}
