@@ -33,6 +33,8 @@ type BylineRow = Selectable<BylineTable>;
 type BylineRowWithAvatar = BylineRow & {
 	avatar_storage_key?: string | null;
 	avatar_alt?: string | null;
+	avatar_blurhash?: string | null;
+	avatar_dominant_color?: string | null;
 };
 
 export interface CreateBylineInput {
@@ -109,6 +111,8 @@ function rowToByline(row: BylineRowWithAvatar): BylineSummary {
 		avatarMediaId: row.avatar_media_id,
 		avatarStorageKey: row.avatar_storage_key ?? null,
 		avatarAlt: row.avatar_alt ?? null,
+		avatarBlurhash: row.avatar_blurhash ?? null,
+		avatarDominantColor: row.avatar_dominant_color ?? null,
 		websiteUrl: row.website_url,
 		userId: row.user_id,
 		isGuest: row.is_guest === 1,
@@ -937,6 +941,8 @@ export class BylineRepository {
 				"b.avatar_media_id as avatar_media_id",
 				"m.storage_key as avatar_storage_key",
 				"m.alt as avatar_alt",
+				"m.blurhash as avatar_blurhash",
+				"m.dominant_color as avatar_dominant_color",
 				"b.website_url as website_url",
 				"b.user_id as user_id",
 				"b.is_guest as is_guest",
@@ -964,6 +970,8 @@ export class BylineRepository {
 			avatar_media_id: row.avatar_media_id,
 			avatar_storage_key: row.avatar_storage_key,
 			avatar_alt: row.avatar_alt,
+			avatar_blurhash: row.avatar_blurhash,
+			avatar_dominant_color: row.avatar_dominant_color,
 			website_url: row.website_url,
 			user_id: row.user_id,
 			is_guest: row.is_guest,
@@ -1073,6 +1081,8 @@ export class BylineRepository {
 					"b.avatar_media_id as avatar_media_id",
 					"m.storage_key as avatar_storage_key",
 					"m.alt as avatar_alt",
+					"m.blurhash as avatar_blurhash",
+					"m.dominant_color as avatar_dominant_color",
 					"b.website_url as website_url",
 					"b.user_id as user_id",
 					"b.is_guest as is_guest",
@@ -1097,6 +1107,8 @@ export class BylineRepository {
 				avatar_media_id: row.avatar_media_id,
 				avatar_storage_key: row.avatar_storage_key,
 				avatar_alt: row.avatar_alt,
+				avatar_blurhash: row.avatar_blurhash,
+				avatar_dominant_color: row.avatar_dominant_color,
 				website_url: row.website_url,
 				user_id: row.user_id,
 				is_guest: row.is_guest,
@@ -1175,6 +1187,8 @@ export class BylineRepository {
 					"b.avatar_media_id as avatar_media_id",
 					"m.storage_key as avatar_storage_key",
 					"m.alt as avatar_alt",
+					"m.blurhash as avatar_blurhash",
+					"m.dominant_color as avatar_dominant_color",
 					"b.website_url as website_url",
 					"b.user_id as user_id",
 					"b.is_guest as is_guest",
