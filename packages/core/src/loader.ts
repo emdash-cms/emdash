@@ -762,11 +762,12 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 									taxonomyFilters.map(
 										(f) => sql`AND EXISTS (
 							SELECT 1 FROM content_taxonomies ct
-							INNER JOIN taxonomies t ON t.id = ct.taxonomy_id
+							INNER JOIN taxonomies t ON t.translation_group = ct.taxonomy_id
 							WHERE ct.collection = ${type}
 								AND ct.entry_id = ${sql.ref(tableName)}.id
 								AND t.name = ${f.name}
 								AND t.slug IN (${sql.join(f.slugs.map((s) => sql`${s}`))})
+							${locale ? sql`AND t.locale = ${locale}` : sql``}
 						)`,
 									),
 									sql` `,
