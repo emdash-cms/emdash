@@ -272,6 +272,45 @@ describe("SchemaRegistry", () => {
 			expect(updated.widget).toBe("text");
 		});
 
+		it("updates a field type when the column affinity is unchanged (#1397)", async () => {
+			await registry.createField("posts", {
+				slug: "ref",
+				label: "Ref",
+				type: "string",
+			});
+
+			// string and slug both map to a TEXT column, so the type change is safe.
+			const updated = await registry.updateField("posts", "ref", { type: "slug" });
+
+			expect(updated.type).toBe("slug");
+			expect(updated.columnType).toBe("TEXT");
+
+			// Persisted, not just reflected on the returned object.
+			const reread = await registry.getField("posts", "ref");
+			expect(reread?.type).toBe("slug");
+			expect(reread?.columnType).toBe("TEXT");
+		});
+
+		it("rejects a field type change that would alter the column type (#1397)", async () => {
+			await registry.createField("posts", {
+				slug: "body",
+				label: "Body",
+				type: "text",
+			});
+
+			// text (TEXT) -> portableText (JSON) would change the physical column,
+			// which has no in-place migration. Reject rather than silently rewriting
+			// only the metadata and desyncing column_type from the real column.
+			await expect(
+				registry.updateField("posts", "body", { type: "portableText" }),
+			).rejects.toThrow(SchemaError);
+
+			// The stored type/column_type are untouched.
+			const field = await registry.getField("posts", "body");
+			expect(field?.type).toBe("text");
+			expect(field?.columnType).toBe("TEXT");
+		});
+
 		it("should delete a field", async () => {
 			await registry.createField("posts", {
 				slug: "temp_field",
