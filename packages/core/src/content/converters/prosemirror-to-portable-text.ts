@@ -95,6 +95,21 @@ function convertNode(node: ProseMirrorNode): PortableTextBlock | PortableTextBlo
 	}
 }
 
+const VALID_TEXT_ALIGNMENTS = new Set(["center", "right", "justify"]);
+
+/**
+ * Read a meaningful (non-default) text alignment off a ProseMirror node.
+ * "left"/unset is the default and is intentionally omitted to keep existing
+ * content byte-for-byte unchanged.
+ */
+function extractTextAlign(node: ProseMirrorNode): PortableTextTextBlock["textAlign"] | undefined {
+	const value = node.attrs?.textAlign;
+	if (typeof value === "string" && VALID_TEXT_ALIGNMENTS.has(value)) {
+		return value as PortableTextTextBlock["textAlign"];
+	}
+	return undefined;
+}
+
 /**
  * Convert paragraph to Portable Text block
  */
@@ -110,6 +125,7 @@ function convertParagraph(node: ProseMirrorNode): PortableTextTextBlock | null {
 		_type: "block",
 		_key: generateKey(),
 		style: "normal",
+		textAlign: extractTextAlign(node),
 		children,
 		markDefs: markDefs.length > 0 ? markDefs : undefined,
 	};
@@ -151,6 +167,7 @@ function convertHeading(node: ProseMirrorNode): PortableTextTextBlock | null {
 		_type: "block",
 		_key: generateKey(),
 		style,
+		textAlign: extractTextAlign(node),
 		children,
 		markDefs: markDefs.length > 0 ? markDefs : undefined,
 	};

@@ -148,10 +148,14 @@ function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
  * Convert text block to ProseMirror paragraph or heading
  */
 function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null {
-	const { style = "normal", children, markDefs = [] } = block;
+	const { style = "normal", textAlign, children, markDefs = [] } = block;
 
 	// Convert children to ProseMirror nodes
 	const content = convertSpans(children, markDefs);
+
+	// The TextAlign extension is configured for paragraph and heading only;
+	// only forward an explicit, non-default alignment.
+	const alignAttr = textAlign && textAlign !== "left" ? { textAlign } : undefined;
 
 	// Determine node type based on style
 	switch (style) {
@@ -164,7 +168,7 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 			const level = parseInt(style.substring(1), 10);
 			return {
 				type: "heading",
-				attrs: { level },
+				attrs: { level, ...alignAttr },
 				content: content.length > 0 ? content : undefined,
 			};
 		}
@@ -184,6 +188,7 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 		default:
 			return {
 				type: "paragraph",
+				attrs: alignAttr,
 				content: content.length > 0 ? content : undefined,
 			};
 	}
