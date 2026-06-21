@@ -14,7 +14,27 @@ import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { contentBylineInputSchema, contentSeoInput } from "#api/schemas.js";
+import {
+	contentBylineInputSchema as _contentBylineInputSchema,
+	contentSeoInput as _contentSeoInput,
+} from "#api/schemas.js";
+
+// Inline the .meta({ id })-tagged schemas so zod 4's toJSONSchema()
+// emits them as `type: "object"` at the use site instead of
+// `allOf:[{ $ref: "#/definitions/..." }]`. Strict MCP clients (Claude
+// Desktop, Anthropic SDK) marshal tool arguments by walking
+// `properties[name].type` and silently drop properties without a
+// top-level type — symptom is the `seo` and `bylines` args silently
+// vanishing on content_create/content_update while `data` (untagged,
+// inlined) goes through. Re-wrapping `.shape` preserves every
+// field-level validation (including the httpUrl refinement on
+// canonical) but loses the parent's id tag.
+//
+// REST and OpenAPI routes import the originals directly from
+// #api/schemas.js — they want the $ref-able named schema for their
+// generated documentation. Only this MCP path strips the tag.
+const contentSeoInput = z.object(_contentSeoInput.shape);
+const contentBylineInputSchema = z.object(_contentBylineInputSchema.shape);
 
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
