@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 
 import {
 	contentCreateBody,
+	contentListQuery,
 	contentUpdateBody,
 	createFieldBody,
 	updateFieldBody,
 	httpUrl,
+	localeCode,
 	mediaUploadUrlBody,
 	DEFAULT_MAX_UPLOAD_SIZE,
 } from "../../../src/api/schemas/index.js";
@@ -118,6 +120,42 @@ describe("contentUpdateBody schema", () => {
 			createdAt: "2019-03-15T10:30:00.000Z",
 		} as Parameters<typeof contentUpdateBody.parse>[0]);
 		expect("createdAt" in result).toBe(false);
+	});
+});
+
+describe("localeCode validator (#1551)", () => {
+	// Config `locales`/`defaultLocale`, the `locale` column default, and the
+	// public query path all keep the raw BCP-47 casing (e.g. "zh-TW"). The API
+	// schema must do the same — lowercasing the `?locale=` filter (or a create
+	// body's locale) made it miss every row stored under an uppercase subtag.
+	it("preserves region/script subtag casing", () => {
+		expect(localeCode.parse("zh-TW")).toBe("zh-TW");
+		expect(localeCode.parse("pt-BR")).toBe("pt-BR");
+		expect(localeCode.parse("zh-Hant")).toBe("zh-Hant");
+	});
+
+	it("leaves plain language codes unchanged", () => {
+		expect(localeCode.parse("en")).toBe("en");
+	});
+
+	it("still accepts mixed-case input (case-insensitive validation)", () => {
+		expect(localeCode.parse("EN-us")).toBe("EN-us");
+	});
+
+	it("rejects malformed locale codes", () => {
+		expect(() => localeCode.parse("english")).toThrow();
+		expect(() => localeCode.parse("e")).toThrow();
+		expect(() => localeCode.parse("en_US")).toThrow();
+	});
+
+	it("contentListQuery keeps the ?locale= filter casing", () => {
+		const result = contentListQuery.parse({ locale: "zh-TW" });
+		expect(result.locale).toBe("zh-TW");
+	});
+
+	it("contentCreateBody keeps the locale casing", () => {
+		const result = contentCreateBody.parse({ data: { title: "Hi" }, locale: "pt-BR" });
+		expect(result.locale).toBe("pt-BR");
 	});
 });
 
