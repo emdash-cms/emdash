@@ -284,14 +284,10 @@ async function getCollectionFields(
 }
 
 /**
- * Convert markdown strings to Portable Text for any `portableText` field in
- * `data`, mirroring what EmDashClient does on write. Agents author rich text
- * as markdown rather than hand-building Portable Text JSON arrays, which they
- * get subtly wrong — a malformed array fails the field's `z.array(...)`
- * validation and surfaces to the caller as an opaque schema error. Fields that
- * already hold a PT array (or any non-string) pass through untouched, so
- * callers can still send Portable Text directly. Best-effort: if the schema
- * can't be loaded the data is returned unchanged and the handler validates it.
+ * Convert markdown strings to Portable Text for `portableText` fields on write.
+ * Non-string values pass through, so callers may still send Portable Text. If
+ * the schema can't be loaded, data is returned unchanged for the handler to
+ * validate.
  */
 async function convertWriteData(
 	ec: EmDashHandlers,
@@ -304,11 +300,9 @@ async function convertWriteData(
 }
 
 /**
- * Convert `portableText` field values on each item's `data` back to markdown
- * strings — the inverse of {@link convertWriteData}, opted into via the
- * `markdown` argument on the read tools (reads default to Portable Text for
- * backwards compatibility). Mutates each item's `data` in place. Best-effort:
- * if the schema can't be loaded the items are left as Portable Text.
+ * Convert `portableText` field values on each item's `data` to markdown,
+ * mutating in place. Inverse of {@link convertWriteData}, gated on the read
+ * tools' `markdown` argument.
  */
 async function applyReadMarkdown(
 	ec: EmDashHandlers,
@@ -625,11 +619,11 @@ export function createMcpServer(): McpServer {
 				"Create a new content item in a collection. The 'data' object should " +
 				"contain field values matching the collection's schema (use " +
 				"schema_get_collection to check). For rich text (portableText) fields, " +
-				"pass a Markdown string — this is the recommended format and is converted " +
-				"to Portable Text automatically. (A Portable Text JSON array is also " +
-				"accepted, but prefer Markdown: a large nested array is easy to emit as " +
-				"malformed JSON.) A slug is auto-generated if not provided. Items are " +
-				"created as 'draft' by default — use content_publish to make them live.",
+				"pass a Markdown string — converted to Portable Text automatically; prefer " +
+				"this. Pass a Portable Text JSON array only for complex content Markdown " +
+				"can't express (custom blocks, embeds). A slug is auto-generated if not " +
+				"provided. Items are created as 'draft' by default — use content_publish " +
+				"to make them live.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
 				data: z
@@ -716,7 +710,8 @@ export function createMcpServer(): McpServer {
 				"Update an existing content item. Only include fields you want to change " +
 				"in the 'data' object — unspecified fields are left unchanged. Rich text " +
 				"(portableText) fields accept a Markdown string (recommended, converted " +
-				"automatically) or a Portable Text JSON array. Pass the " +
+				"automatically); use a Portable Text JSON array only for complex content " +
+				"Markdown can't express (custom blocks, embeds). Pass the " +
 				"_rev token from content_get to enable optimistic concurrency checking " +
 				"(the update fails if the item was modified since you read it). " +
 				"`seo` and `bylines` are persisted alongside the field updates in a " +
