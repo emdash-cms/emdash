@@ -23,7 +23,7 @@ import { ulid } from "ulidx";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { escapeHtml } from "#api/escape.js";
-import { handleApiTokenCreate } from "#api/handlers/api-tokens.js";
+import { deleteApiTokensByName, handleApiTokenCreate } from "#api/handlers/api-tokens.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { isSafeRedirect } from "#api/redirect.js";
 import { runMigrations } from "#db/migrations/runner.js";
@@ -134,6 +134,10 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 		// Optionally create a PAT token (?token=1) for headless/CLI testing.
 		let token: string | undefined;
 		if (url.searchParams.has("token")) {
+			// Idempotent by name: a prior reset can leave a stale dev-bypass-token,
+			// and the raw token is only available at creation, so drop any existing
+			// one and mint a fresh, usable PAT rather than accumulating duplicates.
+			await deleteApiTokensByName(emdash.db, user.id, "dev-bypass-token");
 			const result = await handleApiTokenCreate(emdash.db, user.id, {
 				name: "dev-bypass-token",
 				scopes: [
