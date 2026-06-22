@@ -5,6 +5,7 @@ vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual
 vi.mock("../../src/loader.js", () => ({ getDb: vi.fn() }));
 
 import { getComments } from "../../src/comments/query.js";
+import { CommentReactionRepository } from "../../src/database/repositories/comment-reaction.js";
 import { CommentRepository } from "../../src/database/repositories/comment.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import type { Database } from "../../src/database/types.js";
@@ -118,5 +119,29 @@ describe("object cache: comments (getComments)", () => {
 		await flush();
 		const third = await getComments({ collection: "post", contentId: postId });
 		expect(third.total).toBe(2);
+	});
+
+	it("does not collide when reactions/sort differ from a prior cached call", async () => {
+		const base = await getComments({ collection: "post", contentId: postId });
+		const commentId = base.items[0]!.id;
+		await new CommentReactionRepository(db).toggle({
+			commentId,
+			reaction: "like",
+			voterHash: "voter-1",
+		});
+		await flush();
+
+		// Reaction-less call: no counts attached.
+		const plain = await getComments({ collection: "post", contentId: postId });
+		expect(plain.items[0]!.reactions).toBeUndefined();
+		await flush();
+
+		// reactions:true must get its own entry, not the reaction-less snapshot.
+		const withReactions = await getComments({
+			collection: "post",
+			contentId: postId,
+			reactions: true,
+		});
+		expect(withReactions.items[0]!.reactions).toEqual({ like: 1 });
 	});
 });

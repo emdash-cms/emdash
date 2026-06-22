@@ -49,9 +49,16 @@ export interface GetCommentsResult {
  * ```
  */
 export async function getComments(options: GetCommentsOptions): Promise<GetCommentsResult> {
+	// The result varies by every option getCommentsWithDb branches on, so all of
+	// them belong in the key. `best` implies reactions, so normalize the reaction
+	// flag — `{ sort: "best" }` and `{ sort: "best", reactions: true }` produce
+	// identical output and should share one entry.
+	const sort = options.sort ?? "oldest";
+	const withReactions = options.reactions || sort === "best";
+	const threaded = options.threaded ? "t" : "f";
 	return cachedQuery({
 		namespace: CacheNamespace.COMMENTS,
-		key: `comments:${options.collection}:${options.contentId}:${options.threaded ? "t" : "f"}`,
+		key: `comments:${options.collection}:${options.contentId}:${threaded}:${withReactions ? "r" : "n"}:${sort}`,
 		load: async () => {
 			const db = await getDb();
 			return getCommentsWithDb(db, options);
