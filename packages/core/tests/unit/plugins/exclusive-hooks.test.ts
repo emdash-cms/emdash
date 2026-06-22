@@ -11,6 +11,7 @@
 
 import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
+import type { KyselyPlugin } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import { extractManifest } from "../../../src/cli/commands/bundle-utils.js";
@@ -25,7 +26,10 @@ import type {
 	PluginDefinition,
 	ContentBeforeSaveHandler,
 	ContentAfterSaveHandler,
+	ContentBeforeDeleteHandler,
 } from "../../../src/plugins/types.js";
+import { describeEachDialect, setupForDialect, teardownForDialect } from "../../utils/test-db.js";
+import type { DialectTestContext } from "../../utils/test-db.js";
 
 // ---------------------------------------------------------------------------
 // Helpers — ResolvedPlugin (for HookPipeline tests)
@@ -817,5 +821,227 @@ describe("PluginManager — resolveExclusiveHooks", () => {
 		expect(info[0]!.providers).toHaveLength(1);
 		expect(info[0]!.providers[0]!.pluginId).toBe("provider-a");
 		expect(info[0]!.selectedPluginId).toBe("provider-a");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// resolveExclusiveHooks — batched option reads
+// ---------------------------------------------------------------------------
+
+describe("resolveExclusiveHooks — batched option reads", () => {
+	/**
+	 * Three plugins / three exclusive hooks covering every resolution branch:
+	 * - content:beforeSave: providers a+b active, valid stored selection (kept)
+	 * - content:afterSave: provider c stale (inactive), a remains (auto-select)
+	 * - content:beforeDelete: providers a+b active, no selection (unselected)
+	 */
+	function createScenarioPipeline(): HookPipeline {
+		const pluginA = createTestPlugin({
+			id: "provider-a",
+			hooks: {
+				"content:beforeSave": createTestHook("provider-a", vi.fn(), { exclusive: true }),
+				"content:afterSave": createTestHook("provider-a", vi.fn(), { exclusive: true }),
+				"content:beforeDelete": createTestHook("provider-a", vi.fn(), { exclusive: true }),
+			},
+		});
+		const pluginB = createTestPlugin({
+			id: "provider-b",
+			hooks: {
+				"content:beforeSave": createTestHook("provider-b", vi.fn(), { exclusive: true }),
+				"content:beforeDelete": createTestHook("provider-b", vi.fn(), { exclusive: true }),
+			},
+		});
+		const pluginC = createTestPlugin({
+			id: "provider-c",
+			hooks: {
+				"content:afterSave": createTestHook("provider-c", vi.fn(), { exclusive: true }),
+			},
+		});
+		return new HookPipeline([pluginA, pluginB, pluginC]);
+	}
+
+	function createScenarioStore(): Map<string, string> {
+		return new Map([
+			["emdash:exclusive_hook:content:beforeSave", "provider-a"],
+			["emdash:exclusive_hook:content:afterSave", "provider-c"],
+		]);
+	}
+
+	function createStoreCallbacks(store: Map<string, string>) {
+		return {
+			getOption: vi.fn(async (key: string): Promise<string | null> => store.get(key) ?? null),
+			getOptions: vi.fn(async (keys: string[]): Promise<ReadonlyMap<string, string>> => {
+				const result = new Map<string, string>();
+				for (const key of keys) {
+					const value = store.get(key);
+					if (value !== undefined) result.set(key, value);
+				}
+				return result;
+			}),
+			setOption: vi.fn(async (key: string, value: string) => {
+				store.set(key, value);
+			}),
+			deleteOption: vi.fn(async (key: string) => {
+				store.delete(key);
+			}),
+		};
+	}
+
+	const isActive = (id: string) => id !== "provider-c";
+
+	it("reads all selections with one getOptions call and no per-hook gets", async () => {
+		const pipeline = createScenarioPipeline();
+		const store = createScenarioStore();
+		const callbacks = createStoreCallbacks(store);
+
+		await resolveExclusiveHooks({ pipeline, isActive, ...callbacks });
+
+		expect(callbacks.getOptions).toHaveBeenCalledTimes(1);
+		expect(callbacks.getOptions.mock.calls[0]![0]).toEqual(
+			expect.arrayContaining([
+				"emdash:exclusive_hook:content:beforeSave",
+				"emdash:exclusive_hook:content:afterSave",
+				"emdash:exclusive_hook:content:beforeDelete",
+			]),
+		);
+		expect(callbacks.getOption).not.toHaveBeenCalled();
+	});
+
+	it("resolves identically to the per-key path", async () => {
+		// Batched path
+		const batchedPipeline = createScenarioPipeline();
+		const batchedStore = createScenarioStore();
+		await resolveExclusiveHooks({
+			pipeline: batchedPipeline,
+			isActive,
+			...createStoreCallbacks(batchedStore),
+		});
+
+		// Per-key path (no getOptions)
+		const perKeyPipeline = createScenarioPipeline();
+		const perKeyStore = createScenarioStore();
+		const { getOptions: _unused, ...perKeyCallbacks } = createStoreCallbacks(perKeyStore);
+		await resolveExclusiveHooks({
+			pipeline: perKeyPipeline,
+			isActive,
+			...perKeyCallbacks,
+		});
+
+		for (const hookName of ["content:beforeSave", "content:afterSave", "content:beforeDelete"]) {
+			expect(batchedPipeline.getExclusiveSelection(hookName)).toBe(
+				perKeyPipeline.getExclusiveSelection(hookName),
+			);
+		}
+		expect(batchedStore).toEqual(perKeyStore);
+
+		// Sanity-check the actual outcomes, not just parity
+		expect(batchedPipeline.getExclusiveSelection("content:beforeSave")).toBe("provider-a");
+		expect(batchedPipeline.getExclusiveSelection("content:afterSave")).toBe("provider-a");
+		expect(batchedPipeline.getExclusiveSelection("content:beforeDelete")).toBeUndefined();
+	});
+
+	it("skips resolution when the batch read fails (options table not ready)", async () => {
+		const pipeline = createScenarioPipeline();
+		const callbacks = createStoreCallbacks(createScenarioStore());
+		callbacks.getOptions.mockRejectedValue(new Error("no such table: options"));
+
+		await expect(
+			resolveExclusiveHooks({ pipeline, isActive, ...callbacks }),
+		).resolves.toBeUndefined();
+
+		// Matches the per-key tolerance: nothing written, nothing selected
+		expect(callbacks.setOption).not.toHaveBeenCalled();
+		expect(callbacks.deleteOption).not.toHaveBeenCalled();
+		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
+		expect(pipeline.getExclusiveSelection("content:afterSave")).toBeUndefined();
+		expect(pipeline.getExclusiveSelection("content:beforeDelete")).toBeUndefined();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// PluginManager — batched resolution against a real database
+// ---------------------------------------------------------------------------
+
+/**
+ * Kysely plugin that counts compiled SELECT statements — one per executed
+ * select round trip. Used to assert the batched resolution issues a single
+ * options read regardless of how many exclusive hooks are registered.
+ */
+function createSelectCountingPlugin(): { plugin: KyselyPlugin; counter: { count: number } } {
+	const counter = { count: 0 };
+	const plugin: KyselyPlugin = {
+		transformQuery(args) {
+			if (args.node.kind === "SelectQueryNode") counter.count += 1;
+			return args.node;
+		},
+		transformResult(args) {
+			return Promise.resolve(args.result);
+		},
+	};
+	return { plugin, counter };
+}
+
+describeEachDialect("PluginManager — batched exclusive hook resolution", (dialect) => {
+	let ctx: DialectTestContext;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("resolves all exclusive hooks with a single options select", async () => {
+		const { plugin: countingPlugin, counter } = createSelectCountingPlugin();
+		const db = ctx.db.withPlugin(countingPlugin);
+
+		const manager = new PluginManager({ db });
+		manager.register(
+			createTestDefinition({
+				id: "provider-save",
+				hooks: {
+					"content:beforeSave": {
+						handler: vi.fn() as unknown as ContentBeforeSaveHandler,
+						exclusive: true,
+					},
+				},
+			}),
+		);
+		manager.register(
+			createTestDefinition({
+				id: "provider-after",
+				hooks: {
+					"content:afterSave": {
+						handler: vi.fn() as unknown as ContentAfterSaveHandler,
+						exclusive: true,
+					},
+				},
+			}),
+		);
+		manager.register(
+			createTestDefinition({
+				id: "provider-delete",
+				hooks: {
+					"content:beforeDelete": {
+						handler: vi.fn() as unknown as ContentBeforeDeleteHandler,
+						exclusive: true,
+					},
+				},
+			}),
+		);
+		await manager.activate("provider-save");
+		await manager.activate("provider-after");
+		await manager.activate("provider-delete");
+
+		// All three sole providers were auto-selected during activation;
+		// a fresh resolution keeps them with exactly one batched read.
+		counter.count = 0;
+		await manager.resolveExclusiveHooks();
+		expect(counter.count).toBe(1);
+
+		expect(await manager.getExclusiveHookSelection("content:beforeSave")).toBe("provider-save");
+		expect(await manager.getExclusiveHookSelection("content:afterSave")).toBe("provider-after");
+		expect(await manager.getExclusiveHookSelection("content:beforeDelete")).toBe("provider-delete");
 	});
 });

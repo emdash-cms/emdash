@@ -43,3 +43,75 @@ describe("RepeaterField", () => {
 		});
 	});
 });
+
+/**
+ * Image sub-field support (issue #1424): rows render the media picker
+ * (ImageFieldRenderer) instead of falling through to a plain text input.
+ */
+describe("RepeaterField sub-field types", () => {
+	it("renders the media picker for image sub-fields", async () => {
+		const screen = await render(
+			<RepeaterField
+				label="Gallery"
+				id="gallery"
+				value={[{ image: null, caption: "" }]}
+				onChange={vi.fn()}
+				subFields={[
+					{ slug: "image", type: "image", label: "Image" },
+					{ slug: "caption", type: "string", label: "Caption" },
+				]}
+			/>,
+		);
+
+		// Image sub-field → picker button, not a text input.
+		await expect.element(screen.getByRole("button", { name: /Select image/ })).toBeVisible();
+		// Scalar sub-fields keep their plain inputs.
+		await expect.element(screen.getByRole("textbox", { name: "Caption" })).toBeVisible();
+	});
+
+	it("shows the existing image preview for media values", async () => {
+		const screen = await render(
+			<RepeaterField
+				label="Gallery"
+				id="gallery"
+				value={[
+					{
+						image: {
+							id: "m1",
+							provider: "local",
+							alt: "",
+							meta: { storageKey: "01ABC.png" },
+						},
+					},
+				]}
+				onChange={vi.fn()}
+				subFields={[{ slug: "image", type: "image", label: "Image" }]}
+			/>,
+		);
+
+		// MediaValue with a storageKey renders the local-media preview image.
+		await expect
+			.element(screen.container.querySelector('img[src="/_emdash/api/media/file/01ABC.png"]'))
+			.toBeInTheDocument();
+	});
+
+	it("initializes image sub-fields as null when adding an item", async () => {
+		const onChange = vi.fn();
+		const screen = await render(
+			<RepeaterField
+				label="Gallery"
+				id="gallery"
+				value={[]}
+				onChange={onChange}
+				subFields={[
+					{ slug: "image", type: "image", label: "Image" },
+					{ slug: "caption", type: "string", label: "Caption" },
+				]}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: /Add First Item/ }).click();
+
+		expect(onChange).toHaveBeenCalledWith([{ image: null, caption: "" }]);
+	});
+});

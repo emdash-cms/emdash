@@ -6,20 +6,28 @@
  * and the round-trip between user input and the stored `language` attribute.
  */
 
+import { i18n } from "@lingui/core";
 import { describe, it, expect } from "vitest";
 
 import {
 	CODE_BLOCK_LANGUAGES,
 	findLanguage,
-	languageLabel,
+	languageLabelDescriptor,
 	normalizeLanguage,
 } from "../../src/components/editor/codeBlockLanguages";
+
+function resolveLabel(
+	label: ReturnType<typeof languageLabelDescriptor> | undefined,
+): string | undefined {
+	if (!label) return undefined;
+	return typeof label === "string" ? label : i18n._(label);
+}
 
 describe("findLanguage", () => {
 	it("returns the canonical entry for a known id", () => {
 		const ts = findLanguage("typescript");
 		expect(ts?.id).toBe("typescript");
-		expect(ts?.label).toBe("TypeScript");
+		expect(resolveLabel(ts?.label)).toBe("TypeScript");
 	});
 
 	it("resolves aliases to the canonical entry", () => {
@@ -112,20 +120,20 @@ describe("normalizeLanguage", () => {
 	});
 });
 
-describe("languageLabel", () => {
+describe("languageLabelDescriptor", () => {
 	it("returns the curated label for known languages", () => {
-		expect(languageLabel("typescript")).toBe("TypeScript");
-		expect(languageLabel("ts")).toBe("TypeScript");
-		expect(languageLabel("cpp")).toBe("C++");
+		expect(resolveLabel(languageLabelDescriptor("typescript"))).toBe("TypeScript");
+		expect(resolveLabel(languageLabelDescriptor("ts"))).toBe("TypeScript");
+		expect(resolveLabel(languageLabelDescriptor("cpp"))).toBe("C++");
 	});
 
 	it("falls back to the raw id for unknown languages", () => {
-		expect(languageLabel("brainfuck")).toBe("brainfuck");
+		expect(resolveLabel(languageLabelDescriptor("brainfuck"))).toBe("brainfuck");
 	});
 
 	it("returns a friendly default for empty input", () => {
-		expect(languageLabel(null)).toBe("Plain text");
-		expect(languageLabel(undefined)).toBe("Plain text");
-		expect(languageLabel("")).toBe("Plain text");
+		expect(resolveLabel(languageLabelDescriptor(null))).toBe("Plain text");
+		expect(resolveLabel(languageLabelDescriptor(undefined))).toBe("Plain text");
+		expect(resolveLabel(languageLabelDescriptor(""))).toBe("Plain text");
 	});
 });

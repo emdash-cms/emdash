@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.17.2",
+  "version": "0.21.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -109,6 +109,14 @@
     "./media/local-runtime": {
       "types": "./dist/media/local-runtime.d.mts",
       "default": "./dist/media/local-runtime.mjs"
+    },
+    "./media/image-endpoint": {
+      "types": "./dist/media/image-endpoint.d.mts",
+      "default": "./dist/media/image-endpoint.mjs"
+    },
+    "./image-endpoint": {
+      "types": "./dist/astro/image-endpoint.d.mts",
+      "default": "./dist/astro/image-endpoint.mjs"
     },
     "./runtime": {
       "types": "./dist/runtime.d.mts",
@@ -263,7 +271,7 @@
     "@types/react": "catalog:",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
-    "@vitest/ui": "^4.1.7",
+    "@vitest/ui": "^4.1.8",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

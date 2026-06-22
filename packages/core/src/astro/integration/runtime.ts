@@ -11,7 +11,11 @@ import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
-import type { ResolvedPlugin } from "../../plugins/types.js";
+import type {
+	FieldWidgetConfig,
+	PortableTextBlockConfig,
+	ResolvedPlugin,
+} from "../../plugins/types.js";
 import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
 
@@ -99,6 +103,15 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	adminPages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	adminWidgets?: PluginDashboardWidget[];
+	/**
+	 * Portable Text block types this plugin contributes to the editor.
+	 * Declarative (Block Kit) — surfaced in the admin slash menu and consumed
+	 * from the manifest, so standard/sandboxed plugins can contribute blocks
+	 * without a native render component.
+	 */
+	portableTextBlocks?: PortableTextBlockConfig[];
+	/** Field widget types this plugin contributes for schema-field editing UIs. */
+	fieldWidgets?: FieldWidgetConfig[];
 
 	// === Sandbox-specific fields (for sandboxed plugins) ===
 
@@ -187,6 +200,17 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	objectCache?: ObjectCacheDescriptor;
+	/**
+	 * Image optimization.
+	 *
+	 * By default EmDash wraps Astro's image endpoint so media served from
+	 * storage is optimized through the normal `<Image>` / `getImage` pipeline,
+	 * loading source bytes directly from the storage adapter (works behind
+	 * Cloudflare Access). Set to `false` to leave Astro's image endpoint
+	 * untouched -- media then renders as a plain `<img>` unless your image
+	 * service can fetch it over HTTP.
+	 */
+	images?: boolean;
 	/**
 	 * Trusted plugins to load (run in main isolate)
 	 *

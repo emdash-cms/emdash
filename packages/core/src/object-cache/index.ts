@@ -399,7 +399,11 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
  * window. No-ops when the cache is disabled.
  */
 export function invalidateObjectCache(namespace: string): void {
-	const stamp = Date.now();
+	// Monotonic so two writes in the same millisecond still produce distinct
+	// epochs — otherwise the second write reuses the first's stamp and its
+	// stale entries survive.
+	const prev = epochCache.get(namespace)?.value ?? 0;
+	const stamp = Math.max(prev + 1, Date.now());
 	// Optimistic local bump: keep this isolate consistent without a round-trip.
 	epochCache.set(namespace, { value: stamp, at: stamp });
 

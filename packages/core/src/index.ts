@@ -46,6 +46,7 @@ export type {
 // API handlers
 export {
 	handleContentList,
+	handleContentAuthors,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,
@@ -223,6 +224,8 @@ export {
 	PluginManager,
 	createPluginManager,
 	PluginRouteError,
+	// Scheduler (Node timer heartbeat — used by virtual:emdash/scheduler)
+	NodeCronScheduler,
 	// Sandbox
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
@@ -274,6 +277,10 @@ export type {
 	ModerationDecision,
 	CollectionCommentSettings,
 	StoredComment,
+
+	// Scheduler types
+	CronScheduler,
+	SystemCleanupFn,
 
 	// Sandbox runtime types
 	SandboxRunner,
@@ -428,7 +435,7 @@ export type {
 } from "./menus/types.js";
 
 // Bylines
-export { getByline, getBylineBySlug } from "./bylines/index.js";
+export { getByline, getBylineBySlug, getEntriesByByline } from "./bylines/index.js";
 export type { BylineSummary, ContentBylineCredit } from "./database/repositories/types.js";
 
 // Taxonomies

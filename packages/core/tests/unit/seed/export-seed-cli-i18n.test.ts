@@ -275,4 +275,43 @@ describe("exportSeed: CLI (no runtime i18n config) stays locale-aware (#1330)", 
 		expect(cat?.locale).toBeUndefined();
 		expect(cat?.translationOf).toBeUndefined();
 	});
+
+	it("self-describes the default locale for a single-locale non-en project (#1421)", async () => {
+		db = await setupTestDatabase();
+
+		// Every locale-bearing row is `de` — a genuine single-locale project whose
+		// default is not `en`. Move the built-in defs to `de` so no stray `en` row
+		// makes the data look multi-locale.
+		await db.updateTable("_emdash_taxonomy_defs").set({ locale: "de" }).execute();
+		await insertTaxonomyDef(db, {
+			id: ulid(),
+			name: "genre",
+			label: "Kategorien",
+			locale: "de",
+			group: ulid(),
+		});
+
+		const seed = await exportSeed(db);
+
+		// Bare ids (single-locale), but the seed carries the real default so apply
+		// — which runs outside the runtime — can backfill `de` instead of `en`.
+		expect(seed.defaultLocale).toBe("de");
+		const cat = seed.taxonomies?.find((t) => t.name === "genre");
+		expect(cat?.id).toBe("tax:genre");
+		expect(cat?.locale).toBeUndefined();
+	});
+
+	it("omits defaultLocale for multi-locale data (rows self-describe their locale)", async () => {
+		db = await setupTestDatabase();
+
+		const group = ulid();
+		await insertMenu(db, { id: ulid(), name: "primary", label: "Primary", locale: "en", group });
+		await insertMenu(db, { id: ulid(), name: "primary", label: "الرئيسية", locale: "ar", group });
+
+		const seed = await exportSeed(db);
+
+		// Multiple locales → every row already emits its own `locale`, so there is
+		// no omitted-locale fallback to fill and no single "default" to infer.
+		expect(seed.defaultLocale).toBeUndefined();
+	});
 });

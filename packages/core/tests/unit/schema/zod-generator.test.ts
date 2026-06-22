@@ -552,6 +552,9 @@ describe("Zod Generator", () => {
 			expect(ts).toContain("content: PortableTextBlock[];");
 			expect(ts).toContain("featured?: boolean;");
 			expect(ts).toContain('status: "draft" | "published";');
+			// Hydrated by getEmDashCollection/getEmDashEntry
+			expect(ts).toContain("bylines?: ContentBylineCredit[];");
+			expect(ts).toContain("terms?: Record<string, TaxonomyTerm[]>;");
 		});
 	});
 });

@@ -18,6 +18,25 @@
 const STORAGE_PREFIX = "ec-form:";
 const DEBOUNCE_MS = 500;
 
+type SubmitResponse = {
+	success?: boolean;
+	message?: string;
+	redirect?: string;
+	errors?: Array<{ field: string; message: string }>;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function parseSubmitResponse(body: unknown): SubmitResponse {
+	if (isRecord(body) && isRecord(body.data)) {
+		return body.data as SubmitResponse;
+	}
+
+	return isRecord(body) ? (body as SubmitResponse) : {};
+}
+
 let saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let listenersRegistered = false;
 
@@ -127,12 +146,7 @@ async function handleSubmit(e: Event) {
 			body,
 		});
 
-		const result = (await res.json()) as {
-			success?: boolean;
-			message?: string;
-			redirect?: string;
-			errors?: Array<{ field: string; message: string }>;
-		};
+		const result = parseSubmitResponse(await res.json());
 
 		if (result.success) {
 			clearSavedState(form);

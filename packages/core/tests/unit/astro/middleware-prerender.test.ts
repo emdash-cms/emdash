@@ -118,8 +118,10 @@ vi.mock(
 vi.mock("virtual:emdash/sandboxed-plugins", () => ({ sandboxedPlugins: [] }), { virtual: true });
 vi.mock("virtual:emdash/storage", () => ({ createStorage: null }), { virtual: true });
 vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
+vi.mock("virtual:emdash/scheduler", () => ({ createScheduler: null }), { virtual: true });
 
 vi.mock("../../../src/emdash-runtime.js", () => ({
+	DB_INIT_DEADLINE_MS: 30_000,
 	EmDashRuntime: {
 		create: async () => MOCK_RUNTIME,
 	},
@@ -143,10 +145,12 @@ import onRequest from "../../../src/astro/middleware.js";
 import { getDb } from "../../../src/loader.js";
 import { getRequestContext } from "../../../src/request-context.js";
 
-/** Reset the globalThis-backed "setup verified" singleton between tests. */
+/** Reset the globalThis-backed singletons between tests. */
 const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
+const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
 function resetSetupVerified() {
 	delete (globalThis as Record<symbol, unknown>)[SETUP_VERIFIED_KEY];
+	delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
 }
 
 /** A getDb stub whose migrations-probe query throws `error`. */

@@ -143,15 +143,10 @@ async function buildMenuTree(
 		}
 	}
 
-	const urlPatterns = new Map<string, string | null>();
-	if (collectionSlugs.size > 0) {
-		const rows = await db
-			.selectFrom("_emdash_collections")
-			.select(["slug", "url_pattern"])
-			.where("slug", "in", [...collectionSlugs])
-			.execute();
-		for (const row of rows) urlPatterns.set(row.slug, row.url_pattern);
-	}
+	const urlPatterns =
+		collectionSlugs.size > 0
+			? await getCollectionUrlPatterns(db, collectionSlugs)
+			: new Map<string, string | null>();
 
 	const resolvedItems = await Promise.all(
 		items.map((item) => resolveMenuItem(item, db, urlPatterns, locale)),
@@ -178,6 +173,29 @@ async function buildMenuTree(
 	}
 
 	return rootItems;
+}
+
+/**
+ * Look up the `url_pattern` for a set of collection slugs, request-cached so
+ * a page rendering several menus (header, footer, ...) only pays for the
+ * lookup once per distinct slug set. Callers must treat the returned map as
+ * read-only — it is shared across cache hits within the request.
+ */
+function getCollectionUrlPatterns(
+	db: Kysely<Database>,
+	collectionSlugs: Set<string>,
+): Promise<Map<string, string | null>> {
+	const key = `menu-collection-patterns:${[...collectionSlugs].toSorted().join(",")}`;
+	return requestCached(key, async () => {
+		const rows = await db
+			.selectFrom("_emdash_collections")
+			.select(["slug", "url_pattern"])
+			.where("slug", "in", [...collectionSlugs])
+			.execute();
+		const urlPatterns = new Map<string, string | null>();
+		for (const row of rows) urlPatterns.set(row.slug, row.url_pattern);
+		return urlPatterns;
+	});
 }
 
 /**

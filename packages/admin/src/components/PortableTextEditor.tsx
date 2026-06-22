@@ -399,7 +399,11 @@ function convertPMNode(node: {
 	}
 }
 
-function convertList(items: unknown[], listItem: "bullet" | "number"): PortableTextTextBlock[] {
+function convertList(
+	items: unknown[],
+	listItem: "bullet" | "number",
+	level = 1,
+): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
 	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
 
@@ -418,11 +422,15 @@ function convertList(items: unknown[], listItem: "bullet" | "number"): PortableT
 							_key: generateKey(),
 							style: "normal",
 							listItem,
-							level: 1,
+							level,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
 					}
+				} else if (child.type === "bulletList") {
+					blocks.push(...convertList(child.content || [], "bullet", level + 1));
+				} else if (child.type === "orderedList") {
+					blocks.push(...convertList(child.content || [], "number", level + 1));
 				}
 			}
 		}
@@ -561,9 +569,14 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 			const listBlocks: PortableTextTextBlock[] = [];
 			const listType = block.listItem;
 
+			// A list "run" is a level=1 anchor block plus everything that nests
+			// under it (level > 1) or repeats it at the same root level/type.
+			// A level=1 block with a different listItem ends the run.
 			while (i < blocks.length) {
 				const current = blocks[i]!;
-				if (isTextBlock(current) && current.listItem === listType) {
+				if (!isTextBlock(current) || !current.listItem) break;
+				const level = current.level || 1;
+				if (level > 1 || current.listItem === listType) {
 					listBlocks.push(current);
 					i++;
 				} else {
@@ -760,22 +773,95 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 }
 
 function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "number"): unknown {
-	const listItems = items.map((item) => {
-		const pmContent = convertPTSpans(item.children, item.markDefs || []);
-		return {
-			type: "listItem",
-			content: [
-				{
-					type: "paragraph",
-					content: pmContent.length > 0 ? pmContent : undefined,
-				},
-			],
-		};
-	});
+	// Group items into root-level items (level === 1) and their nested
+	// descendants (level > 1). For each root item, all subsequent items with
+	// level > 1 belong to its nested subtree — recurse on them with level
+	// decremented so the inner pass sees them as its own root level.
+	const rootItems: unknown[] = [];
+	let i = 0;
+
+	while (i < items.length) {
+		const item = items[i]!;
+		const level = item.level || 1;
+
+		if (level === 1) {
+			const nestedItems: PortableTextTextBlock[] = [];
+			i++;
+			while (i < items.length && (items[i]!.level || 1) > 1) {
+				nestedItems.push(items[i]!);
+				i++;
+			}
+			rootItems.push(convertPTListItem(item, nestedItems, listType));
+		} else {
+			// Orphan nested item with no preceding level=1 anchor — treat as root
+			// so we don't drop content.
+			rootItems.push(convertPTListItem(item, [], listType));
+			i++;
+		}
+	}
 
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
-		content: listItems,
+		content: rootItems,
+	};
+}
+
+function convertPTListItem(
+	item: PortableTextTextBlock,
+	nestedItems: PortableTextTextBlock[],
+	parentListType: "bullet" | "number",
+): unknown {
+	const content: unknown[] = [];
+
+	const pmContent = convertPTSpans(item.children, item.markDefs || []);
+	content.push({
+		type: "paragraph",
+		content: pmContent.length > 0 ? pmContent : undefined,
+	});
+
+	if (nestedItems.length > 0) {
+		// The shallowest level in `nestedItems` is the effective root of this
+		// item's nested subtree. A new sub-list only starts when we hit
+		// another block at that root level with a different `listItem` type;
+		// deeper blocks (level > minLevel) belong to the current group as
+		// descendants regardless of their own `listItem`. The previous
+		// grouping broke on any type change at any depth, so a deep mixed
+		// tree like `bullet L1 → number L2 → bullet L3 → number L2` would
+		// emit C(L3) as a sibling list under A(L1) instead of nesting it
+		// under B(L2), then degrade C to L2 on round-trip.
+		let minLevel = Infinity;
+		for (const ni of nestedItems) {
+			const level = ni.level || 2;
+			if (level < minLevel) minLevel = level;
+		}
+
+		let j = 0;
+		while (j < nestedItems.length) {
+			const anchorType: "bullet" | "number" = nestedItems[j]!.listItem || parentListType;
+			const nestedGroup: PortableTextTextBlock[] = [];
+
+			do {
+				nestedGroup.push(nestedItems[j]!);
+				j++;
+			} while (
+				j < nestedItems.length &&
+				((nestedItems[j]!.level || 2) > minLevel ||
+					(nestedItems[j]!.listItem || parentListType) === anchorType)
+			);
+
+			if (nestedGroup.length > 0) {
+				const adjustedGroup = nestedGroup.map((ni) => ({
+					...ni,
+					level: (ni.level || 2) - 1,
+				}));
+				content.push(convertPTList(adjustedGroup, anchorType));
+			}
+		}
+	}
+
+	return {
+		type: "listItem",
+		content,
 	};
 }
 
@@ -3039,6 +3125,18 @@ function EditorToolbar({
 				</div>
 				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title={t`Insert Image`}>
 					<ImageIcon className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton
+					onClick={() =>
+						editor
+							.chain()
+							.focus()
+							.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+							.run()
+					}
+					title={t`Insert HTML`}
+				>
+					<BracketsAngle className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().setHorizontalRule().run()}

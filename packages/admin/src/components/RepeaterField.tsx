@@ -23,6 +23,7 @@ import * as React from "react";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { cn } from "../lib/utils.js";
 import { CaretNext } from "./ArrowIcons.js";
+import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 
 interface RepeaterSubFieldDef {
 	slug: string;
@@ -100,7 +101,11 @@ export function RepeaterField({
 		const newItem: RepeaterItem = { _key: `item-${Date.now()}` };
 		for (const sf of subFields) {
 			newItem[sf.slug] =
-				sf.type === "boolean" ? false : sf.type === "number" || sf.type === "integer" ? null : "";
+				sf.type === "boolean"
+					? false
+					: sf.type === "number" || sf.type === "integer" || sf.type === "image"
+						? null
+						: "";
 		}
 		emitChange([...items, newItem]);
 	};
@@ -361,6 +366,23 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 						"": t`Select...`,
 						...Object.fromEntries((subField.options ?? []).map((opt) => [opt, opt])),
 					}}
+				/>
+			);
+		case "image":
+			return (
+				<ImageFieldRenderer
+					label={subField.label}
+					// Same backwards-compat contract as top-level image fields:
+					// objects are MediaValues, strings are legacy URLs.
+					value={
+						value != null && typeof value === "object"
+							? (value as ImageFieldValue)
+							: typeof value === "string" && value
+								? value
+								: undefined
+					}
+					onChange={(v) => onChange(v)}
+					required={subField.required}
 				/>
 			);
 		default:
