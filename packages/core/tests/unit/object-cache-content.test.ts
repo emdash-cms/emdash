@@ -129,6 +129,39 @@ describe("object cache: content read-through", () => {
 		expect(getLiveCollection).toHaveBeenCalledTimes(2);
 	});
 
+	it("invalidates the content cache when a field is created or deleted", async () => {
+		const { handleSchemaFieldCreate, handleSchemaFieldDelete } =
+			await import("../../src/api/handlers/schema.js");
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+
+		// A dropped column would otherwise leave stale field values in cached snapshots.
+		const del = await handleSchemaFieldDelete(db, "post", "content");
+		expect(del.success).toBe(true);
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(2);
+
+		const created = await handleSchemaFieldCreate(db, "post", {
+			slug: "subtitle",
+			label: "Subtitle",
+			type: "string",
+		});
+		expect(created.success).toBe(true);
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+		expect(getLiveCollection).toHaveBeenCalledTimes(3);
+	});
+
 	it("does not cache a not-yet-visible scheduled entry", async () => {
 		// Scheduled for the future → currently hidden. Caching the "null" result
 		// would keep it hidden past its go-live time, since visibility flips on
