@@ -231,6 +231,64 @@ describe("cachedQuery", () => {
 		expect(load).toHaveBeenCalledTimes(2);
 	});
 
+	it("captures epochs before load even when the value read fails", async () => {
+		// When the value read errors, the epochs must still be captured *before*
+		// load() runs. Re-reading them afterwards would pick up a write that
+		// landed mid-load and stamp the stale value under the new epoch, so a
+		// later read would serve it as a HIT.
+		const store = new Map<string, string>();
+		let failValueGet = true;
+		let releaseLoad: (() => void) | undefined;
+		const backend: ObjectCacheBackend = {
+			get: (key) => {
+				if (key.includes(":epoch:")) return Promise.resolve(store.get(key) ?? null);
+				if (failValueGet) return Promise.reject(new Error("value get down"));
+				return Promise.resolve(store.get(key) ?? null);
+			},
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		};
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+
+		let n = 0;
+		let parkFirst = true;
+		const load = vi.fn(() => {
+			const v = ++n;
+			if (parkFirst) {
+				parkFirst = false;
+				return new Promise<{ n: number }>((resolve) => {
+					releaseLoad = () => resolve({ n: v });
+				});
+			}
+			return Promise.resolve({ n: v });
+		});
+
+		// Value read rejects → load path. Hold load open.
+		const q1 = cachedQuery<{ n: number }>({ namespace: "posts", key: "k", load });
+		await flush();
+
+		// A write invalidates the namespace while load is in flight.
+		invalidateObjectCache("posts");
+		await flush();
+
+		releaseLoad?.();
+		const first = await q1;
+		await flush();
+
+		// Value reads work again; the value cached during the load must have been
+		// stamped with the pre-load epoch, so the bump orphans it and we reload.
+		failValueGet = false;
+		const second = await cachedQuery<{ n: number }>({ namespace: "posts", key: "k", load });
+		expect(second).not.toEqual(first);
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
 	it("treats a backend read error as a miss without throwing", async () => {
 		const backend = spyBackend();
 		backend.get = vi.fn(() => Promise.reject(new Error("kv down")));

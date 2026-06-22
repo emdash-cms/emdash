@@ -342,29 +342,27 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 		typeof options.namespace === "string" ? [options.namespace] : options.namespace;
 	const fullKey = valueKey(namespaces, options.key);
 
-	// Fetch the value and every namespace epoch concurrently — one round-trip
-	// instead of "read epochs, then read value". The value is a HIT only if its
-	// stored epochs still match the current ones.
-	let currentEpochs: number[] = [];
-	try {
-		const [raw, ...epochs] = await Promise.all([
-			withTimeout(backend.get(fullKey), holder.config.timeout, "read"),
-			...namespaces.map((ns) => getEpoch(ns, backend)),
-		]);
-		currentEpochs = epochs;
-		if (raw !== null) {
-			const decoded = decode(raw);
-			if (decoded !== undefined) {
-				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- value envelope written by this function
-				const envelope = decoded as CacheEnvelope<T>;
-				if (epochsMatch(envelope.e, currentEpochs)) {
-					return envelope.v;
-				}
+	// Kick off the value read and every namespace epoch read concurrently — one
+	// round-trip instead of "read epochs, then read value". getEpoch never
+	// rejects, so awaiting the epochs separately from the value read guarantees
+	// we hold the pre-load epochs even when the value read errors or times out.
+	// Storing a value under an epoch read *after* load() would mask a write that
+	// landed during load(): the stale value would match and be served as a HIT.
+	const epochsPromise = Promise.all(namespaces.map((ns) => getEpoch(ns, backend)));
+	const rawPromise = withTimeout(backend.get(fullKey), holder.config.timeout, "read").catch(
+		() => null,
+	);
+	const currentEpochs = await epochsPromise;
+	const raw = await rawPromise;
+	if (raw !== null) {
+		const decoded = decode(raw);
+		if (decoded !== undefined) {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- value envelope written by this function
+			const envelope = decoded as CacheEnvelope<T>;
+			if (epochsMatch(envelope.e, currentEpochs)) {
+				return envelope.v;
 			}
 		}
-	} catch {
-		// Treat backend read errors and timeouts as a miss — fall through to load().
-		// currentEpochs may be empty; recompute below before storing.
 	}
 
 	const value = await options.load();
@@ -372,17 +370,13 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 	const cacheable = options.cacheable ? options.cacheable(value) : true;
 	if (cacheable) {
 		const ttl = options.ttl ?? holder.config.defaultTtl;
-		// Defer the write so it never adds to TTFB. Capture epochs at write time
-		// (re-read if the parallel read above failed) and store them with the
-		// value so a later read can detect staleness.
+		// Defer the write so it never adds to TTFB. The epochs were captured
+		// before load() ran, so a write that invalidated this namespace mid-load
+		// correctly orphans the value stored here.
 		after(async () => {
 			try {
-				const epochs =
-					currentEpochs.length === namespaces.length
-						? currentEpochs
-						: await Promise.all(namespaces.map((ns) => getEpoch(ns, backend)));
-				const raw = encode({ e: epochs, v: value } satisfies CacheEnvelope<T>);
-				await backend.set(fullKey, raw, ttl);
+				const encoded = encode({ e: currentEpochs, v: value } satisfies CacheEnvelope<T>);
+				await backend.set(fullKey, encoded, ttl);
 			} catch (error) {
 				if (import.meta.env.DEV) {
 					console.warn("[object-cache] set failed:", error);
