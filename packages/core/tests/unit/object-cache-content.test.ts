@@ -7,7 +7,7 @@ vi.mock("astro:content", () => ({
 	getLiveEntry: vi.fn(),
 }));
 
-import { getLiveCollection } from "astro:content";
+import { getLiveCollection, getLiveEntry } from "astro:content";
 
 import type { Database } from "../../src/database/types.js";
 import { CURSOR_RAW_VALUES } from "../../src/loader.js";
@@ -16,7 +16,7 @@ import {
 	invalidateCollectionCache,
 	type ObjectCacheBackend,
 } from "../../src/object-cache/index.js";
-import { getEmDashCollection } from "../../src/query.js";
+import { getEmDashCollection, getEmDashEntry } from "../../src/query.js";
 import { runWithContext } from "../../src/request-context.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
@@ -46,6 +46,7 @@ describe("object cache: content read-through", () => {
 		db = await setupTestDatabaseWithCollections();
 		__setObjectCacheBackendForTests(spyBackend(), { revalidate: 1000, defaultTtl: 3600 });
 		vi.mocked(getLiveCollection).mockReset();
+		vi.mocked(getLiveEntry).mockReset();
 	});
 
 	afterEach(async () => {
@@ -126,5 +127,36 @@ describe("object cache: content read-through", () => {
 		await flush();
 		await runWithContext({ editMode: true, db }, () => getEmDashCollection("post"));
 		expect(getLiveCollection).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not cache a not-yet-visible scheduled entry", async () => {
+		// Scheduled for the future → currently hidden. Caching the "null" result
+		// would keep it hidden past its go-live time, since visibility flips on
+		// the clock rather than on a write.
+		const data: Record<string, unknown> = {
+			id: "db-future",
+			title: "Future",
+			status: "scheduled",
+			scheduledAt: new Date(Date.now() + 60_000),
+		};
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry: { id: "future", slug: "future", status: "scheduled", data, cacheHint: {} },
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		const first = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "future"),
+		);
+		await flush();
+		const second = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "future"),
+		);
+
+		expect(first.entry).toBeNull();
+		expect(second.entry).toBeNull();
+		// Re-resolved rather than served from a stale cached "null".
+		expect(getLiveEntry).toHaveBeenCalledTimes(2);
 	});
 });

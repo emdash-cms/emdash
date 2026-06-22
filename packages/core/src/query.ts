@@ -733,6 +733,14 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 		return isPublished || !!isScheduledAndReady;
 	}
 
+	/** True when an entry is scheduled to become visible at a future time. */
+	function isPendingScheduled(entry: ContentEntry<D>): boolean {
+		const data = entryData(entry);
+		if (dataStr(data, "status") !== "scheduled") return false;
+		const scheduledAt = dataDate(data, "scheduledAt");
+		return scheduledAt !== undefined && scheduledAt.getTime() > Date.now();
+	}
+
 	// Build the fallback chain: [requestedLocale, fallback1, ..., defaultLocale]
 	// When i18n is disabled or no locale requested, just use a single-element chain
 	const localeChain =
@@ -839,6 +847,12 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 	// hydration) is wrapped in the distributed L2 cache, keyed by the requested
 	// locale. Preview/edit requests took the `serveDrafts` branch above and
 	// never reach here; the object cache additionally bypasses them.
+	// A scheduled entry becomes visible on a future clock tick, not on a write,
+	// so an L2 snapshot taken before its time would keep it hidden past go-live
+	// (until the publish sweep bumps the epoch or the TTL lapses). Mark such a
+	// resolution time-sensitive and skip caching it.
+	let timeSensitive = false;
+
 	const resolveNormal = async (): Promise<EntryResult<D>> => {
 		for (let i = 0; i < localeChain.length; i++) {
 			const locale = localeChain[i];
@@ -855,6 +869,9 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 					fallbackLocale,
 					cacheHint: cacheHint ?? {},
 				});
+			}
+			if (entry && isPendingScheduled(entry)) {
+				timeSensitive = true;
 			}
 			// Entry not found or not visible in this locale — try next
 		}
@@ -879,7 +896,7 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 				},
 			};
 		},
-		cacheable: (snap) => snap.ok,
+		cacheable: (snap) => snap.ok && !timeSensitive,
 	});
 
 	if (!snapshot.ok) {
