@@ -179,6 +179,58 @@ describe("cachedQuery", () => {
 		expect(load).toHaveBeenCalledTimes(2);
 	});
 
+	it("does not let a stale in-flight epoch read clobber a concurrent invalidation", async () => {
+		// An epoch read started before an invalidation must not, on resolving with
+		// the pre-bump backend value, lower the freshly-bumped local epoch — that
+		// would resurrect the values the invalidation just orphaned.
+		const store = new Map<string, string>();
+		let releaseEpoch: ((v: string | null) => void) | undefined;
+		let gate = false;
+		const backend: ObjectCacheBackend = {
+			get: (key) => {
+				if (gate && key.includes(":epoch:")) {
+					return new Promise<string | null>((resolve) => {
+						releaseEpoch = resolve;
+					});
+				}
+				return Promise.resolve(store.get(key) ?? null);
+			},
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		};
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+
+		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
+
+		// Prime: value stored under epoch 0.
+		const primed = await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		// Start a query whose epoch read parks in flight.
+		gate = true;
+		const inflight = cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+
+		// Invalidate mid-flight: bumps the local epoch above 0.
+		invalidateObjectCache("posts");
+
+		// The parked epoch read now resolves with the stale backend epoch.
+		releaseEpoch?.(null);
+		const inflightResult = await inflight;
+		await flush();
+
+		// The bump must survive: the in-flight query reloads rather than serving
+		// the pre-invalidation value.
+		expect(inflightResult).not.toEqual(primed);
+		expect(load).toHaveBeenCalledTimes(2);
+	});
+
 	it("treats a backend read error as a miss without throwing", async () => {
 		const backend = spyBackend();
 		backend.get = vi.fn(() => Promise.reject(new Error("kv down")));

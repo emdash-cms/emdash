@@ -266,6 +266,7 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 	if (cached?.promise) return cached.promise;
 
 	const promise = (async () => {
+		let value: number;
 		try {
 			const raw = await withTimeout(
 				backend.get(epochKey(namespace)),
@@ -273,14 +274,17 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 				"epoch read",
 			);
 			const parsed = raw === null ? 0 : Number(raw);
-			const value = Number.isFinite(parsed) ? parsed : 0;
-			epochCache.set(namespace, { value, at: Date.now() });
-			return value;
+			value = Number.isFinite(parsed) ? parsed : 0;
 		} catch {
-			const fallback = cached?.value ?? 0;
-			epochCache.set(namespace, { value: fallback, at: Date.now() });
-			return fallback;
+			value = cached?.value ?? 0;
 		}
+		// A concurrent invalidateObjectCache may have bumped the epoch while this
+		// read was in flight. Epochs are monotonic, so never let a stale backend
+		// read lower a freshly-bumped local epoch — that would resurrect the very
+		// values the bump just invalidated.
+		const merged = Math.max(value, epochCache.get(namespace)?.value ?? 0);
+		epochCache.set(namespace, { value: merged, at: Date.now() });
+		return merged;
 	})();
 
 	// Concurrent callers share this in-flight read (dedup). The timeout above
