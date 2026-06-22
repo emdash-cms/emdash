@@ -23,7 +23,7 @@ import type { CreateObjectCacheBackendFn, ObjectCacheBackend } from "./types.js"
 
 interface Entry {
 	value: string;
-	/** Absolute expiry in ms (`performance.now()` epoch), or `null` for none. */
+	/** Absolute expiry in ms (`Date.now()` epoch), or `null` for none. */
 	expiresAt: number | null;
 }
 
