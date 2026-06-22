@@ -435,6 +435,8 @@ export function createViteConfig(
 							// Top-level deps (use astro > path for pnpm compat)
 							"astro > zod/v4",
 							"astro > zod/v4/core",
+							// zod-generator imports the bare `zod` entry, not `zod/v4`
+							"emdash > zod",
 							"@emdash-cms/cloudflare > kysely-d1",
 							// Astro internal deps not covered by @astrojs/cloudflare adapter
 							"astro/virtual-modules/middleware.js",
