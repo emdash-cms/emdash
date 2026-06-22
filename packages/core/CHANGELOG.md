@@ -1,5 +1,84 @@
 # emdash
 
+## 0.22.0
+
+### Minor Changes
+
+- [#1540](https://github.com/emdash-cms/emdash/pull/1540) [`cf17c9f`](https://github.com/emdash-cms/emdash/commit/cf17c9f4c8faa46857d92d4b168452d2469dba4b) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Add comment reactions
+
+  Visitors can now react to approved comments (positive-only "like" by default,
+  extensible to other reaction types). Reactions are deduped per voter via IP hash.
+
+  The `<Comments>` component gains two opt-in props:
+
+  - `reactions` — render a like button per comment and attach live counts.
+  - `sort="best"` — order top-level comments by a Reddit-style Wilson score
+    lower bound (`sort="oldest"`, the previous behavior, remains the default).
+
+  Posting is progressively enhanced (a tiny inline script, no framework island)
+  and emitted only when `reactions` is enabled, so pages that don't use reactions
+  ship zero additional JavaScript. Fully additive and backward-compatible: a new
+  table, a new route, and new optional props with behavior-preserving defaults.
+
+- [#1484](https://github.com/emdash-cms/emdash/pull/1484) [`d46abfd`](https://github.com/emdash-cms/emdash/commit/d46abfdb739f8d242eddba5ebfda09a8648c8ecf) Thanks [@swissky](https://github.com/swissky)! - Forward declarative `portableTextBlocks` and `fieldWidgets` from standard and sandboxed (from-config) plugins
+
+  Standard- and sandboxed-format plugins could already declare admin pages and dashboard widgets, but their declarative Portable Text block types and field widgets were dropped during adaptation — only native-format plugins surfaced them. Since the admin editor reads these from the manifest, the slash-menu entries and Block Kit forms never appeared for non-native plugins.
+
+  `adaptSandboxEntry` now forwards both for standard plugins and sandboxed plugins resolved from config (the `virtual-modules.ts` codegen path), so those formats can contribute Portable Text blocks and field widgets. The site-side render component (`componentsEntry`) still requires native format, which is unchanged.
+
+  Note: marketplace bundles loaded from R2 are not covered yet — the bundle manifest schema, both `extractManifest()` implementations, and the bundler don't carry these fields, so this is scoped to standard/sandboxed-from-config. Full marketplace support is tracked as a follow-up.
+
+- [#1564](https://github.com/emdash-cms/emdash/pull/1564) [`6a97bac`](https://github.com/emdash-cms/emdash/commit/6a97bacaf6ef8b006b32879e4625ebb48da6f5bd) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds byline management to the MCP server: `byline_list`, `byline_get`, `byline_create`, `byline_update`, `byline_delete`, and `byline_translations` tools, plus a `bylines` argument on `content_create` so credits can be attached at creation time (previously only `content_update` accepted them).
+
+- [#1378](https://github.com/emdash-cms/emdash/pull/1378) [`640e60a`](https://github.com/emdash-cms/emdash/commit/640e60a56e3d3e60925ba4d7a1cf0fbd04b3d5c2) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Add an optional distributed object cache for query results.
+
+  Content reads (`getEmDashCollection`, `getEmDashEntry`, `resolveEmDashPath`) and chrome reads (site settings, menus, taxonomies) can now be served from a fast key/value store instead of hitting the database on every request. This sits beneath the per-request cache and above the database, dramatically reducing read pressure on D1/SQLite — especially valuable on Cloudflare, where KV handles far more requests than D1.
+
+  The cache is **off by default** and fully opt-in. Configure a backend in `astro.config.mjs`:
+
+  ```ts
+  import { kvCache } from "@emdash-cms/cloudflare"; // Workers KV (distributed)
+  import { memoryCache } from "emdash/astro"; // in-isolate (Node / local dev)
+
+  emdash({
+  	database: d1({ binding: "DB" }),
+  	objectCache: kvCache({ binding: "CACHE" }),
+  });
+  ```
+
+  with a matching KV binding in `wrangler.jsonc`:
+
+  ```jsonc
+  { "kv_namespaces": [{ "binding": "CACHE", "id": "<namespace-id>" }] }
+  ```
+
+  Invalidation is epoch-based and automatic: content, byline, taxonomy, menu, and settings writes bump a per-namespace version, instantly orphaning stale entries (no key enumeration needed). Preview and visual-edit requests bypass the cache, so editors previewing see live content; other reads are served from the cache, which only ever stores published content. After an edit, anonymous visitors may see stale content until isolates pick up the bumped epoch — immediate on the in-isolate memory backend, and on KV bounded by KV's edge-cache propagation (eventually consistent, up to ~60s) plus the `revalidate` window (default 1s, configurable).
+
+  New public API: `cachedQuery`, `invalidateObjectCache`, `invalidateCollectionCache`, `contentNamespace`/`contentNamespaces`, `CacheNamespace`, the `ObjectCache*` types (from `emdash`), `memoryCache()` (from `emdash/astro`), and `kvCache()` (from `@emdash-cms/cloudflare`). Existing sites are unaffected until they opt in.
+
+- [#1549](https://github.com/emdash-cms/emdash/pull/1549) [`a623c6b`](https://github.com/emdash-cms/emdash/commit/a623c6b7dbdc82c8562f32a619af23ea147306b6) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes responsive image optimization for storage-backed media on Cloudflare. EmDash now wraps Astro's image endpoint to read media bytes directly from your storage adapter instead of fetching them over HTTP, so `Image` and Portable Text images generate a real responsive `srcset` even when the site is behind Cloudflare Access (previously these 404'd and fell back to a full-size image). This is on by default and also removes an internal HTTP round-trip on Node. Set `images: false` in your `emdash()` config to leave Astro's image endpoint untouched.
+
+### Patch Changes
+
+- [#1579](https://github.com/emdash-cms/emdash/pull/1579) [`0bfab91`](https://github.com/emdash-cms/emdash/commit/0bfab91765514f4a8bd164d7373c8c81e3d5b446) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes a Cloudflare build failure where the bare `zod` import used by the type generator was not externalized, causing the bundler to fail. EmDash sites on Cloudflare now build correctly under Astro 7.
+
+- [#1584](https://github.com/emdash-cms/emdash/pull/1584) [`707edee`](https://github.com/emdash-cms/emdash/commit/707edee3bdf31b53f33507e1f528a0e5803fd150) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the dev setup-bypass endpoint accumulating duplicate `dev-bypass-token` access tokens. Re-running it (for example after a dev reset) now replaces the previous token with a fresh one instead of adding another row.
+
+- [#1581](https://github.com/emdash-cms/emdash/pull/1581) [`a36b5f3`](https://github.com/emdash-cms/emdash/commit/a36b5f3e1e452d48a690878d4f078f85a6d99715) Thanks [@naota70](https://github.com/naota70)! - Fix the setup probe baking a redirect to `/_emdash/admin/setup` into prerendered pages. On a build whose database is empty (e.g. CI/first deploy), the anonymous setup probe saw a missing migrations table and returned `context.redirect("/_emdash/admin/setup")`; a prerendered route serializes that into static HTML and ships the redirect to production. The probe is now skipped entirely when `context.isPrerendered` is true — there is no live visitor to send to the wizard at build time, and the build database is legitimately empty. Live (SSR) requests are unaffected.
+
+- [#1509](https://github.com/emdash-cms/emdash/pull/1509) [`ed921d8`](https://github.com/emdash-cms/emdash/commit/ed921d80ec33fa114d9c8a7f9221f1fbeb24d658) Thanks [@ascorbic](https://github.com/ascorbic)! - Speeds up public page loads on remote databases (D1, Durable Objects) by eagerly warming site-global layout data (menus, widget areas, taxonomy term lists, settings) at the start of the request, so the layout's per-component reads overlap into roughly one round trip instead of executing serially. Transparent to site code; no template changes needed.
+
+- [#1563](https://github.com/emdash-cms/emdash/pull/1563) [`c219aff`](https://github.com/emdash-cms/emdash/commit/c219aff3b867e178ee267823801db66bbc9b1621) Thanks [@ascorbic](https://github.com/ascorbic)! - Lets the MCP `content_create` and `content_update` tools accept a Markdown string for rich text (portableText) fields, converting it to Portable Text automatically — the same behaviour the EmDash client already has. Passing a Portable Text JSON array still works. Authoring rich text as a single Markdown string avoids the large nested JSON payloads that agents frequently emit as malformed JSON, causing the tool call to fail before it reaches the server. `content_get` and `content_list` gain an optional `markdown` flag (default false) that returns rich text fields as Markdown instead of Portable Text arrays.
+
+- [#1580](https://github.com/emdash-cms/emdash/pull/1580) [`ca47da4`](https://github.com/emdash-cms/emdash/commit/ca47da485ddcf46f7fa7b8efa15c3c20a11c2300) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes query instrumentation (`EMDASH_QUERY_LOG=1`) so the per-query NDJSON log captures queries issued while the page is still streaming, not just those that ran before the response headers were sent. The per-query log now matches the totals already reported by the `[emdash-stream-end]` summary line.
+
+- [#1538](https://github.com/emdash-cms/emdash/pull/1538) [`cb1c689`](https://github.com/emdash-cms/emdash/commit/cb1c68948072c479ed924b52867809bc8ad1c9e5) Thanks [@swissky](https://github.com/swissky)! - Fix logged-in pages hanging indefinitely on Cloudflare Workers ([#1274](https://github.com/emdash-cms/emdash/issues/1274)). A request cancelled mid-`session.get("user")` could leave the session-store read as a promise that never settles, poisoning the isolate so every later session-bearing request hung (0-CPU, multi-minute, `canceled`) — reliably reproducible on fresh isolates right after a deploy. Every session read on the request path (the main middleware, the auth middleware, and the preview-snapshot route) now goes through a shared `resolveSessionUser()` helper that anchors the read with `after()` so a cancelled request still drives it to completion (preventing the isolate poisoning), with a fail-closed timeout backstop that degrades a still-stalled read to "unauthenticated for this request" rather than hanging.
+
+- Updated dependencies [[`f4925b1`](https://github.com/emdash-cms/emdash/commit/f4925b1d2c36b147019335fc8f0de8bead1d47d9)]:
+  - @emdash-cms/admin@0.22.0
+  - @emdash-cms/auth@0.22.0
+  - @emdash-cms/gutenberg-to-portable-text@0.22.0
+
 ## 0.21.0
 
 ### Minor Changes
