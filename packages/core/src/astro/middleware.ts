@@ -750,7 +750,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	try {
 		return await runWithContext({ editMode: false, queryRecorder, metrics }, run);
 	} finally {
-		if (queryRecorder) flushRecorder(queryRecorder);
+		// Streamed responses defer the flush to stream end (see
+		// wrapBodyForStreamMetrics) so the log captures queries issued while
+		// the body renders. Only flush here for responses that were not
+		// wrapped (no body: redirects, 304s, bodyless errors), where all
+		// queries have already run by the time middleware returns.
+		if (queryRecorder && !queryRecorder.deferredFlush) flushRecorder(queryRecorder);
 	}
 });
 
