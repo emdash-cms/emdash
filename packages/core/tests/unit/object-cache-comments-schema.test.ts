@@ -144,4 +144,25 @@ describe("object cache: comments (getComments)", () => {
 		});
 		expect(withReactions.items[0]!.reactions).toEqual({ like: 1 });
 	});
+
+	it("busts the comments cache when a reaction is toggled", async () => {
+		const { handleReactionToggle } = await import("../../src/api/handlers/comment-reactions.js");
+		const base = await getComments({ collection: "post", contentId: postId, reactions: true });
+		const commentId = base.items[0]!.id;
+		expect(base.items[0]!.reactions).toBeUndefined();
+		await flush();
+
+		const res = await handleReactionToggle(db, {
+			collection: "post",
+			contentId: postId,
+			commentId,
+			reaction: "like",
+			voterHash: "voter-1",
+		});
+		expect(res.success).toBe(true);
+		await flush();
+
+		const after = await getComments({ collection: "post", contentId: postId, reactions: true });
+		expect(after.items[0]!.reactions).toEqual({ like: 1 });
+	});
 });
