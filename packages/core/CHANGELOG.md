@@ -10,7 +10,6 @@
   extensible to other reaction types). Reactions are deduped per voter via IP hash.
 
   The `<Comments>` component gains two opt-in props:
-
   - `reactions` — render a like button per comment and attach live counts.
   - `sort="best"` — order top-level comments by a Reddit-style Wilson score
     lower bound (`sort="oldest"`, the previous behavior, remains the default).
