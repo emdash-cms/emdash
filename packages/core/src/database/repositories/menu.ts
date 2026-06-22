@@ -227,19 +227,14 @@ export class MenuRepository {
 		if (options.locale !== undefined) query = query.where("m.locale", "=", options.locale);
 		const rows = await query.execute();
 
-		return rows.map((row) => ({
-			// Postgres returns count() as `string`; SQLite as `number`. Normalize.
-			itemCount: typeof row.itemCount === "string" ? Number(row.itemCount) : row.itemCount,
-			...rowToMenu({
-				id: row.id,
-				name: row.name,
-				label: row.label,
-				created_at: row.created_at,
-				updated_at: row.updated_at,
-				locale: row.locale,
-				translation_group: row.translation_group,
-			}),
-		}));
+		return rows.map((row) => {
+			const { itemCount, ...menuRow } = row;
+			return {
+				// Postgres returns count() as `string`; SQLite as `number`. Normalize.
+				itemCount: typeof itemCount === "string" ? Number(itemCount) : itemCount,
+				...rowToMenu(menuRow),
+			};
+		});
 	}
 
 	/**
@@ -455,45 +450,48 @@ export class MenuRepository {
 	 * item's own id, matching the migration 036 backfill.
 	 */
 	async createItem(menuId: string, locale: string, input: CreateMenuItemInput): Promise<MenuItem> {
-		let sortOrder = input.sortOrder ?? 0;
-		if (input.sortOrder === undefined) {
-			const maxOrder = await this.db
+		return withTransaction(this.db, async (trx) => {
+			let sortOrder = input.sortOrder ?? 0;
+			if (input.sortOrder === undefined) {
+				const maxOrder = await trx
+					.selectFrom("_emdash_menu_items")
+					.select(({ fn }) => fn.max("sort_order").as("max"))
+					.where("menu_id", "=", menuId)
+					.where("parent_id", "is", input.parentId ?? null)
+					.executeTakeFirst();
+				const maxVal = maxOrder?.max;
+				const maxNum = typeof maxVal === "number" ? maxVal : -1;
+				sortOrder = maxNum + 1;
+			}
+
+			const id = ulid();
+			await trx
+				.insertInto("_emdash_menu_items")
+				.values({
+					id,
+					menu_id: menuId,
+					parent_id: input.parentId ?? null,
+					sort_order: sortOrder,
+					type: input.type,
+					reference_collection: input.referenceCollection ?? null,
+					reference_id: input.referenceId ?? null,
+					custom_url: input.customUrl ?? null,
+					label: input.label,
+					title_attr: input.titleAttr ?? null,
+					target: input.target ?? null,
+					css_classes: input.cssClasses ?? null,
+					locale,
+					translation_group: id,
+				})
+				.execute();
+
+			const row = await trx
 				.selectFrom("_emdash_menu_items")
-				.select(({ fn }) => fn.max("sort_order").as("max"))
-				.where("menu_id", "=", menuId)
-				.where("parent_id", "is", input.parentId ?? null)
-				.executeTakeFirst();
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kysely fn.max returns unknown; always a number for sort_order column
-			sortOrder = ((maxOrder?.max as number) ?? -1) + 1;
-		}
-
-		const id = ulid();
-		await this.db
-			.insertInto("_emdash_menu_items")
-			.values({
-				id,
-				menu_id: menuId,
-				parent_id: input.parentId ?? null,
-				sort_order: sortOrder,
-				type: input.type,
-				reference_collection: input.referenceCollection ?? null,
-				reference_id: input.referenceId ?? null,
-				custom_url: input.customUrl ?? null,
-				label: input.label,
-				title_attr: input.titleAttr ?? null,
-				target: input.target ?? null,
-				css_classes: input.cssClasses ?? null,
-				locale,
-				translation_group: id,
-			})
-			.execute();
-
-		const row = await this.db
-			.selectFrom("_emdash_menu_items")
-			.selectAll()
-			.where("id", "=", id)
-			.executeTakeFirstOrThrow();
-		return rowToMenuItem(row);
+				.selectAll()
+				.where("id", "=", id)
+				.executeTakeFirstOrThrow();
+			return rowToMenuItem(row);
+		});
 	}
 
 	/**

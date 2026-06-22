@@ -108,7 +108,8 @@ async function resolveMenu(
 			).error,
 		};
 	}
-	return { success: true, menu: matches[0] };
+	const [menu] = matches;
+	return { success: true, menu };
 }
 
 // ---------------------------------------------------------------------------
