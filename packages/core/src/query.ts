@@ -113,6 +113,25 @@ export interface CollectionFilter {
 	 */
 	cursor?: string;
 	/**
+	 * Skip this many entries before returning results (offset pagination).
+	 *
+	 * Use with `limit` to render numbered archive routes like `/page/2`
+	 * without walking cursors or over-fetching from the start:
+	 *
+	 * ```ts
+	 * const perPage = 20;
+	 * const { entries, hasMore } = await getEmDashCollection("posts", {
+	 *   limit: perPage,
+	 *   offset: (page - 1) * perPage,
+	 *   orderBy: { published_at: "desc" },
+	 * });
+	 * ```
+	 *
+	 * Only a positive integer applies. Ignored when `cursor` is set —
+	 * cursor (keyset) and offset are mutually exclusive; cursor wins.
+	 */
+	offset?: number;
+	/**
 	 * Filter by field values, taxonomy terms, byline credits, or ranges.
 	 *
 	 * Taxonomy names are detected automatically and filtered via JOIN.
@@ -176,6 +195,12 @@ export interface CollectionResult<T> {
 	 * Pass this as `cursor` in the next query to get the next page.
 	 */
 	nextCursor?: string;
+	/**
+	 * Whether more entries exist beyond this page. Set whenever `limit` is
+	 * provided (cursor or offset pagination), so numbered archive routes can
+	 * render a "next page" link without computing a total count.
+	 */
+	hasMore?: boolean;
 }
 
 /**
@@ -417,7 +442,10 @@ export function bucketFilter(filter: CollectionFilter | undefined): BucketedFilt
 		limit === undefined ||
 		limit >= BUCKET_LIMIT_THRESHOLD ||
 		limit <= 0 ||
-		filter?.cursor !== undefined
+		filter?.cursor !== undefined ||
+		// Offset paginates a deliberate page window; its limit is part of the
+		// pagination contract, so don't round it up the way "recent N" widgets get.
+		filter?.offset !== undefined
 	) {
 		return { fetchFilter: filter, requestedLimit: undefined };
 	}
@@ -449,7 +477,8 @@ export function sliceCollectionResult<D>(
 	// buildCursorCondition in loader.ts — it filters strictly past this row.
 	const lastEntry = sliced.at(-1);
 	const nextCursor = lastEntry ? encodeEntryCursor(lastEntry, orderBy) : undefined;
-	return { ...cached, entries: sliced, nextCursor };
+	// Truncating to the requested limit means at least one more entry existed.
+	return { ...cached, entries: sliced, nextCursor, hasMore: true };
 }
 
 /** Map of database column names to camelCase keys present on entry.data. */
@@ -533,6 +562,7 @@ function collectionCacheKey(type: string, filter?: CollectionFilter): string {
 		filter.status ?? "",
 		filter.limit ?? "",
 		filter.cursor ?? "",
+		filter.offset ?? "",
 		filter.where ? stableStringify(filter.where) : "",
 		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
 		filter.locale ?? "",
@@ -638,6 +668,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		status: filter?.status,
 		limit: requestedLimit && requestedLimit > 0 ? requestedLimit + 1 : filter?.limit,
 		cursor: filter?.cursor,
+		offset: filter?.offset,
 		where: filter?.where,
 		orderBy: filter?.orderBy,
 		locale: resolvedLocale,
@@ -652,6 +683,9 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	const hasMore = requestedLimit != null && requestedLimit > 0 && entries.length > requestedLimit;
 	const pageEntries = hasMore ? entries.slice(0, requestedLimit) : entries;
 	const nextCursor = hasMore ? encodeEntryCursor(pageEntries.at(-1), filter?.orderBy) : undefined;
+	// `hasMore` is only meaningful when a limit bounds the page; otherwise the
+	// query returned everything and there is no "next page" to report.
+	const hasMoreResult = requestedLimit != null && requestedLimit > 0 ? hasMore : undefined;
 
 	const isEditMode = ctx?.editMode ?? false;
 	const entriesWithEdit = pageEntries.map((entry: ContentEntry<D>) => {
@@ -675,7 +709,12 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		hydrateEntryTerms(type, entriesWithEdit, resolvedLocale),
 	]);
 
-	return { entries: entriesWithEdit, nextCursor, cacheHint: cacheHint ?? {} };
+	return {
+		entries: entriesWithEdit,
+		nextCursor,
+		hasMore: hasMoreResult,
+		cacheHint: cacheHint ?? {},
+	};
 }
 
 /**

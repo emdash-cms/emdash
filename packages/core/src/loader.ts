@@ -615,6 +615,13 @@ export interface CollectionFilter {
 	 */
 	cursor?: string;
 	/**
+	 * Skip this many rows before returning results (offset pagination).
+	 * Use with `limit` for numbered archive routes (`/page/2`):
+	 * `offset = (page - 1) * perPage`. Ignored unless it is a positive
+	 * integer, and ignored entirely when `cursor` is set (cursor wins).
+	 */
+	offset?: number;
+	/**
 	 * Filter by field values, taxonomy terms, byline credits, or ranges.
 	 *
 	 * Taxonomy names are detected automatically and filtered via JOIN.
@@ -750,6 +757,17 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// Cursor pagination: over-fetch by 1 to detect next page
 				const fetchLimit = limit ? limit + 1 : undefined;
 
+				// Offset pagination (numbered archive routes). Keyset (cursor)
+				// and offset are mutually exclusive ways to express "the next
+				// page" — when both are supplied, cursor wins and offset is
+				// dropped so the two don't stack into a double skip. Only a
+				// positive integer applies; 0 / negative / fractional are no-ops.
+				const rawOffset = cursor ? undefined : filter?.offset;
+				const offset =
+					typeof rawOffset === "number" && Number.isInteger(rawOffset) && rawOffset > 0
+						? rawOffset
+						: undefined;
+
 				// Build cursor condition if cursor is provided
 				const cursorCondition = cursor ? buildCursorCondition(cursor, orderBy) : null;
 
@@ -866,6 +884,20 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						type,
 						tableName,
 					);
+
+					// LIMIT/OFFSET clause. SQLite only accepts OFFSET when a
+					// LIMIT is present, so a bare offset uses `LIMIT -1`
+					// (unbounded); Postgres takes a standalone OFFSET.
+					let limitOffsetClause = sql``;
+					if (fetchLimit != null && offset != null) {
+						limitOffsetClause = sql`LIMIT ${fetchLimit} OFFSET ${offset}`;
+					} else if (fetchLimit != null) {
+						limitOffsetClause = sql`LIMIT ${fetchLimit}`;
+					} else if (offset != null) {
+						limitOffsetClause = isPostgres(db)
+							? sql`OFFSET ${offset}`
+							: sql`LIMIT -1 OFFSET ${offset}`;
+					}
 					result = await sql<Record<string, unknown>>`
 						SELECT *, ${termsSelect}, ${bylinesSelect} FROM ${sql.ref(tableName)}
 						WHERE deleted_at IS NULL
@@ -876,7 +908,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						${bylineCond}
 						${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
 						${orderByClause}
-						${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
+						${limitOffsetClause}
 					`.execute(db);
 				}
 
