@@ -179,9 +179,13 @@ export interface EmDashConfig {
 	 * - `memoryCache()` from `emdash/astro` — in-isolate (Node / local dev)
 	 * - `kvCache({ binding: "CACHE" })` from `@emdash-cms/cloudflare` — KV
 	 *
-	 * Authenticated, preview, and visual-edit requests always bypass the cache,
-	 * so editors see live content immediately. Anonymous visitors may see
-	 * content up to `revalidate` ms stale after an edit (default 1s).
+	 * Preview and visual-edit requests bypass the cache, so editors previewing
+	 * see live content. All other reads — including authenticated browsing outside
+	 * edit mode — are served from the cache, which only ever stores published
+	 * content. After an edit, anonymous visitors may see stale content until other
+	 * isolates pick up the bumped epoch: immediate with the memory backend, and on
+	 * KV bounded by KV's edge-cache propagation (eventual consistency, up to ~60s)
+	 * plus the isolate-local `revalidate` window (default 1s).
 	 *
 	 * Scheduled content becomes visible at query time (no write event fires when
 	 * its publish time passes), so a cached list/entry won't surface a newly-due

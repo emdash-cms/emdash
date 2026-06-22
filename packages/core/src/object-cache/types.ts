@@ -74,11 +74,13 @@ export interface ObjectCacheRuntimeConfig {
 	 * How long (milliseconds) an isolate may reuse a cached namespace epoch
 	 * before re-reading it from the backend.
 	 *
-	 * This is the cross-isolate staleness window: after a write bumps a
-	 * namespace's epoch, other isolates keep serving the previous epoch's keys
-	 * until their cached epoch expires. Authenticated/preview/edit requests
-	 * bypass the cache entirely, so editors always see fresh content; this
-	 * window only affects anonymous visitors.
+	 * After a write bumps a namespace's epoch, an isolate keeps serving the
+	 * previous epoch's keys until its cached epoch expires after this window. It
+	 * is only part of the cross-isolate staleness: a distributed backend adds its
+	 * own propagation delay (KV's edge cache is eventually consistent, up to
+	 * ~60s), so on KV the effective window is that propagation plus this value.
+	 * Only anonymous visitors are affected — preview and edit requests bypass the
+	 * cache.
 	 *
 	 * Set to `0` to re-read the epoch on every query (strongest freshness, more
 	 * backend reads).

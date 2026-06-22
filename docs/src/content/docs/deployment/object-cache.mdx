@@ -75,7 +75,7 @@ The command prints a namespace `id`. Add it under the binding name used in `kvCa
 | ------------ | -------- | -------- | --------------------------------------------------------------------------------- |
 | `binding`    | `string` | —        | KV binding name from your Wrangler configuration. Required.                       |
 | `defaultTtl` | `number` | `3600`   | Time-to-live for cached entries, in seconds. KV enforces a 60-second minimum.     |
-| `revalidate` | `number` | `1000`   | Cross-isolate staleness window, in milliseconds. See [Freshness](#freshness).     |
+| `revalidate` | `number` | `1000`   | Isolate-local epoch-reuse window, in milliseconds. See [Freshness](#freshness).   |
 | `timeout`    | `number` | `2000`   | Maximum time, in milliseconds, to wait for a KV operation before treating it as a cache miss. Guards against a stalled KV read hanging the request. Set to `0` to disable. |
 | `keyPrefix`  | `string` | `"em"`   | Prefix for every cache key. Set a unique value when several sites share one namespace. |
 
@@ -102,7 +102,7 @@ export default defineConfig({
 | Option       | Type     | Default | Description                                            |
 | ------------ | -------- | ------- | ------------------------------------------------------ |
 | `defaultTtl` | `number` | `3600`  | Time-to-live for cached entries, in seconds.           |
-| `revalidate` | `number` | `1000`  | Staleness window for cached collection versions, in ms.|
+| `revalidate` | `number` | `1000`  | Isolate-local epoch-reuse window, in ms.|
 | `maxEntries` | `number` | `1000`  | Maximum number of cached keys before older keys evict. |
 | `keyPrefix`  | `string` | `"em"`  | Prefix for every cache key.                            |
 
@@ -120,10 +120,10 @@ Admin API requests, media files, and full HTML responses are not handled here. T
 Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection; changing a byline or taxonomy term clears the entries that display it.
 
 <Aside type="note">
-Authenticated requests, preview links, and visual editing always bypass the object cache, so editors see the current content immediately.
+Preview links and visual editing bypass the object cache, so editors previewing see the current content immediately. Other requests — including authenticated browsing outside edit mode — are served from the cache, which only ever stores published content.
 </Aside>
 
-For anonymous visitors, a change can take up to `revalidate` milliseconds (default one second) to appear across all isolates. Lower `revalidate` for faster propagation at the cost of more reads against the cache; raise it to read the cache less often.
+For anonymous visitors, a change takes time to appear across all isolates as they pick up the bumped epoch. With the in-isolate memory backend this is immediate. With Workers KV it is bounded by KV's edge-cache propagation (eventual consistency, up to ~60 seconds) plus the isolate-local `revalidate` window (default one second). Lower `revalidate` for faster local propagation at the cost of more reads against the cache; raise it to read the cache less often.
 
 ### Scheduled content
 
