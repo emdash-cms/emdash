@@ -1,5 +1,18 @@
 # @emdash-cms/admin
 
+## 0.22.0
+
+### Patch Changes
+
+- [#1545](https://github.com/emdash-cms/emdash/pull/1545) [`f4925b1`](https://github.com/emdash-cms/emdash/commit/f4925b1d2c36b147019335fc8f0de8bead1d47d9) Thanks [@swissky](https://github.com/swissky)! - Declare `@tiptap/extension-drag-handle`'s collaboration peer dependencies
+
+  `@emdash-cms/admin` uses `@tiptap/extension-drag-handle`, which declares `@tiptap/extension-collaboration`, `@tiptap/y-tiptap` (and transitively `yjs`, `y-protocols`) as peer dependencies. They were never installed because the collaboration feature is unused, and the admin bundle only worked because Rollup silently externalized the unresolved imports.
+
+  Astro 7 switches Vite to Rolldown, which fails the build on unresolved imports instead of externalizing them, so the admin build breaks on this chain. Declaring it fixes the build under Rolldown/Astro 7 — and is correct dependency hygiene regardless of bundler. Closes [#1544](https://github.com/emdash-cms/emdash/issues/1544).
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.22.0
+
 ## 0.21.0
 
 ### Minor Changes

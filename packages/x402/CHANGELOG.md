@@ -1,5 +1,7 @@
 # @emdash-cms/x402
 
+## 0.22.0
+
 ## 0.21.0
 
 ### Patch Changes
