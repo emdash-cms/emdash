@@ -26,7 +26,6 @@
 		"select \"value\" from \"options\" where \"name\" = ?": 1,
 		"select * from \"_emdash_menu_items\" where \"menu_id\" = ? order by \"sort_order\" asc": 1,
 		"select * from \"_emdash_menus\" where \"name\" = ? order by \"locale\" asc": 1,
-		"select * from \"_emdash_taxonomy_defs\"": 1,
 		"SELECT * FROM \"ec_pages\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"created_at\" DESC, \"id\" DESC": 1,
 		"SELECT * FROM \"ec_posts\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"published_at\" DESC, \"id\" DESC LIMIT ?": 1
 	},
@@ -61,7 +60,6 @@
 		"select \"value\" from \"options\" where \"name\" = ?": 1,
 		"select * from \"_emdash_menu_items\" where \"menu_id\" = ? order by \"sort_order\" asc": 1,
 		"select * from \"_emdash_menus\" where \"name\" = ? order by \"locale\" asc": 1,
-		"select * from \"_emdash_taxonomy_defs\"": 1,
 		"SELECT * FROM \"ec_pages\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"created_at\" DESC, \"id\" DESC": 1,
 		"SELECT * FROM \"ec_posts\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) AND EXISTS ( SELECT 1 FROM content_taxonomies ct INNER JOIN taxonomies t ON t.id = ct.taxonomy_id WHERE ct.collection = ? AND ct.entry_id = \"ec_posts\".id AND t.name = ? AND t.slug in (...) ) ORDER BY \"published_at\" DESC, \"id\" DESC": 1,
 		"select * from \"taxonomies\" where \"name\" = ? and \"slug\" = ? order by \"locale\" asc": 1,
@@ -95,7 +93,6 @@
 		"select \"value\" from \"options\" where \"name\" = ?": 1,
 		"select * from \"_emdash_menu_items\" where \"menu_id\" = ? order by \"sort_order\" asc": 1,
 		"select * from \"_emdash_menus\" where \"name\" = ? order by \"locale\" asc": 1,
-		"select * from \"_emdash_taxonomy_defs\"": 1,
 		"SELECT * FROM \"ec_pages\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"created_at\" DESC, \"id\" DESC": 1,
 		"SELECT * FROM \"ec_posts\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"published_at\" DESC, \"id\" DESC": 1
 	},
@@ -127,7 +124,6 @@
 		"select \"value\" from \"options\" where \"name\" = ?": 1,
 		"select * from \"_emdash_menu_items\" where \"menu_id\" = ? order by \"sort_order\" asc": 1,
 		"select * from \"_emdash_menus\" where \"name\" = ? order by \"locale\" asc": 1,
-		"select * from \"_emdash_taxonomy_defs\"": 1,
 		"SELECT * FROM \"ec_pages\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"created_at\" DESC, \"id\" DESC": 1,
 		"SELECT * FROM \"ec_posts\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"published_at\" DESC, \"id\" DESC": 1,
 		"select * from \"media\" where \"id\" = ?": 7
@@ -157,7 +153,6 @@
 		"select \"content_taxonomies\".\"entry_id\", \"taxonomies\".\"id\", \"taxonomies\".\"name\", \"taxonomies\".\"slug\", \"taxonomies\".\"label\", \"taxonomies\".\"parent_id\", \"taxonomies\".\"locale\", \"taxonomies\".\"translation_group\" from \"content_taxonomies\" inner join \"taxonomies\" on \"taxonomies\".\"translation_group\" = \"content_taxonomies\".\"taxonomy_id\" where \"content_taxonomies\".\"collection\" = ? and \"content_taxonomies\".\"entry_id\" in (...) order by \"taxonomies\".\"label\" asc": 2,
 		"select * from \"_emdash_menu_items\" where \"menu_id\" = ? order by \"sort_order\" asc": 1,
 		"select * from \"_emdash_menus\" where \"name\" = ? order by \"locale\" asc": 1,
-		"select * from \"_emdash_taxonomy_defs\"": 1,
 		"SELECT * FROM \"ec_pages\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"created_at\" DESC, \"id\" DESC": 1,
 		"SELECT c.*, \"s\".\"seo_title\" AS \"_emdash_seo_title\", \"s\".\"seo_description\" AS \"_emdash_seo_description\", \"s\".\"seo_image\" AS \"_emdash_seo_image\", \"s\".\"seo_canonical\" AS \"_emdash_seo_canonical\", \"s\".\"seo_no_index\" AS \"_emdash_seo_no_index\" FROM \"ec_pages\" AS c LEFT JOIN \"_emdash_seo\" AS s ON s.collection = ? AND s.content_id = c.id WHERE c.deleted_at IS NULL AND (c.slug = ? OR c.id = ?) LIMIT 1": 1
 	},
@@ -188,7 +183,6 @@
 		"select \"value\" from \"options\" where \"name\" = ?": 1,
 		"select * from \"_emdash_menu_items\" where \"menu_id\" = ? order by \"sort_order\" asc": 1,
 		"select * from \"_emdash_menus\" where \"name\" = ? order by \"locale\" asc": 1,
-		"select * from \"_emdash_taxonomy_defs\"": 1,
 		"SELECT * FROM \"ec_pages\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"created_at\" DESC, \"id\" DESC": 1,
 		"SELECT * FROM \"ec_posts\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"published_at\" DESC, \"id\" DESC": 1
 	},
@@ -229,7 +223,6 @@
 		"select * from \"_emdash_comments\" where \"collection\" = ? and \"content_id\" = ? and \"status\" = ? order by \"created_at\" asc, \"id\" asc limit ?": 1,
 		"select * from \"_emdash_menu_items\" where \"menu_id\" = ? order by \"sort_order\" asc": 1,
 		"select * from \"_emdash_menus\" where \"name\" = ? order by \"locale\" asc": 1,
-		"select * from \"_emdash_taxonomy_defs\"": 1,
 		"SELECT * FROM \"ec_pages\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"created_at\" DESC, \"id\" DESC": 1,
 		"SELECT * FROM \"ec_posts\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"published_at\" DESC, \"id\" DESC": 1,
 		"SELECT * FROM \"ec_posts\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"published_at\" DESC, \"id\" DESC LIMIT ?": 1,
@@ -256,7 +249,6 @@
 		"select \"cb\".\"content_id\" as \"content_id\", \"cb\".\"sort_order\" as \"sort_order\", \"cb\".\"role_label\" as \"role_label\", \"b\".\"id\" as \"id\", \"b\".\"slug\" as \"slug\", \"b\".\"display_name\" as \"display_name\", \"b\".\"bio\" as \"bio\", \"b\".\"avatar_media_id\" as \"avatar_media_id\", \"m\".\"storage_key\" as \"avatar_storage_key\", \"m\".\"alt\" as \"avatar_alt\", \"b\".\"website_url\" as \"website_url\", \"b\".\"user_id\" as \"user_id\", \"b\".\"is_guest\" as \"is_guest\", \"b\".\"created_at\" as \"created_at\", \"b\".\"updated_at\" as \"updated_at\", \"b\".\"locale\" as \"locale\", \"b\".\"translation_group\" as \"translation_group\" from \"_emdash_content_bylines\" as \"cb\" inner join \"_emdash_bylines\" as \"b\" on \"b\".\"translation_group\" = \"cb\".\"byline_id\" left join \"media\" as \"m\" on \"m\".\"id\" = \"b\".\"avatar_media_id\" where \"cb\".\"collection_slug\" = ? and \"cb\".\"content_id\" in (...) and \"b\".\"locale\" = ? order by \"cb\".\"sort_order\" asc": 1,
 		"select \"content_taxonomies\".\"entry_id\", \"taxonomies\".\"id\", \"taxonomies\".\"name\", \"taxonomies\".\"slug\", \"taxonomies\".\"label\", \"taxonomies\".\"parent_id\", \"taxonomies\".\"locale\", \"taxonomies\".\"translation_group\" from \"content_taxonomies\" inner join \"taxonomies\" on \"taxonomies\".\"translation_group\" = \"content_taxonomies\".\"taxonomy_id\" where \"content_taxonomies\".\"collection\" = ? and \"content_taxonomies\".\"entry_id\" in (...) order by \"taxonomies\".\"label\" asc": 1,
 		"select \"value\" from \"options\" where \"name\" = ?": 1,
-		"select * from \"_emdash_taxonomy_defs\"": 1,
 		"SELECT * FROM \"ec_posts\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"published_at\" DESC, \"id\" DESC LIMIT ?": 1
 	},
 	"GET /search (cold)": {
@@ -291,7 +283,6 @@
 		"select \"slug\" from \"_emdash_fields\" where \"collection_id\" = ? and \"searchable\" = ?": 1,
 		"select * from \"_emdash_menu_items\" where \"menu_id\" = ? order by \"sort_order\" asc": 1,
 		"select * from \"_emdash_menus\" where \"name\" = ? order by \"locale\" asc": 1,
-		"select * from \"_emdash_taxonomy_defs\"": 1,
 		"SELECT * FROM \"ec_pages\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"created_at\" DESC, \"id\" DESC": 1,
 		"SELECT c.id, c.slug, c.locale, c.title, snippet(\"_emdash_fts_posts\", 2, '<mark>', '</mark>', '...', 32) as snippet, bm25(\"_emdash_fts_posts\") as score FROM \"_emdash_fts_posts\" f JOIN \"ec_posts\" c ON f.id = c.id WHERE \"_emdash_fts_posts\" MATCH ? AND c.status = ? AND c.deleted_at IS NULL ORDER BY score LIMIT ?": 1,
 		"SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?": 1
@@ -327,7 +318,6 @@
 		"select \"value\" from \"options\" where \"name\" = ?": 1,
 		"select * from \"_emdash_menu_items\" where \"menu_id\" = ? order by \"sort_order\" asc": 1,
 		"select * from \"_emdash_menus\" where \"name\" = ? order by \"locale\" asc": 1,
-		"select * from \"_emdash_taxonomy_defs\"": 1,
 		"SELECT * FROM \"ec_pages\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) ORDER BY \"created_at\" DESC, \"id\" DESC": 1,
 		"SELECT * FROM \"ec_posts\" WHERE deleted_at IS NULL AND (\"status\" = 'published' OR (\"status\" = 'scheduled' AND \"scheduled_at\" <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))) AND EXISTS ( SELECT 1 FROM content_taxonomies ct INNER JOIN taxonomies t ON t.id = ct.taxonomy_id WHERE ct.collection = ? AND ct.entry_id = \"ec_posts\".id AND t.name = ? AND t.slug in (...) ) ORDER BY \"published_at\" DESC, \"id\" DESC": 1,
 		"select * from \"taxonomies\" where \"name\" = ? and \"slug\" = ? order by \"locale\" asc": 1,
