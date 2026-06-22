@@ -18,6 +18,8 @@ import { contentBylineInputSchema, contentSeoInput } from "#api/schemas.js";
 
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
+import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
+import type { FieldSchema } from "../client/portable-text.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
@@ -268,6 +270,59 @@ function getEmDash(extra: { authInfo?: { extra?: Record<string, unknown> } }): E
 	return getExtra(extra).emdash;
 }
 
+async function getCollectionFields(
+	ec: EmDashHandlers,
+	collection: string,
+): Promise<FieldSchema[] | null> {
+	try {
+		const { SchemaRegistry } = await import("../schema/index.js");
+		const col = await new SchemaRegistry(ec.db).getCollectionWithFields(collection);
+		return col ? col.fields : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Convert markdown strings to Portable Text for `portableText` fields on write.
+ * Non-string values pass through, so callers may still send Portable Text. If
+ * the schema can't be loaded, data is returned unchanged for the handler to
+ * validate.
+ */
+async function convertWriteData(
+	ec: EmDashHandlers,
+	collection: string,
+	data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+	const fields = await getCollectionFields(ec, collection);
+	if (!fields) return data;
+	return convertDataForWrite(data, fields);
+}
+
+/**
+ * Convert `portableText` field values on each item's `data` to markdown,
+ * mutating in place. Inverse of {@link convertWriteData}, gated on the read
+ * tools' `markdown` argument.
+ */
+async function applyReadMarkdown(
+	ec: EmDashHandlers,
+	collection: string,
+	items: Array<Record<string, unknown>>,
+): Promise<void> {
+	const fields = await getCollectionFields(ec, collection);
+	if (!fields) return;
+	for (const item of items) {
+		if (item.data && typeof item.data === "object") {
+			item.data = convertDataForRead(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
+				item.data as Record<string, unknown>,
+				fields,
+				false,
+			);
+		}
+	}
+}
+
 /**
  * Enforce a scope requirement on the current request.
  *
@@ -460,6 +515,12 @@ export function createMcpServer(): McpServer {
 					.string()
 					.optional()
 					.describe("Filter by locale (e.g. 'en', 'fr'). Only relevant when i18n is enabled."),
+				markdown: z
+					.boolean()
+					.optional()
+					.describe(
+						"Return rich text (portableText) fields as Markdown strings instead of Portable Text arrays (default false).",
+					),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -469,16 +530,26 @@ export function createMcpServer(): McpServer {
 			// Subscribers must only see published content; force the status
 			// filter regardless of caller-supplied value.
 			const status = canReadDrafts(extra) ? args.status : "published";
-			return unwrap(
-				await ec.handleContentList(args.collection, {
-					status,
-					limit: args.limit,
-					cursor: args.cursor,
-					orderBy: args.orderBy,
-					order: args.order,
-					locale: args.locale,
-				}),
-			);
+			const result = await ec.handleContentList(args.collection, {
+				status,
+				limit: args.limit,
+				cursor: args.cursor,
+				orderBy: args.orderBy,
+				order: args.order,
+				locale: args.locale,
+			});
+			if (result.success && args.markdown) {
+				const payload = result.data;
+				if (
+					payload &&
+					typeof payload === "object" &&
+					"items" in payload &&
+					Array.isArray(payload.items)
+				) {
+					await applyReadMarkdown(ec, args.collection, payload.items);
+				}
+			}
+			return unwrap(result);
 		},
 	);
 
@@ -498,6 +569,12 @@ export function createMcpServer(): McpServer {
 					.optional()
 					.describe(
 						"Locale to scope slug lookup (e.g. 'fr'). Only affects slug resolution; IDs are globally unique.",
+					),
+				markdown: z
+					.boolean()
+					.optional()
+					.describe(
+						"Return rich text (portableText) fields as Markdown strings instead of Portable Text arrays (default false).",
 					),
 			}),
 			annotations: { readOnlyHint: true },
@@ -527,6 +604,9 @@ export function createMcpServer(): McpServer {
 					});
 				}
 			}
+			if (result.success && args.markdown && result.data?.item) {
+				await applyReadMarkdown(ec, args.collection, [result.data.item]);
+			}
 			return unwrap(result);
 		},
 	);
@@ -538,9 +618,12 @@ export function createMcpServer(): McpServer {
 			description:
 				"Create a new content item in a collection. The 'data' object should " +
 				"contain field values matching the collection's schema (use " +
-				"schema_get_collection to check). Rich text fields accept Portable Text " +
-				"JSON arrays. A slug is auto-generated if not provided. Items are created " +
-				"as 'draft' by default — use content_publish to make them live.",
+				"schema_get_collection to check). For rich text (portableText) fields, " +
+				"pass a Markdown string — converted to Portable Text automatically; prefer " +
+				"this. Pass a Portable Text JSON array only for complex content Markdown " +
+				"can't express (custom blocks, embeds). A slug is auto-generated if not " +
+				"provided. Items are created as 'draft' by default — use content_publish " +
+				"to make them live.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
 				data: z
@@ -581,6 +664,8 @@ export function createMcpServer(): McpServer {
 				);
 			}
 
+			const data = await convertWriteData(emdash, args.collection, args.data);
+
 			// Publishing requires publish permission — create as draft then publish
 			if (args.status === "published") {
 				const user = { id: userId, role: getExtra(extra).userRole };
@@ -591,7 +676,7 @@ export function createMcpServer(): McpServer {
 					);
 				}
 				const result = await emdash.handleContentCreate(args.collection, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
@@ -607,7 +692,7 @@ export function createMcpServer(): McpServer {
 
 			return unwrap(
 				await emdash.handleContentCreate(args.collection, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
@@ -623,7 +708,10 @@ export function createMcpServer(): McpServer {
 			title: "Update Content",
 			description:
 				"Update an existing content item. Only include fields you want to change " +
-				"in the 'data' object — unspecified fields are left unchanged. Pass the " +
+				"in the 'data' object — unspecified fields are left unchanged. Rich text " +
+				"(portableText) fields accept a Markdown string (recommended, converted " +
+				"automatically); use a Portable Text JSON array only for complex content " +
+				"Markdown can't express (custom blocks, embeds). Pass the " +
 				"_rev token from content_get to enable optimistic concurrency checking " +
 				"(the update fails if the item was modified since you read it). " +
 				"`seo` and `bylines` are persisted alongside the field updates in a " +
@@ -690,6 +778,10 @@ export function createMcpServer(): McpServer {
 			const ownerId = extractContentAuthorId(existing.data);
 			requireOwnership(extra, ownerId, "content:edit_own", "content:edit_any");
 
+			const data = args.data
+				? await convertWriteData(emdash, args.collection, args.data)
+				: args.data;
+
 			// Writing publishedAt directly (incl. clearing to null) overwrites
 			// historical record — gate behind publish_any, mirroring the REST PUT
 			// route. Status-driven publishes are gated separately below.
@@ -716,7 +808,7 @@ export function createMcpServer(): McpServer {
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
-						data: args.data,
+						data,
 						slug: args.slug,
 						authorId: userId,
 						locale: args.locale,
@@ -740,7 +832,7 @@ export function createMcpServer(): McpServer {
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
-						data: args.data,
+						data,
 						slug: args.slug,
 						authorId: userId,
 						locale: args.locale,
@@ -756,7 +848,7 @@ export function createMcpServer(): McpServer {
 
 			return unwrap(
 				await emdash.handleContentUpdate(args.collection, resolvedId, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,

@@ -8,7 +8,7 @@ For the design rationale, see the [PR description](https://github.com/emdash-cms
 
 When a maintainer adds `bot:repro` to an issue:
 
-1. **Classify** — kimi-k2.6 decides issue kind/area/whether a browser is needed.
+1. **Classify** — kimi-k2.7-code decides issue kind/area/whether a browser is needed.
 2. **Reproduce** — opus runs in a `local()` sandbox on the GH Actions runner. Picks one of three sub-skills:
    - `repro-api` — `pnpm test`, CLI commands, direct API hits, no browser
    - `repro-admin` — `agent-browser` against `pnpm dev` with the dev-bypass auth shortcut

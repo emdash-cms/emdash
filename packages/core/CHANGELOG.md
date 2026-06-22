@@ -1,5 +1,79 @@
 # emdash
 
+## 0.21.0
+
+### Minor Changes
+
+- [#1382](https://github.com/emdash-cms/emdash/pull/1382) [`b6a5fac`](https://github.com/emdash-cms/emdash/commit/b6a5fac6d3bc88cc5ab49889de264c37262cc5f7) Thanks [@ascorbic](https://github.com/ascorbic)! - The Astro dev server now prints absolute, clickable URLs for the admin UI and (when enabled) the MCP server, along with a dev-bypass shortcut link that signs you in as a dev admin without going through passkey setup or auth. The startup banner also shows the installed EmDash version. The dev-bypass link is dev-only and the underlying endpoint returns 403 in production.
+
+- [#1508](https://github.com/emdash-cms/emdash/pull/1508) [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527) Thanks [@swissky](https://github.com/swissky)! - Add a "Gone (410)" rule type. Redirect rules now support `410` (Content Deleted) and `451` (Unavailable For Legal Reasons) as terminal statuses — served directly with no destination — and the 404 log offers a one-click "Mark as Gone (410)" action next to "Create redirect". A 410 tells search engines a URL was intentionally and permanently removed, so it is deindexed faster than a 404.
+
+### Patch Changes
+
+- [#1511](https://github.com/emdash-cms/emdash/pull/1511) [`23c37f3`](https://github.com/emdash-cms/emdash/commit/23c37f35dfe9ce23fca0d48acea228299d25e19e) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Fixes `emdash doctor` always reporting "could not query users table". The users check now queries the correct table and reports the actual user count.
+
+- [#1530](https://github.com/emdash-cms/emdash/pull/1530) [`997d7ee`](https://github.com/emdash-cms/emdash/commit/997d7eea8f39c16eef28577bb8ace0c0413fc38b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes admin and content pages intermittently hanging and returning 524 timeouts on Cloudflare Workers. The per-isolate caches for byline custom-field definitions and resolved site secrets could retain a never-settling promise left behind by a cancelled request, which wedged every later request on that isolate until it was evicted. Both caches now cache the resolved value behind a reclaimable single-flight lock, so a cancelled request can no longer stall the isolate.
+
+- [#1386](https://github.com/emdash-cms/emdash/pull/1386) [`37e848b`](https://github.com/emdash-cms/emdash/commit/37e848bf005950a4b312cf5f0a50f7c8820b01fc) Thanks [@auggernaut](https://github.com/auggernaut)! - Skips default robots.txt and sitemap.xml route injection when the host site defines its own root routes.
+
+- Updated dependencies [[`1b10c1d`](https://github.com/emdash-cms/emdash/commit/1b10c1d64d5975c5fef94e61e8cbff251260184c), [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527)]:
+  - @emdash-cms/admin@0.21.0
+  - @emdash-cms/auth@0.21.0
+  - @emdash-cms/gutenberg-to-portable-text@0.21.0
+
+## 0.20.0
+
+### Minor Changes
+
+- [#1461](https://github.com/emdash-cms/emdash/pull/1461) [`b01aa9b`](https://github.com/emdash-cms/emdash/commit/b01aa9bbb436bcec07516b499eb0516cfbe414b4) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes registry installs failing with "Plugin manifest has changed since you consented" for plugins that declare hook-registration capabilities (email transport, email events, page fragments) or read user records. Plugin bundles now declare their access as a structured `declaredAccess` contract that the registry record, the install-consent dialog, and the sandbox all read consistently, so every capability a plugin declares is shown for consent and enforced — no capability is silently dropped. Re-publish affected plugins to adopt the new bundle format; existing installs are unaffected.
+
+- [#1425](https://github.com/emdash-cms/emdash/pull/1425) [`3e344af`](https://github.com/emdash-cms/emdash/commit/3e344af2c162e37dfa389b9cb88c2c826590b678) Thanks [@swissky](https://github.com/swissky)! - Repeater fields support `image` sub-fields with the media picker ([#1424](https://github.com/emdash-cms/emdash/issues/1424))
+
+  Repeater rows previously rendered every non-scalar sub-field as a plain text
+  input, so galleries had to be built from hand-pasted URLs. Image sub-fields
+  now render the same media-picker UI as top-level image fields (select,
+  preview, change, remove) and store the same MediaValue shape — legacy string
+  URLs keep working.
+
+  Includes: `image` in the schema-builder sub-field type select, the shared
+  `ImageFieldRenderer` extracted out of `ContentEditor` for reuse, and the
+  sub-field type whitelists in core (`REPEATER_SUB_FIELD_TYPES` + the API Zod
+  enum) extended — the Zod enum also gains the previously missing `url` entry
+  that the builder already offered.
+
+### Patch Changes
+
+- [#1447](https://github.com/emdash-cms/emdash/pull/1447) [`141aa11`](https://github.com/emdash-cms/emdash/commit/141aa11213206d9ea5e14d1f1cd75c07cfacae7b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes `@atcute` peer dependency warnings on install ([#1435](https://github.com/emdash-cms/emdash/issues/1435))
+
+  Installing EmDash pulled in mismatched `@atcute` package versions, so `pnpm install` / `npm install` reported unmet peer warnings for `@atcute/identity` and `@atcute/lexicons`. The bundled `@atcute` dependencies are now aligned on v2 and installs are clean. If your project also depends on `@atcute` packages directly, note they have moved to v2 (`@atcute/client` 5, `@atcute/lexicons` 2, `@atcute/atproto` 4, `@atcute/oauth-node-client` 2).
+
+- [#1492](https://github.com/emdash-cms/emdash/pull/1492) [`7688f0b`](https://github.com/emdash-cms/emdash/commit/7688f0b6a92ccfdcea6244100c07679e81014161) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes a read-your-writes gap with database read replication: the session bookmark cookie is now persisted even when page rendering throws after a successful write, so an immediately-following request can't read pre-write state from a lagging replica.
+
+- [#1459](https://github.com/emdash-cms/emdash/pull/1459) [`c7166b0`](https://github.com/emdash-cms/emdash/commit/c7166b083eaa2ceb37f8d9682f4a521e5e360a19) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fix scheduled entries staying hidden after their scheduled time ([#1402](https://github.com/emdash-cms/emdash/issues/1402))
+
+  `isVisible()` read `scheduledAt` via `dataStr`, which returned an empty string for the `Date` the loader produced, so entries whose scheduled time had passed never became visible. The visibility check now reads the scheduled time correctly.
+
+- [#1458](https://github.com/emdash-cms/emdash/pull/1458) [`9c994ad`](https://github.com/emdash-cms/emdash/commit/9c994ada4692d34517ab458f29b8613aa9341ecc) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fix `npx emdash types` crash caused by the schema endpoint envelope ([#1188](https://github.com/emdash-cms/emdash/issues/1188))
+
+  The `/schema` route returned an enveloped JSON body while `client.request()` already unwraps the `.data` field, so `emdash types` received `undefined` and crashed. The route now returns the un-enveloped shape the client expects.
+
+- [#1489](https://github.com/emdash-cms/emdash/pull/1489) [`eddaf91`](https://github.com/emdash-cms/emdash/commit/eddaf91a6a818cad12bc8f5e14ee16f8189cc073) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes admin pages hanging indefinitely (and eventually returning 524 timeouts) on Cloudflare Workers. The worker-lifetime caches for site settings and search-index health could be left holding a request that never completed (for example when a visitor's request was cancelled mid-load), which then stalled every later request served by that worker until it was recycled. These caches now keep resolved values rather than in-flight requests, so a cancelled or interrupted request can no longer wedge the rest.
+
+- [#1481](https://github.com/emdash-cms/emdash/pull/1481) [`afc3a0f`](https://github.com/emdash-cms/emdash/commit/afc3a0f6f3f0fa831b6c2e7e8ddebb4a7c631007) Thanks [@MA2153](https://github.com/MA2153)! - Fixes collection `where` filters to apply every taxonomy key instead of silently dropping all but the first. Filtering by two or more taxonomies (e.g. `{ category: ["news"], region: ["emea"] }`) now returns the intersection — entries tagged in each taxonomy — matching how field and byline filters already compose.
+
+- [#1498](https://github.com/emdash-cms/emdash/pull/1498) [`3d423a7`](https://github.com/emdash-cms/emdash/commit/3d423a796d7d000160dc7d8d0a582ba7734f214f) Thanks [@ascorbic](https://github.com/ascorbic)! - Reduces redundant database queries when rendering content pages: widget areas are now request-cached, taxonomy term usage-counts are fetched once per request instead of once per taxonomy widget, and `getTermsForEntries` reuses already-hydrated terms instead of re-querying. Fewer round trips per page on every backend.
+
+- [#1492](https://github.com/emdash-cms/emdash/pull/1492) [`7688f0b`](https://github.com/emdash-cms/emdash/commit/7688f0b6a92ccfdcea6244100c07679e81014161) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds an `rpc.count` Server-Timing metric reporting physical database round trips, distinct from `db.count` (logical queries). Backends that batch (the new Durable Objects SQL driver coalesces same-turn reads into one round trip) can now surface how many round trips a request actually made.
+
+- [#1504](https://github.com/emdash-cms/emdash/pull/1504) [`8807701`](https://github.com/emdash-cms/emdash/commit/880770148329fa14ccb1c35d438ae6e53c8e2c97) Thanks [@swissky](https://github.com/swissky)! - Adds image entries to per-collection sitemaps. When a content entry has an SEO image, the sitemap now emits it as a Google `<image:image>` entry, helping Google discover and index page images for Google Images.
+
+- Updated dependencies [[`141aa11`](https://github.com/emdash-cms/emdash/commit/141aa11213206d9ea5e14d1f1cd75c07cfacae7b), [`ddf8f0d`](https://github.com/emdash-cms/emdash/commit/ddf8f0d40fdc4d9138c00cc6bc718cff9e5a4ed3), [`68840a9`](https://github.com/emdash-cms/emdash/commit/68840a9326ff275519eafea9dfe0cebaebaf664a), [`eaedec0`](https://github.com/emdash-cms/emdash/commit/eaedec0cac0780da13d0184534364f5c3291ba8a), [`8bb20c4`](https://github.com/emdash-cms/emdash/commit/8bb20c4a48b6f1137c6d9e05d60603c2f6db1091), [`fb31240`](https://github.com/emdash-cms/emdash/commit/fb31240d649e874e5148d468b857da0598edc487), [`022fd66`](https://github.com/emdash-cms/emdash/commit/022fd66e27396cace47032153acb2d8024ca472e), [`5d8358b`](https://github.com/emdash-cms/emdash/commit/5d8358b408ac4a85fb7156963a15de3862ffe28f), [`ce96271`](https://github.com/emdash-cms/emdash/commit/ce9627190e84f2f4df4c1c405dc60a790bae38d0), [`b2e65ac`](https://github.com/emdash-cms/emdash/commit/b2e65acc7e11294dede51b2d2642db6c00654141), [`589d07f`](https://github.com/emdash-cms/emdash/commit/589d07fc620e41a14d4aa2bdecf4db9d82f118eb), [`d6269e7`](https://github.com/emdash-cms/emdash/commit/d6269e7eb69af3390dae302641e03d7687df19d4), [`325c673`](https://github.com/emdash-cms/emdash/commit/325c6737bf59913d2a50b7f5add306c5cd57d1f0), [`af4af50`](https://github.com/emdash-cms/emdash/commit/af4af50ff7d22c057063a436f3e7a408e33a3d7b), [`c48604b`](https://github.com/emdash-cms/emdash/commit/c48604bb71e20cef58eb2d12bcb5a8e49575477d), [`52ea731`](https://github.com/emdash-cms/emdash/commit/52ea731ace97cb4e429365f0ec844d0e9286130c), [`acfeb89`](https://github.com/emdash-cms/emdash/commit/acfeb89060eec29b50cd076b9099bb20d40e7380), [`6c1fe5c`](https://github.com/emdash-cms/emdash/commit/6c1fe5ccb9ebe530d6c30defaeaec8f260b5b386), [`6246774`](https://github.com/emdash-cms/emdash/commit/624677408362e1c9e8153b1d742e93667e42511a), [`b01aa9b`](https://github.com/emdash-cms/emdash/commit/b01aa9bbb436bcec07516b499eb0516cfbe414b4), [`3e344af`](https://github.com/emdash-cms/emdash/commit/3e344af2c162e37dfa389b9cb88c2c826590b678), [`5f7cd11`](https://github.com/emdash-cms/emdash/commit/5f7cd11a06791dcb25e02a962429ca3dcf66fb1e), [`263392f`](https://github.com/emdash-cms/emdash/commit/263392fc08cd91013e406d014e69fe44b5ffdf00), [`eddadf8`](https://github.com/emdash-cms/emdash/commit/eddadf86bce4dad713a605f5ec7df1922b9affe1)]:
+  - @emdash-cms/admin@0.20.0
+  - @emdash-cms/registry-client@0.3.2
+  - @emdash-cms/plugin-types@0.1.0
+  - @emdash-cms/auth@0.20.0
+  - @emdash-cms/gutenberg-to-portable-text@0.20.0
+
 ## 0.19.0
 
 ### Minor Changes

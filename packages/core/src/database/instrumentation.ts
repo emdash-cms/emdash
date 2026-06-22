@@ -110,3 +110,16 @@ function kyselyLog(event: LogEvent): void {
 export function kyselyLogOption(): Logger {
 	return kyselyLog;
 }
+
+/**
+ * Record physical database round trips for the current request.
+ *
+ * Called by backends that batch (the DO SQL driver coalesces same-turn SELECTs
+ * into one RPC), so we can see round-trip count separately from logical query
+ * count (`dbCount`, bumped by the Kysely log hook). No-op outside a request or
+ * when metrics aren't attached (e.g. migrations on the singleton).
+ */
+export function recordRpc(count = 1): void {
+	const ctx = getRequestContext();
+	if (ctx?.metrics) ctx.metrics.rpcCount += count;
+}

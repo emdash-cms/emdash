@@ -1,5 +1,97 @@
 # @emdash-cms/admin
 
+## 0.21.0
+
+### Minor Changes
+
+- [#1508](https://github.com/emdash-cms/emdash/pull/1508) [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527) Thanks [@swissky](https://github.com/swissky)! - Add a "Gone (410)" rule type. Redirect rules now support `410` (Content Deleted) and `451` (Unavailable For Legal Reasons) as terminal statuses — served directly with no destination — and the 404 log offers a one-click "Mark as Gone (410)" action next to "Create redirect". A 410 tells search engines a URL was intentionally and permanently removed, so it is deindexed faster than a 404.
+
+### Patch Changes
+
+- [#1521](https://github.com/emdash-cms/emdash/pull/1521) [`1b10c1d`](https://github.com/emdash-cms/emdash/commit/1b10c1d64d5975c5fef94e61e8cbff251260184c) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the byline search box still blanking the page while you type. Searching now keeps the current results on screen as the new query loads, instead of collapsing into a full-page loader and dropping the input's focus on each settled keystroke.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.21.0
+
+## 0.20.0
+
+### Minor Changes
+
+- [#1427](https://github.com/emdash-cms/emdash/pull/1427) [`acfeb89`](https://github.com/emdash-cms/emdash/commit/acfeb89060eec29b50cd076b9099bb20d40e7380) Thanks [@swissky](https://github.com/swissky)! - Media details show the file URL with a Copy URL action
+
+  The media library previously exposed no way to obtain a file's URL — the
+  detail panel now shows the absolute file URL (relative local-storage paths
+  are resolved against the current origin) with a one-click copy button, so
+  editors can paste media URLs wherever a URL field is needed.
+
+- [#1425](https://github.com/emdash-cms/emdash/pull/1425) [`3e344af`](https://github.com/emdash-cms/emdash/commit/3e344af2c162e37dfa389b9cb88c2c826590b678) Thanks [@swissky](https://github.com/swissky)! - Repeater fields support `image` sub-fields with the media picker ([#1424](https://github.com/emdash-cms/emdash/issues/1424))
+
+  Repeater rows previously rendered every non-scalar sub-field as a plain text
+  input, so galleries had to be built from hand-pasted URLs. Image sub-fields
+  now render the same media-picker UI as top-level image fields (select,
+  preview, change, remove) and store the same MediaValue shape — legacy string
+  URLs keep working.
+
+  Includes: `image` in the schema-builder sub-field type select, the shared
+  `ImageFieldRenderer` extracted out of `ContentEditor` for reuse, and the
+  sub-field type whitelists in core (`REPEATER_SUB_FIELD_TYPES` + the API Zod
+  enum) extended — the Zod enum also gains the previously missing `url` entry
+  that the builder already offered.
+
+### Patch Changes
+
+- [#1447](https://github.com/emdash-cms/emdash/pull/1447) [`141aa11`](https://github.com/emdash-cms/emdash/commit/141aa11213206d9ea5e14d1f1cd75c07cfacae7b) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes `@atcute` peer dependency warnings on install ([#1435](https://github.com/emdash-cms/emdash/issues/1435))
+
+  Installing EmDash pulled in mismatched `@atcute` package versions, so `pnpm install` / `npm install` reported unmet peer warnings for `@atcute/identity` and `@atcute/lexicons`. The bundled `@atcute` dependencies are now aligned on v2 and installs are clean. If your project also depends on `@atcute` packages directly, note they have moved to v2 (`@atcute/client` 5, `@atcute/lexicons` 2, `@atcute/atproto` 4, `@atcute/oauth-node-client` 2).
+
+- [#1478](https://github.com/emdash-cms/emdash/pull/1478) [`ddf8f0d`](https://github.com/emdash-cms/emdash/commit/ddf8f0d40fdc4d9138c00cc6bc718cff9e5a4ed3) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for sections API fallback error messages in the admin UI
+
+- [#1473](https://github.com/emdash-cms/emdash/pull/1473) [`68840a9`](https://github.com/emdash-cms/emdash/commit/68840a9326ff275519eafea9dfe0cebaebaf664a) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for the dashboard API fallback error message in the admin UI
+
+- [#1468](https://github.com/emdash-cms/emdash/pull/1468) [`eaedec0`](https://github.com/emdash-cms/emdash/commit/eaedec0cac0780da13d0184534364f5c3291ba8a) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for the generic dialog error fallback in the admin UI
+
+- [#1465](https://github.com/emdash-cms/emdash/pull/1465) [`8bb20c4`](https://github.com/emdash-cms/emdash/commit/8bb20c4a48b6f1137c6d9e05d60603c2f6db1091) Thanks [@pitscher](https://github.com/pitscher)! - Fixes untranslated MediaPickerModal references for the library
+
+- [#1486](https://github.com/emdash-cms/emdash/pull/1486) [`fb31240`](https://github.com/emdash-cms/emdash/commit/fb31240d649e874e5148d468b857da0598edc487) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds an avatar image picker to the byline editor. The `avatarMediaId` field was already part of the byline model and API but had no admin control, so byline avatars could only be set programmatically, and editing a byline through the UI cleared any avatar that had been set. You can now choose, change, and remove a byline's avatar from the editor.
+
+- [#1476](https://github.com/emdash-cms/emdash/pull/1476) [`022fd66`](https://github.com/emdash-cms/emdash/commit/022fd66e27396cace47032153acb2d8024ca472e) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for search API fallback error messages in the admin UI
+
+- [#1454](https://github.com/emdash-cms/emdash/pull/1454) [`5d8358b`](https://github.com/emdash-cms/emdash/commit/5d8358b408ac4a85fb7156963a15de3862ffe28f) Thanks [@pitscher](https://github.com/pitscher)! - Fixes untranslated ContentTypeEditor form text to let it be translatable
+
+- [#1499](https://github.com/emdash-cms/emdash/pull/1499) [`ce96271`](https://github.com/emdash-cms/emdash/commit/ce9627190e84f2f4df4c1c405dc60a790bae38d0) Thanks [@swissky](https://github.com/swissky)! - Capitalize German status labels (`published`, `scheduled`, `archived`, `pending`) in the admin UI. As standalone badge labels these are nouns and should follow German capitalization (e.g. "publiziert" → "Publiziert"), matching the already-capitalized "Entwurf".
+
+- [#1470](https://github.com/emdash-cms/emdash/pull/1470) [`b2e65ac`](https://github.com/emdash-cms/emdash/commit/b2e65acc7e11294dede51b2d2642db6c00654141) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for media API fallback error messages in the admin UI
+
+- [#1475](https://github.com/emdash-cms/emdash/pull/1475) [`589d07f`](https://github.com/emdash-cms/emdash/commit/589d07fc620e41a14d4aa2bdecf4db9d82f118eb) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for the current-user API fallback error message in the admin UI
+
+- [#1411](https://github.com/emdash-cms/emdash/pull/1411) [`d6269e7`](https://github.com/emdash-cms/emdash/commit/d6269e7eb69af3390dae302641e03d7687df19d4) Thanks [@memdigital](https://github.com/memdigital)! - Adds an en-GB (British English) locale to the admin UI. British spelling and morphology only - terminology is unchanged. en-GB browsers are auto-selected via the existing Accept-Language resolution.
+
+- [#1477](https://github.com/emdash-cms/emdash/pull/1477) [`325c673`](https://github.com/emdash-cms/emdash/commit/325c6737bf59913d2a50b7f5add306c5cd57d1f0) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for shared API fallback messages in the admin UI
+
+- [#1496](https://github.com/emdash-cms/emdash/pull/1496) [`af4af50`](https://github.com/emdash-cms/emdash/commit/af4af50ff7d22c057063a436f3e7a408e33a3d7b) Thanks [@ahliweb](https://github.com/ahliweb)! - Fixes the remaining untranslated Indonesian admin strings.
+
+- [#1472](https://github.com/emdash-cms/emdash/pull/1472) [`c48604b`](https://github.com/emdash-cms/emdash/commit/c48604bb71e20cef58eb2d12bcb5a8e49575477d) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for settings API fallback error messages in the admin UI
+
+- [#1455](https://github.com/emdash-cms/emdash/pull/1455) [`52ea731`](https://github.com/emdash-cms/emdash/commit/52ea731ace97cb4e429365f0ec844d0e9286130c) Thanks [@pitscher](https://github.com/pitscher)! - Fixes untranslated PluginFieldErrorBoundary strings
+
+- [#1507](https://github.com/emdash-cms/emdash/pull/1507) [`6c1fe5c`](https://github.com/emdash-cms/emdash/commit/6c1fe5ccb9ebe530d6c30defaeaec8f260b5b386) Thanks [@ascorbic](https://github.com/ascorbic)! - Speeds up browsing and searching large media libraries. The media library and the media picker now load small resized thumbnails through Astro's image endpoint instead of fetching every grid item's full-size original, so opening the library and searching for older items no longer waits on full-resolution downloads ([#1488](https://github.com/emdash-cms/emdash/issues/1488)). Where no runtime image service is available the original is served as before, so nothing renders worse than it did.
+
+- [#1500](https://github.com/emdash-cms/emdash/pull/1500) [`6246774`](https://github.com/emdash-cms/emdash/commit/624677408362e1c9e8153b1d742e93667e42511a) Thanks [@swissky](https://github.com/swissky)! - Fix unreadable "Published" status badge in dark mode. The content editor rendered the published badge as `<Badge variant="primary" className="text-white">`, which produces white text on a light inverted background in dark mode. Use the semantic `variant="success"` (green) instead, which is dark-mode aware and matches the green "published" badge used on the content overview list.
+
+- [#1461](https://github.com/emdash-cms/emdash/pull/1461) [`b01aa9b`](https://github.com/emdash-cms/emdash/commit/b01aa9bbb436bcec07516b499eb0516cfbe414b4) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes registry installs failing with "Plugin manifest has changed since you consented" for plugins that declare hook-registration capabilities (email transport, email events, page fragments) or read user records. Plugin bundles now declare their access as a structured `declaredAccess` contract that the registry record, the install-consent dialog, and the sandbox all read consistently, so every capability a plugin declares is shown for consent and enforced — no capability is silently dropped. Re-publish affected plugins to adopt the new bundle format; existing installs are unaffected.
+
+- [#1471](https://github.com/emdash-cms/emdash/pull/1471) [`5f7cd11`](https://github.com/emdash-cms/emdash/commit/5f7cd11a06791dcb25e02a962429ca3dcf66fb1e) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for email settings API fallback error messages in the admin UI
+
+- [#1469](https://github.com/emdash-cms/emdash/pull/1469) [`263392f`](https://github.com/emdash-cms/emdash/commit/263392fc08cd91013e406d014e69fe44b5ffdf00) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for plugin API fallback error messages in the admin UI
+
+- [#1466](https://github.com/emdash-cms/emdash/pull/1466) [`eddadf8`](https://github.com/emdash-cms/emdash/commit/eddadf86bce4dad713a605f5ec7df1922b9affe1) Thanks [@pitscher](https://github.com/pitscher)! - Fixes localization for code block language labels in the admin editor
+
+- Updated dependencies [[`141aa11`](https://github.com/emdash-cms/emdash/commit/141aa11213206d9ea5e14d1f1cd75c07cfacae7b), [`b01aa9b`](https://github.com/emdash-cms/emdash/commit/b01aa9bbb436bcec07516b499eb0516cfbe414b4)]:
+  - @emdash-cms/registry-client@0.3.2
+  - @emdash-cms/registry-lexicons@0.1.1
+  - @emdash-cms/plugin-types@0.1.0
+  - @emdash-cms/blocks@0.20.0
+
 ## 0.19.0
 
 ### Minor Changes

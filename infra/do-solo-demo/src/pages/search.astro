@@ -1,0 +1,182 @@
+---
+export const prerender = false;
+
+import { search } from "emdash";
+import Base from "../layouts/Base.astro";
+
+const query = Astro.url.searchParams.get("q")?.trim() || "";
+
+// Use the FTS-backed search() API instead of loading every post and
+// filtering in JS. FTS scales as the post count grows, returns ranked
+// results, and handles tokenization/stemming. Templates that grep all
+// post bodies in JS quickly become unusable past a few hundred posts.
+const { items: results } = query
+	? await search(query, { collections: ["posts"], limit: 30 })
+	: { items: [] };
+---
+
+<Base
+	title={query ? `Search: ${query}` : "Search"}
+	description="Search blog posts"
+>
+	<section class="search-page">
+		<h1 class="search-title">Search</h1>
+
+		<form method="get" action="/search" class="search-form">
+			<input
+				type="search"
+				name="q"
+				value={query}
+				placeholder="Search posts..."
+				class="search-input"
+				autofocus
+			/>
+			<button type="submit" class="search-button">Search</button>
+		</form>
+
+		{
+			query && (
+				<p class="search-summary">
+					{results.length === 0
+						? `No results for "${query}"`
+						: `${results.length} result${results.length === 1 ? "" : "s"} for "${query}"`}
+				</p>
+			)
+		}
+
+		{
+			results.length > 0 && (
+				<ol class="search-results">
+					{results.map((result) => (
+						<li class="search-result">
+							<a
+								href={`/posts/${result.slug ?? result.id}`}
+								class="result-link"
+							>
+								<h2 class="result-title">
+									{result.title ?? "Untitled"}
+								</h2>
+								{result.snippet && (
+									<p class="result-snippet" set:html={result.snippet} />
+								)}
+							</a>
+						</li>
+					))}
+				</ol>
+			)
+		}
+
+		{!query && <p class="search-hint">Enter a search term to find posts.</p>}
+	</section>
+</Base>
+
+<style>
+	.search-page {
+		max-width: var(--max-width);
+		margin: 0 auto;
+		padding: var(--spacing-8) var(--spacing-6) var(--spacing-16);
+	}
+
+	.search-title {
+		font-size: var(--font-size-2xl);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.search-form {
+		display: flex;
+		gap: var(--spacing-2);
+		margin-bottom: var(--spacing-8);
+	}
+
+	.search-input {
+		flex: 1;
+		padding: var(--spacing-2) var(--spacing-4);
+		font-size: var(--font-size-base);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-bg);
+		color: var(--color-text);
+	}
+
+	.search-input:focus {
+		outline: none;
+		border-color: var(--color-accent);
+	}
+
+	.search-button {
+		padding: var(--spacing-2) var(--spacing-6);
+		font-size: var(--font-size-base);
+		background: var(--color-accent);
+		color: var(--color-on-accent);
+		border: none;
+		border-radius: var(--radius);
+		cursor: pointer;
+		font-weight: 500;
+	}
+
+	.search-button:hover {
+		opacity: 0.9;
+	}
+
+	.search-summary {
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.search-hint {
+		color: var(--color-muted);
+	}
+
+	.search-results {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.search-result {
+		padding: var(--spacing-6) 0;
+		border-bottom: 1px solid var(--color-border-subtle);
+	}
+
+	.search-result:first-child {
+		padding-top: 0;
+	}
+
+	.search-result:last-child {
+		border-bottom: none;
+	}
+
+	.result-link {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.result-title {
+		font-size: var(--font-size-xl);
+		font-weight: 600;
+		line-height: var(--leading-snug);
+		margin-bottom: var(--spacing-2);
+		transition: color var(--transition-fast);
+	}
+
+	.result-link:hover .result-title {
+		color: var(--color-accent);
+	}
+
+	.result-snippet {
+		font-size: var(--font-size-base);
+		line-height: var(--leading-relaxed);
+		color: var(--color-text-secondary);
+	}
+
+	/* FTS returns <mark> wrapping the matched terms */
+	.result-snippet :global(mark) {
+		background: var(--color-accent-ring, rgba(99, 102, 241, 0.2));
+		color: inherit;
+		padding: 0 0.1em;
+		border-radius: 2px;
+	}
+</style>

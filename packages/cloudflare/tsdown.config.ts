@@ -5,6 +5,7 @@ export default defineConfig({
 		"src/index.ts",
 		"src/db/d1.ts",
 		"src/db/do.ts",
+		"src/db/do-sql.ts",
 		"src/db/playground.ts",
 		"src/db/playground-middleware.ts",
 		"src/storage/r2.ts",

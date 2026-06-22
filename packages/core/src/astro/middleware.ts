@@ -60,7 +60,9 @@ import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
+import { prefetchLayoutData } from "./prefetch.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
+import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
 /**
@@ -333,6 +335,9 @@ function pushMetricsTimings(
 			timings.push({ name: "db.last", dur: metrics.dbLastOffset, desc: "Last query at" });
 		}
 	}
+	if (metrics.rpcCount > 0) {
+		timings.push({ name: "rpc.count", dur: metrics.rpcCount, desc: "DB round trips" });
+	}
 	if (metrics.cacheHits + metrics.cacheMisses > 0) {
 		timings.push({ name: "cache.hit", dur: metrics.cacheHits, desc: "Cache hits" });
 		timings.push({ name: "cache.miss", dur: metrics.cacheMisses, desc: "Cache misses" });
@@ -412,7 +417,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// turns normal traffic into a flood of KV read misses. See #733.
 		const hasSessionCookie = cookies.get("astro-session") !== undefined;
 		const sessionUser =
-			context.isPrerendered || !hasSessionCookie ? null : await context.session?.get("user");
+			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
 
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
@@ -509,10 +514,37 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					const ctx = parent
 						? { ...parent, db: anonScoped.db }
 						: { editMode: false, db: anonScoped.db, metrics };
+					// Eagerly warm site-global layout data (menus, widget areas,
+					// taxonomy terms, settings) concurrently so the layout's
+					// per-component reads overlap into ~one wall-clock round trip and
+					// hit a warm cache instead of serializing. Three guards:
+					//  - request-scoped (remote) backend only -- this branch implies it;
+					//    pointless on synchronous local SQLite.
+					//  - HTML navigations only -- feeds/sitemaps/JSON don't render the
+					//    layout, so prefetching their chrome is pure waste.
+					//  - via after(): it runs immediately (still warms the render) but
+					//    hands the promise to waitUntil, so the surplus warm-up (chrome a
+					//    given page doesn't render) is kept alive past the response rather
+					//    than erroring on workerd as orphaned request I/O.
+					// Gate on the CLIENT'S PREFERRED type (leading media range), not a
+					// substring -- browser navigations lead with `text/html`, while feed
+					// readers lead with `application/rss+xml` etc. and only list
+					// `text/html;q=0.8` later, so a substring match would leak onto feeds.
+					const acceptsHtml = (request.headers.get("accept") ?? "")
+						.split(",", 1)[0]!
+						.trim()
+						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
-						const response = await runAnon();
-						anonScoped.commit();
-						return response;
+						if (acceptsHtml) after(() => prefetchLayoutData());
+						// commit() in finally: the write reached the primary independently
+						// of render, so the bookmark cookie must be persisted even if
+						// render throws -- otherwise a write-then-failed-render leaves the
+						// next request able to read pre-write state off a lagging replica.
+						try {
+							return await runAnon();
+						} finally {
+							anonScoped.commit();
+						}
 					});
 				}
 				return runAnon();
@@ -681,9 +713,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					? { ...parent, db: scoped.db }
 					: { editMode: false, db: scoped.db, metrics };
 				return runWithContext(ctx, async () => {
-					const response = await renderAndFinalize();
-					scoped.commit();
-					return response;
+					// commit() in finally: persist the bookmark cookie even if render
+					// throws -- the write already reached the primary, so a failed
+					// render must not strand the next request on a stale replica read.
+					try {
+						return await renderAndFinalize();
+					} finally {
+						scoped.commit();
+					}
 				});
 			}
 

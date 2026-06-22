@@ -29,6 +29,12 @@ export interface SitemapContentEntry {
 	 * alternates between siblings.
 	 */
 	translationGroup: string | null;
+	/**
+	 * Stored SEO image reference (`_emdash_seo.seo_image`), or null when
+	 * the entry has no SEO image. The route resolves it to an absolute
+	 * URL and emits it as an `<image:image>` sitemap entry.
+	 */
+	image: string | null;
 }
 
 /** Per-collection sitemap data with entries and URL pattern */
@@ -106,8 +112,9 @@ export async function handleSitemapData(
 					updated_at: string;
 					locale: string;
 					translation_group: string | null;
+					seo_image: string | null;
 				}>`
-					SELECT c.slug, c.id, c.updated_at, c.locale, c.translation_group
+					SELECT c.slug, c.id, c.updated_at, c.locale, c.translation_group, s.seo_image
 					FROM ${sql.ref(tableName)} c
 					LEFT JOIN _emdash_seo s
 						ON s.collection = ${col.slug}
@@ -129,6 +136,7 @@ export async function handleSitemapData(
 						updatedAt: row.updated_at,
 						locale: row.locale,
 						translationGroup: row.translation_group,
+						image: row.seo_image ?? null,
 					});
 				}
 

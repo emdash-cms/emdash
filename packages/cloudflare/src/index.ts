@@ -35,6 +35,7 @@
 
 import type { AuthDescriptor, DatabaseDescriptor, StorageDescriptor } from "emdash";
 
+import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
 
 /**
@@ -195,6 +196,32 @@ export function d1(config: D1Config): DatabaseDescriptor {
 }
 
 export type { PreviewDOConfig } from "./db/do-types.js";
+export type { DurableObjectsConfig } from "./db/do-sql-types.js";
+
+/**
+ * Durable Object SQL database adapter (production)
+ *
+ * Stores the whole CMS in a single Durable Object's SQLite. With
+ * `session: "auto"` and the `experimental` + `replica_routing` compatibility
+ * flags, reads route to the nearest replica and writes proxy to the primary,
+ * cutting read round-trip latency versus a single-region primary.
+ *
+ * Requires the `EmDashDB` class to be registered in your worker entry and a
+ * `new_sqlite_classes` migration in wrangler.
+ *
+ * @example
+ * ```ts
+ * database: durableObjects({ binding: "DB_DO", session: "auto" })
+ * ```
+ */
+export function durableObjects(config: DurableObjectsConfig): DatabaseDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/db/do-sql",
+		config,
+		type: "sqlite",
+		supportsRequestScope: true,
+	};
+}
 
 /**
  * Durable Object preview database adapter

@@ -4,26 +4,77 @@
 	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
 	"compatibility_date": "2026-04-01",
 	"compatibility_flags": ["nodejs_compat"],
-	// Workers AI binding. Flue's generated Cloudflare entry reserves the
-	// `cloudflare/` model prefix and routes it through this binding, so the
-	// reviewer model (`cloudflare/@cf/moonshotai/kimi-k2.7-code`) needs no API key.
 	"ai": {
 		"binding": "AI",
 	},
 	// Container sandbox. Flue auto-wires any Durable Object class whose
 	// class_name ends in `Sandbox` to @cloudflare/sandbox's Sandbox class in
-	// the generated bundle. The reviewer needs a real Linux env for `git`.
+	// the generated bundle.
 	"durable_objects": {
-		"bindings": [{ "class_name": "Sandbox", "name": "Sandbox" }],
+		"bindings": [
+			{
+				"class_name": "Sandbox",
+				"name": "Sandbox",
+			},
+		],
 	},
-	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sandbox"] }],
-	"containers": [{ "class_name": "Sandbox", "image": "./Dockerfile" }],
+	// Migration history must stay append-only and keep every previously applied
+	// tag so Cloudflare can locate the deployed cursor and apply only what's new.
+	// The live worker's cursor is `flue-class-ReviewWorkflow` (it has Sandbox,
+	// ReviewWorkflow, and FlueRegistry). @flue 0.11 renamed the workflow DO class
+	// `ReviewWorkflow` -> `FlueReviewWorkflow`; the v2 rename below bridges to it
+	// without re-creating or resetting any class. The first two tags are already
+	// applied (their bodies are not re-executed) and exist only to anchor the cursor.
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["Sandbox"],
+		},
+		{
+			"tag": "flue-class-ReviewWorkflow",
+			"new_sqlite_classes": ["ReviewWorkflow", "FlueRegistry"],
+		},
+		{
+			"tag": "v2-flue-0.11",
+			"renamed_classes": [
+				{
+					"from": "ReviewWorkflow",
+					"to": "FlueReviewWorkflow",
+				},
+			],
+		},
+		// Reset the FlueRegistry run-index DO. Upgrading @flue in place left its
+		// `flue_registry_runs` table with the pre-1.0 schema (an `owner_kind NOT
+		// NULL` column 1.0-beta no longer writes); `ensureRegistryTables` only
+		// does CREATE TABLE IF NOT EXISTS so it never reconciles, and every
+		// recordRunStart/End fails the NOT NULL constraint. The registry holds
+		// only run-index bookkeeping (no review/workflow state), so we drop and
+		// recreate it to get a fresh 1.0-beta schema. Cloudflare refuses to delete
+		// a class while a binding references it, so this is applied via a
+		// two-step deploy: deploy once with the FLUE_REGISTRY binding removed
+		// (drops + recreates the class, unbound), then a normal deploy rebinds it.
+		{
+			"tag": "v3-reset-registry-drop",
+			"deleted_classes": ["FlueRegistry"],
+		},
+		{
+			"tag": "v4-reset-registry-new",
+			"new_sqlite_classes": ["FlueRegistry"],
+		},
+	],
+	"containers": [
+		{
+			"class_name": "Sandbox",
+			"image": "./Dockerfile",
+		},
+	],
 	"vars": {
 		// emdashbot GitHub App. Not secret (app id is public; installation id is
 		// low-sensitivity). Only the private key and webhook secret are secrets.
 		// Owner/repo come from the webhook payload, so they aren't configured here.
 		"GITHUB_APP_ID": "3255304",
 		"GITHUB_APP_INSTALLATION_ID": "120963314",
+		"SANDBOX_TRANSPORT": "rpc",
 	},
 	// Set with `wrangler secret put <NAME>`. The webhook secret is used by the
 	// public handler; the private key is used only by the workflow DO to mint an

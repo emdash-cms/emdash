@@ -5,9 +5,9 @@
  * Opens when clicking an item in the MediaLibrary.
  */
 
-import { Button, Input, InputArea } from "@cloudflare/kumo";
+import { Button, ClipboardText, Input, InputArea } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { X, Trash, Calendar, HardDrive, Ruler } from "@phosphor-icons/react";
+import { X, Trash, Calendar, HardDrive, LinkSimple, Ruler } from "@phosphor-icons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -43,6 +43,10 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 			setCaption(item.caption ?? "");
 		}
 	}, [item]);
+
+	// Public file URL — absolute so it can be pasted anywhere (relative API
+	// paths from local storage are resolved against the current origin).
+	const fileUrl = item ? new URL(item.url, window.location.origin).href : "";
 
 	// Track if form has unsaved changes
 	const hasChanges = React.useMemo(() => {
@@ -183,6 +187,16 @@ export function MediaDetailPanel({ item, onClose, onDeleted }: MediaDetailPanelP
 							<Calendar className="h-4 w-4 text-kumo-subtle" />
 							<span className="text-kumo-subtle">{t`Uploaded:`}</span>
 							<span>{formatDate(item.createdAt)}</span>
+						</div>
+						<div className="flex items-center gap-2 text-sm">
+							<LinkSimple className="h-4 w-4 text-kumo-subtle shrink-0" />
+							<span className="text-kumo-subtle shrink-0">{t`URL:`}</span>
+							<ClipboardText
+								text={fileUrl}
+								size="sm"
+								className="min-w-0 flex-1"
+								labels={{ copyAction: t`Copy URL` }}
+							/>
 						</div>
 					</div>
 
