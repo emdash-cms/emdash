@@ -593,4 +593,26 @@ describe("astro middleware setup probe", () => {
 		expect(next).toHaveBeenCalledTimes(1);
 		expect(response.status).toBe(200);
 	});
+
+	it("does NOT redirect to setup during prerender even when migrations are missing (regression)", async () => {
+		// A prerendered route is built to static HTML. If the setup probe ran at
+		// build time it would see CI's legitimately-empty database, report a
+		// missing migrations table, and bake context.redirect("/_emdash/admin/setup")
+		// into every prerendered page -- shipping that redirect to production. The
+		// probe must be skipped entirely when prerendering.
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
+		);
+
+		const { context, redirect } = anonymousCategoryPageContext();
+		context.isPrerendered = true;
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(redirect).not.toHaveBeenCalled();
+		expect(getDb).not.toHaveBeenCalled();
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+	});
 });

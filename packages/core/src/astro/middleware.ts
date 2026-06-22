@@ -430,7 +430,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Do a one-time lightweight probe using the same getDb() instance the
 				// page will use: if the migrations table doesn't exist, no migrations
 				// have ever run -- redirect to the setup wizard.
-				if (!isSetupVerified()) {
+				// Skip the probe when prerendering: a prerendered route is built to
+				// static HTML, so returning context.redirect("/_emdash/admin/setup")
+				// below would bake that redirect into the page and ship it to
+				// production. The build database is legitimately empty in CI and there
+				// is no live visitor to send to the wizard at build time (session reads
+				// are already skipped for prerender above for the same reason).
+				if (!isSetupVerified() && !context.isPrerendered) {
 					const t0 = performance.now();
 					try {
 						const { getDb } = await import("../loader.js");
@@ -750,7 +756,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	try {
 		return await runWithContext({ editMode: false, queryRecorder, metrics }, run);
 	} finally {
-		if (queryRecorder) flushRecorder(queryRecorder);
+		// Streamed responses defer the flush to stream end (see
+		// wrapBodyForStreamMetrics) so the log captures queries issued while
+		// the body renders. Only flush here for responses that were not
+		// wrapped (no body: redirects, 304s, bodyless errors), where all
+		// queries have already run by the time middleware returns.
+		if (queryRecorder && !queryRecorder.deferredFlush) flushRecorder(queryRecorder);
 	}
 });
 
