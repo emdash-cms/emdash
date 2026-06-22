@@ -25,12 +25,14 @@ interface TaggedDate {
 }
 
 function isTaggedDate(value: unknown): value is TaggedDate {
-	return (
-		typeof value === "object" &&
-		value !== null &&
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing a JSON-parsed value to read the date tag
-		typeof (value as Record<string, unknown>)[DATE_TAG] === "string"
-	);
+	if (typeof value !== "object" || value === null) return false;
+	// encode() always emits the tag as the object's *only* key, so requiring
+	// exactly one key keeps a user object that merely happens to carry a
+	// `$$emdashDate` string alongside other fields from being collapsed to a
+	// Date (which would silently drop those other fields).
+	const keys = Object.keys(value);
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing a JSON-parsed value to read the date tag
+	return keys.length === 1 && typeof (value as Record<string, unknown>)[DATE_TAG] === "string";
 }
 
 /**

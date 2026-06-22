@@ -59,6 +59,11 @@ describe("object-cache codec", () => {
 	it("returns undefined for malformed input (treated as a miss)", () => {
 		expect(decode("not json{")).toBeUndefined();
 	});
+
+	it("does not collapse a multi-key user object that carries the date tag", () => {
+		const value = { meta: { $$emdashDate: "not actually a date marker", other: 1 } };
+		expect(decode(encode(value))).toEqual(value);
+	});
 });
 
 describe("memory backend", () => {
