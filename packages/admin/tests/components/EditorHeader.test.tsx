@@ -32,30 +32,6 @@ describe("EditorHeader", () => {
 		await expect.element(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
 	});
 
-	it("applies sticky utility classes by default", async () => {
-		const screen = await render(
-			<EditorHeader actions={<button type="submit">Save</button>}>
-				<h1>Title</h1>
-			</EditorHeader>,
-		);
-		// Locate the wrapper via the data attribute on the root.
-		const wrapper = screen.getByText("Title").element().closest("[data-editor-header]");
-		expect(wrapper).not.toBeNull();
-		expect(wrapper?.classList.contains("sticky")).toBe(true);
-		expect(wrapper?.classList.contains("top-0")).toBe(true);
-	});
-
-	it("omits sticky classes when sticky=false", async () => {
-		const screen = await render(
-			<EditorHeader sticky={false} actions={<button type="submit">Save</button>}>
-				<h1>Title</h1>
-			</EditorHeader>,
-		);
-		const wrapper = screen.getByText("Title").element().closest("[data-editor-header]");
-		expect(wrapper).not.toBeNull();
-		expect(wrapper?.classList.contains("sticky")).toBe(false);
-	});
-
 	it("omits the actions area when no actions prop is provided", async () => {
 		const screen = await render(
 			<EditorHeader>

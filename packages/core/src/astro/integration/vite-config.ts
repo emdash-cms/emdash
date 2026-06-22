@@ -22,6 +22,8 @@ import {
 	RESOLVED_VIRTUAL_DIALECT_ID,
 	VIRTUAL_STORAGE_ID,
 	RESOLVED_VIRTUAL_STORAGE_ID,
+	VIRTUAL_OBJECT_CACHE_ID,
+	RESOLVED_VIRTUAL_OBJECT_CACHE_ID,
 	VIRTUAL_ADMIN_REGISTRY_ID,
 	RESOLVED_VIRTUAL_ADMIN_REGISTRY_ID,
 	VIRTUAL_PLUGINS_ID,
@@ -42,11 +44,15 @@ import {
 	RESOLVED_VIRTUAL_SEED_ID,
 	VIRTUAL_WAIT_UNTIL_ID,
 	RESOLVED_VIRTUAL_WAIT_UNTIL_ID,
+	VIRTUAL_SCHEDULER_ID,
+	RESOLVED_VIRTUAL_SCHEDULER_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
+	generateSchedulerModule,
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
+	generateObjectCacheModule,
 	generateAuthModule,
 	generateAuthProvidersModule,
 	generatePluginsModule,
@@ -173,6 +179,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_STORAGE_ID) {
 				return RESOLVED_VIRTUAL_STORAGE_ID;
 			}
+			if (id === VIRTUAL_OBJECT_CACHE_ID) {
+				return RESOLVED_VIRTUAL_OBJECT_CACHE_ID;
+			}
 			if (id === VIRTUAL_ADMIN_REGISTRY_ID) {
 				return RESOLVED_VIRTUAL_ADMIN_REGISTRY_ID;
 			}
@@ -203,6 +212,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_WAIT_UNTIL_ID) {
 				return RESOLVED_VIRTUAL_WAIT_UNTIL_ID;
 			}
+			if (id === VIRTUAL_SCHEDULER_ID) {
+				return RESOLVED_VIRTUAL_SCHEDULER_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -221,6 +233,14 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === RESOLVED_VIRTUAL_STORAGE_ID) {
 				return generateStorageModule(resolvedConfig.storage?.entrypoint);
 			}
+			// Generate the object-cache module — statically imports the
+			// configured backend factory, or exports undefined (cache off).
+			if (id === RESOLVED_VIRTUAL_OBJECT_CACHE_ID) {
+				return generateObjectCacheModule(
+					resolvedConfig.objectCache?.entrypoint,
+					resolvedConfig.objectCache?.config,
+				);
+			}
 			// Generate plugins module that imports and instantiates all plugins
 			if (id === RESOLVED_VIRTUAL_PLUGINS_ID) {
 				return generatePluginsModule(pluginDescriptors);
@@ -233,7 +253,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 			// Generate sandbox runner module
 			if (id === RESOLVED_VIRTUAL_SANDBOX_RUNNER_ID) {
-				return generateSandboxRunnerModule(resolvedConfig.sandboxRunner);
+				return generateSandboxRunnerModule(resolvedConfig.sandboxRunner, resolvedConfig.sandbox);
 			}
 			// Generate sandboxed plugins config module
 			if (id === RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID) {
@@ -270,6 +290,12 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// waitUntil under the Cloudflare adapter, undefined otherwise.
 			if (id === RESOLVED_VIRTUAL_WAIT_UNTIL_ID) {
 				return generateWaitUntilModule(astroConfig.adapter?.name);
+			}
+			// Generate scheduler module — a NodeCronScheduler factory on
+			// long-lived runtimes, or null under the Cloudflare adapter where
+			// a Cron Trigger drives scheduled work instead.
+			if (id === RESOLVED_VIRTUAL_SCHEDULER_ID) {
+				return generateSchedulerModule(astroConfig.adapter?.name, viteCommand);
 			}
 		},
 	};
@@ -346,7 +372,7 @@ export function createViteConfig(
 				{ find: "use-sync-external-store/shim", replacement: "use-sync-external-store" },
 			],
 		},
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
 			createVirtualModulesPlugin(options),
 			// In dev mode with source alias, compile Lingui macros on the fly
@@ -395,10 +421,25 @@ export function createViteConfig(
 							"emdash > @emdash-cms/auth > @oslojs/crypto/ecdsa",
 							"emdash > @emdash-cms/auth > @oslojs/crypto/sha2",
 							"emdash > @emdash-cms/auth > @oslojs/webauthn",
+							// Auth deps imported only on auth/login/callback routes, so
+							// the initial page scan misses them. Pre-bundle to avoid a
+							// re-optimize + reload cascade on first authenticated request.
+							"emdash > @oslojs/crypto/hmac",
+							"emdash > @oslojs/crypto/subtle",
+							"emdash > @oslojs/crypto/rsa",
+							"emdash > arctic",
 							// MCP SDK — server/index.js statically imports ajv (CJS-only).
 							// Pre-bundling converts CJS to ESM so workerd can load it.
 							"emdash > @modelcontextprotocol/sdk > ajv",
 							"emdash > @modelcontextprotocol/sdk > ajv-formats",
+							// MCP server entrypoints — only imported on the MCP route, so
+							// also missed by the initial scan.
+							"emdash > @modelcontextprotocol/sdk/server/mcp.js",
+							"emdash > @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js",
+							// Admin shell SSR deps, reached only when the admin route is
+							// first rendered.
+							"emdash > @emdash-cms/admin > @lingui/react",
+							"emdash > @emdash-cms/admin > @cloudflare/kumo/primitives",
 							// React (commonly used, may be hoisted)
 							"react",
 							"react/jsx-dev-runtime",
@@ -408,6 +449,8 @@ export function createViteConfig(
 							// Top-level deps (use astro > path for pnpm compat)
 							"astro > zod/v4",
 							"astro > zod/v4/core",
+							// zod-generator imports the bare `zod` entry, not `zod/v4`
+							"emdash > zod",
 							"@emdash-cms/cloudflare > kysely-d1",
 							// Astro internal deps not covered by @astrojs/cloudflare adapter
 							"astro/virtual-modules/middleware.js",
@@ -415,6 +458,7 @@ export function createViteConfig(
 							"astro/content/runtime",
 							"astro/assets/utils/inferRemoteSize.js",
 							"astro/assets/fonts/runtime.js",
+							"astro/assets/services/noop",
 							"@astrojs/cloudflare/image-service",
 						],
 					},

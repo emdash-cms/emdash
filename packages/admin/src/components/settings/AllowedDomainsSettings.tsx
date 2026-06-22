@@ -18,7 +18,6 @@ import {
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
@@ -29,7 +28,7 @@ import {
 	fetchManifest,
 	type AllowedDomain,
 } from "../../lib/api";
-import { ArrowPrev } from "../ArrowIcons.js";
+import { BackToSettingsLink } from "./BackToSettingsLink.js";
 import { useAllowedDomainsRolesConfig } from "./useAllowedDomainsRolesConfig.js";
 
 export function AllowedDomainsSettings() {
@@ -164,11 +163,7 @@ export function AllowedDomainsSettings() {
 
 	const settingsHeader = (
 		<div className="flex items-center gap-3">
-			<Link to="/settings">
-				<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-					<ArrowPrev className="h-4 w-4" />
-				</Button>
-			</Link>
+			<BackToSettingsLink />
 			<h1 className="text-2xl font-bold">{t`Self-Signup Domains`}</h1>
 		</div>
 	);

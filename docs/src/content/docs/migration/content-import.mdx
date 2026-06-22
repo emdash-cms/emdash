@@ -5,7 +5,7 @@ description: Import content from WordPress and other sources into EmDash.
 
 import { Aside, Card, CardGrid, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash's import system uses a pluggable source architecture. Each source knows how to probe, analyze, and fetch content from a specific platform.
+EmDash imports content from WordPress and other platforms. Each import source detects a platform, analyzes its content, and fetches it into your site.
 
 ## Import Sources
 
@@ -131,7 +131,7 @@ Each post type shows its status:
 
 Click **Create Schema & Import** to:
 
-1. Create new collections via SchemaRegistry
+1. Create new collections
 2. Add missing fields with correct column types
 3. Set up content tables with indexes
 
@@ -182,72 +182,13 @@ After content, optionally import media:
 
 Media import uses content hashing (xxHash64) for deduplication. The same image used in multiple posts is stored once.
 
-## Source Interface
-
-Import sources implement a standard interface:
-
-```typescript
-interface ImportSource {
-	/** Unique identifier */
-	id: string;
-
-	/** Display name */
-	name: string;
-
-	/** Probe a URL (optional) */
-	probe?(url: string): Promise<SourceProbeResult | null>;
-
-	/** Analyze content from this source */
-	analyze(input: SourceInput, context: ImportContext): Promise<ImportAnalysis>;
-
-	/** Stream content items */
-	fetchContent(input: SourceInput, options: FetchOptions): AsyncGenerator<NormalizedItem>;
-}
-```
-
-### Input Types
-
-Sources accept different input types:
-
-```typescript
-// File upload (WXR)
-{ type: "file", file: File }
-
-// URL with optional token (REST API)
-{ type: "url", url: string, token?: string }
-
-// OAuth connection (WordPress.com)
-{ type: "oauth", url: string, accessToken: string }
-```
-
-### Normalized Output
-
-All sources produce the same normalized format:
-
-```typescript
-interface NormalizedItem {
-	sourceId: string | number;
-	postType: string;
-	status: "publish" | "draft" | "pending" | "private" | "future";
-	slug: string;
-	title: string;
-	content: PortableTextBlock[];
-	excerpt?: string;
-	date: Date;
-	author?: string;
-	authors?: string[];
-	categories?: string[];
-	tags?: string[];
-	meta?: Record<string, unknown>;
-	featuredImage?: string;
-}
-```
-
 ## API Endpoints
 
 The import system exposes these endpoints:
 
 ### Probe URL
+
+Detect the platform behind a URL with a probe request:
 
 ```http
 POST /_emdash/api/import/probe
@@ -256,9 +197,11 @@ Content-Type: application/json
 { "url": "https://example.com" }
 ```
 
-Returns detected platform and suggested action.
+The response contains the detected platform and suggested action.
 
 ### Analyze WXR
+
+Upload a WXR file to analyze its post types and schema compatibility:
 
 ```http
 POST /_emdash/api/import/wordpress/analyze
@@ -267,9 +210,11 @@ Content-Type: multipart/form-data
 file: [WordPress export .xml]
 ```
 
-Returns post type analysis with schema compatibility.
+The response contains the post type analysis with schema compatibility.
 
 ### Prepare Schema
+
+Create the collections and fields for the selected post types:
 
 ```http
 POST /_emdash/api/import/wordpress/prepare
@@ -282,9 +227,9 @@ Content-Type: application/json
 }
 ```
 
-Creates collections and fields.
-
 ### Execute Import
+
+Import the content into the mapped collections:
 
 ```http
 POST /_emdash/api/import/wordpress/execute
@@ -294,9 +239,9 @@ file: [WordPress export .xml]
 config: { "postTypeMappings": { "post": { "collection": "posts" } } }
 ```
 
-Imports content to specified collections.
-
 ### Import Media
+
+Download and store the media attachments referenced by the import:
 
 ```http
 POST /_emdash/api/import/wordpress/media
@@ -308,9 +253,11 @@ Content-Type: application/json
 }
 ```
 
-Streams NDJSON progress updates during download/upload.
+The response streams NDJSON progress updates during download and upload.
 
 ### Rewrite URLs
+
+Replace old media URLs in imported content with their stored equivalents:
 
 ```http
 POST /_emdash/api/import/wordpress/rewrite-urls
@@ -320,8 +267,6 @@ Content-Type: application/json
   "urlMap": { "https://old.com/image.jpg": "/_emdash/media/abc123" }
 }
 ```
-
-Updates Portable Text content with new media URLs.
 
 ## Error Handling
 
@@ -339,7 +284,7 @@ Updates Portable Text content with new media URLs.
 
 ### Error Report
 
-After import:
+After an import completes, EmDash shows a summary of what succeeded, what was adjusted, and what failed:
 
 ```
 Import Complete
@@ -358,54 +303,9 @@ Import Complete
 
 Failed items are saved as drafts with original content in `_importError` for review.
 
-## Building Custom Sources
+## Custom sources
 
-Create a source for other platforms:
-
-```typescript title="src/import/custom-source.ts"
-import type { ImportSource } from "emdash/import";
-
-export const mySource: ImportSource = {
-	id: "my-platform",
-	name: "My Platform",
-	description: "Import from My Platform",
-	icon: "globe",
-	canProbe: true,
-
-	async probe(url) {
-		// Check if URL matches your platform
-		const response = await fetch(`${url}/api/info`);
-		if (!response.ok) return null;
-
-		return {
-			sourceId: "my-platform",
-			confidence: "definite",
-			detected: { platform: "my-platform" },
-			// ...
-		};
-	},
-
-	async analyze(input, context) {
-		// Parse and analyze content
-		// Return ImportAnalysis
-	},
-
-	async *fetchContent(input, options) {
-		// Yield NormalizedItem for each content piece
-		for (const item of items) {
-			yield {
-				sourceId: item.id,
-				postType: "post",
-				title: item.title,
-				content: convertToPortableText(item.body),
-				// ...
-			};
-		}
-	},
-};
-```
-
-Register the source in your EmDash configuration:
+To import from a platform the built-in sources do not cover, implement the `ImportSource` interface and register it on the integration:
 
 ```typescript title="astro.config.mjs"
 import { mySource } from "./src/import/custom-source";
@@ -413,15 +313,15 @@ import { mySource } from "./src/import/custom-source";
 export default defineConfig({
 	integrations: [
 		emdash({
-			import: {
-				sources: [mySource],
-			},
+			import: { sources: [mySource] },
 		}),
 	],
 });
 ```
 
+The interface (`probe`, `analyze`, `fetchContent`) and the normalized output shape are documented in [Architecture (internals)](/contributing/architecture/#extending-the-content-importer).
+
 ## Next Steps
 
 - **[WordPress Migration](/migration/from-wordpress/)** — Complete WordPress migration guide
-- **[Plugin Porting](/migration/plugin-porting/)** — Port WordPress plugins to EmDash
+- **[Plugin Porting](/migration/porting-plugins/)** — Port WordPress plugins to EmDash

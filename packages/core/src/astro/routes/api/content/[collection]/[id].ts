@@ -35,12 +35,12 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	if (result.success && !hasPermission(user, "content:read_drafts")) {
 		const data =
 			result.data && typeof result.data === "object"
-				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check
+				? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check
 					(result.data as Record<string, unknown>)
 				: undefined;
 		const item =
 			data?.item && typeof data.item === "object"
-				? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check
+				? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check
 					(data.item as Record<string, unknown>)
 				: undefined;
 		const status = typeof item?.status === "string" ? item.status : null;
@@ -68,6 +68,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
+	const locale = new URL(request.url).searchParams.get("locale") || undefined;
 	const body = await parseBody(request, contentUpdateBody);
 	if (isParseError(body)) return body;
 
@@ -76,7 +77,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	}
 
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGet(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",
@@ -87,13 +88,13 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 
 	const existingData =
 		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
 				(existing.data as Record<string, unknown>)
 			: undefined;
 	// Handler returns { item, _rev } — extract the item for ownership and ID resolution
 	const existingItem =
 		existingData?.item && typeof existingData.item === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
 				(existingData.item as Record<string, unknown>)
 			: existingData;
 	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
@@ -120,17 +121,18 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	// Pass _rev through for optimistic concurrency validation
 	const result = await emdash.handleContentUpdate(collection, resolvedId, {
 		...updateBody,
+		locale,
 		_rev: body._rev,
 	});
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection, resolvedId] });
+	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId] });
 
 	return unwrapResult(result);
 };
 
-export const DELETE: APIRoute = async ({ params, locals, cache }) => {
+export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
@@ -139,8 +141,10 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
+	const locale = url.searchParams.get("locale") || undefined;
+
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGet(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",
@@ -151,13 +155,13 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 
 	const deleteData =
 		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown data; narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
 				(existing.data as Record<string, unknown>)
 			: undefined;
 	// Handler returns { item, _rev } — extract the item for ownership and ID resolution
 	const deleteItem =
 		deleteData?.item && typeof deleteData.item === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof check above
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
 				(deleteData.item as Record<string, unknown>)
 			: deleteData;
 	const authorId = typeof deleteItem?.authorId === "string" ? deleteItem.authorId : "";
@@ -171,7 +175,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection, resolvedId] });
+	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId] });
 
 	return unwrapResult(result);
 };

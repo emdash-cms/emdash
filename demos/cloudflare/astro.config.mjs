@@ -11,7 +11,7 @@ import {
 	cloudflareStream,
 } from "@emdash-cms/cloudflare";
 import { formsPlugin } from "@emdash-cms/plugin-forms";
-import { webhookNotifierPlugin } from "@emdash-cms/plugin-webhook-notifier";
+import webhookNotifier from "@emdash-cms/plugin-webhook-notifier";
 import { defineConfig, fontProviders } from "astro/config";
 import emdash from "emdash/astro";
 
@@ -43,7 +43,7 @@ export default defineConfig({
 			// R2 storage for media
 			storage: r2({ binding: "MEDIA" }),
 			// Cloudflare Access authentication
-			// Reads CF_ACCESS_AUDIENCE from env (wrangler secret or .dev.vars)
+			// Reads CF_ACCESS_AUDIENCE from env (wrangler secret or .env)
 			auth: access({
 				teamDomain: "cloudflare-cto.cloudflareaccess.com",
 				autoProvision: true,
@@ -74,26 +74,24 @@ export default defineConfig({
 				formsPlugin(),
 			],
 			// Sandboxed plugins (run in isolated workers)
-			sandboxed: [webhookNotifierPlugin()],
+			sandboxed: [webhookNotifier],
 			// Sandbox runner for Cloudflare
 			sandboxRunner: sandbox(),
 			// Plugin marketplace
 			marketplace: "https://marketplace.emdashcms.com",
 		}),
 	],
-	experimental: {
-		cache: {
-			provider: cloudflareCache(),
+	cache: {
+		provider: cloudflareCache(),
+	},
+	routeRules: {
+		"/": {
+			maxAge: 3_600,
+			swr: 864_000,
 		},
-		routeRules: {
-			"/": {
-				maxAge: 3_600,
-				swr: 864_000,
-			},
-			"/[...slug]": {
-				maxAge: 3_600,
-				swr: 864_000,
-			},
+		"/[...slug]": {
+			maxAge: 3_600,
+			swr: 864_000,
 		},
 	},
 	fonts: [

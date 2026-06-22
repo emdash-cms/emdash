@@ -15,7 +15,6 @@ import {
 	WarningCircle,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
@@ -23,8 +22,8 @@ import {
 	sendTestEmail,
 	type EmailSettings as EmailSettingsData,
 } from "../../lib/api/email-settings.js";
-import { ArrowPrev } from "../ArrowIcons.js";
 import { getMutationError } from "../DialogError.js";
+import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
 export function EmailSettings() {
 	const { t } = useLingui();
@@ -82,11 +81,7 @@ export function EmailSettings() {
 		return (
 			<div className="space-y-6">
 				<div className="flex items-center gap-3">
-					<Link to="/settings">
-						<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-							<ArrowPrev className="h-4 w-4" />
-						</Button>
-					</Link>
+					<BackToSettingsLink />
 					<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>
 				</div>
 				<div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
@@ -101,11 +96,7 @@ export function EmailSettings() {
 		<div className="space-y-6">
 			{/* Header */}
 			<div className="flex items-center gap-3">
-				<Link to="/settings">
-					<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-						<ArrowPrev className="h-4 w-4" />
-					</Button>
-				</Link>
+				<BackToSettingsLink />
 				<h1 className="text-2xl font-bold">{t`Email Settings`}</h1>
 			</div>
 

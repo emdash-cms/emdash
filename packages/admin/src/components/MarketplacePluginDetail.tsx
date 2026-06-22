@@ -15,8 +15,6 @@ import { useLingui } from "@lingui/react/macro";
 import { DownloadSimple, GithubLogo, Globe, ShieldCheck, Warning, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import DOMPurify from "dompurify";
-import { Marked, Renderer } from "marked";
 import * as React from "react";
 
 import {
@@ -25,7 +23,8 @@ import {
 	uninstallMarketplacePlugin,
 	describeCapability,
 } from "../lib/api/marketplace.js";
-import { SAFE_URL_RE, isSafeUrl, safeIconUrl } from "../lib/url.js";
+import { renderMarkdown } from "../lib/markdown.js";
+import { isSafeUrl, safeIconUrl } from "../lib/url.js";
 import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
@@ -189,8 +188,7 @@ export function MarketplacePluginDetail({
 							<span className="text-xs text-kumo-danger">{t`Failed security audit`}</span>
 						</div>
 					) : (
-						<Button onClick={() => setShowConsent(true)}>
-							<DownloadSimple className="me-2 h-4 w-4" />
+						<Button onClick={() => setShowConsent(true)} icon={<DownloadSimple />}>
 							{t`Install`}
 						</Button>
 					)}
@@ -479,79 +477,6 @@ function ScreenshotLightbox({
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Markdown rendering (via marked, raw HTML blocked, sanitized with DOMPurify)
-// ---------------------------------------------------------------------------
-
-const HTML_ESCAPE_MAP: Record<string, string> = {
-	"&": "&amp;",
-	"<": "&lt;",
-	">": "&gt;",
-	'"': "&quot;",
-	"'": "&#39;",
-};
-
-const HTML_ESCAPE_RE = /[&<>"']/g;
-
-function escapeHtml(str: string): string {
-	return str.replace(HTML_ESCAPE_RE, (ch) => HTML_ESCAPE_MAP[ch]!);
-}
-
-const renderer = new Renderer();
-
-renderer.link = ({ href, text }) => {
-	if (!SAFE_URL_RE.test(href)) return escapeHtml(text);
-	return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
-};
-
-renderer.image = ({ text }) => escapeHtml(text);
-
-renderer.html = () => "";
-
-const md = new Marked({ renderer, async: false });
-
-/** Allowed tags and attributes for DOMPurify — only standard markdown output. */
-const SANITIZE_CONFIG = {
-	ALLOWED_TAGS: [
-		"h1",
-		"h2",
-		"h3",
-		"h4",
-		"h5",
-		"h6",
-		"p",
-		"a",
-		"ul",
-		"ol",
-		"li",
-		"blockquote",
-		"pre",
-		"code",
-		"em",
-		"strong",
-		"del",
-		"br",
-		"hr",
-		"table",
-		"thead",
-		"tbody",
-		"tr",
-		"th",
-		"td",
-		"details",
-		"summary",
-		"sup",
-		"sub",
-	],
-	ALLOWED_ATTR: ["href", "target", "rel"],
-};
-
-function renderMarkdown(markdown: string): string {
-	const result = md.parse(markdown);
-	const html = typeof result === "string" ? result : "";
-	return DOMPurify.sanitize(html, SANITIZE_CONFIG);
-}
 
 function formatBytes(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;

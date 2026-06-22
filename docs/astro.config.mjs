@@ -10,6 +10,10 @@ export default defineConfig({
 		starlight({
 			title: "EmDash",
 			tagline: "The Astro-native CMS",
+			disable404Route: true,
+			components: {
+				SkipLink: "./src/components/SkipLink.astro",
+			},
 			logo: {
 				light: "./src/assets/logo-light.svg",
 				dark: "./src/assets/logo-dark.svg",
@@ -85,65 +89,111 @@ export default defineConfig({
 					items: [
 						{ label: "Plugin Overview", slug: "plugins/overview" },
 						{ label: "Installing Plugins", slug: "plugins/installing" },
-						{ label: "Field Kit", slug: "plugins/field-kit" },
+						{ label: "Plugin Registry", slug: "plugins/registry" },
+						{ label: "Upgrading Plugins", slug: "plugins/upgrading-sites" },
 					],
 				},
 				{
-					label: "Creating Sandboxed Plugins",
+					label: "Migration",
+					items: [
+						{
+							label: "Migrate from WordPress",
+							slug: "migration/from-wordpress",
+						},
+						{ label: "Content Import", slug: "migration/content-import" },
+						{
+							label: "Porting WordPress Plugins",
+							slug: "migration/porting-plugins",
+						},
+					],
+				},
+				{
+					label: "Plugin Development",
 					items: [
 						{
 							label: "Choosing a Plugin Format",
 							slug: "plugins/creating-plugins/choosing-a-format",
 						},
 						{
-							label: "Your First Plugin",
-							slug: "plugins/creating-plugins/your-first-plugin",
-						},
-						{ label: "Hooks", slug: "plugins/creating-plugins/hooks" },
-						{ label: "API Routes", slug: "plugins/creating-plugins/api-routes" },
-						{ label: "Storage", slug: "plugins/creating-plugins/storage" },
-						{ label: "Settings", slug: "plugins/creating-plugins/settings" },
-						{ label: "Block Kit", slug: "plugins/creating-plugins/block-kit" },
-						{
-							label: "Capabilities & Security",
-							slug: "plugins/creating-plugins/capabilities",
-						},
-						{
-							label: "Bundling & Publishing",
-							slug: "plugins/creating-plugins/publishing",
-						},
-					],
-				},
-				{
-					label: "Creating Native Plugins",
-					items: [
-						{
-							label: "Your First Native Plugin",
-							slug: "plugins/creating-native-plugins/your-first-native-plugin",
-						},
-						{
-							label: "React Admin Pages & Widgets",
-							slug: "plugins/creating-native-plugins/react-admin",
-						},
-						{
-							label: "Portable Text Components",
-							slug: "plugins/creating-native-plugins/portable-text-components",
-						},
-						{
-							label: "Page Fragments",
-							slug: "plugins/creating-native-plugins/page-fragments",
+							label: "Sandboxed Plugins",
+							collapsed: true,
+							items: [
+								{
+									label: "Your First Plugin",
+									slug: "plugins/creating-plugins/your-first-plugin",
+								},
+								{
+									label: "The Manifest",
+									slug: "plugins/creating-plugins/manifest",
+								},
+								{
+									label: "The Plugin CLI",
+									slug: "plugins/creating-plugins/cli",
+								},
+								{ label: "Hooks", slug: "plugins/creating-plugins/hooks" },
+								{ label: "API Routes", slug: "plugins/creating-plugins/api-routes" },
+								{ label: "Storage", slug: "plugins/creating-plugins/storage" },
+								{ label: "Settings", slug: "plugins/creating-plugins/settings" },
+								{ label: "Block Kit", slug: "plugins/creating-plugins/block-kit" },
+								{
+									label: "Capabilities & Security",
+									slug: "plugins/creating-plugins/capabilities",
+								},
+								{
+									label: "Bundling & Publishing",
+									slug: "plugins/creating-plugins/publishing",
+								},
+								{
+									label: "Migrating to the CLI",
+									slug: "plugins/creating-plugins/migrating-to-the-cli",
+								},
+							],
 						},
 						{
-							label: "Distributing Native Plugins",
-							slug: "plugins/creating-native-plugins/distributing",
+							label: "Native Plugins",
+							collapsed: true,
+							items: [
+								{
+									label: "Your First Native Plugin",
+									slug: "plugins/creating-native-plugins/your-first-native-plugin",
+								},
+								{
+									label: "React Admin Pages & Widgets",
+									slug: "plugins/creating-native-plugins/react-admin",
+								},
+								{
+									label: "Portable Text Components",
+									slug: "plugins/creating-native-plugins/portable-text-components",
+								},
+								{
+									label: "Page Fragments",
+									slug: "plugins/creating-native-plugins/page-fragments",
+								},
+								{
+									label: "Distributing Native Plugins",
+									slug: "plugins/creating-native-plugins/distributing",
+								},
+							],
 						},
+						{
+							label: "Querying the Registry",
+							slug: "plugins/registry-client",
+						},
+						{ label: "Field Kit", slug: "plugins/field-kit" },
 					],
 				},
 				{
 					label: "Contributing",
-					collapsed: true,
 					items: [
 						{ label: "Contributor Guide", slug: "contributing" },
+						{
+							label: "Architecture (internals)",
+							slug: "contributing/architecture",
+						},
+						{
+							label: "Documentation Style Guide",
+							slug: "contributing/docs-style-guide",
+						},
 						{ label: "Translating EmDash", slug: "contributing/translating" },
 					],
 				},
@@ -164,31 +214,17 @@ export default defineConfig({
 					],
 				},
 				{
-					label: "Migration",
-					items: [
-						{
-							label: "Migrate from WordPress",
-							slug: "migration/from-wordpress",
-						},
-						{ label: "Content Import", slug: "migration/content-import" },
-						{
-							label: "Porting WordPress Plugins",
-							slug: "migration/porting-plugins",
-						},
-					],
-				},
-				{
 					label: "Deployment",
 					items: [
 						{ label: "Deploy to Cloudflare", slug: "deployment/cloudflare" },
 						{ label: "Deploy to Node.js", slug: "deployment/nodejs" },
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },
+						{ label: "Object Cache", slug: "deployment/object-cache" },
 					],
 				},
 				{
 					label: "Concepts",
-					collapsed: true,
 					items: [
 						{ label: "Architecture", slug: "concepts/architecture" },
 						{ label: "Collections", slug: "concepts/collections" },
@@ -213,5 +249,5 @@ export default defineConfig({
 		}),
 	],
 
-	adapter: cloudflare(),
+	adapter: cloudflare({ remoteBindings: false, prerenderEnvironment: "node" }),
 });

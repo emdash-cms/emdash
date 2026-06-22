@@ -63,15 +63,21 @@ export type { RouteResult, InvokeRouteOptions } from "./routes.js";
 export { PluginManager, createPluginManager } from "./manager.js";
 export type { PluginManagerOptions, PluginState } from "./manager.js";
 
+// Scheduler (Node timer-based heartbeat; consumed by the generated
+// virtual:emdash/scheduler module on non-serverless adapters)
+export { NodeCronScheduler } from "./scheduler/node.js";
+export type { CronScheduler, SystemCleanupFn } from "./scheduler/types.js";
+
 // Sandbox
 export {
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
+	SandboxUnavailableError,
 	createNoopSandboxRunner,
 } from "./sandbox/index.js";
 export type {
 	SandboxRunner,
-	SandboxedPlugin,
+	SandboxedPluginInstance,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,
@@ -183,15 +189,7 @@ export type {
 	PluginDefinition,
 	ResolvedPlugin,
 	PluginManifest,
-
-	// Standard plugin format
-	StandardPluginDefinition,
-	StandardHookHandler,
-	StandardHookEntry,
-	StandardRouteHandler,
-	StandardRouteEntry,
 } from "./types.js";
-export { isStandardPluginDefinition } from "./types.js";
 
 // Capability normalization (legacy → canonical alias layer)
 export {

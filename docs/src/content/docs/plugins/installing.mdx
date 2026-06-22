@@ -11,23 +11,49 @@ EmDash plugins can be installed in two ways: from the marketplace via the admin 
 
 The admin dashboard includes a marketplace browser where you can search, install, and manage plugins.
 
+<Aside type="tip">
+  EmDash also has an experimental, federated alternative to the central marketplace. See [The plugin registry](/plugins/registry/).
+</Aside>
+
 ### Prerequisites
 
 To install marketplace plugins, your site needs:
 
-1. **Sandbox runner configured** — Marketplace plugins run in an isolated runtime, which requires the sandbox runner:
+1. **Sandbox runner configured** — Marketplace plugins run in an isolated runtime, which requires the sandbox runner. The following configuration enables it:
 
    ```typescript title="astro.config.mjs"
-   import { emdash } from "emdash/astro";
+   import { defineConfig } from "astro/config";
+   import emdash from "emdash/astro";
 
    export default defineConfig({
      integrations: [
        emdash({
          marketplace: "https://marketplace.emdashcms.com",
-         sandboxRunner: true,
+         sandboxRunner: "@emdash-cms/sandbox-cloudflare",
        }),
      ],
    });
+   ```
+
+   On **Cloudflare Workers**, sandboxing uses the Dynamic Worker Loader API (no additional setup needed). On **Node.js**, install the workerd sandbox runner:
+
+   ```bash
+   npm install @emdash-cms/sandbox-workerd
+   ```
+
+   Then pass the runner explicitly:
+
+   ```typescript title="astro.config.mjs"
+   emdash({
+     marketplace: "https://marketplace.emdashcms.com",
+     sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",
+   })
+   ```
+
+   In development, install `miniflare` as a dev dependency for faster sandbox startup:
+
+   ```bash
+   npm install -D miniflare
    ```
 
 2. **Admin access** — Only administrators can install or remove plugins.
@@ -97,11 +123,11 @@ The plugin's sandbox code is removed from your R2 bucket and it stops running im
 
 ## From Configuration
 
-For native plugins (your own code, or packages you install via npm), add them directly to your Astro config:
+Native plugins — your own code, or packages installed via npm — are added directly to the Astro config. The following example registers the SEO plugin:
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
-import { emdash } from "emdash/astro";
+import emdash from "emdash/astro";
 import seoPlugin from "@emdash-cms/plugin-seo";
 
 export default defineConfig({
@@ -123,10 +149,10 @@ Native plugins:
 - Cannot be installed or removed from the admin UI
 
 <Aside type="tip">
-  Use native plugins only when you need features that require build-time integration: React admin pages, Portable Text rendering components, or page fragment injection. For everything else, prefer sandboxed plugins -- they can be installed, updated, and removed without code changes or redeployments.
+  Use native plugins only when you need features that require build-time integration: React admin pages, Portable Text rendering components, or page fragment injection. For everything else, prefer sandboxed plugins -- they can be installed, updated, and removed from the admin panel.
 </Aside>
 
-## Marketplace vs. Config: When to Use Which
+## Marketplace vs. config — when to use which
 
 | | Marketplace (sandboxed) | Config (native or in-process sandboxed) |
 | --- | --- | --- |

@@ -57,7 +57,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 			.executeTakeFirst();
 
 		if (!row) return null;
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns any; generic callers provide T
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
 		return JSON.parse(row.data) as T;
 	}
 
@@ -132,7 +132,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 
 		const result = new Map<string, T>();
 		for (const row of rows) {
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns any; generic callers provide T
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
 			result.set(row.id, JSON.parse(row.data) as T);
 		}
 		return result;
@@ -255,7 +255,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		const hasMore = rows.length > limit;
 		const items = rows.slice(0, limit).map((row) => ({
 			id: row.id,
-			// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- JSON.parse returns any; generic callers provide T
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
 			data: JSON.parse(row.data) as T,
 		}));
 

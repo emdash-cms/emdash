@@ -66,7 +66,7 @@ function TermRow({
 	const { t } = useLingui();
 	return (
 		<>
-			<div className="flex items-center gap-4 py-2 px-4 border-b hover:bg-kumo-tint/50">
+			<div className="flex items-center gap-4 py-2 px-4 hover:bg-kumo-tint/50">
 				<div style={{ marginInlineStart: `${level * 1.5}rem` }} className="flex-1">
 					<span className="font-medium">{term.label}</span>
 					<span className="text-sm text-kumo-subtle ms-2">({term.slug})</span>
@@ -352,12 +352,14 @@ function TermFormDialog({
 				}
 			}}
 		>
-			<Dialog className="p-6" size="lg">
-				<form onSubmit={handleSubmit}>
+			<Dialog className="p-6 max-h-[85vh] flex flex-col" size="lg">
+				<form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
 					<div className="flex items-start justify-between gap-4 mb-4">
 						<div className="flex flex-col space-y-1.5">
 							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{term ? t`Edit` : t`Add`} {taxonomyDef.labelSingular || t`Term`}
+								{term
+									? t`Edit ${taxonomyDef.labelSingular || t`Term`}`
+									: t`Add ${taxonomyDef.labelSingular || t`Term`}`}
 							</Dialog.Title>
 							<Dialog.Description className="text-sm text-kumo-subtle">
 								{term
@@ -382,12 +384,12 @@ function TermFormDialog({
 						/>
 					</div>
 
-					<div className="space-y-4 py-4">
+					<div className="space-y-4 py-4 flex-1 overflow-y-auto -mx-1 px-1 min-h-0">
 						<Input
 							label={t`Name`}
 							value={label}
 							onChange={(e) => setLabel(e.target.value)}
-							placeholder="News"
+							placeholder={t`News`}
 							required
 						/>
 
@@ -621,7 +623,7 @@ function CreateTaxonomyDialog({
 							label={t`Label`}
 							value={label}
 							onChange={(e) => setLabel(e.target.value)}
-							placeholder="Genres"
+							placeholder={t`Genres`}
 							required
 						/>
 
@@ -657,18 +659,13 @@ function CreateTaxonomyDialog({
 								</p>
 								<div className="border rounded-md p-2 space-y-1">
 									{collectionEntries.map(({ slug, label: collLabel }) => (
-										<label
-											key={slug}
-											className="flex items-center gap-2 py-1 px-2 cursor-pointer hover:bg-kumo-tint/50 rounded"
-										>
-											<input
-												type="checkbox"
+										<div key={slug} className="py-1 px-2 hover:bg-kumo-tint/50 rounded">
+											<Checkbox
 												checked={selectedCollections.includes(slug)}
-												onChange={() => toggleCollection(slug)}
-												className="rounded"
+												onCheckedChange={() => toggleCollection(slug)}
+												label={<span className="text-sm">{collLabel}</span>}
 											/>
-											<span className="text-sm">{collLabel}</span>
-										</label>
+										</div>
 									))}
 								</div>
 							</div>
@@ -814,7 +811,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 						{t`New Taxonomy`}
 					</Button>
 					<Button icon={<Plus />} onClick={() => setFormOpen(true)}>
-						{t`Add`} {taxonomyDef.labelSingular || t`Term`}
+						{t`Add ${taxonomyDef.labelSingular || t`Term`}`}
 					</Button>
 				</div>
 			</div>
@@ -833,7 +830,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 						{t`No ${taxonomyDef.label.toLowerCase()} yet. Create one to get started.`}
 					</div>
 				) : (
-					<div>
+					<div className="divide-y divide-kumo-line">
 						{terms.map((term) => (
 							<TermRow
 								key={term.id}

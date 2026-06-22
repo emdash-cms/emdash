@@ -30,6 +30,11 @@ jobs:
             const body = context.payload.pull_request.body || '';
             const pr = context.payload.pull_request;
 
+            // Maintainers (repo owners, org members, and collaborators) are trusted
+            // to land features without a pre-approved Discussion link.
+            const association = pr.author_association || '';
+            const isMaintainer = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(association);
+
             const errors = [];
 
             // Check if the PR body looks like it used the template at all
@@ -50,6 +55,7 @@ jobs:
                 /- \[x\] Bug fix/i,
                 /- \[x\] Feature/i,
                 /- \[x\] Refactor/i,
+                /- \[x\] Translation/i,
                 /- \[x\] Documentation/i,
                 /- \[x\] Performance/i,
                 /- \[x\] Tests/i,
@@ -60,17 +66,20 @@ jobs:
                 errors.push('Check at least one "Type of change" checkbox.');
               }
 
-              // If Feature is checked, require a discussion link
+              // If Feature is checked, require a discussion link.
+              // Maintainers are exempt: they can approve their own features.
               const isFeature = /- \[x\] Feature/i.test(body);
-              if (isFeature) {
+              if (isFeature && !isMaintainer) {
                 const hasDiscussionLink = /github\.com\/emdash-cms\/emdash\/discussions\/\d+/.test(body);
                 if (!hasDiscussionLink) {
                   errors.push('Feature PRs require a link to an approved Discussion (https://github.com/emdash-cms/emdash/discussions/categories/ideas). Open a Discussion first, get approval, then link it in the PR.');
                 }
               }
 
-              // Must check the "I have read CONTRIBUTING.md" box
-              const hasReadContributing = /- \[x\] I have read \[CONTRIBUTING\.md\]/i.test(body);
+              // Must check the "I have read CONTRIBUTING.md" box. Be lenient about
+              // formatting: accept the box whether or not CONTRIBUTING.md is still a
+              // markdown link (authors often strip the link or tweak the wording).
+              const hasReadContributing = /- \[x\][^\n]*\bI have read\b[^\n]*CONTRIBUTING/i.test(body);
               if (!hasReadContributing) {
                 errors.push('Check the "I have read CONTRIBUTING.md" checkbox.');
               }

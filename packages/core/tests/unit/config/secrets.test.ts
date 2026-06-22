@@ -356,7 +356,7 @@ describe("config/secrets", () => {
 	});
 
 	describe("resolveSecretsCached", () => {
-		it("memoizes per-db so multiple callers share one resolution promise", async () => {
+		it("memoizes per-db so multiple callers share one resolved value", async () => {
 			// First caller starts the resolution; second caller piggybacks.
 			// We can verify they share a value (and the cache key is the db
 			// instance) by comparing against a freshly cleared cache.

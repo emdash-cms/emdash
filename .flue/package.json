@@ -1,0 +1,23 @@
+{
+	"name": "emdash-flue-triage",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Experimental Flue-powered issue investigation bot for emdash-cms/emdash. Invoked from GitHub Actions; not deployed as a Worker.",
+	"scripts": {
+		"build": "flue build --target node --output .build",
+		"prototype": "tsx scripts/run-local.ts",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@flue/runtime": "^0.11.1",
+		"valibot": "^1.0.0"
+	},
+	"devDependencies": {
+		"@flue/cli": "^0.11.1",
+		"@types/node": "^25.8.0",
+		"tsx": "^4.20.0",
+		"typescript": "^5.9.0",
+		"wrangler": "^4.100.0"
+	}
+}

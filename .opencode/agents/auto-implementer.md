@@ -126,7 +126,7 @@ Two reminders that apply specifically to CI work:
    - build the whole monorepo first, before running any tests. When iterating on a fix you can re-build just the affected package, but the first build should be full to catch any unexpected cross-package issues.
      - `pnpm build` for a full build.
      - `pnpm --filter <package> build` for an iterative fix.
-   - `pnpm --silent lint:quick` after each round of edits (sub-second).
+   - `pnpm lint:quick` after each round of edits (sub-second).
    - `pnpm typecheck` (or `pnpm typecheck:demos` if you touched a demo).
    - The package-level test suite for whatever you changed (`pnpm --filter <package> test`).
    - `pnpm format` once at the end (oxfmt, tabs).

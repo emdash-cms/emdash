@@ -1,5 +1,45 @@
 # @emdash-cms/blocks
 
+## 0.21.0
+
+## 0.20.0
+
+## 0.19.0
+
+## 0.18.0
+
+## 0.17.2
+
+## 0.17.1
+
+## 0.17.0
+
+## 0.16.1
+
+## 0.16.0
+
+## 0.15.0
+
+### Patch Changes
+
+- [#1177](https://github.com/emdash-cms/emdash/pull/1177) [`b9cc08e`](https://github.com/emdash-cms/emdash/commit/b9cc08e7556ccdbcbbcea6d3c06cae6abef18766) Thanks [@ascorbic](https://github.com/ascorbic)! - Bumps `@cloudflare/kumo` from 1.16 to 2.3. Two internal call sites picked up breaking API changes from Kumo 2.0: `Collapsible` is now a compound component (`Collapsible.Root` / `.DefaultTrigger` / `.DefaultPanel` instead of `<Collapsible label=...>`), used by the accordion block; and `ChartPalette.color()` was renamed to `ChartPalette.categorical()` in the chart block. No public API changes -- consumers see identical behaviour. Tests in `@emdash-cms/admin` that asserted on `Button`'s native `title` attribute now read `aria-label` instead, because Kumo 2 wraps `<Button title>` in a Tooltip popup rather than setting the DOM attribute.
+
+## 0.14.0
+
+## 0.13.0
+
+## 0.12.0
+
+## 0.11.1
+
+## 0.11.0
+
+## 0.10.0
+
+### Minor Changes
+
+- [#717](https://github.com/emdash-cms/emdash/pull/717) [`5eb4318`](https://github.com/emdash-cms/emdash/commit/5eb431876cbfb69a961735fbb6ab09c9de937f28) Thanks [@lsngmin](https://github.com/lsngmin)! - Add Tab block to Block Kit for tabbed panel layouts
+
 ## 0.9.0
 
 ### Minor Changes

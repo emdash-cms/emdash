@@ -1,0 +1,32 @@
+---
+import Default from "@astrojs/starlight/components/SkipLink.astro";
+---
+
+<Default />
+
+<blockquote
+	class="agent-docs-index"
+	data-agent-docs-index="true"
+	aria-hidden="true"
+>
+	<h2>Documentation Index</h2>
+	<p>
+		Fetch the complete documentation index at: <a href="/llms.txt">/llms.txt</a>
+	</p>
+	<p>Use this file to discover all available pages before exploring further.</p>
+</blockquote>
+
+<style>
+	/* Visually hidden but readable by screen readers and crawlers. */
+	.agent-docs-index {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+</style>

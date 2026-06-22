@@ -13,7 +13,7 @@ import type { APIRoute } from "astro";
 import { hashString } from "emdash";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, requireDb } from "#api/error.js";
+import { apiSuccess, handleError, requireDb } from "#api/error.js";
 import { SchemaRegistry } from "#schema/registry.js";
 import { generateTypeScript } from "#schema/zod-generator.js";
 
@@ -29,7 +29,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
 	if (denied) return denied;
 
 	try {
-		const registry = new SchemaRegistry(emdash!.db);
+		const registry = new SchemaRegistry(emdash.db);
 
 		// Get all collections with their fields
 		const collections = await registry.listCollections();
@@ -89,20 +89,12 @@ import type { PortableTextBlock } from "emdash";
 
 		const version = await hashString(JSON.stringify(schemaExport));
 
-		return new Response(
-			JSON.stringify({
-				...schemaExport,
-				version,
-			}),
-			{
-				status: 200,
-				headers: {
-					"Content-Type": "application/json",
-					"Cache-Control": "private, no-store",
-					"X-Schema-Version": version,
-				},
-			},
-		);
+		const response = apiSuccess({
+			...schemaExport,
+			version,
+		});
+		response.headers.set("X-Schema-Version", version);
+		return response;
 	} catch (error) {
 		return handleError(error, "Schema export failed", "SCHEMA_EXPORT_ERROR");
 	}

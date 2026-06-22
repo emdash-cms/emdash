@@ -22,7 +22,7 @@ type CacheStore = WeakMap<EmDashRequestContext, Map<string, Promise<unknown>>>;
 const STORE_KEY = Symbol.for("emdash:request-cache");
 const g = globalThis as Record<symbol, unknown>;
 const store: CacheStore =
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern (see request-context.ts)
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
 	(g[STORE_KEY] as CacheStore | undefined) ??
 	(() => {
 		const wm: CacheStore = new WeakMap();
@@ -48,8 +48,12 @@ export function requestCached<T>(key: string, fn: () => Promise<T>): Promise<T> 
 	}
 
 	const existing = cache.get(key);
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- heterogeneous cache; key namespacing guarantees the stored promise resolves to T
-	if (existing) return existing as Promise<T>;
+	if (existing) {
+		if (ctx.metrics) ctx.metrics.cacheHits += 1;
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- heterogeneous cache; key namespacing guarantees the stored promise resolves to T
+		return existing as Promise<T>;
+	}
+	if (ctx.metrics) ctx.metrics.cacheMisses += 1;
 
 	const promise = Promise.resolve()
 		.then(fn)
@@ -76,7 +80,7 @@ export function peekRequestCache<T>(key: string): Promise<T> | undefined {
 	const ctx = getRequestContext();
 	if (!ctx) return undefined;
 	const cache = store.get(ctx);
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- heterogeneous cache; caller is responsible for using a T-compatible key
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- heterogeneous cache; caller is responsible for using a T-compatible key
 	return cache?.get(key) as Promise<T> | undefined;
 }
 
@@ -106,4 +110,27 @@ export function setRequestCacheEntry<T>(key: string, value: T): void {
 
 	if (cache.has(key)) return;
 	cache.set(key, Promise.resolve(value));
+}
+
+/**
+ * Remove a key from the request-scoped cache.
+ *
+ * Used by write paths that need to invalidate a downstream read cache —
+ * `setRequestCacheEntry` deliberately doesn't overwrite, and `requestCached`
+ * returns the cached promise even after the underlying data has changed.
+ * Without an explicit clear, a `read → write → read` sequence in a single
+ * request can return stale data on the second read.
+ *
+ * Concrete case: `BylineRepository.update` invalidates
+ * `byline-field-group-values:${translation_group}` after writing a
+ * non-translatable custom-field value, so the post-update `findById`
+ * (and any later reads in the same request) see the fresh value.
+ *
+ * No-ops outside a request context.
+ */
+export function clearRequestCacheEntry(key: string): void {
+	const ctx = getRequestContext();
+	if (!ctx) return;
+	const cache = store.get(ctx);
+	cache?.delete(key);
 }

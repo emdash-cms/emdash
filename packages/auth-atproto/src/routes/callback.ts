@@ -24,9 +24,10 @@ import {
 	type RoleLevel,
 	type OAuthProfile,
 } from "@emdash-cms/auth";
-import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
+import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
 import type { AuthProviderDescriptor } from "emdash";
 import { finalizeSetup, getPublicOrigin, OptionsRepository } from "emdash/api/route-utils";
+import type { Kysely } from "kysely";
 
 export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 	const { emdash } = locals;
@@ -128,7 +129,10 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		// Check setup_complete as the authoritative first-user gate.
 		// Using an option flag instead of countUsers() avoids a TOCTOU race
 		// where two concurrent callbacks both see 0 users and both create admins.
-		const adapter = createKyselyAdapter(emdash.db);
+		// Cast needed: Database extends AuthTables but uses Generated<> wrappers
+		// that confuse structural checks. The adapter casts internally anyway.
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Database uses Generated<> wrappers incompatible with AuthTables structurally; safe at runtime
+		const adapter = createKyselyAdapter(emdash.db as unknown as Kysely<AuthTables>);
 		const options = new OptionsRepository(emdash.db);
 		const setupComplete = await options.get("emdash:setup_complete");
 		const isFirstUser = setupComplete !== true && setupComplete !== "true";

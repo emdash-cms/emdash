@@ -33,6 +33,7 @@ import type {
 	SeedMenuItem,
 	SeedWidget,
 	SeedMediaReference,
+	SeedBylineAvatar,
 } from "./types.js";
 
 const FILE_EXTENSION_PATTERN = /\.([a-z0-9]+)(?:\?|$)/i;
@@ -113,6 +114,13 @@ export async function applySeed(
 	// Track seed content IDs for reference resolution (shared across content and menus)
 	const seedIdMap = new Map<string, string>(); // seed id -> real entry id
 	const seedBylineIdMap = new Map<string, string>(); // seed byline id -> real byline id
+
+	// Fallback locale for rows that omit an explicit `locale`. Prefer the runtime
+	// config (runtime-driven seeds), then the seed's self-described `defaultLocale`
+	// (CLI exports run outside the runtime), and only then `en`. Without the
+	// seed-carried default, a non-`en` single-locale project would be rewritten to
+	// `en` on apply (#1421).
+	const defaultLocale = getI18nConfig()?.defaultLocale ?? seed.defaultLocale ?? "en";
 
 	// 1. Site settings
 	if (seed.settings) {
@@ -223,10 +231,9 @@ export async function applySeed(
 		// seed-local id -> resolved info, used to wire `translationOf` refs.
 		const defSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 		const termSeedIdMap = new Map<string, string>();
-		const fallbackLocale = getI18nConfig()?.defaultLocale ?? "en";
 
 		for (const taxonomy of seed.taxonomies) {
-			const defLocale = taxonomy.locale ?? fallbackLocale;
+			const defLocale = taxonomy.locale ?? defaultLocale;
 
 			// (name, locale) is the UNIQUE key after migration 036.
 			const existingDef = await db
@@ -351,14 +358,34 @@ export async function applySeed(
 				}
 
 				if (onConflict === "update") {
-					await bylineRepo.update(existing.id, {
-						displayName: byline.displayName,
-						bio: byline.bio ?? null,
-						websiteUrl: byline.websiteUrl ?? null,
-						isGuest: byline.isGuest,
-					});
+					// Resolve the avatar (reusing an existing media row by storage
+					// key, so re-running an update stays idempotent). Only relink
+					// when the seed supplies an avatar; otherwise leave the existing
+					// one untouched.
+					const avatar = byline.avatar ? await resolveSeedBylineAvatar(db, byline.avatar) : null;
+					try {
+						const updated = await bylineRepo.update(existing.id, {
+							displayName: byline.displayName,
+							bio: byline.bio ?? null,
+							websiteUrl: byline.websiteUrl ?? null,
+							isGuest: byline.isGuest,
+							...(avatar ? { avatarMediaId: avatar.id } : {}),
+						});
+						// update() returns null (no throw) if the row vanished between
+						// findBySlug and here; treat that as a failure so the catch
+						// cleans up any freshly-created avatar media instead of leaking it.
+						if (!updated) {
+							throw new Error(`Byline "${byline.slug}" disappeared during update`);
+						}
+					} catch (error) {
+						// withTransaction is a no-op on D1, so undo a freshly-created
+						// media row by hand to avoid orphaning it.
+						if (avatar?.created) await deleteMediaRow(db, avatar.id);
+						throw error;
+					}
 					seedBylineIdMap.set(byline.id, existing.id);
 					result.bylines.updated++;
+					if (avatar?.created) result.media.created++;
 					continue;
 				}
 
@@ -368,15 +395,25 @@ export async function applySeed(
 				continue;
 			}
 
-			const created = await bylineRepo.create({
-				slug: byline.slug,
-				displayName: byline.displayName,
-				bio: byline.bio ?? null,
-				websiteUrl: byline.websiteUrl ?? null,
-				isGuest: byline.isGuest,
-			});
-			seedBylineIdMap.set(byline.id, created.id);
+			const avatar = byline.avatar ? await resolveSeedBylineAvatar(db, byline.avatar) : null;
+			let createdId: string;
+			try {
+				const created = await bylineRepo.create({
+					slug: byline.slug,
+					displayName: byline.displayName,
+					bio: byline.bio ?? null,
+					websiteUrl: byline.websiteUrl ?? null,
+					isGuest: byline.isGuest,
+					avatarMediaId: avatar?.id ?? null,
+				});
+				createdId = created.id;
+			} catch (error) {
+				if (avatar?.created) await deleteMediaRow(db, avatar.id);
+				throw error;
+			}
+			seedBylineIdMap.set(byline.id, createdId);
 			result.bylines.created++;
+			if (avatar?.created) result.media.created++;
 		}
 	}
 
@@ -387,8 +424,13 @@ export async function applySeed(
 		// Create content entries
 		for (const [collectionSlug, entries] of Object.entries(seed.content)) {
 			for (const entry of entries) {
+				// Resolve the entry's locale up front so a non-`en` single-locale
+				// export (which omits `locale`) is filed under the project default
+				// rather than `en` (#1421).
+				const entryLocale = entry.locale ?? defaultLocale;
+
 				// Check if entry exists (by slug + locale for locale-aware lookup)
-				const existing = await contentRepo.findBySlug(collectionSlug, entry.slug, entry.locale);
+				const existing = await contentRepo.findBySlug(collectionSlug, entry.slug, entryLocale);
 
 				if (existing) {
 					if (onConflict === "error") {
@@ -484,7 +526,7 @@ export async function applySeed(
 						slug: entry.slug,
 						status,
 						data: resolvedData,
-						locale: entry.locale,
+						locale: entryLocale,
 						translationOf,
 						publishedAt: status === "published" ? new Date().toISOString() : null,
 					});
@@ -512,10 +554,11 @@ export async function applySeed(
 	if (seed.menus) {
 		// seed-local id -> resolved info, used to wire `translationOf` refs.
 		const menuSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
-		const fallbackLocale = getI18nConfig()?.defaultLocale ?? "en";
+		// Shared across menus: translated items reference anchor items in sibling menus.
+		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 
 		for (const menu of seed.menus) {
-			const locale = menu.locale ?? fallbackLocale;
+			const locale = menu.locale ?? defaultLocale;
 			let lookup = db
 				.selectFrom("_emdash_menus")
 				.selectAll()
@@ -569,6 +612,7 @@ export async function applySeed(
 				null, // parent_id
 				0, // sort_order
 				seedIdMap,
+				itemSeedIdMap,
 			);
 			result.menus.items += itemCount;
 		}
@@ -920,11 +964,10 @@ async function applyContentTaxonomies(
 /**
  * Apply menu items recursively.
  *
- * Each item gets a fresh `translation_group` (= its own id). The seed format's
- * `SeedMenuItem` has no `id`/`translationOf` fields, so we can't express the
- * cross-locale "same nav entry" link here — items diverge across locales on
- * re-apply. Runtime navigation still resolves correctly because `reference_id`
- * already holds the content's translation_group.
+ * When a `SeedMenuItem` carries `id`/`translationOf`, the import resolves the
+ * source item's `translation_group` so cross-locale "same nav entry" links
+ * survive export → apply. Items without `translationOf` get a fresh group
+ * (= their own id).
  */
 async function applyMenuItems(
 	db: Kysely<Database>,
@@ -934,12 +977,14 @@ async function applyMenuItems(
 	parentId: string | null,
 	startOrder: number,
 	seedIdMap: Map<string, string>,
+	itemSeedIdMap: Map<string, { id: string; translationGroup: string }>,
 ): Promise<number> {
 	let count = 0;
 	let order = startOrder;
 
 	for (const item of items) {
 		const itemId = ulid();
+		const itemLocale = item.locale ?? locale;
 
 		// Resolve reference if needed
 		let referenceId: string | null = null;
@@ -953,6 +998,16 @@ async function applyMenuItems(
 				referenceCollection = item.collection || `${item.type}s`;
 			}
 			// If not in map, the content might not exist yet (will be broken link)
+		}
+
+		let translationGroup = itemId;
+		if (item.translationOf) {
+			const source = itemSeedIdMap.get(item.translationOf);
+			if (source) translationGroup = source.translationGroup;
+			else
+				console.warn(
+					`menu item "${item.label ?? item.url ?? item.ref ?? "(unlabeled)"}" (${itemLocale}): translationOf "${item.translationOf}" not found yet; minting a fresh group.`,
+				);
 		}
 
 		await db
@@ -971,10 +1026,12 @@ async function applyMenuItems(
 				target: item.target ?? null,
 				css_classes: item.cssClasses ?? null,
 				created_at: new Date().toISOString(),
-				locale,
-				translation_group: itemId,
+				locale: itemLocale,
+				translation_group: translationGroup,
 			})
 			.execute();
+
+		if (item.id) itemSeedIdMap.set(item.id, { id: itemId, translationGroup });
 
 		count++;
 		order++;
@@ -983,11 +1040,12 @@ async function applyMenuItems(
 			const childCount = await applyMenuItems(
 				db,
 				menuId,
-				locale,
+				itemLocale,
 				item.children,
 				itemId,
 				0,
 				seedIdMap,
+				itemSeedIdMap,
 			);
 			count += childCount;
 		}
@@ -1102,6 +1160,62 @@ async function resolveValue(
 	}
 
 	return value;
+}
+
+/**
+ * Resolve a seeded byline avatar to a `media` row id. The file is assumed to
+ * already exist in storage (the caller supplies its `storageKey`), so nothing
+ * is downloaded or uploaded.
+ *
+ * Idempotent: if a media row with the same `storageKey` already exists it is
+ * reused rather than duplicated, so re-applying a seed in `update` mode does
+ * not leak rows. `created` reports whether a new row was inserted, so the
+ * caller can both account for it and delete it if the subsequent byline write
+ * fails (the only cross-dialect way to avoid an orphan — `withTransaction`
+ * is a no-op on D1).
+ */
+async function resolveSeedBylineAvatar(
+	db: Kysely<Database>,
+	avatar: SeedBylineAvatar,
+): Promise<{ id: string; created: boolean }> {
+	// `media.storage_key` has no unique constraint, so order deterministically
+	// to reuse the same row across runs if duplicates already exist. (Concurrent
+	// seed applies against one DB are out of scope; seeding is a single-shot
+	// init operation.)
+	const existing = await db
+		.selectFrom("media")
+		.select("id")
+		.where("storage_key", "=", avatar.storageKey)
+		.orderBy("id", "asc")
+		.executeTakeFirst();
+	if (existing) return { id: existing.id, created: false };
+
+	const basename = avatar.storageKey.split("/").pop();
+	const filename =
+		avatar.filename ?? (basename && basename.length > 0 ? basename : avatar.storageKey);
+	const created = await new MediaRepository(db).create({
+		filename,
+		mimeType: avatar.mimeType ?? "image/jpeg",
+		storageKey: avatar.storageKey,
+		alt: avatar.alt,
+		width: avatar.width,
+		height: avatar.height,
+		status: "ready",
+	});
+	return { id: created.id, created: true };
+}
+
+/**
+ * Delete a media row by id. Best-effort cleanup for a failed byline write: a
+ * failure here must not mask the original error that triggered the cleanup, so
+ * it is logged and swallowed rather than thrown.
+ */
+async function deleteMediaRow(db: Kysely<Database>, id: string): Promise<void> {
+	try {
+		await db.deleteFrom("media").where("id", "=", id).execute();
+	} catch (error) {
+		console.warn(`[seed] failed to clean up orphaned avatar media ${id}:`, error);
+	}
 }
 
 /**

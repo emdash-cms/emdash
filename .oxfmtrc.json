@@ -6,6 +6,9 @@
 		"**/node_modules/**",
 		"**/*.mdx",
 		"**/package.json",
-		"**/emdash-env.d.ts"
+		"**/emdash-env.d.ts",
+		"**/worker-configuration.d.ts",
+		"packages/registry-lexicons/src/generated/**",
+		"packages/plugin-cli/schemas/**"
 	]
 }

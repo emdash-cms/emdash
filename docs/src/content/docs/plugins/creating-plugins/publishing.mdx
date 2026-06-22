@@ -1,184 +1,146 @@
 ---
 title: Bundling and publishing
-description: Bundle your sandboxed plugin and publish it to the EmDash marketplace.
+description: Bundle a sandboxed plugin and publish it to the EmDash plugin registry.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-Once your sandboxed plugin works, you can publish it to the EmDash marketplace so other sites can install it from the admin dashboard with one click. The publishing flow is sandboxed-only — native plugins distribute via npm and aren't bundled into marketplace tarballs.
+Once your sandboxed plugin works, publish it so other sites can install it. Publishing is sandboxed-only — native plugins distribute via npm.
+
+When you publish, the CLI records the release to your own [Atmosphere account](#your-atmosphere-account). **You host the tarball** yourself — a GitHub release asset, R2, S3, or any public URL — and the registry stores a link to it.
+
+<Aside type="caution" title="Experimental">
+	The registry, its lexicon, and record shapes are governed by RFC 0001 and
+	will change while it's in flight. Pin `@emdash-cms/plugin-cli` to an exact
+	version. The discovery side (`search`, `info`) queries an experimental
+	registry at `registry.emdashcms.com`.
+</Aside>
 
 ## Prerequisites
 
-Before publishing, make sure your plugin:
+- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author (`author` or `authors`), and a security contact (`security` or `securityContacts`). Run `emdash-plugin validate` to confirm.
+- A `version` (in `package.json`, or the manifest for registry-only plugins).
+- An [Atmosphere account](#your-atmosphere-account) to publish under.
 
-- Has a `package.json` with both a `"."` export (the descriptor) and a `"./sandbox"` export (the runtime entry).
-- Uses `format: "standard"` on the descriptor.
-- Has a unique `id` and a valid semver `version`.
-- Declares its `capabilities` and `allowedHosts` accurately on the descriptor.
+## Your Atmosphere account
 
-## Bundle format
+You publish under an **[Atmosphere account](https://atmosphereaccount.com)**: a portable, user-owned identity used across [Bluesky](https://bsky.app) and other apps in the [AT Protocol](https://atproto.com/) network. One account is your single login across the network, with the same `@handle` everywhere, and your identity and data are not tied to any one app. EmDash uses this account as your publisher identity: every release you publish is a record in your own account, signed in as you.
 
-Published plugins are distributed as `.tar.gz` tarballs containing:
+EmDash uses the same Atmosphere accounts as its [Atmosphere login](/guides/atmosphere-auth/) for sites.
 
-| File             | Required | Description                                                        |
-| ---------------- | -------- | ------------------------------------------------------------------ |
-| `manifest.json`  | Yes      | Plugin metadata extracted from the descriptor and sandbox entry    |
-| `backend.js`     | Yes      | Bundled sandbox code (self-contained ES module)                    |
-| `admin.js`       | No       | Bundled admin UI code (only if Block Kit interactions ship JS)     |
-| `README.md`      | No       | Plugin documentation                                               |
-| `icon.png`       | No       | Plugin icon (256×256 PNG)                                          |
-| `screenshots/`   | No       | Up to 5 screenshots (PNG/JPEG, max 1920×1080)                      |
+### Use an existing account
 
-`manifest.json` is generated automatically. It contains the plugin id, version, capabilities, allowed hosts, hook names, route names, and admin configuration — but no executable code.
+If you already have a Bluesky account or any other Atmosphere account, sign in with its handle:
 
-## Building a bundle
-
-```bash
-cd packages/plugins/my-plugin
-emdash plugin bundle
+```sh
+emdash-plugin login alice.bsky.social
 ```
 
-This will:
+This opens your account provider's sign-in page in the browser. EmDash never sees your password. `emdash-plugin whoami` lists your stored sessions; `emdash-plugin switch <did>` changes the active one.
 
-<Steps>
-1. Read your `package.json` to find entrypoints.
-2. Build the descriptor entry to extract id, version, capabilities, and admin config.
-3. Bundle `backend.js` from the `"./sandbox"` export — minified, tree-shaken, fully self-contained.
-4. Bundle `admin.js` if a `"./admin"` export exists.
-5. Collect assets (README, icon, screenshots).
-6. Validate the bundle (size limits, no Node.js built-ins in `backend.js`, capability checks).
-7. Write `{id}-{version}.tar.gz` to `dist/`.
-</Steps>
+### Sign up for an account
 
-### Entrypoint resolution
+If you do not have an Atmosphere account yet, create one through any provider, then run `emdash-plugin login <your-handle>`. Your options:
 
-The bundle command finds your code through `package.json` exports:
+- **An app, such as [Bluesky](https://bsky.app).** Signing up for Bluesky creates an Atmosphere account hosted by Bluesky. This is the quickest route.
+- **An independent provider.** Community-run or privacy-focused account hosts. Browse options at [atmosphereaccount.com](https://atmosphereaccount.com).
+- **Self-hosted.** Run your own provider for full control over your identity and data.
 
-```json title="package.json"
-{
-	"exports": {
-		".": { "import": "./dist/index.mjs" },
-		"./sandbox": { "import": "./dist/sandbox-entry.mjs" },
-		"./admin": { "import": "./dist/admin.mjs" }
-	}
-}
+Whichever you choose, the `@handle` from that account is what you pass to `emdash-plugin login`, and the account's DID is what you pin as the [`publisher`](/plugins/creating-plugins/manifest/#publisher-pinning) in your manifest.
+
+## Three steps
+
+The following commands log in, build a tarball, and publish a release that points at the hosted tarball:
+
+```sh
+emdash-plugin login                     # if not already logged in
+emdash-plugin bundle                    # produces dist/<slug>-<version>.tar.gz
+# upload that tarball to a public URL, then:
+emdash-plugin publish --url https://your-host/<slug>-<version>.tar.gz
 ```
 
-| Export        | Purpose                                                    | Built as                              |
-| ------------- | ---------------------------------------------------------- | ------------------------------------- |
-| `"."`         | Descriptor — used to extract the manifest                  | Externals: `emdash`, `@emdash-cms/*`  |
-| `"./sandbox"` | Runtime code (`hooks`, `routes`) executed in the sandbox   | Fully self-contained (no externals)   |
-| `"./admin"`   | Admin UI components (only if you ship them)                | Fully self-contained                  |
+`bundle` prints the next two steps when it finishes, including the `--url` invocation, so you don't have to remember the shape.
 
-If `"./sandbox"` is missing, the command looks for `src/sandbox-entry.ts` as a fallback. The bundler maps dist paths back to source automatically — if your `"."` export points to `./dist/index.mjs`, it will find and build `src/index.ts`.
+## Bundle
 
-### Options
+`bundle` runs [`build`](/plugins/creating-plugins/cli/#build), validates, collects assets, and creates a tarball. Inside the tarball, `plugin.mjs` is packed as `backend.js` (the filename the registry expects).
 
-```bash
-emdash plugin bundle [--dir <path>] [--outDir <path>]
+The command accepts the following flags:
+
+```sh
+emdash-plugin bundle [--dir <path>] [--out-dir|-o <path>] [--validate-only]
 ```
 
-| Flag             | Default           | Description                       |
-| ---------------- | ----------------- | --------------------------------- |
-| `--dir`          | Current directory | Plugin source directory           |
-| `--outDir`, `-o` | `dist`            | Output directory for the tarball  |
+| Flag             | Default           | Description                                            |
+| ---------------- | ----------------- | ------------------------------------------------------ |
+| `--dir`          | Current directory | Plugin source directory.                               |
+| `--out-dir`, `-o` | `dist`            | Output directory for the tarball.                      |
+| `--validate-only` | `false`           | Skip the tarball, but still produce `dist/` artifacts. |
+
+### Tarball contents
+
+| File            | Required | Description                                                  |
+| --------------- | -------- | ------------------------------------------------------------ |
+| `manifest.json` | Yes      | Generated manifest: id, version, capabilities, hosts, and the hooks and routes read from your source. You do not maintain this by hand. |
+| `backend.js`    | Yes      | The built, self-contained runtime file (`dist/plugin.mjs`). |
+| `README.md`     | No       | Plugin documentation.                                        |
+| `icon.png`      | No       | 256×256 PNG.                                                 |
+| `screenshots/`  | No       | Up to 5, max 1920×1080.                                       |
 
 ### Validation
 
-The bundle command checks:
+`bundle` (and `--validate-only`) check:
 
-- **Size limit** — total bundle must be under 5 MB.
-- **No Node.js built-ins in `backend.js`** — sandbox code can't import `fs`, `path`, `child_process`, etc. Replace them with Web APIs or move the logic to a native plugin.
-- **Capability allowlist** — declared capabilities must be in the known set (typos fail).
-- **Deprecated capability names** trigger warnings here and a hard fail at publish time.
-- **`network:request` without `allowedHosts`** triggers a warning (consider `network:request:unrestricted` if hosts are operator-configured at runtime, or list the hosts explicitly).
-- **Icon dimensions** — `icon.png` should be 256×256 (warns if wrong; still includes it).
-- **Screenshot limits** — max 5 screenshots, max 1920×1080.
+- **Size caps (RFC 0001, decompressed):** total ≤ 256 KB, per-file ≤ 128 KB, ≤ 20 files. The gzipped tarball is a fraction of that.
+- **No Node built-ins in `backend.js`** — sandbox code can't import `fs`, `path`, `child_process`, etc. Use Web APIs, or move that logic to a native plugin.
+- **Capability sanity** — names must be in the recognised set.
+- **Trust-contract coherence** — the `network:request` / `allowedHosts` cross-rules from [the manifest](/plugins/creating-plugins/manifest/#capabilities).
+- **Asset limits** — icon 256×256, ≤ 5 screenshots at ≤ 1920×1080.
 
-## Publishing
+To inspect the tarball before publishing, list its contents:
 
-```bash
-emdash plugin publish
+```sh
+emdash-plugin bundle
+tar tzf dist/my-plugin-1.1.0.tar.gz
 ```
 
-This finds the most recent `.tar.gz` in `dist/` and uploads it. To be explicit about the tarball or to build before publishing:
+## Publish
 
-```bash
-# Explicit tarball path
-emdash plugin publish --tarball dist/my-plugin-1.0.0.tar.gz
+Publishing writes the release record. The tarball must already be hosted at a public URL:
 
-# Build first, then publish
-emdash plugin publish --build
+```sh
+emdash-plugin publish --url <hosted-tarball-url>
 ```
 
-### Authentication
+`--url` is required: it is where the plugin's bytes live, and the registry record points at it. To verify the hosted URL serves the exact bytes you built before writing the record, pass `--local`:
 
-The first time you publish, the CLI authenticates you via GitHub:
+```sh
+emdash-plugin publish --url https://your-host/foo-1.0.0.tar.gz --local dist/foo-1.0.0.tar.gz
+```
+
+What `publish` does:
 
 <Steps>
-1. The CLI opens GitHub's device authorization page in your browser.
-2. You enter the code displayed in your terminal.
-3. GitHub issues an access token.
-4. The CLI exchanges it for a marketplace JWT (stored in `~/.config/emdash/auth.json`).
+
+1. Fetches the tarball at `--url` (with URL and size guards) and extracts the manifest from those bytes.
+2. Resumes your Atmosphere account session and checks [publisher pinning](/plugins/creating-plugins/manifest/#publisher-pinning) — the active session must match the manifest's pinned `publisher`, or it refuses with `MANIFEST_PUBLISHER_MISMATCH`.
+3. Creates the package profile from the manifest on first publish (`license`, author, security contact). On later publishes, the existing profile wins.
+4. Publishes the profile and release records to your account.
+
 </Steps>
 
-The token lasts 30 days. After it expires you'll be prompted to re-authenticate on the next publish.
+On first publish you can supply profile fields by flag (`--license`, `--security-email`, …) instead of the manifest; explicit flags override manifest values, which is handy in CI. `--no-manifest` opts out of the manifest entirely.
 
-You can manage authentication separately:
+### Versions are immutable
 
-```bash
-emdash plugin login    # log in without publishing
-emdash plugin logout   # clear stored token
-```
+A published version cannot be overwritten or republished. Bump `version` before publishing again. The build reads `version` from `package.json` (see [the manifest reference](/plugins/creating-plugins/manifest/#version-lives-in-packagejson)). Bump **major** for a broadened [trust contract](/plugins/creating-plugins/manifest/#trust-contract), **minor** for new hooks or routes, and **patch** for fixes.
 
-### First-time registration
+### Publisher mismatch
 
-If your plugin id isn't yet known to the marketplace, `emdash plugin publish` registers it automatically before uploading the first version.
+If `publish` fails with `MANIFEST_PUBLISHER_MISMATCH`, the active session is a different Atmosphere account than the manifest's pinned `publisher`. Switch to the pinned account with `emdash-plugin switch <did>`, or update `publisher` in the manifest if you are genuinely transferring the plugin to a new account. See [Use an existing account](#use-an-existing-account) for managing sessions.
 
-### Version requirements
+## What to read next
 
-Each published version must have a higher semver than the last. You can't overwrite or republish an existing version — bump the version in both `package.json` and the descriptor before publishing again.
-
-### Security audit
-
-Every published version goes through an automated security audit. The audit scans `backend.js` and `admin.js` for:
-
-- Data exfiltration patterns
-- Credential harvesting via settings
-- Obfuscated code
-- Resource abuse (crypto mining, etc.)
-- Suspicious network activity
-
-The audit produces a verdict of **pass**, **warn**, or **fail**, displayed on the plugin's marketplace listing. Depending on the marketplace's enforcement level, a **fail** verdict may block publication entirely.
-
-### Options
-
-```bash
-emdash plugin publish [--tarball <path>] [--build] [--dir <path>] [--registry <url>]
-```
-
-| Flag         | Default                                | Description                                     |
-| ------------ | -------------------------------------- | ----------------------------------------------- |
-| `--tarball`  | Latest `.tar.gz` in `dist/`            | Explicit tarball path                           |
-| `--build`    | `false`                                | Run `emdash plugin bundle` before publishing    |
-| `--dir`      | Current directory                      | Plugin directory (used with `--build`)          |
-| `--registry` | `https://marketplace.emdashcms.com`    | Marketplace URL                                 |
-
-## Complete workflow
-
-Typical publish cycle:
-
-```bash
-# 1. Make your changes
-# 2. Bump the version in src/index.ts and package.json
-# 3. Bundle and publish
-emdash plugin publish --build
-```
-
-If you want to inspect the bundle first:
-
-```bash
-emdash plugin bundle
-tar tzf dist/my-plugin-1.1.0.tar.gz
-emdash plugin publish
-```
+- [The `emdash-plugin` CLI](/plugins/creating-plugins/cli/) — every command
+- [The manifest](/plugins/creating-plugins/manifest/) — fields, trust contract, publisher pinning
+- [Capabilities and security](/plugins/creating-plugins/capabilities/)

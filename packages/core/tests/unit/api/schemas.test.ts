@@ -3,6 +3,8 @@ import { describe, it, expect } from "vitest";
 import {
 	contentCreateBody,
 	contentUpdateBody,
+	createFieldBody,
+	updateFieldBody,
 	httpUrl,
 	mediaUploadUrlBody,
 	DEFAULT_MAX_UPLOAD_SIZE,
@@ -150,6 +152,26 @@ describe("httpUrl validator", () => {
 
 	it("is case-insensitive for scheme", () => {
 		expect(httpUrl.parse("HTTPS://EXAMPLE.COM")).toBe("HTTPS://EXAMPLE.COM");
+	});
+});
+
+describe("createFieldBody / updateFieldBody — allowedMimeTypes", () => {
+	it("preserves allowedMimeTypes through createFieldBody parse", () => {
+		const result = createFieldBody.parse({
+			slug: "attachment",
+			label: "Attachment",
+			type: "file",
+			validation: { allowedMimeTypes: ["application/pdf"] },
+		});
+		expect(result.validation?.allowedMimeTypes).toEqual(["application/pdf"]);
+	});
+
+	it("preserves allowedMimeTypes through updateFieldBody parse", () => {
+		const result = updateFieldBody.parse({
+			label: "Attachment",
+			validation: { allowedMimeTypes: ["font/", "application/font-woff"] },
+		});
+		expect(result.validation?.allowedMimeTypes).toEqual(["font/", "application/font-woff"]);
 	});
 });
 

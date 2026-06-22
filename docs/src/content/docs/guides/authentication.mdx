@@ -97,7 +97,7 @@ Providers are additive — passkeys keep working when providers are enabled, and
 
 ### Configuring providers
 
-Pass providers to the `authProviders` array on the EmDash integration:
+Pass providers to the `authProviders` array on the EmDash integration. The following example enables GitHub, Google, and Atmosphere:
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -119,6 +119,8 @@ Order matters for the login page: providers render in the order you list them, w
 
 ### GitHub
 
+The following example enables the GitHub provider:
+
 ```js
 import { github } from "emdash/auth/providers/github";
 
@@ -136,11 +138,15 @@ Configure your GitHub OAuth app's callback URL as `https://your-site.example.com
 
 ### Google
 
+The following example enables the Google provider:
+
 ```js
 import { google } from "emdash/auth/providers/google";
 
 emdash({ authProviders: [google()] });
 ```
+
+Set credentials via environment variables. EmDash checks the prefixed names first and falls back to the unprefixed ones:
 
 | Variable                                                      | Purpose                |
 | ------------------------------------------------------------- | ---------------------- |
@@ -151,11 +157,13 @@ Configure your Google OAuth client's redirect URI as `https://your-site.example.
 
 ### Atmosphere (AT Protocol)
 
-For sites where contributors already have an account on the AT Protocol network — the same identity that powers Bluesky and a growing collection of other apps — install the Atmosphere provider:
+For sites where contributors already have an [Atmosphere account](/guides/atmosphere-auth/) — the user-owned identity behind Bluesky and the wider AT Protocol network — install the Atmosphere provider:
 
 ```bash
 pnpm add @emdash-cms/auth-atproto
 ```
+
+The following example enables the Atmosphere provider with a handle allowlist:
 
 ```js
 import { atproto } from "@emdash-cms/auth-atproto";
@@ -252,44 +260,13 @@ Each user can have up to 10 passkeys registered.
 	log in.
 </Aside>
 
-## Self-Signup
+## Letting a group sign in without invites
 
-For team sites, you can enable self-signup for specific email domains:
+To let a group sign in without inviting each user, configure a [login provider](#login-providers) with an allowlist. The Atmosphere provider accepts `allowedHandles` and `allowedDIDs` (see [Atmosphere login](/guides/atmosphere-auth/)); the [Cloudflare Access](#cloudflare-access) adapter provisions users from your identity provider via `autoProvision` and `roleMapping`. Any configured provider can also create the initial admin account.
 
-```js title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
+## Sessions
 
-export default defineConfig({
-	integrations: [
-		emdash({
-			auth: {
-				selfSignup: {
-					domains: ["example.com"],
-					defaultRole: "contributor",
-				},
-			},
-		}),
-	],
-});
-```
-
-Users with matching email domains can sign up without an invite. They'll receive a verification email and register a passkey to complete signup.
-
-## Session Configuration
-
-Sessions use secure HttpOnly cookies with sensible defaults:
-
-```js title="astro.config.mjs"
-emdash({
-	auth: {
-		session: {
-			maxAge: 30 * 24 * 60 * 60, // 30 days (default)
-			sliding: true, // Reset expiry on activity
-		},
-	},
-});
-```
+Sessions use secure, HttpOnly, SameSite=Lax cookies and last 30 days with sliding expiration — the expiry resets on activity.
 
 ## Security Notes
 
@@ -332,7 +309,7 @@ When deploying to Cloudflare, you can use [Cloudflare Access](https://developers
 	Passkeys, OAuth, magic links, and self-signup are all disabled.
 </Aside>
 
-### Why Use Cloudflare Access?
+### Why Use Cloudflare Access
 
 - **Single Sign-On** — Users authenticate with your company's IdP
 - **Centralized access control** — Manage who can access the admin in the Cloudflare dashboard

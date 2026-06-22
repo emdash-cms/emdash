@@ -33,8 +33,14 @@
  * ```
  */
 
-import type { AuthDescriptor, DatabaseDescriptor, StorageDescriptor } from "emdash";
+import type {
+	AuthDescriptor,
+	DatabaseDescriptor,
+	ObjectCacheDescriptor,
+	StorageDescriptor,
+} from "emdash";
 
+import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
 
 /**
@@ -70,6 +76,33 @@ export interface D1Config {
 	 * @default "__em_d1_bookmark"
 	 */
 	bookmarkCookie?: string;
+
+	/**
+	 * Experimental: batch concurrent read queries into one D1 round trip.
+	 *
+	 * SELECT queries issued in the same event-loop turn are buffered and
+	 * executed as a single D1 `batch()` call (one HTTP round trip) instead
+	 * of N serialized round trips. Writes, CTEs and other statements are not
+	 * batched — they enqueue immediately on the direct path. If the batch
+	 * fails, queries are retried individually so each query keeps its own
+	 * error semantics. Every physical D1 call (writes and the SELECT batch
+	 * alike) is serialized per request, so the session bookmark always
+	 * advances in execution order.
+	 *
+	 * Only applies to the per-request session database, so `session` must
+	 * also be enabled (`"auto"` or `"primary-first"`); the shared singleton
+	 * never coalesces.
+	 *
+	 * Ordering caveat: buffered reads execute at the next flush window
+	 * (~one macrotask later), while a write enqueues immediately. A read and
+	 * a write issued concurrently in the same turn (e.g. under
+	 * `Promise.all`) may therefore execute write-first (they never overlap).
+	 * Reads that must observe pre-write state should be awaited before
+	 * issuing the write — which sequential `await` code already does.
+	 *
+	 * @default false
+	 */
+	coalesce?: boolean;
 }
 
 /**
@@ -168,6 +201,32 @@ export function d1(config: D1Config): DatabaseDescriptor {
 }
 
 export type { PreviewDOConfig } from "./db/do-types.js";
+export type { DurableObjectsConfig } from "./db/do-sql-types.js";
+
+/**
+ * Durable Object SQL database adapter (production)
+ *
+ * Stores the whole CMS in a single Durable Object's SQLite. With
+ * `session: "auto"` and the `experimental` + `replica_routing` compatibility
+ * flags, reads route to the nearest replica and writes proxy to the primary,
+ * cutting read round-trip latency versus a single-region primary.
+ *
+ * Requires the `EmDashDB` class to be registered in your worker entry and a
+ * `new_sqlite_classes` migration in wrangler.
+ *
+ * @example
+ * ```ts
+ * database: durableObjects({ binding: "DB_DO", session: "auto" })
+ * ```
+ */
+export function durableObjects(config: DurableObjectsConfig): DatabaseDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/db/do-sql",
+		config,
+		type: "sqlite",
+		supportsRequestScope: true,
+	};
+}
 
 /**
  * Durable Object preview database adapter
@@ -276,6 +335,67 @@ export function access(config: AccessConfig): AuthDescriptor {
  */
 export function sandbox(): string {
 	return "@emdash-cms/cloudflare/sandbox";
+}
+
+/**
+ * Cloudflare KV object-cache configuration.
+ */
+export interface KVCacheConfig {
+	/** Name of the KV binding in wrangler.jsonc. */
+	binding: string;
+	/**
+	 * Default TTL for cached entries, in seconds. Backstop for epoch-orphaned
+	 * keys (KV clamps to a 60s minimum). Default 3600.
+	 */
+	defaultTtl?: number;
+	/**
+	 * Cross-isolate staleness window in milliseconds: how long an isolate
+	 * reuses a cached namespace epoch before re-reading it. Default 1000.
+	 */
+	revalidate?: number;
+	/**
+	 * Maximum time (ms) for a single KV operation before it's treated as a
+	 * cache miss. Guards against KV reads that stall without settling. Set to
+	 * `0` to disable. Default 2000.
+	 */
+	timeout?: number;
+	/** Prefix applied to every cache key (lets multiple sites share a namespace). */
+	keyPrefix?: string;
+}
+
+/**
+ * Cloudflare KV object-cache adapter.
+ *
+ * Backs EmDash's optional distributed object cache with a Workers KV
+ * namespace, offloading content and chrome reads from D1. Requires a KV
+ * binding in wrangler.jsonc.
+ *
+ * @example
+ * ```ts
+ * import { d1, kvCache } from "@emdash-cms/cloudflare";
+ *
+ * emdash({
+ *   database: d1({ binding: "DB" }),
+ *   objectCache: kvCache({ binding: "CACHE" }),
+ * })
+ * ```
+ *
+ * ```jsonc
+ * // wrangler.jsonc
+ * { "kv_namespaces": [{ "binding": "CACHE", "id": "<namespace-id>" }] }
+ * ```
+ */
+export function kvCache(config: KVCacheConfig): ObjectCacheDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/cache/kv",
+		config: {
+			binding: config.binding,
+			...(config.defaultTtl !== undefined ? { defaultTtl: config.defaultTtl } : {}),
+			...(config.revalidate !== undefined ? { revalidate: config.revalidate } : {}),
+			...(config.timeout !== undefined ? { timeout: config.timeout } : {}),
+			...(config.keyPrefix !== undefined ? { keyPrefix: config.keyPrefix } : {}),
+		},
+	};
 }
 
 // Re-export media providers (config-time)

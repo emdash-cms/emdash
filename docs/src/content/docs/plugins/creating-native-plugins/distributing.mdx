@@ -5,11 +5,11 @@ description: Package and ship a native plugin via npm.
 
 import { Aside } from "@astrojs/starlight/components";
 
-Native plugins distribute via npm, not the marketplace. There's no bundler, no manifest, no security audit step — just a regular npm package that exports a descriptor factory plus `createPlugin`. Site operators install it with `npm install` and register it in `astro.config.mjs`.
+Native plugins distribute via npm. A native plugin is a regular npm package that exports a descriptor factory plus `createPlugin`. Site operators install it with `npm install` and register it in `astro.config.mjs`.
 
 ## Package layout
 
-A typical native plugin package:
+A typical native plugin package has the following layout:
 
 ```
 @my-org/plugin-analytics/
@@ -25,6 +25,8 @@ A typical native plugin package:
 ```
 
 ## package.json
+
+The following `package.json` declares the build scripts, exports, and peer dependencies a distributable plugin needs:
 
 ```json title="package.json"
 {
@@ -107,6 +109,8 @@ A good plugin README covers:
 
 ## Publishing to npm
 
+Bump the version and publish the package:
+
 ```bash
 npm version patch     # or minor/major
 npm publish --access public
@@ -130,8 +134,8 @@ pnpm add @my-org/plugin-analytics --workspace
 
 Then register the plugin in the test site's `astro.config.mjs` and run the dev server. Hook handlers run on the next request after `pnpm build` finishes.
 
-## Marketplace? No.
+## Marketplace availability
 
 Native plugins can't be published to the EmDash marketplace. The marketplace is sandboxed-only: every published plugin runs through `emdash plugin bundle` (which validates that the backend code is self-contained, doesn't import Node.js built-ins, and stays under size limits), gets a security audit, and runs in the sandbox runtime when installed.
 
-If you want the marketplace's distribution surface but your plugin currently uses native-only features, ask whether you actually need them — a lot of plugins can drop `page:fragments` or convert from `settingsSchema` to a Block Kit settings page and become sandboxable. See [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) for the trade-offs.
+A plugin that uses native-only features can sometimes drop them and become sandboxable — for example, by removing `page:fragments` or converting `settingsSchema` to a Block Kit settings page. See [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) for the trade-offs.

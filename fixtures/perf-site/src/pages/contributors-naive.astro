@@ -1,0 +1,59 @@
+---
+// Baseline contributor list: resolves each author avatar with a per-byline
+// `MediaRepository.findById`. This is the N+1 a site is forced into when the
+// byline summary exposes only `avatarMediaId` (a bare ULID, no storage key /
+// file extension) and it wants a direct storage URL. The query-count snapshot
+// for this route minus /contributors is the cost the avatar JOIN removes.
+import { getEmDashCollection, MediaRepository } from "emdash";
+import { getDb } from "emdash/runtime";
+import Base from "../layouts/Base.astro";
+
+const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+});
+Astro.cache.set(cacheHint);
+
+const db = await getDb();
+const mediaRepo = new MediaRepository(db);
+
+const rows = await Promise.all(
+	posts.map(async (post) => {
+		const bylines = post.data.bylines ?? [];
+		const resolved = await Promise.all(
+			bylines.map(async (credit) => {
+				const mediaId = credit.byline.avatarMediaId;
+				const media = mediaId ? await mediaRepo.findById(mediaId) : null;
+				return { credit, storageKey: media?.storageKey ?? null };
+			}),
+		);
+		return { post, resolved };
+	}),
+);
+
+const avatarUrl = (storageKey: string) => `/media/${storageKey}`;
+---
+
+<Base title="Contributors (naive)" description="Posts with author avatars (per-avatar lookup)">
+	<ul>
+		{
+			rows.map(({ post, resolved }) => (
+				<li>
+					<span>{post.data.title}</span>
+					{resolved.map(({ credit, storageKey }) => (
+						<span class="byline">
+							{storageKey && (
+								<img
+									src={avatarUrl(storageKey)}
+									alt={credit.byline.displayName}
+									width="24"
+									height="24"
+								/>
+							)}
+							<span>{credit.byline.displayName}</span>
+						</span>
+					))}
+				</li>
+			))
+		}
+	</ul>
+</Base>

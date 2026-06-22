@@ -7,6 +7,8 @@
 // Content handlers
 export {
 	handleContentList,
+	handleContentAuthors,
+	type ContentAuthor,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,
@@ -168,3 +170,18 @@ export {
 	type MarketplaceUpdateCheck,
 	type MarketplaceUninstallResult,
 } from "./marketplace.js";
+
+// Registry handlers (experimental)
+export {
+	assertEnvCompatible,
+	assertSafeArtifactUrl,
+	handleRegistryInstall,
+	handleRegistryUninstall,
+	handleRegistryUpdate,
+	handleRegistryUpdateCheck,
+	type RegistryInstallInput,
+	type RegistryInstallResult,
+	type RegistryUninstallResult,
+	type RegistryUpdateCheck,
+	type RegistryUpdateResult,
+} from "./registry.js";

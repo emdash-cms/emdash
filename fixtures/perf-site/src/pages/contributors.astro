@@ -1,0 +1,42 @@
+---
+// Optimized contributor list: author avatars come render-ready from byline
+// hydration (`credit.byline.avatarStorageKey`), so building a direct storage
+// URL needs no per-author media lookup. Compare with /contributors-naive,
+// which resolves each avatar via MediaRepository.findById (one query each).
+import { getEmDashCollection } from "emdash";
+import Base from "../layouts/Base.astro";
+
+const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+});
+Astro.cache.set(cacheHint);
+
+const rows = posts.map((post) => ({ post, bylines: post.data.bylines ?? [] }));
+
+const avatarUrl = (storageKey: string) => `/media/${storageKey}`;
+---
+
+<Base title="Contributors" description="Posts with author avatars (optimized)">
+	<ul>
+		{
+			rows.map(({ post, bylines }) => (
+				<li>
+					<span>{post.data.title}</span>
+					{bylines.map((credit) => (
+						<span class="byline">
+							{credit.byline.avatarStorageKey && (
+								<img
+									src={avatarUrl(credit.byline.avatarStorageKey)}
+									alt={credit.byline.avatarAlt ?? credit.byline.displayName}
+									width="24"
+									height="24"
+								/>
+							)}
+							<span>{credit.byline.displayName}</span>
+						</span>
+					))}
+				</li>
+			))
+		}
+	</ul>
+</Base>

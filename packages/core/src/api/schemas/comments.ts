@@ -15,6 +15,16 @@ export const createCommentBody = z
 	})
 	.meta({ id: "CreateCommentBody" });
 
+export const createReactionBody = z
+	.object({
+		commentId: z.string().min(1),
+		/** Reaction name. Positive-only ("like") by default; extensible. */
+		reaction: z.string().min(1).max(20).default("like"),
+		/** Honeypot field — hidden in the form, filled only by bots */
+		website_url: z.string().optional(),
+	})
+	.meta({ id: "CreateReactionBody" });
+
 export const commentStatusBody = z
 	.object({
 		status: z.enum(["approved", "pending", "spam", "trash"]),

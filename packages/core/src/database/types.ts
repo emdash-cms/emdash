@@ -76,7 +76,8 @@ export interface UserTable {
 export interface CredentialTable {
 	id: string; // Base64url credential ID
 	user_id: string;
-	public_key: Uint8Array; // COSE public key
+	public_key: Uint8Array; // SEC1 or PKIX encoded public key
+	algorithm: number;
 	counter: number;
 	device_type: string; // 'singleDevice' | 'multiDevice'
 	backed_up: number; // 0 or 1
@@ -274,10 +275,14 @@ export interface PluginStateTable {
 	activated_at: string | null;
 	deactivated_at: string | null;
 	data: string | null; // JSON
-	source: Generated<string>; // 'config' | 'marketplace'
+	source: Generated<string>; // 'config' | 'marketplace' | 'registry'
 	marketplace_version: string | null;
 	display_name: string | null;
 	description: string | null;
+	// Registry-specific columns (added by migration 038). Always null for
+	// `source = 'config' | 'marketplace'`; populated for `source = 'registry'`.
+	registry_publisher_did: string | null;
+	registry_slug: string | null;
 }
 
 export interface PluginIndexTable {
@@ -377,6 +382,14 @@ export interface CommentTable {
 	updated_at: Generated<string>;
 }
 
+export interface CommentReactionTable {
+	id: string;
+	comment_id: string;
+	reaction: string;
+	voter_hash: string;
+	created_at: Generated<string>;
+}
+
 // Sections
 
 export interface SectionTable {
@@ -428,10 +441,16 @@ export interface Database {
 	_emdash_seo: SeoTable;
 	_emdash_cron_tasks: CronTaskTable;
 	_emdash_comments: CommentTable;
+	_emdash_comment_reactions: CommentReactionTable;
 	_emdash_redirects: RedirectTable;
 	_emdash_404_log: NotFoundLogTable;
 	_emdash_bylines: BylineTable;
 	_emdash_content_bylines: ContentBylineTable;
+	_emdash_byline_fields: BylineFieldTable;
+	_emdash_byline_field_values: BylineFieldValueTable;
+	_emdash_byline_field_group_values: BylineFieldGroupValueTable;
+	_emdash_relations: RelationTable;
+	_emdash_content_references: ContentReferenceTable;
 	_emdash_rate_limits: RateLimitTable;
 }
 
@@ -497,6 +516,21 @@ export interface BylineTable {
 	is_guest: number;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
+	/**
+	 * Locale this byline row is presented in. Added by migration 040. Backfilled
+	 * to the configured `defaultLocale` for pre-040 rows. `(slug, locale)` is
+	 * unique; the partial unique on `user_id` widens to `(user_id, locale)`.
+	 */
+	locale: Generated<string>;
+	/**
+	 * Shared across translations of the same byline. Added by migration 040.
+	 * Equals `id` for the anchor row; siblings inherit it from their source.
+	 * `_emdash_content_bylines.byline_id` and `ec_*.primary_byline_id` store
+	 * this value rather than a row id, so credits span every locale variant of
+	 * a byline. Nullable in the schema for backwards compatibility; new rows
+	 * always populate it.
+	 */
+	translation_group: string | null;
 }
 
 export interface ContentBylineTable {
@@ -506,6 +540,79 @@ export interface ContentBylineTable {
 	byline_id: string;
 	sort_order: number;
 	role_label: string | null;
+	created_at: Generated<string>;
+}
+
+// Byline custom fields (migration 041, Discussion #1174)
+//
+// `_emdash_byline_fields` stores definitions; values land in either
+// `_emdash_byline_field_values` (translatable, keyed by byline row id) or
+// `_emdash_byline_field_group_values` (non-translatable, keyed by
+// translation_group). Per-field `translatable` flag picks the home table.
+
+export interface BylineFieldTable {
+	id: string;
+	slug: string;
+	label: string;
+	/** One of: 'string', 'text', 'url', 'boolean', 'select'. v1 subset. */
+	type: string;
+	required: Generated<number>; // 0 or 1
+	/** 0 = group-shared, 1 = per-locale. Defaults to 1 at the DB level. */
+	translatable: Generated<number>;
+	/** JSON: `{ options?: string[] }` for `select`-type fields. */
+	validation: string | null;
+	sort_order: Generated<number>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface BylineFieldValueTable {
+	byline_id: string;
+	field_id: string;
+	/** JSON-encoded value (`CustomFieldValue` after parse). */
+	value: string | null;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface BylineFieldGroupValueTable {
+	translation_group: string;
+	field_id: string;
+	/** JSON-encoded value (`CustomFieldValue` after parse). */
+	value: string | null;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+// Content references
+//
+// `_emdash_relations` defines relationship types (row-per-locale, like
+// `_emdash_taxonomy_defs`). `_emdash_content_references` holds directed edges
+// between content entries, linked by `translation_group` so they are
+// locale-agnostic — no foreign keys, mirroring `content_taxonomies`.
+
+export interface RelationTable {
+	id: string;
+	name: string;
+	parent_collection: string;
+	child_collection: string;
+	parent_label: string;
+	child_label: string;
+	locale: Generated<string>;
+	translation_group: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface ContentReferenceTable {
+	id: string;
+	/** Stores `_emdash_relations.translation_group` (locale-agnostic). No FK. */
+	relation_group: string;
+	/** Parent entry's `translation_group`. */
+	parent_group: string;
+	/** Child entry's `translation_group`. */
+	child_group: string;
+	sort_order: Generated<number>;
 	created_at: Generated<string>;
 }
 

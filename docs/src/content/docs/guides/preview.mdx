@@ -14,13 +14,13 @@ EmDash's preview system lets editors view unpublished content through secure, ti
 3. EmDash's middleware automatically verifies the token and sets up the request context
 4. Your template code calls `getEmDashEntry()` as normal — draft content is served automatically
 
-Preview is **implicit**. Your template code doesn't need to handle tokens or pass preview options — the middleware and query functions handle everything via `AsyncLocalStorage`.
+Preview is **implicit**. The middleware verifies the token and the query functions read it through `AsyncLocalStorage`, so the same template code serves draft content during a preview and published content otherwise.
 
 ## Setting Up Preview
 
-Preview works out of the box — EmDash auto-generates a per-site preview
-secret on first use and stores it in the database. No env vars required
-for the common case.
+Preview works as soon as EmDash is installed. On first use, EmDash
+generates a per-site preview secret and stores it in the database, so
+the common case needs no configuration.
 
 Set `EMDASH_PREVIEW_SECRET` in your environment only if you need to:
 
@@ -36,7 +36,7 @@ EMDASH_PREVIEW_SECRET="your-random-secret-key-here"
 
 If set, the env value wins over the DB-stored value.
 
-That's it. Your existing templates work with preview automatically:
+Existing templates work with preview automatically, as in the following page:
 
 ```astro title="src/pages/posts/[...slug].astro"
 ---
@@ -94,7 +94,7 @@ explicitly — pin your env var if you call it from page templates. Most
 sites use the admin UI's "Generate preview link" button instead, which
 goes through the API and uses the resolved secret automatically.
 
-With a base URL for absolute links:
+Pass `baseUrl` to generate an absolute URL:
 
 ```ts
 const fullUrl = await getPreviewUrl({
@@ -106,7 +106,7 @@ const fullUrl = await getPreviewUrl({
 // Returns: https://example.com/posts/my-draft-post?_preview=eyJjaWQ...
 ```
 
-With a custom path pattern:
+Pass `pathPattern` to generate a URL with a custom path:
 
 ```ts
 const blogUrl = await getPreviewUrl({
@@ -123,6 +123,8 @@ const blogUrl = await getPreviewUrl({
 `pathPattern` also supports a `{locale}` placeholder. Pass an empty `locale`
 when the entry is in the default locale and `prefixDefaultLocale` is `false`;
 adjacent slashes left by the empty value are collapsed automatically.
+
+The following example builds a locale-prefixed preview URL:
 
 ```ts
 await getPreviewUrl({
@@ -265,26 +267,18 @@ const { collection, id } = parseContentId("posts:my-draft-post");
 // { collection: "posts", id: "my-draft-post" }
 ```
 
-## Token Format
+## Token security
 
-Preview tokens use a compact format: `base64url(payload).base64url(signature)`
-
-The payload contains:
-
-- `cid` — Content ID in format `collection:id`
-- `exp` — Expiry timestamp (seconds since epoch)
-- `iat` — Issued-at timestamp (seconds since epoch)
-
-Tokens are signed with HMAC-SHA256 using your preview secret.
+Preview tokens are signed and time-limited. The CLI and the helper functions generate and verify them for you; you do not construct or parse them by hand. A token identifies one entry and stops working after it expires.
 
 <Aside type="caution">
-	Keep your `EMDASH_PREVIEW_SECRET` secure. Anyone with this secret can generate valid preview tokens for
-	any content.
+	Keep your `EMDASH_PREVIEW_SECRET` secret. Anyone who has it can generate a
+	valid preview token for any content.
 </Aside>
 
 ## Complete Example
 
-A full blog post page with preview and visual editing support:
+The following page combines preview and visual editing support in a full blog post template:
 
 ```astro title="src/pages/posts/[...slug].astro"
 ---

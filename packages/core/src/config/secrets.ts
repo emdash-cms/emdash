@@ -31,9 +31,15 @@ import { sha256 } from "@oslojs/crypto/sha2";
 import { encodeHexLowerCase } from "@oslojs/encoding";
 import type { Kysely } from "kysely";
 
+import { after } from "../after.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
 import { decodeBase64url, encodeBase64url } from "../utils/base64.js";
+import {
+	createSingleFlightCache,
+	type SingleFlightCache,
+	singleFlightCached,
+} from "../utils/single-flight-cache.js";
 
 /** v1 encryption key prefix. Bumping requires a separate KDF version. */
 export const ENCRYPTION_KEY_PREFIX = "emdash_enc_v1_";
@@ -370,18 +376,24 @@ export async function validateEncryptionKeyAtStartup(env?: SecretsEnv): Promise<
  *
  * Lives on `globalThis` so module-duplication during SSR bundling can't
  * fragment the cache. See `request-context.ts` for the same pattern.
+ *
+ * Each db gets its own poison-immune single-flight cache (see
+ * `utils/single-flight-cache.ts`): the resolved *value* is cached, never an
+ * in-flight promise, so a request cancelled mid-resolve can't strand later
+ * preview/comment requests on the isolate.
  */
 // Versioned to prevent cache fragmentation if `ResolvedSecrets`'s shape
 // ever changes. Bump the suffix on incompatible changes so a co-resident
-// older build doesn't read a newer-shape value.
-const SECRETS_CACHE_KEY = Symbol.for("@emdash-cms/core/secrets-cache@1");
+// older build doesn't read a newer-shape value. Bumped to @2 when the cached
+// value changed from a bare promise to a single-flight cache.
+const SECRETS_CACHE_KEY = Symbol.for("@emdash-cms/core/secrets-cache@2");
 
 interface SecretsCacheHolder {
-	cache: WeakMap<Kysely<Database>, Promise<ResolvedSecrets>>;
+	cache: WeakMap<Kysely<Database>, SingleFlightCache<ResolvedSecrets>>;
 }
 
-function getSecretsCache(): WeakMap<Kysely<Database>, Promise<ResolvedSecrets>> {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
+function getSecretsCache(): WeakMap<Kysely<Database>, SingleFlightCache<ResolvedSecrets>> {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
 	const holder = globalThis as Record<symbol, SecretsCacheHolder | undefined>;
 	let entry = holder[SECRETS_CACHE_KEY];
 	if (!entry) {
@@ -397,19 +409,21 @@ function getSecretsCache(): WeakMap<Kysely<Database>, Promise<ResolvedSecrets>> 
  * env / re-query options on every request.
  *
  * The cache is keyed by `Kysely` instance, so playground / per-DO / per-test
- * databases each get their own resolution.
+ * databases each get their own resolution. Concurrent cold callers coalesce
+ * onto one resolution via the single-flight lock; a failed resolution
+ * propagates to the caller and releases the lock so the next caller retries.
  */
 export function resolveSecretsCached(db: Kysely<Database>): Promise<ResolvedSecrets> {
-	const cache = getSecretsCache();
-	const cached = cache.get(db);
-	if (cached) return cached;
-	const promise = resolveSecrets({ db }).catch((error) => {
-		// Don't poison the cache on transient failure; next caller retries.
-		cache.delete(db);
-		throw error;
+	const caches = getSecretsCache();
+	let cache = caches.get(db);
+	if (!cache) {
+		cache = createSingleFlightCache<ResolvedSecrets>();
+		caches.set(db, cache);
+	}
+	return singleFlightCached(cache, () => resolveSecrets({ db }), {
+		anchor: (promise) => after(() => promise),
+		ownerTimeoutMs: 30_000,
 	});
-	cache.set(db, promise);
-	return promise;
 }
 
 /**
@@ -419,7 +433,7 @@ export function resolveSecretsCached(db: Kysely<Database>): Promise<ResolvedSecr
  * @internal
  */
 export function _clearSecretsCacheForTesting(): void {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
 	const holder = globalThis as Record<symbol, SecretsCacheHolder | undefined>;
 	holder[SECRETS_CACHE_KEY] = undefined;
 }
@@ -513,7 +527,7 @@ function decodeBase64urlStrict(input: string): Uint8Array | null {
  * shared-with-CLI exception.
  */
 function readDefaultEnv(): SecretsEnv {
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- import.meta.env is loose by design
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- import.meta.env is loose by design
 	const meta = (import.meta.env ?? {}) as Record<string, string | undefined>;
 	const proc = typeof process !== "undefined" && process.env ? process.env : {};
 

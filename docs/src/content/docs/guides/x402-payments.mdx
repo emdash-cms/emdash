@@ -5,7 +5,7 @@ description: Monetize content with the x402 payment protocol — charge bots, no
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-The `@emdash-cms/x402` package adds [x402 payment protocol](https://www.x402.org/) support to any Astro site on Cloudflare. It works standalone — no dependency on EmDash core — but pairs well with EmDash's CMS fields for per-page pricing.
+The `@emdash-cms/x402` package adds [x402 payment protocol](https://www.x402.org/) support to any Astro site on Cloudflare. It runs as a standalone Astro integration, and pairs with EmDash's CMS fields for per-page pricing when you use EmDash.
 
 x402 is an HTTP-native payment protocol. When a client requests a paid resource without payment, the server responds with `402 Payment Required` and machine-readable payment instructions. Agents and browsers that understand x402 can complete payment automatically and retry the request.
 
@@ -16,6 +16,8 @@ The most common use case is **bot-only mode**: charge AI agents and scrapers for
 You can also enforce payment for all visitors, or check for payment headers without enforcing (conditional rendering).
 
 ## Installation
+
+Install the package with your package manager:
 
 <Tabs>
 <TabItem label="pnpm">
@@ -124,7 +126,7 @@ x402.applyHeaders(result, Astro.response);
 
 ## Per-Page Pricing with EmDash
 
-When using EmDash, you can add a `number` field to your collection for per-page pricing. No special schema or admin UI is needed — just a regular CMS field:
+When using EmDash, add a regular `number` field to your collection for per-page pricing and read it at request time:
 
 ```astro title="src/pages/posts/[...slug].astro"
 ---
@@ -231,6 +233,8 @@ Solana is opt-in. Install `@x402/svm` and enable it in config:
 ```bash
 pnpm add @x402/svm
 ```
+
+Set the network to a Solana identifier and disable EVM if you only use Solana:
 
 ```js title="astro.config.mjs"
 x402({

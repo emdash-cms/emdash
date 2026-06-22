@@ -173,7 +173,7 @@ export function PasskeyLogin({
 
 				const optionsData = await parseApiResponse<{
 					options: PublicKeyCredentialRequestOptionsJSON;
-				}>(optionsResponse, "Failed to get authentication options");
+				}>(optionsResponse, t`Failed to get authentication options`);
 				const { options } = optionsData;
 
 				// Step 2: Get assertion from browser
@@ -247,13 +247,13 @@ export function PasskeyLogin({
 
 				const result = await parseApiResponse<unknown>(
 					verifyResponse,
-					"Failed to verify authentication",
+					t`Failed to verify authentication`,
 				);
 
 				setState({ status: "success" });
 				onSuccess(result);
 			} catch (error) {
-				const message = error instanceof Error ? error.message : "Authentication failed";
+				const message = error instanceof Error ? error.message : t`Authentication failed`;
 
 				// Handle specific WebAuthn errors
 				let userMessage = message;

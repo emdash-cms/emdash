@@ -1,4 +1,4 @@
-import { Badge, Button, Dialog, Input, Label, Switch } from "@cloudflare/kumo";
+import { Badge, Button, Dialog, Input, Label, Select, Switch } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -58,6 +58,9 @@ function RedirectFormDialog({
 	const [enabled, setEnabled] = useState(redirect?.enabled ?? true);
 	const [groupName, setGroupName] = useState(redirect?.groupName ?? "");
 
+	// Terminal statuses (410 Gone / 451) serve a status directly — no destination.
+	const isTerminal = type === "410" || type === "451";
+
 	const createMutation = useMutation({
 		mutationFn: (input: CreateRedirectInput) => createRedirect(input),
 		onSuccess: () => {
@@ -80,7 +83,7 @@ function RedirectFormDialog({
 		e.preventDefault();
 		const input = {
 			source: source.trim(),
-			destination: destination.trim(),
+			destination: isTerminal ? "" : destination.trim(),
 			type: Number(type),
 			enabled,
 			groupName: groupName.trim() || null,
@@ -126,39 +129,42 @@ function RedirectFormDialog({
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<Input
 						label={t`Source path`}
-						placeholder="/old-page or /blog/[slug]"
+						placeholder={t`/old-page or /blog/[slug]`}
 						value={source}
 						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSource(e.target.value)}
 						required
 					/>
 
-					<Input
-						label={t`Destination path`}
-						placeholder="/new-page or /articles/[slug]"
-						value={destination}
-						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDestination(e.target.value)}
-						required
-					/>
+					{!isTerminal && (
+						<Input
+							label={t`Destination path`}
+							placeholder={t`/new-page or /articles/[slug]`}
+							value={destination}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDestination(e.target.value)}
+							required
+						/>
+					)}
 
 					<div className="grid grid-cols-2 gap-4">
 						<div>
-							<Label htmlFor="redirect-type">{t`Status code`}</Label>
-							<select
-								id="redirect-type"
+							<Select
+								label={t`Status code`}
 								value={type}
-								onChange={(e) => setType(e.target.value)}
-								className="flex h-10 w-full rounded-md border border-kumo-line bg-kumo-base px-3 py-2 text-sm"
-							>
-								<option value="301">{t`301 Permanent`}</option>
-								<option value="302">{t`302 Temporary`}</option>
-								<option value="307">{t`307 Temporary (Strict)`}</option>
-								<option value="308">{t`308 Permanent (Strict)`}</option>
-							</select>
+								onValueChange={(v) => setType(v ?? "301")}
+								items={{
+									"301": t`301 Permanent`,
+									"302": t`302 Temporary`,
+									"307": t`307 Temporary (Strict)`,
+									"308": t`308 Permanent (Strict)`,
+									"410": t`410 Content Deleted (Gone)`,
+									"451": t`451 Unavailable for legal reasons`,
+								}}
+							/>
 						</div>
 
 						<Input
 							label={t`Group (optional)`}
-							placeholder="e.g. import, blog"
+							placeholder={t`e.g. import, blog`}
 							value={groupName}
 							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGroupName(e.target.value)}
 						/>
@@ -198,9 +204,11 @@ function RedirectFormDialog({
 function NotFoundPanel({
 	items,
 	onCreateRedirect,
+	onMarkGone,
 }: {
 	items: NotFoundSummary[];
 	onCreateRedirect: (path: string) => void;
+	onMarkGone: (path: string) => void;
 }) {
 	const { t } = useLingui();
 
@@ -216,7 +224,7 @@ function NotFoundPanel({
 				<div className="flex-1">{t`Path`}</div>
 				<div className="w-16 text-end">{t`Hits`}</div>
 				<div className="w-32">{t`Last seen`}</div>
-				<div className="w-8" />
+				<div className="w-20" />
 			</div>
 			{items.map((item) => (
 				<div
@@ -231,7 +239,7 @@ function NotFoundPanel({
 							return Number.isNaN(d.getTime()) ? item.lastSeen : d.toLocaleDateString();
 						})()}
 					</div>
-					<div className="w-8">
+					<div className="w-20 flex items-center justify-end gap-3">
 						<button
 							onClick={() => onCreateRedirect(item.path)}
 							className="text-kumo-subtle hover:text-kumo-default"
@@ -239,6 +247,14 @@ function NotFoundPanel({
 							aria-label={t`Create redirect for ${item.path}`}
 						>
 							<ArrowsLeftRight size={14} />
+						</button>
+						<button
+							onClick={() => onMarkGone(item.path)}
+							className="text-kumo-subtle hover:text-kumo-danger text-xs font-semibold tabular-nums"
+							title={t`Mark as Gone (410) — tells search engines it was permanently deleted`}
+							aria-label={t`Mark ${item.path} as Gone (410)`}
+						>
+							410
 						</button>
 					</div>
 				</div>
@@ -316,6 +332,15 @@ export function Redirects() {
 		},
 	});
 
+	// One-click "Gone": create a 410 rule (no destination) for a 404 path.
+	const markGoneMutation = useMutation({
+		mutationFn: (path: string) =>
+			createRedirect({ source: path, destination: "", type: 410, enabled: true }),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+		},
+	});
+
 	function handleCreateFrom404(path: string) {
 		setPrefillSource(path);
 		setShowCreate(true);
@@ -387,24 +412,18 @@ export function Redirects() {
 								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
 							/>
 						</div>
-						<select
+						<Select
 							value={filterEnabled}
-							onChange={(e) => setFilterEnabled(e.target.value)}
-							className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 text-sm"
-						>
-							<option value="all">{t`All statuses`}</option>
-							<option value="true">{t`Enabled`}</option>
-							<option value="false">{t`Disabled`}</option>
-						</select>
-						<select
+							onValueChange={(v) => setFilterEnabled(v ?? "all")}
+							items={{ all: t`All statuses`, true: t`Enabled`, false: t`Disabled` }}
+							aria-label={t`Filter by status`}
+						/>
+						<Select
 							value={filterAuto}
-							onChange={(e) => setFilterAuto(e.target.value)}
-							className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 text-sm"
-						>
-							<option value="all">{t`All types`}</option>
-							<option value="false">{t`Manual`}</option>
-							<option value="true">{t`Auto (slug change)`}</option>
-						</select>
+							onValueChange={(v) => setFilterAuto(v ?? "all")}
+							items={{ all: t`All types`, false: t`Manual`, true: t`Auto (slug change)` }}
+							aria-label={t`Filter by type`}
+						/>
 					</div>
 
 					{/* Loop warning banner */}
@@ -527,7 +546,11 @@ export function Redirects() {
 			)}
 
 			{tab === "404s" && (
-				<NotFoundPanel items={notFoundQuery.data ?? []} onCreateRedirect={handleCreateFrom404} />
+				<NotFoundPanel
+					items={notFoundQuery.data ?? []}
+					onCreateRedirect={handleCreateFrom404}
+					onMarkGone={(path) => markGoneMutation.mutate(path)}
+				/>
 			)}
 
 			{/* Create dialog */}

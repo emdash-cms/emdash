@@ -29,6 +29,7 @@ import {
 	Trash,
 	type Icon as PhosphorIcon,
 } from "@phosphor-icons/react";
+import { NodeSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { createPortal } from "react-dom";
@@ -198,22 +199,19 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 	}, [isOpen]);
 
 	const handleDuplicate = () => {
-		const { selection } = editor.state;
-		const { $from, $to } = selection;
+		if (!(editor.state.selection instanceof NodeSelection)) {
+			onClose();
+			return;
+		}
 
-		// Get the block node at current position
-		const blockStart = $from.start($from.depth);
-		const blockEnd = $to.end($to.depth);
-
-		// Get the content to duplicate
-		const slice = editor.state.doc.slice(blockStart, blockEnd);
-
-		// Insert after current block
+		const { selection, doc } = editor.state;
+		const { from, to } = selection;
+		const slice = doc.slice(from, to);
 		editor
 			.chain()
 			.focus()
 			.command(({ tr }) => {
-				tr.insert(blockEnd + 1, slice.content);
+				tr.insert(to, slice.content);
 				return true;
 			})
 			.run();
@@ -222,7 +220,12 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 	};
 
 	const handleDelete = () => {
-		editor.chain().focus().deleteNode(editor.state.selection.$from.parent.type.name).run();
+		if (!(editor.state.selection instanceof NodeSelection)) {
+			onClose();
+			return;
+		}
+
+		editor.chain().focus().deleteSelection().run();
 		onClose();
 	};
 
@@ -251,7 +254,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						onClick={() => setShowTransforms(false)}
 					>
 						<CaretPrev className="h-4 w-4" />
-						<span>Back</span>
+						<span>{t`Back`}</span>
 					</button>
 					<div className="h-px bg-kumo-line my-1" />
 					{blockTransforms.map((transform) => (
@@ -276,7 +279,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 					>
 						<span className="flex items-center gap-2">
 							<Paragraph className="h-4 w-4 text-kumo-subtle" />
-							<span>Turn into</span>
+							<span>{t`Turn into`}</span>
 						</span>
 						<CaretNext className="h-4 w-4 text-kumo-subtle" />
 					</button>
@@ -286,7 +289,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						onClick={handleDuplicate}
 					>
 						<Copy className="h-4 w-4 text-kumo-subtle" />
-						<span>Duplicate</span>
+						<span>{t`Duplicate`}</span>
 					</button>
 					<div className="h-px bg-kumo-line my-1" />
 					<button
@@ -295,7 +298,7 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 						onClick={handleDelete}
 					>
 						<Trash className="h-4 w-4" />
-						<span>Delete</span>
+						<span>{t`Delete`}</span>
 					</button>
 				</div>
 			)}
@@ -317,6 +320,7 @@ interface BlockHandleProps {
 }
 
 export function BlockHandle({ onClick, onDragStart, selected }: BlockHandleProps) {
+	const { t } = useLingui();
 	return (
 		<Button
 			type="button"
@@ -331,7 +335,7 @@ export function BlockHandle({ onClick, onDragStart, selected }: BlockHandleProps
 			onDragStart={onDragStart}
 			draggable
 			data-block-handle
-			aria-label="Drag to reorder block"
+			aria-label={t`Drag to reorder block`}
 		>
 			<DotsSixVertical className="h-4 w-4" />
 		</Button>

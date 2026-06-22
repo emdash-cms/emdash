@@ -17,8 +17,10 @@ pnpm-debug.log*
 
 # environment variables
 .env
-.env.production
+.env.*
+!.env.example
 .dev.vars
+.dev.vars.*
 
 # database files
 *.db
@@ -34,6 +36,7 @@ uploads/
 !packages/core/tests/e2e/fixture/.emdash/
 !packages/core/tests/integration/fixture/.emdash/
 !e2e/fixture/.emdash/
+!e2e/fixture-cloudflare/.emdash/
 !templates/*/.emdash/seed.json
 
 # macOS-specific files
@@ -56,6 +59,7 @@ assets/templates/*/[0-9]*
 
 # Vitest browser-mode failure screenshots
 __screenshots__/
+.vitest-attachments/
 
 # AI review artifacts
 *-review.md

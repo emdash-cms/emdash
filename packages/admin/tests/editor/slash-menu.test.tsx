@@ -285,10 +285,16 @@ describe("Slash Command Menu", () => {
 		await focusEditor(pm);
 		editor.commands.insertContent("/");
 
-		const menu = await waitForSlashMenu();
-		const items = getSlashMenuItems(menu);
+		await waitForSlashMenu();
 
-		expect(isItemSelected(items[0]!)).toBe(true);
+		await vi.waitFor(
+			() => {
+				const menu = getSlashMenu()!;
+				const items = getSlashMenuItems(menu);
+				expect(isItemSelected(items[0]!)).toBe(true);
+			},
+			{ timeout: 3000 },
+		);
 	});
 
 	it("moves selection down with ArrowDown", async () => {
@@ -481,8 +487,15 @@ describe("Slash Command Menu", () => {
 		const menu = await waitForSlashMenu();
 		const items = getSlashMenuItems(menu);
 
-		// React listens for pointerenter/mouseenter on the element.
-		// Use userEvent.hover which properly dispatches pointer + mouse events.
+		// The menu gates mouseenter on a "has the user actually moved the
+		// pointer since the menu opened?" flag, to avoid jumping selection
+		// when the menu renders under a stationary pointer (which happens
+		// in CI because pointer position persists across tests). Dispatch a
+		// real pointermove on the menu first so the gate is open before we
+		// hover an item. userEvent.hover by itself only teleports the
+		// cursor to the target and fires pointerenter -- no pointermove.
+		menu.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" }));
+
 		await userEvent.hover(items[2]!);
 
 		await vi.waitFor(() => {

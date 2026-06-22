@@ -4,7 +4,9 @@
  * Displays all menus with ability to create, edit, and delete.
  */
 
-import { Button, Dialog, Input, Toast, buttonVariants } from "@cloudflare/kumo";
+import { Button, Dialog, Input, Toast } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, Pencil, Trash, List as ListIcon } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -17,6 +19,7 @@ import { fetchManifest } from "../lib/api/client.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 
 export function MenuList() {
 	const { t } = useLingui();
@@ -209,20 +212,24 @@ export function MenuList() {
 										) : null}
 									</h3>
 									<p className="text-sm text-kumo-subtle">
-										{menu.name} • {menu.itemCount || 0} items
+										<Trans>
+											{menu.name} •{" "}
+											{plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })}
+										</Trans>
 									</p>
 								</div>
 							</Link>
 							<div className="flex gap-2">
-								<Link
+								<RouterLinkButton
 									to="/menus/$name"
 									params={{ name: menu.name }}
 									search={{ locale: menu.locale }}
-									className={buttonVariants({ variant: "outline", size: "sm" })}
+									variant="outline"
+									size="sm"
+									icon={<Pencil />}
 								>
-									<Pencil className="h-4 w-4 me-2" />
 									{t`Edit`}
-								</Link>
+								</RouterLinkButton>
 								<Button
 									variant="outline"
 									size="sm"

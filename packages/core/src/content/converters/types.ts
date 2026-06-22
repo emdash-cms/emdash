@@ -82,6 +82,15 @@ export interface PortableTextCodeBlock {
 }
 
 /**
+ * HTML block (raw HTML content)
+ */
+export interface PortableTextHtmlBlock {
+	_type: "htmlBlock";
+	_key: string;
+	html: string;
+}
+
+/**
  * Unknown/custom block (preserved for plugin compatibility)
  */
 export interface PortableTextUnknownBlock {
@@ -97,6 +106,7 @@ export type PortableTextBlock =
 	| PortableTextTextBlock
 	| PortableTextImageBlock
 	| PortableTextCodeBlock
+	| PortableTextHtmlBlock
 	| PortableTextUnknownBlock;
 
 /**

@@ -20,12 +20,12 @@ export const prerender = false;
 function extractOwnership(data: unknown): { authorId: string; resolvedId: string | undefined } {
 	const obj =
 		data && typeof data === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- handler returns unknown; narrowed by typeof
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown; narrowed by typeof
 				(data as Record<string, unknown>)
 			: undefined;
 	const item =
 		obj?.item && typeof obj.item === "object"
-			? // eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- narrowed by typeof
+			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof
 				(obj.item as Record<string, unknown>)
 			: obj;
 	return {
@@ -34,7 +34,7 @@ function extractOwnership(data: unknown): { authorId: string; resolvedId: string
 	};
 }
 
-export const POST: APIRoute = async ({ params, request, locals, cache }) => {
+export const POST: APIRoute = async ({ params, request, locals, url, cache }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
@@ -45,8 +45,10 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
+	const locale = url.searchParams.get("locale") || undefined;
+
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGet(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",
@@ -63,12 +65,12 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
+	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
 
 	return unwrapResult(result);
 };
 
-export const DELETE: APIRoute = async ({ params, locals, cache }) => {
+export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
@@ -77,8 +79,10 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
+	const locale = url.searchParams.get("locale") || undefined;
+
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGet(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",
@@ -95,7 +99,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
+	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId ?? id] });
 
 	return unwrapResult(result);
 };

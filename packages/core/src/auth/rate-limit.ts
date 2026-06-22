@@ -63,9 +63,9 @@ export async function checkRateLimit(
 
 	// Atomic upsert: insert or increment, return current count
 	const result = await sql<{ count: number }>`
-		INSERT INTO _emdash_rate_limits (key, window, count)
+		INSERT INTO _emdash_rate_limits (key, "window", count)
 		VALUES (${key}, ${windowStart}, 1)
-		ON CONFLICT (key, window)
+		ON CONFLICT (key, "window")
 		DO UPDATE SET count = _emdash_rate_limits.count + 1
 		RETURNING count
 	`.execute(db);
@@ -119,7 +119,7 @@ export function rateLimitResponse(retryAfterSeconds: number): Response {
  */
 export function getClientIp(request: Request, trustedHeaders: string[] = []): string | null {
 	const headers = request.headers;
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- CF Workers runtime shape
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- CF Workers runtime shape
 	const cf = (request as unknown as { cf?: Record<string, unknown> }).cf;
 
 	// On Cloudflare, prefer the cryptographically trustworthy headers. An
@@ -179,7 +179,7 @@ export async function cleanupExpiredRateLimits(
 	const cutoff = new Date(Date.now() - maxAgeSeconds * 1000).toISOString();
 
 	const result = await sql`
-		DELETE FROM _emdash_rate_limits WHERE window < ${cutoff}
+		DELETE FROM _emdash_rate_limits WHERE "window" < ${cutoff}
 	`.execute(db);
 
 	return Number(result.numAffectedRows ?? 0);

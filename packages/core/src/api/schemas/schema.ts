@@ -31,7 +31,19 @@ const fieldTypeValues = z.enum([
 
 const repeaterSubFieldSchema = z.object({
 	slug: z.string().min(1).max(63).regex(slugPattern, "Invalid slug format"),
-	type: z.enum(["string", "text", "number", "integer", "boolean", "datetime", "select"]),
+	// Keep in sync with REPEATER_SUB_FIELD_TYPES in schema/types.ts.
+	// ("url" was already a documented sub-field type but missing here.)
+	type: z.enum([
+		"string",
+		"text",
+		"url",
+		"number",
+		"integer",
+		"boolean",
+		"datetime",
+		"select",
+		"image",
+	]),
 	label: z.string().min(1),
 	required: z.boolean().optional(),
 	options: z.array(z.string()).optional(),
@@ -49,6 +61,15 @@ const fieldValidation = z
 		subFields: z.array(repeaterSubFieldSchema).min(1).optional(),
 		minItems: z.number().int().min(0).optional(),
 		maxItems: z.number().int().min(1).optional(),
+		allowedMimeTypes: z
+			.array(
+				z
+					.string()
+					.regex(/^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]*$/i, "Invalid MIME type"),
+			)
+			.min(1, "allowedMimeTypes must not be empty — omit the field to allow all types")
+			.max(64, "allowedMimeTypes may contain at most 64 entries")
+			.optional(),
 	})
 	.optional();
 
@@ -92,7 +113,7 @@ export const createFieldBody = z
 		required: z.boolean().optional(),
 		unique: z.boolean().optional(),
 		defaultValue: z.unknown().optional(),
-		validation: fieldValidation,
+		validation: fieldValidation.nullable(),
 		widget: z.string().optional(),
 		options: fieldWidgetOptions,
 		sortOrder: z.number().int().min(0).optional(),
@@ -107,7 +128,7 @@ export const updateFieldBody = z
 		required: z.boolean().optional(),
 		unique: z.boolean().optional(),
 		defaultValue: z.unknown().optional(),
-		validation: fieldValidation,
+		validation: fieldValidation.nullable(),
 		widget: z.string().optional(),
 		options: fieldWidgetOptions,
 		sortOrder: z.number().int().min(0).optional(),

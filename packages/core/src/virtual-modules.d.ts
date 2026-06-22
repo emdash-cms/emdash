@@ -65,6 +65,17 @@ declare module "virtual:emdash/storage" {
 	export const createStorage: ((config: Record<string, unknown>) => Storage) | undefined;
 }
 
+declare module "virtual:emdash/object-cache" {
+	import type {
+		CreateObjectCacheBackendFn,
+		ObjectCacheRuntimeConfig,
+	} from "./object-cache/types.js";
+
+	// Can be undefined if no object cache is configured.
+	export const createObjectCache: CreateObjectCacheBackendFn | undefined;
+	export const objectCacheConfig: ObjectCacheRuntimeConfig | undefined;
+}
+
 declare module "virtual:emdash/auth" {
 	import type { AuthResult } from "./auth/types.js";
 
@@ -130,6 +141,17 @@ declare module "virtual:emdash/wait-until" {
 	 * `undefined` on Node (fire-and-forget is safe on a long-lived process).
 	 */
 	export const waitUntil: ((promise: Promise<unknown>) => void) | undefined;
+}
+
+declare module "virtual:emdash/scheduler" {
+	import type { CreateSchedulerFn } from "./emdash-runtime.js";
+	/**
+	 * Factory for the timer-based cron/maintenance heartbeat. A
+	 * `NodeCronScheduler` factory on long-lived runtimes (Node/Bun); `null`
+	 * under serverless adapters (e.g. Cloudflare) where an external Cron
+	 * Trigger drives scheduled work instead.
+	 */
+	export const createScheduler: CreateSchedulerFn | null;
 }
 
 declare module "virtual:emdash/admin-registry" {

@@ -72,6 +72,20 @@ describe("RedirectRepository", () => {
 
 			expect(redirect.isPattern).toBe(false);
 		});
+
+		it("creates a 410 Gone rule with an empty destination", async () => {
+			const redirect = await repo.create({
+				source: "/deleted",
+				destination: "",
+				type: 410,
+			});
+
+			expect(redirect.type).toBe(410);
+			expect(redirect.destination).toBe("");
+
+			const fetched = await repo.findBySource("/deleted");
+			expect(fetched?.type).toBe(410);
+		});
 	});
 
 	describe("findById", () => {

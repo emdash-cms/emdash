@@ -1,6 +1,7 @@
 import type { ArbitraryTypedObject } from "@portabletext/types";
 
 import { sanitizeUri } from "../sanitize.js";
+import { getStringField, isContentfulLinkPayload } from "../types.js";
 import type { ContentfulEntry, ContentfulIncludes } from "../types.js";
 
 export function transformImageBlock(
@@ -8,11 +9,12 @@ export function transformImageBlock(
 	includes: ContentfulIncludes,
 	key: string,
 ): ArbitraryTypedObject {
-	const assetLink = entry.fields.assetFile as { sys?: { id?: string } } | undefined;
-	const assetId = assetLink?.sys?.id;
+	const assetLink = entry.fields.assetFile;
+	const assetId = isContentfulLinkPayload(assetLink) ? assetLink.sys.id : undefined;
 	const asset = assetId ? includes.assets.get(assetId) : undefined;
 
 	const src = asset?.url ? (asset.url.startsWith("//") ? `https:${asset.url}` : asset.url) : "";
+	const linkUrl = getStringField(entry.fields, "linkUrl");
 
 	return {
 		_type: "image",
@@ -23,7 +25,7 @@ export function transformImageBlock(
 			width: asset?.width,
 			height: asset?.height,
 		},
-		linkUrl: entry.fields.linkUrl ? sanitizeUri(entry.fields.linkUrl as string) : undefined,
-		size: (entry.fields.size as string) ?? undefined,
+		linkUrl: linkUrl ? sanitizeUri(linkUrl) : undefined,
+		size: getStringField(entry.fields, "size") ?? undefined,
 	};
 }

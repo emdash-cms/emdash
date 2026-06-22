@@ -19,6 +19,15 @@ export interface SeedFile {
 	/** Seed format version */
 	version: "1";
 
+	/**
+	 * Default locale for locale-bearing rows (menus, taxonomies, content) that
+	 * omit an explicit `locale`. Lets a non-`en` single-locale project survive an
+	 * `export-seed` → `seed` round-trip: `apply` runs outside the Astro runtime
+	 * (no i18n config), so without this it would backfill the omitted locale as
+	 * `en`. See #1421.
+	 */
+	defaultLocale?: string;
+
 	/** Metadata about the seed */
 	meta?: {
 		name?: string;
@@ -134,6 +143,8 @@ export interface SeedMenu {
  * Menu item in seed
  */
 export interface SeedMenuItem {
+	/** Optional seed-local id, e.g. "item:primary:home:en". */
+	id?: string;
 	type: string;
 	label?: string;
 	url?: string; // For custom type
@@ -142,6 +153,8 @@ export interface SeedMenuItem {
 	target?: "_blank" | "_self";
 	titleAttr?: string;
 	cssClasses?: string;
+	locale?: string;
+	translationOf?: string;
 	children?: SeedMenuItem[];
 }
 
@@ -210,6 +223,27 @@ export interface SeedByline {
 	bio?: string;
 	websiteUrl?: string;
 	isGuest?: boolean;
+	/**
+	 * Avatar for the byline, seeded as an already-stored media item. Unlike a
+	 * content `$media` reference, nothing is downloaded: the caller supplies the
+	 * `storageKey` of a file that already exists in the configured storage (the
+	 * common case when seeding alongside a media migration). A `media` row is
+	 * created and linked via `avatarMediaId`.
+	 */
+	avatar?: SeedBylineAvatar;
+}
+
+export interface SeedBylineAvatar {
+	/** Storage key of an avatar file that already exists in the configured storage. */
+	storageKey: string;
+	/** Alt text for the avatar image. */
+	alt?: string;
+	/** Filename for the media record. Defaults to the storage key's basename. */
+	filename?: string;
+	/** MIME type for the media record. Defaults to `image/jpeg`. */
+	mimeType?: string;
+	width?: number;
+	height?: number;
 }
 
 /**

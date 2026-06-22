@@ -2,7 +2,6 @@
 import {
 	getEmDashEntry,
 	getEmDashCollection,
-	getEntryTerms,
 	getTermsForEntries,
 	getSeoMeta,
 	decodeSlug,
@@ -32,7 +31,7 @@ if (!post) {
 	return Astro.redirect("/404");
 }
 
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 // Get featured image URL for OG fallback
 // The image may have src (external) or meta.storageKey (local)
@@ -72,18 +71,15 @@ const bylines = post.data.bylines ?? [];
 // Get reading time
 const readingTime = getReadingTime(post.data.content);
 
-// Fetch this post's tags and the related-posts list in parallel — they're
-// independent queries, so running them concurrently halves the round-trip
-// cost on remote databases.
-// Note: post.id is the slug, post.data.id is the database ULID.
-const [tags, { entries: recentPosts }] = await Promise.all([
-	getEntryTerms("posts", post.data.id, "tag"),
-	// Fetch a few extra in case the current post is among them
-	getEmDashCollection("posts", {
-		orderBy: { published_at: "desc" },
-		limit: 4,
-	}),
-]);
+// This post's tags are already hydrated onto the entry by getEmDashEntry —
+// no extra query needed.
+const tags = post.data.terms?.tag ?? [];
+
+// Fetch a few extra recent posts in case the current post is among them.
+const { entries: recentPosts } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+	limit: 4,
+});
 const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
 
 // Single batched query for related-posts tags, rather than one

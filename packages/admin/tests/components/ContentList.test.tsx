@@ -418,6 +418,80 @@ describe("ContentList", () => {
 
 			await expect.element(screen.getByText(NO_RESULTS_PATTERN)).toBeInTheDocument();
 		});
+
+		// #1219: when the caller opts into server-side search it reports the
+		// (debounced) query and must NOT also filter the loaded page client-side
+		// (the server already returned the matching rows).
+		it("reports the query upward and does not client-filter in server mode", async () => {
+			const onSearchChange = vi.fn();
+			const items = [
+				makeItem({ id: "1", data: { title: "Alpha post" } }),
+				makeItem({ id: "2", data: { title: "Beta post" } }),
+			];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onSearchChange={onSearchChange} />,
+			);
+
+			await screen.getByRole("searchbox").fill("beta");
+
+			// Debounced callback fires with the typed term.
+			await vi.waitFor(() => {
+				expect(onSearchChange).toHaveBeenCalledWith("beta");
+			});
+
+			// Server mode shows whatever `items` the caller supplied — it does not
+			// hide "Alpha post" by filtering locally.
+			await expect.element(screen.getByText("Alpha post")).toBeInTheDocument();
+			await expect.element(screen.getByText("Beta post")).toBeInTheDocument();
+		});
+
+		// #1219: in server mode a zero-match query empties `items`. The search box
+		// must stay mounted so the user can clear the query.
+		it("keeps the search input mounted in server mode when there are no items", async () => {
+			const onSearchChange = vi.fn();
+			const screen = await render(
+				<ContentList {...defaultProps} items={[]} onSearchChange={onSearchChange} />,
+			);
+			await expect
+				.element(screen.getByRole("searchbox", { name: "Search posts" }))
+				.toBeInTheDocument();
+		});
+
+		// #1219: a zero-match server search must not show "Create your first one"
+		// (there is content, it just doesn't match), it must report the query.
+		it("shows a no-results message, not the empty state, for a zero-match server search", async () => {
+			const onSearchChange = vi.fn();
+			const screen = await render(
+				<ContentList {...defaultProps} items={[]} total={0} onSearchChange={onSearchChange} />,
+			);
+
+			await screen.getByRole("searchbox").fill("zzzzz");
+
+			await expect.element(screen.getByText(NO_RESULTS_PATTERN)).toBeInTheDocument();
+			expect(screen.getByText("Create your first one").query()).toBeNull();
+		});
+
+		// #1219: the match count must come from the server `total`, not the loaded
+		// page length, otherwise it undercounts when matches span multiple pages.
+		it("counts server-search matches using total, not the loaded page", async () => {
+			const onSearchChange = vi.fn();
+			const items = Array.from({ length: 20 }, (_, i) =>
+				makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),
+			);
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					total={143}
+					hasMore={true}
+					onSearchChange={onSearchChange}
+				/>,
+			);
+
+			await screen.getByRole("searchbox").fill("post");
+
+			await expect.element(screen.getByText(/143 items matching "post"/)).toBeInTheDocument();
+		});
 	});
 
 	describe("pagination", () => {
@@ -454,6 +528,25 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("Post 20")).toBeInTheDocument();
 			// Post 0 should not be visible
 			expect(screen.getByText("Post 0").query()).toBeNull();
+		});
+
+		// Regression: before this change `totalPages` was derived only from
+		// loaded items, so the denominator grew in increments of 5 (API
+		// fetches 100, page size 20 → 5 client pages per fetch). When the
+		// parent supplies an authoritative `total`, the denominator must
+		// reflect it from the first render.
+		it("uses `total` as a stable denominator instead of items.length", async () => {
+			// Only the first 20 items have been loaded, but the server knows
+			// there are 143 total.
+			const items = Array.from({ length: 20 }, (_, i) =>
+				makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),
+			);
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} total={143} hasMore={true} />,
+			);
+
+			// 143 / 20 = 8 pages. The denominator should read 8, not "/5".
+			await expect.element(screen.getByText("1 / 8")).toBeInTheDocument();
 		});
 	});
 

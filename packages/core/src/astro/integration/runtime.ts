@@ -10,8 +10,16 @@
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
-import type { ResolvedPlugin } from "../../plugins/types.js";
+import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
+import type {
+	FieldWidgetConfig,
+	PortableTextBlockConfig,
+	ResolvedPlugin,
+} from "../../plugins/types.js";
+import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
+
+export type { ExperimentalConfig, RegistryConfig } from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -95,6 +103,15 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	adminPages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	adminWidgets?: PluginDashboardWidget[];
+	/**
+	 * Portable Text block types this plugin contributes to the editor.
+	 * Declarative (Block Kit) — surfaced in the admin slash menu and consumed
+	 * from the manifest, so standard/sandboxed plugins can contribute blocks
+	 * without a native render component.
+	 */
+	portableTextBlocks?: PortableTextBlockConfig[];
+	/** Field widget types this plugin contributes for schema-field editing UIs. */
+	fieldWidgets?: FieldWidgetConfig[];
 
 	// === Sandbox-specific fields (for sandboxed plugins) ===
 
@@ -148,6 +165,56 @@ export interface EmDashConfig {
 	 * Storage configuration (for media)
 	 */
 	storage?: StorageDescriptor;
+
+	/**
+	 * Optional distributed object cache for query results.
+	 *
+	 * Off by default. When configured, content and chrome (settings, menus,
+	 * taxonomies) reads are cached in a fast key/value store and served without
+	 * touching the database on repeat requests across isolates. This offloads
+	 * read pressure from D1/SQLite, which is especially valuable on Cloudflare
+	 * where D1 has far lower request capacity than KV.
+	 *
+	 * Use a backend adapter:
+	 * - `memoryCache()` from `emdash/astro` — in-isolate (Node / local dev)
+	 * - `kvCache({ binding: "CACHE" })` from `@emdash-cms/cloudflare` — KV
+	 *
+	 * Preview and visual-edit requests bypass the cache, so editors previewing
+	 * see live content. All other reads — including authenticated browsing outside
+	 * edit mode — are served from the cache, which only ever stores published
+	 * content. After an edit, anonymous visitors may see stale content until other
+	 * isolates pick up the bumped epoch: immediate with the memory backend, and on
+	 * KV bounded by KV's edge-cache propagation (eventual consistency, up to ~60s)
+	 * plus the isolate-local `revalidate` window (default 1s).
+	 *
+	 * Scheduled content becomes visible at query time (no write event fires when
+	 * its publish time passes), so a cached list/entry won't surface a newly-due
+	 * scheduled item until the next write to that collection or until the
+	 * entry's TTL lapses (`defaultTtl`, default 1h). Sites that rely on precise
+	 * scheduled publishing should lower `defaultTtl` accordingly.
+	 *
+	 * @example
+	 * ```ts
+	 * import { kvCache } from "@emdash-cms/cloudflare";
+	 *
+	 * emdash({
+	 *   database: d1({ binding: "DB" }),
+	 *   objectCache: kvCache({ binding: "CACHE" }),
+	 * })
+	 * ```
+	 */
+	objectCache?: ObjectCacheDescriptor;
+	/**
+	 * Image optimization.
+	 *
+	 * By default EmDash wraps Astro's image endpoint so media served from
+	 * storage is optimized through the normal `<Image>` / `getImage` pipeline,
+	 * loading source bytes directly from the storage adapter (works behind
+	 * Cloudflare Access). Set to `false` to leave Astro's image endpoint
+	 * untouched -- media then renders as a plain `<img>` unless your image
+	 * service can fetch it over HTTP.
+	 */
+	images?: boolean;
 	/**
 	 * Trusted plugins to load (run in main isolate)
 	 *
@@ -195,6 +262,17 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	sandboxRunner?: string;
+
+	/**
+	 * Explicitly disable plugin sandboxing, even if a sandbox runner is configured.
+	 * Use this as a debugging escape hatch to determine whether a bug is in your
+	 * plugin code or in the sandbox runtime.
+	 *
+	 * When set to `false`, all plugins run in-process without isolation.
+	 *
+	 * @default true (sandboxing enabled if sandboxRunner is configured)
+	 */
+	sandbox?: boolean;
 
 	/**
 	 * Authentication configuration
@@ -264,6 +342,10 @@ export interface EmDashConfig {
 	 * Must be an HTTPS URL in production, or localhost/127.0.0.1 in dev.
 	 * Requires `sandboxRunner` to be configured (marketplace plugins run sandboxed).
 	 *
+	 * When `registry` is also configured, the registry replaces the marketplace
+	 * for the admin UI's browse and install flows. Existing marketplace-installed
+	 * plugins continue to work; new installs and updates come from the registry.
+	 *
 	 * @example
 	 * ```ts
 	 * emdash({
@@ -273,6 +355,28 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	marketplace?: string;
+
+	/**
+	 * Experimental features.
+	 *
+	 * These options are not yet stable. Shape, defaults, and behavior may
+	 * change between minor versions. Use only if you're comfortable
+	 * tracking the release notes and updating your config when an
+	 * experimental feature graduates or changes.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   experimental: {
+	 *     registry: {
+	 *       aggregatorUrl: "https://registry.emdashcms.com",
+	 *     },
+	 *   },
+	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 * })
+	 * ```
+	 */
+	experimental?: ExperimentalConfig;
 
 	/**
 	 * Maximum allowed media file upload size in bytes.
@@ -487,14 +591,26 @@ export interface EmDashConfig {
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
 	};
+
+	/**
+	 * Version of Astro the host project is building with. Populated by the
+	 * integration's `astro:config:setup` hook (not authored by the user) and
+	 * surfaced to the admin and the registry install gate so a plugin's
+	 * `env:astro` requirement can be evaluated against the real host version.
+	 */
+	astroVersion?: string;
 }
+
+const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");
+const configHolder = globalThis as Record<symbol, unknown>;
 
 /**
  * Get stored config from global
  * This is set by the virtual module at build time
  */
 export function getStoredConfig(): EmDashConfig | null {
-	return globalThis.__emdashConfig || null;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	return (configHolder[STORED_CONFIG_KEY] as EmDashConfig | undefined) ?? null;
 }
 
 /**
@@ -502,11 +618,5 @@ export function getStoredConfig(): EmDashConfig | null {
  * Called by the integration at config time
  */
 export function setStoredConfig(config: EmDashConfig): void {
-	globalThis.__emdashConfig = config;
-}
-
-// Declare global type
-declare global {
-	// eslint-disable-next-line no-var
-	var __emdashConfig: EmDashConfig | undefined;
+	configHolder[STORED_CONFIG_KEY] = config;
 }

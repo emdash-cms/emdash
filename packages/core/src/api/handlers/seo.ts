@@ -18,6 +18,23 @@ export interface SitemapContentEntry {
 	slug: string | null;
 	/** ISO date of last modification */
 	updatedAt: string;
+	/**
+	 * Locale of this row (e.g. `"en"`, `"fr"`). Always present — rows in
+	 * pre-i18n databases are backfilled to the configured `defaultLocale`.
+	 */
+	locale: string;
+	/**
+	 * `translation_group` ULID shared across all locale variants of the
+	 * same content. Used by the sitemap route to emit `hreflang`
+	 * alternates between siblings.
+	 */
+	translationGroup: string | null;
+	/**
+	 * Stored SEO image reference (`_emdash_seo.seo_image`), or null when
+	 * the entry has no SEO image. The route resolves it to an absolute
+	 * URL and emits it as an `<image:image>` sitemap entry.
+	 */
+	image: string | null;
 }
 
 /** Per-collection sitemap data with entries and URL pattern */
@@ -93,8 +110,11 @@ export async function handleSitemapData(
 					slug: string | null;
 					id: string;
 					updated_at: string;
+					locale: string;
+					translation_group: string | null;
+					seo_image: string | null;
 				}>`
-					SELECT c.slug, c.id, c.updated_at
+					SELECT c.slug, c.id, c.updated_at, c.locale, c.translation_group, s.seo_image
 					FROM ${sql.ref(tableName)} c
 					LEFT JOIN _emdash_seo s
 						ON s.collection = ${col.slug}
@@ -114,6 +134,9 @@ export async function handleSitemapData(
 						id: row.id,
 						slug: row.slug,
 						updatedAt: row.updated_at,
+						locale: row.locale,
+						translationGroup: row.translation_group,
+						image: row.seo_image ?? null,
 					});
 				}
 

@@ -1,0 +1,147 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-aggregator",
+	"main": "./src/index.ts",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
+	// Production routes are configured at deploy time. The CDN
+	// (`cdn.emdashcms.com`) is a separate Worker that we'll add later
+	// alongside R2. Local development (`wrangler dev`) doesn't need a route
+	// binding.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash-aggregator",
+			// `database_id` intentionally omitted — wrangler auto-provisions
+			// the D1 instance on first deploy. A placeholder ID would make
+			// wrangler think the binding is already configured and skip
+			// provisioning.
+			"migrations_dir": "./migrations",
+		},
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "RECORDS_QUEUE",
+				"queue": "emdash-aggregator-records",
+			},
+			{
+				// Backfill orchestrator (POST /_admin/backfill) fans
+				// (DID, collection) pairs onto this queue. Per-pair work
+				// (resolve PDS → listRecords → sendBatch onto RECORDS_QUEUE)
+				// fits well within a single consumer invocation's waitUntil,
+				// solving the 30s wall-clock cap that would otherwise limit
+				// us to ~15–25 DIDs per backfill POST.
+				"binding": "BACKFILL_QUEUE",
+				"queue": "emdash-aggregator-backfill",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "emdash-aggregator-records",
+				"max_batch_size": 25,
+				"max_batch_timeout": 5,
+				"max_retries": 5,
+				"dead_letter_queue": "emdash-aggregator-records-dlq",
+			},
+			{
+				// Drains the DLQ. Today the consumer logs each dead-lettered
+				// job to Workers logs and writes a `dead_letters` row, then
+				// acks. On D1 failure the handler calls `message.retry()`
+				// (configured `max_retries: 3` per below); after that, the
+				// DLQ has no DLQ-of-DLQ so workerd drops the message. Once
+				// the reconciliation pass lands it'll replace this with
+				// retry-from-listRecords.
+				"queue": "emdash-aggregator-records-dlq",
+				"max_batch_size": 25,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
+			},
+			{
+				// Backfill (DID, collection) consumer. Each job: resolve
+				// PDS, paginate listRecords for one collection, batch
+				// results onto RECORDS_QUEUE. `max_batch_size: 1` so each
+				// pair gets its own consumer invocation — listRecords can
+				// chain ~15s per page × `MAX_PAGES_PER_COLLECTION`, so
+				// batching multiple pairs per invocation risks blowing
+				// the consumer wall-clock budget. Throughput is fine
+				// because backfill is operator-triggered, not steady-state.
+				"queue": "emdash-aggregator-backfill",
+				"max_batch_size": 1,
+				"max_batch_timeout": 5,
+				"max_retries": 3,
+				"dead_letter_queue": "emdash-aggregator-backfill-dlq",
+			},
+			{
+				// Drains the backfill DLQ. Logs each dead-lettered pair
+				// loud enough that operators tailing logs see it, then
+				// acks so the DLQ doesn't accumulate unbounded. We don't
+				// write a forensics row to D1 here (no `backfill_dead_letters`
+				// table) because the operator's recovery action is
+				// "re-trigger backfill for the affected DID" — they don't
+				// need the per-pair payload, just the (did, collection)
+				// pair, which is on the log line.
+				"queue": "emdash-aggregator-backfill-dlq",
+				"max_batch_size": 25,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
+			},
+		],
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "RECORDS_DO",
+				"class_name": "RecordsJetstreamDO",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["RecordsJetstreamDO"],
+		},
+	],
+	"triggers": {
+		// Liveness ping for the records DO. The DO holds Jetstream open and
+		// stays alive while the WebSocket is up, but during a Jetstream
+		// outage it spends time in backoff sleeps with no active connection
+		// — that's when CF can evict it. The 5-minute cron wakes it back up
+		// quickly; constructor-time `ingestor.run()` resumes from the
+		// persisted cursor. Reconciliation work will share this trigger when
+		// it lands.
+		"crons": ["*/5 * * * *"],
+	},
+	"vars": {
+		// Jetstream endpoint. Override per environment for self-hosted relays
+		// or staging backends.
+		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
+		// Relay base URL implementing `com.atproto.sync.listReposByCollection`,
+		// used by `/_admin/backfill` to enumerate publishers of our NSIDs at
+		// cold-start time. Defaults to Bluesky's main relay (the canonical
+		// atproto relay; same trust orbit as our Jetstream endpoint).
+		// Override for self-hosted indexers (e.g. Microcosm's Lightrail)
+		// if/when we want a non-bsky.network discovery path.
+		"RELAY_URL": "https://bsky.network",
+	},
+	// Required secrets, declared in config so `wrangler types` generates the
+	// typed binding and `wrangler deploy` validates the secret is set on the
+	// target Worker before publishing. `wrangler dev` warns at startup when a
+	// required secret isn't in `.env`.
+	//
+	// Set in production with `wrangler secret put ADMIN_TOKEN`. Tests bind
+	// a stub via miniflare in vitest.config.ts. Local dev pulls from
+	// `.env` (gitignored; see `.env.example`).
+	//
+	// The `requireAdminAuth` runtime guard fails closed (503) if the binding
+	// is somehow empty at request time, so even a misconfigured deploy can't
+	// leave the admin routes unauth-passable. NOTE: this `secrets` block is
+	// not inherited by named environments — repeat it under each `env.<name>`
+	// you add or that env's deploys won't enforce the secret.
+	"secrets": {
+		"required": ["ADMIN_TOKEN"],
+	},
+	"observability": {
+		"enabled": true,
+	},
+}

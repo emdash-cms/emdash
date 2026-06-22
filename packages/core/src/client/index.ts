@@ -19,7 +19,7 @@
 
 import mime from "mime/lite";
 
-import type { PortableTextBlock, FieldSchema } from "./portable-text.js";
+import type { FieldSchema } from "./portable-text.js";
 import { convertDataForRead, convertDataForWrite } from "./portable-text.js";
 import type { Interceptor } from "./transport.js";
 import {
@@ -521,6 +521,7 @@ export class EmDashClient {
 			slug?: string;
 			status?: string;
 			_rev?: string;
+			locale?: string;
 		},
 	): Promise<ContentItem> {
 		// Convert markdown strings to PT
@@ -536,9 +537,11 @@ export class EmDashClient {
 			status: input.status,
 			...(input._rev ? { _rev: input._rev } : {}),
 		};
+		const params = new URLSearchParams();
+		if (input.locale) params.set("locale", input.locale);
 		const result = await this.request<{ item: ContentItem; _rev?: string }>(
 			"PUT",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}`,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}${params.toString() ? `?${params}` : ""}`,
 			body,
 		);
 
@@ -737,10 +740,11 @@ export class EmDashClient {
 		if (options?.cursor) params.set("cursor", options.cursor);
 
 		const qs = params.toString();
-		return this.request<ListResult<Term>>(
+		const data = await this.request<{ terms: Term[] }>(
 			"GET",
 			`/taxonomies/${encodeURIComponent(taxonomy)}/terms${qs ? `?${qs}` : ""}`,
 		);
+		return { items: data.terms };
 	}
 
 	/** Create a taxonomy term */

@@ -5,8 +5,9 @@
  * Navigates to plugin detail on card click.
  */
 
-import { Badge, Button } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
+import { Badge, Button, Input, Select } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	MagnifyingGlass,
@@ -37,11 +38,11 @@ function isSortOption(value: string): value is SortOption {
 	return SORT_OPTIONS.has(value);
 }
 
-const SORT_LABELS: Record<SortOption, string> = {
-	installs: "Most Popular",
-	updated: "Recently Updated",
-	created: "Newest",
-	name: "Name",
+const SORT_LABELS: Record<SortOption, MessageDescriptor> = {
+	installs: msg`Most Popular`,
+	updated: msg`Recently Updated`,
+	created: msg`Newest`,
+	name: msg`Name`,
 };
 
 export interface MarketplaceBrowseProps {
@@ -91,42 +92,36 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<div className="relative flex-1">
 					<MagnifyingGlass className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-kumo-subtle" />
-					<input
+					<Input
 						type="search"
 						placeholder={t`Search plugins...`}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						className="w-full rounded-md border bg-kumo-base px-3 py-2 ps-9 text-sm placeholder:text-kumo-subtle focus:outline-none focus:ring-2 focus:ring-kumo-ring"
+						className="ps-9"
+						aria-label={t`Search plugins`}
 					/>
 				</div>
-				<select
+				<Select
 					value={capability}
-					onChange={(e) => setCapability(e.target.value)}
-					className="rounded-md border bg-kumo-base px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kumo-ring"
-					aria-label={t`Filter by capability`}
-				>
-					<option value="">{t`All capabilities`}</option>
-					{Object.entries(CAPABILITY_LABELS).map(([value, label]) => (
-						<option key={value} value={value}>
-							{label}
-						</option>
-					))}
-				</select>
-				<select
-					value={sort}
-					onChange={(e) => {
-						const v = e.target.value;
-						if (isSortOption(v)) setSort(v);
+					onValueChange={(v) => setCapability(v ?? "")}
+					items={{
+						"": t`All capabilities`,
+						...Object.fromEntries(
+							Object.entries(CAPABILITY_LABELS).map(([value, label]) => [value, t(label)]),
+						),
 					}}
-					className="rounded-md border bg-kumo-base px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kumo-ring"
+					aria-label={t`Filter by capability`}
+				/>
+				<Select
+					value={sort}
+					onValueChange={(v) => {
+						if (v && isSortOption(v)) setSort(v);
+					}}
+					items={Object.fromEntries(
+						Object.entries(SORT_LABELS).map(([value, label]) => [value, t(label)]),
+					)}
 					aria-label={t`Sort plugins`}
-				>
-					{Object.entries(SORT_LABELS).map(([value, label]) => (
-						<option key={value} value={value}>
-							{label}
-						</option>
-					))}
-				</select>
+				/>
 			</div>
 
 			{/* Error state */}
@@ -137,8 +132,12 @@ export function MarketplaceBrowse({ installedPluginIds = new Set() }: Marketplac
 					<p className="mt-1 text-sm text-kumo-subtle">
 						{error instanceof Error ? error.message : t`An error occurred`}
 					</p>
-					<Button variant="ghost" className="mt-4" onClick={() => void refetch()}>
-						<ArrowsClockwise className="me-2 h-4 w-4" />
+					<Button
+						variant="ghost"
+						className="mt-4"
+						onClick={() => void refetch()}
+						icon={<ArrowsClockwise />}
+					>
 						{t`Retry`}
 					</Button>
 				</div>

@@ -179,8 +179,8 @@ describe("PluginManager", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("Audit Log")).toBeInTheDocument();
-		const settingsButtons = screen.getByRole("button", { name: "Settings" }).all();
-		expect(settingsButtons.length).toBe(1);
+		const settingsLinks = screen.getByRole("link", { name: "Settings" }).all();
+		expect(settingsLinks.length).toBe(1);
 	});
 
 	it("settings link points to the plugin root, not a /settings sub-path", async () => {
@@ -190,13 +190,12 @@ describe("PluginManager", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("Audit Log")).toBeInTheDocument();
-		const settingsButton = screen.getByRole("button", { name: "Settings" });
-		await expect.element(settingsButton).toBeInTheDocument();
-		const anchor = settingsButton.element().closest("a");
-		expect(anchor).not.toBeNull();
+		const settingsLink = screen.getByRole("link", { name: "Settings" });
+		await expect.element(settingsLink).toBeInTheDocument();
+		const anchor = settingsLink.element() as HTMLAnchorElement;
 		// Plugins are not required to expose a `/settings` sub-page; the gear
 		// icon should land on the plugin's primary admin page.
-		expect(anchor!.getAttribute("href")).toMatch(/^\/plugins\/audit-log\/?$/);
+		expect(anchor.getAttribute("href")).toMatch(/^\/plugins\/audit-log\/?$/);
 	});
 
 	it("expand/collapse shows plugin details", async () => {

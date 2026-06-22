@@ -9,12 +9,11 @@ import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Shield, Plus, CheckCircle, WarningCircle, Info } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchPasskeys, renamePasskey, deletePasskey, fetchManifest } from "../../lib/api";
-import { ArrowPrev } from "../ArrowIcons.js";
 import { PasskeyRegistration } from "../auth/PasskeyRegistration";
+import { BackToSettingsLink } from "./BackToSettingsLink.js";
 import { PasskeyList } from "./PasskeyList";
 
 export function SecuritySettings() {
@@ -101,11 +100,7 @@ export function SecuritySettings() {
 
 	const settingsHeader = (
 		<div className="flex items-center gap-3">
-			<Link to="/settings">
-				<Button variant="ghost" shape="square" aria-label={t`Back to settings`}>
-					<ArrowPrev className="h-4 w-4" />
-				</Button>
-			</Link>
+			<BackToSettingsLink />
 			<h1 className="text-2xl font-bold">{t`Security Settings`}</h1>
 		</div>
 	);

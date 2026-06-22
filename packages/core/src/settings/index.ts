@@ -7,13 +7,24 @@
 
 import type { Kysely } from "kysely";
 
+import { after } from "../after.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
+
+/** Object-cache namespace for site settings. */
+const SETTINGS_CACHE_NAMESPACE = "settings";
 import type { Storage } from "../storage/types.js";
-import type { SiteSettings, SiteSettingKey, MediaReference } from "./types.js";
+import {
+	createSingleFlightCache,
+	type SingleFlightCache,
+	invalidateSingleFlightCache,
+	singleFlightCached,
+} from "../utils/single-flight-cache.js";
+import type { SiteSettings, SiteSettingKey, MediaReference, SeoSettings } from "./types.js";
 
 /** Prefix for site settings in the options table */
 const SETTINGS_PREFIX = "site:";
@@ -27,29 +38,22 @@ const SETTINGS_PREFIX = "site:";
  * once-per-isolate. Cross-isolate staleness is bounded by isolate lifetime
  * (workerd typically recycles within minutes); acceptable for chrome.
  *
- * Stored on globalThis with a Symbol.for key so Vite SSR chunk duplication
- * doesn't produce two independent caches (same pattern as request-context.ts).
- *
- * Invalidation: every `site:*` write bumps `version`. Reads compare the
- * cached promise's version against the current version and refetch on
- * mismatch. Caching the promise (not the resolved value) lets concurrent
- * cold-isolate readers share the in-flight query.
+ * Backed by single-flight-cache.ts: concurrent cold reads coalesce onto one
+ * query via a reclaimable single-flight lock and the resolved *value* is
+ * cached — never a shared in-flight promise, so a cancelled request can't
+ * poison the isolate (see that file's header). Stored on globalThis with a
+ * Symbol.for key so Vite SSR chunk duplication doesn't produce two
+ * independent caches (same pattern as request-context.ts).
  */
-interface SiteSettingsHolder {
-	version: number;
-	cached: Promise<Partial<SiteSettings>> | null;
-	cachedVersion: number;
-}
-
 const SITE_SETTINGS_CACHE_KEY = Symbol.for("emdash:site-settings");
 const g = globalThis as Record<symbol, unknown>;
-const holder: SiteSettingsHolder =
-	// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- globalThis singleton pattern (see request-context.ts)
-	(g[SITE_SETTINGS_CACHE_KEY] as SiteSettingsHolder | undefined) ??
+const settingsCache: SingleFlightCache<Partial<SiteSettings>> =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(g[SITE_SETTINGS_CACHE_KEY] as SingleFlightCache<Partial<SiteSettings>> | undefined) ??
 	(() => {
-		const h: SiteSettingsHolder = { version: 0, cached: null, cachedVersion: -1 };
-		g[SITE_SETTINGS_CACHE_KEY] = h;
-		return h;
+		const c = createSingleFlightCache<Partial<SiteSettings>>();
+		g[SITE_SETTINGS_CACHE_KEY] = c;
+		return c;
 	})();
 
 /**
@@ -60,9 +64,9 @@ const holder: SiteSettingsHolder =
  * own cached copy until they expire — staleness bounded by isolate lifetime.
  */
 export function invalidateSiteSettingsCache(): void {
-	holder.version++;
-	holder.cached = null;
-	holder.cachedVersion = -1;
+	invalidateSingleFlightCache(settingsCache);
+	// Cross-isolate invalidation for the optional distributed object cache.
+	invalidateObjectCache(SETTINGS_CACHE_NAMESPACE);
 }
 
 /**
@@ -174,8 +178,21 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
 	// We use the non-generic getSiteSettingsWithDb for media resolution instead.
 	if ((key === "logo" || key === "favicon") && isMediaReference(value)) {
 		const resolved = await resolveMediaReference(value, db, storage);
-		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- TS can't narrow generic K from key equality; resolved type is correct
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- TS can't narrow generic K from key equality; resolved type is correct
 		return resolved as SiteSettings[K] | undefined;
+	}
+
+	if (key === "seo" && value && typeof value === "object") {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- TS can't narrow generic K from key equality
+		const seo = value as SeoSettings;
+		if (seo.defaultOgImage) {
+			const resolved = {
+				...seo,
+				defaultOgImage: await resolveMediaReference(seo.defaultOgImage, db, storage),
+			};
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- TS can't narrow generic K from key equality
+			return resolved as SiteSettings[K] | undefined;
+		}
 	}
 
 	return value;
@@ -197,25 +214,26 @@ export async function getSiteSettingWithDb<K extends SiteSettingKey>(
  * ```
  */
 export function getSiteSettings(): Promise<Partial<SiteSettings>> {
-	return requestCached("siteSettings", () => {
-		const versionAtCall = holder.version;
-		if (holder.cached && holder.cachedVersion === versionAtCall) {
-			return holder.cached;
-		}
-		const fetchPromise = (async () => {
-			const db = await getDb();
-			return getSiteSettingsWithDb(db);
-		})().catch((error) => {
-			if (holder.cached === fetchPromise) {
-				holder.cached = null;
-				holder.cachedVersion = -1;
-			}
-			throw error;
-		});
-		holder.cached = fetchPromise;
-		holder.cachedVersion = versionAtCall;
-		return fetchPromise;
-	});
+	// requestCached dedupes within a single request; singleFlightCached
+	// coalesces across requests and caches the resolved value for the
+	// global scope's lifetime without ever sharing an awaitable promise. The
+	// distributed object cache (cachedQuery) sits beneath both, backing cold
+	// isolates without a database round-trip.
+	return requestCached("siteSettings", () =>
+		singleFlightCached(
+			settingsCache,
+			() =>
+				cachedQuery({
+					namespace: SETTINGS_CACHE_NAMESPACE,
+					key: "all",
+					load: async () => {
+						const db = await getDb();
+						return getSiteSettingsWithDb(db);
+					},
+				}),
+			{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
+		),
+	);
 }
 
 /**
@@ -247,6 +265,12 @@ export async function getSiteSettingsWithDb(
 	}
 	if (typedSettings.favicon) {
 		typedSettings.favicon = await resolveMediaReference(typedSettings.favicon, db, storage);
+	}
+	if (typedSettings.seo?.defaultOgImage) {
+		typedSettings.seo = {
+			...typedSettings.seo,
+			defaultOgImage: await resolveMediaReference(typedSettings.seo.defaultOgImage, db, storage),
+		};
 	}
 
 	return typedSettings;

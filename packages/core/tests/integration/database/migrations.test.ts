@@ -45,6 +45,9 @@ describe("Database Migrations (Integration)", () => {
 			"_emdash_sections",
 			"_emdash_bylines",
 			"_emdash_content_bylines",
+			"_emdash_byline_fields",
+			"_emdash_byline_field_values",
+			"_emdash_byline_field_group_values",
 		];
 
 		for (const table of tables) {
@@ -111,11 +114,19 @@ describe("Database Migrations (Integration)", () => {
 		await db.destroy();
 		db = await setupTestDatabaseWithCollections();
 
-		// Kysely only re-runs trailing entries; include the latest migration.
+		// Kysely only re-runs trailing entries; include the latest migrations.
 		const trailing = [
 			"034_published_at_index",
 			"035_bounded_404_log",
 			"036_i18n_menus_and_taxonomies",
+			"037_credential_algorithm",
+			"038_registry_plugin_state",
+			"039_fix_fts5_triggers",
+			"040_byline_i18n",
+			"041_content_locale_list_index",
+			"042_byline_fields",
+			"043_content_references",
+			"044_comment_reactions",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
@@ -154,6 +165,7 @@ describe("Database Migrations (Integration)", () => {
 				slug: "posts",
 				label: "Posts",
 				label_singular: "Post",
+				has_seo: 0,
 			})
 			.execute();
 
@@ -178,6 +190,7 @@ describe("Database Migrations (Integration)", () => {
 				id: "id1",
 				slug: "posts",
 				label: "Posts",
+				has_seo: 0,
 			})
 			.execute();
 
@@ -189,6 +202,7 @@ describe("Database Migrations (Integration)", () => {
 					id: "id2",
 					slug: "posts",
 					label: "Posts Again",
+					has_seo: 0,
 				})
 				.execute(),
 		).rejects.toThrow();
@@ -205,6 +219,7 @@ describe("Database Migrations (Integration)", () => {
 				id: collectionId,
 				slug: "posts",
 				label: "Posts",
+				has_seo: 0,
 			})
 			.execute();
 
