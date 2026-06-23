@@ -49,6 +49,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "es-419", label: "Español (Latinoamérica)", enabled: true }, // Spanish (Latin America)
 	{ code: "es-ES", label: "Español (España)", enabled: true }, // Spanish (Spain) - BCP 47
 	{ code: "th", label: "ไทย", enabled: true }, // Thai
+	{ code: "tr", label: "Türkçe", enabled: false }, // Turkish
 	// Pseudo-locale for i18n testing - never enabled in the admin UI by default.
 	// Set EMDASH_PSEUDO_LOCALE=1 in .env to expose it in the locale switcher (dev only).
 	{ code: "pseudo", label: "Pseudo", enabled: false },
