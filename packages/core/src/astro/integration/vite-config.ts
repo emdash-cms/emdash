@@ -307,6 +307,10 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
  * On Cloudflare, the adapter handles its own externalization — setting
  * ssr.external there conflicts with @cloudflare/vite-plugin's validation.
  */
+// Matches the admin stylesheet import with or without a trailing query (e.g.
+// `?url`), so both forms resolve to dist rather than the source alias.
+const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
+
 const NODE_NATIVE_EXTERNALS = [
 	"better-sqlite3",
 	"bindings",
@@ -353,8 +357,12 @@ export function createViteConfig(
 			// The styles.css alias must come before the package alias, otherwise
 			// Vite's prefix matching on "@emdash-cms/admin" would resolve
 			// "@emdash-cms/admin/styles.css" through the source directory.
+			// Regex (not string) so the `?url` variant — admin.astro imports the
+			// stylesheet as `?url` to keep it out of the page CSS graph — also
+			// resolves to dist; a string `find` only matches on a `/` or end
+			// boundary, so `styles.css?url` would slip through to the source alias.
 			alias: [
-				{ find: "@emdash-cms/admin/styles.css", replacement: resolve(adminDistPath, "styles.css") },
+				{ find: ADMIN_STYLES_ALIAS, replacement: resolve(adminDistPath, "styles.css") },
 				{ find: "@emdash-cms/admin", replacement: useSource ? adminSourcePath : adminDistPath },
 				// `use-sync-external-store/shim` is a React <18 polyfill that ships
 				// only as CJS. It's pulled in transitively by `@tiptap/react`. With
