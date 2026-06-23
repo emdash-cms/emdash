@@ -33,6 +33,9 @@ export const RESOLVED_VIRTUAL_DIALECT_ID = "\0" + VIRTUAL_DIALECT_ID;
 export const VIRTUAL_STORAGE_ID = "virtual:emdash/storage";
 export const RESOLVED_VIRTUAL_STORAGE_ID = "\0" + VIRTUAL_STORAGE_ID;
 
+export const VIRTUAL_OBJECT_CACHE_ID = "virtual:emdash/object-cache";
+export const RESOLVED_VIRTUAL_OBJECT_CACHE_ID = "\0" + VIRTUAL_OBJECT_CACHE_ID;
+
 export const VIRTUAL_ADMIN_REGISTRY_ID = "virtual:emdash/admin-registry";
 export const RESOLVED_VIRTUAL_ADMIN_REGISTRY_ID = "\0" + VIRTUAL_ADMIN_REGISTRY_ID;
 
@@ -125,6 +128,31 @@ export function generateStorageModule(storageEntrypoint?: string): string {
 	return `
 import { createStorage as _createStorage } from "${storageEntrypoint}";
 export const createStorage = _createStorage;
+`;
+}
+
+/**
+ * Generates the object-cache virtual module.
+ *
+ * Statically imports the configured object-cache backend's `createObjectCache`
+ * factory and embeds its serializable config. When no object cache is
+ * configured, exports `undefined` so the runtime read-through layer becomes a
+ * transparent passthrough (cache off by default).
+ */
+export function generateObjectCacheModule(
+	entrypoint?: string,
+	config?: Record<string, unknown>,
+): string {
+	if (!entrypoint) {
+		return [
+			`export const createObjectCache = undefined;`,
+			`export const objectCacheConfig = undefined;`,
+		].join("\n");
+	}
+	return `
+import { createObjectCache as _createObjectCache } from "${entrypoint}";
+export const createObjectCache = _createObjectCache;
+export const objectCacheConfig = ${JSON.stringify(config ?? {})};
 `;
 }
 

@@ -7,10 +7,8 @@
  * import { cloudflareCache } from "@emdash-cms/cloudflare";
  *
  * export default defineConfig({
- *   experimental: {
- *     cache: {
- *       provider: cloudflareCache(),
- *     },
+ *   cache: {
+ *     provider: cloudflareCache(),
  *   },
  * });
  * ```
@@ -43,7 +41,7 @@ export type { CloudflareCacheConfig };
  * and `CF_CACHE_PURGE_TOKEN`).
  *
  * @param config Optional configuration.
- * @returns A {@link CacheProviderConfig} to pass to `experimental.cache.provider`.
+ * @returns A {@link CacheProviderConfig} to pass to `cache.provider`.
  *
  * @example Basic usage (reads zone ID and token from env vars)
  * ```ts
@@ -53,10 +51,8 @@ export type { CloudflareCacheConfig };
  *
  * export default defineConfig({
  *   adapter: cloudflare(),
- *   experimental: {
- *     cache: {
- *       provider: cloudflareCache(),
- *     },
+ *   cache: {
+ *     provider: cloudflareCache(),
  *   },
  * });
  * ```

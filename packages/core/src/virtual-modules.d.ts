@@ -65,6 +65,17 @@ declare module "virtual:emdash/storage" {
 	export const createStorage: ((config: Record<string, unknown>) => Storage) | undefined;
 }
 
+declare module "virtual:emdash/object-cache" {
+	import type {
+		CreateObjectCacheBackendFn,
+		ObjectCacheRuntimeConfig,
+	} from "./object-cache/types.js";
+
+	// Can be undefined if no object cache is configured.
+	export const createObjectCache: CreateObjectCacheBackendFn | undefined;
+	export const objectCacheConfig: ObjectCacheRuntimeConfig | undefined;
+}
+
 declare module "virtual:emdash/auth" {
 	import type { AuthResult } from "./auth/types.js";
 

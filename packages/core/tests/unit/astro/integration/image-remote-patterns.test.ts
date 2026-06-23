@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { buildImageRemotePatterns } from "../../../../src/astro/integration/index.js";
+import {
+	buildImageRemotePatterns,
+	resolveImageEndpoint,
+} from "../../../../src/astro/integration/index.js";
 
 const s3 = (publicUrl?: string) => ({ entrypoint: "x", config: { publicUrl } });
 const localStorage = { entrypoint: "x", config: { directory: "./uploads" } };
@@ -54,5 +57,64 @@ describe("buildImageRemotePatterns", () => {
 			{ hostname: "example.com", pathname: MEDIA_PATH },
 			{ pathname: MEDIA_PATH },
 		]);
+	});
+});
+
+describe("resolveImageEndpoint", () => {
+	it("installs the Node endpoint on a stock/undefined endpoint", () => {
+		expect(
+			resolveImageEndpoint({
+				imagesDisabled: false,
+				currentEntrypoint: undefined,
+				isCloudflare: false,
+			}),
+		).toEqual({ entrypoint: "emdash/image-endpoint" });
+		expect(
+			resolveImageEndpoint({
+				imagesDisabled: false,
+				currentEntrypoint: "astro/assets/endpoint/generic",
+				isCloudflare: false,
+			}),
+		).toEqual({ entrypoint: "emdash/image-endpoint" });
+	});
+
+	it("installs the Cloudflare endpoint under the Cloudflare adapter", () => {
+		expect(
+			resolveImageEndpoint({
+				imagesDisabled: false,
+				currentEntrypoint: "@astrojs/cloudflare/image-transform-endpoint",
+				isCloudflare: true,
+			}),
+		).toEqual({ entrypoint: "@emdash-cms/cloudflare/image-endpoint" });
+	});
+
+	it("skips silently when images are disabled", () => {
+		expect(
+			resolveImageEndpoint({
+				imagesDisabled: true,
+				currentEntrypoint: undefined,
+				isCloudflare: true,
+			}),
+		).toEqual({});
+	});
+
+	it("leaves a deliberate passthrough endpoint alone without warning", () => {
+		expect(
+			resolveImageEndpoint({
+				imagesDisabled: false,
+				currentEntrypoint: "@astrojs/cloudflare/image-passthrough-endpoint",
+				isCloudflare: true,
+			}),
+		).toEqual({});
+	});
+
+	it("warns and skips when a custom endpoint is configured", () => {
+		const result = resolveImageEndpoint({
+			imagesDisabled: false,
+			currentEntrypoint: "./src/my-endpoint.ts",
+			isCloudflare: false,
+		});
+		expect(result.entrypoint).toBeUndefined();
+		expect(result.warn).toMatch(/custom image\.endpoint/);
 	});
 });

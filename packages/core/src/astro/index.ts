@@ -21,6 +21,12 @@ export type {
 export { local, s3 } from "./storage/index.js";
 export type { StorageDescriptor, LocalStorageConfig, S3StorageConfig } from "./storage/index.js";
 
+// Object cache adapters (for integration config)
+// Note: For Cloudflare KV, use `kvCache()` from `@emdash-cms/cloudflare`
+export { memoryCache } from "./object-cache/adapters.js";
+export type { MemoryCacheOptions } from "./object-cache/adapters.js";
+export type { ObjectCacheDescriptor, ObjectCacheRuntimeConfig } from "../object-cache/types.js";
+
 // Integration (build-time only - the emdash() function uses Node.js APIs)
 export { default } from "./integration/index.js";
 export { getStoredConfig } from "./integration/runtime.js";

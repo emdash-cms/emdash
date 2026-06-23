@@ -27,6 +27,11 @@
 import { encodeCursor } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
 import { CURSOR_RAW_VALUES, type WhereRange, type WhereValue } from "./loader.js";
+import {
+	cachedQuery,
+	contentNamespaces,
+	invalidateSchemaObjectCache,
+} from "./object-cache/index.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingTableError } from "./utils/db-errors.js";
@@ -327,11 +332,59 @@ export async function getEmDashCollection<T extends string, D = InferCollectionD
 	// pagination contract.
 	const bucketed = bucketFilter(filter);
 	const cached = await requestCached(collectionCacheKey(type, bucketed.fetchFilter), () =>
-		getEmDashCollectionUncached<T, D>(type, bucketed.fetchFilter),
+		loadCollectionCached<T, D>(type, bucketed.fetchFilter),
 	);
 	return bucketed.requestedLimit === undefined
 		? cached
 		: sliceCollectionResult(cached, bucketed.requestedLimit, filter?.orderBy);
+}
+
+/** Shape of a cached collection snapshot (entries reduced to JSON-safe form). */
+interface CachedCollectionValue {
+	entries: unknown[];
+	nextCursor?: string;
+	cacheHint: CacheHint;
+}
+
+/**
+ * Distributed (L2) read-through around {@link getEmDashCollectionUncached}.
+ *
+ * Caches a JSON-safe snapshot keyed by collection + filter + effective locale,
+ * folding the shared `bylines`/`taxonomies` epochs into the key so renaming an
+ * author or term invalidates affected lists. Errors are never cached.
+ */
+async function loadCollectionCached<T extends string, D = InferCollectionData<T>>(
+	type: T,
+	filter?: CollectionFilter,
+): Promise<CollectionResult<D>> {
+	const snapshot = await cachedQuery<ContentSnapshot<CachedCollectionValue>>({
+		namespace: contentNamespaces(type),
+		key: `collection:${collectionCacheKey(type, filter)}|loc=${effectiveLocaleKey(filter)}`,
+		load: async () => {
+			const result = await getEmDashCollectionUncached<T, D>(type, filter);
+			if (result.error) {
+				return { ok: false, error: result.error, cacheHint: result.cacheHint };
+			}
+			return {
+				ok: true,
+				value: {
+					entries: result.entries.map(entrySnapshot),
+					nextCursor: result.nextCursor,
+					cacheHint: result.cacheHint,
+				},
+			};
+		},
+		cacheable: (snap) => snap.ok,
+	});
+
+	if (!snapshot.ok) {
+		return { entries: [], error: snapshot.error, cacheHint: snapshot.cacheHint };
+	}
+	return {
+		entries: snapshot.value.entries.map((entry) => reviveEntry<D>(entry)),
+		nextCursor: snapshot.value.nextCursor,
+		cacheHint: snapshot.value.cacheHint,
+	};
 }
 
 /**
@@ -498,6 +551,66 @@ function stableOrder(value: Record<string, unknown>): Record<string, unknown> {
 	return ordered;
 }
 
+// ── Object-cache (L2) serialization for content reads ───────────────────────
+//
+// Content entries can't be stored verbatim: each carries a non-serializable
+// `edit` proxy (a function) and a non-enumerable `CURSOR_RAW_VALUES` symbol on
+// `data` (raw date strings used to reproduce the loader's pagination cursor).
+// We reduce each entry to a JSON-safe snapshot before caching — copying the
+// cursor-raw values into an enumerable field and dropping `edit` — then rebuild
+// the symbol and re-attach a no-op `edit` on the way out. The object cache's
+// codec preserves `Date` instances, so timestamps survive the round-trip.
+//
+// L2 is only consulted for anonymous, non-preview, non-edit requests (see
+// `shouldBypass` in object-cache), where `edit` is always the no-op variant —
+// so dropping and recreating it is lossless.
+
+/** Enumerable field carrying the {@link CURSOR_RAW_VALUES} payload in snapshots. */
+const CURSOR_RAW_FIELD = "__emdashCursorRaw";
+
+/** Result wrapper distinguishing a cached error from a cacheable success. */
+type ContentSnapshot<S> =
+	| { ok: true; value: S }
+	| { ok: false; error?: Error; cacheHint: CacheHint };
+
+function entrySnapshot<D>(entry: ContentEntry<D>): Record<string, unknown> {
+	const data = entryData(entry);
+	const rawCursor = Reflect.get(data, CURSOR_RAW_VALUES);
+	// Drop the `edit` function; copy enumerable data + the cursor-raw values.
+	const { edit: _edit, ...rest } = entry as ContentEntry<D> & { edit?: unknown };
+	return {
+		...rest,
+		data: { ...data, [CURSOR_RAW_FIELD]: rawCursor ?? {} },
+	};
+}
+
+function reviveEntry<D>(raw: unknown): ContentEntry<D> {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- snapshot shape produced by entrySnapshot
+	const entry = raw as Record<string, unknown>;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- snapshot `data` is always a record
+	const data: Record<string, unknown> = { ...(entry.data as Record<string, unknown>) };
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- snapshot field written by entrySnapshot
+	const rawCursor = (data[CURSOR_RAW_FIELD] as Record<string, string> | undefined) ?? {};
+	delete data[CURSOR_RAW_FIELD];
+	Object.defineProperty(data, CURSOR_RAW_VALUES, {
+		value: rawCursor,
+		enumerable: false,
+		configurable: false,
+		writable: false,
+	});
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- rebuilt to the ContentEntry shape with a no-op edit proxy
+	return { ...entry, data, edit: createNoop() } as ContentEntry<D>;
+}
+
+/** Resolve the effective locale used by content reads, for the L2 cache key. */
+function effectiveLocaleKey(filter?: { locale?: string }): string {
+	const ctx = getRequestContext();
+	const i18nConfig = getI18nConfig();
+	return (
+		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined) ?? ""
+	);
+}
+
 async function getEmDashCollectionUncached<T extends string, D = InferCollectionData<T>>(
 	type: T,
 	filter?: CollectionFilter,
@@ -620,6 +733,14 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 		return isPublished || !!isScheduledAndReady;
 	}
 
+	/** True when an entry is scheduled to become visible at a future time. */
+	function isPendingScheduled(entry: ContentEntry<D>): boolean {
+		const data = entryData(entry);
+		if (dataStr(data, "status") !== "scheduled") return false;
+		const scheduledAt = dataDate(data, "scheduledAt");
+		return scheduledAt !== undefined && scheduledAt.getTime() > Date.now();
+	}
+
 	// Build the fallback chain: [requestedLocale, fallback1, ..., defaultLocale]
 	// When i18n is disabled or no locale requested, just use a single-element chain
 	const localeChain =
@@ -721,27 +842,80 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 		return { entry: null, isPreview: serveDrafts, cacheHint: {} };
 	}
 
-	// Normal mode: try each locale in the fallback chain, only return published content
-	for (let i = 0; i < localeChain.length; i++) {
-		const locale = localeChain[i];
-		const fallbackLocale = i > 0 ? locale : undefined;
+	// Normal mode: try each locale in the fallback chain, only return published
+	// content. The full resolution (fallback chain + visibility + byline/term
+	// hydration) is wrapped in the distributed L2 cache, keyed by the requested
+	// locale. Preview/edit requests took the `serveDrafts` branch above and
+	// never reach here; the object cache additionally bypasses them.
+	// A scheduled entry becomes visible on a future clock tick, not on a write,
+	// so an L2 snapshot taken before its time would keep it hidden past go-live
+	// (until the publish sweep bumps the epoch or the TTL lapses). Mark such a
+	// resolution time-sensitive and skip caching it.
+	let timeSensitive = false;
 
-		const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, { type, id, locale });
-		if (error) {
-			return { entry: null, error, isPreview: false, cacheHint: {} };
-		}
+	const resolveNormal = async (): Promise<EntryResult<D>> => {
+		for (let i = 0; i < localeChain.length; i++) {
+			const locale = localeChain[i];
+			const fallbackLocale = i > 0 ? locale : undefined;
 
-		if (entry && isVisible(entry)) {
-			return successResult(wrapEntry(entry), {
-				isPreview: false,
-				fallbackLocale,
-				cacheHint: cacheHint ?? {},
-			});
+			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, { type, id, locale });
+			if (error) {
+				return { entry: null, error, isPreview: false, cacheHint: {} };
+			}
+
+			if (entry && isVisible(entry)) {
+				return successResult(wrapEntry(entry), {
+					isPreview: false,
+					fallbackLocale,
+					cacheHint: cacheHint ?? {},
+				});
+			}
+			if (entry && isPendingScheduled(entry)) {
+				timeSensitive = true;
+			}
+			// Entry not found or not visible in this locale — try next
 		}
-		// Entry not found or not visible in this locale — try next
+		return { entry: null, isPreview: false, cacheHint: {} };
+	};
+
+	const snapshot = await cachedQuery<ContentSnapshot<CachedEntryValue>>({
+		namespace: contentNamespaces(type),
+		key: `entry:${id}|loc=${requestedLocale ?? ""}`,
+		load: async () => {
+			const result = await resolveNormal();
+			if (result.error) {
+				return { ok: false, error: result.error, cacheHint: result.cacheHint };
+			}
+			return {
+				ok: true,
+				value: {
+					entry: result.entry ? entrySnapshot(result.entry) : null,
+					isPreview: result.isPreview,
+					fallbackLocale: result.fallbackLocale,
+					cacheHint: result.cacheHint,
+				},
+			};
+		},
+		cacheable: (snap) => snap.ok && !timeSensitive,
+	});
+
+	if (!snapshot.ok) {
+		return { entry: null, error: snapshot.error, isPreview: false, cacheHint: snapshot.cacheHint };
 	}
+	return {
+		entry: snapshot.value.entry ? reviveEntry<D>(snapshot.value.entry) : null,
+		isPreview: snapshot.value.isPreview,
+		fallbackLocale: snapshot.value.fallbackLocale,
+		cacheHint: snapshot.value.cacheHint,
+	};
+}
 
-	return { entry: null, isPreview: false, cacheHint: {} };
+/** Shape of a cached single-entry snapshot. */
+interface CachedEntryValue {
+	entry: Record<string, unknown> | null;
+	isPreview: boolean;
+	fallbackLocale?: string;
+	cacheHint: CacheHint;
 }
 
 /**
@@ -972,9 +1146,14 @@ let cachedUrlPatterns: CachedPattern[] | null = null;
 /**
  * Invalidate the cached URL patterns used by resolveEmDashPath.
  * Call when collection URL patterns change (schema updates).
+ *
+ * Also busts the distributed schema cache (collection metadata such as
+ * `commentsEnabled`, `supports`, fields read by `getCollectionInfo`), since
+ * every schema-mutation path already routes through here.
  */
 export function invalidateUrlPatternCache(): void {
 	cachedUrlPatterns = null;
+	invalidateSchemaObjectCache();
 }
 
 /**

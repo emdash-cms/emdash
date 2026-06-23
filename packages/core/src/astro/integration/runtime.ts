@@ -10,6 +10,7 @@
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
+import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
 import type {
 	FieldWidgetConfig,
 	PortableTextBlockConfig,
@@ -164,6 +165,56 @@ export interface EmDashConfig {
 	 * Storage configuration (for media)
 	 */
 	storage?: StorageDescriptor;
+
+	/**
+	 * Optional distributed object cache for query results.
+	 *
+	 * Off by default. When configured, content and chrome (settings, menus,
+	 * taxonomies) reads are cached in a fast key/value store and served without
+	 * touching the database on repeat requests across isolates. This offloads
+	 * read pressure from D1/SQLite, which is especially valuable on Cloudflare
+	 * where D1 has far lower request capacity than KV.
+	 *
+	 * Use a backend adapter:
+	 * - `memoryCache()` from `emdash/astro` — in-isolate (Node / local dev)
+	 * - `kvCache({ binding: "CACHE" })` from `@emdash-cms/cloudflare` — KV
+	 *
+	 * Preview and visual-edit requests bypass the cache, so editors previewing
+	 * see live content. All other reads — including authenticated browsing outside
+	 * edit mode — are served from the cache, which only ever stores published
+	 * content. After an edit, anonymous visitors may see stale content until other
+	 * isolates pick up the bumped epoch: immediate with the memory backend, and on
+	 * KV bounded by KV's edge-cache propagation (eventual consistency, up to ~60s)
+	 * plus the isolate-local `revalidate` window (default 1s).
+	 *
+	 * Scheduled content becomes visible at query time (no write event fires when
+	 * its publish time passes), so a cached list/entry won't surface a newly-due
+	 * scheduled item until the next write to that collection or until the
+	 * entry's TTL lapses (`defaultTtl`, default 1h). Sites that rely on precise
+	 * scheduled publishing should lower `defaultTtl` accordingly.
+	 *
+	 * @example
+	 * ```ts
+	 * import { kvCache } from "@emdash-cms/cloudflare";
+	 *
+	 * emdash({
+	 *   database: d1({ binding: "DB" }),
+	 *   objectCache: kvCache({ binding: "CACHE" }),
+	 * })
+	 * ```
+	 */
+	objectCache?: ObjectCacheDescriptor;
+	/**
+	 * Image optimization.
+	 *
+	 * By default EmDash wraps Astro's image endpoint so media served from
+	 * storage is optimized through the normal `<Image>` / `getImage` pipeline,
+	 * loading source bytes directly from the storage adapter (works behind
+	 * Cloudflare Access). Set to `false` to leave Astro's image endpoint
+	 * untouched -- media then renders as a plain `<img>` unless your image
+	 * service can fetch it over HTTP.
+	 */
+	images?: boolean;
 	/**
 	 * Trusted plugins to load (run in main isolate)
 	 *

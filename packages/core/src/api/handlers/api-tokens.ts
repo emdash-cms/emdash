@@ -173,6 +173,25 @@ export async function handleApiTokenRevoke(
 }
 
 /**
+ * Delete every token with the given name for a user, returning how many were
+ * removed. Token names aren't unique, so this is a bulk delete — used by the
+ * dev-bypass flow to keep a single `dev-bypass-token` instead of minting a new
+ * one on every reset.
+ */
+export async function deleteApiTokensByName(
+	db: Kysely<Database>,
+	userId: string,
+	name: string,
+): Promise<number> {
+	const result = await db
+		.deleteFrom("_emdash_api_tokens")
+		.where("user_id", "=", userId)
+		.where("name", "=", name)
+		.executeTakeFirst();
+	return Number(result.numDeletedRows ?? 0n);
+}
+
+/**
  * Resolve a raw API token (ec_pat_...) to a user ID and scopes.
  * Updates last_used_at on successful lookup.
  * Returns null if the token is invalid or expired.
