@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Database } from "../../src/database/types.js";
+import type { CollectionFilter } from "../../src/query.js";
 import { getEmDashCollection } from "../../src/query.js";
 import { runWithContext } from "../../src/request-context.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
@@ -101,5 +102,15 @@ describe("getEmDashCollection offset pagination", () => {
 		expect(getLiveCollection).toHaveBeenCalledTimes(2);
 		const offsets = vi.mocked(getLiveCollection).mock.calls.map((c) => (c[1] as any).offset);
 		expect(offsets).toEqual([0, 20]);
+	});
+
+	it("rejects supplying both cursor and offset (compile-time)", () => {
+		// Each pagination mode is valid on its own...
+		const cursorOnly: CollectionFilter = { limit: 10, cursor: "abc" };
+		const offsetOnly: CollectionFilter = { limit: 10, offset: 20 };
+		// ...but they are mutually exclusive, so combining them is a type error.
+		// @ts-expect-error cursor and offset cannot be supplied together
+		const both: CollectionFilter = { limit: 10, cursor: "abc", offset: 20 };
+		expect([cursorOnly, offsetOnly, both]).toHaveLength(3);
 	});
 });

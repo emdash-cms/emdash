@@ -603,24 +603,17 @@ export interface WhereRange {
 export type WhereValue = string | string[] | WhereRange;
 
 /**
- * Filter for loadCollection - type is required
+ * Fields shared by every collection filter, independent of pagination mode.
+ *
+ * Cursor and offset pagination are mutually exclusive, so they live on the
+ * `CursorCollectionFilter` / `OffsetCollectionFilter` variants rather than
+ * here. Use the {@link CollectionFilter} union for any value that may be
+ * either.
  */
-export interface CollectionFilter {
+export interface CollectionFilterBase {
 	type: string;
 	status?: "draft" | "published" | "archived";
 	limit?: number;
-	/**
-	 * Opaque cursor for keyset pagination.
-	 * Pass the `nextCursor` value from a previous result to fetch the next page.
-	 */
-	cursor?: string;
-	/**
-	 * Skip this many rows before returning results (offset pagination).
-	 * Use with `limit` for numbered archive routes (`/page/2`):
-	 * `offset = (page - 1) * perPage`. Ignored unless it is a positive
-	 * integer, and ignored entirely when `cursor` is set (cursor wins).
-	 */
-	offset?: number;
 	/**
 	 * Filter by field values, taxonomy terms, byline credits, or ranges.
 	 *
@@ -647,6 +640,37 @@ export interface CollectionFilter {
 	 */
 	locale?: string;
 }
+
+/** Keyset-paginated collection filter. Cannot also carry an `offset`. */
+export interface CursorCollectionFilter extends CollectionFilterBase {
+	/**
+	 * Opaque cursor for keyset pagination.
+	 * Pass the `nextCursor` value from a previous result to fetch the next page.
+	 */
+	cursor?: string;
+	offset?: never;
+}
+
+/** Offset-paginated collection filter. Cannot also carry a `cursor`. */
+export interface OffsetCollectionFilter extends CollectionFilterBase {
+	/**
+	 * Skip this many rows before returning results (offset pagination).
+	 * Use with `limit` for numbered archive routes (`/page/2`):
+	 * `offset = (page - 1) * perPage`. Ignored unless it is a positive
+	 * integer.
+	 */
+	offset?: number;
+	cursor?: never;
+}
+
+/**
+ * Filter for loadCollection - type is required.
+ *
+ * A union of the cursor and offset pagination variants: supplying both
+ * `cursor` and `offset` is a compile-time error, since they are mutually
+ * exclusive ways to express "the next page" (cursor wins at runtime).
+ */
+export type CollectionFilter = CursorCollectionFilter | OffsetCollectionFilter;
 
 /**
  * Filter for loadEntry - type and id are required

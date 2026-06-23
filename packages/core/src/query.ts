@@ -96,41 +96,17 @@ export type OrderBySpec = Record<string, SortDirection>;
 
 export type { WhereRange, WhereValue };
 
-export interface CollectionFilter {
+/**
+ * Fields shared by every collection query, independent of pagination mode.
+ *
+ * Cursor and offset pagination are mutually exclusive, so they live on the
+ * `CursorCollectionFilter` / `OffsetCollectionFilter` variants rather than
+ * here. Use the {@link CollectionFilter} union for any value that may be
+ * either.
+ */
+export interface CollectionFilterBase {
 	status?: "draft" | "published" | "archived";
 	limit?: number;
-	/**
-	 * Opaque cursor for keyset pagination.
-	 * Pass the `nextCursor` value from a previous result to fetch the next page.
-	 * @example
-	 * ```ts
-	 * const cursor = Astro.url.searchParams.get("cursor") ?? undefined;
-	 * const { entries, nextCursor } = await getEmDashCollection("posts", {
-	 *   limit: 10,
-	 *   cursor,
-	 * });
-	 * ```
-	 */
-	cursor?: string;
-	/**
-	 * Skip this many entries before returning results (offset pagination).
-	 *
-	 * Use with `limit` to render numbered archive routes like `/page/2`
-	 * without walking cursors or over-fetching from the start:
-	 *
-	 * ```ts
-	 * const perPage = 20;
-	 * const { entries, hasMore } = await getEmDashCollection("posts", {
-	 *   limit: perPage,
-	 *   offset: (page - 1) * perPage,
-	 *   orderBy: { published_at: "desc" },
-	 * });
-	 * ```
-	 *
-	 * Only a positive integer applies. Ignored when `cursor` is set —
-	 * cursor (keyset) and offset are mutually exclusive; cursor wins.
-	 */
-	offset?: number;
 	/**
 	 * Filter by field values, taxonomy terms, byline credits, or ranges.
 	 *
@@ -165,6 +141,56 @@ export interface CollectionFilter {
 	 */
 	locale?: string;
 }
+
+/** Keyset-paginated query filter. Cannot also carry an `offset`. */
+export interface CursorCollectionFilter extends CollectionFilterBase {
+	/**
+	 * Opaque cursor for keyset pagination.
+	 * Pass the `nextCursor` value from a previous result to fetch the next page.
+	 * @example
+	 * ```ts
+	 * const cursor = Astro.url.searchParams.get("cursor") ?? undefined;
+	 * const { entries, nextCursor } = await getEmDashCollection("posts", {
+	 *   limit: 10,
+	 *   cursor,
+	 * });
+	 * ```
+	 */
+	cursor?: string;
+	offset?: never;
+}
+
+/** Offset-paginated query filter. Cannot also carry a `cursor`. */
+export interface OffsetCollectionFilter extends CollectionFilterBase {
+	/**
+	 * Skip this many entries before returning results (offset pagination).
+	 *
+	 * Use with `limit` to render numbered archive routes like `/page/2`
+	 * without walking cursors or over-fetching from the start:
+	 *
+	 * ```ts
+	 * const perPage = 20;
+	 * const { entries, hasMore } = await getEmDashCollection("posts", {
+	 *   limit: perPage,
+	 *   offset: (page - 1) * perPage,
+	 *   orderBy: { published_at: "desc" },
+	 * });
+	 * ```
+	 *
+	 * Only a positive integer applies.
+	 */
+	offset?: number;
+	cursor?: never;
+}
+
+/**
+ * Filter for `getEmDashCollection`.
+ *
+ * A union of the cursor and offset pagination variants: supplying both
+ * `cursor` and `offset` is a compile-time error, since they are mutually
+ * exclusive ways to express "the next page" (cursor wins at runtime).
+ */
+export type CollectionFilter = CursorCollectionFilter | OffsetCollectionFilter;
 
 export interface ContentEntry<T = Record<string, unknown>> {
 	id: string;
@@ -663,12 +689,19 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined);
 
 	const requestedLimit = filter?.limit;
+	// cursor and offset are mutually exclusive on the loader filter union, so
+	// spread only the one in play (cursor wins) rather than emitting both keys.
+	const pageParam =
+		filter?.cursor !== undefined
+			? { cursor: filter.cursor }
+			: filter?.offset !== undefined
+				? { offset: filter.offset }
+				: {};
 	const result = await getLiveCollection(COLLECTION_NAME, {
 		type,
 		status: filter?.status,
 		limit: requestedLimit && requestedLimit > 0 ? requestedLimit + 1 : filter?.limit,
-		cursor: filter?.cursor,
-		offset: filter?.offset,
+		...pageParam,
 		where: filter?.where,
 		orderBy: filter?.orderBy,
 		locale: resolvedLocale,
