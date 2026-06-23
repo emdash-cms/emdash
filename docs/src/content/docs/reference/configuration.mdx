@@ -88,6 +88,22 @@ storage: s3({
 
 See [Storage Options](/deployment/storage/) for details.
 
+### `objectCache`
+
+**Optional.** Caches content and configuration query results in a key/value store so reads are served without querying the database on every request. Disabled when omitted. Choose one adapter:
+
+```js
+// Cloudflare KV (shared across all isolates)
+import { kvCache } from "@emdash-cms/cloudflare";
+objectCache: kvCache({ binding: "CACHE" });
+
+// In-memory (Node.js / development)
+import { memoryCache } from "emdash/astro";
+objectCache: memoryCache();
+```
+
+See [Object Cache](/deployment/object-cache/) for setup and options.
+
 ### `plugins`
 
 **Optional.** Array of EmDash plugins. The following example registers one plugin:
@@ -560,6 +576,39 @@ fetch handler, not through `process.env`, so `S3_*` environment variables are
 not picked up. Workers deployments should either use the [`r2(config)`](#r2config)
 adapter or pass explicit values to `s3({...})`. See
 [Storage Options](/deployment/storage/#s3-compatible-storage) for details.
+
+## Object cache adapters
+
+Pass one of these to the [`objectCache`](#objectcache) option.
+
+### `kvCache(config)`
+
+Cloudflare KV backend, shared across all isolates. Import from `@emdash-cms/cloudflare`.
+
+```js
+kvCache({
+	binding: "CACHE", // KV binding name (required)
+	defaultTtl: 3600, // entry TTL in seconds (optional, KV minimum 60)
+	revalidate: 1000, // cross-isolate staleness window in ms (optional)
+	timeout: 2000, // per-op timeout in ms before a miss (optional, 0 disables)
+	keyPrefix: "em", // cache key prefix (optional)
+})
+```
+
+### `memoryCache(config?)`
+
+In-process backend for Node.js and development. Import from `emdash/astro`.
+
+```js
+memoryCache({
+	defaultTtl: 3600, // entry TTL in seconds (optional)
+	revalidate: 1000, // staleness window in ms (optional)
+	maxEntries: 1000, // max cached keys before eviction (optional)
+	keyPrefix: "em", // cache key prefix (optional)
+})
+```
+
+See [Object Cache](/deployment/object-cache/) for setup and behavior.
 
 ## Live collections
 

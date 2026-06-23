@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Guest"
 msgstr " - ผู้เยี่ยมชม"
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Linked"
 msgstr " - เชื่อมโยงแล้ว"
 
@@ -35,7 +35,7 @@ msgstr " (เปิดในหน้าต่างใหม่)"
 msgid " (selected)"
 msgstr " (เลือกแล้ว)"
 
-#: packages/admin/src/routes/bylines.tsx:700
+#: packages/admin/src/routes/bylines.tsx:707
 msgid "-- Select --"
 msgstr ""
 
@@ -744,7 +744,7 @@ msgstr "ทั้งหมด"
 msgid "All authors"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:406
+#: packages/admin/src/routes/bylines.tsx:413
 msgid "All bylines"
 msgstr "ชื่อผู้เขียนทั้งหมด"
 
@@ -1130,7 +1130,7 @@ msgstr "ก่อนส่ง:"
 msgid "Bing Verification"
 msgstr "การยืนยัน Bing"
 
-#: packages/admin/src/routes/bylines.tsx:490
+#: packages/admin/src/routes/bylines.tsx:497
 msgid "Bio"
 msgstr "ประวัติย่อ"
 
@@ -1181,13 +1181,13 @@ msgid "Bullet List"
 msgstr "รายการแบบจุด"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:377
+#: packages/admin/src/routes/bylines.tsx:384
 msgid "Byline schema"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:993
 #: packages/admin/src/components/Sidebar.tsx:363
-#: packages/admin/src/routes/bylines.tsx:369
+#: packages/admin/src/routes/bylines.tsx:376
 msgid "Bylines"
 msgstr "ชื่อผู้เขียน"
 
@@ -1711,7 +1711,7 @@ msgstr "ตรวจไม่พบ WordPress"
 msgid "Couldn't load byline fields."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:541
+#: packages/admin/src/routes/bylines.tsx:548
 msgid "Couldn't load custom fields."
 msgstr ""
 
@@ -1738,7 +1738,7 @@ msgstr "จำนวน"
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:479
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Create"
 msgstr "สร้าง"
 
@@ -1769,7 +1769,7 @@ msgid "Create an account"
 msgstr "สร้างบัญชี"
 
 #: packages/admin/src/components/ContentEditor.tsx:2001
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Create byline"
 msgstr "สร้างชื่อผู้เขียน"
 
@@ -2055,8 +2055,8 @@ msgstr "กำหนดไว้ในโค้ด"
 #: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:636
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:582
-#: packages/admin/src/routes/bylines.tsx:618
+#: packages/admin/src/routes/bylines.tsx:589
+#: packages/admin/src/routes/bylines.tsx:625
 msgid "Delete"
 msgstr "ลบ"
 
@@ -2101,7 +2101,7 @@ msgstr "ลบ {0} หรือไม่?"
 msgid "Delete byline field?"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:616
+#: packages/admin/src/routes/bylines.tsx:623
 msgid "Delete Byline?"
 msgstr "ลบชื่อผู้เขียนหรือไม่?"
 
@@ -2204,7 +2204,7 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:637
-#: packages/admin/src/routes/bylines.tsx:619
+#: packages/admin/src/routes/bylines.tsx:626
 msgid "Deleting..."
 msgstr "กำลังลบ..."
 
@@ -2359,7 +2359,7 @@ msgstr "แสดงเมนูนำทาง"
 
 #: packages/admin/src/components/ContentEditor.tsx:2004
 #: packages/admin/src/components/ContentEditor.tsx:2066
-#: packages/admin/src/routes/bylines.tsx:475
+#: packages/admin/src/routes/bylines.tsx:482
 msgid "Display name"
 msgstr "ชื่อที่แสดง"
 
@@ -2532,7 +2532,7 @@ msgstr "แก้ไข"
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Edit {0}"
 msgstr "แก้ไข {0}"
 
@@ -3133,7 +3133,7 @@ msgid "Failed to load allowed domains"
 msgstr "โหลดโดเมนที่อนุญาตไม่สำเร็จ"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:359
+#: packages/admin/src/routes/bylines.tsx:366
 msgid "Failed to load bylines: {0}"
 msgstr "โหลดชื่อผู้เขียนไม่สำเร็จ: {0}"
 
@@ -3476,7 +3476,7 @@ msgstr "กรองตามสถานะ"
 msgid "Filter by type"
 msgstr "กรองตามประเภท"
 
-#: packages/admin/src/routes/bylines.tsx:402
+#: packages/admin/src/routes/bylines.tsx:409
 msgid "Filter byline type"
 msgstr "กรองตามประเภทชื่อผู้เขียน"
 
@@ -3558,11 +3558,11 @@ msgstr "มุมมองตาราง"
 msgid "Group (optional)"
 msgstr "กลุ่ม (ไม่บังคับ)"
 
-#: packages/admin/src/routes/bylines.tsx:549
+#: packages/admin/src/routes/bylines.tsx:556
 msgid "Guest byline"
 msgstr "ชื่อผู้เขียนรับเชิญ"
 
-#: packages/admin/src/routes/bylines.tsx:407
+#: packages/admin/src/routes/bylines.tsx:414
 msgid "Guest only"
 msgstr "เฉพาะผู้มาเยือนเท่านั้น"
 
@@ -4109,11 +4109,11 @@ msgstr "ลิงก์ไปยังรายการเนื้อหาอ
 msgid "Linked Accounts ({0})"
 msgstr "บัญชีที่เชื่อมโยง ({0})"
 
-#: packages/admin/src/routes/bylines.tsx:408
+#: packages/admin/src/routes/bylines.tsx:415
 msgid "Linked only"
 msgstr "เชื่อมโยงเท่านั้น"
 
-#: packages/admin/src/routes/bylines.tsx:500
+#: packages/admin/src/routes/bylines.tsx:507
 msgid "Linked user"
 msgstr "ผู้ใช้ที่เชื่อมโยง"
 
@@ -4137,7 +4137,7 @@ msgstr "มุมมองสด"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Load more"
 msgstr "โหลดเพิ่มเติม"
 
@@ -4230,7 +4230,7 @@ msgstr "กำลังโหลดวิดเจ็ต..."
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
 #: packages/admin/src/components/WelcomeModal.tsx:143
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Loading..."
 msgstr "กำลังโหลด..."
 
@@ -4623,7 +4623,7 @@ msgstr "ไม่เลย"
 msgid "new"
 msgstr "ใหม่"
 
-#: packages/admin/src/routes/bylines.tsx:420
+#: packages/admin/src/routes/bylines.tsx:427
 msgid "New"
 msgstr "ใหม่"
 
@@ -4756,7 +4756,7 @@ msgstr ""
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "ไม่มีชื่อผู้เขียนให้ใช้งานใน {entryLocale} สร้างรูปแบบจากหน้าชื่อผู้เขียนก่อนที่จะระบุเครดิตในรายการนี้"
 
-#: packages/admin/src/routes/bylines.tsx:446
+#: packages/admin/src/routes/bylines.tsx:453
 msgid "No bylines found"
 msgstr "ไม่พบชื่อผู้เขียน"
 
@@ -4845,7 +4845,7 @@ msgstr "ยังไม่มีรายการ"
 msgid "No limit"
 msgstr "ไม่จำกัด"
 
-#: packages/admin/src/routes/bylines.tsx:511
+#: packages/admin/src/routes/bylines.tsx:518
 msgid "No linked user"
 msgstr "ไม่มีผู้ใช้ที่เชื่อมโยง"
 
@@ -5899,7 +5899,7 @@ msgstr "หน้าต่างเดียวกัน"
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Save"
 msgstr "บันทึก"
 
@@ -5970,7 +5970,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Saving..."
 msgstr "กำลังบันทึก..."
 
@@ -6096,7 +6096,7 @@ msgid "Search by name or email..."
 msgstr "ค้นหาตามชื่อหรืออีเมล..."
 
 #: packages/admin/src/components/ContentEditor.tsx:1898
-#: packages/admin/src/routes/bylines.tsx:395
+#: packages/admin/src/routes/bylines.tsx:402
 msgid "Search bylines"
 msgstr "ค้นหาชื่อผู้เขียน"
 
@@ -6617,7 +6617,7 @@ msgstr "ข้ามแล้ว"
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:398
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:480
+#: packages/admin/src/routes/bylines.tsx:487
 msgid "Slug"
 msgstr "Slug"
 
@@ -6981,7 +6981,7 @@ msgstr "กฎการเปลี่ยนเส้นทางนี้จะ
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "รุ่นนี้ต้องการสภาพแวดล้อมที่ใหม่กว่าที่เว็บไซต์ของคุณใช้อยู่ กรุณาอัปเกรดก่อนติดตั้ง"
 
-#: packages/admin/src/routes/bylines.tsx:617
+#: packages/admin/src/routes/bylines.tsx:624
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "การดำเนินการนี้จะนำโปรไฟล์ชื่อผู้เขียนออก ลิงก์ชื่อผู้เขียนในเนื้อหาจะถูกนำออกและตัวชี้รายการนำจะถูกล้าง"
 
@@ -7726,7 +7726,7 @@ msgstr "WebAuthn ไม่รองรับในเบราว์เซอร
 msgid "Website"
 msgstr "เว็บไซต์"
 
-#: packages/admin/src/routes/bylines.tsx:485
+#: packages/admin/src/routes/bylines.tsx:492
 msgid "Website URL"
 msgstr "URL ของเว็บไซต์"
 
@@ -7857,7 +7857,7 @@ msgstr "คุณสามารถสร้างและแก้ไขเน
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "คุณสามารถจัดการเนื้อหา มีเดีย เมนู และอนุกรมวิธานได้"
 
-#: packages/admin/src/routes/bylines.tsx:543
+#: packages/admin/src/routes/bylines.tsx:550
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr ""
 

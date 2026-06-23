@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	createIsolateCache,
-	invalidateIsolateCache,
-	isolateCachedAsync,
-} from "../../../src/utils/isolate-cache.js";
+	createSingleFlightCache,
+	invalidateSingleFlightCache,
+	singleFlightCached,
+} from "../../../src/utils/single-flight-cache.js";
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -18,16 +18,16 @@ function neverSettles<T>(): Promise<T> {
 	return new Promise<T>(() => {});
 }
 
-describe("isolateCachedAsync", () => {
+describe("singleFlightCached", () => {
 	it("caches the resolved value across calls (one fetch)", async () => {
-		const cache = createIsolateCache<number>();
+		const cache = createSingleFlightCache<number>();
 		let calls = 0;
 		const fetch = async () => {
 			calls++;
 			return 5;
 		};
-		expect(await isolateCachedAsync(cache, fetch, { pollMs: 10 })).toBe(5);
-		expect(await isolateCachedAsync(cache, fetch, { pollMs: 10 })).toBe(5);
+		expect(await singleFlightCached(cache, fetch, { pollMs: 10 })).toBe(5);
+		expect(await singleFlightCached(cache, fetch, { pollMs: 10 })).toBe(5);
 		expect(calls).toBe(1);
 	});
 
@@ -35,18 +35,18 @@ describe("isolateCachedAsync", () => {
 		// The reason the cache stores a boxed value + presence flag rather
 		// than relying on a null check: a falsy/void result must still count
 		// as cached. Without the box this would refetch every call.
-		const cache = createIsolateCache<void>();
+		const cache = createSingleFlightCache<void>();
 		let calls = 0;
 		const fetch = async () => {
 			calls++;
 		};
-		await isolateCachedAsync(cache, fetch, { pollMs: 10 });
-		await isolateCachedAsync(cache, fetch, { pollMs: 10 });
+		await singleFlightCached(cache, fetch, { pollMs: 10 });
+		await singleFlightCached(cache, fetch, { pollMs: 10 });
 		expect(calls).toBe(1);
 	});
 
 	it("coalesces concurrent callers into a single fetch", async () => {
-		const cache = createIsolateCache<number>();
+		const cache = createSingleFlightCache<number>();
 		let calls = 0;
 		const fetch = async () => {
 			calls++;
@@ -54,20 +54,20 @@ describe("isolateCachedAsync", () => {
 			return 7;
 		};
 		const results = await Promise.all(
-			Array.from({ length: 5 }, () => isolateCachedAsync(cache, fetch, { pollMs: 5 })),
+			Array.from({ length: 5 }, () => singleFlightCached(cache, fetch, { pollMs: 5 })),
 		);
 		expect(results).toEqual([7, 7, 7, 7, 7]);
 		expect(calls).toBe(1);
 	});
 
-	it("invalidateIsolateCache forces a refetch", async () => {
-		const cache = createIsolateCache<number>();
+	it("invalidateSingleFlightCache forces a refetch", async () => {
+		const cache = createSingleFlightCache<number>();
 		let n = 0;
 		const fetch = async () => ++n;
-		expect(await isolateCachedAsync(cache, fetch, { pollMs: 10 })).toBe(1);
-		expect(await isolateCachedAsync(cache, fetch, { pollMs: 10 })).toBe(1);
-		invalidateIsolateCache(cache);
-		expect(await isolateCachedAsync(cache, fetch, { pollMs: 10 })).toBe(2);
+		expect(await singleFlightCached(cache, fetch, { pollMs: 10 })).toBe(1);
+		expect(await singleFlightCached(cache, fetch, { pollMs: 10 })).toBe(1);
+		invalidateSingleFlightCache(cache);
+		expect(await singleFlightCached(cache, fetch, { pollMs: 10 })).toBe(2);
 	});
 
 	it("a stranded owner fetch does not poison later callers", async () => {
@@ -76,9 +76,9 @@ describe("isolateCachedAsync", () => {
 		// in-flight promise" approach every later caller awaited that dead
 		// promise forever. Here later callers poll a value, reclaim the stale
 		// lock after the deadline, and succeed.
-		const cache = createIsolateCache<string>();
+		const cache = createSingleFlightCache<string>();
 
-		void isolateCachedAsync(cache, () => neverSettles<string>(), {
+		void singleFlightCached(cache, () => neverSettles<string>(), {
 			deadlineMs: 100,
 			pollMs: 10,
 		});
@@ -86,7 +86,7 @@ describe("isolateCachedAsync", () => {
 
 		await sleep(120);
 
-		const result = await isolateCachedAsync(cache, async () => "recovered", {
+		const result = await singleFlightCached(cache, async () => "recovered", {
 			deadlineMs: 100,
 			pollMs: 10,
 			maxWaitMs: 1000,
@@ -95,9 +95,9 @@ describe("isolateCachedAsync", () => {
 	});
 
 	it("rejects the owner at ownerTimeoutMs instead of hanging forever", async () => {
-		const cache = createIsolateCache<string>();
+		const cache = createSingleFlightCache<string>();
 		await expect(
-			isolateCachedAsync(cache, () => neverSettles<string>(), {
+			singleFlightCached(cache, () => neverSettles<string>(), {
 				ownerTimeoutMs: 50,
 				deadlineMs: 60_000, // high so reclaim doesn't mask the owner timeout
 				pollMs: 10,
@@ -109,7 +109,7 @@ describe("isolateCachedAsync", () => {
 		// A slow-but-live fetch: the owner gives up at ownerTimeoutMs, but the
 		// anchored copy keeps running and populates the cache, so the next
 		// caller is served without refetching.
-		const cache = createIsolateCache<string>();
+		const cache = createSingleFlightCache<string>();
 		let release!: (value: string) => void;
 		const slow = new Promise<string>((resolve) => {
 			release = resolve;
@@ -117,7 +117,7 @@ describe("isolateCachedAsync", () => {
 		const anchored: Promise<void>[] = [];
 
 		await expect(
-			isolateCachedAsync(cache, () => slow, {
+			singleFlightCached(cache, () => slow, {
 				ownerTimeoutMs: 50,
 				deadlineMs: 60_000,
 				pollMs: 10,
@@ -129,7 +129,7 @@ describe("isolateCachedAsync", () => {
 		await Promise.all(anchored);
 
 		let calls = 0;
-		const result = await isolateCachedAsync(
+		const result = await singleFlightCached(
 			cache,
 			async () => {
 				calls++;
@@ -146,7 +146,7 @@ describe("isolateCachedAsync", () => {
 		// waiter reclaim before the owner finishes — a self-sustaining stampede
 		// that never populates the cache. The helper must raise the effective
 		// deadline above the owner timeout.
-		const cache = createIsolateCache<string>();
+		const cache = createSingleFlightCache<string>();
 		let calls = 0;
 		const fetch = async () => {
 			calls++;
@@ -154,29 +154,29 @@ describe("isolateCachedAsync", () => {
 			return "v";
 		};
 		const opts = { deadlineMs: 30, ownerTimeoutMs: 1000, pollMs: 10, maxWaitMs: 5000 };
-		const a = isolateCachedAsync(cache, fetch, opts);
+		const a = singleFlightCached(cache, fetch, opts);
 		await sleep(20);
-		const b = isolateCachedAsync(cache, fetch, opts);
+		const b = singleFlightCached(cache, fetch, opts);
 		expect(await a).toBe("v");
 		expect(await b).toBe("v");
 		expect(calls).toBe(1);
 	});
 
 	it("invalidation frees the lock so a fresh reader doesn't wait out a stale owner", async () => {
-		const cache = createIsolateCache<string>();
+		const cache = createSingleFlightCache<string>();
 		// A slow/stuck in-flight owner holds the lock.
-		void isolateCachedAsync(cache, () => neverSettles<string>(), {
+		void singleFlightCached(cache, () => neverSettles<string>(), {
 			deadlineMs: 10_000,
 			pollMs: 10,
 		});
 		expect(cache.lock.ownerStartedAt).not.toBeNull();
 
-		invalidateIsolateCache(cache);
+		invalidateSingleFlightCache(cache);
 		expect(cache.lock.ownerStartedAt).toBeNull();
 
 		// maxWaitMs (200) is far below deadlineMs (10s): without the lock being
 		// freed, the fresh reader would give up before it could ever reclaim.
-		const result = await isolateCachedAsync(cache, async () => "fresh", {
+		const result = await singleFlightCached(cache, async () => "fresh", {
 			deadlineMs: 10_000,
 			pollMs: 10,
 			maxWaitMs: 200,
@@ -185,8 +185,8 @@ describe("isolateCachedAsync", () => {
 	});
 
 	it("ignores a non-positive ownerTimeoutMs instead of rejecting instantly", async () => {
-		const cache = createIsolateCache<string>();
-		const result = await isolateCachedAsync(cache, async () => "v", {
+		const cache = createSingleFlightCache<string>();
+		const result = await singleFlightCached(cache, async () => "v", {
 			ownerTimeoutMs: 0,
 			pollMs: 10,
 		});
@@ -194,13 +194,13 @@ describe("isolateCachedAsync", () => {
 	});
 
 	it("propagates a fetch rejection to the caller and lets the next caller retry", async () => {
-		const cache = createIsolateCache<string>();
+		const cache = createSingleFlightCache<string>();
 		await expect(
-			isolateCachedAsync(cache, () => Promise.reject(new Error("boom")), { pollMs: 10 }),
+			singleFlightCached(cache, () => Promise.reject(new Error("boom")), { pollMs: 10 }),
 		).rejects.toThrow("boom");
 		expect(cache.lock.ownerStartedAt).toBeNull();
 
-		const result = await isolateCachedAsync(cache, async () => "ok", { pollMs: 10 });
+		const result = await singleFlightCached(cache, async () => "ok", { pollMs: 10 });
 		expect(result).toBe("ok");
 	});
 });

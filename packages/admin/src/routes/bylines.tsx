@@ -1,7 +1,7 @@
 import { Button, Input, InputArea, Loader, Select, Switch } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { IdentificationCard } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -153,6 +153,13 @@ export function BylinesPage() {
 				locale: activeLocale,
 				limit: 50,
 			}),
+		// Keep the previous results on screen while a new search/filter query
+		// loads. Without this, changing the query key drops `data` to
+		// `undefined`, the `isLoading && !data` gate re-engages, and the whole
+		// page collapses into the full-page loader on every settled keystroke —
+		// the focus-losing "reload" reported in #1220 that the debounce alone
+		// only reduced in frequency. Matches ContentEditor's search pattern.
+		placeholderData: keepPreviousData,
 	});
 
 	// Reset accumulated items when filters change

@@ -3,6 +3,10 @@ import { ulid } from "ulidx";
 
 import { getBylineFieldDefs } from "../../bylines/field-defs-cache.js";
 import {
+	invalidateBylineObjectCache,
+	invalidateCollectionCache,
+} from "../../object-cache/index.js";
+import {
 	clearRequestCacheEntry,
 	peekRequestCache,
 	setRequestCacheEntry,
@@ -773,6 +777,7 @@ export class BylineRepository {
 		if (touchedGroupShared) {
 			clearRequestCacheEntry(`byline-field-group-values:${translationGroup}`);
 		}
+		invalidateBylineObjectCache();
 
 		const byline = await this.findById(id);
 		if (!byline) {
@@ -820,6 +825,7 @@ export class BylineRepository {
 		if (touchedGroupShared) {
 			clearRequestCacheEntry(`byline-field-group-values:${group}`);
 		}
+		invalidateBylineObjectCache();
 
 		return await this.findById(id);
 	}
@@ -908,6 +914,7 @@ export class BylineRepository {
 			}
 		});
 
+		invalidateBylineObjectCache();
 		return true;
 	}
 
@@ -1271,6 +1278,9 @@ export class BylineRepository {
 			SET primary_byline_id = ${firstByline}
 			WHERE id = ${targetContentId}
 		`.execute(this.db);
+
+		// Byline credits are folded into the target entry's cached payload.
+		invalidateCollectionCache(collection);
 	}
 
 	/**
@@ -1364,6 +1374,9 @@ export class BylineRepository {
 			SET primary_byline_id = ${primaryGroup}
 			WHERE id = ${contentId}
 		`.execute(this.db);
+
+		// Byline credits are folded into this entry's cached payload.
+		invalidateCollectionCache(collectionSlug);
 
 		return await this.getContentBylines(collectionSlug, contentId);
 	}

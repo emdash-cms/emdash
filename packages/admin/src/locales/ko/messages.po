@@ -13,11 +13,11 @@ msgstr ""
 "Last-Translator: \n"
 "Language-Team: \n"
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Guest"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Linked"
 msgstr ""
 
@@ -35,7 +35,7 @@ msgstr " (새 창에서 열립니다)"
 msgid " (selected)"
 msgstr " (선택됨)"
 
-#: packages/admin/src/routes/bylines.tsx:700
+#: packages/admin/src/routes/bylines.tsx:707
 msgid "-- Select --"
 msgstr ""
 
@@ -744,7 +744,7 @@ msgstr "모두"
 msgid "All authors"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:406
+#: packages/admin/src/routes/bylines.tsx:413
 msgid "All bylines"
 msgstr ""
 
@@ -1130,7 +1130,7 @@ msgstr "보내기 전:"
 msgid "Bing Verification"
 msgstr "빙 확인"
 
-#: packages/admin/src/routes/bylines.tsx:490
+#: packages/admin/src/routes/bylines.tsx:497
 msgid "Bio"
 msgstr ""
 
@@ -1181,13 +1181,13 @@ msgid "Bullet List"
 msgstr "글머리 기호 목록"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:377
+#: packages/admin/src/routes/bylines.tsx:384
 msgid "Byline schema"
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:993
 #: packages/admin/src/components/Sidebar.tsx:363
-#: packages/admin/src/routes/bylines.tsx:369
+#: packages/admin/src/routes/bylines.tsx:376
 msgid "Bylines"
 msgstr "작성자 정보"
 
@@ -1711,7 +1711,7 @@ msgstr "WordPress를 감지할 수 없습니다."
 msgid "Couldn't load byline fields."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:541
+#: packages/admin/src/routes/bylines.tsx:548
 msgid "Couldn't load custom fields."
 msgstr ""
 
@@ -1738,7 +1738,7 @@ msgstr "수"
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:479
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Create"
 msgstr "생성"
 
@@ -1769,7 +1769,7 @@ msgid "Create an account"
 msgstr "계정 만들기"
 
 #: packages/admin/src/components/ContentEditor.tsx:2001
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Create byline"
 msgstr "바이라인 추가"
 
@@ -2055,8 +2055,8 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:636
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:582
-#: packages/admin/src/routes/bylines.tsx:618
+#: packages/admin/src/routes/bylines.tsx:589
+#: packages/admin/src/routes/bylines.tsx:625
 msgid "Delete"
 msgstr "삭제"
 
@@ -2101,7 +2101,7 @@ msgstr "{0}을(를) 삭제하시겠습니까?"
 msgid "Delete byline field?"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:616
+#: packages/admin/src/routes/bylines.tsx:623
 msgid "Delete Byline?"
 msgstr ""
 
@@ -2204,7 +2204,7 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:637
-#: packages/admin/src/routes/bylines.tsx:619
+#: packages/admin/src/routes/bylines.tsx:626
 msgid "Deleting..."
 msgstr "삭제 중..."
 
@@ -2359,7 +2359,7 @@ msgstr "탐색 메뉴 표시"
 
 #: packages/admin/src/components/ContentEditor.tsx:2004
 #: packages/admin/src/components/ContentEditor.tsx:2066
-#: packages/admin/src/routes/bylines.tsx:475
+#: packages/admin/src/routes/bylines.tsx:482
 msgid "Display name"
 msgstr "표시 이름"
 
@@ -2532,7 +2532,7 @@ msgstr "편집"
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Edit {0}"
 msgstr "{0} 수정"
 
@@ -3133,7 +3133,7 @@ msgid "Failed to load allowed domains"
 msgstr "허용된 도메인을 로드하지 못했습니다."
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:359
+#: packages/admin/src/routes/bylines.tsx:366
 msgid "Failed to load bylines: {0}"
 msgstr ""
 
@@ -3476,7 +3476,7 @@ msgstr ""
 msgid "Filter by type"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:402
+#: packages/admin/src/routes/bylines.tsx:409
 msgid "Filter byline type"
 msgstr ""
 
@@ -3558,11 +3558,11 @@ msgstr "그리드 보기"
 msgid "Group (optional)"
 msgstr "그룹(선택사항)"
 
-#: packages/admin/src/routes/bylines.tsx:549
+#: packages/admin/src/routes/bylines.tsx:556
 msgid "Guest byline"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:407
+#: packages/admin/src/routes/bylines.tsx:414
 msgid "Guest only"
 msgstr ""
 
@@ -4109,11 +4109,11 @@ msgstr "다른 콘텐츠 항목에 대한 링크"
 msgid "Linked Accounts ({0})"
 msgstr "연결된 계정({0})"
 
-#: packages/admin/src/routes/bylines.tsx:408
+#: packages/admin/src/routes/bylines.tsx:415
 msgid "Linked only"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:500
+#: packages/admin/src/routes/bylines.tsx:507
 msgid "Linked user"
 msgstr ""
 
@@ -4137,7 +4137,7 @@ msgstr "실시간 미리보기"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Load more"
 msgstr "더 보기"
 
@@ -4230,7 +4230,7 @@ msgstr ""
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
 #: packages/admin/src/components/WelcomeModal.tsx:143
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Loading..."
 msgstr "로드 중..."
 
@@ -4623,7 +4623,7 @@ msgstr "없음"
 msgid "new"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:420
+#: packages/admin/src/routes/bylines.tsx:427
 msgid "New"
 msgstr ""
 
@@ -4756,7 +4756,7 @@ msgstr ""
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:446
+#: packages/admin/src/routes/bylines.tsx:453
 msgid "No bylines found"
 msgstr ""
 
@@ -4845,7 +4845,7 @@ msgstr "아직 항목이 없습니다"
 msgid "No limit"
 msgstr "제한 없음"
 
-#: packages/admin/src/routes/bylines.tsx:511
+#: packages/admin/src/routes/bylines.tsx:518
 msgid "No linked user"
 msgstr ""
 
@@ -5896,7 +5896,7 @@ msgstr "현재 창"
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Save"
 msgstr "저장"
 
@@ -5967,7 +5967,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Saving..."
 msgstr "저장 중..."
 
@@ -6093,7 +6093,7 @@ msgid "Search by name or email..."
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1898
-#: packages/admin/src/routes/bylines.tsx:395
+#: packages/admin/src/routes/bylines.tsx:402
 msgid "Search bylines"
 msgstr ""
 
@@ -6614,7 +6614,7 @@ msgstr "건너뜀"
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:398
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:480
+#: packages/admin/src/routes/bylines.tsx:487
 msgid "Slug"
 msgstr "슬러그"
 
@@ -6978,7 +6978,7 @@ msgstr "이 리디렉션 규칙은 영구적으로 삭제됩니다."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:617
+#: packages/admin/src/routes/bylines.tsx:624
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr ""
 
@@ -7723,7 +7723,7 @@ msgstr "이 브라우저에서는 WebAuthn이 지원되지 않습니다."
 msgid "Website"
 msgstr "웹사이트"
 
-#: packages/admin/src/routes/bylines.tsx:485
+#: packages/admin/src/routes/bylines.tsx:492
 msgid "Website URL"
 msgstr ""
 
@@ -7854,7 +7854,7 @@ msgstr "본인의 콘텐츠를 작성하고 수정할 수 있습니다."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "콘텐츠, 미디어, 메뉴, 택소노미를 관리할 수 있습니다."
 
-#: packages/admin/src/routes/bylines.tsx:543
+#: packages/admin/src/routes/bylines.tsx:550
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr ""
 

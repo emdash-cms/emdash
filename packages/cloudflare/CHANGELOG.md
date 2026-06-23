@@ -1,5 +1,49 @@
 # @emdash-cms/cloudflare
 
+## 0.22.0
+
+### Minor Changes
+
+- [#1378](https://github.com/emdash-cms/emdash/pull/1378) [`640e60a`](https://github.com/emdash-cms/emdash/commit/640e60a56e3d3e60925ba4d7a1cf0fbd04b3d5c2) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Add an optional distributed object cache for query results.
+
+  Content reads (`getEmDashCollection`, `getEmDashEntry`, `resolveEmDashPath`) and chrome reads (site settings, menus, taxonomies) can now be served from a fast key/value store instead of hitting the database on every request. This sits beneath the per-request cache and above the database, dramatically reducing read pressure on D1/SQLite — especially valuable on Cloudflare, where KV handles far more requests than D1.
+
+  The cache is **off by default** and fully opt-in. Configure a backend in `astro.config.mjs`:
+
+  ```ts
+  import { kvCache } from "@emdash-cms/cloudflare"; // Workers KV (distributed)
+  import { memoryCache } from "emdash/astro"; // in-isolate (Node / local dev)
+
+  emdash({
+  	database: d1({ binding: "DB" }),
+  	objectCache: kvCache({ binding: "CACHE" }),
+  });
+  ```
+
+  with a matching KV binding in `wrangler.jsonc`:
+
+  ```jsonc
+  { "kv_namespaces": [{ "binding": "CACHE", "id": "<namespace-id>" }] }
+  ```
+
+  Invalidation is epoch-based and automatic: content, byline, taxonomy, menu, and settings writes bump a per-namespace version, instantly orphaning stale entries (no key enumeration needed). Preview and visual-edit requests bypass the cache, so editors previewing see live content; other reads are served from the cache, which only ever stores published content. After an edit, anonymous visitors may see stale content until isolates pick up the bumped epoch — immediate on the in-isolate memory backend, and on KV bounded by KV's edge-cache propagation (eventually consistent, up to ~60s) plus the `revalidate` window (default 1s, configurable).
+
+  New public API: `cachedQuery`, `invalidateObjectCache`, `invalidateCollectionCache`, `contentNamespace`/`contentNamespaces`, `CacheNamespace`, the `ObjectCache*` types (from `emdash`), `memoryCache()` (from `emdash/astro`), and `kvCache()` (from `@emdash-cms/cloudflare`). Existing sites are unaffected until they opt in.
+
+- [#1549](https://github.com/emdash-cms/emdash/pull/1549) [`a623c6b`](https://github.com/emdash-cms/emdash/commit/a623c6b7dbdc82c8562f32a619af23ea147306b6) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes responsive image optimization for storage-backed media on Cloudflare. EmDash now wraps Astro's image endpoint to read media bytes directly from your storage adapter instead of fetching them over HTTP, so `Image` and Portable Text images generate a real responsive `srcset` even when the site is behind Cloudflare Access (previously these 404'd and fell back to a full-size image). This is on by default and also removes an internal HTTP round-trip on Node. Set `images: false` in your `emdash()` config to leave Astro's image endpoint untouched.
+
+### Patch Changes
+
+- Updated dependencies [[`0bfab91`](https://github.com/emdash-cms/emdash/commit/0bfab91765514f4a8bd164d7373c8c81e3d5b446), [`cf17c9f`](https://github.com/emdash-cms/emdash/commit/cf17c9f4c8faa46857d92d4b168452d2469dba4b), [`707edee`](https://github.com/emdash-cms/emdash/commit/707edee3bdf31b53f33507e1f528a0e5803fd150), [`a36b5f3`](https://github.com/emdash-cms/emdash/commit/a36b5f3e1e452d48a690878d4f078f85a6d99715), [`d46abfd`](https://github.com/emdash-cms/emdash/commit/d46abfdb739f8d242eddba5ebfda09a8648c8ecf), [`ed921d8`](https://github.com/emdash-cms/emdash/commit/ed921d80ec33fa114d9c8a7f9221f1fbeb24d658), [`6a97bac`](https://github.com/emdash-cms/emdash/commit/6a97bacaf6ef8b006b32879e4625ebb48da6f5bd), [`c219aff`](https://github.com/emdash-cms/emdash/commit/c219aff3b867e178ee267823801db66bbc9b1621), [`640e60a`](https://github.com/emdash-cms/emdash/commit/640e60a56e3d3e60925ba4d7a1cf0fbd04b3d5c2), [`ca47da4`](https://github.com/emdash-cms/emdash/commit/ca47da485ddcf46f7fa7b8efa15c3c20a11c2300), [`cb1c689`](https://github.com/emdash-cms/emdash/commit/cb1c68948072c479ed924b52867809bc8ad1c9e5), [`a623c6b`](https://github.com/emdash-cms/emdash/commit/a623c6b7dbdc82c8562f32a619af23ea147306b6)]:
+  - emdash@0.22.0
+
+## 0.21.0
+
+### Patch Changes
+
+- Updated dependencies [[`b6a5fac`](https://github.com/emdash-cms/emdash/commit/b6a5fac6d3bc88cc5ab49889de264c37262cc5f7), [`23c37f3`](https://github.com/emdash-cms/emdash/commit/23c37f35dfe9ce23fca0d48acea228299d25e19e), [`997d7ee`](https://github.com/emdash-cms/emdash/commit/997d7eea8f39c16eef28577bb8ace0c0413fc38b), [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527), [`37e848b`](https://github.com/emdash-cms/emdash/commit/37e848bf005950a4b312cf5f0a50f7c8820b01fc)]:
+  - emdash@0.21.0
+
 ## 0.20.0
 
 ### Minor Changes

@@ -41,11 +41,13 @@ import type {
 	PublicPageContext,
 	PageMetadataContribution,
 	PageFragmentContribution,
+	PortableTextBlockConfig,
+	FieldWidgetConfig,
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
-import { createIsolateCache, isolateCachedAsync } from "./utils/isolate-cache.js";
+import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
@@ -212,6 +214,10 @@ export interface SandboxedPluginEntry {
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
+	/** Portable Text block types contributed to the editor (declarative Block Kit) */
+	portableTextBlocks?: PortableTextBlockConfig[];
+	/** Field widget types contributed for schema-field editing UIs */
+	fieldWidgets?: FieldWidgetConfig[];
 	/** Admin entry module */
 	adminEntry?: string;
 	/**
@@ -384,7 +390,10 @@ const marketplaceManifestCache = new Map<
 	{
 		id: string;
 		version: string;
-		admin?: { pages?: PluginAdminPage[]; widgets?: PluginDashboardWidget[] };
+		admin?: {
+			pages?: PluginAdminPage[];
+			widgets?: PluginDashboardWidget[];
+		};
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -420,10 +429,10 @@ export class EmDashRuntime {
 	/**
 	 * Isolate-lifetime guard so FTS indexes are verified at most once per
 	 * worker rather than on every admin request. See ensureSearchHealthy().
-	 * Uses the poison-immune isolate cache (never a shared awaitable promise)
-	 * so a cancelled first caller can't wedge later ones.
+	 * Uses the poison-immune single-flight cache (never a shared awaitable
+	 * promise) so a cancelled first caller can't wedge later ones.
 	 */
-	private readonly _searchHealthCache = createIsolateCache<void>();
+	private readonly _searchHealthCache = createSingleFlightCache<void>();
 
 	/** Current hook pipeline. Use the `hooks` getter for external access. */
 	get hooks(): HookPipeline {
@@ -1570,6 +1579,8 @@ export class EmDashRuntime {
 					storage: entry.storage as never,
 					adminPages,
 					adminWidgets,
+					portableTextBlocks: entry.portableTextBlocks,
+					fieldWidgets: entry.fieldWidgets,
 				});
 				plugins.push(resolved);
 				console.log(
@@ -2096,9 +2107,6 @@ export class EmDashRuntime {
 		}
 
 		// Add sandboxed plugins (use entries for admin config)
-		// TODO: sandboxed plugins need fieldWidgets extracted from their manifest
-		// to support Block Kit field widgets. Currently only trusted plugins carry
-		// fieldWidgets through the admin.fieldWidgets path.
 		for (const entry of this.sandboxedPluginEntries) {
 			const status = this.pluginStates.get(entry.id);
 			const enabled = status === undefined || status === "active";
@@ -2110,9 +2118,15 @@ export class EmDashRuntime {
 				version: entry.version,
 				enabled,
 				sandboxed: true,
+				// `adminMode` reflects only admin pages/widgets. A plugin can
+				// contribute portableTextBlocks/fieldWidgets with adminMode "none" —
+				// the admin reads those from the manifest regardless, so don't gate
+				// admin contributions on `adminMode`.
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
 				adminPages: entry.adminPages ?? [],
 				dashboardWidgets: entry.adminWidgets ?? [],
+				portableTextBlocks: entry.portableTextBlocks,
+				fieldWidgets: entry.fieldWidgets,
 			};
 		}
 
@@ -2233,7 +2247,7 @@ export class EmDashRuntime {
 		// branch, no need to cache it.
 		if (!isSqlite(this._db)) return;
 		try {
-			await isolateCachedAsync(
+			await singleFlightCached(
 				this._searchHealthCache,
 				async () => {
 					try {
