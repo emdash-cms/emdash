@@ -44,9 +44,11 @@ app.get("/webhook/admin/runs", async (c) => {
 	if (c.req.query("detail") === "1") {
 		const detailed = await Promise.all(
 			runs.slice(0, 25).map(async (r) => {
-				const rec = (await getRun(r.runId).catch(() => null)) as
-					| { payload?: unknown; error?: unknown; result?: unknown }
-					| null;
+				const rec = (await getRun(r.runId).catch(() => null)) as {
+					payload?: unknown;
+					error?: unknown;
+					result?: unknown;
+				} | null;
 				const payload = rec?.payload as { prNumber?: number } | undefined;
 				const err = rec?.error;
 				return {

@@ -3,9 +3,7 @@
 	"name": "emdash-flue-review",
 	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
 	"compatibility_date": "2026-04-01",
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
+	"compatibility_flags": ["nodejs_compat"],
 	"ai": {
 		"binding": "AI",
 	},
@@ -14,8 +12,8 @@
 	// Replaces the @cloudflare/sandbox container for this read-only reviewer.
 	"worker_loaders": [
 		{
-			"binding": "LOADER"
-		}
+			"binding": "LOADER",
+		},
 	],
 	// Large-file backing store for the cf-shell Workspace. Files over the
 	// inlineThreshold (~1.5 MB), e.g. a git packfile, spill to R2 instead of
@@ -23,8 +21,8 @@
 	"r2_buckets": [
 		{
 			"binding": "REVIEW_WORKSPACE",
-			"bucket_name": "emdash-flue-review-workspace"
-		}
+			"bucket_name": "emdash-flue-review-workspace",
+		},
 	],
 	// Migration history must stay append-only and keep every previously applied
 	// tag so Cloudflare can locate the deployed cursor and apply only what's new.
@@ -36,24 +34,19 @@
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": [
-				"Sandbox"
-			]
+			"new_sqlite_classes": ["Sandbox"],
 		},
 		{
 			"tag": "flue-class-ReviewWorkflow",
-			"new_sqlite_classes": [
-				"ReviewWorkflow",
-				"FlueRegistry"
-			]
+			"new_sqlite_classes": ["ReviewWorkflow", "FlueRegistry"],
 		},
 		{
 			"tag": "v2-flue-0.11",
 			"renamed_classes": [
 				{
 					"from": "ReviewWorkflow",
-					"to": "FlueReviewWorkflow"
-				}
+					"to": "FlueReviewWorkflow",
+				},
 			],
 		},
 		// Reset the FlueRegistry run-index DO. Upgrading @flue in place left its
@@ -68,15 +61,11 @@
 		// (drops + recreates the class, unbound), then a normal deploy rebinds it.
 		{
 			"tag": "v3-reset-registry-drop",
-			"deleted_classes": [
-				"FlueRegistry"
-			]
+			"deleted_classes": ["FlueRegistry"],
 		},
 		{
 			"tag": "v4-reset-registry-new",
-			"new_sqlite_classes": [
-				"FlueRegistry"
-			]
+			"new_sqlite_classes": ["FlueRegistry"],
 		},
 		// Remove the @cloudflare/sandbox container DO: the reviewer moved to the
 		// Worker-Loader-backed cf-shell sandbox (no firecracker container). Sandbox
@@ -84,9 +73,7 @@
 		// one deploy is allowed.
 		{
 			"tag": "v5-remove-sandbox",
-			"deleted_classes": [
-				"Sandbox"
-			]
+			"deleted_classes": ["Sandbox"],
 		},
 	],
 	"vars": {
@@ -102,10 +89,7 @@
 	// container). GITHUB_APP_PRIVATE_KEY must be a PKCS#8 PEM (convert GitHub's
 	// download with `openssl pkcs8 -topk8 -nocrypt -in key.pem`).
 	"secrets": {
-		"required": [
-			"GITHUB_WEBHOOK_SECRET",
-			"GITHUB_APP_PRIVATE_KEY"
-		],
+		"required": ["GITHUB_WEBHOOK_SECRET", "GITHUB_APP_PRIVATE_KEY"],
 	},
 	"observability": {
 		"enabled": true,

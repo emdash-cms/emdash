@@ -11,7 +11,6 @@ import { WorkspaceFileSystem } from "@cloudflare/shell";
 import { createGit } from "@cloudflare/shell/git";
 import { createAgent, type FlueContext, type WorkflowRouteHandler } from "@flue/runtime";
 
-import { getDefaultWorkspace, getShellSandbox } from "../sandboxes/cloudflare-shell.js";
 import { withCapacityRetry } from "../lib/capacity.js";
 import {
 	readAppCreds,
@@ -23,6 +22,7 @@ import {
 	removeReaction,
 } from "../lib/github.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
+import { getDefaultWorkspace, getShellSandbox } from "../sandboxes/cloudflare-shell.js";
 import review from "../skills/review/SKILL.md" with { type: "skill" };
 
 interface ReviewPayload {
@@ -81,7 +81,11 @@ const reviewAgent = createAgent<ReviewPayload, Env>(async ({ id, env, payload })
 			singleBranch: true,
 			depth: 1,
 		});
-		const fetched = await git.fetch({ ref: `pull/${payload.prNumber}/head`, depth: 1, dir: REPO_DIR });
+		const fetched = await git.fetch({
+			ref: `pull/${payload.prNumber}/head`,
+			depth: 1,
+			dir: REPO_DIR,
+		});
 		if (fetched.fetchHead) {
 			await git.checkout({ ref: fetched.fetchHead, dir: REPO_DIR, force: true });
 		}

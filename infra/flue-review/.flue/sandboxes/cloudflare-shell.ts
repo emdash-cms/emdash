@@ -40,7 +40,7 @@ export function getShellSandbox(options: GetShellSandboxOptions): SandboxFactory
 	}
 	if (!options.loader) {
 		throw new Error(
-			"[flue] getShellSandbox requires a WorkerLoader binding. Add { \"worker_loaders\": [{ \"binding\": \"LOADER\" }] } to wrangler.jsonc and pass loader: env.LOADER.",
+			'[flue] getShellSandbox requires a WorkerLoader binding. Add { "worker_loaders": [{ "binding": "LOADER" }] } to wrangler.jsonc and pass loader: env.LOADER.',
 		);
 	}
 
