@@ -11,8 +11,8 @@ Both `search()` and `searchCollection()` now honour `cursor` and return a `nextC
 ```ts
 let cursor: string | undefined;
 do {
-  const { items, nextCursor } = await search("quarterly report", { limit: 20, cursor });
-  render(items);
-  cursor = nextCursor;
+	const { items, nextCursor } = await search("quarterly report", { limit: 20, cursor });
+	render(items);
+	cursor = nextCursor;
 } while (cursor);
 ```
