@@ -160,7 +160,15 @@ function createCodeTool(executor: DynamicWorkerExecutor, stateProvider: Resolved
 		description: buildCodeToolDescription(),
 		parameters: CodeParams,
 		async execute(_toolCallId: string, params: unknown) {
-			const code = (params as { code: string }).code;
+			if (
+				typeof params !== "object" ||
+				params === null ||
+				!("code" in params) ||
+				typeof params.code !== "string"
+			) {
+				throw new Error("code tool: missing or invalid 'code' parameter");
+			}
+			const code = params.code;
 			const { result, error, logs } = await executor.execute(code, [stateProvider]);
 			if (error) {
 				const logsTail = logs?.length ? `\n\nlogs:\n${logs.join("\n")}` : "";
@@ -179,10 +187,11 @@ function createCodeTool(executor: DynamicWorkerExecutor, stateProvider: Resolved
 function formatResult(result: unknown): string {
 	if (result === undefined) return "(no result)";
 	if (typeof result === "string") return result;
+	if (typeof result === "bigint") return result.toString();
 	try {
 		return JSON.stringify(result, null, 2);
 	} catch {
-		return String(result);
+		return "[unserializable result]";
 	}
 }
 
