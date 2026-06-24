@@ -220,6 +220,7 @@ export default defineConfig({
 						{ label: "Deploy to Node.js", slug: "deployment/nodejs" },
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },
+						{ label: "Object Cache", slug: "deployment/object-cache" },
 					],
 				},
 				{

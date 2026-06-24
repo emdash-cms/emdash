@@ -9,6 +9,7 @@ export default defineConfig({
 		"src/db/playground.ts",
 		"src/db/playground-middleware.ts",
 		"src/storage/r2.ts",
+		"src/image-endpoint.ts",
 		"src/auth/index.ts",
 		"src/sandbox/index.ts",
 		"src/worker.ts",
@@ -16,9 +17,11 @@ export default defineConfig({
 		// Media provider runtimes
 		"src/media/images-runtime.ts",
 		"src/media/stream-runtime.ts",
-		// Cache provider
+		// Cache provider (full-page response cache)
 		"src/cache/runtime.ts",
 		"src/cache/config.ts",
+		// Object cache backend (KV)
+		"src/cache/kv.ts",
 	],
 	format: ["esm"],
 	dts: true,

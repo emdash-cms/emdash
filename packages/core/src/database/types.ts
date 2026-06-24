@@ -382,6 +382,14 @@ export interface CommentTable {
 	updated_at: Generated<string>;
 }
 
+export interface CommentReactionTable {
+	id: string;
+	comment_id: string;
+	reaction: string;
+	voter_hash: string;
+	created_at: Generated<string>;
+}
+
 // Sections
 
 export interface SectionTable {
@@ -433,6 +441,7 @@ export interface Database {
 	_emdash_seo: SeoTable;
 	_emdash_cron_tasks: CronTaskTable;
 	_emdash_comments: CommentTable;
+	_emdash_comment_reactions: CommentReactionTable;
 	_emdash_redirects: RedirectTable;
 	_emdash_404_log: NotFoundLogTable;
 	_emdash_bylines: BylineTable;

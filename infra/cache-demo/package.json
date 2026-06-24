@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/cache-demo-site",
-	"version": "0.0.20",
+	"version": "0.0.21",
 	"private": true,
 	"type": "module",
 	"scripts": {
@@ -13,13 +13,13 @@
 		"seed": "emdash seed"
 	},
 	"dependencies": {
-		"@astrojs/cloudflare": "https://pkg.pr.new/@astrojs/cloudflare@94d342d",
+		"@astrojs/cloudflare": "catalog:",
 		"@astrojs/react": "catalog:",
 		"@emdash-cms/cloudflare": "workspace:*",
 		"@emdash-cms/plugin-forms": "workspace:*",
 		"@emdash-cms/plugin-webhook-notifier": "workspace:*",
 		"@emdash-cms/plugin-cli": "workspace:*",
-		"astro": "https://pkg.pr.new/astro@94d342d",
+		"astro": "catalog:",
 		"emdash": "workspace:*",
 		"react": "catalog:",
 		"react-dom": "catalog:"
@@ -27,6 +27,6 @@
 	"devDependencies": {
 		"@astrojs/check": "catalog:",
 		"@cloudflare/workers-types": "catalog:",
-		"wrangler": "^4.83.0"
+		"wrangler": "catalog:"
 	}
 }

@@ -153,13 +153,16 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 
 	// 7. Export content (if requested)
 	if (withContent !== undefined) {
-		const collections =
-			withContent === "" || withContent === "true"
-				? null // all collections
-				: withContent
-						.split(",")
-						.map((s) => s.trim())
-						.filter(Boolean);
+		// Treat "all" as a synonym for the bare flag and "true". The args help
+		// text documents `all` as a valid value, but without this the literal
+		// string is read as a collection name and matches no collection (#1329).
+		const includeAll = withContent === "" || withContent === "true" || withContent === "all";
+		const collections = includeAll
+			? null // all collections
+			: withContent
+					.split(",")
+					.map((s) => s.trim())
+					.filter(Boolean);
 
 		seed.content = await exportContent(
 			db,

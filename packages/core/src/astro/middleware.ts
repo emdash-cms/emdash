@@ -60,7 +60,9 @@ import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
+import { prefetchLayoutData } from "./prefetch.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
+import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
 /**
@@ -415,7 +417,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// turns normal traffic into a flood of KV read misses. See #733.
 		const hasSessionCookie = cookies.get("astro-session") !== undefined;
 		const sessionUser =
-			context.isPrerendered || !hasSessionCookie ? null : await context.session?.get("user");
+			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
 
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
@@ -428,7 +430,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Do a one-time lightweight probe using the same getDb() instance the
 				// page will use: if the migrations table doesn't exist, no migrations
 				// have ever run -- redirect to the setup wizard.
-				if (!isSetupVerified()) {
+				// Skip the probe when prerendering: a prerendered route is built to
+				// static HTML, so returning context.redirect("/_emdash/admin/setup")
+				// below would bake that redirect into the page and ship it to
+				// production. The build database is legitimately empty in CI and there
+				// is no live visitor to send to the wizard at build time (session reads
+				// are already skipped for prerender above for the same reason).
+				if (!isSetupVerified() && !context.isPrerendered) {
 					const t0 = performance.now();
 					try {
 						const { getDb } = await import("../loader.js");
@@ -475,6 +483,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+							// Exposed so the wrapped image endpoint (`/_image`) can read media
+							// bytes from storage on the anonymous fast path -- public `<img>`
+							// requests carry no session.
+							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch {
 						// Non-fatal — EmDashHead will fall back to base SEO contributions
@@ -512,7 +524,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					const ctx = parent
 						? { ...parent, db: anonScoped.db }
 						: { editMode: false, db: anonScoped.db, metrics };
+					// Eagerly warm site-global layout data (menus, widget areas,
+					// taxonomy terms, settings) concurrently so the layout's
+					// per-component reads overlap into ~one wall-clock round trip and
+					// hit a warm cache instead of serializing. Three guards:
+					//  - request-scoped (remote) backend only -- this branch implies it;
+					//    pointless on synchronous local SQLite.
+					//  - HTML navigations only -- feeds/sitemaps/JSON don't render the
+					//    layout, so prefetching their chrome is pure waste.
+					//  - via after(): it runs immediately (still warms the render) but
+					//    hands the promise to waitUntil, so the surplus warm-up (chrome a
+					//    given page doesn't render) is kept alive past the response rather
+					//    than erroring on workerd as orphaned request I/O.
+					// Gate on the CLIENT'S PREFERRED type (leading media range), not a
+					// substring -- browser navigations lead with `text/html`, while feed
+					// readers lead with `application/rss+xml` etc. and only list
+					// `text/html;q=0.8` later, so a substring match would leak onto feeds.
+					const acceptsHtml = (request.headers.get("accept") ?? "")
+						.split(",", 1)[0]!
+						.trim()
+						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
+						if (acceptsHtml) after(() => prefetchLayoutData());
 						// commit() in finally: the write reached the primary independently
 						// of render, so the bookmark cookie must be persisted even if
 						// render throws -- otherwise a write-then-failed-render leaves the
@@ -723,7 +756,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	try {
 		return await runWithContext({ editMode: false, queryRecorder, metrics }, run);
 	} finally {
-		if (queryRecorder) flushRecorder(queryRecorder);
+		// Streamed responses defer the flush to stream end (see
+		// wrapBodyForStreamMetrics) so the log captures queries issued while
+		// the body renders. Only flush here for responses that were not
+		// wrapped (no body: redirects, 304s, bodyless errors), where all
+		// queries have already run by the time middleware returns.
+		if (queryRecorder && !queryRecorder.deferredFlush) flushRecorder(queryRecorder);
 	}
 });
 
