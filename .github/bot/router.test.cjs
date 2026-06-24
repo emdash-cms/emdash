@@ -4,6 +4,11 @@ const assert = require("node:assert/strict");
 
 const r = require("./router.cjs");
 
+// Regex literals hoisted to module scope.
+const MENTION_TEXT_RE = /mention/;
+const FOOTER_IMPLEMENT_RE = /@emdashbot implement/;
+const FOOTER_DECLINE_RE = /@emdashbot decline/;
+
 test("currentState reads the single state label", () => {
 	assert.equal(r.currentState(["bot:bug", "bot:blocked"]), "blocked");
 	assert.equal(r.currentState(["bot:bug"]), "unmanaged", "no state label -> unmanaged");
@@ -51,10 +56,10 @@ test("parseCommand is strict: only an exact bare verb is deterministic", () => {
 });
 
 test("classifierCommands excludes destructive events", () => {
-	const cmds = r.classifierCommands("blocked").map((c) => c.event);
-	assert.ok(cmds.includes("implement"), "implement is offered to free text");
-	assert.ok(!cmds.includes("decline"), "decline is destructive -> bare verb only");
-	assert.ok(!cmds.includes("take_over"), "take_over is destructive -> bare verb only");
+	const cmds = new Set(r.classifierCommands("blocked").map((c) => c.event));
+	assert.ok(cmds.has("implement"), "implement is offered to free text");
+	assert.ok(!cmds.has("decline"), "decline is destructive -> bare verb only");
+	assert.ok(!cmds.has("take_over"), "take_over is destructive -> bare verb only");
 });
 
 test("isDestructive flags decline and take_over only", () => {
@@ -187,7 +192,7 @@ test("resolveComment: the @emdashbot mention is still required", () => {
 		allowDefault: true,
 	});
 	assert.equal(d.kind, "noop", "no mention -> inert even on a bot PR");
-	assert.match(d.reason, /mention/);
+	assert.match(d.reason, MENTION_TEXT_RE);
 });
 
 test("resolveComment: free text in blocked routes to the classifier with safe candidates", () => {
@@ -200,9 +205,9 @@ test("resolveComment: free text in blocked routes to the classifier with safe ca
 	});
 	assert.equal(d.kind, "classify");
 	assert.equal(d.state, "blocked");
-	const events = d.commands.map((c) => c.event);
-	assert.ok(events.includes("implement"));
-	assert.ok(!events.includes("decline"), "destructive excluded from classifier candidates");
+	const events = new Set(d.commands.map((c) => c.event));
+	assert.ok(events.has("implement"));
+	assert.ok(!events.has("decline"), "destructive excluded from classifier candidates");
 	assert.equal(d.text, "please try fixing it in the loader");
 });
 
@@ -255,6 +260,6 @@ test("outcomeFromResult feeds resolve to advance the machine end-to-end", () => 
 
 test("replyFooter lists the offered commands for the state", () => {
 	const footer = r.replyFooter("blocked");
-	assert.match(footer, /@emdashbot implement/);
-	assert.match(footer, /@emdashbot decline/);
+	assert.match(footer, FOOTER_IMPLEMENT_RE);
+	assert.match(footer, FOOTER_DECLINE_RE);
 });

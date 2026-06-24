@@ -482,6 +482,8 @@ export interface MachineProblem {
  */
 export function validateMachine(): MachineProblem[] {
 	const problems: MachineProblem[] = [];
+	// `STATES` is declared `Record<StateId, ...>`, so the narrowing is safe.
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 	const stateIds = Object.keys(STATES) as StateId[];
 
 	// Determinism: at most one transition per (state, event).
@@ -558,11 +560,13 @@ function canReachTerminal(start: StateId): boolean {
 	const stack = [start];
 	const seen = new Set<StateId>();
 	while (stack.length) {
+		// `stack` only ever holds StateIds (pushed from typed sources above).
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 		const id = stack.pop() as StateId;
 		if (seen.has(id)) continue;
 		seen.add(id);
 		if (STATES[id].terminal) return true;
-		for (const t of TRANSITIONS.filter((t) => t.from === id)) stack.push(t.to);
+		for (const next of TRANSITIONS.filter((t) => t.from === id)) stack.push(next.to);
 	}
 	return false;
 }
