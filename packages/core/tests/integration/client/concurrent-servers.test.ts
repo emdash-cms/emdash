@@ -33,12 +33,17 @@ describe("Concurrent dev servers (#1604)", () => {
 	it("boots two servers from the same fixture in parallel without colliding on the Astro lock", async () => {
 		assertNodeVersion();
 
+		// Track each server the moment it starts so a partial failure (one boots,
+		// the other rejects) still leaves the successful server cleanable in
+		// afterAll -- Promise.all would otherwise short-circuit before we push it.
+		async function startTracked(port: number): Promise<TestServerContext> {
+			const ctx = await createTestServer({ port });
+			contexts.push(ctx);
+			return ctx;
+		}
+
 		// Start both concurrently so they race for the (previously shared) lock.
-		const [a, b] = await Promise.all([
-			createTestServer({ port: PORT_A }),
-			createTestServer({ port: PORT_B }),
-		]);
-		contexts.push(a, b);
+		const [a, b] = await Promise.all([startTracked(PORT_A), startTracked(PORT_B)]);
 
 		// Distinct roots -- the fix gives each server its own copied fixture.
 		expect(a.cwd).not.toBe(b.cwd);

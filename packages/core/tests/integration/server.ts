@@ -17,7 +17,7 @@
 
 import { execFile, spawn } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
-import { join, resolve, sep as SEP } from "node:path";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { EmDashClient } from "../../src/client/index.js";
@@ -178,7 +178,7 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 	// large and provided via symlink below).
 	cpSync(FIXTURE_DIR, workDir, {
 		recursive: true,
-		filter: (src) => !src.includes(`${SEP}node_modules`),
+		filter: (src) => !src.split(/[\\/]/).includes("node_modules"),
 	});
 	const dbPath = join(workDir, "test.db");
 	const uploadsDir = join(workDir, "uploads");
