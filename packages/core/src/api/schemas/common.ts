@@ -64,7 +64,7 @@ export const localeCode = z.string().regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "In
 /** Shared `?locale=xx` query shape for endpoints that filter by locale. */
 export const localeFilterQuery = z
 	.object({
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 	})
 	.meta({ id: "LocaleFilterQuery" });
 

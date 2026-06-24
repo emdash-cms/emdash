@@ -8,6 +8,7 @@ import {
 	updateFieldBody,
 	httpUrl,
 	localeCode,
+	localeFilterQuery,
 	mediaUploadUrlBody,
 	DEFAULT_MAX_UPLOAD_SIZE,
 } from "../../../src/api/schemas/index.js";
@@ -156,6 +157,12 @@ describe("localeCode validator (#1551)", () => {
 	it("contentCreateBody keeps the locale casing", () => {
 		const result = contentCreateBody.parse({ data: { title: "Hi" }, locale: "pt-BR" });
 		expect(result.locale).toBe("pt-BR");
+	});
+
+	it("localeFilterQuery keeps the ?locale= casing and rejects malformed values", () => {
+		expect(localeFilterQuery.parse({ locale: "zh-TW" }).locale).toBe("zh-TW");
+		expect(localeFilterQuery.parse({}).locale).toBeUndefined();
+		expect(() => localeFilterQuery.parse({ locale: "_invalid_" })).toThrow();
 	});
 });
 
