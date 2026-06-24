@@ -14,7 +14,6 @@
  * Related: https://github.com/emdash-cms/emdash/issues/1201
  */
 import type { BlockProps } from "astro-portabletext/types";
-import { usePortableText } from "astro-portabletext/utils";
 
 import { textAlignClassName } from "./portable-text-text-align.js";
 
@@ -25,9 +24,6 @@ const props = Astro.props as Props;
 const { node, index: _index, isInline: _isInline, ...attrs } = props;
 
 const styleIs = (style: string) => style === node.style;
-
-const { getUnknownComponent } = usePortableText(node);
-const UnknownStyle = getUnknownComponent();
 
 // Allowlist-based; attacker-controlled PT data cannot inject arbitrary classes.
 // See `./portable-text-text-align.ts`.
@@ -68,8 +64,8 @@ const alignClass = textAlignClassName(node.textAlign);
 			<slot />
 		</p>
 	) : (
-		<UnknownStyle {...props}>
+		<p class={alignClass} {...attrs}>
 			<slot />
-		</UnknownStyle>
+		</p>
 	)
 }
