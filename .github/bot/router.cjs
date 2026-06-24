@@ -20,7 +20,21 @@ const STATE_LABELS = Object.values(machine.states).map((s) => s.label);
 const STATE_LABEL_SET = new Set(STATE_LABELS);
 
 // Regex literals hoisted to module scope so oxlint doesn't flag re-compilation.
-const MENTION_RE = /^[ \t]*@emdashbot[ \t]+([\s\S]+?)[ \t]*$/im;
+//
+// MENTION_RE matches an `@emdashbot` mention at the START of any line and
+// captures EVERYTHING that follows it through end-of-input (across newlines).
+//
+// The `m` flag is on `^` only -- we want the mention to start a line so prose
+// containing `@emdashbot` in the middle of a sentence doesn't fire. The
+// CAPTURE group then greedily eats `[\s\S]*` (any char including newline) to
+// the end of the input, NOT to the end of the line. This is load-bearing for
+// `parseCommand`'s strict bare-verb check: a comment like
+// `@emdashbot decline\nplease don't` would otherwise be treated as a bare
+// `decline` (an `$` end-of-line anchor with the `m` flag matches after the
+// verb word), bypassing the destructive-event guard. Now the capture is
+// `"decline\nplease don't"`, which is not an exact verb, so the classifier
+// sees the whole sentence and returns `none` for a destructive-adjacent intent.
+const MENTION_RE = /^[ \t]*@emdashbot[ \t]+([\s\S]*)/m;
 const WS_RE = /\s+/g;
 const UNDERSCORE_RE = /_/g;
 
@@ -124,7 +138,12 @@ function findTransition(state, event) {
  *   { kind: "noop", reason }                     -- nothing to do; reply only
  *   { kind: "readonly", state }                  -- status/help; render only
  *   { kind: "transition", from, to, action,
- *     addLabel, removeLabels, event, arg }        -- execute this
+ *     addLabels, removeLabels, event, arg }       -- execute this
+ *
+ * `addLabels` is an array (not the singular `addLabel`) so an entry transition
+ * from `unmanaged` can attach both the state and the default kind in one
+ * decision, satisfying the one-kind-one-state invariant on first contact.
+ *
  * Authorization (actor role) is checked by the workflow, not here, but the
  * allowed actors for the event are surfaced so the caller can gate.
  */
@@ -132,21 +151,36 @@ function resolve({ labels, event, arg, actor }) {
 	const from = currentState(labels);
 	const meta = machine.events[event];
 	if (!meta) return { kind: "noop", reason: `unknown event "${event}"` };
-	if (meta.readOnly) return { kind: "readonly", state: from, event };
-	if (!from) return { kind: "noop", reason: "item has conflicting state labels" };
+	// Actor check FIRST -- including for readonly events. Otherwise a drive-by
+	// `@emdashbot status` from any GitHub user on a public issue would make the
+	// bot post status replies it shouldn't, contradicting the actor list.
 	if (actor && !meta.actors.includes(actor)) {
 		return { kind: "noop", reason: `actor "${actor}" may not fire "${event}"` };
 	}
+	if (meta.readOnly) return { kind: "readonly", state: from, event };
+	if (!from) return { kind: "noop", reason: "item has conflicting state labels" };
 	const t = findTransition(from, event);
 	if (!t) return { kind: "noop", reason: `no transition for ${from} + ${event}`, from };
 	const toLabel = machine.states[t.to].label;
 	const removeLabels = STATE_LABELS.filter((l) => l !== toLabel);
+
+	// Entry from unmanaged: ensure a kind label is set so the linter invariant
+	// (exactly one kind + one state) holds. If the issue already has a kind,
+	// keep it; otherwise apply the event's defaultKind.
+	const addLabels = [toLabel];
+	if (from === "unmanaged" && !currentKind(labels) && meta.defaultKind) {
+		addLabels.push(`bot:${meta.defaultKind}`);
+	}
+
 	return {
 		kind: "transition",
 		from,
 		to: t.to,
 		action: t.action || null,
+		// `addLabel` (singular) kept for backwards compatibility with existing
+		// callers; new code should use `addLabels` (plural).
 		addLabel: toLabel,
+		addLabels,
 		removeLabels,
 		event,
 		arg: arg || null,
@@ -174,8 +208,15 @@ function resolveComment({ labels, body, actor, allowDefault }) {
 	if (text === null) return { kind: "noop", reason: "no @emdashbot mention" };
 	// Bare `@emdashbot` mention with no body: don't route to the classifier (it
 	// fails the minLength(1) schema and silently returns `none`). Render the
-	// item's state instead so the caller can post a help reply.
-	if (text === "") return { kind: "readonly", state: currentState(labels), event: "status" };
+	// item's state instead so the caller can post a help reply. Gated on actor
+	// so a drive-by from a random user doesn't make the bot reply.
+	if (text === "") {
+		const statusMeta = machine.events.status;
+		if (actor && statusMeta && !statusMeta.actors.includes(actor)) {
+			return { kind: "noop", reason: `actor "${actor}" may not request status` };
+		}
+		return { kind: "readonly", state: currentState(labels), event: "status" };
+	}
 	const cmd = parseCommand(body);
 	if (cmd) return resolve({ labels, event: cmd.event, arg: cmd.arg, actor });
 	const from = currentState(labels);
@@ -203,15 +244,22 @@ function replyFooter(state) {
  * `resolve` to apply the transition. Mirrors the flat gating fields produced by
  * .flue/workflows/investigate.ts (skipped / reproduced / fixed / verdict).
  *
- * `ok` is false when the run errored or produced no parseable result, which is
- * always `agent.failed` regardless of the (absent) fields.
+ * - `ok` is false when the run errored or produced no parseable result, which
+ *   is always `agent.failed` regardless of the (absent) fields.
+ * - `pushed` is the trusted YAML push step's report. The model's `fixed: true`
+ *   is only "fix_ready" when the orchestrator actually has a branch to ask the
+ *   reporter about. If the agent claimed `fixed` but the push step set
+ *   `pushed: false` (no diff staged, push rejected, or the branch carried
+ *   non-bot human commits we refused to clobber), demote to `agent.failed` so
+ *   the issue lands in the retryable failed state, not awaiting_feedback for a
+ *   branch that doesn't exist.
  */
-function outcomeFromResult({ ok, result }) {
+function outcomeFromResult({ ok, result, pushed }) {
 	if (!ok || !result || typeof result !== "object") return "agent.failed";
 	if (result.skipped === true) return "agent.skipped";
 	if (result.verdict === "intended-behavior") return "agent.by_design";
 	if (result.reproduced !== true) return "agent.not_reproduced";
-	if (result.fixed === true) return "agent.fix_ready";
+	if (result.fixed === true) return pushed === true ? "agent.fix_ready" : "agent.failed";
 	return "agent.reproduced";
 }
 

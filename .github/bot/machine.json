@@ -123,7 +123,8 @@
 			],
 			"labelTriggers": [
 				"bot:repro"
-			]
+			],
+			"defaultKind": "bug"
 		},
 		"implement": {
 			"description": "Build the described change (feature or directed fix), skipping the bug-repro gate.",
@@ -133,7 +134,8 @@
 			"labelTriggers": [
 				"bot:implement"
 			],
-			"arg": "directive"
+			"arg": "directive",
+			"defaultKind": "enhancement"
 		},
 		"retry": {
 			"description": "Re-run the last agent action.",
@@ -167,7 +169,8 @@
 			"actors": [
 				"maintainer"
 			],
-			"destructive": true
+			"destructive": true,
+			"defaultKind": "task"
 		},
 		"reopen": {
 			"description": "Bring a terminal item back into triage.",

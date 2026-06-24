@@ -66,9 +66,11 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: emdash-cms
           repositories: emdash
-          # Narrow scopes: read code/metadata, write issues + PRs + dispatches.
-          # NOT contents:write (the executor pushes branches, not this brain).
-          permission-contents: read
+          # Narrow scopes. NB: contents:write is required to fire
+          # repository_dispatch (GitHub's API maps `POST /repos/.../dispatches`
+          # to the `contents` permission, not `actions`). This brain never
+          # commits anything itself; only the executor pushes branches.
+          permission-contents: write
           permission-metadata: read
           permission-issues: write
           permission-pull-requests: write
@@ -213,38 +215,73 @@ jobs:
             <<<"$PAYLOAD" > /tmp/classify-input.json
           CLASSIFY_RESULT_PATH=/tmp/classify-result.json \
             pnpm exec flue run classify-command --target node --input "$(cat /tmp/classify-input.json)" || true
-          # classify-command returns a machine event directly (or "none").
-          echo "event=$(jq -r '.event // "none"' /tmp/classify-result.json 2>/dev/null || echo none)" >> "$GITHUB_OUTPUT"
-          echo "arg=$(jq -r '.arg // ""' /tmp/classify-result.json 2>/dev/null || echo '')" >> "$GITHUB_OUTPUT"
+          # The result file is read directly by the Apply step via fs.readFile.
+          # We deliberately do NOT echo `event=...`/`arg=...` into $GITHUB_OUTPUT
+          # here: the classifier's `arg` is model output shaped by untrusted
+          # comment text, and a newline in it would inject extra `event=...`
+          # lines, overriding the deterministic event we chose. The JSON parser
+          # in the next step gives us a single typed object with no shell.
 
       # --- 3 + 4. apply the decision and dispatch the agent run if needed ---
+      #
+      # Three things this step does carefully:
+      #
+      #   (a) Reads the classifier result from /tmp/classify-result.json
+      #       directly (not via $GITHUB_OUTPUT). The classifier's `arg` is
+      #       model output shaped by untrusted comment text; routing it
+      #       through shell would let a newline in `arg` inject extra
+      #       `event=...` outputs and override the trusted event. JSON.parse
+      #       gives us a single typed object with no shell.
+      #
+      #   (b) Re-fetches the issue's labels immediately before applying the
+      #       transition. The labels captured in step 1 are stale by the time
+      #       we get here (the executor or a maintainer may have written
+      #       since); re-reading is cheap and removes the cross-workflow race.
+      #
+      #   (c) Performs action side-effects BEFORE writing labels for
+      #       transitions that depend on the side-effect succeeding. The
+      #       openPr -> in_review transition only happens if `gh pulls.create`
+      #       returned a PR; closePr is best-effort but doesn't gate state.
       - name: Apply decision
         if: steps.route.outputs.payload && !steps.route.outputs.skip
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
+            const fs = require('node:fs');
             const router = require('./.github/bot/router.cjs');
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const p = JSON.parse(process.env.PAYLOAD);
 
-            // Resolve the event: either a deterministic one set in step 1, or the
-            // machine event the classifier returned directly (it picks from the
-            // state's candidate commands, so no sub-vocabulary mapping is needed).
+            // (a) Pull the classifier result from disk, never the shell env.
+            let cls = null;
+            if (process.env.CLASSIFY === 'true') {
+              try { cls = JSON.parse(fs.readFileSync('/tmp/classify-result.json', 'utf8')); }
+              catch { /* missing/corrupt -> treat as 'none' below */ }
+            }
+
+            // Whitelist the event against the machine's known set; never trust
+            // a model-supplied string directly. resolve() will no-op on any
+            // event the current state doesn't allow, so this is belt + braces.
             let event = p.event;
             let arg = p.arg || null;
-            const clsEvent = process.env.CLASS_EVENT;
-            if (!event && clsEvent && clsEvent !== 'none') {
-              event = clsEvent;
-              if (process.env.CLASS_ARG) arg = process.env.CLASS_ARG;
+            if (!event && cls && typeof cls.event === 'string' && cls.event !== 'none' &&
+                Object.prototype.hasOwnProperty.call(router.machine.events, cls.event)) {
+              event = cls.event;
+              if (typeof cls.arg === 'string' && cls.arg.length) arg = cls.arg;
             }
             if (!event) {
-              core.info(`no event resolved (classifier=${clsEvent || 'n/a'}); leaving issue untouched`);
+              core.info(`no event resolved (classifier=${cls?.event || 'n/a'}); leaving issue untouched`);
               return;
             }
 
-            const decision = router.resolve({ labels: p.labels, event, arg, actor: p.actor });
+            // (b) Re-fetch live labels. The route step's snapshot is stale by
+            // now (executor or human label edits between fire and apply).
+            const { data: live } = await github.rest.issues.get({ owner, repo, issue_number: p.issueNumber });
+            const liveLabels = live.labels.map((l) => (typeof l === 'string' ? l : l.name));
+
+            const decision = router.resolve({ labels: liveLabels, event, arg, actor: p.actor });
             if (decision.kind === 'readonly') {
               await github.rest.issues.createComment({ owner, repo, issue_number: p.issueNumber,
                 body: `Current state: \`${decision.state}\`.` + router.replyFooter(decision.state) });
@@ -252,23 +289,36 @@ jobs:
             }
             if (decision.kind !== 'transition') { core.info(`no-op: ${decision.reason}`); return; }
 
-            // Flip the single state label (projection of the machine state).
-            const toAdd = decision.addLabel;
-            await github.rest.issues.addLabels({ owner, repo, issue_number: p.issueNumber, labels: [toAdd] });
-            for (const l of decision.removeLabels) {
-              if (p.labels.includes(l)) {
-                await github.rest.issues.removeLabel({ owner, repo, issue_number: p.issueNumber, name: l }).catch(() => {});
-              }
-            }
-
-            // Action side effects.
+            // (c) Side-effects with state-gating where the state depends on the
+            // side-effect actually succeeding.
             if (decision.action === 'openPr' && decision.to === 'in_review') {
-              await github.rest.pulls.create({ owner, repo, title: `fix: address #${p.issueNumber}`,
-                head: `bot/fix-${p.issueNumber}`, base: 'main',
-                body: `Automated fix for #${p.issueNumber}. Reply \`@emdashbot <feedback>\` to revise.` }).catch((e) => core.warning(`PR create: ${e.message}`));
+              try {
+                await github.rest.pulls.create({ owner, repo, title: `fix: address #${p.issueNumber}`,
+                  head: `bot/fix-${p.issueNumber}`, base: 'main',
+                  body: `Automated fix for #${p.issueNumber}. Reply \`@emdashbot <feedback>\` to revise.` });
+              } catch (e) {
+                // PR create failed (branch missing, conflict, permissions). Do
+                // NOT flip to in_review for a PR that doesn't exist. Keep the
+                // issue in its current state and surface the error.
+                core.warning(`PR create failed: ${e.message}; leaving state as-is`);
+                await github.rest.issues.createComment({ owner, repo, issue_number: p.issueNumber,
+                  body: `Couldn't open the PR: ${e.message}. Push the branch manually or comment \`@emdashbot retry\`.` + router.replyFooter(decision.from) });
+                return;
+              }
             }
             if (decision.action === 'closePr' && p.prNumber) {
               await github.rest.pulls.update({ owner, repo, pull_number: p.prNumber, state: 'closed' }).catch(() => {});
+            }
+
+            // Flip the single state label (projection) and assign the default
+            // kind label if this is an entry from unmanaged. Use the LIVE label
+            // set for the remove list so we don't try to remove labels that
+            // vanished since the route step.
+            await github.rest.issues.addLabels({ owner, repo, issue_number: p.issueNumber, labels: decision.addLabels });
+            for (const l of decision.removeLabels) {
+              if (liveLabels.includes(l)) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: p.issueNumber, name: l }).catch(() => {});
+              }
             }
 
             // Dispatch the heavy agent run to the executor backend.
@@ -282,5 +332,4 @@ jobs:
               body: `Moving to \`${decision.to}\`.` + router.replyFooter(decision.to) });
         env:
           PAYLOAD: ${{ steps.route.outputs.payload }}
-          CLASS_EVENT: ${{ steps.classify.outputs.event }}
-          CLASS_ARG: ${{ steps.classify.outputs.arg }}
+          CLASSIFY: ${{ steps.route.outputs.classify }}

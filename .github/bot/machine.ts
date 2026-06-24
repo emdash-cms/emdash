@@ -218,6 +218,12 @@ export interface EventMeta {
 	 * so a misread sentence can never silently close or disengage an item.
 	 */
 	destructive?: boolean;
+	/**
+	 * For entry events (transitions from `unmanaged`), the default kind to
+	 * assign alongside the state label so the one-kind-one-state invariant
+	 * holds on first contact. Maintainers can override later by relabeling.
+	 */
+	defaultKind?: Kind;
 }
 
 export const EVENTS: Record<EventId, EventMeta> = {
@@ -226,6 +232,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description: "Reproduce the issue as a bug and attempt a fix.",
 		actors: ["maintainer"],
 		labelTriggers: ["bot:repro"],
+		defaultKind: "bug",
 	},
 	implement: {
 		description:
@@ -233,6 +240,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		actors: ["maintainer"],
 		labelTriggers: ["bot:implement"],
 		arg: "directive",
+		defaultKind: "enhancement",
 	},
 	retry: { description: "Re-run the last agent action.", actors: ["maintainer"] },
 	revise: {
@@ -252,6 +260,10 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description: "Won't be actioned; move to declined.",
 		actors: ["maintainer"],
 		destructive: true,
+		// `decline` is also a valid entry transition from unmanaged. The kind
+		// here is a placeholder (the item is terminal); `task` is the neutral
+		// option that isn't `bug` or `enhancement`.
+		defaultKind: "task",
 	},
 	reopen: { description: "Bring a terminal item back into triage.", actors: ["maintainer"] },
 	take_over: {

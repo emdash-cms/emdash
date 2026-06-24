@@ -35,6 +35,17 @@ test("repro works on an untriaged issue", () => {
 	assert.equal(d.to, "working");
 });
 
+test("parseCommand: destructive verb with prose on a later line does NOT fire", () => {
+	// Regression for the multiline-bypass bug: `@emdashbot decline\nplease no`
+	// must NOT be parsed as a bare `decline`, or an attacker can disengage the
+	// bot by sandwiching the verb between innocent prose. The capture must run
+	// to end of input, not end of the first line.
+	assert.equal(r.parseCommand("@emdashbot decline\nplease don't"), null);
+	assert.equal(r.parseCommand("@emdashbot take over\nactually nevermind"), null);
+	// Single-line bare verbs still fire (sanity).
+	assert.deepEqual(r.parseCommand("@emdashbot decline"), { event: "decline", arg: null });
+});
+
 test("parseCommand is strict: only an exact bare verb is deterministic", () => {
 	assert.deepEqual(r.parseCommand("@emdashbot retry"), { event: "retry", arg: null });
 	assert.deepEqual(r.parseCommand("@emdashbot take over"), { event: "take_over", arg: null });
@@ -253,7 +264,11 @@ test("outcomeFromResult maps the agent's flat result to an agent.* event", () =>
 		"agent.not_reproduced",
 	);
 	assert.equal(
-		r.outcomeFromResult({ ok: true, result: { reproduced: true, fixed: true, verdict: "bug" } }),
+		r.outcomeFromResult({
+			ok: true,
+			result: { reproduced: true, fixed: true, verdict: "bug" },
+			pushed: true,
+		}),
 		"agent.fix_ready",
 	);
 	assert.equal(
@@ -262,9 +277,28 @@ test("outcomeFromResult maps the agent's flat result to an agent.* event", () =>
 	);
 });
 
+test("outcomeFromResult: fixed but NOT pushed demotes to failed", () => {
+	// Model claims fixed but the push step set pushed=false (no diff staged,
+	// push rejected, or human commits on branch). Must not land in
+	// awaiting_feedback for a branch that doesn't exist.
+	assert.equal(
+		r.outcomeFromResult({ ok: true, result: { reproduced: true, fixed: true }, pushed: false }),
+		"agent.failed",
+	);
+	// Unknown-pushed (caller forgot to wire it) is treated as not-pushed.
+	assert.equal(
+		r.outcomeFromResult({ ok: true, result: { reproduced: true, fixed: true } }),
+		"agent.failed",
+	);
+});
+
 test("outcomeFromResult feeds resolve to advance the machine end-to-end", () => {
 	// fix_ready from working -> awaiting_feedback (the executor's happy path).
-	const event = r.outcomeFromResult({ ok: true, result: { reproduced: true, fixed: true } });
+	const event = r.outcomeFromResult({
+		ok: true,
+		result: { reproduced: true, fixed: true },
+		pushed: true,
+	});
 	const d = r.resolve({ labels: ["bot:bug", "bot:working"], event, actor: "system" });
 	assert.equal(d.to, "awaiting_feedback");
 	// fix_ready does NOT open a PR; the executor pushes the branch and the

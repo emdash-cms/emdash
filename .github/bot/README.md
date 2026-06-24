@@ -42,7 +42,7 @@ machine.ts ──generate──> machine.json ──require──> router.cjs (p
                               ┌─────────────────────────┼───────────────────────┐
                               ▼                          ▼                       ▼
                        swap state label         dispatch agent action      post reply
-                       (atomic remove+add)       (existing investigate.yml)  (+ command footer)
+                       (live re-fetch + swap)    (existing investigate.yml)  (+ command footer)
 ```
 
 The router is the brain; the workflows are hands. A workflow gathers the event,

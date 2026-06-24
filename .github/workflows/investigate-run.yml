@@ -63,16 +63,15 @@ jobs:
           permission-pull-requests: write
 
       # For revise, check out the existing bot/fix-<n> so the agent updates it;
-      # otherwise check out main. The app token allows the later branch push.
+      # otherwise check out main. NB: persist-credentials:false is load-bearing.
+      # If we leave the app token in .git/config, the agent process (running in
+      # this same workspace) can read it and exfiltrate or push with it. The
+      # trusted push step below installs the token *into the remote URL only*
+      # for the duration of one `git push`, and unconfigures it afterwards.
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          # The token IS the app token: a later YAML step uses it to push the
-          # bot/fix-<n> branch via `git push`. Credentials persist deliberately;
-          # the agent process never sees this token (it runs with the narrow
-          # read-only AGENT_GH_TOKEN in its own env block).
-          persist-credentials: true
-          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
           fetch-depth: 0
           ref: ${{ env.MODE == 'revise' && format('bot/fix-{0}', env.ISSUE_NUMBER) || '' }}
 
@@ -158,11 +157,30 @@ jobs:
         id: push
         if: steps.investigate.outputs.ok == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           FIXED="$(jq -r '.fixed // false' /tmp/inv-result.json 2>/dev/null || echo false)"
           if [ "$FIXED" != "true" ]; then echo "pushed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
           BRANCH="bot/fix-${ISSUE_NUMBER}"
+
+          # --- guard: refuse to clobber human commits on an existing bot/fix-<n>
+          # `--force-with-lease` only protects against changes AFTER our fetch.
+          # If a maintainer pushed a rescue commit BEFORE we ran, fetch sees it
+          # and lease lets us overwrite it. Inspect the remote tip and bail
+          # unless every commit not on main was authored by emdashbot[bot].
+          REMOTE_TIP="$(git -c http.extraheader= ls-remote --heads origin "$BRANCH" 2>/dev/null | awk '{print $1}')"
+          if [ -n "$REMOTE_TIP" ]; then
+            git fetch --no-tags origin "$BRANCH" || true
+            NON_BOT="$(git log --format='%H %an' "origin/main..$REMOTE_TIP" 2>/dev/null \
+              | awk '$2 != "emdashbot[bot]" { print $1 }' | head -1)"
+            if [ -n "$NON_BOT" ]; then
+              echo "::warning::refusing to overwrite human commit $NON_BOT on $BRANCH"
+              echo "pushed=false" >> "$GITHUB_OUTPUT"
+              echo "reason=human-commits-on-branch" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
           # Write the model-produced commit message to a file and pass via -F.
           # `git commit -m "$MSG"` would expand backticks / $(...) under shell
           # rules; an attacker-influenced issue body could land RCE on the runner.
@@ -172,9 +190,21 @@ jobs:
           git config user.email "emdashbot[bot]@users.noreply.github.com"
           git checkout -B "$BRANCH"
           git add -A
-          git commit -F /tmp/commit-msg.txt || { echo "pushed=false" >> "$GITHUB_OUTPUT"; exit 0; }
-          git push --force-with-lease origin "$BRANCH"
-          echo "pushed=true" >> "$GITHUB_OUTPUT"
+          # A nothing-staged commit failure is "no diff": pushed=false, no error.
+          if ! git commit -F /tmp/commit-msg.txt; then
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            echo "reason=no-diff-to-commit" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Install the app token transiently into the remote URL JUST for this
+          # `git push`. The agent's earlier `Run investigate` step ran with
+          # persist-credentials:false, so no token was on disk during the model
+          # phase. Unset the override after pushing.
+          REMOTE_URL="https://x-access-token:${APP_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force-with-lease "$REMOTE_URL" "$BRANCH" \
+            && echo "pushed=true" >> "$GITHUB_OUTPUT" \
+            || { echo "pushed=false" >> "$GITHUB_OUTPUT"; echo "reason=push-failed" >> "$GITHUB_OUTPUT"; }
 
       - name: Apply result to the machine
         if: always() && env.ISSUE_NUMBER != ''
@@ -191,14 +221,15 @@ jobs:
 
             let result = null;
             try { result = JSON.parse(fs.readFileSync('/tmp/inv-result.json', 'utf8')); } catch { /* failed run */ }
-            const event = router.outcomeFromResult({ ok, result });
+            const pushed = process.env.PUSHED === 'true';
+            const event = router.outcomeFromResult({ ok, result, pushed });
 
             const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
             const labels = issue.labels.map((l) => (typeof l === 'string' ? l : l.name));
             const decision = router.resolve({ labels, event, actor: 'system' });
             if (decision.kind !== 'transition') { core.info(`no transition for ${event}; leaving as-is`); return; }
 
-            await github.rest.issues.addLabels({ owner, repo, issue_number: issueNumber, labels: [decision.addLabel] });
+            await github.rest.issues.addLabels({ owner, repo, issue_number: issueNumber, labels: decision.addLabels });
             for (const l of decision.removeLabels) {
               if (labels.includes(l)) await github.rest.issues.removeLabel({ owner, repo, issue_number: issueNumber, name: l }).catch(() => {});
             }
@@ -212,3 +243,4 @@ jobs:
               body: (notes ? String(notes) : `Run complete (\`${event}\`).`) + ask + router.replyFooter(decision.to) });
         env:
           INV_OK: ${{ steps.investigate.outputs.ok }}
+          PUSHED: ${{ steps.push.outputs.pushed }}

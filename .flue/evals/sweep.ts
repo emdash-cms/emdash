@@ -65,9 +65,14 @@ interface ModelRow {
 	pass: number;
 	total: number;
 	errors: number;
+	/** Mean latency over SUCCESSFUL calls. Compare to avgMsWallClock for honesty. */
 	avgMs: number;
+	/** Mean latency over ALL cases (timeouts count as CALL_TIMEOUT_MS). */
+	avgMsWallClock: number;
 	avgInTok: number;
 	avgOutTok: number;
+	/** $ per 1k SUCCESSFUL classifications. Failed calls cost zero in the API
+	 *  but burn real time/operator attention; quote both columns. */
 	costPer1k: number | null;
 	misses: CaseResult[];
 }
@@ -76,7 +81,8 @@ async function sweepModel(bareId: string): Promise<ModelRow> {
 	const model = `cf-wai/${bareId}`;
 	let pass = 0;
 	let errors = 0;
-	let latency = 0;
+	let latencySuccess = 0;
+	let latencyAll = 0;
 	let inTok = 0;
 	let outTok = 0;
 	let n = 0;
@@ -99,7 +105,9 @@ async function sweepModel(bareId: string): Promise<ModelRow> {
 				}>,
 				CALL_TIMEOUT_MS,
 			);
-			latency += performance.now() - t0;
+			const elapsed = performance.now() - t0;
+			latencySuccess += elapsed;
+			latencyAll += elapsed;
 			const r = inv.result ?? {};
 			const got = r.event ?? null;
 			if (got === c.expected) pass++;
@@ -109,6 +117,10 @@ async function sweepModel(bareId: string): Promise<ModelRow> {
 			n++;
 		} catch (err) {
 			errors++;
+			// Timeouts/errors count as the full CALL_TIMEOUT_MS budget for the
+			// wall-clock average: a model that times out 10/43 times is not
+			// "faster" than one that returns successfully in 8s every time.
+			latencyAll += CALL_TIMEOUT_MS;
 			misses.push({ case: c, got: null, ok: false, error: String(err).slice(0, 110) });
 			if (errors === 1) console.error(`  ! ${bareId}: ${String(err).slice(0, 110)}`);
 		}
@@ -120,7 +132,8 @@ async function sweepModel(bareId: string): Promise<ModelRow> {
 		pass,
 		total: CASES.length,
 		errors,
-		avgMs: n ? latency / n : NaN,
+		avgMs: n ? latencySuccess / n : NaN,
+		avgMsWallClock: latencyAll / CASES.length,
 		avgInTok: n ? inTok / n : NaN,
 		avgOutTok: n ? outTok / n : NaN,
 		costPer1k,
@@ -134,30 +147,34 @@ for (const id of SHORTLIST) {
 	const r = await sweepModel(id);
 	const passPct = (r.pass / r.total) * 100;
 	console.error(
-		`  -> ${r.model}: ${fmt(passPct, 0)}% (${r.pass}/${r.total}), ${fmt(r.avgMs, 0)}ms, ${fmt(r.avgInTok, 0)}/${fmt(r.avgOutTok, 0)} tok, ${r.costPer1k == null ? "-" : "$" + fmt(r.costPer1k, 3) + "/1k"}, ${r.errors} err`,
+		`  -> ${r.model}: ${fmt(passPct, 0)}% (${r.pass}/${r.total}), ${fmt(r.avgMs, 0)}ms (wall ${fmt(r.avgMsWallClock, 0)}ms), ${fmt(r.avgInTok, 0)}/${fmt(r.avgOutTok, 0)} tok, ${r.costPer1k == null ? "-" : "$" + fmt(r.costPer1k, 3) + "/1k"}, ${r.errors} err`,
 	);
 	rows.push(r);
 }
 
-rows.sort((a, b) => b.pass / b.total - a.pass / a.total || a.avgMs - b.avgMs);
+// Sort by accuracy first, then wall-clock latency: a model that fails fast
+// loses to one that succeeds slowly.
+rows.sort((a, b) => b.pass / b.total - a.pass / a.total || a.avgMsWallClock - b.avgMsWallClock);
 
 console.log(
 	"\n" +
 		"model".padEnd(34) +
 		"pass".padEnd(12) +
 		"err".padEnd(5) +
-		"avg ms".padEnd(9) +
+		"ok ms".padEnd(8) +
+		"wall ms".padEnd(9) +
 		"in/out tok".padEnd(14) +
-		"$/1k",
+		"$/1k (ok only)",
 );
-console.log("-".repeat(80));
+console.log("-".repeat(95));
 for (const r of rows) {
 	const pct = (r.pass / r.total) * 100;
 	console.log(
 		r.model.padEnd(34) +
 			`${fmt(pct, 0)}% (${r.pass}/${r.total})`.padEnd(12) +
 			String(r.errors).padEnd(5) +
-			fmt(r.avgMs, 0).padEnd(9) +
+			fmt(r.avgMs, 0).padEnd(8) +
+			fmt(r.avgMsWallClock, 0).padEnd(9) +
 			`${fmt(r.avgInTok, 0)}/${fmt(r.avgOutTok, 0)}`.padEnd(14) +
 			(r.costPer1k == null ? "-" : `$${fmt(r.costPer1k, 3)}`),
 	);

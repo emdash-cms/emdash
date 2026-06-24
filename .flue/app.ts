@@ -8,7 +8,9 @@
 // Worker. This bot runs on Node. The AI Gateway's OpenAI-compatible `/compat`
 // endpoint is plain HTTP and serves the *current* Workers AI catalog, so we
 // register it here as the `cf-wai` provider. Models are addressed as
-// `cf-wai/@cf/<vendor>/<model>` and stay within the Workers-AI-only dev gateway.
+// `cf-wai/workers-ai/@cf/<vendor>/<model>` (the `/compat` endpoint uses
+// `workers-ai/` as the upstream-provider prefix) and stay within the
+// Workers-AI-only dev gateway.
 // Sweep models in evals by setting FLUE_CLASSIFIER_MODEL / FLUE_FIX_MODEL.
 
 import { registerProvider } from "@flue/runtime";
