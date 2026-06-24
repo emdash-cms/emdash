@@ -39,8 +39,12 @@ jobs:
     # are checked in live-check. `author_association` from the payload is
     # unreliable for the role check -- a maintainer with private org membership
     # reports `NONE` -- so it is not gated on here.
+    # Skip when V2 is live: orchestrate.yml handles the maintainer-directive
+    # path under bot:blocked, and double-firing would re-run the classifier
+    # and race label flips.
     if: >-
-      github.event.issue.pull_request == null
+      vars.BOT_STATE_MACHINE_V2 != '1'
+      && github.event.issue.pull_request == null
       && github.event.comment.user.type != 'Bot'
       && (contains(github.event.issue.labels.*.name, 'triage/reproduced')
           || contains(github.event.issue.labels.*.name, 'triage/by-design'))
@@ -215,7 +219,7 @@ jobs:
           .flue/node_modules/.bin/flue run classify-maintainer-reply \
             --target node \
             --root .flue \
-            --payload "$PAYLOAD" \
+            --input "$PAYLOAD" \
             > /tmp/classify-stdout.json 2> /tmp/classify-stderr.log
           EXIT=$?
           set -e

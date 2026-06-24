@@ -211,6 +211,15 @@ test("resolveComment: free text in blocked routes to the classifier with safe ca
 	assert.equal(d.text, "please try fixing it in the loader");
 });
 
+test("resolveComment: whitespace-only mention renders status, not a classifier call", () => {
+	// `@emdashbot   ` (mention + trailing whitespace only) is parsed as a
+	// mention with empty body; route to readonly instead of the classifier so it
+	// doesn't fail minLength(1) and silently return `none`.
+	const d = r.resolveComment({ labels: ["bot:bug", "bot:blocked"], body: "@emdashbot   ", actor: "maintainer", allowDefault: false });
+	assert.equal(d.kind, "readonly", "empty mention -> readonly, never reaches the classifier");
+	assert.equal(d.state, "blocked");
+});
+
 test("resolveComment: bare destructive verb still fires deterministically", () => {
 	const labels = ["bot:bug", "bot:blocked"];
 	const d = r.resolveComment({

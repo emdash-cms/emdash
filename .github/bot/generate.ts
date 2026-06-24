@@ -29,6 +29,24 @@ const docPath = join(here, "..", "BOT_STATE_MACHINE.md");
 
 const check = process.argv.includes("--check");
 
+// Regex literals hoisted to module scope so oxlint doesn't flag re-compilation.
+const AGENT_PREFIX_RE = /^agent\./;
+const PR_PREFIX_RE = /^pr\./;
+const UNDERSCORE_RE = /_/g;
+
+// `Object.keys` returns `string[]`; the assertion to the typed key union is
+// safe by construction (the maps are declared as `Record<StateId, ...>` /
+// `Record<EventId, ...>`), but oxlint's type-aware pass flags the narrowing.
+// Centralise the casts so the rule still catches genuine unsafe assertions.
+// oxlint-disable typescript/no-unsafe-type-assertion
+function stateIds(): StateId[] {
+	return Object.keys(STATES) as StateId[];
+}
+function eventIds(): EventId[] {
+	return Object.keys(EVENTS) as EventId[];
+}
+// oxlint-enable typescript/no-unsafe-type-assertion
+
 // --- validate first ---
 const problems = validateMachine();
 if (problems.length) {
@@ -46,13 +64,13 @@ function mermaid(): string {
 	for (const t of TRANSITIONS) {
 		// Skip idempotent self-loops in the diagram unless they carry meaning.
 		const label = t.event
-			.replace(/^agent\./, "")
-			.replace(/^pr\./, "PR ")
-			.replace(/_/g, " ");
+			.replace(AGENT_PREFIX_RE, "")
+			.replace(PR_PREFIX_RE, "PR ")
+			.replace(UNDERSCORE_RE, " ");
 		lines.push(`    ${t.from} --> ${t.to}: ${label}`);
 	}
 	// Style terminals and the working transient state.
-	const terminals = (Object.keys(STATES) as StateId[]).filter((s) => STATES[s].terminal);
+	const terminals = stateIds().filter((s) => STATES[s].terminal);
 	lines.push(`    class ${terminals.join(",")} terminal`);
 	lines.push("    class working transient");
 	lines.push("    classDef terminal fill:#1b3a2b,stroke:#3fb950,color:#7ee787");
@@ -76,21 +94,21 @@ function transitionTable(): string {
 
 // --- command grammar ---
 function grammar(): string {
-	const verbs = (Object.keys(EVENTS) as EventId[]).filter(
+	const verbs = eventIds().filter(
 		(e) => EVENTS[e].actors.some((a) => a !== "system") && !e.includes("."),
 	);
 	const rows = verbs.map((v) => {
 		const m = EVENTS[v];
 		const arg = m.arg ? ` <${m.arg}>` : "";
 		const labels = m.labelTriggers?.length ? ` (or label \`${m.labelTriggers.join("`, `")}\`)` : "";
-		return `| \`@emdashbot ${v.replace(/_/g, " ")}${arg}\`${labels} | ${m.actors.filter((a) => a !== "system").join(", ")} | ${m.description} |`;
+		return `| \`@emdashbot ${v.replace(UNDERSCORE_RE, " ")}${arg}\`${labels} | ${m.actors.filter((a) => a !== "system").join(", ")} | ${m.description} |`;
 	});
 	return ["| Command | Who | Effect |", "| --- | --- | --- |", ...rows].join("\n");
 }
 
 // --- comment defaults (states where a bare @emdashbot comment maps to an event) ---
 function commentDefaults(): string {
-	const rows = (Object.keys(STATES) as StateId[])
+	const rows = stateIds()
 		.filter((id) => STATES[id].defaultCommentEvent)
 		.map(
 			(id) =>
@@ -103,7 +121,7 @@ function commentDefaults(): string {
 
 // --- state table ---
 function stateTable(): string {
-	const rows = (Object.keys(STATES) as StateId[]).map((id) => {
+	const rows = stateIds().map((id) => {
 		const s = STATES[id];
 		const flags =
 			[s.terminal ? "terminal" : "", s.transient ? "transient" : ""].filter(Boolean).join(", ") ||

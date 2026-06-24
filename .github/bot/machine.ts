@@ -19,7 +19,8 @@
 //   2. Every non-terminal state has at least one outgoing transition.
 //   3. No dead ends: every state can reach a terminal, and every terminal
 //      has a `reopen` edge back into the live machine.
-//   4. Every state is reachable from the `triage` entry state.
+//   4. Every state is reachable from the `unmanaged` entry state. (`triage` is
+//      the labeled landing state items return to after `reopen` / `hand_back`.)
 
 // ---------------------------------------------------------------------------
 // Kinds (category dimension -- mutually exclusive, mutable by command)

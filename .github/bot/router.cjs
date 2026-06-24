@@ -12,10 +12,17 @@
 const machine = require("./machine.json");
 
 const KIND_LABELS = machine.kinds.map((k) => `bot:${k}`);
+const KIND_LABEL_SET = new Set(KIND_LABELS);
 const STATE_LABEL_TO_ID = Object.fromEntries(
 	Object.entries(machine.states).map(([id, meta]) => [meta.label, id]),
 );
 const STATE_LABELS = Object.values(machine.states).map((s) => s.label);
+const STATE_LABEL_SET = new Set(STATE_LABELS);
+
+// Regex literals hoisted to module scope so oxlint doesn't flag re-compilation.
+const MENTION_RE = /^[ \t]*@emdashbot[ \t]+([\s\S]+?)[ \t]*$/im;
+const WS_RE = /\s+/g;
+const UNDERSCORE_RE = /_/g;
 
 /**
  * The state id encoded in a label set.
@@ -24,7 +31,7 @@ const STATE_LABELS = Object.values(machine.states).map((s) => s.label);
  *   - >1             -> null (invalid; the linter will flag it)
  */
 function currentState(labelNames) {
-	const found = labelNames.filter((l) => STATE_LABELS.includes(l)).map((l) => STATE_LABEL_TO_ID[l]);
+	const found = labelNames.filter((l) => STATE_LABEL_SET.has(l)).map((l) => STATE_LABEL_TO_ID[l]);
 	if (found.length === 0) return "unmanaged";
 	return found.length === 1 ? found[0] : null;
 }
@@ -32,7 +39,7 @@ function currentState(labelNames) {
 /** The single kind ("bug"/...) encoded in a label set, or null. */
 function currentKind(labelNames) {
 	const found = labelNames
-		.filter((l) => KIND_LABELS.includes(l))
+		.filter((l) => KIND_LABEL_SET.has(l))
 		.map((l) => l.slice("bot:".length));
 	return found.length === 1 ? found[0] : null;
 }
@@ -61,7 +68,7 @@ const VERB_ALIASES = {
  */
 function parseMention(body) {
 	if (!body) return null;
-	const m = body.match(/^[ \t]*@emdashbot[ \t]+([\s\S]+?)[ \t]*$/im);
+	const m = body.match(MENTION_RE);
 	return m ? m[1].trim() : null;
 }
 
@@ -77,7 +84,7 @@ function parseMention(body) {
 function parseCommand(body) {
 	const text = parseMention(body);
 	if (text === null) return null;
-	const normalized = text.trim().toLowerCase().replace(/\s+/g, " ");
+	const normalized = text.trim().toLowerCase().replace(WS_RE, " ");
 	const event = VERB_ALIASES[normalized] || (isKnownEvent(normalized) ? normalized : null);
 	if (!event) return null;
 	return { event, arg: null };
@@ -106,7 +113,7 @@ function classifierCommands(state) {
 }
 
 function isKnownEvent(event) {
-	return Object.prototype.hasOwnProperty.call(machine.events, event);
+	return Object.hasOwn(machine.events, event);
 }
 
 /** Find the single transition for (state, event), or null. */
@@ -167,6 +174,10 @@ function resolve({ labels, event, arg, actor }) {
 function resolveComment({ labels, body, actor, allowDefault }) {
 	const text = parseMention(body);
 	if (text === null) return { kind: "noop", reason: "no @emdashbot mention" };
+	// Bare `@emdashbot` mention with no body: don't route to the classifier (it
+	// fails the minLength(1) schema and silently returns `none`). Render the
+	// item's state instead so the caller can post a help reply.
+	if (text === "") return { kind: "readonly", state: currentState(labels), event: "status" };
 	const cmd = parseCommand(body);
 	if (cmd) return resolve({ labels, event: cmd.event, arg: cmd.arg, actor });
 	const from = currentState(labels);
@@ -182,7 +193,7 @@ function resolveComment({ labels, body, actor, allowDefault }) {
 function replyFooter(state) {
 	if (!state || !machine.states[state]) return "";
 	const cmds = machine.states[state].offeredCommands
-		.map((v) => `\`@emdashbot ${v.replace(/_/g, " ")}\``)
+		.map((v) => `\`@emdashbot ${v.replace(UNDERSCORE_RE, " ")}\``)
 		.join(" · ");
 	return `\n\n---\n_State: \`${state}\`. Available: ${cmds}_`;
 }
@@ -209,8 +220,8 @@ function outcomeFromResult({ ok, result }) {
 /** Invariant check for the linter: exactly one kind + one state. */
 function invariantProblems(labelNames) {
 	const problems = [];
-	const states = labelNames.filter((l) => STATE_LABELS.includes(l));
-	const kinds = labelNames.filter((l) => KIND_LABELS.includes(l));
+	const states = labelNames.filter((l) => STATE_LABEL_SET.has(l));
+	const kinds = labelNames.filter((l) => KIND_LABEL_SET.has(l));
 	if (states.length !== 1)
 		problems.push(`expected exactly 1 state label, found ${states.length}: [${states.join(", ")}]`);
 	if (kinds.length !== 1)

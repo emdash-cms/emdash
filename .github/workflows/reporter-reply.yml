@@ -42,8 +42,12 @@ jobs:
     # emdashbot's own comments. Without it, a bot comment could
     # re-trigger the classifier -- and the `unclear` path posts a comment
     # with no label flip or dedup marker, which would loop.
+    # Skip when V2 is live: orchestrate.yml handles the reply path under the
+    # new bot:awaiting-feedback state, and double-firing would re-run the
+    # classifier and race label flips.
     if: >-
-      github.event.issue.pull_request == null
+      vars.BOT_STATE_MACHINE_V2 != '1'
+      && github.event.issue.pull_request == null
       && github.event.comment.user.type != 'Bot'
       && contains(github.event.issue.labels.*.name, 'triage/awaiting-reporter')
     runs-on: ubuntu-latest
@@ -289,7 +293,7 @@ jobs:
           .flue/node_modules/.bin/flue run classify-reply \
             --target node \
             --root .flue \
-            --payload "$PAYLOAD" \
+            --input "$PAYLOAD" \
             > /tmp/classify-stdout.json 2> /tmp/classify-stderr.log
           EXIT=$?
           set -e

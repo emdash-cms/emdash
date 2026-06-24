@@ -49,11 +49,15 @@ jobs:
     name: Investigate issue
     # Gate on label name (only `bot:repro`) for the labeled path, or always
     # run for workflow_dispatch. Also skip if the labeled "issue" is actually
-    # a PR (issues.labeled fires for PRs too).
+    # a PR (issues.labeled fires for PRs too). Skip entirely when the V2
+    # state-machine is live: orchestrate.yml + investigate-run.yml own the
+    # bot:repro path under V2, and double-firing would race label flips and
+    # spawn duplicate agent runs.
     if: >-
-      github.event_name == 'workflow_dispatch'
-      || github.event_name == 'repository_dispatch'
-      || (github.event.label.name == 'bot:repro' && github.event.issue.pull_request == null)
+      vars.BOT_STATE_MACHINE_V2 != '1'
+      && (github.event_name == 'workflow_dispatch'
+        || github.event_name == 'repository_dispatch'
+        || (github.event.label.name == 'bot:repro' && github.event.issue.pull_request == null))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     # Serialize per-issue. Don't cancel in-flight runs -- partial state is
@@ -306,7 +310,7 @@ jobs:
           .flue/node_modules/.bin/flue run investigate \
             --target node \
             --root .flue \
-            --payload "$PAYLOAD" \
+            --input "$PAYLOAD" \
             > /tmp/agent-stdout.json 2> >(tee /tmp/agent-stderr.log >&2)
           EXIT=$?
           set -e

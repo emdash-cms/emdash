@@ -1,6 +1,8 @@
 // Lightweight classifier shared between investigate and classify-reply
-// workflows. Uses kimi-k2.6 via our Cloudflare AI Gateway -- cheap and
-// fast for structured classification tasks.
+// workflows. Defaults to qwen3-30b via the custom `cf-wai` Workers-AI-over-
+// gateway provider (registered in app.ts) -- cheap and fast for structured
+// classification, sweep-validated against the 43-case eval dataset. Override
+// per run with FLUE_CLASSIFIER_MODEL.
 
 import { writeFileSync } from "node:fs";
 
