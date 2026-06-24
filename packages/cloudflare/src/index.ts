@@ -243,6 +243,17 @@ export function d1(config: D1Config): DatabaseDescriptor {
  *   { "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<id>" }] }
  *   ```
  *
+ * **Disable Hyperdrive query caching for this configuration.** EmDash runs its
+ * own caching layer and depends on read-after-write consistency — the admin and
+ * setup wizard write a row and immediately read it back. Hyperdrive's default-on
+ * query cache can serve the pre-write result within its TTL, which corrupts
+ * setup (e.g. "collection already exists" / missing columns) and shows editors
+ * stale content. Turn it off when creating the config:
+ * ```sh
+ * wrangler hyperdrive update <id> --caching-disabled
+ * # or, at create time: wrangler hyperdrive create ... --caching-disabled
+ * ```
+ *
  * For best latency, pair this with a Smart Placement hint so the Worker runs in
  * the Cloudflare data center closest to your database's region — the request
  * path makes multiple round trips, so co-locating the Worker with the origin
