@@ -6,8 +6,23 @@ const r = require("./router.cjs");
 
 test("currentState reads the single state label", () => {
 	assert.equal(r.currentState(["bot:bug", "bot:blocked"]), "blocked");
-	assert.equal(r.currentState(["bot:bug"]), null, "no state -> null");
+	assert.equal(r.currentState(["bot:bug"]), "unmanaged", "no state label -> unmanaged");
+	assert.equal(r.currentState([]), "unmanaged", "no labels at all -> unmanaged");
 	assert.equal(r.currentState(["bot:blocked", "bot:working"]), null, "two states -> null");
+});
+
+test("implement works on an untriaged issue (no triage step required)", () => {
+	const d = r.resolve({ labels: [], event: "implement", arg: "add dark mode", actor: "maintainer" });
+	assert.equal(d.kind, "transition");
+	assert.equal(d.from, "unmanaged");
+	assert.equal(d.to, "working");
+	assert.equal(d.action, "investigate.implement");
+});
+
+test("repro works on an untriaged issue", () => {
+	const d = r.resolve({ labels: ["bot:bug"], event: "repro", actor: "maintainer" });
+	assert.equal(d.from, "unmanaged");
+	assert.equal(d.to, "working");
 });
 
 test("parseCommand parses verbs, args, and multi-word aliases", () => {
@@ -77,6 +92,72 @@ test("invariantProblems flags 0 or >1 of each dimension", () => {
 	assert.equal(r.invariantProblems(["bot:blocked"]).length, 1, "missing kind");
 	assert.equal(r.invariantProblems(["bot:bug"]).length, 1, "missing state");
 	assert.equal(r.invariantProblems(["bot:bug", "bot:blocked", "bot:working"]).length, 1, "two states");
+});
+
+test("resolveComment: bare feedback on a bot PR maps to revise", () => {
+	const labels = ["bot:bug", "bot:in-review"];
+	const d = r.resolveComment({ labels, body: "@emdashbot the test name is wrong, rename it", actor: "maintainer", allowDefault: true });
+	assert.equal(d.kind, "transition");
+	assert.equal(d.to, "working");
+	assert.equal(d.action, "investigate.revise");
+	assert.equal(d.arg, "the test name is wrong, rename it", "whole comment becomes the feedback arg");
+});
+
+test("resolveComment: explicit verb wins over the default", () => {
+	const labels = ["bot:bug", "bot:in-review"];
+	const d = r.resolveComment({ labels, body: "@emdashbot take over", actor: "maintainer", allowDefault: true });
+	assert.equal(d.to, "human_owned");
+});
+
+test("resolveComment: the @emdashbot mention is still required", () => {
+	const labels = ["bot:bug", "bot:in-review"];
+	const d = r.resolveComment({ labels, body: "the test name is wrong", actor: "maintainer", allowDefault: true });
+	assert.equal(d.kind, "noop", "no mention -> inert even on a bot PR");
+	assert.match(d.reason, /mention/);
+});
+
+test("resolveComment: no default outside a bot PR", () => {
+	const labels = ["bot:bug", "bot:in-review"];
+	const d = r.resolveComment({ labels, body: "@emdashbot looks good", actor: "maintainer", allowDefault: false });
+	assert.equal(d.kind, "noop", "human PR / non-bot context: unknown verb is a no-op");
+});
+
+test("resolveComment: default only applies in states that define one", () => {
+	const labels = ["bot:bug", "bot:blocked"];
+	const d = r.resolveComment({ labels, body: "@emdashbot please look again", actor: "maintainer", allowDefault: true });
+	assert.equal(d.kind, "noop", "blocked has no defaultCommentEvent");
+});
+
+test("outcomeFromResult maps the agent's flat result to an agent.* event", () => {
+	assert.equal(r.outcomeFromResult({ ok: false }), "agent.failed");
+	assert.equal(r.outcomeFromResult({ ok: true, result: null }), "agent.failed");
+	assert.equal(r.outcomeFromResult({ ok: true, result: { skipped: true } }), "agent.skipped");
+	assert.equal(
+		r.outcomeFromResult({ ok: true, result: { skipped: false, verdict: "intended-behavior" } }),
+		"agent.by_design",
+	);
+	assert.equal(
+		r.outcomeFromResult({ ok: true, result: { skipped: false, reproduced: false, verdict: "bug" } }),
+		"agent.not_reproduced",
+	);
+	assert.equal(
+		r.outcomeFromResult({ ok: true, result: { reproduced: true, fixed: true, verdict: "bug" } }),
+		"agent.fix_ready",
+	);
+	assert.equal(
+		r.outcomeFromResult({ ok: true, result: { reproduced: true, fixed: false, verdict: "bug" } }),
+		"agent.reproduced",
+	);
+});
+
+test("outcomeFromResult feeds resolve to advance the machine end-to-end", () => {
+	// fix_ready from working -> awaiting_feedback (the executor's happy path).
+	const event = r.outcomeFromResult({ ok: true, result: { reproduced: true, fixed: true } });
+	const d = r.resolve({ labels: ["bot:bug", "bot:working"], event, actor: "system" });
+	assert.equal(d.to, "awaiting_feedback");
+	// fix_ready does NOT open a PR; the executor pushes the branch and the
+	// orchestrator asks the reporter. The PR opens on `confirm`.
+	assert.equal(d.action, null);
 });
 
 test("replyFooter lists the offered commands for the state", () => {

@@ -18,7 +18,10 @@ one `state` label** at all times. `kind` is the category; `state` is the lifecyc
 
 ```mermaid
 stateDiagram-v2
-    [*] --> triage: issue opened
+    [*] --> unmanaged: issue opened
+    unmanaged --> working: repro
+    unmanaged --> working: implement
+    unmanaged --> declined: decline
     triage --> working: repro
     triage --> working: implement
     triage --> declined: decline
@@ -61,11 +64,12 @@ stateDiagram-v2
 
 | State | Label | Board column | Flags | Meaning |
 | --- | --- | --- | --- | --- |
+| `unmanaged` | — | (none) | — | No bot labels yet. An issue nobody has handed to the bot. Entry commands work directly. |
 | `triage` | `bot:triage` | Triage | — | Filed and awaiting a decision on whether/how the bot should act. |
 | `working` | `bot:working` | Working | transient | An agent run is in flight (reproduce / diagnose / verify / fix / implement). |
 | `blocked` | `bot:blocked` | Blocked | — | The bot stopped and needs a human decision. Covers the old skipped / not-reproduced / reproduced-no-fix / by-design outcomes; the reason is in the bot's comment. |
 | `awaiting_feedback` | `bot:awaiting-feedback` | Awaiting feedback | — | A fix is staged on bot/fix-<n>; waiting for the reporter or a maintainer to confirm or reject. |
-| `in_review` | `bot:in-review` | In review | — | A PR is open. The review/* sub-states live on the PR and roll up here. Feedback routes back into the agent via `revise`. |
+| `in_review` | `bot:in-review` | In review | — | A PR is open. The review/* sub-states live on the PR and roll up here. On a bot PR, a plain `@emdashbot` comment is feedback; explicit verbs still win. |
 | `human_owned` | `bot:human-owned` | Human owned | — | A maintainer took it over; the bot stays disengaged but the item stays on the board. |
 | `done` | `bot:done` | Done | terminal | Shipped (PR merged) or confirmed resolved. |
 | `declined` | `bot:declined` | Declined | terminal | Won't be actioned (by design, out of scope, or a maintainer call). |
@@ -92,6 +96,12 @@ interface is self-documenting. `@emdashbot status` renders the item's position o
 | `@emdashbot status` | reporter, maintainer | Render the item's current state and available commands. |
 | `@emdashbot help` | reporter, maintainer | Show the command grammar. |
 
+### Implicit feedback on a bot PR
+
+An `@emdashbot` mention is always required; only the verb is optional in these states:
+
+- In `in_review`, an `@emdashbot` comment that isn't a known verb is treated as `revise` (the comment body becomes the argument).
+
 ## Transitions
 
 Agent results (`agent.*`) and PR lifecycle events (`pr.*`) are fired by workflows,
@@ -101,6 +111,9 @@ with the valid commands instead of erroring).
 
 | From | Event | Actors | Action | To | Note |
 | --- | --- | --- | --- | --- | --- |
+| `unmanaged` | `repro` | maintainer | `investigate.repro` | `working` |  |
+| `unmanaged` | `implement` | maintainer | `investigate.implement` | `working` | implement works straight from an untriaged issue |
+| `unmanaged` | `decline` | maintainer | — | `declined` |  |
 | `triage` | `repro` | maintainer | `investigate.repro` | `working` |  |
 | `triage` | `implement` | maintainer | `investigate.implement` | `working` | enhancement/feature lane -- no repro gate |
 | `triage` | `decline` | maintainer | — | `declined` |  |
@@ -108,7 +121,7 @@ with the valid commands instead of erroring).
 | `working` | `agent.not_reproduced` | system | — | `blocked` | reason: not-reproduced (was a sink) |
 | `working` | `agent.by_design` | system | — | `blocked` | reason: by-design |
 | `working` | `agent.reproduced` | system | — | `blocked` | reason: fix needs a decision |
-| `working` | `agent.fix_ready` | system | `openPr` | `awaiting_feedback` | push branch + ask reporter |
+| `working` | `agent.fix_ready` | system | — | `awaiting_feedback` | executor pushes bot/fix-<n>; orchestrator asks the reporter to confirm. PR opens on confirm, not here. |
 | `working` | `agent.failed` | system | — | `failed` |  |
 | `blocked` | `implement` | maintainer | `investigate.implement` | `working` |  |
 | `blocked` | `repro` | maintainer | `investigate.repro` | `working` |  |

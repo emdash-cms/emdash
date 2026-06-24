@@ -10,6 +10,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+	ENTRY_STATE,
 	EVENTS,
 	KINDS,
 	STATES,
@@ -41,7 +42,7 @@ const json = JSON.stringify(machineSnapshot(), null, "\t") + "\n";
 
 // --- Mermaid diagram ---
 function mermaid(): string {
-	const lines = ["stateDiagram-v2", "    [*] --> triage: issue opened"];
+	const lines = ["stateDiagram-v2", `    [*] --> ${ENTRY_STATE}: issue opened`];
 	for (const t of TRANSITIONS) {
 		// Skip idempotent self-loops in the diagram unless they carry meaning.
 		const label = t.event.replace(/^agent\./, "").replace(/^pr\./, "PR ").replace(/_/g, " ");
@@ -78,12 +79,23 @@ function grammar(): string {
 	return ["| Command | Who | Effect |", "| --- | --- | --- |", ...rows].join("\n");
 }
 
+// --- comment defaults (states where a bare @emdashbot comment maps to an event) ---
+function commentDefaults(): string {
+	const rows = (Object.keys(STATES) as StateId[])
+		.filter((id) => STATES[id].defaultCommentEvent)
+		.map((id) => `- In \`${id}\`, an \`@emdashbot\` comment that isn't a known verb is treated as \`${STATES[id].defaultCommentEvent}\` (the comment body becomes the argument).`);
+	return rows.length
+		? `An \`@emdashbot\` mention is always required; only the verb is optional in these states:\n\n${rows.join("\n")}`
+		: "No states define an implicit comment event.";
+}
+
 // --- state table ---
 function stateTable(): string {
 	const rows = (Object.keys(STATES) as StateId[]).map((id) => {
 		const s = STATES[id];
 		const flags = [s.terminal ? "terminal" : "", s.transient ? "transient" : ""].filter(Boolean).join(", ") || "—";
-		return `| \`${id}\` | \`${s.label}\` | ${s.boardColumn} | ${flags} | ${s.description} |`;
+		const label = s.label === "" ? "—" : `\`${s.label}\``;
+		return `| \`${id}\` | ${label} | ${s.boardColumn} | ${flags} | ${s.description} |`;
 	});
 	return ["| State | Label | Board column | Flags | Meaning |", "| --- | --- | --- | --- | --- |", ...rows].join("\n");
 }
@@ -119,6 +131,10 @@ The bot ends each comment with the commands valid from the current state, so the
 interface is self-documenting. \`@emdashbot status\` renders the item's position on demand.
 
 ${grammar()}
+
+### Implicit feedback on a bot PR
+
+${commentDefaults()}
 
 ## Transitions
 

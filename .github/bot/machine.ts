@@ -33,6 +33,7 @@ export type Kind = (typeof KINDS)[number];
 // ---------------------------------------------------------------------------
 
 export type StateId =
+	| "unmanaged"
 	| "triage"
 	| "working"
 	| "blocked"
@@ -59,9 +60,28 @@ export interface StateMeta {
 	transient?: boolean;
 	/** Commands offered in the bot's self-documenting comment footer. */
 	offeredCommands: CommandVerb[];
+	/**
+	 * On a bot-authored PR, an `@emdashbot` comment whose verb isn't a known
+	 * command is treated as this event, with the whole comment as its arg.
+	 * Lets reviewers leave plain feedback ("@emdashbot the test name is wrong")
+	 * without remembering the `revise` keyword. Explicit verbs still win, and
+	 * the `@emdashbot` mention is still required so random PR chatter is inert.
+	 */
+	defaultCommentEvent?: CommandVerb;
 }
 
 export const STATES: Record<StateId, StateMeta> = {
+	unmanaged: {
+		// The implicit starting point: an issue the bot has never touched. It
+		// carries no state label, so it is not provisioned and never appears on
+		// the board until a command moves it in. Entry commands (repro /
+		// implement / decline) work here directly -- triage is not a prerequisite.
+		label: "",
+		boardColumn: "(none)",
+		description: "No bot labels yet. An issue nobody has handed to the bot. Entry commands work directly.",
+		terminal: false,
+		offeredCommands: ["repro", "implement", "decline"],
+	},
 	triage: {
 		label: "bot:triage",
 		boardColumn: "Triage",
@@ -96,9 +116,10 @@ export const STATES: Record<StateId, StateMeta> = {
 		label: "bot:in-review",
 		boardColumn: "In review",
 		description:
-			"A PR is open. The review/* sub-states live on the PR and roll up here. Feedback routes back into the agent via `revise`.",
+			"A PR is open. The review/* sub-states live on the PR and roll up here. On a bot PR, a plain `@emdashbot` comment is feedback; explicit verbs still win.",
 		terminal: false,
 		offeredCommands: ["revise", "decline", "take_over"],
+		defaultCommentEvent: "revise",
 	},
 	human_owned: {
 		label: "bot:human-owned",
@@ -259,7 +280,12 @@ export interface Transition {
 }
 
 export const TRANSITIONS: Transition[] = [
-	// --- entry from triage ---
+	// --- entry on an untriaged issue (no triage step required) ---
+	{ from: "unmanaged", event: "repro", to: "working", action: "investigate.repro" },
+	{ from: "unmanaged", event: "implement", to: "working", action: "investigate.implement", note: "implement works straight from an untriaged issue" },
+	{ from: "unmanaged", event: "decline", to: "declined" },
+
+	// --- entry from triage (the labeled resting state after reopen/hand_back) ---
 	{ from: "triage", event: "repro", to: "working", action: "investigate.repro" },
 	{ from: "triage", event: "implement", to: "working", action: "investigate.implement", note: "enhancement/feature lane -- no repro gate" },
 	{ from: "triage", event: "decline", to: "declined" },
@@ -269,7 +295,7 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "working", event: "agent.not_reproduced", to: "blocked", note: "reason: not-reproduced (was a sink)" },
 	{ from: "working", event: "agent.by_design", to: "blocked", note: "reason: by-design" },
 	{ from: "working", event: "agent.reproduced", to: "blocked", note: "reason: fix needs a decision" },
-	{ from: "working", event: "agent.fix_ready", to: "awaiting_feedback", action: "openPr", note: "push branch + ask reporter" },
+	{ from: "working", event: "agent.fix_ready", to: "awaiting_feedback", note: "executor pushes bot/fix-<n>; orchestrator asks the reporter to confirm. PR opens on confirm, not here." },
 	{ from: "working", event: "agent.failed", to: "failed" },
 
 	// --- blocked: every reason accepts the same overrides (kills the sinks) ---
@@ -312,11 +338,17 @@ export const TRANSITIONS: Transition[] = [
 // Helpers
 // ---------------------------------------------------------------------------
 
-export const ENTRY_STATE: StateId = "triage";
+export const ENTRY_STATE: StateId = "unmanaged";
 
-/** All state labels, for provisioning and the "exactly one" invariant check. */
+/**
+ * Provisionable state labels. `unmanaged` is the implicit no-label start, so it
+ * is excluded -- it is never written, only inferred from the absence of a state
+ * label. This is also the set the "exactly one state" invariant checks against.
+ */
 export function stateLabels(): string[] {
-	return Object.values(STATES).map((s) => s.label);
+	return Object.values(STATES)
+		.map((s) => s.label)
+		.filter((l) => l !== "");
 }
 
 /** All kind labels. */

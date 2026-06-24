@@ -78,23 +78,59 @@ Action ids map to the agent's existing entry modes:
 `retryContext`, which the agent already supports. The only genuinely new entry
 is `revise` from `in_review` checking out the existing `bot/fix-<n>` branch.
 
+## Two interface rules worth calling out
+
+- **Entry needs no triage.** `@emdashbot implement <directive>` (and `repro`,
+  `decline`) work on an issue with no bot labels at all -- the `unmanaged` start
+  state. There is no "triage it first" step; the command both files the item
+  into the machine and acts. `triage` only exists as the labeled resting place
+  something lands in after `reopen` or `hand back`.
+- **Bot PRs take plain feedback.** While `in_review` on a bot-authored PR, an
+  `@emdashbot` comment whose verb isn't recognized is treated as `revise`, with
+  the whole comment as the feedback. Reviewers don't need the `revise` keyword.
+  The `@emdashbot` mention is still required, so ordinary PR discussion stays
+  inert, and explicit verbs (`take over`, `decline`, ...) still win. The listener
+  passes `allowDefault: true` only for bot-authored PRs; `router.resolveComment`
+  applies the rule. Because a revise run moves the item to the transient
+  `working` state, comments arriving mid-run are status no-ops until it returns
+  to `in_review`, which debounces a fast back-and-forth into one run at a time.
+
+## What's built
+
+- **`machine.ts` + generated artifacts + `router.cjs` (+ tests).** The spec, the
+  runtime JSON, and the pure transition logic, including `outcomeFromResult`
+  (agent result -> `agent.*` event) and `resolveComment` (the `@emdashbot`
+  grammar with the bot-PR implicit-`revise` rule).
+- **`.flue/` migrated to Flue 1.0** (`@flue/runtime@1.0.0-beta.5`): the
+  investigate workflow (one agent, separate `classify`/`fix` sessions with model
+  overrides), and the two classifier workflows, all on `defineWorkflow`/
+  `defineAgent`. `flue build --target node` passes.
+- **`.github/workflows/orchestrate.yml`** — the brain: events -> route
+  (deterministic) -> classify (only for free-text replies) -> `resolve` ->
+  label flip + comment -> `repository_dispatch` the agent run.
+- **`.github/workflows/investigate-run.yml`** — the executor: `flue run
+  investigate` on a runner (the toolchain) -> push `bot/fix-<n>` if fixed ->
+  `outcomeFromResult` + `resolve` -> apply the transition. The agent only ever
+  holds the read-only `AGENT_GH_TOKEN`; every write uses the app token.
+
 ## Cutover plan
 
-The new machine ships *alongside* the live workflows, gated by the repo variable
-`BOT_STATE_MACHINE_V2`, so nothing changes until it is flipped.
+Everything ships gated behind the `BOT_STATE_MACHINE_V2` repo variable, so the
+live bot is untouched until it is flipped.
 
-1. **Foundation (this PR).** `machine.ts`, generated artifacts, `router.cjs` +
-   tests, the CI drift check, the read-only linter. No behavior change.
-2. **Shadow.** Add the control-listener + system-event workflows guarded by
-   `vars.BOT_STATE_MACHINE_V2 != '1'` running in log-only mode: compute the
-   decision and annotate, but let the old workflows do the writes. Compare.
-3. **Cut over.** Flip the variable. The new workflows own the writes; retire
-   `reporter-reply.yml`, `maintainer-reply.yml`, and the label-flip blocks in
-   `investigate.yml` (its agent steps stay). Migrate live labels
-   (`triage/* -> bot:*`) with a one-shot backfill.
-4. **New edges.** With the machine authoritative, the gap-closing edges
-   (`blocked → implement`, `in_review → revise`, enhancement lane) are already in
-   the table and just work.
+1. **Foundation (done).** Spec, artifacts, router + tests, CI drift check,
+   read-only linter, the Flue 1.0 agent migration. No behavior change.
+2. **Shadow.** Run `orchestrate.yml` in log-only mode (compute decisions,
+   annotate) alongside the live workflows. Compare against
+   `reporter-reply.yml` / `maintainer-reply.yml` / `investigate.yml`.
+3. **Cut over.** Flip `BOT_STATE_MACHINE_V2`. `orchestrate.yml` +
+   `investigate-run.yml` own the writes; retire `reporter-reply.yml`,
+   `maintainer-reply.yml`, and the orchestration (not the agent run) parts of
+   the old `investigate.yml`. Migrate live labels (`triage/* -> bot:*`) with a
+   one-shot backfill (map below).
+4. **New edges.** The gap-closing edges (`blocked -> implement`,
+   `in_review -> revise`, the enhancement lane, terminal `reopen`) are already
+   in the table and just work.
 
 ### Label migration map
 
