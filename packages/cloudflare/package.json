@@ -17,6 +17,10 @@
       "types": "./dist/db/d1.d.mts",
       "default": "./dist/db/d1.mjs"
     },
+    "./db/hyperdrive": {
+      "types": "./dist/db/hyperdrive.d.mts",
+      "default": "./dist/db/hyperdrive.mjs"
+    },
     "./db/do": {
       "types": "./dist/db/do.d.mts",
       "default": "./dist/db/do.mjs"
@@ -96,12 +100,19 @@
     "@astrojs/cloudflare": ">=12.0.0",
     "@cloudflare/workers-types": ">=4.0.0",
     "astro": ">=6.0.0-beta.0",
-    "kysely": ">=0.28.17"
+    "kysely": ">=0.28.17",
+    "pg": ">=8.16.3"
+  },
+  "peerDependenciesMeta": {
+    "pg": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
     "@astrojs/cloudflare": "catalog:",
     "@cloudflare/workers-types": "catalog:",
+    "@types/pg": "^8.16.0",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

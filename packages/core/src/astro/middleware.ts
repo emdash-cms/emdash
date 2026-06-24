@@ -356,13 +356,79 @@ const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
  */
 function createRequestScopedDb(
 	opts: RequestScopedDbOpts,
-): { db: Kysely<Database>; commit: () => void } | null {
+): { db: Kysely<Database>; commit: () => void; close?: () => void } | null {
 	if (typeof virtualCreateRequestScopedDb !== "function") return null;
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- adapter returns Kysely<unknown>; cast to Database since core owns that type
 	const fn = virtualCreateRequestScopedDb as (
 		o: RequestScopedDbOpts,
-	) => { db: Kysely<Database>; commit: () => void } | null;
+	) => { db: Kysely<Database>; commit: () => void; close?: () => void } | null;
 	return fn(opts);
+}
+
+/**
+ * Run a request-scoped db's `close()` once the response body has finished
+ * streaming. Astro streams HTML and components issue DB queries during that
+ * stream, so a connection-backed adapter (e.g. Postgres over Hyperdrive) must
+ * not be torn down until the body is flushed. Bodyless responses (redirects,
+ * 304s, errors) close immediately. A guard makes close idempotent and a stream
+ * `cancel` (client disconnect) still triggers it so connections never leak.
+ *
+ * No-op for adapters without a `close` (D1): the response passes through.
+ */
+function wrapResponseForScopedClose(response: Response, close: () => void): Response {
+	let closed = false;
+	const runClose = () => {
+		if (closed) return;
+		closed = true;
+		try {
+			close();
+		} catch (error) {
+			console.error("[emdash] request-scoped db close failed:", error);
+		}
+	};
+
+	if (!response.body) {
+		runClose();
+		return response;
+	}
+
+	const transform = new TransformStream<Uint8Array, Uint8Array>({
+		flush: runClose,
+		cancel: runClose,
+	});
+	const wrapped = new Response(response.body.pipeThrough(transform), response);
+	const astroCookies = Reflect.get(response, ASTRO_COOKIES_SYMBOL);
+	if (astroCookies !== undefined) {
+		Reflect.set(wrapped, ASTRO_COOKIES_SYMBOL, astroCookies);
+	}
+	// Byte counts are preserved by the identity transform, but a stale
+	// Content-Length on a reconstructed streaming Response risks truncation.
+	wrapped.headers.delete("Content-Length");
+	return wrapped;
+}
+
+/**
+ * Run the request body under a request-scoped db, then settle its lifecycle:
+ * `commit()` runs before the response is returned (so per-request state like a
+ * D1 bookmark cookie is persisted in the headers, even if render throws), while
+ * `close()` (if any) is deferred to stream-end so a connection-backed adapter
+ * isn't torn down mid-render. On error the connection is closed immediately
+ * before rethrowing so it never leaks.
+ */
+async function finishScoped(
+	scoped: { commit: () => void; close?: () => void },
+	run: () => Promise<Response>,
+): Promise<Response> {
+	let response: Response;
+	try {
+		response = await run();
+	} catch (error) {
+		scoped.commit();
+		scoped.close?.();
+		throw error;
+	}
+	scoped.commit();
+	return scoped.close ? wrapResponseForScopedClose(response, scoped.close) : response;
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -546,15 +612,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
 						if (acceptsHtml) after(() => prefetchLayoutData());
-						// commit() in finally: the write reached the primary independently
-						// of render, so the bookmark cookie must be persisted even if
-						// render throws -- otherwise a write-then-failed-render leaves the
-						// next request able to read pre-write state off a lagging replica.
-						try {
-							return await runAnon();
-						} finally {
-							anonScoped.commit();
-						}
+						// commit() persists per-request state (e.g. the D1 bookmark cookie)
+						// before the response is returned, even if render throws; close()
+						// (connection teardown) is deferred to stream-end. See finishScoped.
+						return finishScoped(anonScoped, runAnon);
 					});
 				}
 				return runAnon();
@@ -658,7 +719,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Direct access (for advanced use cases)
 					storage: runtime.storage,
-					db: runtime.db,
+					// Lazy getter, not an eager snapshot: `locals.emdash` is built
+					// before the per-request scoped db is installed in ALS, so reading
+					// `runtime.db` here would capture the per-isolate singleton. Routes
+					// access `emdash.db` later, during the request, when the scoped db
+					// is active. For a stateless binding (D1) the two are equivalent,
+					// but for a request-bound connection (pg/Hyperdrive) the singleton
+					// belongs to the cold-start request and reusing it from a warm
+					// request hangs on workerd's cross-request I/O guard.
+					get db() {
+						return runtime.db;
+					},
 					getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
 					hooks: runtime.hooks,
 					email: runtime.email,
@@ -722,16 +793,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const ctx = parent
 					? { ...parent, db: scoped.db }
 					: { editMode: false, db: scoped.db, metrics };
-				return runWithContext(ctx, async () => {
-					// commit() in finally: persist the bookmark cookie even if render
-					// throws -- the write already reached the primary, so a failed
-					// render must not strand the next request on a stale replica read.
-					try {
-						return await renderAndFinalize();
-					} finally {
-						scoped.commit();
-					}
-				});
+				return runWithContext(ctx, () =>
+					// commit() persists per-request state (e.g. the D1 bookmark cookie)
+					// before the response returns, even if render throws; close()
+					// (connection teardown) is deferred to stream-end. See finishScoped.
+					finishScoped(scoped, renderAndFinalize),
+				);
 			}
 
 			return renderAndFinalize();

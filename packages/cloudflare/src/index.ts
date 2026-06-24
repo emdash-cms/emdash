@@ -106,6 +106,29 @@ export interface D1Config {
 }
 
 /**
+ * Hyperdrive configuration
+ */
+export interface HyperdriveConfig {
+	/**
+	 * Name of the Hyperdrive binding in wrangler config.
+	 * @default "HYPERDRIVE"
+	 */
+	binding?: string;
+
+	/**
+	 * Maximum size of the in-Worker node-postgres connection pool.
+	 *
+	 * Hyperdrive maintains the real connection pool to your origin database,
+	 * so this only caps connections from the Worker isolate to Hyperdrive.
+	 * Keep it low to stay within Workers' concurrent external connection
+	 * limits.
+	 *
+	 * @default 5
+	 */
+	max?: number;
+}
+
+/**
  * R2 storage configuration
  */
 export interface R2StorageConfig {
@@ -196,6 +219,42 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		entrypoint: "@emdash-cms/cloudflare/db/d1",
 		config,
 		type: "sqlite",
+		supportsRequestScope: true,
+	};
+}
+
+/**
+ * Cloudflare Hyperdrive database adapter (PostgreSQL)
+ *
+ * For Cloudflare Workers connecting to an existing PostgreSQL or
+ * PostgreSQL-compatible database (e.g. PlanetScale Postgres) through a
+ * Hyperdrive binding. Hyperdrive pools and accelerates the connection;
+ * EmDash's PostgreSQL dialect runs the queries.
+ *
+ * Each request gets its own pooled connection that is opened and closed within
+ * that request — Worker connections cannot be reused across requests.
+ *
+ * Requires in the consuming site:
+ * - `pg >= 8.16.3` installed
+ * - `compatibility_flags: ["nodejs_compat"]`
+ * - `compatibility_date >= "2024-09-23"`
+ * - A Hyperdrive binding in wrangler config:
+ *   ```jsonc
+ *   { "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<id>" }] }
+ *   ```
+ *
+ * @example
+ * ```ts
+ * database: hyperdrive({ binding: "HYPERDRIVE" })
+ * ```
+ */
+export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/db/hyperdrive",
+		config: { binding: config.binding ?? "HYPERDRIVE", max: config.max },
+		type: "postgres",
+		// Each request gets a fresh pg connection that is closed afterwards —
+		// connections cannot be reused across Worker requests.
 		supportsRequestScope: true,
 	};
 }
