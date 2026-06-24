@@ -64,31 +64,43 @@ function parseMention(body) {
 }
 
 /**
- * Parse an `@emdashbot <verb> [arg]` command. Returns { event, arg } when the
- * verb is recognized, or null when there is no mention OR the verb is unknown
- * (an unknown verb may still become a default-event arg -- see resolveComment).
+ * Parse a deterministic bare-verb command. The mention text must be EXACTLY a
+ * known verb (after alias + whitespace normalization), e.g. `@emdashbot retry`
+ * or `@emdashbot take over`. Any extra word makes it not a command -> null, so
+ * the caller hands it to the intent classifier. This is the "harder to trigger
+ * by accident" rule: arg-carrying intents (`implement <directive>`,
+ * `revise <feedback>`) and any natural-language phrasing always route to the
+ * classifier; only the exact verb fires deterministically.
  */
 function parseCommand(body) {
 	const text = parseMention(body);
 	if (text === null) return null;
-	// Up to two leading words may form the verb ("take over"); the rest is arg.
-	const m = text.match(/^([a-z]+(?:[ \t]+[a-z]+)?)([\s\S]*)$/i);
-	if (!m) return null;
-	let verb = m[1].trim().toLowerCase().replace(/\s+/g, " ");
-	let rest = m[2] ? m[2].trim() : "";
-	if (VERB_ALIASES[verb]) verb = VERB_ALIASES[verb];
-	else {
-		const oneWord = verb.split(" ")[0];
-		if (VERB_ALIASES[oneWord]) {
-			verb = VERB_ALIASES[oneWord];
-		} else if (!isKnownEvent(verb)) {
-			// Two-word parse failed to match; the second word is probably the arg.
-			rest = (verb.split(" ").slice(1).join(" ") + " " + rest).trim();
-			verb = oneWord;
-		}
-	}
-	if (!isKnownEvent(verb)) return null;
-	return { event: verb, arg: rest || null };
+	const normalized = text.trim().toLowerCase().replace(/\s+/g, " ");
+	const event = VERB_ALIASES[normalized] || (isKnownEvent(normalized) ? normalized : null);
+	if (!event) return null;
+	return { event, arg: null };
+}
+
+/** True for hard-to-undo events excluded from free-text classification. */
+function isDestructive(event) {
+	return Boolean(machine.events[event] && machine.events[event].destructive);
+}
+
+/**
+ * The commands the intent classifier may choose from in a given state: the
+ * state's offered commands minus destructive ones (which require an exact bare
+ * verb). Each carries its description and whether it takes a free-text arg, for
+ * the classifier prompt.
+ */
+function classifierCommands(state) {
+	if (!state || !machine.states[state]) return [];
+	return machine.states[state].offeredCommands
+		.filter((e) => !isDestructive(e))
+		.map((e) => ({
+			event: e,
+			description: (machine.events[e] && machine.events[e].description) || "",
+			arg: (machine.events[e] && machine.events[e].arg) || null,
+		}));
 }
 
 function isKnownEvent(event) {
@@ -135,30 +147,33 @@ function resolve({ labels, event, arg, actor }) {
 }
 
 /**
- * Resolve a comment body to a decision. This is the entry point the comment
- * listener uses, layering the implicit-feedback rule over the explicit grammar:
+ * Resolve a comment body to a decision. The free-text grammar:
  *
  *   1. No `@emdashbot` mention -> noop. The mention is always required.
- *   2. A recognized verb -> that command (explicit verbs always win).
- *   3. Otherwise, if `allowDefault` (caller passes true only on a bot PR) and
- *      the current state defines `defaultCommentEvent`, the whole mention text
- *      becomes that event's argument (e.g. plain feedback -> `revise`).
- *   4. Else noop with a help reason.
+ *   2. The mention text is EXACTLY a known verb -> that command, deterministic
+ *      (explicit bare verbs always win, including destructive ones).
+ *   3. Else, on a bot PR with a `defaultCommentEvent` state (in_review), the
+ *      whole text is that event's arg (free-text feedback -> `revise`) without a
+ *      model call.
+ *   4. Else, hand off to the intent classifier, constrained to this state's
+ *      non-destructive commands: `{ kind: "classify", state, commands, text }`.
+ *      The caller runs the classifier, then calls `resolve(state, event, arg)`.
+ *   5. Else (no eligible commands) -> noop.
  *
- * `allowDefault` is the caller's "this is a bot-authored PR" signal; the event
- * itself comes from the state's `defaultCommentEvent` in machine.json.
+ * `allowDefault` is the caller's "this is a bot-authored PR" signal.
  */
 function resolveComment({ labels, body, actor, allowDefault }) {
 	const text = parseMention(body);
 	if (text === null) return { kind: "noop", reason: "no @emdashbot mention" };
 	const cmd = parseCommand(body);
 	if (cmd) return resolve({ labels, event: cmd.event, arg: cmd.arg, actor });
-	if (allowDefault) {
-		const from = currentState(labels);
-		const def = from && machine.states[from] ? machine.states[from].defaultCommentEvent : null;
-		if (def) return resolve({ labels, event: def, arg: text, actor });
+	const from = currentState(labels);
+	if (allowDefault && from && machine.states[from] && machine.states[from].defaultCommentEvent) {
+		return resolve({ labels, event: machine.states[from].defaultCommentEvent, arg: text, actor });
 	}
-	return { kind: "noop", reason: "unknown command", from: currentState(labels) };
+	const commands = classifierCommands(from);
+	if (commands.length) return { kind: "classify", state: from, commands, text, actor };
+	return { kind: "noop", reason: "no actionable command", from };
 }
 
 /** The self-documenting footer listing valid commands from a state. */
@@ -205,6 +220,8 @@ module.exports = {
 	currentKind,
 	parseMention,
 	parseCommand,
+	isDestructive,
+	classifierCommands,
 	findTransition,
 	resolve,
 	resolveComment,

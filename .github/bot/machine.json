@@ -166,7 +166,8 @@
 			"description": "Won't be actioned; move to declined.",
 			"actors": [
 				"maintainer"
-			]
+			],
+			"destructive": true
 		},
 		"reopen": {
 			"description": "Bring a terminal item back into triage.",
@@ -178,7 +179,8 @@
 			"description": "A maintainer takes the item; the bot disengages but stays on the board.",
 			"actors": [
 				"maintainer"
-			]
+			],
+			"destructive": true
 		},
 		"hand_back": {
 			"description": "Return a human-owned item to the bot.",

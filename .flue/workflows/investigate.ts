@@ -48,10 +48,13 @@ import verify from "../skills/verify/SKILL.md" with { type: "skill" };
 
 const INVESTIGATE_MODEL =
 	process.env.FLUE_INVESTIGATE_MODEL ?? "cloudflare-ai-gateway/claude-opus-4-7";
+// `cf-wai/*` are registered in app.ts (Workers AI over the gateway /compat
+// endpoint). Classifier default: qwen3-30b (sweep-validated, see evals/).
+// Fix default: kimi-k2.7-code (the coding-specialized model; classifier
+// evals don't speak to fix quality, so this stays on the larger model).
 const CLASSIFIER_MODEL =
-	process.env.FLUE_CLASSIFIER_MODEL ?? "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code";
-const FIX_MODEL =
-	process.env.FLUE_FIX_MODEL ?? "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code";
+	process.env.FLUE_CLASSIFIER_MODEL ?? "cf-wai/workers-ai/@cf/qwen/qwen3-30b-a3b-fp8";
+const FIX_MODEL = process.env.FLUE_FIX_MODEL ?? "cf-wai/workers-ai/@cf/moonshotai/kimi-k2.7-code";
 
 // ---------- Payload + result schemas ----------
 

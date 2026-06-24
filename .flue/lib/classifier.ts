@@ -14,8 +14,13 @@ import * as v from "valibot";
  * Model is env-overridable so ops can repoint it without a code change.
  */
 export const classifier = defineAgent(() => ({
-	model:
-		process.env.FLUE_CLASSIFIER_MODEL ?? "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code",
+	// `cf-wai` is the custom Workers-AI-over-gateway provider registered in
+	// app.ts. Default qwen3-30b-a3b-fp8: chosen by the 43-case sweep (evals/) as
+	// the best classifier on cost+speed at near-tied accuracy with kimi-k2.7-code
+	// (84% vs 86%), at ~9x cheaper and ~4.4x faster, and with zero capacity
+	// timeouts in the sweep (kimi hit 3/43). Override per-run with
+	// FLUE_CLASSIFIER_MODEL to compare candidates without a code change.
+	model: process.env.FLUE_CLASSIFIER_MODEL ?? "cf-wai/workers-ai/@cf/qwen/qwen3-30b-a3b-fp8",
 }));
 
 /**

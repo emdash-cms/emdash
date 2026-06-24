@@ -25,17 +25,34 @@ test("repro works on an untriaged issue", () => {
 	assert.equal(d.to, "working");
 });
 
-test("parseCommand parses verbs, args, and multi-word aliases", () => {
+test("parseCommand is strict: only an exact bare verb is deterministic", () => {
 	assert.deepEqual(r.parseCommand("@emdashbot retry"), { event: "retry", arg: null });
 	assert.deepEqual(r.parseCommand("@emdashbot take over"), { event: "take_over", arg: null });
-	assert.deepEqual(r.parseCommand("@emdashbot hand back please"), { event: "hand_back", arg: "please" });
-	assert.deepEqual(r.parseCommand("@emdashbot implement use a LEFT JOIN"), {
-		event: "implement",
-		arg: "use a LEFT JOIN",
-	});
-	assert.deepEqual(r.parseCommand("@emdashbot confirmed"), { event: "confirm", arg: null });
+	assert.deepEqual(r.parseCommand("@emdashbot confirmed"), { event: "confirm", arg: null }, "alias");
+	// Any extra word routes to the classifier, not a deterministic command.
+	assert.equal(r.parseCommand("@emdashbot hand back please"), null, "extra word -> null");
+	assert.equal(r.parseCommand("@emdashbot implement use a LEFT JOIN"), null, "arg -> classifier");
+	assert.equal(
+		r.parseCommand("@emdashbot I don't think we should implement this"),
+		null,
+		"prose containing a verb does not trigger",
+	);
 	assert.equal(r.parseCommand("please @emdashbot retry"), null, "must start the line");
 	assert.equal(r.parseCommand("@emdashbot frobnicate"), null, "unknown verb -> null");
+});
+
+test("classifierCommands excludes destructive events", () => {
+	const cmds = r.classifierCommands("blocked").map((c) => c.event);
+	assert.ok(cmds.includes("implement"), "implement is offered to free text");
+	assert.ok(!cmds.includes("decline"), "decline is destructive -> bare verb only");
+	assert.ok(!cmds.includes("take_over"), "take_over is destructive -> bare verb only");
+});
+
+test("isDestructive flags decline and take_over only", () => {
+	assert.equal(r.isDestructive("decline"), true);
+	assert.equal(r.isDestructive("take_over"), true);
+	assert.equal(r.isDestructive("implement"), false);
+	assert.equal(r.isDestructive("retry"), false);
 });
 
 test("resolve: blocked accepts implement (kills the old skip sink)", () => {
@@ -116,16 +133,22 @@ test("resolveComment: the @emdashbot mention is still required", () => {
 	assert.match(d.reason, /mention/);
 });
 
-test("resolveComment: no default outside a bot PR", () => {
-	const labels = ["bot:bug", "bot:in-review"];
-	const d = r.resolveComment({ labels, body: "@emdashbot looks good", actor: "maintainer", allowDefault: false });
-	assert.equal(d.kind, "noop", "human PR / non-bot context: unknown verb is a no-op");
+test("resolveComment: free text in blocked routes to the classifier with safe candidates", () => {
+	const labels = ["bot:bug", "bot:blocked"];
+	const d = r.resolveComment({ labels, body: "@emdashbot please try fixing it in the loader", actor: "maintainer", allowDefault: false });
+	assert.equal(d.kind, "classify");
+	assert.equal(d.state, "blocked");
+	const events = d.commands.map((c) => c.event);
+	assert.ok(events.includes("implement"));
+	assert.ok(!events.includes("decline"), "destructive excluded from classifier candidates");
+	assert.equal(d.text, "please try fixing it in the loader");
 });
 
-test("resolveComment: default only applies in states that define one", () => {
+test("resolveComment: bare destructive verb still fires deterministically", () => {
 	const labels = ["bot:bug", "bot:blocked"];
-	const d = r.resolveComment({ labels, body: "@emdashbot please look again", actor: "maintainer", allowDefault: true });
-	assert.equal(d.kind, "noop", "blocked has no defaultCommentEvent");
+	const d = r.resolveComment({ labels, body: "@emdashbot decline", actor: "maintainer", allowDefault: false });
+	assert.equal(d.kind, "transition");
+	assert.equal(d.to, "declined");
 });
 
 test("outcomeFromResult maps the agent's flat result to an agent.* event", () => {

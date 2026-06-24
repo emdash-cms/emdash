@@ -95,6 +95,43 @@ is `revise` from `in_review` checking out the existing `bot/fix-<n>` branch.
   `working` state, comments arriving mid-run are status no-ops until it returns
   to `in_review`, which debounces a fast back-and-forth into one run at a time.
 
+## Free-text commands
+
+The grammar is intentionally tighter than "match any verb." `parseCommand` only
+fires on an EXACT bare verb after the mention (`@emdashbot retry`,
+`@emdashbot take over`). Any extra word, including an arg, routes to the intent
+classifier instead, so `@emdashbot I don't think we should implement this` never
+spuriously fires `implement`. That makes arg-carrying intents
+(`implement <directive>`, `revise <feedback>`) flow through the model, which is
+where free-text argument extraction belongs.
+
+The classifier is **state-aware and constrained**: it picks from the current
+state's `offeredCommands` minus the destructive ones (`decline`, `take_over`).
+Destructive actions require an exact bare verb. So free text can never silently
+close or disengage an item, and we get the safety property without any
+confirmation-round machinery. See `.flue/workflows/classify-command.ts`.
+
+### Classifier model
+
+Default: `cf-wai/workers-ai/@cf/qwen/qwen3-30b-a3b-fp8`. Picked from a 43-case
+sweep against the labeled dataset in `.flue/evals/cases.ts`:
+
+| model | pass | avg ms | $/1k | errors |
+| --- | --- | --- | --- | --- |
+| `kimi-k2.7-code` (previous default) | 86% (37/43) | 22,140 | $1.993 | 3 (capacity timeouts) |
+| `qwen3-30b-a3b-fp8` (new default) | 84% (36/43) | 4,982 | $0.227 | 0 |
+
+~9x cheaper, ~4.4x faster, no capacity timeouts, and 1 case behind on accuracy.
+The qwen3 misses cluster on benign idioms (`"ship the second option"`,
+`"give it another go"`, `"that did the trick"`), where it returns `none` rather
+than guess; the maintainer just re-issues the bare verb. The misses both models
+share (`"do it, but use a LEFT JOIN..."`, `"can you take another approach..."`)
+are dataset-quality issues, not model issues, and need richer `botContext` or
+relabeling. Override per-run with `FLUE_CLASSIFIER_MODEL`; reproduce the sweep
+with `node --experimental-strip-types .flue/evals/sweep.ts` against a running
+`flue dev`. The fix stage stays on `kimi-k2.7-code` (classifier evals don't
+speak to code-fix quality; that's a separate eval to design).
+
 ## What's built
 
 - **`machine.ts` + generated artifacts + `router.cjs` (+ tests).** The spec, the

@@ -8,9 +8,10 @@
 		"skipLibCheck": true,
 		"verbatimModuleSyntax": true,
 		"noEmit": true,
-		"allowImportingTsExtensions": false,
+		"allowImportingTsExtensions": true,
+		"resolveJsonModule": true,
 		"types": ["node"]
 	},
-	"include": ["workflows/**/*.ts", "lib/**/*.ts", "scripts/**/*.ts"],
+	"include": ["app.ts", "workflows/**/*.ts", "lib/**/*.ts", "scripts/**/*.ts", "evals/**/*.ts", "vitest.evals.config.ts"],
 	"exclude": [".build", "node_modules"]
 }

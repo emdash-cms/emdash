@@ -136,32 +136,35 @@ jobs:
             }
             if (kind === 'opened' || kind === 'reopened') { core.setOutput('skip', 'no-command-on-open'); return; }
 
-            // Comment paths. Explicit verbs are deterministic; a free-text reply
-            // in awaiting_feedback / blocked needs the classifier (step 2).
-            const cmd = router.parseCommand(body);
-            if (cmd) {
-              core.setOutput('payload', JSON.stringify({ ...out, event: cmd.event, arg: cmd.arg, actor: role }));
-              return;
-            }
-            // Implicit revise on a bot PR (in_review): handled deterministically.
+            // One call resolves the comment: an exact bare verb -> deterministic
+            // transition (incl. destructive ones); bot-PR free text -> revise;
+            // any other free text -> hand to the intent classifier, constrained
+            // to this state's non-destructive commands. The `@emdashbot` mention
+            // is required (resolveComment returns noop otherwise).
             const isBotPr = prNumber != null;
-            const viaDefault = router.resolveComment({ labels, body, actor: role, allowDefault: isBotPr });
-            if (viaDefault.kind === 'transition') {
-              core.setOutput('payload', JSON.stringify({ ...out, event: viaDefault.event, arg: router.parseMention(body), actor: role }));
+            const decision = router.resolveComment({ labels, body, actor: role, allowDefault: isBotPr });
+            if (decision.kind === 'transition') {
+              core.setOutput('payload', JSON.stringify({ ...out, event: decision.event, arg: decision.arg || null, actor: role }));
               return;
             }
-            // Needs a classifier?
-            if (state === 'awaiting_feedback' && (role === 'reporter' || role === 'maintainer')) {
-              core.setOutput('classify', 'reply');
-              core.setOutput('payload', JSON.stringify({ ...out }));
+            if (decision.kind === 'readonly') {
+              core.setOutput('payload', JSON.stringify({ ...out, event: decision.event, actor: role }));
               return;
             }
-            if (state === 'blocked' && role === 'maintainer' && router.parseMention(body)) {
-              core.setOutput('classify', 'maintainer');
-              core.setOutput('payload', JSON.stringify({ ...out }));
+            if (decision.kind === 'classify') {
+              // The classifier needs the bot's last message to resolve references
+              // like "go with option A".
+              let botContext = '';
+              try {
+                const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: issueNumber, per_page: 100 });
+                const botComments = comments.filter((c) => c.user && c.user.type === 'Bot');
+                if (botComments.length) botContext = botComments[botComments.length - 1].body || '';
+              } catch { /* best effort */ }
+              core.setOutput('classify', 'command');
+              core.setOutput('payload', JSON.stringify({ ...out, classify: { state: decision.state, commands: decision.commands, text: decision.text }, botContext }));
               return;
             }
-            core.setOutput('skip', 'no-actionable-command');
+            core.setOutput('skip', decision.reason || 'no-op');
 
       # --- 2. classify (conditional): free-text reply -> event via Flue ---
       - name: Setup Node
@@ -181,7 +184,7 @@ jobs:
           pnpm install --frozen-lockfile=false
           pnpm exec flue build --target node --output .build
 
-      - name: Run classifier
+      - name: Run command classifier
         id: classify
         if: steps.route.outputs.classify
         working-directory: .flue
@@ -190,22 +193,18 @@ jobs:
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CLOUDFLARE_GATEWAY_ID }}
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           PAYLOAD: ${{ steps.route.outputs.payload }}
-          WHICH: ${{ steps.route.outputs.classify }}
         run: |
-          # Build the classifier input from the routed payload via jq (never
-          # string-interpolate the comment body into the command line).
-          ISSUE="$(jq -r '.issueNumber' <<<"$PAYLOAD")"
-          if [ "$WHICH" = "reply" ]; then WF=classify-reply; else WF=classify-maintainer-reply; fi
-          jq -n --argjson n "$ISSUE" --arg b "$(jq -r '.body' <<<"$PAYLOAD")" \
-            '{issueNumber:$n, replyBody:$b}' > /tmp/classify-input.json
+          # Build the state-aware classifier input from the routed payload (the
+          # candidate commands were chosen by the router; the comment text and
+          # bot context travel as JSON, never interpolated into the command line).
+          jq '{issueNumber: .issueNumber, state: .classify.state, comment: .classify.text,
+               botContext: (.botContext // ""), commands: .classify.commands}' \
+            <<<"$PAYLOAD" > /tmp/classify-input.json
           CLASSIFY_RESULT_PATH=/tmp/classify-result.json \
-            pnpm exec flue run "$WF" --target node --input "$(cat /tmp/classify-input.json)" || true
-          # Map the classifier output to a machine event.
-          CLASS="$(jq -r '.classification // .intent // "unclear"' /tmp/classify-result.json 2>/dev/null || echo unclear)"
-          echo "class=$CLASS" >> "$GITHUB_OUTPUT"
-          if [ -f /tmp/classify-result.json ]; then
-            echo "directive=$(jq -r '.directive // ""' /tmp/classify-result.json)" >> "$GITHUB_OUTPUT"
-          fi
+            pnpm exec flue run classify-command --target node --input "$(cat /tmp/classify-input.json)" || true
+          # classify-command returns a machine event directly (or "none").
+          echo "event=$(jq -r '.event // "none"' /tmp/classify-result.json 2>/dev/null || echo none)" >> "$GITHUB_OUTPUT"
+          echo "arg=$(jq -r '.arg // ""' /tmp/classify-result.json 2>/dev/null || echo '')" >> "$GITHUB_OUTPUT"
 
       # --- 3 + 4. apply the decision and dispatch the agent run if needed ---
       - name: Apply decision
@@ -219,18 +218,18 @@ jobs:
             const repo = context.repo.repo;
             const p = JSON.parse(process.env.PAYLOAD);
 
-            // Resolve the event: either set in step 1, or derived from the classifier.
+            // Resolve the event: either a deterministic one set in step 1, or the
+            // machine event the classifier returned directly (it picks from the
+            // state's candidate commands, so no sub-vocabulary mapping is needed).
             let event = p.event;
             let arg = p.arg || null;
-            const cls = process.env.CLASS;
-            if (!event && cls) {
-              const replyMap = { positive: 'confirm', negative: 'reject', unclear: null };
-              const maintMap = { implement: 'implement', close: 'decline', takeover: 'take_over', unclear: null };
-              event = (p.state === 'awaiting_feedback' ? replyMap : maintMap)[cls] || null;
-              if (process.env.DIRECTIVE) arg = process.env.DIRECTIVE;
+            const clsEvent = process.env.CLASS_EVENT;
+            if (!event && clsEvent && clsEvent !== 'none') {
+              event = clsEvent;
+              if (process.env.CLASS_ARG) arg = process.env.CLASS_ARG;
             }
             if (!event) {
-              core.info(`no event resolved (class=${cls || 'n/a'}); leaving issue untouched`);
+              core.info(`no event resolved (classifier=${clsEvent || 'n/a'}); leaving issue untouched`);
               return;
             }
 
@@ -272,5 +271,5 @@ jobs:
               body: `Moving to \`${decision.to}\`.` + router.replyFooter(decision.to) });
         env:
           PAYLOAD: ${{ steps.route.outputs.payload }}
-          CLASS: ${{ steps.classify.outputs.class }}
-          DIRECTIVE: ${{ steps.classify.outputs.directive }}
+          CLASS_EVENT: ${{ steps.classify.outputs.event }}
+          CLASS_ARG: ${{ steps.classify.outputs.arg }}

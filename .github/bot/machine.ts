@@ -208,6 +208,12 @@ export interface EventMeta {
 	readOnly?: boolean;
 	/** Free-text argument the verb carries (a directive, feedback, etc.). */
 	arg?: "directive" | "feedback";
+	/**
+	 * Hard-to-undo actions. In free-text mode these are NOT offered to the
+	 * intent classifier -- they fire only via an exact bare `@emdashbot <verb>`,
+	 * so a misread sentence can never silently close or disengage an item.
+	 */
+	destructive?: boolean;
 }
 
 export const EVENTS: Record<EventId, EventMeta> = {
@@ -231,9 +237,9 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	},
 	confirm: { description: "Confirm the staged fix works; open a PR.", actors: ["reporter", "maintainer"] },
 	reject: { description: "The staged fix does not work; retry with feedback.", actors: ["reporter", "maintainer"] },
-	decline: { description: "Won't be actioned; move to declined.", actors: ["maintainer"] },
+	decline: { description: "Won't be actioned; move to declined.", actors: ["maintainer"], destructive: true },
 	reopen: { description: "Bring a terminal item back into triage.", actors: ["maintainer"] },
-	take_over: { description: "A maintainer takes the item; the bot disengages but stays on the board.", actors: ["maintainer"] },
+	take_over: { description: "A maintainer takes the item; the bot disengages but stays on the board.", actors: ["maintainer"], destructive: true },
 	hand_back: { description: "Return a human-owned item to the bot.", actors: ["maintainer"] },
 	status: { description: "Render the item's current state and available commands.", actors: ["reporter", "maintainer"], readOnly: true },
 	help: { description: "Show the command grammar.", actors: ["reporter", "maintainer"], readOnly: true },

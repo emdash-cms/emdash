@@ -7,7 +7,9 @@
 	"scripts": {
 		"build": "flue build --target node --output .build",
 		"prototype": "tsx scripts/run-local.ts",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"evals": "vitest run --config vitest.evals.config.ts",
+		"evals:json": "vitest run --config vitest.evals.config.ts --reporter=vitest-evals/reporter --reporter=json --outputFile.json=vitest-results.json"
 	},
 	"dependencies": {
 		"@flue/runtime": "1.0.0-beta.5",
@@ -15,9 +17,12 @@
 	},
 	"devDependencies": {
 		"@flue/cli": "1.0.0-beta.5",
+		"@flue/sdk": "1.0.0-beta.5",
 		"@types/node": "^25.8.0",
 		"tsx": "^4.20.0",
 		"typescript": "^5.9.0",
+		"vitest": "^4.1.9",
+		"vitest-evals": "^0.14.0",
 		"wrangler": "^4.100.0"
 	}
 }
