@@ -35,6 +35,10 @@ declare module "virtual:emdash/dialect" {
 	export const createDialect: ((config: unknown) => Dialect) | undefined;
 	export const dialectType: DatabaseDialectType | undefined;
 
+	// Optional coalescing dialect for the runtime's cold-start read batch.
+	// Only batching backends (D1, DO) export it; undefined otherwise.
+	export const createCoalescingDialect: ((config: unknown) => Dialect | null) | undefined;
+
 	/**
 	 * Adapter-owned per-request scoping. Returns null when the configured
 	 * adapter has no per-request semantics (non-D1, or D1 with sessions

@@ -12,6 +12,7 @@ import type { Kysely } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 // @ts-ignore - virtual module
 import {
+	createCoalescingDialect as virtualCreateCoalescingDialect,
 	createDialect as virtualCreateDialect,
 	createRequestScopedDb as virtualCreateRequestScopedDb,
 } from "virtual:emdash/dialect";
@@ -179,6 +180,10 @@ function buildDependencies(config: EmDashConfig): RuntimeDependencies {
 		config,
 		plugins: getPlugins(),
 		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
+		// Optional: only batching backends (D1, DO) export this; undefined otherwise.
+		createCoalescingDialect: virtualCreateCoalescingDialect as
+			| ((config: Record<string, unknown>) => unknown)
+			| undefined,
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
 		createScheduler: virtualCreateScheduler as CreateSchedulerFn | null,
 		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
