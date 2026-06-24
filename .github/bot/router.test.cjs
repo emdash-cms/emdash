@@ -215,7 +215,12 @@ test("resolveComment: whitespace-only mention renders status, not a classifier c
 	// `@emdashbot   ` (mention + trailing whitespace only) is parsed as a
 	// mention with empty body; route to readonly instead of the classifier so it
 	// doesn't fail minLength(1) and silently return `none`.
-	const d = r.resolveComment({ labels: ["bot:bug", "bot:blocked"], body: "@emdashbot   ", actor: "maintainer", allowDefault: false });
+	const d = r.resolveComment({
+		labels: ["bot:bug", "bot:blocked"],
+		body: "@emdashbot   ",
+		actor: "maintainer",
+		allowDefault: false,
+	});
 	assert.equal(d.kind, "readonly", "empty mention -> readonly, never reaches the classifier");
 	assert.equal(d.state, "blocked");
 });

@@ -38,9 +38,7 @@ function currentState(labelNames) {
 
 /** The single kind ("bug"/...) encoded in a label set, or null. */
 function currentKind(labelNames) {
-	const found = labelNames
-		.filter((l) => KIND_LABEL_SET.has(l))
-		.map((l) => l.slice("bot:".length));
+	const found = labelNames.filter((l) => KIND_LABEL_SET.has(l)).map((l) => l.slice("bot:".length));
 	return found.length === 1 ? found[0] : null;
 }
 
