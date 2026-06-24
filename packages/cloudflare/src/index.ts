@@ -243,6 +243,14 @@ export function d1(config: D1Config): DatabaseDescriptor {
  *   { "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<id>" }] }
  *   ```
  *
+ * For best latency, pair this with a Smart Placement hint so the Worker runs in
+ * the Cloudflare data center closest to your database's region — the request
+ * path makes multiple round trips, so co-locating the Worker with the origin
+ * matters:
+ * ```jsonc
+ * { "placement": { "region": "aws:us-east-1" } }
+ * ```
+ *
  * @example
  * ```ts
  * database: hyperdrive({ binding: "HYPERDRIVE" })
