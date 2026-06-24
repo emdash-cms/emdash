@@ -130,6 +130,7 @@ interface PortableTextTextBlock {
 	level?: number;
 	children: PortableTextSpan[];
 	markDefs?: PortableTextMarkDef[];
+	textAlign?: "left" | "center" | "right" | "justify";
 }
 
 interface PortableTextImageBlock {
@@ -168,6 +169,15 @@ type PortableTextBlock =
 // Generate unique key
 function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
+}
+
+function extractTextAlign(node: {
+	attrs?: Record<string, unknown>;
+}): "center" | "right" | "justify" | undefined {
+	const v = node.attrs?.textAlign;
+	// "left" is the default; omit so existing payloads stay byte-identical
+	if (v === "center" || v === "right" || v === "justify") return v;
+	return undefined;
 }
 
 // Helpers for safely extracting typed values from ProseMirror attrs (Record<string, any>)
@@ -216,12 +226,14 @@ function convertPMNode(node: {
 		case "paragraph": {
 			const { children, markDefs } = convertInlineContent(node.content || []);
 			if (children.length === 0) return null;
+			const textAlign = extractTextAlign(node);
 			return {
 				_type: "block",
 				_key: generateKey(),
 				style: "normal",
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(textAlign ? { textAlign } : {}),
 			};
 		}
 
@@ -234,12 +246,14 @@ function convertPMNode(node: {
 				level >= 1 && level <= 6
 					? (`h${level}` as PortableTextTextBlock["style"])
 					: ("h1" as PortableTextTextBlock["style"]);
+			const textAlign = extractTextAlign(node);
 			return {
 				_type: "block",
 				_key: generateKey(),
 				style: headingStyle,
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(textAlign ? { textAlign } : {}),
 			};
 		}
 
@@ -606,7 +620,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 	switch (block._type) {
 		case "block": {
 			if (!isTextBlock(block)) return null;
-			const { style = "normal", children, markDefs = [] } = block;
+			const { style = "normal", children, markDefs = [], textAlign } = block;
 			const pmContent = convertPTSpans(children, markDefs);
 
 			switch (style) {
@@ -619,7 +633,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					const level = parseInt(style.substring(1), 10);
 					return {
 						type: "heading",
-						attrs: { level },
+						attrs: { level, ...(textAlign ? { textAlign } : {}) },
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 				}
@@ -629,6 +643,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 						content: [
 							{
 								type: "paragraph",
+								attrs: textAlign ? { textAlign } : undefined,
 								content: pmContent.length > 0 ? pmContent : undefined,
 							},
 						],
@@ -636,6 +651,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 				default:
 					return {
 						type: "paragraph",
+						attrs: textAlign ? { textAlign } : undefined,
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 			}

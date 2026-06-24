@@ -36,6 +36,7 @@ export { default as EmDashImage } from "./EmDashImage.astro";
 export { default as EmDashMedia } from "./EmDashMedia.astro";
 
 // Portable Text block type components
+export { default as BlockStyle } from "./BlockStyle.astro";
 export { default as Image } from "./Image.astro";
 export { default as Code } from "./Code.astro";
 export { default as Embed } from "./Embed.astro";
@@ -57,6 +58,7 @@ export { default as Underline } from "./marks/Underline.astro";
 export { default as StrikeThrough } from "./marks/StrikeThrough.astro";
 export { default as Link } from "./marks/Link.astro";
 
+import BlockStyleComponent from "./BlockStyle.astro";
 import BreakComponent from "./Break.astro";
 import ButtonComponent from "./Button.astro";
 import ButtonsComponent from "./Buttons.astro";
@@ -96,6 +98,16 @@ export const emdashComponents = {
 		cover: CoverComponent,
 		file: FileComponent,
 		pullquote: PullquoteComponent,
+	},
+	block: {
+		normal: BlockStyleComponent,
+		h1: BlockStyleComponent,
+		h2: BlockStyleComponent,
+		h3: BlockStyleComponent,
+		h4: BlockStyleComponent,
+		h5: BlockStyleComponent,
+		h6: BlockStyleComponent,
+		blockquote: BlockStyleComponent,
 	},
 	mark: emdashMarkComponents,
 };
