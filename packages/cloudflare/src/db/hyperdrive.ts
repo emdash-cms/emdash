@@ -173,9 +173,7 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 
 function getBinding(config: HyperdriveConfig): HyperdriveBinding | null {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding accessed from untyped env object
-	const binding = (env as Record<string, unknown>)[config.binding] as
-		| HyperdriveBinding
-		| undefined;
+	const binding = (env as Record<string, unknown>)[config.binding] as HyperdriveBinding | undefined;
 	return binding ?? null;
 }
 
