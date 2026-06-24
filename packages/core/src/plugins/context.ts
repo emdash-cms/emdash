@@ -432,23 +432,55 @@ export function createMediaAccess(db: Kysely<Database>): MediaAccess {
 
 /**
  * Create full media access with write operations.
- * If storage is not provided, upload() will throw at call time.
+ *
+ * `getUploadUrlFn` is optional: when omitted, `getUploadUrl()` is derived from
+ * `storage` (create a pending record + a signed PUT URL), mirroring the REST
+ * `/_emdash/api/media/upload-url` endpoint. `upload()` only needs `storage`.
+ * If storage is not provided, both throw at call time.
  */
 export function createMediaAccessWithWrite(
 	db: Kysely<Database>,
-	getUploadUrlFn: (
-		filename: string,
-		contentType: string,
-	) => Promise<{ uploadUrl: string; mediaId: string }>,
+	getUploadUrlFn:
+		| ((filename: string, contentType: string) => Promise<{ uploadUrl: string; mediaId: string }>)
+		| undefined,
 	storage?: Storage,
 ): MediaAccessWithWrite {
 	const mediaRepo = new MediaRepository(db);
 	const readAccess = createMediaAccess(db);
 
+	const getUploadUrl =
+		getUploadUrlFn ??
+		(async (filename: string, contentType: string) => {
+			if (!storage) {
+				throw new Error(
+					"Media getUploadUrl() requires a storage backend. Configure storage in PluginContextFactoryOptions.",
+				);
+			}
+
+			const basename = filename.split("/").pop() ?? filename;
+			const dotIdx = basename.lastIndexOf(".");
+			const ext = dotIdx > 0 ? basename.slice(dotIdx).toLowerCase() : "";
+			const storageKey = `${ulid()}${ext}`;
+
+			const media = await mediaRepo.createPending({
+				filename: basename,
+				mimeType: contentType,
+				storageKey,
+			});
+
+			const signed = await storage.getSignedUploadUrl({
+				key: storageKey,
+				contentType,
+				expiresIn: 3600,
+			});
+
+			return { uploadUrl: signed.url, mediaId: media.id };
+		});
+
 	return {
 		...readAccess,
 
-		getUploadUrl: getUploadUrlFn,
+		getUploadUrl,
 
 		async upload(
 			filename: string,
@@ -923,9 +955,22 @@ export class PluginContextFactory {
 		}
 
 		// Capability-gated: media
+		// `upload()` only needs `storage`; `getUploadUrl()` is derived from
+		// storage when no explicit provider is wired. Granting write access on
+		// either avoids silently degrading media:write to read-only — the bug
+		// where the runtime threads `storage` but not `getUploadUrl`.
 		let media: MediaAccess | MediaAccessWithWrite | undefined;
-		if (capabilities.has("media:write") && this.getUploadUrl) {
-			media = createMediaAccessWithWrite(this.db, this.getUploadUrl, this.storage);
+		if (capabilities.has("media:write")) {
+			if (this.getUploadUrl || this.storage) {
+				media = createMediaAccessWithWrite(this.db, this.getUploadUrl, this.storage);
+			} else {
+				log.warn(
+					"declares the media:write capability but no storage backend is configured; media access is read-only and upload() is unavailable.",
+				);
+				if (capabilities.has("media:read")) {
+					media = createMediaAccess(this.db);
+				}
+			}
 		} else if (capabilities.has("media:read")) {
 			media = createMediaAccess(this.db);
 		}

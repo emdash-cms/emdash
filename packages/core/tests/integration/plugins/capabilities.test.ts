@@ -8,7 +8,7 @@
 
 import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
@@ -55,6 +55,44 @@ function createTestPlugin(overrides: Partial<ResolvedPlugin> = {}): ResolvedPlug
 		routes: {},
 		settings: undefined,
 		...overrides,
+	};
+}
+
+/**
+ * Minimal in-memory Storage backend for media write tests.
+ * Records uploaded keys so tests can assert bytes were persisted.
+ */
+function createFakeStorage() {
+	const uploads = new Map<string, Uint8Array>();
+	return {
+		uploads,
+		async upload(options: { key: string; body: Uint8Array; contentType: string }) {
+			uploads.set(options.key, options.body);
+			return { key: options.key, size: options.body.byteLength };
+		},
+		async download() {
+			throw new Error("not implemented");
+		},
+		async delete(key: string) {
+			uploads.delete(key);
+		},
+		async exists(key: string) {
+			return uploads.has(key);
+		},
+		async list() {
+			return { items: [] };
+		},
+		async getSignedUploadUrl(options: { key: string }) {
+			return {
+				url: `https://signed.example.com/${options.key}`,
+				method: "PUT" as const,
+				headers: {},
+				expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+			};
+		},
+		getPublicUrl(key: string) {
+			return `/media/${key}`;
+		},
 	};
 }
 
@@ -720,6 +758,74 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const ctx = factory.createContext(plugin);
 			expect(ctx.users).toBeUndefined();
+		});
+
+		it("provides writable media (upload) for media:write when storage is configured", () => {
+			// Regression: the runtime threads `storage` but never `getUploadUrl`,
+			// so media:write plugins silently fell through to read-only media with
+			// no upload(). Storage is all upload() needs.
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal fake Storage for test
+			const storage = createFakeStorage() as never;
+			const factory = new PluginContextFactory({ db, storage });
+
+			const plugin = createTestPlugin({
+				id: "media-writer",
+				capabilities: ["media:write"],
+			});
+
+			const ctx = factory.createContext(plugin);
+			expect(ctx.media).toBeDefined();
+			expect(typeof ctx.media!.upload).toBe("function");
+			expect(typeof ctx.media!.getUploadUrl).toBe("function");
+			expect(typeof ctx.media!.get).toBe("function");
+		});
+
+		it("media:write upload() persists bytes to storage and creates a media record", async () => {
+			const fakeStorage = createFakeStorage();
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal fake Storage for test
+			const factory = new PluginContextFactory({ db, storage: fakeStorage as never });
+
+			const plugin = createTestPlugin({
+				id: "media-writer-2",
+				capabilities: ["media:write"],
+			});
+
+			const ctx = factory.createContext(plugin);
+			const bytes = new Uint8Array([1, 2, 3, 4]).buffer;
+			const result = await ctx.media!.upload!("logo.png", "image/png", bytes);
+
+			expect(result.mediaId).toBeTruthy();
+			expect(result.storageKey).toMatch(/\.png$/);
+			expect(fakeStorage.uploads.has(result.storageKey)).toBe(true);
+
+			// The media record is retrievable via the read surface.
+			const fetched = await ctx.media!.get(result.mediaId);
+			expect(fetched?.filename).toBe("logo.png");
+		});
+
+		it("warns and stays read-only for media:write when no storage is configured", () => {
+			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+			try {
+				const factory = new PluginContextFactory({ db });
+
+				const plugin = createTestPlugin({
+					id: "media-writer-no-storage",
+					capabilities: ["media:write", "media:read"],
+				});
+
+				const ctx = factory.createContext(plugin);
+
+				// Read access still works, but write is unavailable.
+				expect(ctx.media).toBeDefined();
+				expect(typeof ctx.media!.get).toBe("function");
+				expect(ctx.media!.upload).toBeUndefined();
+
+				// And the author gets a signal rather than silent degradation.
+				expect(warnSpy).toHaveBeenCalled();
+				expect(warnSpy.mock.calls.some((c) => String(c[1]).includes("media:write"))).toBe(true);
+			} finally {
+				warnSpy.mockRestore();
+			}
 		});
 	});
 
