@@ -814,15 +814,19 @@ describe("Capability Enforcement Integration (v2)", () => {
 				});
 
 				const ctx = factory.createContext(plugin);
+				// Re-create the context: hooks/routes do this on every invocation,
+				// so the warning must not fire again for the same plugin.
+				factory.createContext(plugin);
 
 				// Read access still works, but write is unavailable.
 				expect(ctx.media).toBeDefined();
 				expect(typeof ctx.media!.get).toBe("function");
 				expect(ctx.media!.upload).toBeUndefined();
 
-				// And the author gets a signal rather than silent degradation.
-				expect(warnSpy).toHaveBeenCalled();
-				expect(warnSpy.mock.calls.some((c) => String(c[1]).includes("media:write"))).toBe(true);
+				// The author gets a signal rather than silent degradation — but
+				// only once per factory, not on every context creation.
+				expect(warnSpy).toHaveBeenCalledTimes(1);
+				expect(String(warnSpy.mock.calls[0]?.[1])).toContain("media:write");
 			} finally {
 				warnSpy.mockRestore();
 			}

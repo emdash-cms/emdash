@@ -874,8 +874,10 @@ export interface PluginContextFactoryOptions {
 	 */
 	storage?: Storage;
 	/**
-	 * Function to generate upload URLs for media.
-	 * If not provided, media write operations will throw.
+	 * Explicit provider for `ctx.media.getUploadUrl()`. Optional: when omitted
+	 * but `storage` is configured, the factory derives a working `getUploadUrl()`
+	 * (and `upload()`) from storage. Only when neither `getUploadUrl` nor
+	 * `storage` is present do media write operations become unavailable.
 	 */
 	getUploadUrl?: (
 		filename: string,
@@ -920,6 +922,12 @@ export class PluginContextFactory {
 	private urlHelper: (path: string) => string;
 	private cronReschedule?: () => void;
 	private emailPipeline?: EmailPipeline;
+	/**
+	 * Plugin IDs already warned about a missing media-write backend, so the
+	 * warning fires once per factory instead of on every hook/route context
+	 * creation (which would spam logs for hook-participating plugins).
+	 */
+	private warnedMissingMediaBackend = new Set<string>();
 
 	constructor(options: PluginContextFactoryOptions) {
 		this.db = options.db;
@@ -964,9 +972,12 @@ export class PluginContextFactory {
 			if (this.getUploadUrl || this.storage) {
 				media = createMediaAccessWithWrite(this.db, this.getUploadUrl, this.storage);
 			} else {
-				log.warn(
-					"declares the media:write capability but no storage backend is configured; media access is read-only and upload() is unavailable.",
-				);
+				if (!this.warnedMissingMediaBackend.has(plugin.id)) {
+					this.warnedMissingMediaBackend.add(plugin.id);
+					log.warn(
+						"declares the media:write capability but no storage backend is configured; upload() is unavailable.",
+					);
+				}
 				if (capabilities.has("media:read")) {
 					media = createMediaAccess(this.db);
 				}

@@ -2965,6 +2965,7 @@ export class EmDashRuntime {
 		if (trustedPlugin && this.enabledPlugins.has(trustedPlugin.id)) {
 			const routeRegistry = new PluginRouteRegistry({
 				db: this.db,
+				storage: this.storage ?? undefined,
 				emailPipeline: this.email ?? undefined,
 				trustedProxyHeaders: getTrustedProxyHeaders(this.config),
 			});
