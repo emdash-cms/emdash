@@ -30,10 +30,15 @@ async function injectToolbar(response: Response, toolbarHtml: string): Promise<R
 	if (!html.includes("</body>")) return new Response(html, response);
 
 	const injected = html.replace("</body>", `${toolbarHtml}</body>`);
-	return new Response(injected, {
+	const result = new Response(injected, {
 		status: response.status,
 		headers: response.headers,
 	});
+	// Toolbar-injected HTML is session-specific (its presence reveals an active
+	// editor session); it must never be stored in a shared CDN cache and served
+	// to anonymous visitors. Mirrors the preview branch's guard (#1398).
+	result.headers.set("Cache-Control", "private, no-store");
+	return result;
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
