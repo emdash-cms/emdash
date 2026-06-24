@@ -76,10 +76,10 @@ async function runOne(fixture: Fixture): Promise<void> {
 	const start = Date.now();
 
 	// `pnpm exec` (not `npx`) so we invoke the lockfile-pinned Flue.
-	// `flue run` in 0.8 generates the workflow run id itself; no --id flag.
+	// Flue 1.0: `flue run <workflow> --input '<json>'` (was `--payload`).
 	const result = spawnSync(
 		"pnpm",
-		["exec", "flue", "run", "investigate", "--target", "node", "--payload", payload],
+		["exec", "flue", "run", "investigate", "--target", "node", "--input", payload],
 		{
 			cwd: FLUE_DIR,
 			env: process.env,

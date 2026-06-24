@@ -1,0 +1,64 @@
+name: Bot invariant linter
+
+# Read-only guard for invariant #1: every bot-managed item carries exactly one
+# `bot:<kind>` and one `bot:<state>` label. Reports violations to the job
+# summary and as warning annotations. It NEVER writes labels or comments, so it
+# is safe to run continuously. Catches the "takeover dropped the label and the
+# item fell off the board" class of bug the old machine was prone to.
+#
+# Gated on the BOT_STATE_MACHINE_V2 repo variable so it stays inert until the
+# new label taxonomy is live (otherwise it would flag every legacy item).
+
+on:
+  schedule:
+    - cron: "30 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  lint:
+    name: Check label invariants
+    if: vars.BOT_STATE_MACHINE_V2 == '1' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { invariantProblems, STATE_LABELS, KIND_LABELS } =
+              require('./.github/bot/router.cjs');
+            const managed = new Set([...STATE_LABELS, ...KIND_LABELS]);
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            let violations = 0;
+
+            for await (const { data: issues } of github.paginate.iterator(
+              github.rest.issues.listForRepo,
+              { owner, repo, state: 'open', per_page: 100 },
+            )) {
+              for (const issue of issues) {
+                if (issue.pull_request) continue;
+                const labels = issue.labels.map((l) => (typeof l === 'string' ? l : l.name));
+                // Only items the bot manages (carry at least one bot: label).
+                if (!labels.some((l) => managed.has(l))) continue;
+                const problems = invariantProblems(labels);
+                if (problems.length) {
+                  violations++;
+                  core.warning(`#${issue.number}: ${problems.join('; ')}`, { title: 'bot label invariant' });
+                  core.summary.addRaw(`- #${issue.number} ${issue.title}: ${problems.join('; ')}\n`);
+                }
+              }
+            }
+
+            if (violations) {
+              core.summary.addHeading('Bot label invariant violations', 2);
+              await core.summary.write();
+              core.setFailed(`${violations} item(s) violate the one-kind-one-state invariant.`);
+            } else {
+              core.info('All bot-managed items satisfy the label invariants.');
+            }

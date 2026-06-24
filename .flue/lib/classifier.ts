@@ -1,18 +1,21 @@
 // Lightweight classifier shared between investigate and classify-reply
-// workflows. Uses kimi-k2.7-code via our Cloudflare AI Gateway -- cheap and
+// workflows. Uses kimi-k2.6 via our Cloudflare AI Gateway -- cheap and
 // fast for structured classification tasks.
 
 import { writeFileSync } from "node:fs";
 
-import { createAgent } from "@flue/runtime";
+import { defineAgent } from "@flue/runtime";
 import * as v from "valibot";
 
 /**
- * Shared classifier agent. Default sandbox (in-memory, no host access).
- * Used for cheap structured-output prompts that don't need a shell.
+ * Shared classifier agent. Default (virtual) sandbox, no host access. Used for
+ * cheap structured-output prompts that don't need a shell. Flue 1.0:
+ * `defineAgent` replaces `createAgent`; the initializer signature is unchanged.
+ * Model is env-overridable so ops can repoint it without a code change.
  */
-export const classifier = createAgent(() => ({
-	model: "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code",
+export const classifier = defineAgent(() => ({
+	model:
+		process.env.FLUE_CLASSIFIER_MODEL ?? "cloudflare-ai-gateway/workers-ai/@cf/moonshotai/kimi-k2.7-code",
 }));
 
 /**

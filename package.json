@@ -27,6 +27,8 @@
 		"new": "create-emdash",
 		"screenshots": "node scripts/screenshot-all-templates.mjs",
 		"query-counts": "node scripts/query-counts.mjs",
+		"bot:generate": "node --experimental-strip-types .github/bot/generate.ts",
+		"bot:check": "node --experimental-strip-types .github/bot/generate.ts --check && node --test .github/bot/router.test.cjs",
 		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
 		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile"
 	},

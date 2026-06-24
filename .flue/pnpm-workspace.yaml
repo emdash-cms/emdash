@@ -12,3 +12,7 @@ allowBuilds:
   "node-liblzma": false
   protobufjs: false
   sharp: false
+minimumReleaseAgeExclude:
+  - '@flue/cli@1.0.0-beta.5'
+  - '@flue/runtime@1.0.0-beta.5'
+  - '@flue/sdk@1.0.0-beta.5'

@@ -1,0 +1,35 @@
+name: Bot machine check
+
+# Guards the bot state-machine single source of truth. Fails if the generated
+# artifacts (machine.json, BOT_STATE_MACHINE.md) drift from machine.ts, or if
+# the router unit tests fail. Same contract as the query-count snapshots: edit
+# the spec, regenerate, commit all three.
+
+on:
+  pull_request:
+    paths:
+      - ".github/bot/**"
+      - ".github/workflows/bot-machine-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/bot/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Validate machine + router
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+      - name: Generated artifacts are fresh
+        run: node --experimental-strip-types .github/bot/generate.ts --check
+      - name: Router unit tests
+        run: node --test .github/bot/router.test.cjs

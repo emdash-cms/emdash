@@ -1,0 +1,114 @@
+# emdashbot orchestration
+
+This directory is the orchestration layer for the issue/PR automation bot. It
+owns *which state an item is in and how it moves*. It does **not** own how the
+agent reproduces, diagnoses, or fixes -- that is `.flue/`, invoked here as an
+opaque action.
+
+## Files
+
+| File                   | Role                                                                 |
+| ---------------------- | -------------------------------------------------------------------- |
+| `machine.ts`           | **Single source of truth.** States, events, actors, transitions.     |
+| `machine.json`         | Generated runtime artifact loaded by the workflows. Do not hand-edit. |
+| `../BOT_STATE_MACHINE.md` | Generated docs: diagram, state/transition tables, command grammar. |
+| `generate.ts`          | `machine.ts` -> `machine.json` + docs. `--check` mode for CI.         |
+| `router.cjs`           | Pure transition logic (no GitHub calls). Consumed by `github-script`. |
+| `router.test.cjs`      | `node --test` unit tests for the router.                              |
+
+Regenerate after editing the spec:
+
+```bash
+pnpm bot:generate        # writes machine.json + BOT_STATE_MACHINE.md
+node --test .github/bot/router.test.cjs
+```
+
+CI runs `pnpm bot:generate --check` and fails if the artifacts drift, the same
+contract as the query-count snapshots.
+
+## Architecture
+
+```
+machine.ts ──generate──> machine.json ──require──> router.cjs (pure)
+                                                        │
+        thin event workflows ───────────────────────────┤
+          • control-listener  (issue/PR comments: @emdashbot grammar)
+          • system-events     (label add, PR opened/merged/reviewed, agent results)
+          • bot-linter        (invariant: exactly one kind + one state)
+                                                        │
+                                                        ▼
+                                            router.resolve(labels, event)
+                                                        │
+                              ┌─────────────────────────┼───────────────────────┐
+                              ▼                          ▼                       ▼
+                       swap state label         dispatch agent action      post reply
+                       (atomic remove+add)       (existing investigate.yml)  (+ command footer)
+```
+
+The router is the brain; the workflows are hands. A workflow gathers the event,
+asks `router.resolve(...)` what to do, and performs the GitHub writes. All the
+state logic lives in one tested module instead of being spread across the `if:`
+guards and bash label-flips of six workflows.
+
+## How the existing agent plugs in (internals untouched)
+
+The agent (`.flue/workflows/investigate.ts`) keeps its exact contract. We change
+only *how it is triggered* and *how its result maps to the next state* -- and that
+mapping moves out of bash and into the transition table:
+
+| Agent result (flat gating fields)        | Event fired        | Lands in            |
+| ----------------------------------------- | ------------------ | ------------------- |
+| `skipped === true`                        | `agent.skipped`    | `blocked`           |
+| `!skipped && !reproduced`                 | `agent.not_reproduced` | `blocked`       |
+| `verdict === "intended-behavior"`         | `agent.by_design`  | `blocked`           |
+| `reproduced && !fixed`                    | `agent.reproduced` | `blocked`           |
+| `reproduced && fixed`                     | `agent.fix_ready`  | `awaiting_feedback` |
+| nonzero exit / no result file             | `agent.failed`     | `failed`            |
+
+Action ids map to the agent's existing entry modes:
+
+| Action                 | How it invokes the unchanged agent                                  |
+| ---------------------- | ------------------------------------------------------------------- |
+| `investigate.repro`    | dispatch with `{ issueNumber }`                                     |
+| `investigate.implement`| dispatch with `{ issueNumber, maintainerDirective }` (existing flag)|
+| `investigate.revise`   | dispatch with `{ issueNumber, retryContext }` (existing flag)       |
+| `openPr` / `closePr`   | `gh pr create` / `gh pr close` (no agent run)                       |
+
+`investigate.implement` and `investigate.revise` reuse `maintainerDirective` /
+`retryContext`, which the agent already supports. The only genuinely new entry
+is `revise` from `in_review` checking out the existing `bot/fix-<n>` branch.
+
+## Cutover plan
+
+The new machine ships *alongside* the live workflows, gated by the repo variable
+`BOT_STATE_MACHINE_V2`, so nothing changes until it is flipped.
+
+1. **Foundation (this PR).** `machine.ts`, generated artifacts, `router.cjs` +
+   tests, the CI drift check, the read-only linter. No behavior change.
+2. **Shadow.** Add the control-listener + system-event workflows guarded by
+   `vars.BOT_STATE_MACHINE_V2 != '1'` running in log-only mode: compute the
+   decision and annotate, but let the old workflows do the writes. Compare.
+3. **Cut over.** Flip the variable. The new workflows own the writes; retire
+   `reporter-reply.yml`, `maintainer-reply.yml`, and the label-flip blocks in
+   `investigate.yml` (its agent steps stay). Migrate live labels
+   (`triage/* -> bot:*`) with a one-shot backfill.
+4. **New edges.** With the machine authoritative, the gap-closing edges
+   (`blocked → implement`, `in_review → revise`, enhancement lane) are already in
+   the table and just work.
+
+### Label migration map
+
+| Old                          | New                    |
+| ---------------------------- | ---------------------- |
+| `triage/reproducing`         | `bot:working`          |
+| `triage/reproduced`          | `bot:blocked`          |
+| `triage/by-design`           | `bot:blocked`          |
+| `triage/skipped`             | `bot:blocked`          |
+| `triage/not-reproduced`      | `bot:blocked`          |
+| `triage/failed`              | `bot:failed`           |
+| `triage/awaiting-reporter`   | `bot:awaiting-feedback`|
+| `triage/verified`            | `bot:in-review`        |
+| (none / `bot:repro` trigger) | `bot:triage` + command |
+
+The `review/*` PR labels stay as in-review sub-states on the PR; they roll up to
+`bot:in-review` on the anchoring issue.
