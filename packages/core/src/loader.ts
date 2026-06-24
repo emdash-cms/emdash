@@ -994,20 +994,23 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// When locale is specified, prefer locale-scoped slug match,
 				// but IDs are globally unique so always check id without locale scope.
 				//
-				// LEFT JOIN _emdash_seo folds per-entry SEO (canonical, noindex,
-				// etc.) into this single query at zero extra round-trip cost. The
-				// joined columns are surfaced as a nested data.seo object via
-				// extractSeo() and excluded from the generic field mapping. SEO is
-				// 1:1 with content (PK on collection+content_id), so the join never
-				// multiplies rows.
-				const seoSelect = sql.join(
-					Object.entries(SEO_COLUMN_ALIASES).map(
-						([col, alias]) => sql`${sql.ref(`s.${col}`)} AS ${sql.ref(alias)}`,
-					),
-				);
-				// Fold byline + taxonomy hydration into the content query (see
-				// foldedHydrationSelects), removing the two separate hydration
-				// round trips per fetch.
+				// Per-entry SEO (canonical, noindex, etc.) is fetched as a
+				// follow-up query and folded onto the row via SEO_COLUMN_ALIASES,
+				// preserving the data.seo shape that extractSeo() returns.
+				//
+				// We intentionally do NOT LEFT JOIN _emdash_seo here: that adds
+				// 5 alias columns to every result set, which can push wide
+				// flat-schema collections (common when porting from WordPress /
+				// ACF) past D1's per-result-set column limit (~100). The join
+				// failed with `D1_ERROR: too many columns in result set` and
+				// surfaced as a silent `null` entry at the call site. A separate
+				// SEO query is one extra round trip but is bounded in shape and
+				// works at any collection width.
+				//
+				// Byline + taxonomy hydration stays folded into the content
+				// query (see foldedHydrationSelects) because each is a single
+				// aggregated JSON column, so they add only two columns to the
+				// result set regardless of how many terms/credits an entry has.
 				const { terms: termsSelect, bylines: bylinesSelect } = foldedHydrationSelects(
 					db,
 					type,
@@ -1015,19 +1018,15 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				);
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}
+							SELECT c.*, ${termsSelect}, ${bylinesSelect}
 							FROM ${sql.ref(tableName)} AS c
-							LEFT JOIN ${sql.ref("_emdash_seo")} AS s
-								ON s.collection = ${type} AND s.content_id = c.id
 							WHERE c.deleted_at IS NULL
 							AND ((c.slug = ${id} AND c.locale = ${locale}) OR c.id = ${id})
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}
+							SELECT c.*, ${termsSelect}, ${bylinesSelect}
 							FROM ${sql.ref(tableName)} AS c
-							LEFT JOIN ${sql.ref("_emdash_seo")} AS s
-								ON s.collection = ${type} AND s.content_id = c.id
 							WHERE c.deleted_at IS NULL
 							AND (c.slug = ${id} OR c.id = ${id})
 							LIMIT 1
@@ -1036,6 +1035,23 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const row = result.rows[0];
 				if (!row) {
 					return undefined;
+				}
+
+				// Fold SEO onto the row using the same aliases the join used,
+				// so extractSeo() reads it transparently. Missing SEO row is
+				// expected (LEFT JOIN behavior preserved): extractSeo() returns
+				// null when the noIndex column is missing.
+				const seoResult = await sql<Record<string, unknown>>`
+					SELECT seo_title, seo_description, seo_image, seo_canonical, seo_no_index
+					FROM ${sql.ref("_emdash_seo")}
+					WHERE collection = ${type} AND content_id = ${row.id}
+					LIMIT 1
+				`.execute(db);
+				const seoRow = seoResult.rows[0];
+				if (seoRow) {
+					for (const [col, alias] of Object.entries(SEO_COLUMN_ALIASES)) {
+						row[alias] = seoRow[col];
+					}
 				}
 
 				const i18nConfig = virtualConfig?.i18n;
