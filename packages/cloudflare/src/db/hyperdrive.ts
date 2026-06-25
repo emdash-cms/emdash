@@ -44,8 +44,9 @@
  * database-querying plugin hooks are not yet supported on the Hyperdrive
  * adapter. The core read/write path (pages, content API routes, loaders) is
  * unaffected. Closing this requires the core runtime to thread an event-scoped
- * connection through those subsystems; tracked separately. Until then, use D1
- * for deployments that rely on Cron Triggers or DB-querying plugins.
+ * connection through those subsystems; tracked in
+ * https://github.com/emdash-cms/emdash/issues/1622. Until then, use D1 for
+ * deployments that rely on Cron Triggers or DB-querying plugins.
  *
  * This module imports directly from cloudflare:workers to access the binding.
  * Do NOT import it at config time — use { hyperdrive } from

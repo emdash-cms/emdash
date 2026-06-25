@@ -267,8 +267,9 @@ export function d1(config: D1Config): DatabaseDescriptor {
  * loaders) is fully supported. But several background and plugin paths still use
  * the per-isolate singleton connection, whose socket is bound to the request
  * that opened it; on a warm isolate workerd refuses to reuse it from a later
- * event. Until the core runtime threads an event-scoped connection through them,
- * the following are **not yet supported** on the Hyperdrive adapter:
+ * event. Until the core runtime threads an event-scoped connection through them
+ * (tracked in https://github.com/emdash-cms/emdash/issues/1622), the following
+ * are **not yet supported** on the Hyperdrive adapter:
  * - Cron Triggers — scheduled publishing, plugin cron, and system cleanup.
  * - Plugin hooks that query the database via their plugin context.
  * - Media providers and sandboxed plugins that hold the singleton db.
