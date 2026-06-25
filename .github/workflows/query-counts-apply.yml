@@ -159,7 +159,13 @@ jobs:
         run: |
           cp "$RUNNER_TEMP/qc-artifact/query-counts.snapshot.sqlite.json" scripts/
           cp "$RUNNER_TEMP/qc-artifact/query-counts.snapshot.d1.json" scripts/
-          git add scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json
+          cp "$RUNNER_TEMP/qc-artifact/query-counts.queries.sqlite.json" scripts/
+          cp "$RUNNER_TEMP/qc-artifact/query-counts.queries.d1.json" scripts/
+          git add \
+            scripts/query-counts.snapshot.sqlite.json \
+            scripts/query-counts.snapshot.d1.json \
+            scripts/query-counts.queries.sqlite.json \
+            scripts/query-counts.queries.d1.json
           if git diff --staged --quiet; then
             echo "no_diff=true" >> "$GITHUB_OUTPUT"
             echo "Artifact matches the PR head — nothing to push (probably a race with a newer commit)."
