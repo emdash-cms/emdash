@@ -38,7 +38,7 @@ const resultSchema = v.object({
 });
 
 const investigator = defineAgent<Env>(({ id, env }) => ({
-	model: process.env.FLUE_INVESTIGATE_MODEL ?? "cloudflare/@cf/zai-org/glm-5.2",
+	model: "cloudflare/@cf/zai-org/glm-5.2",
 	sandbox: cloudflareSandbox(getSandbox(env.Sandbox, id)),
 	cwd: "/workspace",
 	instructions: [

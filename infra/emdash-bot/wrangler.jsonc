@@ -22,26 +22,32 @@
 		},
 	],
 
-	// Durable Objects. Sandbox is the container DO from @cloudflare/sandbox.
-	// FlueRegistry is Flue's run-index DO. The Orchestrator DO (per-issue state
-	// machine) is added in Phase 3; the spike doesn't need it.
+	// Durable Objects. We declare the user-owned classes (Sandbox); Flue auto-
+	// adds bindings for its own workflow DOs and FlueRegistry via the generated
+	// .flue-vite.wrangler.jsonc -- we DON'T re-list those here.
 	"durable_objects": {
 		"bindings": [
 			{
 				"class_name": "Sandbox",
 				"name": "Sandbox",
 			},
-			{
-				"class_name": "FlueRegistry",
-				"name": "FLUE_REGISTRY",
-			},
 		],
 	},
 
+	// Every Durable Object class the worker uses must be declared sqlite-enabled.
+	// Flue's run-index (FlueRegistry) and per-workflow DOs (FlueClassifyCommand-
+	// Workflow, FlueInvestigateWorkflow) all use SQL storage internally, so they
+	// need to land in `new_sqlite_classes`. The workflow class names follow
+	// Flue's convention: `Flue<PascalCase(workflow-name)>Workflow`.
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": ["Sandbox", "FlueRegistry"],
+			"new_sqlite_classes": [
+				"Sandbox",
+				"FlueRegistry",
+				"FlueClassifyCommandWorkflow",
+				"FlueInvestigateWorkflow",
+			],
 		},
 	],
 
