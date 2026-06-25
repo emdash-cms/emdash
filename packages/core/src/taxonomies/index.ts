@@ -604,6 +604,27 @@ function primeEntryTermsCache(
 }
 
 /**
+ * Prime the per-entry request cache from terms that were folded into the
+ * content query (query.ts `hydrateEntryTerms` fast path). Mirrors the priming
+ * `getAllTermsForEntries` does — including resolving the locale and seeding `[]`
+ * for applicable taxonomies absent from an entry — so subsequent `getEntryTerms`
+ * calls hit the cache instead of issuing an N+1 query. Keeping this here (rather
+ * than duplicating the key shape in query.ts) prevents the two from drifting.
+ */
+export async function primeFoldedEntryTerms(
+	collection: string,
+	perEntry: Array<{ entryId: string; byTaxonomy: Record<string, TaxonomyTerm[]> }>,
+	options: TaxonomyQueryOptions = {},
+): Promise<void> {
+	if (perEntry.length === 0) return;
+	const locale = resolveLocale(options.locale);
+	const applicableTaxonomyNames = await getCollectionTaxonomyNames(collection, { locale });
+	for (const { entryId, byTaxonomy } of perEntry) {
+		primeEntryTermsCache(collection, entryId, byTaxonomy, applicableTaxonomyNames, locale);
+	}
+}
+
+/**
  * Get entries by term. Both the lookup (term slug in the active locale) and
  * the content query respect the active locale.
  */

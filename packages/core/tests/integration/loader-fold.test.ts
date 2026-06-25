@@ -28,7 +28,7 @@ import {
 interface FoldedByline {
 	roleLabel: string | null;
 	sortOrder: number;
-	byline: { displayName: string; slug: string };
+	byline: { displayName: string; slug: string; avatarMediaId: string | null };
 }
 interface FoldedTerm {
 	name: string;
@@ -65,7 +65,22 @@ describeEachDialect("loader hydration fold", (dialect) => {
 			.set({ status: "published" })
 			.where("id", "=", post.id)
 			.execute();
-		const author = await bylines.create({ displayName: "Ada Lovelace", slug: "ada" });
+		// Media row backing the avatar (byline.avatar_media_id has an FK to it).
+		await db
+			.insertInto("media")
+			.values({
+				id: "media_ada_avatar",
+				filename: "ada.png",
+				mime_type: "image/png",
+				storage_key: "media_ada_avatar.png",
+				status: "ready",
+			})
+			.execute();
+		const author = await bylines.create({
+			displayName: "Ada Lovelace",
+			slug: "ada",
+			avatarMediaId: "media_ada_avatar",
+		});
 		// _emdash_content_bylines.byline_id stores the byline's translation_group.
 		await db
 			.insertInto("_emdash_content_bylines")
@@ -105,6 +120,9 @@ describeEachDialect("loader hydration fold", (dialect) => {
 		expect(credits).toHaveLength(1);
 		expect(credits[0]!.roleLabel).toBe("Author");
 		expect(credits[0]!.byline.displayName).toBe("Ada Lovelace");
+		// avatarMediaId is a required BylineSummary field templates read to render
+		// author avatars; the fold must carry it (regression guard).
+		expect(credits[0]!.byline.avatarMediaId).toBe("media_ada_avatar");
 	});
 
 	it("folds bylines + terms into loadCollection", async () => {

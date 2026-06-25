@@ -40,6 +40,7 @@ import {
 } from "./object-cache/index.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import type { TaxonomyTerm } from "./taxonomies/types.js";
 import { isMissingTableError } from "./utils/db-errors.js";
 import {
 	createEditable,
@@ -965,7 +966,7 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 		// author for the author-fallback) but no folded credits — e.g. a credit
 		// in a different locale than the row, which the locale-correlated subquery
 		// skips, or the author-fallback path which the fold doesn't express.
-		const needsQueryPath = parsed.some(
+		let needsQueryPath = parsed.some(
 			(p) =>
 				p.credits.length === 0 &&
 				(dataStr(p.data, "authorId") !== "" || dataStr(p.data, "primaryBylineId") !== ""),
@@ -977,8 +978,13 @@ async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]):
 				const db = await getDb();
 				const { getBylineFieldDefs } = await import("./bylines/field-defs-cache.js");
 				hasCustomFields = (await getBylineFieldDefs(db)).length > 0;
-			} catch {
-				// Treat as no custom fields; the fold's values are still correct.
+			} catch (error) {
+				// A missing table is expected pre-migration and means there are no
+				// custom fields — the fold's values are complete. Any other error
+				// (lock-init failure, dialect error) means the probe can't be
+				// trusted, so fall back to the query path rather than risk serving
+				// folded bylines with empty customFields.
+				if (!isMissingTableError(error)) needsQueryPath = true;
 			}
 		}
 
@@ -1070,11 +1076,12 @@ async function hydrateEntryTerms<D>(
 	// Fast path: terms were folded into the content query. Group the JSON and
 	// skip the separate content_taxonomies query.
 	if (entries.every((e) => FOLDED_TERMS in entryData(e))) {
+		const perEntry: Array<{ entryId: string; byTaxonomy: Record<string, TaxonomyTerm[]> }> = [];
 		for (const entry of entries) {
 			const data = entryData(entry);
 			const folded = Reflect.get(data, FOLDED_TERMS);
 			const rows = Array.isArray(folded) ? folded : [];
-			const grouped: Record<string, Array<Record<string, unknown>>> = {};
+			const grouped: Record<string, TaxonomyTerm[]> = {};
 			for (const r of rows) {
 				const name = String(r?.name);
 				(grouped[name] ??= []).push({
@@ -1094,7 +1101,14 @@ async function hydrateEntryTerms<D>(
 				grouped[name] = arr.toSorted((a, b) => String(a.label).localeCompare(String(b.label)));
 			}
 			data.terms = grouped;
+			const entryId = dataStr(data, "id");
+			if (entryId) perEntry.push({ entryId, byTaxonomy: grouped });
 		}
+		// Prime the same per-entry request cache that getAllTermsForEntries
+		// populated, so subsequent getEntryTerms(...) calls in this render hit
+		// the cache instead of issuing an N+1 query.
+		const { primeFoldedEntryTerms } = await import("./taxonomies/index.js");
+		await primeFoldedEntryTerms(type, perEntry, { locale });
 		return;
 	}
 
