@@ -1,0 +1,71 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-bot",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-04-01",
+	"compatibility_flags": ["nodejs_compat"],
+
+	// Workers AI: structural binding, no API key. Every model the bot uses
+	// (classify, investigate, fix) resolves through `cloudflare/@cf/...`
+	// specifiers in Pi, which calls env.AI.run() under the hood.
+	"ai": {
+		"binding": "AI",
+	},
+
+	// Container-backed Linux sandbox for the investigate agent. Wraps the
+	// Dockerfile at the project root. The agent's process tree runs entirely
+	// inside this container; no string-shaped credentials are reachable from it.
+	"containers": [
+		{
+			"class_name": "Sandbox",
+			"image": "./Dockerfile",
+		},
+	],
+
+	// Durable Objects. Sandbox is the container DO from @cloudflare/sandbox.
+	// FlueRegistry is Flue's run-index DO. The Orchestrator DO (per-issue state
+	// machine) is added in Phase 3; the spike doesn't need it.
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "Sandbox",
+				"name": "Sandbox",
+			},
+			{
+				"class_name": "FlueRegistry",
+				"name": "FLUE_REGISTRY",
+			},
+		],
+	},
+
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["Sandbox", "FlueRegistry"],
+		},
+	],
+
+	// Workspace storage for the sandbox (repo clone, build cache, agent files
+	// larger than the DO inline blob limit).
+	"r2_buckets": [
+		{
+			"binding": "BOT_WORKSPACE",
+			"bucket_name": "emdash-bot-workspace",
+		},
+	],
+
+	"vars": {
+		// emdashbot GitHub App. Not secret.
+		"GITHUB_APP_ID": "3255304",
+		"GITHUB_APP_INSTALLATION_ID": "120963314",
+	},
+
+	// `wrangler secret put <NAME>` for production. Local dev reads .env.
+	"secrets": {
+		"required": ["GITHUB_WEBHOOK_SECRET", "GITHUB_APP_PRIVATE_KEY"],
+	},
+
+	"observability": {
+		"enabled": true,
+	},
+}
