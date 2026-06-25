@@ -221,6 +221,18 @@ Runs after trashed content is restored. Requires `content:read` capability.
 
 **Event:** `{ content, collection }` — **Returns:** `Promise<void>`
 
+### `content:afterSchedule`
+
+Runs after content is scheduled for future publishing. Requires `content:read` capability.
+
+**Event:** `{ content, collection }` — **Returns:** `Promise<void>`
+
+### `content:afterUnschedule`
+
+Runs after scheduled content is unscheduled. Requires `content:read` capability.
+
+**Event:** `{ content, collection }` — **Returns:** `Promise<void>`
+
 ## Media hooks
 
 ### `media:beforeUpload`
@@ -385,9 +397,11 @@ Hooks default to 5000ms. Bump the timeout for slower work:
 | `content:beforeDelete`   | Before content delete         | `false` to cancel, else allow        | No        |
 | `content:afterDelete`    | After content delete          | `void`                               | No        |
 | `content:afterPublish`   | After content publish         | `void`                               | No        |
-| `content:afterUnpublish` | After content unpublish       | `void`                               | No        |
-| `content:afterRestore`   | After content restore         | `void`                               | No        |
-| `media:beforeUpload`     | Before file upload            | Modified file info or `void`         | No        |
+| `content:afterUnpublish`  | After content unpublish       | `void`                               | No        |
+| `content:afterRestore`    | After content restore         | `void`                               | No        |
+| `content:afterSchedule`   | After content schedule        | `void`                               | No        |
+| `content:afterUnschedule` | After content unschedule      | `void`                               | No        |
+| `media:beforeUpload`      | Before file upload            | Modified file info or `void`         | No        |
 | `media:afterUpload`      | After file upload             | `void`                               | No        |
 | `cron`                   | Scheduled task fires          | `void`                               | No        |
 | `email:beforeSend`       | Before email delivery         | Modified message, `false`, or `void` | No        |

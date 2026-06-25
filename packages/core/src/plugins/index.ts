@@ -149,6 +149,8 @@ export type {
 	ContentBeforeDeleteHandler,
 	ContentAfterDeleteHandler,
 	ContentAfterRestoreHandler,
+	ContentAfterScheduleHandler,
+	ContentAfterUnscheduleHandler,
 	MediaBeforeUploadHandler,
 	MediaAfterUploadHandler,
 	LifecycleHandler,

@@ -18,6 +18,8 @@ The following table lists every hook, what triggers it, what it can modify, and 
 | `content:beforeDelete`  | Before content is deleted             | Can cancel        | No        |
 | `content:afterDelete`   | After content is deleted              | Nothing           | No        |
 | `content:afterRestore`  | After content is restored             | Nothing           | No        |
+| `content:afterSchedule` | After content is scheduled            | Nothing           | No        |
+| `content:afterUnschedule` | After content is unscheduled        | Nothing           | No        |
 | `media:beforeUpload`    | Before file is uploaded               | File metadata     | No        |
 | `media:afterUpload`     | After file is uploaded                | Nothing           | No        |
 | `cron`                  | Scheduled task fires                  | Nothing           | No        |
@@ -161,6 +163,30 @@ Runs after trashed content is restored. Requires `content:read` capability.
 hooks: {
   "content:afterRestore": async (event, ctx) => {
     ctx.log.info(`Restored ${event.collection}/${event.content.id}`);
+  },
+}
+```
+
+### `content:afterSchedule`
+
+Runs after content is scheduled for future publishing. Requires `content:read` capability.
+
+```ts
+hooks: {
+  "content:afterSchedule": async (event, ctx) => {
+    ctx.log.info(`Scheduled ${event.collection}/${event.content.id}`);
+  },
+}
+```
+
+### `content:afterUnschedule`
+
+Runs after scheduled content is unscheduled. Requires `content:read` capability.
+
+```ts
+hooks: {
+  "content:afterUnschedule": async (event, ctx) => {
+    ctx.log.info(`Unscheduled ${event.collection}/${event.content.id}`);
   },
 }
 ```
