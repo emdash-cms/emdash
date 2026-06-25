@@ -38,7 +38,18 @@ permissions:
   contents: read
 
 concurrency:
-  # Serialize per issue so rapid transitions don't race on the label set.
+  # Serialize per "thing the event is about", which is the GitHub-payload number
+  # (issue # for issue events, PR # for pull_request_target). This DOES serialize
+  # multiple comments on the same PR or same issue, but it does NOT serialize a
+  # PR comment for PR #200 against an issue comment for the anchoring issue
+  # #123 -- those resolve to different concurrency groups and can race.
+  #
+  # We cannot compute the anchoring issue # in a workflow-level expression (the
+  # bot/fix-<n> ref is only in the API payload at runtime). The defensive cover:
+  # the Apply step re-fetches live labels right before mutating, so if the two
+  # racing runs both got past route, only the first will see a live state the
+  # router can transition from -- the second's resolve() returns noop. The
+  # remaining window is millisecond-scale and not worth a global mutex.
   group: orchestrate-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
   cancel-in-progress: false
 
@@ -102,16 +113,17 @@ jobs:
               actorLogin = context.payload.comment.user.login;
               body = context.payload.comment.body || '';
               if (context.payload.issue.pull_request) {
-                // Comment on a PR: only act on REAL bot PRs. A fork PR can be
-                // named `bot/fix-<n>` by any external contributor, which would
-                // let them post comments routed as feedback for the wrong
-                // issue. Require the head branch to be a bot/fix-* in THIS
-                // repo, not a fork.
+                // Comment on a PR: only act on REAL bot PRs. A fork PR or a
+                // human's same-repo branch can both be named `bot/fix-<n>`,
+                // which would let comments route as feedback for the wrong
+                // issue. Three things have to be true: same repo (not fork),
+                // branch name pattern, AND authored by emdashbot[bot].
                 const prNum = context.payload.issue.number;
                 const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNum });
                 const sameRepo = pr.head.repo && pr.head.repo.full_name === `${owner}/${repo}`;
                 const m = /^bot\/fix-(\d+)$/.exec(pr.head.ref || '');
-                if (!m || !sameRepo) { core.setOutput('skip', 'not-a-bot-pr'); return; }
+                const botAuthored = pr.user && pr.user.login === 'emdashbot[bot]';
+                if (!m || !sameRepo || !botAuthored) { core.setOutput('skip', 'not-a-bot-pr'); return; }
                 issueNumber = Number(m[1]);
                 prNumber = prNum;
                 kind = 'pr_comment';
@@ -121,11 +133,15 @@ jobs:
               }
             } else if (ev === 'pull_request_target' && context.payload.action === 'closed') {
               const pr = context.payload.pull_request;
-              // Same fork-PR caveat as above: a fork can name its branch
-              // bot/fix-<n>; merging it would mark the wrong issue done.
+              // Three guards (same as the pr_comment path above): same repo,
+              // branch name pattern, AND authored by emdashbot[bot]. A merged
+              // PR matching only the branch name pattern can otherwise come
+              // from a maintainer's same-repo work branch and incorrectly mark
+              // an unrelated issue done.
               const sameRepo = pr.head.repo && pr.head.repo.full_name === `${owner}/${repo}`;
               const m = /^bot\/fix-(\d+)$/.exec(pr.head.ref || '');
-              if (!m || !sameRepo || !pr.merged) { core.setOutput('skip', 'not-a-merged-bot-pr'); return; }
+              const botAuthored = pr.user && pr.user.login === 'emdashbot[bot]';
+              if (!m || !sameRepo || !botAuthored || !pr.merged) { core.setOutput('skip', 'not-a-merged-bot-pr'); return; }
               issueNumber = Number(m[1]);
               prNumber = pr.number;
               kind = 'pr_merged';
@@ -316,7 +332,7 @@ jobs:
               } catch (e) {
                 core.warning(`PR create failed: ${e.message}; leaving state as-is`);
                 await github.rest.issues.createComment({ owner, repo, issue_number: p.issueNumber,
-                  body: `Couldn't open the PR: ${e.message}. Push the branch manually or comment \`@emdashbot retry\`.` + router.replyFooter(decision.from) });
+                  body: `Couldn't open the PR: ${e.message}. Push the branch manually or repeat the command.` + router.replyFooter(decision.from) });
                 return;
               }
             }
@@ -335,8 +351,11 @@ jobs:
                   client_payload: { issueNumber: p.issueNumber, mode, directive: arg || null, prNumber: p.prNumber || null } });
               } catch (e) {
                 core.warning(`dispatch failed: ${e.message}; leaving state as-is`);
+                // The retry verb is only valid from states that offer it; from
+                // unmanaged it's a no-op. Suggest "repeat the command" so the
+                // user re-fires whichever entry verb (repro/implement) failed.
                 await github.rest.issues.createComment({ owner, repo, issue_number: p.issueNumber,
-                  body: `Couldn't start the agent run: ${e.message}. Comment \`@emdashbot retry\`.` + router.replyFooter(decision.from) });
+                  body: `Couldn't start the agent run: ${e.message}. Please repeat the command.` + router.replyFooter(decision.from) });
                 return;
               }
             }

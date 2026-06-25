@@ -1,22 +1,30 @@
 name: Bot investigate run
 
-# The EXECUTOR backend. The orchestrator (orchestrate.yml) dispatches here when a
-# transition's action is investigate.* (repro / implement / revise). This is the
-# only environment with the toolchain the agent needs (pnpm, git, a real browser
-# via agent-browser, the ability to boot `pnpm dev` and run tests), which is why
-# the heavy work stays on a GitHub Actions runner rather than a CF isolate.
+# The EXECUTOR backend. The orchestrator (orchestrate.yml) dispatches here when
+# a transition's action is investigate.* (repro / implement / revise). This is
+# the only environment with the toolchain the agent needs (pnpm, git, a real
+# browser via agent-browser, the ability to boot `pnpm dev` and run tests),
+# which is why the heavy work stays on a GitHub Actions runner rather than a
+# CF isolate.
 #
 # Contract (client_payload from createDispatchEvent in orchestrate.yml):
 #   { issueNumber, mode: "repro"|"implement"|"revise", directive?, prNumber? }
 #
-# Responsibilities:
-#   - run the Flue investigate workflow (read-only on GitHub; AGENT_GH_TOKEN)
-#   - push bot/fix-<n> when the agent staged a fix (app token, never the agent's)
-#   - map the result to an agent.* event (router.outcomeFromResult) and apply the
-#     resulting transition (label flip + comment) so the issue advances
+# Trust split between two jobs on two separate runners:
 #
-# The agent process only ever sees the read-only AGENT_GH_TOKEN; every write
-# (branch push, labels, comment) uses the app token in trusted YAML steps.
+#   investigate (untrusted): runs the agent. Only secret reachable here is
+#     AGENT_GH_TOKEN (read-only) -- no app token, no write to GitHub. If the
+#     agent produced a fix, exports it as a patch artifact. The runner is
+#     thrown away when the job ends, killing any background process the agent
+#     left running (the previous design ran the trusted push step on the SAME
+#     runner, where a scraper could read /proc/<git-pid>/environ for APP_TOKEN
+#     even with GIT_ASKPASS, because env-vars are visible to sibling processes).
+#
+#   apply (trusted, needs investigate): fresh runner, has the app token. The
+#     agent's processes are GONE because the previous runner was decommissioned.
+#     Downloads the patch + result artifacts, validates, applies the patch in
+#     a fresh checkout, pushes the branch with GIT_ASKPASS, and applies the
+#     state-machine transition. Never executes agent-supplied code.
 
 on:
   repository_dispatch:
@@ -35,8 +43,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  run:
-    name: Investigate
+  investigate:
+    name: Investigate (untrusted)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -45,29 +53,25 @@ jobs:
       ISSUE_NUMBER: ${{ github.event.client_payload.issueNumber || github.event.inputs.issueNumber }}
       MODE: ${{ github.event.client_payload.mode || github.event.inputs.mode }}
       DIRECTIVE: ${{ github.event.client_payload.directive || github.event.inputs.directive }}
-      PR_NUMBER: ${{ github.event.client_payload.prNumber }}
+    outputs:
+      ok: ${{ steps.investigate.outputs.ok }}
+      hasPatch: ${{ steps.export.outputs.hasPatch }}
     steps:
-      - name: Generate app token
-        id: app-token
+      # Fetch the issue with a tightly-scoped, read-only app token. This token
+      # never leaves this job and is unset before the agent runs.
+      - name: Generate read-only app token
+        id: read-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: emdash-cms
           repositories: emdash
-          # Executor scopes: contents:write so we can push bot/fix-<n>, plus
-          # the read/write surfaces needed for the result-application step.
-          permission-contents: write
+          permission-issues: read
           permission-metadata: read
-          permission-issues: write
-          permission-pull-requests: write
 
-      # For revise, check out the existing bot/fix-<n> so the agent updates it;
-      # otherwise check out main. NB: persist-credentials:false is load-bearing.
-      # If we leave the app token in .git/config, the agent process (running in
-      # this same workspace) can read it and exfiltrate or push with it. The
-      # trusted push step below installs the token *into the remote URL only*
-      # for the duration of one `git push`, and unconfigures it afterwards.
+      # For revise, check out the existing bot/fix-<n> so the agent updates
+      # it; otherwise check out main. NO credentials persist into .git/config.
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
@@ -75,10 +79,24 @@ jobs:
           fetch-depth: 0
           ref: ${{ env.MODE == 'revise' && format('bot/fix-{0}', env.ISSUE_NUMBER) || '' }}
 
+      - name: Fetch issue
+        id: issue
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ steps.read-token.outputs.token }}
+          script: |
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: Number(process.env.ISSUE_NUMBER),
+            });
+            const fs = require('node:fs');
+            fs.writeFileSync('/tmp/issue-title.txt', issue.title || '');
+            fs.writeFileSync('/tmp/issue-body.txt', issue.body || '');
+
       # Runner provisioning matches the legacy investigate.yml so the agent
       # sandbox has the same tooling (pnpm, root deps, package builds, the
       # browser stack the repro-admin/repro-public skills drive via bgproc +
-      # agent-browser). These are carried over verbatim from investigate.yml.
+      # agent-browser). Carried over verbatim.
       - name: Setup pnpm
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
 
@@ -88,9 +106,6 @@ jobs:
           node-version-file: "package.json"
           cache: "pnpm"
 
-      # The repro-admin/repro-public skills drive a real browser via `bgproc`
-      # (boots `pnpm dev`) and `agent-browser`. PATH is inherited by the
-      # agent's local() sandbox, so these land on the agent's bash PATH.
       - name: Install browser automation tools
         run: |
           npm install -g bgproc agent-browser
@@ -110,27 +125,12 @@ jobs:
         working-directory: .flue
         run: pnpm exec flue build --target node --output .build
 
-      - name: Fetch issue
-        id: issue
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const { data: issue } = await github.rest.issues.get({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: Number(process.env.ISSUE_NUMBER),
-            });
-            // Write to files; never interpolate issue text into a shell line.
-            const fs = require('node:fs');
-            fs.writeFileSync('/tmp/issue-title.txt', issue.title || '');
-            fs.writeFileSync('/tmp/issue-body.txt', issue.body || '');
-
       - name: Run investigate
         id: investigate
         working-directory: .flue
         env:
-          # Read-only token for the agent's sandbox: it can read; it cannot push
-          # or comment. Every write below uses the app token instead.
+          # The agent gets ONLY the read-only sandbox token. The app token used
+          # for the issue fetch above is not exported here and not reachable.
           AGENT_GH_TOKEN: ${{ secrets.AGENT_GH_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_GATEWAY_ID: ${{ secrets.CLOUDFLARE_GATEWAY_ID }}
@@ -138,7 +138,6 @@ jobs:
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           TITLE="$(cat /tmp/issue-title.txt)"
-          # Build the input via jq from files; directive/retryContext keyed by mode.
           jq -n \
             --argjson n "$ISSUE_NUMBER" \
             --arg t "$TITLE" \
@@ -153,45 +152,117 @@ jobs:
             pnpm exec flue run investigate --target node --input "$(cat /tmp/inv-input.json)" \
             && echo "ok=true" >> "$GITHUB_OUTPUT" || echo "ok=false" >> "$GITHUB_OUTPUT"
 
-      # Kill any background processes the agent spawned (bgproc'd `pnpm dev`,
-      # agent-browser children, model-driven shells) BEFORE we touch a write
-      # token. If we left them running, a prompt-injected agent could leave a
-      # `ps -eo args` scraper that snags the token from argv during push.
-      # Hard match on $GITHUB_WORKSPACE so we don't touch GitHub Actions
-      # infrastructure processes.
-      - name: Contain agent processes
-        if: always()
-        run: |
-          # First a polite SIGTERM, then SIGKILL to anything still alive.
-          pgrep -f "^.*${GITHUB_WORKSPACE}.*$" 2>/dev/null | xargs -r kill -TERM 2>/dev/null || true
-          sleep 2
-          pgrep -f "^.*${GITHUB_WORKSPACE}.*$" 2>/dev/null | xargs -r kill -KILL 2>/dev/null || true
-          # Also kill anything still bound to the dev-server's typical ports
-          # (the repro skills boot `pnpm dev` which holds 4321 / 8788).
-          for port in 4321 8788 3583; do
-            lsof -ti:$port 2>/dev/null | xargs -r kill -KILL 2>/dev/null || true
-          done
-
-      - name: Push fix branch (if any)
-        id: push
+      # Export the agent's staged changes as a patch. We do NOT push here -- the
+      # apply job will validate and push from a fresh runner with the app token.
+      # If `fixed` is false / no diff, hasPatch=false and no artifact is uploaded.
+      - name: Export patch
+        id: export
         if: steps.investigate.outputs.ok == 'true'
+        run: |
+          FIXED="$(jq -r '.fixed // false' /tmp/inv-result.json 2>/dev/null || echo false)"
+          if [ "$FIXED" != "true" ]; then echo "hasPatch=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          # `git diff --cached` captures the agent's staged edits.
+          git diff --cached --binary > /tmp/fix.patch || true
+          if [ ! -s /tmp/fix.patch ]; then
+            echo "::warning::agent claimed fixed=true but staged no diff; treating as not fixed"
+            echo "hasPatch=false" >> "$GITHUB_OUTPUT"
+          else
+            jq -r --arg fallback "fix: address #${ISSUE_NUMBER}" '.commitMessage // $fallback' \
+              /tmp/inv-result.json > /tmp/commit-msg.txt
+            echo "hasPatch=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload artifacts for the trusted apply job
+        if: always() && env.ISSUE_NUMBER != ''
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: investigate-run-${{ env.ISSUE_NUMBER }}
+          path: |
+            /tmp/inv-result.json
+            /tmp/fix.patch
+            /tmp/commit-msg.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+  apply:
+    name: Apply (trusted)
+    needs: investigate
+    if: always() && needs.investigate.result != 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      ISSUE_NUMBER: ${{ github.event.client_payload.issueNumber || github.event.inputs.issueNumber }}
+      MODE: ${{ github.event.client_payload.mode || github.event.inputs.mode }}
+      INV_OK: ${{ needs.investigate.outputs.ok }}
+      HAS_PATCH: ${{ needs.investigate.outputs.hasPatch }}
+    steps:
+      # Generate the write-scoped app token AFTER the investigate job has
+      # finished. The previous runner (and its agent's processes) is gone, so
+      # this token never coexists with attacker-controlled code on the same
+      # host.
+      - name: Generate write-scoped app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: emdash-cms
+          repositories: emdash
+          permission-contents: write
+          permission-metadata: read
+          permission-issues: write
+          permission-pull-requests: write
+
+      # Clean checkout. For revise the apply job lands on bot/fix-<n>; for
+      # repro/implement it lands on main. Note: persist-credentials:true here
+      # is safe because the agent is no longer running. The token only ever
+      # touches the trusted push.
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ env.MODE == 'revise' && format('bot/fix-{0}', env.ISSUE_NUMBER) || '' }}
+
+      - name: Download investigate artifacts
+        id: download
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: investigate-run-${{ env.ISSUE_NUMBER }}
+          path: /tmp
+        continue-on-error: true
+
+      - name: Apply patch and push branch
+        id: push
+        if: env.INV_OK == 'true' && env.HAS_PATCH == 'true'
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          FIXED="$(jq -r '.fixed // false' /tmp/inv-result.json 2>/dev/null || echo false)"
-          if [ "$FIXED" != "true" ]; then echo "pushed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          set -euo pipefail
           BRANCH="bot/fix-${ISSUE_NUMBER}"
 
-          # --- guard: refuse to clobber human commits on an existing bot/fix-<n>
-          # `--force-with-lease` only protects against changes AFTER our fetch.
-          # If a maintainer pushed a rescue commit BEFORE we ran, fetch sees it
-          # and lease lets us overwrite it. Inspect the remote tip and bail
-          # unless every commit not on main was authored by emdashbot[bot].
-          REMOTE_TIP="$(git -c http.extraheader= ls-remote --heads origin "$BRANCH" 2>/dev/null | awk '{print $1}')"
+          # Branch ownership guard: fail CLOSED if we can't inspect the remote.
+          # `--force-with-lease` only protects from changes after our fetch; a
+          # rescue commit pushed BEFORE we ran is fetched then overwritten. We
+          # require every commit not on main to be authored by emdashbot[bot].
+          REMOTE_TIP="$(git ls-remote --heads origin "$BRANCH" | awk '{print $1}')"
           if [ -n "$REMOTE_TIP" ]; then
-            git fetch --no-tags origin "$BRANCH" || true
-            NON_BOT="$(git log --format='%H %an' "origin/main..$REMOTE_TIP" 2>/dev/null \
-              | awk '$2 != "emdashbot[bot]" { print $1 }' | head -1)"
+            if ! git fetch --no-tags origin "$BRANCH"; then
+              echo "::error::failed to fetch existing $BRANCH; refusing to push (fails closed)"
+              echo "pushed=false" >> "$GITHUB_OUTPUT"
+              echo "reason=fetch-failed" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if ! AUTHORS=$(git log --format='%H %an' "origin/main..$REMOTE_TIP" 2>&1); then
+              echo "::error::failed to inspect commits on $BRANCH; refusing to push"
+              echo "$AUTHORS"
+              echo "pushed=false" >> "$GITHUB_OUTPUT"
+              echo "reason=log-failed" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            NON_BOT="$(echo "$AUTHORS" | awk '$2 != "emdashbot[bot]" { print $1 }' | head -1)"
             if [ -n "$NON_BOT" ]; then
               echo "::warning::refusing to overwrite human commit $NON_BOT on $BRANCH"
               echo "pushed=false" >> "$GITHUB_OUTPUT"
@@ -200,32 +271,32 @@ jobs:
             fi
           fi
 
-          # Write the model-produced commit message to a file and pass via -F.
-          # `git commit -m "$MSG"` would expand backticks / $(...) under shell
-          # rules; an attacker-influenced issue body could land RCE on the runner.
-          jq -r --arg fallback "fix: address #${ISSUE_NUMBER}" '.commitMessage // $fallback' \
-            /tmp/inv-result.json > /tmp/commit-msg.txt
+          # Apply the agent's patch. `git apply --check` validates BEFORE we
+          # mutate anything; `--whitespace=nowarn` keeps the noisy whitespace
+          # warnings out of the run log.
+          if ! git apply --check --whitespace=nowarn /tmp/fix.patch; then
+            echo "::warning::patch does not apply cleanly to current base"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            echo "reason=patch-conflict" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git apply --whitespace=nowarn /tmp/fix.patch
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
           git checkout -B "$BRANCH"
           git add -A
-          # A nothing-staged commit failure is "no diff": pushed=false, no error.
           if ! git commit -F /tmp/commit-msg.txt; then
             echo "pushed=false" >> "$GITHUB_OUTPUT"
             echo "reason=no-diff-to-commit" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Push with the token in an env var, not on argv. `GIT_ASKPASS` runs
-          # a helper that reads APP_TOKEN from this step's env and prints it as
-          # the credential. argv has no secret; /proc/<pid>/cmdline shows only
-          # `git push --force-with-lease origin bot/fix-N`.
+          # Push with GIT_ASKPASS so the token stays in env, not on argv. The
+          # agent (on the previous runner) is gone, so no scraper can read the
+          # env of this git process.
           ASKPASS=/tmp/git-askpass.sh
           cat > "$ASKPASS" <<'EOF'
           #!/usr/bin/env bash
-          # GIT_ASKPASS protocol: prompt arrives on argv. For username prompts
-          # we return the conventional `x-access-token`; for password prompts
-          # we return the token from APP_TOKEN.
           case "$1" in
             Username*) echo "x-access-token" ;;
             Password*) echo "${APP_TOKEN}" ;;
@@ -233,7 +304,6 @@ jobs:
           EOF
           chmod 700 "$ASKPASS"
           export GIT_ASKPASS="$ASKPASS"
-          # Disable git's credential helpers so they can't override the askpass.
           if GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c core.askpass="$ASKPASS" \
               push --force-with-lease origin "$BRANCH"; then
             echo "pushed=true" >> "$GITHUB_OUTPUT"
@@ -255,23 +325,55 @@ jobs:
             const repo = context.repo.repo;
             const issueNumber = Number(process.env.ISSUE_NUMBER);
             const ok = process.env.INV_OK === 'true';
+            const pushed = process.env.PUSHED === 'true';
 
             let result = null;
             try { result = JSON.parse(fs.readFileSync('/tmp/inv-result.json', 'utf8')); } catch { /* failed run */ }
-            const pushed = process.env.PUSHED === 'true';
             const event = router.outcomeFromResult({ ok, result, pushed });
 
+            // Re-fetch live labels. If the orchestrator's dispatch-before-flip
+            // sequence failed at the flip step, the issue may NOT carry
+            // bot:working. The router accepts agent.* from `working` only, so
+            // we synthesize the right base state if we find ourselves orphaned.
             const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number: issueNumber });
             const labels = issue.labels.map((l) => (typeof l === 'string' ? l : l.name));
-            const decision = router.resolve({ labels, event, actor: 'system' });
-            if (decision.kind !== 'transition') { core.info(`no transition for ${event}; leaving as-is`); return; }
+            const state = router.currentState(labels);
 
-            await github.rest.issues.addLabels({ owner, repo, issue_number: issueNumber, labels: decision.addLabels });
-            for (const l of decision.removeLabels) {
-              if (labels.includes(l)) await github.rest.issues.removeLabel({ owner, repo, issue_number: issueNumber, name: l }).catch(() => {});
+            // Recovery: if labels don't include bot:working but we have an
+            // agent.* event, treat as working for the purpose of routing the
+            // result. This handles the dispatch-succeeded-but-flip-failed race
+            // in orchestrate.yml. We use the synthetic state to route, but
+            // remove the REAL orphaned state label so we don't end up with two
+            // state labels on the issue.
+            let effectiveLabels = labels;
+            const orphaned = state !== 'working' && event.startsWith('agent.');
+            if (orphaned) {
+              core.warning(`apply: expected bot:working, found ${state}; synthesising for outcome`);
+              effectiveLabels = labels.filter((l) => !router.STATE_LABELS.includes(l));
+              effectiveLabels.push('bot:working');
             }
 
-            // Compose the comment from the agent's own notes when present.
+            const decision = router.resolve({ labels: effectiveLabels, event, actor: 'system' });
+            if (decision.kind !== 'transition') {
+              core.info(`no transition for ${event} from ${state}; leaving as-is`);
+              return;
+            }
+
+            await github.rest.issues.addLabels({ owner, repo, issue_number: issueNumber, labels: decision.addLabels });
+            // decision.removeLabels already includes every state label except
+            // the new one (router builds it from STATE_LABELS), so the
+            // orphaned-state label is covered without special handling here.
+            for (const l of decision.removeLabels) {
+              if (!labels.includes(l)) continue;
+              try {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: issueNumber, name: l });
+              } catch (e) {
+                if (e.status === 404) continue;
+                core.error(`removeLabel(${l}) failed: ${e.message}; issue ${issueNumber} may carry multiple state labels`);
+                throw e;
+              }
+            }
+
             const notes = result && (result.notes || result.reason || result.attempts);
             const ask = decision.to === 'awaiting_feedback'
               ? "\n\nA fix is on `bot/fix-" + issueNumber + "`. Reporter: does this resolve it? Reply `@emdashbot confirm` or `@emdashbot reject`."
@@ -279,5 +381,4 @@ jobs:
             await github.rest.issues.createComment({ owner, repo, issue_number: issueNumber,
               body: (notes ? String(notes) : `Run complete (\`${event}\`).`) + ask + router.replyFooter(decision.to) });
         env:
-          INV_OK: ${{ steps.investigate.outputs.ok }}
           PUSHED: ${{ steps.push.outputs.pushed }}
