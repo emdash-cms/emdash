@@ -31,6 +31,10 @@
 				"class_name": "Sandbox",
 				"name": "Sandbox",
 			},
+			{
+				"class_name": "OrchestratorDO",
+				"name": "Orchestrator",
+			},
 		],
 	},
 
@@ -44,6 +48,7 @@
 			"tag": "v1",
 			"new_sqlite_classes": [
 				"Sandbox",
+				"OrchestratorDO",
 				"FlueRegistry",
 				"FlueClassifyCommandWorkflow",
 				"FlueInvestigateWorkflow",

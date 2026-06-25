@@ -6,14 +6,17 @@
 // we don't re-export it here.
 import type { Sandbox as SandboxClass } from "@cloudflare/sandbox";
 
-export { Sandbox } from "@cloudflare/sandbox";
+import type { OrchestratorDO as OrchestratorDOClass } from "./lib/orchestrator.js";
 
-// `wrangler types` generates `Env.Sandbox: DurableObjectNamespace<undefined>`
-// because it can't infer the bound class from wrangler.jsonc. Narrow it here
-// so `getSandbox(env.Sandbox, id)` typechecks against its generic constraint
-// (`T extends Sandbox<any>`).
+export { Sandbox } from "@cloudflare/sandbox";
+export { OrchestratorDO } from "./lib/orchestrator.js";
+
+// `wrangler types` generates DurableObjectNamespace<undefined> for both bindings
+// because it can't infer the bound class from wrangler.jsonc. Narrow them here
+// so call sites typecheck against their generic constraints.
 declare global {
 	interface Env {
 		Sandbox: DurableObjectNamespace<SandboxClass>;
+		Orchestrator: DurableObjectNamespace<OrchestratorDOClass>;
 	}
 }

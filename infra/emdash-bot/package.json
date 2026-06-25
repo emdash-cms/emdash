@@ -10,10 +10,13 @@
 		"deploy": "flue build --target cloudflare && wrangler deploy",
 		"cf-typegen": "wrangler types",
 		"typecheck": "tsc --noEmit",
-		"test": "vitest run",
-		"test:watch": "vitest"
+		"test": "pnpm test:unit && pnpm test:workers",
+		"test:unit": "vitest run --config vitest.config.ts",
+		"test:workers": "vitest run --config vitest.workers.config.ts",
+		"test:watch": "vitest --config vitest.config.ts"
 	},
 	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "catalog:",
 		"@flue/cli": "1.0.0-beta.5",
 		"typescript": "catalog:",
 		"vitest": "catalog:",
