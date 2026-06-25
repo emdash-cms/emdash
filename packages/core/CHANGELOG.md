@@ -29,7 +29,6 @@
 - [#1396](https://github.com/emdash-cms/emdash/pull/1396) [`c5f58b9`](https://github.com/emdash-cms/emdash/commit/c5f58b9a8aeb369baf0b1b0bc2738373c03d2e01) Thanks [@nanangdev](https://github.com/nanangdev)! - fix: render text alignment from rich-text editor end-to-end ([#1201](https://github.com/emdash-cms/emdash/issues/1201))
 
   The previous fix in `text-align-round-trip` patched only the `packages/core/src/content/converters/` pair but the rich-text editor saves through two other ProseMirror ↔ Portable Text converters that each carried their own copy of the same logic — so reporter and maintainer kept seeing alignment dropped on save:
-
   - `packages/admin/src/components/PortableTextEditor.tsx` (admin save path)
   - `packages/core/src/components/InlinePortableTextEditor.tsx` (in-page inline editing)
 
