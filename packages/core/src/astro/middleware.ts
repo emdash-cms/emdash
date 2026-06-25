@@ -59,6 +59,7 @@ import type { PublishedRef } from "../scheduled-publish.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import { ASTRO_COOKIES_SYMBOL, finishScoped } from "./middleware/scoped-db.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { prefetchLayoutData } from "./prefetch.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
@@ -274,14 +275,6 @@ export async function runScheduledTasks(
 }
 
 /**
- * Astro attaches AstroCookies to outgoing responses via a well-known global
- * symbol. Cloning a Response (`new Response(body, init)`) drops non-header
- * metadata, so any middleware that wraps the response must explicitly forward
- * this symbol or `cookies.set()` calls will be silently dropped.
- */
-const ASTRO_COOKIES_SYMBOL = Symbol.for("astro.cookies");
-
-/**
  * Baseline security headers applied to all responses.
  * Admin routes get additional headers (strict CSP) from auth middleware.
  */
@@ -363,72 +356,6 @@ function createRequestScopedDb(
 		o: RequestScopedDbOpts,
 	) => { db: Kysely<Database>; commit: () => void; close?: () => void } | null;
 	return fn(opts);
-}
-
-/**
- * Run a request-scoped db's `close()` once the response body has finished
- * streaming. Astro streams HTML and components issue DB queries during that
- * stream, so a connection-backed adapter (e.g. Postgres over Hyperdrive) must
- * not be torn down until the body is flushed. Bodyless responses (redirects,
- * 304s, errors) close immediately. A guard makes close idempotent and a stream
- * `cancel` (client disconnect) still triggers it so connections never leak.
- *
- * No-op for adapters without a `close` (D1): the response passes through.
- */
-function wrapResponseForScopedClose(response: Response, close: () => void): Response {
-	let closed = false;
-	const runClose = () => {
-		if (closed) return;
-		closed = true;
-		try {
-			close();
-		} catch (error) {
-			console.error("[emdash] request-scoped db close failed:", error);
-		}
-	};
-
-	if (!response.body) {
-		runClose();
-		return response;
-	}
-
-	const transform = new TransformStream<Uint8Array, Uint8Array>({
-		flush: runClose,
-		cancel: runClose,
-	});
-	const wrapped = new Response(response.body.pipeThrough(transform), response);
-	const astroCookies = Reflect.get(response, ASTRO_COOKIES_SYMBOL);
-	if (astroCookies !== undefined) {
-		Reflect.set(wrapped, ASTRO_COOKIES_SYMBOL, astroCookies);
-	}
-	// Byte counts are preserved by the identity transform, but a stale
-	// Content-Length on a reconstructed streaming Response risks truncation.
-	wrapped.headers.delete("Content-Length");
-	return wrapped;
-}
-
-/**
- * Run the request body under a request-scoped db, then settle its lifecycle:
- * `commit()` runs before the response is returned (so per-request state like a
- * D1 bookmark cookie is persisted in the headers, even if render throws), while
- * `close()` (if any) is deferred to stream-end so a connection-backed adapter
- * isn't torn down mid-render. On error the connection is closed immediately
- * before rethrowing so it never leaks.
- */
-async function finishScoped(
-	scoped: { commit: () => void; close?: () => void },
-	run: () => Promise<Response>,
-): Promise<Response> {
-	let response: Response;
-	try {
-		response = await run();
-	} catch (error) {
-		scoped.commit();
-		scoped.close?.();
-		throw error;
-	}
-	scoped.commit();
-	return scoped.close ? wrapResponseForScopedClose(response, scoped.close) : response;
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {

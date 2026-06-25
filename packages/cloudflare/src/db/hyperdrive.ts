@@ -36,6 +36,7 @@
  */
 
 import { env, waitUntil } from "cloudflare:workers";
+import { kyselyLogOption } from "emdash/database/instrumentation";
 import { type Dialect, Kysely, PostgresDialect } from "kysely";
 // `pg` is provided by the consuming site (an optional peer of `emdash`); it is
 // kept external from this package's bundle.
@@ -148,7 +149,16 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	if (!binding?.connectionString) return null;
 
 	const pool = createPool(binding.connectionString, opts.config.max ?? DEFAULT_MAX);
-	const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) });
+	const db = new Kysely<any>({
+		dialect: new PostgresDialect({ pool }),
+		// Mirror the D1 adapter and the runtime singleton: route per-request
+		// queries through the instrumentation logger so db.* Server-Timing
+		// counters and EMDASH_QUERY_LOG capture Hyperdrive queries too. The
+		// singleton built by createDialect gets this from core (it wraps the
+		// dialect in a logged Kysely), but this request-scoped Kysely is built
+		// here, so it must opt in itself.
+		log: kyselyLogOption(),
+	});
 
 	let closed = false;
 	return {
