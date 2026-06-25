@@ -262,6 +262,21 @@ export function d1(config: D1Config): DatabaseDescriptor {
  * { "placement": { "region": "aws:us-east-1" } }
  * ```
  *
+ * **Known limitation — request path only (for now).** Each request gets its own
+ * pg connection, so the content read/write path (pages, content API routes,
+ * loaders) is fully supported. But several background and plugin paths still use
+ * the per-isolate singleton connection, whose socket is bound to the request
+ * that opened it; on a warm isolate workerd refuses to reuse it from a later
+ * event. Until the core runtime threads an event-scoped connection through them,
+ * the following are **not yet supported** on the Hyperdrive adapter:
+ * - Cron Triggers — scheduled publishing, plugin cron, and system cleanup.
+ * - Plugin hooks that query the database via their plugin context.
+ * - Media providers and sandboxed plugins that hold the singleton db.
+ *
+ * Use `d1()` for deployments that depend on those. (This is a Hyperdrive-adapter
+ * limitation, not a data-safety risk: affected work errors and is logged rather
+ * than corrupting anything.)
+ *
  * @example
  * ```ts
  * database: hyperdrive({ binding: "HYPERDRIVE" })

@@ -20,10 +20,32 @@
  * ALS, and the runtime/loader db getters prefer it over the singleton — so all
  * request-path queries use a connection opened in the current request.
  *
- * `createDialect` still builds the per-isolate singleton Kysely. It is only
- * touched outside the request-scoped path — cold-start migrations (which run
- * inside the first request, so the connection is valid) and the scheduled()
- * cron handler.
+ * `createDialect` still builds the per-isolate singleton Kysely. Its socket is
+ * opened by whatever event first queries it — normally the cold-start
+ * migrations during the first HTTP request — and, because a pg socket is bound
+ * to the request that opened it, it is only safe to use again from within that
+ * same event. The request path never does: routes and loaders read through the
+ * per-request scoped Kysely (ALS), not the singleton.
+ *
+ * Known limitation — background and plugin paths still use the singleton
+ * --------------------------------------------------------------------------
+ * Several subsystems capture the runtime's singleton db at construction and do
+ * not consult the per-request scoped connection:
+ *   - the Cron Trigger handler (`scheduled()` → scheduled publishing, plugin
+ *     cron, system cleanup),
+ *   - plugin hook contexts (a hook's `content` / `media` / `users` / `cron`
+ *     access),
+ *   - media providers and sandboxed plugins.
+ *
+ * On a warm isolate the singleton's socket belongs to an earlier request, so
+ * these paths can fail under workerd's cross-request I/O guard ("Cannot perform
+ * I/O on behalf of a different request"). It is not a data-corruption risk — the
+ * work errors and is logged — but it means scheduled publishing and
+ * database-querying plugin hooks are not yet supported on the Hyperdrive
+ * adapter. The core read/write path (pages, content API routes, loaders) is
+ * unaffected. Closing this requires the core runtime to thread an event-scoped
+ * connection through those subsystems; tracked separately. Until then, use D1
+ * for deployments that rely on Cron Triggers or DB-querying plugins.
  *
  * This module imports directly from cloudflare:workers to access the binding.
  * Do NOT import it at config time — use { hyperdrive } from
@@ -85,15 +107,16 @@ function createPool(connectionString: string, max: number): Pool {
 /**
  * Create a PostgreSQL dialect backed by a Hyperdrive binding.
  *
- * Used for the per-isolate singleton Kysely (cold-start migrations and the
- * scheduled() handler). Request-path queries go through
- * `createRequestScopedDb` instead.
+ * Used for the per-isolate singleton Kysely. The request path never touches it
+ * (it reads through `createRequestScopedDb`); in practice the singleton serves
+ * cold-start migrations, plus the background/plugin paths noted in the module
+ * header that are not yet safe across event boundaries on this adapter.
  */
 export function createDialect(config: HyperdriveConfig): Dialect {
 	const binding = requireBinding(config);
-	// The singleton only runs cold-start migrations and scheduled() tasks, both
-	// sequential — a single connection is enough, and keeping it to 1 leaves the
-	// bulk of Hyperdrive's connection budget for the per-request pools.
+	// Cold-start migrations are sequential, so a single connection is enough,
+	// and keeping it to 1 leaves the bulk of Hyperdrive's connection budget for
+	// the per-request pools.
 	return new PostgresDialect({ pool: createPool(binding.connectionString, 1) });
 }
 
