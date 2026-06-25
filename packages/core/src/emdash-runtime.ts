@@ -456,7 +456,20 @@ export class EmDashRuntime {
 	readonly configuredPlugins: ResolvedPlugin[];
 	readonly sandboxedPlugins: Map<string, SandboxedPluginInstance>;
 	readonly sandboxedPluginEntries: SandboxedPluginEntry[];
-	readonly schemaRegistry: SchemaRegistry;
+	/**
+	 * Schema registry bound to the current request/event-scoped connection.
+	 * Built per access (SchemaRegistry just wraps a db) against `this.db`, the
+	 * ALS-aware getter — never a captured snapshot of the singleton. On a
+	 * connection-backed adapter (Postgres over Hyperdrive) a captured singleton
+	 * would query a socket opened by an earlier event and trip workerd's
+	 * cross-request I/O guard; the catch in handlers like handleContentUpdate
+	 * would then silently treat a revision-enabled collection as non-revisioned
+	 * and write draft edits to live columns. Same reasoning as the per-call
+	 * registry in _buildManifest().
+	 */
+	get schemaRegistry(): SchemaRegistry {
+		return new SchemaRegistry(this.db);
+	}
 	private _hooks!: HookPipeline;
 	readonly config: EmDashConfig;
 	readonly mediaProviders: Map<string, MediaProvider>;
@@ -518,7 +531,6 @@ export class EmDashRuntime {
 		this.configuredPlugins = parts.configuredPlugins;
 		this.sandboxedPlugins = parts.sandboxedPlugins;
 		this.sandboxedPluginEntries = parts.sandboxedPluginEntries;
-		this.schemaRegistry = new SchemaRegistry(parts.db);
 		this._hooks = parts.hooks;
 		this.enabledPlugins = parts.enabledPlugins;
 		this.pluginStates = parts.pluginStates;

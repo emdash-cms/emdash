@@ -15,6 +15,8 @@
  * indirection is what lets Hyperdrive swap the ALS-scoped connection in.
  */
 
+import { randomUUID } from "node:crypto";
+
 import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -22,11 +24,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
+import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { createMediaProvider } from "../../../src/media/local-runtime.js";
 import { PluginContextFactory } from "../../../src/plugins/context.js";
 import { CronExecutor } from "../../../src/plugins/cron.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
 import type { CronHandler, ResolvedHook, ResolvedPlugin } from "../../../src/plugins/types.js";
+import { runWithContext } from "../../../src/request-context.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 
 function createTestPlugin(overrides: Partial<ResolvedPlugin> = {}): ResolvedPlugin {
 	return {
@@ -258,6 +263,64 @@ describe("event-scoped DB resolution (#1622)", () => {
 			expect(listed.items[0]!.filename).toBe("photo.jpg");
 
 			expect(getDb).toHaveBeenCalled();
+		});
+	});
+
+	describe("runtime schemaRegistry (#1622 regression)", () => {
+		function createDeps(): RuntimeDependencies {
+			return {
+				config: {
+					database: {
+						entrypoint: `test-schema-registry-${randomUUID()}`,
+						config: {},
+						type: "sqlite",
+					},
+				},
+				plugins: [],
+				createDialect: () => new SqliteDialect({ database: new Database(":memory:") }),
+				createStorage: null,
+				sandboxEnabled: false,
+				sandboxedPluginEntries: [],
+				createSandboxRunner: null,
+			};
+		}
+
+		it("resolves against the event-scoped db, not the captured singleton", async () => {
+			// Regression: the runtime used to capture `new SchemaRegistry(parts.db)`
+			// at construction. On a connection-backed adapter that singleton's
+			// socket belongs to an earlier event; handleContentUpdate's catch would
+			// then treat a revision-enabled collection as non-revisioned and write
+			// draft edits to live columns. The registry must resolve `this.db`.
+			const runtime = await EmDashRuntime.create(createDeps());
+			try {
+				// A separate event-scoped db with a revision-enabled collection the
+				// runtime's singleton does not have.
+				const scopedDb = new Kysely<DbSchema>({
+					dialect: new SqliteDialect({ database: new Database(":memory:") }),
+				});
+				await runMigrations(scopedDb);
+				await new SchemaRegistry(scopedDb).createCollection({
+					slug: "widgets",
+					label: "Widgets",
+					supports: ["drafts", "revisions"],
+				});
+
+				try {
+					// No ALS context: the registry resolves the singleton, which lacks it.
+					expect(await runtime.schemaRegistry.getCollectionWithFields("widgets")).toBeNull();
+
+					// Under the scoped db: the registry resolves it (and sees revisions).
+					const found = await runWithContext({ editMode: false, db: scopedDb }, () =>
+						runtime.schemaRegistry.getCollectionWithFields("widgets"),
+					);
+					expect(found?.slug).toBe("widgets");
+					expect(found?.supports).toContain("revisions");
+				} finally {
+					await scopedDb.destroy();
+				}
+			} finally {
+				await runtime.stopCron();
+			}
 		});
 	});
 });
