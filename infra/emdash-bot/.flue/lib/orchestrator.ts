@@ -6,9 +6,13 @@
 
 import { DurableObject } from "cloudflare:workers";
 
+import { invoke } from "@flue/runtime";
+
+import investigateWorkflow from "../workflows/investigate.js";
 import { classifyComment, type ClassifyResult } from "./classifier-client.js";
 import {
 	addLabels,
+	getIssue,
 	mintInstallationToken,
 	postIssueComment,
 	readAppCreds,
@@ -178,15 +182,18 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return { kind: "readonly", state: decision.state, event: decision.event };
 		}
 
-		// Side effects first: if the GitHub label flip fails, DO state stays
-		// behind and the next event (or the reconciliation tick) retries.
-		// Comment failure is non-fatal; DO state is still advanced.
+		let runError: string | null = null;
+		if (decision.action) {
+			runError = await this.runAction(decision, resolvedArg ?? input.arg);
+		}
+
 		const sideEffectError = await this.applySideEffects(decision);
 		await this.persistDecision(decision, input);
 		return {
 			kind: "transition",
 			decision,
 			...(sideEffectError ? { sideEffectError } : {}),
+			...(runError ? { runError } : {}),
 		};
 	}
 
@@ -257,8 +264,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return { kind: "noop", reason: "no anchor number for classifier call" };
 		}
 		const state = currentState(input.labels);
-		const loopback = (this.ctx.exports as { default: Fetcher }).default;
-		const result: ClassifyResult = await classifyComment(loopback, {
+		const result: ClassifyResult = await classifyComment(this.ctx.exports.default, {
 			issueNumber: input.anchorNumber,
 			state,
 			comment: text,
@@ -274,6 +280,66 @@ export class OrchestratorDO extends DurableObject<Env> {
 			case "event":
 				return { kind: "resolved", event: result.event, arg: result.arg };
 		}
+	}
+
+	// ---------------- Workflow dispatch ----------------
+
+	/**
+	 * Invoke the investigate workflow for a transition that has an action.
+	 * Generates a runId, persists it, fetches the issue context from GitHub,
+	 * then admits the workflow run. Returns null on success or an error
+	 * string. The workflow runs asynchronously and calls back into
+	 * applyAgentResult() when complete.
+	 */
+	private async runAction(
+		decision: Extract<Decision, { kind: "transition" }>,
+		arg: string | null,
+	): Promise<string | null> {
+		if (!decision.action) return null;
+		const mode = decision.action.startsWith("investigate.")
+			? (decision.action.slice("investigate.".length) as "repro" | "implement" | "revise")
+			: null;
+		if (!mode) return `unknown action "${decision.action}"`;
+
+		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
+		if (anchorNumber === undefined) return "no anchor number for action dispatch";
+
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		if (!creds || !repo) {
+			console.log("[orchestrator] skipping action dispatch (creds or repo missing)", {
+				action: decision.action,
+				anchorNumber,
+			});
+			return null;
+		}
+
+		const token = await this.getInstallationToken(creds);
+		let issue;
+		try {
+			issue = await getIssue(token, repo, anchorNumber);
+		} catch (err) {
+			return `getIssue failed: ${(err as Error).message}`;
+		}
+
+		const runId = crypto.randomUUID();
+		await this.ctx.storage.put(STORAGE.currentRunId, runId);
+
+		try {
+			await invoke(investigateWorkflow, {
+				input: {
+					runId,
+					issueNumber: anchorNumber,
+					mode,
+					arg: arg ?? null,
+					issueTitle: issue.title,
+					issueBody: issue.body,
+				},
+			});
+		} catch (err) {
+			return `invoke(investigate) failed: ${(err as Error).message}`;
+		}
+		return null;
 	}
 
 	// ---------------- Side effects (GitHub) ----------------
@@ -441,6 +507,7 @@ export type EventOutcome =
 			kind: "transition";
 			decision: Extract<Decision, { kind: "transition" }>;
 			sideEffectError?: string;
+			runError?: string;
 	  }
 	| { kind: "duplicate"; deliveryId: string }
 	| { kind: "stale-run"; runId: string; currentRunId: string | null }

@@ -108,6 +108,39 @@ function authHeaders(token: string, extra: Record<string, string> = {}): Record<
 	};
 }
 
+export interface IssueSummary {
+	title: string;
+	body: string;
+	labels: string[];
+	authorLogin: string | null;
+}
+
+export async function getIssue(
+	token: string,
+	ctx: RepoContext,
+	issueNumber: number,
+): Promise<IssueSummary> {
+	const res = await fetch(
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}`,
+		{ headers: authHeaders(token) },
+	);
+	if (!res.ok) throw new Error(`getIssue failed: ${res.status} ${await res.text()}`);
+	const json = await res.json<{
+		title?: string;
+		body?: string | null;
+		labels?: Array<{ name?: string }>;
+		user?: { login?: string };
+	}>();
+	const labels: string[] = [];
+	for (const l of json.labels ?? []) if (l.name) labels.push(l.name);
+	return {
+		title: json.title ?? "",
+		body: json.body ?? "",
+		labels,
+		authorLogin: json.user?.login ?? null,
+	};
+}
+
 export async function getIssueLabels(
 	token: string,
 	ctx: RepoContext,

@@ -11,7 +11,7 @@ import { describe, expect, test } from "vitest";
 
 import { verifyWebhookSignature } from "../../.flue/lib/webhook.js";
 
-const SELF = (exports as { default: Fetcher }).default;
+const SELF = exports.default;
 
 interface TestEnv {
 	Orchestrator: Env["Orchestrator"];

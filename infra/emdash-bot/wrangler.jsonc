@@ -4,6 +4,7 @@
 	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
 	"compatibility_date": "2026-04-01",
 	"compatibility_flags": ["nodejs_compat"],
+	"main": "./.flue/wrangler-main.ts",
 
 	// Workers AI: structural binding, no API key. Every model the bot uses
 	// (classify, investigate, fix) resolves through `cloudflare/@cf/...`
