@@ -262,21 +262,16 @@ export function d1(config: D1Config): DatabaseDescriptor {
  * { "placement": { "region": "aws:us-east-1" } }
  * ```
  *
- * **Known limitation — request path only (for now).** Each request gets its own
- * pg connection, so the content read/write path (pages, content API routes,
- * loaders) is fully supported. But several background and plugin paths still use
- * the per-isolate singleton connection, whose socket is bound to the request
- * that opened it; on a warm isolate workerd refuses to reuse it from a later
- * event. Until the core runtime threads an event-scoped connection through them
- * (tracked in https://github.com/emdash-cms/emdash/issues/1622), the following
- * are **not yet supported** on the Hyperdrive adapter:
- * - Cron Triggers — scheduled publishing, plugin cron, and system cleanup.
- * - Plugin hooks that query the database via their plugin context.
- * - Media providers and sandboxed plugins that hold the singleton db.
+ * Each request gets its own pg connection, and the Cron Trigger sweep, plugin
+ * hook contexts, and media providers resolve an event-scoped connection too, so
+ * the content read/write path, scheduled publishing, plugin cron, and
+ * DB-querying plugin hooks are all supported.
  *
- * Use `d1()` for deployments that depend on those. (This is a Hyperdrive-adapter
- * limitation, not a data-safety risk: affected work errors and is logged rather
- * than corrupting anything.)
+ * **Known limitation — sandboxed plugins are D1-only.** The sandbox plugin
+ * bridge talks to a D1 binding directly (independent of the configured
+ * adapter), so sandboxed plugins aren't available on a Hyperdrive deployment.
+ * This is a pre-existing bridge constraint, unrelated to connection scoping;
+ * tracked in https://github.com/emdash-cms/emdash/issues/1623.
  *
  * @example
  * ```ts

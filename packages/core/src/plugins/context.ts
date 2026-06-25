@@ -869,6 +869,16 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
 	/**
+	 * Resolver for the database connection, preferred over `db` when present.
+	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
+	 * over Hyperdrive) get the current request/event-scoped connection from ALS
+	 * rather than a snapshot of the per-isolate singleton — reusing the
+	 * singleton's socket from a later event trips workerd's cross-request I/O
+	 * guard. When omitted, `db` is used directly (correct for stateless
+	 * adapters like D1 and Node SQLite). `db` remains required as the fallback.
+	 */
+	getDb?: () => Kysely<Database>;
+	/**
 	 * Storage backend for direct media uploads.
 	 * If not provided, upload() will throw.
 	 */
@@ -911,8 +921,7 @@ export interface PluginContextFactoryOptions {
  * Factory for creating plugin contexts
  */
 export class PluginContextFactory {
-	private optionsRepo: OptionsRepository;
-	private db: Kysely<Database>;
+	private resolveDb: () => Kysely<Database>;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -930,8 +939,8 @@ export class PluginContextFactory {
 	private warnedMissingMediaBackend = new Set<string>();
 
 	constructor(options: PluginContextFactoryOptions) {
-		this.db = options.db;
-		this.optionsRepo = new OptionsRepository(options.db);
+		const fixedDb = options.db;
+		this.resolveDb = options.getDb ?? (() => fixedDb);
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -946,10 +955,17 @@ export class PluginContextFactory {
 	createContext(plugin: ResolvedPlugin): PluginContext {
 		const capabilities = new Set(plugin.capabilities);
 
+		// Resolve the connection once per context. For stateless adapters this
+		// is the singleton; for connection-backed adapters it's the current
+		// request/event-scoped connection from ALS. All repos below are built
+		// from this local `db` so a hook never queries a stale singleton socket.
+		const db = this.resolveDb();
+		const optionsRepo = new OptionsRepository(db);
+
 		// Always available
-		const kv = createKVAccess(this.optionsRepo, plugin.id);
+		const kv = createKVAccess(optionsRepo, plugin.id);
 		const log = createLogAccess(plugin.id);
-		const storage = createStorageAccess(this.db, plugin.id, plugin.storage);
+		const storage = createStorageAccess(db, plugin.id, plugin.storage);
 
 		// Capability-gated: content
 		// Note: capabilities reach this point already normalized to the
@@ -957,9 +973,9 @@ export class PluginContextFactory {
 		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
 		if (capabilities.has("content:write")) {
-			content = createContentAccessWithWrite(this.db);
+			content = createContentAccessWithWrite(db);
 		} else if (capabilities.has("content:read")) {
-			content = createContentAccess(this.db);
+			content = createContentAccess(db);
 		}
 
 		// Capability-gated: media
@@ -970,7 +986,7 @@ export class PluginContextFactory {
 		let media: MediaAccess | MediaAccessWithWrite | undefined;
 		if (capabilities.has("media:write")) {
 			if (this.getUploadUrl || this.storage) {
-				media = createMediaAccessWithWrite(this.db, this.getUploadUrl, this.storage);
+				media = createMediaAccessWithWrite(db, this.getUploadUrl, this.storage);
 			} else {
 				if (!this.warnedMissingMediaBackend.has(plugin.id)) {
 					this.warnedMissingMediaBackend.add(plugin.id);
@@ -979,11 +995,11 @@ export class PluginContextFactory {
 					);
 				}
 				if (capabilities.has("media:read")) {
-					media = createMediaAccess(this.db);
+					media = createMediaAccess(db);
 				}
 			}
 		} else if (capabilities.has("media:read")) {
-			media = createMediaAccess(this.db);
+			media = createMediaAccess(db);
 		}
 
 		// Capability-gated: http
@@ -997,14 +1013,14 @@ export class PluginContextFactory {
 		// Capability-gated: users
 		let users: UserAccess | undefined;
 		if (capabilities.has("users:read")) {
-			users = createUserAccess(this.db);
+			users = createUserAccess(db);
 		}
 
-		// Cron access ��� always available (scoped to plugin), but only if
+		// Cron access — always available (scoped to plugin), but only if
 		// the runtime provided a reschedule callback (i.e. cron is wired up).
 		let cron: CronAccess | undefined;
 		if (this.cronReschedule) {
-			cron = new CronAccessImpl(this.db, plugin.id, this.cronReschedule);
+			cron = new CronAccessImpl(db, plugin.id, this.cronReschedule);
 		}
 
 		// Email access — requires email:send capability AND a configured provider

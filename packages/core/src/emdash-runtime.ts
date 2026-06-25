@@ -244,6 +244,15 @@ export interface MediaProviderEntry {
  */
 export interface MediaProviderContext {
 	db: Kysely<Database>;
+	/**
+	 * Resolver for the live connection, preferred over `db` by providers that
+	 * query EmDash's database. Resolves the current request/event-scoped
+	 * connection from ALS so connection-backed adapters (Postgres over
+	 * Hyperdrive) don't reuse the per-isolate singleton's socket across events.
+	 * Providers should resolve per operation rather than capturing `db` once.
+	 * Omitted-safe: falls back to `db` for stateless adapters (D1, Node SQLite).
+	 */
+	getDb?: () => Kysely<Database>;
 	storage: Storage | null;
 }
 
@@ -333,6 +342,7 @@ export interface EmDashRuntimeParts {
 	allPipelinePlugins: ResolvedPlugin[];
 	pipelineFactoryOptions: {
 		db: Kysely<Database>;
+		getDb?: () => Kysely<Database>;
 		storage?: Storage;
 		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
 	};
@@ -477,6 +487,7 @@ export class EmDashRuntime {
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
+		getDb?: () => Kysely<Database>;
 		storage?: Storage;
 		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
 	};
@@ -653,7 +664,9 @@ export class EmDashRuntime {
 		// The old pipeline's contextFactoryOptions were built up incrementally
 		// via setContextFactory calls during create(). We replay them here.
 		if (this.email) {
-			newPipeline.setContextFactory({ db: this.db, emailPipeline: this.email });
+			// db/getDb are already wired by createHookPipeline above (they live in
+			// pipelineFactoryOptions), so the merge only adds emailPipeline.
+			newPipeline.setContextFactory({ emailPipeline: this.email });
 		}
 		if (this.cronScheduler) {
 			const scheduler = this.cronScheduler;
@@ -1017,6 +1030,22 @@ export class EmDashRuntime {
 		// Initialize database (connects, runs migrations if needed)
 		const db = await phase("rt.db", "DB init + migrations", () => EmDashRuntime.getDatabase(deps));
 
+		// Resolver for the live connection, mirroring the `get db()` getter
+		// below (which can't be used here — the runtime instance doesn't exist
+		// yet). Long-lived subsystems built during create() (cron executor,
+		// plugin context factory, media providers) capture this resolver rather
+		// than the `db` snapshot, so a connection-backed adapter (Postgres over
+		// Hyperdrive) serves their queries from the current request/event-scoped
+		// connection in ALS instead of the per-isolate singleton — whose socket
+		// belongs to an earlier request and would trip workerd's cross-request
+		// I/O guard. Stateless adapters (D1, Node SQLite) set no ALS db on most
+		// paths, so this falls back to the singleton: unchanged behavior.
+		const resolveDb = (): Kysely<Database> => {
+			const ctx = getRequestContext();
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- ALS db is typed unknown to avoid a circular import; middleware always sets a Kysely<Database>
+			return (ctx?.db as Kysely<Database> | undefined) ?? db;
+		};
+
 		// Validate EMDASH_ENCRYPTION_KEY once here so a malformed value
 		// surfaces in startup logs instead of as request-time 500s. The key
 		// itself is not yet consumed (a follow-up PR adds plugin-secret
@@ -1295,9 +1324,15 @@ export class EmDashRuntime {
 		// Filter to currently enabled plugins for the initial pipeline
 		const enabledPluginList = allPipelinePlugins.filter((p) => enabledPlugins.has(p.id));
 
-		// Create hook pipeline
+		// Create hook pipeline. getDb travels here (not just via the email
+		// setContextFactory call below) so it survives rebuildHookPipeline(),
+		// which reconstructs the factory from pipelineFactoryOptions. Without it,
+		// toggling a plugin on an email-less deployment would silently revert
+		// plugin contexts to the singleton db — re-breaking connection-backed
+		// adapters. See #1622.
 		const pipelineFactoryOptions = {
 			db,
+			getDb: resolveDb,
 			storage: storage ?? undefined,
 			siteInfo,
 		};
@@ -1349,7 +1384,7 @@ export class EmDashRuntime {
 		// Initialize media providers
 		const mediaProviders = new Map<string, MediaProvider>();
 		const mediaProviderEntries = deps.mediaProviderEntries ?? [];
-		const providerContext: MediaProviderContext = { db, storage };
+		const providerContext: MediaProviderContext = { db, storage, getDb: resolveDb };
 
 		for (const entry of mediaProviderEntries) {
 			try {
@@ -1390,8 +1425,10 @@ export class EmDashRuntime {
 		};
 
 		// Wire email pipeline into context factory (independent of cron —
-		// must not be inside the cron try/catch or ctx.email breaks when cron fails)
-		pipeline.setContextFactory({ db, emailPipeline });
+		// must not be inside the cron try/catch or ctx.email breaks when cron fails).
+		// db/getDb were already set via pipelineFactoryOptions above; merge only
+		// adds emailPipeline.
+		pipeline.setContextFactory({ emailPipeline });
 
 		let cronExecutor: CronExecutor | null = null;
 		let cronScheduler: CronScheduler | null = null;
@@ -1403,7 +1440,7 @@ export class EmDashRuntime {
 
 		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
-				cronExecutor = new CronExecutor(db, invokeCronHook);
+				cronExecutor = new CronExecutor(resolveDb, invokeCronHook);
 
 				// Recover stale locks from previous crashes. Pure bookkeeping
 				// against the _emdash_cron_tasks table — no request needs the

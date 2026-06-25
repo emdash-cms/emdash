@@ -276,8 +276,68 @@ export async function runScheduledTasks(
 	const config = getConfig();
 	if (!config) return { published: [] };
 	const runtime = await getRuntime(config);
-	return runtime.runScheduledTasks(options);
+
+	// Connection-backed adapters (e.g. Postgres over Hyperdrive) cannot reuse
+	// the per-isolate singleton from a Cron Trigger: its socket belongs to the
+	// request that opened it, and workerd rejects cross-event I/O. Open an
+	// event-scoped connection for the sweep and run the batch under it in ALS —
+	// the runtime's db getter, the cron executor, and plugin cron contexts all
+	// resolve the connection from ALS — then close it. Gated on the adapter
+	// being connection-backed (it exposes `close()`); stateless adapters (D1,
+	// Node SQLite) return null or a close-less scope and keep using the
+	// singleton, so their cron path is unchanged.
+	const scoped = createRequestScopedDb({
+		config: config.database?.config,
+		isAuthenticated: false,
+		// The sweep publishes and cleans up — a write workload — so a
+		// connection-backed adapter routes it to the primary.
+		isWrite: true,
+		cookies: NOOP_COOKIE_JAR,
+		url: CRON_EVENT_URL,
+	});
+	if (!scoped?.close) {
+		// Stateless adapter (or no per-request scoping): the singleton is safe
+		// outside a request. Any close-less scope created above is discarded.
+		return runtime.runScheduledTasks(options);
+	}
+
+	const parent = getRequestContext();
+	const ctx = parent
+		? { ...parent, db: scoped.db }
+		: { editMode: false, db: scoped.db, metrics: createRequestMetrics(performance.now()) };
+	try {
+		return await runWithContext(ctx, () => runtime.runScheduledTasks(options));
+	} finally {
+		// Hyperdrive's commit() is a no-op, but a future connection-backed
+		// adapter might persist event state here; guard it so a failure can't
+		// skip close() and leak the connection.
+		try {
+			scoped.commit();
+		} catch (error) {
+			console.error("[scheduled] request-scoped db commit failed:", error);
+		}
+		scoped.close();
+	}
 }
+
+/**
+ * A cookie jar that reads nothing and writes nothing, for request-scoped db
+ * adapters invoked outside an HTTP request (the Cron Trigger sweep). Connection
+ * adapters like Hyperdrive ignore cookies entirely; the D1 session adapter
+ * reads/writes a bookmark cookie, but cron never reaches that path (it has no
+ * `close()`), so the no-ops are never observed.
+ */
+const NOOP_COOKIE_JAR = {
+	get: () => undefined,
+	set: () => {},
+};
+
+/**
+ * Synthetic URL for the cron sweep's request-scoped db opts. Only the D1
+ * session adapter inspects `url` (for cookie `secure`), and cron doesn't take
+ * that path, so the value is never used — it exists to satisfy the contract.
+ */
+const CRON_EVENT_URL = new URL("https://cron.emdash.internal/");
 
 /**
  * Baseline security headers applied to all responses.
