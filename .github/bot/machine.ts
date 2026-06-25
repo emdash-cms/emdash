@@ -285,7 +285,11 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	// on one issue). Strips every state label and lands on triage. Destructive
 	// only to bot:* state metadata, not to issue content; gated to bare-verb-
 	// only so a misread sentence can't accidentally reset state.
-	reset: { description: "Force-reset to triage. Maintainer recovery for conflicting state labels.", actors: ["maintainer"], destructive: true },
+	reset: {
+		description: "Force-reset to triage. Maintainer recovery for conflicting state labels.",
+		actors: ["maintainer"],
+		destructive: true,
+	},
 	status: {
 		description: "Render the item's current state and available commands.",
 		actors: ["reporter", "maintainer"],
