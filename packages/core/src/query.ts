@@ -26,7 +26,13 @@
 
 import { encodeCursor } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
-import { CURSOR_RAW_VALUES, type WhereRange, type WhereValue } from "./loader.js";
+import {
+	CURSOR_RAW_VALUES,
+	FOLDED_BYLINES,
+	FOLDED_TERMS,
+	type WhereRange,
+	type WhereValue,
+} from "./loader.js";
 import {
 	cachedQuery,
 	contentNamespaces,
@@ -930,6 +936,62 @@ interface CachedEntryValue {
 async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
 	if (entries.length === 0) return;
 
+	// Fast path: bylines were folded into the content query. Parse the JSON
+	// (no extra round trip) for the common case — explicit credits, no byline
+	// custom fields, no author fallback. The query path below handles the rest:
+	//  - author fallback (entry has authorId but no explicit credit), and
+	//  - custom byline fields (can't be expressed in the folded subquery).
+	if (entries.every((e) => FOLDED_BYLINES in entryData(e))) {
+		const parsed = entries.map((entry) => {
+			const data = entryData(entry);
+			const folded = Reflect.get(data, FOLDED_BYLINES);
+			const rows = Array.isArray(folded) ? folded : [];
+			const credits = rows
+				.map((raw) => {
+					const b = raw?.byline ?? {};
+					return {
+						roleLabel: raw?.roleLabel ?? null,
+						sortOrder: Number(raw?.sortOrder ?? 0),
+						source: "explicit" as const,
+						byline: { ...b, isGuest: Boolean(b.isGuest), customFields: {} },
+					};
+				})
+				.toSorted((a, b) => a.sortOrder - b.sortOrder);
+			return { data, credits };
+		});
+
+		// Fall back to the full query path when the fold can't be trusted to be
+		// complete: an entry with a byline reference (explicit primary, or an
+		// author for the author-fallback) but no folded credits — e.g. a credit
+		// in a different locale than the row, which the locale-correlated subquery
+		// skips, or the author-fallback path which the fold doesn't express.
+		const needsQueryPath = parsed.some(
+			(p) =>
+				p.credits.length === 0 &&
+				(dataStr(p.data, "authorId") !== "" || dataStr(p.data, "primaryBylineId") !== ""),
+		);
+		let hasCustomFields = false;
+		if (!needsQueryPath) {
+			try {
+				const { getDb } = await import("./loader.js");
+				const db = await getDb();
+				const { getBylineFieldDefs } = await import("./bylines/field-defs-cache.js");
+				hasCustomFields = (await getBylineFieldDefs(db)).length > 0;
+			} catch {
+				// Treat as no custom fields; the fold's values are still correct.
+			}
+		}
+
+		if (!needsQueryPath && !hasCustomFields) {
+			for (const p of parsed) {
+				p.data.bylines = p.credits;
+				p.data.byline = p.credits[0]?.byline ?? null;
+			}
+			return;
+		}
+		// Fall through to the full query path for fallback / custom-field cases.
+	}
+
 	try {
 		const { getBylinesForEntries } = await import("./bylines/index.js");
 
@@ -1004,6 +1066,37 @@ async function hydrateEntryTerms<D>(
 	locale?: string,
 ): Promise<void> {
 	if (entries.length === 0) return;
+
+	// Fast path: terms were folded into the content query. Group the JSON and
+	// skip the separate content_taxonomies query.
+	if (entries.every((e) => FOLDED_TERMS in entryData(e))) {
+		for (const entry of entries) {
+			const data = entryData(entry);
+			const folded = Reflect.get(data, FOLDED_TERMS);
+			const rows = Array.isArray(folded) ? folded : [];
+			const grouped: Record<string, Array<Record<string, unknown>>> = {};
+			for (const r of rows) {
+				const name = String(r?.name);
+				(grouped[name] ??= []).push({
+					id: r?.id,
+					name,
+					slug: r?.slug,
+					label: r?.label,
+					parentId: r?.parent_id ?? undefined,
+					children: [],
+					locale: r?.locale,
+					translationGroup: r?.translation_group,
+				});
+			}
+			// Match getAllTermsForEntries' ORDER BY label (dropped from the
+			// aggregate since SQLite and Postgres order it differently).
+			for (const [name, arr] of Object.entries(grouped)) {
+				grouped[name] = arr.toSorted((a, b) => String(a.label).localeCompare(String(b.label)));
+			}
+			data.terms = grouped;
+		}
+		return;
+	}
 
 	try {
 		const { getAllTermsForEntries } = await import("./taxonomies/index.js");
