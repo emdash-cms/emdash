@@ -58,6 +58,15 @@ declare module "virtual:emdash/dialect" {
 	export interface RequestScopedDb {
 		db: Kysely<unknown>;
 		commit: () => void;
+		/**
+		 * Optional teardown, invoked once the response body has fully streamed
+		 * (or immediately for bodyless responses). Adapters that hold a real
+		 * connection for the request (e.g. a Postgres pool over Hyperdrive) close
+		 * it here — closing in `commit()` would cut the connection mid-render,
+		 * because Astro streams the HTML body and components issue queries while
+		 * it streams. Stateless adapters (D1) omit it.
+		 */
+		close?: () => void;
 	}
 	export const createRequestScopedDb: (opts: RequestScopedDbOpts) => RequestScopedDb | null;
 }

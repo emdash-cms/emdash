@@ -26,7 +26,13 @@
 
 import { encodeCursor } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
-import { CURSOR_RAW_VALUES, type WhereRange, type WhereValue } from "./loader.js";
+import {
+	CURSOR_RAW_VALUES,
+	FOLDED_BYLINES,
+	FOLDED_TERMS,
+	type WhereRange,
+	type WhereValue,
+} from "./loader.js";
 import {
 	cachedQuery,
 	contentNamespaces,
@@ -34,6 +40,7 @@ import {
 } from "./object-cache/index.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import type { TaxonomyTerm } from "./taxonomies/types.js";
 import { isMissingTableError } from "./utils/db-errors.js";
 import {
 	createEditable,
@@ -930,6 +937,67 @@ interface CachedEntryValue {
 async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
 	if (entries.length === 0) return;
 
+	// Fast path: bylines were folded into the content query. Parse the JSON
+	// (no extra round trip) for the common case — explicit credits, no byline
+	// custom fields, no author fallback. The query path below handles the rest:
+	//  - author fallback (entry has authorId but no explicit credit), and
+	//  - custom byline fields (can't be expressed in the folded subquery).
+	if (entries.every((e) => FOLDED_BYLINES in entryData(e))) {
+		const parsed = entries.map((entry) => {
+			const data = entryData(entry);
+			const folded = Reflect.get(data, FOLDED_BYLINES);
+			const rows = Array.isArray(folded) ? folded : [];
+			const credits = rows
+				.map((raw) => {
+					const b = raw?.byline ?? {};
+					return {
+						roleLabel: raw?.roleLabel ?? null,
+						sortOrder: Number(raw?.sortOrder ?? 0),
+						source: "explicit" as const,
+						byline: { ...b, isGuest: Boolean(b.isGuest), customFields: {} },
+					};
+				})
+				.toSorted((a, b) => a.sortOrder - b.sortOrder);
+			return { data, credits };
+		});
+
+		// Fall back to the full query path when the fold can't be trusted to be
+		// complete: an entry with a byline reference (explicit primary, or an
+		// author for the author-fallback) but no folded credits — e.g. a credit
+		// in a different locale than the row, which the locale-correlated subquery
+		// skips, or the author-fallback path which the fold doesn't express.
+		let needsQueryPath = parsed.some(
+			(p) =>
+				p.credits.length === 0 &&
+				(dataStr(p.data, "authorId") !== "" || dataStr(p.data, "primaryBylineId") !== ""),
+		);
+		let hasCustomFields = false;
+		if (!needsQueryPath) {
+			try {
+				const { getDb } = await import("./loader.js");
+				const db = await getDb();
+				const { getBylineFieldDefs } = await import("./bylines/field-defs-cache.js");
+				hasCustomFields = (await getBylineFieldDefs(db)).length > 0;
+			} catch (error) {
+				// A missing table is expected pre-migration and means there are no
+				// custom fields — the fold's values are complete. Any other error
+				// (lock-init failure, dialect error) means the probe can't be
+				// trusted, so fall back to the query path rather than risk serving
+				// folded bylines with empty customFields.
+				if (!isMissingTableError(error)) needsQueryPath = true;
+			}
+		}
+
+		if (!needsQueryPath && !hasCustomFields) {
+			for (const p of parsed) {
+				p.data.bylines = p.credits;
+				p.data.byline = p.credits[0]?.byline ?? null;
+			}
+			return;
+		}
+		// Fall through to the full query path for fallback / custom-field cases.
+	}
+
 	try {
 		const { getBylinesForEntries } = await import("./bylines/index.js");
 
@@ -1004,6 +1072,45 @@ async function hydrateEntryTerms<D>(
 	locale?: string,
 ): Promise<void> {
 	if (entries.length === 0) return;
+
+	// Fast path: terms were folded into the content query. Group the JSON and
+	// skip the separate content_taxonomies query.
+	if (entries.every((e) => FOLDED_TERMS in entryData(e))) {
+		const perEntry: Array<{ entryId: string; byTaxonomy: Record<string, TaxonomyTerm[]> }> = [];
+		for (const entry of entries) {
+			const data = entryData(entry);
+			const folded = Reflect.get(data, FOLDED_TERMS);
+			const rows = Array.isArray(folded) ? folded : [];
+			const grouped: Record<string, TaxonomyTerm[]> = {};
+			for (const r of rows) {
+				const name = String(r?.name);
+				(grouped[name] ??= []).push({
+					id: r?.id,
+					name,
+					slug: r?.slug,
+					label: r?.label,
+					parentId: r?.parent_id ?? undefined,
+					children: [],
+					locale: r?.locale,
+					translationGroup: r?.translation_group,
+				});
+			}
+			// Match getAllTermsForEntries' ORDER BY label (dropped from the
+			// aggregate since SQLite and Postgres order it differently).
+			for (const [name, arr] of Object.entries(grouped)) {
+				grouped[name] = arr.toSorted((a, b) => String(a.label).localeCompare(String(b.label)));
+			}
+			data.terms = grouped;
+			const entryId = dataStr(data, "id");
+			if (entryId) perEntry.push({ entryId, byTaxonomy: grouped });
+		}
+		// Prime the per-entry request cache (wildcard + present taxonomies) so
+		// subsequent getEntryTerms(...) calls in this render hit the cache instead
+		// of issuing an N+1 query. No DB lookup — purely from the folded data.
+		const { primeFoldedEntryTerms } = await import("./taxonomies/index.js");
+		primeFoldedEntryTerms(type, perEntry, { locale });
+		return;
+	}
 
 	try {
 		const { getAllTermsForEntries } = await import("./taxonomies/index.js");

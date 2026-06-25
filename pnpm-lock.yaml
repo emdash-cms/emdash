@@ -1510,6 +1510,9 @@ importers:
       kysely-d1:
         specifier: ^0.4.0
         version: 0.4.0(kysely@0.29.2)
+      pg:
+        specifier: '>=8.16.3'
+        version: 8.18.0
       ulidx:
         specifier: ^2.4.1
         version: 2.4.1
@@ -1523,6 +1526,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 4.20260305.1
+      '@types/pg':
+        specifier: ^8.16.0
+        version: 8.16.0
       publint:
         specifier: 'catalog:'
         version: 0.3.17
@@ -17299,7 +17305,7 @@ snapshots:
 
   '@types/pg@8.16.0':
     dependencies:
-      '@types/node': 24.10.13
+      '@types/node': 25.9.1
       pg-protocol: 1.11.0
       pg-types: 2.2.0
 
