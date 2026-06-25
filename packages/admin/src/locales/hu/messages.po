@@ -36,12 +36,12 @@ msgstr "-- Válassz --"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:310
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:307
 msgid ", or open the admin at"
-msgstr ", vagy nyisd meg az admin felületet itt"
+msgstr "kapcsolatot, vagy nyisd meg az adminfelületet itt:"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:309
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:306
 msgid ": use"
-msgstr ": használd ezt"
+msgstr "szükséges: használj"
 
 #. placeholder {0}: providers?.find((p) => p.id === selectedItem.providerId)?.name
 #: packages/admin/src/components/MediaPickerModal.tsx:737
@@ -63,7 +63,7 @@ msgstr "(túl új)"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:312
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:309
 msgid "(with your dev port)."
-msgstr "(a fejlesztői portoddal)."
+msgstr "(a dev portoddal)."
 
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
@@ -158,7 +158,7 @@ msgstr "{0, plural, one {# felhasználó} other {# felhasználó}}"
 #. placeholder {0}: fields.length
 #: packages/admin/src/components/ContentTypeEditor.tsx:576
 msgid "{0, plural, one {field} other {fields}}"
-msgstr ""
+msgstr "{0, plural, one {mező} other {mező}}"
 
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
@@ -234,7 +234,7 @@ msgstr "{0} előnézet"
 #. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> {/* Sticky header keeps the primary save action in view while users scroll through the settings + fields panels. The bottom-of-form save button is preserved below for keyboard / screen-reader users so DOM order still ends with a submit control. */} <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="text-2xl font-bold truncate"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && ( <span className="ms-2 text-purple-600 dark:text-purple-400">{t`Defined in code`}</span> )} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950 p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" /> <p className="text-sm text-purple-700 dark:text-purple-300"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`} </p> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && ( <Button type="submit" disabled={!hasChanges || !urlPatternValid || isSaving} className="w-full" > {isSaving ? t`Saving...` : isNew ? t`Create Content Type` : t`Save Changes`} </Button> )} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
 #: packages/admin/src/components/ContentTypeEditor.tsx:574
 msgid "{0} system + {1} custom {2}"
-msgstr "{0} rendszer + {1} egyéni {2}"
+msgstr "{0} rendszermező + {1} egyéni {2}"
 
 #. placeholder {0}: taxonomy.label
 #: packages/admin/src/components/TaxonomySidebar.tsx:345
@@ -284,7 +284,7 @@ msgstr "{current}/{total}"
 #. placeholder {1}: hasMore ? "+" : ""
 #: packages/admin/src/components/ContentList.tsx:747
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
-msgstr "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
+msgstr "{filteredCount, plural, one {#{0} elem} other {#{1} elem}}"
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:107
 msgid "{label} — no translation"
@@ -296,7 +296,7 @@ msgstr "{label} — fordítás megtekintése"
 
 #: packages/admin/src/components/ContentList.tsx:736
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
-msgstr "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
+msgstr "{matchCount, plural, one {# elem egyezik ezzel: \"{searchQuery}\"} other {# elem egyezik ezzel: \"{searchQuery}\"}}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2279
 msgid "{matchedCount} of {totalCount} assigned"
@@ -350,11 +350,11 @@ msgstr "{totalScheduled, plural, one {# ütemezve} other {# ütemezve}}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:349
 msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
-msgstr "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
+msgstr "{unchangedCount, plural, one {# változatlan elrejtése} other {# változatlan elrejtése}}"
 
 #: packages/admin/src/components/RevisionHistory.tsx:350
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
-msgstr "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
+msgstr "{unchangedCount, plural, one {# változatlan megjelenítése} other {# változatlan megjelenítése}}"
 
 #: packages/admin/src/components/MediaLibrary.tsx:195
 #: packages/admin/src/components/MediaLibrary.tsx:231
@@ -371,7 +371,7 @@ msgstr "/regi-oldal vagy /blog/[slug]"
 
 #: packages/admin/src/components/WordPressImport.tsx:1929
 msgid "• Files are downloaded from your WordPress site"
-msgstr "• A fájlok letöltődnek a WordPress webhelyedről"
+msgstr "• A fájlok letöltődnek a WordPress weboldaledről"
 
 #: packages/admin/src/components/WordPressImport.tsx:1930
 msgid "• Uploaded to your EmDash media storage"
@@ -394,7 +394,7 @@ msgstr "1 év"
 
 #: packages/admin/src/components/WordPressImport.tsx:1361
 msgid "1. Log into your WordPress admin"
-msgstr "1. Jelentkezz be a WordPress admin felületre"
+msgstr "1. Jelentkezz be a WordPress adminfelületére"
 
 #: packages/admin/src/components/WordPressImport.tsx:1114
 msgid "1. Log into your WordPress admin dashboard"
@@ -406,15 +406,15 @@ msgstr "2. Lépj ide:"
 
 #: packages/admin/src/components/WordPressImport.tsx:1362
 msgid "2. Go to Users → Profile"
-msgstr "2. Lépj a Felhasználók → Profil menüpontra"
+msgstr "2. Lépj a Felhasználók (Users) → Adatlap (Profile) menüpontra"
 
 #: packages/admin/src/components/WordPressImport.tsx:1363
 msgid "3. Scroll to \"Application Passwords\""
-msgstr "3. Görgess az „Alkalmazásjelszavak” részhez"
+msgstr "3. Görgess le az \"Alkalmazás jelszavak\" (Application Passwords) szakaszig"
 
 #: packages/admin/src/components/WordPressImport.tsx:1118
 msgid "3. Select \"All content\""
-msgstr "3. Válaszd az „Összes tartalom” lehetőséget"
+msgstr "3. Válaszd az \"Összes tartalom\" (All content) lehetőséget"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:33
 msgid "30 days"
@@ -438,11 +438,11 @@ msgstr "308 végleges (szigorú)"
 
 #: packages/admin/src/components/WordPressImport.tsx:1119
 msgid "4. Click \"Download Export File\""
-msgstr "4. Kattints az „Exportfájl letöltése” gombra"
+msgstr "4. Kattints az \"Exportfájl letöltése\" gombra"
 
 #: packages/admin/src/components/WordPressImport.tsx:1364
 msgid "4. Enter \"EmDash\" and click \"Add New\""
-msgstr "4. Írd be, hogy „EmDash”, majd kattints az „Új hozzáadása” gombra"
+msgstr "4. Írd be, hogy \"EmDash\", majd kattints az \"Alkalmazás-jelszó hozzáadása\" gombra"
 
 #: packages/admin/src/components/Redirects.tsx:394
 msgid "404 Errors"
@@ -482,7 +482,7 @@ msgstr "Teljes szélességű hero banner címsorral, szöveggel és CTA gombbal"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:165
 msgid "A short description of your site"
-msgstr "A webhely rövid leírása"
+msgstr "A weboldal rövid leírása"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:170
 msgid "Accept & Install"
@@ -607,7 +607,7 @@ msgstr "Mezők hozzáadása"
 
 #: packages/admin/src/routes/byline-schema.tsx:293
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
-msgstr "Adj hozzá mezőket, például „Beosztás” vagy „Névmások”, hogy bővítsd a szerzői sorokat."
+msgstr "Adj hozzá mezőket, például \"Beosztás\" vagy \"Elérhetőség\", hogy bővítsd a szerzői leírásokat."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:604
 msgid "Add fields to define the structure of your content"
@@ -688,7 +688,7 @@ msgstr "Widgetterület hozzáadása"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:128
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
-msgstr "Add meg a közösségimédia-profiljaidat. Ezek elérhetők a webhely témája számára, és megjeleníthetők a fejlécben, a láblécben vagy a szerzői bemutatkozásokban."
+msgstr "Add meg a közösségimédia-profiljaidat. Ezek elérhetők a weboldal témája számára, és megjeleníthetők a fejlécben, a láblécben vagy a szerzői bemutatkozásokban."
 
 #: packages/admin/src/components/MenuEditor.tsx:362
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:344
@@ -745,15 +745,15 @@ msgstr "Összes szerző"
 
 #: packages/admin/src/routes/bylines.tsx:413
 msgid "All bylines"
-msgstr "Összes szerzői sor"
+msgstr "Összes szerző"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:108
 msgid "All capabilities"
-msgstr "Összes jogosultság"
+msgstr "Összes engedély"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:133
 msgid "All collections"
-msgstr "Összes gyűjtemény"
+msgstr "Összes tartalom"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:63
 msgid "All comments require approval"
@@ -873,7 +873,7 @@ msgstr "Exportfájl elemzése..."
 
 #: packages/admin/src/components/WordPressImport.tsx:735
 msgid "Analyzing WordPress site..."
-msgstr "WordPress webhely elemzése..."
+msgstr "WordPress weboldal elemzése..."
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:105
 msgid "Any media type allowed (subject to global limits)."
@@ -939,17 +939,17 @@ msgstr "Archívumok"
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:375
 msgid "Are you sure you want to delete \"{0}\"? No stored values reference this field."
-msgstr "Biztosan törlöd ezt: „{0}”? Egyetlen tárolt érték sem hivatkozik erre a mezőre."
+msgstr "Biztosan törlöd ezt: \"{0}\"? Egyetlen tárolt érték sem hivatkozik erre a mezőre."
 
 #. placeholder {0}: deleteTarget.label
 #: packages/admin/src/components/ContentTypeList.tsx:145
 msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
-msgstr "Biztosan törlöd ezt: „{0}”? Ez a gyűjtemény összes tartalmát is törli."
+msgstr "Biztosan törlöd ezt: \"{0}\"? Ez a gyűjtemény összes tartalmát is törli."
 
 #. placeholder {0}: deleteFieldTarget.label
 #: packages/admin/src/components/ContentTypeEditor.tsx:660
 msgid "Are you sure you want to delete the \"{0}\" field?"
-msgstr "Biztosan törlöd a(z) „{0}” mezőt?"
+msgstr "Biztosan törlöd a(z) \"{0}\" mezőt?"
 
 #: packages/admin/src/components/MenuList.tsx:254
 msgid "Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone."
@@ -989,7 +989,7 @@ msgstr "A hitelesítés sikertelen"
 #. placeholder {0}: manifest?.authMode
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
 msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
-msgstr "A hitelesítést külső szolgáltató kezeli ({0}). Külső hitelesítés használatakor a passkey beállítások nem érhetők el."
+msgstr "A hitelesítést külső szolgáltató kezeli ({0}). Külső hitelesítés használatakor a passkey-beállítások nem érhetők el."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:263
 msgid "Authentication was cancelled or timed out. Please try again."
@@ -1158,7 +1158,7 @@ msgstr "A decentralizált regiszterben közzétett pluginek böngészése és te
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:88
 msgid "Browse and install plugins to extend your site."
-msgstr "Pluginek böngészése és telepítése a webhely bővítéséhez."
+msgstr "Pluginek böngészése és telepítése a weboldal bővítéséhez."
 
 #: packages/admin/src/components/WordPressImport.tsx:966
 #: packages/admin/src/components/WordPressImport.tsx:1433
@@ -1182,13 +1182,13 @@ msgstr "Felsorolás"
 #: packages/admin/src/routes/byline-schema.tsx:218
 #: packages/admin/src/routes/bylines.tsx:384
 msgid "Byline schema"
-msgstr "Szerzői sor séma"
+msgstr "Szerző sémája"
 
 #: packages/admin/src/components/ContentEditor.tsx:993
 #: packages/admin/src/components/Sidebar.tsx:363
 #: packages/admin/src/routes/bylines.tsx:376
 msgid "Bylines"
-msgstr "Szerzői sorok"
+msgstr "Szerzők"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:30
 msgid "C"
@@ -1282,11 +1282,11 @@ msgstr "Kanonikus URL"
 
 #: packages/admin/src/components/PluginManager.tsx:473
 msgid "Capabilities"
-msgstr "Képességek"
+msgstr "Engedélyek"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:65
 msgid "Capability consent"
-msgstr "Képességek jóváhagyása"
+msgstr "Engedélyek jóváhagyása"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:346
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:535
@@ -1350,7 +1350,7 @@ msgstr "Módosítások elvetve"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:162
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
-msgstr "Az oldal címe és a webhely neve közötti karakter (pl. „Saját bejegyzés | Saját webhely”)"
+msgstr "Az oldal címe és a weboldal neve közötti karakter (pl. \"Saját bejegyzés | Saját weboldal\")"
 
 #: packages/admin/src/components/PluginManager.tsx:162
 msgid "Check for updates"
@@ -1358,7 +1358,7 @@ msgstr "Frissítések keresése"
 
 #: packages/admin/src/components/WordPressImport.tsx:937
 msgid "Check Site"
-msgstr "Webhely ellenőrzése"
+msgstr "Weboldal ellenőrzése"
 
 #: packages/admin/src/components/LoginPage.tsx:101
 #: packages/admin/src/components/SignupPage.tsx:130
@@ -1377,7 +1377,7 @@ msgstr "Hitelesítés ellenőrzése..."
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:362
 msgid "Checking how many stored values reference \"{0}\"…"
-msgstr "Annak ellenőrzése, hány tárolt érték hivatkozik erre: „{0}”…"
+msgstr "Annak ellenőrzése, hány tárolt érték hivatkozik erre: \"{0}\"…"
 
 #: packages/admin/src/components/SetupWizard.tsx:288
 msgid "Choose how to sign in"
@@ -1385,7 +1385,7 @@ msgstr "Válaszd ki a bejelentkezés módját"
 
 #: packages/admin/src/components/Settings.tsx:130
 msgid "Choose your preferred admin language"
-msgstr "Válaszd ki az admin felület nyelvét"
+msgstr "Válaszd ki az adminfelület nyelvét"
 
 #: packages/admin/src/components/ContentList.tsx:639
 #: packages/admin/src/components/users/UserList.tsx:129
@@ -1604,7 +1604,7 @@ msgstr "A tartalom frissült a kiválasztott verzióra."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:110
 msgid "Content ID:"
-msgstr "Tartalomazonosító:"
+msgstr "Tartalom ID:"
 
 #: packages/admin/src/router.tsx:859
 msgid "Content is now live"
@@ -1712,7 +1712,7 @@ msgstr "Nem sikerült felismerni a WordPresst"
 
 #: packages/admin/src/routes/byline-schema.tsx:268
 msgid "Couldn't load byline fields."
-msgstr "Nem sikerült betölteni a szerzői sor mezőit."
+msgstr "Nem sikerült betölteni a szerző mezőit."
 
 #: packages/admin/src/routes/bylines.tsx:548
 msgid "Couldn't load custom fields."
@@ -1720,16 +1720,16 @@ msgstr "Nem sikerült betölteni az egyéni mezőket."
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:88
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
-msgstr "Nem sikerült „{draft}” értéket MIME-típushoz rendelni. Add meg közvetlenül a MIME-típust."
+msgstr "Nem sikerült \"{draft}\" értéket MIME-típushoz rendelni. Add meg közvetlenül a MIME-típust."
 
 #: packages/admin/src/components/ContentEditor.tsx:1921
 msgid "Couldn't search bylines. Please try again."
-msgstr "Nem sikerült keresni a szerzői sorok között. Próbáld újra."
+msgstr "Nem sikerült keresni a szerzők között. Próbáld újra."
 
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:369
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
-msgstr "Nem sikerült ellenőrizni, hány érték hivatkozik erre: „{0}”. A törlés így is eltávolít minden ehhez a mezőhöz tartozó tárolt értéket — de a fenti darabszámot nem sikerült ellenőrizni."
+msgstr "Nem sikerült ellenőrizni, hány érték hivatkozik erre: \"{0}\". A törlés így is eltávolít minden ehhez a mezőhöz tartozó tárolt értéket — de a fenti darabszámot nem sikerült ellenőrizni."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:822
 msgid "Count"
@@ -1747,7 +1747,7 @@ msgstr "Létrehozás"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:290
 msgid "Create \"{trimmedInput}\""
-msgstr "„{trimmedInput}” létrehozása"
+msgstr "\"{trimmedInput}\" létrehozása"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1011
 msgid "Create a bullet list"
@@ -1774,7 +1774,7 @@ msgstr "Fiók létrehozása"
 #: packages/admin/src/components/ContentEditor.tsx:2001
 #: packages/admin/src/routes/bylines.tsx:477
 msgid "Create byline"
-msgstr "Szerzői sor létrehozása"
+msgstr "Szerző létrehozása"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:560
 msgid "Create Content Type"
@@ -1897,7 +1897,7 @@ msgstr "Létrehozva"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:96
 msgid "Created \"{0}\"."
-msgstr "„{0}” létrehozva."
+msgstr "\"{0}\" létrehozva."
 
 #. placeholder {0}: new Date(cred.createdAt).toLocaleDateString()
 #. placeholder {0}: new Date(token.createdAt).toLocaleDateString()
@@ -2031,7 +2031,7 @@ msgstr "Új taxonómia meghatározása a tartalom osztályozásához"
 
 #: packages/admin/src/routes/byline-schema.tsx:220
 msgid "Define custom fields stored on every byline — job title, pronouns, social handles, and more."
-msgstr "Adj meg minden szerzői sorhoz tárolt egyéni mezőket — beosztás, névmások, közösségi profilnevek és más adatok."
+msgstr "Adj meg minden szerzőhöz tárolt egyéni mezőket — beosztás, elérhetőség, közösségi profilnevek és más adatok."
 
 #: packages/admin/src/components/ContentTypeList.tsx:41
 msgid "Define the structure of your content"
@@ -2066,7 +2066,7 @@ msgstr "Törlés"
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:268
 msgid "Delete \"{0}\"? This cannot be undone."
-msgstr "Törlöd ezt: „{0}”? Ez nem vonható vissza."
+msgstr "Törlöd ezt: \"{0}\"? Ez nem vonható vissza."
 
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
@@ -2102,11 +2102,11 @@ msgstr "{0} törlése?"
 
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
-msgstr "Törlöd a szerzői sor mezőjét?"
+msgstr "Törlöd a szerzői leírás mezőjét?"
 
 #: packages/admin/src/routes/bylines.tsx:623
 msgid "Delete Byline?"
-msgstr "Törlöd a szerzői sort?"
+msgstr "Törlöd a szerzőt?"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2721
 msgid "Delete column"
@@ -2195,7 +2195,7 @@ msgstr "Törölve"
 #. placeholder {1}: deleteUsageQuery.data.totalAffectedRows
 #: packages/admin/src/routes/byline-schema.tsx:371
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
-msgstr "„{0}” törlése az összes szerzői sorból eltávolítja a hozzá tartozó {1, plural, one {# tárolt érték} other {# tárolt érték}} mezőt is. Ez nem vonható vissza."
+msgstr "\"{0}\" törlése az összes szerzői leírásból eltávolítja a hozzá tartozó {1, plural, one {# tárolt értéket} other {# tárolt értéket}} is. Ez nem vonható vissza."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentTypeEditor.tsx:664
@@ -2296,7 +2296,7 @@ msgstr "Nem kaptad meg az e-mailt?"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:34
 msgid "Diff"
-msgstr "Eltérés"
+msgstr "Diff"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:180
 msgid "Dimensions:"
@@ -2368,7 +2368,7 @@ msgstr "Megjelenített név"
 
 #: packages/admin/src/components/MenuList.tsx:167
 msgid "Display name for admin interface"
-msgstr "Az admin felületen megjelenő név"
+msgstr "Az adminfelületen megjelenő név"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:263
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:452
@@ -2554,11 +2554,11 @@ msgstr "{title} szerkesztése"
 
 #: packages/admin/src/components/ContentEditor.tsx:2063
 msgid "Edit byline"
-msgstr "Szerzői sor szerkesztése"
+msgstr "Szerző szerkesztése"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
-msgstr "Szerzői sor mezőjének szerkesztése"
+msgstr "Szerző mezőjének szerkesztése"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:364
 msgid "Edit Domain"
@@ -2753,7 +2753,7 @@ msgstr "Add meg a WordPress hitelesítő adataidat a közvetlen importhoz."
 
 #: packages/admin/src/components/WordPressImport.tsx:924
 msgid "Enter your WordPress site URL"
-msgstr "Add meg a WordPress webhely URL-jét"
+msgstr "Add meg a WordPress weboldal URL-jét"
 
 #: packages/admin/src/components/MenuEditor.tsx:101
 #: packages/admin/src/components/MenuEditor.tsx:139
@@ -2843,7 +2843,7 @@ msgstr "Nem sikerült domain hozzáadása"
 
 #: packages/admin/src/components/WordPressImport.tsx:367
 msgid "Failed to analyze WordPress site"
-msgstr "Nem sikerült WordPress webhely elemzése"
+msgstr "Nem sikerült WordPress weboldal elemzése"
 
 #: packages/admin/src/components/SandboxedPluginPage.tsx:54
 msgid "Failed to communicate with plugin"
@@ -2859,11 +2859,11 @@ msgstr "Nem sikerült admint létrehozni"
 
 #: packages/admin/src/components/ContentEditor.tsx:2047
 msgid "Failed to create byline"
-msgstr "Nem sikerült szerzői sort létrehozni"
+msgstr "Nem sikerült a szerzőt létrehozni"
 
 #: packages/admin/src/lib/api/byline-fields.ts:120
 msgid "Failed to create byline field"
-msgstr "Nem sikerült szerzői sor mezőjét létrehozni"
+msgstr "Nem sikerült a szerzői leírás mezőjét létrehozni"
 
 #: packages/admin/src/routes/byline-schema.tsx:102
 msgid "Failed to create field"
@@ -2897,11 +2897,11 @@ msgstr "Nem sikerült engedélyezett domaint törölni"
 
 #: packages/admin/src/lib/api/bylines.ts:143
 msgid "Failed to delete byline"
-msgstr "Nem sikerült szerzői sort törölni"
+msgstr "Nem sikerült a szerzőt törölni"
 
 #: packages/admin/src/lib/api/byline-fields.ts:143
 msgid "Failed to delete byline field"
-msgstr "Nem sikerült szerzői sor mezőjét törölni"
+msgstr "Nem sikerült a szerzői leírás mezőjét törölni"
 
 #: packages/admin/src/lib/api/schema.ts:222
 msgid "Failed to delete collection"
@@ -3122,7 +3122,7 @@ msgstr "Nem sikerült plugint telepíteni"
 
 #: packages/admin/src/lib/api/byline-fields.ts:98
 msgid "Failed to list byline fields"
-msgstr "Nem sikerült szerzői sor mezőit listázni"
+msgstr "Nem sikerült a szerző mezőit listázni"
 
 #: packages/admin/src/router.tsx:258
 msgid "Failed to load admin"
@@ -3135,7 +3135,7 @@ msgstr "Nem sikerült engedélyezett domaineket betölteni"
 #. placeholder {0}: error.message
 #: packages/admin/src/routes/bylines.tsx:366
 msgid "Failed to load bylines: {0}"
-msgstr "Nem sikerült betölteni a szerzői sorokat: {0}"
+msgstr "Nem sikerült betölteni a szerzőket: {0}"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:89
 msgid "Failed to load email settings"
@@ -3201,7 +3201,7 @@ msgstr "Nem sikerült publikálni"
 
 #: packages/admin/src/lib/api/byline-fields.ts:106
 msgid "Failed to read byline field usage"
-msgstr "Nem sikerült szerzői sor mezőhasználatát olvasni"
+msgstr "Nem sikerült a szerző mezőhasználatát olvasni"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:130
 msgid "Failed to remove domain"
@@ -3210,73 +3210,73 @@ msgstr "Nem sikerült domaint eltávolítani"
 #: packages/admin/src/components/settings/PasskeyItem.tsx:99
 #: packages/admin/src/components/settings/SecuritySettings.tsx:82
 msgid "Failed to remove passkey"
-msgstr "Nem sikerült passkeyt eltávolítani"
+msgstr "Nem sikerült eltávolítani a passkeyt"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:66
 msgid "Failed to rename passkey"
-msgstr "Nem sikerült passkeyt átnevezni"
+msgstr "Nem sikerült átnevezni a passkeyt"
 
 #: packages/admin/src/lib/api/byline-fields.ts:156
 msgid "Failed to reorder byline fields"
-msgstr "Nem sikerült szerzői sor mezőit átrendezni"
+msgstr "Nem sikerült a szerző mezőit átrendezni"
 
 #: packages/admin/src/lib/api/schema.ts:293
 #: packages/admin/src/routes/byline-schema.tsx:152
 msgid "Failed to reorder fields"
-msgstr "Nem sikerült mezőket átrendezni"
+msgstr "Nem sikerült átrendezni a mezőket"
 
 #: packages/admin/src/lib/api/widgets.ts:158
 msgid "Failed to reorder widgets"
-msgstr "Nem sikerült widgeteket átrendezni"
+msgstr "Nem sikerült átrendezni a widgeteket"
 
 #: packages/admin/src/router.tsx:413
 msgid "Failed to restore"
-msgstr "Nem sikerült visszaállítani"
+msgstr "A visszaállítás nem sikerült"
 
 #: packages/admin/src/lib/api/content.ts:311
 msgid "Failed to restore content"
-msgstr "Nem sikerült tartalmat visszaállítani"
+msgstr "Nem sikerült a tartalom visszaállítása"
 
 #: packages/admin/src/lib/api/content.ts:578
 #: packages/admin/src/lib/api/content.ts:583
 msgid "Failed to restore revision"
-msgstr "Nem sikerült verziót visszaállítani"
+msgstr "Nem sikerült a verzió visszaállítása"
 
 #: packages/admin/src/lib/api/api-tokens.ts:98
 msgid "Failed to revoke API token"
-msgstr "Nem sikerült API tokent visszavonni"
+msgstr "Az API tokent nem sikerült visszavonni"
 
 #: packages/admin/src/components/WordPressImport.tsx:332
 msgid "Failed to rewrite URLs"
-msgstr "Nem sikerült URL-eket átírni"
+msgstr "URL-ek átírása nem sikerült"
 
 #: packages/admin/src/router.tsx:807
 #: packages/admin/src/router.tsx:1754
 msgid "Failed to save"
-msgstr "Nem sikerült menteni"
+msgstr "Nem sikerült a mentés"
 
 #: packages/admin/src/routes/byline-schema.tsx:122
 msgid "Failed to save field"
-msgstr "Nem sikerült mezőt menteni"
+msgstr "Nem sikerült a mezők mentése"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:58
 #: packages/admin/src/components/settings/SeoSettings.tsx:62
 #: packages/admin/src/components/settings/SocialSettings.tsx:53
 msgid "Failed to save settings"
-msgstr "Nem sikerült beállításokat menteni"
+msgstr "Nem sikerült a beállítások mentése"
 
 #: packages/admin/src/router.tsx:923
 msgid "Failed to schedule"
-msgstr "Nem sikerült ütemezni"
+msgstr "Az ütemezés nem sikerült"
 
 #: packages/admin/src/components/LoginPage.tsx:70
 #: packages/admin/src/components/LoginPage.tsx:75
 msgid "Failed to send magic link"
-msgstr "Nem sikerült varázslinket küldeni"
+msgstr "Nem sikerült a bejelentkezési link elküldése"
 
 #: packages/admin/src/lib/api/users.ts:128
 msgid "Failed to send recovery link"
-msgstr "Nem sikerült helyreállítási linket küldeni"
+msgstr "Nem sikerült a helyreállítási link elküldése"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:61
 #: packages/admin/src/lib/api/email-settings.ts:45
@@ -3294,15 +3294,15 @@ msgstr "Nem sikerült bejegyzés kifejezéseit beállítani"
 #: packages/admin/src/lib/api/marketplace.ts:192
 #: packages/admin/src/lib/api/registry.ts:831
 msgid "Failed to uninstall plugin"
-msgstr "Nem sikerült plugint eltávolítani"
+msgstr "Nem sikerült a plugin eltávolítása"
 
 #: packages/admin/src/router.tsx:881
 msgid "Failed to unpublish"
-msgstr "Nem sikerült publikálást visszavonni"
+msgstr "Nem sikerült a közzététel visszavonása"
 
 #: packages/admin/src/router.tsx:944
 msgid "Failed to unschedule"
-msgstr "Nem sikerült ütemezést törölni"
+msgstr "Nem sikerült az ütemezés törlése"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:349
@@ -3311,44 +3311,44 @@ msgstr "Nem sikerült frissíteni: {0}"
 
 #: packages/admin/src/components/ContentEditor.tsx:2097
 msgid "Failed to update byline"
-msgstr "Nem sikerült szerzői sort frissíteni"
+msgstr "Nem sikerült a szerzőt frissíteni"
 
 #: packages/admin/src/lib/api/byline-fields.ts:135
 msgid "Failed to update byline field"
-msgstr "Nem sikerült szerzői sor mezőjét frissíteni"
+msgstr "Nem sikerült a szerzői sor mezőjét frissíteni"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:113
 msgid "Failed to update domain"
-msgstr "Nem sikerült domaint frissíteni"
+msgstr "Domain frissítése nem sikerült"
 
 #: packages/admin/src/lib/api/media.ts:272
 msgid "Failed to update media"
-msgstr "Nem sikerült médiát frissíteni"
+msgstr "Nem sikerült a média frissítése"
 
 #: packages/admin/src/lib/api/marketplace.ts:176
 #: packages/admin/src/lib/api/registry.ts:763
 msgid "Failed to update plugin"
-msgstr "Nem sikerült plugint frissíteni"
+msgstr "Nem sikerült a plugin frissítése"
 
 #: packages/admin/src/lib/api/sections.ts:100
 msgid "Failed to update section"
-msgstr "Nem sikerült szakaszt frissíteni"
+msgstr "Nem sikerült a szakasz frissítése"
 
 #: packages/admin/src/lib/api/settings.ts:64
 msgid "Failed to update settings"
-msgstr "Nem sikerült beállításokat frissíteni"
+msgstr "Nem sikerült frissíteni a beállításokat"
 
 #: packages/admin/src/router.tsx:1231
 msgid "Failed to update status"
-msgstr "Nem sikerült állapotot frissíteni"
+msgstr "Nem sikerült frissíteni az állapotot"
 
 #: packages/admin/src/lib/api/media.ts:169
 msgid "Failed to upload file"
-msgstr "Nem sikerült fájlt feltölteni"
+msgstr "Fájl feltöltése sikertelen"
 
 #: packages/admin/src/lib/api/media.ts:214
 msgid "Failed to upload media"
-msgstr "Nem sikerült médiát feltölteni"
+msgstr "Média feltöltése sikertelen"
 
 #: packages/admin/src/lib/api/media.ts:369
 msgid "Failed to upload to provider"
@@ -3356,11 +3356,11 @@ msgstr "Nem sikerült feltölteni a szolgáltatóhoz"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:250
 msgid "Failed to verify authentication"
-msgstr "Nem sikerült hitelesítést ellenőrizni"
+msgstr "Nem sikerült a hitelesítést ellenőrizni"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:253
 msgid "Failed to verify registration"
-msgstr "Nem sikerült regisztrációt ellenőrizni"
+msgstr "Nem sikerült a regisztrációt ellenőrizni"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:792
 msgid "FAQ"
@@ -3452,7 +3452,7 @@ msgstr "Szűrés szerző szerint"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:113
 msgid "Filter by capability"
-msgstr "Szűrés képesség szerint"
+msgstr "Szűrés engedély szerint"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:177
 msgid "Filter by collection"
@@ -3478,7 +3478,7 @@ msgstr "Szűrés típus szerint"
 
 #: packages/admin/src/routes/bylines.tsx:409
 msgid "Filter byline type"
-msgstr "Szerzői sor típusának szűrése"
+msgstr "Szerző típus szűrése"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "First-time commenters only"
@@ -3494,7 +3494,7 @@ msgstr "A vázlatokat és minden tartalmat tartalmazó teljes importhoz exportá
 
 #: packages/admin/src/components/WordPressImport.tsx:1046
 msgid "For the best import experience, install the"
-msgstr "A legjobb importálási élményhez telepítsd ezt:"
+msgstr "A legjobb importálási élményhez telepítsd a"
 
 #: packages/admin/src/components/ContentList.tsx:620
 msgid "From date"
@@ -3510,7 +3510,7 @@ msgstr "Teljes hozzáférés"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:96
 msgid "Full admin access"
-msgstr "Teljes admin hozzáférés"
+msgstr "Teljes adminhozzáférés"
 
 #: packages/admin/src/components/Settings.tsx:69
 msgid "General"
@@ -3539,7 +3539,7 @@ msgstr "Adj nevet ennek a passkeynek, hogy később könnyebben azonosíthasd."
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:36
 msgid "Go"
-msgstr "Ugrás"
+msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
 #: packages/admin/src/router.tsx:1957
@@ -3560,11 +3560,11 @@ msgstr "Rácsnézet"
 
 #: packages/admin/src/components/Redirects.tsx:166
 msgid "Group (optional)"
-msgstr "Csoport (opcionális)"
+msgstr "Kategória (opcionális)"
 
 #: packages/admin/src/routes/bylines.tsx:556
 msgid "Guest byline"
-msgstr "Vendég szerzői sor"
+msgstr "Vendég szerző"
 
 #: packages/admin/src/routes/bylines.tsx:414
 msgid "Guest only"
@@ -3603,7 +3603,7 @@ msgstr "hero, banner, cta"
 
 #: packages/admin/src/components/SeoPanel.tsx:196
 msgid "Hide from search engines"
-msgstr "Elrejtés a keresőmotorok elől"
+msgstr "Elrejtés a keresők elől"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 msgid "Hide token"
@@ -3616,7 +3616,7 @@ msgstr "Hierarchikus (mint a kategóriák, szülő-gyermek kapcsolatokkal)"
 #: packages/admin/src/components/Redirects.tsx:225
 #: packages/admin/src/components/Redirects.tsx:470
 msgid "Hits"
-msgstr "Találatok"
+msgstr "Átirányítások"
 
 #: packages/admin/src/components/MenuEditor.tsx:337
 msgid "Home"
@@ -3646,7 +3646,7 @@ msgstr "HTML-forrás"
 
 #: packages/admin/src/components/MenuEditor.tsx:345
 msgid "https://example.com or /about"
-msgstr "https://example.com or /about"
+msgstr "https://example.com vagy /about"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:508
 msgid "https://example.com/image.jpg"
@@ -3659,7 +3659,7 @@ msgstr "Az ikon elhomályosítva a képaudit miatt"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 msgid "ID"
-msgstr "Azonosító"
+msgstr "ID"
 
 #: packages/admin/src/components/LoginPage.tsx:103
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
@@ -3728,7 +3728,7 @@ msgstr "Másik fájl importálása"
 
 #: packages/admin/src/components/WordPressImport.tsx:1016
 msgid "Import Capabilities"
-msgstr "Képességek importálása"
+msgstr "Importálási lehetőségek"
 
 #: packages/admin/src/components/WordPressImport.tsx:2110
 msgid "Import Complete"
@@ -3760,7 +3760,7 @@ msgstr "Bejegyzések, oldalak és egyéni bejegyzéstípusok importálása WordP
 
 #: packages/admin/src/components/WordPressImport.tsx:1650
 msgid "Import site configuration from WordPress."
-msgstr "Webhelykonfiguráció importálása WordPressből."
+msgstr "Weboldalkonfiguráció importálása WordPressből."
 
 #: packages/admin/src/components/WordPressImport.tsx:1203
 msgid "Import via EmDash Exporter"
@@ -3784,7 +3784,7 @@ msgstr "Média importálása"
 
 #: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Include sample content (recommended for new sites)"
-msgstr "Minta tartalom hozzáadása (új webhelyekhez ajánlott)"
+msgstr "Minta tartalom hozzáadása (új weboldalekhez ajánlott)"
 
 #: packages/admin/src/components/WordPressImport.tsx:1816
 msgid "Incompatible"
@@ -3875,7 +3875,7 @@ msgstr "Telepítés"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
-msgstr "Telepíts és aktiválj egy e-mail szolgáltató plugint az olyan e-mail funkciókhoz, mint a meghívók, varázslinkek és jelszó-helyreállítás."
+msgstr "Telepíts és aktiválj egy e-mail szolgáltató plugint az olyan e-mail funkciókhoz, mint a meghívók, bejelentkezési linkek és jelszó-helyreállítás."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:186
 msgid "Install blocked"
@@ -3998,7 +3998,7 @@ msgstr "JSX"
 
 #: packages/admin/src/components/ContentEditor.tsx:1926
 msgid "Keep typing to narrow down more bylines."
-msgstr "Gépelj tovább a szerzői sorok további szűkítéséhez."
+msgstr "Gépelj tovább a szerzők szűréséhez."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:293
 #: packages/admin/src/components/SectionEditor.tsx:268
@@ -4024,11 +4024,11 @@ msgstr "Címke"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:394
 msgid "Label (Plural)"
-msgstr "Címke (többes szám)"
+msgstr "Elnevezés (többes szám)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:386
 msgid "Label (Singular)"
-msgstr "Címke (egyes szám)"
+msgstr "Elnevezés (egyes szám)"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:151
 #: packages/admin/src/components/LoginPage.tsx:345
@@ -4123,7 +4123,7 @@ msgstr "Csak összekapcsolt"
 
 #: packages/admin/src/routes/bylines.tsx:507
 msgid "Linked user"
-msgstr "Összekapcsolt felhasználó"
+msgstr "Szerzőhöz kapcsolt felhasználó"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:156
 msgid "LinkedIn"
@@ -4159,7 +4159,7 @@ msgstr "Továbbiak betöltése"
 
 #: packages/admin/src/routes/byline-schema.tsx:257
 msgid "Loading byline fields…"
-msgstr "Szerzői sor mezőinek betöltése…"
+msgstr "Szerző mezőinek betöltése…"
 
 #: packages/admin/src/components/ContentTypeList.tsx:114
 msgid "Loading collections..."
@@ -4326,7 +4326,7 @@ msgstr "Telepített pluginek kezelése. A működésük szabályozásához enged
 
 #: packages/admin/src/components/MenuList.tsx:104
 msgid "Manage navigation menus for your site"
-msgstr "A webhely navigációs menüinek kezelése"
+msgstr "A weboldal navigációs menüinek kezelése"
 
 #: packages/admin/src/components/Redirects.tsx:359
 msgid "Manage URL redirects and view 404 errors."
@@ -4447,12 +4447,12 @@ msgstr "Menü"
 #. placeholder {1}: translated.locale.toUpperCase()
 #: packages/admin/src/components/MenuEditor.tsx:90
 msgid "Menu \"{0}\" ({1}) created."
-msgstr "„{0}” ({1}) menü létrehozva."
+msgstr "\"{0}\" ({1}) menü létrehozva."
 
 #. placeholder {0}: menu.label
 #: packages/admin/src/components/MenuList.tsx:55
 msgid "Menu \"{0}\" has been created."
-msgstr "„{0}” menü létrehozva."
+msgstr "\"{0}\" menü létrehozva."
 
 #: packages/admin/src/components/MenuList.tsx:54
 msgid "Menu created"
@@ -4548,16 +4548,16 @@ msgstr "Legnépszerűbb"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:439
 msgid "Move \"{0}\" down"
-msgstr "„{0}” mozgatása le"
+msgstr "\"{0}\" mozgatása le"
 
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:429
 msgid "Move \"{0}\" up"
-msgstr "„{0}” mozgatása fel"
+msgstr "\"{0}\" mozgatása fel"
 
 #: packages/admin/src/components/ContentList.tsx:845
 msgid "Move \"{title}\" to trash? You can restore it later."
-msgstr "Áthelyezed a kukába ezt: „{title}”? Később visszaállíthatod."
+msgstr "Áthelyezed a kukába ezt: \"{title}\"? Később visszaállíthatod."
 
 #: packages/admin/src/components/ContentList.tsx:836
 msgid "Move {title} to trash"
@@ -4741,7 +4741,7 @@ msgstr "Még nincs {0}. Hozz létre egyet a kezdéshez."
 
 #: packages/admin/src/components/Redirects.tsx:217
 msgid "No 404 errors recorded yet."
-msgstr "Még nincs 404 errors recorded."
+msgstr "Nincsenek 404-es hibák."
 
 #: packages/admin/src/components/MediaLibrary.tsx:697
 #: packages/admin/src/components/MediaLibrary.tsx:754
@@ -4762,15 +4762,15 @@ msgstr "Még nincsenek szerzői sor mezők."
 
 #: packages/admin/src/components/ContentEditor.tsx:1881
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
-msgstr "Nincs elérhető szerzői sor ezen a nyelven: {entryLocale}. Hozz létre egy változatot a Szerzői sorok oldalon, mielőtt hozzárendelnéd ehhez a bejegyzéshez."
+msgstr "Nincs elérhető szerző ezen a nyelven: {entryLocale}. Hozz létre egy változatot a Szerzők oldalon, mielőtt hozzárendelnéd ehhez a bejegyzéshez."
 
 #: packages/admin/src/routes/bylines.tsx:453
 msgid "No bylines found"
-msgstr "Nem találhatók szerzői sorok"
+msgstr "Nem találhatók szerzők"
 
 #: packages/admin/src/components/ContentEditor.tsx:1988
 msgid "No bylines selected."
-msgstr "Nincs kiválasztott szerzői sor."
+msgstr "Nincs kiválasztott szerző."
 
 #: packages/admin/src/components/Dashboard.tsx:172
 msgid "No collections configured"
@@ -4802,7 +4802,7 @@ msgstr "Még nincsenek tartalomtípusok."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:603
 msgid "No custom fields yet"
-msgstr "Még nincsenek egyéni mezők"
+msgstr "Még nincsenek egyedi mezők"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:264
 msgid "No detailed description available."
@@ -4855,7 +4855,7 @@ msgstr "Nincs korlát"
 
 #: packages/admin/src/routes/bylines.tsx:518
 msgid "No linked user"
-msgstr "Nincs összekapcsolt felhasználó"
+msgstr "Nincs szerzőhöz kapcsolt felhasználó"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:160
 msgid "No matches"
@@ -4863,7 +4863,7 @@ msgstr "Nincs találat"
 
 #: packages/admin/src/components/ContentEditor.tsx:1923
 msgid "No matching bylines."
-msgstr "Nincs megfelelő szerzői sor."
+msgstr "Nincs megfelelő szerző."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:266
 msgid "No matching passkey found for this account."
@@ -4927,7 +4927,7 @@ msgstr "Még nem tettek közzé plugint ebben a regiszterben."
 
 #: packages/admin/src/components/RegistryBrowse.tsx:116
 msgid "No plugins match \"{debouncedQuery}\"."
-msgstr "Nincs „{debouncedQuery}” keresésnek megfelelő plugin."
+msgstr "Nincs \"{debouncedQuery}\" keresésnek megfelelő plugin."
 
 #: packages/admin/src/components/Sections.tsx:343
 msgid "No preview"
@@ -4948,12 +4948,12 @@ msgstr "Nincs találat"
 #: packages/admin/src/components/ContentList.tsx:363
 #: packages/admin/src/components/ContentList.tsx:382
 msgid "No results for \"{activeSearch}\""
-msgstr "Nincs találat erre: „{activeSearch}”"
+msgstr "Nincs találat erre: \"{activeSearch}\""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:176
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:152
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
-msgstr "Nincs találat erre: „{debouncedQuery}”. Próbálj másik keresőkifejezést."
+msgstr "Nincs találat erre: \"{debouncedQuery}\". Próbálj másik keresőkifejezést."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:452
 msgid "No results found"
@@ -5125,7 +5125,7 @@ msgstr "Eredeti:"
 
 #: packages/admin/src/components/editor/DocumentOutline.tsx:181
 msgid "Outline"
-msgstr "Vázlat"
+msgstr "Dokumentum struktúra"
 
 #: packages/admin/src/components/SeoPanel.tsx:160
 msgid "Overrides the page title in search engine results"
@@ -5216,7 +5216,7 @@ msgstr "A passkeyek itt nem érhetők el"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:307
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:304
 msgid "Passkeys require a"
-msgstr "A passkey használatához szükséges:"
+msgstr "A passkey használatához"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:158
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
@@ -5259,7 +5259,7 @@ msgstr "Függőben lévő módosítások"
 
 #: packages/admin/src/components/ContentList.tsx:916
 msgid "Permanently delete \"{title}\"? This cannot be undone."
-msgstr "Véglegesen törlöd ezt: „{title}”? Ez nem vonható vissza."
+msgstr "Véglegesen törlöd ezt: \"{title}\"? Ez nem vonható vissza."
 
 #: packages/admin/src/components/ContentList.tsx:905
 msgid "Permanently delete {title}"
@@ -5275,7 +5275,7 @@ msgstr "PHP"
 
 #: packages/admin/src/components/SetupWizard.tsx:290
 msgid "Pick any method to create your admin account."
-msgstr "Válassz bármelyik módszert az admin fiók létrehozásához."
+msgstr "Válassz bármelyik módszert az adminfiók létrehozásához."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:313
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:310
@@ -5309,7 +5309,7 @@ msgstr "Plugin"
 
 #: packages/admin/src/lib/api/plugins.ts:57
 msgid "Plugin \"{pluginId}\" not found"
-msgstr "A plugin nem található: „{pluginId}”"
+msgstr "A plugin nem található: \"{pluginId}\""
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:749
 msgid "Plugin details"
@@ -5342,7 +5342,7 @@ msgstr "A plugin nem található. Lehet, hogy a kiadó felhasználóneve vagy a 
 
 #: packages/admin/src/components/WordPressImport.tsx:1048
 msgid "plugin on your WordPress site."
-msgstr "plugint a WordPress webhelyeden."
+msgstr "plugint a WordPress weboldaleden."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:75
 msgid "Plugin Permissions"
@@ -5492,7 +5492,7 @@ msgstr "Python"
 
 #: packages/admin/src/components/ContentEditor.tsx:1996
 msgid "Quick create byline"
-msgstr "Szerzői sor gyors létrehozása"
+msgstr "Szerző gyors létrehozása"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:190
 #: packages/admin/src/components/editor/ImageNode.tsx:191
@@ -5519,7 +5519,7 @@ msgstr "Médiafájlok olvasása"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:86
 msgid "Read site settings"
-msgstr "Webhelybeállítások olvasása"
+msgstr "Weboldalbeállítások olvasása"
 
 #: packages/admin/src/lib/api/marketplace.ts:226
 #: packages/admin/src/lib/api/marketplace.ts:234
@@ -5961,7 +5961,7 @@ msgstr "Mentve"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:116
 msgid "Saved \"{0}\"."
-msgstr "„{0}” mentve."
+msgstr "\"{0}\" mentve."
 
 #: packages/admin/src/components/ContentEditor.tsx:650
 #: packages/admin/src/components/ContentEditor.tsx:2103
@@ -6108,19 +6108,19 @@ msgstr "Keresés név vagy e-mail alapján..."
 #: packages/admin/src/components/ContentEditor.tsx:1898
 #: packages/admin/src/routes/bylines.tsx:402
 msgid "Search bylines"
-msgstr "Szerzői sorok keresése"
+msgstr "Szerzők keresése"
 
 #: packages/admin/src/components/ContentEditor.tsx:1897
 msgid "Search bylines to add..."
-msgstr "Hozzáadandó szerzői sorok keresése..."
+msgstr "Szerző keresése..."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:163
 msgid "Search comments"
-msgstr "Hozzászólások keresése"
+msgstr "Hozzászólás keresése"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:162
 msgid "Search comments..."
-msgstr "Hozzászólások keresése..."
+msgstr "Hozzászólás keresése..."
 
 #: packages/admin/src/components/ContentPickerModal.tsx:141
 msgid "Search content..."
@@ -6194,7 +6194,7 @@ msgstr "Szakasz"
 
 #: packages/admin/src/components/SectionEditor.tsx:82
 msgid "Section \"{slug}\" could not be found."
-msgstr "A szakasz nem található: „{slug}”."
+msgstr "A szakasz nem található: \"{slug}\"."
 
 #: packages/admin/src/components/Sections.tsx:93
 msgid "Section created"
@@ -6375,7 +6375,7 @@ msgstr "Kiválasztva:"
 #: packages/admin/src/components/Settings.tsx:98
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:167
 msgid "Self-Signup Domains"
-msgstr "Önregisztrációs domainek"
+msgstr "Engedélyezett regisztrációs domainek"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:139
 msgid "Send a test email through the full pipeline to verify your email configuration."
@@ -6391,7 +6391,7 @@ msgstr "Meghívó küldése"
 
 #: packages/admin/src/components/LoginPage.tsx:149
 msgid "Send magic link"
-msgstr "Varázslink küldése"
+msgstr "Bejelentkezési link küldése"
 
 #: packages/admin/src/components/users/UserDetail.tsx:332
 msgid "Send Recovery Link"
@@ -6457,7 +6457,7 @@ msgstr "Állítsd 0-ra, ha soha ne záródjanak le automatikusan a hozzászólá
 
 #: packages/admin/src/components/SetupWizard.tsx:559
 msgid "Set up your site"
-msgstr "Webhely beállítása"
+msgstr "Weboldal beállítása"
 
 #: packages/admin/src/components/SetupWizard.tsx:150
 msgid "Setting up..."
@@ -6530,7 +6530,7 @@ msgstr "Inkább bejelentkezés"
 
 #: packages/admin/src/components/LoginPage.tsx:232
 msgid "Sign in to your site"
-msgstr "Bejelentkezés a webhelyedre"
+msgstr "Bejelentkezés a weboldaladra"
 
 #. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
 #. placeholder {0}: provider.label
@@ -6567,36 +6567,36 @@ msgstr "Egysoros szövegmező"
 
 #: packages/admin/src/components/SetupWizard.tsx:353
 msgid "Site"
-msgstr "Webhely"
+msgstr "Weboldal"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:153
 msgid "Site Identity"
-msgstr "Webhelyazonosság"
+msgstr "Weboldal adatai"
 
 #: packages/admin/src/components/Settings.tsx:70
 msgid "Site identity, logo, favicon, and reading preferences"
-msgstr "Webhelyazonosság, logó, favicon és olvasási beállítások"
+msgstr "Weboldal adatai, logó, favicon és olvasási beállítások"
 
 #: packages/admin/src/components/SetupWizard.tsx:351
 msgid "Site Settings"
-msgstr "Webhelybeállítások"
+msgstr "Weboldalbeállítások"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:156
 #: packages/admin/src/components/SetupWizard.tsx:116
 msgid "Site Title"
-msgstr "Webhely címe"
+msgstr "Weboldal címe"
 
 #: packages/admin/src/components/WordPressImport.tsx:1659
 msgid "Site title & tagline"
-msgstr "Webhely címe és alcíme"
+msgstr "Weboldal címe és alcíme"
 
 #: packages/admin/src/components/SetupWizard.tsx:100
 msgid "Site title is required"
-msgstr "A webhely címe kötelező"
+msgstr "A weboldal címe kötelező"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:168
 msgid "Site URL"
-msgstr "Webhely URL"
+msgstr "Weboldal URL"
 
 #: packages/admin/src/components/MediaLibrary.tsx:492
 msgid "Size"
@@ -6841,7 +6841,7 @@ msgstr "Kifejezés"
 #. placeholder {1}: term.locale.toUpperCase()
 #: packages/admin/src/components/TaxonomyManager.tsx:759
 msgid "Term \"{0}\" created in {1}."
-msgstr "„{0}” kifejezés létrehozva itt: {1}."
+msgstr "\"{0}\" kifejezés létrehozva itt: {1}."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:741
 msgid "Term deleted"
@@ -6865,7 +6865,7 @@ msgstr "A meglévő gyűjtemény inkompatibilis típusú mezőket tartalmaz."
 
 #: packages/admin/src/components/ContentTypeList.tsx:58
 msgid "The following tables contain content but aren't registered as collections. Register them to manage this content in the admin."
-msgstr "A következő táblák tartalmaznak tartalmat, de nincsenek gyűjteményként regisztrálva. Regisztráld őket, hogy az admin felületen kezelhesd ezt a tartalmat."
+msgstr "A következő táblák tartalmaznak tartalmat, de nincsenek gyűjteményként regisztrálva. Regisztráld őket, hogy az adminfelületen kezelhesd ezt a tartalmat."
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:181
 msgid "The invited user will have this role once they complete registration."
@@ -6886,7 +6886,7 @@ msgstr "A menü törölve lett."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:159
 msgid "The name of your site, used in the header and metadata"
-msgstr "A webhely neve, amely a fejlécben és a metaadatokban jelenik meg"
+msgstr "A weboldal neve, amely a fejlécben és a metaadatokban jelenik meg"
 
 #: packages/admin/src/router.tsx:1954
 msgid "The page you're looking for doesn't exist."
@@ -6898,7 +6898,7 @@ msgstr "A plugin mezőwidgetjének megjelenítése sikertelen."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:172
 msgid "The public URL of your site (used for canonical links and sitemaps)"
-msgstr "A webhely nyilvános URL-je (kanonikus linkekhez és oldaltérképekhez)"
+msgstr "A weboldal nyilvános URL-je (kanonikus linkekhez és oldaltérképekhez)"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:189
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
@@ -6919,7 +6919,7 @@ msgstr "Téma"
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:292
 msgid "Theme ID: {0}"
-msgstr "Témaazonosító: {0}"
+msgstr "Téma ID: {0}"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:91
 msgid "Theme not found"
@@ -6961,7 +6961,7 @@ msgstr "Ez egy egyéni szakasz."
 
 #: packages/admin/src/components/WordPressImport.tsx:1147
 msgid "This is a WordPress site."
-msgstr "Ez egy WordPress webhely."
+msgstr "Ez egy WordPress weboldal."
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:112
 msgid "This link expires in 7 days and can only be used once."
@@ -6989,15 +6989,15 @@ msgstr "Ez az átirányítási szabály véglegesen el lesz távolítva."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:618
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
-msgstr "Ehhez a kiadáshoz újabb környezet szükséges, mint amin a webhely jelenleg fut. Telepítés előtt frissíts."
+msgstr "Ehhez a kiadáshoz újabb környezet szükséges, mint amin a weboldal jelenleg fut. Telepítés előtt frissíts."
 
 #: packages/admin/src/routes/bylines.tsx:624
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
-msgstr "Ez eltávolítja a szerzői sor profilt. A tartalmak szerzői sor linkjei eltávolításra kerülnek, a vezető hivatkozások pedig törlődnek."
+msgstr "Ez eltávolítja a szerzői profilt. A tartalom szerzői linkjei megszűnnek, és az elsődleges szerzői megjelölések törlődnek."
 
 #: packages/admin/src/components/SectionEditor.tsx:283
 msgid "This section is provided by the theme. Editing will create a custom copy that overrides the theme version."
-msgstr "Ezt a szakaszt a téma biztosítja. A szerkesztés egy egyéni másolatot hoz létre, amely felülírja a téma verzióját."
+msgstr "Ezt a szakaszt a téma biztosítja. A szerkesztés egy egyéni másolatot hoz létre, amely felülírja az eredetit."
 
 #: packages/admin/src/components/SectionEditor.tsx:288
 msgid "This section was imported from another system."
@@ -7022,12 +7022,12 @@ msgstr "Ez az elemet a kukába helyezi. Később visszaállíthatod a kukából.
 #. placeholder {0}: deleteTarget?.label
 #: packages/admin/src/components/TaxonomyManager.tsx:884
 msgid "This will permanently delete \"{0}\" and remove it from all content."
-msgstr "Ez véglegesen törli ezt: „{0}”, és eltávolítja minden tartalomból."
+msgstr "Ez véglegesen törli ezt: \"{0}\", és eltávolítja minden tartalomból."
 
 #. placeholder {0}: sectionToDelete?.title
 #: packages/admin/src/components/Sections.tsx:304
 msgid "This will permanently delete \"{0}\". This action cannot be undone."
-msgstr "Ez véglegesen törli ezt: „{0}”. A művelet nem vonható vissza."
+msgstr "Ez véglegesen törli ezt: \"{0}\". A művelet nem vonható vissza."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:406
 msgid "This will permanently delete this comment. This action cannot be undone."
@@ -7035,7 +7035,7 @@ msgstr "Ez véglegesen törli ezt a hozzászólást. A művelet nem vonható vis
 
 #: packages/admin/src/components/PluginManager.tsx:629
 msgid "This will remove the plugin and its bundle from your site."
-msgstr "Ez eltávolítja a plugint és a csomagját a webhelyről."
+msgstr "Ez eltávolítja a plugint és a csomagját a weboldalről."
 
 #: packages/admin/src/components/ContentEditor.tsx:700
 msgid "This will revert to the published version. Your draft changes will be lost."
@@ -7064,7 +7064,7 @@ msgstr "Cím"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:355
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:544
 msgid "Title (Tooltip)"
-msgstr "Cím (buboréksúgó)"
+msgstr "Cím (súgó)"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:159
 msgid "Title Separator"
@@ -7072,11 +7072,11 @@ msgstr "Címelválasztó"
 
 #: packages/admin/src/components/ContentList.tsx:625
 msgid "to"
-msgstr "ide:"
+msgstr "-"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:470
 msgid "to close"
-msgstr "bezáráshoz"
+msgstr "bezár"
 
 #: packages/admin/src/components/ContentList.tsx:629
 msgid "To date"
@@ -7088,7 +7088,7 @@ msgstr "pluginek telepítéséhez, vagy add hozzá őket az astro.config.mjs fá
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:460
 msgid "to select"
-msgstr "kiválasztáshoz"
+msgstr "kiválaszt"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2751
 msgid "Toggle header row"
@@ -7134,7 +7134,7 @@ msgstr "Fordítás"
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:156
 msgid "Translate \"{0}\""
-msgstr "„{0}” fordítása"
+msgstr "\"{0}\" fordítása"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:80
@@ -7371,7 +7371,7 @@ msgstr "{0} beállításainak frissítése"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:91
 msgid "Update site settings"
-msgstr "Webhelybeállítások frissítése"
+msgstr "Weboldalbeállítások frissítése"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
 #: packages/admin/src/components/TaxonomyManager.tsx:366
@@ -7524,7 +7524,7 @@ msgstr "URL-barát azonosító"
 
 #: packages/admin/src/components/MenuList.tsx:162
 msgid "URL-friendly identifier (e.g., \"primary\", \"footer\")"
-msgstr "URL-barát azonosító (pl. „primary”, „footer”)"
+msgstr "URL-barát azonosító (pl. \"primary\", \"footer\")"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:193
 msgid "URL:"
@@ -7609,7 +7609,7 @@ msgstr "v{0} elérhető"
 #: packages/admin/src/components/FieldEditor.tsx:460
 #: packages/admin/src/components/FieldEditor.tsx:490
 msgid "Validation"
-msgstr "Validáció"
+msgstr "Érvényesítés"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:186
 #: packages/admin/src/components/RegistryPluginDetail.tsx:449
@@ -7674,7 +7674,7 @@ msgstr "Publikált {title} megtekintése"
 
 #: packages/admin/src/components/Header.tsx:51
 msgid "View Site"
-msgstr "Webhely megtekintése"
+msgstr "Weboldal megtekintése"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:663
 msgid "View source"
@@ -7704,7 +7704,7 @@ msgstr "Figyelmeztetés"
 #. placeholder {0}: result.url
 #: packages/admin/src/components/WordPressImport.tsx:1105
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
-msgstr "Nem sikerült WordPress webhelyhez kapcsolódni itt: {0}. Ez azt jelentheti, hogy a webhely nem WordPress, a REST API le van tiltva, vagy a webhely nem elérhető."
+msgstr "Nem sikerült WordPress weboldalhez kapcsolódni itt: {0}. Ez azt jelentheti, hogy a weboldal nem WordPress, a REST API le van tiltva, vagy a weboldal nem elérhető."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:564
 msgid "We couldn't verify this publisher's identity"
@@ -7712,7 +7712,7 @@ msgstr "Nem sikerült ellenőrizni a kiadó személyazonosságát"
 
 #: packages/admin/src/components/WordPressImport.tsx:926
 msgid "We'll check what import options are available for your site."
-msgstr "Ellenőrizzük, milyen importálási lehetőségek érhetők el a webhelyedhez."
+msgstr "Ellenőrizzük, milyen importálási lehetőségek érhetők el a weboldaledhez."
 
 #: packages/admin/src/components/LoginPage.tsx:323
 msgid "We'll send you a link to sign in without a password."
@@ -7734,11 +7734,11 @@ msgstr "Ez a böngésző nem támogatja a WebAuthn-t"
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:225
 #: packages/admin/src/components/RegistryPluginDetail.tsx:688
 msgid "Website"
-msgstr "Webhely"
+msgstr "Weboldal"
 
 #: packages/admin/src/routes/bylines.tsx:492
 msgid "Website URL"
-msgstr "Webhely URL"
+msgstr "Weboldal URL"
 
 #: packages/admin/src/components/WelcomeModal.tsx:96
 msgid "Welcome to EmDash, {firstName}!"
@@ -7843,7 +7843,7 @@ msgstr "Widgettartalom írása..."
 
 #: packages/admin/src/components/WordPressImport.tsx:1023
 msgid "WXR File"
-msgstr "WXR File"
+msgstr "WXR-fájl"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:58
 msgid "XML"
@@ -7877,7 +7877,7 @@ msgstr "A fenti rögzített mezőket továbbra is szerkesztheted. A mentés nem 
 
 #: packages/admin/src/components/WelcomeModal.tsx:44
 msgid "You can view and contribute to the site."
-msgstr "Megtekintheted a webhelyet és közreműködhetsz benne."
+msgstr "Megtekintheted a weboldalet és közreműködhetsz benne."
 
 #: packages/admin/src/components/users/UserDetail.tsx:175
 msgid "You cannot change your own role"
@@ -7885,7 +7885,7 @@ msgstr "A saját szerepkörödet nem módosíthatod"
 
 #: packages/admin/src/components/WelcomeModal.tsx:41
 msgid "You have full access to manage this site, including users, settings, and all content."
-msgstr "Teljes hozzáférésed van a webhely kezeléséhez, beleértve a felhasználókat, beállításokat és minden tartalmat."
+msgstr "Teljes hozzáférésed van a weboldal kezeléséhez, beleértve a felhasználókat, beállításokat és minden tartalmat."
 
 #: packages/admin/src/routes/byline-schema.tsx:175
 msgid "You need admin permissions to manage byline schema."
@@ -7898,7 +7898,7 @@ msgstr "A hozzászólások moderálásához szerkesztői jogosultság szüksége
 #. placeholder {0}: passkey.name
 #: packages/admin/src/components/settings/PasskeyItem.tsx:206
 msgid "You won't be able to use \"{0}\" to sign in anymore. This action cannot be undone."
-msgstr "Többé nem fogod tudni ezt használni a bejelentkezéshez: „{0}”. A művelet nem vonható vissza."
+msgstr "Többé nem fogod tudni ezt használni a bejelentkezéshez: \"{0}\". A művelet nem vonható vissza."
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:207
 msgid "You won't be able to use this passkey to sign in anymore. This action cannot be undone."
@@ -7988,7 +7988,7 @@ msgstr "Szerepköröd"
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:599
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
-msgstr "A webhelyed csak legalább {0} korú kiadásokat enged telepíteni. Ez a kiadás később lesz telepíthető."
+msgstr "A weboldaled csak legalább {0} korú kiadásokat enged telepíteni. Ez a kiadás később lesz telepíthető."
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:135
 msgid "Your Twitter/X handle (e.g., @username)"
@@ -8001,7 +8001,7 @@ msgstr "A WordPress exportod {0} médiafájlt tartalmaz."
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:165
 msgid "Your YouTube channel ID or handle"
-msgstr "YouTube csatornaazonosítód vagy felhasználóneved"
+msgstr "YouTube csatorna ID vagy felhasználónév"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:162
 msgid "YouTube"
