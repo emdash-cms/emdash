@@ -13,6 +13,7 @@ import { classifyComment, type ClassifyResult } from "./classifier-client.js";
 import {
 	addLabels,
 	getIssue,
+	getIssueLabels,
 	mintInstallationToken,
 	postIssueComment,
 	readAppCreds,
@@ -126,12 +127,17 @@ const STORAGE = {
 	state: "o:state",
 	kind: "o:kind",
 	currentRunId: "o:currentRunId",
+	currentRunStartedAt: "o:currentRunStartedAt",
 	prNumber: "o:prNumber",
 	eventLog: "o:eventLog",
 	seenDeliveries: "o:seenDeliveries",
 	anchorNumber: "o:anchorNumber",
 	tokenCache: "o:tokenCache",
+	lastTickAt: "o:lastTickAt",
 } as const;
+
+const TICK_INTERVAL_MS = 60 * 60 * 1000;
+const STALE_RUN_THRESHOLD_MS = 30 * 60 * 1000;
 
 interface CachedToken {
 	token: string;
@@ -196,6 +202,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 		const sideEffectError = await this.applySideEffects(decision);
 		await this.persistDecision(decision, input);
+		await this.armAlarm();
 		return {
 			kind: "transition",
 			decision,
@@ -233,9 +240,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 			pushed: input.pushed,
 		});
 
-		// Re-enter the orchestrator's main loop with the synthesized event.
-		// `actor: "system"` is the bot itself reporting back from the agent;
-		// the machine permits `agent.*` events from system only.
+		// Run has reported back; clear the in-flight markers regardless of
+		// whether the synthesized event causes a transition. A retry will
+		// generate a new runId via runAction.
+		await this.ctx.storage.delete(STORAGE.currentRunId);
+		await this.ctx.storage.delete(STORAGE.currentRunStartedAt);
+
 		const labels = await this.projectLabels();
 		return this.event({
 			event,
@@ -247,14 +257,96 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	/**
-	 * Cron-driven cleanup. Recovers stale runs (currentRunId set but the
-	 * workflow never reported back), warns about abandoned awaiting states,
-	 * and prunes the event log. Implementation lands with the cron wiring
-	 * in a later commit; for now this is a documented no-op so the cron
-	 * handler can call it without conditional branches.
+	 * Periodic recovery, fired by the DO's own alarm. Drops stale runs and
+	 * re-projects DO state onto GitHub labels (resilient to manual edits).
+	 * The alarm self-arms; first arming happens via `armAlarm()` in event().
 	 */
-	async tick(): Promise<void> {
-		// Intentionally empty -- placeholder for cron-driven recovery.
+	async tick(): Promise<TickOutcome> {
+		const now = Date.now();
+		await this.ctx.storage.put(STORAGE.lastTickAt, now);
+
+		const droppedStaleRun = await this.recoverStaleRun(now);
+		const labelDrift = await this.reconcileLabels();
+
+		return { ranAt: now, droppedStaleRun, labelDrift };
+	}
+
+	/** DO alarm handler. Self-rearms. */
+	override async alarm(): Promise<void> {
+		try {
+			await this.tick();
+		} catch (err) {
+			console.error("[orchestrator] tick failed:", err);
+		}
+		await this.armAlarm();
+	}
+
+	private async armAlarm(): Promise<void> {
+		const current = await this.ctx.storage.getAlarm();
+		if (current === null || current <= Date.now()) {
+			await this.ctx.storage.setAlarm(Date.now() + TICK_INTERVAL_MS);
+		}
+	}
+
+	private async recoverStaleRun(now: number): Promise<boolean> {
+		const startedAt = await this.ctx.storage.get<number>(STORAGE.currentRunStartedAt);
+		if (startedAt === undefined) return false;
+		if (now - startedAt < STALE_RUN_THRESHOLD_MS) return false;
+		console.warn("[orchestrator] dropping stale run", {
+			startedAt,
+			ageMs: now - startedAt,
+		});
+		await this.ctx.storage.delete(STORAGE.currentRunId);
+		await this.ctx.storage.delete(STORAGE.currentRunStartedAt);
+		return true;
+	}
+
+	private async reconcileLabels(): Promise<{ added: number; removed: number } | null> {
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		if (!creds || !repo) return null;
+		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
+		if (anchorNumber === undefined) return null;
+		const state = await this.ctx.storage.get<StateId>(STORAGE.state);
+		const kind = await this.ctx.storage.get<Kind>(STORAGE.kind);
+		if (!state) return null;
+
+		const expectedStateLabel = STATES[state].label;
+		const expectedLabels = new Set<string>();
+		if (expectedStateLabel) expectedLabels.add(expectedStateLabel);
+		if (kind) expectedLabels.add(`bot:${kind}`);
+
+		let liveLabels: string[];
+		try {
+			const token = await this.getInstallationToken(creds);
+			liveLabels = await getIssueLabels(token, repo, anchorNumber);
+		} catch (err) {
+			console.error("[orchestrator] reconcileLabels: getIssueLabels failed:", err);
+			return null;
+		}
+
+		const liveSet = new Set(liveLabels);
+		const allBotLabels = liveLabels.filter((l) => l.startsWith("bot:"));
+		const toAdd: string[] = [];
+		for (const l of expectedLabels) if (!liveSet.has(l)) toAdd.push(l);
+		const toRemove: string[] = allBotLabels.filter((l) => !expectedLabels.has(l));
+
+		if (toAdd.length === 0 && toRemove.length === 0) return { added: 0, removed: 0 };
+
+		try {
+			const token = await this.getInstallationToken(creds);
+			if (toAdd.length > 0) await addLabels(token, repo, anchorNumber, toAdd);
+			if (toRemove.length > 0) await removeLabels(token, repo, anchorNumber, toRemove);
+		} catch (err) {
+			console.error("[orchestrator] reconcileLabels: label flip failed:", err);
+			return null;
+		}
+		console.log("[orchestrator] reconciled label drift", {
+			anchorNumber,
+			added: toAdd,
+			removed: toRemove,
+		});
+		return { added: toAdd.length, removed: toRemove.length };
 	}
 
 	// ---------------- Classifier ----------------
@@ -331,6 +423,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 		const runId = crypto.randomUUID();
 		await this.ctx.storage.put(STORAGE.currentRunId, runId);
+		await this.ctx.storage.put(STORAGE.currentRunStartedAt, Date.now());
 
 		try {
 			await invoke(investigateWorkflow, {
@@ -528,6 +621,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 	async getEventLog(): Promise<readonly EventLogEntry[]> {
 		return (await this.ctx.storage.get<EventLogEntry[]>(STORAGE.eventLog)) ?? [];
 	}
+
+	/** Test-only: inject a synthetic in-flight run for tick() recovery tests. */
+	async debugSetStaleRun(runId: string, startedAt: number): Promise<void> {
+		await this.ctx.storage.put(STORAGE.currentRunId, runId);
+		await this.ctx.storage.put(STORAGE.currentRunStartedAt, startedAt);
+	}
 }
 
 export type EventOutcome =
@@ -542,6 +641,12 @@ export type EventOutcome =
 	| { kind: "duplicate"; deliveryId: string }
 	| { kind: "stale-run"; runId: string; currentRunId: string | null }
 	| { kind: "inert"; state: StateId };
+
+export interface TickOutcome {
+	ranAt: number;
+	droppedStaleRun: boolean;
+	labelDrift: { added: number; removed: number } | null;
+}
 
 function renderComment(decision: Extract<Decision, { kind: "transition" }>): string {
 	const action = decision.action ? ` (\`${decision.action}\`)` : "";

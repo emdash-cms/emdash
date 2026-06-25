@@ -127,6 +127,23 @@ describe("OrchestratorDO (workers-pool)", () => {
 		}
 	});
 
+	test("tick recovers a stale run", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		// Run() the DO with a synthetic stale run set in storage. The stale-
+		// run recovery path only inspects the started-at timestamp; we drive
+		// it through the public RPC.
+		await stub.event(makeEvent({ anchorNumber: 999 }));
+
+		// Inject a stale run via a helper we expose for tests.
+		await stub.debugSetStaleRun("ghost-run", Date.now() - 60 * 60 * 1000);
+
+		const outcome = await stub.tick();
+		expect(outcome.droppedStaleRun).toBe(true);
+
+		const persisted = await stub.getPersistedState();
+		expect(persisted.currentRunId).toBe(null);
+	});
+
 	test("concurrent events on the same DO yield a deterministic end state", async () => {
 		// workerd single-threads DO message processing; this test pins that
 		// two events fired in parallel observe each other's effects rather
