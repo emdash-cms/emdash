@@ -1,19 +1,28 @@
-// Worker entry. For the Phase 0 spike, the only public route is `flue()` —
-// Flue's built-in routing that exposes discovered workflows at
-// /workflows/<name>. That lets us `client.workflows.invoke('classify-command')`
-// and `client.workflows.invoke('investigate')` from local dev and the eval
-// harness without any custom webhook handler yet.
+// Worker entry.
 //
-// Phase 3 adds the /webhook/github route + the Orchestrator DO.
+// Public surface:
+//   GET  /health           liveness probe
+//   POST /webhook/github   GitHub App webhook ingress (signature-verified)
+//   /workflows/<name>      Flue's standard workflow invoke routes (mounted via flue())
+//
+// The webhook handler is intentionally thin: it verifies, normalizes, and
+// dispatches to the per-issue OrchestratorDO. All long-running work happens
+// inside the DO (and the workflows it invokes), not in this handler -- GitHub
+// expects an ack within ~10s.
+//
+// Core routes live in `routes.ts` so the workers-pool test entry can mount
+// just those without pulling in Flue's routing.
 
 import { flue } from "@flue/runtime/routing";
 import { Hono } from "hono";
 
+import { registerCoreRoutes } from "./routes.js";
+
 const app = new Hono<{ Bindings: Env }>();
+registerCoreRoutes(app);
 
-app.get("/health", (c) => c.text("ok"));
-
-// Mount Flue's standard routes (workflow invoke, run inspection).
+// Mount Flue's standard routes (workflow invoke, run inspection) AFTER core
+// routes. Tests don't mount this.
 app.route("/", flue());
 
 export default app;
