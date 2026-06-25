@@ -605,22 +605,27 @@ function primeEntryTermsCache(
 
 /**
  * Prime the per-entry request cache from terms that were folded into the
- * content query (query.ts `hydrateEntryTerms` fast path). Mirrors the priming
- * `getAllTermsForEntries` does — including resolving the locale and seeding `[]`
- * for applicable taxonomies absent from an entry — so subsequent `getEntryTerms`
- * calls hit the cache instead of issuing an N+1 query. Keeping this here (rather
- * than duplicating the key shape in query.ts) prevents the two from drifting.
+ * content query (query.ts `hydrateEntryTerms` fast path), so subsequent
+ * `getEntryTerms` calls in the same render hit the cache instead of issuing an
+ * N+1 query. Seeds the wildcard key and one key per taxonomy present on the
+ * entry — purely from the folded data, with no DB lookup.
+ *
+ * Unlike `getAllTermsForEntries`, this deliberately does NOT seed `[]` for
+ * taxonomies that apply to the collection but have no rows on the entry: doing
+ * so would require a `getTaxonomyDefs` query, adding a round trip to every fold
+ * render to serve the rarer `getEntryTerms(id, absentTaxonomy)` case from cache.
+ * That call simply falls through to its own cached query. Keeping the key shape
+ * here (rather than in query.ts) prevents the two from drifting.
  */
-export async function primeFoldedEntryTerms(
+export function primeFoldedEntryTerms(
 	collection: string,
 	perEntry: Array<{ entryId: string; byTaxonomy: Record<string, TaxonomyTerm[]> }>,
 	options: TaxonomyQueryOptions = {},
-): Promise<void> {
+): void {
 	if (perEntry.length === 0) return;
 	const locale = resolveLocale(options.locale);
-	const applicableTaxonomyNames = await getCollectionTaxonomyNames(collection, { locale });
 	for (const { entryId, byTaxonomy } of perEntry) {
-		primeEntryTermsCache(collection, entryId, byTaxonomy, applicableTaxonomyNames, locale);
+		primeEntryTermsCache(collection, entryId, byTaxonomy, [], locale);
 	}
 }
 

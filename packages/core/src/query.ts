@@ -1104,11 +1104,11 @@ async function hydrateEntryTerms<D>(
 			const entryId = dataStr(data, "id");
 			if (entryId) perEntry.push({ entryId, byTaxonomy: grouped });
 		}
-		// Prime the same per-entry request cache that getAllTermsForEntries
-		// populated, so subsequent getEntryTerms(...) calls in this render hit
-		// the cache instead of issuing an N+1 query.
+		// Prime the per-entry request cache (wildcard + present taxonomies) so
+		// subsequent getEntryTerms(...) calls in this render hit the cache instead
+		// of issuing an N+1 query. No DB lookup — purely from the folded data.
 		const { primeFoldedEntryTerms } = await import("./taxonomies/index.js");
-		await primeFoldedEntryTerms(type, perEntry, { locale });
+		primeFoldedEntryTerms(type, perEntry, { locale });
 		return;
 	}
 
