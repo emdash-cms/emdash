@@ -77,7 +77,21 @@ function bindingError(binding: string): Error {
  * slightly stale. It never loses or corrupts a write. Request traffic is
  * unaffected — it uses isolated per-request sinks in `createRequestScopedDb`.
  */
-const singletonBookmarkSinks = new Map<string, BookmarkSink>();
+// Stored on globalThis behind a Symbol key so Vite SSR chunk duplication can't
+// produce two maps — the singleton dialect and the cold-start coalescing dialect
+// must resolve the *same* BookmarkSink object to share read-your-writes state
+// (same pattern as core's request-cache.ts / settings/index.ts).
+const SINGLETON_BOOKMARK_SINKS_KEY = Symbol.for("emdash:do-singleton-bookmark-sinks");
+const g = globalThis as Record<symbol, unknown>;
+const singletonBookmarkSinks: Map<string, BookmarkSink> =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see core request-cache.ts)
+	(g[SINGLETON_BOOKMARK_SINKS_KEY] as Map<string, BookmarkSink> | undefined) ??
+	(() => {
+		const m = new Map<string, BookmarkSink>();
+		g[SINGLETON_BOOKMARK_SINKS_KEY] = m;
+		return m;
+	})();
+
 function getSingletonBookmarkSink(config: DurableObjectsConfig): BookmarkSink {
 	const key = `${config.binding}:${config.name ?? DEFAULT_NAME}`;
 	let sink = singletonBookmarkSinks.get(key);
