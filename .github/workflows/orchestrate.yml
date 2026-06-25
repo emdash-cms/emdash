@@ -91,6 +91,10 @@ jobs:
             // Resolve the anchoring issue and a normalized event.
             let issueNumber, prNumber = null, body = '', actorLogin = '', kind = 'event';
             if (ev === 'issues') {
+              // `issues` event fires for PRs too. Don't treat a labeled PR as
+              // an issue command; PR-side commands come via issue_comment and
+              // are routed through the bot-PR check below.
+              if (context.payload.issue.pull_request) { core.setOutput('skip', 'issues-event-on-pr'); return; }
               issueNumber = context.payload.issue.number;
               actorLogin = context.payload.sender.login;
               kind = context.payload.action; // opened|reopened|labeled
@@ -98,11 +102,16 @@ jobs:
               actorLogin = context.payload.comment.user.login;
               body = context.payload.comment.body || '';
               if (context.payload.issue.pull_request) {
-                // Comment on a PR: only act on bot PRs (head branch bot/fix-<n>).
+                // Comment on a PR: only act on REAL bot PRs. A fork PR can be
+                // named `bot/fix-<n>` by any external contributor, which would
+                // let them post comments routed as feedback for the wrong
+                // issue. Require the head branch to be a bot/fix-* in THIS
+                // repo, not a fork.
                 const prNum = context.payload.issue.number;
                 const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: prNum });
+                const sameRepo = pr.head.repo && pr.head.repo.full_name === `${owner}/${repo}`;
                 const m = /^bot\/fix-(\d+)$/.exec(pr.head.ref || '');
-                if (!m) { core.setOutput('skip', 'not-a-bot-pr'); return; }
+                if (!m || !sameRepo) { core.setOutput('skip', 'not-a-bot-pr'); return; }
                 issueNumber = Number(m[1]);
                 prNumber = prNum;
                 kind = 'pr_comment';
@@ -112,8 +121,11 @@ jobs:
               }
             } else if (ev === 'pull_request_target' && context.payload.action === 'closed') {
               const pr = context.payload.pull_request;
+              // Same fork-PR caveat as above: a fork can name its branch
+              // bot/fix-<n>; merging it would mark the wrong issue done.
+              const sameRepo = pr.head.repo && pr.head.repo.full_name === `${owner}/${repo}`;
               const m = /^bot\/fix-(\d+)$/.exec(pr.head.ref || '');
-              if (!m || !pr.merged) { core.setOutput('skip', 'not-a-merged-bot-pr'); return; }
+              if (!m || !sameRepo || !pr.merged) { core.setOutput('skip', 'not-a-merged-bot-pr'); return; }
               issueNumber = Number(m[1]);
               prNumber = pr.number;
               kind = 'pr_merged';
@@ -165,13 +177,15 @@ jobs:
               return;
             }
             if (decision.kind === 'classify') {
-              // The classifier needs the bot's last message to resolve references
-              // like "go with option A".
+              // The classifier needs OUR bot's last message to resolve refs
+              // like "go with option A". Filtering on c.user.type === 'Bot'
+              // would also pick up Dependabot / Codecov / preview bots and
+              // hand the classifier the wrong context. Match the App login.
               let botContext = '';
               try {
                 const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: issueNumber, per_page: 100 });
-                const botComments = comments.filter((c) => c.user && c.user.type === 'Bot');
-                if (botComments.length) botContext = botComments[botComments.length - 1].body || '';
+                const ours = comments.filter((c) => c.user && c.user.login === 'emdashbot[bot]');
+                if (ours.length) botContext = ours[ours.length - 1].body || '';
               } catch { /* best effort */ }
               core.setOutput('classify', 'command');
               core.setOutput('payload', JSON.stringify({ ...out, classify: { state: decision.state, commands: decision.commands, text: decision.text }, botContext }));
@@ -289,17 +303,17 @@ jobs:
             }
             if (decision.kind !== 'transition') { core.info(`no-op: ${decision.reason}`); return; }
 
-            // (c) Side-effects with state-gating where the state depends on the
-            // side-effect actually succeeding.
+            // (c) Side-effects with state-gating. The order matters: do the
+            // FALLIBLE writes that the new state depends on BEFORE flipping
+            // labels. If any of these fail, the issue keeps its current state
+            // labels and the user sees an actionable error, rather than the
+            // bot claiming "Moving to in_review" with no PR / no executor run.
             if (decision.action === 'openPr' && decision.to === 'in_review') {
               try {
                 await github.rest.pulls.create({ owner, repo, title: `fix: address #${p.issueNumber}`,
                   head: `bot/fix-${p.issueNumber}`, base: 'main',
                   body: `Automated fix for #${p.issueNumber}. Reply \`@emdashbot <feedback>\` to revise.` });
               } catch (e) {
-                // PR create failed (branch missing, conflict, permissions). Do
-                // NOT flip to in_review for a PR that doesn't exist. Keep the
-                // issue in its current state and surface the error.
                 core.warning(`PR create failed: ${e.message}; leaving state as-is`);
                 await github.rest.issues.createComment({ owner, repo, issue_number: p.issueNumber,
                   body: `Couldn't open the PR: ${e.message}. Push the branch manually or comment \`@emdashbot retry\`.` + router.replyFooter(decision.from) });
@@ -307,25 +321,42 @@ jobs:
               }
             }
             if (decision.action === 'closePr' && p.prNumber) {
-              await github.rest.pulls.update({ owner, repo, pull_number: p.prNumber, state: 'closed' }).catch(() => {});
+              try { await github.rest.pulls.update({ owner, repo, pull_number: p.prNumber, state: 'closed' }); }
+              catch (e) { core.warning(`PR close failed: ${e.message}`); }
             }
-
-            // Flip the single state label (projection) and assign the default
-            // kind label if this is an entry from unmanaged. Use the LIVE label
-            // set for the remove list so we don't try to remove labels that
-            // vanished since the route step.
-            await github.rest.issues.addLabels({ owner, repo, issue_number: p.issueNumber, labels: decision.addLabels });
-            for (const l of decision.removeLabels) {
-              if (liveLabels.includes(l)) {
-                await github.rest.issues.removeLabel({ owner, repo, issue_number: p.issueNumber, name: l }).catch(() => {});
+            // Dispatch the executor BEFORE flipping labels. If the dispatch
+            // fails (transient 5xx, throttle), abort with state unchanged so
+            // the user can `@emdashbot retry` from the original state rather
+            // than being stuck in bot:working with nothing running.
+            if (decision.action && decision.action.startsWith('investigate.')) {
+              const mode = decision.action.split('.')[1]; // repro | implement | revise
+              try {
+                await github.rest.repos.createDispatchEvent({ owner, repo, event_type: 'investigate-run',
+                  client_payload: { issueNumber: p.issueNumber, mode, directive: arg || null, prNumber: p.prNumber || null } });
+              } catch (e) {
+                core.warning(`dispatch failed: ${e.message}; leaving state as-is`);
+                await github.rest.issues.createComment({ owner, repo, issue_number: p.issueNumber,
+                  body: `Couldn't start the agent run: ${e.message}. Comment \`@emdashbot retry\`.` + router.replyFooter(decision.from) });
+                return;
               }
             }
 
-            // Dispatch the heavy agent run to the executor backend.
-            if (decision.action && decision.action.startsWith('investigate.')) {
-              const mode = decision.action.split('.')[1]; // repro | implement | revise
-              await github.rest.repos.createDispatchEvent({ owner, repo, event_type: 'investigate-run',
-                client_payload: { issueNumber: p.issueNumber, mode, directive: arg || null, prNumber: p.prNumber || null } });
+            // Now flip the labels. Failures here are NOT swallowed: any
+            // unhandled removeLabel error fails the step and leaves the new
+            // state label plus the old one, which the linter will catch on
+            // its next sweep. That's a louder failure than a quiet half-state.
+            await github.rest.issues.addLabels({ owner, repo, issue_number: p.issueNumber, labels: decision.addLabels });
+            for (const l of decision.removeLabels) {
+              if (!liveLabels.includes(l)) continue;
+              try {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: p.issueNumber, name: l });
+              } catch (e) {
+                // 404 is fine: the label was removed concurrently. Anything
+                // else is real; surface it.
+                if (e.status === 404) continue;
+                core.error(`removeLabel(${l}) failed: ${e.message}; issue ${p.issueNumber} may carry multiple state labels`);
+                throw e;
+              }
             }
 
             await github.rest.issues.createComment({ owner, repo, issue_number: p.issueNumber,

@@ -153,6 +153,25 @@ jobs:
             pnpm exec flue run investigate --target node --input "$(cat /tmp/inv-input.json)" \
             && echo "ok=true" >> "$GITHUB_OUTPUT" || echo "ok=false" >> "$GITHUB_OUTPUT"
 
+      # Kill any background processes the agent spawned (bgproc'd `pnpm dev`,
+      # agent-browser children, model-driven shells) BEFORE we touch a write
+      # token. If we left them running, a prompt-injected agent could leave a
+      # `ps -eo args` scraper that snags the token from argv during push.
+      # Hard match on $GITHUB_WORKSPACE so we don't touch GitHub Actions
+      # infrastructure processes.
+      - name: Contain agent processes
+        if: always()
+        run: |
+          # First a polite SIGTERM, then SIGKILL to anything still alive.
+          pgrep -f "^.*${GITHUB_WORKSPACE}.*$" 2>/dev/null | xargs -r kill -TERM 2>/dev/null || true
+          sleep 2
+          pgrep -f "^.*${GITHUB_WORKSPACE}.*$" 2>/dev/null | xargs -r kill -KILL 2>/dev/null || true
+          # Also kill anything still bound to the dev-server's typical ports
+          # (the repro skills boot `pnpm dev` which holds 4321 / 8788).
+          for port in 4321 8788 3583; do
+            lsof -ti:$port 2>/dev/null | xargs -r kill -KILL 2>/dev/null || true
+          done
+
       - name: Push fix branch (if any)
         id: push
         if: steps.investigate.outputs.ok == 'true'
@@ -197,14 +216,32 @@ jobs:
             exit 0
           fi
 
-          # Install the app token transiently into the remote URL JUST for this
-          # `git push`. The agent's earlier `Run investigate` step ran with
-          # persist-credentials:false, so no token was on disk during the model
-          # phase. Unset the override after pushing.
-          REMOTE_URL="https://x-access-token:${APP_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push --force-with-lease "$REMOTE_URL" "$BRANCH" \
-            && echo "pushed=true" >> "$GITHUB_OUTPUT" \
-            || { echo "pushed=false" >> "$GITHUB_OUTPUT"; echo "reason=push-failed" >> "$GITHUB_OUTPUT"; }
+          # Push with the token in an env var, not on argv. `GIT_ASKPASS` runs
+          # a helper that reads APP_TOKEN from this step's env and prints it as
+          # the credential. argv has no secret; /proc/<pid>/cmdline shows only
+          # `git push --force-with-lease origin bot/fix-N`.
+          ASKPASS=/tmp/git-askpass.sh
+          cat > "$ASKPASS" <<'EOF'
+          #!/usr/bin/env bash
+          # GIT_ASKPASS protocol: prompt arrives on argv. For username prompts
+          # we return the conventional `x-access-token`; for password prompts
+          # we return the token from APP_TOKEN.
+          case "$1" in
+            Username*) echo "x-access-token" ;;
+            Password*) echo "${APP_TOKEN}" ;;
+          esac
+          EOF
+          chmod 700 "$ASKPASS"
+          export GIT_ASKPASS="$ASKPASS"
+          # Disable git's credential helpers so they can't override the askpass.
+          if GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c core.askpass="$ASKPASS" \
+              push --force-with-lease origin "$BRANCH"; then
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            echo "reason=push-failed" >> "$GITHUB_OUTPUT"
+          fi
+          rm -f "$ASKPASS"
 
       - name: Apply result to the machine
         if: always() && env.ISSUE_NUMBER != ''

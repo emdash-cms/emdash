@@ -165,11 +165,20 @@ function resolve({ labels, event, arg, actor }) {
 	const removeLabels = STATE_LABELS.filter((l) => l !== toLabel);
 
 	// Entry from unmanaged: ensure a kind label is set so the linter invariant
-	// (exactly one kind + one state) holds. If the issue already has a kind,
-	// keep it; otherwise apply the event's defaultKind.
+	// (exactly one kind + one state) holds. If the issue carries no kind, apply
+	// the event's defaultKind. If it carries a DIFFERENT kind than the verb
+	// implies (e.g. `bot:enhancement` + `repro`, which means "treat as a bug"),
+	// the verb wins: drop the mismatched kind and apply the verb's default.
 	const addLabels = [toLabel];
-	if (from === "unmanaged" && !currentKind(labels) && meta.defaultKind) {
-		addLabels.push(`bot:${meta.defaultKind}`);
+	if (from === "unmanaged" && meta.defaultKind) {
+		const existingKind = currentKind(labels);
+		const wantedKind = meta.defaultKind;
+		if (!existingKind) {
+			addLabels.push(`bot:${wantedKind}`);
+		} else if (existingKind !== wantedKind) {
+			addLabels.push(`bot:${wantedKind}`);
+			removeLabels.push(`bot:${existingKind}`);
+		}
 	}
 
 	return {

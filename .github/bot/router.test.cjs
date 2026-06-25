@@ -206,6 +206,31 @@ test("resolveComment: the @emdashbot mention is still required", () => {
 	assert.match(d.reason, MENTION_TEXT_RE);
 });
 
+test("resolve: entry from unmanaged assigns the default kind when none is set", () => {
+	const d = r.resolve({ labels: [], event: "repro", actor: "maintainer" });
+	assert.equal(d.kind, "transition");
+	assert.ok(d.addLabels.includes("bot:working"));
+	assert.ok(d.addLabels.includes("bot:bug"), "repro implies bug kind");
+});
+
+test("resolve: entry from unmanaged replaces a mismatched existing kind", () => {
+	// Issue carries bot:enhancement but no state. `repro` means "treat as a
+	// bug": the verb wins, the existing kind is removed AND the new one added.
+	const d = r.resolve({ labels: ["bot:enhancement"], event: "repro", actor: "maintainer" });
+	assert.equal(d.kind, "transition");
+	assert.ok(d.addLabels.includes("bot:bug"));
+	assert.ok(d.removeLabels.includes("bot:enhancement"));
+});
+
+test("resolve: entry from unmanaged keeps a matching existing kind", () => {
+	// bot:bug already + repro is a no-op on the kind dimension.
+	const d = r.resolve({ labels: ["bot:bug"], event: "repro", actor: "maintainer" });
+	assert.equal(d.kind, "transition");
+	// Should NOT re-add the kind (it's already there).
+	assert.deepEqual(d.addLabels, ["bot:working"]);
+	assert.ok(!d.removeLabels.includes("bot:bug"));
+});
+
 test("resolveComment: free text in blocked routes to the classifier with safe candidates", () => {
 	const labels = ["bot:bug", "bot:blocked"];
 	const d = r.resolveComment({
