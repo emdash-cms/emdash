@@ -308,15 +308,18 @@ export async function runScheduledTasks(
 	try {
 		return await runWithContext(ctx, () => runtime.runScheduledTasks(options));
 	} finally {
-		// Hyperdrive's commit() is a no-op, but a future connection-backed
-		// adapter might persist event state here; guard it so a failure can't
-		// skip close() and leak the connection.
+		// Guard both so a throw in teardown can't mask the sweep result or skip
+		// close() and leak the connection. Mirrors closeSafely() in scoped-db.ts.
 		try {
 			scoped.commit();
 		} catch (error) {
 			console.error("[scheduled] request-scoped db commit failed:", error);
 		}
-		scoped.close();
+		try {
+			scoped.close();
+		} catch (error) {
+			console.error("[scheduled] request-scoped db close failed:", error);
+		}
 	}
 }
 
