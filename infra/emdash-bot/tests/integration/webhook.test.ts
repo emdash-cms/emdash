@@ -6,10 +6,12 @@
 // pool provides via wrangler.test.jsonc / vitest.workers.config.ts. We use
 // the same secret to sign synthetic payloads.
 
-import { env, SELF } from "cloudflare:test";
+import { env, exports } from "cloudflare:workers";
 import { describe, expect, test } from "vitest";
 
 import { verifyWebhookSignature } from "../../.flue/lib/webhook.js";
+
+const SELF = (exports as { default: Fetcher }).default;
 
 interface TestEnv {
 	Orchestrator: Env["Orchestrator"];
@@ -166,7 +168,10 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(persisted.state).toBe("working");
 	});
 
-	test("issue_comment.created with free text routes to classify-pending", async () => {
+	test("issue_comment.created with free text invokes classifier; noops here (no workflow route in test)", async () => {
+		// The test entry mounts core routes only -- no /workflows/classify-command
+		// route. The orchestrator's classifier call hits 404, the client returns
+		// an error, and the DO returns a noop without persisting state.
 		const issueNumber = uniqueIssueNumber();
 		const res = await postWebhook({
 			eventType: "issue_comment",
@@ -187,10 +192,10 @@ describe("POST /webhook/github (workers-pool)", () => {
 			},
 		});
 		expect(res.status).toBe(202);
-		const json = (await res.json()) as { outcome: { kind: string } };
-		expect(json.outcome.kind).toBe("classify-pending");
+		const json = (await res.json()) as { outcome: { kind: string; reason?: string } };
+		expect(json.outcome.kind).toBe("noop");
+		expect(json.outcome.reason).toMatch(/classifier error/);
 
-		// Free text doesn't persist state (waiting on classifier).
 		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
 		const persisted = await stub.getPersistedState();
 		expect(persisted.state).toBe(null);

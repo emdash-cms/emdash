@@ -17,7 +17,7 @@
 // Each test uses a fresh DO instance via `getByName(uniqueName)` so test
 // ordering doesn't matter.
 
-import { env } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { describe, expect, test } from "vitest";
 
 import type { NormalizedEvent } from "../../.flue/lib/orchestrator.js";

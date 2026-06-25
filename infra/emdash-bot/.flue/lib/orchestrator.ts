@@ -6,6 +6,7 @@
 
 import { DurableObject } from "cloudflare:workers";
 
+import { classifyComment, type ClassifyResult } from "./classifier-client.js";
 import {
 	addLabels,
 	mintInstallationToken,
@@ -13,10 +14,9 @@ import {
 	readAppCreds,
 	readRepoContext,
 	removeLabels,
-	type RepoContext,
 } from "./github.js";
 import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
-import { type Decision, outcomeFromResult, resolve } from "./router.js";
+import { currentState, type Decision, outcomeFromResult, resolve } from "./router.js";
 
 /**
  * Inert states cannot be advanced by a late-arriving agent result. If a run
@@ -148,18 +148,26 @@ export class OrchestratorDO extends DurableObject<Env> {
 			if (seen) return { kind: "duplicate", deliveryId: input.deliveryId };
 		}
 
-		if (input.needsClassify || input.event === null) {
-			return { kind: "classify-pending" };
-		}
-
 		if (input.anchorNumber !== undefined) {
 			await this.ctx.storage.put(STORAGE.anchorNumber, input.anchorNumber);
 		}
 
+		let resolvedEvent: EventId | null = input.event;
+		let resolvedArg: string | null = input.arg;
+		if (input.needsClassify || resolvedEvent === null) {
+			const classifyResult = await this.runClassifier(input);
+			if (classifyResult.kind === "noop") {
+				if (input.deliveryId) await this.recordDelivery(input.deliveryId);
+				return classifyResult;
+			}
+			resolvedEvent = classifyResult.event;
+			resolvedArg = classifyResult.arg;
+		}
+
 		const decision = resolve({
 			labels: input.labels,
-			event: input.event,
-			arg: input.arg,
+			event: resolvedEvent,
+			arg: resolvedArg,
 			actor: input.actor,
 		});
 
@@ -233,6 +241,39 @@ export class OrchestratorDO extends DurableObject<Env> {
 	 */
 	async tick(): Promise<void> {
 		// Intentionally empty -- placeholder for cron-driven recovery.
+	}
+
+	// ---------------- Classifier ----------------
+
+	private async runClassifier(
+		input: NormalizedEvent,
+	): Promise<
+		| { kind: "noop"; reason: string }
+		| { event: EventId; arg: string | null; kind: "resolved" }
+	> {
+		const text = input.classifyText?.trim() ?? "";
+		if (text === "") return { kind: "noop", reason: "no classify text" };
+		if (input.anchorNumber === undefined) {
+			return { kind: "noop", reason: "no anchor number for classifier call" };
+		}
+		const state = currentState(input.labels);
+		const loopback = (this.ctx.exports as { default: Fetcher }).default;
+		const result: ClassifyResult = await classifyComment(loopback, {
+			issueNumber: input.anchorNumber,
+			state,
+			comment: text,
+		});
+		switch (result.kind) {
+			case "no-commands":
+				return { kind: "noop", reason: `no commands available from state "${state}"` };
+			case "none":
+				return { kind: "noop", reason: `classifier: none (${result.reasoning})` };
+			case "error":
+				console.error("[orchestrator] classifier failed:", result.error);
+				return { kind: "noop", reason: `classifier error: ${result.error}` };
+			case "event":
+				return { kind: "resolved", event: result.event, arg: result.arg };
+		}
 	}
 
 	// ---------------- Side effects (GitHub) ----------------
@@ -402,7 +443,6 @@ export type EventOutcome =
 			sideEffectError?: string;
 	  }
 	| { kind: "duplicate"; deliveryId: string }
-	| { kind: "classify-pending" }
 	| { kind: "stale-run"; runId: string; currentRunId: string | null }
 	| { kind: "inert"; state: StateId };
 
