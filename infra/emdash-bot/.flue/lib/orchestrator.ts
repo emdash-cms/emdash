@@ -20,7 +20,13 @@ import {
 	removeLabels,
 } from "./github.js";
 import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
-import { currentState, type Decision, outcomeFromResult, resolve } from "./router.js";
+import {
+	currentState,
+	replyFooter,
+	type Decision,
+	outcomeFromResult,
+	resolve,
+} from "./router.js";
 
 /**
  * Inert states cannot be advanced by a late-arriving agent result. If a run
@@ -179,6 +185,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 		if (decision.kind === "noop") return { kind: "noop", reason: decision.reason };
 		if (decision.kind === "readonly") {
+			await this.postReadonlyReply(decision);
 			return { kind: "readonly", state: decision.state, event: decision.event };
 		}
 
@@ -340,6 +347,29 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return `invoke(investigate) failed: ${(err as Error).message}`;
 		}
 		return null;
+	}
+
+	// ---------------- Readonly replies (status / help) ----------------
+
+	private async postReadonlyReply(
+		decision: Extract<Decision, { kind: "readonly" }>,
+	): Promise<void> {
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		if (!creds || !repo) return;
+		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
+		if (anchorNumber === undefined) return;
+
+		const persistedState = await this.ctx.storage.get<StateId>(STORAGE.state);
+		const state = decision.state ?? persistedState ?? null;
+		const body = `Current state: \`${state ?? "unmanaged"}\`.${replyFooter(state)}`;
+
+		try {
+			const token = await this.getInstallationToken(creds);
+			await postIssueComment(token, repo, anchorNumber, body);
+		} catch (err) {
+			console.error("[orchestrator] postReadonlyReply failed (non-fatal):", err);
+		}
 	}
 
 	// ---------------- Side effects (GitHub) ----------------
