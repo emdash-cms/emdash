@@ -16,7 +16,7 @@
  */
 
 import { execFile, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -36,6 +36,23 @@ const FIXTURE_DIR = resolve(import.meta.dirname, "fixture");
 // Borrow node_modules from demos/simple — it has all the deps we need
 // and is maintained by pnpm workspace resolution.
 const DONOR_NODE_MODULES = resolve(import.meta.dirname, "../../../../demos/simple/node_modules");
+
+// Astro 7 writes a `.astro/dev.json` lock file recording the running dev
+// server's PID/port and refuses to start a second server for the same project
+// root (see astro/dist/cli/dev/index.js → checkExistingServer). Every suite
+// shares this fixture as its project root, so a stale or live lock from a
+// sibling/previous run trips the "Another astro dev server is already running"
+// guard. We run these server suites serially (fileParallelism: false in
+// vitest.integration.config.ts) and clear any leftover lock before each spawn.
+const DEV_LOCK_FILE = join(FIXTURE_DIR, ".astro", "dev.json");
+
+function removeStaleDevLock(): void {
+	try {
+		unlinkSync(DEV_LOCK_FILE);
+	} catch (err: unknown) {
+		if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -177,11 +194,20 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 	}
 
 	// --- 2. Start dev server ---
+	// Clear any leftover lock from an ungracefully-killed sibling/previous run
+	// so Astro 7 doesn't refuse to start with "Another astro dev server is
+	// already running."
+	removeStaleDevLock();
+
 	const astroBin = join(fixtureNodeModules, ".bin", "astro");
 	const server = spawn(astroBin, ["dev", "--port", String(port)], {
 		cwd: workDir,
 		env: {
 			...process.env,
+			// Astro 7 auto-detaches `astro dev` into a JSON-logging background
+			// process when it detects an AI coding agent (am-i-vibing). That
+			// breaks this spawn-and-pipe harness, so force foreground mode.
+			ASTRO_DEV_BACKGROUND: "0",
 			EMDASH_TEST_DB: `file:${dbPath}`,
 			EMDASH_TEST_UPLOADS: uploadsDir,
 			...options.env,
@@ -218,6 +244,10 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 			server.kill("SIGKILL");
 			await new Promise((r) => setTimeout(r, 500));
 		}
+
+		// SIGTERM/SIGKILL bypass Astro's graceful stop handler, so the dev
+		// lock file is left behind pointing at our now-dead PID. Clear it.
+		removeStaleDevLock();
 
 		// Remove temp data directory
 		rmSync(tempDataDir, { recursive: true, force: true });

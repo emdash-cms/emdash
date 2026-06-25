@@ -179,12 +179,22 @@ async function bootSite(site: SiteCase): Promise<BootedServer> {
 		rmSync(join(site.dir, file), { force: true });
 	}
 
+	// Astro 7 records a `.astro/dev.json` lock for the running dev server and
+	// refuses to start a second one for the same project root. Sites are
+	// rebooted across describe blocks (runtime + MCP), and SIGTERM bypasses
+	// the graceful stop that clears the lock, so drop any leftover lock first.
+	rmSync(join(site.dir, ".astro", "dev.json"), { force: true });
+
 	const baseUrl = `http://localhost:${site.port}`;
 	const serverProcess = spawn("pnpm", ["exec", "astro", "dev", "--port", String(site.port)], {
 		cwd: site.dir,
 		env: {
 			...process.env,
 			CI: "true",
+			// Force foreground mode -- Astro 7 detaches `astro dev` into a
+			// background process when it detects an AI coding agent, which
+			// breaks this spawn-and-pipe harness.
+			ASTRO_DEV_BACKGROUND: "0",
 		},
 		stdio: "pipe",
 	});
