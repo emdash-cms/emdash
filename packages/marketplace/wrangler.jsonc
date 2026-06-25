@@ -2,6 +2,9 @@
 	"name": "emdash-marketplace",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-02-25",
+	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
+	},
 	"routes": [
 		{
 			"pattern": "marketplace.emdashcms.com",
