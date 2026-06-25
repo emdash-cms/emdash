@@ -47,6 +47,7 @@
 				"FlueRegistry",
 				"FlueClassifyCommandWorkflow",
 				"FlueInvestigateWorkflow",
+				"FlueSandboxProbeWorkflow",
 			],
 		},
 	],

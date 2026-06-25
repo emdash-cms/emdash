@@ -12,40 +12,77 @@
 # and corepack laid out under /usr/local; we copy that whole tree across.
 
 FROM node:22.21.0-bookworm-slim AS node-source
-# Just used as a source for /usr/local/{bin,include,lib,share}/node*.
-# We install pnpm into this stage so we can copy it across too, avoiding any
-# TLS-dependent npm install in the final sandbox image.
-RUN npm install -g pnpm@11.1.3 \
-    && pnpm --version
+# Used as a source for Node + npm + globally-installed CLIs the agent needs:
+# - pnpm: package manager for repo install
+# - bgproc: runs `pnpm dev` in the background so the agent can drive it
+# - agent-browser: CLI the repro-admin/public skills use to drive Chromium
+#
+# We do all the network/install work in this stage so the final image (built
+# on the Cloudflare Sandbox base, which has a flaky CA bundle) never needs to
+# reach the public npm/Chromium registries. Stage copies don't traverse TLS.
+RUN npm install -g pnpm@11.1.3 bgproc@0.3.0 agent-browser@0.30.1 \
+    && pnpm --version \
+    && bgproc --version || true \
+    && agent-browser --version || true
 
 FROM cloudflare/sandbox:0.12.1
 
-# Base packages the agent's shell needs. Kept minimal -- xz-utils etc. are
-# unnecessary now that we don't download Node ourselves.
+# Base OS packages: git for the repo clone the agent does in revise mode,
+# ca-certificates for HTTPS, fonts/libs Chromium needs (the agent-browser CLI
+# drives a headless Chromium that agent-browser bundles via puppeteer-core).
+# These are the Debian package list puppeteer recommends; trimmed to the
+# essentials so the image stays smaller.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     ca-certificates \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libc6 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libexpat1 \
+    libfontconfig1 \
+    libgbm1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libx11-6 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Node, npm, AND pnpm from the official Node image. This brings the
-# binaries plus the corresponding node_modules tree they require to run.
-# Doing the install in the source stage avoids any TLS-dependent network call
-# in the final image, where the sandbox base's CA bundle is unreliable.
+# Copy Node + npm + the globally-installed pnpm/bgproc/agent-browser CLIs from
+# the source stage. Stage copies bypass TLS entirely, so the broken CA bundle
+# in the sandbox base never matters at install time.
 COPY --from=node-source /usr/local/bin/node /usr/local/bin/node
 COPY --from=node-source /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node-source /usr/local/include/node /usr/local/include/node
 
-# The slim image's /usr/local/bin/{npm,npx,pnpm,pnpx} are symlinks into
-# /usr/local/lib/node_modules; Docker COPY of symlinks copies the target file,
-# losing the symlink relationship. Recreate the symlinks so the CLIs work.
+# Recreate the CLI symlinks the slim image had (Docker COPY flattens symlinks
+# to file copies). Then chmod the .cjs/.js entry points so they're executable.
 RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
     && ln -sf /usr/local/lib/node_modules/pnpm/bin/pnpm.cjs /usr/local/bin/pnpm \
     && ln -sf /usr/local/lib/node_modules/pnpm/bin/pnpx.cjs /usr/local/bin/pnpx \
-    && chmod +x /usr/local/lib/node_modules/pnpm/bin/pnpm.cjs \
-                /usr/local/lib/node_modules/pnpm/bin/pnpx.cjs \
-                /usr/local/lib/node_modules/npm/bin/npm-cli.js \
-                /usr/local/lib/node_modules/npm/bin/npx-cli.js \
+    && ln -sf /usr/local/lib/node_modules/bgproc/dist/cli.mjs /usr/local/bin/bgproc \
+    && ln -sf /usr/local/lib/node_modules/agent-browser/bin/agent-browser.js /usr/local/bin/agent-browser \
+    && find /usr/local/lib/node_modules \
+       \( -name "npm-cli.js" -o -name "npx-cli.js" \
+          -o -name "pnpm.cjs" -o -name "pnpx.cjs" \
+          -o -name "cli.mjs" -path "*/bgproc/*" \
+          -o -name "agent-browser.js" \) \
+       -exec chmod +x {} \; \
     && node --version && npm --version && pnpm --version
 
 # The agent operates under /workspace; the workflow clones into /workspace/repo.
