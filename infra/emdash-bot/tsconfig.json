@@ -13,5 +13,5 @@
 		"skipLibCheck": true,
 		"noEmit": true
 	},
-	"include": [".flue/**/*.ts", "worker-configuration.d.ts"]
+	"include": [".flue/**/*.ts", "tests/**/*.ts", "worker-configuration.d.ts"]
 }

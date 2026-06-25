@@ -9,11 +9,14 @@
 		"build": "flue build --target cloudflare",
 		"deploy": "flue build --target cloudflare && wrangler deploy",
 		"cf-typegen": "wrangler types",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest"
 	},
 	"devDependencies": {
 		"@flue/cli": "1.0.0-beta.5",
 		"typescript": "catalog:",
+		"vitest": "catalog:",
 		"wrangler": "catalog:"
 	},
 	"dependencies": {
