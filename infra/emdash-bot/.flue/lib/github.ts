@@ -199,6 +199,49 @@ export async function removeLabels(
 	}
 }
 
+export interface CreatedPullRequest {
+	number: number;
+	htmlUrl: string;
+}
+
+export async function createPullRequest(
+	token: string,
+	ctx: RepoContext,
+	args: { headBranch: string; baseBranch: string; title: string; body: string },
+): Promise<CreatedPullRequest> {
+	const res = await fetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls`, {
+		method: "POST",
+		headers: authHeaders(token, { "content-type": "application/json" }),
+		body: JSON.stringify({
+			head: args.headBranch,
+			base: args.baseBranch,
+			title: args.title,
+			body: args.body,
+		}),
+	});
+	if (!res.ok) {
+		throw new Error(`createPullRequest failed: ${res.status} ${await res.text()}`);
+	}
+	const json = await res.json<{ number?: number; html_url?: string }>();
+	if (!json.number) throw new Error("createPullRequest response had no number");
+	return { number: json.number, htmlUrl: json.html_url ?? "" };
+}
+
+export async function closePullRequest(
+	token: string,
+	ctx: RepoContext,
+	prNumber: number,
+): Promise<void> {
+	const res = await fetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}`, {
+		method: "PATCH",
+		headers: authHeaders(token, { "content-type": "application/json" }),
+		body: JSON.stringify({ state: "closed" }),
+	});
+	if (!res.ok) {
+		throw new Error(`closePullRequest failed: ${res.status} ${await res.text()}`);
+	}
+}
+
 export async function postIssueComment(
 	token: string,
 	ctx: RepoContext,

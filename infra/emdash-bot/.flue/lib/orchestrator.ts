@@ -12,6 +12,8 @@ import investigateWorkflow from "../workflows/investigate.js";
 import { classifyComment, type ClassifyResult } from "./classifier-client.js";
 import {
 	addLabels,
+	closePullRequest,
+	createPullRequest,
 	getIssue,
 	getIssueLabels,
 	mintInstallationToken,
@@ -395,11 +397,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		arg: string | null,
 	): Promise<string | null> {
 		if (!decision.action) return null;
-		const mode = decision.action.startsWith("investigate.")
-			? (decision.action.slice("investigate.".length) as "repro" | "implement" | "revise")
-			: null;
-		if (!mode) return `unknown action "${decision.action}"`;
-
 		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
 		if (anchorNumber === undefined) return "no anchor number for action dispatch";
 
@@ -413,6 +410,26 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return null;
 		}
 
+		if (decision.action === "openPr") {
+			return this.runOpenPr(creds, repo, anchorNumber);
+		}
+		if (decision.action === "closePr") {
+			return this.runClosePr(creds, repo);
+		}
+		if (decision.action.startsWith("investigate.")) {
+			const mode = decision.action.slice("investigate.".length) as "repro" | "implement" | "revise";
+			return this.runInvestigate(creds, repo, anchorNumber, mode, arg);
+		}
+		return `unknown action "${decision.action}"`;
+	}
+
+	private async runInvestigate(
+		creds: Parameters<typeof mintInstallationToken>[0],
+		repo: Parameters<typeof getIssue>[1],
+		anchorNumber: number,
+		mode: "repro" | "implement" | "revise",
+		arg: string | null,
+	): Promise<string | null> {
 		const token = await this.getInstallationToken(creds);
 		let issue;
 		try {
@@ -440,6 +457,51 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return `invoke(investigate) failed: ${(err as Error).message}`;
 		}
 		return null;
+	}
+
+	/**
+	 * Open the bot PR from the pushed fix branch (`bot/fix-<n>`). Phase 1
+	 * sees no branches yet -- the investigate workflow's push step is
+	 * Phase 2 -- so this returns an error string that surfaces as runError
+	 * in the EventOutcome. The DO still advances state.
+	 */
+	private async runOpenPr(
+		creds: Parameters<typeof mintInstallationToken>[0],
+		repo: Parameters<typeof createPullRequest>[1],
+		anchorNumber: number,
+	): Promise<string | null> {
+		const token = await this.getInstallationToken(creds);
+		const headBranch = `bot/fix-${anchorNumber}`;
+		try {
+			const created = await createPullRequest(token, repo, {
+				headBranch,
+				baseBranch: "main",
+				title: `Fix #${anchorNumber}`,
+				body: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
+			});
+			await this.ctx.storage.put(STORAGE.prNumber, created.number);
+			return null;
+		} catch (err) {
+			return `openPr failed: ${(err as Error).message}`;
+		}
+	}
+
+	private async runClosePr(
+		creds: Parameters<typeof mintInstallationToken>[0],
+		repo: Parameters<typeof closePullRequest>[1],
+	): Promise<string | null> {
+		const prNumber = await this.ctx.storage.get<number>(STORAGE.prNumber);
+		if (prNumber === undefined) {
+			return "closePr: no PR number persisted";
+		}
+		try {
+			const token = await this.getInstallationToken(creds);
+			await closePullRequest(token, repo, prNumber);
+			await this.ctx.storage.delete(STORAGE.prNumber);
+			return null;
+		} catch (err) {
+			return `closePr failed: ${(err as Error).message}`;
+		}
 	}
 
 	// ---------------- Readonly replies (status / help) ----------------
