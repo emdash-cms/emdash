@@ -67,9 +67,10 @@
 	],
 
 	"vars": {
-		// emdashbot GitHub App. Not secret.
 		"GITHUB_APP_ID": "3255304",
 		"GITHUB_APP_INSTALLATION_ID": "120963314",
+		"GITHUB_OWNER": "emdash-cms",
+		"GITHUB_REPO": "emdash",
 	},
 
 	// `wrangler secret put <NAME>` for production. Local dev reads .env.

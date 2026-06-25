@@ -286,55 +286,39 @@ function normalizeIssueComment(event: IssueCommentEvent, deliveryId?: string): N
 	//   3. Free text -> classifier.
 	const cmd = parseCommand(body);
 	if (cmd) {
-		return {
-			kind: "dispatch",
-			anchor: anchorForIssue(number),
-			event: {
-				event: cmd.event,
-				arg: cmd.arg,
-				actor,
-				labels,
-				needsClassify: false,
-				...(deliveryId ? { deliveryId } : {}),
-			},
-		};
+		return dispatchFor(number, {
+			event: cmd.event,
+			arg: cmd.arg,
+			actor,
+			labels,
+			needsClassify: false,
+			...(deliveryId ? { deliveryId } : {}),
+		});
 	}
 
 	if (mentionText === "") {
-		return {
-			kind: "dispatch",
-			anchor: anchorForIssue(number),
-			event: {
-				event: "status",
-				arg: null,
-				actor,
-				labels,
-				needsClassify: false,
-				...(deliveryId ? { deliveryId } : {}),
-			},
-		};
-	}
-
-	// Free-text path. The orchestrator hands `classifyText` to the
-	// classifier in a later commit; today this lands as classify-pending.
-	return {
-		kind: "dispatch",
-		anchor: anchorForIssue(number),
-		event: {
-			event: null,
+		return dispatchFor(number, {
+			event: "status",
 			arg: null,
 			actor,
 			labels,
-			needsClassify: true,
-			classifyText: mentionText,
-			// allowDefault is the "this is a bot-authored PR" signal. We can't
-			// detect that reliably without a known bot login; default false for
-			// now, which routes free-text on bot PRs through the classifier
-			// instead of jumping straight to `revise`. Safe but extra-tokens.
-			allowDefault: false,
+			needsClassify: false,
 			...(deliveryId ? { deliveryId } : {}),
-		},
-	};
+		});
+	}
+
+	return dispatchFor(number, {
+		event: null,
+		arg: null,
+		actor,
+		labels,
+		needsClassify: true,
+		classifyText: mentionText,
+		// allowDefault should be true on bot-authored PRs; we don't have bot-
+		// login detection yet, so default false (routes through classifier).
+		allowDefault: false,
+		...(deliveryId ? { deliveryId } : {}),
+	});
 }
 
 /**
@@ -379,26 +363,21 @@ function normalizePullRequest(event: PullRequestEvent, deliveryId?: string): Nor
 	// `pull_request.merged: boolean` and route to a `pr.closed` event for
 	// the non-merged path.
 
-	return {
-		kind: "dispatch",
-		anchor: anchorForIssue(number),
-		event: {
-			event: machineEvent,
-			arg: null,
-			actor: "system",
-			labels: collectLabels(pr?.labels),
-			needsClassify: false,
-			...(deliveryId ? { deliveryId } : {}),
-		},
-	};
+	return dispatchFor(number, {
+		event: machineEvent,
+		arg: null,
+		actor: "system",
+		labels: collectLabels(pr?.labels),
+		needsClassify: false,
+		...(deliveryId ? { deliveryId } : {}),
+	});
 }
 
 /**
- * PR review submissions (approved / changes_requested / commented). Map to
- * pr.approved or pr.changes_requested for the machine; review bodies that
- * carry an @emdashbot mention are NOT handled here -- they come through
- * pull_request_review_comment for inline comments, or issue_comment for the
- * top-level comment. This event is purely the approval/changes signal.
+ * PR review submissions. `pr.*` events are machine-defined as
+ * actors:["system"] (they represent "GitHub reported a review state change",
+ * not "system pressed approve"), so we pass actor: "system" regardless of
+ * who submitted on GitHub.
  */
 function normalizePullRequestReview(
 	event: PullRequestReviewEvent,
@@ -417,25 +396,14 @@ function normalizePullRequestReview(
 	else if (reviewState === "changes_requested") machineEvent = "pr.changes_requested";
 	else return { kind: "skip", reason: `review state "${reviewState}" not actionable` };
 
-	// `pr.*` events are machine-defined as `actors: ["system"]` -- they
-	// represent "GitHub reported a review state change", not "system pressed
-	// the approve button". Pass `system` regardless of who submitted the
-	// review on GitHub. (Routing the human who approved into the machine as
-	// `maintainer` would land as a noop, since pr.approved only accepts
-	// system.)
-
-	return {
-		kind: "dispatch",
-		anchor: anchorForIssue(number),
-		event: {
-			event: machineEvent,
-			arg: null,
-			actor: "system",
-			labels: collectLabels(pr?.labels),
-			needsClassify: false,
-			...(deliveryId ? { deliveryId } : {}),
-		},
-	};
+	return dispatchFor(number, {
+		event: machineEvent,
+		arg: null,
+		actor: "system",
+		labels: collectLabels(pr?.labels),
+		needsClassify: false,
+		...(deliveryId ? { deliveryId } : {}),
+	});
 }
 
 /**
@@ -465,52 +433,37 @@ function normalizePullRequestReviewComment(
 	});
 	const labels = collectLabels(pr?.labels);
 
-	// Bare verb -> deterministic; empty mention -> status; else classifier.
 	const cmd = parseCommand(body);
 	if (cmd) {
-		return {
-			kind: "dispatch",
-			anchor: anchorForIssue(number),
-			event: {
-				event: cmd.event,
-				arg: cmd.arg,
-				actor,
-				labels,
-				needsClassify: false,
-				...(deliveryId ? { deliveryId } : {}),
-			},
-		};
+		return dispatchFor(number, {
+			event: cmd.event,
+			arg: cmd.arg,
+			actor,
+			labels,
+			needsClassify: false,
+			...(deliveryId ? { deliveryId } : {}),
+		});
 	}
 	if (mentionText === "") {
-		return {
-			kind: "dispatch",
-			anchor: anchorForIssue(number),
-			event: {
-				event: "status",
-				arg: null,
-				actor,
-				labels,
-				needsClassify: false,
-				...(deliveryId ? { deliveryId } : {}),
-			},
-		};
-	}
-	return {
-		kind: "dispatch",
-		anchor: anchorForIssue(number),
-		event: {
-			event: null,
+		return dispatchFor(number, {
+			event: "status",
 			arg: null,
 			actor,
 			labels,
-			needsClassify: true,
-			classifyText: mentionText,
-			// allowDefault tracks the in_review default; we'd flip this true
-			// on bot-authored PRs once bot-login detection lands.
-			allowDefault: false,
+			needsClassify: false,
 			...(deliveryId ? { deliveryId } : {}),
-		},
-	};
+		});
+	}
+	return dispatchFor(number, {
+		event: null,
+		arg: null,
+		actor,
+		labels,
+		needsClassify: true,
+		classifyText: mentionText,
+		allowDefault: false,
+		...(deliveryId ? { deliveryId } : {}),
+	});
 }
 
 // ---------------- Helpers ----------------
@@ -524,6 +477,21 @@ function normalizePullRequestReviewComment(
  */
 export function anchorForIssue(number: number): string {
 	return `issue-${number}`;
+}
+
+/**
+ * Wrap a NormalizedEvent in a dispatch result, injecting the anchor name and
+ * the anchor number (used by the DO for GitHub API calls).
+ */
+function dispatchFor(
+	number: number,
+	event: Omit<NormalizedEvent, "anchorNumber">,
+): NormalizeResult {
+	return {
+		kind: "dispatch",
+		anchor: anchorForIssue(number),
+		event: { ...event, anchorNumber: number },
+	};
 }
 
 function collectLabels(labels: Label[] | undefined): readonly string[] {

@@ -32,11 +32,11 @@ export default defineConfig({
 			miniflare: {
 				bindings: {
 					GITHUB_WEBHOOK_SECRET: "test-webhook-secret",
-					// Minimal PEM-shaped stub so JWK parsers don't reject at
-					// import time. Tests that actually exercise GitHub App auth
-					// inject a fake at the call site, not via the binding.
-					GITHUB_APP_PRIVATE_KEY:
-						"-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n",
+					// Empty key so readAppCreds returns null in tests and the
+					// orchestrator's side-effect path no-ops without hitting
+					// api.github.com. Tests that need a real key inject it via
+					// `env.GITHUB_APP_PRIVATE_KEY = ...` inside the test.
+					GITHUB_APP_PRIVATE_KEY: "",
 				},
 			},
 		}),

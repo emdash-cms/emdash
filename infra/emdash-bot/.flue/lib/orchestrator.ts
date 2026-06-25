@@ -2,23 +2,19 @@
 //
 // One instance per anchoring issue (`idFromName("issue-" + number)`). Holds
 // the canonical state for that issue's bot lifecycle. Labels on GitHub are a
-// projection of this state, not the source of truth -- which lets us recover
-// from label drift, drop stale agent results, and keep cross-event ordering
-// without the workflow races that plagued the Actions-based implementation
-// (PR #1606 cycles 4 / 6).
-//
-// This commit is the SKELETON: class shape, storage layout, and the pure
-// resolve-and-record path. GitHub side effects (label flip, comment, PR ops)
-// and workflow invocation (`runAction`) land in the next commit alongside the
-// webhook handler, since they share the GitHub App token.
-//
-// Trust model: this DO holds NO string-shaped credentials. Workflow invocation
-// uses Flue's binding-based `invoke()`; GitHub calls go through a small client
-// that receives the App token from a credential-issuing helper, not the
-// environment directly. The agent's container never sees either.
+// projection of this state, not the source of truth.
 
 import { DurableObject } from "cloudflare:workers";
 
+import {
+	addLabels,
+	mintInstallationToken,
+	postIssueComment,
+	readAppCreds,
+	readRepoContext,
+	removeLabels,
+	type RepoContext,
+} from "./github.js";
 import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
 import { type Decision, outcomeFromResult, resolve } from "./router.js";
 
@@ -72,12 +68,10 @@ export interface NormalizedEvent {
 	readonly classifyText?: string | null;
 	/** True only on a bot-authored PR (enables the in_review default). */
 	readonly allowDefault?: boolean;
-	/**
-	 * Delivery id from the webhook. Stored in the event log for idempotency
-	 * checks and debugging. GitHub webhooks may redeliver; the orchestrator
-	 * dedupes by this id.
-	 */
+	/** Webhook delivery id; the DO dedupes by this. */
 	readonly deliveryId?: string;
+	/** Issue/PR number for GitHub API side effects. Required for transitions. */
+	readonly anchorNumber?: number;
 }
 
 /**
@@ -125,7 +119,15 @@ const STORAGE = {
 	prNumber: "o:prNumber",
 	eventLog: "o:eventLog",
 	seenDeliveries: "o:seenDeliveries",
+	anchorNumber: "o:anchorNumber",
+	tokenCache: "o:tokenCache",
 } as const;
+
+interface CachedToken {
+	token: string;
+	/** Unix ms; tokens are valid ~1h, we expire 5m early. */
+	expiresAt: number;
+}
 
 /** Bounded delivery-id dedupe window. */
 const DELIVERY_DEDUPE_LIMIT = 64;
@@ -141,18 +143,17 @@ export class OrchestratorDO extends DurableObject<Env> {
 	 * invokes the investigate workflow for transitions with `action`.
 	 */
 	async event(input: NormalizedEvent): Promise<EventOutcome> {
-		// Webhook idempotency. GitHub may redeliver any delivery; dedupe by id.
 		if (input.deliveryId) {
 			const seen = await this.isDeliverySeen(input.deliveryId);
 			if (seen) return { kind: "duplicate", deliveryId: input.deliveryId };
 		}
 
-		// Classification path is wired in the next commit. For now, an event
-		// without a resolved verb is treated as "nothing to do" -- the webhook
-		// either deterministically resolved it or it shouldn't have been
-		// dispatched yet.
 		if (input.needsClassify || input.event === null) {
 			return { kind: "classify-pending" };
+		}
+
+		if (input.anchorNumber !== undefined) {
+			await this.ctx.storage.put(STORAGE.anchorNumber, input.anchorNumber);
 		}
 
 		const decision = resolve({
@@ -169,11 +170,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return { kind: "readonly", state: decision.state, event: decision.event };
 		}
 
-		// Transition: persist new state. Side effects (label flip, comment, PR
-		// ops, workflow invocation) land in the next commit. We record the
-		// decision so a partial follow-up commit can replay it.
+		// Side effects first: if the GitHub label flip fails, DO state stays
+		// behind and the next event (or the reconciliation tick) retries.
+		// Comment failure is non-fatal; DO state is still advanced.
+		const sideEffectError = await this.applySideEffects(decision);
 		await this.persistDecision(decision, input);
-		return { kind: "transition", decision };
+		return {
+			kind: "transition",
+			decision,
+			...(sideEffectError ? { sideEffectError } : {}),
+		};
 	}
 
 	/**
@@ -227,6 +233,69 @@ export class OrchestratorDO extends DurableObject<Env> {
 	 */
 	async tick(): Promise<void> {
 		// Intentionally empty -- placeholder for cron-driven recovery.
+	}
+
+	// ---------------- Side effects (GitHub) ----------------
+
+	/**
+	 * Flip labels and post a transition comment on GitHub. Returns null on
+	 * success, or an error reason on failure (DO state is NOT advanced if
+	 * label flipping fails -- the caller bails before persistDecision). A
+	 * comment failure logs but doesn't propagate.
+	 *
+	 * In dev mode (no app creds / no repo binding) returns "no-creds" without
+	 * making any HTTP calls; the DO still advances its state so local flows
+	 * can be exercised without GitHub access.
+	 */
+	private async applySideEffects(
+		decision: Extract<Decision, { kind: "transition" }>,
+	): Promise<string | null> {
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		if (!creds || !repo) {
+			console.log("[orchestrator] skipping side effects (creds or repo missing)", {
+				event: decision.event,
+				to: decision.to,
+			});
+			return null;
+		}
+		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
+		if (anchorNumber === undefined) {
+			return "no anchor number; DO never received an anchored event";
+		}
+
+		const token = await this.getInstallationToken(creds);
+
+		// Label flip: add new labels (state + maybe kind), then remove the rest.
+		// addLabels is idempotent; removeLabel treats 404 as "already gone".
+		try {
+			await addLabels(token, repo, anchorNumber, decision.addLabels);
+		} catch (err) {
+			return `addLabels failed: ${(err as Error).message}`;
+		}
+		try {
+			await removeLabels(token, repo, anchorNumber, decision.removeLabels);
+		} catch (err) {
+			return `removeLabels failed: ${(err as Error).message}`;
+		}
+
+		try {
+			await postIssueComment(token, repo, anchorNumber, renderComment(decision));
+		} catch (err) {
+			console.error("[orchestrator] postComment failed (non-fatal):", err);
+		}
+		return null;
+	}
+
+	private async getInstallationToken(creds: Parameters<typeof mintInstallationToken>[0]) {
+		const cached = await this.ctx.storage.get<CachedToken>(STORAGE.tokenCache);
+		if (cached && cached.expiresAt > Date.now()) return cached.token;
+		const token = await mintInstallationToken(creds);
+		await this.ctx.storage.put<CachedToken>(STORAGE.tokenCache, {
+			token,
+			expiresAt: Date.now() + 55 * 60 * 1000,
+		});
+		return token;
 	}
 
 	// ---------------- Private helpers ----------------
@@ -327,8 +396,18 @@ export class OrchestratorDO extends DurableObject<Env> {
 export type EventOutcome =
 	| { kind: "noop"; reason: string }
 	| { kind: "readonly"; state: StateId | null; event: EventId }
-	| { kind: "transition"; decision: Extract<Decision, { kind: "transition" }> }
+	| {
+			kind: "transition";
+			decision: Extract<Decision, { kind: "transition" }>;
+			sideEffectError?: string;
+	  }
 	| { kind: "duplicate"; deliveryId: string }
 	| { kind: "classify-pending" }
 	| { kind: "stale-run"; runId: string; currentRunId: string | null }
 	| { kind: "inert"; state: StateId };
+
+function renderComment(decision: Extract<Decision, { kind: "transition" }>): string {
+	const action = decision.action ? ` (\`${decision.action}\`)` : "";
+	const verb = decision.event.replace(/_/g, " ");
+	return `Moved to \`${decision.to}\` on \`${verb}\`${action}.`;
+}
