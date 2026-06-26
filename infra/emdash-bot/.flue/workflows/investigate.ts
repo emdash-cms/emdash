@@ -159,7 +159,7 @@ async function setupSandbox(
 		{
 			name: "pnpm-install",
 			cmd: `cd ${REPO_DIR} && pnpm install --frozen-lockfile --prefer-offline`,
-			timeoutMs: 10 * 60_000,
+			timeoutMs: 15 * 60_000,
 			nonFatal: true,
 		},
 	];
