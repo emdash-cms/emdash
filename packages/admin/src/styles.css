@@ -8,12 +8,12 @@
  * - User preference stored in localStorage, applied via data-mode attribute on <html>
  */
 
-@import "tailwindcss";
-@import "@cloudflare/kumo/styles/tailwind";
-@plugin "@tailwindcss/typography";
-
 /* Scan Kumo component JS for Tailwind utility classes (e.g. Dialog centering) */
-@source "../node_modules/@cloudflare/kumo/dist";
+@source "../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+
+@import "@cloudflare/kumo/styles";
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* Map Tailwind dark: variant to kumo's data-mode attribute */
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
