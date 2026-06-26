@@ -1,6 +1,7 @@
 import type { Kysely, Selectable } from "kysely";
 import { ulid } from "ulidx";
 
+import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
 import type { Database, TaxonomyTable, ContentTaxonomyTable } from "../types.js";
 
 export interface Taxonomy {
@@ -87,6 +88,8 @@ export class TaxonomyRepository {
 				translation_group: translationGroup,
 			})
 			.execute();
+
+		invalidateTaxonomyObjectCache();
 
 		const taxonomy = await this.findById(id);
 		if (!taxonomy) throw new Error("Failed to create taxonomy");
@@ -187,6 +190,7 @@ export class TaxonomyRepository {
 
 		if (Object.keys(updates).length > 0) {
 			await this.db.updateTable("taxonomies").set(updates).where("id", "=", id).execute();
+			invalidateTaxonomyObjectCache();
 		}
 
 		return this.findById(id);
@@ -214,6 +218,7 @@ export class TaxonomyRepository {
 		}
 
 		const result = await this.db.deleteFrom("taxonomies").where("id", "=", id).executeTakeFirst();
+		invalidateTaxonomyObjectCache();
 		return (result.numDeletedRows ?? 0n) > 0n;
 	}
 
@@ -233,6 +238,7 @@ export class TaxonomyRepository {
 			.values(row)
 			.onConflict((oc) => oc.doNothing())
 			.execute();
+		invalidateTaxonomyObjectCache();
 	}
 
 	async detachFromEntry(collection: string, entryId: string, taxonomyId: string): Promise<void> {
@@ -245,6 +251,7 @@ export class TaxonomyRepository {
 			.where("entry_id", "=", entryId)
 			.where("taxonomy_id", "=", group)
 			.execute();
+		invalidateTaxonomyObjectCache();
 	}
 
 	/**
@@ -324,6 +331,8 @@ export class TaxonomyRepository {
 				.onConflict((oc) => oc.doNothing())
 				.execute();
 		}
+
+		if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
 	}
 
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {
@@ -332,7 +341,9 @@ export class TaxonomyRepository {
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
 			.executeTakeFirst();
-		return Number(result.numDeletedRows ?? 0);
+		const removed = Number(result.numDeletedRows ?? 0);
+		if (removed > 0) invalidateTaxonomyObjectCache();
+		return removed;
 	}
 
 	/**
@@ -364,6 +375,7 @@ export class TaxonomyRepository {
 			)
 			.onConflict((oc) => oc.doNothing())
 			.execute();
+		invalidateTaxonomyObjectCache();
 	}
 
 	/**

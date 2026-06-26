@@ -38,6 +38,8 @@ export interface Props {
 		displayWidth?: number;
 		/** Display height for this instance (overrides original) */
 		displayHeight?: number;
+		/** Alignment for this image instance (e.g. from a WordPress import) */
+		alignment?: "left" | "center" | "right" | "wide" | "full";
 	};
 }
 
@@ -63,7 +65,7 @@ if (!node?.asset) {
 	return null;
 }
 
-const { asset, alt = "", caption, width, height, displayWidth, displayHeight } = node;
+const { asset, alt = "", caption, width, height, displayWidth, displayHeight, alignment } = node;
 
 // Calculate aspect ratio from original dimensions
 const aspectRatio = width && height ? width / height : undefined;
@@ -168,7 +170,7 @@ const baseStyle = aspectRatio
 const imgStyle = placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseStyle;
 ---
 
-<figure class="emdash-image">
+<figure class:list={["emdash-image", alignment && `emdash-image--align-${alignment}`]}>
 	<img
 		src={src}
 		srcset={srcset}
@@ -196,5 +198,37 @@ const imgStyle = placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseSty
 		color: var(--emdash-caption-color, var(--color-muted, #666));
 		margin-top: 0.5rem;
 		text-align: center;
+	}
+	/* Alignment (WordPress-style). Floats wrap surrounding text; wide/full span the column. */
+	.emdash-image--align-left,
+	.emdash-image--align-right {
+		width: fit-content;
+		max-width: 50%;
+	}
+	.emdash-image--align-left {
+		float: left;
+		margin: 0 1.5rem 1rem 0;
+	}
+	.emdash-image--align-right {
+		float: right;
+		margin: 0 0 1rem 1.5rem;
+	}
+	.emdash-image--align-center {
+		width: fit-content;
+		margin-inline: auto;
+	}
+	.emdash-image--align-wide,
+	.emdash-image--align-full {
+		width: 100%;
+	}
+	/* On narrow screens, un-float left/right so the image is not cramped beside text. */
+	@media (max-width: 640px) {
+		.emdash-image--align-left,
+		.emdash-image--align-right {
+			float: none;
+			width: 100%;
+			max-width: 100%;
+			margin-inline: 0;
+		}
 	}
 </style>

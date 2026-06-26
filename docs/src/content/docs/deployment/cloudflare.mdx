@@ -96,6 +96,22 @@ You also need to enable read replication on the D1 database itself in the Cloudf
 
 See [Database Options — Read Replicas](/deployment/database/#read-replicas) for session modes and how bookmark-based consistency works.
 
+## Object Cache
+
+To reduce read load on D1, cache content and configuration query results in Cloudflare KV. Reads are served from KV instead of querying the database on every request:
+
+```js title="astro.config.mjs"
+import { d1, r2, kvCache } from "@emdash-cms/cloudflare";
+
+emdash({
+	database: d1({ binding: "DB" }),
+	storage: r2({ binding: "MEDIA" }),
+	objectCache: kvCache({ binding: "CACHE" }),
+}),
+```
+
+See [Object Cache](/deployment/object-cache/) for KV setup, options, and invalidation behavior.
+
 ## Custom Domain
 
 Add a custom domain in the Cloudflare dashboard:

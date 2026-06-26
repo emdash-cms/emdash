@@ -12,7 +12,7 @@
  */
 
 import type { LiveLoader } from "astro/loaders";
-import { Kysely, sql, type Dialect } from "kysely";
+import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
 
 import { currentTimestampValue, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
@@ -72,7 +72,82 @@ const SYSTEM_COLUMNS = new Set([
 	// fields. The aliases are _emdash_-prefixed so they can't shadow a user
 	// field named e.g. `seo_title`.
 	...SEO_ALIAS_COLUMNS,
+	// Folded hydration JSON columns (see foldedHydrationSelects) — surfaced via
+	// the FOLDED_* markers, never as flat fields.
+	"_emdash_terms",
+	"_emdash_bylines",
 ]);
+
+/** Markers for byline/taxonomy hydration folded into the content query. */
+export const FOLDED_TERMS = Symbol.for("emdash:foldedTerms");
+export const FOLDED_BYLINES = Symbol.for("emdash:foldedBylines");
+
+/**
+ * Correlated JSON-array subqueries that fold taxonomy-term and byline hydration
+ * into the content query, removing the two separate hydration round trips per
+ * fetch. `outer` is the content table's alias/name; each subquery correlates on
+ * `<outer>.id`, so the base query stays one row per entry (no join fan-out, no
+ * duplicated content payload). Order is NOT applied in the aggregate (it differs
+ * across dialects) — the consumer sorts terms by label and credits by sortOrder.
+ *
+ * Dialect-specific aggregation: SQLite `json_group_array`/`json_object` returns
+ * a JSON *string*; Postgres `json_agg`/`json_build_object` (coalesced to `[]`)
+ * returns parsed JSON. {@link stashFolded} handles both.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- any Kysely instance
+function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
+	const o = sql.ref(outer);
+	const pg = isPostgres(db);
+	const obj = (pairs: string) =>
+		pg ? sql.raw(`json_build_object(${pairs})`) : sql.raw(`json_object(${pairs})`);
+	const agg = (inner: RawBuilder<unknown>) =>
+		pg ? sql`coalesce(json_agg(${inner}), '[]'::json)` : sql`json_group_array(${inner})`;
+
+	const termObj = obj(
+		"'id', t.id, 'name', t.name, 'slug', t.slug, 'label', t.label, 'parent_id', t.parent_id, 'locale', t.locale, 'translation_group', t.translation_group",
+	);
+	// Filter terms to the entry's own locale (matches #1441: terms render in the
+	// entry's resolved locale, not all locale variants of the attached group).
+	const terms = sql`(SELECT ${agg(termObj)} FROM ${sql.ref("content_taxonomies")} AS ct JOIN ${sql.ref("taxonomies")} AS t ON t.translation_group = ct.taxonomy_id WHERE ct.collection = ${type} AND ct.entry_id = ${o}.id AND t.locale = ${o}.locale) AS ${sql.ref("_emdash_terms")}`;
+
+	const bylineInner = obj(
+		"'id', b.id, 'slug', b.slug, 'displayName', b.display_name, 'bio', b.bio, 'avatarMediaId', b.avatar_media_id, 'avatarStorageKey', m.storage_key, 'avatarAlt', m.alt, 'avatarBlurhash', m.blurhash, 'avatarDominantColor', m.dominant_color, 'websiteUrl', b.website_url, 'userId', b.user_id, 'isGuest', b.is_guest, 'createdAt', b.created_at, 'updatedAt', b.updated_at, 'locale', b.locale, 'translationGroup', b.translation_group",
+	);
+	const creditObj = pg
+		? sql.raw(
+				"json_build_object('roleLabel', cb.role_label, 'sortOrder', cb.sort_order, 'byline', ",
+			)
+		: sql.raw("json_object('roleLabel', cb.role_label, 'sortOrder', cb.sort_order, 'byline', ");
+	const credit = sql`${creditObj}${bylineInner})`;
+	const bylines = sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb JOIN ${sql.ref("_emdash_bylines")} AS b ON b.translation_group = cb.byline_id LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id AND b.locale = ${o}.locale) AS ${sql.ref("_emdash_bylines")}`;
+	return { terms, bylines };
+}
+
+/**
+ * Stash folded hydration JSON (non-enumerable) for the query.ts fast paths.
+ * SQLite returns a JSON string (parse it); Postgres returns already-parsed JSON.
+ */
+function stashFolded(data: Record<string, unknown>, row: Record<string, unknown>): void {
+	for (const [col, sym] of [
+		["_emdash_terms", FOLDED_TERMS],
+		["_emdash_bylines", FOLDED_BYLINES],
+	] as const) {
+		const raw = row[col];
+		let value: unknown;
+		if (typeof raw === "string") {
+			try {
+				value = JSON.parse(raw);
+			} catch {
+				continue; // malformed: fall back to the query path
+			}
+		} else if (Array.isArray(raw)) {
+			value = raw; // Postgres json/jsonb already parsed by the driver
+		} else {
+			continue;
+		}
+		Object.defineProperty(data, sym, { value, enumerable: false, configurable: true });
+	}
+}
 
 /** Resolved SEO shape attached to `entry.data.seo`. Mirrors `ContentSeo`. */
 interface EntrySeo {
@@ -785,8 +860,14 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						)`
 						: sql``;
 
+					// Fold byline + taxonomy hydration into the list query.
+					const { terms: termsSelect, bylines: bylinesSelect } = foldedHydrationSelects(
+						db,
+						type,
+						tableName,
+					);
 					result = await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.ref(tableName)}
+						SELECT *, ${termsSelect}, ${bylinesSelect} FROM ${sql.ref(tableName)}
 						WHERE deleted_at IS NULL
 						AND ${statusCondition}
 						${localeFilter}
@@ -814,11 +895,13 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						rowLocale !== "" &&
 						(rowLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
 					const id = shouldPrefix ? `${rowLocale}/${slug}` : slug;
+					const data = mapRowToData(row);
+					stashFolded(data, row);
 					return {
 						id,
 						slug: rowStr(row, "slug"),
 						status: rowStr(row, "status", "draft"),
-						data: mapRowToData(row),
+						data,
 						cacheHint: {
 							tags: [rowStr(row, "id")],
 							lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
@@ -922,9 +1005,17 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						([col, alias]) => sql`${sql.ref(`s.${col}`)} AS ${sql.ref(alias)}`,
 					),
 				);
+				// Fold byline + taxonomy hydration into the content query (see
+				// foldedHydrationSelects), removing the two separate hydration
+				// round trips per fetch.
+				const { terms: termsSelect, bylines: bylinesSelect } = foldedHydrationSelects(
+					db,
+					type,
+					"c",
+				);
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}
 							FROM ${sql.ref(tableName)} AS c
 							LEFT JOIN ${sql.ref("_emdash_seo")} AS s
 								ON s.collection = ${type} AND s.content_id = c.id
@@ -933,7 +1024,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}
 							FROM ${sql.ref(tableName)} AS c
 							LEFT JOIN ${sql.ref("_emdash_seo")} AS s
 								ON s.collection = ${type} AND s.content_id = c.id
@@ -1015,6 +1106,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const entryData = mapRowToData(row);
 				const entrySeo = extractSeo(row);
 				if (entrySeo) entryData.seo = entrySeo;
+				stashFolded(entryData, row);
 				return {
 					id: entryId,
 					slug: rowStr(row, "slug"),

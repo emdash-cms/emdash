@@ -13,6 +13,12 @@
 
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
+import {
+	cachedQuery,
+	CacheNamespace,
+	contentNamespace,
+	invalidateTaxonomyObjectCache,
+} from "../object-cache/index.js";
 import { peekRequestCache, requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
@@ -23,10 +29,12 @@ export interface TaxonomyQueryOptions {
 }
 
 /**
- * No-op — kept for API compatibility.
+ * Invalidate cached taxonomy data in the distributed object cache (and any
+ * content that hydrates taxonomy terms). The legacy in-isolate term cache was
+ * removed, so this used to be a no-op; it now drives object-cache invalidation.
  */
 export function invalidateTermCache(): void {
-	// Intentionally empty.
+	invalidateTaxonomyObjectCache();
 }
 
 /**
@@ -36,13 +44,19 @@ export function invalidateTermCache(): void {
  */
 export async function getTaxonomyDefs(options: TaxonomyQueryOptions = {}): Promise<TaxonomyDef[]> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`taxonomy-defs:${locale ?? "*"}`, async () => {
-		const db = await getDb();
-		let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
-		if (locale !== undefined) query = query.where("locale", "=", locale);
-		const rows = await query.execute();
-		return rows.map(rowToTaxonomyDef);
-	});
+	return requestCached(`taxonomy-defs:${locale ?? "*"}`, () =>
+		cachedQuery({
+			namespace: CacheNamespace.TAXONOMIES,
+			key: `defs:${locale ?? "*"}`,
+			load: async () => {
+				const db = await getDb();
+				let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+				if (locale !== undefined) query = query.where("locale", "=", locale);
+				const rows = await query.execute();
+				return rows.map(rowToTaxonomyDef);
+			},
+		}),
+	);
 }
 
 /**
@@ -106,50 +120,62 @@ export async function getTaxonomyTerms(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm[]> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`taxonomy-terms:${taxonomyName}:${locale ?? "*"}`, async () => {
-		const db = await getDb();
+	return requestCached(`taxonomy-terms:${taxonomyName}:${locale ?? "*"}`, () =>
+		cachedQuery({
+			namespace: CacheNamespace.TAXONOMIES,
+			key: `terms:${taxonomyName}:${locale ?? "*"}`,
+			load: () => loadTaxonomyTerms(taxonomyName, locale, options),
+		}),
+	);
+}
 
-		const def = await getTaxonomyDef(taxonomyName, options);
-		if (!def) return [];
+async function loadTaxonomyTerms(
+	taxonomyName: string,
+	locale: string | undefined,
+	options: TaxonomyQueryOptions,
+): Promise<TaxonomyTerm[]> {
+	const db = await getDb();
 
-		let termsQuery = db
-			.selectFrom("taxonomies")
-			.selectAll()
-			.where("name", "=", taxonomyName)
-			.orderBy("label", "asc");
-		if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
-		const rows = await termsQuery.execute();
+	const def = await getTaxonomyDef(taxonomyName, options);
+	if (!def) return [];
 
-		// Counts are keyed by translation_group (what the pivot stores) and are
-		// locale-independent, so the aggregate is shared across every taxonomy
-		// rendered in this request (Categories + Tags widgets, etc.).
-		const counts = await getTaxonomyTermCounts();
+	let termsQuery = db
+		.selectFrom("taxonomies")
+		.selectAll()
+		.where("name", "=", taxonomyName)
+		.orderBy("label", "asc");
+	if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
+	const rows = await termsQuery.execute();
 
-		const flatTerms: TaxonomyTermRow[] = rows.map((row) => ({
-			id: row.id,
-			name: row.name,
-			slug: row.slug,
-			label: row.label,
-			parent_id: row.parent_id,
-			data: row.data,
-			locale: row.locale,
-			translation_group: row.translation_group,
-		}));
+	// Counts are keyed by translation_group (what the pivot stores) and are
+	// locale-independent, so the aggregate is shared across every taxonomy
+	// rendered in this request (Categories + Tags widgets, etc.).
+	const counts = await getTaxonomyTermCounts();
 
-		if (def.hierarchical) return buildTree(flatTerms, counts);
+	const flatTerms: TaxonomyTermRow[] = rows.map((row) => ({
+		id: row.id,
+		name: row.name,
+		slug: row.slug,
+		label: row.label,
+		parent_id: row.parent_id,
+		data: row.data,
+		locale: row.locale,
+		translation_group: row.translation_group,
+	}));
 
-		return flatTerms.map((term) => ({
-			id: term.id,
-			name: term.name,
-			slug: term.slug,
-			label: term.label,
-			description: term.data ? JSON.parse(term.data).description : undefined,
-			children: [],
-			count: counts.get(term.translation_group ?? term.id) ?? 0,
-			locale: term.locale,
-			translationGroup: term.translation_group,
-		}));
-	});
+	if (def.hierarchical) return buildTree(flatTerms, counts);
+
+	return flatTerms.map((term) => ({
+		id: term.id,
+		name: term.name,
+		slug: term.slug,
+		label: term.label,
+		description: term.data ? JSON.parse(term.data).description : undefined,
+		children: [],
+		count: counts.get(term.translation_group ?? term.id) ?? 0,
+		locale: term.locale,
+		translationGroup: term.translation_group,
+	}));
 }
 
 /**
@@ -183,8 +209,23 @@ export async function getTerm(
 	slug: string,
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm | null> {
-	const db = await getDb();
 	const chain = resolveLocaleChain(options.locale);
+	// Cached under the shared taxonomies epoch (bumped on any taxonomy / term
+	// assignment write). The `count` reflects content_taxonomies rows; a stale
+	// count after a bare content delete is bounded by the entry's TTL.
+	return cachedQuery({
+		namespace: CacheNamespace.TAXONOMIES,
+		key: `term:${taxonomyName}:${slug}:${chain.join(",")}`,
+		load: () => loadTerm(taxonomyName, slug, chain),
+	});
+}
+
+async function loadTerm(
+	taxonomyName: string,
+	slug: string,
+	chain: string[],
+): Promise<TaxonomyTerm | null> {
+	const db = await getDb();
 
 	let row: Awaited<ReturnType<ReturnType<typeof selectTerm>["executeTakeFirst"]>>;
 	const selectTerm = () =>
@@ -262,33 +303,46 @@ export function getEntryTerms(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm[]> {
 	const locale = resolveLocale(options.locale);
+	// requestCached short-circuits to values primed by getAllTermsForEntries
+	// during entry hydration (same key shape). On a warm content-cache hit
+	// hydration doesn't run, so the inner cachedQuery serves this from KV
+	// instead of falling through to D1 on every request.
 	return requestCached(
 		`terms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
-		async () => {
-			const db = await getDb();
+		() =>
+			cachedQuery({
+				namespace: [contentNamespace(collection), CacheNamespace.TAXONOMIES],
+				key: `entryTerms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
+				load: async () => {
+					const db = await getDb();
 
-			let query = db
-				.selectFrom("content_taxonomies")
-				.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
-				.selectAll("taxonomies")
-				.where("content_taxonomies.collection", "=", collection)
-				.where("content_taxonomies.entry_id", "=", entryId);
+					let query = db
+						.selectFrom("content_taxonomies")
+						.innerJoin(
+							"taxonomies",
+							"taxonomies.translation_group",
+							"content_taxonomies.taxonomy_id",
+						)
+						.selectAll("taxonomies")
+						.where("content_taxonomies.collection", "=", collection)
+						.where("content_taxonomies.entry_id", "=", entryId);
 
-			if (taxonomyName) query = query.where("taxonomies.name", "=", taxonomyName);
-			if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
+					if (taxonomyName) query = query.where("taxonomies.name", "=", taxonomyName);
+					if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
 
-			const rows = await query.execute();
-			return rows.map<TaxonomyTerm>((row) => ({
-				id: row.id,
-				name: row.name,
-				slug: row.slug,
-				label: row.label,
-				parentId: row.parent_id ?? undefined,
-				children: [],
-				locale: row.locale,
-				translationGroup: row.translation_group,
-			}));
-		},
+					const rows = await query.execute();
+					return rows.map<TaxonomyTerm>((row) => ({
+						id: row.id,
+						name: row.name,
+						slug: row.slug,
+						label: row.label,
+						parentId: row.parent_id ?? undefined,
+						children: [],
+						locale: row.locale,
+						translationGroup: row.translation_group,
+					}));
+				},
+			}),
 	);
 }
 
@@ -301,107 +355,125 @@ export async function getTermsForEntries(
 	taxonomyName: string,
 	options: TaxonomyQueryOptions = {},
 ): Promise<Map<string, TaxonomyTerm[]>> {
-	const result = new Map<string, TaxonomyTerm[]>();
 	const uniqueIds = [...new Set(entryIds)];
-	for (const id of uniqueIds) result.set(id, []);
-	if (uniqueIds.length === 0) return result;
-
+	if (uniqueIds.length === 0) return new Map();
 	const locale = resolveLocale(options.locale);
 	const localeKey = locale ?? "*";
 
-	// Entry-term hydration (getAllTermsForEntries -> primeEntryTermsCache)
-	// seeds the per-entry cache under the same key getEntryTerms uses:
-	// `terms:${collection}:${entryId}:${taxonomyName}:${localeKey}`, storing a
-	// TaxonomyTerm[] (including `[]` for entries with no terms). Satisfy those
-	// from cache and run the batched query only for the ids that missed.
-	const missedIds: string[] = [];
-	type CacheRead = { id: string; terms: TaxonomyTerm[] } | { id: string; miss: true };
-	const cacheReads: Array<Promise<CacheRead>> = [];
-	for (const id of uniqueIds) {
-		const cached = peekRequestCache<TaxonomyTerm[]>(
-			`terms:${collection}:${id}:${taxonomyName}:${localeKey}`,
-		);
-		if (cached) {
-			// A peeked promise can reject (e.g. a sibling getEntryTerms hit a
-			// missing table). Treat a rejection as a cache miss so the batched
-			// query path -- and its isMissingTableError guard below -- still runs,
-			// rather than propagating an uncaught error.
-			cacheReads.push(
-				cached.then(
-					(terms): CacheRead => ({ id, terms }),
-					(): CacheRead => ({ id, miss: true }),
-				),
+	// The query result is a Map, which JSON can't represent — cache it as an
+	// array of [entryId, terms] pairs and rebuild the Map on read.
+	const load = async (): Promise<Array<[string, TaxonomyTerm[]]>> => {
+		const result = new Map<string, TaxonomyTerm[]>();
+		for (const id of uniqueIds) result.set(id, []);
+
+		// Entry-term hydration (getAllTermsForEntries -> primeEntryTermsCache)
+		// seeds the per-entry cache under the same key getEntryTerms uses:
+		// `terms:${collection}:${entryId}:${taxonomyName}:${localeKey}`, storing a
+		// TaxonomyTerm[] (including `[]` for entries with no terms). Satisfy those
+		// from cache and run the batched query only for the ids that missed.
+		const missedIds: string[] = [];
+		type CacheRead = { id: string; terms: TaxonomyTerm[] } | { id: string; miss: true };
+		const cacheReads: Array<Promise<CacheRead>> = [];
+		for (const id of uniqueIds) {
+			const cached = peekRequestCache<TaxonomyTerm[]>(
+				`terms:${collection}:${id}:${taxonomyName}:${localeKey}`,
 			);
-		} else {
-			missedIds.push(id);
+			if (cached) {
+				// A peeked promise can reject (e.g. a sibling getEntryTerms hit a
+				// missing table). Treat a rejection as a cache miss so the batched
+				// query path -- and its isMissingTableError guard below -- still runs,
+				// rather than propagating an uncaught error.
+				cacheReads.push(
+					cached.then(
+						(terms): CacheRead => ({ id, terms }),
+						(): CacheRead => ({ id, miss: true }),
+					),
+				);
+			} else {
+				missedIds.push(id);
+			}
 		}
-	}
-	for (const read of await Promise.all(cacheReads)) {
-		if ("miss" in read) {
-			missedIds.push(read.id);
-			continue;
-		}
-		// Return a private copy. The cached array and its term objects are shared
-		// with getEntryTerms/getAllTermsForEntries (primeEntryTermsCache stores
-		// the same references), so a caller that mutates the result -- sorting in
-		// place, pushing into `children` -- must not poison the cache. The
-		// pre-cache implementation always returned freshly built arrays.
-		result.set(
-			read.id,
-			read.terms.map((t) => ({ ...t, children: [...t.children] })),
-		);
-	}
-
-	if (missedIds.length === 0) return result;
-
-	const db = await getDb();
-
-	for (const chunk of chunks(missedIds, SQL_BATCH_SIZE)) {
-		let rows;
-		try {
-			let query = db
-				.selectFrom("content_taxonomies")
-				.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
-				.select([
-					"content_taxonomies.entry_id",
-					"taxonomies.id",
-					"taxonomies.name",
-					"taxonomies.slug",
-					"taxonomies.label",
-					"taxonomies.parent_id",
-					"taxonomies.locale",
-					"taxonomies.translation_group",
-				])
-				.where("content_taxonomies.collection", "=", collection)
-				.where("content_taxonomies.entry_id", "in", chunk)
-				.where("taxonomies.name", "=", taxonomyName)
-				// Match the order getAllTermsForEntries (the cache primer) uses, so
-				// cache-hit and DB-miss entries in one result are ordered consistently.
-				.orderBy("taxonomies.label", "asc");
-			if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
-			rows = await query.execute();
-		} catch (error) {
-			if (isMissingTableError(error)) return result;
-			throw error;
+		for (const read of await Promise.all(cacheReads)) {
+			if ("miss" in read) {
+				missedIds.push(read.id);
+				continue;
+			}
+			// Return a private copy. The cached array and its term objects are shared
+			// with getEntryTerms/getAllTermsForEntries (primeEntryTermsCache stores
+			// the same references), so a caller that mutates the result -- sorting in
+			// place, pushing into `children` -- must not poison the cache. The
+			// pre-cache implementation always returned freshly built arrays.
+			result.set(
+				read.id,
+				read.terms.map((t) => ({ ...t, children: [...t.children] })),
+			);
 		}
 
-		for (const row of rows) {
-			const term: TaxonomyTerm = {
-				id: row.id,
-				name: row.name,
-				slug: row.slug,
-				label: row.label,
-				parentId: row.parent_id ?? undefined,
-				children: [],
-				locale: row.locale,
-				translationGroup: row.translation_group,
-			};
-			const terms = result.get(row.entry_id);
-			if (terms) terms.push(term);
-		}
-	}
+		if (missedIds.length === 0) return [...result.entries()];
 
-	return result;
+		const db = await getDb();
+		for (const chunk of chunks(missedIds, SQL_BATCH_SIZE)) {
+			let rows;
+			try {
+				let query = db
+					.selectFrom("content_taxonomies")
+					.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
+					.select([
+						"content_taxonomies.entry_id",
+						"taxonomies.id",
+						"taxonomies.name",
+						"taxonomies.slug",
+						"taxonomies.label",
+						"taxonomies.parent_id",
+						"taxonomies.locale",
+						"taxonomies.translation_group",
+					])
+					.where("content_taxonomies.collection", "=", collection)
+					.where("content_taxonomies.entry_id", "in", chunk)
+					.where("taxonomies.name", "=", taxonomyName)
+					// Match the order getAllTermsForEntries (the cache primer) uses, so
+					// cache-hit and DB-miss entries in one result are ordered consistently.
+					.orderBy("taxonomies.label", "asc");
+				if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
+				rows = await query.execute();
+			} catch (error) {
+				if (isMissingTableError(error)) return [...result.entries()];
+				throw error;
+			}
+
+			for (const row of rows) {
+				const term: TaxonomyTerm = {
+					id: row.id,
+					name: row.name,
+					slug: row.slug,
+					label: row.label,
+					parentId: row.parent_id ?? undefined,
+					children: [],
+					locale: row.locale,
+					translationGroup: row.translation_group,
+				};
+				const terms = result.get(row.entry_id);
+				if (terms) terms.push(term);
+			}
+		}
+
+		return [...result.entries()];
+	};
+
+	// Key on the sorted unique ids. Bound the key length: very large batches
+	// (rare; they come from collection hydration, already served by the content
+	// cache) bypass the object cache rather than blow past KV's key limit.
+	const idKey = uniqueIds.toSorted().join(",");
+	const pairs =
+		idKey.length <= 256
+			? await cachedQuery({
+					namespace: [contentNamespace(collection), CacheNamespace.TAXONOMIES],
+					key: `termsForEntries:${collection}:${taxonomyName}:${locale ?? "*"}:${idKey}`,
+					load,
+				})
+			: await load();
+
+	return new Map(pairs);
 }
 
 /**
@@ -529,6 +601,32 @@ function primeEntryTermsCache(
 	}
 	const allTerms = Object.values(byTaxonomy).flat();
 	setRequestCacheEntry(`terms:${collection}:${entryId}:*:${localeKey}`, allTerms);
+}
+
+/**
+ * Prime the per-entry request cache from terms that were folded into the
+ * content query (query.ts `hydrateEntryTerms` fast path), so subsequent
+ * `getEntryTerms` calls in the same render hit the cache instead of issuing an
+ * N+1 query. Seeds the wildcard key and one key per taxonomy present on the
+ * entry — purely from the folded data, with no DB lookup.
+ *
+ * Unlike `getAllTermsForEntries`, this deliberately does NOT seed `[]` for
+ * taxonomies that apply to the collection but have no rows on the entry: doing
+ * so would require a `getTaxonomyDefs` query, adding a round trip to every fold
+ * render to serve the rarer `getEntryTerms(id, absentTaxonomy)` case from cache.
+ * That call simply falls through to its own cached query. Keeping the key shape
+ * here (rather than in query.ts) prevents the two from drifting.
+ */
+export function primeFoldedEntryTerms(
+	collection: string,
+	perEntry: Array<{ entryId: string; byTaxonomy: Record<string, TaxonomyTerm[]> }>,
+	options: TaxonomyQueryOptions = {},
+): void {
+	if (perEntry.length === 0) return;
+	const locale = resolveLocale(options.locale);
+	for (const { entryId, byTaxonomy } of perEntry) {
+		primeEntryTermsCache(collection, entryId, byTaxonomy, [], locale);
+	}
 }
 
 /**

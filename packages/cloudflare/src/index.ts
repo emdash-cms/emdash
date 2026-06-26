@@ -33,7 +33,12 @@
  * ```
  */
 
-import type { AuthDescriptor, DatabaseDescriptor, StorageDescriptor } from "emdash";
+import type {
+	AuthDescriptor,
+	DatabaseDescriptor,
+	ObjectCacheDescriptor,
+	StorageDescriptor,
+} from "emdash";
 
 import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
@@ -98,6 +103,29 @@ export interface D1Config {
 	 * @default false
 	 */
 	coalesce?: boolean;
+}
+
+/**
+ * Hyperdrive configuration
+ */
+export interface HyperdriveConfig {
+	/**
+	 * Name of the Hyperdrive binding in wrangler config.
+	 * @default "HYPERDRIVE"
+	 */
+	binding?: string;
+
+	/**
+	 * Maximum size of the in-Worker node-postgres connection pool.
+	 *
+	 * Hyperdrive maintains the real connection pool to your origin database,
+	 * so this only caps connections from the Worker isolate to Hyperdrive.
+	 * Keep it low to stay within Workers' concurrent external connection
+	 * limits.
+	 *
+	 * @default 5
+	 */
+	max?: number;
 }
 
 /**
@@ -191,6 +219,72 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		entrypoint: "@emdash-cms/cloudflare/db/d1",
 		config,
 		type: "sqlite",
+		supportsRequestScope: true,
+	};
+}
+
+/**
+ * Cloudflare Hyperdrive database adapter (PostgreSQL)
+ *
+ * For Cloudflare Workers connecting to an existing PostgreSQL or
+ * PostgreSQL-compatible database (e.g. PlanetScale Postgres) through a
+ * Hyperdrive binding. Hyperdrive pools and accelerates the connection;
+ * EmDash's PostgreSQL dialect runs the queries.
+ *
+ * Each request gets its own pooled connection that is opened and closed within
+ * that request — Worker connections cannot be reused across requests.
+ *
+ * Requires in the consuming site:
+ * - `pg >= 8.16.3` installed
+ * - `compatibility_flags: ["nodejs_compat"]`
+ * - `compatibility_date >= "2024-09-23"`
+ * - A Hyperdrive binding in wrangler config:
+ *   ```jsonc
+ *   { "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<id>" }] }
+ *   ```
+ *
+ * **Disable Hyperdrive query caching for this configuration.** EmDash runs its
+ * own caching layer and depends on read-after-write consistency — the admin and
+ * setup wizard write a row and immediately read it back. Hyperdrive's default-on
+ * query cache can serve the pre-write result within its TTL, which corrupts
+ * setup (e.g. "collection already exists" / missing columns) and shows editors
+ * stale content. Turn it off when creating the config:
+ * ```sh
+ * wrangler hyperdrive update <id> --caching-disabled
+ * # or, at create time: wrangler hyperdrive create ... --caching-disabled
+ * ```
+ *
+ * For best latency, pair this with a Smart Placement hint so the Worker runs in
+ * the Cloudflare data center closest to your database's region — the request
+ * path makes multiple round trips, so co-locating the Worker with the origin
+ * matters:
+ * ```jsonc
+ * { "placement": { "region": "aws:us-east-1" } }
+ * ```
+ *
+ * Each request gets its own pg connection, and the Cron Trigger sweep, plugin
+ * hook contexts, and media providers resolve an event-scoped connection too, so
+ * the content read/write path, scheduled publishing, plugin cron, and
+ * DB-querying plugin hooks are all supported.
+ *
+ * **Known limitation — sandboxed plugins are D1-only.** The sandbox plugin
+ * bridge talks to a D1 binding directly (independent of the configured
+ * adapter), so sandboxed plugins aren't available on a Hyperdrive deployment.
+ * This is a pre-existing bridge constraint, unrelated to connection scoping;
+ * tracked in https://github.com/emdash-cms/emdash/issues/1623.
+ *
+ * @example
+ * ```ts
+ * database: hyperdrive({ binding: "HYPERDRIVE" })
+ * ```
+ */
+export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/db/hyperdrive",
+		config: { binding: config.binding ?? "HYPERDRIVE", max: config.max },
+		type: "postgres",
+		// Each request gets a fresh pg connection that is closed afterwards —
+		// connections cannot be reused across Worker requests.
 		supportsRequestScope: true,
 	};
 }
@@ -330,6 +424,67 @@ export function access(config: AccessConfig): AuthDescriptor {
  */
 export function sandbox(): string {
 	return "@emdash-cms/cloudflare/sandbox";
+}
+
+/**
+ * Cloudflare KV object-cache configuration.
+ */
+export interface KVCacheConfig {
+	/** Name of the KV binding in wrangler.jsonc. */
+	binding: string;
+	/**
+	 * Default TTL for cached entries, in seconds. Backstop for epoch-orphaned
+	 * keys (KV clamps to a 60s minimum). Default 3600.
+	 */
+	defaultTtl?: number;
+	/**
+	 * Cross-isolate staleness window in milliseconds: how long an isolate
+	 * reuses a cached namespace epoch before re-reading it. Default 1000.
+	 */
+	revalidate?: number;
+	/**
+	 * Maximum time (ms) for a single KV operation before it's treated as a
+	 * cache miss. Guards against KV reads that stall without settling. Set to
+	 * `0` to disable. Default 2000.
+	 */
+	timeout?: number;
+	/** Prefix applied to every cache key (lets multiple sites share a namespace). */
+	keyPrefix?: string;
+}
+
+/**
+ * Cloudflare KV object-cache adapter.
+ *
+ * Backs EmDash's optional distributed object cache with a Workers KV
+ * namespace, offloading content and chrome reads from D1. Requires a KV
+ * binding in wrangler.jsonc.
+ *
+ * @example
+ * ```ts
+ * import { d1, kvCache } from "@emdash-cms/cloudflare";
+ *
+ * emdash({
+ *   database: d1({ binding: "DB" }),
+ *   objectCache: kvCache({ binding: "CACHE" }),
+ * })
+ * ```
+ *
+ * ```jsonc
+ * // wrangler.jsonc
+ * { "kv_namespaces": [{ "binding": "CACHE", "id": "<namespace-id>" }] }
+ * ```
+ */
+export function kvCache(config: KVCacheConfig): ObjectCacheDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/cache/kv",
+		config: {
+			binding: config.binding,
+			...(config.defaultTtl !== undefined ? { defaultTtl: config.defaultTtl } : {}),
+			...(config.revalidate !== undefined ? { revalidate: config.revalidate } : {}),
+			...(config.timeout !== undefined ? { timeout: config.timeout } : {}),
+			...(config.keyPrefix !== undefined ? { keyPrefix: config.keyPrefix } : {}),
+		},
+	};
 }
 
 // Re-export media providers (config-time)

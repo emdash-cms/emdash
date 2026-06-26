@@ -1,5 +1,138 @@
 # emdash
 
+## 0.23.0
+
+### Minor Changes
+
+- [#1349](https://github.com/emdash-cms/emdash/pull/1349) [`bd6cc3a`](https://github.com/emdash-cms/emdash/commit/bd6cc3ad2fe29ee8016843168fb8aa1dc38d33de) Thanks [@MA2153](https://github.com/MA2153)! - **Breaking:** generated TypeScript interface names in `emdash-env.d.ts` now derive from the collection **slug** (singularized) instead of `labelSingular`. This fixes invalid identifiers (labels with spaces/punctuation) and duplicate identifiers (two collections sharing a label), while keeping names singular so each interface reads as a single entry (slug `posts` → `Post`, `blog_posts` → `BlogPost`). Interfaces are renamed wherever the old label-derived name differed from the slug. Users should regenerate `emdash-env.d.ts` (`emdash types` or dev-server start) and update any direct interface references in their code.
+
+### Patch Changes
+
+- [#1593](https://github.com/emdash-cms/emdash/pull/1593) [`b4d7228`](https://github.com/emdash-cms/emdash/commit/b4d7228d5e28d665a32083ac82ce9346baac639a) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the admin stylesheet leaking onto public routes in `astro dev`. The compiled Kumo/Tailwind theme was injected into every page's `<head>`, overriding host `:root` tokens (`--text-base`, `--text-lg`, ...) and styling otherwise-unstyled pages. The admin shell now loads its stylesheet as a route-scoped `<link>`, so public routes are unaffected — matching production behaviour.
+
+- [#1625](https://github.com/emdash-cms/emdash/pull/1625) [`d74269d`](https://github.com/emdash-cms/emdash/commit/d74269d5a538584a1db4ba82e8ab20113cd955e7) Thanks [@ascorbic](https://github.com/ascorbic)! - Resolves the database connection at use-time for the cron sweep, plugin hook contexts, and media providers instead of capturing it once at startup. This makes scheduled publishing, plugin cron, and database-querying plugin hooks work on connection-backed adapters like Postgres over Cloudflare Hyperdrive, where a connection is bound to the event that opened it. Stateless adapters (D1, Node SQLite) are unaffected.
+
+- [#1617](https://github.com/emdash-cms/emdash/pull/1617) [`e39984f`](https://github.com/emdash-cms/emdash/commit/e39984f9ea688faea01b83a611ffe36b6f984a26) Thanks [@ascorbic](https://github.com/ascorbic)! - Cuts cold-start latency by batching runtime initialization reads into a single round trip. On a fresh isolate (or Worker), the auto-seed check, plugin-state load, and site-info load now run as one batched query on backends that support it (Cloudflare D1, Durable Objects) instead of several serialized round trips. On D1 this roughly halves runtime init time on cold start. Other backends (Node/SQLite) are unaffected.
+
+- [#1559](https://github.com/emdash-cms/emdash/pull/1559) [`280b877`](https://github.com/emdash-cms/emdash/commit/280b8771274b2e8f9d0d54b698592ae162374805) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes the editor toolbar leaking into a shared cache ([#1398](https://github.com/emdash-cms/emdash/issues/1398)). When a logged-in editor browsed the public site behind a shared cache (such as Cloudflare), responses carrying the injected toolbar could be cached and then served to anonymous visitors, exposing the toolbar markup and the fact that a session was active. Toolbar-bearing responses are now marked `Cache-Control: private, no-store` so they are never shared-cacheable; responses without an injected toolbar keep their original caching.
+
+- [#1553](https://github.com/emdash-cms/emdash/pull/1553) [`7fca12f`](https://github.com/emdash-cms/emdash/commit/7fca12f0a8fbe3c1c0f6ea0d2a9826eb51a1da57) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Byline avatar hydration now includes the media LQIP placeholder fields ([#1457](https://github.com/emdash-cms/emdash/issues/1457)). Content byline credits already folded in the avatar's `avatarStorageKey` and `avatarAlt` via the media join, but dropped the `blurhash`/`dominant_color` placeholder columns, so author avatars couldn't render a low-quality image placeholder while loading even though the media stored one. `BylineSummary` now also carries `avatarBlurhash` and `avatarDominantColor`, populated by `getContentBylines`, `getContentBylinesMany`, and `findByUserIds` (and surfaced in the byline API response), so themes can paint a blurhash/dominant-colour placeholder for byline avatars exactly as they can for other media.
+
+- [#1613](https://github.com/emdash-cms/emdash/pull/1613) [`fd077e0`](https://github.com/emdash-cms/emdash/commit/fd077e0892dedd1eb03c422e07aa54e180ddc0ff) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes a build failure in the `EmDashMedia` component. The component-embed branch contained HTML comments (`<!-- ... -->`) inside a JSX expression, which the Astro compiler rejects with "Unexpected token", breaking every production `astro build` and returning 500s in dev on any page that renders media. The note is now a JSX comment.
+
+- [#1389](https://github.com/emdash-cms/emdash/pull/1389) [`9ebb47e`](https://github.com/emdash-cms/emdash/commit/9ebb47e199a86ba13b9555b8b3e4f7c28f241d63) Thanks [@nanangdev](https://github.com/nanangdev)! - Fixes `emdash export-seed --with-content=all` so it exports content from every collection, matching the documented behaviour. Previously the literal string `"all"` was treated as a collection name and matched none, producing an empty `content` block. The bare flag and `--with-content=true` were the only sentinels honoured.
+
+- [#1616](https://github.com/emdash-cms/emdash/pull/1616) [`8c7bc81`](https://github.com/emdash-cms/emdash/commit/8c7bc81690bd1e3b39ef0bfeb234ea7d3ac49f39) Thanks [@MA2153](https://github.com/MA2153)! - Fixes plugins declaring the `media:write` capability receiving a read-only `ctx.media` with no `upload()`. The plugin context only granted a writable media surface when an internal upload-URL provider was wired, which the runtime never supplied — so `ctx.media.upload()` was always `undefined`. Write access is now granted whenever storage is configured (all `upload()` needs), and `getUploadUrl()` is derived from storage when no provider is set. A `media:write` plugin on a site without storage now logs a warning instead of silently degrading to read-only.
+
+- [#1555](https://github.com/emdash-cms/emdash/pull/1555) [`55613e1`](https://github.com/emdash-cms/emdash/commit/55613e1242a7b11c1dd632c9e50b8bd5f57b2baf) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Plugin route handlers that call `ctx.request.json()` (or `.text()`, `.formData()`, `.arrayBuffer()`, `.blob()`) now get a clear error pointing them to `ctx.input` instead of the runtime's cryptic "Body has already been read" failure ([#1293](https://github.com/emdash-cms/emdash/issues/1293)). EmDash parses the request body once before the handler runs and exposes it as `ctx.input`, leaving `ctx.request`'s stream consumed; the request handed to handlers now guards those body-reading methods with an actionable message. All other request members (`url`, `method`, `headers`, `signal`, …) are unaffected.
+
+- [#1396](https://github.com/emdash-cms/emdash/pull/1396) [`c5f58b9`](https://github.com/emdash-cms/emdash/commit/c5f58b9a8aeb369baf0b1b0bc2738373c03d2e01) Thanks [@nanangdev](https://github.com/nanangdev)! - fix: render text alignment from rich-text editor end-to-end ([#1201](https://github.com/emdash-cms/emdash/issues/1201))
+
+  The previous fix in `text-align-round-trip` patched only the `packages/core/src/content/converters/` pair but the rich-text editor saves through two other ProseMirror ↔ Portable Text converters that each carried their own copy of the same logic — so reporter and maintainer kept seeing alignment dropped on save:
+  - `packages/admin/src/components/PortableTextEditor.tsx` (admin save path)
+  - `packages/core/src/components/InlinePortableTextEditor.tsx` (in-page inline editing)
+
+  Both now forward `node.attrs?.textAlign` for paragraphs and headings (only `center`, `right`, `justify` — `left` is the editor default and is omitted so existing content stays byte-identical) and restore it on the reverse path. Each editor's local `PortableTextTextBlock` interface gained the `textAlign?: "left" | "center" | "right" | "justify"` field, mirroring the type in `packages/core/src/content/converters/types.ts`.
+
+  The Portable Text frontend renderer now emits a WordPress-style `has-text-align-{value}` class on the rendered `<p>` / `<h1..h6>` / `<blockquote>` whenever the block carries `textAlign`. A new `Block` component is added under `emdash/ui` for callers composing custom Portable Text components who want to keep the EmDash behaviour. The class allowlist is enforced via `Object.hasOwn`, so a hostile or hand-edited Portable Text block cannot inject arbitrary class names.
+
+  Consolidating the three duplicated converter pairs into a single shared module is a follow-up refactor and intentionally out of scope here.
+
+- [#1619](https://github.com/emdash-cms/emdash/pull/1619) [`c056060`](https://github.com/emdash-cms/emdash/commit/c056060cdbf29b823591c5796e38d03a66fcba70) Thanks [@ascorbic](https://github.com/ascorbic)! - Speeds up content reads by fetching each entry or collection together with its author bylines and taxonomy terms in one database query instead of three. This cuts time-to-first-byte on hosted databases like D1 where every query is a network round trip.
+
+- [#1406](https://github.com/emdash-cms/emdash/pull/1406) [`c43c412`](https://github.com/emdash-cms/emdash/commit/c43c412500e5bc067371f6e680ff3b7b8a726873) Thanks [@SailingGreg](https://github.com/SailingGreg)! - Honor image alignment from WordPress imports at render and in the editor, and surface display-size controls for migrated images.
+
+  The Gutenberg to Portable Text importer already captured image `alignment`, but it was dropped by the renderer and not editable. `Image.astro` now emits `emdash-image--align-*` classes (left/right float, center, wide/full), the admin editor threads `alignment` through the PortableText/TipTap serializer and image node and adds an alignment control that reflects in the node view, and the Display Size panel now shows for migrated images that carry only display dimensions.
+
+- [#1614](https://github.com/emdash-cms/emdash/pull/1614) [`b5ea8e7`](https://github.com/emdash-cms/emdash/commit/b5ea8e70db242472784bd4957e65d5fdb9fecd89) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes request-scoped database adapters that hold a real connection (e.g. Postgres over Cloudflare Hyperdrive) so they work on Workers. `locals.emdash.db` is now resolved lazily, so routes get the per-request connection instead of a snapshot of the shared singleton, and a request-scoped connection is now closed only after the response body finishes streaming rather than before — Astro streams HTML while components still query, so closing earlier broke server-rendered pages. No effect on D1 or other stateless bindings.
+
+- [#1396](https://github.com/emdash-cms/emdash/pull/1396) [`c5f58b9`](https://github.com/emdash-cms/emdash/commit/c5f58b9a8aeb369baf0b1b0bc2738373c03d2e01) Thanks [@nanangdev](https://github.com/nanangdev)! - fix(core/converters): persist text alignment from rich-text editor through ProseMirror ↔ Portable Text round-trip ([#1201](https://github.com/emdash-cms/emdash/issues/1201))
+
+  `prosemirrorToPortableText` now reads `node.attrs.textAlign` for paragraphs and headings and forwards it into the Portable Text block. `portableTextToProsemirror` restores it back into ProseMirror node attrs. The `PortableTextTextBlock` type gained an optional `textAlign?: "left" | "center" | "right" | "justify"` field. Left alignment is not persisted (it is TipTap's default and would bloat existing content).
+
+- Updated dependencies []:
+  - @emdash-cms/admin@0.23.0
+  - @emdash-cms/auth@0.23.0
+  - @emdash-cms/gutenberg-to-portable-text@0.23.0
+
+## 0.22.0
+
+### Minor Changes
+
+- [#1540](https://github.com/emdash-cms/emdash/pull/1540) [`cf17c9f`](https://github.com/emdash-cms/emdash/commit/cf17c9f4c8faa46857d92d4b168452d2469dba4b) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Add comment reactions
+
+  Visitors can now react to approved comments (positive-only "like" by default,
+  extensible to other reaction types). Reactions are deduped per voter via IP hash.
+
+  The `<Comments>` component gains two opt-in props:
+  - `reactions` — render a like button per comment and attach live counts.
+  - `sort="best"` — order top-level comments by a Reddit-style Wilson score
+    lower bound (`sort="oldest"`, the previous behavior, remains the default).
+
+  Posting is progressively enhanced (a tiny inline script, no framework island)
+  and emitted only when `reactions` is enabled, so pages that don't use reactions
+  ship zero additional JavaScript. Fully additive and backward-compatible: a new
+  table, a new route, and new optional props with behavior-preserving defaults.
+
+- [#1484](https://github.com/emdash-cms/emdash/pull/1484) [`d46abfd`](https://github.com/emdash-cms/emdash/commit/d46abfdb739f8d242eddba5ebfda09a8648c8ecf) Thanks [@swissky](https://github.com/swissky)! - Forward declarative `portableTextBlocks` and `fieldWidgets` from standard and sandboxed (from-config) plugins
+
+  Standard- and sandboxed-format plugins could already declare admin pages and dashboard widgets, but their declarative Portable Text block types and field widgets were dropped during adaptation — only native-format plugins surfaced them. Since the admin editor reads these from the manifest, the slash-menu entries and Block Kit forms never appeared for non-native plugins.
+
+  `adaptSandboxEntry` now forwards both for standard plugins and sandboxed plugins resolved from config (the `virtual-modules.ts` codegen path), so those formats can contribute Portable Text blocks and field widgets. The site-side render component (`componentsEntry`) still requires native format, which is unchanged.
+
+  Note: marketplace bundles loaded from R2 are not covered yet — the bundle manifest schema, both `extractManifest()` implementations, and the bundler don't carry these fields, so this is scoped to standard/sandboxed-from-config. Full marketplace support is tracked as a follow-up.
+
+- [#1564](https://github.com/emdash-cms/emdash/pull/1564) [`6a97bac`](https://github.com/emdash-cms/emdash/commit/6a97bacaf6ef8b006b32879e4625ebb48da6f5bd) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds byline management to the MCP server: `byline_list`, `byline_get`, `byline_create`, `byline_update`, `byline_delete`, and `byline_translations` tools, plus a `bylines` argument on `content_create` so credits can be attached at creation time (previously only `content_update` accepted them).
+
+- [#1378](https://github.com/emdash-cms/emdash/pull/1378) [`640e60a`](https://github.com/emdash-cms/emdash/commit/640e60a56e3d3e60925ba4d7a1cf0fbd04b3d5c2) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Add an optional distributed object cache for query results.
+
+  Content reads (`getEmDashCollection`, `getEmDashEntry`, `resolveEmDashPath`) and chrome reads (site settings, menus, taxonomies) can now be served from a fast key/value store instead of hitting the database on every request. This sits beneath the per-request cache and above the database, dramatically reducing read pressure on D1/SQLite — especially valuable on Cloudflare, where KV handles far more requests than D1.
+
+  The cache is **off by default** and fully opt-in. Configure a backend in `astro.config.mjs`:
+
+  ```ts
+  import { kvCache } from "@emdash-cms/cloudflare"; // Workers KV (distributed)
+  import { memoryCache } from "emdash/astro"; // in-isolate (Node / local dev)
+
+  emdash({
+  	database: d1({ binding: "DB" }),
+  	objectCache: kvCache({ binding: "CACHE" }),
+  });
+  ```
+
+  with a matching KV binding in `wrangler.jsonc`:
+
+  ```jsonc
+  { "kv_namespaces": [{ "binding": "CACHE", "id": "<namespace-id>" }] }
+  ```
+
+  Invalidation is epoch-based and automatic: content, byline, taxonomy, menu, and settings writes bump a per-namespace version, instantly orphaning stale entries (no key enumeration needed). Preview and visual-edit requests bypass the cache, so editors previewing see live content; other reads are served from the cache, which only ever stores published content. After an edit, anonymous visitors may see stale content until isolates pick up the bumped epoch — immediate on the in-isolate memory backend, and on KV bounded by KV's edge-cache propagation (eventually consistent, up to ~60s) plus the `revalidate` window (default 1s, configurable).
+
+  New public API: `cachedQuery`, `invalidateObjectCache`, `invalidateCollectionCache`, `contentNamespace`/`contentNamespaces`, `CacheNamespace`, the `ObjectCache*` types (from `emdash`), `memoryCache()` (from `emdash/astro`), and `kvCache()` (from `@emdash-cms/cloudflare`). Existing sites are unaffected until they opt in.
+
+- [#1549](https://github.com/emdash-cms/emdash/pull/1549) [`a623c6b`](https://github.com/emdash-cms/emdash/commit/a623c6b7dbdc82c8562f32a619af23ea147306b6) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes responsive image optimization for storage-backed media on Cloudflare. EmDash now wraps Astro's image endpoint to read media bytes directly from your storage adapter instead of fetching them over HTTP, so `Image` and Portable Text images generate a real responsive `srcset` even when the site is behind Cloudflare Access (previously these 404'd and fell back to a full-size image). This is on by default and also removes an internal HTTP round-trip on Node. Set `images: false` in your `emdash()` config to leave Astro's image endpoint untouched.
+
+### Patch Changes
+
+- [#1579](https://github.com/emdash-cms/emdash/pull/1579) [`0bfab91`](https://github.com/emdash-cms/emdash/commit/0bfab91765514f4a8bd164d7373c8c81e3d5b446) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes a Cloudflare build failure where the bare `zod` import used by the type generator was not externalized, causing the bundler to fail. EmDash sites on Cloudflare now build correctly under Astro 7.
+
+- [#1584](https://github.com/emdash-cms/emdash/pull/1584) [`707edee`](https://github.com/emdash-cms/emdash/commit/707edee3bdf31b53f33507e1f528a0e5803fd150) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the dev setup-bypass endpoint accumulating duplicate `dev-bypass-token` access tokens. Re-running it (for example after a dev reset) now replaces the previous token with a fresh one instead of adding another row.
+
+- [#1581](https://github.com/emdash-cms/emdash/pull/1581) [`a36b5f3`](https://github.com/emdash-cms/emdash/commit/a36b5f3e1e452d48a690878d4f078f85a6d99715) Thanks [@naota70](https://github.com/naota70)! - Fix the setup probe baking a redirect to `/_emdash/admin/setup` into prerendered pages. On a build whose database is empty (e.g. CI/first deploy), the anonymous setup probe saw a missing migrations table and returned `context.redirect("/_emdash/admin/setup")`; a prerendered route serializes that into static HTML and ships the redirect to production. The probe is now skipped entirely when `context.isPrerendered` is true — there is no live visitor to send to the wizard at build time, and the build database is legitimately empty. Live (SSR) requests are unaffected.
+
+- [#1509](https://github.com/emdash-cms/emdash/pull/1509) [`ed921d8`](https://github.com/emdash-cms/emdash/commit/ed921d80ec33fa114d9c8a7f9221f1fbeb24d658) Thanks [@ascorbic](https://github.com/ascorbic)! - Speeds up public page loads on remote databases (D1, Durable Objects) by eagerly warming site-global layout data (menus, widget areas, taxonomy term lists, settings) at the start of the request, so the layout's per-component reads overlap into roughly one round trip instead of executing serially. Transparent to site code; no template changes needed.
+
+- [#1563](https://github.com/emdash-cms/emdash/pull/1563) [`c219aff`](https://github.com/emdash-cms/emdash/commit/c219aff3b867e178ee267823801db66bbc9b1621) Thanks [@ascorbic](https://github.com/ascorbic)! - Lets the MCP `content_create` and `content_update` tools accept a Markdown string for rich text (portableText) fields, converting it to Portable Text automatically — the same behaviour the EmDash client already has. Passing a Portable Text JSON array still works. Authoring rich text as a single Markdown string avoids the large nested JSON payloads that agents frequently emit as malformed JSON, causing the tool call to fail before it reaches the server. `content_get` and `content_list` gain an optional `markdown` flag (default false) that returns rich text fields as Markdown instead of Portable Text arrays.
+
+- [#1580](https://github.com/emdash-cms/emdash/pull/1580) [`ca47da4`](https://github.com/emdash-cms/emdash/commit/ca47da485ddcf46f7fa7b8efa15c3c20a11c2300) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes query instrumentation (`EMDASH_QUERY_LOG=1`) so the per-query NDJSON log captures queries issued while the page is still streaming, not just those that ran before the response headers were sent. The per-query log now matches the totals already reported by the `[emdash-stream-end]` summary line.
+
+- [#1538](https://github.com/emdash-cms/emdash/pull/1538) [`cb1c689`](https://github.com/emdash-cms/emdash/commit/cb1c68948072c479ed924b52867809bc8ad1c9e5) Thanks [@swissky](https://github.com/swissky)! - Fix logged-in pages hanging indefinitely on Cloudflare Workers ([#1274](https://github.com/emdash-cms/emdash/issues/1274)). A request cancelled mid-`session.get("user")` could leave the session-store read as a promise that never settles, poisoning the isolate so every later session-bearing request hung (0-CPU, multi-minute, `canceled`) — reliably reproducible on fresh isolates right after a deploy. Every session read on the request path (the main middleware, the auth middleware, and the preview-snapshot route) now goes through a shared `resolveSessionUser()` helper that anchors the read with `after()` so a cancelled request still drives it to completion (preventing the isolate poisoning), with a fail-closed timeout backstop that degrades a still-stalled read to "unauthenticated for this request" rather than hanging.
+
+- Updated dependencies [[`f4925b1`](https://github.com/emdash-cms/emdash/commit/f4925b1d2c36b147019335fc8f0de8bead1d47d9)]:
+  - @emdash-cms/admin@0.22.0
+  - @emdash-cms/auth@0.22.0
+  - @emdash-cms/gutenberg-to-portable-text@0.22.0
+
 ## 0.21.0
 
 ### Minor Changes

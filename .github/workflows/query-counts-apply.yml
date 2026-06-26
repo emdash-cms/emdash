@@ -135,7 +135,7 @@ jobs:
 
       - name: Checkout (same-repo)
         if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'false'
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ steps.pr.outputs.sha }}
           token: ${{ steps.app-token.outputs.token }}
@@ -147,7 +147,7 @@ jobs:
 
       - name: Checkout (fork)
         if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'true'
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: ${{ steps.pr.outputs.full_name }}
           ref: ${{ steps.pr.outputs.sha }}
@@ -159,7 +159,13 @@ jobs:
         run: |
           cp "$RUNNER_TEMP/qc-artifact/query-counts.snapshot.sqlite.json" scripts/
           cp "$RUNNER_TEMP/qc-artifact/query-counts.snapshot.d1.json" scripts/
-          git add scripts/query-counts.snapshot.sqlite.json scripts/query-counts.snapshot.d1.json
+          cp "$RUNNER_TEMP/qc-artifact/query-counts.queries.sqlite.json" scripts/
+          cp "$RUNNER_TEMP/qc-artifact/query-counts.queries.d1.json" scripts/
+          git add \
+            scripts/query-counts.snapshot.sqlite.json \
+            scripts/query-counts.snapshot.d1.json \
+            scripts/query-counts.queries.sqlite.json \
+            scripts/query-counts.queries.d1.json
           if git diff --staged --quiet; then
             echo "no_diff=true" >> "$GITHUB_OUTPUT"
             echo "Artifact matches the PR head — nothing to push (probably a race with a newer commit)."

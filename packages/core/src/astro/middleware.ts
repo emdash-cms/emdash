@@ -12,6 +12,7 @@ import type { Kysely } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 // @ts-ignore - virtual module
 import {
+	createCoalescingDialect as virtualCreateCoalescingDialect,
 	createDialect as virtualCreateDialect,
 	createRequestScopedDb as virtualCreateRequestScopedDb,
 } from "virtual:emdash/dialect";
@@ -59,6 +60,7 @@ import type { PublishedRef } from "../scheduled-publish.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
+import { ASTRO_COOKIES_SYMBOL, finishScoped } from "./middleware/scoped-db.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { prefetchLayoutData } from "./prefetch.js";
 import { createPublicPluginApiRouteHandler } from "./public-plugin-api-routes.js";
@@ -179,6 +181,10 @@ function buildDependencies(config: EmDashConfig): RuntimeDependencies {
 		config,
 		plugins: getPlugins(),
 		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
+		// Optional: only batching backends (D1, DO) export this; undefined otherwise.
+		createCoalescingDialect: virtualCreateCoalescingDialect as
+			| ((config: Record<string, unknown>) => unknown)
+			| undefined,
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
 		createScheduler: virtualCreateScheduler as CreateSchedulerFn | null,
 		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
@@ -270,16 +276,71 @@ export async function runScheduledTasks(
 	const config = getConfig();
 	if (!config) return { published: [] };
 	const runtime = await getRuntime(config);
-	return runtime.runScheduledTasks(options);
+
+	// Connection-backed adapters (e.g. Postgres over Hyperdrive) cannot reuse
+	// the per-isolate singleton from a Cron Trigger: its socket belongs to the
+	// request that opened it, and workerd rejects cross-event I/O. Open an
+	// event-scoped connection for the sweep and run the batch under it in ALS —
+	// the runtime's db getter, the cron executor, and plugin cron contexts all
+	// resolve the connection from ALS — then close it. Gated on the adapter
+	// being connection-backed (it exposes `close()`); stateless adapters (D1,
+	// Node SQLite) return null or a close-less scope and keep using the
+	// singleton, so their cron path is unchanged.
+	const scoped = createRequestScopedDb({
+		config: config.database?.config,
+		isAuthenticated: false,
+		// The sweep publishes and cleans up — a write workload — so a
+		// connection-backed adapter routes it to the primary.
+		isWrite: true,
+		cookies: NOOP_COOKIE_JAR,
+		url: CRON_EVENT_URL,
+	});
+	if (!scoped?.close) {
+		// Stateless adapter (or no per-request scoping): the singleton is safe
+		// outside a request. Any close-less scope created above is discarded.
+		return runtime.runScheduledTasks(options);
+	}
+
+	const parent = getRequestContext();
+	const ctx = parent
+		? { ...parent, db: scoped.db }
+		: { editMode: false, db: scoped.db, metrics: createRequestMetrics(performance.now()) };
+	try {
+		return await runWithContext(ctx, () => runtime.runScheduledTasks(options));
+	} finally {
+		// Guard both so a throw in teardown can't mask the sweep result or skip
+		// close() and leak the connection. Mirrors closeSafely() in scoped-db.ts.
+		try {
+			scoped.commit();
+		} catch (error) {
+			console.error("[scheduled] request-scoped db commit failed:", error);
+		}
+		try {
+			scoped.close();
+		} catch (error) {
+			console.error("[scheduled] request-scoped db close failed:", error);
+		}
+	}
 }
 
 /**
- * Astro attaches AstroCookies to outgoing responses via a well-known global
- * symbol. Cloning a Response (`new Response(body, init)`) drops non-header
- * metadata, so any middleware that wraps the response must explicitly forward
- * this symbol or `cookies.set()` calls will be silently dropped.
+ * A cookie jar that reads nothing and writes nothing, for request-scoped db
+ * adapters invoked outside an HTTP request (the Cron Trigger sweep). Connection
+ * adapters like Hyperdrive ignore cookies entirely; the D1 session adapter
+ * reads/writes a bookmark cookie, but cron never reaches that path (it has no
+ * `close()`), so the no-ops are never observed.
  */
-const ASTRO_COOKIES_SYMBOL = Symbol.for("astro.cookies");
+const NOOP_COOKIE_JAR = {
+	get: () => undefined,
+	set: () => {},
+};
+
+/**
+ * Synthetic URL for the cron sweep's request-scoped db opts. Only the D1
+ * session adapter inspects `url` (for cookie `secure`), and cron doesn't take
+ * that path, so the value is never used — it exists to satisfy the contract.
+ */
+const CRON_EVENT_URL = new URL("https://cron.emdash.internal/");
 
 /**
  * Baseline security headers applied to all responses.
@@ -356,12 +417,12 @@ const SITEMAP_COLLECTION_RE = /^\/sitemap-[a-z][a-z0-9_]*\.xml$/;
  */
 function createRequestScopedDb(
 	opts: RequestScopedDbOpts,
-): { db: Kysely<Database>; commit: () => void } | null {
+): { db: Kysely<Database>; commit: () => void; close?: () => void } | null {
 	if (typeof virtualCreateRequestScopedDb !== "function") return null;
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- adapter returns Kysely<unknown>; cast to Database since core owns that type
 	const fn = virtualCreateRequestScopedDb as (
 		o: RequestScopedDbOpts,
-	) => { db: Kysely<Database>; commit: () => void } | null;
+	) => { db: Kysely<Database>; commit: () => void; close?: () => void } | null;
 	return fn(opts);
 }
 
@@ -430,7 +491,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Do a one-time lightweight probe using the same getDb() instance the
 				// page will use: if the migrations table doesn't exist, no migrations
 				// have ever run -- redirect to the setup wizard.
-				if (!isSetupVerified()) {
+				// Skip the probe when prerendering: a prerendered route is built to
+				// static HTML, so returning context.redirect("/_emdash/admin/setup")
+				// below would bake that redirect into the page and ship it to
+				// production. The build database is legitimately empty in CI and there
+				// is no live visitor to send to the wizard at build time (session reads
+				// are already skipped for prerender above for the same reason).
+				if (!isSetupVerified() && !context.isPrerendered) {
 					const t0 = performance.now();
 					try {
 						const { getDb } = await import("../loader.js");
@@ -477,6 +544,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+							// Exposed so the wrapped image endpoint (`/_image`) can read media
+							// bytes from storage on the anonymous fast path -- public `<img>`
+							// requests carry no session.
+							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch {
 						// Non-fatal — EmDashHead will fall back to base SEO contributions
@@ -536,15 +607,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						.startsWith("text/html");
 					return runWithContext(ctx, async () => {
 						if (acceptsHtml) after(() => prefetchLayoutData());
-						// commit() in finally: the write reached the primary independently
-						// of render, so the bookmark cookie must be persisted even if
-						// render throws -- otherwise a write-then-failed-render leaves the
-						// next request able to read pre-write state off a lagging replica.
-						try {
-							return await runAnon();
-						} finally {
-							anonScoped.commit();
-						}
+						// commit() persists per-request state (e.g. the D1 bookmark cookie)
+						// before the response is returned, even if render throws; close()
+						// (connection teardown) is deferred to stream-end. See finishScoped.
+						return finishScoped(anonScoped, runAnon);
 					});
 				}
 				return runAnon();
@@ -648,7 +714,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Direct access (for advanced use cases)
 					storage: runtime.storage,
-					db: runtime.db,
+					// Lazy getter, not an eager snapshot: `locals.emdash` is built
+					// before the per-request scoped db is installed in ALS, so reading
+					// `runtime.db` here would capture the per-isolate singleton. Routes
+					// access `emdash.db` later, during the request, when the scoped db
+					// is active. For a stateless binding (D1) the two are equivalent,
+					// but for a request-bound connection (pg/Hyperdrive) the singleton
+					// belongs to the cold-start request and reusing it from a warm
+					// request hangs on workerd's cross-request I/O guard.
+					get db() {
+						return runtime.db;
+					},
 					getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
 					hooks: runtime.hooks,
 					email: runtime.email,
@@ -712,16 +788,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const ctx = parent
 					? { ...parent, db: scoped.db }
 					: { editMode: false, db: scoped.db, metrics };
-				return runWithContext(ctx, async () => {
-					// commit() in finally: persist the bookmark cookie even if render
-					// throws -- the write already reached the primary, so a failed
-					// render must not strand the next request on a stale replica read.
-					try {
-						return await renderAndFinalize();
-					} finally {
-						scoped.commit();
-					}
-				});
+				return runWithContext(ctx, () =>
+					// commit() persists per-request state (e.g. the D1 bookmark cookie)
+					// before the response returns, even if render throws; close()
+					// (connection teardown) is deferred to stream-end. See finishScoped.
+					finishScoped(scoped, renderAndFinalize),
+				);
 			}
 
 			return renderAndFinalize();
@@ -746,7 +818,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	try {
 		return await runWithContext({ editMode: false, queryRecorder, metrics }, run);
 	} finally {
-		if (queryRecorder) flushRecorder(queryRecorder);
+		// Streamed responses defer the flush to stream end (see
+		// wrapBodyForStreamMetrics) so the log captures queries issued while
+		// the body renders. Only flush here for responses that were not
+		// wrapped (no body: redirects, 304s, bodyless errors), where all
+		// queries have already run by the time middleware returns.
+		if (queryRecorder && !queryRecorder.deferredFlush) flushRecorder(queryRecorder);
 	}
 });
 

@@ -70,26 +70,21 @@ interface ImageRemotePattern {
 /**
  * Build `image.remotePatterns` entries so Astro will optimize EmDash media.
  *
- * Astro's image services only transform **absolute** URLs whose host is
- * authorized; everything else is passed through unoptimized. We authorize the
- * media sources automatically:
+ * Astro's image services only build a transform URL for sources allowed via
+ * `image.domains` / `image.remotePatterns` (relative URLs are never optimized —
+ * see `isRemoteAllowed`). We authorize the media sources automatically:
  *
- *  1. The storage adapter's public URL host (R2 custom domain, S3/CDN), so
- *     media served directly from a public bucket is optimized.
+ *  1. The storage adapter's public URL host (R2 custom domain, S3/CDN).
  *  2. The site's own origin, scoped to the media proxy route
- *     (`/_emdash/api/media/file/**`), so same-origin proxied media (local
- *     storage, or R2 without a public URL) is optimized too. The pathname
- *     scope keeps Astro's image endpoint from acting as an open proxy for the
- *     whole origin. Only registered when `siteUrl` is known at build time;
- *     `getPublicOrigin` resolves the matching origin at render time.
- *  3. In `astro dev` the dev-server origin (`localhost:<port>`) isn't known at
- *     build time, so we register a host-agnostic pattern scoped to the media
- *     route. This is dev-only — it never ships in a production build — so the
- *     missing host check can't be abused on a deployed site.
+ *     (`/_emdash/api/media/file/**`), so same-origin proxied media is optimized.
+ *     The components absolutize the media URL against this origin; EmDash's
+ *     wrapped image endpoint then serves the bytes from storage (so the absolute
+ *     URL is never fetched). Only registered when `siteUrl` is known at build.
+ *  3. In `astro dev` the dev-server origin isn't known at build time, so we
+ *     register a host-agnostic pattern scoped to the media route. Dev-only.
  *
- * Returns an empty array when no source is statically known (e.g. a production
- * build using local storage with no `siteUrl`), in which case media renders as
- * a plain `<img>`.
+ * Returns an empty array when no source is statically known (production build,
+ * local storage, no `siteUrl`), in which case media renders as a plain `<img>`.
  *
  * @internal Exported for unit testing.
  */
@@ -145,6 +140,59 @@ export function buildImageRemotePatterns(
 	}
 
 	return patterns;
+}
+
+/**
+ * Stock image endpoints EmDash may safely replace with its storage-backed
+ * wrapper. Our wrapper delegates non-EmDash images to the platform's transform
+ * endpoint, so we only override endpoints whose transform we can delegate to.
+ */
+const OVERRIDABLE_IMAGE_ENDPOINTS = new Set([
+	"astro/assets/endpoint/generic",
+	"astro/assets/endpoint/node",
+	"astro/assets/endpoint/dev",
+	"@astrojs/cloudflare/image-transform-endpoint",
+]);
+
+/**
+ * Stock endpoints that deliberately don't transform (the user opted into
+ * passthrough). We leave these untouched -- and without a warning, since it's a
+ * supported choice, not a custom endpoint. Overriding would route non-EmDash
+ * images through a transformer the passthrough setup doesn't provide.
+ */
+const PASSTHROUGH_IMAGE_ENDPOINTS = new Set(["@astrojs/cloudflare/image-passthrough-endpoint"]);
+
+/**
+ * Decide which image endpoint to install (if any). EmDash wraps Astro's image
+ * endpoint so EmDash media bytes load from storage; the wrapper delegates other
+ * images back to the platform's stock endpoint.
+ *
+ * Returns `{ entrypoint }` to install, `{ warn }` to skip with a warning (a
+ * custom endpoint we can't delegate to), or `{}` to skip silently (opted out).
+ *
+ * @internal Exported for unit testing.
+ */
+export function resolveImageEndpoint(opts: {
+	imagesDisabled: boolean;
+	currentEntrypoint: string | undefined;
+	isCloudflare: boolean;
+}): { entrypoint?: string; warn?: string } {
+	if (opts.imagesDisabled) return {};
+	const current = opts.currentEntrypoint;
+	if (current === undefined || OVERRIDABLE_IMAGE_ENDPOINTS.has(current)) {
+		return {
+			entrypoint: opts.isCloudflare
+				? "@emdash-cms/cloudflare/image-endpoint"
+				: "emdash/image-endpoint",
+		};
+	}
+	// A deliberate passthrough setup: leave it alone, no warning.
+	if (PASSTHROUGH_IMAGE_ENDPOINTS.has(current)) return {};
+	return {
+		warn:
+			`A custom image.endpoint (${current}) is configured; EmDash will not wrap ` +
+			`it, so storage-backed media may render unoptimized.`,
+	};
 }
 
 // Terminal formatting
@@ -402,19 +450,32 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 								},
 							];
 
-				// Authorize media sources for Astro image optimization so the
-				// Image components can generate a responsive srcset for R2/S3 and
-				// same-origin proxied media. `updateConfig` merges arrays, so any
-				// user-configured remotePatterns are preserved.
+				// Authorize media sources so Astro's image service builds transform
+				// URLs for them (it won't optimize an un-allowed source). `updateConfig`
+				// merges arrays, so user-configured remotePatterns are preserved.
 				const imageRemotePatterns = buildImageRemotePatterns(
 					resolvedConfig.storage,
 					resolvedConfig.siteUrl,
 					command,
 				);
 
+				// Wrap Astro's image endpoint so EmDash media bytes load straight from
+				// storage (Access-safe) instead of over HTTP. Skip when the user opts
+				// out or has a custom endpoint we can't delegate back to.
+				const { entrypoint: imageEndpoint, warn: imageEndpointWarning } = resolveImageEndpoint({
+					imagesDisabled: resolvedConfig.images === false,
+					currentEntrypoint: astroConfig.image?.endpoint?.entrypoint,
+					isCloudflare: astroConfig.adapter?.name === "@astrojs/cloudflare",
+				});
+				if (imageEndpointWarning) logger.warn(imageEndpointWarning);
+
+				const imageConfig: Record<string, unknown> = {};
+				if (imageRemotePatterns.length) imageConfig.remotePatterns = imageRemotePatterns;
+				if (imageEndpoint) imageConfig.endpoint = { entrypoint: imageEndpoint };
+
 				updateConfig({
 					security: securityConfig,
-					...(imageRemotePatterns.length ? { image: { remotePatterns: imageRemotePatterns } } : {}),
+					...(Object.keys(imageConfig).length ? { image: imageConfig } : {}),
 					// fonts is a valid AstroConfig key but may not be in the
 					// type definition for the minimum supported Astro version
 					...({ fonts: emdashFonts } as Record<string, unknown>),
