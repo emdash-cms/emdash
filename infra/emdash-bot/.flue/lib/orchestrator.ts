@@ -182,8 +182,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			resolvedArg = classifyResult.arg;
 		}
 
+		// DO is the source of truth. If we've ever persisted state for this
+		// issue, project our state to labels and use those; otherwise fall
+		// back to the webhook's snapshot for first-time mentions.
+		const persistedLabels = await this.projectLabels();
+		const labels = persistedLabels.length > 0 ? persistedLabels : input.labels;
+
 		const decision = resolve({
-			labels: input.labels,
+			labels,
 			event: resolvedEvent,
 			arg: resolvedArg,
 			actor: input.actor,
