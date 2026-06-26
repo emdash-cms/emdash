@@ -20,6 +20,7 @@
 		{
 			"class_name": "Sandbox",
 			"image": "./Dockerfile",
+			"instance_type": "standard-3",
 		},
 	],
 
@@ -55,6 +56,10 @@
 				"FlueInvestigateWorkflow",
 				"FlueSandboxProbeWorkflow",
 			],
+		},
+		{
+			"tag": "v2",
+			"deleted_classes": ["FlueSandboxProbeWorkflow"],
 		},
 	],
 

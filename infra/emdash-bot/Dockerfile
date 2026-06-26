@@ -88,5 +88,7 @@ RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
        -exec chmod +x {} \; \
     && node --version && npm --version && pnpm --version
 
+ENV NODE_OPTIONS="--max-old-space-size=6144"
+
 # The agent operates under /workspace; the workflow clones into /workspace/repo.
 WORKDIR /workspace
