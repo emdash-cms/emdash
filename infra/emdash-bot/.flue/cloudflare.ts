@@ -13,6 +13,9 @@ import { mintInstallationToken, readAppCreds } from "./lib/github.js";
 // Authorization, and the request is forwarded upstream.
 export class Sandbox extends BaseSandbox {
 	override enableInternet = false;
+	// Required: outboundByHost only sees HTTPS traffic when interception is on.
+	// Defaults to false in @cloudflare/containers 0.3.x; flip it explicitly.
+	override interceptHttps = true;
 	override allowedHosts = [
 		"github.com",
 		"api.github.com",
@@ -34,6 +37,12 @@ Sandbox.outboundByHost = {
 };
 
 async function authenticatedGithub(request: Request, env: Env): Promise<Response> {
+	const url = new URL(request.url);
+	console.log("[sandbox/outbound] github request", {
+		method: request.method,
+		host: url.host,
+		path: url.pathname,
+	});
 	const creds = readAppCreds(env);
 	if (!creds) return new Response("github access not configured", { status: 403 });
 	let token: string;
@@ -48,7 +57,17 @@ async function authenticatedGithub(request: Request, env: Env): Promise<Response
 	// Format: x-access-token:<token>, base64-encoded.
 	authed.headers.set("authorization", `Basic ${btoa(`x-access-token:${token}`)}`);
 	authed.headers.set("user-agent", "emdash-bot");
-	return fetch(authed);
+	try {
+		const res = await fetch(authed);
+		console.log("[sandbox/outbound] github response", {
+			path: url.pathname,
+			status: res.status,
+		});
+		return res;
+	} catch (err) {
+		console.error("[sandbox/outbound] forward failed", { error: (err as Error).message });
+		return new Response("forward failed", { status: 502 });
+	}
 }
 
 export { ContainerProxy } from "@cloudflare/sandbox";

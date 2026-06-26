@@ -84,6 +84,12 @@ export interface NormalizedEvent {
 	readonly deliveryId?: string;
 	/** Issue/PR number for GitHub API side effects. Required for transitions. */
 	readonly anchorNumber?: number;
+	/**
+	 * Skip GitHub side effects (labels, comments, PR ops) and the LLM call.
+	 * The sandbox setup still runs so the clone/auth path can be verified.
+	 * Workflow returns immediately after setup with a synthetic result.
+	 */
+	readonly dryRun?: boolean;
 }
 
 /**
@@ -207,7 +213,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 			runError = await this.runAction(decision, resolvedArg ?? input.arg);
 		}
 
-		const sideEffectError = await this.applySideEffects(decision);
+		// Dry-run skips the user-visible GitHub effects (labels, comment) so
+		// repeated smoke tests don't spam an issue. The workflow still runs
+		// fully (setup, LLM, push attempt).
+		const sideEffectError = input.dryRun ? null : await this.applySideEffects(decision);
 		await this.persistDecision(decision, input);
 		await this.armAlarm();
 		return {

@@ -47,8 +47,12 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 		// single-threaded per instance, so concurrent webhook deliveries for the
 		// same issue queue here -- the PR-comment race from PR #1606 cycle 4
 		// cannot occur.
+		// `x-emdash-dry-run: 1` lets local smoke tests exercise the full
+		// pipeline (LLM, sandbox, push) without leaving labels/comments on
+		// the GitHub issue. Production webhooks never send this header.
+		const dryRun = c.req.header("x-emdash-dry-run") === "1";
 		const stub = c.env.Orchestrator.getByName(result.anchor);
-		const outcome = await stub.event(result.event);
+		const outcome = await stub.event({ ...result.event, dryRun });
 		console.log("[webhook] dispatched", {
 			event: eventType,
 			delivery: deliveryId,

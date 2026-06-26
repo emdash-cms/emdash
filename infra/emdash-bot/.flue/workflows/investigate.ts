@@ -116,37 +116,65 @@ async function setupSandbox(
 	input: v.InferOutput<typeof inputSchema>,
 	log: FlueLogger,
 ): Promise<void> {
+	log.info("setupSandbox: entered", { mode: input.mode, issueNumber: input.issueNumber });
 	const repo = readRepoContext(workerEnv);
 	if (!repo) {
 		log.info("setupSandbox: no repo context; skipping clone");
 		return;
 	}
+	log.info("setupSandbox: repo context resolved", { owner: repo.owner, repo: repo.repo });
 
 	const cloneUrl = `https://github.com/${repo.owner}/${repo.repo}.git`;
 	const branch = input.mode === "revise" ? `bot/fix-${input.issueNumber}` : "main";
 
-	const script = [
-		"set -e",
-		'git config --global user.email "emdashbot[bot]@users.noreply.github.com"',
-		'git config --global user.name "emdashbot[bot]"',
-		"mkdir -p /workspace",
-		`if [ -d ${REPO_DIR}/.git ]; then`,
-		`  cd ${REPO_DIR} && git fetch --all --prune`,
-		"else",
-		`  git clone --depth 50 '${cloneUrl}' ${REPO_DIR}`,
-		"fi",
-		`cd ${REPO_DIR}`,
+	const steps: Array<{ name: string; cmd: string }> = [
+		{ name: "git-identity-email", cmd: 'git config --global user.email "emdashbot[bot]@users.noreply.github.com"' },
+		{ name: "git-identity-name", cmd: 'git config --global user.name "emdashbot[bot]"' },
+		{ name: "mkdir-workspace", cmd: "mkdir -p /workspace" },
+		{
+			name: "clone-or-fetch",
+			cmd: `if [ -d ${REPO_DIR}/.git ]; then cd ${REPO_DIR} && git fetch --all --prune; else git clone --depth 50 '${cloneUrl}' ${REPO_DIR}; fi`,
+		},
 		input.mode === "revise"
-			? `git fetch origin '${branch}':'refs/remotes/origin/${branch}' && git checkout '${branch}'`
-			: "git checkout main && git reset --hard origin/main",
-	].join(" && ");
+			? {
+					name: "checkout-revise",
+					cmd: `cd ${REPO_DIR} && git fetch origin '${branch}':'refs/remotes/origin/${branch}' && git checkout '${branch}'`,
+				}
+			: {
+					name: "checkout-main",
+					cmd: `cd ${REPO_DIR} && git checkout main && git reset --hard origin/main`,
+				},
+	];
 
-	try {
-		await harness.shell(script);
-		log.info("setupSandbox: clone complete", { mode: input.mode, branch });
-	} catch (err) {
-		log.error?.("setupSandbox: clone failed", { error: (err as Error).message });
+	for (const step of steps) {
+		try {
+			// Setup runs from / because the agent's default cwd
+			// (/workspace/repo) doesn't exist until the clone step.
+			const result = await harness.shell(step.cmd, { cwd: "/" });
+			if (result.exitCode !== 0) {
+				console.error(
+					`[investigate.setupSandbox] step "${step.name}" exit ${result.exitCode}\n` +
+						`  stdout: ${result.stdout.slice(0, 500)}\n` +
+						`  stderr: ${result.stderr.slice(0, 500)}`,
+				);
+				log.error?.("setupSandbox: step failed", {
+					step: step.name,
+					exitCode: result.exitCode,
+					stderr: result.stderr.slice(0, 500),
+				});
+				return;
+			}
+			log.info(`setupSandbox: ${step.name} ok`);
+		} catch (err) {
+			console.error(`[investigate.setupSandbox] step "${step.name}" threw:`, String(err));
+			log.error?.("setupSandbox: step threw", {
+				step: step.name,
+				error: (err as Error).message,
+			});
+			return;
+		}
 	}
+	log.info("setupSandbox: complete", { mode: input.mode, branch });
 }
 
 /**
