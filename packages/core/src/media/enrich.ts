@@ -23,8 +23,12 @@ export interface EnrichedImageMetadata {
  *
  * - Non-image content types return `{}`.
  * - `knownDimensions` (e.g. browser `naturalWidth/Height`) win over `image-size`
- *   because the browser applies EXIF orientation; `image-size` reports raw header
- *   dimensions, which are swapped for 90°/270°-rotated JPEGs.
+ *   for the *stored record* because the browser applies EXIF orientation;
+ *   `image-size` reports raw header dimensions, which are swapped for
+ *   90°/270°-rotated JPEGs. They are NOT used for the decode OOM guard — see below.
+ * - The placeholder OOM guard uses only header dimensions read from the bytes
+ *   actually decoded. Caller-supplied `knownDimensions` are untrusted for the
+ *   guard: a client could claim a tiny size for a huge image to bypass the cap.
  * - `placeholder` lets a caller decode a smaller thumbnail for the blurhash to
  *   avoid OOM on large originals; dimensions still come from `bytes`.
  * - Placeholders are jpeg/png only (the generator's supported formats); other
@@ -41,25 +45,33 @@ export async function enrichImageMetadata(
 	const normalizedContentType = normalizeMime(contentType);
 	if (!normalizedContentType.startsWith("image/")) return {};
 
-	// Dimensions for the returned record come from the main bytes (or the
-	// caller's knownDimensions). The header is read exactly once here and passed
-	// into generatePlaceholder so it isn't re-read on the no-override path.
-	const dims = opts?.knownDimensions ?? readDimensions(bytes) ?? undefined;
+	// Header dimensions are read once from the actual bytes. They feed the
+	// placeholder OOM guard, which must never trust caller-supplied dimensions:
+	// `knownDimensions` is decoupled from the buffer, so a client could claim a
+	// tiny size for a huge image and slip past the decoded-size cap, making the
+	// decoder allocate an unbounded RGBA buffer and OOM the runtime. Only dims
+	// read from the buffer that actually gets decoded can bound the decode.
+	const headerDims = readDimensions(bytes) ?? undefined;
+
+	// Dimensions published on the record prefer the caller's knownDimensions
+	// (e.g. browser naturalWidth/Height, which apply EXIF orientation) over the
+	// raw header dims, which are swapped for 90°/270°-rotated JPEGs.
+	const recordDims = opts?.knownDimensions ?? headerDims;
 
 	// When a smaller thumbnail override is supplied, decode that for the blurhash
-	// but let generatePlaceholder read the thumbnail's own dimensions for the OOM
+	// and let generatePlaceholder read the thumbnail's own header for the OOM
 	// guard (the override buffer is what actually gets decoded). On the common
-	// no-override path pass the dims already read from this same buffer.
+	// no-override path pass the header dims already read from this same buffer.
 	const override = opts?.placeholder;
 	const placeholder = await generatePlaceholder(
 		override ? override.bytes : bytes,
 		override ? normalizeMime(override.contentType) : normalizedContentType,
-		override ? undefined : dims,
+		override ? undefined : headerDims,
 	);
 
 	return {
-		width: dims?.width,
-		height: dims?.height,
+		width: recordDims?.width,
+		height: recordDims?.height,
 		blurhash: placeholder?.blurhash,
 		dominantColor: placeholder?.dominantColor,
 	};
