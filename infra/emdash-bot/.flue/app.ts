@@ -16,7 +16,10 @@
 import { flue } from "@flue/runtime/routing";
 import { Hono } from "hono";
 
+import { installAgentObserver } from "./lib/observer.js";
 import { registerCoreRoutes } from "./routes.js";
+
+installAgentObserver();
 
 const app = new Hono<{ Bindings: Env }>();
 registerCoreRoutes(app);
