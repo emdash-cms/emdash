@@ -401,6 +401,7 @@ export async function getEmDashCollection<T extends string, D = InferCollectionD
 interface CachedCollectionValue {
 	entries: unknown[];
 	nextCursor?: string;
+	hasMore?: boolean;
 	cacheHint: CacheHint;
 }
 
@@ -428,6 +429,7 @@ async function loadCollectionCached<T extends string, D = InferCollectionData<T>
 				value: {
 					entries: result.entries.map(entrySnapshot),
 					nextCursor: result.nextCursor,
+					hasMore: result.hasMore,
 					cacheHint: result.cacheHint,
 				},
 			};
@@ -441,6 +443,7 @@ async function loadCollectionCached<T extends string, D = InferCollectionData<T>
 	return {
 		entries: snapshot.value.entries.map((entry) => reviveEntry<D>(entry)),
 		nextCursor: snapshot.value.nextCursor,
+		hasMore: snapshot.value.hasMore,
 		cacheHint: snapshot.value.cacheHint,
 	};
 }
