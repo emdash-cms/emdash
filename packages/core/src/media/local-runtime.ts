@@ -73,6 +73,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 					size: item.size ?? undefined,
 					width: item.width ?? undefined,
 					height: item.height ?? undefined,
+					blurhash: item.blurhash ?? undefined,
+					dominantColor: item.dominantColor ?? undefined,
 					alt: item.alt ?? undefined,
 					previewUrl: `/_emdash/api/media/file/${item.storageKey}`,
 					meta: {
@@ -97,6 +99,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 				size: item.size ?? undefined,
 				width: item.width ?? undefined,
 				height: item.height ?? undefined,
+				blurhash: item.blurhash ?? undefined,
+				dominantColor: item.dominantColor ?? undefined,
 				alt: item.alt ?? undefined,
 				previewUrl: `/_emdash/api/media/file/${item.storageKey}`,
 				meta: {
@@ -148,6 +152,15 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 			const src = `/_emdash/api/media/file/${storageKey}`;
 			const mimeType = value.mimeType || "";
 
+			// Prefer the first-class fields; fall back to `meta` for legacy snapshots
+			// stored before LQIP was promoted off the provider-specific `meta` bag.
+			const blurhash =
+				value.blurhash ??
+				(typeof value.meta?.blurhash === "string" ? value.meta.blurhash : undefined);
+			const dominantColor =
+				value.dominantColor ??
+				(typeof value.meta?.dominantColor === "string" ? value.meta.dominantColor : undefined);
+
 			// Determine embed type based on MIME type
 			if (mimeType.startsWith("image/")) {
 				return {
@@ -155,6 +168,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 					src,
 					width: value.width,
 					height: value.height,
+					blurhash,
+					dominantColor,
 					alt: value.alt,
 				};
 			}
@@ -185,6 +200,8 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 				src,
 				width: value.width,
 				height: value.height,
+				blurhash,
+				dominantColor,
 				alt: value.alt,
 			};
 		},
@@ -221,6 +238,8 @@ export function repoItemToProviderItem(item: {
 		size: item.size ?? undefined,
 		width: item.width ?? undefined,
 		height: item.height ?? undefined,
+		blurhash: item.blurhash ?? undefined,
+		dominantColor: item.dominantColor ?? undefined,
 		alt: item.alt ?? undefined,
 		previewUrl: `/_emdash/api/media/file/${item.storageKey}`,
 		meta: {

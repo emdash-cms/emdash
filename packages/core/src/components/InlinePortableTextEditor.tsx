@@ -200,6 +200,13 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 		}
 		case "image": {
 			const provider = attrStrOpt(node.attrs, "provider");
+			const blurhash = attrStrOpt(node.attrs, "blurhash");
+			const dominantColor = attrStrOpt(node.attrs, "dominantColor");
+			// Persist LQIP as first-class block fields (matching the image-field
+			// MediaValue path) rather than nesting in `asset.meta`, so read sites
+			// and normalize don't need a dual-shape fallback. `asset.meta` is left
+			// to carry only provider-specific data — it isn't reconstructed here,
+			// so non-LQIP meta keys are never silently dropped on editor round-trip.
 			return {
 				_type: "image",
 				_key: k(),
@@ -212,6 +219,8 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 				caption: attrStrOpt(node.attrs, "caption") ?? attrStrOpt(node.attrs, "title"),
 				width: attrNum(node.attrs, "width"),
 				height: attrNum(node.attrs, "height"),
+				...(blurhash ? { blurhash } : {}),
+				...(dominantColor ? { dominantColor } : {}),
 				displayWidth: attrNum(node.attrs, "displayWidth"),
 				displayHeight: attrNum(node.attrs, "displayHeight"),
 			};
@@ -416,16 +425,38 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 	}
 	if (block._type === "image") {
 		const ib = block as PTBlock & {
-			asset?: { _ref?: string; url?: string; provider?: string };
+			asset?: {
+				_ref?: string;
+				url?: string;
+				provider?: string;
+				meta?: Record<string, unknown>;
+			};
 			url?: string;
 			alt?: string;
 			caption?: string;
 			width?: number;
 			height?: number;
+			/** LQIP — first-class field (legacy snapshots keep it in `asset.meta`). */
+			blurhash?: string;
+			dominantColor?: string;
 			displayWidth?: number;
 			displayHeight?: number;
 		};
 		const asset = ib.asset;
+		const meta = asset?.meta;
+		// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy.
+		const blurhash =
+			typeof ib.blurhash === "string"
+				? ib.blurhash
+				: typeof meta?.blurhash === "string"
+					? meta.blurhash
+					: null;
+		const dominantColor =
+			typeof ib.dominantColor === "string"
+				? ib.dominantColor
+				: typeof meta?.dominantColor === "string"
+					? meta.dominantColor
+					: null;
 		return {
 			type: "image",
 			attrs: {
@@ -437,6 +468,8 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 				provider: asset?.provider,
 				width: ib.width,
 				height: ib.height,
+				blurhash,
+				dominantColor,
 				displayWidth: ib.displayWidth,
 				displayHeight: ib.displayHeight,
 			},
@@ -1145,6 +1178,8 @@ interface MediaItemData {
 	storageKey?: string;
 	width?: number;
 	height?: number;
+	blurhash?: string;
+	dominantColor?: string;
 	alt?: string;
 	provider?: string;
 	previewUrl?: string;
@@ -1224,6 +1259,8 @@ function InlineMediaPicker({
 					storageKey?: string;
 					width?: number;
 					height?: number;
+					blurhash?: string;
+					dominantColor?: string;
 					alt?: string;
 					meta?: Record<string, unknown>;
 				}>;
@@ -1239,6 +1276,8 @@ function InlineMediaPicker({
 						storageKey: item.storageKey,
 						width: item.width,
 						height: item.height,
+						blurhash: item.blurhash,
+						dominantColor: item.dominantColor,
 						alt: item.alt,
 						provider: activeProvider === "local" ? undefined : activeProvider,
 						previewUrl: item.previewUrl,
@@ -1319,6 +1358,8 @@ function InlineMediaPicker({
 					storageKey: raw.storageKey,
 					width: raw.width || dims.width,
 					height: raw.height || dims.height,
+					blurhash: raw.blurhash,
+					dominantColor: raw.dominantColor,
 					alt: raw.alt,
 				};
 			} else {
@@ -1339,6 +1380,8 @@ function InlineMediaPicker({
 					url: raw.previewUrl || "",
 					width: raw.width || dims.width,
 					height: raw.height || dims.height,
+					blurhash: raw.blurhash,
+					dominantColor: raw.dominantColor,
 					alt: raw.alt,
 					provider: activeProvider,
 					previewUrl: raw.previewUrl,
@@ -1854,6 +1897,8 @@ export function InlinePortableTextEditor({
 						provider: { default: null },
 						width: { default: null },
 						height: { default: null },
+						blurhash: { default: null },
+						dominantColor: { default: null },
 					};
 				},
 			}),
@@ -1924,6 +1969,8 @@ export function InlinePortableTextEditor({
 					mediaId: item.id,
 					width: item.width,
 					height: item.height,
+					blurhash: item.blurhash,
+					dominantColor: item.dominantColor,
 				})
 				.run();
 			setMediaPickerOpen(false);

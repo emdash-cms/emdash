@@ -25,7 +25,8 @@ export interface Props {
 			url?: string;
 			/** Provider ID for external media (e.g., "cloudflare-images") */
 			provider?: string;
-			/** Provider metadata (blurhash, dominantColor, etc.) */
+			/** Provider metadata. LQIP is read from first-class fields below;
+			 *  `meta` only remains as a fallback for legacy snapshots. */
 			meta?: Record<string, unknown>;
 		};
 		alt?: string;
@@ -34,6 +35,10 @@ export interface Props {
 		width?: number;
 		/** Original image height */
 		height?: number;
+		/** LQIP blurhash — first-class field (legacy snapshots store it in `asset.meta`). */
+		blurhash?: string;
+		/** LQIP dominant color — first-class field (legacy snapshots store it in `asset.meta`). */
+		dominantColor?: string;
 		/** Display width for this instance (overrides original) */
 		displayWidth?: number;
 		/** Display height for this instance (overrides original) */
@@ -152,9 +157,14 @@ if (!src) {
 	}
 }
 
-// Build placeholder background style
-const blurhash = asset.meta?.blurhash as string | undefined;
-const dominantColor = asset.meta?.dominantColor as string | undefined;
+// Build placeholder background style. Prefer first-class LQIP fields; fall
+// back to `asset.meta` for legacy snapshots persisted before LQIP was promoted.
+const blurhash = (node.blurhash ?? (asset.meta?.blurhash as string | undefined)) as
+	| string
+	| undefined;
+const dominantColor = (node.dominantColor ?? (asset.meta?.dominantColor as string | undefined)) as
+	| string
+	| undefined;
 
 let placeholderStyle = "";
 if (blurhash) {
