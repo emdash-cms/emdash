@@ -38,6 +38,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     python3 \
     python-is-python3 \
+    ripgrep \
+    jq \
+    tree \
+    less \
+    file \
+    unzip \
+    sqlite3 \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
