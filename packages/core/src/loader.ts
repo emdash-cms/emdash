@@ -25,10 +25,13 @@ import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js"
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /**
- * SEO columns joined in from `_emdash_seo` on the single-entry path, mapped to
- * aliased result keys. SEO lives in a side table, so a LEFT JOIN folds it into
- * the entry load at zero extra query cost; the result is surfaced as a nested
- * `data.seo` object (see extractSeo) rather than flat fields.
+ * SEO columns fetched from `_emdash_seo` on the single-entry path, mapped to
+ * aliased result keys. SEO lives in a side table, so `loadEntry` fetches it in
+ * a small follow-up query and folds it onto the row using these aliases; the
+ * result is surfaced as a nested `data.seo` object (see extractSeo) rather than
+ * flat fields. Splitting the query keeps D1's per-result-set column count
+ * bounded, since joining in these 5 columns can push wide collections over
+ * D1's limit.
  *
  * The `_emdash_` prefix on the aliases guarantees they can never collide with
  * a content field. Field slugs must match `/^[a-z][a-z0-9_]*$/`, so a user can
