@@ -24,7 +24,6 @@ import {
 import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
 import {
 	currentState,
-	replyFooter,
 	type Decision,
 	outcomeFromResult,
 	resolve,
@@ -533,7 +532,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 		const persistedState = await this.ctx.storage.get<StateId>(STORAGE.state);
 		const state = decision.state ?? persistedState ?? null;
-		const body = `Current state: \`${state ?? "unmanaged"}\`.${replyFooter(state)}`;
+		const body = renderReadonlyReply(state);
 
 		try {
 			const token = await this.getInstallationToken(creds);
@@ -587,10 +586,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return `removeLabels failed: ${(err as Error).message}`;
 		}
 
-		try {
-			await postIssueComment(token, repo, anchorNumber, renderComment(decision));
-		} catch (err) {
-			console.error("[orchestrator] postComment failed (non-fatal):", err);
+		const body = renderComment(decision, anchorNumber);
+		if (body) {
+			try {
+				await postIssueComment(token, repo, anchorNumber, body);
+			} catch (err) {
+				console.error("[orchestrator] postComment failed (non-fatal):", err);
+			}
 		}
 		return null;
 	}
@@ -726,8 +728,76 @@ export interface TickOutcome {
 	labelDrift: { added: number; removed: number } | null;
 }
 
-function renderComment(decision: Extract<Decision, { kind: "transition" }>): string {
-	const action = decision.action ? ` (\`${decision.action}\`)` : "";
-	const verb = decision.event.replace(/_/g, " ");
-	return `Moved to \`${decision.to}\` on \`${verb}\`${action}.`;
+function renderReadonlyReply(state: StateId | null): string {
+	switch (state) {
+		case "unmanaged":
+		case null:
+		case "triage":
+			return "Not currently working on this. Try `@emdashbot repro` (for a bug), `@emdashbot implement <directive>` (for a change), or `@emdashbot decline`.";
+		case "working":
+			return "Investigating now. I'll comment again when I have something to share.";
+		case "blocked":
+			return "I got stuck. A maintainer can `@emdashbot retry` or `@emdashbot implement <directive>` to give me a steer.";
+		case "awaiting_feedback":
+			return "Waiting for you to verify the preview from my last comment. Reply `@emdashbot confirm` if it works, or describe what's still wrong.";
+		case "in_review":
+			return "PR is open and under review.";
+		case "human_owned":
+			return "A maintainer has taken this over. Hand it back with `@emdashbot hand back`.";
+		case "done":
+			return "Done. Reopen with `@emdashbot reopen` if something else comes up.";
+		case "declined":
+			return "I declined this. Reopen with `@emdashbot reopen` if circumstances change.";
+		case "failed":
+			return "My last attempt failed. A maintainer can `@emdashbot retry` or take it over.";
+		default:
+			return `State: \`${state}\`.`;
+	}
+}
+
+function renderComment(
+	decision: Extract<Decision, { kind: "transition" }>,
+	anchorNumber: number,
+): string {
+	switch (decision.event) {
+		case "repro":
+		case "implement":
+			return "On it. I'll investigate and report back; this usually takes a few minutes.";
+		case "revise":
+			return "Updating the PR with the feedback you described. Back in a few minutes.";
+		case "retry":
+			return "Retrying.";
+		case "decline":
+			return "Declining this one. Reopen with `@emdashbot reopen` if circumstances change.";
+		case "reopen":
+			return "Reopened.";
+		case "take_over":
+			return "Stepping back -- a maintainer is taking this over.";
+		case "hand_back":
+			return "Handing back to me.";
+		case "confirm":
+			return "Confirmed. Opening the PR.";
+		case "reset":
+			return "Reset to triage.";
+		case "agent.fix_ready":
+			return [
+				"I think I have a fix. Try it with:",
+				"",
+				"```sh",
+				`pnpm add https://pkg.pr.new/emdash@bot/fix-${anchorNumber}`,
+				"```",
+				"",
+				"(the preview build takes a minute to appear). Reply `@emdashbot confirm` if it works and I'll open the PR, or describe what's still wrong and I'll revise.",
+			].join("\n");
+		case "agent.not_reproduced":
+			return "I couldn't reproduce this. Reply with steps that fail for you, or close if it's no longer relevant.";
+		case "agent.by_design":
+			return "I think this is intended behaviour. See the summary in the run for details; reply if you disagree and I'll take another look.";
+		case "agent.skipped":
+			return "This looks out of scope for me. Leaving it for a maintainer.";
+		case "agent.failed":
+			return "My attempt failed. A maintainer should pick this up.";
+		default:
+			return "";
+	}
 }
