@@ -307,12 +307,29 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const startedAt = await this.ctx.storage.get<number>(STORAGE.currentRunStartedAt);
 		if (startedAt === undefined) return false;
 		if (now - startedAt < STALE_RUN_THRESHOLD_MS) return false;
+		const runId = await this.ctx.storage.get<string>(STORAGE.currentRunId);
 		console.warn("[orchestrator] dropping stale run", {
+			runId,
 			startedAt,
 			ageMs: now - startedAt,
 		});
 		await this.ctx.storage.delete(STORAGE.currentRunId);
 		await this.ctx.storage.delete(STORAGE.currentRunStartedAt);
+
+		// Advance the state machine so the DO isn't left zombied in `working`.
+		// Synthesize an agent.failed event; the user gets the failed-state comment.
+		const labels = await this.projectLabels();
+		try {
+			await this.event({
+				event: "agent.failed",
+				arg: null,
+				actor: "system",
+				labels,
+				needsClassify: false,
+			});
+		} catch (err) {
+			console.error("[orchestrator] recoverStaleRun: failed to advance state", err);
+		}
 		return true;
 	}
 
