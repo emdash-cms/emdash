@@ -186,6 +186,7 @@ The following component renders the most recent posts, with optional thumbnails 
 ```astro title="src/components/widgets/RecentPosts.astro"
 ---
 import { getEmDashCollection } from "emdash";
+import { Image } from "emdash/ui";
 
 interface Props {
   count?: number;
@@ -205,7 +206,7 @@ const { entries: posts } = await getEmDashCollection("posts", {
   {posts.map(post => (
     <li>
       {showThumbnails && post.data.featured_image && (
-        <img src={post.data.featured_image} alt="" class="thumbnail" />
+        <Image image={post.data.featured_image} alt="" class="thumbnail" />
       )}
       <a href={`/posts/${post.data.slug}`}>{post.data.title}</a>
       {showDate && post.data.publishedAt && (
