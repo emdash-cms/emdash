@@ -1,6 +1,14 @@
 // Investigate workflow: runs the agent inside the Cloudflare Sandbox
 // container, investigates an issue, and calls back into the OrchestratorDO
 // with a structured result.
+//
+// Trust model: the Sandbox class (see .flue/cloudflare.ts) intercepts all
+// HTTPS to github.com / api.github.com / codeload.github.com via the
+// authenticatedGithub outbound handler. The handler mints a fresh
+// installation token in the Worker runtime and injects Basic auth before
+// forwarding upstream. The token never enters the sandbox; the agent sees a
+// plain HTTPS endpoint and uses normal git. `allowedHosts` denies everything
+// else.
 
 import {
 	defineAgent,
@@ -19,6 +27,7 @@ import {
 	readAppCreds,
 	readRepoContext,
 } from "../lib/github.js";
+import investigate from "../skills/investigate/SKILL.md" with { type: "skill" };
 
 const inputSchema = v.object({
 	runId: v.pipe(v.string(), v.minLength(1)),
@@ -42,11 +51,11 @@ const investigator = defineAgent<Env>(({ id, env }) => ({
 	sandbox: cloudflareSandbox(getSandbox(env.Sandbox, id)),
 	cwd: "/workspace/repo",
 	instructions: [
-		"You are emdashbot, investigating one EmDash issue.",
-		"The repo is cloned at /workspace/repo with a write-scoped GITHUB_TOKEN already in the shell env and git credential store.",
-		"Read AGENTS.md before making changes. Reproduce, diagnose, fix, verify, push.",
-		"Return strictly the requested schema.",
+		"You are emdashbot, investigating one EmDash issue in a sandboxed Debian container.",
+		"The repo is pre-cloned at /workspace/repo. git clone/fetch/push to github.com work transparently -- credentials are injected by an outbound proxy outside the sandbox. You have no tokens in your env or filesystem.",
+		"Follow the investigate skill's protocol exactly and return strictly schema-conformant output.",
 	].join(" "),
+	skills: [investigate],
 }));
 
 export const route: WorkflowRouteHandler = async (_c, next) => next();
@@ -98,48 +107,26 @@ export default defineWorkflow({
 });
 
 /**
- * Pre-clone the repo and write credentials into the sandbox before the agent
- * starts. Runs in trusted workflow code; the agent then sees a ready repo at
- * /workspace/repo with $GITHUB_TOKEN already in the env (via /etc/environment
- * and a git credential store) and the right branch checked out for the mode.
- *
- * If no App creds are configured (dev), this skips silently.
+ * Pre-clone the repo into the sandbox before the agent starts. Clone happens
+ * over plain HTTPS to github.com -- the outbound proxy injects authentication
+ * outside the sandbox. The sandbox never holds a token.
  */
 async function setupSandbox(
 	harness: FlueHarness,
 	input: v.InferOutput<typeof inputSchema>,
 	log: FlueLogger,
 ): Promise<void> {
-	const creds = readAppCreds(workerEnv);
 	const repo = readRepoContext(workerEnv);
-	if (!creds || !repo) {
-		log.info("setupSandbox: no creds; skipping clone");
+	if (!repo) {
+		log.info("setupSandbox: no repo context; skipping clone");
 		return;
 	}
 
-	let token: string;
-	try {
-		token = await mintInstallationToken(creds);
-	} catch (err) {
-		log.error?.("setupSandbox: token mint failed", { error: (err as Error).message });
-		return;
-	}
-
-	const cloneUrl = `https://x-access-token:${token}@github.com/${repo.owner}/${repo.repo}.git`;
+	const cloneUrl = `https://github.com/${repo.owner}/${repo.repo}.git`;
 	const branch = input.mode === "revise" ? `bot/fix-${input.issueNumber}` : "main";
-
-	// Persistent credential store so subsequent git commands (commit, push)
-	// authenticate without re-exposing the token on the command line.
-	await harness.fs.writeFile(
-		"/root/.git-credentials",
-		`https://x-access-token:${token}@github.com\n`,
-	);
-	// Expose the token to the agent's bash sessions for general API use.
-	await harness.fs.writeFile("/etc/environment", `GITHUB_TOKEN=${token}\n`);
 
 	const script = [
 		"set -e",
-		"git config --global credential.helper store",
 		'git config --global user.email "emdashbot[bot]@users.noreply.github.com"',
 		'git config --global user.name "emdashbot[bot]"',
 		"mkdir -p /workspace",
@@ -163,14 +150,15 @@ async function setupSandbox(
 }
 
 /**
- * Check whether the agent pushed a fix branch. Asks GitHub for the branch
- * after the agent finished; if it exists with non-base content, returns true.
- * No-creds dev mode returns false (no way to verify).
+ * Check whether the agent pushed a fix branch. The check goes through the
+ * Worker (api.github.com is also routed through the outbound proxy when the
+ * agent runs, but here we're outside the sandbox -- direct API call with a
+ * fresh token).
  */
 async function detectPush(issueNumber: number): Promise<boolean> {
-	const creds = readAppCreds(workerEnv);
 	const repo = readRepoContext(workerEnv);
-	if (!creds || !repo) return false;
+	const creds = readAppCreds(workerEnv);
+	if (!repo || !creds) return false;
 	let token: string;
 	try {
 		token = await mintInstallationToken(creds);
@@ -208,7 +196,7 @@ function buildPrompt(input: {
 	return [
 		`Investigate issue #${input.issueNumber} in mode: ${input.mode}.`,
 		"",
-		"The repo is cloned at /workspace/repo. You have a write-scoped GITHUB_TOKEN in the shell env and a configured git credential store. Read AGENTS.md before making changes.",
+		"The repo is cloned at /workspace/repo. Read AGENTS.md before making changes.",
 		"",
 		`# ${input.issueTitle}`,
 		"",
@@ -218,10 +206,10 @@ function buildPrompt(input: {
 		"",
 		"- Read AGENTS.md, find the relevant code, attempt to reproduce / build / revise.",
 		"- Write tests where they make sense.",
-		"- On success, `git commit` your changes and `git push -u origin HEAD:bot/fix-" +
-			String(input.issueNumber) +
-			" --force-with-lease`.",
 		"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
+		"- When done, commit and push: `git checkout -B bot/fix-" +
+			String(input.issueNumber) +
+			" && git add <files> && git commit -m '<message>' && git push -u origin HEAD --force-with-lease`.",
 		"",
 		"## Return",
 		"",

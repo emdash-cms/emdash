@@ -3,7 +3,7 @@
 // class generics. `flue dev` ignores this file at runtime and uses its own
 // generated entry; the real fetch handler lives in app.ts.
 
-export { Sandbox, OrchestratorDO } from "./cloudflare.js";
+export { Sandbox, OrchestratorDO, ContainerProxy } from "./cloudflare.js";
 
 export default {
 	async fetch(): Promise<Response> {

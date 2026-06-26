@@ -8,7 +8,6 @@ import { DurableObject } from "cloudflare:workers";
 
 import { invoke } from "@flue/runtime";
 
-import investigateWorkflow from "../workflows/investigate.js";
 import { classifyComment, type ClassifyResult } from "./classifier-client.js";
 import {
 	addLabels,
@@ -449,6 +448,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.ctx.storage.put(STORAGE.currentRunStartedAt, Date.now());
 
 		try {
+			// Lazy: the workflow's SKILL.md import is only resolved by Flue's build plugin.
+			const investigateWorkflow = (await import("../workflows/investigate.js")).default;
 			await invoke(investigateWorkflow, {
 				input: {
 					runId,
