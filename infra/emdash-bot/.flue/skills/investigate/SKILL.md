@@ -29,7 +29,7 @@ Working agreement:
 
 - **Read before writing.** Find the relevant files via `git grep` / `rg`. Read at least the immediate context (not just the line being changed). Trace call-sites.
 - **AGENTS.md is in `/workspace/repo/AGENTS.md`** -- it's the canonical operating rules for this repo. Read it before making changes. Respect Lingui localization, RTL-safe Tailwind, the SQL-safety rules, the API envelope shape, and the changeset requirement for published packages.
-- **Don't run `pnpm install` unless you need to**. The container has dependencies pre-warmed. Run it only when you change a `package.json` or hit a missing-module error.
+- **Don't run `pnpm install` unless you've changed a `package.json` or `pnpm-workspace.yaml`**. The workflow has already run `pnpm install --frozen-lockfile` against the checked-out tree, so deps are ready when you start.
 - **Don't bulk-format or lint.** Touch only the files relevant to this issue. The orchestrator will reject patches that change `.github/workflows/`, `pnpm-lock.yaml` (unless deps changed), or unrelated source files.
 - **Tests are gold.** A bug without a reproducing test is not fixed. Before claiming `fixed: true`, write a failing test in the appropriate `tests/unit/` or `tests/integration/` directory, confirm it fails on the current code, then apply the fix and confirm it passes.
 

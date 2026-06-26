@@ -127,13 +127,22 @@ async function setupSandbox(
 	const cloneUrl = `https://github.com/${repo.owner}/${repo.repo}.git`;
 	const branch = input.mode === "revise" ? `bot/fix-${input.issueNumber}` : "main";
 
-	const steps: Array<{ name: string; cmd: string }> = [
+	interface SetupStep {
+		name: string;
+		cmd: string;
+		timeoutMs?: number;
+		/** Step failure logs but doesn't abort setup (e.g. install whose
+		 * post-hooks may fail in the sandbox env). */
+		nonFatal?: boolean;
+	}
+	const steps: SetupStep[] = [
 		{ name: "git-identity-email", cmd: 'git config --global user.email "emdashbot[bot]@users.noreply.github.com"' },
 		{ name: "git-identity-name", cmd: 'git config --global user.name "emdashbot[bot]"' },
 		{ name: "mkdir-workspace", cmd: "mkdir -p /workspace" },
 		{
 			name: "clone-or-fetch",
 			cmd: `if [ -d ${REPO_DIR}/.git ]; then cd ${REPO_DIR} && git fetch --all --prune; else git clone --depth 50 '${cloneUrl}' ${REPO_DIR}; fi`,
+			timeoutMs: 5 * 60_000,
 		},
 		input.mode === "revise"
 			? {
@@ -144,25 +153,39 @@ async function setupSandbox(
 					name: "checkout-main",
 					cmd: `cd ${REPO_DIR} && git checkout main && git reset --hard origin/main`,
 				},
+		// Install deps so the agent can run tests without burning turns on a
+		// missing-node_modules wall. The lockfile in a revise branch may
+		// differ from main, so we run --frozen-lockfile after checkout.
+		{
+			name: "pnpm-install",
+			cmd: `cd ${REPO_DIR} && pnpm install --frozen-lockfile --prefer-offline`,
+			timeoutMs: 10 * 60_000,
+			nonFatal: true,
+		},
 	];
 
 	for (const step of steps) {
 		try {
 			// Setup runs from / because the agent's default cwd
 			// (/workspace/repo) doesn't exist until the clone step.
-			const result = await harness.shell(step.cmd, { cwd: "/" });
+			const result = await harness.shell(step.cmd, {
+				cwd: "/",
+				...(step.timeoutMs ? { timeoutMs: step.timeoutMs } : {}),
+			});
 			if (result.exitCode !== 0) {
 				console.error(
-					`[investigate.setupSandbox] step "${step.name}" exit ${result.exitCode}\n` +
-						`  stdout: ${result.stdout.slice(0, 500)}\n` +
-						`  stderr: ${result.stderr.slice(0, 500)}`,
+					`[investigate.setupSandbox] step "${step.name}" exit ${result.exitCode}${step.nonFatal ? " (non-fatal)" : ""}\n` +
+						`  stdout(last 800): ${result.stdout.slice(-800)}\n` +
+						`  stderr(last 800): ${result.stderr.slice(-800)}`,
 				);
 				log.error?.("setupSandbox: step failed", {
 					step: step.name,
 					exitCode: result.exitCode,
-					stderr: result.stderr.slice(0, 500),
+					stderr: result.stderr.slice(-500),
+					nonFatal: step.nonFatal ?? false,
 				});
-				return;
+				if (!step.nonFatal) return;
+				continue;
 			}
 			log.info(`setupSandbox: ${step.name} ok`);
 		} catch (err) {
