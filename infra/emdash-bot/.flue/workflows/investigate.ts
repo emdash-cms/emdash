@@ -175,8 +175,8 @@ async function setupSandbox(
 			if (result.exitCode !== 0) {
 				console.error(
 					`[investigate.setupSandbox] step "${step.name}" exit ${result.exitCode}${step.nonFatal ? " (non-fatal)" : ""}\n` +
-						`  stdout(last 800): ${result.stdout.slice(-800)}\n` +
-						`  stderr(last 800): ${result.stderr.slice(-800)}`,
+						`  stdout(last 4000): ${result.stdout.slice(-4000)}\n` +
+						`  stderr(last 4000): ${result.stderr.slice(-4000)}`,
 				);
 				log.error?.("setupSandbox: step failed", {
 					step: step.name,

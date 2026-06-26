@@ -35,6 +35,9 @@ FROM cloudflare/sandbox:0.12.1
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     ca-certificates \
+    build-essential \
+    python3 \
+    python-is-python3 \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \

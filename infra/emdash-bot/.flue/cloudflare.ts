@@ -24,6 +24,9 @@ export class Sandbox extends BaseSandbox {
 		"objects.githubusercontent.com",
 		"registry.npmjs.org",
 		"registry.npmjs.com",
+		// pkg.pr.new serves preview package builds; emdash's pnpm-lock pins
+		// some deps (e.g. @lunariajs/core) there.
+		"pkg.pr.new",
 	];
 }
 
