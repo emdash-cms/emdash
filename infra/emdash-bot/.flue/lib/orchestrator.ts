@@ -806,6 +806,8 @@ function renderComment(
 				"",
 				"(the preview build takes a minute to appear). Reply `@emdashbot confirm` if it works and I'll open the PR, or describe what's still wrong and I'll revise.",
 			].join("\n");
+		case "agent.reproduced":
+			return "I reproduced the bug but couldn't write a fix I'm confident in. A maintainer can `@emdashbot implement <directive>` to steer me, or take it over.";
 		case "agent.not_reproduced":
 			return "I couldn't reproduce this. Reply with steps that fail for you, or close if it's no longer relevant.";
 		case "agent.by_design":
