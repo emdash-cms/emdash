@@ -561,8 +561,11 @@ describe("astro middleware setup probe", () => {
 		};
 	}
 
-	it("redirects to setup when the migrations table is genuinely missing", async () => {
-		// Fresh, un-migrated database: the probe query reports a missing table.
+	it("does NOT redirect public pages to setup when the probe reports a missing migrations table", async () => {
+		// A D1 cold start can transiently report "no such table" even though the
+		// table exists. Public pages must never be redirected to the setup wizard
+		// from this probe; only `/_emdash/*` routes should trigger setup detection
+		// (handled by setup.ts middleware). See #1042.
 		vi.mocked(getDb).mockResolvedValue(
 			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
 		);
@@ -572,10 +575,9 @@ describe("astro middleware setup probe", () => {
 
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
 
-		expect(redirect).toHaveBeenCalledWith("/_emdash/admin/setup");
-		expect(response.status).toBe(302);
-		expect(response.headers.get("Location")).toBe("/_emdash/admin/setup");
-		expect(next).not.toHaveBeenCalled();
+		expect(redirect).not.toHaveBeenCalled();
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
 	});
 
 	it("does NOT redirect to setup on a transient DB error (regression)", async () => {

@@ -57,7 +57,6 @@ import {
 	runWithContext,
 } from "../request-context.js";
 import type { PublishedRef } from "../scheduled-publish.js";
-import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
 import { ASTRO_COOKIES_SYMBOL, finishScoped } from "./middleware/scoped-db.js";
@@ -519,14 +518,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							.execute();
 						markSetupVerified();
 					} catch (error) {
-						// Only a genuinely-missing migrations table means a fresh,
-						// un-set-up database — redirect to the setup wizard.
-						if (isMissingTableError(error)) {
-							return context.redirect("/_emdash/admin/setup");
-						}
-						// Any other failure (transient D1/replica error, timeout, cold-start
-						// race, locked SQLite) must NOT be read as "fresh install" — doing so
-						// bounces real visitors on a set-up site to /_emdash/admin/setup.
+						// The setup probe is only run for public pages on the anonymous
+						// fast path. Redirecting public traffic to the setup wizard here —
+						// even on a "missing table" error — bounces real visitors when D1
+						// cold-starts transiently report "no such table" for an existing
+						// table. Setup detection for `/_emdash/*` routes lives in
+						// `setup.ts` middleware; do not redirect public pages from here.
 						// Leave the flag unset so a later request can re-verify, and fall
 						// through to render the page normally.
 						console.error("Setup probe failed (non-fatal):", error);
