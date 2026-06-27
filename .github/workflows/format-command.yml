@@ -27,6 +27,12 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Push the formatted commit (contents), comment on the PR
+          # (pull-requests), and react to the triggering comment via the
+          # issues/comments reactions API (issues). Nothing else.
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
 
       - name: Get PR details
         id: pr
@@ -111,8 +117,8 @@ jobs:
           export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
           printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
           chmod +x "$GIT_ASKPASS"
-          git remote add fork "https://x-access-token@github.com/${{ steps.pr.outputs.full_name }}.git"
-          if git push fork "HEAD:${{ steps.pr.outputs.ref }}"; then
+          git remote add fork "https://x-access-token@github.com/$FULL_NAME.git"
+          if git push fork "HEAD:$HEAD_REF"; then
             echo "push_failed=false" >> "$GITHUB_OUTPUT"
           else
             echo "push_failed=true" >> "$GITHUB_OUTPUT"
@@ -120,6 +126,8 @@ jobs:
           rm -f "$GIT_ASKPASS"
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          FULL_NAME: ${{ steps.pr.outputs.full_name }}
+          HEAD_REF: ${{ steps.pr.outputs.ref }}
 
       - name: Comment on push failure
         if: steps.push-fork.outputs.push_failed == 'true'
@@ -136,10 +144,12 @@ jobs:
 
       - name: React to comment (result)
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CHANGED: ${{ steps.diff.outputs.changed }}
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            const changed = '${{ steps.diff.outputs.changed }}' === 'true';
+            const changed = process.env.CHANGED === 'true';
             await github.rest.reactions.createForIssueComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

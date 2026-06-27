@@ -159,7 +159,10 @@ export interface VitePluginOptions {
 /**
  * Creates the EmDash virtual modules Vite plugin.
  */
-export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
+export function createVirtualModulesPlugin(
+	options: VitePluginOptions,
+	astroCommand: "dev" | "build" | "preview" | "sync",
+): Plugin {
 	const { serializableConfig, resolvedConfig, pluginDescriptors, astroConfig } = options;
 
 	let viteCommand: "build" | "serve" | undefined;
@@ -294,8 +297,16 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// Generate scheduler module — a NodeCronScheduler factory on
 			// long-lived runtimes, or null under the Cloudflare adapter where
 			// a Cron Trigger drives scheduled work instead.
+			//
+			// Decide from Astro's command, not Vite's config.command: the
+			// Cloudflare adapter builds the worker bundle via a nested Vite
+			// *build* pass even during `astro dev`, so viteCommand reports
+			// "build" and would wrongly suppress the in-process timer (#1635).
+			// Astro's command stays "dev", which is the only case that should
+			// fall through to a NodeCronScheduler.
 			if (id === RESOLVED_VIRTUAL_SCHEDULER_ID) {
-				return generateSchedulerModule(astroConfig.adapter?.name, viteCommand);
+				const schedulerCommand = astroCommand === "dev" ? "serve" : "build";
+				return generateSchedulerModule(astroConfig.adapter?.name, schedulerCommand);
 			}
 		},
 	};
@@ -382,7 +393,7 @@ export function createViteConfig(
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
-			createVirtualModulesPlugin(options),
+			createVirtualModulesPlugin(options, command),
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
 			// In production, macros are pre-compiled by tsdown in the admin package.
