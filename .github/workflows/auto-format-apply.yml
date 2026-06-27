@@ -1,19 +1,18 @@
-name: Query Counts — Apply
+name: Auto Format — Apply
 
-# Runs after the "Query Counts" workflow completes on a PR. This job has
-# elevated permissions to push back to the PR branch and comment, but it
-# never executes code from the PR — it only downloads the inert JSON +
-# diff artifact produced by the measure job.
+# Stage 2 of 2. Runs after "Auto Format" completes on a PR. This job has
+# elevated permissions to push the formatted patch back to the PR branch,
+# but it never executes code from the PR — it only downloads the inert
+# patch artifact, checks out the measured head SHA, and applies the diff.
 on:
   workflow_run:
-    workflows: ["Query Counts"]
+    workflows: ["Auto Format"]
     types: [completed]
 
 permissions:
-  # actions:read is needed for listWorkflowRunArtifacts /
-  # downloadArtifact. pull-requests:read is needed for pulls.get in the
-  # Resolve PR step. contents:read is a safety default; the commit-back
-  # step uses the app token, not GITHUB_TOKEN.
+  # actions:read is needed for listWorkflowRunArtifacts / downloadArtifact.
+  # pull-requests:read is needed for pulls.get in the Resolve PR step.
+  # contents:read is a safety default; the push-back steps use the app token.
   actions: read
   contents: read
   pull-requests: read
@@ -25,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Download snapshot artifact
+      - name: Download patch artifact
         id: download
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -37,10 +36,10 @@ jobs:
               repo: context.repo.repo,
               run_id: context.payload.workflow_run.id,
             });
-            const artifact = data.artifacts.find((a) => a.name === 'query-counts-snapshots');
+            const artifact = data.artifacts.find((a) => a.name === 'auto-format-patch');
             if (!artifact) {
               core.setOutput('found', 'false');
-              core.info('No snapshot artifact — nothing to apply.');
+              core.info('No patch artifact — nothing to apply.');
               return;
             }
             const download = await github.rest.actions.downloadArtifact({
@@ -51,19 +50,18 @@ jobs:
             });
             // Stage the artifact under RUNNER_TEMP, not GITHUB_WORKSPACE.
             // GITHUB_WORKSPACE is wiped by the later actions/checkout step
-            // (clean: true is the default), which would delete our payload
-            // before the Apply step can copy it into scripts/. RUNNER_TEMP
-            // sits outside the workspace and survives checkout.
-            const outDir = path.join(process.env.RUNNER_TEMP, 'qc-artifact');
+            // (clean: true is the default), which would delete the payload
+            // before the Apply step can reach it. RUNNER_TEMP sits outside
+            // the workspace and survives checkout.
+            const outDir = path.join(process.env.RUNNER_TEMP, 'af-artifact');
             fs.mkdirSync(outDir, { recursive: true });
             fs.writeFileSync(path.join(outDir, 'artifact.zip'), Buffer.from(download.data));
             core.setOutput('found', 'true');
-            core.setOutput('dir', outDir);
 
       - name: Unpack artifact
         if: steps.download.outputs.found == 'true'
         run: |
-          cd "$RUNNER_TEMP/qc-artifact"
+          cd "$RUNNER_TEMP/af-artifact"
           unzip -o artifact.zip
           ls -la
 
@@ -77,7 +75,7 @@ jobs:
             const path = require('node:path');
             const prNumber = Number(
               fs.readFileSync(
-                path.join(process.env.RUNNER_TEMP, 'qc-artifact', 'pr-number'),
+                path.join(process.env.RUNNER_TEMP, 'af-artifact', 'pr-number'),
                 'utf8',
               ).trim(),
             );
@@ -85,11 +83,9 @@ jobs:
               core.setFailed(`Invalid PR number in artifact: ${prNumber}`);
               return;
             }
-            // Cross-check: fetch the PR directly and verify its head SHA
-            // matches the workflow_run's head SHA. This is more robust
-            // than listPullRequestsAssociatedWithCommit, which doesn't
-            // reliably surface fork PRs from the base repo's API view
-            // and was rejecting valid fork artifacts as "not associated".
+            // Cross-check: fetch the PR and verify its head SHA matches the
+            // workflow_run's head SHA, so a forged artifact can't redirect
+            // the push at an unrelated branch.
             const headSha = context.payload.workflow_run.head_sha;
             let pr;
             try {
@@ -105,18 +101,15 @@ jobs:
             }
             if (pr.head.sha !== headSha) {
               core.setFailed(
-                `PR #${prNumber} head SHA (${pr.head.sha}) does not match workflow_run head SHA (${headSha}). The branch has likely moved on; the next PR event will trigger a fresh measure+apply.`,
+                `PR #${prNumber} head SHA (${pr.head.sha}) does not match workflow_run head SHA (${headSha}). The branch has moved on; the next PR event will re-run format+apply.`,
               );
               return;
             }
             core.setOutput('number', String(pr.number));
             core.setOutput('ref', pr.head.ref);
-            // Use the workflow_run's head_sha — the commit that was
-            // actually measured — rather than the PR's current head.
-            // If the branch has moved on since, we want to push onto
-            // the measured commit (and let the push fail non-fast-
-            // forward) rather than apply stale snapshots to a newer
-            // tree.
+            // Push onto the exact commit that was formatted. If the branch
+            // has advanced since, the push fails non-fast-forward rather than
+            // applying a stale patch to a newer tree.
             core.setOutput('sha', headSha);
             core.setOutput('full_name', pr.head.repo.full_name);
             const isFork = pr.head.repo.fork
@@ -130,10 +123,12 @@ jobs:
         with:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          # Push the updated snapshots back to the PR branch. Nothing else.
+          # Push the formatted commit (contents) and comment on push failure
+          # (pull-requests). Nothing else.
           permission-contents: write
+          permission-pull-requests: write
 
-      # --- Same-repo PRs: checkout the pinned SHA and push directly ---
+      # --- Same-repo PRs: checkout the measured SHA and push directly ---
 
       - name: Checkout (same-repo)
         if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'false'
@@ -141,11 +136,11 @@ jobs:
         with:
           ref: ${{ steps.pr.outputs.sha }}
           token: ${{ steps.app-token.outputs.token }}
-          # Intentional: the same-repo push step below pushes the
-          # updated snapshots back to the PR branch using this credential.
+          # The same-repo push step below pushes the formatted commit back to
+          # the PR branch using this credential.
           persist-credentials: true
 
-      # --- Fork PRs: checkout the fork at the pinned SHA so we can push back ---
+      # --- Fork PRs: checkout the fork at the measured SHA so we can push back ---
 
       - name: Checkout (fork)
         if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'true'
@@ -155,22 +150,15 @@ jobs:
           ref: ${{ steps.pr.outputs.sha }}
           persist-credentials: false
 
-      - name: Apply snapshots
+      - name: Apply patch
         if: steps.download.outputs.found == 'true'
         id: apply
         run: |
-          cp "$RUNNER_TEMP/qc-artifact/query-counts.snapshot.sqlite.json" scripts/
-          cp "$RUNNER_TEMP/qc-artifact/query-counts.snapshot.d1.json" scripts/
-          cp "$RUNNER_TEMP/qc-artifact/query-counts.queries.sqlite.json" scripts/
-          cp "$RUNNER_TEMP/qc-artifact/query-counts.queries.d1.json" scripts/
-          git add \
-            scripts/query-counts.snapshot.sqlite.json \
-            scripts/query-counts.snapshot.d1.json \
-            scripts/query-counts.queries.sqlite.json \
-            scripts/query-counts.queries.d1.json
+          git apply "$RUNNER_TEMP/af-artifact/format.patch"
+          git add -A
           if git diff --staged --quiet; then
             echo "no_diff=true" >> "$GITHUB_OUTPUT"
-            echo "Artifact matches the PR head — nothing to push (probably a race with a newer commit)."
+            echo "Patch is a no-op against the checked-out head — nothing to push."
           else
             echo "no_diff=false" >> "$GITHUB_OUTPUT"
           fi
@@ -187,14 +175,12 @@ jobs:
           set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "ci: update query-count snapshots"
-          # Detached-HEAD push onto the PR branch. If the branch has
-          # advanced past the measured SHA, this fails with a non-fast-
-          # forward — safe outcome, since applying stale counts to a
-          # newer tree would hide a regression. The next PR event will
-          # kick off a fresh measure+apply against the new head.
+          git commit -m "style: format"
+          # Detached-HEAD push onto the PR branch. If the branch has advanced
+          # past the measured SHA, this fails non-fast-forward — the next PR
+          # event re-runs format+apply against the new head.
           if ! git push origin "HEAD:$HEAD_REF"; then
-            echo "::error::Non-fast-forward push — the PR branch moved past the measured SHA $HEAD_SHA. Rerun the harness against the new head (the next PR event will do this automatically)." >&2
+            echo "::error::Non-fast-forward push — the PR branch moved past the measured SHA $HEAD_SHA. The next PR event will re-run format+apply." >&2
             exit 1
           fi
 
@@ -203,25 +189,39 @@ jobs:
           steps.download.outputs.found == 'true'
           && steps.pr.outputs.is_fork == 'true'
           && steps.apply.outputs.no_diff == 'false'
+        id: push-fork
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
           HEAD_REF: ${{ steps.pr.outputs.ref }}
           FULL_NAME: ${{ steps.pr.outputs.full_name }}
         run: |
-          set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "ci: update query-count snapshots"
+          git commit -m "style: format"
+          # Push the formatted commit to the fork via the app token, supplied
+          # through GIT_ASKPASS so it never lands in process args or git config.
           export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
           printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
           chmod +x "$GIT_ASKPASS"
           git remote add fork "https://x-access-token@github.com/$FULL_NAME.git"
-          # Fail the workflow if we can't push — most likely cause is
-          # "Allow edits by maintainers" being disabled on the fork PR.
-          # The reviewer needs to know the snapshots couldn't be applied.
-          if ! git push fork "HEAD:$HEAD_REF"; then
-            rm -f "$GIT_ASKPASS"
-            echo "::error::Failed to push snapshots to fork. The contributor may have 'Allow edits by maintainers' disabled. They need to run 'pnpm query-counts --target sqlite --update && pnpm query-counts --target d1 --update' locally and commit, or re-enable maintainer edits." >&2
-            exit 1
+          if git push fork "HEAD:$HEAD_REF"; then
+            echo "push_failed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "push_failed=true" >> "$GITHUB_OUTPUT"
           fi
           rm -f "$GIT_ASKPASS"
+
+      - name: Comment on push failure
+        if: steps.push-fork.outputs.push_failed == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.PR_NUMBER),
+              body: `Could not push formatting changes to this fork. The contributor may have "Allow edits by maintainers" disabled.\n\nPlease run the formatter locally:\n\n\`\`\`\npnpm format\n\`\`\``,
+            });
