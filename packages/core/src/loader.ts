@@ -603,17 +603,17 @@ export interface WhereRange {
 export type WhereValue = string | string[] | WhereRange;
 
 /**
- * Filter for loadCollection - type is required
+ * Fields shared by every collection filter, independent of pagination mode.
+ *
+ * Cursor and offset pagination are mutually exclusive, so they live on the
+ * `CursorCollectionFilter` / `OffsetCollectionFilter` variants rather than
+ * here. Use the {@link CollectionFilter} union for any value that may be
+ * either.
  */
-export interface CollectionFilter {
+export interface CollectionFilterBase {
 	type: string;
 	status?: "draft" | "published" | "archived";
 	limit?: number;
-	/**
-	 * Opaque cursor for keyset pagination.
-	 * Pass the `nextCursor` value from a previous result to fetch the next page.
-	 */
-	cursor?: string;
 	/**
 	 * Filter by field values, taxonomy terms, byline credits, or ranges.
 	 *
@@ -640,6 +640,37 @@ export interface CollectionFilter {
 	 */
 	locale?: string;
 }
+
+/** Keyset-paginated collection filter. Cannot also carry an `offset`. */
+export interface CursorCollectionFilter extends CollectionFilterBase {
+	/**
+	 * Opaque cursor for keyset pagination.
+	 * Pass the `nextCursor` value from a previous result to fetch the next page.
+	 */
+	cursor?: string;
+	offset?: never;
+}
+
+/** Offset-paginated collection filter. Cannot also carry a `cursor`. */
+export interface OffsetCollectionFilter extends CollectionFilterBase {
+	/**
+	 * Skip this many rows before returning results (offset pagination).
+	 * Use with `limit` for numbered archive routes (`/page/2`):
+	 * `offset = (page - 1) * perPage`. Ignored unless it is a positive
+	 * integer.
+	 */
+	offset?: number;
+	cursor?: never;
+}
+
+/**
+ * Filter for loadCollection - type is required.
+ *
+ * A union of the cursor and offset pagination variants: supplying both
+ * `cursor` and `offset` is a compile-time error, since they are mutually
+ * exclusive ways to express "the next page" (cursor wins at runtime).
+ */
+export type CollectionFilter = CursorCollectionFilter | OffsetCollectionFilter;
 
 /**
  * Filter for loadEntry - type and id are required
@@ -749,6 +780,17 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 				// Cursor pagination: over-fetch by 1 to detect next page
 				const fetchLimit = limit ? limit + 1 : undefined;
+
+				// Offset pagination (numbered archive routes). Keyset (cursor)
+				// and offset are mutually exclusive ways to express "the next
+				// page" — when both are supplied, cursor wins and offset is
+				// dropped so the two don't stack into a double skip. Only a
+				// positive integer applies; 0 / negative / fractional are no-ops.
+				const rawOffset = cursor ? undefined : filter?.offset;
+				const offset =
+					typeof rawOffset === "number" && Number.isInteger(rawOffset) && rawOffset > 0
+						? rawOffset
+						: undefined;
 
 				// Build cursor condition if cursor is provided
 				const cursorCondition = cursor ? buildCursorCondition(cursor, orderBy) : null;
@@ -866,6 +908,20 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						type,
 						tableName,
 					);
+
+					// LIMIT/OFFSET clause. SQLite only accepts OFFSET when a
+					// LIMIT is present, so a bare offset uses `LIMIT -1`
+					// (unbounded); Postgres takes a standalone OFFSET.
+					let limitOffsetClause = sql``;
+					if (fetchLimit != null && offset != null) {
+						limitOffsetClause = sql`LIMIT ${fetchLimit} OFFSET ${offset}`;
+					} else if (fetchLimit != null) {
+						limitOffsetClause = sql`LIMIT ${fetchLimit}`;
+					} else if (offset != null) {
+						limitOffsetClause = isPostgres(db)
+							? sql`OFFSET ${offset}`
+							: sql`LIMIT -1 OFFSET ${offset}`;
+					}
 					result = await sql<Record<string, unknown>>`
 						SELECT *, ${termsSelect}, ${bylinesSelect} FROM ${sql.ref(tableName)}
 						WHERE deleted_at IS NULL
@@ -876,7 +932,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						${bylineCond}
 						${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
 						${orderByClause}
-						${fetchLimit ? sql`LIMIT ${fetchLimit}` : sql``}
+						${limitOffsetClause}
 					`.execute(db);
 				}
 

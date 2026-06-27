@@ -37,6 +37,11 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # changesets/action pushes release commits/tags and opens the
+          # release PR (contents + pull-requests). npm publish auth is the
+          # separate NODE_AUTH_TOKEN; OIDC provenance is the job's id-token.
+          permission-contents: write
+          permission-pull-requests: write
 
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
