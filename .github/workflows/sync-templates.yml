@@ -27,6 +27,8 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           repositories: templates
           owner: emdash-cms
+          # Push the synced templates to emdash-cms/templates. Nothing else.
+          permission-contents: write
 
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
