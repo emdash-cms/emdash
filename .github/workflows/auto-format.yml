@@ -43,7 +43,7 @@ jobs:
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
             mkdir -p auto-format-out
-            git diff --staged > auto-format-out/format.patch
+            git diff --staged --binary > auto-format-out/format.patch
             echo "${{ github.event.pull_request.number }}" > auto-format-out/pr-number
             echo "Formatting changes detected — uploading patch for the Apply workflow."
           fi

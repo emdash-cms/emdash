@@ -27,10 +27,12 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          # Push the formatted commit (contents), and react to / comment on
-          # the triggering PR comment (pull-requests). Nothing else.
+          # Push the formatted commit (contents), comment on the PR
+          # (pull-requests), and react to the triggering comment via the
+          # issues/comments reactions API (issues). Nothing else.
           permission-contents: write
           permission-pull-requests: write
+          permission-issues: write
 
       - name: Get PR details
         id: pr
