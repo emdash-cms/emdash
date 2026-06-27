@@ -67,6 +67,7 @@ export default defineWorkflow({
 	input: inputSchema,
 	output: v.any(),
 	async run({ harness, input, log }) {
+		await installOutboundProxy(input, log);
 		await setupSandbox(harness, input, log);
 
 		const session = await harness.session();
@@ -105,6 +106,46 @@ export default defineWorkflow({
 		};
 	},
 });
+
+/**
+ * Install the per-run outbound proxy on every github host the sandbox might
+ * reach. The handler (in cloudflare.ts) reads ctx.params.anchorNumber +
+ * owner+repo and gates writes to the current issue/PR only.
+ */
+async function installOutboundProxy(
+	input: v.InferOutput<typeof inputSchema>,
+	log: FlueLogger,
+): Promise<void> {
+	const repo = readRepoContext(workerEnv);
+	if (!repo) {
+		log.info("installOutboundProxy: no repo context; skipping");
+		return;
+	}
+	const params = {
+		anchorNumber: input.issueNumber,
+		owner: repo.owner,
+		repo: repo.repo,
+	};
+	const sandbox = getSandbox(workerEnv.Sandbox, input.runId);
+	const hosts = [
+		"github.com",
+		"api.github.com",
+		"codeload.github.com",
+		"raw.githubusercontent.com",
+		"objects.githubusercontent.com",
+	];
+	for (const host of hosts) {
+		try {
+			await sandbox.setOutboundByHost(host, "authenticatedGithub", params);
+		} catch (err) {
+			log.error?.("installOutboundProxy: setOutboundByHost failed", {
+				host,
+				error: (err as Error).message,
+			});
+		}
+	}
+	log.info("installOutboundProxy: installed", params);
+}
 
 /**
  * Pre-clone the repo into the sandbox before the agent starts. Clone happens

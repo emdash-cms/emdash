@@ -89,6 +89,8 @@ export interface NormalizedEvent {
 	 * Workflow returns immediately after setup with a synthetic result.
 	 */
 	readonly dryRun?: boolean;
+	/** Agent's structured summary, surfaced in the post-run comment. */
+	readonly agentSummary?: string;
 }
 
 /**
@@ -215,7 +217,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		// Dry-run skips the user-visible GitHub effects (labels, comment) so
 		// repeated smoke tests don't spam an issue. The workflow still runs
 		// fully (setup, LLM, push attempt).
-		const sideEffectError = input.dryRun ? null : await this.applySideEffects(decision);
+		const sideEffectError = input.dryRun ? null : await this.applySideEffects(decision, input);
 		await this.persistDecision(decision, input);
 		await this.armAlarm();
 		return {
@@ -262,12 +264,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.ctx.storage.delete(STORAGE.currentRunStartedAt);
 
 		const labels = await this.projectLabels();
+		const agentSummary =
+			typeof input.result?.summary === "string" ? input.result.summary : undefined;
 		return this.event({
 			event,
 			arg: null,
 			actor: "system",
 			labels,
 			needsClassify: false,
+			...(agentSummary ? { agentSummary } : {}),
 		});
 	}
 
@@ -573,6 +578,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 	 */
 	private async applySideEffects(
 		decision: Extract<Decision, { kind: "transition" }>,
+		input: NormalizedEvent,
 	): Promise<string | null> {
 		const creds = readAppCreds(this.env);
 		const repo = readRepoContext(this.env);
@@ -603,7 +609,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			return `removeLabels failed: ${(err as Error).message}`;
 		}
 
-		const body = renderComment(decision, anchorNumber);
+		const body = renderComment(decision, anchorNumber, input.agentSummary);
 		if (body) {
 			try {
 				await postIssueComment(token, repo, anchorNumber, body);
@@ -772,51 +778,40 @@ function renderReadonlyReply(state: StateId | null): string {
 	}
 }
 
+/**
+ * Decide what to post on a transition. For user-driven events (someone typed
+ * `@emdashbot repro` etc.) we say nothing -- the verb is already on the
+ * thread and echoing it adds noise. For agent.* events the comment IS the
+ * agent's own summary, with a structural call-to-action appended where
+ * appropriate. If the agent didn't return a summary, we skip the post.
+ */
 function renderComment(
 	decision: Extract<Decision, { kind: "transition" }>,
 	anchorNumber: number,
+	agentSummary?: string,
 ): string {
+	const summary = agentSummary?.trim();
+	if (!decision.event.startsWith("agent.")) return "";
+	if (!summary) return "";
+
 	switch (decision.event) {
-		case "repro":
-		case "implement":
-			return "On it. I'll investigate and report back; this usually takes a few minutes.";
-		case "revise":
-			return "Updating the PR with the feedback you described. Back in a few minutes.";
-		case "retry":
-			return "Retrying.";
-		case "decline":
-			return "Declining this one. Reopen with `@emdashbot reopen` if circumstances change.";
-		case "reopen":
-			return "Reopened.";
-		case "take_over":
-			return "Stepping back -- a maintainer is taking this over.";
-		case "hand_back":
-			return "Handing back to me.";
-		case "confirm":
-			return "Confirmed. Opening the PR.";
-		case "reset":
-			return "Reset to triage.";
 		case "agent.fix_ready":
 			return [
-				"I think I have a fix. Try it with:",
+				summary,
+				"",
+				"Try it:",
 				"",
 				"```sh",
 				`pnpm add https://pkg.pr.new/emdash@bot/fix-${anchorNumber}`,
 				"```",
 				"",
-				"(the preview build takes a minute to appear). Reply `@emdashbot confirm` if it works and I'll open the PR, or describe what's still wrong and I'll revise.",
+				"Reply `@emdashbot confirm` if it works and I'll open the PR, or `@emdashbot revise <feedback>` to push changes.",
 			].join("\n");
 		case "agent.reproduced":
-			return "I reproduced the bug but couldn't write a fix I'm confident in. A maintainer can `@emdashbot implement <directive>` to steer me, or take it over.";
+			return `${summary}\n\nReply \`@emdashbot implement <directive>\` if you want me to take another swing with guidance.`;
 		case "agent.not_reproduced":
-			return "I couldn't reproduce this. Reply with steps that fail for you, or close if it's no longer relevant.";
-		case "agent.by_design":
-			return "I think this is intended behaviour. See the summary in the run for details; reply if you disagree and I'll take another look.";
-		case "agent.skipped":
-			return "This looks out of scope for me. Leaving it for a maintainer.";
-		case "agent.failed":
-			return "My attempt failed. A maintainer should pick this up.";
+			return `${summary}\n\nReply with steps that fail for you, or close if it's no longer relevant.`;
 		default:
-			return "";
+			return summary;
 	}
 }
