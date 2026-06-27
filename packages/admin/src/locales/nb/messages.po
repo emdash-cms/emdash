@@ -84,7 +84,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# samling} other {# samlinger}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1267
+#: packages/admin/src/router.tsx:1272
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# kommentar oppdatert} other {# kommentarer oppdatert}}"
 
@@ -506,7 +506,7 @@ msgstr "Godta invitasjon"
 msgid "Access denied"
 msgstr "Tilgang nektet"
 
-#: packages/admin/src/router.tsx:1287
+#: packages/admin/src/router.tsx:1292
 msgid "Access Denied"
 msgstr "Tilgang nektet"
 
@@ -845,19 +845,19 @@ msgstr "Alternativt kan du eksportere fra WordPress (Verktøy → Eksporter) og 
 #: packages/admin/src/router.tsx:414
 #: packages/admin/src/router.tsx:428
 #: packages/admin/src/router.tsx:442
-#: packages/admin/src/router.tsx:808
-#: packages/admin/src/router.tsx:846
-#: packages/admin/src/router.tsx:864
-#: packages/admin/src/router.tsx:882
-#: packages/admin/src/router.tsx:903
-#: packages/admin/src/router.tsx:924
-#: packages/admin/src/router.tsx:945
-#: packages/admin/src/router.tsx:976
-#: packages/admin/src/router.tsx:996
-#: packages/admin/src/router.tsx:1232
-#: packages/admin/src/router.tsx:1248
-#: packages/admin/src/router.tsx:1273
-#: packages/admin/src/router.tsx:1755
+#: packages/admin/src/router.tsx:813
+#: packages/admin/src/router.tsx:851
+#: packages/admin/src/router.tsx:869
+#: packages/admin/src/router.tsx:887
+#: packages/admin/src/router.tsx:908
+#: packages/admin/src/router.tsx:929
+#: packages/admin/src/router.tsx:950
+#: packages/admin/src/router.tsx:981
+#: packages/admin/src/router.tsx:1001
+#: packages/admin/src/router.tsx:1237
+#: packages/admin/src/router.tsx:1253
+#: packages/admin/src/router.tsx:1278
+#: packages/admin/src/router.tsx:1760
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1052,7 +1052,7 @@ msgstr "Godkjenn autentiserte brukere automatisk"
 msgid "Auto-generated from name (you can edit)"
 msgstr "Generert automatisk fra navn (du kan redigere)"
 
-#: packages/admin/src/router.tsx:845
+#: packages/admin/src/router.tsx:850
 msgid "Autosave failed"
 msgstr "Autolagring mislyktes"
 
@@ -1350,7 +1350,7 @@ msgstr "Endre logo"
 msgid "Changelog"
 msgstr "Endringslogg"
 
-#: packages/admin/src/router.tsx:896
+#: packages/admin/src/router.tsx:901
 msgid "Changes discarded"
 msgstr "Endringene ble forkastet"
 
@@ -1600,7 +1600,7 @@ msgstr "Innholdsfeil ({0})"
 msgid "Content found:"
 msgstr "Innhold funnet:"
 
-#: packages/admin/src/router.tsx:918
+#: packages/admin/src/router.tsx:923
 msgid "Content has been scheduled for publishing"
 msgstr "Innholdet er planlagt for publisering"
 
@@ -1612,7 +1612,7 @@ msgstr "Innholdet er oppdatert til den valgte revisjonen."
 msgid "Content ID:"
 msgstr "Innholds-ID:"
 
-#: packages/admin/src/router.tsx:859
+#: packages/admin/src/router.tsx:864
 msgid "Content is now live"
 msgstr "Innholdet er nå publisert"
 
@@ -1624,11 +1624,11 @@ msgstr "innholdselementer"
 msgid "Content Read"
 msgstr "Les innhold"
 
-#: packages/admin/src/router.tsx:877
+#: packages/admin/src/router.tsx:882
 msgid "Content removed from public view"
 msgstr "Innholdet er fjernet fra offentlig visning"
 
-#: packages/admin/src/router.tsx:939
+#: packages/admin/src/router.tsx:944
 msgid "Content reverted to draft"
 msgstr "Innholdet er tilbakestilt til kladd"
 
@@ -1913,7 +1913,7 @@ msgid "Created {0}"
 msgstr "Opprettet {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:970
+#: packages/admin/src/router.tsx:975
 msgid "Created {0} translation"
 msgstr "Opprettet {0}-oversettelse"
 
@@ -2772,7 +2772,7 @@ msgstr "Skriv inn URL-en til WordPress-nettstedet ditt"
 #: packages/admin/src/components/MenuEditor.tsx:179
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
-#: packages/admin/src/router.tsx:1937
+#: packages/admin/src/router.tsx:1942
 msgid "Error"
 msgstr "Feil"
 
@@ -2893,13 +2893,13 @@ msgstr "Kunne ikke opprette noen samlinger"
 msgid "Failed to create term"
 msgstr "Kunne ikke opprette term"
 
-#: packages/admin/src/router.tsx:975
+#: packages/admin/src/router.tsx:980
 msgid "Failed to create translation"
 msgstr "Kunne ikke opprette oversettelse"
 
 #: packages/admin/src/router.tsx:398
 #: packages/admin/src/router.tsx:427
-#: packages/admin/src/router.tsx:995
+#: packages/admin/src/router.tsx:1000
 msgid "Failed to delete"
 msgstr "Kunne ikke slette"
 
@@ -2920,7 +2920,7 @@ msgid "Failed to delete collection"
 msgstr "Kunne ikke slette samling"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1247
+#: packages/admin/src/router.tsx:1252
 msgid "Failed to delete comment"
 msgstr "Kunne ikke slette kommentar"
 
@@ -2986,7 +2986,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr "Kunne ikke deaktivere bruker"
 
-#: packages/admin/src/router.tsx:902
+#: packages/admin/src/router.tsx:907
 msgid "Failed to discard changes"
 msgstr "Kunne ikke forkaste endringer"
 
@@ -3094,7 +3094,7 @@ msgstr "Kunne ikke hente termer"
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
 #: packages/admin/src/router.tsx:737
-#: packages/admin/src/router.tsx:1178
+#: packages/admin/src/router.tsx:1183
 msgid "Failed to fetch user"
 msgstr "Kunne ikke hente bruker"
 
@@ -3195,7 +3195,7 @@ msgstr "Kunne ikke laste inn brukere: {0}"
 msgid "Failed to load widget"
 msgstr "Kunne ikke laste inn modul"
 
-#: packages/admin/src/router.tsx:1272
+#: packages/admin/src/router.tsx:1277
 msgid "Failed to perform bulk action"
 msgstr "Kunne ikke utføre masseoperasjon"
 
@@ -3207,7 +3207,7 @@ msgstr "Kunne ikke slette innhold permanent"
 msgid "Failed to prepare import"
 msgstr "Kunne ikke forberede import"
 
-#: packages/admin/src/router.tsx:863
+#: packages/admin/src/router.tsx:868
 msgid "Failed to publish"
 msgstr "Kunne ikke publisere"
 
@@ -3262,8 +3262,8 @@ msgstr "Kunne ikke tilbakekalle API-token"
 msgid "Failed to rewrite URLs"
 msgstr "Kunne ikke skrive om URL-er"
 
-#: packages/admin/src/router.tsx:807
-#: packages/admin/src/router.tsx:1754
+#: packages/admin/src/router.tsx:812
+#: packages/admin/src/router.tsx:1759
 msgid "Failed to save"
 msgstr "Kunne ikke lagre"
 
@@ -3277,7 +3277,7 @@ msgstr "Kunne ikke lagre felt"
 msgid "Failed to save settings"
 msgstr "Kunne ikke lagre innstillinger"
 
-#: packages/admin/src/router.tsx:923
+#: packages/admin/src/router.tsx:928
 msgid "Failed to schedule"
 msgstr "Kunne ikke planlegge"
 
@@ -3308,11 +3308,11 @@ msgstr "Kunne ikke angi termer for oppføring"
 msgid "Failed to uninstall plugin"
 msgstr "Kunne ikke avinstallere utvidelse"
 
-#: packages/admin/src/router.tsx:881
+#: packages/admin/src/router.tsx:886
 msgid "Failed to unpublish"
 msgstr "Kunne ikke avpublisere"
 
-#: packages/admin/src/router.tsx:944
+#: packages/admin/src/router.tsx:949
 msgid "Failed to unschedule"
 msgstr "Kunne ikke oppheve planlegging"
 
@@ -3350,7 +3350,7 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1231
+#: packages/admin/src/router.tsx:1236
 msgid "Failed to update status"
 msgstr "Kunne ikke oppdatere status"
 
@@ -3554,7 +3554,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
-#: packages/admin/src/router.tsx:1957
+#: packages/admin/src/router.tsx:1962
 msgid "Go to Dashboard"
 msgstr "Gå til dashbordet"
 
@@ -4181,7 +4181,7 @@ msgstr "Laster samlinger..."
 msgid "Loading comments..."
 msgstr "Laster kommentarer..."
 
-#: packages/admin/src/router.tsx:1926
+#: packages/admin/src/router.tsx:1931
 msgid "Loading configuration..."
 msgstr "Laster konfigurasjon..."
 
@@ -4639,7 +4639,7 @@ msgstr "Navigasjon"
 msgid "Never"
 msgstr "Aldri"
 
-#: packages/admin/src/router.tsx:970
+#: packages/admin/src/router.tsx:975
 msgid "new"
 msgstr "ny"
 
@@ -5157,7 +5157,7 @@ msgstr "Eierskap"
 msgid "Package"
 msgstr "Pakke"
 
-#: packages/admin/src/router.tsx:1952
+#: packages/admin/src/router.tsx:1957
 msgid "Page Not Found"
 msgstr "Fant ikke siden"
 
@@ -5487,7 +5487,7 @@ msgstr "publisert"
 #: packages/admin/src/components/ContentList.tsx:552
 #: packages/admin/src/components/ContentPickerModal.tsx:209
 #: packages/admin/src/components/Dashboard.tsx:187
-#: packages/admin/src/router.tsx:859
+#: packages/admin/src/router.tsx:864
 msgid "Published"
 msgstr "Publisert"
 
@@ -5824,7 +5824,7 @@ msgstr "Gjenoppretter …"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:1940
+#: packages/admin/src/router.tsx:1945
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Prøv igjen"
@@ -5833,7 +5833,7 @@ msgstr "Prøv igjen"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Gjenbrukbare innholdsblokker du kan sette inn i hvilket som helst innhold"
 
-#: packages/admin/src/router.tsx:897
+#: packages/admin/src/router.tsx:902
 msgid "Reverted to published version"
 msgstr "Tilbakestilt til publisert versjon"
 
@@ -6033,7 +6033,7 @@ msgstr "planlagt"
 
 #: packages/admin/src/components/ContentEditor.tsx:859
 #: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/router.tsx:917
+#: packages/admin/src/router.tsx:922
 msgid "Scheduled"
 msgstr "Planlagt"
 
@@ -6906,7 +6906,7 @@ msgstr "Menyen er slettet."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Navnet på nettstedet ditt, brukt i toppteksten og metadataene"
 
-#: packages/admin/src/router.tsx:1954
+#: packages/admin/src/router.tsx:1959
 msgid "The page you're looking for doesn't exist."
 msgstr "Siden du leter etter, finnes ikke."
 
@@ -7166,7 +7166,7 @@ msgstr "Oversetter …"
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/router.tsx:969
+#: packages/admin/src/router.tsx:974
 msgid "Translation created"
 msgstr "Oversettelse opprettet"
 
@@ -7332,7 +7332,7 @@ msgstr "Tilgangsnøkkel uten navn"
 msgid "Unpublish"
 msgstr "Avpubliser"
 
-#: packages/admin/src/router.tsx:877
+#: packages/admin/src/router.tsx:882
 msgid "Unpublished"
 msgstr "Avpublisert"
 
@@ -7344,7 +7344,7 @@ msgstr "Fant uregistrerte innholdstabeller"
 msgid "Unschedule"
 msgstr "Fjern planlegging"
 
-#: packages/admin/src/router.tsx:938
+#: packages/admin/src/router.tsx:943
 msgid "Unscheduled"
 msgstr "Ikke planlagt"
 
@@ -7909,7 +7909,7 @@ msgstr "Du har full tilgang til å administrere dette nettstedet, inkludert bruk
 msgid "You need admin permissions to manage byline schema."
 msgstr "Du trenger administratortillatelser for å administrere byline-skjema."
 
-#: packages/admin/src/router.tsx:1288
+#: packages/admin/src/router.tsx:1293
 msgid "You need Editor permissions to moderate comments."
 msgstr "Du trenger redaktørtillatelser for å moderere kommentarer."
 
