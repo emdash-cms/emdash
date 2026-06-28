@@ -145,6 +145,15 @@ function resolveAdminSource(projectRoot: string): string | undefined {
 	return undefined;
 }
 
+function resolveIntegrationShim(fileName: string): string {
+	const currentDir = dirname(fileURLToPath(import.meta.url));
+	const sourceShimPath = resolve(currentDir, "shims", fileName);
+	if (existsSync(sourceShimPath)) {
+		return sourceShimPath;
+	}
+	return resolve(currentDir, "..", "..", "src", "astro", "integration", "shims", fileName);
+}
+
 export interface VitePluginOptions {
 	/** Serializable config (database, storage, auth descriptors) */
 	serializableConfig: Record<string, unknown>;
@@ -351,6 +360,10 @@ export function createViteConfig(
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
+	const useSyncExternalStoreShimPath = resolveIntegrationShim("use-sync-external-store.js");
+	const useSyncExternalStoreWithSelectorShimPath = resolveIntegrationShim(
+		"use-sync-external-store-with-selector.js",
+	);
 
 	return {
 		// Astro SSR routes resolve version.ts from source (not tsdown dist),
@@ -381,14 +394,29 @@ export function createViteConfig(
 				// dep scanner can't reach it for pre-bundling — so the browser is
 				// served raw `module.exports` and hydration fails with
 				// `SyntaxError: ... does not provide an export named
-				// 'useSyncExternalStore'`. Redirect both shim entry points to the
-				// main `use-sync-external-store` package, which on React >=18
-				// (our peer-dep floor) delegates to React's built-in hook.
+				// 'useSyncExternalStore'`. Redirect both shim entry points to a
+				// tiny ESM shim file that re-exports React's built-in hook, and
+				// redirect the selector entry points to an ESM wrapper around that
+				// hook. The absolute file paths are required because Vite/Rolldown
+				// dependency optimization applies aliases without EmDash's virtual
+				// module plugin. This also avoids the package main entry's React
+				// 18+ dev warning.
+				{
+					find: "use-sync-external-store/shim/with-selector.js",
+					replacement: useSyncExternalStoreWithSelectorShimPath,
+				},
+				{
+					find: "use-sync-external-store/shim/with-selector",
+					replacement: useSyncExternalStoreWithSelectorShimPath,
+				},
 				{
 					find: "use-sync-external-store/shim/index.js",
-					replacement: "use-sync-external-store",
+					replacement: useSyncExternalStoreShimPath,
 				},
-				{ find: "use-sync-external-store/shim", replacement: "use-sync-external-store" },
+				{
+					find: "use-sync-external-store/shim",
+					replacement: useSyncExternalStoreShimPath,
+				},
 			],
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
