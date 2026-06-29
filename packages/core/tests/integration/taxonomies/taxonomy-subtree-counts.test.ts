@@ -94,4 +94,18 @@ describeEachDialect("Taxonomy subtree counts", (dialectName: DialectName) => {
 		const flatRoot = flat.find((t) => t.slug === "region");
 		expect(flatRoot?.count).toBe(1); // exact-term only
 	});
+
+	it("handleTermList({ rollup }) rolls counts up the tree", async () => {
+		const { handleTermList } = await import("../../../src/api/handlers/taxonomies.js");
+
+		const region = await term("region");
+		const north = await term("north", region);
+		const a = await post("a");
+		await tag(a.id, north);
+
+		const res = await handleTermList(db, "category", { rollup: true });
+		if (!res.success) throw new Error("handleTermList failed");
+		const root = res.data.terms.find((t) => t.slug === "region");
+		expect(root?.count).toBe(1); // rolled up from the descendant
+	});
 });

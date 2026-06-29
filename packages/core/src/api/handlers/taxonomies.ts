@@ -369,7 +369,7 @@ export async function handleTaxonomyDefTranslations(
 export async function handleTermList(
 	db: Kysely<Database>,
 	taxonomyName: string,
-	options: { locale?: string } = {},
+	options: { locale?: string; rollup?: boolean } = {},
 ): Promise<ApiResult<TermListResponse>> {
 	try {
 		// Definitions are per-locale but terms aren't bound to the def's locale —
@@ -383,8 +383,9 @@ export async function handleTermList(
 		// Batch count entries per term in a single query (replaces N+1 pattern).
 		// content_taxonomies.taxonomy_id stores the translation_group, so we
 		// look up by group and map back to each term's id.
-		const groups = terms.map((t) => t.translationGroup ?? t.id);
-		const countsByGroup = await repo.countEntriesForTerms(groups);
+		const countsByGroup = options.rollup
+			? await repo.countEntriesForSubtrees(taxonomyName)
+			: await repo.countEntriesForTerms(terms.map((t) => t.translationGroup ?? t.id));
 
 		const termData: TermWithCount[] = terms.map((term) => ({
 			id: term.id,
