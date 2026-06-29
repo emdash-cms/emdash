@@ -1,5 +1,18 @@
 # emdash
 
+## 0.24.1
+
+### Patch Changes
+
+- [#1646](https://github.com/emdash-cms/emdash/pull/1646) [`c962929`](https://github.com/emdash-cms/emdash/commit/c962929fa718479762ef8bded4a0b6c39eb43e0e) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fixes hierarchical taxonomy terms losing their parent in translated locales. A child term now stores its parent's translation group instead of a locale-bound row id, so translating a parent automatically re-nests its existing children in every locale instead of flattening them to the root. A forward-only migration backfills existing parent links.
+
+- [#1644](https://github.com/emdash-cms/emdash/pull/1644) [`d64c961`](https://github.com/emdash-cms/emdash/commit/d64c961f89cf97303c4ffb3341f05424356120f0) Thanks [@masonjames](https://github.com/masonjames)! - Fixes React 19 development console warnings from the visual editing toolbar's `useSyncExternalStore` dependency path.
+
+- Updated dependencies []:
+  - @emdash-cms/admin@0.24.1
+  - @emdash-cms/auth@0.24.1
+  - @emdash-cms/gutenberg-to-portable-text@0.24.1
+
 ## 0.24.0
 
 ### Minor Changes
