@@ -2643,7 +2643,14 @@ export class EmDashRuntime {
 	}
 
 	async handleContentRestore(collection: string, id: string) {
-		return handleContentRestore(this.db, collection, id);
+		const result = await handleContentRestore(this.db, collection, id);
+
+		// Run afterRestore hooks (fire-and-forget)
+		if (result.success) {
+			this.runAfterRestoreHooks(contentItemToRecord(result.data.item), collection);
+		}
+
+		return result;
 	}
 
 	async handleContentPermanentDelete(collection: string, id: string) {
@@ -3208,6 +3215,37 @@ export class EmDashRuntime {
 					console.error(`EmDash: Sandboxed plugin ${pluginId} afterUnpublish error:`, err),
 				);
 		}
+	}
+
+	private runAfterRestoreHooks(content: Record<string, unknown>, collection: string): void {
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterRestore")) {
+				try {
+					await this.hooks.runContentAfterRestore(content, collection);
+				} catch (err) {
+					console.error("EmDash afterRestore hook error:", err);
+				}
+			}
+
+			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [pluginId] = pluginKey.split(":");
+				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterRestore", { content, collection });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${pluginId} afterRestore error:`, err);
+						}
+					})(),
+				);
+			}
+			await Promise.allSettled(tasks);
+		});
 	}
 
 	private async handleSandboxedRoute(
