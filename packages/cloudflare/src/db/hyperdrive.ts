@@ -29,6 +29,18 @@
  * its own event-scoped connection for the sweep. So no warm-isolate path reuses
  * the singleton's request-bound socket across events.
  *
+ * Optional split caching (`cachedBinding`)
+ * ----------------------------------------
+ * Hyperdrive's query cache is unsafe to leave on for the whole app because the
+ * admin, setup, and any read-after-write path can be served a stale pre-write
+ * result within the cache TTL. But anonymous public reads — no session, no
+ * write — can tolerate a short staleness window, so when a `cachedBinding`
+ * (pointing at a cache-enabled Hyperdrive config over the same database) is
+ * configured, those requests route through it and everything else (every
+ * authenticated request and every write) stays on the primary uncached binding.
+ * Migrations and the per-isolate singleton always use the primary binding.
+ * Omit `cachedBinding` and the adapter behaves exactly as before.
+ *
  * Known limitation — sandboxed plugins are D1-only. The sandbox plugin bridge
  * (a Durable Object) talks to a D1 binding directly, independent of the
  * configured adapter, so sandboxed plugins are not available on a Hyperdrive
@@ -59,6 +71,12 @@ import { Pool } from "pg";
 interface HyperdriveConfig {
 	binding: string;
 	max?: number;
+	/**
+	 * Optional binding for a cache-enabled Hyperdrive config over the same
+	 * database. When set, anonymous read requests route through it; all
+	 * authenticated requests and all writes stay on `binding`.
+	 */
+	cachedBinding?: string;
 }
 
 /**
@@ -154,7 +172,14 @@ export interface RequestScopedDb {
  * gets an equivalent connection.
  */
 export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedDb | null {
-	const binding = getBinding(opts.config);
+	const bindingName = selectBindingName(opts.config, opts);
+	let binding = getBinding(bindingName);
+	// If the cached binding was selected but isn't present at runtime (e.g.
+	// misconfigured wrangler), fall back to the primary binding rather than
+	// dropping to the singleton — the primary is the safe, always-correct choice.
+	if (!binding?.connectionString && bindingName !== opts.config.binding) {
+		binding = getBinding(opts.config.binding);
+	}
 	// No binding at runtime: fall back to the singleton path (which will throw
 	// a descriptive error if the binding is genuinely missing).
 	if (!binding?.connectionString) return null;
@@ -192,14 +217,34 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	};
 }
 
-function getBinding(config: HyperdriveConfig): HyperdriveBinding | null {
+/**
+ * Decide which binding a given request should use.
+ *
+ * Anonymous reads (no session, no write) may use the cache-enabled binding when
+ * one is configured; everything else — every authenticated request and every
+ * write — uses the primary uncached binding to preserve read-after-write
+ * consistency. Pure (no I/O) so the routing rule can be unit-tested directly.
+ */
+export function selectBindingName(
+	config: HyperdriveConfig,
+	opts: { isAuthenticated: boolean; isWrite: boolean },
+): string {
+	if (config.cachedBinding && !opts.isAuthenticated && !opts.isWrite) {
+		return config.cachedBinding;
+	}
+	return config.binding;
+}
+
+function getBinding(bindingName: string): HyperdriveBinding | null {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding accessed from untyped env object
-	const binding = (env as Record<string, unknown>)[config.binding] as HyperdriveBinding | undefined;
+	const binding = (env as Record<string, unknown>)[bindingName] as HyperdriveBinding | undefined;
 	return binding ?? null;
 }
 
 function requireBinding(config: HyperdriveConfig): HyperdriveBinding {
-	const binding = getBinding(config);
+	// Migrations and the per-isolate singleton always use the primary binding —
+	// never the cache-enabled one.
+	const binding = getBinding(config.binding);
 	if (!binding) {
 		const example = JSON.stringify(
 			{ hyperdrive: [{ binding: config.binding, id: "<your-hyperdrive-id-here>" }] },
