@@ -645,6 +645,7 @@ export interface CollectionFilterBase {
 	 * @example { byline: '01HXYZ...' } - entries credited to a byline (any position)
 	 * @example { series: 'main' } - exact match on a content field
 	 * @example { published_at: { gte: '2024-01-01', lt: '2025-01-01' } } - date range
+	 * @example { category: { subtree: 'news' } } - match a term and all descendants
 	 */
 	where?: Record<string, WhereValue>;
 	/**

@@ -217,7 +217,9 @@ function getTaxonomyTermCounts(): Promise<Map<string, number>> {
 			.groupBy("taxonomy_id")
 			.execute();
 		const counts = new Map<string, number>();
-		for (const row of countsResult) counts.set(row.taxonomy_id, row.count);
+		// Postgres `COUNT()` returns bigint as a string; coerce so callers always
+		// get a number (matches `countEntriesForSubtrees`).
+		for (const row of countsResult) counts.set(row.taxonomy_id, Number(row.count ?? 0));
 		return counts;
 	});
 }

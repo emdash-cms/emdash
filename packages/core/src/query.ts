@@ -124,6 +124,7 @@ export interface CollectionFilterBase {
 	 * @example { byline: ['01HXYZ...', '01HABC...'] } - Credited to any of these bylines (OR)
 	 * @example { series: 'main' } - Exact match on a content field
 	 * @example { published_at: { gte: '2024-01-01', lt: '2025-01-01' } } - Date range
+	 * @example { category: { subtree: 'news' } } - Match a term and all its descendants
 	 */
 	where?: Record<string, WhereValue>;
 	/**
