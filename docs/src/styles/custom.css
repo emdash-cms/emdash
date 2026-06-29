@@ -98,3 +98,7 @@
 	--pagefind-ui-border: var(--sl-color-hairline);
 	--pagefind-ui-tag: var(--sl-color-accent-low);
 }
+
+.sl-link-button.primary {
+	color: var(--emdash-cream);
+}
