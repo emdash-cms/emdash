@@ -15,13 +15,20 @@
 import { Role, type RoleLevel } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
+import { ulid } from "ulidx";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { handleContentGet } from "../../../src/api/handlers/content.js";
 import {
+	handleTermCreate,
+	handleTermList,
+	type TermWithCount,
+} from "../../../src/api/handlers/taxonomies.js";
+import {
 	GET as getTerms,
 	POST as postTerms,
 } from "../../../src/astro/routes/api/content/[collection]/[id]/terms/[taxonomy].js";
+import { up as up045 } from "../../../src/database/migrations/045_taxonomy_parent_group.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
@@ -227,3 +234,191 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		expect(ids).toEqual([fx.frTagId]);
 	});
 });
+
+/**
+ * Parent links are stored as the parent's translation_group, not a locale-bound
+ * row id, so a child stays nested under the parent in every locale (#1347).
+ */
+async function insertHierarchicalDef(db: Kysely<Database>, name: string): Promise<void> {
+	await db
+		.insertInto("_emdash_taxonomy_defs")
+		.values({
+			id: ulid(),
+			name,
+			label: name,
+			label_singular: null,
+			hierarchical: 1,
+			collections: JSON.stringify([]),
+			locale: "en",
+			translation_group: ulid(),
+		})
+		.execute();
+}
+
+function findInTree(terms: TermWithCount[], slug: string): TermWithCount | undefined {
+	for (const term of terms) {
+		if (term.slug === slug) return term;
+		const nested = findInTree(term.children, slug);
+		if (nested) return nested;
+	}
+	return undefined;
+}
+
+describeEachDialect("taxonomy parent stays nested across locales (#1347)", (dialect) => {
+	let ctx: DialectTestContext;
+
+	beforeEach(async () => {
+		ctx = await setupForDialectWithCollections(dialect);
+		await insertHierarchicalDef(ctx.db, "categories");
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("nests a child under a parent translated AFTER the child", async () => {
+		// Child is translated before the parent: the FR parent does not exist
+		// when the FR child is created.
+		const enParent = await unwrap(
+			handleTermCreate(ctx.db, "categories", { slug: "news", label: "News", locale: "en" }),
+		);
+		const enChild = await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "breaking",
+				label: "Breaking",
+				locale: "en",
+				parentId: enParent.id,
+			}),
+		);
+		await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "actualites",
+				label: "Actualités",
+				locale: "fr",
+				parentId: enParent.id,
+				translationOf: enChild.id,
+			}),
+		);
+
+		// Now translate the parent into FR.
+		await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "actus",
+				label: "Actus",
+				locale: "fr",
+				translationOf: enParent.id,
+			}),
+		);
+
+		const frList = await handleTermList(ctx.db, "categories", { locale: "fr" });
+		if (!frList.success) throw new Error(frList.error.message);
+		// The FR child must be nested under the FR parent, not flattened to root.
+		expect(frList.data.terms.map((t) => t.slug)).toEqual(["actus"]);
+		const frParent = frList.data.terms[0]!;
+		expect(frParent.children.map((c) => c.slug)).toEqual(["actualites"]);
+
+		// EN tree is unaffected.
+		const enList = await handleTermList(ctx.db, "categories", { locale: "en" });
+		if (!enList.success) throw new Error(enList.error.message);
+		expect(enList.data.terms.map((t) => t.slug)).toEqual(["news"]);
+		expect(enList.data.terms[0]!.children.map((c) => c.slug)).toEqual(["breaking"]);
+	});
+
+	it("rejects a parent that belongs to a different taxonomy", async () => {
+		await insertHierarchicalDef(ctx.db, "tags");
+		const otherParent = await unwrap(
+			handleTermCreate(ctx.db, "tags", { slug: "misc", label: "Misc", locale: "en" }),
+		);
+		const res = await handleTermCreate(ctx.db, "categories", {
+			slug: "orphan",
+			label: "Orphan",
+			locale: "en",
+			parentId: otherParent.id,
+		});
+		expect(res.success).toBe(false);
+		if (res.success) throw new Error("expected validation failure");
+		expect(res.error.code).toBe("VALIDATION_ERROR");
+	});
+
+	it("backfills legacy locale-bound parent_id to the translation_group", async () => {
+		// Simulate pre-#1347 rows by writing locale-bound parent ids directly.
+		const enParentId = ulid();
+		const group = enParentId; // anchor row: translation_group == id
+		const frParentId = ulid();
+		const enChildId = ulid();
+		const childGroup = enChildId;
+		const frChildId = ulid();
+
+		await ctx.db
+			.insertInto("taxonomies")
+			.values([
+				{
+					id: enParentId,
+					name: "categories",
+					slug: "news",
+					label: "News",
+					parent_id: null,
+					data: null,
+					locale: "en",
+					translation_group: group,
+				},
+				{
+					id: frParentId,
+					name: "categories",
+					slug: "actus",
+					label: "Actus",
+					parent_id: null,
+					data: null,
+					locale: "fr",
+					translation_group: group,
+				},
+				{
+					id: enChildId,
+					name: "categories",
+					slug: "breaking",
+					label: "Breaking",
+					parent_id: enParentId, // legacy: anchor row id (== group)
+					data: null,
+					locale: "en",
+					translation_group: childGroup,
+				},
+				{
+					id: frChildId,
+					name: "categories",
+					slug: "actualites",
+					label: "Actualités",
+					parent_id: frParentId, // legacy: cross-locale row id (the bug)
+					data: null,
+					locale: "fr",
+					translation_group: childGroup,
+				},
+			])
+			.execute();
+
+		await up045(ctx.db);
+
+		const repo = new TaxonomyRepository(ctx.db);
+		const frChild = await repo.findById(frChildId);
+		const enChild = await repo.findById(enChildId);
+		// Both children now reference the parent's translation_group.
+		expect(frChild!.parentId).toBe(group);
+		expect(enChild!.parentId).toBe(group);
+
+		// And the FR tree renders nested rather than flattened.
+		const frList = await handleTermList(ctx.db, "categories", { locale: "fr" });
+		if (!frList.success) throw new Error(frList.error.message);
+		const frParent = findInTree(frList.data.terms, "actus");
+		expect(frParent?.children.map((c) => c.slug)).toEqual(["actualites"]);
+	});
+});
+
+async function unwrap<T>(
+	p: Promise<
+		| { success: true; data: { term: T } }
+		| { success: false; error: { code: string; message: string } }
+	>,
+): Promise<T> {
+	const res = await p;
+	if (!res.success) throw new Error(`${res.error.code}: ${res.error.message}`);
+	return res.data.term;
+}

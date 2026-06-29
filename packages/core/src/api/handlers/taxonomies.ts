@@ -95,12 +95,16 @@ export interface TaxonomyDefTranslationsResponse {
  * Build tree structure from flat terms
  */
 function buildTree(flatTerms: TermWithCount[]): TermWithCount[] {
-	const map = new Map<string, TermWithCount>();
+	// `parentId` holds the parent's translation_group, so resolve links by group
+	// within the (already locale-filtered) set. Keying by row id would drop the
+	// link for every non-default locale, flattening the translated tree.
+	const byGroup = new Map<string, TermWithCount>();
 	const roots: TermWithCount[] = [];
-	for (const term of flatTerms) map.set(term.id, term);
+	for (const term of flatTerms) byGroup.set(term.translationGroup ?? term.id, term);
 	for (const term of flatTerms) {
-		if (term.parentId && map.has(term.parentId)) {
-			map.get(term.parentId)!.children.push(term);
+		const parent = term.parentId ? byGroup.get(term.parentId) : undefined;
+		if (parent) {
+			parent.children.push(term);
 		} else {
 			roots.push(term);
 		}
@@ -422,13 +426,6 @@ async function validateParentTerm(
 ): Promise<{ code: "VALIDATION_ERROR"; message: string } | null> {
 	if (parentId === undefined || parentId === null) return null;
 
-	if (termId !== undefined && parentId === termId) {
-		return {
-			code: "VALIDATION_ERROR",
-			message: "A term cannot be its own parent",
-		};
-	}
-
 	const parent = await repo.findById(parentId);
 	if (!parent) {
 		return {
@@ -443,6 +440,22 @@ async function validateParentTerm(
 		};
 	}
 
+	// Parentage keys off translation_group (what `parent_id` persists), so the
+	// self-parent and cycle checks compare groups, not row ids — picking a
+	// sibling translation of the term as its parent is still self-parenting.
+	const parentGroup = parent.translationGroup ?? parent.id;
+	let termGroup: string | null = null;
+	if (termId !== undefined) {
+		const term = await repo.findById(termId);
+		termGroup = term ? (term.translationGroup ?? term.id) : termId;
+		if (parentGroup === termGroup) {
+			return {
+				code: "VALIDATION_ERROR",
+				message: "A term cannot be its own parent",
+			};
+		}
+	}
+
 	// Walk up the parent chain. Two checks fold into one walk:
 	//   - Cycle detection (only on update — a non-existent term-being-
 	//     created can't be its own ancestor): if the walk revisits termId
@@ -454,11 +467,13 @@ async function validateParentTerm(
 	// The depth-exceeded error fires only when we hit the limit AND there
 	// was still chain to walk — a legitimate chain of exactly MAX_DEPTH
 	// ancestors exits with `cursor === null` and is accepted.
+	// `parent_id` stores a translation_group, which always equals the anchor
+	// row's id, so findById(cursor) still resolves each ancestor.
 	const MAX_DEPTH = 100;
 	let cursor: string | null = parent.parentId;
 	let steps = 0;
 	while (cursor !== null && steps < MAX_DEPTH) {
-		if (termId !== undefined && cursor === termId) {
+		if (termGroup !== null && cursor === termGroup) {
 			return {
 				code: "VALIDATION_ERROR",
 				message: "Cycle detected: cannot make a descendant the parent",
@@ -504,7 +519,7 @@ export async function handleTermCreate(
 		const repo = new TaxonomyRepository(db);
 
 		// Coerce empty-string parentId to undefined (treat as "no parent").
-		let parentId =
+		const parentId =
 			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
 
 		// Conflict check is scoped to locale (per-locale slugs are unique).
@@ -521,23 +536,10 @@ export async function handleTermCreate(
 			};
 		}
 
-		// If creating a translation whose parent is the translated sibling of
-		// the source's parent, try to resolve the parent in the same locale.
-		if (input.translationOf && parentId) {
-			const source = await repo.findById(input.translationOf);
-			if (source?.parentId === parentId && input.locale) {
-				const sourceParent = await repo.findById(parentId);
-				if (sourceParent?.translationGroup) {
-					const translatedParent = await db
-						.selectFrom("taxonomies")
-						.select("id")
-						.where("translation_group", "=", sourceParent.translationGroup)
-						.where("locale", "=", input.locale)
-						.executeTakeFirst();
-					if (translatedParent) parentId = translatedParent.id;
-				}
-			}
-		}
+		// No locale re-pointing needed: `repo.create` persists the parent's
+		// translation_group in `parent_id`, so a child stays nested under the
+		// parent in every locale automatically — including parents translated
+		// after the child was created.
 
 		// Validate parentId: must exist AND belong to the same taxonomy.
 		// (Cycle check is N/A on create — the term doesn't exist yet.)
@@ -606,7 +608,9 @@ export async function handleTermGet(
 		}
 
 		const count = await repo.countEntriesWithTerm(term.id);
-		const children = await repo.findChildren(term.id);
+		// Children share this term's translation_group as their parent_id; scope
+		// to the term's own locale so the response stays within one locale's tree.
+		const children = await repo.findChildren(term.id, term.locale);
 
 		return {
 			success: true,
@@ -791,6 +795,9 @@ export async function handleTermDelete(
 			};
 		}
 
+		// Block deletion if the term's group still parents any child in any
+		// locale — children store this group in parent_id, so removing the term
+		// would orphan them (or null their parent_id via the self-FK).
 		const children = await repo.findChildren(term.id);
 		if (children.length > 0) {
 			return {

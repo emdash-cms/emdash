@@ -64,7 +64,15 @@ export class TaxonomyRepository {
 
 		// Empty-string parentId is coerced to null defensively. Higher layers
 		// also normalize this — see handleTermCreate / handleTermUpdate.
-		const parentId = input.parentId === undefined || input.parentId === "" ? null : input.parentId;
+		// `parent_id` stores the parent's locale-agnostic translation_group (not a
+		// row id), mirroring content_taxonomies.taxonomy_id, so a child stays
+		// nested in every locale's tree. resolveTranslationGroup accepts either a
+		// row id or an already-resolved group, so this is idempotent.
+		const parentInput =
+			input.parentId === undefined || input.parentId === "" ? null : input.parentId;
+		const parentId = parentInput
+			? ((await this.resolveTranslationGroup(parentInput)) ?? parentInput)
+			: null;
 
 		let translationGroup = id;
 		if (input.translationOf) {
@@ -150,14 +158,26 @@ export class TaxonomyRepository {
 		return rows.map((row) => this.rowToTaxonomy(row));
 	}
 
-	async findChildren(parentId: string): Promise<Taxonomy[]> {
-		const rows = await this.db
+	/**
+	 * Children of a term. Accepts a term id OR a translation_group and resolves
+	 * to the group, since `parent_id` stores the parent's translation_group.
+	 * Pass `locale` to scope to one locale's tree (children share the parent's
+	 * group across locales); omit it to find children in every locale (used to
+	 * block deletes that would orphan a sibling translation's subtree).
+	 */
+	async findChildren(parentIdOrGroup: string, locale?: string): Promise<Taxonomy[]> {
+		const group = await this.resolveTranslationGroup(parentIdOrGroup);
+		if (!group) return [];
+
+		let query = this.db
 			.selectFrom("taxonomies")
 			.selectAll()
-			.where("parent_id", "=", parentId)
+			.where("parent_id", "=", group)
 			.orderBy("label", "asc")
-			.orderBy("id", "asc")
-			.execute();
+			.orderBy("id", "asc");
+		if (locale !== undefined) query = query.where("locale", "=", locale);
+
+		const rows = await query.execute();
 		return rows.map((row) => this.rowToTaxonomy(row));
 	}
 
@@ -184,7 +204,12 @@ export class TaxonomyRepository {
 		if (input.label !== undefined) updates.label = input.label;
 		if (input.parentId !== undefined) {
 			// Defense in depth: empty-string parentId means null (no parent).
-			updates.parent_id = input.parentId === "" ? null : input.parentId;
+			// Otherwise persist the parent's translation_group (locale-agnostic),
+			// matching create() — see the note there.
+			updates.parent_id =
+				input.parentId === "" || input.parentId === null
+					? null
+					: ((await this.resolveTranslationGroup(input.parentId)) ?? input.parentId);
 		}
 		if (input.data !== undefined) updates.data = JSON.stringify(input.data);
 
