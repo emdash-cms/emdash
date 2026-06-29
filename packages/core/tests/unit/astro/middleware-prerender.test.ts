@@ -100,6 +100,8 @@ vi.mock(
 	() => ({
 		createDialect: vi.fn(),
 		createRequestScopedDb: vi.fn().mockReturnValue(null),
+		// Absent on non-batching backends; the runtime falls back to the singleton.
+		createCoalescingDialect: undefined,
 	}),
 	{ virtual: true },
 );

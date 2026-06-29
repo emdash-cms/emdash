@@ -1,6 +1,9 @@
 {
 	"name": "emdash-i18n",
 	"compatibility_date": "2026-04-01",
+	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
+	},
 	"assets": {
 		"directory": "./dist",
 	},

@@ -26,7 +26,13 @@
 
 import { encodeCursor } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
-import { CURSOR_RAW_VALUES, type WhereRange, type WhereValue } from "./loader.js";
+import {
+	CURSOR_RAW_VALUES,
+	FOLDED_BYLINES,
+	FOLDED_TERMS,
+	type WhereRange,
+	type WhereValue,
+} from "./loader.js";
 import {
 	cachedQuery,
 	contentNamespaces,
@@ -34,6 +40,7 @@ import {
 } from "./object-cache/index.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import type { TaxonomyTerm } from "./taxonomies/types.js";
 import { isMissingTableError } from "./utils/db-errors.js";
 import {
 	createEditable,
@@ -89,22 +96,17 @@ export type OrderBySpec = Record<string, SortDirection>;
 
 export type { WhereRange, WhereValue };
 
-export interface CollectionFilter {
+/**
+ * Fields shared by every collection query, independent of pagination mode.
+ *
+ * Cursor and offset pagination are mutually exclusive, so they live on the
+ * `CursorCollectionFilter` / `OffsetCollectionFilter` variants rather than
+ * here. Use the {@link CollectionFilter} union for any value that may be
+ * either.
+ */
+export interface CollectionFilterBase {
 	status?: "draft" | "published" | "archived";
 	limit?: number;
-	/**
-	 * Opaque cursor for keyset pagination.
-	 * Pass the `nextCursor` value from a previous result to fetch the next page.
-	 * @example
-	 * ```ts
-	 * const cursor = Astro.url.searchParams.get("cursor") ?? undefined;
-	 * const { entries, nextCursor } = await getEmDashCollection("posts", {
-	 *   limit: 10,
-	 *   cursor,
-	 * });
-	 * ```
-	 */
-	cursor?: string;
 	/**
 	 * Filter by field values, taxonomy terms, byline credits, or ranges.
 	 *
@@ -140,6 +142,56 @@ export interface CollectionFilter {
 	locale?: string;
 }
 
+/** Keyset-paginated query filter. Cannot also carry an `offset`. */
+export interface CursorCollectionFilter extends CollectionFilterBase {
+	/**
+	 * Opaque cursor for keyset pagination.
+	 * Pass the `nextCursor` value from a previous result to fetch the next page.
+	 * @example
+	 * ```ts
+	 * const cursor = Astro.url.searchParams.get("cursor") ?? undefined;
+	 * const { entries, nextCursor } = await getEmDashCollection("posts", {
+	 *   limit: 10,
+	 *   cursor,
+	 * });
+	 * ```
+	 */
+	cursor?: string;
+	offset?: never;
+}
+
+/** Offset-paginated query filter. Cannot also carry a `cursor`. */
+export interface OffsetCollectionFilter extends CollectionFilterBase {
+	/**
+	 * Skip this many entries before returning results (offset pagination).
+	 *
+	 * Use with `limit` to render numbered archive routes like `/page/2`
+	 * without walking cursors or over-fetching from the start:
+	 *
+	 * ```ts
+	 * const perPage = 20;
+	 * const { entries, hasMore } = await getEmDashCollection("posts", {
+	 *   limit: perPage,
+	 *   offset: (page - 1) * perPage,
+	 *   orderBy: { published_at: "desc" },
+	 * });
+	 * ```
+	 *
+	 * Only a positive integer applies.
+	 */
+	offset?: number;
+	cursor?: never;
+}
+
+/**
+ * Filter for `getEmDashCollection`.
+ *
+ * A union of the cursor and offset pagination variants: supplying both
+ * `cursor` and `offset` is a compile-time error, since they are mutually
+ * exclusive ways to express "the next page" (cursor wins at runtime).
+ */
+export type CollectionFilter = CursorCollectionFilter | OffsetCollectionFilter;
+
 export interface ContentEntry<T = Record<string, unknown>> {
 	id: string;
 	data: T;
@@ -169,6 +221,12 @@ export interface CollectionResult<T> {
 	 * Pass this as `cursor` in the next query to get the next page.
 	 */
 	nextCursor?: string;
+	/**
+	 * Whether more entries exist beyond this page. Set whenever `limit` is
+	 * provided (cursor or offset pagination), so numbered archive routes can
+	 * render a "next page" link without computing a total count.
+	 */
+	hasMore?: boolean;
 }
 
 /**
@@ -343,6 +401,7 @@ export async function getEmDashCollection<T extends string, D = InferCollectionD
 interface CachedCollectionValue {
 	entries: unknown[];
 	nextCursor?: string;
+	hasMore?: boolean;
 	cacheHint: CacheHint;
 }
 
@@ -370,6 +429,7 @@ async function loadCollectionCached<T extends string, D = InferCollectionData<T>
 				value: {
 					entries: result.entries.map(entrySnapshot),
 					nextCursor: result.nextCursor,
+					hasMore: result.hasMore,
 					cacheHint: result.cacheHint,
 				},
 			};
@@ -383,6 +443,7 @@ async function loadCollectionCached<T extends string, D = InferCollectionData<T>
 	return {
 		entries: snapshot.value.entries.map((entry) => reviveEntry<D>(entry)),
 		nextCursor: snapshot.value.nextCursor,
+		hasMore: snapshot.value.hasMore,
 		cacheHint: snapshot.value.cacheHint,
 	};
 }
@@ -410,7 +471,10 @@ export function bucketFilter(filter: CollectionFilter | undefined): BucketedFilt
 		limit === undefined ||
 		limit >= BUCKET_LIMIT_THRESHOLD ||
 		limit <= 0 ||
-		filter?.cursor !== undefined
+		filter?.cursor !== undefined ||
+		// Offset paginates a deliberate page window; its limit is part of the
+		// pagination contract, so don't round it up the way "recent N" widgets get.
+		filter?.offset !== undefined
 	) {
 		return { fetchFilter: filter, requestedLimit: undefined };
 	}
@@ -442,7 +506,8 @@ export function sliceCollectionResult<D>(
 	// buildCursorCondition in loader.ts — it filters strictly past this row.
 	const lastEntry = sliced.at(-1);
 	const nextCursor = lastEntry ? encodeEntryCursor(lastEntry, orderBy) : undefined;
-	return { ...cached, entries: sliced, nextCursor };
+	// Truncating to the requested limit means at least one more entry existed.
+	return { ...cached, entries: sliced, nextCursor, hasMore: true };
 }
 
 /** Map of database column names to camelCase keys present on entry.data. */
@@ -526,6 +591,7 @@ function collectionCacheKey(type: string, filter?: CollectionFilter): string {
 		filter.status ?? "",
 		filter.limit ?? "",
 		filter.cursor ?? "",
+		filter.offset ?? "",
 		filter.where ? stableStringify(filter.where) : "",
 		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
 		filter.locale ?? "",
@@ -626,11 +692,19 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		filter?.locale ?? ctx?.locale ?? (isI18nEnabled() ? i18nConfig!.defaultLocale : undefined);
 
 	const requestedLimit = filter?.limit;
+	// cursor and offset are mutually exclusive on the loader filter union, so
+	// spread only the one in play (cursor wins) rather than emitting both keys.
+	const pageParam =
+		filter?.cursor !== undefined
+			? { cursor: filter.cursor }
+			: filter?.offset !== undefined
+				? { offset: filter.offset }
+				: {};
 	const result = await getLiveCollection(COLLECTION_NAME, {
 		type,
 		status: filter?.status,
 		limit: requestedLimit && requestedLimit > 0 ? requestedLimit + 1 : filter?.limit,
-		cursor: filter?.cursor,
+		...pageParam,
 		where: filter?.where,
 		orderBy: filter?.orderBy,
 		locale: resolvedLocale,
@@ -645,6 +719,9 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	const hasMore = requestedLimit != null && requestedLimit > 0 && entries.length > requestedLimit;
 	const pageEntries = hasMore ? entries.slice(0, requestedLimit) : entries;
 	const nextCursor = hasMore ? encodeEntryCursor(pageEntries.at(-1), filter?.orderBy) : undefined;
+	// `hasMore` is only meaningful when a limit bounds the page; otherwise the
+	// query returned everything and there is no "next page" to report.
+	const hasMoreResult = requestedLimit != null && requestedLimit > 0 ? hasMore : undefined;
 
 	const isEditMode = ctx?.editMode ?? false;
 	const entriesWithEdit = pageEntries.map((entry: ContentEntry<D>) => {
@@ -668,7 +745,12 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		hydrateEntryTerms(type, entriesWithEdit, resolvedLocale),
 	]);
 
-	return { entries: entriesWithEdit, nextCursor, cacheHint: cacheHint ?? {} };
+	return {
+		entries: entriesWithEdit,
+		nextCursor,
+		hasMore: hasMoreResult,
+		cacheHint: cacheHint ?? {},
+	};
 }
 
 /**
@@ -930,6 +1012,67 @@ interface CachedEntryValue {
 async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
 	if (entries.length === 0) return;
 
+	// Fast path: bylines were folded into the content query. Parse the JSON
+	// (no extra round trip) for the common case — explicit credits, no byline
+	// custom fields, no author fallback. The query path below handles the rest:
+	//  - author fallback (entry has authorId but no explicit credit), and
+	//  - custom byline fields (can't be expressed in the folded subquery).
+	if (entries.every((e) => FOLDED_BYLINES in entryData(e))) {
+		const parsed = entries.map((entry) => {
+			const data = entryData(entry);
+			const folded = Reflect.get(data, FOLDED_BYLINES);
+			const rows = Array.isArray(folded) ? folded : [];
+			const credits = rows
+				.map((raw) => {
+					const b = raw?.byline ?? {};
+					return {
+						roleLabel: raw?.roleLabel ?? null,
+						sortOrder: Number(raw?.sortOrder ?? 0),
+						source: "explicit" as const,
+						byline: { ...b, isGuest: Boolean(b.isGuest), customFields: {} },
+					};
+				})
+				.toSorted((a, b) => a.sortOrder - b.sortOrder);
+			return { data, credits };
+		});
+
+		// Fall back to the full query path when the fold can't be trusted to be
+		// complete: an entry with a byline reference (explicit primary, or an
+		// author for the author-fallback) but no folded credits — e.g. a credit
+		// in a different locale than the row, which the locale-correlated subquery
+		// skips, or the author-fallback path which the fold doesn't express.
+		let needsQueryPath = parsed.some(
+			(p) =>
+				p.credits.length === 0 &&
+				(dataStr(p.data, "authorId") !== "" || dataStr(p.data, "primaryBylineId") !== ""),
+		);
+		let hasCustomFields = false;
+		if (!needsQueryPath) {
+			try {
+				const { getDb } = await import("./loader.js");
+				const db = await getDb();
+				const { getBylineFieldDefs } = await import("./bylines/field-defs-cache.js");
+				hasCustomFields = (await getBylineFieldDefs(db)).length > 0;
+			} catch (error) {
+				// A missing table is expected pre-migration and means there are no
+				// custom fields — the fold's values are complete. Any other error
+				// (lock-init failure, dialect error) means the probe can't be
+				// trusted, so fall back to the query path rather than risk serving
+				// folded bylines with empty customFields.
+				if (!isMissingTableError(error)) needsQueryPath = true;
+			}
+		}
+
+		if (!needsQueryPath && !hasCustomFields) {
+			for (const p of parsed) {
+				p.data.bylines = p.credits;
+				p.data.byline = p.credits[0]?.byline ?? null;
+			}
+			return;
+		}
+		// Fall through to the full query path for fallback / custom-field cases.
+	}
+
 	try {
 		const { getBylinesForEntries } = await import("./bylines/index.js");
 
@@ -1004,6 +1147,45 @@ async function hydrateEntryTerms<D>(
 	locale?: string,
 ): Promise<void> {
 	if (entries.length === 0) return;
+
+	// Fast path: terms were folded into the content query. Group the JSON and
+	// skip the separate content_taxonomies query.
+	if (entries.every((e) => FOLDED_TERMS in entryData(e))) {
+		const perEntry: Array<{ entryId: string; byTaxonomy: Record<string, TaxonomyTerm[]> }> = [];
+		for (const entry of entries) {
+			const data = entryData(entry);
+			const folded = Reflect.get(data, FOLDED_TERMS);
+			const rows = Array.isArray(folded) ? folded : [];
+			const grouped: Record<string, TaxonomyTerm[]> = {};
+			for (const r of rows) {
+				const name = String(r?.name);
+				(grouped[name] ??= []).push({
+					id: r?.id,
+					name,
+					slug: r?.slug,
+					label: r?.label,
+					parentId: r?.parent_id ?? undefined,
+					children: [],
+					locale: r?.locale,
+					translationGroup: r?.translation_group,
+				});
+			}
+			// Match getAllTermsForEntries' ORDER BY label (dropped from the
+			// aggregate since SQLite and Postgres order it differently).
+			for (const [name, arr] of Object.entries(grouped)) {
+				grouped[name] = arr.toSorted((a, b) => String(a.label).localeCompare(String(b.label)));
+			}
+			data.terms = grouped;
+			const entryId = dataStr(data, "id");
+			if (entryId) perEntry.push({ entryId, byTaxonomy: grouped });
+		}
+		// Prime the per-entry request cache (wildcard + present taxonomies) so
+		// subsequent getEntryTerms(...) calls in this render hit the cache instead
+		// of issuing an N+1 query. No DB lookup — purely from the folded data.
+		const { primeFoldedEntryTerms } = await import("./taxonomies/index.js");
+		primeFoldedEntryTerms(type, perEntry, { locale });
+		return;
+	}
 
 	try {
 		const { getAllTermsForEntries } = await import("./taxonomies/index.js");

@@ -77,6 +77,7 @@
 		},
 	],
 	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
 		// emdashbot GitHub App. Not secret (app id is public; installation id is
 		// low-sensitivity). Only the private key and webhook secret are secrets.
 		// Owner/repo come from the webhook payload, so they aren't configured here.
