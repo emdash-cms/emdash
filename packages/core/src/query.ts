@@ -32,6 +32,7 @@ import {
 	FOLDED_TERMS,
 	type WhereRange,
 	type WhereValue,
+	type WhereSubtree,
 } from "./loader.js";
 import {
 	cachedQuery,
@@ -94,7 +95,7 @@ export type SortDirection = "asc" | "desc";
  */
 export type OrderBySpec = Record<string, SortDirection>;
 
-export type { WhereRange, WhereValue };
+export type { WhereRange, WhereValue, WhereSubtree };
 
 /**
  * Fields shared by every collection query, independent of pagination mode.
