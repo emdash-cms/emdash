@@ -427,6 +427,7 @@ describe("schema_create_field", () => {
 		["number", "f_number"],
 		["integer", "f_integer"],
 		["boolean", "f_bool"],
+		["date", "f_date"],
 		["datetime", "f_dt"],
 		["portableText", "f_portable_text"],
 		["json", "f_json"],

@@ -104,6 +104,9 @@ function extractFieldType(name: string, schema: unknown): FieldDescriptor {
 	if (schema.isReference) {
 		return { kind: "reference", label: formatLabel(name) };
 	}
+	if (schema.isDateOnly) {
+		return { kind: "date", label: formatLabel(name) };
+	}
 
 	// Handle standard Zod types
 	const def = isObject(schema._def) ? schema._def : undefined;

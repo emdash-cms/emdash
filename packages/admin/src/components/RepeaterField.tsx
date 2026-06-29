@@ -356,6 +356,16 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 					required={subField.required}
 				/>
 			);
+		case "date":
+			return (
+				<Input
+					label={subField.label}
+					type="date"
+					value={typeof value === "string" ? value.slice(0, 10) : ""}
+					onChange={(e) => onChange(e.target.value)}
+					required={subField.required}
+				/>
+			);
 		case "select":
 			return (
 				<Select

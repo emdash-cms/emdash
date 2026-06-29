@@ -185,6 +185,7 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	number: "number",
 	integer: "number",
 	boolean: "boolean",
+	date: "date",
 	datetime: "datetime",
 	select: "select",
 	multiSelect: "multiSelect",

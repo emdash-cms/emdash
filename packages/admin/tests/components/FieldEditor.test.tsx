@@ -16,6 +16,7 @@ const FIELD_TYPE_REGEXES = [
 	/Integer Whole number/,
 	/Boolean True\/false toggle/,
 	/Date & Time/,
+	/Date Only/,
 	/^Select Single choice/,
 	/Multi Select/,
 	/Rich Text/,
@@ -84,7 +85,7 @@ describe("FieldEditor", () => {
 				.toBeInTheDocument();
 		});
 
-		it("shows all 14 field types as buttons", async () => {
+		it("shows all 15 field types as buttons", async () => {
 			const screen = await render(<FieldEditor {...defaultProps} />);
 			// Each type renders as a button with label and description
 			for (const name of FIELD_TYPE_REGEXES) {
