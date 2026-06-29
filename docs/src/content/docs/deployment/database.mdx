@@ -333,10 +333,18 @@ database: hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED"
 
 This is the [two-configuration pattern](https://developers.cloudflare.com/hyperdrive/configuration/query-caching/#disable-caching) Cloudflare documents for caching. EmDash decides which binding to use per request:
 
-- **Anonymous reads** (`GET`/`HEAD`, no session) → cache-enabled `cachedBinding`.
+- **Anonymous reads of public-site paths** (`GET`/`HEAD`, no session, not under `/_emdash`) → cache-enabled `cachedBinding`.
 - **Authenticated requests** (editors, authors) → uncached `binding`.
 - **Writes** (`POST`, `PUT`, `DELETE`, including anonymous ones) → uncached `binding`.
+- **Any request under `/_emdash`** (admin, setup, auth, internal APIs), even an anonymous `GET` → uncached `binding`.
 - **Migrations and cold-start** → always the primary `binding`.
+
+<Aside>
+	The `/_emdash` carve-out matters: the setup wizard and login-state checks are
+	anonymous `GET`s that read a row written moments earlier. Caching them would
+	loop the setup wizard or show stale auth state, so they always use the
+	uncached primary.
+</Aside>
 
 <Aside type="caution">
 	Both configurations must point at the **same** database, or anonymous visitors see a different dataset than editors. Anonymous reads of just-published content can be up to the cache's `max_age` stale (Hyperdrive default 60s, max 1h), and this cache is independent of EmDash's own cache invalidation. Only opt in if a short public-read staleness window is acceptable; otherwise omit `cachedBinding` and keep caching disabled.

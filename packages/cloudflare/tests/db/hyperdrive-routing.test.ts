@@ -39,37 +39,75 @@ const cookies = {
 };
 const url = new URL("https://example.com/");
 
+const publicUrl = new URL("https://example.com/posts");
+const cfg = { binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" };
+
 describe("selectBindingName", () => {
-	it("uses the cached binding for anonymous reads when configured", () => {
-		const name = selectBindingName(
-			{ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" },
-			{ isAuthenticated: false, isWrite: false },
-		);
+	it("uses the cached binding for anonymous reads of public paths", () => {
+		const name = selectBindingName(cfg, {
+			isAuthenticated: false,
+			isWrite: false,
+			url: publicUrl,
+		});
 		expect(name).toBe("HYPERDRIVE_CACHED");
 	});
 
 	it("uses the primary binding for authenticated reads", () => {
-		const name = selectBindingName(
-			{ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" },
-			{ isAuthenticated: true, isWrite: false },
-		);
+		const name = selectBindingName(cfg, {
+			isAuthenticated: true,
+			isWrite: false,
+			url: publicUrl,
+		});
 		expect(name).toBe("HYPERDRIVE");
 	});
 
 	it("uses the primary binding for anonymous writes", () => {
-		const name = selectBindingName(
-			{ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" },
-			{ isAuthenticated: false, isWrite: true },
-		);
+		const name = selectBindingName(cfg, {
+			isAuthenticated: false,
+			isWrite: true,
+			url: publicUrl,
+		});
 		expect(name).toBe("HYPERDRIVE");
+	});
+
+	it("uses the primary binding for anonymous GETs under /_emdash (setup/auth/admin APIs)", () => {
+		for (const path of [
+			"/_emdash",
+			"/_emdash/admin",
+			"/_emdash/admin/setup",
+			"/_emdash/api/setup/status",
+			"/_emdash/api/auth/me",
+		]) {
+			const name = selectBindingName(cfg, {
+				isAuthenticated: false,
+				isWrite: false,
+				url: new URL(`https://example.com${path}`),
+			});
+			expect(name, `path ${path} must use the primary binding`).toBe("HYPERDRIVE");
+		}
+	});
+
+	it("does not treat a public path that merely contains _emdash as internal", () => {
+		const name = selectBindingName(cfg, {
+			isAuthenticated: false,
+			isWrite: false,
+			url: new URL("https://example.com/posts/about-_emdash"),
+		});
+		expect(name).toBe("HYPERDRIVE_CACHED");
 	});
 
 	it("always uses the primary binding when no cachedBinding is set", () => {
 		expect(
-			selectBindingName({ binding: "HYPERDRIVE" }, { isAuthenticated: false, isWrite: false }),
+			selectBindingName(
+				{ binding: "HYPERDRIVE" },
+				{ isAuthenticated: false, isWrite: false, url: publicUrl },
+			),
 		).toBe("HYPERDRIVE");
 		expect(
-			selectBindingName({ binding: "HYPERDRIVE" }, { isAuthenticated: true, isWrite: true }),
+			selectBindingName(
+				{ binding: "HYPERDRIVE" },
+				{ isAuthenticated: true, isWrite: true, url: publicUrl },
+			),
 		).toBe("HYPERDRIVE");
 	});
 });
@@ -109,6 +147,18 @@ describe("createRequestScopedDb binding routing", () => {
 			isWrite: true,
 			cookies,
 			url,
+		});
+		expect(poolCalls[0]!.connectionString).toBe("postgres://primary/uncached");
+	});
+
+	it("builds the pool from the primary binding for anonymous /_emdash reads", () => {
+		poolCalls.length = 0;
+		createRequestScopedDb({
+			config: { binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" },
+			isAuthenticated: false,
+			isWrite: false,
+			cookies,
+			url: new URL("https://example.com/_emdash/api/setup/status"),
 		});
 		expect(poolCalls[0]!.connectionString).toBe("postgres://primary/uncached");
 	});

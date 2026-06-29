@@ -33,11 +33,14 @@
  * ----------------------------------------
  * Hyperdrive's query cache is unsafe to leave on for the whole app because the
  * admin, setup, and any read-after-write path can be served a stale pre-write
- * result within the cache TTL. But anonymous public reads — no session, no
- * write — can tolerate a short staleness window, so when a `cachedBinding`
- * (pointing at a cache-enabled Hyperdrive config over the same database) is
- * configured, those requests route through it and everything else (every
- * authenticated request and every write) stays on the primary uncached binding.
+ * result within the cache TTL. But anonymous reads of **public-site paths** —
+ * no session, no write, not under `/_emdash` — can tolerate a short staleness
+ * window, so when a `cachedBinding` (pointing at a cache-enabled Hyperdrive
+ * config over the same database) is configured, those requests route through
+ * it and everything else stays on the primary uncached binding: every
+ * authenticated request, every write, and every request under `/_emdash`
+ * (admin, setup, auth, internal APIs) — including anonymous GETs such as the
+ * post-setup status check, which must observe a write made moments earlier.
  * Migrations and the per-isolate singleton always use the primary binding.
  * Omit `cachedBinding` and the adapter behaves exactly as before.
  *
@@ -172,7 +175,11 @@ export interface RequestScopedDb {
  * gets an equivalent connection.
  */
 export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedDb | null {
-	const bindingName = selectBindingName(opts.config, opts);
+	const bindingName = selectBindingName(opts.config, {
+		isAuthenticated: opts.isAuthenticated,
+		isWrite: opts.isWrite,
+		url: opts.url,
+	});
 	let binding = getBinding(bindingName);
 	// If the cached binding was selected but isn't present at runtime (e.g.
 	// misconfigured wrangler), fall back to the primary binding rather than
@@ -218,18 +225,46 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 }
 
 /**
+ * EmDash's admin base path. Requests under this prefix (the admin UI, the
+ * setup wizard, auth, and every internal `/_emdash/api/*` route) must never be
+ * served from the query cache — they include read-after-write-sensitive reads
+ * that are issued *anonymously* (e.g. the post-setup `GET /_emdash/api/setup/
+ * status` runs before any session exists). Only genuinely public site reads
+ * are safe to cache.
+ */
+const EMDASH_BASE_PATH = "/_emdash";
+
+function isEmDashInternalPath(url: URL): boolean {
+	return url.pathname === EMDASH_BASE_PATH || url.pathname.startsWith(`${EMDASH_BASE_PATH}/`);
+}
+
+/**
  * Decide which binding a given request should use.
  *
- * Anonymous reads (no session, no write) may use the cache-enabled binding when
- * one is configured; everything else — every authenticated request and every
- * write — uses the primary uncached binding to preserve read-after-write
- * consistency. Pure (no I/O) so the routing rule can be unit-tested directly.
+ * The cache-enabled binding (when configured) is used only for **anonymous
+ * reads of public-site paths** — the one class of request that tolerates a
+ * short staleness window. Everything else uses the primary uncached binding to
+ * preserve read-after-write consistency:
+ *
+ * - authenticated requests (editors/authors) → primary;
+ * - writes (`POST`/`PUT`/`DELETE`) → primary;
+ * - **any request under `/_emdash`** (admin, setup, auth, internal APIs),
+ *   even an anonymous GET → primary. The setup-status and login-state reads
+ *   are anonymous GETs that must see writes made moments earlier; routing them
+ *   to the cache would loop the setup wizard and show stale auth state.
+ *
+ * Pure (no I/O) so the routing rule can be unit-tested directly.
  */
 export function selectBindingName(
 	config: HyperdriveConfig,
-	opts: { isAuthenticated: boolean; isWrite: boolean },
+	opts: { isAuthenticated: boolean; isWrite: boolean; url: URL },
 ): string {
-	if (config.cachedBinding && !opts.isAuthenticated && !opts.isWrite) {
+	if (
+		config.cachedBinding &&
+		!opts.isAuthenticated &&
+		!opts.isWrite &&
+		!isEmDashInternalPath(opts.url)
+	) {
 		return config.cachedBinding;
 	}
 	return config.binding;

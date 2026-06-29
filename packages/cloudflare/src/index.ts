@@ -121,10 +121,13 @@ export interface HyperdriveConfig {
 	 * Optional name of a second Hyperdrive binding pointing at a
 	 * **caching-enabled** configuration over the *same* database.
 	 *
-	 * When set, anonymous read requests (no session, GET/HEAD) route through
-	 * this cache-enabled binding for lower latency and reduced database load,
-	 * while every authenticated request and every write stays on `binding`
-	 * (uncached) to preserve read-after-write consistency. Migrations and the
+	 * When set, anonymous reads of **public-site paths** (no session, GET/HEAD,
+	 * not under `/_emdash`) route through this cache-enabled binding for lower
+	 * latency and reduced database load. Everything else stays on `binding`
+	 * (uncached) to preserve read-after-write consistency: every authenticated
+	 * request, every write, and every request under `/_emdash` (admin, setup,
+	 * auth, internal APIs) — including anonymous GETs like the post-setup status
+	 * check, which must observe a write made moments earlier. Migrations and the
 	 * cold-start singleton always use `binding`.
 	 *
 	 * Anonymous reads of just-published content can be up to the cache's
