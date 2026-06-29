@@ -103,19 +103,52 @@ describeEachDialect("Loader taxonomy subtree filter", (dialectName: DialectName)
 		expect(titles).toEqual(["north", "south"]);
 	});
 
-	it("matches a subtree with more than 100 descendants (no bind-param overflow)", async () => {
+	it("matches a subtree with more than 999 descendants (would overflow SQLite bind limit if slugs were enumerated)", async () => {
 		const region = await term("category", "region");
-		const leaves: string[] = [];
-		for (let i = 0; i < 150; i++) {
-			leaves.push(await term("category", `leaf-${i}`, region));
-		}
-		const post = await createPost("deep");
-		await tag(post.id, leaves[120]!); // tagged under one deep leaf
 
-		// Selecting the root must match via the descendant without enumerating
-		// 150 slugs as bound parameters.
+		// Build 1001 direct children of region. Insert in chunks of 100 rows
+		// (~600 bind params per statement) to stay safely under SQLite's 999-variable
+		// limit during insertion while still exceeding it for any naive slug-enumeration
+		// regression in the filter itself.
+		const TOTAL = 1001;
+		const CHUNK_SIZE = 100;
+		const rows: {
+			id: string;
+			name: string;
+			slug: string;
+			label: string;
+			translation_group: string;
+			parent_id: string;
+		}[] = [];
+		for (let i = 0; i < TOTAL; i++) {
+			const id = `tax_category_leaf-${i}_${termSeq++}`;
+			rows.push({
+				id,
+				name: "category",
+				slug: `leaf-${i}`,
+				label: `leaf-${i}`,
+				translation_group: id,
+				parent_id: region,
+			});
+		}
+		for (let start = 0; start < rows.length; start += CHUNK_SIZE) {
+			await db
+				.insertInto("taxonomies" as never)
+				.values(rows.slice(start, start + CHUNK_SIZE) as never)
+				.execute();
+		}
+
+		// Tag under the last leaf — one match regardless of which leaf is chosen.
+		const post = await createPost("matched via a descendant, not by enumerating slugs");
+		await tag(post.id, rows[TOTAL - 1]!.id);
+
+		// The recursive CTE binds only the single root slug. If this regressed to
+		// enumerating 1001 descendant slugs as bound params, SQLite would reject the
+		// query and this test would fail — which is the guard we want.
 		const result = await load({ category: { subtree: "region" } });
-		expect(result.entries.map((e) => e.data.title)).toEqual(["deep"]);
+		expect(result.entries.map((e) => e.data.title)).toEqual([
+			"matched via a descendant, not by enumerating slugs",
+		]);
 	});
 
 	it("combines a subtree filter with an exact filter across two taxonomies", async () => {
