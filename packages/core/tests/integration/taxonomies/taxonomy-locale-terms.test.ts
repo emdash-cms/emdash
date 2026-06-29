@@ -367,6 +367,24 @@ describeEachDialect("taxonomy parent stays nested across locales (#1347)", (dial
 		expect(news.children.map((c) => c.slug)).toEqual(["breaking"]);
 	});
 
+	it("rejects a translation parented to its own translation group", async () => {
+		const enTerm = await unwrap(
+			handleTermCreate(ctx.db, "categories", { slug: "news", label: "News", locale: "en" }),
+		);
+		// Creating an FR translation of enTerm whose parent is enTerm (same group)
+		// is a cross-locale self-parent and must be rejected, not silently stored.
+		const res = await handleTermCreate(ctx.db, "categories", {
+			slug: "actus",
+			label: "Actus",
+			locale: "fr",
+			parentId: enTerm.id,
+			translationOf: enTerm.id,
+		});
+		expect(res.success).toBe(false);
+		if (res.success) throw new Error("expected validation failure");
+		expect(res.error.code).toBe("VALIDATION_ERROR");
+	});
+
 	it("rejects a parent that belongs to a different taxonomy", async () => {
 		await insertHierarchicalDef(ctx.db, "tags");
 		const otherParent = await unwrap(

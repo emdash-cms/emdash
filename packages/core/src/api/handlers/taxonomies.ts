@@ -420,14 +420,17 @@ export async function handleTermList(
  *   - `parentId === null` -> caller intends to detach; no-op here.
  *   - parent must exist (FK exists -> term row not soft-deleted).
  *   - parent must live in the same taxonomy.
- *   - if `termId` is provided (update path), reject `parentId === termId`
- *     (self-parent) and walk up the parent chain to detect cycles.
+ *   - reject a parent in the term's own translation_group (self-parent),
+ *     including the create path: a translation inherits its source's group, so
+ *     `selfGroup` carries that prospective group when `termId` is absent.
+ *   - on update, walk up the parent chain to detect cycles.
  */
 async function validateParentTerm(
 	repo: TaxonomyRepository,
 	taxonomyName: string,
 	termId: string | undefined,
 	parentId: string | null | undefined,
+	selfGroup?: string | null,
 ): Promise<{ code: "VALIDATION_ERROR"; message: string } | null> {
 	if (parentId === undefined || parentId === null) return null;
 
@@ -449,16 +452,16 @@ async function validateParentTerm(
 	// self-parent and cycle checks compare groups, not row ids — picking a
 	// sibling translation of the term as its parent is still self-parenting.
 	const parentGroup = parent.translationGroup ?? parent.id;
-	let termGroup: string | null = null;
+	let termGroup: string | null = selfGroup ?? null;
 	if (termId !== undefined) {
 		const term = await repo.findById(termId);
 		termGroup = term ? (term.translationGroup ?? term.id) : termId;
-		if (parentGroup === termGroup) {
-			return {
-				code: "VALIDATION_ERROR",
-				message: "A term cannot be its own parent",
-			};
-		}
+	}
+	if (termGroup !== null && parentGroup === termGroup) {
+		return {
+			code: "VALIDATION_ERROR",
+			message: "A term cannot be its own parent",
+		};
 	}
 
 	// Walk up the parent chain. Two checks fold into one walk:
@@ -546,9 +549,24 @@ export async function handleTermCreate(
 		// parent in every locale automatically — including parents translated
 		// after the child was created.
 
+		// A translation inherits its source's translation_group; pass that
+		// prospective group so validateParentTerm can reject a parent in the same
+		// group (cross-locale self-parent) even though the term doesn't exist yet.
+		let selfGroup: string | null = null;
+		if (input.translationOf) {
+			const source = await repo.findById(input.translationOf);
+			selfGroup = source ? (source.translationGroup ?? source.id) : null;
+		}
+
 		// Validate parentId: must exist AND belong to the same taxonomy.
 		// (Cycle check is N/A on create — the term doesn't exist yet.)
-		const parentError = await validateParentTerm(repo, taxonomyName, undefined, parentId);
+		const parentError = await validateParentTerm(
+			repo,
+			taxonomyName,
+			undefined,
+			parentId,
+			selfGroup,
+		);
 		if (parentError) {
 			return { success: false, error: parentError };
 		}

@@ -18,8 +18,12 @@ import { sql } from "kysely";
  * its anchor row's id, so the self-FK on `parent_id` stays valid. We only
  * rewrite when that anchor row still exists; if a parent's anchor was deleted
  * but a sibling translation survives, the existing locale-bound id is left as-is
- * rather than rewritten to a dangling FK value. The correlated subquery is a
- * no-op for rows that already hold a group (an anchor row's id resolves to
+ * rather than rewritten to a dangling FK value. Such a child then renders as a
+ * root rather than nested — an accepted degradation for an already-inconsistent
+ * dataset (its `translation_group` already points at a deleted row, which breaks
+ * `content_taxonomies` joins too). New deletes can't recreate this state: a
+ * parent with children in any locale is undeletable. The correlated subquery is
+ * a no-op for rows that already hold a group (an anchor row's id resolves to
  * itself), so the migration is safe to re-run.
  *
  * Dialect-independent: the correlated-subquery `UPDATE` runs on SQLite (incl.
