@@ -56,6 +56,34 @@ export interface SitemapDataResponse {
 /** Maximum entries per sitemap (per spec) */
 const SITEMAP_MAX_ENTRIES = 50_000;
 
+/** Matches a trailing timezone designator (`Z` or `±HH`, `±HHMM`, `±HH:MM`). */
+const TZ_SUFFIX_RE = /([zZ]|[+-]\d{2}(:?\d{2})?)$/;
+
+/**
+ * Normalize a stored timestamp to W3C Datetime (ISO 8601) for sitemaps.
+ *
+ * `updated_at` is not guaranteed to be ISO: the column default is
+ * `datetime('now')` on SQLite and `CURRENT_TIMESTAMP` on Postgres, both of
+ * which store a space-separated `YYYY-MM-DD HH:MM:SS` string (and imported
+ * content can carry other shapes). The sitemap `<lastmod>` field requires
+ * W3C Datetime, and Google Search Console rejects the space-separated form
+ * as "Invalid date". Normalize defensively, assuming UTC when no offset is
+ * present (matches SQLite's `datetime('now')`). Already-ISO values pass
+ * through unchanged; unparseable values are returned as-is.
+ */
+function toW3CDate(value: string): string {
+	if (!value) return value;
+	let normalized = value.trim();
+	if (normalized.includes(" ") && !normalized.includes("T")) {
+		normalized = normalized.replace(" ", "T");
+	}
+	if (!TZ_SUFFIX_RE.test(normalized)) {
+		normalized += "Z";
+	}
+	const parsed = Date.parse(normalized);
+	return Number.isNaN(parsed) ? value : new Date(parsed).toISOString();
+}
+
 /**
  * Collect all published, indexable content across SEO-enabled collections
  * for sitemap generation, grouped by collection.
@@ -133,7 +161,7 @@ export async function handleSitemapData(
 					entries.push({
 						id: row.id,
 						slug: row.slug,
-						updatedAt: row.updated_at,
+						updatedAt: toW3CDate(row.updated_at),
 						locale: row.locale,
 						translationGroup: row.translation_group,
 						image: row.seo_image ?? null,
@@ -144,7 +172,7 @@ export async function handleSitemapData(
 					collection: col.slug,
 					urlPattern: col.url_pattern,
 					// Rows are ordered by updated_at DESC, so first row is the latest
-					lastmod: rows.rows[0].updated_at,
+					lastmod: toW3CDate(rows.rows[0].updated_at),
 					entries,
 				});
 			} catch (err) {
