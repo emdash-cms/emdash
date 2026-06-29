@@ -178,7 +178,9 @@ describe("FTS corruption on publish (SQLITE_CORRUPT_VTAB)", () => {
 		// Restore -- OLD has `deleted_at IS NOT NULL` (not in index), NEW
 		// has `deleted_at IS NULL`. The UPDATE trigger must NOT issue
 		// `'delete'` here.
-		await expect(repo.restore("pages", created.id)).resolves.toBe(true);
+		await expect(repo.restore("pages", created.id)).resolves.toEqual(
+			expect.objectContaining({ id: created.id }),
+		);
 		await expect(
 			sql
 				.raw(`INSERT INTO _emdash_fts_pages(_emdash_fts_pages) VALUES('integrity-check')`)
