@@ -1,4 +1,4 @@
-import type { Kysely, Selectable } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
@@ -472,6 +472,38 @@ export class TaxonomyRepository {
 				counts.set(row.taxonomy_id, Number(row.count || 0));
 			}
 		}
+		return counts;
+	}
+
+	/**
+	 * Rolled-up usage counts for every term in a taxonomy: each term's count is
+	 * the number of DISTINCT entries tagged anywhere in its subtree (itself plus
+	 * all descendants). A single transitive-closure walk of `parent_id` (a
+	 * translation_group after migration 045) produces (ancestor, descendant)
+	 * pairs; joining to `content_taxonomies` and counting distinct entries per
+	 * ancestor gives counts that exactly match what a `{ subtree }` where filter
+	 * returns — an entry tagged at multiple levels is counted once.
+	 *
+	 * Returns a Map from translation_group to distinct-entry count. Counts are
+	 * global across collections, mirroring `countEntriesForTerms`.
+	 */
+	async countEntriesForSubtrees(taxonomyName: string): Promise<Map<string, number>> {
+		const result = await sql<{ grp: string; count: number | string }>`
+			WITH RECURSIVE closure(ancestor, descendant) AS (
+				SELECT COALESCE(translation_group, id), COALESCE(translation_group, id)
+					FROM taxonomies WHERE name = ${taxonomyName}
+				UNION
+				SELECT closure.ancestor, COALESCE(c.translation_group, c.id)
+					FROM taxonomies c JOIN closure ON c.parent_id = closure.descendant
+			)
+			SELECT closure.ancestor AS grp, COUNT(DISTINCT ct.entry_id) AS count
+			FROM closure
+			JOIN content_taxonomies ct ON ct.taxonomy_id = closure.descendant
+			GROUP BY closure.ancestor
+		`.execute(this.db);
+
+		const counts = new Map<string, number>();
+		for (const row of result.rows) counts.set(row.grp, Number(row.count ?? 0));
 		return counts;
 	}
 
