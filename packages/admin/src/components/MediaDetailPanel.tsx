@@ -127,6 +127,8 @@ export function MediaDetailPanel({
 	const isImage = item.mimeType.startsWith("image/");
 	const isVideo = item.mimeType.startsWith("video/");
 	const isAudio = item.mimeType.startsWith("audio/");
+	const mediaDimensions =
+		item.width && item.height ? { width: item.width, height: item.height } : undefined;
 
 	return (
 		<>
@@ -149,24 +151,25 @@ export function MediaDetailPanel({
 				<KumoSidebar.Content>
 					<div className="space-y-3">
 						{/* Preview */}
-						<div className="flex h-[clamp(7.5rem,22svh,13rem)] items-center justify-center overflow-hidden rounded-lg bg-kumo-tint md:h-[clamp(8rem,24svh,14rem)]">
+						<div className="flex justify-center py-1">
 							{isImage ? (
 								<img
 									src={item.url}
 									alt={item.alt || item.filename}
-									className="h-full max-h-full w-full max-w-full object-contain"
+									className="h-auto max-h-[clamp(8rem,28svh,16rem)] w-4/5 rounded-lg object-contain"
+									{...mediaDimensions}
 								/>
 							) : isVideo ? (
 								<video
 									src={item.url}
 									controls
 									preload="metadata"
-									className="max-h-full max-w-full"
+									className="h-auto max-h-[clamp(8rem,28svh,16rem)] w-4/5 rounded-lg bg-kumo-tint"
 								/>
 							) : isAudio ? (
-								<audio src={item.url} controls preload="metadata" className="w-full" />
+								<audio src={item.url} controls preload="metadata" className="w-4/5" />
 							) : (
-								<div className="text-center p-4">
+								<div className="w-4/5 rounded-lg bg-kumo-tint p-4 text-center">
 									<span className="text-4xl">{getFileIcon(item.mimeType)}</span>
 									<p className="mt-2 text-sm text-kumo-subtle">{item.mimeType}</p>
 								</div>
