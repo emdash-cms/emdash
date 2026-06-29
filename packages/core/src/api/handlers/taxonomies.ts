@@ -95,14 +95,19 @@ export interface TaxonomyDefTranslationsResponse {
  * Build tree structure from flat terms
  */
 function buildTree(flatTerms: TermWithCount[]): TermWithCount[] {
-	// `parentId` holds the parent's translation_group, so resolve links by group
-	// within the (already locale-filtered) set. Keying by row id would drop the
-	// link for every non-default locale, flattening the translated tree.
-	const byGroup = new Map<string, TermWithCount>();
+	// `parentId` holds the parent's translation_group, so resolve links by group.
+	// Key by (locale, group): a child's parent lives in the same locale, and an
+	// unfiltered list mixes locales whose translated siblings share a group —
+	// keying by group alone would collide and misattach children across locales.
+	const byLocaleGroup = new Map<string, TermWithCount>();
 	const roots: TermWithCount[] = [];
-	for (const term of flatTerms) byGroup.set(term.translationGroup ?? term.id, term);
 	for (const term of flatTerms) {
-		const parent = term.parentId ? byGroup.get(term.parentId) : undefined;
+		byLocaleGroup.set(`${term.locale}::${term.translationGroup ?? term.id}`, term);
+	}
+	for (const term of flatTerms) {
+		const parent = term.parentId
+			? byLocaleGroup.get(`${term.locale}::${term.parentId}`)
+			: undefined;
 		if (parent) {
 			parent.children.push(term);
 		} else {

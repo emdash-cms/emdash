@@ -324,6 +324,49 @@ describeEachDialect("taxonomy parent stays nested across locales (#1347)", (dial
 		expect(enList.data.terms[0]!.children.map((c) => c.slug)).toEqual(["breaking"]);
 	});
 
+	it("keeps each locale's child under its own parent in an unfiltered list", async () => {
+		const enParent = await unwrap(
+			handleTermCreate(ctx.db, "categories", { slug: "news", label: "News", locale: "en" }),
+		);
+		const enChild = await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "breaking",
+				label: "Breaking",
+				locale: "en",
+				parentId: enParent.id,
+			}),
+		);
+		const frParent = await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "actus",
+				label: "Actus",
+				locale: "fr",
+				translationOf: enParent.id,
+			}),
+		);
+		await unwrap(
+			handleTermCreate(ctx.db, "categories", {
+				slug: "actualites",
+				label: "Actualités",
+				locale: "fr",
+				parentId: frParent.id,
+				translationOf: enChild.id,
+			}),
+		);
+
+		// No locale filter: rows from both locales are returned. Each child must
+		// stay under the parent in its own locale, not collapse onto a shared
+		// translation_group key.
+		const list = await handleTermList(ctx.db, "categories");
+		if (!list.success) throw new Error(list.error.message);
+		const roots = list.data.terms.toSorted((a, b) => a.slug.localeCompare(b.slug));
+		expect(roots.map((t) => t.slug)).toEqual(["actus", "news"]);
+		const actus = roots[0]!;
+		const news = roots[1]!;
+		expect(actus.children.map((c) => c.slug)).toEqual(["actualites"]);
+		expect(news.children.map((c) => c.slug)).toEqual(["breaking"]);
+	});
+
 	it("rejects a parent that belongs to a different taxonomy", async () => {
 		await insertHierarchicalDef(ctx.db, "tags");
 		const otherParent = await unwrap(

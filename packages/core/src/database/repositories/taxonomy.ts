@@ -70,9 +70,7 @@ export class TaxonomyRepository {
 		// row id or an already-resolved group, so this is idempotent.
 		const parentInput =
 			input.parentId === undefined || input.parentId === "" ? null : input.parentId;
-		const parentId = parentInput
-			? ((await this.resolveTranslationGroup(parentInput)) ?? parentInput)
-			: null;
+		const parentId = parentInput ? await this.resolveParentRef(parentInput) : null;
 
 		let translationGroup = id;
 		if (input.translationOf) {
@@ -209,7 +207,7 @@ export class TaxonomyRepository {
 			updates.parent_id =
 				input.parentId === "" || input.parentId === null
 					? null
-					: ((await this.resolveTranslationGroup(input.parentId)) ?? input.parentId);
+					: await this.resolveParentRef(input.parentId);
 		}
 		if (input.data !== undefined) updates.data = JSON.stringify(input.data);
 
@@ -417,6 +415,26 @@ export class TaxonomyRepository {
 			.where("taxonomy_id", "=", group)
 			.executeTakeFirst();
 		return Number(result?.count ?? 0);
+	}
+
+	/**
+	 * Resolve a parent reference (a row id or a translation_group) to the value
+	 * persisted in `parent_id`: the parent's translation_group, which is
+	 * locale-agnostic so the child stays nested in every locale. A
+	 * translation_group normally equals its anchor row's id, which satisfies the
+	 * self-FK on `parent_id`. If that anchor row is missing (a translation whose
+	 * anchor was deleted), fall back to the id we were given so we never write a
+	 * dangling FK value.
+	 */
+	private async resolveParentRef(idOrGroup: string): Promise<string> {
+		const group = await this.resolveTranslationGroup(idOrGroup);
+		if (!group) return idOrGroup;
+		const anchor = await this.db
+			.selectFrom("taxonomies")
+			.select("id")
+			.where("id", "=", group)
+			.executeTakeFirst();
+		return anchor ? group : idOrGroup;
 	}
 
 	private async resolveTranslationGroup(idOrGroup: string): Promise<string | null> {

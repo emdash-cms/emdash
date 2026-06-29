@@ -677,11 +677,11 @@ function rowToTaxonomyDef(row: {
  * Build tree structure from flat terms
  */
 function buildTree(flatTerms: TaxonomyTermRow[], counts: Map<string, number>): TaxonomyTerm[] {
-	// parent_id holds the parent's translation_group, so index nodes by group
-	// and link children by it. The flat set is already locale-filtered, so each
-	// group resolves to that locale's row — keying by row id would break links
-	// in every non-default locale and flatten the translated tree.
-	const byGroup = new Map<string, TaxonomyTerm>();
+	// parent_id holds the parent's translation_group, so link children by it.
+	// Key by (locale, group): a child's parent lives in the same locale, and an
+	// unfiltered set mixes locales whose translated siblings share a group —
+	// keying by group alone would collide and misattach children across locales.
+	const byLocaleGroup = new Map<string, TaxonomyTerm>();
 	const nodes: TaxonomyTerm[] = [];
 	const roots: TaxonomyTerm[] = [];
 
@@ -698,12 +698,14 @@ function buildTree(flatTerms: TaxonomyTermRow[], counts: Map<string, number>): T
 			locale: term.locale,
 			translationGroup: term.translation_group,
 		};
-		byGroup.set(term.translation_group ?? term.id, node);
+		byLocaleGroup.set(`${term.locale}::${term.translation_group ?? term.id}`, node);
 		nodes.push(node);
 	}
 
 	for (const node of nodes) {
-		const parent = node.parentId ? byGroup.get(node.parentId) : undefined;
+		const parent = node.parentId
+			? byLocaleGroup.get(`${node.locale}::${node.parentId}`)
+			: undefined;
 		if (parent) {
 			parent.children.push(node);
 		} else {

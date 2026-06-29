@@ -14,10 +14,13 @@ import { sql } from "kysely";
  * stays nested in whichever locale that parent has been translated into.
  *
  * Backfill rewrites every existing `parent_id` from the referenced parent row's
- * id to that parent's `translation_group`. A `translation_group` always equals
- * its anchor row's id, which exists, so the self-FK on `parent_id` stays valid.
- * The correlated subquery is a no-op for rows that already hold a group (an
- * anchor row's id resolves to itself), so the migration is safe to re-run.
+ * id to that parent's `translation_group`. A `translation_group` normally equals
+ * its anchor row's id, so the self-FK on `parent_id` stays valid. We only
+ * rewrite when that anchor row still exists; if a parent's anchor was deleted
+ * but a sibling translation survives, the existing locale-bound id is left as-is
+ * rather than rewritten to a dangling FK value. The correlated subquery is a
+ * no-op for rows that already hold a group (an anchor row's id resolves to
+ * itself), so the migration is safe to re-run.
  *
  * Dialect-independent: the correlated-subquery `UPDATE` runs on SQLite (incl.
  * D1) and Postgres alike.
@@ -31,7 +34,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		WHERE parent_id IS NOT NULL
 			AND EXISTS (
 				SELECT 1 FROM taxonomies p
-				WHERE p.id = taxonomies.parent_id AND p.translation_group IS NOT NULL
+				WHERE p.id = taxonomies.parent_id
+					AND p.translation_group IS NOT NULL
+					-- Only rewrite to a translation_group that is itself a live row
+					-- id, so the self-FK on parent_id can never dangle.
+					AND EXISTS (SELECT 1 FROM taxonomies a WHERE a.id = p.translation_group)
 			)
 	`.execute(db);
 }
