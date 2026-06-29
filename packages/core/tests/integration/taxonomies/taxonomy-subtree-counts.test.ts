@@ -72,4 +72,26 @@ describeEachDialect("Taxonomy subtree counts", (dialectName: DialectName) => {
 		expect(counts.get(north)).toBe(2); // a (via city + direct) + b, distinct
 		expect(counts.get(city)).toBe(1); // a
 	});
+
+	it("getTaxonomyTerms({ rollup }) returns subtree counts on the tree", async () => {
+		const { getTaxonomyTerms } = await import("../../../src/taxonomies/index.js");
+		const { runWithContext } = await import("../../../src/request-context.js");
+
+		const region = await term("region");
+		const north = await term("north", region);
+		const a = await post("a");
+		const b = await post("b");
+		await tag(a.id, north);
+		await tag(b.id, region);
+
+		const tree = await runWithContext({ editMode: false, db }, () =>
+			getTaxonomyTerms("category", { rollup: true }),
+		);
+		const root = tree.find((t) => t.slug === "region");
+		expect(root?.count).toBe(2); // a (under north) + b (direct)
+
+		const flat = await runWithContext({ editMode: false, db }, () => getTaxonomyTerms("category"));
+		const flatRoot = flat.find((t) => t.slug === "region");
+		expect(flatRoot?.count).toBe(1); // exact-term only
+	});
 });
