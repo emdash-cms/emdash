@@ -8,7 +8,6 @@ import { apiFetch } from "../lib/api/client";
 import { useCurrentUser } from "../lib/api/current-user";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
-import { ADMIN_SHELL_BACKGROUND_CLASS, ADMIN_SHELL_HEADER_HEIGHT } from "./adminShellLayout";
 
 export type { CurrentUser } from "../lib/api/current-user";
 
@@ -40,10 +39,7 @@ export function Header() {
 	const initials = (initialsSource[0] ?? "U").toUpperCase();
 
 	return (
-		<header
-			className={`sticky top-0 z-10 flex items-center justify-between border-b ${ADMIN_SHELL_BACKGROUND_CLASS} px-4`}
-			style={{ height: ADMIN_SHELL_HEADER_HEIGHT }}
-		>
+		<header className="sticky top-0 z-10 flex h-[58px] items-center justify-between border-b bg-kumo-elevated px-4">
 			{/* Sidebar toggle — collapses to icon mode on desktop, opens drawer on mobile */}
 			<Sidebar.Trigger className="cursor-pointer rtl:rotate-180" />
 

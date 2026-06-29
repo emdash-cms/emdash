@@ -7,7 +7,6 @@ import { AdminCommandPalette } from "./AdminCommandPalette";
 import { Header } from "./Header";
 import { Sidebar, SidebarNav } from "./Sidebar";
 import { WelcomeModal } from "./WelcomeModal";
-import { ADMIN_SHELL_BACKGROUND_CLASS, ADMIN_SHELL_SIDEBAR_ICON_WIDTH } from "./adminShellLayout";
 
 export interface ShellProps {
 	children: React.ReactNode;
@@ -52,11 +51,9 @@ export function Shell({ children, manifest }: ShellProps) {
 		<Sidebar.Provider
 			defaultOpen
 			side={sidebarSide}
-			className={ADMIN_SHELL_BACKGROUND_CLASS}
 			style={
 				{
 					"--sidebar-bg": "var(--color-kumo-elevated)",
-					"--sidebar-width-icon": ADMIN_SHELL_SIDEBAR_ICON_WIDTH,
 					height: "100svh",
 					minHeight: "0",
 					overflow: "hidden",
@@ -67,7 +64,7 @@ export function Shell({ children, manifest }: ShellProps) {
 			<SidebarNav manifest={manifest} />
 
 			{/* Main content area — scrolls independently so sidebar stays full height */}
-			<div className={`flex flex-1 flex-col overflow-hidden ${ADMIN_SHELL_BACKGROUND_CLASS}`}>
+			<div className="flex flex-1 flex-col overflow-hidden">
 				<Header />
 				<main className="flex-1 overflow-y-auto p-6">{children}</main>
 			</div>
