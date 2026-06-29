@@ -71,9 +71,9 @@ export const termListQuery = z
 	.object({
 		locale: z.string().min(1).optional(),
 		rollup: z
-			.enum(["1", "true"])
+			.enum(["1", "true", "0", "false"])
 			.optional()
-			.transform((v) => v != null),
+			.transform((v) => v === "1" || v === "true"),
 	})
 	.meta({ id: "TermListQuery" });
 
