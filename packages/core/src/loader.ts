@@ -881,7 +881,8 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// SQL on both dialects).
 				if (
 					(bylineFilter && bylineFilter.groups.length === 0) ||
-					taxonomyFilters.some((f) => f.slugs.length === 0)
+					taxonomyFilters.some((f) => f.slugs.length === 0) ||
+					subtreeFilters.some((f) => f.roots.length === 0)
 				) {
 					return { entries: [], cacheHint: { tags: [type] } };
 				}
