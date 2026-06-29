@@ -499,6 +499,44 @@ describe("astro middleware request-scoped db", () => {
 		expect(getRequestContext()).toBeUndefined();
 	});
 
+	it("marks an API-token (Bearer) request as authenticated even without a session cookie", async () => {
+		// API tokens (ec_pat_*) and OAuth tokens (ec_oat_*) authenticate via the
+		// Authorization header, not the astro-session cookie, so sessionUser is
+		// null. They still expect read-your-writes, so the adapter must see
+		// isAuthenticated: true (keeps them on the primary/uncached connection,
+		// not a replica or the Hyperdrive query cache). These hit /_emdash/api/*,
+		// which is the main scoped path (the anonymous fast path is public-only).
+		const commit = vi.fn();
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: { _marker: "scoped" } as never,
+			commit,
+		});
+
+		const cookies = { get: vi.fn(() => undefined), set: vi.fn() };
+		const astroSession = { get: vi.fn(async () => null) };
+
+		const context: Record<string, unknown> = {
+			request: new Request("https://example.com/_emdash/api/content/posts", {
+				headers: { authorization: "Bearer ec_pat_example" },
+			}),
+			url: new URL("https://example.com/_emdash/api/content/posts"),
+			cookies,
+			locals: {},
+			redirect: vi.fn(),
+			isPrerendered: false,
+			session: astroSession,
+		};
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const opts = vi.mocked(createRequestScopedDb).mock.calls[0]?.[0];
+		expect(opts).toMatchObject({
+			config: DB_CONFIG_MARKER,
+			isAuthenticated: true,
+			isWrite: false,
+		});
+	});
+
 	it("forces isWrite true for POST requests on public pages", async () => {
 		const commit = vi.fn();
 		vi.mocked(createRequestScopedDb).mockReturnValue({
