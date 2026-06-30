@@ -1,10 +1,10 @@
 import { it, expect, beforeEach, afterEach } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
-import { SchemaRegistry } from "../../src/schema/registry.js";
 import { SeoRepository } from "../../src/database/repositories/seo.js";
 import { emdashLoader } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
+import { SchemaRegistry } from "../../src/schema/registry.js";
 import {
 	describeEachDialect,
 	setupForDialect,
@@ -26,10 +26,11 @@ import {
  * around 95+ user columns. The loader's try/catch wrapped it as a generic
  * `Failed to load entry` error and the call site returned a silent `null`.
  *
- * The fix splits the query: fetch the row from the collection table without
- * a SEO join, then fetch SEO separately and fold it onto the row using the
- * same alias names extractSeo() reads. The result set stays bounded in width
- * regardless of how many fields the collection has.
+ * The fix folds SEO into a single aggregated JSON column (`_emdash_seo`)
+ * mirroring how byline and taxonomy hydration already work: aggregate in SQL,
+ * expand in JS. One JSON column is one column, so the result-set width stays
+ * bounded at any collection schema width and the single round trip is
+ * preserved.
  *
  * Run on both dialects to keep parity with loader-seo.test.ts.
  */
@@ -108,7 +109,7 @@ describeEachDialect("Loader on wide-schema collections (#1600)", (dialect) => {
 		expect(loadedData.field_95).toBe("value-95");
 	});
 
-	it("still attaches data.seo on wide collections (SEO follow-up query)", async () => {
+	it("still attaches data.seo on wide collections (folded JSON column)", async () => {
 		const data: Record<string, string> = { title: "Wide With SEO" };
 		for (let i = 1; i <= USER_FIELD_COUNT; i++) {
 			data[`field_${i}`] = `value-${i}`;

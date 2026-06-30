@@ -14,11 +14,12 @@ import {
 /**
  * Regression test for #1270: SEO fields (noindex toggle, canonical URL) set in
  * the admin had no effect on rendered pages because the content loader never
- * surfaced the `_emdash_seo` row. The loader now fetches that row in a
- * follow-up query and attaches the result to `entry.data.seo`, which
- * `getSeoMeta()` reads.
+ * surfaced the `_emdash_seo` row. The loader now folds that row into the
+ * single-entry query as an aggregated JSON column and attaches the expanded
+ * result to `entry.data.seo`, which `getSeoMeta()` reads.
  *
- * Run on both dialects, since the follow-up SEO query is dialect-sensitive.
+ * Run on both dialects, since the JSON aggregation SQL is dialect-sensitive
+ * (`json_object` on SQLite, `json_build_object` on Postgres).
  */
 describeEachDialect("Loader SEO hydration (#1270)", (dialect) => {
 	let ctx: DialectTestContext;

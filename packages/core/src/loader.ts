@@ -25,18 +25,23 @@ import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js"
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 /**
- * SEO columns fetched from `_emdash_seo` on the single-entry path, mapped to
- * aliased result keys. SEO lives in a side table, so `loadEntry` fetches it in
- * a small follow-up query and folds it onto the row using these aliases; the
- * result is surfaced as a nested `data.seo` object (see extractSeo) rather than
- * flat fields. Splitting the query keeps D1's per-result-set column count
- * bounded, since joining in these 5 columns can push wide collections over
- * D1's limit.
+ * SEO columns folded into the single-entry query as a single JSON column
+ * (`_emdash_seo` in the result set), then expanded onto the row under these
+ * aliases for `extractSeo()`. Surfacing SEO as one aggregated column keeps the
+ * result-set width bounded regardless of how many fields the collection has,
+ * which matters for D1: a flat `LEFT JOIN _emdash_seo` adds 5 alias columns to
+ * every row and pushes wide collections (common after WordPress / ACF imports)
+ * past D1's per-result-set column limit, surfacing as a silent null entry.
+ * One JSON column is one column, so the join stays safe at any schema width.
+ *
+ * The aliases mirror the strategy used by `foldedHydrationSelects` for byline
+ * and taxonomy hydration: aggregate in SQL, expand in JS. SEO is 1:1 with
+ * content, so the subquery uses `json_object` (not the array aggregator).
  *
  * The `_emdash_` prefix on the aliases guarantees they can never collide with
  * a content field. Field slugs must match `/^[a-z][a-z0-9_]*$/`, so a user can
- * legitimately define a `seo_title` field; selecting the joined column under
- * its bare name would shadow that field in the result set and drop the user's
+ * legitimately define a `seo_title` field; surfacing the SEO column under its
+ * bare name would shadow that field in the result set and drop the user's
  * value. The prefix (illegal as a leading slug char) sidesteps this entirely.
  */
 const SEO_COLUMN_ALIASES: Record<string, string> = {
@@ -49,6 +54,9 @@ const SEO_COLUMN_ALIASES: Record<string, string> = {
 
 /** Aliased SEO result keys — excluded from generic field mapping. */
 const SEO_ALIAS_COLUMNS = Object.values(SEO_COLUMN_ALIASES);
+
+/** Folded SEO JSON column name in the result set (expanded onto aliases in JS). */
+const SEO_FOLDED_COLUMN = "_emdash_seo";
 
 /**
  * System columns excluded from entry.data
@@ -70,15 +78,17 @@ const SYSTEM_COLUMNS = new Set([
 	"draft_revision_id",
 	"locale",
 	"translation_group",
-	// Aliased SEO columns joined from _emdash_seo on the single-entry path.
-	// Surfaced as a nested data.seo object (see extractSeo), never as flat
-	// fields. The aliases are _emdash_-prefixed so they can't shadow a user
-	// field named e.g. `seo_title`.
+	// Aliased SEO columns expanded from the folded _emdash_seo JSON column on
+	// the single-entry path. Surfaced as a nested data.seo object (see
+	// extractSeo), never as flat fields. The aliases are _emdash_-prefixed so
+	// they can't shadow a user field named e.g. `seo_title`.
 	...SEO_ALIAS_COLUMNS,
-	// Folded hydration JSON columns (see foldedHydrationSelects) — surfaced via
-	// the FOLDED_* markers, never as flat fields.
+	// Folded hydration JSON columns (see foldedHydrationSelects and
+	// foldedSeoSelect) — surfaced via the FOLDED_* markers or expanded onto
+	// SEO_ALIAS_COLUMNS, never as flat fields.
 	"_emdash_terms",
 	"_emdash_bylines",
+	SEO_FOLDED_COLUMN,
 ]);
 
 /** Markers for byline/taxonomy hydration folded into the content query. */
@@ -124,6 +134,62 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 	const credit = sql`${creditObj}${bylineInner})`;
 	const bylines = sql`(SELECT ${agg(credit)} FROM ${sql.ref("_emdash_content_bylines")} AS cb JOIN ${sql.ref("_emdash_bylines")} AS b ON b.translation_group = cb.byline_id LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE cb.collection_slug = ${type} AND cb.content_id = ${o}.id AND b.locale = ${o}.locale) AS ${sql.ref("_emdash_bylines")}`;
 	return { terms, bylines };
+}
+
+/**
+ * Correlated JSON-object subquery that folds per-entry SEO into the content
+ * query without widening the result set: 1 row of `_emdash_seo` becomes 1 JSON
+ * column rather than 5 flat columns. The JSON column is expanded onto the row
+ * via {@link expandFoldedSeo} after the query runs, preserving the alias keys
+ * that {@link extractSeo} reads. Missing SEO row (no entry in `_emdash_seo`)
+ * yields NULL, which {@link expandFoldedSeo} treats as "no SEO" - identical to
+ * the prior LEFT JOIN miss behavior.
+ *
+ * Dialect-specific aggregation mirrors {@link foldedHydrationSelects}: SQLite
+ * `json_object` returns a JSON *string*, Postgres `json_build_object` returns
+ * parsed JSON; both branches are handled in expansion.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- any Kysely instance
+function foldedSeoSelect(db: Kysely<any>, type: string, outer: string) {
+	const o = sql.ref(outer);
+	const pg = isPostgres(db);
+	// Use raw column names (not aliases) as JSON keys: the JSON is expanded back
+	// onto SEO_COLUMN_ALIASES in JS, and keeping the keys matched to the
+	// underlying columns makes the SQL readable and the expansion 1-to-1.
+	const pairs =
+		"'seo_title', s.seo_title, 'seo_description', s.seo_description, 'seo_image', s.seo_image, 'seo_canonical', s.seo_canonical, 'seo_no_index', s.seo_no_index";
+	const obj = pg ? sql.raw(`json_build_object(${pairs})`) : sql.raw(`json_object(${pairs})`);
+	return sql`(SELECT ${obj} FROM ${sql.ref("_emdash_seo")} AS s WHERE s.collection = ${type} AND s.content_id = ${o}.id LIMIT 1) AS ${sql.ref(SEO_FOLDED_COLUMN)}`;
+}
+
+/**
+ * Expand the folded `_emdash_seo` JSON column onto the row using SEO_COLUMN_ALIASES,
+ * so {@link extractSeo} reads it transparently. SQLite returns a JSON string
+ * (parse it); Postgres returns already-parsed JSON. Missing/malformed/null is
+ * a no-op: {@link extractSeo} returns null when the aliases are absent.
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function expandFoldedSeo(row: Record<string, unknown>): void {
+	const raw = row[SEO_FOLDED_COLUMN];
+	delete row[SEO_FOLDED_COLUMN];
+	let parsed: Record<string, unknown> | null = null;
+	if (typeof raw === "string") {
+		try {
+			const candidate: unknown = JSON.parse(raw);
+			if (isPlainObject(candidate)) parsed = candidate;
+		} catch {
+			return; // malformed JSON: leave the row without SEO aliases (extractSeo returns null)
+		}
+	} else if (isPlainObject(raw)) {
+		parsed = raw;
+	}
+	if (!parsed) return;
+	for (const [col, alias] of Object.entries(SEO_COLUMN_ALIASES)) {
+		row[alias] = parsed[col] ?? null;
+	}
 }
 
 /**
@@ -1053,38 +1119,31 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// When locale is specified, prefer locale-scoped slug match,
 				// but IDs are globally unique so always check id without locale scope.
 				//
-				// Per-entry SEO (canonical, noindex, etc.) is fetched as a
-				// follow-up query and folded onto the row via SEO_COLUMN_ALIASES,
-				// preserving the data.seo shape that extractSeo() returns.
-				//
-				// We intentionally do NOT LEFT JOIN _emdash_seo here: that adds
-				// 5 alias columns to every result set, which can push wide
-				// flat-schema collections (common when porting from WordPress /
-				// ACF) past D1's per-result-set column limit (~100). The join
-				// failed with `D1_ERROR: too many columns in result set` and
-				// surfaced as a silent `null` entry at the call site. A separate
-				// SEO query is one extra round trip but is bounded in shape and
-				// works at any collection width.
-				//
-				// Byline + taxonomy hydration stays folded into the content
-				// query (see foldedHydrationSelects) because each is a single
-				// aggregated JSON column, so they add only two columns to the
-				// result set regardless of how many terms/credits an entry has.
+				// Byline + taxonomy hydration (foldedHydrationSelects) and per-entry
+				// SEO (foldedSeoSelect) are each surfaced as a single aggregated JSON
+				// column rather than flat columns. This keeps the result-set width
+				// bounded at any collection schema width: a flat `LEFT JOIN _emdash_seo`
+				// adds 5 alias columns to every row and pushes wide flat-schema
+				// collections (common after WordPress / ACF imports) past D1's
+				// per-result-set column limit, surfacing as a silent null entry. One
+				// JSON column is one column, so the join stays safe at any width and
+				// we keep the single round trip.
 				const { terms: termsSelect, bylines: bylinesSelect } = foldedHydrationSelects(
 					db,
 					type,
 					"c",
 				);
+				const seoSelect = foldedSeoSelect(db, type, "c");
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT c.*, ${termsSelect}, ${bylinesSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND ((c.slug = ${id} AND c.locale = ${locale}) OR c.id = ${id})
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT c.*, ${termsSelect}, ${bylinesSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND (c.slug = ${id} OR c.id = ${id})
@@ -1096,22 +1155,10 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					return undefined;
 				}
 
-				// Fold SEO onto the row using the same aliases the join used,
-				// so extractSeo() reads it transparently. Missing SEO row is
-				// expected (LEFT JOIN behavior preserved): extractSeo() returns
-				// null when the noIndex column is missing.
-				const seoResult = await sql<Record<string, unknown>>`
-					SELECT seo_title, seo_description, seo_image, seo_canonical, seo_no_index
-					FROM ${sql.ref("_emdash_seo")}
-					WHERE collection = ${type} AND content_id = ${row.id}
-					LIMIT 1
-				`.execute(db);
-				const seoRow = seoResult.rows[0];
-				if (seoRow) {
-					for (const [col, alias] of Object.entries(SEO_COLUMN_ALIASES)) {
-						row[alias] = seoRow[col];
-					}
-				}
+				// Expand the folded SEO JSON column onto SEO_COLUMN_ALIASES so
+				// extractSeo() reads it transparently. Missing/null SEO is a
+				// no-op: extractSeo() returns null when the aliases are absent.
+				expandFoldedSeo(row);
 
 				const i18nConfig = virtualConfig?.i18n;
 				const i18nEnabled = i18nConfig && i18nConfig.locales.length > 1;
