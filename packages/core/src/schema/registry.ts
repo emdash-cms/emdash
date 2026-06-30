@@ -4,9 +4,11 @@ import { sql } from "kysely";
 import { ulid } from "ulidx";
 
 import { currentTimestamp, listTablesLike, tableExists } from "../database/dialect-helpers.js";
+import { MediaUsageRepository } from "../database/repositories/media-usage.js";
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { replaceCollectionMediaUsage } from "../media/usage-index.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import {
@@ -59,9 +61,19 @@ const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport
 	"search",
 	"seo",
 ]);
+const MEDIA_USAGE_INDEXED_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
+	"image",
+	"file",
+	"repeater",
+	"portableText",
+]);
 
 function isCollectionSupport(value: unknown): value is CollectionSupport {
 	return typeof value === "string" && VALID_COLLECTION_SUPPORTS.has(value);
+}
+
+function isMediaUsageIndexedFieldType(type: FieldType): boolean {
+	return MEDIA_USAGE_INDEXED_FIELD_TYPES.has(type);
 }
 
 /**
@@ -376,6 +388,7 @@ export class SchemaRegistry {
 
 			// Delete the collection record (fields will cascade)
 			await trx.deleteFrom("_emdash_collections").where("id", "=", existing.id).execute();
+			await new MediaUsageRepository(trx).deleteCollectionUsage(slug);
 		});
 	}
 
@@ -612,6 +625,13 @@ export class SchemaRegistry {
 				await this.syncSearchState(collectionSlug, trx);
 			}
 
+			const mediaUsageRelevant =
+				(input.type !== undefined || input.validation !== undefined) &&
+				(isMediaUsageIndexedFieldType(field.type) || isMediaUsageIndexedFieldType(updated.type));
+			if (mediaUsageRelevant) {
+				await replaceCollectionMediaUsage(trx, collectionSlug);
+			}
+
 			return updated;
 		});
 	}
@@ -681,6 +701,10 @@ export class SchemaRegistry {
 
 			// Drop column from content table — safe now because FTS triggers are gone
 			await this.dropColumn(collectionSlug, fieldSlug, trx);
+
+			if (isMediaUsageIndexedFieldType(field.type)) {
+				await replaceCollectionMediaUsage(trx, collectionSlug);
+			}
 		});
 	}
 

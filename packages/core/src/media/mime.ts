@@ -16,6 +16,50 @@ export function matchesMimeAllowlist(mime: string, allowList: readonly string[])
 	return false;
 }
 
+export type MediaKind =
+	| "image"
+	| "video"
+	| "audio"
+	| "document"
+	| "archive"
+	| "font"
+	| "text"
+	| "other";
+
+const DOCUMENT_MIME_TYPES = new Set([
+	"application/pdf",
+	"application/msword",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"application/vnd.ms-excel",
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	"application/vnd.ms-powerpoint",
+	"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	"application/rtf",
+]);
+
+const ARCHIVE_MIME_TYPES = new Set([
+	"application/zip",
+	"application/x-zip-compressed",
+	"application/x-tar",
+	"application/gzip",
+	"application/x-gzip",
+	"application/x-rar-compressed",
+	"application/x-7z-compressed",
+]);
+
+export function mediaKindFromMime(mime: string | null | undefined): MediaKind | null {
+	if (!mime) return null;
+	const normalized = normalizeMime(mime);
+	if (normalized.startsWith("image/")) return "image";
+	if (normalized.startsWith("video/")) return "video";
+	if (normalized.startsWith("audio/")) return "audio";
+	if (normalized.startsWith("font/")) return "font";
+	if (normalized.startsWith("text/")) return "text";
+	if (DOCUMENT_MIME_TYPES.has(normalized)) return "document";
+	if (ARCHIVE_MIME_TYPES.has(normalized)) return "archive";
+	return "other";
+}
+
 export const EXTENSION_TO_MIME: Readonly<Record<string, string>> = {
 	".pdf": "application/pdf",
 	".png": "image/png",

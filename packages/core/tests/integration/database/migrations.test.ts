@@ -128,6 +128,7 @@ describe("Database Migrations (Integration)", () => {
 			"043_content_references",
 			"044_comment_reactions",
 			"045_taxonomy_parent_group",
+			"046_media_usage_index",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

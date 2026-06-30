@@ -9,6 +9,7 @@ import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
 import { ContentRepository } from "../../database/repositories/content.js";
+import type { MediaUsageState } from "../../database/repositories/media-usage.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -29,11 +30,83 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
+import { deleteContentMediaUsage, replaceContentMediaUsage } from "../../media/usage-index.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 import { validateMediaFields } from "./validate-media-fields.js";
+
+const MEDIA_USAGE_FIELD_TYPES = new Set(["image", "file", "repeater", "portableText"]);
+
+function getContentMediaUsageState(item: Pick<ContentItem, "status">): MediaUsageState {
+	return item.status === "published" ? "live" : "draft";
+}
+
+async function replaceCurrentContentMediaUsage(
+	db: Kysely<Database>,
+	collection: string,
+	item: ContentItem,
+	options: { contentDeletedAt?: string | null } = {},
+): Promise<void> {
+	const state = getContentMediaUsageState(item);
+	let data = item.data;
+	let revisionId: string | null = null;
+
+	if (state === "draft" && item.draftRevisionId) {
+		const revision = await new RevisionRepository(db).findById(item.draftRevisionId);
+		if (revision) {
+			data = revision.data;
+			revisionId = revision.id;
+		}
+	}
+
+	await replaceContentMediaUsage(
+		db,
+		collection,
+		item,
+		state,
+		data,
+		revisionId,
+		options.contentDeletedAt ?? null,
+	);
+}
+
+async function replaceCurrentContentMediaUsageSources(
+	db: Kysely<Database>,
+	collection: string,
+	item: ContentItem,
+	options: { contentDeletedAt?: string | null } = {},
+): Promise<void> {
+	await replaceCurrentContentMediaUsage(db, collection, item, options);
+
+	if (item.status !== "published" || !item.draftRevisionId) return;
+	const draft = await new RevisionRepository(db).findById(item.draftRevisionId);
+	if (!draft) return;
+
+	await replaceContentMediaUsage(
+		db,
+		collection,
+		item,
+		"draft",
+		draft.data,
+		draft.id,
+		options.contentDeletedAt ?? null,
+	);
+}
+
+async function getContentDeletedAt(
+	db: Kysely<Database>,
+	collection: string,
+	contentId: string,
+): Promise<string | null> {
+	validateIdentifier(collection, "collection slug");
+	const tableName = `ec_${collection}`;
+	const result = await sql<{ deleted_at: string | null }>`
+		SELECT deleted_at FROM ${sql.ref(tableName)} WHERE id = ${contentId}
+	`.execute(db);
+	return result.rows[0]?.deleted_at ?? null;
+}
 
 /**
  * Narrow a caught error to one carrying a structured `apiError` discriminant.
@@ -707,6 +780,8 @@ export async function handleContentCreate(
 				created.seo = { ...SEO_DEFAULTS };
 			}
 
+			await replaceCurrentContentMediaUsage(trx, collection, created);
+
 			return created;
 		});
 
@@ -822,7 +897,9 @@ export async function handleContentUpdate(
 
 			// Read existing item once for both _rev check and old slug capture
 			const existing =
-				body._rev || body.slug ? await trxRepo.findById(collection, resolvedId) : null;
+				body._rev || body.slug !== undefined || body.status !== undefined
+					? await trxRepo.findById(collection, resolvedId)
+					: null;
 
 			// Validate _rev if provided (optimistic concurrency)
 			if (body._rev) {
@@ -885,8 +962,9 @@ export async function handleContentUpdate(
 			// Sync non-translatable fields to sibling locales in the same
 			// translation group. Only runs when i18n is enabled, data was updated,
 			// and the item belongs to a translation group with siblings.
+			let syncedMediaUsageSiblingIds: string[] = [];
 			if (isI18nEnabled() && body.data && updated.translationGroup) {
-				await syncNonTranslatableFields(
+				syncedMediaUsageSiblingIds = await syncNonTranslatableFields(
 					trx,
 					collection,
 					updated.id,
@@ -902,6 +980,19 @@ export async function handleContentUpdate(
 			} else if (hasSeo) {
 				const seoRepo = new SeoRepository(trx);
 				updated.seo = await seoRepo.get(collection, resolvedId);
+			}
+
+			if (body.data !== undefined || body.status !== undefined || body.slug !== undefined) {
+				const previousState = existing ? getContentMediaUsageState(existing) : null;
+				const nextState = getContentMediaUsageState(updated);
+				if (previousState && previousState !== nextState) {
+					await deleteContentMediaUsage(trx, collection, resolvedId, previousState);
+				}
+				await replaceCurrentContentMediaUsageSources(trx, collection, updated);
+			}
+			for (const siblingId of syncedMediaUsageSiblingIds) {
+				const sibling = await trxRepo.findById(collection, siblingId);
+				if (sibling) await replaceCurrentContentMediaUsage(trx, collection, sibling);
 			}
 
 			await hydrateBylines(trx, collection, updated);
@@ -1010,6 +1101,7 @@ export async function handleContentDuplicate(
 			}
 
 			await hydrateBylines(trx, collection, dup);
+			await replaceCurrentContentMediaUsage(trx, collection, dup);
 
 			return dup;
 		});
@@ -1051,7 +1143,17 @@ export async function handleContentDelete(
 		const deleted = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.delete(collection, resolvedId);
+			const didDelete = await repo.delete(collection, resolvedId);
+			if (didDelete) {
+				const item = await repo.findByIdIncludingTrashed(collection, resolvedId);
+				const deletedAt = await getContentDeletedAt(trx, collection, resolvedId);
+				if (item) {
+					await replaceCurrentContentMediaUsageSources(trx, collection, item, {
+						contentDeletedAt: deletedAt,
+					});
+				}
+			}
+			return didDelete;
 		});
 
 		if (!deleted) {
@@ -1092,7 +1194,9 @@ export async function handleContentRestore(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
-			return repo.restore(collection, resolvedId);
+			const restored = await repo.restore(collection, resolvedId);
+			if (restored) await replaceCurrentContentMediaUsageSources(trx, collection, restored);
+			return restored;
 		});
 
 		if (!item) {
@@ -1143,6 +1247,7 @@ export async function handleContentPermanentDelete(
 				// Clean up SEO data for permanently deleted content
 				const seoRepo = new SeoRepository(trx);
 				await seoRepo.delete(collection, resolvedId);
+				await deleteContentMediaUsage(trx, collection, resolvedId);
 				// Clean up comments for permanently deleted content
 				const commentRepo = new CommentRepository(trx);
 				await commentRepo.deleteByContent(collection, resolvedId);
@@ -1271,7 +1376,9 @@ export async function handleContentSchedule(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.schedule(collection, resolvedId, scheduledAt);
+			const scheduled = await repo.schedule(collection, resolvedId, scheduledAt);
+			await replaceCurrentContentMediaUsage(trx, collection, scheduled);
+			return scheduled;
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1314,7 +1421,9 @@ export async function handleContentUnschedule(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.unschedule(collection, resolvedId);
+			const unscheduled = await repo.unschedule(collection, resolvedId);
+			await replaceCurrentContentMediaUsage(trx, collection, unscheduled);
+			return unscheduled;
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1362,7 +1471,22 @@ export async function handleContentPublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.publish(collection, resolvedId, options.publishedAt, options.requireScheduledDue);
+			const published = await repo.publish(
+				collection,
+				resolvedId,
+				options.publishedAt,
+				options.requireScheduledDue,
+			);
+			await replaceContentMediaUsage(
+				trx,
+				collection,
+				published,
+				"live",
+				published.data,
+				published.liveRevisionId,
+			);
+			await deleteContentMediaUsage(trx, collection, resolvedId, "draft");
+			return published;
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1419,7 +1543,20 @@ export async function handleContentUnpublish(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.unpublish(collection, resolvedId);
+			const unpublished = await repo.unpublish(collection, resolvedId);
+			await deleteContentMediaUsage(trx, collection, resolvedId, "live");
+			const draft = unpublished.draftRevisionId
+				? await new RevisionRepository(trx).findById(unpublished.draftRevisionId)
+				: null;
+			await replaceContentMediaUsage(
+				trx,
+				collection,
+				unpublished,
+				"draft",
+				draft?.data ?? unpublished.data,
+				draft?.id ?? null,
+			);
+			return unpublished;
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1489,7 +1626,13 @@ export async function handleContentDiscardDraft(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.discardDraft(collection, resolvedId);
+			const updated = await repo.discardDraft(collection, resolvedId);
+			if (updated.status === "published") {
+				await deleteContentMediaUsage(trx, collection, resolvedId, "draft");
+			} else {
+				await replaceCurrentContentMediaUsage(trx, collection, updated);
+			}
+			return updated;
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1675,7 +1818,7 @@ async function syncNonTranslatableFields(
 	updatedItemId: string,
 	translationGroup: string,
 	data: Record<string, unknown>,
-): Promise<void> {
+): Promise<string[]> {
 	// Get the collection to find its fields
 	const collection = await trx
 		.selectFrom("_emdash_collections")
@@ -1683,18 +1826,18 @@ async function syncNonTranslatableFields(
 		.where("slug", "=", collectionSlug)
 		.executeTakeFirst();
 
-	if (!collection) return;
+	if (!collection) return [];
 
 	// Find non-translatable fields that are present in the update data
 	const fields = await trx
 		.selectFrom("_emdash_fields")
-		.select("slug")
+		.select(["slug", "type"])
 		.where("collection_id", "=", collection.id)
 		.where("translatable", "=", 0)
 		.execute();
 
 	const nonTranslatableSlugs = fields.map((f) => f.slug);
-	if (nonTranslatableSlugs.length === 0) return;
+	if (nonTranslatableSlugs.length === 0) return [];
 
 	// Filter to only the non-translatable fields present in this update
 	const syncData: Record<string, unknown> = {};
@@ -1703,7 +1846,10 @@ async function syncNonTranslatableFields(
 			syncData[slug] = data[slug];
 		}
 	}
-	if (Object.keys(syncData).length === 0) return;
+	if (Object.keys(syncData).length === 0) return [];
+	const shouldReindexMediaUsage = fields.some(
+		(field) => field.slug in syncData && MEDIA_USAGE_FIELD_TYPES.has(field.type),
+	);
 
 	// Build the SET clause for sibling rows
 	validateIdentifier(collectionSlug, "collection slug");
@@ -1722,4 +1868,13 @@ async function syncNonTranslatableFields(
 		WHERE translation_group = ${translationGroup}
 		AND id != ${updatedItemId}
 	`.execute(trx);
+
+	if (!shouldReindexMediaUsage) return [];
+
+	const siblings = await sql<{ id: string }>`
+		SELECT id FROM ${sql.ref(tableName)}
+		WHERE translation_group = ${translationGroup}
+		AND id != ${updatedItemId}
+	`.execute(trx);
+	return siblings.rows.map((row) => row.id);
 }

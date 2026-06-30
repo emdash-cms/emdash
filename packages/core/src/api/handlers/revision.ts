@@ -8,6 +8,7 @@ import { ContentRepository } from "../../database/repositories/content.js";
 import { RevisionRepository, type Revision } from "../../database/repositories/revision.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
+import { replaceContentMediaUsage } from "../../media/usage-index.js";
 import type { ApiResult, ContentResponse } from "../types.js";
 
 export interface RevisionListResponse {
@@ -123,6 +124,12 @@ export async function handleRevisionRestore(
 				data: fieldData,
 				slug: typeof _slug === "string" ? _slug : undefined,
 			});
+			await replaceContentMediaUsage(
+				trx,
+				revision.collection,
+				updated,
+				updated.status === "published" ? "live" : "draft",
+			);
 
 			await trxRevisionRepo.create({
 				collection: revision.collection,

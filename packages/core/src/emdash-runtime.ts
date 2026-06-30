@@ -31,6 +31,7 @@ import type {
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
+import { replaceContentMediaUsage } from "./media/usage-index.js";
 import type { SandboxedPluginInstance, SandboxRunner } from "./plugins/sandbox/types.js";
 import type {
 	ResolvedPlugin,
@@ -2664,6 +2665,9 @@ export class EmDashRuntime {
 		// Content table columns = published data (never written by saves).
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
+		let draftUsageItem: ContentItemInternal | null = null;
+		let draftUsageData: Record<string, unknown> | null = null;
+		let draftUsageRevisionId: string | null = null;
 		if (processedData) {
 			try {
 				const collectionInfo = await this.schemaRegistry.getCollectionWithFields(collection);
@@ -2693,6 +2697,7 @@ export class EmDashRuntime {
 						if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
 							// Autosave: update existing draft revision in place
 							await revisionRepo.updateData(existing.draftRevisionId, mergedData);
+							draftUsageRevisionId = existing.draftRevisionId;
 						} else {
 							// Create new draft revision
 							const revision = await revisionRepo.create({
@@ -2714,12 +2719,26 @@ export class EmDashRuntime {
 
 							// Fire-and-forget: prune old revisions to prevent unbounded growth
 							void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
+							draftUsageRevisionId = revision.id;
 						}
+
+						draftUsageItem = existing;
+						draftUsageData = mergedData;
 					}
 				}
 			} catch {
 				// Don't fail the update if revision creation fails
 			}
+		}
+		if (draftUsageItem && draftUsageData) {
+			await replaceContentMediaUsage(
+				this.db,
+				collection,
+				draftUsageItem,
+				"draft",
+				draftUsageData,
+				draftUsageRevisionId,
+			);
 		}
 
 		// Update the content table:
@@ -3046,7 +3065,18 @@ export class EmDashRuntime {
 			// columns and the next `content_get` would surface different
 			// values (the bug that motivated this rewrite).
 			const refetched = await handleContentGet(this.db, revision.collection, revision.entryId);
-			return this.hydrateDraftData(refetched);
+			const hydrated = await this.hydrateDraftData(refetched);
+			if (hydrated.success) {
+				await replaceContentMediaUsage(
+					this.db,
+					revision.collection,
+					hydrated.data.item,
+					"draft",
+					revision.data,
+					newDraft.id,
+				);
+			}
+			return hydrated;
 		} catch (error) {
 			console.error("[emdash] revision restore failed:", error);
 			return {

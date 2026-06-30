@@ -1,5 +1,11 @@
 export { ContentRepository } from "./content.js";
 export { MediaRepository } from "./media.js";
+export { MediaUsageRepository } from "./media-usage.js";
+export type {
+	CurrentMediaUsage,
+	MediaUsageState,
+	ReplaceContentMediaUsageInput,
+} from "./media-usage.js";
 export { UserRepository } from "./user.js";
 export type { User, UserRole, UserRoleName, CreateUserInput, UpdateUserInput } from "./user.js";
 export { RevisionRepository } from "./revision.js";
