@@ -73,6 +73,38 @@ describeEachDialect("Taxonomy subtree counts", (dialectName: DialectName) => {
 		expect(counts.get(city)).toBe(1); // a
 	});
 
+	it("counts an entry once at a shared ancestor across sibling subtrees", async () => {
+		// region -> {north -> city, south}. An entry tagged under both `city`
+		// (deep in north) and `south` (a sibling subtree) must count ONCE at the
+		// shared `region` ancestor. A rollup that sums child counts would report 2.
+		const region = await term("region");
+		const north = await term("north", region);
+		const city = await term("city", north);
+		const south = await term("south", region);
+
+		const a = await post("a");
+		await tag(a.id, city);
+		await tag(a.id, south);
+
+		const repo = new TaxonomyRepository(db);
+		const counts = await repo.countEntriesForSubtrees("category");
+
+		expect(counts.get(region)).toBe(1); // distinct across both subtrees
+		expect(counts.get(north)).toBe(1);
+		expect(counts.get(city)).toBe(1);
+		expect(counts.get(south)).toBe(1);
+	});
+
+	it("returns no entry for terms whose subtree has no assignments", async () => {
+		const region = await term("region");
+		await term("north", region);
+
+		const repo = new TaxonomyRepository(db);
+		const counts = await repo.countEntriesForSubtrees("category");
+
+		expect(counts.size).toBe(0);
+	});
+
 	it("getTaxonomyTerms({ rollup }) returns subtree counts on the tree", async () => {
 		const { getTaxonomyTerms } = await import("../../../src/taxonomies/index.js");
 		const { runWithContext } = await import("../../../src/request-context.js");

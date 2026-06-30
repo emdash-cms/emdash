@@ -1,4 +1,4 @@
-import { sql, type Kysely, type Selectable } from "kysely";
+import { type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
@@ -478,32 +478,82 @@ export class TaxonomyRepository {
 	/**
 	 * Rolled-up usage counts for every term in a taxonomy: each term's count is
 	 * the number of DISTINCT entries tagged anywhere in its subtree (itself plus
-	 * all descendants). A single transitive-closure walk of `parent_id` (a
-	 * translation_group after migration 045) produces (ancestor, descendant)
-	 * pairs; joining to `content_taxonomies` and counting distinct entries per
-	 * ancestor gives counts that exactly match what a `{ subtree }` where filter
-	 * returns — an entry tagged at multiple levels is counted once.
+	 * all descendants). Counts that exactly match what a `{ subtree }` where
+	 * filter returns — an entry tagged at multiple levels is counted once.
 	 *
 	 * Returns a Map from translation_group to distinct-entry count. Counts are
 	 * global across collections, mirroring `countEntriesForTerms`.
+	 *
+	 * Implementation reads the data it needs exactly once: one scan of this
+	 * taxonomy's `parent_id` edges (`O(terms)`) and one scan of the assignment
+	 * pivot for those terms (`O(assignments)`). The rollup is a single in-memory
+	 * fold up each term's ancestor chain. The earlier recursive-CTE formulation
+	 * materialised the full ancestor×descendant closure and re-read the pivot
+	 * once per ancestor level — `O(Σ depth × assignments)` rows read, hundreds of
+	 * thousands of D1 rows for a few-thousand-term tree (and D1 bills per row
+	 * read). Distinct semantics are preserved by unioning entry ids into each
+	 * ancestor (a sum of child counts would double-count an entry tagged under
+	 * two descendants of a shared ancestor).
 	 */
 	async countEntriesForSubtrees(taxonomyName: string): Promise<Map<string, number>> {
-		const result = await sql<{ grp: string; count: number | string }>`
-			WITH RECURSIVE closure(ancestor, descendant) AS (
-				SELECT COALESCE(translation_group, id), COALESCE(translation_group, id)
-					FROM taxonomies WHERE name = ${taxonomyName}
-				UNION
-				SELECT closure.ancestor, COALESCE(c.translation_group, c.id)
-					FROM taxonomies c JOIN closure ON c.parent_id = closure.descendant
-			)
-			SELECT closure.ancestor AS grp, COUNT(DISTINCT ct.entry_id) AS count
-			FROM closure
-			JOIN content_taxonomies ct ON ct.taxonomy_id = closure.descendant
-			GROUP BY closure.ancestor
-		`.execute(this.db);
+		// parent_id stores the parent's translation_group (migration 045), so the
+		// edge map is group -> parent group. Locale siblings share a group and an
+		// identical parent edge; first writer wins.
+		const termRows = await this.db
+			.selectFrom("taxonomies")
+			.select(["id", "parent_id", "translation_group"])
+			.where("name", "=", taxonomyName)
+			.execute();
+		if (termRows.length === 0) return new Map();
+
+		const parentOf = new Map<string, string | null>();
+		for (const row of termRows) {
+			const group = row.translation_group ?? row.id;
+			if (!parentOf.has(group)) parentOf.set(group, row.parent_id);
+		}
+
+		// Self + ancestors for a group, memoised. The `seen` guard and the
+		// `parentOf.has` check bail on cycles or dangling parent refs in bad data.
+		const ancestorCache = new Map<string, string[]>();
+		const ancestorsOf = (group: string): string[] => {
+			const cached = ancestorCache.get(group);
+			if (cached) return cached;
+			const chain: string[] = [];
+			const seen = new Set<string>();
+			let current: string | null | undefined = group;
+			while (current && parentOf.has(current) && !seen.has(current)) {
+				chain.push(current);
+				seen.add(current);
+				current = parentOf.get(current) ?? null;
+			}
+			ancestorCache.set(group, chain);
+			return chain;
+		};
+
+		// Union each assignment's entry id into every ancestor's distinct set, so
+		// each ancestor accumulates the DISTINCT entries across its whole subtree.
+		const { chunks, SQL_BATCH_SIZE } = await import("../../utils/chunks.js");
+		const entriesByGroup = new Map<string, Set<string>>();
+		for (const chunk of chunks([...parentOf.keys()], SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("content_taxonomies")
+				.select(["taxonomy_id", "entry_id"])
+				.where("taxonomy_id", "in", chunk)
+				.execute();
+			for (const row of rows) {
+				for (const ancestor of ancestorsOf(row.taxonomy_id)) {
+					let set = entriesByGroup.get(ancestor);
+					if (!set) {
+						set = new Set();
+						entriesByGroup.set(ancestor, set);
+					}
+					set.add(row.entry_id);
+				}
+			}
+		}
 
 		const counts = new Map<string, number>();
-		for (const row of result.rows) counts.set(row.grp, Number(row.count ?? 0));
+		for (const [group, entries] of entriesByGroup) counts.set(group, entries.size);
 		return counts;
 	}
 
