@@ -355,9 +355,19 @@ function finalizeResponse(
 	if (astroCookies !== undefined) {
 		Reflect.set(res, ASTRO_COOKIES_SYMBOL, astroCookies);
 	}
-	res.headers.set("X-Content-Type-Options", "nosniff");
-	res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-	res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+	// Set-if-absent so a host app that sets stricter values on its own routes
+	// wins. The middleware registers `order: 'pre'` (#1282), so on the response
+	// path it runs *after* host middleware; unconditional `set()` would clobber
+	// the host's headers on every public route (#1393). Mirrors the CSP guard.
+	if (!res.headers.has("X-Content-Type-Options")) {
+		res.headers.set("X-Content-Type-Options", "nosniff");
+	}
+	if (!res.headers.has("Referrer-Policy")) {
+		res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+	}
+	if (!res.headers.has("Permissions-Policy")) {
+		res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+	}
 	if (!res.headers.has("Content-Security-Policy")) {
 		res.headers.set("X-Frame-Options", "SAMEORIGIN");
 	}
@@ -479,6 +489,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const hasSessionCookie = cookies.get("astro-session") !== undefined;
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
+
+		// Credentialed API requests (API tokens `ec_pat_*`, OAuth tokens
+		// `ec_oat_*`, and other Bearer credentials) carry no `astro-session`
+		// cookie, so `sessionUser` is null for them -- yet they still expect
+		// read-your-writes. The auth middleware that resolves the token runs
+		// *after* this one, so `locals.user` isn't populated here; detect the
+		// credential directly on the request. Request-scoped adapters use this to
+		// keep such requests on the primary/uncached connection (not a lagging
+		// read replica or the Hyperdrive query cache).
+		const hasBearerAuth = (request.headers.get("authorization") ?? "")
+			.toLowerCase()
+			.startsWith("bearer ");
 
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
@@ -658,6 +680,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Content handlers
 					handleContentList: runtime.handleContentList.bind(runtime),
 					handleContentGet: runtime.handleContentGet.bind(runtime),
+					handleContentAuthors: runtime.handleContentAuthors.bind(runtime),
 					handleContentCreate: runtime.handleContentCreate.bind(runtime),
 					handleContentUpdate: runtime.handleContentUpdate.bind(runtime),
 					handleContentDelete: runtime.handleContentDelete.bind(runtime),
@@ -765,7 +788,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// per-request state (e.g. a D1 bookmark cookie for read-your-writes).
 			const scoped = createRequestScopedDb({
 				config: config?.database?.config,
-				isAuthenticated: !!sessionUser,
+				isAuthenticated: !!sessionUser || hasBearerAuth,
 				isWrite: request.method !== "GET" && request.method !== "HEAD",
 				cookies: context.cookies,
 				url,

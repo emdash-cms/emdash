@@ -1,5 +1,25 @@
 # @emdash-cms/admin
 
+## 0.24.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.24.1
+
+## 0.24.0
+
+### Patch Changes
+
+- [#1630](https://github.com/emdash-cms/emdash/pull/1630) [`f5566e8`](https://github.com/emdash-cms/emdash/commit/f5566e819f3d047a84b3f1f38a50b6707a6dbe9d) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes invisible primary buttons in the admin (notably "Sign in with Passkey" on the login page and "Register Passkey"), which could render as white text on a white background and leave passkey login unreachable by keyboard or sight. The admin's prebuilt stylesheet now matches the design-system version it ships against, so emphasis buttons paint their gradient background correctly.
+
+- [#1633](https://github.com/emdash-cms/emdash/pull/1633) [`d063b51`](https://github.com/emdash-cms/emdash/commit/d063b51e2930c5a1c3bb4d24381afdbdf63a2de2) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes Kumo style loading and updates the admin sidebar to use Kumo's native collapse and theme behavior.
+
+- [#1568](https://github.com/emdash-cms/emdash/pull/1568) [`43a70d4`](https://github.com/emdash-cms/emdash/commit/43a70d49ebe09dc901a336eb2448185536e00097) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes the publish controls not updating after editing a published post. Saving a change now immediately shows the "Publish changes" button, and publishing immediately switches it to "Unpublish" — previously, on sites without i18n configured, both required a manual page refresh. Closes [#1557](https://github.com/emdash-cms/emdash/issues/1557).
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.24.0
+
 ## 0.23.0
 
 ### Patch Changes

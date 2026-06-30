@@ -189,6 +189,19 @@ Runs after content is unpublished (reverted to draft). Side effects only.
 Event: `{ content: Record<string, unknown>, collection: string }`
 Returns: `void`
 
+### `content:afterRestore`
+
+Runs after trashed content is restored. Side effects only.
+
+```typescript
+"content:afterRestore": async (event, ctx) => {
+	ctx.log.info(`Restored ${event.collection}/${event.content.id}`);
+}
+```
+
+Event: `{ content: Record<string, unknown>, collection: string }`
+Returns: `void`
+
 ## Media Hooks
 
 ### `media:beforeUpload`
@@ -430,6 +443,7 @@ Use `"continue"` for non-critical operations (analytics, notifications, external
 | `content:afterDelete`    | After delete         | `content:read`                   | `void`                       |
 | `content:afterPublish`   | After publish        | `content:read`                   | `void`                       |
 | `content:afterUnpublish` | After unpublish      | `content:read`                   | `void`                       |
+| `content:afterRestore`   | After restore        | `content:read`                   | `void`                       |
 | `media:beforeUpload`     | Before upload        | —                                | Modified file info or `void` |
 | `media:afterUpload`      | After upload         | —                                | `void`                       |
 | `email:beforeSend`       | Before email send    | `hooks.email-events:register`    | Modified message or `false`  |

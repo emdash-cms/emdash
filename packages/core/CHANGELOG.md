@@ -1,5 +1,48 @@
 # emdash
 
+## 0.24.1
+
+### Patch Changes
+
+- [#1646](https://github.com/emdash-cms/emdash/pull/1646) [`c962929`](https://github.com/emdash-cms/emdash/commit/c962929fa718479762ef8bded4a0b6c39eb43e0e) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fixes hierarchical taxonomy terms losing their parent in translated locales. A child term now stores its parent's translation group instead of a locale-bound row id, so translating a parent automatically re-nests its existing children in every locale instead of flattening them to the root. A forward-only migration backfills existing parent links.
+
+- [#1644](https://github.com/emdash-cms/emdash/pull/1644) [`d64c961`](https://github.com/emdash-cms/emdash/commit/d64c961f89cf97303c4ffb3341f05424356120f0) Thanks [@masonjames](https://github.com/masonjames)! - Fixes React 19 development console warnings from the visual editing toolbar's `useSyncExternalStore` dependency path.
+
+- Updated dependencies []:
+  - @emdash-cms/admin@0.24.1
+  - @emdash-cms/auth@0.24.1
+  - @emdash-cms/gutenberg-to-portable-text@0.24.1
+
+## 0.24.0
+
+### Minor Changes
+
+- [#1577](https://github.com/emdash-cms/emdash/pull/1577) [`79fc8b5`](https://github.com/emdash-cms/emdash/commit/79fc8b5b16b07001f5c0a4d964c2ac1fabd39573) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Adds offset pagination to `getEmDashCollection` for numbered archive routes
+
+  `getEmDashCollection` now accepts an `offset` option alongside `limit`, so you can render numbered archive URLs like `/page/2` or `/tag/security/page/3` without walking cursors or over-fetching from the start:
+
+  ```ts
+  const perPage = 20;
+  const { entries, hasMore } = await getEmDashCollection("posts", {
+  	limit: perPage,
+  	offset: (page - 1) * perPage,
+  	orderBy: { published_at: "desc" },
+  });
+  ```
+
+  Results now include a `hasMore` boolean whenever `limit` is set, so you can show a "next page" link without an extra count query. `offset` is ignored when a `cursor` is supplied — cursor (keyset) pagination still wins.
+
+### Patch Changes
+
+- [#1558](https://github.com/emdash-cms/emdash/pull/1558) [`e659a5c`](https://github.com/emdash-cms/emdash/commit/e659a5c25001ec181c8771e17a8c3264d1498fbf) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes EmDash overriding security headers set by the host site ([#1393](https://github.com/emdash-cms/emdash/issues/1393)). The baseline `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy` headers were applied unconditionally, overwriting stricter values a host had already set on its own routes. These headers are now applied only when the host hasn't set them — matching the existing `Content-Security-Policy` behavior — so a host's own values win while EmDash still provides defaults when none are set.
+
+- [#1636](https://github.com/emdash-cms/emdash/pull/1636) [`d8487f9`](https://github.com/emdash-cms/emdash/commit/d8487f99ba05b9b96e3a200d8b1f0e1902c4ac8c) Thanks [@MA2153](https://github.com/MA2153)! - Fixes `ctx.cron` being undefined during `astro dev` under the `@astrojs/cloudflare` adapter, which silently prevented plugins from scheduling cron tasks and stopped the `cron` hook from ever firing in local dev. The in-process scheduler now keys off Astro's command rather than Vite's, so plugin cron, scheduled publishing, and cleanup run again.
+
+- Updated dependencies [[`f5566e8`](https://github.com/emdash-cms/emdash/commit/f5566e819f3d047a84b3f1f38a50b6707a6dbe9d), [`d063b51`](https://github.com/emdash-cms/emdash/commit/d063b51e2930c5a1c3bb4d24381afdbdf63a2de2), [`43a70d4`](https://github.com/emdash-cms/emdash/commit/43a70d49ebe09dc901a336eb2448185536e00097)]:
+  - @emdash-cms/admin@0.24.0
+  - @emdash-cms/auth@0.24.0
+  - @emdash-cms/gutenberg-to-portable-text@0.24.0
+
 ## 0.23.0
 
 ### Minor Changes
