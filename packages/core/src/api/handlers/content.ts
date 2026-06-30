@@ -51,7 +51,7 @@ async function replaceCurrentContentMediaUsage(
 ): Promise<void> {
 	const state = getContentMediaUsageState(item);
 	let data = item.data;
-	let revisionId: string | null = null;
+	let revisionId: string | null = state === "live" ? item.liveRevisionId : null;
 
 	if (state === "draft" && item.draftRevisionId) {
 		const revision = await new RevisionRepository(db).findById(item.draftRevisionId);

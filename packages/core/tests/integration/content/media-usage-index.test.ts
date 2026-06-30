@@ -175,6 +175,25 @@ describeEachDialect("content media usage indexing", (dialect) => {
 		expect(mediaAUsage[0]?.contentSlug).toBe("renamed-post");
 	});
 
+	it("preserves live revision metadata on published content refresh", async () => {
+		const created = await createPostWithMedia(mediaA.id);
+		if (!created.success) throw new Error("create failed");
+		const published = await handleContentPublish(ctx.db, "posts", created.data.item.id);
+		expect(published.success).toBe(true);
+		if (!published.success) throw new Error("publish failed");
+		expect(published.data.item.liveRevisionId).toBeTruthy();
+
+		const updated = await handleContentUpdate(ctx.db, "posts", created.data.item.id, {
+			slug: "published-renamed-post",
+		});
+		expect(updated.success).toBe(true);
+
+		const mediaAUsage = await usageRepo.findCurrentByMediaId(mediaA.id);
+		expect(mediaAUsage).toHaveLength(1);
+		expect(mediaAUsage[0]?.state).toBe("live");
+		expect(mediaAUsage[0]?.revisionId).toBe(published.data.item.liveRevisionId);
+	});
+
 	it("removes stale old-state usage on direct status update", async () => {
 		const created = await createPostWithMedia(mediaA.id);
 		if (!created.success) throw new Error("create failed");
