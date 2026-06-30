@@ -49,6 +49,7 @@ import type {
 	CommentModerateHandler,
 	ContentAfterDeleteHandler,
 	ContentAfterPublishHandler,
+	ContentAfterRestoreHandler,
 	ContentAfterSaveHandler,
 	ContentAfterUnpublishHandler,
 	ContentBeforeDeleteHandler,
@@ -97,6 +98,7 @@ export interface HookHandlers {
 	"content:afterDelete": ContentAfterDeleteHandler;
 	"content:afterPublish": ContentAfterPublishHandler;
 	"content:afterUnpublish": ContentAfterUnpublishHandler;
+	"content:afterRestore": ContentAfterRestoreHandler;
 	"media:beforeUpload": MediaBeforeUploadHandler;
 	"media:afterUpload": MediaAfterUploadHandler;
 	cron: CronHandler;

@@ -1,5 +1,37 @@
 # emdash
 
+## 0.25.0
+
+### Minor Changes
+
+- [#1658](https://github.com/emdash-cms/emdash/pull/1658) [`1f4aa59`](https://github.com/emdash-cms/emdash/commit/1f4aa59a284bb6fa10dd9672a671b62a2a1ba3aa) Thanks [@ttmx](https://github.com/ttmx)! - Adds a content restore hook for plugins to react when trashed entries are restored.
+
+### Patch Changes
+
+- [#1662](https://github.com/emdash-cms/emdash/pull/1662) [`942fac6`](https://github.com/emdash-cms/emdash/commit/942fac6c87d7a6ce3a62ec7e0610887db5a44f3f) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Treats API-token and OAuth-token (`Authorization: Bearer ec_pat_*` / `ec_oat_*`) requests as authenticated when choosing the request-scoped database connection. These requests carry no session cookie, so they were previously classified as anonymous and could be routed to a read replica (D1) or the query cache (Hyperdrive split caching), breaking read-your-writes for API clients. They now use the primary/uncached connection like session-authenticated requests.
+
+- [#1543](https://github.com/emdash-cms/emdash/pull/1543) [`38a63d5`](https://github.com/emdash-cms/emdash/commit/38a63d54e7c7c2735caa179b303c63c175a9570e) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes the admin author filter returning HTTP 500 (`NOT_CONFIGURED` / "EmDash is not initialized") for every collection. The `handleContentAuthors` handler was never exposed on the per-request `locals.emdash` object in middleware, so `GET /_emdash/api/content/{collection}/authors` always tripped its not-initialized guard while sibling content routes worked normally.
+
+- [#1556](https://github.com/emdash-cms/emdash/pull/1556) [`0f8d1ff`](https://github.com/emdash-cms/emdash/commit/0f8d1ffc081e31217eadc0d71051d7c7324ca173) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - `SchemaRegistry.updateField` (and `emdash seed --on-conflict update`) no longer silently ignore a field's `type` change ([#1397](https://github.com/emdash-cms/emdash/issues/1397)). Previously, changing a field's type in `seed.json` and re-seeding reported success and bumped the updated count while leaving `_emdash_fields.type`/`column_type` at their old values, so generated types and column mappings went stale with no warning. `UpdateFieldInput` now accepts `type`: a change whose underlying column type is unchanged (e.g. `string` → `slug`, both `TEXT`) is applied, and a change that would alter the column type (e.g. `text` → `portableText`, `TEXT` → `JSON`) is rejected with a clear `FIELD_TYPE_COLUMN_CHANGE` error pointing to the need for a manual content migration, instead of silently corrupting the metadata.
+
+- Updated dependencies [[`8c4108e`](https://github.com/emdash-cms/emdash/commit/8c4108e58a9547af158d60e729f070335b0dd957), [`e277989`](https://github.com/emdash-cms/emdash/commit/e277989a89696b2b9211a9f0b898f7e7dcc99293), [`1ad7b6d`](https://github.com/emdash-cms/emdash/commit/1ad7b6d4cfb51a7c3cf592ad4af987c08a7ca897)]:
+  - @emdash-cms/admin@0.25.0
+  - @emdash-cms/auth@0.25.0
+  - @emdash-cms/gutenberg-to-portable-text@0.25.0
+
+## 0.24.1
+
+### Patch Changes
+
+- [#1646](https://github.com/emdash-cms/emdash/pull/1646) [`c962929`](https://github.com/emdash-cms/emdash/commit/c962929fa718479762ef8bded4a0b6c39eb43e0e) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fixes hierarchical taxonomy terms losing their parent in translated locales. A child term now stores its parent's translation group instead of a locale-bound row id, so translating a parent automatically re-nests its existing children in every locale instead of flattening them to the root. A forward-only migration backfills existing parent links.
+
+- [#1644](https://github.com/emdash-cms/emdash/pull/1644) [`d64c961`](https://github.com/emdash-cms/emdash/commit/d64c961f89cf97303c4ffb3341f05424356120f0) Thanks [@masonjames](https://github.com/masonjames)! - Fixes React 19 development console warnings from the visual editing toolbar's `useSyncExternalStore` dependency path.
+
+- Updated dependencies []:
+  - @emdash-cms/admin@0.24.1
+  - @emdash-cms/auth@0.24.1
+  - @emdash-cms/gutenberg-to-portable-text@0.24.1
+
 ## 0.24.0
 
 ### Minor Changes

@@ -136,11 +136,15 @@ interface PortableTextTextBlock {
 interface PortableTextImageBlock {
 	_type: "image";
 	_key: string;
-	asset: { _ref: string; url?: string };
+	asset: { _ref: string; url?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash — first-class field (legacy snapshots store it in `asset.meta`). */
+	blurhash?: string;
+	/** LQIP dominant color — first-class field (legacy snapshots store it in `asset.meta`). */
+	dominantColor?: string;
 	displayWidth?: number;
 	displayHeight?: number;
 	alignment?: "left" | "center" | "right" | "wide" | "full";
@@ -306,6 +310,13 @@ function convertPMNode(node: {
 		case "image": {
 			const attrs = node.attrs ?? {};
 			const provider = attrStr(attrs.provider);
+			const blurhash = attrStr(attrs.blurhash);
+			const dominantColor = attrStr(attrs.dominantColor);
+			// Persist LQIP as first-class block fields, matching the image-field
+			// path (MediaValue.blurhash/dominantColor) so read sites and normalize
+			// don't need a `asset.meta` dual-shape. `asset.meta` is left to carry
+			// only provider-specific data (we don't reconstruct it here, so any
+			// non-LQIP meta keys are never silently dropped on editor round-trip).
 			return {
 				_type: "image",
 				_key: generateKey(),
@@ -318,6 +329,8 @@ function convertPMNode(node: {
 				caption: attrStr(attrs.caption) ?? attrStr(attrs.title),
 				width: attrNum(attrs.width),
 				height: attrNum(attrs.height),
+				...(blurhash ? { blurhash } : {}),
+				...(dominantColor ? { dominantColor } : {}),
 				displayWidth: attrNum(attrs.displayWidth),
 				displayHeight: attrNum(attrs.displayHeight),
 				alignment: attrStr(attrs.alignment) as PortableTextImageBlock["alignment"],
@@ -652,6 +665,21 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "image": {
 			if (!isImageBlock(block)) return null;
 			const imageBlock = block;
+			const meta = imageBlock.asset.meta;
+			// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy
+			// snapshots persisted before LQIP was promoted out of the provider meta bag.
+			const blurhash =
+				typeof imageBlock.blurhash === "string"
+					? imageBlock.blurhash
+					: typeof meta?.blurhash === "string"
+						? meta.blurhash
+						: null;
+			const dominantColor =
+				typeof imageBlock.dominantColor === "string"
+					? imageBlock.dominantColor
+					: typeof meta?.dominantColor === "string"
+						? meta.dominantColor
+						: null;
 			return {
 				type: "image",
 				attrs: {
@@ -662,6 +690,8 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					mediaId: imageBlock.asset._ref,
 					width: imageBlock.width,
 					height: imageBlock.height,
+					blurhash,
+					dominantColor,
 					displayWidth: imageBlock.displayWidth,
 					displayHeight: imageBlock.displayHeight,
 					alignment: imageBlock.alignment,
@@ -2379,6 +2409,8 @@ export function PortableTextEditor({
 						provider: item.provider || "local",
 						width: item.width,
 						height: item.height,
+						blurhash: item.blurhash,
+						dominantColor: item.dominantColor,
 					})
 					.run();
 			}
@@ -2882,6 +2914,8 @@ function EditorToolbar({
 					mediaId: item.id,
 					width: item.width,
 					height: item.height,
+					blurhash: item.blurhash,
+					dominantColor: item.dominantColor,
 				})
 				.run();
 		},
