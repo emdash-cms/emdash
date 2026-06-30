@@ -4955,6 +4955,7 @@ msgid "No redirects yet"
 msgstr "Nenhum redirecionamento ainda"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1270
+#: packages/admin/src/components/RepeaterField.tsx:374
 msgid "No results"
 msgstr "Nenhum resultado"
 
@@ -6380,7 +6381,7 @@ msgstr "Selecione quais tipos de conteúdo importar."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
 #: packages/admin/src/components/PortableTextEditor.tsx:1923
-#: packages/admin/src/components/RepeaterField.tsx:366
+#: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "Selecionar..."
 

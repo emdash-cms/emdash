@@ -159,6 +159,7 @@ export async function applySeed(
 						if (existingField) {
 							await registry.updateField(collection.slug, field.slug, {
 								label: field.label,
+								type: field.type,
 								required: field.required || false,
 								unique: field.unique || false,
 								searchable: field.searchable || false,

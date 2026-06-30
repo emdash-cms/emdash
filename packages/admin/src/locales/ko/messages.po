@@ -4955,6 +4955,7 @@ msgid "No redirects yet"
 msgstr "아직 리디렉션이 없습니다."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1270
+#: packages/admin/src/components/RepeaterField.tsx:374
 msgid "No results"
 msgstr "결과 없음"
 
@@ -6380,7 +6381,7 @@ msgstr "가져올 콘텐츠 유형을 선택하세요."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
 #: packages/admin/src/components/PortableTextEditor.tsx:1923
-#: packages/admin/src/components/RepeaterField.tsx:366
+#: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "선택..."
 
