@@ -3334,14 +3334,41 @@ export class EmDashRuntime {
 		}
 	}
 
-	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
+	private runDeferredContentHook(
+		name:
+			| "content:afterPublish"
+			| "content:afterUnpublish"
+			| "content:afterRestore"
+			| "content:afterSchedule"
+			| "content:afterUnschedule",
+		content: Record<string, unknown>,
+		collection: string,
+	): void {
+		const label = name.slice("content:".length);
+
 		after(async () => {
 			// Trusted plugins
-			if (this.hooks.hasHooks("content:afterPublish")) {
+			if (this.hooks.hasHooks(name)) {
 				try {
-					await this.hooks.runContentAfterPublish(content, collection);
+					switch (name) {
+						case "content:afterPublish":
+							await this.hooks.runContentAfterPublish(content, collection);
+							break;
+						case "content:afterUnpublish":
+							await this.hooks.runContentAfterUnpublish(content, collection);
+							break;
+						case "content:afterRestore":
+							await this.hooks.runContentAfterRestore(content, collection);
+							break;
+						case "content:afterSchedule":
+							await this.hooks.runContentAfterSchedule(content, collection);
+							break;
+						case "content:afterUnschedule":
+							await this.hooks.runContentAfterUnschedule(content, collection);
+							break;
+					}
 				} catch (err) {
-					console.error("EmDash afterPublish hook error:", err);
+					console.error(`EmDash ${label} hook error:`, err);
 				}
 			}
 
@@ -3354,129 +3381,35 @@ export class EmDashRuntime {
 				tasks.push(
 					(async () => {
 						try {
-							await plugin.invokeHook("content:afterPublish", { content, collection });
+							await plugin.invokeHook(name, { content, collection });
 						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err);
+							console.error(`EmDash: Sandboxed plugin ${pluginId} ${label} error:`, err);
 						}
 					})(),
 				);
 			}
 			await Promise.allSettled(tasks);
 		});
+	}
+
+	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
+		this.runDeferredContentHook("content:afterPublish", content, collection);
 	}
 
 	private runAfterUnpublishHooks(content: Record<string, unknown>, collection: string): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterUnpublish")) {
-			this.hooks
-				.runContentAfterUnpublish(content, collection)
-				.catch((err) => console.error("EmDash afterUnpublish hook error:", err));
-		}
-
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
-
-			plugin
-				.invokeHook("content:afterUnpublish", { content, collection })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterUnpublish error:`, err),
-				);
-		}
+		this.runDeferredContentHook("content:afterUnpublish", content, collection);
 	}
 
 	private runAfterRestoreHooks(content: Record<string, unknown>, collection: string): void {
-		after(async () => {
-			// Trusted plugins
-			if (this.hooks.hasHooks("content:afterRestore")) {
-				try {
-					await this.hooks.runContentAfterRestore(content, collection);
-				} catch (err) {
-					console.error("EmDash afterRestore hook error:", err);
-				}
-			}
-
-			// Sandboxed plugins
-			const tasks: Promise<void>[] = [];
-			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-				const [pluginId] = pluginKey.split(":");
-				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
-
-				tasks.push(
-					(async () => {
-						try {
-							await plugin.invokeHook("content:afterRestore", { content, collection });
-						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${pluginId} afterRestore error:`, err);
-						}
-					})(),
-				);
-			}
-			await Promise.allSettled(tasks);
-		});
+		this.runDeferredContentHook("content:afterRestore", content, collection);
 	}
 
 	private runAfterScheduleHooks(content: Record<string, unknown>, collection: string): void {
-		after(async () => {
-			// Trusted plugins
-			if (this.hooks.hasHooks("content:afterSchedule")) {
-				try {
-					await this.hooks.runContentAfterSchedule(content, collection);
-				} catch (err) {
-					console.error("EmDash afterSchedule hook error:", err);
-				}
-			}
-
-			// Sandboxed plugins
-			const tasks: Promise<void>[] = [];
-			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-				const [pluginId] = pluginKey.split(":");
-				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
-
-				tasks.push(
-					(async () => {
-						try {
-							await plugin.invokeHook("content:afterSchedule", { content, collection });
-						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${pluginId} afterSchedule error:`, err);
-						}
-					})(),
-				);
-			}
-			await Promise.allSettled(tasks);
-		});
+		this.runDeferredContentHook("content:afterSchedule", content, collection);
 	}
 
 	private runAfterUnscheduleHooks(content: Record<string, unknown>, collection: string): void {
-		after(async () => {
-			// Trusted plugins
-			if (this.hooks.hasHooks("content:afterUnschedule")) {
-				try {
-					await this.hooks.runContentAfterUnschedule(content, collection);
-				} catch (err) {
-					console.error("EmDash afterUnschedule hook error:", err);
-				}
-			}
-
-			// Sandboxed plugins
-			const tasks: Promise<void>[] = [];
-			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-				const [pluginId] = pluginKey.split(":");
-				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
-
-				tasks.push(
-					(async () => {
-						try {
-							await plugin.invokeHook("content:afterUnschedule", { content, collection });
-						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${pluginId} afterUnschedule error:`, err);
-						}
-					})(),
-				);
-			}
-			await Promise.allSettled(tasks);
-		});
+		this.runDeferredContentHook("content:afterUnschedule", content, collection);
 	}
 
 	private async handleSandboxedRoute(

@@ -17,6 +17,8 @@ The following table lists every hook, what triggers it, what it can modify, and 
 | `content:afterSave`     | After content is saved                | Nothing           | No        |
 | `content:beforeDelete`  | Before content is deleted             | Can cancel        | No        |
 | `content:afterDelete`   | After content is deleted              | Nothing           | No        |
+| `content:afterPublish`  | After content is published            | Nothing           | No        |
+| `content:afterUnpublish` | After content is unpublished         | Nothing           | No        |
 | `content:afterRestore`  | After content is restored             | Nothing           | No        |
 | `content:afterSchedule` | After content is scheduled            | Nothing           | No        |
 | `content:afterUnschedule` | After content is unscheduled        | Nothing           | No        |
@@ -194,7 +196,7 @@ hooks: {
 #### Event
 
 ```ts
-interface ContentPublishStateChangeEvent {
+interface ContentStateChangeEvent {
 	content: Record<string, unknown>;
 	collection: string;
 }
