@@ -68,8 +68,8 @@ const TZ_SUFFIX_RE = /([zZ]|[+-]\d{2}(:?\d{2})?)$/;
  * content can carry other shapes). The sitemap `<lastmod>` field requires
  * W3C Datetime, and Google Search Console rejects the space-separated form
  * as "Invalid date". Normalize defensively, assuming UTC when no offset is
- * present (matches SQLite's `datetime('now')`). Already-ISO values pass
- * through unchanged; unparseable values are returned as-is.
+ * present (matches SQLite's `datetime('now')`). Valid date strings are
+ * normalized to UTC ISO 8601; unparseable values are returned as-is.
  */
 function toW3CDate(value: string): string {
 	if (!value) return value;
