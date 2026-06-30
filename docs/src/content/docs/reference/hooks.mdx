@@ -17,6 +17,7 @@ The following table lists every hook, what triggers it, what it can modify, and 
 | `content:afterSave`     | After content is saved                | Nothing           | No        |
 | `content:beforeDelete`  | Before content is deleted             | Can cancel        | No        |
 | `content:afterDelete`   | After content is deleted              | Nothing           | No        |
+| `content:afterRestore`  | After content is restored             | Nothing           | No        |
 | `media:beforeUpload`    | Before file is uploaded               | File metadata     | No        |
 | `media:afterUpload`     | After file is uploaded                | Nothing           | No        |
 | `cron`                  | Scheduled task fires                  | Nothing           | No        |
@@ -151,6 +152,31 @@ hooks: {
   },
 }
 ```
+
+### `content:afterRestore`
+
+Runs after trashed content is restored. Requires `content:read` capability.
+
+```ts
+hooks: {
+  "content:afterRestore": async (event, ctx) => {
+    ctx.log.info(`Restored ${event.collection}/${event.content.id}`);
+  },
+}
+```
+
+#### Event
+
+```ts
+interface ContentPublishStateChangeEvent {
+	content: Record<string, unknown>;
+	collection: string;
+}
+```
+
+#### Return Value
+
+No return value expected.
 
 ## Media Hooks
 

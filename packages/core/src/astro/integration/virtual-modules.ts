@@ -96,14 +96,21 @@ export function generateDialectModule(opts: {
 			`export const createDialect = undefined;`,
 			`export const dialectType = "sqlite";`,
 			`export const createRequestScopedDb = (_opts) => null;`,
+			`export const createCoalescingDialect = undefined;`,
 		].join("\n");
 	}
 	const type = opts.type ?? "sqlite";
+
+	// Namespace access (not a named re-export) so backends that don't export
+	// createCoalescingDialect yield `undefined` rather than a build error.
+	const coalescingReExport = `import * as _dialectModule from "${entrypoint}";
+export const createCoalescingDialect = _dialectModule.createCoalescingDialect;`;
 
 	if (supportsRequestScope) {
 		return `
 import { createDialect as _createDialect } from "${entrypoint}";
 export { createRequestScopedDb } from "${entrypoint}";
+${coalescingReExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 `;
@@ -111,6 +118,7 @@ export const dialectType = ${JSON.stringify(type)};
 
 	return `
 import { createDialect as _createDialect } from "${entrypoint}";
+${coalescingReExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 export const createRequestScopedDb = (_opts) => null;

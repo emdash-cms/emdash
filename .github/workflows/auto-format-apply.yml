@@ -1,0 +1,227 @@
+name: Auto Format — Apply
+
+# Stage 2 of 2. Runs after "Auto Format" completes on a PR. This job has
+# elevated permissions to push the formatted patch back to the PR branch,
+# but it never executes code from the PR — it only downloads the inert
+# patch artifact, checks out the measured head SHA, and applies the diff.
+on:
+  workflow_run:
+    workflows: ["Auto Format"]
+    types: [completed]
+
+permissions:
+  # actions:read is needed for listWorkflowRunArtifacts / downloadArtifact.
+  # pull-requests:read is needed for pulls.get in the Resolve PR step.
+  # contents:read is a safety default; the push-back steps use the app token.
+  actions: read
+  contents: read
+  pull-requests: read
+
+jobs:
+  apply:
+    name: Apply
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download patch artifact
+        id: download
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+            });
+            const artifact = data.artifacts.find((a) => a.name === 'auto-format-patch');
+            if (!artifact) {
+              core.setOutput('found', 'false');
+              core.info('No patch artifact — nothing to apply.');
+              return;
+            }
+            const download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: artifact.id,
+              archive_format: 'zip',
+            });
+            // Stage the artifact under RUNNER_TEMP, not GITHUB_WORKSPACE.
+            // GITHUB_WORKSPACE is wiped by the later actions/checkout step
+            // (clean: true is the default), which would delete the payload
+            // before the Apply step can reach it. RUNNER_TEMP sits outside
+            // the workspace and survives checkout.
+            const outDir = path.join(process.env.RUNNER_TEMP, 'af-artifact');
+            fs.mkdirSync(outDir, { recursive: true });
+            fs.writeFileSync(path.join(outDir, 'artifact.zip'), Buffer.from(download.data));
+            core.setOutput('found', 'true');
+
+      - name: Unpack artifact
+        if: steps.download.outputs.found == 'true'
+        run: |
+          cd "$RUNNER_TEMP/af-artifact"
+          unzip -o artifact.zip
+          ls -la
+
+      - name: Resolve PR
+        if: steps.download.outputs.found == 'true'
+        id: pr
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const prNumber = Number(
+              fs.readFileSync(
+                path.join(process.env.RUNNER_TEMP, 'af-artifact', 'pr-number'),
+                'utf8',
+              ).trim(),
+            );
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed(`Invalid PR number in artifact: ${prNumber}`);
+              return;
+            }
+            // Cross-check: fetch the PR and verify its head SHA matches the
+            // workflow_run's head SHA, so a forged artifact can't redirect
+            // the push at an unrelated branch.
+            const headSha = context.payload.workflow_run.head_sha;
+            let pr;
+            try {
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+              });
+              pr = data;
+            } catch (err) {
+              core.setFailed(`Failed to fetch PR #${prNumber}: ${err.message}`);
+              return;
+            }
+            if (pr.head.sha !== headSha) {
+              core.setFailed(
+                `PR #${prNumber} head SHA (${pr.head.sha}) does not match workflow_run head SHA (${headSha}). The branch has moved on; the next PR event will re-run format+apply.`,
+              );
+              return;
+            }
+            core.setOutput('number', String(pr.number));
+            core.setOutput('ref', pr.head.ref);
+            // Push onto the exact commit that was formatted. If the branch
+            // has advanced since, the push fails non-fast-forward rather than
+            // applying a stale patch to a newer tree.
+            core.setOutput('sha', headSha);
+            core.setOutput('full_name', pr.head.repo.full_name);
+            const isFork = pr.head.repo.fork
+              || pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`;
+            core.setOutput('is_fork', isFork.toString());
+
+      - name: Generate app token
+        if: steps.download.outputs.found == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Push the formatted commit (contents) and comment on push failure
+          # (pull-requests). Nothing else.
+          permission-contents: write
+          permission-pull-requests: write
+
+      # --- Same-repo PRs: checkout the measured SHA and push directly ---
+
+      - name: Checkout (same-repo)
+        if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'false'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+          token: ${{ steps.app-token.outputs.token }}
+          # The same-repo push step below pushes the formatted commit back to
+          # the PR branch using this credential.
+          persist-credentials: true
+
+      # --- Fork PRs: checkout the fork at the measured SHA so we can push back ---
+
+      - name: Checkout (fork)
+        if: steps.download.outputs.found == 'true' && steps.pr.outputs.is_fork == 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: ${{ steps.pr.outputs.full_name }}
+          ref: ${{ steps.pr.outputs.sha }}
+          persist-credentials: false
+
+      - name: Apply patch
+        if: steps.download.outputs.found == 'true'
+        id: apply
+        run: |
+          git apply "$RUNNER_TEMP/af-artifact/format.patch"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "no_diff=true" >> "$GITHUB_OUTPUT"
+            echo "Patch is a no-op against the checked-out head — nothing to push."
+          else
+            echo "no_diff=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push (same-repo)
+        if: |
+          steps.download.outputs.found == 'true'
+          && steps.pr.outputs.is_fork == 'false'
+          && steps.apply.outputs.no_diff == 'false'
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          set -e
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "style: format"
+          # Detached-HEAD push onto the PR branch. If the branch has advanced
+          # past the measured SHA, this fails non-fast-forward — the next PR
+          # event re-runs format+apply against the new head.
+          if ! git push origin "HEAD:$HEAD_REF"; then
+            echo "::error::Non-fast-forward push — the PR branch moved past the measured SHA $HEAD_SHA. The next PR event will re-run format+apply." >&2
+            exit 1
+          fi
+
+      - name: Commit and push (fork)
+        if: |
+          steps.download.outputs.found == 'true'
+          && steps.pr.outputs.is_fork == 'true'
+          && steps.apply.outputs.no_diff == 'false'
+        id: push-fork
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          HEAD_REF: ${{ steps.pr.outputs.ref }}
+          FULL_NAME: ${{ steps.pr.outputs.full_name }}
+        run: |
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "style: format"
+          # Push the formatted commit to the fork via the app token, supplied
+          # through GIT_ASKPASS so it never lands in process args or git config.
+          export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
+          printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
+          chmod +x "$GIT_ASKPASS"
+          git remote add fork "https://x-access-token@github.com/$FULL_NAME.git"
+          if git push fork "HEAD:$HEAD_REF"; then
+            echo "push_failed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "push_failed=true" >> "$GITHUB_OUTPUT"
+          fi
+          rm -f "$GIT_ASKPASS"
+
+      - name: Comment on push failure
+        if: steps.push-fork.outputs.push_failed == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.PR_NUMBER),
+              body: `Could not push formatting changes to this fork. The contributor may have "Allow edits by maintainers" disabled.\n\nPlease run the formatter locally:\n\n\`\`\`\npnpm format\n\`\`\``,
+            });

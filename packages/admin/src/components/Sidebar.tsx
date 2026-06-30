@@ -1,4 +1,4 @@
-import { Sidebar as KumoSidebar, Tooltip, useSidebar } from "@cloudflare/kumo";
+import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	SquaresFour,
@@ -40,7 +40,6 @@ import * as React from "react";
 import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
 import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
-import { cn } from "../lib/utils";
 import { BrandIcon } from "./Logo.js";
 
 // Re-export for Shell.tsx and Header.tsx
@@ -236,56 +235,36 @@ export function resolveNavIcon(name?: string): React.ElementType {
 }
 
 /**
- * Navigation item rendered as a TanStack Router <Link> inside kumo's
- * Sidebar.MenuItem. Styled to match kumo MenuButton appearance.
- * This approach guarantees client-side navigation works correctly.
+ * Navigation item rendered with Kumo's native Sidebar.MenuButton. Kumo's
+ * LinkProvider maps the href to TanStack Router for client-side navigation.
  */
 function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	const { state } = useSidebar();
 	const Icon = item.icon;
-	const iconClassName = cn(
-		"emdash-nav-icon size-[18px] shrink-0 transition-colors duration-200",
-		isActive ? "text-white" : "text-white/60 group-hover/menu-button:text-white/90",
-	);
-
-	const link = (
-		<Link
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- TanStack Router requires literal route types
-			to={item.to as "/"}
-			params={item.params}
-			aria-current={isActive ? "page" : undefined}
-			data-active={isActive || undefined}
-			data-sidebar="menu-button"
-			className={cn(
-				"emdash-nav-link group/menu-button flex w-full min-w-0 items-center gap-2.5 rounded-md no-underline outline-none cursor-pointer",
-				"min-h-[36px] px-3 py-1.5 text-[13px]",
-				"transition-all duration-200 ease-out",
-				isActive ? "bg-kumo-brand text-white" : "text-white/70 hover:text-white hover:bg-white/8",
-				"focus-visible:ring-2 focus-visible:ring-kumo-brand/50",
-			)}
-		>
-			<React.Suspense fallback={<PuzzlePiece className={iconClassName} aria-hidden="true" />}>
-				<Icon className={iconClassName} aria-hidden="true" />
-			</React.Suspense>
-			<span className="emdash-nav-label flex flex-1 items-center min-w-0 text-start overflow-hidden">
-				{item.label}
-				{item.badge != null && item.badge > 0 && (
-					<KumoSidebar.MenuBadge>{item.badge}</KumoSidebar.MenuBadge>
-				)}
-			</span>
-		</Link>
-	);
+	function IconComponent({ className }: { className?: string }) {
+		return <NavIcon icon={Icon} className={className} />;
+	}
 
 	return (
-		<KumoSidebar.MenuItem>
-			{state === "collapsed" ? (
-				<Tooltip content={item.label} side="right" asChild>
-					{link}
-				</Tooltip>
-			) : (
-				link
+		<KumoSidebar.MenuButton
+			href={resolveItemPath(item)}
+			active={isActive}
+			tooltip={state === "collapsed" ? item.label : undefined}
+			icon={IconComponent}
+		>
+			{item.label}
+			{item.badge != null && item.badge > 0 && (
+				<KumoSidebar.MenuBadge>{item.badge}</KumoSidebar.MenuBadge>
 			)}
-		</KumoSidebar.MenuItem>
+		</KumoSidebar.MenuButton>
+	);
+}
+
+function NavIcon({ icon: Icon, className }: { icon: React.ElementType; className?: string }) {
+	return (
+		<React.Suspense fallback={<PuzzlePiece className={className} aria-hidden="true" />}>
+			<Icon className={className} aria-hidden="true" />
+		</React.Suspense>
 	);
 }
 
@@ -365,6 +344,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	const adminItems: NavItem[] = [
 		{ to: "/content-types", label: t`Content Types`, icon: Database, minRole: ROLE_ADMIN },
+		{ ...BYLINE_SCHEMA_NAV_ITEM, label: t`Byline Schema`, icon: FileText },
 		{ to: "/users", label: t`Users`, icon: Users, minRole: ROLE_ADMIN },
 		{ to: "/plugins-manager", label: t`Plugins`, icon: PuzzlePiece, minRole: ROLE_ADMIN },
 	];
@@ -436,190 +416,76 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	}
 
 	return (
-		<>
-			{/* Injected styles — Tailwind 4 strips [data-sidebar] attribute selectors from CSS files.
-			    All sidebar-specific overrides go here to avoid conflicting with kumo's inline styles. */}
-			<style
-				dangerouslySetInnerHTML={{
-					__html: `
-			/* Classic dark chrome — override kumo tokens within the sidebar */
-			.emdash-sidebar {
-				--color-kumo-base: #1d2327;
-				/* Kumo 2.4 paints the surface via bg-(--sidebar-bg) on an inner
-				   container, resolved from the wrapper's light --color-kumo-base. */
-				--sidebar-bg: #1d2327;
-				--color-kumo-tint: rgba(255,255,255,0.1);
-				--color-kumo-line: rgba(255,255,255,0.08);
-				--color-kumo-brand: #2271b1;
-				--text-color-kumo-default: #fff;
-				--text-color-kumo-subtle: rgba(255,255,255,0.7);
-				--text-color-kumo-strong: #fff;
-				background-color: #1d2327 !important;
-				color: #fff !important;
-				border-color: rgba(255,255,255,0.08) !important;
-			}
-			/* Group labels — uppercase muted style */
-			.emdash-sidebar [data-sidebar="group-label"] {
-				color: rgba(255,255,255,0.45) !important;
-				font-size: 11px !important;
-				text-transform: uppercase;
-				letter-spacing: 0.06em;
-				font-weight: 600;
-				padding-left: 0.75rem;
-				padding-right: 0.75rem;
-			}
-			.emdash-sidebar [data-sidebar="group-label"] svg {
-				color: rgba(255,255,255,0.3);
-			}
-			.emdash-sidebar [data-sidebar="group-label"]:hover svg {
-				color: rgba(255,255,255,0.6);
-			}
-			/* Separators */
-			.emdash-sidebar [data-sidebar="separator"] {
-				border-color: rgba(255,255,255,0.06) !important;
-				margin: 0.5rem 0.75rem;
-			}
-			/* Header/footer borders */
-			.emdash-sidebar [data-sidebar="header"] {
-				border-bottom: 1px solid rgba(255,255,255,0.08);
-			}
-			.emdash-sidebar [data-sidebar="footer"] {
-				border-top: 1px solid rgba(255,255,255,0.08);
-			}
+		<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
+			<KumoSidebar.Header>
+				<Link
+					to="/"
+					className="flex w-full min-w-0 items-center gap-2 px-3 py-1 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
+				>
+					<BrandIcon
+						logoUrl={manifest.admin?.logo}
+						siteName={manifest.admin?.siteName}
+						className="size-5 shrink-0"
+						aria-hidden="true"
+					/>
+					<span className="font-semibold truncate group-data-[state=collapsed]/sidebar:hidden">
+						{manifest.admin?.siteName || "EmDash"}
+					</span>
+				</Link>
+			</KumoSidebar.Header>
 
-			/* Collapsed separators — thin centered line */
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="separator"] {
-				margin: 0.375rem 0.625rem;
-			}
-			/* Collapsed: tighten group spacing */
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="group"] {
-				gap: 0.125rem;
-			}
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="menu"] {
-				gap: 0.125rem;
-			}
-
-			/* Collapsed: nav links — center icon, hide text */
-			.emdash-sidebar[data-state="collapsed"] .emdash-nav-link {
-				justify-content: center;
-				padding: 0.5rem 0;
-				gap: 0;
-				min-height: 36px;
-			}
-			.emdash-sidebar[data-state="collapsed"] .emdash-nav-label {
-				display: none !important;
-			}
-			/* Collapsed: brand link */
-			.emdash-sidebar[data-state="collapsed"] .emdash-brand-link {
-				justify-content: center;
-				padding-left: 0;
-				padding-right: 0;
-			}
-			.emdash-sidebar[data-state="collapsed"] .emdash-brand-text {
-				display: none !important;
-			}
-
-			/* Mobile drawer slide animation from left (LTR) */
-			[data-starting-style]:has(> .emdash-sidebar[data-mobile="true"]),
-			[data-ending-style]:has(> .emdash-sidebar[data-mobile="true"]) {
-				transform: translateX(-100%);
-			}
-
-			/* Mobile drawer slide animation from right (RTL) */
-			[dir="rtl"] [data-starting-style]:has(> .emdash-sidebar[data-mobile="true"]),
-			[dir="rtl"] [data-ending-style]:has(> .emdash-sidebar[data-mobile="true"]) {
-				transform: translateX(100%);
-				--tw-translate-x: 100%;
-			}
-
-			/* RTL: Position drawer on right side */
-			[dir="rtl"] :has(> .emdash-sidebar[data-mobile="true"]) {
-				left: auto;
-				right: 0;
-			}
-		`,
-				}}
-			/>
-			<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
-				<KumoSidebar.Header>
-					<Link
-						to="/"
-						className="emdash-brand-link flex w-full min-w-0 items-center gap-2 px-3 py-1"
-					>
-						<BrandIcon
-							logoUrl={manifest.admin?.logo}
-							siteName={manifest.admin?.siteName}
-							className="size-5 shrink-0"
-							aria-hidden="true"
+			<KumoSidebar.Content>
+				{/* Dashboard — standalone */}
+				<KumoSidebar.Group className="mt-2 md:mt-1.5">
+					<KumoSidebar.Menu>
+						<NavMenuLink
+							item={{ to: "/", label: t`Dashboard`, icon: SquaresFour }}
+							isActive={isItemActive("/", currentPath)}
 						/>
-						<span className="emdash-brand-text font-semibold truncate">
-							{manifest.admin?.siteName || "EmDash"}
-						</span>
-					</Link>
-				</KumoSidebar.Header>
+					</KumoSidebar.Menu>
+				</KumoSidebar.Group>
 
-				<KumoSidebar.Content>
-					{/* Dashboard — standalone */}
+				{/* Content — collections + media */}
+				{visibleContent.length > 1 && (
 					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Content`}</KumoSidebar.GroupLabel>
 						<KumoSidebar.Menu>
-							<NavMenuLink
-								item={{ to: "/", label: t`Dashboard`, icon: SquaresFour }}
-								isActive={isItemActive("/", currentPath)}
-							/>
+							{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
 						</KumoSidebar.Menu>
 					</KumoSidebar.Group>
+				)}
 
-					<KumoSidebar.Separator />
+				{/* Manage — comments, menus, taxonomies, etc. */}
+				{visibleManage.length > 0 && (
+					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Manage`}</KumoSidebar.GroupLabel>
+						<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
+					</KumoSidebar.Group>
+				)}
 
-					{/* Content — collections + media */}
-					{visibleContent.length > 1 && (
-						<KumoSidebar.Group>
-							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Content`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.Menu>
-								{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
-							</KumoSidebar.Menu>
-						</KumoSidebar.Group>
-					)}
+				{/* Admin — content types, users, plugins, import */}
+				{visibleAdmin.length > 0 && (
+					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Admin`}</KumoSidebar.GroupLabel>
+						<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
+					</KumoSidebar.Group>
+				)}
 
-					<KumoSidebar.Separator />
+				{/* Plugin pages */}
+				{visiblePlugins.length > 0 && (
+					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Plugins`}</KumoSidebar.GroupLabel>
+						<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
+					</KumoSidebar.Group>
+				)}
+			</KumoSidebar.Content>
 
-					{/* Manage — comments, menus, taxonomies, etc. */}
-					{visibleManage.length > 0 && (
-						<KumoSidebar.Group>
-							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Manage`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
-						</KumoSidebar.Group>
-					)}
-
-					<KumoSidebar.Separator />
-
-					{/* Admin — content types, users, plugins, import */}
-					{visibleAdmin.length > 0 && (
-						<KumoSidebar.Group>
-							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Admin`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
-						</KumoSidebar.Group>
-					)}
-
-					{/* Plugin pages */}
-					{visiblePlugins.length > 0 && (
-						<>
-							<KumoSidebar.Separator />
-							<KumoSidebar.Group>
-								<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Plugins`}</KumoSidebar.GroupLabel>
-								<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
-							</KumoSidebar.Group>
-						</>
-					)}
-				</KumoSidebar.Content>
-
-				<KumoSidebar.Footer>
-					<p className="emdash-nav-label px-3 py-2 text-[11px] text-white/30">
-						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
-						{manifest.commit && ` (${manifest.commit})`}
-					</p>
-				</KumoSidebar.Footer>
-			</KumoSidebar>
-		</>
+			<KumoSidebar.Footer>
+				<p className="px-3 py-2 text-[11px] text-kumo-subtle group-data-[state=collapsed]/sidebar:hidden">
+					{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
+					{manifest.commit && ` (${manifest.commit})`}
+				</p>
+			</KumoSidebar.Footer>
+		</KumoSidebar>
 	);
 }

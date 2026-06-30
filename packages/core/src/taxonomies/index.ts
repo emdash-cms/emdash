@@ -250,7 +250,9 @@ async function loadTerm(
 	let childrenQuery = db
 		.selectFrom("taxonomies")
 		.selectAll()
-		.where("parent_id", "=", row.id)
+		// Children store the parent's translation_group in parent_id (not a row
+		// id), so a translated parent still owns its children in its own locale.
+		.where("parent_id", "=", row.translation_group ?? row.id)
 		.orderBy("label", "asc");
 	const termLocale = row.locale;
 	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);
@@ -604,6 +606,32 @@ function primeEntryTermsCache(
 }
 
 /**
+ * Prime the per-entry request cache from terms that were folded into the
+ * content query (query.ts `hydrateEntryTerms` fast path), so subsequent
+ * `getEntryTerms` calls in the same render hit the cache instead of issuing an
+ * N+1 query. Seeds the wildcard key and one key per taxonomy present on the
+ * entry — purely from the folded data, with no DB lookup.
+ *
+ * Unlike `getAllTermsForEntries`, this deliberately does NOT seed `[]` for
+ * taxonomies that apply to the collection but have no rows on the entry: doing
+ * so would require a `getTaxonomyDefs` query, adding a round trip to every fold
+ * render to serve the rarer `getEntryTerms(id, absentTaxonomy)` case from cache.
+ * That call simply falls through to its own cached query. Keeping the key shape
+ * here (rather than in query.ts) prevents the two from drifting.
+ */
+export function primeFoldedEntryTerms(
+	collection: string,
+	perEntry: Array<{ entryId: string; byTaxonomy: Record<string, TaxonomyTerm[]> }>,
+	options: TaxonomyQueryOptions = {},
+): void {
+	if (perEntry.length === 0) return;
+	const locale = resolveLocale(options.locale);
+	for (const { entryId, byTaxonomy } of perEntry) {
+		primeEntryTermsCache(collection, entryId, byTaxonomy, [], locale);
+	}
+}
+
+/**
  * Get entries by term. Both the lookup (term slug in the active locale) and
  * the content query respect the active locale.
  */
@@ -649,11 +677,16 @@ function rowToTaxonomyDef(row: {
  * Build tree structure from flat terms
  */
 function buildTree(flatTerms: TaxonomyTermRow[], counts: Map<string, number>): TaxonomyTerm[] {
-	const map = new Map<string, TaxonomyTerm>();
+	// parent_id holds the parent's translation_group, so link children by it.
+	// Key by (locale, group): a child's parent lives in the same locale, and an
+	// unfiltered set mixes locales whose translated siblings share a group —
+	// keying by group alone would collide and misattach children across locales.
+	const byLocaleGroup = new Map<string, TaxonomyTerm>();
+	const nodes: TaxonomyTerm[] = [];
 	const roots: TaxonomyTerm[] = [];
 
 	for (const term of flatTerms) {
-		map.set(term.id, {
+		const node: TaxonomyTerm = {
 			id: term.id,
 			name: term.name,
 			slug: term.slug,
@@ -664,14 +697,19 @@ function buildTree(flatTerms: TaxonomyTermRow[], counts: Map<string, number>): T
 			count: counts.get(term.translation_group ?? term.id) ?? 0,
 			locale: term.locale,
 			translationGroup: term.translation_group,
-		});
+		};
+		byLocaleGroup.set(`${term.locale}::${term.translation_group ?? term.id}`, node);
+		nodes.push(node);
 	}
 
-	for (const term of map.values()) {
-		if (term.parentId && map.has(term.parentId)) {
-			map.get(term.parentId)!.children.push(term);
+	for (const node of nodes) {
+		const parent = node.parentId
+			? byLocaleGroup.get(`${node.locale}::${node.parentId}`)
+			: undefined;
+		if (parent) {
+			parent.children.push(node);
 		} else {
-			roots.push(term);
+			roots.push(node);
 		}
 	}
 
