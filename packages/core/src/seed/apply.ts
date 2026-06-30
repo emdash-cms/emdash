@@ -16,11 +16,13 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import { RevisionRepository } from "../database/repositories/revision.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
+import type { ContentItem as RepositoryContentItem } from "../database/repositories/types.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
+import { deleteContentMediaUsage, replaceContentMediaUsage } from "../media/usage-index.js";
 import { SchemaRegistry } from "../schema/registry.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { setSiteSettings } from "../settings/index.js";
@@ -38,6 +40,29 @@ import type {
 
 const FILE_EXTENSION_PATTERN = /\.([a-z0-9]+)(?:\?|$)/i;
 import { validateSeed } from "./validate.js";
+
+function getSeedContentMediaUsageState(
+	item: Pick<RepositoryContentItem, "status">,
+): "live" | "draft" {
+	return item.status === "published" ? "live" : "draft";
+}
+
+async function replaceSeedContentMediaUsage(
+	db: Kysely<Database>,
+	collection: string,
+	item: RepositoryContentItem,
+): Promise<void> {
+	const state = getSeedContentMediaUsageState(item);
+	await replaceContentMediaUsage(
+		db,
+		collection,
+		item,
+		state,
+		item.data,
+		state === "live" ? item.liveRevisionId : null,
+	);
+	await deleteContentMediaUsage(db, collection, item.id, state === "live" ? "draft" : "live");
+}
 
 /** Pattern to remove file extensions */
 const EXTENSION_PATTERN = /\.[^.]+$/;
@@ -456,7 +481,7 @@ export async function applySeed(
 							const trxBylineRepo = new BylineRepository(trx);
 							const trxRevisionRepo = new RevisionRepository(trx);
 
-							await trxContentRepo.update(collectionSlug, existing.id, {
+							let item = await trxContentRepo.update(collectionSlug, existing.id, {
 								status,
 								data: resolvedData,
 							});
@@ -485,8 +510,9 @@ export async function applySeed(
 									data: resolvedData,
 								});
 								await trxContentRepo.setDraftRevision(collectionSlug, existing.id, draft.id);
-								await trxContentRepo.publish(collectionSlug, existing.id);
+								item = await trxContentRepo.publish(collectionSlug, existing.id);
 							}
+							await replaceSeedContentMediaUsage(trx, collectionSlug, item);
 						});
 
 						seedIdMap.set(entry.id, existing.id);
@@ -522,7 +548,7 @@ export async function applySeed(
 					const trxContentRepo = new ContentRepository(trx);
 					const trxBylineRepo = new BylineRepository(trx);
 
-					const item = await trxContentRepo.create({
+					let item = await trxContentRepo.create({
 						type: collectionSlug,
 						slug: entry.slug,
 						status,
@@ -539,8 +565,10 @@ export async function applySeed(
 					// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
 					// and `live_revision_id` is populated for downstream queries.
 					if (status === "published") {
-						await trxContentRepo.publish(collectionSlug, item.id);
+						item = await trxContentRepo.publish(collectionSlug, item.id);
 					}
+
+					await replaceSeedContentMediaUsage(trx, collectionSlug, item);
 
 					return item;
 				});

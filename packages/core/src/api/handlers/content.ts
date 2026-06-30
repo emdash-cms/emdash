@@ -991,8 +991,12 @@ export async function handleContentUpdate(
 				await replaceCurrentContentMediaUsageSources(trx, collection, updated);
 			}
 			for (const siblingId of syncedMediaUsageSiblingIds) {
-				const sibling = await trxRepo.findById(collection, siblingId);
-				if (sibling) await replaceCurrentContentMediaUsage(trx, collection, sibling);
+				const sibling = await trxRepo.findByIdIncludingTrashed(collection, siblingId);
+				if (sibling) {
+					await replaceCurrentContentMediaUsageSources(trx, collection, sibling, {
+						contentDeletedAt: await getContentDeletedAt(trx, collection, sibling.id),
+					});
+				}
 			}
 
 			await hydrateBylines(trx, collection, updated);

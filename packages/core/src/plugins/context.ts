@@ -5,23 +5,27 @@
  *
  */
 
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
+import { RevisionRepository } from "../database/repositories/revision.js";
 import { SeoRepository } from "../database/repositories/seo.js";
+import type { ContentItem as RepositoryContentItem } from "../database/repositories/types.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
+import { validateIdentifier } from "../database/validate.js";
 import {
 	resolveAndValidateExternalUrl,
 	SsrfError,
 	stripCredentialHeaders,
 } from "../import/ssrf.js";
 import { enrichImageMetadata } from "../media/enrich.js";
+import { replaceContentMediaUsage } from "../media/usage-index.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import { CronAccessImpl } from "./cron.js";
@@ -193,6 +197,63 @@ async function assertSeoEnabled(
 	return hasSeo;
 }
 
+function getContentMediaUsageState(item: Pick<RepositoryContentItem, "status">): "live" | "draft" {
+	return item.status === "published" ? "live" : "draft";
+}
+
+async function replacePluginContentMediaUsage(
+	db: Kysely<Database>,
+	collection: string,
+	item: RepositoryContentItem,
+	contentDeletedAt?: string | null,
+): Promise<void> {
+	const state = getContentMediaUsageState(item);
+	await replaceContentMediaUsage(
+		db,
+		collection,
+		item,
+		state,
+		item.data,
+		state === "live" ? item.liveRevisionId : null,
+		contentDeletedAt ?? null,
+	);
+}
+
+async function replacePluginContentMediaUsageSources(
+	db: Kysely<Database>,
+	collection: string,
+	item: RepositoryContentItem,
+	contentDeletedAt?: string | null,
+): Promise<void> {
+	await replacePluginContentMediaUsage(db, collection, item, contentDeletedAt);
+
+	if (item.status !== "published" || !item.draftRevisionId) return;
+	const draft = await new RevisionRepository(db).findById(item.draftRevisionId);
+	if (!draft) return;
+	await replaceContentMediaUsage(
+		db,
+		collection,
+		item,
+		"draft",
+		draft.data,
+		draft.id,
+		contentDeletedAt ?? null,
+	);
+}
+
+async function getContentDeletedAt(
+	db: Kysely<Database>,
+	collection: string,
+	contentId: string,
+): Promise<string | null> {
+	validateIdentifier(collection, "collection slug");
+	const tableName = `ec_${collection}`;
+	const result = await sql<{ deleted_at: string | null }>`
+		SELECT deleted_at FROM ${sql.ref(tableName)} WHERE id = ${contentId}
+	`.execute(db);
+	return result.rows[0]?.deleted_at ?? null;
+}
+
 /**
  * Create read-only content access
  */
@@ -305,6 +366,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 					type: collection,
 					data: fields,
 				});
+				await replacePluginContentMediaUsage(trx, collection, item);
 
 				const result: ContentItem = {
 					id: item.id,
@@ -351,6 +413,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 							if (!existing) throw new Error("Content not found");
 							return existing;
 						})();
+				if (hasFieldUpdates) await replacePluginContentMediaUsage(trx, collection, item);
 
 				const result: ContentItem = {
 					id: item.id,
@@ -376,8 +439,22 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 		},
 
 		async delete(collection: string, id: string): Promise<boolean> {
-			const contentRepo = new ContentRepository(db);
-			return contentRepo.delete(collection, id);
+			return withTransaction(db, async (trx) => {
+				const contentRepo = new ContentRepository(trx);
+				const deleted = await contentRepo.delete(collection, id);
+				if (deleted) {
+					const item = await contentRepo.findByIdIncludingTrashed(collection, id);
+					if (item) {
+						await replacePluginContentMediaUsageSources(
+							trx,
+							collection,
+							item,
+							await getContentDeletedAt(trx, collection, id),
+						);
+					}
+				}
+				return deleted;
+			});
 		},
 	};
 }

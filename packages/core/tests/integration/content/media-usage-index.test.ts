@@ -20,7 +20,9 @@ import { MediaRepository, type MediaItem } from "../../../src/database/repositor
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { replaceContentMediaUsage } from "../../../src/media/usage-index.js";
+import { createContentAccessWithWrite } from "../../../src/plugins/context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { applySeed } from "../../../src/seed/apply.js";
 import {
 	describeEachDialect,
 	setupForDialect,
@@ -290,6 +292,107 @@ describeEachDialect("content media usage indexing", (dialect) => {
 		expect(mediaBUsage.map((usage) => usage.contentId).toSorted(compareNullableString)).toEqual(
 			[en.data.item.id, fr.data.item.id].toSorted(compareNullableString),
 		);
+	});
+
+	it("reindexes trashed sibling locales when non-translatable media fields sync", async () => {
+		const en = await handleContentCreate(ctx.db, "posts", {
+			slug: "trashed-shared-en",
+			locale: "en",
+			data: { title: "Shared", hero: { id: mediaA.id, provider: "local" } },
+		});
+		if (!en.success) throw new Error("create en failed");
+		const fr = await handleContentCreate(ctx.db, "posts", {
+			slug: "trashed-shared-fr",
+			locale: "fr",
+			translationOf: en.data.item.id,
+			data: { title: "Partage", hero: { id: mediaA.id, provider: "local" } },
+		});
+		if (!fr.success) throw new Error("create fr failed");
+
+		const deleted = await handleContentDelete(ctx.db, "posts", fr.data.item.id);
+		expect(deleted.success).toBe(true);
+
+		const updated = await handleContentUpdate(ctx.db, "posts", en.data.item.id, {
+			data: { hero: { id: mediaB.id, provider: "local" } },
+		});
+		expect(updated.success).toBe(true);
+
+		expect(await usageRepo.findCurrentByMediaId(mediaA.id)).toHaveLength(0);
+		const mediaBUsage = await usageRepo.findCurrentByMediaId(mediaB.id);
+		expect(mediaBUsage.map((usage) => usage.contentId).toSorted(compareNullableString)).toEqual(
+			[en.data.item.id, fr.data.item.id].toSorted(compareNullableString),
+		);
+		expect(
+			mediaBUsage.find((usage) => usage.contentId === fr.data.item.id)?.contentDeletedAt,
+		).toBeTruthy();
+	});
+
+	it("indexes media usage for plugin content writes", async () => {
+		const content = createContentAccessWithWrite(ctx.db);
+		const created = await content.create("posts", {
+			title: "Plugin Entry",
+			hero: { id: mediaA.id, provider: "local" },
+		});
+
+		expect((await usageRepo.findCurrentByMediaId(mediaA.id))[0]?.contentId).toBe(created.id);
+
+		await content.update("posts", created.id, { hero: { id: mediaB.id, provider: "local" } });
+
+		expect(await usageRepo.findCurrentByMediaId(mediaA.id)).toHaveLength(0);
+		const mediaBUsage = await usageRepo.findCurrentByMediaId(mediaB.id);
+		expect(mediaBUsage).toHaveLength(1);
+		expect(mediaBUsage[0]?.contentId).toBe(created.id);
+
+		expect(await content.delete("posts", created.id)).toBe(true);
+		expect((await usageRepo.findCurrentByMediaId(mediaB.id))[0]?.contentDeletedAt).toBeTruthy();
+	});
+
+	it("indexes media usage for seed content create and update", async () => {
+		await applySeed(
+			ctx.db,
+			{
+				version: "1",
+				content: {
+					posts: [
+						{
+							id: "seed-post",
+							slug: "seed-post",
+							status: "published",
+							data: { title: "Seed Post", hero: { id: mediaA.id, provider: "local" } },
+						},
+					],
+				},
+			},
+			{ includeContent: true },
+		);
+
+		let mediaAUsage = await usageRepo.findCurrentByMediaId(mediaA.id);
+		expect(mediaAUsage).toHaveLength(1);
+		expect(mediaAUsage[0]?.state).toBe("live");
+
+		await applySeed(
+			ctx.db,
+			{
+				version: "1",
+				content: {
+					posts: [
+						{
+							id: "seed-post",
+							slug: "seed-post",
+							status: "published",
+							data: { title: "Seed Post", hero: { id: mediaB.id, provider: "local" } },
+						},
+					],
+				},
+			},
+			{ includeContent: true, onConflict: "update" },
+		);
+
+		mediaAUsage = await usageRepo.findCurrentByMediaId(mediaA.id);
+		expect(mediaAUsage).toHaveLength(0);
+		const mediaBUsage = await usageRepo.findCurrentByMediaId(mediaB.id);
+		expect(mediaBUsage).toHaveLength(1);
+		expect(mediaBUsage[0]?.state).toBe("live");
 	});
 
 	it("updates live usage when restoring a revision through the handler path", async () => {
