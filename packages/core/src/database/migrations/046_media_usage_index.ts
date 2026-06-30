@@ -1,6 +1,5 @@
 import { sql, type Kysely } from "kysely";
 
-import { replaceCollectionMediaUsage } from "../../media/usage-index.js";
 import { currentTimestamp } from "../dialect-helpers.js";
 import type { Database } from "../types.js";
 
@@ -104,6 +103,7 @@ async function backfillExistingContentMediaUsage(db: Kysely<unknown>): Promise<v
 	const collections = await sql<{ slug: string }>`
 		SELECT slug FROM _emdash_collections
 	`.execute(db);
+	const { replaceCollectionMediaUsage } = await import("../../media/usage-index.js");
 
 	for (const collection of collections.rows) {
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- migration runs against Kysely<unknown>, runtime helper needs the generated DB type
