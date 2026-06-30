@@ -32,6 +32,7 @@ import type {
 	ContentBeforeDeleteHandler,
 	ContentAfterDeleteHandler,
 	ContentAfterPublishHandler,
+	ContentAfterRestoreHandler,
 	ContentAfterUnpublishHandler,
 	MediaBeforeUploadHandler,
 	MediaAfterUploadHandler,
@@ -66,6 +67,7 @@ type HookNameV2 =
 	| "content:afterDelete"
 	| "content:afterPublish"
 	| "content:afterUnpublish"
+	| "content:afterRestore"
 	| "media:beforeUpload"
 	| "media:afterUpload"
 	| "cron"
@@ -93,6 +95,7 @@ interface HookHandlerMap {
 	"content:afterDelete": ContentAfterDeleteHandler;
 	"content:afterPublish": ContentAfterPublishHandler;
 	"content:afterUnpublish": ContentAfterUnpublishHandler;
+	"content:afterRestore": ContentAfterRestoreHandler;
 	"media:beforeUpload": MediaBeforeUploadHandler;
 	"media:afterUpload": MediaAfterUploadHandler;
 	cron: CronHandler;
@@ -220,6 +223,7 @@ export class HookPipeline {
 			this.registerPluginHook(plugin, "content:afterDelete");
 			this.registerPluginHook(plugin, "content:afterPublish");
 			this.registerPluginHook(plugin, "content:afterUnpublish");
+			this.registerPluginHook(plugin, "content:afterRestore");
 			this.registerPluginHook(plugin, "media:beforeUpload");
 			this.registerPluginHook(plugin, "media:afterUpload");
 			this.registerPluginHook(plugin, "cron");
@@ -264,6 +268,7 @@ export class HookPipeline {
 		["content:afterDelete", "content:read"],
 		["content:afterPublish", "content:read"],
 		["content:afterUnpublish", "content:read"],
+		["content:afterRestore", "content:read"],
 		// Media
 		["media:beforeUpload", "media:write"],
 		["media:afterUpload", "media:read"],
@@ -695,6 +700,46 @@ export class HookPipeline {
 		collection: string,
 	): Promise<HookResult<void>[]> {
 		const hooks = this.getTypedHooks("content:afterUnpublish");
+		const results: HookResult<void>[] = [];
+
+		for (const hook of hooks) {
+			const { handler } = hook;
+			const event: ContentPublishStateChangeEvent = { content, collection };
+			const ctx = this.getContext(hook.pluginId);
+			const start = Date.now();
+
+			try {
+				await this.executeWithTimeout(() => handler(event, ctx), hook.timeout);
+				results.push({
+					success: true,
+					pluginId: hook.pluginId,
+					duration: Date.now() - start,
+				});
+			} catch (error) {
+				results.push({
+					success: false,
+					error: error instanceof Error ? error : new Error(String(error)),
+					pluginId: hook.pluginId,
+					duration: Date.now() - start,
+				});
+
+				if (hook.errorPolicy === "abort") {
+					throw error;
+				}
+			}
+		}
+
+		return results;
+	}
+
+	/**
+	 * Run content:afterRestore hooks (fire-and-forget).
+	 */
+	async runContentAfterRestore(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		const hooks = this.getTypedHooks("content:afterRestore");
 		const results: HookResult<void>[] = [];
 
 		for (const hook of hooks) {

@@ -110,10 +110,43 @@ export interface D1Config {
  */
 export interface HyperdriveConfig {
 	/**
-	 * Name of the Hyperdrive binding in wrangler config.
+	 * Name of the Hyperdrive binding in wrangler config. This is the primary,
+	 * **caching-disabled** binding — every authenticated request and every write
+	 * uses it, so read-after-write consistency holds.
 	 * @default "HYPERDRIVE"
 	 */
 	binding?: string;
+
+	/**
+	 * Optional name of a second Hyperdrive binding pointing at a
+	 * **caching-enabled** configuration over the *same* database.
+	 *
+	 * When set, anonymous reads of **public-site paths** (no session, GET/HEAD,
+	 * not under `/_emdash`) route through this cache-enabled binding for lower
+	 * latency and reduced database load. Everything else stays on `binding`
+	 * (uncached) to preserve read-after-write consistency: every authenticated
+	 * request, every write, and every request under `/_emdash` (admin, setup,
+	 * auth, internal APIs) — including anonymous GETs like the post-setup status
+	 * check, which must observe a write made moments earlier. Migrations and the
+	 * cold-start singleton always use `binding`.
+	 *
+	 * Anonymous reads of just-published content can be up to the cache's
+	 * `max_age` stale (Hyperdrive default 60s, max 1h), and this cache is
+	 * independent of EmDash's own cache invalidation — only opt in if a short
+	 * public-read staleness window is acceptable. Omit it and the adapter uses
+	 * the single primary binding as before.
+	 *
+	 * Bind both configs in wrangler:
+	 * ```jsonc
+	 * {
+	 *   "hyperdrive": [
+	 *     { "binding": "HYPERDRIVE", "id": "<caching-disabled-id>" },
+	 *     { "binding": "HYPERDRIVE_CACHED", "id": "<caching-enabled-id>" }
+	 *   ]
+	 * }
+	 * ```
+	 */
+	cachedBinding?: string;
 
 	/**
 	 * Maximum size of the in-Worker node-postgres connection pool.
@@ -254,6 +287,16 @@ export function d1(config: D1Config): DatabaseDescriptor {
  * # or, at create time: wrangler hyperdrive create ... --caching-disabled
  * ```
  *
+ * **Optional: serve anonymous reads from cache.** If a short public-read
+ * staleness window is acceptable, pass a second `cachedBinding` pointing at a
+ * caching-enabled Hyperdrive config over the same database. Anonymous read
+ * requests then route through the cache-enabled binding while authenticated
+ * requests and writes stay on the uncached `binding`, keeping read-after-write
+ * consistency intact:
+ * ```ts
+ * database: hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" })
+ * ```
+ *
  * For best latency, pair this with a Smart Placement hint so the Worker runs in
  * the Cloudflare data center closest to your database's region — the request
  * path makes multiple round trips, so co-locating the Worker with the origin
@@ -281,7 +324,11 @@ export function d1(config: D1Config): DatabaseDescriptor {
 export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
 	return {
 		entrypoint: "@emdash-cms/cloudflare/db/hyperdrive",
-		config: { binding: config.binding ?? "HYPERDRIVE", max: config.max },
+		config: {
+			binding: config.binding ?? "HYPERDRIVE",
+			max: config.max,
+			...(config.cachedBinding !== undefined ? { cachedBinding: config.cachedBinding } : {}),
+		},
 		type: "postgres",
 		// Each request gets a fresh pg connection that is closed afterwards —
 		// connections cannot be reused across Worker requests.

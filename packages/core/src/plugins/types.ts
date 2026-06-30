@@ -791,6 +791,11 @@ export type ContentAfterUnpublishHandler = (
 	ctx: PluginContext,
 ) => Promise<void>;
 
+export type ContentAfterRestoreHandler = (
+	event: ContentPublishStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
 export type MediaBeforeUploadHandler = (
 	event: MediaUploadEvent,
 	ctx: PluginContext,
@@ -976,6 +981,7 @@ export interface PluginHooks {
 	"content:afterUnpublish"?:
 		| HookConfig<ContentAfterUnpublishHandler>
 		| ContentAfterUnpublishHandler;
+	"content:afterRestore"?: HookConfig<ContentAfterRestoreHandler> | ContentAfterRestoreHandler;
 
 	// Media hooks
 	"media:beforeUpload"?: HookConfig<MediaBeforeUploadHandler> | MediaBeforeUploadHandler;
@@ -1295,6 +1301,7 @@ export interface ResolvedPluginHooks {
 	"content:afterDelete"?: ResolvedHook<ContentAfterDeleteHandler>;
 	"content:afterPublish"?: ResolvedHook<ContentAfterPublishHandler>;
 	"content:afterUnpublish"?: ResolvedHook<ContentAfterUnpublishHandler>;
+	"content:afterRestore"?: ResolvedHook<ContentAfterRestoreHandler>;
 	"media:beforeUpload"?: ResolvedHook<MediaBeforeUploadHandler>;
 	"media:afterUpload"?: ResolvedHook<MediaAfterUploadHandler>;
 	cron?: ResolvedHook<CronHandler>;
