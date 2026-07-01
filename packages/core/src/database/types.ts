@@ -60,6 +60,43 @@ export interface MediaTable {
 	author_id: string | null;
 }
 
+export interface MediaUsageSourceTable {
+	source_key: string;
+	source_type: string;
+	collection_slug: string | null;
+	content_id: string | null;
+	source_variant: string;
+	locale: string | null;
+	translation_group: string | null;
+	content_slug: string | null;
+	content_title: string | null;
+	content_status: string | null;
+	content_scheduled_at: string | null;
+	content_deleted_at: string | null;
+	revision_id: string | null;
+	current_generation: string;
+	schema_version: Generated<number>;
+	indexed_at: Generated<string>;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface MediaUsageTable {
+	id: string;
+	source_key: string;
+	generation: string;
+	field_slug: string;
+	field_path: string;
+	occurrence_index: Generated<number>;
+	reference_type: string;
+	media_id: string | null;
+	provider: Generated<string>;
+	provider_asset_id: string;
+	media_kind: string | null;
+	mime_type: string | null;
+	created_at: Generated<string>;
+}
+
 export interface UserTable {
 	id: string;
 	email: string;
@@ -382,6 +419,14 @@ export interface CommentTable {
 	updated_at: Generated<string>;
 }
 
+export interface CommentReactionTable {
+	id: string;
+	comment_id: string;
+	reaction: string;
+	voter_hash: string;
+	created_at: Generated<string>;
+}
+
 // Sections
 
 export interface SectionTable {
@@ -406,6 +451,8 @@ export interface Database {
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
 	media: MediaTable;
+	_emdash_media_usage_sources: MediaUsageSourceTable;
+	_emdash_media_usage: MediaUsageTable;
 	users: UserTable;
 	credentials: CredentialTable;
 	auth_tokens: AuthTokenTable;
@@ -433,6 +480,7 @@ export interface Database {
 	_emdash_seo: SeoTable;
 	_emdash_cron_tasks: CronTaskTable;
 	_emdash_comments: CommentTable;
+	_emdash_comment_reactions: CommentReactionTable;
 	_emdash_redirects: RedirectTable;
 	_emdash_404_log: NotFoundLogTable;
 	_emdash_bylines: BylineTable;
@@ -440,6 +488,8 @@ export interface Database {
 	_emdash_byline_fields: BylineFieldTable;
 	_emdash_byline_field_values: BylineFieldValueTable;
 	_emdash_byline_field_group_values: BylineFieldGroupValueTable;
+	_emdash_relations: RelationTable;
+	_emdash_content_references: ContentReferenceTable;
 	_emdash_rate_limits: RateLimitTable;
 }
 
@@ -571,6 +621,38 @@ export interface BylineFieldGroupValueTable {
 	value: string | null;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
+}
+
+// Content references
+//
+// `_emdash_relations` defines relationship types (row-per-locale, like
+// `_emdash_taxonomy_defs`). `_emdash_content_references` holds directed edges
+// between content entries, linked by `translation_group` so they are
+// locale-agnostic — no foreign keys, mirroring `content_taxonomies`.
+
+export interface RelationTable {
+	id: string;
+	name: string;
+	parent_collection: string;
+	child_collection: string;
+	parent_label: string;
+	child_label: string;
+	locale: Generated<string>;
+	translation_group: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface ContentReferenceTable {
+	id: string;
+	/** Stores `_emdash_relations.translation_group` (locale-agnostic). No FK. */
+	relation_group: string;
+	/** Parent entry's `translation_group`. */
+	parent_group: string;
+	/** Child entry's `translation_group`. */
+	child_group: string;
+	sort_order: Generated<number>;
+	created_at: Generated<string>;
 }
 
 // Rate Limits

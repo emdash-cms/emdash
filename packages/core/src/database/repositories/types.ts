@@ -78,6 +78,19 @@ export interface BylineSummary {
 	avatarStorageKey?: string | null;
 	/** Avatar media alt text, from the same media join. Null when not joined. */
 	avatarAlt?: string | null;
+	/**
+	 * Avatar media blurhash (LQIP placeholder, migration 024), folded in by the
+	 * same media join as `avatarStorageKey`. Lets a renderer paint a blurred
+	 * placeholder while the full avatar loads, with no extra media lookup.
+	 * Null when the byline has no avatar, the media row has no blurhash, or the
+	 * byline was loaded through a finder that doesn't join media.
+	 */
+	avatarBlurhash?: string | null;
+	/**
+	 * Avatar media dominant colour (LQIP placeholder, migration 024), from the
+	 * same media join. Null under the same conditions as `avatarBlurhash`.
+	 */
+	avatarDominantColor?: string | null;
 	websiteUrl: string | null;
 	userId: string | null;
 	isGuest: boolean;
@@ -116,6 +129,22 @@ export interface ContentBylineCredit {
 	source?: "explicit" | "inferred";
 }
 
+/** A whitelisted timestamp column a content-list date range can filter on. */
+export type ContentDateField = "createdAt" | "updatedAt" | "publishedAt";
+
+/**
+ * Inclusive date-range filter for a single whitelisted timestamp column.
+ * Bounds are compared lexicographically against the stored ISO 8601 strings,
+ * which is correct because every timestamp is written via `toISOString()`.
+ * Callers wanting an inclusive upper bound should pass an end-of-day value
+ * (e.g. `2024-12-31T23:59:59.999Z`); the repository does not widen `to`.
+ */
+export interface ContentDateFilter {
+	field: ContentDateField;
+	from?: string;
+	to?: string;
+}
+
 export interface FindManyOptions {
 	where?: {
 		status?: string;
@@ -129,6 +158,8 @@ export interface FindManyOptions {
 		 * repository stays generic. Each name is validated as a SQL identifier.
 		 */
 		searchColumns?: string[];
+		/** Inclusive date range over a whitelisted timestamp column. */
+		dateFilter?: ContentDateFilter;
 	};
 	orderBy?: {
 		field: string;
@@ -236,5 +267,18 @@ export class EmDashValidationError extends Error {
 	) {
 		super(message);
 		this.name = "EmDashValidationError";
+	}
+}
+
+/**
+ * Thrown by `publish()` when called with `requireDue` for a row that is no
+ * longer due (its `scheduled_at` was cleared or pushed into the future between
+ * selection and publish — e.g. an editor unscheduled it). Lets the scheduled
+ * sweep skip the row silently rather than treating it as a publish failure.
+ */
+export class ScheduledNotDueError extends Error {
+	constructor(message = "Content is no longer scheduled to publish") {
+		super(message);
+		this.name = "ScheduledNotDueError";
 	}
 }

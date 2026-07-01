@@ -28,7 +28,12 @@ export const POST: APIRoute = async ({ params, locals }) => {
 		return apiError("INVALID_REQUEST", "Plugin ID required", 400);
 	}
 
-	const result = await handlePluginDisable(emdash.db, emdash.configuredPlugins, id);
+	const result = await handlePluginDisable(
+		emdash.db,
+		emdash.configuredPlugins,
+		emdash.sandboxedPluginEntries,
+		id,
+	);
 
 	if (!result.success) return unwrapResult(result);
 

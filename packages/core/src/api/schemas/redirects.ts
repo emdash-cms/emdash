@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isTerminalStatus, REDIRECT_RULE_STATUSES } from "../../redirects/status.js";
 import { cursorPaginationQuery } from "./common.js";
 
 // ---------------------------------------------------------------------------
@@ -9,8 +10,8 @@ import { cursorPaginationQuery } from "./common.js";
 const redirectType = z.coerce
 	.number()
 	.int()
-	.refine((n) => [301, 302, 307, 308].includes(n), {
-		message: "Redirect type must be 301, 302, 307, or 308",
+	.refine((n) => REDIRECT_RULE_STATUSES.includes(n), {
+		message: "Redirect type must be 301, 302, 307, 308, 410, or 451",
 	});
 
 /** Matches CR or LF characters */
@@ -40,17 +41,23 @@ const urlPath = z
 export const createRedirectBody = z
 	.object({
 		source: urlPath,
-		destination: urlPath,
+		// Optional: terminal statuses (410/451) have no destination. Redirect
+		// statuses require one — enforced by the refine below.
+		destination: z.union([urlPath, z.literal("")]).optional(),
 		type: redirectType.optional().default(301),
 		enabled: z.boolean().optional().default(true),
 		groupName: z.string().nullish(),
+	})
+	.refine((o) => isTerminalStatus(o.type ?? 301) || !!o.destination, {
+		message: "destination is required for redirect types (301, 302, 307, 308)",
+		path: ["destination"],
 	})
 	.meta({ id: "CreateRedirectBody" });
 
 export const updateRedirectBody = z
 	.object({
 		source: urlPath.optional(),
-		destination: urlPath.optional(),
+		destination: z.union([urlPath, z.literal("")]).optional(),
 		type: redirectType.optional(),
 		enabled: z.boolean().optional(),
 		groupName: z.string().nullish(),

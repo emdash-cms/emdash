@@ -38,6 +38,7 @@ const {
 			configuredPlugins: [],
 			handleContentList: ok,
 			handleContentGet: ok,
+			handleContentAuthors: ok,
 			handleContentCreate: ok,
 			handleContentUpdate: ok,
 			handleContentDelete: ok,
@@ -100,6 +101,8 @@ vi.mock(
 	() => ({
 		createDialect: vi.fn(),
 		createRequestScopedDb: vi.fn().mockReturnValue(null),
+		// Absent on non-batching backends; the runtime falls back to the singleton.
+		createCoalescingDialect: undefined,
 	}),
 	{ virtual: true },
 );
@@ -118,8 +121,10 @@ vi.mock(
 vi.mock("virtual:emdash/sandboxed-plugins", () => ({ sandboxedPlugins: [] }), { virtual: true });
 vi.mock("virtual:emdash/storage", () => ({ createStorage: null }), { virtual: true });
 vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
+vi.mock("virtual:emdash/scheduler", () => ({ createScheduler: null }), { virtual: true });
 
 vi.mock("../../../src/emdash-runtime.js", () => ({
+	DB_INIT_DEADLINE_MS: 30_000,
 	EmDashRuntime: {
 		create: async () => MOCK_RUNTIME,
 	},
@@ -143,10 +148,12 @@ import onRequest from "../../../src/astro/middleware.js";
 import { getDb } from "../../../src/loader.js";
 import { getRequestContext } from "../../../src/request-context.js";
 
-/** Reset the globalThis-backed "setup verified" singleton between tests. */
+/** Reset the globalThis-backed singletons between tests. */
 const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
+const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
 function resetSetupVerified() {
 	delete (globalThis as Record<symbol, unknown>)[SETUP_VERIFIED_KEY];
+	delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
 }
 
 /** A getDb stub whose migrations-probe query throws `error`. */
@@ -228,6 +235,10 @@ describe("astro middleware prerendered routes", () => {
 		const emdash = locals.emdash as Record<string, unknown>;
 		expect(typeof emdash.handlePluginApiRoute).toBe("function");
 		expect(typeof emdash.handlePublicPluginApiRoute).toBe("function");
+		// Regression for #1462: the author filter route reads
+		// `locals.emdash.handleContentAuthors`; it must be wired onto the
+		// runtime helpers object or every `/authors` request 500s.
+		expect(typeof emdash.handleContentAuthors).toBe("function");
 	});
 
 	it("does not access context.session when prerendering public pages", async () => {
@@ -488,6 +499,44 @@ describe("astro middleware request-scoped db", () => {
 		expect(getRequestContext()).toBeUndefined();
 	});
 
+	it("marks an API-token (Bearer) request as authenticated even without a session cookie", async () => {
+		// API tokens (ec_pat_*) and OAuth tokens (ec_oat_*) authenticate via the
+		// Authorization header, not the astro-session cookie, so sessionUser is
+		// null. They still expect read-your-writes, so the adapter must see
+		// isAuthenticated: true (keeps them on the primary/uncached connection,
+		// not a replica or the Hyperdrive query cache). These hit /_emdash/api/*,
+		// which is the main scoped path (the anonymous fast path is public-only).
+		const commit = vi.fn();
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: { _marker: "scoped" } as never,
+			commit,
+		});
+
+		const cookies = { get: vi.fn(() => undefined), set: vi.fn() };
+		const astroSession = { get: vi.fn(async () => null) };
+
+		const context: Record<string, unknown> = {
+			request: new Request("https://example.com/_emdash/api/content/posts", {
+				headers: { authorization: "Bearer ec_pat_example" },
+			}),
+			url: new URL("https://example.com/_emdash/api/content/posts"),
+			cookies,
+			locals: {},
+			redirect: vi.fn(),
+			isPrerendered: false,
+			session: astroSession,
+		};
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const opts = vi.mocked(createRequestScopedDb).mock.calls[0]?.[0];
+		expect(opts).toMatchObject({
+			config: DB_CONFIG_MARKER,
+			isAuthenticated: true,
+			isWrite: false,
+		});
+	});
+
 	it("forces isWrite true for POST requests on public pages", async () => {
 		const commit = vi.fn();
 		vi.mocked(createRequestScopedDb).mockReturnValue({
@@ -586,6 +635,28 @@ describe("astro middleware setup probe", () => {
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
 
 		expect(redirect).not.toHaveBeenCalled();
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+	});
+
+	it("does NOT redirect to setup during prerender even when migrations are missing (regression)", async () => {
+		// A prerendered route is built to static HTML. If the setup probe ran at
+		// build time it would see CI's legitimately-empty database, report a
+		// missing migrations table, and bake context.redirect("/_emdash/admin/setup")
+		// into every prerendered page -- shipping that redirect to production. The
+		// probe must be skipped entirely when prerendering.
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
+		);
+
+		const { context, redirect } = anonymousCategoryPageContext();
+		context.isPrerendered = true;
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(redirect).not.toHaveBeenCalled();
+		expect(getDb).not.toHaveBeenCalled();
 		expect(next).toHaveBeenCalledTimes(1);
 		expect(response.status).toBe(200);
 	});

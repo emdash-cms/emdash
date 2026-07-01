@@ -124,7 +124,7 @@ async function checkDatabase(dbPath: string): Promise<CheckResult[]> {
 		try {
 			const usersResult = await sql<{
 				count: number;
-			}>`SELECT COUNT(id) as count FROM _emdash_users`.execute(db);
+			}>`SELECT COUNT(id) as count FROM users`.execute(db);
 			const count = usersResult.rows[0]?.count ?? 0;
 			results.push({
 				name: "users",

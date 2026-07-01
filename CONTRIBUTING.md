@@ -93,6 +93,8 @@ pnpm test        # all packages
 pnpm test:e2e    # Playwright
 ```
 
+`pnpm build` is required before the first typecheck in a fresh checkout. Scoped package typechecks such as `pnpm --filter @emdash-cms/plugin-cli typecheck` resolve internal workspace type declarations from `dist/`, which the build emits; this matches CI's build-then-typecheck order.
+
 Tests use real in-memory SQLite -- no mocking. Each test gets a fresh database. Typecheck and lint must pass.
 
 ### Building your own site in the monorepo
@@ -171,15 +173,23 @@ The CLI walks you through affected packages, bump type, and description. Edit th
 
 ### Writing the description
 
-Start with a present-tense verb describing what the change does ("This PR..."):
+A changeset is the **release note a user reads while upgrading** -- it lands verbatim in the CHANGELOG. It is not a commit message, a PR description, or a summary of your diff. Don't paste your PR text into it: those explain the change to a reviewer reading the code, the changeset explains the effect to someone who will run the new version.
 
-- **Adds** -- new feature or capability
-- **Fixes** -- bug fix
-- **Updates** -- enhancement to existing behavior
-- **Removes** -- removed functionality
-- **Refactors** -- internal restructuring with no behavior change
+Write for that reader:
 
-Focus on what changes for someone **using** the package, not implementation details. The description ends up in the CHANGELOG that people read once during upgrades.
+- Start with a present-tense verb -- **Fixes** (bug), **Adds** (feature), **Updates** (enhancement), **Removes** (removed functionality), **Refactors** (no behavior change).
+- Describe the observable effect -- what's different for someone using the package.
+- Leave out internal mechanics -- file names, function names, which catalog entry you bumped, how you implemented it. If a sentence only makes sense to someone who has read the diff, it doesn't belong here.
+- For a breaking change, include the migration step.
+
+One sentence is often enough.
+
+```diff
+- # too low-level -- reads like a commit message
+- Align the catalog so identity-resolver's lexicons peer resolves; migrates parseCanonicalResourceUri off the result-object API in backfill.ts.
++ # right altitude -- the effect on the user
++ Fixes peer dependency warnings on install caused by mismatched `@atcute` package versions.
+```
 
 **Patch** (bug fix or small improvement):
 

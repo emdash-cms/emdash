@@ -102,7 +102,16 @@ export type CollectionSource =
 /** Sub-field definition for repeater fields */
 export interface RepeaterSubField {
 	slug: string;
-	type: "string" | "text" | "url" | "number" | "integer" | "boolean" | "datetime" | "select";
+	type:
+		| "string"
+		| "text"
+		| "url"
+		| "number"
+		| "integer"
+		| "boolean"
+		| "datetime"
+		| "select"
+		| "image";
 	label: string;
 	required?: boolean;
 	options?: string[]; // For select sub-fields
@@ -118,6 +127,7 @@ export const REPEATER_SUB_FIELD_TYPES = [
 	"boolean",
 	"datetime",
 	"select",
+	"image",
 ] as const;
 
 export interface FieldValidation {
@@ -254,6 +264,16 @@ export interface CreateFieldInput {
  */
 export interface UpdateFieldInput {
 	label?: string;
+	/**
+	 * Change the field's type. Only type changes that keep the same underlying
+	 * column type (per `FIELD_TYPE_TO_COLUMN`) are allowed — e.g. `string` to
+	 * `slug` (both TEXT). A change that would alter the column affinity (e.g.
+	 * `text` TEXT to `portableText` JSON) is rejected, because there is no
+	 * in-place column migration and silently rewriting the metadata would
+	 * desync `column_type` from the real `ec_*` column. Omit to keep the
+	 * current type.
+	 */
+	type?: FieldType;
 	required?: boolean;
 	unique?: boolean;
 	defaultValue?: unknown;

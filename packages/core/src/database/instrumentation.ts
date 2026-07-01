@@ -33,6 +33,19 @@ export interface QueryRecorder {
 	route: string;
 	method: string;
 	phase: string;
+	/**
+	 * Set once the recorder has been emitted, so a flush is idempotent.
+	 * Without this, a fallback flush and the stream-end flush could both
+	 * fire and double-emit the events.
+	 */
+	flushed?: boolean;
+	/**
+	 * Set when the response body is wrapped for stream-end metrics. The
+	 * recorder is then flushed when the body finishes streaming (so it
+	 * captures queries issued by components during streaming) rather than
+	 * when middleware returns (headers ready, body not yet streamed).
+	 */
+	deferredFlush?: boolean;
 }
 
 export function createRecorder(route: string, method: string, phase: string): QueryRecorder {
@@ -60,9 +73,16 @@ export function recordEvent(
  * harness pipes the child's stdout, filters lines beginning with
  * QUERY_LOG_PREFIX, and writes them to its own file. Using stdout means
  * the sink works uniformly in Node and in workerd (which has no fs).
+ *
+ * Idempotent: the first call emits and marks the recorder flushed, later
+ * calls no-op. For streamed responses the flush is deferred to stream end
+ * (see wrapBodyForStreamMetrics) so it captures queries issued while the
+ * body is still rendering; bodyless responses fall back to a flush when
+ * middleware returns.
  */
 export function flushRecorder(rec: QueryRecorder): void {
-	if (rec.events.length === 0) return;
+	if (rec.flushed) return;
+	rec.flushed = true;
 	for (const e of rec.events) {
 		console.log(`${QUERY_LOG_PREFIX} ${JSON.stringify(e)}`);
 	}
@@ -109,4 +129,17 @@ function kyselyLog(event: LogEvent): void {
  */
 export function kyselyLogOption(): Logger {
 	return kyselyLog;
+}
+
+/**
+ * Record physical database round trips for the current request.
+ *
+ * Called by backends that batch (the DO SQL driver coalesces same-turn SELECTs
+ * into one RPC), so we can see round-trip count separately from logical query
+ * count (`dbCount`, bumped by the Kysely log hook). No-op outside a request or
+ * when metrics aren't attached (e.g. migrations on the singleton).
+ */
+export function recordRpc(count = 1): void {
+	const ctx = getRequestContext();
+	if (ctx?.metrics) ctx.metrics.rpcCount += count;
 }

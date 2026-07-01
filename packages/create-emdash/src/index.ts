@@ -119,9 +119,9 @@ const NEWLINE_PATTERN = /\r?\n/;
 
 /**
  * Make sure `fileName` is excluded by `.gitignore`. Templates' gitignores
- * already cover `.env*` but not `.dev.vars`; rather than relying on every
- * template being current, the scaffolder defensively appends a stanza if
- * no existing line matches.
+ * already cover `.env*`, but rather than relying on every template being
+ * current, the scaffolder defensively appends a stanza if no existing line
+ * matches.
  */
 function ensureGitignored(projectDir: string, fileName: string): void {
 	const target = resolve(projectDir, ".gitignore");
@@ -376,15 +376,30 @@ async function main() {
 			writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
 		}
 
-		// Scaffold a fresh EMDASH_ENCRYPTION_KEY into the local-secrets file
-		// (Workers: .dev.vars, Node: .env). Idempotent — won't overwrite an
-		// existing entry if the user re-runs scaffolding into a non-empty
-		// directory. We also defensively ensure the file is gitignored.
-		const secretsFile = platform === "cloudflare" ? ".dev.vars" : ".env";
+		// Scaffold a fresh EMDASH_ENCRYPTION_KEY into the local-secrets file.
+		// Both Node and Cloudflare use `.env` now — since Aug 2025 Wrangler and
+		// the Cloudflare Vite plugin read `.env` in local development, so we no
+		// longer special-case Workers with `.dev.vars`. Idempotent — won't
+		// overwrite an existing entry if the user re-runs scaffolding into a
+		// non-empty directory. We also defensively ensure the file is gitignored.
+		const secretsFile = ".env";
 		const keyResult = writeEncryptionKey(projectDir, secretsFile);
 		ensureGitignored(projectDir, secretsFile);
 
 		s.stop("Project created!");
+
+		// Wrangler loads either `.dev.vars` or `.env`, but never both: when a
+		// `.dev.vars` file is present its values win and `.env` is ignored
+		// entirely. A stray legacy `.dev.vars` (e.g. scaffolding over an older
+		// project) would therefore silently shadow the `.env` we just wrote and
+		// the encryption key would never load. Warn so the user consolidates.
+		if (platform === "cloudflare" && existsSync(resolve(projectDir, ".dev.vars"))) {
+			p.log.warn(
+				`Found an existing ${pc.cyan(".dev.vars")}. Wrangler ignores ${pc.cyan(".env")} while ` +
+					`${pc.cyan(".dev.vars")} is present — move your secrets into ${pc.cyan(".env")} and delete ` +
+					`${pc.cyan(".dev.vars")} so the encryption key loads.`,
+			);
+		}
 
 		if (keyResult === "skipped") {
 			p.log.info(

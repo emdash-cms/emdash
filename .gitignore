@@ -17,8 +17,10 @@ pnpm-debug.log*
 
 # environment variables
 .env
-.env.production
+.env.*
+!.env.example
 .dev.vars
+.dev.vars.*
 
 # database files
 *.db
@@ -57,6 +59,7 @@ assets/templates/*/[0-9]*
 
 # Vitest browser-mode failure screenshots
 __screenshots__/
+.vitest-attachments/
 
 # AI review artifacts
 *-review.md

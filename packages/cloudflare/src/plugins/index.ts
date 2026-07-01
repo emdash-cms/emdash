@@ -5,3 +5,8 @@
  */
 
 export { vectorizeSearch, type VectorizeSearchConfig } from "./vectorize-search.js";
+export {
+	cloudflareEmail,
+	createCloudflareEmailDeliver,
+	type CloudflareEmailConfig,
+} from "./cloudflare-email.js";

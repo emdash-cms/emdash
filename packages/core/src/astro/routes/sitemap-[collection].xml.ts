@@ -23,6 +23,7 @@ import { getSiteSettingsWithDb } from "#settings/index.js";
 
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { interpolateUrlPattern, localizePath } from "../../i18n/resolve.js";
+import { buildSeoImageUrl } from "../../seo/media-url.js";
 
 export const prerender = false;
 
@@ -112,8 +113,8 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 		const lines: string[] = ['<?xml version="1.0" encoding="UTF-8"?>'];
 		lines.push(
 			useXhtml
-				? '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">'
-				: '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+				? '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">'
+				: '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">',
 		);
 
 		const writeUrl = async (entry: Entry, siblings: Entry[] | null) => {
@@ -127,11 +128,22 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 			lines.push(`    <loc>${escapeXml(loc)}</loc>`);
 			lines.push(`    <lastmod>${escapeXml(entry.updatedAt)}</lastmod>`);
 
-			if (useXhtml && siblings && siblings.length > 1) {
+			// Google image sitemap extension: advertise the entry's SEO
+			// image (the same "preferred image" used for og:image) so it
+			// can be discovered and indexed for Google Images.
+			if (entry.image) {
+				const imageLoc = buildSeoImageUrl(entry.image, siteUrl);
+				lines.push("    <image:image>");
+				lines.push(`      <image:loc>${escapeXml(imageLoc)}</image:loc>`);
+				lines.push("    </image:image>");
+			}
+
+			const alternateEntries = siblings ?? (useXhtml ? [entry] : null);
+			if (useXhtml && alternateEntries) {
 				// Emit one xhtml:link per sibling (including self -- Google
 				// recommends including the page's own hreflang annotation).
 				// Siblings with unroutable locales are skipped here too.
-				for (const sib of siblings) {
+				for (const sib of alternateEntries) {
 					const sibLoc = await resolveEntryUrl(sib);
 					if (sibLoc === null) continue;
 					lines.push(
@@ -143,13 +155,13 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 				// the first sibling with a routable URL. Stable order:
 				// rows arrive sorted by updated_at DESC from the handler.
 				const defaultSibling =
-					i18nConfig && siblings.find((s) => s.locale === i18nConfig.defaultLocale);
+					i18nConfig && alternateEntries.find((s) => s.locale === i18nConfig.defaultLocale);
 				let xDefaultLoc: string | null = null;
 				if (defaultSibling) {
 					xDefaultLoc = await resolveEntryUrl(defaultSibling);
 				}
 				if (xDefaultLoc === null) {
-					for (const sib of siblings) {
+					for (const sib of alternateEntries) {
 						const sibLoc = await resolveEntryUrl(sib);
 						if (sibLoc !== null) {
 							xDefaultLoc = sibLoc;

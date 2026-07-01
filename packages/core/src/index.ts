@@ -46,6 +46,7 @@ export type {
 // API handlers
 export {
 	handleContentList,
+	handleContentAuthors,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,
@@ -191,6 +192,28 @@ export type {
 } from "./storage/types.js";
 export { EmDashStorageError } from "./storage/types.js";
 
+// Object cache (distributed read-through query cache)
+export {
+	cachedQuery,
+	invalidateObjectCache,
+	invalidateCollectionCache,
+	invalidateTaxonomyObjectCache,
+	invalidateBylineObjectCache,
+	invalidateMenuObjectCache,
+	invalidateSchemaObjectCache,
+	invalidateCommentObjectCache,
+	contentNamespace,
+	contentNamespaces,
+	CacheNamespace,
+} from "./object-cache/index.js";
+export type { CachedQueryOptions } from "./object-cache/index.js";
+export type {
+	ObjectCacheBackend,
+	ObjectCacheDescriptor,
+	ObjectCacheRuntimeConfig,
+	CreateObjectCacheBackendFn,
+} from "./object-cache/types.js";
+
 // Plugin system
 export {
 	definePlugin,
@@ -201,6 +224,8 @@ export {
 	PluginManager,
 	createPluginManager,
 	PluginRouteError,
+	// Scheduler (Node timer heartbeat — used by virtual:emdash/scheduler)
+	NodeCronScheduler,
 	// Sandbox
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
@@ -230,6 +255,9 @@ export type {
 	ContentHookEvent,
 	ContentDeleteEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	MediaUploadEvent,
 	HookResult,
 	PluginRoute,
@@ -252,6 +280,10 @@ export type {
 	ModerationDecision,
 	CollectionCommentSettings,
 	StoredComment,
+
+	// Scheduler types
+	CronScheduler,
+	SystemCleanupFn,
 
 	// Sandbox runtime types
 	SandboxRunner,
@@ -406,7 +438,7 @@ export type {
 } from "./menus/types.js";
 
 // Bylines
-export { getByline, getBylineBySlug } from "./bylines/index.js";
+export { getByline, getBylineBySlug, getEntriesByByline } from "./bylines/index.js";
 export type { BylineSummary, ContentBylineCredit } from "./database/repositories/types.js";
 
 // Taxonomies

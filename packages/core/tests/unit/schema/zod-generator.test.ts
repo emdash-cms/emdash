@@ -6,6 +6,7 @@ import {
 	generateFieldSchema,
 	validateContent,
 	generateTypeScript,
+	generateTypesFile,
 	clearSchemaCache,
 } from "../../../src/schema/zod-generator.js";
 
@@ -547,11 +548,102 @@ describe("Zod Generator", () => {
 
 			const ts = generateTypeScript(collection);
 
+			// Interface names derive from the singularized slug
+			// (`blog_posts` -> `BlogPost`), not the human label, so they are
+			// always valid TS identifiers describing a single entry.
 			expect(ts).toContain("export interface BlogPost");
 			expect(ts).toContain("title: string;");
 			expect(ts).toContain("content: PortableTextBlock[];");
 			expect(ts).toContain("featured?: boolean;");
 			expect(ts).toContain('status: "draft" | "published";');
+			// Hydrated by getEmDashCollection/getEmDashEntry
+			expect(ts).toContain("bylines?: ContentBylineCredit[];");
+			expect(ts).toContain("terms?: Record<string, TaxonomyTerm[]>;");
+		});
+	});
+
+	describe("interface names derive from the singularized slug", () => {
+		// A minimal collection factory: interface naming only depends on slug/labels.
+		function makeCollection(
+			slug: string,
+			overrides: Partial<CollectionWithFields> = {},
+		): CollectionWithFields {
+			return {
+				id: `c_${slug}`,
+				slug,
+				label: slug,
+				supports: [],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				fields: [],
+				...overrides,
+			};
+		}
+
+		function interfaceNamesOf(ts: string): string[] {
+			return Array.from(ts.matchAll(/export interface (\S+)/g), (m) => m[1]!);
+		}
+
+		it("uses the slug, ignoring an arbitrary human label", () => {
+			// The label has spaces and parentheses that are illegal in an
+			// identifier; the slug (constrained `[a-z0-9_]`) is used instead.
+			const ts = generateTypeScript(makeCollection("book", { labelSingular: "Book (do not use)" }));
+
+			expect(interfaceNamesOf(ts)).toEqual(["Book"]);
+		});
+
+		it("keeps names unique when singularization collapses two slugs", () => {
+			// `book` and `books` both singularize to `Book`; the collision is
+			// resolved with a numeric suffix so the generated `.d.ts` never
+			// declares the same identifier twice.
+			const ts = generateTypesFile([makeCollection("book"), makeCollection("books")]);
+
+			const names = interfaceNamesOf(ts);
+			expect(names).toEqual(["Book", "Book2"]);
+			expect(new Set(names).size).toBe(names.length);
+		});
+
+		it("keeps names unique when a suffixed name collides with another slug", () => {
+			// `book` and `books` both singularize to `Book`, so `books` gets
+			// suffixed to `Book2` -- which is also exactly what `book2` produces.
+			// The dedupe must skip past an already-taken suffix, not blindly emit
+			// it, or the file declares `Book2` twice.
+			const ts = generateTypesFile([
+				makeCollection("book"),
+				makeCollection("books"),
+				makeCollection("book2"),
+			]);
+
+			const names = interfaceNamesOf(ts);
+			expect(new Set(names).size).toBe(names.length);
+		});
+
+		it("singularizes and PascalCases multi-word slugs", () => {
+			expect(interfaceNamesOf(generateTypeScript(makeCollection("blog_posts")))).toEqual([
+				"BlogPost",
+			]);
+		});
+
+		it("singularizes a plural slug to describe a single entry", () => {
+			expect(interfaceNamesOf(generateTypeScript(makeCollection("pages")))).toEqual(["Page"]);
+		});
+
+		it("leaves an already-singular slug unchanged", () => {
+			expect(interfaceNamesOf(generateTypeScript(makeCollection("book")))).toEqual(["Book"]);
+		});
+
+		it("references the same interface names in the EmDashCollections map", () => {
+			const ts = generateTypesFile([
+				makeCollection("book", { labelSingular: "Book (do not use)" }),
+				makeCollection("blog_posts"),
+			]);
+
+			// Every interface declared must be referenced by the augmentation map,
+			// keyed by slug -> interface name.
+			expect(ts).toContain("export interface Book {");
+			expect(ts).toContain("book: Book;");
+			expect(ts).toContain("export interface BlogPost {");
+			expect(ts).toContain("blog_posts: BlogPost;");
 		});
 	});
 });

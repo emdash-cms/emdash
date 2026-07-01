@@ -30,6 +30,7 @@
  */
 
 import type { ContentSeo } from "../database/repositories/types.js";
+import { buildSeoImageUrl } from "./media-url.js";
 
 const TRAILING_SLASH_RE = /\/$/;
 const ABSOLUTE_URL_RE = /^https?:\/\//i;
@@ -117,7 +118,7 @@ export function getSeoMeta<T>(content: SeoContentInput<T>, options: SeoMetaOptio
 		null;
 
 	// OG image: SEO image > default
-	const ogImage = seo.image ? buildMediaUrl(seo.image, siteUrl) : (defaultOgImage ?? null);
+	const ogImage = seo.image ? buildSeoImageUrl(seo.image, siteUrl) : (defaultOgImage ?? null);
 
 	// Canonical: explicit > path-based > null
 	let canonical: string | null = null;
@@ -158,31 +159,4 @@ export function getSeoMeta<T>(content: SeoContentInput<T>, options: SeoMetaOptio
  */
 export function getContentSeo<T>(content: SeoContentInput<T>): ContentSeo | undefined {
 	return content.seo ?? content.data.seo;
-}
-
-/**
- * Build a media URL from a media reference ID.
- * If it's already an absolute URL, return as-is.
- */
-function buildMediaUrl(imageRef: string, siteUrl?: string): string {
-	// If already an absolute URL, return as-is
-	if (ABSOLUTE_URL_RE.test(imageRef)) {
-		return imageRef;
-	}
-
-	// Root-relative path — the CMS SEO panel stores seo_image as
-	// "/_emdash/api/media/file/01KS....svg" (already includes the API
-	// prefix). Without this branch we'd re-prefix and produce
-	// "${siteUrl}/_emdash/api/media/file//_emdash/api/media/file/<id>"
-	// which 404s and breaks <meta property="og:image">.
-	if (imageRef.startsWith("/")) {
-		return siteUrl ? `${siteUrl.replace(TRAILING_SLASH_RE, "")}${imageRef}` : imageRef;
-	}
-
-	// Bare media_id — build the full media API path
-	const mediaPath = `/_emdash/api/media/file/${imageRef}`;
-	if (siteUrl) {
-		return `${siteUrl.replace(TRAILING_SLASH_RE, "")}${mediaPath}`;
-	}
-	return mediaPath;
 }

@@ -47,6 +47,23 @@ describe("getSuggestions (Integration)", () => {
 		});
 	});
 
+	it("does not return draft content", async () => {
+		await repo.create(
+			createPostFixture({
+				slug: "designing-secret-things",
+				status: "draft",
+				data: { title: "Designing secret things" },
+			}),
+		);
+
+		const suggestions = await getSuggestions(db, "des", {
+			collections: ["post"],
+		});
+
+		expect(suggestions).toHaveLength(1);
+		expect(suggestions[0]?.title).toBe("Designing things");
+	});
+
 	it("returns empty array for a non-matching query", async () => {
 		const suggestions = await getSuggestions(db, "zzz", {
 			collections: ["post"],

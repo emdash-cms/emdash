@@ -1,0 +1,4 @@
+# Per-suite fixture copies created by createTestServer (server.ts).
+# Each run gets its own srv-* root; they're removed on cleanup but may
+# linger if a suite crashes.
+.servers/

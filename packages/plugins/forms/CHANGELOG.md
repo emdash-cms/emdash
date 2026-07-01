@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.4
+
+### Patch Changes
+
+- [#1395](https://github.com/emdash-cms/emdash/pull/1395) [`298895d`](https://github.com/emdash-cms/emdash/commit/298895de11562d4a2e9864da91d961fd4ff1eeda) Thanks [@jcheese1](https://github.com/jcheese1)! - Fixes enhanced form submissions so standard EmDash plugin API responses wrapped in `{ data }` show the configured success message instead of the generic error state.
+
 ## 0.2.3
 
 ### Patch Changes

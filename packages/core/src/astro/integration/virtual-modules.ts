@@ -33,6 +33,9 @@ export const RESOLVED_VIRTUAL_DIALECT_ID = "\0" + VIRTUAL_DIALECT_ID;
 export const VIRTUAL_STORAGE_ID = "virtual:emdash/storage";
 export const RESOLVED_VIRTUAL_STORAGE_ID = "\0" + VIRTUAL_STORAGE_ID;
 
+export const VIRTUAL_OBJECT_CACHE_ID = "virtual:emdash/object-cache";
+export const RESOLVED_VIRTUAL_OBJECT_CACHE_ID = "\0" + VIRTUAL_OBJECT_CACHE_ID;
+
 export const VIRTUAL_ADMIN_REGISTRY_ID = "virtual:emdash/admin-registry";
 export const RESOLVED_VIRTUAL_ADMIN_REGISTRY_ID = "\0" + VIRTUAL_ADMIN_REGISTRY_ID;
 
@@ -63,6 +66,9 @@ export const RESOLVED_VIRTUAL_SEED_ID = "\0" + VIRTUAL_SEED_ID;
 export const VIRTUAL_WAIT_UNTIL_ID = "virtual:emdash/wait-until";
 export const RESOLVED_VIRTUAL_WAIT_UNTIL_ID = "\0" + VIRTUAL_WAIT_UNTIL_ID;
 
+export const VIRTUAL_SCHEDULER_ID = "virtual:emdash/scheduler";
+export const RESOLVED_VIRTUAL_SCHEDULER_ID = "\0" + VIRTUAL_SCHEDULER_ID;
+
 /**
  * Generates the config virtual module.
  */
@@ -90,14 +96,21 @@ export function generateDialectModule(opts: {
 			`export const createDialect = undefined;`,
 			`export const dialectType = "sqlite";`,
 			`export const createRequestScopedDb = (_opts) => null;`,
+			`export const createCoalescingDialect = undefined;`,
 		].join("\n");
 	}
 	const type = opts.type ?? "sqlite";
+
+	// Namespace access (not a named re-export) so backends that don't export
+	// createCoalescingDialect yield `undefined` rather than a build error.
+	const coalescingReExport = `import * as _dialectModule from "${entrypoint}";
+export const createCoalescingDialect = _dialectModule.createCoalescingDialect;`;
 
 	if (supportsRequestScope) {
 		return `
 import { createDialect as _createDialect } from "${entrypoint}";
 export { createRequestScopedDb } from "${entrypoint}";
+${coalescingReExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 `;
@@ -105,6 +118,7 @@ export const dialectType = ${JSON.stringify(type)};
 
 	return `
 import { createDialect as _createDialect } from "${entrypoint}";
+${coalescingReExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 export const createRequestScopedDb = (_opts) => null;
@@ -122,6 +136,31 @@ export function generateStorageModule(storageEntrypoint?: string): string {
 	return `
 import { createStorage as _createStorage } from "${storageEntrypoint}";
 export const createStorage = _createStorage;
+`;
+}
+
+/**
+ * Generates the object-cache virtual module.
+ *
+ * Statically imports the configured object-cache backend's `createObjectCache`
+ * factory and embeds its serializable config. When no object cache is
+ * configured, exports `undefined` so the runtime read-through layer becomes a
+ * transparent passthrough (cache off by default).
+ */
+export function generateObjectCacheModule(
+	entrypoint?: string,
+	config?: Record<string, unknown>,
+): string {
+	if (!entrypoint) {
+		return [
+			`export const createObjectCache = undefined;`,
+			`export const objectCacheConfig = undefined;`,
+		].join("\n");
+	}
+	return `
+import { createObjectCache as _createObjectCache } from "${entrypoint}";
+export const createObjectCache = _createObjectCache;
+export const objectCacheConfig = ${JSON.stringify(config ?? {})};
 `;
 }
 
@@ -203,6 +242,21 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 	let needsAdapter = false;
 
 	descriptors.forEach((descriptor, index) => {
+		// Every `plugins: []` entry must resolve to a file/package entrypoint that
+		// can be statically imported and bundled at build time. An in-process
+		// `definePlugin({...})` result passed directly has no entrypoint; without
+		// this guard the generator emitted `import pluginDefN from "undefined";`,
+		// which failed deep in Rollup with `failed to resolve import "undefined"`
+		// (#1416). Fail fast with an actionable message instead.
+		if (!descriptor.entrypoint) {
+			throw new Error(
+				`[emdash] Plugin "${descriptor.id}" has no \`entrypoint\`. The astro integration's ` +
+					`\`plugins: []\` requires plugins that resolve to a file/package entrypoint so they can be ` +
+					`bundled at build time; an in-process \`definePlugin({...})\` result passed directly is not ` +
+					`supported. Move the plugin into its own module and reference it via a factory that returns ` +
+					`a descriptor with an \`entrypoint\` (e.g. \`plugins: [myPlugin()]\`).`,
+			);
+		}
 		if (descriptor.format === "standard") {
 			// Standard format: import default export, wrap with adaptSandboxEntry
 			needsAdapter = true;
@@ -217,6 +271,8 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 					storage: descriptor.storage,
 					adminPages: descriptor.adminPages,
 					adminWidgets: descriptor.adminWidgets,
+					portableTextBlocks: descriptor.portableTextBlocks,
+					fieldWidgets: descriptor.fieldWidgets,
 				})})`,
 			);
 		} else {
@@ -414,6 +470,42 @@ export function generateWaitUntilModule(adapterName: string | undefined): string
 }
 
 /**
+ * Generates the scheduler virtual module.
+ *
+ * Decides — at build time, from the Astro adapter — whether the runtime gets a
+ * long-lived timer heartbeat. A *production* Cloudflare build has no persistent
+ * timers, so the Worker's `scheduled()` handler (a Cron Trigger) drives
+ * `runScheduledTasks()` instead and this exports `null`. Every other case — any
+ * other adapter (Node, Bun), and crucially local `astro dev` even under the
+ * Cloudflare adapter (no Cron Trigger fires in dev) — gets a `NodeCronScheduler`
+ * factory so plugin cron, scheduled publishing, and cleanup still run.
+ *
+ * Keeping the adapter check here — rather than in core's runtime — means the
+ * runtime has no Cloudflare-specific code path; it just calls `createScheduler`
+ * if one was injected. Mirrors the wait-until module's approach.
+ */
+export function generateSchedulerModule(
+	adapterName: string | undefined,
+	command: "build" | "serve" | undefined,
+): string {
+	// Only suppress the timer for an actual Cloudflare *build* — that artifact
+	// runs in workerd where a Cron Trigger drives scheduled work. In `serve`
+	// (local dev) nothing fires the Cron Trigger, so fall through to the timer.
+	if (adapterName === "@astrojs/cloudflare" && command !== "serve") {
+		return `// Serverless build: an external Cron Trigger drives scheduled work.
+export const createScheduler = null;
+`;
+	}
+	return `// Long-lived runtime (or local dev): drive scheduled work from an in-process timer.
+import { NodeCronScheduler } from "emdash";
+
+export function createScheduler(executor) {
+	return new NodeCronScheduler(executor);
+}
+`;
+}
+
+/**
  * Generates the seed virtual module.
  * Reads the user's seed file at build time (in Node context) and embeds it,
  * so the runtime doesn't need filesystem access (required for workerd).
@@ -550,6 +642,8 @@ export const sandboxedPlugins = [];
     storage: ${JSON.stringify(descriptor.storage ?? {})},
     adminPages: ${JSON.stringify(descriptor.adminPages ?? [])},
     adminWidgets: ${JSON.stringify(descriptor.adminWidgets ?? [])},
+    portableTextBlocks: ${JSON.stringify(descriptor.portableTextBlocks ?? [])},
+    fieldWidgets: ${JSON.stringify(descriptor.fieldWidgets ?? [])},
     adminEntry: ${JSON.stringify(descriptor.adminEntry)},
     // Code read from: ${filePath}
     code: ${JSON.stringify(code)},

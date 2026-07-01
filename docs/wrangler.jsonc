@@ -9,6 +9,9 @@
 		},
 	],
 	"compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
+	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
+	},
 	"name": "docs",
 	"main": "./src/worker.ts",
 	"assets": {

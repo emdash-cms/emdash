@@ -19,10 +19,13 @@ import type { Element } from "@emdash-cms/blocks";
 // (e.g. `import { PluginCapability } from "../plugins/types.js"`).
 import {
 	CAPABILITY_RENAMES,
+	capabilitiesToDeclaredAccess,
+	declaredAccessToCapabilities,
 	isDeprecatedCapability,
 	normalizeCapabilities,
 	normalizeCapability,
 	type CurrentPluginCapability,
+	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
 	type ManifestRouteEntry,
@@ -40,10 +43,13 @@ import type { FieldType } from "../schema/types.js";
 
 export {
 	CAPABILITY_RENAMES,
+	capabilitiesToDeclaredAccess,
+	declaredAccessToCapabilities,
 	isDeprecatedCapability,
 	normalizeCapabilities,
 	normalizeCapability,
 	type CurrentPluginCapability,
+	type DeclaredAccess,
 	type DeprecatedPluginCapability,
 	type ManifestHookEntry,
 	type ManifestRouteEntry,
@@ -719,12 +725,28 @@ export interface ContentDeleteEvent {
 }
 
 /**
- * Content publish state change hook event (fired after publish or unpublish)
+ * Content state-change hook event (fired after publish, unpublish, restore,
+ * schedule, or unschedule).
  */
-export interface ContentPublishStateChangeEvent {
+export interface ContentStateChangeEvent {
 	content: Record<string, unknown>;
 	collection: string;
 }
+
+/**
+ * Content publish/unpublish hook event.
+ */
+export type ContentPublishStateChangeEvent = ContentStateChangeEvent;
+
+/**
+ * Content restore hook event.
+ */
+export type ContentRestoreStateChangeEvent = ContentStateChangeEvent;
+
+/**
+ * Content schedule/unschedule hook event.
+ */
+export type ContentScheduleStateChangeEvent = ContentStateChangeEvent;
 
 /**
  * Media hook event
@@ -782,6 +804,21 @@ export type ContentAfterPublishHandler = (
 
 export type ContentAfterUnpublishHandler = (
 	event: ContentPublishStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterRestoreHandler = (
+	event: ContentRestoreStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterScheduleHandler = (
+	event: ContentScheduleStateChangeEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type ContentAfterUnscheduleHandler = (
+	event: ContentScheduleStateChangeEvent,
 	ctx: PluginContext,
 ) => Promise<void>;
 
@@ -970,6 +1007,11 @@ export interface PluginHooks {
 	"content:afterUnpublish"?:
 		| HookConfig<ContentAfterUnpublishHandler>
 		| ContentAfterUnpublishHandler;
+	"content:afterRestore"?: HookConfig<ContentAfterRestoreHandler> | ContentAfterRestoreHandler;
+	"content:afterSchedule"?: HookConfig<ContentAfterScheduleHandler> | ContentAfterScheduleHandler;
+	"content:afterUnschedule"?:
+		| HookConfig<ContentAfterUnscheduleHandler>
+		| ContentAfterUnscheduleHandler;
 
 	// Media hooks
 	"media:beforeUpload"?: HookConfig<MediaBeforeUploadHandler> | MediaBeforeUploadHandler;
@@ -1289,6 +1331,9 @@ export interface ResolvedPluginHooks {
 	"content:afterDelete"?: ResolvedHook<ContentAfterDeleteHandler>;
 	"content:afterPublish"?: ResolvedHook<ContentAfterPublishHandler>;
 	"content:afterUnpublish"?: ResolvedHook<ContentAfterUnpublishHandler>;
+	"content:afterRestore"?: ResolvedHook<ContentAfterRestoreHandler>;
+	"content:afterSchedule"?: ResolvedHook<ContentAfterScheduleHandler>;
+	"content:afterUnschedule"?: ResolvedHook<ContentAfterUnscheduleHandler>;
 	"media:beforeUpload"?: ResolvedHook<MediaBeforeUploadHandler>;
 	"media:afterUpload"?: ResolvedHook<MediaAfterUploadHandler>;
 	cron?: ResolvedHook<CronHandler>;
@@ -1336,6 +1381,12 @@ export interface PluginAdminExports {
 export interface PluginManifest {
 	id: string;
 	version: string;
+	/**
+	 * The trust contract (see `@emdash-cms/plugin-types`). Authoritative;
+	 * `capabilities`/`allowedHosts` are derived from it at the parse boundary
+	 * via `reconcileManifestAccess`. Optional during the wire-format migration.
+	 */
+	declaredAccess?: DeclaredAccess;
 	capabilities: PluginCapability[];
 	allowedHosts: string[];
 	storage: PluginStorageConfig;

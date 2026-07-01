@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/cloudflare",
-  "version": "0.17.2",
+  "version": "0.26.0",
   "description": "Cloudflare adapters for EmDash - D1, R2, Access, and Worker Loader sandbox",
   "type": "module",
   "main": "dist/index.mjs",
@@ -17,9 +17,17 @@
       "types": "./dist/db/d1.d.mts",
       "default": "./dist/db/d1.mjs"
     },
+    "./db/hyperdrive": {
+      "types": "./dist/db/hyperdrive.d.mts",
+      "default": "./dist/db/hyperdrive.mjs"
+    },
     "./db/do": {
       "types": "./dist/db/do.d.mts",
       "default": "./dist/db/do.mjs"
+    },
+    "./db/do-sql": {
+      "types": "./dist/db/do-sql.d.mts",
+      "default": "./dist/db/do-sql.mjs"
     },
     "./db/playground": {
       "types": "./dist/db/playground.d.mts",
@@ -33,6 +41,10 @@
       "types": "./dist/storage/r2.d.mts",
       "default": "./dist/storage/r2.mjs"
     },
+    "./image-endpoint": {
+      "types": "./dist/image-endpoint.d.mts",
+      "default": "./dist/image-endpoint.mjs"
+    },
     "./auth": {
       "types": "./dist/auth/index.d.mts",
       "default": "./dist/auth/index.mjs"
@@ -40,6 +52,10 @@
     "./sandbox": {
       "types": "./dist/sandbox/index.d.mts",
       "default": "./dist/sandbox/index.mjs"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.mts",
+      "default": "./dist/worker.mjs"
     },
     "./plugins": {
       "types": "./dist/plugins/index.d.mts",
@@ -60,6 +76,10 @@
     "./cache/config": {
       "types": "./dist/cache/config.d.mts",
       "default": "./dist/cache/config.mjs"
+    },
+    "./cache/kv": {
+      "types": "./dist/cache/kv.d.mts",
+      "default": "./dist/cache/kv.mjs"
     }
   },
   "scripts": {
@@ -77,13 +97,22 @@
     "ulidx": "^2.4.1"
   },
   "peerDependencies": {
+    "@astrojs/cloudflare": ">=12.0.0",
     "@cloudflare/workers-types": ">=4.0.0",
     "astro": ">=6.0.0-beta.0",
-    "kysely": ">=0.28.17"
+    "kysely": ">=0.28.17",
+    "pg": ">=8.16.3"
+  },
+  "peerDependenciesMeta": {
+    "pg": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
+    "@astrojs/cloudflare": "catalog:",
     "@cloudflare/workers-types": "catalog:",
+    "@types/pg": "^8.16.0",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

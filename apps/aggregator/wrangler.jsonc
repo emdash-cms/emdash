@@ -113,6 +113,7 @@
 		"crons": ["*/5 * * * *"],
 	},
 	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
 		// Jetstream endpoint. Override per environment for self-hosted relays
 		// or staging backends.
 		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
@@ -127,11 +128,11 @@
 	// Required secrets, declared in config so `wrangler types` generates the
 	// typed binding and `wrangler deploy` validates the secret is set on the
 	// target Worker before publishing. `wrangler dev` warns at startup when a
-	// required secret isn't in `.dev.vars` / `.env`.
+	// required secret isn't in `.env`.
 	//
 	// Set in production with `wrangler secret put ADMIN_TOKEN`. Tests bind
 	// a stub via miniflare in vitest.config.ts. Local dev pulls from
-	// `.dev.vars` (gitignored; see `.dev.vars.example`).
+	// `.env` (gitignored; see `.env.example`).
 	//
 	// The `requireAdminAuth` runtime guard fails closed (503) if the binding
 	// is somehow empty at request time, so even a misconfigured deploy can't
