@@ -113,6 +113,7 @@
 		"crons": ["*/5 * * * *"],
 	},
 	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
 		// Jetstream endpoint. Override per environment for self-hosted relays
 		// or staging backends.
 		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",

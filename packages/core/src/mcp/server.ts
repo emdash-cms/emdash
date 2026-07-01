@@ -14,7 +14,12 @@ import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { contentBylineInputSchema, contentSeoInput } from "#api/schemas.js";
+import {
+	bylineCreateBody,
+	bylineUpdateBody,
+	contentBylineInputSchema,
+	contentSeoInput,
+} from "#api/schemas.js";
 
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
@@ -321,6 +326,11 @@ async function applyReadMarkdown(
 			);
 		}
 	}
+}
+
+async function invalidateBylines(): Promise<void> {
+	const { invalidateBylineCache } = await import("../bylines/index.js");
+	invalidateBylineCache();
 }
 
 /**
@@ -644,6 +654,12 @@ export function createMcpServer(): McpServer {
 					.describe(
 						"ID of the content item this is a translation of. Links items in the same translation group.",
 					),
+				bylines: z
+					.array(contentBylineInputSchema)
+					.optional()
+					.describe(
+						"Bylines to credit. Each entry references an existing byline by id (see byline_list / byline_create) with an optional roleLabel. The first entry becomes the primary byline.",
+					),
 			}),
 			annotations: { destructiveHint: false },
 		},
@@ -681,6 +697,7 @@ export function createMcpServer(): McpServer {
 					authorId: userId,
 					locale: args.locale,
 					translationOf: args.translationOf,
+					bylines: args.bylines,
 				});
 				if (!result.success) return unwrap(result);
 				const itemId = extractContentId(result.data);
@@ -697,6 +714,7 @@ export function createMcpServer(): McpServer {
 					authorId: userId,
 					locale: args.locale,
 					translationOf: args.translationOf,
+					bylines: args.bylines,
 				}),
 			);
 		},
@@ -1252,6 +1270,183 @@ export function createMcpServer(): McpServer {
 				});
 			}
 			return unwrap(result);
+		},
+	);
+
+	// =====================================================================
+	// Byline tools
+	// =====================================================================
+
+	server.registerTool(
+		"byline_list",
+		{
+			title: "List Bylines",
+			description:
+				"List bylines (author/contributor credits) with optional filtering and " +
+				"pagination. Bylines are standalone records referenced by content items; " +
+				"use the returned id with content_create/content_update or byline_get. Use " +
+				"the nextCursor value from the response to fetch the next page.",
+			inputSchema: z.object({
+				search: z.string().optional().describe("Filter by display name or slug substring"),
+				isGuest: z.boolean().optional().describe("Filter by guest (true) or linked-user (false)"),
+				userId: z.string().optional().describe("Filter to the byline linked to a CMS user ID"),
+				locale: z.string().optional().describe("Filter by locale (omit for all)"),
+				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
+				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { BylineRepository } = await import("../database/repositories/byline.js");
+				const repo = new BylineRepository(ec.db);
+				return jsonResult(
+					await repo.findMany({
+						search: args.search,
+						isGuest: args.isGuest,
+						userId: args.userId,
+						locale: args.locale,
+						limit: args.limit,
+						cursor: args.cursor,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_LIST_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_get",
+		{
+			title: "Get Byline",
+			description:
+				"Get a single byline by its ID, including bio, avatar, website, linked " +
+				"user, and any custom fields.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline ID"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { BylineRepository } = await import("../database/repositories/byline.js");
+				const byline = await new BylineRepository(ec.db).findById(args.id);
+				if (!byline) return respondError("NOT_FOUND", `Byline '${args.id}' not found`);
+				return jsonResult(byline);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_GET_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_create",
+		{
+			title: "Create Byline",
+			description:
+				"Create a new byline (author/contributor credit). The slug must be unique " +
+				"and contain only lowercase letters, digits, and hyphens. Link the byline " +
+				"to a CMS user via userId, or leave it as a standalone guest credit. The " +
+				"returned id can then be passed to content_create/content_update bylines.",
+			inputSchema: z.object({ ...bylineCreateBody.shape }),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleBylineCreate } = await import("../api/handlers/bylines.js");
+				const result = await handleBylineCreate(ec.db, args);
+				if (result.success) await invalidateBylines();
+				return unwrap(result);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_CREATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_update",
+		{
+			title: "Update Byline",
+			description:
+				"Update an existing byline. Any field can be omitted to leave it " +
+				"unchanged. Renaming the slug must not collide with another byline.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline ID to update"),
+				...bylineUpdateBody.shape,
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleBylineUpdate } = await import("../api/handlers/bylines.js");
+				const { id, ...input } = args;
+				const result = await handleBylineUpdate(ec.db, id, input);
+				if (result.success) await invalidateBylines();
+				return unwrap(result);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_delete",
+		{
+			title: "Delete Byline",
+			description:
+				"Permanently delete a byline. Any content crediting this byline loses the " +
+				"association, and it is cleared as a primary byline where set.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline ID to delete"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { BylineRepository } = await import("../database/repositories/byline.js");
+				const deleted = await new BylineRepository(ec.db).delete(args.id);
+				if (!deleted) return respondError("NOT_FOUND", `Byline '${args.id}' not found`);
+				await invalidateBylines();
+				return jsonResult({ deleted: args.id });
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_translations",
+		{
+			title: "List Byline Translations",
+			description:
+				"Return every locale variant of a byline, identified via its shared translation_group.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline id (or translation_group)"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { handleBylineTranslations } = await import("../api/handlers/bylines.js");
+				return unwrap(await handleBylineTranslations(ec.db, args.id));
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_TRANSLATIONS_ERROR");
+			}
 		},
 	);
 
