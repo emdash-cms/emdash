@@ -49,6 +49,7 @@ import * as m044 from "./044_comment_reactions.js";
 import * as m045 from "./045_taxonomy_parent_group.js";
 import * as m046 from "./046_media_usage_index.js";
 import * as m047 from "./047_restore_taxonomy_parent_index.js";
+import * as m048 from "./048_restore_content_taxonomies_term_index.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -97,6 +98,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"045_taxonomy_parent_group": m045,
 	"046_media_usage_index": m046,
 	"047_restore_taxonomy_parent_index": m047,
+	"048_restore_content_taxonomies_term_index": m048,
 });
 
 /** Total number of registered migrations. Exported for use in tests. */

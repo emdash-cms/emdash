@@ -359,10 +359,12 @@ export async function getSuggestions(
 		try {
 			results = await sql<{
 				id: string;
+				slug: string | null;
 				title: string;
 			}>`
 				SELECT 
 					c.id,
+					c.slug,
 					c.title
 				FROM "${sql.raw(ftsTable)}" f
 				JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
@@ -389,6 +391,7 @@ export async function getSuggestions(
 			suggestions.push({
 				collection,
 				id: row.id,
+				slug: row.slug,
 				title: row.title,
 			});
 		}
