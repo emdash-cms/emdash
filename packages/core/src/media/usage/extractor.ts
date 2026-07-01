@@ -108,7 +108,8 @@ function extractPortableTextOccurrences(
 	for (const [blockIndex, block] of value.entries()) {
 		if (!isRecord(block) || block._type !== "image" || !isRecord(block.asset)) continue;
 
-		const ref = readPortableTextAssetRef(block.asset);
+		const provider = normalizeProvider(block.asset.provider);
+		const ref = readPortableTextAssetRef(block.asset, provider);
 		if (!ref) continue;
 
 		addRefOccurrence(occurrences, seen, {
@@ -117,7 +118,7 @@ function extractPortableTextOccurrences(
 			referenceType: "portable_text_image",
 			ref: buildMediaRef({
 				id: ref.id,
-				provider: readString(block.asset.provider) ?? "local",
+				provider,
 				mimeType: normalizeMimeValue(block.asset.mimeType),
 				fallbackKind: "image",
 			}),
@@ -182,18 +183,19 @@ function addRefOccurrence(
 
 function readMediaRef(value: unknown, fallbackKind: MediaKind | null): MediaRef | null {
 	if (typeof value === "string") {
-		const id = normalizeStableId(value);
+		const id = normalizeLocalMediaId(value);
 		return id ? buildMediaRef({ id, provider: "local", mimeType: null, fallbackKind }) : null;
 	}
 
 	if (!isRecord(value)) return null;
 
-	const id = normalizeStableId(value.id);
+	const provider = normalizeProvider(value.provider);
+	const id = provider === "local" ? normalizeLocalMediaId(value.id) : normalizeStableId(value.id);
 	if (!id) return null;
 
 	return buildMediaRef({
 		id,
-		provider: readString(value.provider) ?? "local",
+		provider,
 		mimeType: normalizeMimeValue(value.mimeType),
 		fallbackKind,
 	});
@@ -205,7 +207,7 @@ function buildMediaRef(input: {
 	mimeType: string | null;
 	fallbackKind: MediaKind | null;
 }): MediaRef | null {
-	const provider = input.provider.trim() || "local";
+	const provider = normalizeProvider(input.provider);
 	if (provider === "external") return null;
 
 	return {
@@ -219,14 +221,27 @@ function buildMediaRef(input: {
 
 function readPortableTextAssetRef(
 	asset: Record<string, unknown>,
+	provider: string,
 ): { key: "_ref" | "id"; id: string } | null {
-	const ref = normalizeStableId(asset._ref);
+	const normalizeId = provider === "local" ? normalizeLocalMediaId : normalizeStableId;
+	const ref = normalizeId(asset._ref);
 	if (ref) return { key: "_ref", id: ref };
 
-	const id = normalizeStableId(asset.id);
+	const id = normalizeId(asset.id);
 	if (id) return { key: "id", id };
 
 	return null;
+}
+
+function normalizeProvider(value: unknown): string {
+	const provider = readString(value)?.trim();
+	return provider || "local";
+}
+
+function normalizeLocalMediaId(value: unknown): string | null {
+	const id = normalizeStableId(value);
+	if (!id) return null;
+	return id.includes("/") ? null : id;
 }
 
 function normalizeStableId(value: unknown): string | null {
