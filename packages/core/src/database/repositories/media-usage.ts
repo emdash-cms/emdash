@@ -4,7 +4,7 @@ import { ulid } from "ulidx";
 import type { MediaKind, MediaUsageReferenceType } from "../../media/usage/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { withTransaction } from "../transaction.js";
-import type { Database, MediaUsageSourceTable, MediaUsageTable } from "../types.js";
+import type { Database, MediaUsageTable } from "../types.js";
 
 type DatabaseExecutor = Kysely<Database> | Transaction<Database>;
 
@@ -62,6 +62,27 @@ export interface MediaUsageSource {
 	indexedAt: string;
 	createdAt: string;
 	updatedAt: string;
+}
+
+interface MediaUsageSourceRow {
+	source_key: string;
+	source_type: string;
+	collection_slug: string | null;
+	content_id: string | null;
+	source_variant: string;
+	locale: string | null;
+	translation_group: string | null;
+	content_slug: string | null;
+	content_title: string | null;
+	content_status: string | null;
+	content_scheduled_at: string | null;
+	content_deleted_at: string | null;
+	revision_id: string | null;
+	current_generation: string;
+	schema_version: number;
+	indexed_at: string;
+	created_at: string;
+	updated_at: string;
 }
 
 export interface MediaUsageOccurrence {
@@ -362,7 +383,7 @@ const currentUsageSelect = [
 	"u.created_at as occurrence_created_at",
 ] as const;
 
-function rowToSource(row: Selectable<MediaUsageSourceTable>): MediaUsageSource {
+function rowToSource(row: MediaUsageSourceRow): MediaUsageSource {
 	return {
 		sourceKey: row.source_key,
 		sourceType: row.source_type,
