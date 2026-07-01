@@ -1,0 +1,17 @@
+{
+	"extends": "./tsconfig.json",
+	"exclude": [
+		"**/node_modules/**",
+		"**/dist/**",
+		"**/.astro/**",
+		"**/.wrangler/**",
+		"**/*.d.ts",
+		"**/*.d.mts",
+		"**/*.d.cts",
+		"**/src/generated/**",
+		"skills/**/scaffold/**",
+		".agents/skills/**/scaffold/**",
+		".claude/skills/**/scaffold/**",
+		"scripts/query-dumps/**"
+	]
+}
