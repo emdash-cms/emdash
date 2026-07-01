@@ -1,6 +1,7 @@
 import type { Kysely, Selectable } from "kysely";
 import { ulid } from "ulidx";
 
+import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
 import type { Database, TaxonomyTable, ContentTaxonomyTable } from "../types.js";
 
 export interface Taxonomy {
@@ -63,7 +64,13 @@ export class TaxonomyRepository {
 
 		// Empty-string parentId is coerced to null defensively. Higher layers
 		// also normalize this — see handleTermCreate / handleTermUpdate.
-		const parentId = input.parentId === undefined || input.parentId === "" ? null : input.parentId;
+		// `parent_id` stores the parent's locale-agnostic translation_group (not a
+		// row id), mirroring content_taxonomies.taxonomy_id, so a child stays
+		// nested in every locale's tree. resolveTranslationGroup accepts either a
+		// row id or an already-resolved group, so this is idempotent.
+		const parentInput =
+			input.parentId === undefined || input.parentId === "" ? null : input.parentId;
+		const parentId = parentInput ? await this.resolveParentRef(parentInput) : null;
 
 		let translationGroup = id;
 		if (input.translationOf) {
@@ -87,6 +94,8 @@ export class TaxonomyRepository {
 				translation_group: translationGroup,
 			})
 			.execute();
+
+		invalidateTaxonomyObjectCache();
 
 		const taxonomy = await this.findById(id);
 		if (!taxonomy) throw new Error("Failed to create taxonomy");
@@ -147,14 +156,26 @@ export class TaxonomyRepository {
 		return rows.map((row) => this.rowToTaxonomy(row));
 	}
 
-	async findChildren(parentId: string): Promise<Taxonomy[]> {
-		const rows = await this.db
+	/**
+	 * Children of a term. Accepts a term id OR a translation_group and resolves
+	 * to the group, since `parent_id` stores the parent's translation_group.
+	 * Pass `locale` to scope to one locale's tree (children share the parent's
+	 * group across locales); omit it to find children in every locale (used to
+	 * block deletes that would orphan a sibling translation's subtree).
+	 */
+	async findChildren(parentIdOrGroup: string, locale?: string): Promise<Taxonomy[]> {
+		const group = await this.resolveTranslationGroup(parentIdOrGroup);
+		if (!group) return [];
+
+		let query = this.db
 			.selectFrom("taxonomies")
 			.selectAll()
-			.where("parent_id", "=", parentId)
+			.where("parent_id", "=", group)
 			.orderBy("label", "asc")
-			.orderBy("id", "asc")
-			.execute();
+			.orderBy("id", "asc");
+		if (locale !== undefined) query = query.where("locale", "=", locale);
+
+		const rows = await query.execute();
 		return rows.map((row) => this.rowToTaxonomy(row));
 	}
 
@@ -181,12 +202,18 @@ export class TaxonomyRepository {
 		if (input.label !== undefined) updates.label = input.label;
 		if (input.parentId !== undefined) {
 			// Defense in depth: empty-string parentId means null (no parent).
-			updates.parent_id = input.parentId === "" ? null : input.parentId;
+			// Otherwise persist the parent's translation_group (locale-agnostic),
+			// matching create() — see the note there.
+			updates.parent_id =
+				input.parentId === "" || input.parentId === null
+					? null
+					: await this.resolveParentRef(input.parentId);
 		}
 		if (input.data !== undefined) updates.data = JSON.stringify(input.data);
 
 		if (Object.keys(updates).length > 0) {
 			await this.db.updateTable("taxonomies").set(updates).where("id", "=", id).execute();
+			invalidateTaxonomyObjectCache();
 		}
 
 		return this.findById(id);
@@ -214,6 +241,7 @@ export class TaxonomyRepository {
 		}
 
 		const result = await this.db.deleteFrom("taxonomies").where("id", "=", id).executeTakeFirst();
+		invalidateTaxonomyObjectCache();
 		return (result.numDeletedRows ?? 0n) > 0n;
 	}
 
@@ -233,6 +261,7 @@ export class TaxonomyRepository {
 			.values(row)
 			.onConflict((oc) => oc.doNothing())
 			.execute();
+		invalidateTaxonomyObjectCache();
 	}
 
 	async detachFromEntry(collection: string, entryId: string, taxonomyId: string): Promise<void> {
@@ -245,6 +274,7 @@ export class TaxonomyRepository {
 			.where("entry_id", "=", entryId)
 			.where("taxonomy_id", "=", group)
 			.execute();
+		invalidateTaxonomyObjectCache();
 	}
 
 	/**
@@ -324,6 +354,8 @@ export class TaxonomyRepository {
 				.onConflict((oc) => oc.doNothing())
 				.execute();
 		}
+
+		if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
 	}
 
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {
@@ -332,7 +364,9 @@ export class TaxonomyRepository {
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
 			.executeTakeFirst();
-		return Number(result.numDeletedRows ?? 0);
+		const removed = Number(result.numDeletedRows ?? 0);
+		if (removed > 0) invalidateTaxonomyObjectCache();
+		return removed;
 	}
 
 	/**
@@ -364,6 +398,7 @@ export class TaxonomyRepository {
 			)
 			.onConflict((oc) => oc.doNothing())
 			.execute();
+		invalidateTaxonomyObjectCache();
 	}
 
 	/**
@@ -380,6 +415,26 @@ export class TaxonomyRepository {
 			.where("taxonomy_id", "=", group)
 			.executeTakeFirst();
 		return Number(result?.count ?? 0);
+	}
+
+	/**
+	 * Resolve a parent reference (a row id or a translation_group) to the value
+	 * persisted in `parent_id`: the parent's translation_group, which is
+	 * locale-agnostic so the child stays nested in every locale. A
+	 * translation_group normally equals its anchor row's id, which satisfies the
+	 * self-FK on `parent_id`. If that anchor row is missing (a translation whose
+	 * anchor was deleted), fall back to the id we were given so we never write a
+	 * dangling FK value.
+	 */
+	private async resolveParentRef(idOrGroup: string): Promise<string> {
+		const group = await this.resolveTranslationGroup(idOrGroup);
+		if (!group) return idOrGroup;
+		const anchor = await this.db
+			.selectFrom("taxonomies")
+			.select("id")
+			.where("id", "=", group)
+			.executeTakeFirst();
+		return anchor ? group : idOrGroup;
 	}
 
 	private async resolveTranslationGroup(idOrGroup: string): Promise<string | null> {

@@ -1,0 +1,57 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-demo-do",
+	"main": "./src/worker.ts",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-02-24",
+	// `experimental` + `replica_routing` enable Durable Object read replicas:
+	// namespace.get() routes to the nearest replica, writes proxy to the primary.
+	// NOTE: local `pnpm dev` (miniflare/workerd) does not implement replica
+	// routing and throws "workerd does not support replica routing". To run this
+	// site locally, temporarily drop "replica_routing" from this list; the DO
+	// driver works without it (single primary, no replicas).
+	"compatibility_flags": ["nodejs_compat", "experimental", "replica_routing"],
+	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
+	},
+	// No smart placement: we want the Worker at the edge near the reader so it
+	// hits the nearest read replica. Writes/auth proxy to the primary internally.
+	"routes": [
+		{
+			"pattern": "do-demo.emdashcms.com",
+			"zone_name": "emdashcms.com",
+			"custom_domain": true,
+		},
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "DB_DO",
+				"class_name": "EmDashDB",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["EmDashDB"],
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "emdash-demo-media",
+		},
+	],
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+	"kv_namespaces": [
+		{
+			"binding": "SESSION",
+			"id": "c0e628ad55194fe4a7bc00059fcebdf5",
+		},
+	],
+}

@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import type { SandboxedPluginEntry } from "../../emdash-runtime.js";
 import { PluginStateRepository, type PluginState, type PluginStatus } from "../../plugins/state.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import type { ApiResult } from "../types.js";
@@ -17,6 +18,8 @@ export interface PluginInfo {
 	enabled: boolean;
 	status: PluginStatus;
 	source?: "config" | "marketplace" | "registry";
+	/** True for statically-sandboxed plugins (registered via `sandboxed: []`) */
+	sandboxed?: boolean;
 	marketplaceVersion?: string;
 	/** Publisher DID, for registry-source plugins */
 	registryPublisherDid?: string;
@@ -85,11 +88,42 @@ function buildPluginInfo(
 }
 
 /**
+ * Build plugin info for a statically-sandboxed plugin entry
+ */
+function buildSandboxedPluginInfo(
+	entry: SandboxedPluginEntry,
+	state: PluginState | null,
+): PluginInfo {
+	const status = state?.status ?? "active";
+	const enabled = status === "active";
+
+	return {
+		id: entry.id,
+		name: state?.displayName || entry.id,
+		version: entry.version,
+		package: undefined, // v2 doesn't have package field
+		enabled,
+		status,
+		source: "config",
+		sandboxed: true,
+		capabilities: entry.capabilities,
+		hasAdminPages: (entry.adminPages?.length ?? 0) > 0,
+		hasDashboardWidgets: (entry.adminWidgets?.length ?? 0) > 0,
+		hasHooks: false,
+		installedAt: state?.installedAt?.toISOString(),
+		activatedAt: state?.activatedAt?.toISOString() ?? undefined,
+		deactivatedAt: state?.deactivatedAt?.toISOString() ?? undefined,
+		description: state?.description ?? undefined,
+	};
+}
+
+/**
  * List all configured plugins with their state
  */
 export async function handlePluginList(
 	db: Kysely<Database>,
 	configuredPlugins: ResolvedPlugin[],
+	sandboxedPluginEntries: SandboxedPluginEntry[],
 	marketplaceUrl?: string,
 ): Promise<ApiResult<PluginListResponse>> {
 	try {
@@ -103,6 +137,14 @@ export async function handlePluginList(
 			const state = stateMap.get(plugin.id) ?? null;
 			return buildPluginInfo(plugin, state, marketplaceUrl);
 		});
+
+		// Include statically-sandboxed plugins (registered via `sandboxed: []`
+		// in astro.config.mjs).
+		for (const entry of sandboxedPluginEntries) {
+			if (configuredIds.has(entry.id)) continue;
+			configuredIds.add(entry.id);
+			items.push(buildSandboxedPluginInfo(entry, stateMap.get(entry.id) ?? null));
+		}
 
 		// Include runtime-installed plugins (marketplace or registry) that
 		// aren't in the configured plugins list.
@@ -156,27 +198,37 @@ export async function handlePluginList(
 export async function handlePluginGet(
 	db: Kysely<Database>,
 	configuredPlugins: ResolvedPlugin[],
+	sandboxedPluginEntries: SandboxedPluginEntry[],
 	pluginId: string,
 	marketplaceUrl?: string,
 ): Promise<ApiResult<PluginResponse>> {
 	try {
+		const stateRepo = new PluginStateRepository(db);
 		const plugin = configuredPlugins.find((p) => p.id === pluginId);
-		if (!plugin) {
+
+		if (plugin) {
+			const state = await stateRepo.get(pluginId);
 			return {
-				success: false,
-				error: {
-					code: "NOT_FOUND",
-					message: `Plugin not found: ${pluginId}`,
-				},
+				success: true,
+				data: { item: buildPluginInfo(plugin, state, marketplaceUrl) },
 			};
 		}
 
-		const stateRepo = new PluginStateRepository(db);
-		const state = await stateRepo.get(pluginId);
+		const sandboxed = sandboxedPluginEntries.find((e) => e.id === pluginId);
+		if (sandboxed) {
+			const state = await stateRepo.get(pluginId);
+			return {
+				success: true,
+				data: { item: buildSandboxedPluginInfo(sandboxed, state) },
+			};
+		}
 
 		return {
-			success: true,
-			data: { item: buildPluginInfo(plugin, state, marketplaceUrl) },
+			success: false,
+			error: {
+				code: "NOT_FOUND",
+				message: `Plugin not found: ${pluginId}`,
+			},
 		};
 	} catch {
 		return {
@@ -227,6 +279,7 @@ function buildStateOnlyPluginInfo(
 export async function handlePluginEnable(
 	db: Kysely<Database>,
 	configuredPlugins: ResolvedPlugin[],
+	sandboxedPluginEntries: SandboxedPluginEntry[],
 	pluginId: string,
 ): Promise<ApiResult<PluginResponse>> {
 	try {
@@ -237,6 +290,13 @@ export async function handlePluginEnable(
 		if (plugin) {
 			const state = await stateRepo.enable(pluginId, plugin.version);
 			return { success: true, data: { item: buildPluginInfo(plugin, state) } };
+		}
+
+		// Statically-sandboxed plugin: addressable via its build-time entry.
+		const sandboxed = sandboxedPluginEntries.find((e) => e.id === pluginId);
+		if (sandboxed) {
+			const state = await stateRepo.enable(pluginId, sandboxed.version);
+			return { success: true, data: { item: buildSandboxedPluginInfo(sandboxed, state) } };
 		}
 
 		// Runtime-installed plugin (marketplace or registry): only
@@ -268,6 +328,7 @@ export async function handlePluginEnable(
 export async function handlePluginDisable(
 	db: Kysely<Database>,
 	configuredPlugins: ResolvedPlugin[],
+	sandboxedPluginEntries: SandboxedPluginEntry[],
 	pluginId: string,
 ): Promise<ApiResult<PluginResponse>> {
 	try {
@@ -277,6 +338,12 @@ export async function handlePluginDisable(
 		if (plugin) {
 			const state = await stateRepo.disable(pluginId, plugin.version);
 			return { success: true, data: { item: buildPluginInfo(plugin, state) } };
+		}
+
+		const sandboxed = sandboxedPluginEntries.find((e) => e.id === pluginId);
+		if (sandboxed) {
+			const state = await stateRepo.disable(pluginId, sandboxed.version);
+			return { success: true, data: { item: buildSandboxedPluginInfo(sandboxed, state) } };
 		}
 
 		const existing = await stateRepo.get(pluginId);

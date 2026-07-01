@@ -173,6 +173,10 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 					`idx_${table}_translation_group`,
 				);
 			}
+
+			// The taxonomies rebuild drops the table (and its indexes); it must
+			// recreate the parent index it inherited from 015 (regression #1665).
+			expect(names).toContain("idx_taxonomies_parent");
 		});
 
 		it("backfills translation_group = id for pre-existing rows", async () => {

@@ -40,6 +40,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "fa", label: "فارسی", enabled: true, dir: "rtl" }, // Farsi (also known as Persian)
 	{ code: "fr", label: "Français", enabled: true }, // French
 	{ code: "de", label: "Deutsch", enabled: true }, // German
+	{ code: "hu", label: "Magyar", enabled: true }, // Hungarian
 	{ code: "id", label: "Bahasa Indonesia", enabled: true }, // Indonesian
 	{ code: "ja", label: "日本語", enabled: true }, // Japanese
 	{ code: "ko", label: "한국어", enabled: false }, // Korean
@@ -49,6 +50,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "es-419", label: "Español (Latinoamérica)", enabled: true }, // Spanish (Latin America)
 	{ code: "es-ES", label: "Español (España)", enabled: true }, // Spanish (Spain) - BCP 47
 	{ code: "th", label: "ไทย", enabled: true }, // Thai
+	{ code: "tr", label: "Türkçe", enabled: true }, // Turkish
 	// Pseudo-locale for i18n testing - never enabled in the admin UI by default.
 	// Set EMDASH_PSEUDO_LOCALE=1 in .env to expose it in the locale switcher (dev only).
 	{ code: "pseudo", label: "Pseudo", enabled: false },

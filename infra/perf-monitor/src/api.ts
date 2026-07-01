@@ -13,6 +13,7 @@ import {
 	queryResults,
 	getLatestResults,
 	getRollingMedians,
+	getDailyMedians,
 	getDeployResults,
 	insertResults,
 	type Source,
@@ -98,7 +99,14 @@ async function handleSummary(url: URL, env: Env): Promise<Response> {
 	});
 }
 
-/** GET /api/chart?route=X&region=Y&site=W&since=ISO&limit=N -- time series data */
+/**
+ * GET /api/chart?route=X&region=Y&site=W&since=ISO[&bucket=day&limit=N]
+ *
+ * `bucket=day` returns one true-median point per UTC day -- used by the 7d/30d/
+ * 90d views, where raw samples (48/day) overflow any row limit and truncate the
+ * window. Without it, returns raw per-sample rows plus deploy markers for the
+ * sub-day (1h/24h) views.
+ */
 async function handleChart(url: URL, env: Env): Promise<Response> {
 	const route = url.searchParams.get("route");
 	const region = url.searchParams.get("region");
@@ -109,6 +117,23 @@ async function handleChart(url: URL, env: Env): Promise<Response> {
 
 	const site = parseSiteParam(url.searchParams.get("site"));
 	const since = url.searchParams.get("since") ?? undefined;
+
+	if (url.searchParams.get("bucket") === "day") {
+		const series = await getDailyMedians(env.DB, { route, region, site, since });
+		return Response.json({
+			route,
+			region,
+			site,
+			data: series.map((d) => ({
+				timestamp: `${d.day} 12:00:00`,
+				coldTtfbMs: d.median_cold,
+				warmTtfbMs: d.median_warm,
+				p95TtfbMs: d.median_p95,
+			})),
+			deployMarkers: [],
+		});
+	}
+
 	const limit = url.searchParams.has("limit") ? parseInt(url.searchParams.get("limit")!, 10) : 200;
 
 	const [results, deployResults] = await Promise.all([

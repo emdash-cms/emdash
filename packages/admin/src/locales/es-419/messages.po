@@ -13,11 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Guest"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:440
+#: packages/admin/src/routes/bylines.tsx:447
 msgid " - Linked"
 msgstr ""
 
@@ -35,7 +35,7 @@ msgstr " (se abre en una nueva ventana)"
 msgid " (selected)"
 msgstr " (seleccionado)"
 
-#: packages/admin/src/routes/bylines.tsx:700
+#: packages/admin/src/routes/bylines.tsx:707
 msgid "-- Select --"
 msgstr ""
 
@@ -84,7 +84,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# colección} other {# colecciones}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1267
+#: packages/admin/src/router.tsx:1277
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr ""
 
@@ -142,7 +142,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# entrada} other {# entradas}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:418
+#: packages/admin/src/components/Redirects.tsx:444
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# redirección es parte de un bucle.} other {# redirecciones son parte de un bucle.}}"
 
@@ -367,11 +367,11 @@ msgstr "{unchangedCount, plural, one {Mostrar # sin cambios} other {Mostrar # si
 msgid "{uploaded} uploaded, {failed} failed"
 msgstr "{uploaded} subido, {failed} falló"
 
-#: packages/admin/src/components/Redirects.tsx:137
+#: packages/admin/src/components/Redirects.tsx:141
 msgid "/new-page or /articles/[slug]"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:129
+#: packages/admin/src/components/Redirects.tsx:132
 msgid "/old-page or /blog/[slug]"
 msgstr ""
 
@@ -426,19 +426,19 @@ msgstr "3. Seleccione \"Todo el contenido\""
 msgid "30 days"
 msgstr "30 dias"
 
-#: packages/admin/src/components/Redirects.tsx:150
+#: packages/admin/src/components/Redirects.tsx:155
 msgid "301 Permanent"
 msgstr "301 Permanente"
 
-#: packages/admin/src/components/Redirects.tsx:151
+#: packages/admin/src/components/Redirects.tsx:156
 msgid "302 Temporary"
 msgstr "302 Temporal"
 
-#: packages/admin/src/components/Redirects.tsx:152
+#: packages/admin/src/components/Redirects.tsx:157
 msgid "307 Temporary (Strict)"
 msgstr "307 Temporal (Estricto)"
 
-#: packages/admin/src/components/Redirects.tsx:153
+#: packages/admin/src/components/Redirects.tsx:158
 msgid "308 Permanent (Strict)"
 msgstr "308 Permanente (Estricto)"
 
@@ -450,9 +450,17 @@ msgstr "4. Haga clic en \"Descargar archivo de exportación\"."
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Ingrese \"EmDash\" y haga clic en \"Agregar nuevo\"."
 
-#: packages/admin/src/components/Redirects.tsx:368
+#: packages/admin/src/components/Redirects.tsx:394
 msgid "404 Errors"
 msgstr "Errores 404"
+
+#: packages/admin/src/components/Redirects.tsx:159
+msgid "410 Content Deleted (Gone)"
+msgstr ""
+
+#: packages/admin/src/components/Redirects.tsx:160
+msgid "451 Unavailable for legal reasons"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1365
 msgid "5. Copy the generated password"
@@ -498,7 +506,7 @@ msgstr ""
 msgid "Access denied"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1287
+#: packages/admin/src/router.tsx:1297
 msgid "Access Denied"
 msgstr ""
 
@@ -547,7 +555,7 @@ msgstr "Agregar"
 
 #. placeholder {0}: field.item_label
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/PortableTextEditor.tsx:1616
+#: packages/admin/src/components/PortableTextEditor.tsx:1657
 #: packages/admin/src/components/TaxonomyManager.tsx:362
 #: packages/admin/src/components/TaxonomyManager.tsx:814
 msgid "Add {0}"
@@ -569,11 +577,11 @@ msgstr "Agregar un dominio permitido"
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Agregue al menos un subcampo para definir la estructura del repetidor."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2703
+#: packages/admin/src/components/PortableTextEditor.tsx:2783
 msgid "Add column after"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2696
+#: packages/admin/src/components/PortableTextEditor.tsx:2776
 msgid "Add column before"
 msgstr ""
 
@@ -619,7 +627,7 @@ msgstr ""
 msgid "Add First Item"
 msgstr "Agregar primer elemento"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1616
+#: packages/admin/src/components/PortableTextEditor.tsx:1657
 msgid "Add item"
 msgstr ""
 
@@ -627,7 +635,7 @@ msgstr ""
 msgid "Add Item"
 msgstr "Agregar elemento"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2663
+#: packages/admin/src/components/PortableTextEditor.tsx:2743
 msgid "Add link"
 msgstr ""
 
@@ -660,11 +668,11 @@ msgstr "Agregar Passkey"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "Agregue plugins a su astro.config.mjs para ampliar la funcionalidad de EmDash."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2726
+#: packages/admin/src/components/PortableTextEditor.tsx:2806
 msgid "Add row after"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2719
+#: packages/admin/src/components/PortableTextEditor.tsx:2799
 msgid "Add row before"
 msgstr ""
 
@@ -698,12 +706,12 @@ msgid "Additional data to import."
 msgstr "Datos adicionales para importar."
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:95
-#: packages/admin/src/components/Sidebar.tsx:599
+#: packages/admin/src/components/Sidebar.tsx:469
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Admin"
 
-#: packages/admin/src/components/Sidebar.tsx:543
+#: packages/admin/src/components/Sidebar.tsx:419
 msgid "Admin navigation"
 msgstr "Navegación de administrador"
 
@@ -715,16 +723,21 @@ msgstr "Administrador"
 msgid "After send:"
 msgstr "Después del envío:"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3051
+#: packages/admin/src/components/PortableTextEditor.tsx:3133
 msgid "Align Center"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3044
+#: packages/admin/src/components/PortableTextEditor.tsx:3126
 msgid "Align Left"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3058
+#: packages/admin/src/components/PortableTextEditor.tsx:3140
 msgid "Align Right"
+msgstr ""
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:324
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:513
+msgid "Alignment"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:283
@@ -736,7 +749,7 @@ msgstr "Todo"
 msgid "All authors"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:406
+#: packages/admin/src/routes/bylines.tsx:413
 msgid "All bylines"
 msgstr ""
 
@@ -770,12 +783,12 @@ msgid "All Sources"
 msgstr "Todas las fuentes"
 
 #: packages/admin/src/components/ContentList.tsx:542
-#: packages/admin/src/components/Redirects.tsx:392
+#: packages/admin/src/components/Redirects.tsx:418
 msgid "All statuses"
 msgstr "Todos los estados"
 
 #: packages/admin/src/components/MediaLibrary.tsx:400
-#: packages/admin/src/components/Redirects.tsx:398
+#: packages/admin/src/components/Redirects.tsx:424
 msgid "All types"
 msgstr "Todos los tipos"
 
@@ -803,12 +816,12 @@ msgstr "¿Ya tienes una cuenta?"
 msgid "Also delete plugin storage data"
 msgstr "Eliminar también los datos de almacenamiento del plugin"
 
-#: packages/admin/src/components/editor/ImageNode.tsx:202
+#: packages/admin/src/components/editor/ImageNode.tsx:231
 msgid "Alt text"
 msgstr ""
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:298
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:463
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:344
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:533
 #: packages/admin/src/components/MediaDetailPanel.tsx:216
 msgid "Alt Text"
 msgstr "Texto alternativo"
@@ -832,19 +845,19 @@ msgstr "Alternativamente, puede exportar desde WordPress (Herramientas → Expor
 #: packages/admin/src/router.tsx:414
 #: packages/admin/src/router.tsx:428
 #: packages/admin/src/router.tsx:442
-#: packages/admin/src/router.tsx:808
-#: packages/admin/src/router.tsx:846
-#: packages/admin/src/router.tsx:864
-#: packages/admin/src/router.tsx:882
-#: packages/admin/src/router.tsx:903
-#: packages/admin/src/router.tsx:924
-#: packages/admin/src/router.tsx:945
-#: packages/admin/src/router.tsx:976
-#: packages/admin/src/router.tsx:996
-#: packages/admin/src/router.tsx:1232
-#: packages/admin/src/router.tsx:1248
-#: packages/admin/src/router.tsx:1273
-#: packages/admin/src/router.tsx:1755
+#: packages/admin/src/router.tsx:818
+#: packages/admin/src/router.tsx:856
+#: packages/admin/src/router.tsx:874
+#: packages/admin/src/router.tsx:892
+#: packages/admin/src/router.tsx:913
+#: packages/admin/src/router.tsx:934
+#: packages/admin/src/router.tsx:955
+#: packages/admin/src/router.tsx:986
+#: packages/admin/src/router.tsx:1006
+#: packages/admin/src/router.tsx:1242
+#: packages/admin/src/router.tsx:1258
+#: packages/admin/src/router.tsx:1283
+#: packages/admin/src/router.tsx:1765
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -885,17 +898,17 @@ msgstr ""
 msgid "Application Password"
 msgstr "Contraseña de la aplicación"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3118
+#: packages/admin/src/components/PortableTextEditor.tsx:3200
 msgid "Apply"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:170
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:171
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:181
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:182
 msgid "Apply language"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2603
-#: packages/admin/src/components/PortableTextEditor.tsx:2604
+#: packages/admin/src/components/PortableTextEditor.tsx:2683
+#: packages/admin/src/components/PortableTextEditor.tsx:2684
 msgid "Apply link"
 msgstr ""
 
@@ -1023,11 +1036,11 @@ msgstr "Autorizando..."
 msgid "Authors"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:495
+#: packages/admin/src/components/Redirects.tsx:521
 msgid "auto"
 msgstr "auto"
 
-#: packages/admin/src/components/Redirects.tsx:398
+#: packages/admin/src/components/Redirects.tsx:424
 msgid "Auto (slug change)"
 msgstr "Auto (cambio de slug)"
 
@@ -1039,7 +1052,7 @@ msgstr ""
 msgid "Auto-generated from name (you can edit)"
 msgstr "Generado automáticamente a partir del nombre (puedes editarlo)"
 
-#: packages/admin/src/router.tsx:845
+#: packages/admin/src/router.tsx:855
 msgid "Autosave failed"
 msgstr ""
 
@@ -1122,7 +1135,7 @@ msgstr "Antes de enviar:"
 msgid "Bing Verification"
 msgstr "Verificación de Bing"
 
-#: packages/admin/src/routes/bylines.tsx:490
+#: packages/admin/src/routes/bylines.tsx:497
 msgid "Bio"
 msgstr ""
 
@@ -1130,8 +1143,8 @@ msgstr ""
 msgid "Block actions - drag to reorder, click for menu"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2627
-#: packages/admin/src/components/PortableTextEditor.tsx:2933
+#: packages/admin/src/components/PortableTextEditor.tsx:2707
+#: packages/admin/src/components/PortableTextEditor.tsx:3015
 msgid "Bold"
 msgstr ""
 
@@ -1167,19 +1180,23 @@ msgid "Browse themes and preview them with your own content."
 msgstr "Explore temas y obtenga una vista previa de ellos con su propio contenido."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:102
-#: packages/admin/src/components/PortableTextEditor.tsx:999
-#: packages/admin/src/components/PortableTextEditor.tsx:3001
+#: packages/admin/src/components/PortableTextEditor.tsx:1040
+#: packages/admin/src/components/PortableTextEditor.tsx:3083
 msgid "Bullet List"
 msgstr "Lista de viñetas"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:377
+#: packages/admin/src/routes/bylines.tsx:384
 msgid "Byline schema"
 msgstr ""
 
+#: packages/admin/src/components/Sidebar.tsx:347
+msgid "Byline Schema"
+msgstr ""
+
 #: packages/admin/src/components/ContentEditor.tsx:993
-#: packages/admin/src/components/Sidebar.tsx:363
-#: packages/admin/src/routes/bylines.tsx:369
+#: packages/admin/src/components/Sidebar.tsx:342
+#: packages/admin/src/routes/bylines.tsx:376
 msgid "Bylines"
 msgstr "Firmas"
 
@@ -1222,11 +1239,11 @@ msgstr "Puede ver contenido"
 #: packages/admin/src/components/ContentList.tsx:851
 #: packages/admin/src/components/ContentList.tsx:922
 #: packages/admin/src/components/ContentPickerModal.tsx:248
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:182
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:183
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
-#: packages/admin/src/components/editor/ImageNode.tsx:223
-#: packages/admin/src/components/editor/ImageNode.tsx:224
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:193
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:194
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
+#: packages/admin/src/components/editor/ImageNode.tsx:252
+#: packages/admin/src/components/editor/ImageNode.tsx:253
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:406
 #: packages/admin/src/components/FieldEditor.tsx:649
 #: packages/admin/src/components/MediaDetailPanel.tsx:248
@@ -1235,8 +1252,8 @@ msgstr "Puede ver contenido"
 #: packages/admin/src/components/MenuEditor.tsx:530
 #: packages/admin/src/components/MenuList.tsx:172
 #: packages/admin/src/components/PluginManager.tsx:640
-#: packages/admin/src/components/PortableTextEditor.tsx:3102
-#: packages/admin/src/components/Redirects.tsx:175
+#: packages/admin/src/components/PortableTextEditor.tsx:3184
+#: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/SectionPickerModal.tsx:130
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:313
@@ -1281,8 +1298,8 @@ msgstr "Capacidades"
 msgid "Capability consent"
 msgstr "Consentimiento de capacidad"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:306
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:471
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:352
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:541
 #: packages/admin/src/components/MediaDetailPanel.tsx:224
 msgid "Caption"
 msgstr "Leyenda"
@@ -1300,12 +1317,16 @@ msgstr "Categorías"
 msgid "Categories ({0})"
 msgstr "Categorías ({0})"
 
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:161
+msgid "Center"
+msgstr ""
+
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
 #: packages/admin/src/components/ContentEditor.tsx:1699
 #: packages/admin/src/components/FieldEditor.tsx:402
-#: packages/admin/src/components/ImageFieldRenderer.tsx:113
-#: packages/admin/src/components/ImageFieldRenderer.tsx:142
+#: packages/admin/src/components/ImageFieldRenderer.tsx:122
+#: packages/admin/src/components/ImageFieldRenderer.tsx:151
 #: packages/admin/src/components/SeoImageField.tsx:47
 msgid "Change"
 msgstr "Cambiar"
@@ -1333,7 +1354,7 @@ msgstr "Cambiar logotipo"
 msgid "Changelog"
 msgstr ""
 
-#: packages/admin/src/router.tsx:896
+#: packages/admin/src/router.tsx:906
 msgid "Changes discarded"
 msgstr ""
 
@@ -1396,10 +1417,10 @@ msgstr "Haga clic en el enlace del correo electrónico para iniciar sesión."
 #: packages/admin/src/components/ContentPickerModal.tsx:120
 #: packages/admin/src/components/ContentPickerModal.tsx:126
 #: packages/admin/src/components/ContentPickerModal.tsx:130
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:205
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:207
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:366
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:368
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:227
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:229
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:412
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:414
 #: packages/admin/src/components/FieldEditor.tsx:345
 #: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/FieldEditor.tsx:355
@@ -1418,11 +1439,11 @@ msgstr "Haga clic en el enlace del correo electrónico para iniciar sesión."
 #: packages/admin/src/components/MenuList.tsx:136
 #: packages/admin/src/components/MenuList.tsx:142
 #: packages/admin/src/components/MenuList.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:1400
-#: packages/admin/src/components/PortableTextEditor.tsx:1406
-#: packages/admin/src/components/PortableTextEditor.tsx:1410
-#: packages/admin/src/components/Redirects.tsx:111
-#: packages/admin/src/components/Redirects.tsx:117
+#: packages/admin/src/components/PortableTextEditor.tsx:1441
+#: packages/admin/src/components/PortableTextEditor.tsx:1447
+#: packages/admin/src/components/PortableTextEditor.tsx:1451
+#: packages/admin/src/components/Redirects.tsx:114
+#: packages/admin/src/components/Redirects.tsx:120
 #: packages/admin/src/components/SectionPickerModal.tsx:60
 #: packages/admin/src/components/SectionPickerModal.tsx:66
 #: packages/admin/src/components/SectionPickerModal.tsx:70
@@ -1459,14 +1480,14 @@ msgid "Close panel"
 msgstr "Cerrar panel"
 
 #: packages/admin/src/components/ContentTypeList.tsx:244
-#: packages/admin/src/components/PortableTextEditor.tsx:2655
-#: packages/admin/src/components/Redirects.tsx:443
+#: packages/admin/src/components/PortableTextEditor.tsx:2735
+#: packages/admin/src/components/Redirects.tsx:469
 msgid "Code"
 msgstr "Código"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:94
-#: packages/admin/src/components/PortableTextEditor.tsx:1029
-#: packages/admin/src/components/PortableTextEditor.tsx:3022
+#: packages/admin/src/components/PortableTextEditor.tsx:1070
+#: packages/admin/src/components/PortableTextEditor.tsx:3104
 msgid "Code Block"
 msgstr "Bloque de código"
 
@@ -1513,7 +1534,7 @@ msgstr "Detalle del comentario"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:146
 #: packages/admin/src/components/ContentTypeEditor.tsx:487
-#: packages/admin/src/components/Sidebar.tsx:347
+#: packages/admin/src/components/Sidebar.tsx:326
 msgid "Comments"
 msgstr "Comentarios"
 
@@ -1563,9 +1584,9 @@ msgstr "Conectado {0}"
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
-#: packages/admin/src/components/PortableTextEditor.tsx:2133
+#: packages/admin/src/components/PortableTextEditor.tsx:2211
 #: packages/admin/src/components/SectionEditor.tsx:194
-#: packages/admin/src/components/Sidebar.tsx:577
+#: packages/admin/src/components/Sidebar.tsx:451
 #: packages/admin/src/components/Widgets.tsx:819
 msgid "Content"
 msgstr "Contenido"
@@ -1583,7 +1604,7 @@ msgstr "Errores de contenido ({0})"
 msgid "Content found:"
 msgstr "Contenido encontrado:"
 
-#: packages/admin/src/router.tsx:918
+#: packages/admin/src/router.tsx:928
 msgid "Content has been scheduled for publishing"
 msgstr ""
 
@@ -1595,7 +1616,7 @@ msgstr "El contenido se ha actualizado a la revisión seleccionada."
 msgid "Content ID:"
 msgstr "ID de contenido:"
 
-#: packages/admin/src/router.tsx:859
+#: packages/admin/src/router.tsx:869
 msgid "Content is now live"
 msgstr ""
 
@@ -1607,11 +1628,11 @@ msgstr "elementos de contenido"
 msgid "Content Read"
 msgstr "Lectura de contenido"
 
-#: packages/admin/src/router.tsx:877
+#: packages/admin/src/router.tsx:887
 msgid "Content removed from public view"
 msgstr ""
 
-#: packages/admin/src/router.tsx:939
+#: packages/admin/src/router.tsx:949
 msgid "Content reverted to draft"
 msgstr ""
 
@@ -1625,7 +1646,7 @@ msgstr "Contenido para importar"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:40
-#: packages/admin/src/components/Sidebar.tsx:367
+#: packages/admin/src/components/Sidebar.tsx:346
 msgid "Content Types"
 msgstr "Tipos de contenido"
 
@@ -1703,7 +1724,7 @@ msgstr "No se pudo detectar WordPress"
 msgid "Couldn't load byline fields."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:541
+#: packages/admin/src/routes/bylines.tsx:548
 msgid "Couldn't load custom fields."
 msgstr ""
 
@@ -1726,11 +1747,11 @@ msgstr "Contar"
 
 #: packages/admin/src/components/ContentEditor.tsx:2053
 #: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/Redirects.tsx:184
+#: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:479
 #: packages/admin/src/components/Widgets.tsx:389
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Create"
 msgstr "Crear"
 
@@ -1738,7 +1759,7 @@ msgstr "Crear"
 msgid "Create \"{trimmedInput}\""
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1000
+#: packages/admin/src/components/PortableTextEditor.tsx:1041
 msgid "Create a bullet list"
 msgstr "Crear una lista con viñetas"
 
@@ -1747,7 +1768,7 @@ msgstr "Crear una lista con viñetas"
 msgid "Create a new {0}"
 msgstr "Crear un nuevo {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1010
+#: packages/admin/src/components/PortableTextEditor.tsx:1051
 msgid "Create a numbered list"
 msgstr "Crear una lista numerada"
 
@@ -1761,7 +1782,7 @@ msgid "Create an account"
 msgstr "Crea una cuenta"
 
 #: packages/admin/src/components/ContentEditor.tsx:2001
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Create byline"
 msgstr "Crear firma"
 
@@ -1800,15 +1821,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "Cree tokens de acceso personal para acceso API programático"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:238
+#: packages/admin/src/components/Redirects.tsx:247
 msgid "Create redirect for {0}"
 msgstr "Crear redirección para {0}"
 
-#: packages/admin/src/components/Redirects.tsx:237
+#: packages/admin/src/components/Redirects.tsx:246
 msgid "Create redirect for this path"
 msgstr "Crear redirección para esta ruta"
 
-#: packages/admin/src/components/Redirects.tsx:435
+#: packages/admin/src/components/Redirects.tsx:461
 msgid "Create redirect rules to manage URL changes."
 msgstr "Cree reglas de redirección para administrar los cambios de URL."
 
@@ -1896,7 +1917,7 @@ msgid "Created {0}"
 msgstr "Creado {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:970
+#: packages/admin/src/router.tsx:980
 msgid "Created {0} translation"
 msgstr ""
 
@@ -1915,7 +1936,7 @@ msgstr "Creando colecciones y campos..."
 
 #: packages/admin/src/components/ContentEditor.tsx:2053
 #: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/Redirects.tsx:181
+#: packages/admin/src/components/Redirects.tsx:188
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:450
 #: packages/admin/src/components/TaxonomyManager.tsx:689
@@ -1962,8 +1983,8 @@ msgstr "Oscuro"
 #: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:246
 #: packages/admin/src/components/Dashboard.tsx:42
-#: packages/admin/src/components/Sidebar.tsx:333
-#: packages/admin/src/components/Sidebar.tsx:566
+#: packages/admin/src/components/Sidebar.tsx:312
+#: packages/admin/src/components/Sidebar.tsx:442
 msgid "Dashboard"
 msgstr "Escritorio"
 
@@ -2041,14 +2062,14 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:269
 #: packages/admin/src/components/MenuEditor.tsx:463
 #: packages/admin/src/components/MenuList.tsx:255
-#: packages/admin/src/components/Redirects.tsx:552
+#: packages/admin/src/components/Redirects.tsx:582
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/TaxonomyManager.tsx:886
 #: packages/admin/src/components/Widgets.tsx:636
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:582
-#: packages/admin/src/routes/bylines.tsx:618
+#: packages/admin/src/routes/bylines.tsx:589
+#: packages/admin/src/routes/bylines.tsx:625
 msgid "Delete"
 msgstr "Borrar"
 
@@ -2093,11 +2114,11 @@ msgstr "¿Eliminar {0}?"
 msgid "Delete byline field?"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:616
+#: packages/admin/src/routes/bylines.tsx:623
 msgid "Delete Byline?"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2710
+#: packages/admin/src/components/PortableTextEditor.tsx:2790
 msgid "Delete column"
 msgstr ""
 
@@ -2121,8 +2142,8 @@ msgstr ""
 msgid "Delete HTML block"
 msgstr ""
 
-#: packages/admin/src/components/editor/ImageNode.tsx:191
-#: packages/admin/src/components/editor/ImageNode.tsx:192
+#: packages/admin/src/components/editor/ImageNode.tsx:220
+#: packages/admin/src/components/editor/ImageNode.tsx:221
 msgid "Delete image"
 msgstr ""
 
@@ -2147,20 +2168,20 @@ msgstr "Eliminar permanentemente"
 msgid "Delete Permanently?"
 msgstr "¿Eliminar permanentemente?"
 
-#: packages/admin/src/components/Redirects.tsx:509
+#: packages/admin/src/components/Redirects.tsx:535
 msgid "Delete redirect"
 msgstr "Eliminar redirección"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:510
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Delete redirect {0}"
 msgstr "Eliminar redirección {0}"
 
-#: packages/admin/src/components/Redirects.tsx:550
+#: packages/admin/src/components/Redirects.tsx:580
 msgid "Delete Redirect?"
 msgstr "¿Eliminar redirección?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2731
+#: packages/admin/src/components/PortableTextEditor.tsx:2811
 msgid "Delete row"
 msgstr ""
 
@@ -2168,7 +2189,7 @@ msgstr ""
 msgid "Delete Section?"
 msgstr "¿Eliminar sección?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2746
+#: packages/admin/src/components/PortableTextEditor.tsx:2826
 msgid "Delete table"
 msgstr ""
 
@@ -2192,11 +2213,11 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:244
 #: packages/admin/src/components/MediaDetailPanel.tsx:270
 #: packages/admin/src/components/MenuList.tsx:256
-#: packages/admin/src/components/Redirects.tsx:553
+#: packages/admin/src/components/Redirects.tsx:583
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/TaxonomyManager.tsx:887
 #: packages/admin/src/components/Widgets.tsx:637
-#: packages/admin/src/routes/bylines.tsx:619
+#: packages/admin/src/routes/bylines.tsx:626
 msgid "Deleting..."
 msgstr "Eliminando..."
 
@@ -2225,12 +2246,12 @@ msgstr ""
 msgid "Deny"
 msgstr "Denegar"
 
-#: packages/admin/src/components/editor/ImageNode.tsx:209
+#: packages/admin/src/components/editor/ImageNode.tsx:238
 msgid "Describe the image..."
 msgstr ""
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:301
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:347
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:536
 #: packages/admin/src/components/MediaDetailPanel.tsx:219
 msgid "Describe this image for accessibility"
 msgstr "Describe esta imagen para accesibilidad."
@@ -2251,11 +2272,11 @@ msgstr "Descripción"
 msgid "Description (optional)"
 msgstr "Descripción (opcional)"
 
-#: packages/admin/src/components/Redirects.tsx:442
+#: packages/admin/src/components/Redirects.tsx:468
 msgid "Destination"
 msgstr "Destino"
 
-#: packages/admin/src/components/Redirects.tsx:136
+#: packages/admin/src/components/Redirects.tsx:140
 msgid "Destination path"
 msgstr "Ruta de destino"
 
@@ -2299,7 +2320,7 @@ msgstr "Desactivar"
 msgid "Disable plugin"
 msgstr "Deshabilitar plugin"
 
-#: packages/admin/src/components/Redirects.tsx:478
+#: packages/admin/src/components/Redirects.tsx:504
 msgid "Disable redirect"
 msgstr "Deshabilitar redirección"
 
@@ -2312,7 +2333,7 @@ msgid "Disable User?"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:354
-#: packages/admin/src/components/Redirects.tsx:392
+#: packages/admin/src/components/Redirects.tsx:418
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:212
 msgid "Disabled"
@@ -2351,7 +2372,7 @@ msgstr "Mostrar un menú de navegación"
 
 #: packages/admin/src/components/ContentEditor.tsx:2004
 #: packages/admin/src/components/ContentEditor.tsx:2066
-#: packages/admin/src/routes/bylines.tsx:475
+#: packages/admin/src/routes/bylines.tsx:482
 msgid "Display name"
 msgstr "Nombre para mostrar"
 
@@ -2359,13 +2380,13 @@ msgstr "Nombre para mostrar"
 msgid "Display name for admin interface"
 msgstr "Nombre para mostrar para la interfaz de administración"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:247
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:412
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:269
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:458
 msgid "Display Size"
 msgstr "Tamaño de visualización"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:310
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:475
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:356
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:545
 msgid "Displayed below the image as a visible caption."
 msgstr "Se muestra debajo de la imagen como leyenda visible."
 
@@ -2373,7 +2394,7 @@ msgstr "Se muestra debajo de la imagen como leyenda visible."
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Modo sin distracciones (⌘⇧\\)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1054
+#: packages/admin/src/components/PortableTextEditor.tsx:1095
 msgid "Divider"
 msgstr "Divisor"
 
@@ -2450,7 +2471,7 @@ msgstr "Arrastre y suelte o haga clic para explorar (.xml)"
 msgid "Drag here to add"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1792
+#: packages/admin/src/components/PortableTextEditor.tsx:1833
 msgid "Drag to reorder"
 msgstr ""
 
@@ -2493,7 +2514,7 @@ msgstr "Duplicar {title}"
 msgid "e.g. application/zip or .pdf"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:160
+#: packages/admin/src/components/Redirects.tsx:167
 msgid "e.g. import, blog"
 msgstr ""
 
@@ -2519,12 +2540,12 @@ msgstr "Editar"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:220
-#: packages/admin/src/components/PortableTextEditor.tsx:1397
+#: packages/admin/src/components/PortableTextEditor.tsx:1438
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:276
 #: packages/admin/src/components/TaxonomyManager.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:361
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:470
+#: packages/admin/src/routes/bylines.tsx:477
 msgid "Edit {0}"
 msgstr "Editar {0}"
 
@@ -2557,7 +2578,7 @@ msgstr "Editar dominio"
 msgid "Edit Field"
 msgstr "Editar campo"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2663
+#: packages/admin/src/components/PortableTextEditor.tsx:2743
 msgid "Edit link"
 msgstr ""
 
@@ -2569,16 +2590,16 @@ msgstr "Editar elemento del menú"
 msgid "Edit menu items"
 msgstr "Editar elementos del menú"
 
-#: packages/admin/src/components/Redirects.tsx:501
+#: packages/admin/src/components/Redirects.tsx:527
 msgid "Edit redirect"
 msgstr "Editar redirección"
 
-#: packages/admin/src/components/Redirects.tsx:102
+#: packages/admin/src/components/Redirects.tsx:105
 msgid "Edit Redirect"
 msgstr "Editar redirección"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:502
+#: packages/admin/src/components/Redirects.tsx:528
 msgid "Edit redirect {0}"
 msgstr "Editar redirección {0}"
 
@@ -2647,11 +2668,11 @@ msgid "Email verified!"
 msgstr "Correo electrónico verificado!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2146
+#: packages/admin/src/components/PortableTextEditor.tsx:2224
 msgid "Embed a {0}"
 msgstr "Incrustar un {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2149
+#: packages/admin/src/components/PortableTextEditor.tsx:2227
 msgid "Embeds"
 msgstr "Incrustaciones"
 
@@ -2679,12 +2700,12 @@ msgstr "Habilitar la búsqueda de texto completo en esta colección"
 msgid "Enable plugin"
 msgstr "Habilitar plugin"
 
-#: packages/admin/src/components/Redirects.tsx:478
+#: packages/admin/src/components/Redirects.tsx:504
 msgid "Enable redirect"
 msgstr "Habilitar redirección"
 
-#: packages/admin/src/components/Redirects.tsx:168
-#: packages/admin/src/components/Redirects.tsx:392
+#: packages/admin/src/components/Redirects.tsx:175
+#: packages/admin/src/components/Redirects.tsx:418
 msgid "Enabled"
 msgstr "Activado"
 
@@ -2752,7 +2773,7 @@ msgstr "Ingrese la URL de su sitio de WordPress"
 #: packages/admin/src/components/MenuEditor.tsx:179
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
-#: packages/admin/src/router.tsx:1937
+#: packages/admin/src/router.tsx:1947
 msgid "Error"
 msgstr "Error"
 
@@ -2784,7 +2805,7 @@ msgstr "existe"
 msgid "Exit distraction-free mode"
 msgstr "Salir del modo sin distracciones"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3176
+#: packages/admin/src/components/PortableTextEditor.tsx:3258
 msgid "Exit Spotlight Mode"
 msgstr ""
 
@@ -2841,7 +2862,7 @@ msgstr ""
 msgid "Failed to communicate with plugin"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:151
+#: packages/admin/src/lib/api/media.ts:155
 msgid "Failed to confirm upload"
 msgstr ""
 
@@ -2873,13 +2894,13 @@ msgstr "No se pudieron crear algunas colecciones."
 msgid "Failed to create term"
 msgstr ""
 
-#: packages/admin/src/router.tsx:975
+#: packages/admin/src/router.tsx:985
 msgid "Failed to create translation"
 msgstr ""
 
 #: packages/admin/src/router.tsx:398
 #: packages/admin/src/router.tsx:427
-#: packages/admin/src/router.tsx:995
+#: packages/admin/src/router.tsx:1005
 msgid "Failed to delete"
 msgstr ""
 
@@ -2900,7 +2921,7 @@ msgid "Failed to delete collection"
 msgstr ""
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1247
+#: packages/admin/src/router.tsx:1257
 msgid "Failed to delete comment"
 msgstr ""
 
@@ -2913,11 +2934,11 @@ msgstr ""
 msgid "Failed to delete field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:381
+#: packages/admin/src/lib/api/media.ts:389
 msgid "Failed to delete from provider"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:255
+#: packages/admin/src/lib/api/media.ts:259
 msgid "Failed to delete media"
 msgstr ""
 
@@ -2966,7 +2987,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr ""
 
-#: packages/admin/src/router.tsx:902
+#: packages/admin/src/router.tsx:912
 msgid "Failed to discard changes"
 msgstr ""
 
@@ -3020,15 +3041,15 @@ msgstr ""
 msgid "Failed to fetch manifest"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:72
+#: packages/admin/src/lib/api/media.ts:76
 msgid "Failed to fetch media"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:85
+#: packages/admin/src/lib/api/media.ts:89
 msgid "Failed to fetch media item"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:317
+#: packages/admin/src/lib/api/media.ts:325
 msgid "Failed to fetch media providers"
 msgstr ""
 
@@ -3041,7 +3062,7 @@ msgstr ""
 msgid "Failed to fetch plugins"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:347
+#: packages/admin/src/lib/api/media.ts:355
 msgid "Failed to fetch provider media"
 msgstr ""
 
@@ -3073,8 +3094,8 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:737
-#: packages/admin/src/router.tsx:1178
+#: packages/admin/src/router.tsx:742
+#: packages/admin/src/router.tsx:1188
 msgid "Failed to fetch user"
 msgstr ""
 
@@ -3094,7 +3115,7 @@ msgstr ""
 msgid "Failed to get registration options"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:127
+#: packages/admin/src/lib/api/media.ts:131
 msgid "Failed to get upload URL"
 msgstr ""
 
@@ -3125,7 +3146,7 @@ msgid "Failed to load allowed domains"
 msgstr "No se pudieron cargar los dominios permitidos"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:359
+#: packages/admin/src/routes/bylines.tsx:366
 msgid "Failed to load bylines: {0}"
 msgstr ""
 
@@ -3175,7 +3196,7 @@ msgstr ""
 msgid "Failed to load widget"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1272
+#: packages/admin/src/router.tsx:1282
 msgid "Failed to perform bulk action"
 msgstr ""
 
@@ -3187,7 +3208,7 @@ msgstr ""
 msgid "Failed to prepare import"
 msgstr ""
 
-#: packages/admin/src/router.tsx:863
+#: packages/admin/src/router.tsx:873
 msgid "Failed to publish"
 msgstr ""
 
@@ -3242,8 +3263,8 @@ msgstr ""
 msgid "Failed to rewrite URLs"
 msgstr ""
 
-#: packages/admin/src/router.tsx:807
-#: packages/admin/src/router.tsx:1754
+#: packages/admin/src/router.tsx:817
+#: packages/admin/src/router.tsx:1764
 msgid "Failed to save"
 msgstr ""
 
@@ -3257,7 +3278,7 @@ msgstr ""
 msgid "Failed to save settings"
 msgstr "No se pudo guardar la configuración"
 
-#: packages/admin/src/router.tsx:923
+#: packages/admin/src/router.tsx:933
 msgid "Failed to schedule"
 msgstr ""
 
@@ -3288,11 +3309,11 @@ msgstr ""
 msgid "Failed to uninstall plugin"
 msgstr ""
 
-#: packages/admin/src/router.tsx:881
+#: packages/admin/src/router.tsx:891
 msgid "Failed to unpublish"
 msgstr ""
 
-#: packages/admin/src/router.tsx:944
+#: packages/admin/src/router.tsx:954
 msgid "Failed to unschedule"
 msgstr ""
 
@@ -3313,7 +3334,7 @@ msgstr ""
 msgid "Failed to update domain"
 msgstr "No se pudo actualizar el dominio"
 
-#: packages/admin/src/lib/api/media.ts:272
+#: packages/admin/src/lib/api/media.ts:276
 msgid "Failed to update media"
 msgstr ""
 
@@ -3330,19 +3351,19 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1231
+#: packages/admin/src/router.tsx:1241
 msgid "Failed to update status"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:169
+#: packages/admin/src/lib/api/media.ts:173
 msgid "Failed to upload file"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:214
+#: packages/admin/src/lib/api/media.ts:218
 msgid "Failed to upload media"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:369
+#: packages/admin/src/lib/api/media.ts:377
 msgid "Failed to upload to provider"
 msgstr ""
 
@@ -3459,16 +3480,16 @@ msgid "Filter by source"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:568
-#: packages/admin/src/components/Redirects.tsx:393
+#: packages/admin/src/components/Redirects.tsx:419
 msgid "Filter by status"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:406
-#: packages/admin/src/components/Redirects.tsx:399
+#: packages/admin/src/components/Redirects.tsx:425
 msgid "Filter by type"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:402
+#: packages/admin/src/routes/bylines.tsx:409
 msgid "Filter byline type"
 msgstr ""
 
@@ -3490,6 +3511,10 @@ msgstr "Para obtener la mejor experiencia de importación, instale el"
 
 #: packages/admin/src/components/ContentList.tsx:620
 msgid "From date"
+msgstr ""
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:164
+msgid "Full"
 msgstr ""
 
 #: packages/admin/src/components/users/roleDefinitions.ts:43
@@ -3530,7 +3555,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
-#: packages/admin/src/router.tsx:1957
+#: packages/admin/src/router.tsx:1967
 msgid "Go to Dashboard"
 msgstr "Ir al panel"
 
@@ -3546,38 +3571,38 @@ msgstr ""
 msgid "Grid view"
 msgstr "Vista de cuadrícula"
 
-#: packages/admin/src/components/Redirects.tsx:159
+#: packages/admin/src/components/Redirects.tsx:166
 msgid "Group (optional)"
 msgstr "Grupo (opcional)"
 
-#: packages/admin/src/routes/bylines.tsx:549
+#: packages/admin/src/routes/bylines.tsx:556
 msgid "Guest byline"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:407
+#: packages/admin/src/routes/bylines.tsx:414
 msgid "Guest only"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:62
-#: packages/admin/src/components/PortableTextEditor.tsx:969
-#: packages/admin/src/components/PortableTextEditor.tsx:2974
+#: packages/admin/src/components/PortableTextEditor.tsx:1010
+#: packages/admin/src/components/PortableTextEditor.tsx:3056
 msgid "Heading 1"
 msgstr "Título 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:70
-#: packages/admin/src/components/PortableTextEditor.tsx:979
-#: packages/admin/src/components/PortableTextEditor.tsx:2981
+#: packages/admin/src/components/PortableTextEditor.tsx:1020
+#: packages/admin/src/components/PortableTextEditor.tsx:3063
 msgid "Heading 2"
 msgstr "Título 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:78
-#: packages/admin/src/components/PortableTextEditor.tsx:989
-#: packages/admin/src/components/PortableTextEditor.tsx:2988
+#: packages/admin/src/components/PortableTextEditor.tsx:1030
+#: packages/admin/src/components/PortableTextEditor.tsx:3070
 msgid "Heading 3"
 msgstr "Título 3"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:282
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:447
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:308
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:497
 msgid "Height"
 msgstr "Altura"
 
@@ -3601,8 +3626,8 @@ msgstr "Ocultar token"
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Jerárquico (como categorías, con relaciones padre/hijo)"
 
-#: packages/admin/src/components/Redirects.tsx:216
-#: packages/admin/src/components/Redirects.tsx:444
+#: packages/admin/src/components/Redirects.tsx:225
+#: packages/admin/src/components/Redirects.tsx:470
 msgid "Hits"
 msgstr "Visitas"
 
@@ -3624,7 +3649,7 @@ msgstr "Cómo crear una contraseña de aplicación"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1039
+#: packages/admin/src/components/PortableTextEditor.tsx:1080
 msgid "HTML"
 msgstr ""
 
@@ -3655,7 +3680,7 @@ msgstr "Si existe una cuenta para <0>{email}</0>, le enviamos un enlace de inici
 
 #: packages/admin/src/components/FieldEditor.tsx:204
 #: packages/admin/src/components/FieldEditor.tsx:587
-#: packages/admin/src/components/PortableTextEditor.tsx:2115
+#: packages/admin/src/components/PortableTextEditor.tsx:2193
 msgid "Image"
 msgstr "Imagen"
 
@@ -3664,17 +3689,17 @@ msgid "Image from media library"
 msgstr "Imagen de la biblioteca multimedia"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
-#: packages/admin/src/components/ImageFieldRenderer.tsx:104
+#: packages/admin/src/components/ImageFieldRenderer.tsx:113
 msgid "Image not found"
 msgstr ""
 
-#: packages/admin/src/components/editor/ImageNode.tsx:179
-#: packages/admin/src/components/editor/ImageNode.tsx:180
+#: packages/admin/src/components/editor/ImageNode.tsx:208
+#: packages/admin/src/components/editor/ImageNode.tsx:209
 msgid "Image settings"
 msgstr ""
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:203
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:364
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:225
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:410
 msgid "Image Settings"
 msgstr "Configuración de imagen"
 
@@ -3696,7 +3721,7 @@ msgid "Images"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:227
-#: packages/admin/src/components/Sidebar.tsx:398
+#: packages/admin/src/components/Sidebar.tsx:378
 #: packages/admin/src/components/WordPressImport.tsx:664
 msgid "Import"
 msgstr "Importar"
@@ -3782,7 +3807,7 @@ msgstr "Incompatible"
 msgid "Indexed"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2961
+#: packages/admin/src/components/PortableTextEditor.tsx:3043
 msgid "Inline Code"
 msgstr ""
 
@@ -3792,31 +3817,31 @@ msgid "Insert"
 msgstr "Insertar"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1397
+#: packages/admin/src/components/PortableTextEditor.tsx:1438
 msgid "Insert {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1020
+#: packages/admin/src/components/PortableTextEditor.tsx:1061
 msgid "Insert a blockquote"
 msgstr "Insertar una cita en bloque"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1030
+#: packages/admin/src/components/PortableTextEditor.tsx:1071
 msgid "Insert a code block"
 msgstr "Insertar un bloque de código"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1055
+#: packages/admin/src/components/PortableTextEditor.tsx:1096
 msgid "Insert a horizontal rule"
 msgstr "Insertar una regla horizontal"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2130
+#: packages/admin/src/components/PortableTextEditor.tsx:2208
 msgid "Insert a reusable section"
 msgstr "Insertar una sección reutilizable"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1065
+#: packages/admin/src/components/PortableTextEditor.tsx:1106
 msgid "Insert a table"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2116
+#: packages/admin/src/components/PortableTextEditor.tsx:2194
 msgid "Insert an image"
 msgstr "Insertar una imagen"
 
@@ -3824,23 +3849,23 @@ msgstr "Insertar una imagen"
 msgid "Insert from URL"
 msgstr "Insertar desde URL"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3143
+#: packages/admin/src/components/PortableTextEditor.tsx:3225
 msgid "Insert Horizontal Rule"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3137
+#: packages/admin/src/components/PortableTextEditor.tsx:3219
 msgid "Insert HTML"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3126
+#: packages/admin/src/components/PortableTextEditor.tsx:3208
 msgid "Insert Image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3073
+#: packages/admin/src/components/PortableTextEditor.tsx:3155
 msgid "Insert Link"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1040
+#: packages/admin/src/components/PortableTextEditor.tsx:1081
 msgid "Insert raw HTML"
 msgstr ""
 
@@ -3848,7 +3873,7 @@ msgstr ""
 msgid "Insert Section"
 msgstr "Insertar sección"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3031
+#: packages/admin/src/components/PortableTextEditor.tsx:3113
 msgid "Insert Table"
 msgstr ""
 
@@ -3931,13 +3956,13 @@ msgstr "Invitar usuario"
 msgid "Invite your first team member"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2634
-#: packages/admin/src/components/PortableTextEditor.tsx:2940
+#: packages/admin/src/components/PortableTextEditor.tsx:2714
+#: packages/admin/src/components/PortableTextEditor.tsx:3022
 msgid "Italic"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1778
+#: packages/admin/src/components/PortableTextEditor.tsx:1819
 #: packages/admin/src/components/RepeaterField.tsx:239
 msgid "Item {0}"
 msgstr "Artículo {0}"
@@ -4018,14 +4043,14 @@ msgstr ""
 msgid "Label (Singular)"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:151
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:162
 #: packages/admin/src/components/LoginPage.tsx:345
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Language"
 msgstr "Idioma"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:970
+#: packages/admin/src/components/PortableTextEditor.tsx:1011
 msgid "Large section heading"
 msgstr "Encabezado de sección grande"
 
@@ -4041,7 +4066,7 @@ msgstr "Último inicio de sesión"
 msgid "Last Login"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:217
+#: packages/admin/src/components/Redirects.tsx:226
 msgid "Last seen"
 msgstr "visto por última vez"
 
@@ -4067,6 +4092,10 @@ msgstr "Déjelo en blanco para utilizar una clave reconocible."
 #: packages/admin/src/components/WordPressImport.tsx:2303
 msgid "Leave unassigned"
 msgstr "Dejar sin asignar"
+
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:160
+msgid "Left"
+msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:127
 #: packages/admin/src/components/MediaLibrary.tsx:247
@@ -4101,11 +4130,11 @@ msgstr "Enlace a otro elemento de contenido"
 msgid "Linked Accounts ({0})"
 msgstr "Cuentas vinculadas ({0})"
 
-#: packages/admin/src/routes/bylines.tsx:408
+#: packages/admin/src/routes/bylines.tsx:415
 msgid "Linked only"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:500
+#: packages/admin/src/routes/bylines.tsx:507
 msgid "Linked user"
 msgstr ""
 
@@ -4129,7 +4158,7 @@ msgstr "Vista en vivo"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Load more"
 msgstr "Cargar más"
 
@@ -4153,7 +4182,7 @@ msgstr "Cargando colecciones..."
 msgid "Loading comments..."
 msgstr "Cargando comentarios..."
 
-#: packages/admin/src/router.tsx:1926
+#: packages/admin/src/router.tsx:1936
 msgid "Loading configuration..."
 msgstr ""
 
@@ -4161,7 +4190,7 @@ msgstr ""
 msgid "Loading content..."
 msgstr "Cargando contenido..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2461
+#: packages/admin/src/components/PortableTextEditor.tsx:2541
 msgid "Loading editor..."
 msgstr ""
 
@@ -4177,7 +4206,7 @@ msgstr "Cargando menús..."
 msgid "Loading plugins..."
 msgstr "Cargando plugins..."
 
-#: packages/admin/src/components/Redirects.tsx:430
+#: packages/admin/src/components/Redirects.tsx:456
 msgid "Loading redirects..."
 msgstr "Cargando redirecciones..."
 
@@ -4212,7 +4241,7 @@ msgstr ""
 #: packages/admin/src/components/MarketplaceBrowse.tsx:198
 #: packages/admin/src/components/MediaLibrary.tsx:540
 #: packages/admin/src/components/MediaPickerModal.tsx:723
-#: packages/admin/src/components/PortableTextEditor.tsx:1905
+#: packages/admin/src/components/PortableTextEditor.tsx:1946
 #: packages/admin/src/components/RegistryBrowse.tsx:143
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:176
 #: packages/admin/src/components/settings/SecuritySettings.tsx:113
@@ -4222,7 +4251,7 @@ msgstr ""
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:156
 #: packages/admin/src/components/WelcomeModal.tsx:143
-#: packages/admin/src/routes/bylines.tsx:462
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Loading..."
 msgstr "Cargando..."
 
@@ -4231,10 +4260,10 @@ msgstr "Cargando..."
 msgid "Locale"
 msgstr "Lugar"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:271
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:272
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:436
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:437
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:296
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:297
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:485
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:486
 msgid "Lock aspect ratio"
 msgstr "Bloquear relación de aspecto"
 
@@ -4286,7 +4315,7 @@ msgstr ""
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
-#: packages/admin/src/components/Sidebar.tsx:589
+#: packages/admin/src/components/Sidebar.tsx:461
 msgid "Manage"
 msgstr "Administrar"
 
@@ -4312,7 +4341,7 @@ msgstr "Administrar plugins instalados. Habilite o deshabilite plugins para cont
 msgid "Manage navigation menus for your site"
 msgstr "Administrar menús de navegación para su sitio"
 
-#: packages/admin/src/components/Redirects.tsx:333
+#: packages/admin/src/components/Redirects.tsx:359
 msgid "Manage URL redirects and view 404 errors."
 msgstr "Administre redirecciones de URL y vea errores 404."
 
@@ -4320,7 +4349,7 @@ msgstr "Administre redirecciones de URL y vea errores 404."
 msgid "Manage your passkeys and authentication"
 msgstr "Administre sus claves de acceso y autenticación"
 
-#: packages/admin/src/components/Redirects.tsx:398
+#: packages/admin/src/components/Redirects.tsx:424
 msgid "Manual"
 msgstr "Manual"
 
@@ -4331,6 +4360,15 @@ msgstr "Autores del mapa"
 #. placeholder {0}: mapping.wpLogin
 #: packages/admin/src/components/WordPressImport.tsx:2308
 msgid "Map WordPress user {0} to EmDash user"
+msgstr ""
+
+#. placeholder {0}: item.path
+#: packages/admin/src/components/Redirects.tsx:255
+msgid "Mark {0} as Gone (410)"
+msgstr ""
+
+#: packages/admin/src/components/Redirects.tsx:254
+msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:501
@@ -4348,7 +4386,7 @@ msgstr "mercado"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
 #: packages/admin/src/components/PluginManager.tsx:167
 #: packages/admin/src/components/PluginManager.tsx:355
-#: packages/admin/src/components/Sidebar.tsx:382
+#: packages/admin/src/components/Sidebar.tsx:362
 msgid "Marketplace"
 msgstr "Mercado"
 
@@ -4368,8 +4406,8 @@ msgstr "Valor máximo"
 msgid "MDX"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2119
-#: packages/admin/src/components/Sidebar.tsx:342
+#: packages/admin/src/components/PortableTextEditor.tsx:2197
+#: packages/admin/src/components/Sidebar.tsx:321
 #: packages/admin/src/components/WordPressImport.tsx:678
 #: packages/admin/src/components/WordPressImport.tsx:1173
 msgid "Media"
@@ -4409,7 +4447,7 @@ msgstr "Lectura de medios"
 msgid "Media Write"
 msgstr "Escritura de medios"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:980
+#: packages/admin/src/components/PortableTextEditor.tsx:1021
 msgid "Medium section heading"
 msgstr "Encabezado de sección media"
 
@@ -4459,7 +4497,7 @@ msgstr "Se ha actualizado el orden del menú."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:103
-#: packages/admin/src/components/Sidebar.tsx:352
+#: packages/admin/src/components/Sidebar.tsx:331
 msgid "Menus"
 msgstr "Menús"
 
@@ -4602,11 +4640,11 @@ msgstr "Navegación"
 msgid "Never"
 msgstr "Nunca"
 
-#: packages/admin/src/router.tsx:970
+#: packages/admin/src/router.tsx:980
 msgid "new"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:420
+#: packages/admin/src/routes/bylines.tsx:427
 msgid "New"
 msgstr ""
 
@@ -4644,8 +4682,8 @@ msgstr ""
 msgid "New public routes"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:102
-#: packages/admin/src/components/Redirects.tsx:336
+#: packages/admin/src/components/Redirects.tsx:105
+#: packages/admin/src/components/Redirects.tsx:362
 msgid "New Redirect"
 msgstr "Nueva redirección"
 
@@ -4714,7 +4752,7 @@ msgstr "Aún no hay {0}."
 msgid "No {0} yet. Create one to get started."
 msgstr "Aún no hay {0}. Crea uno para comenzar."
 
-#: packages/admin/src/components/Redirects.tsx:208
+#: packages/admin/src/components/Redirects.tsx:217
 msgid "No 404 errors recorded yet."
 msgstr "Aún no se han registrado errores 404."
 
@@ -4739,7 +4777,7 @@ msgstr ""
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:446
+#: packages/admin/src/routes/bylines.tsx:453
 msgid "No bylines found"
 msgstr ""
 
@@ -4819,7 +4857,7 @@ msgstr ""
 msgid "No invite token provided"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1701
+#: packages/admin/src/components/PortableTextEditor.tsx:1742
 #: packages/admin/src/components/RepeaterField.tsx:165
 msgid "No items yet"
 msgstr "Aún no hay artículos"
@@ -4828,11 +4866,11 @@ msgstr "Aún no hay artículos"
 msgid "No limit"
 msgstr "Sin límite"
 
-#: packages/admin/src/routes/bylines.tsx:511
+#: packages/admin/src/routes/bylines.tsx:518
 msgid "No linked user"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:160
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:171
 msgid "No matches"
 msgstr ""
 
@@ -4912,11 +4950,12 @@ msgstr "Sin vista previa"
 msgid "No recent activity"
 msgstr "Ninguna actividad reciente"
 
-#: packages/admin/src/components/Redirects.tsx:434
+#: packages/admin/src/components/Redirects.tsx:460
 msgid "No redirects yet"
 msgstr "Aún no hay redirecciones"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1259
+#: packages/admin/src/components/PortableTextEditor.tsx:1300
+#: packages/admin/src/components/RepeaterField.tsx:374
 msgid "No results"
 msgstr "Sin resultados"
 
@@ -4971,6 +5010,10 @@ msgstr ""
 msgid "No widget areas yet. Create one to get started."
 msgstr ""
 
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:159
+msgid "None"
+msgstr ""
+
 #: packages/admin/src/components/TaxonomyManager.tsx:418
 #: packages/admin/src/components/TaxonomyManager.tsx:424
 msgid "None (top level)"
@@ -4990,8 +5033,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "Número de entradas a mostrar por página en las vistas de lista"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:110
-#: packages/admin/src/components/PortableTextEditor.tsx:1009
-#: packages/admin/src/components/PortableTextEditor.tsx:3008
+#: packages/admin/src/components/PortableTextEditor.tsx:1050
+#: packages/admin/src/components/PortableTextEditor.tsx:3090
 msgid "Numbered List"
 msgstr "Lista numerada"
 
@@ -5024,10 +5067,10 @@ msgstr ""
 msgid "Oops!"
 msgstr "¡Ups!"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:333
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:334
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:498
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:499
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:379
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:380
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:568
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:569
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:333
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:334
 msgid "Open in new tab"
@@ -5044,8 +5087,8 @@ msgid ""
 "Option 3"
 msgstr ""
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:474
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:355
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:544
 msgid "Optional caption displayed below the image"
 msgstr "Título opcional que se muestra debajo de la imagen."
 
@@ -5057,8 +5100,8 @@ msgstr "Título opcional para mostrar"
 msgid "Optional description"
 msgstr "Descripción opcional"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:318
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:483
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:364
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:553
 msgid "Optional tooltip on hover"
 msgstr "Información sobre herramientas opcional al pasar el mouse"
 
@@ -5092,8 +5135,8 @@ msgstr "o subir directamente"
 msgid "Order saved"
 msgstr "Orden guardada"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:235
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:400
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:257
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:446
 msgid "Original:"
 msgstr "Original:"
 
@@ -5113,7 +5156,7 @@ msgstr "Propiedad"
 msgid "Package"
 msgstr "Paquete"
 
-#: packages/admin/src/router.tsx:1952
+#: packages/admin/src/router.tsx:1962
 msgid "Page Not Found"
 msgstr ""
 
@@ -5130,8 +5173,8 @@ msgstr "Párrafo"
 msgid "Parent"
 msgstr "Padre"
 
-#: packages/admin/src/components/Redirects.tsx:483
-#: packages/admin/src/components/Redirects.tsx:489
+#: packages/admin/src/components/Redirects.tsx:509
+#: packages/admin/src/components/Redirects.tsx:515
 msgid "Part of a redirect loop"
 msgstr "Parte de un bucle de redirección"
 
@@ -5196,7 +5239,7 @@ msgstr "Las claves de acceso requieren una"
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
 msgstr "Las claves de acceso requieren HTTPS o http://localhost (con su puerto); este nombre de host no es un contexto de navegador seguro."
 
-#: packages/admin/src/components/Redirects.tsx:215
+#: packages/admin/src/components/Redirects.tsx:224
 msgid "Path"
 msgstr "Camino"
 
@@ -5351,8 +5394,8 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:144
 #: packages/admin/src/components/PluginManager.tsx:153
-#: packages/admin/src/components/Sidebar.tsx:369
-#: packages/admin/src/components/Sidebar.tsx:609
+#: packages/admin/src/components/Sidebar.tsx:349
+#: packages/admin/src/components/Sidebar.tsx:477
 msgid "Plugins"
 msgstr "Plugins"
 
@@ -5443,7 +5486,7 @@ msgstr "publicado"
 #: packages/admin/src/components/ContentList.tsx:552
 #: packages/admin/src/components/ContentPickerModal.tsx:209
 #: packages/admin/src/components/Dashboard.tsx:187
-#: packages/admin/src/router.tsx:859
+#: packages/admin/src/router.tsx:869
 msgid "Published"
 msgstr "Publicado"
 
@@ -5468,14 +5511,14 @@ msgstr ""
 msgid "Quick create byline"
 msgstr "Creación rápida de firma"
 
-#: packages/admin/src/components/editor/ImageNode.tsx:167
-#: packages/admin/src/components/editor/ImageNode.tsx:168
+#: packages/admin/src/components/editor/ImageNode.tsx:196
+#: packages/admin/src/components/editor/ImageNode.tsx:197
 msgid "Quick edit alt text"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:86
-#: packages/admin/src/components/PortableTextEditor.tsx:1019
-#: packages/admin/src/components/PortableTextEditor.tsx:3015
+#: packages/admin/src/components/PortableTextEditor.tsx:1060
+#: packages/admin/src/components/PortableTextEditor.tsx:3097
 msgid "Quote"
 msgstr "Cita"
 
@@ -5531,7 +5574,7 @@ msgstr "Correo electrónico del destinatario"
 msgid "Recovery link sent to {0}"
 msgstr "Enlace de recuperación enviado a {0}"
 
-#: packages/admin/src/components/Redirects.tsx:416
+#: packages/admin/src/components/Redirects.tsx:442
 msgid "Redirect loop detected"
 msgstr "Bucle de redirección detectado"
 
@@ -5539,13 +5582,13 @@ msgstr "Bucle de redirección detectado"
 msgid "Redirecting to login..."
 msgstr "Redirigiendo para iniciar sesión..."
 
-#: packages/admin/src/components/Redirects.tsx:332
-#: packages/admin/src/components/Redirects.tsx:351
-#: packages/admin/src/components/Sidebar.tsx:353
+#: packages/admin/src/components/Redirects.tsx:358
+#: packages/admin/src/components/Redirects.tsx:377
+#: packages/admin/src/components/Sidebar.tsx:332
 msgid "Redirects"
 msgstr "Redirecciones"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3163
+#: packages/admin/src/components/PortableTextEditor.tsx:3245
 msgid "Redo"
 msgstr ""
 
@@ -5578,7 +5621,7 @@ msgstr ""
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "El registro fue cancelado o agotado. Por favor inténtalo de nuevo."
 
-#: packages/admin/src/components/Sidebar.tsx:375
+#: packages/admin/src/components/Sidebar.tsx:355
 msgid "Registry"
 msgstr ""
 
@@ -5589,8 +5632,8 @@ msgstr ""
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
 #: packages/admin/src/components/ContentEditor.tsx:1965
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:177
-#: packages/admin/src/components/PortableTextEditor.tsx:3114
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
+#: packages/admin/src/components/PortableTextEditor.tsx:3196
 #: packages/admin/src/components/settings/GeneralSettings.tsx:217
 #: packages/admin/src/components/settings/GeneralSettings.tsx:271
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
@@ -5622,29 +5665,29 @@ msgstr "Eliminar dominio"
 msgid "Remove Domain?"
 msgstr "¿Quitar dominio?"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:121
-#: packages/admin/src/components/ImageFieldRenderer.tsx:150
+#: packages/admin/src/components/ImageFieldRenderer.tsx:130
+#: packages/admin/src/components/ImageFieldRenderer.tsx:159
 #: packages/admin/src/components/SeoImageField.tsx:55
 msgid "Remove image"
 msgstr "Quitar imagen"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:346
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:512
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:392
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:582
 msgid "Remove Image"
 msgstr "Quitar imagen"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:175
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:197
 msgid "Remove Image?"
 msgstr "¿Quitar imagen?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1817
+#: packages/admin/src/components/PortableTextEditor.tsx:1858
 #: packages/admin/src/components/RepeaterField.tsx:275
 msgid "Remove item {0}"
 msgstr "Eliminar elemento {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2615
-#: packages/admin/src/components/PortableTextEditor.tsx:2616
+#: packages/admin/src/components/PortableTextEditor.tsx:2695
+#: packages/admin/src/components/PortableTextEditor.tsx:2696
 msgid "Remove link"
 msgstr ""
 
@@ -5660,11 +5703,11 @@ msgstr "¿Quitar la Passkey?"
 msgid "Remove sub-field"
 msgstr "Eliminar subcampo"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:176
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:198
 msgid "Remove this image from the document?"
 msgstr "¿Eliminar esta imagen del documento?"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:178
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:200
 #: packages/admin/src/components/settings/PasskeyItem.tsx:210
 msgid "Removing..."
 msgstr "Eliminando..."
@@ -5690,9 +5733,9 @@ msgstr "Reloj de repetición"
 msgid "Repeating group of fields"
 msgstr "Grupo repetido de campos."
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:191
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:226
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:389
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:213
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:248
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:435
 msgid "Replace Image"
 msgstr "Reemplazar imagen"
 
@@ -5724,8 +5767,8 @@ msgstr "Requerido"
 msgid "Required fields:"
 msgstr "Campos obligatorios:"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:302
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:467
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:348
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:537
 msgid "Required for accessibility. Describes the image for screen readers."
 msgstr "Requerido para accesibilidad. Describe la imagen para lectores de pantalla."
 
@@ -5742,8 +5785,8 @@ msgstr "Reenviar correo electrónico"
 msgid "Resend in {resendCooldown}s"
 msgstr "Reenviar en {resendCooldown}s"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:254
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:419
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
 msgid "Reset to original"
 msgstr "Restablecer al original"
 
@@ -5780,7 +5823,7 @@ msgstr "Restaurando..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:1940
+#: packages/admin/src/router.tsx:1950
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Rever"
@@ -5789,7 +5832,7 @@ msgstr "Rever"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Bloques de contenido reutilizables que puedes insertar en cualquier contenido"
 
-#: packages/admin/src/router.tsx:897
+#: packages/admin/src/router.tsx:907
 msgid "Reverted to published version"
 msgstr ""
 
@@ -5834,6 +5877,10 @@ msgstr "Contenido de texto enriquecido"
 msgid "Rich text editor"
 msgstr "editor de texto enriquecido"
 
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:162
+msgid "Right"
+msgstr ""
+
 #. placeholder {0}: latest.audit.riskScore
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:311
 msgid "Risk score: {0}/100"
@@ -5870,16 +5917,16 @@ msgid "Same window"
 msgstr "Misma ventana"
 
 #: packages/admin/src/components/ContentEditor.tsx:2103
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:349
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
-#: packages/admin/src/components/editor/ImageNode.tsx:235
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:395
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
+#: packages/admin/src/components/editor/ImageNode.tsx:264
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:417
 #: packages/admin/src/components/MediaDetailPanel.tsx:255
 #: packages/admin/src/components/MenuEditor.tsx:533
-#: packages/admin/src/components/Redirects.tsx:183
+#: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Save"
 msgstr "Guardar"
 
@@ -5887,7 +5934,7 @@ msgstr "Guardar"
 msgid "Save (Enter)"
 msgstr ""
 
-#: packages/admin/src/components/editor/ImageNode.tsx:236
+#: packages/admin/src/components/editor/ImageNode.tsx:265
 msgid "Save alt text"
 msgstr ""
 
@@ -5939,7 +5986,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:660
 #: packages/admin/src/components/MediaDetailPanel.tsx:255
 #: packages/admin/src/components/MenuEditor.tsx:533
-#: packages/admin/src/components/Redirects.tsx:180
+#: packages/admin/src/components/Redirects.tsx:187
 #: packages/admin/src/components/SaveButton.tsx:42
 #: packages/admin/src/components/settings/GeneralSettings.tsx:125
 #: packages/admin/src/components/settings/GeneralSettings.tsx:321
@@ -5950,7 +5997,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:476
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:894
-#: packages/admin/src/routes/bylines.tsx:573
+#: packages/admin/src/routes/bylines.tsx:580
 msgid "Saving..."
 msgstr "Salvando..."
 
@@ -5985,7 +6032,7 @@ msgstr "programado"
 
 #: packages/admin/src/components/ContentEditor.tsx:859
 #: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/router.tsx:917
+#: packages/admin/src/router.tsx:927
 msgid "Scheduled"
 msgstr "Programado"
 
@@ -6076,7 +6123,7 @@ msgid "Search by name or email..."
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1898
-#: packages/admin/src/routes/bylines.tsx:395
+#: packages/admin/src/routes/bylines.tsx:402
 msgid "Search bylines"
 msgstr ""
 
@@ -6128,7 +6175,7 @@ msgstr "Buscar plugins..."
 msgid "Search sections..."
 msgstr "Buscar secciones..."
 
-#: packages/admin/src/components/Redirects.tsx:383
+#: packages/admin/src/components/Redirects.tsx:409
 msgid "Search source or destination..."
 msgstr "Buscar origen o destino..."
 
@@ -6158,7 +6205,7 @@ msgstr "Buscable"
 msgid "Searching..."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2129
+#: packages/admin/src/components/PortableTextEditor.tsx:2207
 msgid "Section"
 msgstr "Sección"
 
@@ -6192,7 +6239,7 @@ msgstr "Título de la sección"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:355
+#: packages/admin/src/components/Sidebar.tsx:334
 msgid "Sections"
 msgstr "Secciones"
 
@@ -6258,7 +6305,7 @@ msgstr "Seleccionar"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
 #: packages/admin/src/components/ContentEditor.tsx:1719
 #: packages/admin/src/components/ContentEditor.tsx:1735
-#: packages/admin/src/components/ImageFieldRenderer.tsx:178
+#: packages/admin/src/components/ImageFieldRenderer.tsx:187
 msgid "Select {label}"
 msgstr "Seleccione {label}"
 
@@ -6300,13 +6347,13 @@ msgstr ""
 msgid "Select File"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:166
+#: packages/admin/src/components/ImageFieldRenderer.tsx:175
 msgid "Select image"
 msgstr "Seleccionar imagen"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:145
-#: packages/admin/src/components/PortableTextEditor.tsx:2503
-#: packages/admin/src/components/PortableTextEditor.tsx:3188
+#: packages/admin/src/components/PortableTextEditor.tsx:2583
+#: packages/admin/src/components/PortableTextEditor.tsx:3270
 #: packages/admin/src/components/settings/SeoSettings.tsx:221
 msgid "Select Image"
 msgstr "Seleccionar imagen"
@@ -6333,8 +6380,8 @@ msgid "Select which content types to import."
 msgstr "Seleccione qué tipos de contenido importar."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:1912
-#: packages/admin/src/components/RepeaterField.tsx:366
+#: packages/admin/src/components/PortableTextEditor.tsx:1953
+#: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "Seleccionar..."
 
@@ -6407,17 +6454,17 @@ msgstr "Configuración SEO guardada"
 msgid "SEO Title"
 msgstr "Título SEO"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:290
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:455
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:316
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:505
 msgid "Set a custom display size for this image instance."
 msgstr "Establezca un tamaño de visualización personalizado para esta instancia de imagen."
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:196
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:200
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:146
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:150
 msgid "Set language"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:197
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:147
 msgid "Set language (current: {label})"
 msgstr ""
 
@@ -6438,7 +6485,7 @@ msgstr "Configurando..."
 #: packages/admin/src/components/Header.tsx:93
 #: packages/admin/src/components/PluginManager.tsx:437
 #: packages/admin/src/components/Settings.tsx:62
-#: packages/admin/src/components/Sidebar.tsx:399
+#: packages/admin/src/components/Sidebar.tsx:379
 #: packages/admin/src/components/WordPressImport.tsx:1647
 msgid "Settings"
 msgstr "Ajustes"
@@ -6480,8 +6527,8 @@ msgstr "Texto corto"
 msgid "Show token"
 msgstr "Mostrar token"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:319
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:365
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:554
 msgid "Shown when hovering over the image."
 msgstr "Se muestra al pasar el cursor sobre la imagen."
 
@@ -6597,7 +6644,7 @@ msgstr "Saltado"
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:398
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:480
+#: packages/admin/src/routes/bylines.tsx:487
 msgid "Slug"
 msgstr "Slug"
 
@@ -6609,7 +6656,7 @@ msgstr "Slug copiado al portapapeles"
 msgid "Slugs cannot be changed after the field is created."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:990
+#: packages/admin/src/components/PortableTextEditor.tsx:1031
 msgid "Small section heading"
 msgstr "Encabezado de sección pequeña"
 
@@ -6649,16 +6696,16 @@ msgid "Sort themes"
 msgstr "Ordenar temas"
 
 #: packages/admin/src/components/ContentTypeList.tsx:100
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:325
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:490
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:371
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:560
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:214
 #: packages/admin/src/components/PluginManager.tsx:497
-#: packages/admin/src/components/Redirects.tsx:440
+#: packages/admin/src/components/Redirects.tsx:466
 #: packages/admin/src/components/SectionEditor.tsx:279
 msgid "Source"
 msgstr "Fuente"
 
-#: packages/admin/src/components/Redirects.tsx:128
+#: packages/admin/src/components/Redirects.tsx:131
 msgid "Source path"
 msgstr "Ruta de origen"
 
@@ -6672,7 +6719,7 @@ msgstr "correo basura"
 msgid "Spam"
 msgstr "Correo basura"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3176
+#: packages/admin/src/components/PortableTextEditor.tsx:3258
 msgid "Spotlight Mode"
 msgstr ""
 
@@ -6691,12 +6738,12 @@ msgstr "Iniciar importación"
 #: packages/admin/src/components/ContentEditor.tsx:850
 #: packages/admin/src/components/ContentList.tsx:328
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
-#: packages/admin/src/components/Redirects.tsx:445
+#: packages/admin/src/components/Redirects.tsx:471
 #: packages/admin/src/components/users/UserList.tsx:104
 msgid "Status"
 msgstr "Estado"
 
-#: packages/admin/src/components/Redirects.tsx:146
+#: packages/admin/src/components/Redirects.tsx:151
 msgid "Status code"
 msgstr "Código de estado"
 
@@ -6704,8 +6751,8 @@ msgstr "Código de estado"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2648
-#: packages/admin/src/components/PortableTextEditor.tsx:2954
+#: packages/admin/src/components/PortableTextEditor.tsx:2728
+#: packages/admin/src/components/PortableTextEditor.tsx:3036
 msgid "Strikethrough"
 msgstr ""
 
@@ -6750,7 +6797,7 @@ msgstr "Sistema ({resolvedLabel})"
 msgid "System Fields"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1064
+#: packages/admin/src/components/PortableTextEditor.tsx:1105
 msgid "Table"
 msgstr ""
 
@@ -6821,7 +6868,7 @@ msgstr "Término eliminado"
 msgid "test@example.com"
 msgstr "prueba@ejemplo.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2924
+#: packages/admin/src/components/PortableTextEditor.tsx:3006
 msgid "Text formatting"
 msgstr ""
 
@@ -6858,7 +6905,7 @@ msgstr "El menú ha sido eliminado."
 msgid "The name of your site, used in the header and metadata"
 msgstr "El nombre de su sitio, utilizado en el encabezado y los metadatos."
 
-#: packages/admin/src/router.tsx:1954
+#: packages/admin/src/router.tsx:1964
 msgid "The page you're looking for doesn't exist."
 msgstr ""
 
@@ -6907,7 +6954,7 @@ msgstr "Las secciones proporcionadas por el tema no se pueden eliminar. Edite la
 msgid "Theme: {label}"
 msgstr "Tema: {label}"
 
-#: packages/admin/src/components/Sidebar.tsx:391
+#: packages/admin/src/components/Sidebar.tsx:371
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "Temas"
@@ -6921,7 +6968,7 @@ msgid "This field does not accept {sniffedMime} files."
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:1738
-#: packages/admin/src/components/ImageFieldRenderer.tsx:182
+#: packages/admin/src/components/ImageFieldRenderer.tsx:191
 msgid "This field is required"
 msgstr "Este campo es obligatorio"
 
@@ -6953,7 +7000,7 @@ msgstr "Este plugin no requiere permisos especiales."
 msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:551
+#: packages/admin/src/components/Redirects.tsx:581
 msgid "This redirect rule will be permanently removed."
 msgstr "Esta regla de redirección se eliminará permanentemente."
 
@@ -6961,7 +7008,7 @@ msgstr "Esta regla de redirección se eliminará permanentemente."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:617
+#: packages/admin/src/routes/bylines.tsx:624
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr ""
 
@@ -7031,8 +7078,8 @@ msgstr "Zona horaria para mostrar fechas (por ejemplo, América/Nueva_York)"
 msgid "Title"
 msgstr "Título"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:315
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:480
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:361
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:550
 msgid "Title (Tooltip)"
 msgstr "Título (información sobre herramientas)"
 
@@ -7060,7 +7107,7 @@ msgstr "para instalar plugins o agregarlos a su astro.config.mjs."
 msgid "to select"
 msgstr "para seleccionar"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2740
+#: packages/admin/src/components/PortableTextEditor.tsx:2820
 msgid "Toggle header row"
 msgstr ""
 
@@ -7118,7 +7165,7 @@ msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/router.tsx:969
+#: packages/admin/src/router.tsx:979
 msgid "Translation created"
 msgstr ""
 
@@ -7224,12 +7271,12 @@ msgstr "No se puede llegar al mercado"
 msgid "Unassigned"
 msgstr "No asignado"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2641
-#: packages/admin/src/components/PortableTextEditor.tsx:2947
+#: packages/admin/src/components/PortableTextEditor.tsx:2721
+#: packages/admin/src/components/PortableTextEditor.tsx:3029
 msgid "Underline"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3156
+#: packages/admin/src/components/PortableTextEditor.tsx:3238
 msgid "Undo"
 msgstr ""
 
@@ -7268,10 +7315,10 @@ msgstr "Desconocido"
 msgid "Unknown role"
 msgstr "Rol desconocido"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:271
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:272
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:436
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:437
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:296
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:297
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:485
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:486
 msgid "Unlock aspect ratio"
 msgstr "Desbloquear relación de aspecto"
 
@@ -7284,7 +7331,7 @@ msgstr "Passkey sin nombre"
 msgid "Unpublish"
 msgstr "Despublicar"
 
-#: packages/admin/src/router.tsx:877
+#: packages/admin/src/router.tsx:887
 msgid "Unpublished"
 msgstr ""
 
@@ -7296,7 +7343,7 @@ msgstr "Se encontraron tablas de contenido no registrado"
 msgid "Unschedule"
 msgstr "Desprogramar"
 
-#: packages/admin/src/router.tsx:938
+#: packages/admin/src/router.tsx:948
 msgid "Unscheduled"
 msgstr ""
 
@@ -7348,7 +7395,7 @@ msgstr ""
 msgid "Update the {0} details"
 msgstr "Actualizar los detalles de {0}"
 
-#: packages/admin/src/components/Redirects.tsx:106
+#: packages/admin/src/components/Redirects.tsx:109
 msgid "Update this redirect rule."
 msgstr "Actualice esta regla de redirección."
 
@@ -7479,7 +7526,7 @@ msgstr "Subiendo..."
 #: packages/admin/src/components/FieldEditor.tsx:586
 #: packages/admin/src/components/MenuEditor.tsx:339
 #: packages/admin/src/components/MenuEditor.tsx:509
-#: packages/admin/src/components/PortableTextEditor.tsx:3080
+#: packages/admin/src/components/PortableTextEditor.tsx:3162
 msgid "URL"
 msgstr "URL"
 
@@ -7500,7 +7547,7 @@ msgstr "Identificador compatible con URL (por ejemplo, \"principal\", \"pie de p
 msgid "URL:"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:107
+#: packages/admin/src/components/Redirects.tsx:110
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Utilice [param] o [...rest] en rutas para hacer coincidir patrones."
 
@@ -7558,7 +7605,7 @@ msgid "User not found"
 msgstr "Usuario no encontrado"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:211
-#: packages/admin/src/components/Sidebar.tsx:368
+#: packages/admin/src/components/Sidebar.tsx:348
 #: packages/admin/src/components/users/UserList.tsx:54
 msgid "Users"
 msgstr "Usuarios"
@@ -7654,7 +7701,7 @@ msgstr ""
 msgid "View the {license} license on spdx.org"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:422
+#: packages/admin/src/components/Redirects.tsx:448
 msgid "Visitors hitting these paths will see an error."
 msgstr "Los visitantes que lleguen a estos caminos verán un error."
 
@@ -7706,7 +7753,7 @@ msgstr "WebAuthn no es compatible con este navegador"
 msgid "Website"
 msgstr "Sitio web"
 
-#: packages/admin/src/routes/bylines.tsx:485
+#: packages/admin/src/routes/bylines.tsx:492
 msgid "Website URL"
 msgstr ""
 
@@ -7746,6 +7793,10 @@ msgstr "¿Qué tipos de contenido pueden utilizar esta taxonomía?"
 msgid "Whole number"
 msgstr "numero entero"
 
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:163
+msgid "Wide"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:722
 #: packages/admin/src/components/Widgets.tsx:737
 msgid "widget"
@@ -7777,13 +7828,13 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:169
 #: packages/admin/src/components/PluginManager.tsx:379
-#: packages/admin/src/components/Sidebar.tsx:354
+#: packages/admin/src/components/Sidebar.tsx:333
 #: packages/admin/src/components/Widgets.tsx:325
 msgid "Widgets"
 msgstr "Widgets"
 
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:260
-#: packages/admin/src/components/editor/ImageDetailPanel.tsx:425
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:284
+#: packages/admin/src/components/editor/ImageDetailPanel.tsx:473
 msgid "Width"
 msgstr "Ancho"
 
@@ -7837,7 +7888,7 @@ msgstr "Puedes crear y editar tu propio contenido."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "Puede administrar contenido, medios, menús y taxonomías."
 
-#: packages/admin/src/routes/bylines.tsx:543
+#: packages/admin/src/routes/bylines.tsx:550
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr ""
 
@@ -7857,7 +7908,7 @@ msgstr "Tiene acceso completo para administrar este sitio, incluidos los usuario
 msgid "You need admin permissions to manage byline schema."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1288
+#: packages/admin/src/router.tsx:1298
 msgid "You need Editor permissions to moderate comments."
 msgstr ""
 

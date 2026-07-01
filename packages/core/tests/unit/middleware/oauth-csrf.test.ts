@@ -37,6 +37,7 @@ async function runAuthMiddleware(opts: {
 	extraHeaders?: Record<string, string>;
 }): Promise<{ response: Response; next: ReturnType<typeof vi.fn> }> {
 	const url = new URL(opts.pathname, "https://site.example.com");
+	const method = opts.method ?? "POST";
 	const headers: Record<string, string> = {
 		"Content-Type": "application/json",
 		...opts.extraHeaders,
@@ -53,9 +54,9 @@ async function runAuthMiddleware(opts: {
 		{
 			url,
 			request: new Request(url, {
-				method: opts.method ?? "POST",
+				method,
 				headers,
-				body: "{}",
+				body: method === "GET" || method === "HEAD" ? undefined : "{}",
 			}),
 			locals: {
 				emdash: { db: {}, config: {} },
@@ -69,6 +70,31 @@ async function runAuthMiddleware(opts: {
 
 	return { response, next };
 }
+
+describe("Public search API routes", () => {
+	it.each(["/_emdash/api/search", "/_emdash/api/search/suggest"])(
+		"allows anonymous GET to %s",
+		async (pathname) => {
+			const { response, next } = await runAuthMiddleware({
+				pathname,
+				method: "GET",
+			});
+
+			expect(next).toHaveBeenCalledOnce();
+			expect(response.status).toBe(200);
+		},
+	);
+
+	it("keeps search management endpoints private", async () => {
+		const { response, next } = await runAuthMiddleware({
+			pathname: "/_emdash/api/search/rebuild",
+			method: "GET",
+		});
+
+		expect(next).not.toHaveBeenCalled();
+		expect(response.status).toBe(401);
+	});
+});
 
 /**
  * OAuth protocol endpoints (RFC 6749, 7591, 8628) are designed to be called

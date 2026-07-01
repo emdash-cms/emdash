@@ -11,14 +11,15 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {
-		"@flue/cli": "^0.11.1",
+		"@flue/cli": "1.0.0-beta.1",
 		"typescript": "catalog:",
 		"wrangler": "catalog:"
 	},
 	"dependencies": {
-		"@cloudflare/sandbox": "^0.10.3",
-		"@flue/runtime": "^0.11.1",
-		"agents": "^0.13.3",
+		"@cloudflare/codemode": "^0.4.1",
+		"@cloudflare/shell": "^0.4.0",
+		"@flue/runtime": "1.0.0-beta.1",
+		"agents": "^0.14.5",
 		"hono": "^4.12.23",
 		"valibot": "^1.4.1"
 	}

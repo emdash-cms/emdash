@@ -4,6 +4,7 @@
  * Defines and injects all EmDash routes into the Astro application.
  */
 
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,10 +42,42 @@ function resolveRoute(route: string): string {
 /** Route injection function type */
 type InjectRoute = (route: { pattern: string; entrypoint: string }) => void;
 
+interface InjectCoreRoutesOptions {
+	srcDir?: URL;
+}
+
+const ROUTE_OVERRIDE_EXTENSIONS = [
+	".astro",
+	".js",
+	".ts",
+	".jsx",
+	".tsx",
+	".mjs",
+	".mts",
+	".md",
+	".mdx",
+	".html",
+];
+
+/**
+ * Detect whether the host site defines its own root-level public route file.
+ */
+export function hasUserDefinedPublicRoute(srcDir: URL, basename: string): boolean {
+	const srcDirPath = fileURLToPath(srcDir);
+	return ROUTE_OVERRIDE_EXTENSIONS.some(
+		(extension) =>
+			existsSync(resolve(srcDirPath, "pages", `${basename}${extension}`)) ||
+			existsSync(resolve(srcDirPath, "pages", basename, `index${extension}`)),
+	);
+}
+
 /**
  * Injects all core EmDash routes.
  */
-export function injectCoreRoutes(injectRoute: InjectRoute): void {
+export function injectCoreRoutes(
+	injectRoute: InjectRoute,
+	options: InjectCoreRoutesOptions = {},
+): void {
 	// Inject admin shell route
 	injectRoute({
 		pattern: "/_emdash/admin/[...path]",
@@ -725,6 +758,11 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/comments/[collection]/[contentId]/index.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/comments/[collection]/[contentId]/reactions",
+		entrypoint: resolveRoute("api/comments/[collection]/[contentId]/reactions.ts"),
+	});
+
 	// Comment routes (admin)
 	injectRoute({
 		pattern: "/_emdash/api/admin/comments",
@@ -752,20 +790,24 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 	});
 
 	// SEO routes (public, at site root)
-	injectRoute({
-		pattern: "/sitemap.xml",
-		entrypoint: resolveRoute("sitemap.xml.ts"),
-	});
+	if (!options.srcDir || !hasUserDefinedPublicRoute(options.srcDir, "sitemap.xml")) {
+		injectRoute({
+			pattern: "/sitemap.xml",
+			entrypoint: resolveRoute("sitemap.xml.ts"),
+		});
+	}
 
 	injectRoute({
 		pattern: "/sitemap-[collection].xml",
 		entrypoint: resolveRoute("sitemap-[collection].xml.ts"),
 	});
 
-	injectRoute({
-		pattern: "/robots.txt",
-		entrypoint: resolveRoute("robots.txt.ts"),
-	});
+	if (!options.srcDir || !hasUserDefinedPublicRoute(options.srcDir, "robots.txt")) {
+		injectRoute({
+			pattern: "/robots.txt",
+			entrypoint: resolveRoute("robots.txt.ts"),
+		});
+	}
 
 	// Setup wizard API routes
 	injectRoute({

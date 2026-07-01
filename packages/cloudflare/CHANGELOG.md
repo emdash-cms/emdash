@@ -1,5 +1,114 @@
 # @emdash-cms/cloudflare
 
+## 0.26.0
+
+### Patch Changes
+
+- Updated dependencies [[`facdcfc`](https://github.com/emdash-cms/emdash/commit/facdcfc745059a6f183581963fcc29c8b6efec63), [`f44a277`](https://github.com/emdash-cms/emdash/commit/f44a2775c8e87be1398befcb29da6bec28bad01c), [`971c627`](https://github.com/emdash-cms/emdash/commit/971c6271e810a8e12e63303778a132a48eb75f4a), [`e5b95e1`](https://github.com/emdash-cms/emdash/commit/e5b95e195e1307237db9eb26806c54c76cc0f81d), [`13b87b7`](https://github.com/emdash-cms/emdash/commit/13b87b70296443db14bf163cd3b25ff2a5701227), [`8f7604d`](https://github.com/emdash-cms/emdash/commit/8f7604dfd8f274b7a62bcbccd53068930b304777), [`5dea403`](https://github.com/emdash-cms/emdash/commit/5dea4035ec2f15fa2248e1621386a91320d50f6d), [`3d80be5`](https://github.com/emdash-cms/emdash/commit/3d80be5e0f1e91844bcf138dea8e86861bc484b4), [`d1116ae`](https://github.com/emdash-cms/emdash/commit/d1116ae6d02f5c15ea5efb68cce78bb24f13ccb6), [`192741f`](https://github.com/emdash-cms/emdash/commit/192741f9a34ede62e23c3de63e3b2483f0b948b6), [`737da19`](https://github.com/emdash-cms/emdash/commit/737da19f56998a5e7f77eecf9337d5f29a18cea6), [`5299d38`](https://github.com/emdash-cms/emdash/commit/5299d38d9c7e92b9faafbe24820164517fc2360c)]:
+  - emdash@0.26.0
+
+## 0.25.1
+
+### Patch Changes
+
+- Updated dependencies [[`d4237eb`](https://github.com/emdash-cms/emdash/commit/d4237ebb875321b2b160034f03321a57f366c495), [`2216dca`](https://github.com/emdash-cms/emdash/commit/2216dcab39d7c0034af81be3543c8440a10d8961)]:
+  - emdash@0.25.1
+
+## 0.25.0
+
+### Minor Changes
+
+- [#1662](https://github.com/emdash-cms/emdash/pull/1662) [`942fac6`](https://github.com/emdash-cms/emdash/commit/942fac6c87d7a6ce3a62ec7e0610887db5a44f3f) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Adds an optional `cachedBinding` to the `hyperdrive()` adapter for serving anonymous public-site reads from a caching-enabled Hyperdrive configuration. When set, anonymous reads of public paths route through the cache-enabled binding, while every authenticated request, every write, and every request under `/_emdash` (admin, setup, auth, internal APIs) stays on the primary (caching-disabled) `binding` — preserving read-after-write consistency, including for the anonymous post-setup status check. Bind both Hyperdrive configurations in wrangler and pass `hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" })`. Omitting `cachedBinding` leaves behavior unchanged.
+
+### Patch Changes
+
+- Updated dependencies [[`942fac6`](https://github.com/emdash-cms/emdash/commit/942fac6c87d7a6ce3a62ec7e0610887db5a44f3f), [`1f4aa59`](https://github.com/emdash-cms/emdash/commit/1f4aa59a284bb6fa10dd9672a671b62a2a1ba3aa), [`38a63d5`](https://github.com/emdash-cms/emdash/commit/38a63d54e7c7c2735caa179b303c63c175a9570e), [`0f8d1ff`](https://github.com/emdash-cms/emdash/commit/0f8d1ffc081e31217eadc0d71051d7c7324ca173)]:
+  - emdash@0.25.0
+
+## 0.24.1
+
+### Patch Changes
+
+- Updated dependencies [[`489a4d1`](https://github.com/emdash-cms/emdash/commit/489a4d130fea2fdc231aae93d6d2966601b51ceb), [`489a4d1`](https://github.com/emdash-cms/emdash/commit/489a4d130fea2fdc231aae93d6d2966601b51ceb)]:
+  - emdash@0.24.1
+
+## 0.24.0
+
+### Patch Changes
+
+- Updated dependencies [[`79fc8b5`](https://github.com/emdash-cms/emdash/commit/79fc8b5b16b07001f5c0a4d964c2ac1fabd39573), [`e659a5c`](https://github.com/emdash-cms/emdash/commit/e659a5c25001ec181c8771e17a8c3264d1498fbf), [`d8487f9`](https://github.com/emdash-cms/emdash/commit/d8487f99ba05b9b96e3a200d8b1f0e1902c4ac8c)]:
+  - emdash@0.24.0
+
+## 0.23.0
+
+### Minor Changes
+
+- [#1614](https://github.com/emdash-cms/emdash/pull/1614) [`b5ea8e7`](https://github.com/emdash-cms/emdash/commit/b5ea8e70db242472784bd4957e65d5fdb9fecd89) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Adds a `hyperdrive()` database adapter for connecting EmDash on Cloudflare Workers to a PostgreSQL (or PostgreSQL-compatible, e.g. PlanetScale Postgres) database through a Hyperdrive binding. Configure it with `database: hyperdrive({ binding: "HYPERDRIVE" })`. Each request gets its own pooled connection that is opened and closed within that request — connections cannot be reused across Worker requests. Requires `pg >= 8.16.3`, the `nodejs_compat` compatibility flag, and a compatibility date of `2024-09-23` or later. Disable Hyperdrive query caching for the configuration so the admin's read-after-write stays consistent.
+
+  The content read/write path, scheduled publishing, plugin cron, and database-querying plugin hooks are all supported. Sandboxed plugins remain D1-only (the sandbox bridge talks to a D1 binding directly, independent of the configured adapter).
+
+### Patch Changes
+
+- [#1617](https://github.com/emdash-cms/emdash/pull/1617) [`e39984f`](https://github.com/emdash-cms/emdash/commit/e39984f9ea688faea01b83a611ffe36b6f984a26) Thanks [@ascorbic](https://github.com/ascorbic)! - Cuts cold-start latency by batching runtime initialization reads into a single round trip. On a fresh isolate (or Worker), the auto-seed check, plugin-state load, and site-info load now run as one batched query on backends that support it (Cloudflare D1, Durable Objects) instead of several serialized round trips. On D1 this roughly halves runtime init time on cold start. Other backends (Node/SQLite) are unaffected.
+
+- Updated dependencies [[`b4d7228`](https://github.com/emdash-cms/emdash/commit/b4d7228d5e28d665a32083ac82ce9346baac639a), [`d74269d`](https://github.com/emdash-cms/emdash/commit/d74269d5a538584a1db4ba82e8ab20113cd955e7), [`e39984f`](https://github.com/emdash-cms/emdash/commit/e39984f9ea688faea01b83a611ffe36b6f984a26), [`280b877`](https://github.com/emdash-cms/emdash/commit/280b8771274b2e8f9d0d54b698592ae162374805), [`7fca12f`](https://github.com/emdash-cms/emdash/commit/7fca12f0a8fbe3c1c0f6ea0d2a9826eb51a1da57), [`fd077e0`](https://github.com/emdash-cms/emdash/commit/fd077e0892dedd1eb03c422e07aa54e180ddc0ff), [`9ebb47e`](https://github.com/emdash-cms/emdash/commit/9ebb47e199a86ba13b9555b8b3e4f7c28f241d63), [`8c7bc81`](https://github.com/emdash-cms/emdash/commit/8c7bc81690bd1e3b39ef0bfeb234ea7d3ac49f39), [`55613e1`](https://github.com/emdash-cms/emdash/commit/55613e1242a7b11c1dd632c9e50b8bd5f57b2baf), [`c5f58b9`](https://github.com/emdash-cms/emdash/commit/c5f58b9a8aeb369baf0b1b0bc2738373c03d2e01), [`bd6cc3a`](https://github.com/emdash-cms/emdash/commit/bd6cc3ad2fe29ee8016843168fb8aa1dc38d33de), [`c056060`](https://github.com/emdash-cms/emdash/commit/c056060cdbf29b823591c5796e38d03a66fcba70), [`c43c412`](https://github.com/emdash-cms/emdash/commit/c43c412500e5bc067371f6e680ff3b7b8a726873), [`b5ea8e7`](https://github.com/emdash-cms/emdash/commit/b5ea8e70db242472784bd4957e65d5fdb9fecd89), [`c5f58b9`](https://github.com/emdash-cms/emdash/commit/c5f58b9a8aeb369baf0b1b0bc2738373c03d2e01)]:
+  - emdash@0.23.0
+
+## 0.22.0
+
+### Minor Changes
+
+- [#1378](https://github.com/emdash-cms/emdash/pull/1378) [`640e60a`](https://github.com/emdash-cms/emdash/commit/640e60a56e3d3e60925ba4d7a1cf0fbd04b3d5c2) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Add an optional distributed object cache for query results.
+
+  Content reads (`getEmDashCollection`, `getEmDashEntry`, `resolveEmDashPath`) and chrome reads (site settings, menus, taxonomies) can now be served from a fast key/value store instead of hitting the database on every request. This sits beneath the per-request cache and above the database, dramatically reducing read pressure on D1/SQLite — especially valuable on Cloudflare, where KV handles far more requests than D1.
+
+  The cache is **off by default** and fully opt-in. Configure a backend in `astro.config.mjs`:
+
+  ```ts
+  import { kvCache } from "@emdash-cms/cloudflare"; // Workers KV (distributed)
+  import { memoryCache } from "emdash/astro"; // in-isolate (Node / local dev)
+
+  emdash({
+  	database: d1({ binding: "DB" }),
+  	objectCache: kvCache({ binding: "CACHE" }),
+  });
+  ```
+
+  with a matching KV binding in `wrangler.jsonc`:
+
+  ```jsonc
+  { "kv_namespaces": [{ "binding": "CACHE", "id": "<namespace-id>" }] }
+  ```
+
+  Invalidation is epoch-based and automatic: content, byline, taxonomy, menu, and settings writes bump a per-namespace version, instantly orphaning stale entries (no key enumeration needed). Preview and visual-edit requests bypass the cache, so editors previewing see live content; other reads are served from the cache, which only ever stores published content. After an edit, anonymous visitors may see stale content until isolates pick up the bumped epoch — immediate on the in-isolate memory backend, and on KV bounded by KV's edge-cache propagation (eventually consistent, up to ~60s) plus the `revalidate` window (default 1s, configurable).
+
+  New public API: `cachedQuery`, `invalidateObjectCache`, `invalidateCollectionCache`, `contentNamespace`/`contentNamespaces`, `CacheNamespace`, the `ObjectCache*` types (from `emdash`), `memoryCache()` (from `emdash/astro`), and `kvCache()` (from `@emdash-cms/cloudflare`). Existing sites are unaffected until they opt in.
+
+- [#1549](https://github.com/emdash-cms/emdash/pull/1549) [`a623c6b`](https://github.com/emdash-cms/emdash/commit/a623c6b7dbdc82c8562f32a619af23ea147306b6) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes responsive image optimization for storage-backed media on Cloudflare. EmDash now wraps Astro's image endpoint to read media bytes directly from your storage adapter instead of fetching them over HTTP, so `Image` and Portable Text images generate a real responsive `srcset` even when the site is behind Cloudflare Access (previously these 404'd and fell back to a full-size image). This is on by default and also removes an internal HTTP round-trip on Node. Set `images: false` in your `emdash()` config to leave Astro's image endpoint untouched.
+
+### Patch Changes
+
+- Updated dependencies [[`0bfab91`](https://github.com/emdash-cms/emdash/commit/0bfab91765514f4a8bd164d7373c8c81e3d5b446), [`cf17c9f`](https://github.com/emdash-cms/emdash/commit/cf17c9f4c8faa46857d92d4b168452d2469dba4b), [`707edee`](https://github.com/emdash-cms/emdash/commit/707edee3bdf31b53f33507e1f528a0e5803fd150), [`a36b5f3`](https://github.com/emdash-cms/emdash/commit/a36b5f3e1e452d48a690878d4f078f85a6d99715), [`d46abfd`](https://github.com/emdash-cms/emdash/commit/d46abfdb739f8d242eddba5ebfda09a8648c8ecf), [`ed921d8`](https://github.com/emdash-cms/emdash/commit/ed921d80ec33fa114d9c8a7f9221f1fbeb24d658), [`6a97bac`](https://github.com/emdash-cms/emdash/commit/6a97bacaf6ef8b006b32879e4625ebb48da6f5bd), [`c219aff`](https://github.com/emdash-cms/emdash/commit/c219aff3b867e178ee267823801db66bbc9b1621), [`640e60a`](https://github.com/emdash-cms/emdash/commit/640e60a56e3d3e60925ba4d7a1cf0fbd04b3d5c2), [`ca47da4`](https://github.com/emdash-cms/emdash/commit/ca47da485ddcf46f7fa7b8efa15c3c20a11c2300), [`cb1c689`](https://github.com/emdash-cms/emdash/commit/cb1c68948072c479ed924b52867809bc8ad1c9e5), [`a623c6b`](https://github.com/emdash-cms/emdash/commit/a623c6b7dbdc82c8562f32a619af23ea147306b6)]:
+  - emdash@0.22.0
+
+## 0.21.0
+
+### Patch Changes
+
+- Updated dependencies [[`b6a5fac`](https://github.com/emdash-cms/emdash/commit/b6a5fac6d3bc88cc5ab49889de264c37262cc5f7), [`23c37f3`](https://github.com/emdash-cms/emdash/commit/23c37f35dfe9ce23fca0d48acea228299d25e19e), [`997d7ee`](https://github.com/emdash-cms/emdash/commit/997d7eea8f39c16eef28577bb8ace0c0413fc38b), [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527), [`37e848b`](https://github.com/emdash-cms/emdash/commit/37e848bf005950a4b312cf5f0a50f7c8820b01fc)]:
+  - emdash@0.21.0
+
+## 0.20.0
+
+### Minor Changes
+
+- [#1492](https://github.com/emdash-cms/emdash/pull/1492) [`7688f0b`](https://github.com/emdash-cms/emdash/commit/7688f0b6a92ccfdcea6244100c07679e81014161) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a `durableObjects()` database adapter that stores the whole CMS in a single Durable Object's SQLite. With `session: "auto"` (plus the `experimental` and `replica_routing` compatibility flags) reads route to the nearest read replica and writes proxy to the primary, cutting read latency for globally distributed traffic. Register the exported `EmDashDB` class in your worker and add a `new_sqlite_classes` migration.
+
+### Patch Changes
+
+- Updated dependencies [[`141aa11`](https://github.com/emdash-cms/emdash/commit/141aa11213206d9ea5e14d1f1cd75c07cfacae7b), [`7688f0b`](https://github.com/emdash-cms/emdash/commit/7688f0b6a92ccfdcea6244100c07679e81014161), [`c7166b0`](https://github.com/emdash-cms/emdash/commit/c7166b083eaa2ceb37f8d9682f4a521e5e360a19), [`9c994ad`](https://github.com/emdash-cms/emdash/commit/9c994ada4692d34517ab458f29b8613aa9341ecc), [`eddaf91`](https://github.com/emdash-cms/emdash/commit/eddaf91a6a818cad12bc8f5e14ee16f8189cc073), [`afc3a0f`](https://github.com/emdash-cms/emdash/commit/afc3a0f6f3f0fa831b6c2e7e8ddebb4a7c631007), [`3d423a7`](https://github.com/emdash-cms/emdash/commit/3d423a796d7d000160dc7d8d0a582ba7734f214f), [`b01aa9b`](https://github.com/emdash-cms/emdash/commit/b01aa9bbb436bcec07516b499eb0516cfbe414b4), [`3e344af`](https://github.com/emdash-cms/emdash/commit/3e344af2c162e37dfa389b9cb88c2c826590b678), [`7688f0b`](https://github.com/emdash-cms/emdash/commit/7688f0b6a92ccfdcea6244100c07679e81014161), [`8807701`](https://github.com/emdash-cms/emdash/commit/880770148329fa14ccb1c35d438ae6e53c8e2c97)]:
+  - emdash@0.20.0
+
 ## 0.19.0
 
 ### Minor Changes
