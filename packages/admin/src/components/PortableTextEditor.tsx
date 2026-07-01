@@ -1981,6 +1981,7 @@ export {
 // the editor footer and the rendered site report the same numbers.
 const WORDS_PER_MINUTE = 200;
 const CJK_CHARACTERS_PER_MINUTE = 500;
+const WHITESPACE_REGEX = /\s+/;
 
 // CJK scripts do not separate words with spaces, so a split()-based count treats
 // a whole paragraph as a single word. Count those characters individually.
@@ -1992,7 +1993,7 @@ function countCjkCharacters(text: string): number {
 }
 
 function countNonCjkWords(text: string): number {
-	return text.replace(CJK_CHARACTER_REGEX, " ").split(/\s+/).filter(Boolean).length;
+	return text.replace(CJK_CHARACTER_REGEX, " ").split(WHITESPACE_REGEX).filter(Boolean).length;
 }
 
 /**
