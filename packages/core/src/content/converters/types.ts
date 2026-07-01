@@ -43,6 +43,7 @@ export interface PortableTextTextBlock {
 	level?: number;
 	children: PortableTextSpan[];
 	markDefs?: PortableTextMarkDef[];
+	textAlign?: "left" | "center" | "right" | "justify";
 }
 
 /**

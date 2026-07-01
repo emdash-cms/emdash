@@ -371,6 +371,39 @@ export class PluginManager {
 	}
 
 	/**
+	 * Run content:afterRestore hooks across all active plugins
+	 */
+	async runContentAfterRestore(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		this.ensureInitialized();
+		return this.hookPipeline!.runContentAfterRestore(content, collection);
+	}
+
+	/**
+	 * Run content:afterSchedule hooks across all active plugins
+	 */
+	async runContentAfterSchedule(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		this.ensureInitialized();
+		return this.hookPipeline!.runContentAfterSchedule(content, collection);
+	}
+
+	/**
+	 * Run content:afterUnschedule hooks across all active plugins
+	 */
+	async runContentAfterUnschedule(
+		content: Record<string, unknown>,
+		collection: string,
+	): Promise<HookResult<void>[]> {
+		this.ensureInitialized();
+		return this.hookPipeline!.runContentAfterUnschedule(content, collection);
+	}
+
+	/**
 	 * Run media:beforeUpload hooks across all active plugins
 	 */
 	async runMediaBeforeUpload(file: { name: string; type: string; size: number }): Promise<{
