@@ -36,13 +36,14 @@ const queryClient = new QueryClient({
 const router = createAdminRouter(queryClient);
 const ADMIN_BASEPATH = "/_emdash/admin";
 
-function normalizeAdminHref(href: string): string {
+export function normalizeAdminHref(href: string): string {
 	if (href === ADMIN_BASEPATH) return "/";
 	if (href.startsWith(`${ADMIN_BASEPATH}/`)) return href.slice(ADMIN_BASEPATH.length);
 	if (href.startsWith(`${ADMIN_BASEPATH}?`) || href.startsWith(`${ADMIN_BASEPATH}#`)) {
 		return `/${href.slice(ADMIN_BASEPATH.length)}`;
 	}
-	return "";
+	if (href.startsWith("/_emdash/")) return "";
+	return href;
 }
 
 function getAnchorHref(destination: string, routerDestination: string): string {
