@@ -30,6 +30,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const result = await handlePluginGet(
 		emdash.db,
 		emdash.configuredPlugins,
+		emdash.sandboxedPluginEntries,
 		id,
 		emdash.config.marketplace,
 	);

@@ -25,6 +25,7 @@ export const GET: APIRoute = async ({ locals }) => {
 	const result = await handlePluginList(
 		emdash.db,
 		emdash.configuredPlugins,
+		emdash.sandboxedPluginEntries,
 		emdash.config.marketplace,
 	);
 
