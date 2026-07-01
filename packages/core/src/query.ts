@@ -24,6 +24,8 @@
  * import resolves there at typecheck time without our help.
  */
 
+import { LiveEntryNotFoundError } from "astro/content/runtime";
+
 import { encodeCursor } from "./database/repositories/types.js";
 import { getFallbackChain, getI18nConfig, isI18nEnabled } from "./i18n/config.js";
 import {
@@ -869,6 +871,9 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 			});
 
 			if (baseError) {
+				// Entry not Found but localeChain not finished yet
+				if (baseError instanceof LiveEntryNotFoundError && typeof localeChain[i + 1] == "string")
+					continue;
 				return { entry: null, error: baseError, isPreview: serveDrafts, cacheHint: {} };
 			}
 
@@ -942,6 +947,9 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 
 			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, { type, id, locale });
 			if (error) {
+				// Entry not Found but localeChain not finished yet
+				if (error instanceof LiveEntryNotFoundError && typeof localeChain[i + 1] == "string")
+					continue;
 				return { entry: null, error, isPreview: false, cacheHint: {} };
 			}
 
