@@ -17,6 +17,7 @@ import { Font } from "astro:assets";
 export const prerender = false;
 
 import { resolveLocale, loadMessages, getLocaleDir } from "@emdash-cms/admin/locales";
+import { getSiteSettingsWithDb } from "#settings/index.js";
 
 const resolvedLocale = resolveLocale(Astro.request);
 const resolvedDir = getLocaleDir(resolvedLocale);
@@ -24,6 +25,23 @@ const messages = await loadMessages(resolvedLocale);
 
 const adminConfig = Astro.locals.emdash?.config?.admin;
 const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmDash Admin";
+
+// Favicon precedence: an explicit build-time `admin.favicon` is admin-specific
+// and always wins — in that case the settings read is skipped entirely.
+// Otherwise fall back to the Site Icon configured in Settings → General, so
+// the admin shell is branded like the public site (WordPress-style Site Icon,
+// which also brands wp-admin), and finally the bundled EmDash mark below.
+const emdash = Astro.locals.emdash;
+let siteFavicon: string | undefined;
+if (!adminConfig?.favicon && emdash?.db) {
+	try {
+		const settings = await getSiteSettingsWithDb(emdash.db, emdash.storage ?? null);
+		siteFavicon = settings.favicon?.url ?? undefined;
+	} catch {
+		// Settings unavailable (e.g. pre-setup) — fall back to the config/default.
+	}
+}
+const favicon = adminConfig?.favicon ?? siteFavicon;
 ---
 
 <!doctype html>
@@ -33,8 +51,8 @@ const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmD
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="stylesheet" href={adminStylesUrl} />
 		<Font cssVariable="--font-emdash" />
-		{adminConfig?.favicon ? (
-			<link rel="icon" href={adminConfig.favicon} />
+		{favicon ? (
+			<link rel="icon" href={favicon} />
 		) : (
 			<link
 				rel="icon"
