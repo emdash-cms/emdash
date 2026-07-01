@@ -106,6 +106,62 @@ export interface D1Config {
 }
 
 /**
+ * Hyperdrive configuration
+ */
+export interface HyperdriveConfig {
+	/**
+	 * Name of the Hyperdrive binding in wrangler config. This is the primary,
+	 * **caching-disabled** binding — every authenticated request and every write
+	 * uses it, so read-after-write consistency holds.
+	 * @default "HYPERDRIVE"
+	 */
+	binding?: string;
+
+	/**
+	 * Optional name of a second Hyperdrive binding pointing at a
+	 * **caching-enabled** configuration over the *same* database.
+	 *
+	 * When set, anonymous reads of **public-site paths** (no session, GET/HEAD,
+	 * not under `/_emdash`) route through this cache-enabled binding for lower
+	 * latency and reduced database load. Everything else stays on `binding`
+	 * (uncached) to preserve read-after-write consistency: every authenticated
+	 * request, every write, and every request under `/_emdash` (admin, setup,
+	 * auth, internal APIs) — including anonymous GETs like the post-setup status
+	 * check, which must observe a write made moments earlier. Migrations and the
+	 * cold-start singleton always use `binding`.
+	 *
+	 * Anonymous reads of just-published content can be up to the cache's
+	 * `max_age` stale (Hyperdrive default 60s, max 1h), and this cache is
+	 * independent of EmDash's own cache invalidation — only opt in if a short
+	 * public-read staleness window is acceptable. Omit it and the adapter uses
+	 * the single primary binding as before.
+	 *
+	 * Bind both configs in wrangler:
+	 * ```jsonc
+	 * {
+	 *   "hyperdrive": [
+	 *     { "binding": "HYPERDRIVE", "id": "<caching-disabled-id>" },
+	 *     { "binding": "HYPERDRIVE_CACHED", "id": "<caching-enabled-id>" }
+	 *   ]
+	 * }
+	 * ```
+	 */
+	cachedBinding?: string;
+
+	/**
+	 * Maximum size of the in-Worker node-postgres connection pool.
+	 *
+	 * Hyperdrive maintains the real connection pool to your origin database,
+	 * so this only caps connections from the Worker isolate to Hyperdrive.
+	 * Keep it low to stay within Workers' concurrent external connection
+	 * limits.
+	 *
+	 * @default 5
+	 */
+	max?: number;
+}
+
+/**
  * R2 storage configuration
  */
 export interface R2StorageConfig {
@@ -196,6 +252,86 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		entrypoint: "@emdash-cms/cloudflare/db/d1",
 		config,
 		type: "sqlite",
+		supportsRequestScope: true,
+	};
+}
+
+/**
+ * Cloudflare Hyperdrive database adapter (PostgreSQL)
+ *
+ * For Cloudflare Workers connecting to an existing PostgreSQL or
+ * PostgreSQL-compatible database (e.g. PlanetScale Postgres) through a
+ * Hyperdrive binding. Hyperdrive pools and accelerates the connection;
+ * EmDash's PostgreSQL dialect runs the queries.
+ *
+ * Each request gets its own pooled connection that is opened and closed within
+ * that request — Worker connections cannot be reused across requests.
+ *
+ * Requires in the consuming site:
+ * - `pg >= 8.16.3` installed
+ * - `compatibility_flags: ["nodejs_compat"]`
+ * - `compatibility_date >= "2024-09-23"`
+ * - A Hyperdrive binding in wrangler config:
+ *   ```jsonc
+ *   { "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "<id>" }] }
+ *   ```
+ *
+ * **Disable Hyperdrive query caching for this configuration.** EmDash runs its
+ * own caching layer and depends on read-after-write consistency — the admin and
+ * setup wizard write a row and immediately read it back. Hyperdrive's default-on
+ * query cache can serve the pre-write result within its TTL, which corrupts
+ * setup (e.g. "collection already exists" / missing columns) and shows editors
+ * stale content. Turn it off when creating the config:
+ * ```sh
+ * wrangler hyperdrive update <id> --caching-disabled
+ * # or, at create time: wrangler hyperdrive create ... --caching-disabled
+ * ```
+ *
+ * **Optional: serve anonymous reads from cache.** If a short public-read
+ * staleness window is acceptable, pass a second `cachedBinding` pointing at a
+ * caching-enabled Hyperdrive config over the same database. Anonymous read
+ * requests then route through the cache-enabled binding while authenticated
+ * requests and writes stay on the uncached `binding`, keeping read-after-write
+ * consistency intact:
+ * ```ts
+ * database: hyperdrive({ binding: "HYPERDRIVE", cachedBinding: "HYPERDRIVE_CACHED" })
+ * ```
+ *
+ * For best latency, pair this with a Smart Placement hint so the Worker runs in
+ * the Cloudflare data center closest to your database's region — the request
+ * path makes multiple round trips, so co-locating the Worker with the origin
+ * matters:
+ * ```jsonc
+ * { "placement": { "region": "aws:us-east-1" } }
+ * ```
+ *
+ * Each request gets its own pg connection, and the Cron Trigger sweep, plugin
+ * hook contexts, and media providers resolve an event-scoped connection too, so
+ * the content read/write path, scheduled publishing, plugin cron, and
+ * DB-querying plugin hooks are all supported.
+ *
+ * **Known limitation — sandboxed plugins are D1-only.** The sandbox plugin
+ * bridge talks to a D1 binding directly (independent of the configured
+ * adapter), so sandboxed plugins aren't available on a Hyperdrive deployment.
+ * This is a pre-existing bridge constraint, unrelated to connection scoping;
+ * tracked in https://github.com/emdash-cms/emdash/issues/1623.
+ *
+ * @example
+ * ```ts
+ * database: hyperdrive({ binding: "HYPERDRIVE" })
+ * ```
+ */
+export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
+	return {
+		entrypoint: "@emdash-cms/cloudflare/db/hyperdrive",
+		config: {
+			binding: config.binding ?? "HYPERDRIVE",
+			max: config.max,
+			...(config.cachedBinding !== undefined ? { cachedBinding: config.cachedBinding } : {}),
+		},
+		type: "postgres",
+		// Each request gets a fresh pg connection that is closed afterwards —
+		// connections cannot be reused across Worker requests.
 		supportsRequestScope: true,
 	};
 }

@@ -656,19 +656,22 @@ export class ContentRepository {
 	/**
 	 * Restore content from trash
 	 */
-	async restore(type: string, id: string): Promise<boolean> {
+	async restore(type: string, id: string): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
 
-		const result = await sql`
+		const result = await sql<Record<string, unknown>>`
 			UPDATE ${sql.ref(tableName)}
 			SET deleted_at = NULL
 			WHERE id = ${id}
 			AND deleted_at IS NOT NULL
+			RETURNING *
 		`.execute(this.db);
 
-		const changed = (result.numAffectedRows ?? 0n) > 0n;
-		if (changed) invalidateCollectionCache(type);
-		return changed;
+		const restored = result.rows[0];
+		if (!restored) return null;
+
+		invalidateCollectionCache(type);
+		return this.mapRow(type, restored);
 	}
 
 	/**

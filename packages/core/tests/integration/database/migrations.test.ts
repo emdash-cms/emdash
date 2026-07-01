@@ -48,6 +48,8 @@ describe("Database Migrations (Integration)", () => {
 			"_emdash_byline_fields",
 			"_emdash_byline_field_values",
 			"_emdash_byline_field_group_values",
+			"_emdash_media_usage_sources",
+			"_emdash_media_usage",
 		];
 
 		for (const table of tables) {
@@ -127,6 +129,8 @@ describe("Database Migrations (Integration)", () => {
 			"042_byline_fields",
 			"043_content_references",
 			"044_comment_reactions",
+			"045_taxonomy_parent_group",
+			"046_media_usage_index",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

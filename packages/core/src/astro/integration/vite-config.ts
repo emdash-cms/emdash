@@ -145,6 +145,15 @@ function resolveAdminSource(projectRoot: string): string | undefined {
 	return undefined;
 }
 
+function resolveIntegrationShim(fileName: string): string {
+	const currentDir = dirname(fileURLToPath(import.meta.url));
+	const sourceShimPath = resolve(currentDir, "shims", fileName);
+	if (existsSync(sourceShimPath)) {
+		return sourceShimPath;
+	}
+	return resolve(currentDir, "..", "..", "src", "astro", "integration", "shims", fileName);
+}
+
 export interface VitePluginOptions {
 	/** Serializable config (database, storage, auth descriptors) */
 	serializableConfig: Record<string, unknown>;
@@ -159,7 +168,10 @@ export interface VitePluginOptions {
 /**
  * Creates the EmDash virtual modules Vite plugin.
  */
-export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
+export function createVirtualModulesPlugin(
+	options: VitePluginOptions,
+	astroCommand: "dev" | "build" | "preview" | "sync",
+): Plugin {
 	const { serializableConfig, resolvedConfig, pluginDescriptors, astroConfig } = options;
 
 	let viteCommand: "build" | "serve" | undefined;
@@ -294,8 +306,16 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			// Generate scheduler module — a NodeCronScheduler factory on
 			// long-lived runtimes, or null under the Cloudflare adapter where
 			// a Cron Trigger drives scheduled work instead.
+			//
+			// Decide from Astro's command, not Vite's config.command: the
+			// Cloudflare adapter builds the worker bundle via a nested Vite
+			// *build* pass even during `astro dev`, so viteCommand reports
+			// "build" and would wrongly suppress the in-process timer (#1635).
+			// Astro's command stays "dev", which is the only case that should
+			// fall through to a NodeCronScheduler.
 			if (id === RESOLVED_VIRTUAL_SCHEDULER_ID) {
-				return generateSchedulerModule(astroConfig.adapter?.name, viteCommand);
+				const schedulerCommand = astroCommand === "dev" ? "serve" : "build";
+				return generateSchedulerModule(astroConfig.adapter?.name, schedulerCommand);
 			}
 		},
 	};
@@ -307,6 +327,10 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
  * On Cloudflare, the adapter handles its own externalization — setting
  * ssr.external there conflicts with @cloudflare/vite-plugin's validation.
  */
+// Matches the admin stylesheet import with or without a trailing query (e.g.
+// `?url`), so both forms resolve to dist rather than the source alias.
+const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
+
 const NODE_NATIVE_EXTERNALS = [
 	"better-sqlite3",
 	"bindings",
@@ -336,6 +360,10 @@ export function createViteConfig(
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
+	const useSyncExternalStoreShimPath = resolveIntegrationShim("use-sync-external-store.js");
+	const useSyncExternalStoreWithSelectorShimPath = resolveIntegrationShim(
+		"use-sync-external-store-with-selector.js",
+	);
 
 	return {
 		// Astro SSR routes resolve version.ts from source (not tsdown dist),
@@ -353,8 +381,12 @@ export function createViteConfig(
 			// The styles.css alias must come before the package alias, otherwise
 			// Vite's prefix matching on "@emdash-cms/admin" would resolve
 			// "@emdash-cms/admin/styles.css" through the source directory.
+			// Regex (not string) so the `?url` variant — admin.astro imports the
+			// stylesheet as `?url` to keep it out of the page CSS graph — also
+			// resolves to dist; a string `find` only matches on a `/` or end
+			// boundary, so `styles.css?url` would slip through to the source alias.
 			alias: [
-				{ find: "@emdash-cms/admin/styles.css", replacement: resolve(adminDistPath, "styles.css") },
+				{ find: ADMIN_STYLES_ALIAS, replacement: resolve(adminDistPath, "styles.css") },
 				{ find: "@emdash-cms/admin", replacement: useSource ? adminSourcePath : adminDistPath },
 				// `use-sync-external-store/shim` is a React <18 polyfill that ships
 				// only as CJS. It's pulled in transitively by `@tiptap/react`. With
@@ -362,19 +394,34 @@ export function createViteConfig(
 				// dep scanner can't reach it for pre-bundling — so the browser is
 				// served raw `module.exports` and hydration fails with
 				// `SyntaxError: ... does not provide an export named
-				// 'useSyncExternalStore'`. Redirect both shim entry points to the
-				// main `use-sync-external-store` package, which on React >=18
-				// (our peer-dep floor) delegates to React's built-in hook.
+				// 'useSyncExternalStore'`. Redirect both shim entry points to a
+				// tiny ESM shim file that re-exports React's built-in hook, and
+				// redirect the selector entry points to an ESM wrapper around that
+				// hook. The absolute file paths are required because Vite/Rolldown
+				// dependency optimization applies aliases without EmDash's virtual
+				// module plugin. This also avoids the package main entry's React
+				// 18+ dev warning.
+				{
+					find: "use-sync-external-store/shim/with-selector.js",
+					replacement: useSyncExternalStoreWithSelectorShimPath,
+				},
+				{
+					find: "use-sync-external-store/shim/with-selector",
+					replacement: useSyncExternalStoreWithSelectorShimPath,
+				},
 				{
 					find: "use-sync-external-store/shim/index.js",
-					replacement: "use-sync-external-store",
+					replacement: useSyncExternalStoreShimPath,
 				},
-				{ find: "use-sync-external-store/shim", replacement: "use-sync-external-store" },
+				{
+					find: "use-sync-external-store/shim",
+					replacement: useSyncExternalStoreShimPath,
+				},
 			],
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
-			createVirtualModulesPlugin(options),
+			createVirtualModulesPlugin(options, command),
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
 			// In production, macros are pre-compiled by tsdown in the admin package.

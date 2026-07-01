@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/do-demo-site",
-	"version": "0.0.21",
+	"version": "0.0.26",
 	"private": true,
 	"type": "module",
 	"scripts": {

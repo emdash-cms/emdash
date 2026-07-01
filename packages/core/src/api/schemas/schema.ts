@@ -126,6 +126,7 @@ export const createFieldBody = z
 export const updateFieldBody = z
 	.object({
 		label: z.string().min(1).optional(),
+		type: fieldTypeValues.optional(),
 		required: z.boolean().optional(),
 		unique: z.boolean().optional(),
 		defaultValue: z.unknown().optional(),

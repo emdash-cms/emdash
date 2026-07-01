@@ -7,17 +7,23 @@
 	"ai": {
 		"binding": "AI",
 	},
-	// Container sandbox. Flue auto-wires any Durable Object class whose
-	// class_name ends in `Sandbox` to @cloudflare/sandbox's Sandbox class in
-	// the generated bundle.
-	"durable_objects": {
-		"bindings": [
-			{
-				"class_name": "Sandbox",
-				"name": "Sandbox",
-			},
-		],
-	},
+	// Worker Loader binding for the Cloudflare Shell sandbox (cf-shell): runs the
+	// agent's JavaScript `code` tool in an isolate against the durable Workspace.
+	// Replaces the @cloudflare/sandbox container for this read-only reviewer.
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+	// Large-file backing store for the cf-shell Workspace. Files over the
+	// inlineThreshold (~1.5 MB), e.g. a git packfile, spill to R2 instead of
+	// the DO SQLite single-blob limit (SQLITE_TOOBIG).
+	"r2_buckets": [
+		{
+			"binding": "REVIEW_WORKSPACE",
+			"bucket_name": "emdash-flue-review-workspace",
+		},
+	],
 	// Migration history must stay append-only and keep every previously applied
 	// tag so Cloudflare can locate the deployed cursor and apply only what's new.
 	// The live worker's cursor is `flue-class-ReviewWorkflow` (it has Sandbox,
@@ -61,20 +67,22 @@
 			"tag": "v4-reset-registry-new",
 			"new_sqlite_classes": ["FlueRegistry"],
 		},
-	],
-	"containers": [
+		// Remove the @cloudflare/sandbox container DO: the reviewer moved to the
+		// Worker-Loader-backed cf-shell sandbox (no firecracker container). Sandbox
+		// is a user-declared class, so dropping the binding + deleting the class in
+		// one deploy is allowed.
 		{
-			"class_name": "Sandbox",
-			"image": "./Dockerfile",
+			"tag": "v5-remove-sandbox",
+			"deleted_classes": ["Sandbox"],
 		},
 	],
 	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
 		// emdashbot GitHub App. Not secret (app id is public; installation id is
 		// low-sensitivity). Only the private key and webhook secret are secrets.
 		// Owner/repo come from the webhook payload, so they aren't configured here.
 		"GITHUB_APP_ID": "3255304",
 		"GITHUB_APP_INSTALLATION_ID": "120963314",
-		"SANDBOX_TRANSPORT": "rpc",
 	},
 	// Set with `wrangler secret put <NAME>`. The webhook secret is used by the
 	// public handler; the private key is used only by the workflow DO to mint an

@@ -19,6 +19,14 @@ export const bylineSummarySchema = z
 		 */
 		avatarStorageKey: z.string().nullish(),
 		avatarAlt: z.string().nullish(),
+		/**
+		 * Avatar media LQIP placeholder (blurhash + dominant colour, migration
+		 * 024), from the same media join. Lets clients render a placeholder
+		 * while the avatar loads. Null under the same conditions as
+		 * `avatarStorageKey`.
+		 */
+		avatarBlurhash: z.string().nullish(),
+		avatarDominantColor: z.string().nullish(),
 		websiteUrl: z.string().nullable(),
 		userId: z.string().nullable(),
 		isGuest: z.boolean(),

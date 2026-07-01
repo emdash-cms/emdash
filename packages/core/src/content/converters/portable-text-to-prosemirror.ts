@@ -164,7 +164,10 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 			const level = parseInt(style.substring(1), 10);
 			return {
 				type: "heading",
-				attrs: { level },
+				attrs: {
+					level,
+					...(block.textAlign ? { textAlign: block.textAlign } : {}),
+				},
 				content: content.length > 0 ? content : undefined,
 			};
 		}
@@ -184,6 +187,7 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 		default:
 			return {
 				type: "paragraph",
+				attrs: block.textAlign ? { textAlign: block.textAlign } : undefined,
 				content: content.length > 0 ? content : undefined,
 			};
 	}

@@ -1,5 +1,14 @@
 import type { MediaItem, MediaProviderItem } from "./api/media.js";
 
+/** Read a string value from an untyped `meta` bag, or undefined. */
+export function metaString(
+	meta: Record<string, unknown> | undefined,
+	key: string,
+): string | undefined {
+	const value = meta?.[key];
+	return typeof value === "string" ? value : undefined;
+}
+
 export function providerItemToMediaItem(
 	providerId: string,
 	item: MediaProviderItem,
@@ -12,6 +21,9 @@ export function providerItemToMediaItem(
 		size: item.size || 0,
 		width: item.width,
 		height: item.height,
+		// Prefer first-class fields; some providers stash LQIP in `meta`.
+		blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
+		dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 		alt: item.alt,
 		createdAt: new Date().toISOString(),
 		provider: providerId,
