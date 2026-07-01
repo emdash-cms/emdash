@@ -34,6 +34,10 @@ export interface MediaItem {
 	size: number;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
 	alt?: string;
 	caption?: string;
 	createdAt: string;
@@ -302,6 +306,10 @@ export interface MediaProviderItem {
 	size?: number;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
 	alt?: string;
 	previewUrl?: string;
 	meta?: Record<string, unknown>;

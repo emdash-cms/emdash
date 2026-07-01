@@ -158,15 +158,12 @@ if (img) {
 	}
 }
 
-// Build placeholder background style
+// Build placeholder background style. Prefer the first-class MediaValue fields;
+// fall back to `meta` for snapshots stored before LQIP was promoted off `meta`.
 const blurhash =
-	typeof image === "object"
-		? (image?.meta?.blurhash as string | undefined)
-		: undefined;
+	img?.blurhash ?? (img?.meta?.blurhash as string | undefined);
 const dominantColor =
-	typeof image === "object"
-		? (image?.meta?.dominantColor as string | undefined)
-		: undefined;
+	img?.dominantColor ?? (img?.meta?.dominantColor as string | undefined);
 
 let placeholderStyle = "";
 if (blurhash) {

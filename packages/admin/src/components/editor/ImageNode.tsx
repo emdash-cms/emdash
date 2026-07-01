@@ -34,6 +34,10 @@ declare module "@tiptap/react" {
 				provider?: string;
 				width?: number;
 				height?: number;
+				/** LQIP blurhash placeholder */
+				blurhash?: string;
+				/** LQIP dominant-color placeholder */
+				dominantColor?: string;
 				displayWidth?: number;
 				displayHeight?: number;
 				alignment?: "left" | "center" | "right" | "wide" | "full";
@@ -79,6 +83,8 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 		mediaId: node.attrs.mediaId,
 		width: node.attrs.width,
 		height: node.attrs.height,
+		blurhash: node.attrs.blurhash,
+		dominantColor: node.attrs.dominantColor,
 		displayWidth: node.attrs.displayWidth,
 		displayHeight: node.attrs.displayHeight,
 		alignment: node.attrs.alignment,
@@ -342,6 +348,12 @@ export const ImageExtension = Node.create({
 			height: {
 				default: null,
 			},
+			blurhash: {
+				default: null,
+			},
+			dominantColor: {
+				default: null,
+			},
 			displayWidth: {
 				default: null,
 			},
@@ -382,6 +394,8 @@ export const ImageExtension = Node.create({
 					provider?: string;
 					width?: number;
 					height?: number;
+					blurhash?: string;
+					dominantColor?: string;
 					displayWidth?: number;
 					displayHeight?: number;
 					alignment?: "left" | "center" | "right" | "wide" | "full";
