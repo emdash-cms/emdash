@@ -20,7 +20,7 @@ import { OptionsRepository } from "../../database/repositories/options.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
-import { isI18nEnabled } from "../../i18n/config.js";
+import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import type { FieldType } from "../../schema/types.js";
 import type {
@@ -128,7 +128,12 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 	// middleware, but the CLI never does, so `isI18nEnabled()` is always false
 	// under `emdash export-seed` (#1330). Detecting multiple locales in the data
 	// keeps the export locale-aware without the runtime flag.
-	const i18nEnabled = await detectI18nEnabled(db, seed.collections);
+	const { i18nEnabled, defaultLocale } = await detectLocaleInfo(db, seed.collections);
+
+	// Self-describe the default locale so a non-`en` single-locale project
+	// survives the round-trip: `emdash seed` runs outside the runtime and would
+	// otherwise backfill omitted locales as `en` (#1421).
+	if (defaultLocale) seed.defaultLocale = defaultLocale;
 
 	// 3. Export taxonomy definitions and terms
 	seed.taxonomies = await exportTaxonomies(db, i18nEnabled);
@@ -148,13 +153,16 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 
 	// 7. Export content (if requested)
 	if (withContent !== undefined) {
-		const collections =
-			withContent === "" || withContent === "true"
-				? null // all collections
-				: withContent
-						.split(",")
-						.map((s) => s.trim())
-						.filter(Boolean);
+		// Treat "all" as a synonym for the bare flag and "true". The args help
+		// text documents `all` as a valid value, but without this the literal
+		// string is read as a collection name and matches no collection (#1329).
+		const includeAll = withContent === "" || withContent === "true" || withContent === "all";
+		const collections = includeAll
+			? null // all collections
+			: withContent
+					.split(",")
+					.map((s) => s.trim())
+					.filter(Boolean);
 
 		seed.content = await exportContent(
 			db,
@@ -216,7 +224,7 @@ async function exportBylines(
 }
 
 /**
- * Determine whether the export should emit locale-suffixed seed ids.
+ * Determine locale-awareness and the data's default locale for the export.
  *
  * The runtime initializes the i18n config in middleware, but the CLI never does,
  * so `isI18nEnabled()` is always false under `emdash export-seed` (#1330). When
@@ -227,39 +235,50 @@ async function exportBylines(
  * genuinely single-locale project from a multi-locale one. This keeps
  * single-locale exports on bare ids and gives multi-locale exports the
  * per-locale suffix they need to avoid duplicate seed ids.
+ *
+ * `defaultLocale` self-describes the single-locale case so a non-`en` default
+ * survives the round-trip (#1421). When more than one locale is present every
+ * row already carries its own `locale`, so no fallback is needed and we leave it
+ * undefined rather than guess which locale is the "default" without the runtime
+ * config.
  */
-async function detectI18nEnabled(
+async function detectLocaleInfo(
 	db: Kysely<Database>,
 	collections: SeedCollection[],
-): Promise<boolean> {
-	if (isI18nEnabled()) return true;
+): Promise<{ i18nEnabled: boolean; defaultLocale: string | undefined }> {
+	const config = getI18nConfig();
+	if (isI18nEnabled() && config) {
+		return { i18nEnabled: true, defaultLocale: config.defaultLocale };
+	}
 
 	const locales = new Set<string>();
-	const collectDistinctLocales = async (tableRef: ReturnType<typeof sql.ref>): Promise<boolean> => {
+	const collectDistinctLocales = async (tableRef: ReturnType<typeof sql.ref>): Promise<void> => {
 		const result = await sql<{ locale: string | null }>`
 			SELECT DISTINCT locale FROM ${tableRef}
 		`.execute(db);
 		for (const row of result.rows) {
 			if (row.locale) locales.add(row.locale);
 		}
-		return locales.size > 1;
 	};
 
-	if (await collectDistinctLocales(sql.ref("_emdash_taxonomy_defs"))) return true;
-	if (await collectDistinctLocales(sql.ref("_emdash_menus"))) return true;
+	await collectDistinctLocales(sql.ref("_emdash_taxonomy_defs"));
+	await collectDistinctLocales(sql.ref("_emdash_menus"));
 
 	for (const collection of collections) {
 		validateIdentifier(collection.slug, "collection slug");
 		// On D1, deleteCollection is non-atomic, so a collection row can outlive
 		// its ec_* table. Skip missing tables rather than crashing the export.
 		try {
-			if (await collectDistinctLocales(sql.ref(`ec_${collection.slug}`))) return true;
+			await collectDistinctLocales(sql.ref(`ec_${collection.slug}`));
 		} catch (error) {
 			if (!isMissingTableError(error)) throw error;
 		}
 	}
 
-	return false;
+	return {
+		i18nEnabled: locales.size > 1,
+		defaultLocale: locales.size === 1 ? [...locales][0] : undefined,
+	};
 }
 
 /**
@@ -356,9 +375,10 @@ async function exportTaxonomies(
 		// Terms in this def's locale.
 		const terms = await termRepo.findByName(def.name, { locale: def.locale });
 
-		// id -> slug for parent resolution within this locale.
-		const idToSlug = new Map<string, string>();
-		for (const term of terms) idToSlug.set(term.id, term.slug);
+		// translation_group -> slug for parent resolution within this locale.
+		// `parentId` stores the parent's translation_group, not a row id.
+		const groupToSlug = new Map<string, string>();
+		for (const term of terms) groupToSlug.set(term.translationGroup ?? term.id, term.slug);
 
 		// translation_group -> seed id of the anchor term.
 		const termGroupToSeedId = new Map<string, string>();
@@ -377,7 +397,7 @@ async function exportTaxonomies(
 				description: typeof term.data?.description === "string" ? term.data.description : undefined,
 			};
 
-			if (term.parentId) seedTerm.parent = idToSlug.get(term.parentId);
+			if (term.parentId) seedTerm.parent = groupToSlug.get(term.parentId);
 
 			if (i18nEnabled && term.locale) {
 				seedTerm.locale = term.locale;

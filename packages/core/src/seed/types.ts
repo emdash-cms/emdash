@@ -19,6 +19,15 @@ export interface SeedFile {
 	/** Seed format version */
 	version: "1";
 
+	/**
+	 * Default locale for locale-bearing rows (menus, taxonomies, content) that
+	 * omit an explicit `locale`. Lets a non-`en` single-locale project survive an
+	 * `export-seed` → `seed` round-trip: `apply` runs outside the Astro runtime
+	 * (no i18n config), so without this it would backfill the omitted locale as
+	 * `en`. See #1421.
+	 */
+	defaultLocale?: string;
+
 	/** Metadata about the seed */
 	meta?: {
 		name?: string;

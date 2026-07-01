@@ -493,10 +493,11 @@ npx emdash secrets generate
 ```
 
 Prints the new key to stdout. Pipe it into your secret store, or write it
-straight to a dev file with `--write`. The following commands write the key to `.dev.vars` or `.env`:
+straight to your local `.env` file with `--write`. The same `.env` file is
+read by Node and, in local development, by Wrangler and the Cloudflare Vite
+plugin:
 
 ```bash
-npx emdash secrets generate --write .dev.vars
 npx emdash secrets generate --write .env
 ```
 

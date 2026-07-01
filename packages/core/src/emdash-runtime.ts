@@ -22,9 +22,12 @@ import { getAuthMode } from "./auth/mode.js";
 import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
-import { runMigrations } from "./database/migrations/runner.js";
+import { MIGRATION_RACE_WAIT_MS, runMigrations } from "./database/migrations/runner.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
-import type { ContentItem as ContentItemInternal } from "./database/repositories/types.js";
+import type {
+	ContentItem as ContentItemInternal,
+	ContentDateField,
+} from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
@@ -38,9 +41,13 @@ import type {
 	PublicPageContext,
 	PageMetadataContribution,
 	PageFragmentContribution,
+	PortableTextBlockConfig,
+	FieldWidgetConfig,
 } from "./plugins/types.js";
 import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
+import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
+import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
@@ -114,6 +121,7 @@ import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import {
 	handleContentList,
+	handleContentAuthors,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
 	handleContentCreate,
@@ -157,13 +165,12 @@ import {
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
 import { PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
-import { NodeCronScheduler } from "./plugins/scheduler/node.js";
-import { PiggybackScheduler } from "./plugins/scheduler/piggyback.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
 
@@ -207,6 +214,10 @@ export interface SandboxedPluginEntry {
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
+	/** Portable Text block types contributed to the editor (declarative Block Kit) */
+	portableTextBlocks?: PortableTextBlockConfig[];
+	/** Field widget types contributed for schema-field editing UIs */
+	fieldWidgets?: FieldWidgetConfig[];
 	/** Admin entry module */
 	adminEntry?: string;
 	/**
@@ -233,8 +244,24 @@ export interface MediaProviderEntry {
  */
 export interface MediaProviderContext {
 	db: Kysely<Database>;
+	/**
+	 * Resolver for the live connection, preferred over `db` by providers that
+	 * query EmDash's database. Resolves the current request/event-scoped
+	 * connection from ALS so connection-backed adapters (Postgres over
+	 * Hyperdrive) don't reuse the per-isolate singleton's socket across events.
+	 * Providers should resolve per operation rather than capturing `db` once.
+	 * Omitted-safe: falls back to `db` for stateless adapters (D1, Node SQLite).
+	 */
+	getDb?: () => Kysely<Database>;
 	storage: Storage | null;
 }
+
+/**
+ * Builds the timer-based scheduler that drives cron ticks and maintenance.
+ * Injected via `virtual:emdash/scheduler` so the platform — not core — decides
+ * whether a long-lived heartbeat exists.
+ */
+export type CreateSchedulerFn = (executor: CronExecutor) => CronScheduler;
 
 /**
  * Dependencies injected from virtual modules (middleware reads these)
@@ -244,11 +271,31 @@ export interface RuntimeDependencies {
 	plugins: ResolvedPlugin[];
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	createDialect: (config: any) => Dialect;
+	/**
+	 * Factory for a dialect that batches same-turn reads into one round trip
+	 * ({@link EmDashRuntime.create} uses it for the cold-start read phase).
+	 * Present only on batching backends (D1, DO); absent backends fall back to
+	 * the singleton. Returns a fresh connection each call — it must never be the
+	 * long-lived singleton, whose coalescing buffer would be shared across
+	 * requests.
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	createCoalescingDialect?: (config: any) => Dialect | null;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	createStorage: ((config: any) => Storage) | null;
 	sandboxEnabled: boolean;
 	/** sandbox: false escape hatch - load sandboxed plugins in-process */
 	sandboxBypassed?: boolean;
+	/**
+	 * Factory for the timer-based cron/maintenance heartbeat. Supplied by the
+	 * generated `virtual:emdash/scheduler` module: a `NodeCronScheduler` factory
+	 * on long-lived runtimes (Node/Bun), or `null` on serverless adapters where
+	 * an external driver (e.g. the Cloudflare Worker's `scheduled()` Cron
+	 * Trigger) calls `runScheduledTasks()` instead. When absent or null, the
+	 * runtime starts no scheduler. Keeping the platform decision in the
+	 * integration means core has no adapter-specific runtime checks.
+	 */
+	createScheduler?: CreateSchedulerFn | null;
 	/** Media provider entries from virtual module */
 	mediaProviderEntries?: MediaProviderEntry[];
 	sandboxedPluginEntries: SandboxedPluginEntry[];
@@ -295,6 +342,7 @@ export interface EmDashRuntimeParts {
 	allPipelinePlugins: ResolvedPlugin[];
 	pipelineFactoryOptions: {
 		db: Kysely<Database>;
+		getDb?: () => Kysely<Database>;
 		storage?: Storage;
 		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
 	};
@@ -310,9 +358,60 @@ function contentItemToRecord(item: ContentItemInternal): Record<string, unknown>
 	return { ...item };
 }
 
-// Module-level caches (persist across requests within worker)
-const dbCache = new Map<string, Kysely<Database>>();
-let dbInitPromise: Promise<Kysely<Database>> | null = null;
+/**
+ * Db init lock reclaim deadline. Derived from the migration race wait so
+ * they can't drift apart: a healthy init can legitimately block for the
+ * full MIGRATION_RACE_WAIT_MS inside waitForConcurrentMigrator, plus cold
+ * connect and migrator work, before it should be presumed dead. The outer
+ * runtime init lock (middleware.ts) must use a strictly larger deadline —
+ * it wraps create() → getDatabase() → this lock, and equal deadlines would
+ * let the outer reclaim while the inner is legitimately still working.
+ */
+export const DB_INIT_DEADLINE_MS = MIGRATION_RACE_WAIT_MS + 20_000;
+
+/**
+ * Db cache + its init lock live on globalThis behind a Symbol: the bundler
+ * can duplicate this module across SSR chunks (same reasoning as
+ * request-cache.ts), and a duplicated cache/lock would mean concurrent
+ * independent db inits — and duplicate migrators — per isolate.
+ */
+const DB_HOLDER_KEY = Symbol.for("emdash:db-cache");
+interface DbHolder {
+	cache: Map<string, Kysely<Database>>;
+	lock: InitLock;
+}
+const globalSymbolStore = globalThis as Record<symbol, unknown>;
+function getDbHolder(): DbHolder {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+	let holder = globalSymbolStore[DB_HOLDER_KEY] as DbHolder | undefined;
+	if (!holder) {
+		holder = { cache: new Map<string, Kysely<Database>>(), lock: createInitLock() };
+		globalSymbolStore[DB_HOLDER_KEY] = holder;
+	}
+	return holder;
+}
+
+/**
+ * Auto-seed runs at most once per isolate per database. Its lock + "done" set
+ * live on globalThis (same bundler-duplication reasoning as the db cache) so a
+ * reclaimed-and-rerun `create()` can't seed a second time concurrently. The
+ * lock polls rather than sharing a promise, so it is safe to await across a
+ * cancelled owner in workerd.
+ */
+const SEED_HOLDER_KEY = Symbol.for("emdash:seed-state");
+interface SeedHolder {
+	done: Set<string>;
+	lock: InitLock;
+}
+function getSeedHolder(): SeedHolder {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot, written only below
+	let holder = globalSymbolStore[SEED_HOLDER_KEY] as SeedHolder | undefined;
+	if (!holder) {
+		holder = { done: new Set<string>(), lock: createInitLock() };
+		globalSymbolStore[SEED_HOLDER_KEY] = holder;
+	}
+	return holder;
+}
 const storageCache = new Map<string, Storage>();
 const sandboxedPluginCache = new Map<string, SandboxedPluginInstance>();
 /**
@@ -333,7 +432,10 @@ const marketplaceManifestCache = new Map<
 	{
 		id: string;
 		version: string;
-		admin?: { pages?: PluginAdminPage[]; widgets?: PluginDashboardWidget[] };
+		admin?: {
+			pages?: PluginAdminPage[];
+			widgets?: PluginDashboardWidget[];
+		};
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -354,7 +456,20 @@ export class EmDashRuntime {
 	readonly configuredPlugins: ResolvedPlugin[];
 	readonly sandboxedPlugins: Map<string, SandboxedPluginInstance>;
 	readonly sandboxedPluginEntries: SandboxedPluginEntry[];
-	readonly schemaRegistry: SchemaRegistry;
+	/**
+	 * Schema registry bound to the current request/event-scoped connection.
+	 * Built per access (SchemaRegistry just wraps a db) against `this.db`, the
+	 * ALS-aware getter — never a captured snapshot of the singleton. On a
+	 * connection-backed adapter (Postgres over Hyperdrive) a captured singleton
+	 * would query a socket opened by an earlier event and trip workerd's
+	 * cross-request I/O guard; the catch in handlers like handleContentUpdate
+	 * would then silently treat a revision-enabled collection as non-revisioned
+	 * and write draft edits to live columns. Same reasoning as the per-call
+	 * registry in _buildManifest().
+	 */
+	get schemaRegistry(): SchemaRegistry {
+		return new SchemaRegistry(this.db);
+	}
 	private _hooks!: HookPipeline;
 	readonly config: EmDashConfig;
 	readonly mediaProviders: Map<string, MediaProvider>;
@@ -367,12 +482,12 @@ export class EmDashRuntime {
 	private pluginStates: Map<string, string>;
 
 	/**
-	 * Set to true after FTS indexes have been verified for this worker
-	 * lifetime so we don't re-scan on every admin request. See
-	 * ensureSearchHealthy().
+	 * Isolate-lifetime guard so FTS indexes are verified at most once per
+	 * worker rather than on every admin request. See ensureSearchHealthy().
+	 * Uses the poison-immune single-flight cache (never a shared awaitable
+	 * promise) so a cancelled first caller can't wedge later ones.
 	 */
-	private _searchHealthChecked = false;
-	private _searchHealthPromise: Promise<void> | null = null;
+	private readonly _searchHealthCache = createSingleFlightCache<void>();
 
 	/** Current hook pipeline. Use the `hooks` getter for external access. */
 	get hooks(): HookPipeline {
@@ -385,6 +500,7 @@ export class EmDashRuntime {
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
+		getDb?: () => Kysely<Database>;
 		storage?: Storage;
 		siteInfo?: { siteName?: string; siteUrl?: string; locale?: string };
 	};
@@ -415,7 +531,6 @@ export class EmDashRuntime {
 		this.configuredPlugins = parts.configuredPlugins;
 		this.sandboxedPlugins = parts.sandboxedPlugins;
 		this.sandboxedPluginEntries = parts.sandboxedPluginEntries;
-		this.schemaRegistry = new SchemaRegistry(parts.db);
 		this._hooks = parts.hooks;
 		this.enabledPlugins = parts.enabledPlugins;
 		this.pluginStates = parts.pluginStates;
@@ -449,14 +564,65 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Tick the cron system from request context (piggyback mode).
-	 * Call this from middleware on each request to ensure cron tasks
-	 * execute even when no dedicated scheduler is available.
+	 * Publish any content whose scheduled time has passed.
+	 * Returns the items promoted so callers can invalidate their cache tags.
 	 */
-	tickCron(): void {
-		if (this.cronScheduler instanceof PiggybackScheduler) {
-			this.cronScheduler.onRequest();
+	async publishScheduled(): Promise<PublishedRef[]> {
+		return publishDueContent(this.db, {
+			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
+		});
+	}
+
+	/**
+	 * Run the full scheduled-maintenance batch: cron tasks, scheduled
+	 * publishing, and system cleanup. For request-less drivers — the
+	 * Cloudflare `scheduled()` handler invokes this from a Cron Trigger.
+	 * (On Node the timer-based scheduler drives the same work itself.)
+	 *
+	 * Each step is independent and non-fatal. Returns the content promoted
+	 * by the publishing sweep so the caller can purge edge-cache tags.
+	 *
+	 * `onPublished` (optional) is awaited after each collection's batch so a
+	 * request-less driver can invalidate edge-cache tags incrementally rather
+	 * than only after the whole sweep — bounding stale-cache exposure if the
+	 * runtime is killed mid-sweep.
+	 */
+	async runScheduledTasks(
+		options: {
+			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		} = {},
+	): Promise<{ published: PublishedRef[] }> {
+		if (this.cronExecutor) {
+			try {
+				await this.cronExecutor.tick();
+			} catch (error) {
+				console.error("[cron] Tick failed:", error);
+			}
+			try {
+				await this.cronExecutor.recoverStaleLocks();
+			} catch (error) {
+				console.error("[cron] Stale lock recovery failed:", error);
+			}
 		}
+
+		let published: PublishedRef[] = [];
+		try {
+			// Route through the runtime wrapper so content:afterPublish hooks fire.
+			published = await publishDueContent(this.db, {
+				publish: (collection, id, opts) => this.handleContentPublish(collection, id, opts),
+				onPublished: options.onPublished,
+			});
+		} catch (error) {
+			console.error("[scheduled-publish] Sweep failed:", error);
+		}
+
+		try {
+			await runSystemCleanup(this.db, this.storage ?? undefined);
+		} catch (error) {
+			console.error("[cleanup] System cleanup failed:", error);
+		}
+
+		return { published };
 	}
 
 	/**
@@ -510,7 +676,9 @@ export class EmDashRuntime {
 		// The old pipeline's contextFactoryOptions were built up incrementally
 		// via setContextFactory calls during create(). We replay them here.
 		if (this.email) {
-			newPipeline.setContextFactory({ db: this.db, emailPipeline: this.email });
+			// db/getDb are already wired by createHookPipeline above (they live in
+			// pipelineFactoryOptions), so the merge only adds emailPipeline.
+			newPipeline.setContextFactory({ emailPipeline: this.email });
 		}
 		if (this.cronScheduler) {
 			const scheduler = this.cronScheduler;
@@ -874,6 +1042,22 @@ export class EmDashRuntime {
 		// Initialize database (connects, runs migrations if needed)
 		const db = await phase("rt.db", "DB init + migrations", () => EmDashRuntime.getDatabase(deps));
 
+		// Resolver for the live connection, mirroring the `get db()` getter
+		// below (which can't be used here — the runtime instance doesn't exist
+		// yet). Long-lived subsystems built during create() (cron executor,
+		// plugin context factory, media providers) capture this resolver rather
+		// than the `db` snapshot, so a connection-backed adapter (Postgres over
+		// Hyperdrive) serves their queries from the current request/event-scoped
+		// connection in ALS instead of the per-isolate singleton — whose socket
+		// belongs to an earlier request and would trip workerd's cross-request
+		// I/O guard. Stateless adapters (D1, Node SQLite) set no ALS db on most
+		// paths, so this falls back to the singleton: unchanged behavior.
+		const resolveDb = (): Kysely<Database> => {
+			const ctx = getRequestContext();
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- ALS db is typed unknown to avoid a circular import; middleware always sets a Kysely<Database>
+			return (ctx?.db as Kysely<Database> | undefined) ?? db;
+		};
+
 		// Validate EMDASH_ENCRYPTION_KEY once here so a malformed value
 		// surfaces in startup logs instead of as request-time 500s. The key
 		// itself is not yet consumed (a follow-up PR adds plugin-secret
@@ -887,21 +1071,156 @@ export class EmDashRuntime {
 		// Initialize storage (sync)
 		const storage = EmDashRuntime.getStorage(deps);
 
-		// Fetch plugin states from database
 		let pluginStates: Map<string, string> = new Map();
-		await phase("rt.plugins", "Plugin states", async () => {
-			try {
-				const states = await db
-					.selectFrom("_plugin_state")
-					.select(["plugin_id", "status"])
-					.execute();
-				pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-			} catch {
-				// Plugin state table may not exist yet
-			}
-		});
+		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
+		// "Already set up" by default so a read failure (e.g. tables absent on a
+		// pre-migration db) skips seeding rather than seeding a half-built db.
+		let seedGate = { collectionCount: 1, setupDone: true };
 
-		// Build set of enabled plugins
+		// Seeding must only touch the configured singleton, never a borrowed
+		// per-request db (playground / DO preview) or the loader-fallback db.
+		const reqCtx = getRequestContext();
+		const ownsConfiguredDb = !!deps.config.database && !(reqCtx?.dbIsIsolated && reqCtx.db);
+
+		// Run the init reads on a coalescing connection so the concurrent
+		// same-turn reads flush as one batch() round trip. The singleton can't:
+		// its plain SqliteAdapter reports supportsMultipleConnections=false, so
+		// Kysely's connection mutex serializes concurrent reads into N round
+		// trips. The connection is per-init and discarded — the long-lived
+		// singleton must never coalesce or one request's reads could land in
+		// another's batch. Backends without a coalescing dialect (Node/SQLite)
+		// fall back to the singleton, where serialization costs nothing.
+		let readDb = db;
+		let readDbDisposable: Kysely<Database> | undefined;
+		if (ownsConfiguredDb && deps.createCoalescingDialect && deps.config.database) {
+			try {
+				const dialect = deps.createCoalescingDialect(deps.config.database.config);
+				if (dialect) {
+					readDb = new Kysely<Database>({ dialect, log: kyselyLogOption() });
+					readDbDisposable = readDb;
+				}
+			} catch {
+				readDb = db;
+			}
+		}
+		const optionsRepo = new OptionsRepository(readDb);
+
+		const readSiteInfo = async () => {
+			const siteOpts = await optionsRepo.getMany<string>([
+				"emdash:site_title",
+				"emdash:site_url",
+				"emdash:locale",
+			]);
+			return {
+				siteName: siteOpts.get("emdash:site_title") ?? undefined,
+				siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
+				locale: siteOpts.get("emdash:locale") ?? undefined,
+			};
+		};
+
+		const coldStartReads: Array<Promise<void>> = [
+			phase("rt.plugins", "Plugin states", async () => {
+				try {
+					const states = await readDb
+						.selectFrom("_plugin_state")
+						.select(["plugin_id", "status"])
+						.execute();
+					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+				} catch {
+					// _plugin_state may not exist yet on a pre-migration db.
+				}
+			}),
+			phase("rt.site", "Site info options", async () => {
+				try {
+					siteInfo = await readSiteInfo();
+				} catch {
+					// options may not exist yet on a pre-migration db.
+				}
+			}),
+		];
+
+		if (ownsConfiguredDb) {
+			coldStartReads.push(
+				phase("rt.seedcheck", "Auto-seed gate", async () => {
+					try {
+						const [collectionCount, setupOption] = await Promise.all([
+							readDb
+								.selectFrom("_emdash_collections")
+								.select((eb) => eb.fn.countAll<number>().as("count"))
+								.executeTakeFirstOrThrow(),
+							readDb
+								.selectFrom("options")
+								.select("value")
+								.where("name", "=", "emdash:setup_complete")
+								.executeTakeFirst(),
+						]);
+						const setupDone = (() => {
+							try {
+								return !!setupOption && JSON.parse(setupOption.value) === true;
+							} catch {
+								return false;
+							}
+						})();
+						seedGate = { collectionCount: collectionCount.count, setupDone };
+					} catch {
+						// Leave the "already set up" default so a read failure never
+						// triggers a seed onto a half-built db.
+					}
+				}),
+			);
+		}
+
+		await Promise.all(coldStartReads);
+
+		// Auto-seed the default schema for a first load that skipped the setup
+		// wizard (the wizard and dev-bypass apply seeds explicitly). Run under a
+		// per-isolate lock keyed by the configured db so a reclaimed-and-rerun
+		// create() can't apply the seed a second time concurrently.
+		if (seedGate.collectionCount === 0 && !seedGate.setupDone) {
+			const seedKey = deps.config.database?.entrypoint ?? "default";
+			const seedHolder = getSeedHolder();
+			try {
+				await initWithLock(
+					seedHolder.lock,
+					() => (seedHolder.done.has(seedKey) ? true : undefined),
+					async () => {
+						const { applySeed } = await import("./seed/apply.js");
+						const { loadSeed } = await import("./seed/load.js");
+						const { validateSeed } = await import("./seed/validate.js");
+
+						const seed = await loadSeed();
+						const validation = validateSeed(seed);
+						if (validation.valid) {
+							await applySeed(db, seed, { onConflict: "skip" });
+							console.log("Auto-seeded default collections");
+						}
+						seedHolder.done.add(seedKey);
+						return true;
+					},
+					{ deadlineMs: DB_INIT_DEADLINE_MS, anchor: (promise) => after(() => promise) },
+				);
+				// The site-info read ran before the seed wrote its defaults, so
+				// refresh the snapshot the plugin context sees.
+				try {
+					siteInfo = await readSiteInfo();
+				} catch {
+					// Non-fatal — plugin context falls back to undefined fields.
+				}
+			} catch {
+				// Non-fatal — a failed seed (e.g. missing seed module) leaves the
+				// site un-seeded; a later request retries.
+			}
+		}
+
+		// The read connection is single-use; everything below uses the singleton.
+		if (readDbDisposable) {
+			try {
+				await readDbDisposable.destroy();
+			} catch {
+				// Non-fatal — the underlying binding is shared and needs no teardown.
+			}
+		}
+
 		const enabledPlugins = new Set<string>();
 		for (const plugin of deps.plugins) {
 			const status = pluginStates.get(plugin.id);
@@ -909,26 +1228,6 @@ export class EmDashRuntime {
 				enabledPlugins.add(plugin.id);
 			}
 		}
-
-		// Load site info for plugin context extensions (1 batch query instead of 3)
-		let siteInfo: { siteName?: string; siteUrl?: string; locale?: string } | undefined;
-		await phase("rt.site", "Site info options", async () => {
-			try {
-				const optionsRepo = new OptionsRepository(db);
-				const siteOpts = await optionsRepo.getMany<string>([
-					"emdash:site_title",
-					"emdash:site_url",
-					"emdash:locale",
-				]);
-				siteInfo = {
-					siteName: siteOpts.get("emdash:site_title") ?? undefined,
-					siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
-					locale: siteOpts.get("emdash:locale") ?? undefined,
-				};
-			} catch {
-				// Options table may not exist yet (pre-setup)
-			}
-		});
 
 		// Build the full list of pipeline-eligible plugins: all configured
 		// plugins (regardless of current enabled status) plus built-in plugins.
@@ -1037,9 +1336,15 @@ export class EmDashRuntime {
 		// Filter to currently enabled plugins for the initial pipeline
 		const enabledPluginList = allPipelinePlugins.filter((p) => enabledPlugins.has(p.id));
 
-		// Create hook pipeline
+		// Create hook pipeline. getDb travels here (not just via the email
+		// setContextFactory call below) so it survives rebuildHookPipeline(),
+		// which reconstructs the factory from pipelineFactoryOptions. Without it,
+		// toggling a plugin on an email-less deployment would silently revert
+		// plugin contexts to the singleton db — re-breaking connection-backed
+		// adapters. See #1622.
 		const pipelineFactoryOptions = {
 			db,
+			getDb: resolveDb,
 			storage: storage ?? undefined,
 			siteInfo,
 		};
@@ -1050,37 +1355,48 @@ export class EmDashRuntime {
 			EmDashRuntime.loadSandboxedPlugins(deps, db, storage),
 		);
 
-		// Cold-start: load marketplace-installed plugins from site R2 via
-		// the sandbox runner. In bypass mode this was already handled above.
+		// Cold-start: load marketplace- and registry-installed plugins from
+		// site R2 via the sandbox runner. The two tiers only depend on the
+		// sandbox phase above, not on each other, so when both are enabled
+		// they run concurrently instead of paying two sequential loads.
+		// In bypass mode marketplace plugins were already handled above.
+		const installedTierPhases: Promise<void>[] = [];
 		if (deps.config.marketplace && storage && !deps.sandboxBypassed) {
-			await phase("rt.market", "Marketplace plugins", () =>
-				EmDashRuntime.loadInstalledSandboxedPlugins(
-					"marketplace",
-					db,
-					storage,
-					deps,
-					sandboxedPlugins,
+			installedTierPhases.push(
+				phase("rt.market", "Marketplace plugins", () =>
+					EmDashRuntime.loadInstalledSandboxedPlugins(
+						"marketplace",
+						db,
+						storage,
+						deps,
+						sandboxedPlugins,
+					),
 				),
 			);
 		}
 
 		// Cold-start: load registry-installed plugins from site R2
 		if (deps.config.experimental?.registry && storage) {
-			await phase("rt.registry", "Registry plugins", () =>
-				EmDashRuntime.loadInstalledSandboxedPlugins(
-					"registry",
-					db,
-					storage,
-					deps,
-					sandboxedPlugins,
+			installedTierPhases.push(
+				phase("rt.registry", "Registry plugins", () =>
+					EmDashRuntime.loadInstalledSandboxedPlugins(
+						"registry",
+						db,
+						storage,
+						deps,
+						sandboxedPlugins,
+					),
 				),
 			);
+		}
+		if (installedTierPhases.length > 0) {
+			await Promise.all(installedTierPhases);
 		}
 
 		// Initialize media providers
 		const mediaProviders = new Map<string, MediaProvider>();
 		const mediaProviderEntries = deps.mediaProviderEntries ?? [];
-		const providerContext: MediaProviderContext = { db, storage };
+		const providerContext: MediaProviderContext = { db, storage, getDb: resolveDb };
 
 		for (const entry of mediaProviderEntries) {
 			try {
@@ -1121,15 +1437,22 @@ export class EmDashRuntime {
 		};
 
 		// Wire email pipeline into context factory (independent of cron —
-		// must not be inside the cron try/catch or ctx.email breaks when cron fails)
-		pipeline.setContextFactory({ db, emailPipeline });
+		// must not be inside the cron try/catch or ctx.email breaks when cron fails).
+		// db/getDb were already set via pipelineFactoryOptions above; merge only
+		// adds emailPipeline.
+		pipeline.setContextFactory({ emailPipeline });
 
 		let cronExecutor: CronExecutor | null = null;
 		let cronScheduler: CronScheduler | null = null;
+		// Populated with the constructed runtime just before this method returns,
+		// so the timer scheduler's cleanup can route scheduled publishing through
+		// the runtime wrapper (firing content:afterPublish hooks). The first tick
+		// is ≥1s out, well after the synchronous assignment below.
+		const runtimeRef: { current: EmDashRuntime | null } = { current: null };
 
 		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
-				cronExecutor = new CronExecutor(db, invokeCronHook);
+				cronExecutor = new CronExecutor(resolveDb, invokeCronHook);
 
 				// Recover stale locks from previous crashes. Pure bookkeeping
 				// against the _emdash_cron_tasks table — no request needs the
@@ -1151,46 +1474,57 @@ export class EmDashRuntime {
 					}
 				});
 
-				// Detect platform and create appropriate scheduler.
-				// On Cloudflare Workers, setTimeout is available but unreliable for
-				// long durations — use PiggybackScheduler as default.
-				// In Node/Bun, use NodeCronScheduler with real timers.
-				const isWorkersRuntime =
-					typeof globalThis.navigator !== "undefined" &&
-					globalThis.navigator.userAgent === "Cloudflare-Workers";
+				// The platform decides whether a long-lived timer heartbeat exists.
+				// `createScheduler` is injected by the generated virtual:emdash/scheduler
+				// module: a NodeCronScheduler factory on Node/Bun, or null on serverless
+				// adapters (e.g. Cloudflare) where the Worker's `scheduled()` handler
+				// drives runScheduledTasks() instead. No adapter check lives here.
+				if (deps.createScheduler) {
+					const scheduler = deps.createScheduler(cronExecutor);
+					cronScheduler = scheduler;
 
-				if (isWorkersRuntime) {
-					cronScheduler = new PiggybackScheduler(cronExecutor);
-				} else {
-					cronScheduler = new NodeCronScheduler(cronExecutor);
+					// Run scheduled publishing and system cleanup alongside each tick.
+					// Pass storage so cleanupPendingUploads can delete orphaned files.
+					scheduler.setSystemCleanup(async () => {
+						try {
+							// Route through the runtime so content:afterPublish hooks fire.
+							// Falls back to the raw handler if (improbably) the tick beats
+							// the post-construction ref assignment.
+							const runtime = runtimeRef.current;
+							await publishDueContent(db, {
+								publish: runtime
+									? (collection, id, options) =>
+											runtime.handleContentPublish(collection, id, options)
+									: undefined,
+							});
+						} catch (error) {
+							console.error("[scheduled-publish] Sweep failed:", error);
+						}
+						try {
+							await runSystemCleanup(db, storage ?? undefined);
+						} catch (error) {
+							// Non-fatal -- individual cleanup failures are already logged
+							// by runSystemCleanup. This catches unexpected errors.
+							console.error("[cleanup] System cleanup failed:", error);
+						}
+					});
+
+					// Add cron reschedule callback (merges with existing factory options)
+					pipeline.setContextFactory({
+						cronReschedule: () => cronScheduler?.reschedule(),
+					});
+
+					// start() is void on the timer scheduler but the interface
+					// allows a promise (alarm-backed schedulers); we don't block on it.
+					void scheduler.start();
 				}
-
-				// Register system cleanup to run alongside each scheduler tick.
-				// Pass storage so cleanupPendingUploads can delete orphaned files.
-				cronScheduler.setSystemCleanup(async () => {
-					try {
-						await runSystemCleanup(db, storage ?? undefined);
-					} catch (error) {
-						// Non-fatal -- individual cleanup failures are already logged
-						// by runSystemCleanup. This catches unexpected errors.
-						console.error("[cleanup] System cleanup failed:", error);
-					}
-				});
-
-				// Add cron reschedule callback (merges with existing factory options)
-				pipeline.setContextFactory({
-					cronReschedule: () => cronScheduler?.reschedule(),
-				});
-
-				// Start the scheduler
-				await cronScheduler.start();
 			} catch (error) {
 				console.warn("[cron] Failed to initialize cron system:", error);
 				// Non-fatal — CMS works without cron
 			}
 		});
 
-		return new EmDashRuntime({
+		const runtime = new EmDashRuntime({
 			db,
 			storage,
 			// Include bypassed sandboxed plugins in configuredPlugins so route
@@ -1213,6 +1547,10 @@ export class EmDashRuntime {
 			runtimeDeps: deps,
 			pipelineRef,
 		});
+		// Hand the constructed instance to the scheduler-cleanup closure so the
+		// timer-driven sweep can fire publish hooks (see runtimeRef above).
+		runtimeRef.current = runtime;
+		return runtime;
 	}
 
 	/**
@@ -1270,83 +1608,50 @@ export class EmDashRuntime {
 
 		const cacheKey = dbConfig.entrypoint;
 
-		// Return cached instance if available
-		const cached = dbCache.get(cacheKey);
-		if (cached) {
-			return cached;
-		}
+		// Waiters poll the cache rather than sharing the initializing request's
+		// promise: if the request that owns the init is cancelled mid-await
+		// (e.g. client disconnect during cold migrations), a shared promise
+		// never settles — and the owner's `finally` that would clear it never
+		// runs — deadlocking every later request in the isolate. Prevention:
+		// the in-flight init is anchored via after()/waitUntil so a cancelled
+		// owner's init still completes and populates the cache. Net: a stale
+		// lock is reclaimed after a deadline.
+		const holder = getDbHolder();
+		return initWithLock(
+			holder.lock,
+			() => holder.cache.get(cacheKey),
+			async (isCurrentClaim) => {
+				const dialect = deps.createDialect(dbConfig.config);
+				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
-		// Use initialization lock to prevent race conditions.
-		// Sharing this promise across requests is safe because the Kysely instance
-		// doesn't hold a request-scoped resource — the DO dialect uses a getStub()
-		// factory that creates a fresh stub per query execution.
-		if (dbInitPromise) {
-			return dbInitPromise;
-		}
+				await runMigrations(db);
 
-		dbInitPromise = (async () => {
-			const dialect = deps.createDialect(dbConfig.config);
-			const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
+				// Note: legacy installs may carry a stray `emdash:manifest_cache`
+				// row in the options table from versions that persisted a JSON
+				// manifest. The runtime no longer reads or writes it. We do not
+				// proactively delete it: the row is a few hundred bytes of dead
+				// weight and is never on the read path, whereas a one-shot
+				// cleanup-flag check costs an extra `options.get()` on every
+				// isolate cold boot forever. Cheaper to leave it.
 
-			await runMigrations(db);
+				// This returns a migrated but possibly unseeded db; create() runs
+				// the seed gate and applies the seed, batched with its other init
+				// reads.
 
-			// Note: legacy installs may carry a stray `emdash:manifest_cache`
-			// row in the options table from versions that persisted a JSON
-			// manifest. The runtime no longer reads or writes it. We do not
-			// proactively delete it: the row is a few hundred bytes of dead
-			// weight and is never on the read path, whereas a one-shot
-			// cleanup-flag check costs an extra `options.get()` on every
-			// isolate cold boot forever. Cheaper to leave it.
-
-			// Auto-seed schema if no collections exist and setup hasn't run.
-			// This covers first-load on sites that skip the setup wizard.
-			// Dev-bypass and the wizard apply seeds explicitly.
-			try {
-				const [collectionCount, setupOption] = await Promise.all([
-					db
-						.selectFrom("_emdash_collections")
-						.select((eb) => eb.fn.countAll<number>().as("count"))
-						.executeTakeFirstOrThrow(),
-					db
-						.selectFrom("options")
-						.select("value")
-						.where("name", "=", "emdash:setup_complete")
-						.executeTakeFirst(),
-				]);
-
-				const setupDone = (() => {
-					try {
-						return setupOption && JSON.parse(setupOption.value) === true;
-					} catch {
-						return false;
-					}
-				})();
-
-				if (collectionCount.count === 0 && !setupDone) {
-					const { applySeed } = await import("./seed/apply.js");
-					const { loadSeed } = await import("./seed/load.js");
-					const { validateSeed } = await import("./seed/validate.js");
-
-					const seed = await loadSeed();
-					const validation = validateSeed(seed);
-					if (validation.valid) {
-						await applySeed(db, seed, { onConflict: "skip" });
-						console.log("Auto-seeded default collections");
-					}
+				// Publish only while still the current owner: a reclaimed slow
+				// init must not flip the cached Kysely identity back after the
+				// reclaimer has published its own. The unpublished instance is
+				// still returned and fully valid for the request that built it.
+				if (isCurrentClaim()) {
+					holder.cache.set(cacheKey, db);
 				}
-			} catch {
-				// Tables may not exist yet. Non-fatal.
-			}
-
-			dbCache.set(cacheKey, db);
-			return db;
-		})();
-
-		try {
-			return await dbInitPromise;
-		} finally {
-			dbInitPromise = null;
-		}
+				return db;
+			},
+			{
+				deadlineMs: DB_INIT_DEADLINE_MS,
+				anchor: (promise) => after(() => promise),
+			},
+		);
 	}
 
 	/**
@@ -1428,6 +1733,8 @@ export class EmDashRuntime {
 					storage: entry.storage as never,
 					adminPages,
 					adminWidgets,
+					portableTextBlocks: entry.portableTextBlocks,
+					fieldWidgets: entry.fieldWidgets,
 				});
 				plugins.push(resolved);
 				console.log(
@@ -1778,6 +2085,7 @@ export class EmDashRuntime {
 			pipeline,
 			isActive: () => true,
 			getOption: (key) => optionsRepo.get<string>(key),
+			getOptions: (keys) => optionsRepo.getMany<string>(keys),
 			setOption: (key, value) => optionsRepo.set(key, value),
 			deleteOption: async (key) => {
 				await optionsRepo.delete(key);
@@ -1953,9 +2261,6 @@ export class EmDashRuntime {
 		}
 
 		// Add sandboxed plugins (use entries for admin config)
-		// TODO: sandboxed plugins need fieldWidgets extracted from their manifest
-		// to support Block Kit field widgets. Currently only trusted plugins carry
-		// fieldWidgets through the admin.fieldWidgets path.
 		for (const entry of this.sandboxedPluginEntries) {
 			const status = this.pluginStates.get(entry.id);
 			const enabled = status === undefined || status === "active";
@@ -1967,9 +2272,15 @@ export class EmDashRuntime {
 				version: entry.version,
 				enabled,
 				sandboxed: true,
+				// `adminMode` reflects only admin pages/widgets. A plugin can
+				// contribute portableTextBlocks/fieldWidgets with adminMode "none" —
+				// the admin reads those from the manifest regardless, so don't gate
+				// admin contributions on `adminMode`.
 				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
 				adminPages: entry.adminPages ?? [],
 				dashboardWidgets: entry.adminWidgets ?? [],
+				portableTextBlocks: entry.portableTextBlocks,
+				fieldWidgets: entry.fieldWidgets,
 			};
 		}
 
@@ -2086,27 +2397,32 @@ export class EmDashRuntime {
 	 * defend against FTS not existing yet (pre-setup).
 	 */
 	async ensureSearchHealthy(): Promise<void> {
-		if (this._searchHealthChecked) return;
-		if (this._searchHealthPromise) return this._searchHealthPromise;
-		if (!isSqlite(this._db)) {
-			this._searchHealthChecked = true;
-			return;
+		// Non-SQLite has no FTS to verify; the check is a cheap synchronous
+		// branch, no need to cache it.
+		if (!isSqlite(this._db)) return;
+		try {
+			await singleFlightCached(
+				this._searchHealthCache,
+				async () => {
+					try {
+						const ftsManager = new FTSManager(this._db);
+						const repaired = await ftsManager.verifyAndRepairAll();
+						if (repaired > 0) {
+							console.log(`Repaired ${repaired} corrupted FTS index(es)`);
+						}
+					} catch {
+						// FTS tables may not exist yet (pre-setup). Non-fatal — cache
+						// the "checked" state regardless so we don't re-scan.
+					}
+				},
+				{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
+			);
+		} catch {
+			// This check is best-effort and must never fail the calling request.
+			// The inner body already swallows verify errors; this guards the
+			// outer failure modes (owner timeout, waiter give-up) so a slow FTS
+			// scan degrades to "unverified", not a 500 on admin/search routes.
 		}
-		this._searchHealthPromise = (async () => {
-			try {
-				const ftsManager = new FTSManager(this._db);
-				const repaired = await ftsManager.verifyAndRepairAll();
-				if (repaired > 0) {
-					console.log(`Repaired ${repaired} corrupted FTS index(es)`);
-				}
-			} catch {
-				// FTS tables may not exist yet (pre-setup). Non-fatal.
-			} finally {
-				this._searchHealthChecked = true;
-				this._searchHealthPromise = null;
-			}
-		})();
-		return this._searchHealthPromise;
 	}
 
 	// =========================================================================
@@ -2123,9 +2439,17 @@ export class EmDashRuntime {
 			order?: "asc" | "desc";
 			locale?: string;
 			q?: string;
+			authorId?: string;
+			dateField?: ContentDateField;
+			dateFrom?: string;
+			dateTo?: string;
 		},
 	) {
 		return handleContentList(this.db, collection, params);
+	}
+
+	async handleContentAuthors(collection: string) {
+		return handleContentAuthors(this.db, collection);
 	}
 
 	async handleContentGet(collection: string, id: string, locale?: string) {
@@ -2473,7 +2797,14 @@ export class EmDashRuntime {
 	}
 
 	async handleContentRestore(collection: string, id: string) {
-		return handleContentRestore(this.db, collection, id);
+		const result = await handleContentRestore(this.db, collection, id);
+
+		// Run afterRestore hooks (fire-and-forget)
+		if (result.success) {
+			this.runAfterRestoreHooks(contentItemToRecord(result.data.item), collection);
+		}
+
+		return result;
 	}
 
 	async handleContentPermanentDelete(collection: string, id: string) {
@@ -2502,7 +2833,7 @@ export class EmDashRuntime {
 	async handleContentPublish(
 		collection: string,
 		id: string,
-		options: { publishedAt?: string } = {},
+		options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
 
@@ -2526,11 +2857,25 @@ export class EmDashRuntime {
 	}
 
 	async handleContentSchedule(collection: string, id: string, scheduledAt: string) {
-		return handleContentSchedule(this.db, collection, id, scheduledAt);
+		const result = await handleContentSchedule(this.db, collection, id, scheduledAt);
+
+		// Run afterSchedule hooks (fire-and-forget)
+		if (result.success && result.data) {
+			this.runAfterScheduleHooks(contentItemToRecord(result.data.item), collection);
+		}
+
+		return result;
 	}
 
 	async handleContentUnschedule(collection: string, id: string) {
-		return handleContentUnschedule(this.db, collection, id);
+		const result = await handleContentUnschedule(this.db, collection, id);
+
+		// Run afterUnschedule hooks (fire-and-forget)
+		if (result.success && result.data) {
+			this.runAfterUnscheduleHooks(contentItemToRecord(result.data.item), collection);
+		}
+
+		return result;
 	}
 
 	async handleContentCountScheduled(collection: string) {
@@ -2795,6 +3140,7 @@ export class EmDashRuntime {
 		if (trustedPlugin && this.enabledPlugins.has(trustedPlugin.id)) {
 			const routeRegistry = new PluginRouteRegistry({
 				db: this.db,
+				storage: this.storage ?? undefined,
 				emailPipeline: this.email ?? undefined,
 				trustedProxyHeaders: getTrustedProxyHeaders(this.config),
 			});
@@ -2988,14 +3334,41 @@ export class EmDashRuntime {
 		}
 	}
 
-	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
+	private runDeferredContentHook(
+		name:
+			| "content:afterPublish"
+			| "content:afterUnpublish"
+			| "content:afterRestore"
+			| "content:afterSchedule"
+			| "content:afterUnschedule",
+		content: Record<string, unknown>,
+		collection: string,
+	): void {
+		const label = name.slice("content:".length);
+
 		after(async () => {
 			// Trusted plugins
-			if (this.hooks.hasHooks("content:afterPublish")) {
+			if (this.hooks.hasHooks(name)) {
 				try {
-					await this.hooks.runContentAfterPublish(content, collection);
+					switch (name) {
+						case "content:afterPublish":
+							await this.hooks.runContentAfterPublish(content, collection);
+							break;
+						case "content:afterUnpublish":
+							await this.hooks.runContentAfterUnpublish(content, collection);
+							break;
+						case "content:afterRestore":
+							await this.hooks.runContentAfterRestore(content, collection);
+							break;
+						case "content:afterSchedule":
+							await this.hooks.runContentAfterSchedule(content, collection);
+							break;
+						case "content:afterUnschedule":
+							await this.hooks.runContentAfterUnschedule(content, collection);
+							break;
+					}
 				} catch (err) {
-					console.error("EmDash afterPublish hook error:", err);
+					console.error(`EmDash ${label} hook error:`, err);
 				}
 			}
 
@@ -3008,9 +3381,9 @@ export class EmDashRuntime {
 				tasks.push(
 					(async () => {
 						try {
-							await plugin.invokeHook("content:afterPublish", { content, collection });
+							await plugin.invokeHook(name, { content, collection });
 						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${pluginId} afterPublish error:`, err);
+							console.error(`EmDash: Sandboxed plugin ${pluginId} ${label} error:`, err);
 						}
 					})(),
 				);
@@ -3019,25 +3392,24 @@ export class EmDashRuntime {
 		});
 	}
 
+	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
+		this.runDeferredContentHook("content:afterPublish", content, collection);
+	}
+
 	private runAfterUnpublishHooks(content: Record<string, unknown>, collection: string): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterUnpublish")) {
-			this.hooks
-				.runContentAfterUnpublish(content, collection)
-				.catch((err) => console.error("EmDash afterUnpublish hook error:", err));
-		}
+		this.runDeferredContentHook("content:afterUnpublish", content, collection);
+	}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+	private runAfterRestoreHooks(content: Record<string, unknown>, collection: string): void {
+		this.runDeferredContentHook("content:afterRestore", content, collection);
+	}
 
-			plugin
-				.invokeHook("content:afterUnpublish", { content, collection })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterUnpublish error:`, err),
-				);
-		}
+	private runAfterScheduleHooks(content: Record<string, unknown>, collection: string): void {
+		this.runDeferredContentHook("content:afterSchedule", content, collection);
+	}
+
+	private runAfterUnscheduleHooks(content: Record<string, unknown>, collection: string): void {
+		this.runDeferredContentHook("content:afterUnschedule", content, collection);
 	}
 
 	private async handleSandboxedRoute(

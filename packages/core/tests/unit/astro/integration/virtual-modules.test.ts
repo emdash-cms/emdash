@@ -2,13 +2,20 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import type { Plugin } from "vite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
 	generateConfigModule,
 	generateDialectModule,
+	generateSchedulerModule,
 	generateSeedModule,
+	RESOLVED_VIRTUAL_SCHEDULER_ID,
 } from "../../../../src/astro/integration/virtual-modules.js";
+import {
+	createVirtualModulesPlugin,
+	type VitePluginOptions,
+} from "../../../../src/astro/integration/vite-config.js";
 
 describe("generateConfigModule", () => {
 	it("round-trips the serialisable config shape via default export", () => {
@@ -64,6 +71,79 @@ describe("generateDialectModule", () => {
 			supportsRequestScope: false,
 		});
 		expect(out).toContain(`export const dialectType = "postgres"`);
+	});
+});
+
+describe("generateSchedulerModule", () => {
+	it("disables the timer for a Cloudflare production build (Cron Trigger drives it)", () => {
+		const out = generateSchedulerModule("@astrojs/cloudflare", "build");
+		expect(out).toContain("export const createScheduler = null");
+		expect(out).not.toContain("NodeCronScheduler");
+	});
+
+	it("keeps the Node timer in local dev even under the Cloudflare adapter", () => {
+		// No Cron Trigger fires in `astro dev`, so scheduled publishing/cron
+		// must still run via the in-process timer.
+		const out = generateSchedulerModule("@astrojs/cloudflare", "serve");
+		expect(out).toContain('import { NodeCronScheduler } from "emdash"');
+		expect(out).toContain("export function createScheduler(executor)");
+		expect(out).not.toContain("createScheduler = null");
+	});
+
+	it("emits a NodeCronScheduler factory for non-Cloudflare adapters", () => {
+		for (const cmd of ["build", "serve", undefined] as const) {
+			const out = generateSchedulerModule("@astrojs/node", cmd);
+			expect(out).toContain('import { NodeCronScheduler } from "emdash"');
+			expect(out).not.toContain("createScheduler = null");
+		}
+	});
+
+	it("emits a NodeCronScheduler factory when no adapter is configured", () => {
+		const out = generateSchedulerModule(undefined, "build");
+		expect(out).toContain("export function createScheduler(executor)");
+	});
+});
+
+describe("createVirtualModulesPlugin scheduler wiring", () => {
+	// Invoke a Vite plugin hook that may be a function or { handler } object.
+	function callHook<T>(hook: unknown, ...args: unknown[]): T {
+		const fn = typeof hook === "function" ? hook : (hook as { handler: unknown }).handler;
+		return (fn as (...a: unknown[]) => T)(...args);
+	}
+
+	function buildPlugin(
+		adapterName: string | undefined,
+		command: "dev" | "build" | "preview" | "sync",
+	): Plugin {
+		const options = {
+			serializableConfig: {},
+			resolvedConfig: {},
+			pluginDescriptors: [],
+			astroConfig: { adapter: adapterName ? { name: adapterName } : undefined },
+		} as unknown as VitePluginOptions;
+		return createVirtualModulesPlugin(options, command);
+	}
+
+	it("keeps the Node timer under the Cloudflare adapter during `astro dev` even when Vite reports command 'build'", () => {
+		// The Cloudflare adapter produces the worker bundle via a nested Vite
+		// *build* pass during `astro dev`, so Vite's config.command resolves to
+		// "build". The scheduler decision must use Astro's command ("dev")
+		// instead, otherwise plugin cron silently no-ops in local dev (#1635).
+		const plugin = buildPlugin("@astrojs/cloudflare", "dev");
+		callHook(plugin.configResolved, { command: "build" });
+
+		const out = callHook<string>(plugin.load, RESOLVED_VIRTUAL_SCHEDULER_ID);
+		expect(out).toContain('import { NodeCronScheduler } from "emdash"');
+		expect(out).not.toContain("createScheduler = null");
+	});
+
+	it("disables the timer under the Cloudflare adapter for a production build", () => {
+		const plugin = buildPlugin("@astrojs/cloudflare", "build");
+		callHook(plugin.configResolved, { command: "build" });
+
+		const out = callHook<string>(plugin.load, RESOLVED_VIRTUAL_SCHEDULER_ID);
+		expect(out).toContain("export const createScheduler = null");
+		expect(out).not.toContain("NodeCronScheduler");
 	});
 });
 

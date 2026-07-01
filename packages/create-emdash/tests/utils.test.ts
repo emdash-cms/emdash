@@ -234,7 +234,7 @@ describe("generateEncryptionKey", () => {
 // scaffold-time-no-emdash-dep constraint) so both need their own tests.
 describe("writeEncryptionKey", () => {
 	let tempDir: string;
-	const fileName = ".dev.vars";
+	const fileName = ".env";
 	const sample = "emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 	beforeEach(() => {

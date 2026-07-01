@@ -294,6 +294,7 @@ const { post } = Astro.props;
       alt={post.data.featured_image.alt || post.data.title}
       width={800}
       height={450}
+      priority
     />
   )}
   <h2><a href={`/posts/${post.slug}`}>{post.data.title}</a></h2>
@@ -305,6 +306,8 @@ const { post } = Astro.props;
 	A common mistake is treating image fields as strings. `post.data.featured_image` is an object
 	with `src` and `alt` -- writing `<img src={post.data.featured_image} />` renders `[object Object]`.
 </Aside>
+
+Use `priority` only for the likely above-the-fold image on a page, such as a hero or first card image. It renders the image with `loading="eager"` and `fetchpriority="high"`. `loading` controls whether the browser may defer loading, while `fetchpriority` hints how important the request is once the browser discovers it.
 
 ## Using Menus
 

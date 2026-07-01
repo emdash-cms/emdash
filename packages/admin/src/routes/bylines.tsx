@@ -1,10 +1,11 @@
 import { Button, Input, InputArea, Loader, Select, Switch } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { IdentificationCard } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
+import { BylineAvatarField } from "../components/BylineAvatarField.js";
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
 import { DialogError, getMutationError } from "../components/DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "../components/LocaleSwitcher.js";
@@ -35,6 +36,8 @@ interface BylineFormState {
 	websiteUrl: string;
 	userId: string | null;
 	isGuest: boolean;
+	/** Media id of the byline's avatar image, or null when unset (#1250). */
+	avatarMediaId: string | null;
 	/**
 	 * Custom-field values keyed by field slug (Phase 6 of #1174). Always
 	 * a defined object — `{}` when no fields are registered or the byline
@@ -75,6 +78,7 @@ function toFormState(byline?: BylineSummary | null): BylineFormState {
 			websiteUrl: "",
 			userId: null,
 			isGuest: false,
+			avatarMediaId: null,
 			customFields: {},
 		};
 	}
@@ -86,6 +90,7 @@ function toFormState(byline?: BylineSummary | null): BylineFormState {
 		websiteUrl: byline.websiteUrl ?? "",
 		userId: byline.userId,
 		isGuest: byline.isGuest,
+		avatarMediaId: byline.avatarMediaId ?? null,
 		customFields: byline.customFields ?? {},
 	};
 }
@@ -148,6 +153,13 @@ export function BylinesPage() {
 				locale: activeLocale,
 				limit: 50,
 			}),
+		// Keep the previous results on screen while a new search/filter query
+		// loads. Without this, changing the query key drops `data` to
+		// `undefined`, the `isLoading && !data` gate re-engages, and the whole
+		// page collapses into the full-page loader on every settled keystroke —
+		// the focus-losing "reload" reported in #1220 that the debounce alone
+		// only reduced in frequency. Matches ContentEditor's search pattern.
+		placeholderData: keepPreviousData,
 	});
 
 	// Reset accumulated items when filters change
@@ -247,6 +259,7 @@ export function BylinesPage() {
 				websiteUrl: form.websiteUrl || null,
 				userId: form.userId,
 				isGuest: form.isGuest,
+				avatarMediaId: form.avatarMediaId,
 				locale: activeLocale,
 			};
 			if (!customFieldsError && Object.keys(form.customFields).length > 0) {
@@ -282,6 +295,7 @@ export function BylinesPage() {
 				websiteUrl: form.websiteUrl || null,
 				userId: form.userId,
 				isGuest: form.isGuest,
+				avatarMediaId: form.avatarMediaId,
 			};
 			if (!customFieldsError) {
 				body.customFields = form.customFields;
@@ -484,6 +498,10 @@ export function BylinesPage() {
 							value={form.bio}
 							onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
 							rows={5}
+						/>
+						<BylineAvatarField
+							value={form.avatarMediaId}
+							onChange={(mediaId) => setForm((prev) => ({ ...prev, avatarMediaId: mediaId }))}
 						/>
 						<Select
 							label={t`Linked user`}

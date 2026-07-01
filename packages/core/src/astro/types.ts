@@ -233,8 +233,15 @@ export interface EmDashHandlers {
 			orderBy?: string;
 			order?: "asc" | "desc";
 			locale?: string;
+			q?: string;
+			authorId?: string;
+			dateField?: "createdAt" | "updatedAt" | "publishedAt";
+			dateFrom?: string;
+			dateTo?: string;
 		},
 	) => Promise<HandlerResponse>;
+
+	handleContentAuthors: (collection: string) => Promise<HandlerResponse>;
 
 	handleContentGet: (
 		collection: string,
@@ -258,6 +265,7 @@ export interface EmDashHandlers {
 			slug?: string;
 			status?: string;
 			authorId?: string;
+			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
 			createdAt?: string | null;
@@ -313,7 +321,7 @@ export interface EmDashHandlers {
 	handleContentPublish: (
 		collection: string,
 		id: string,
-		options?: { publishedAt?: string },
+		options?: { publishedAt?: string; requireScheduledDue?: boolean },
 	) => Promise<HandlerResponse>;
 
 	handleContentUnpublish: (collection: string, id: string) => Promise<HandlerResponse>;
@@ -425,6 +433,10 @@ export interface EmDashHandlers {
 
 	// Configured plugins (for plugin management)
 	configuredPlugins: import("../plugins/types.js").ResolvedPlugin[];
+
+	// Statically-sandboxed plugin entries (registered via `sandboxed: []`),
+	// surfaced through the admin plugin management API alongside configured plugins.
+	sandboxedPluginEntries: import("../emdash-runtime.js").SandboxedPluginEntry[];
 
 	// Configuration (for checking database type, auth mode, etc.)
 	config: import("./integration/runtime.js").EmDashConfig;

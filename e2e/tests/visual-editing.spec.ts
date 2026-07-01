@@ -69,10 +69,13 @@ test.describe("Image Rendering (Static)", () => {
 		const img = figure.locator("img");
 		await expect(img).toBeVisible();
 
-		// The src should point to the media file endpoint (not a bare ULID)
+		// The src should resolve to the media file endpoint (not a bare ULID).
+		// With responsive optimization the src may be Astro's image-service URL
+		// (`/_image?href=…` on Node, `/cdn-cgi/image/…` on Cloudflare) that
+		// encodes the media file URL, so decode before matching.
 		const src = await img.getAttribute("src");
 		expect(src).toBeTruthy();
-		expect(src).toMatch(MEDIA_FILE_PATTERN);
+		expect(decodeURIComponent(src!)).toMatch(MEDIA_FILE_PATTERN);
 
 		// Alt text should be set
 		const alt = await img.getAttribute("alt");

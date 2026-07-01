@@ -42,7 +42,7 @@ export async function fetchPlugins(): Promise<PluginInfo[]> {
 	const response = await apiFetch(`${API_BASE}/admin/plugins`);
 	const result = await parseApiResponse<{ items: PluginInfo[] }>(
 		response,
-		"Failed to fetch plugins",
+		i18n._(msg`Failed to fetch plugins`),
 	);
 	return result.items;
 }
@@ -54,7 +54,7 @@ export async function fetchPlugin(pluginId: string): Promise<PluginInfo> {
 	const response = await apiFetch(`${API_BASE}/admin/plugins/${pluginId}`);
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Plugin "${pluginId}" not found`);
+			throw new Error(i18n._(msg`Plugin "${pluginId}" not found`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to fetch plugin`));
 	}
@@ -72,7 +72,10 @@ export async function enablePlugin(pluginId: string): Promise<PluginInfo> {
 	const response = await apiFetch(`${API_BASE}/admin/plugins/${pluginId}/enable`, {
 		method: "POST",
 	});
-	const result = await parseApiResponse<{ item: PluginInfo }>(response, "Failed to enable plugin");
+	const result = await parseApiResponse<{ item: PluginInfo }>(
+		response,
+		i18n._(msg`Failed to enable plugin`),
+	);
 	return result.item;
 }
 
@@ -83,6 +86,9 @@ export async function disablePlugin(pluginId: string): Promise<PluginInfo> {
 	const response = await apiFetch(`${API_BASE}/admin/plugins/${pluginId}/disable`, {
 		method: "POST",
 	});
-	const result = await parseApiResponse<{ item: PluginInfo }>(response, "Failed to disable plugin");
+	const result = await parseApiResponse<{ item: PluginInfo }>(
+		response,
+		i18n._(msg`Failed to disable plugin`),
+	);
 	return result.item;
 }

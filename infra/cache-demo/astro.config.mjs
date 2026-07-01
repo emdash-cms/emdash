@@ -10,10 +10,8 @@ import emdash from "emdash/astro";
 export default defineConfig({
 	output: "server",
 	adapter: cloudflare(),
-	experimental: {
-		cache: {
-			provider: cacheCloudflare(),
-		},
+	cache: {
+		provider: cacheCloudflare(),
 	},
 	image: {
 		layout: "constrained",
@@ -22,7 +20,7 @@ export default defineConfig({
 	integrations: [
 		react(),
 		emdash({
-			database: d1({ binding: "DB", session: "auto" }),
+			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
 			plugins: [formsPlugin()],
 			sandboxed: [webhookNotifier],
