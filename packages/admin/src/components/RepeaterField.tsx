@@ -18,12 +18,20 @@ import { CSS } from "@dnd-kit/utilities";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, Trash, DotsSixVertical, CaretDown } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
+import { fetchTerms, type TaxonomyTerm } from "../lib/api";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { cn } from "../lib/utils.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
+
+/**
+ * Sentinel used in a `select` sub-field's `options` to bind its choices to a
+ * taxonomy's live terms instead of a static list, e.g. `["@taxonomy:tag"]`.
+ */
+const TAXONOMY_OPTION_PREFIX = "@taxonomy:";
 
 interface RepeaterSubFieldDef {
 	slug: string;
@@ -302,6 +310,55 @@ interface SubFieldInputProps {
 	onChange: (value: unknown) => void;
 }
 
+/**
+ * A `select` sub-field whose choices are the live terms of a taxonomy. Used
+ * when the sub-field's `options` is the `@taxonomy:<name>` sentinel, so
+ * repeater rows can pick from a managed vocabulary that stays in sync as terms
+ * are added — no need to duplicate the term list in the collection schema.
+ */
+function TaxonomySubFieldCombobox({
+	taxonomyName,
+	label,
+	value,
+	onChange,
+	required,
+}: {
+	taxonomyName: string;
+	label: string;
+	value: unknown;
+	onChange: (value: unknown) => void;
+	required?: boolean;
+}) {
+	const { t } = useLingui();
+	const { data: terms = [] } = useQuery<TaxonomyTerm[]>({
+		queryKey: ["repeater-subfield-taxonomy-terms", taxonomyName],
+		queryFn: () => fetchTerms(taxonomyName),
+		staleTime: 30_000,
+	});
+	const options = terms.map((term) => term.label);
+	return (
+		<Combobox
+			label={label}
+			value={typeof value === "string" && value ? value : null}
+			onValueChange={(v) => onChange(typeof v === "string" ? v : "")}
+			items={options}
+			required={required}
+		>
+			<Combobox.TriggerInput placeholder={t`Select...`} />
+			<Combobox.Content>
+				<Combobox.Empty>{t`No results`}</Combobox.Empty>
+				<Combobox.List>
+					{(opt: string) => (
+						<Combobox.Item key={opt} value={opt}>
+							{opt}
+						</Combobox.Item>
+					)}
+				</Combobox.List>
+			</Combobox.Content>
+		</Combobox>
+	);
+}
+
 function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 	const { t } = useLingui();
 	switch (subField.type) {
@@ -361,6 +418,23 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 			// options) stay usable inside repeater rows, rather than a plain
 			// scrolling select.
 			const options = Array.isArray(subField.options) ? subField.options : [];
+			// A leading `@taxonomy:<name>` sentinel binds the choices to a live
+			// taxonomy's terms instead of the static option list.
+			const taxonomyName =
+				typeof options[0] === "string" && options[0].startsWith(TAXONOMY_OPTION_PREFIX)
+					? options[0].slice(TAXONOMY_OPTION_PREFIX.length)
+					: null;
+			if (taxonomyName) {
+				return (
+					<TaxonomySubFieldCombobox
+						taxonomyName={taxonomyName}
+						label={subField.label}
+						value={value}
+						onChange={onChange}
+						required={subField.required}
+					/>
+				);
+			}
 			return (
 				<Combobox
 					label={subField.label}
