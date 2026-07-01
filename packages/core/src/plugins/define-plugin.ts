@@ -22,11 +22,6 @@ import type {
 	PluginStorageConfig,
 } from "./types.js";
 
-// Plugin ID validation patterns
-const SIMPLE_ID = /^[a-z0-9-]+$/;
-const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
-const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
-
 /**
  * Define a native EmDash plugin.
  *
@@ -94,6 +89,20 @@ export function definePlugin<TStorage extends PluginStorageConfig>(
 function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	definition: PluginDefinition<TStorage>,
 ): ResolvedPlugin<TStorage> {
+	// Declared function-local (not module scope) on purpose. Under
+	// `ssr.noExternal` the worker entry can instantiate native plugins during a
+	// circular module init, reaching this function before module-scope consts
+	// initialize -> "Cannot access 'SIMPLE_ID' before initialization" -> every
+	// route 500s on Cloudflare Workers. Call-time consts evaluate after the
+	// literals are parsed, so the temporal dead zone cannot occur regardless of
+	// bundle ordering. See #1370.
+	// oxlint-disable-next-line e18e/prefer-static-regex -- call-time on purpose (see #1370)
+	const SIMPLE_ID = /^[a-z0-9-]+$/;
+	// oxlint-disable-next-line e18e/prefer-static-regex -- call-time on purpose (see #1370)
+	const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
+	// oxlint-disable-next-line e18e/prefer-static-regex -- call-time on purpose (see #1370)
+	const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
+
 	const {
 		id,
 		version,

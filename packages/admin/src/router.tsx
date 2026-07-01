@@ -454,6 +454,11 @@ function ContentListPage() {
 	// loaded count so old servers (pre-total) still render a denominator.
 	const total = data?.pages[0]?.total ?? items.length;
 
+	// Keep every hook above the early returns below — a render that takes a
+	// guard (e.g. `error`) must run the same number of hooks as a full render,
+	// or React throws #300 "Rendered fewer hooks than expected" (#1415).
+	const handleLoadMore = React.useCallback(() => void fetchNextPage(), [fetchNextPage]);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -486,7 +491,7 @@ function ContentListPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
 			hasMore={!!hasNextPage}
-			onLoadMore={React.useCallback(() => void fetchNextPage(), [fetchNextPage])}
+			onLoadMore={handleLoadMore}
 			trashedCount={trashedData?.items?.length || 0}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}

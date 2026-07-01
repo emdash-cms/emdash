@@ -167,7 +167,7 @@ async function getBackend(): Promise<ObjectCacheBackend | null> {
 		} catch (error) {
 			// Importing the virtual module fails outside an Astro/Vite context
 			// (e.g. unit tests, CLI). Treat as "no cache configured".
-			if (import.meta.env.DEV) {
+			if (import.meta.env?.DEV) {
 				console.warn("[object-cache] backend unavailable:", error);
 			}
 			holder.backend = null;
@@ -378,7 +378,7 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 				const encoded = encode({ e: currentEpochs, v: value } satisfies CacheEnvelope<T>);
 				await backend.set(fullKey, encoded, ttl);
 			} catch (error) {
-				if (import.meta.env.DEV) {
+				if (import.meta.env?.DEV) {
 					console.warn("[object-cache] set failed:", error);
 				}
 			}
@@ -386,6 +386,12 @@ export async function cachedQuery<T>(options: CachedQueryOptions<T>): Promise<T>
 	}
 
 	return value;
+}
+
+/** Whether object-cache reads are active for the current request. */
+export async function isObjectCacheActive(): Promise<boolean> {
+	const backend = await getBackend();
+	return backend !== null && !shouldBypass();
 }
 
 /**
