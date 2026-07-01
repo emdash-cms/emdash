@@ -1,5 +1,14 @@
 # @emdash-cms/admin
 
+## 0.25.1
+
+### Patch Changes
+
+- [#1594](https://github.com/emdash-cms/emdash/pull/1594) [`3960d49`](https://github.com/emdash-cms/emdash/commit/3960d49035150437212cbc204d7dd8da6f5bce61) Thanks [@ArtisanXL](https://github.com/ArtisanXL)! - Add Turkish admin UI translations.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.25.1
+
 ## 0.25.0
 
 ### Minor Changes

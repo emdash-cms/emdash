@@ -1,5 +1,20 @@
 # emdash
 
+## 0.25.1
+
+### Patch Changes
+
+- [#1628](https://github.com/emdash-cms/emdash/pull/1628) [`d4237eb`](https://github.com/emdash-cms/emdash/commit/d4237ebb875321b2b160034f03321a57f366c495) Thanks [@MA2153](https://github.com/MA2153)! - Fixes missing image dimensions and LQIP placeholders (blurhash, dominant color) on media created through signed-URL uploads, plugin `ctx.media.upload()`, and WordPress import. These were only generated for direct (local-storage) uploads, so production (R2/S3) media had no placeholders.
+
+  LQIP placeholders are now cached on the stored media value of content fields (alongside `width`/`height`) and on images inserted into rich text, so the `<Image>` component and portable-text image blocks render a blur/color placeholder before the image loads without a runtime lookup.
+
+- [#1654](https://github.com/emdash-cms/emdash/pull/1654) [`2216dca`](https://github.com/emdash-cms/emdash/commit/2216dcab39d7c0034af81be3543c8440a10d8961) Thanks [@swissky](https://github.com/swissky)! - Fixes the sitemap `<lastmod>` value so it is always a valid W3C Datetime. Timestamps stored via the database default (`datetime('now')` / `CURRENT_TIMESTAMP`) or carried in from imports were emitted as a space-separated `YYYY-MM-DD HH:MM:SS` string, which Google Search Console rejects as "Invalid date". They are now normalized to ISO 8601.
+
+- Updated dependencies [[`3960d49`](https://github.com/emdash-cms/emdash/commit/3960d49035150437212cbc204d7dd8da6f5bce61)]:
+  - @emdash-cms/admin@0.25.1
+  - @emdash-cms/auth@0.25.1
+  - @emdash-cms/gutenberg-to-portable-text@0.25.1
+
 ## 0.25.0
 
 ### Minor Changes

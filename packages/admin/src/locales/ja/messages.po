@@ -577,11 +577,11 @@ msgstr "許可ドメインを追加"
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "リピーター構造を定義するために、少なくとも1つのサブフィールドを追加してください。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2746
+#: packages/admin/src/components/PortableTextEditor.tsx:2783
 msgid "Add column after"
 msgstr "後に列を追加"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2739
+#: packages/admin/src/components/PortableTextEditor.tsx:2776
 msgid "Add column before"
 msgstr "前に列を追加"
 
@@ -635,7 +635,7 @@ msgstr ""
 msgid "Add Item"
 msgstr "アイテムを追加"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2706
+#: packages/admin/src/components/PortableTextEditor.tsx:2743
 msgid "Add link"
 msgstr ""
 
@@ -668,11 +668,11 @@ msgstr "パスキーを追加"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "astro.config.mjsにプラグインを追加してEmDashの機能を拡張できます。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2769
+#: packages/admin/src/components/PortableTextEditor.tsx:2806
 msgid "Add row after"
 msgstr "後に行を追加"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2762
+#: packages/admin/src/components/PortableTextEditor.tsx:2799
 msgid "Add row before"
 msgstr "前に行を追加"
 
@@ -723,15 +723,15 @@ msgstr "管理者"
 msgid "After send:"
 msgstr "送信後:"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3096
+#: packages/admin/src/components/PortableTextEditor.tsx:3133
 msgid "Align Center"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3089
+#: packages/admin/src/components/PortableTextEditor.tsx:3126
 msgid "Align Left"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3103
+#: packages/admin/src/components/PortableTextEditor.tsx:3140
 msgid "Align Right"
 msgstr ""
 
@@ -898,17 +898,17 @@ msgstr ""
 msgid "Application Password"
 msgstr "アプリケーションパスワード"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3163
+#: packages/admin/src/components/PortableTextEditor.tsx:3200
 msgid "Apply"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:170
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:171
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:181
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:182
 msgid "Apply language"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2646
-#: packages/admin/src/components/PortableTextEditor.tsx:2647
+#: packages/admin/src/components/PortableTextEditor.tsx:2683
+#: packages/admin/src/components/PortableTextEditor.tsx:2684
 msgid "Apply link"
 msgstr ""
 
@@ -1143,8 +1143,8 @@ msgstr ""
 msgid "Block actions - drag to reorder, click for menu"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2670
-#: packages/admin/src/components/PortableTextEditor.tsx:2978
+#: packages/admin/src/components/PortableTextEditor.tsx:2707
+#: packages/admin/src/components/PortableTextEditor.tsx:3015
 msgid "Bold"
 msgstr ""
 
@@ -1181,7 +1181,7 @@ msgstr "テーマを参照して、自分のコンテンツでプレビューで
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:102
 #: packages/admin/src/components/PortableTextEditor.tsx:1040
-#: packages/admin/src/components/PortableTextEditor.tsx:3046
+#: packages/admin/src/components/PortableTextEditor.tsx:3083
 msgid "Bullet List"
 msgstr "箇条書きリスト"
 
@@ -1239,8 +1239,8 @@ msgstr "コンテンツを閲覧可能"
 #: packages/admin/src/components/ContentList.tsx:851
 #: packages/admin/src/components/ContentList.tsx:922
 #: packages/admin/src/components/ContentPickerModal.tsx:248
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:182
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:183
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:193
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:194
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:586
 #: packages/admin/src/components/editor/ImageNode.tsx:252
 #: packages/admin/src/components/editor/ImageNode.tsx:253
@@ -1252,7 +1252,7 @@ msgstr "コンテンツを閲覧可能"
 #: packages/admin/src/components/MenuEditor.tsx:530
 #: packages/admin/src/components/MenuList.tsx:172
 #: packages/admin/src/components/PluginManager.tsx:640
-#: packages/admin/src/components/PortableTextEditor.tsx:3147
+#: packages/admin/src/components/PortableTextEditor.tsx:3184
 #: packages/admin/src/components/Redirects.tsx:182
 #: packages/admin/src/components/SectionPickerModal.tsx:130
 #: packages/admin/src/components/Sections.tsx:209
@@ -1480,14 +1480,14 @@ msgid "Close panel"
 msgstr "パネルを閉じる"
 
 #: packages/admin/src/components/ContentTypeList.tsx:244
-#: packages/admin/src/components/PortableTextEditor.tsx:2698
+#: packages/admin/src/components/PortableTextEditor.tsx:2735
 #: packages/admin/src/components/Redirects.tsx:469
 msgid "Code"
 msgstr "コード"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:94
 #: packages/admin/src/components/PortableTextEditor.tsx:1070
-#: packages/admin/src/components/PortableTextEditor.tsx:3067
+#: packages/admin/src/components/PortableTextEditor.tsx:3104
 msgid "Code Block"
 msgstr "コードブロック"
 
@@ -1584,7 +1584,7 @@ msgstr "{0}に接続済み"
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:293
 #: packages/admin/src/components/Dashboard.tsx:164
-#: packages/admin/src/components/PortableTextEditor.tsx:2174
+#: packages/admin/src/components/PortableTextEditor.tsx:2211
 #: packages/admin/src/components/SectionEditor.tsx:194
 #: packages/admin/src/components/Sidebar.tsx:451
 #: packages/admin/src/components/Widgets.tsx:819
@@ -2118,7 +2118,7 @@ msgstr ""
 msgid "Delete Byline?"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2753
+#: packages/admin/src/components/PortableTextEditor.tsx:2790
 msgid "Delete column"
 msgstr "列を削除"
 
@@ -2181,7 +2181,7 @@ msgstr "リダイレクト{0}を削除"
 msgid "Delete Redirect?"
 msgstr "リダイレクトを削除しますか？"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2774
+#: packages/admin/src/components/PortableTextEditor.tsx:2811
 msgid "Delete row"
 msgstr "行を削除"
 
@@ -2189,7 +2189,7 @@ msgstr "行を削除"
 msgid "Delete Section?"
 msgstr "セクションを削除しますか？"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2789
+#: packages/admin/src/components/PortableTextEditor.tsx:2826
 msgid "Delete table"
 msgstr "テーブルを削除"
 
@@ -2578,7 +2578,7 @@ msgstr "ドメインを編集"
 msgid "Edit Field"
 msgstr "フィールドを編集"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2706
+#: packages/admin/src/components/PortableTextEditor.tsx:2743
 msgid "Edit link"
 msgstr ""
 
@@ -2668,11 +2668,11 @@ msgid "Email verified!"
 msgstr "メールが認証されました！"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2187
+#: packages/admin/src/components/PortableTextEditor.tsx:2224
 msgid "Embed a {0}"
 msgstr "{0}を埋め込む"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2190
+#: packages/admin/src/components/PortableTextEditor.tsx:2227
 msgid "Embeds"
 msgstr "埋め込み"
 
@@ -2805,7 +2805,7 @@ msgstr "既存"
 msgid "Exit distraction-free mode"
 msgstr "集中モードを終了"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3221
+#: packages/admin/src/components/PortableTextEditor.tsx:3258
 msgid "Exit Spotlight Mode"
 msgstr ""
 
@@ -3585,19 +3585,19 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:62
 #: packages/admin/src/components/PortableTextEditor.tsx:1010
-#: packages/admin/src/components/PortableTextEditor.tsx:3019
+#: packages/admin/src/components/PortableTextEditor.tsx:3056
 msgid "Heading 1"
 msgstr "見出し1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:70
 #: packages/admin/src/components/PortableTextEditor.tsx:1020
-#: packages/admin/src/components/PortableTextEditor.tsx:3026
+#: packages/admin/src/components/PortableTextEditor.tsx:3063
 msgid "Heading 2"
 msgstr "見出し2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:78
 #: packages/admin/src/components/PortableTextEditor.tsx:1030
-#: packages/admin/src/components/PortableTextEditor.tsx:3033
+#: packages/admin/src/components/PortableTextEditor.tsx:3070
 msgid "Heading 3"
 msgstr "見出し3"
 
@@ -3680,7 +3680,7 @@ msgstr "<0>{email}</0>のアカウントが存在する場合、サインイン�
 
 #: packages/admin/src/components/FieldEditor.tsx:204
 #: packages/admin/src/components/FieldEditor.tsx:587
-#: packages/admin/src/components/PortableTextEditor.tsx:2156
+#: packages/admin/src/components/PortableTextEditor.tsx:2193
 msgid "Image"
 msgstr "画像"
 
@@ -3807,7 +3807,7 @@ msgstr "非互換"
 msgid "Indexed"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3006
+#: packages/admin/src/components/PortableTextEditor.tsx:3043
 msgid "Inline Code"
 msgstr ""
 
@@ -3833,7 +3833,7 @@ msgstr "コードブロックを挿入"
 msgid "Insert a horizontal rule"
 msgstr "水平線を挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2171
+#: packages/admin/src/components/PortableTextEditor.tsx:2208
 msgid "Insert a reusable section"
 msgstr "再利用可能なセクションを挿入"
 
@@ -3841,7 +3841,7 @@ msgstr "再利用可能なセクションを挿入"
 msgid "Insert a table"
 msgstr "テーブルを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2157
+#: packages/admin/src/components/PortableTextEditor.tsx:2194
 msgid "Insert an image"
 msgstr "画像を挿入"
 
@@ -3849,19 +3849,19 @@ msgstr "画像を挿入"
 msgid "Insert from URL"
 msgstr "URLから挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3188
+#: packages/admin/src/components/PortableTextEditor.tsx:3225
 msgid "Insert Horizontal Rule"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3182
+#: packages/admin/src/components/PortableTextEditor.tsx:3219
 msgid "Insert HTML"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3171
+#: packages/admin/src/components/PortableTextEditor.tsx:3208
 msgid "Insert Image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3118
+#: packages/admin/src/components/PortableTextEditor.tsx:3155
 msgid "Insert Link"
 msgstr ""
 
@@ -3873,7 +3873,7 @@ msgstr ""
 msgid "Insert Section"
 msgstr "セクションを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3076
+#: packages/admin/src/components/PortableTextEditor.tsx:3113
 msgid "Insert Table"
 msgstr "テーブルを挿入"
 
@@ -3956,8 +3956,8 @@ msgstr "ユーザーを招待"
 msgid "Invite your first team member"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2677
-#: packages/admin/src/components/PortableTextEditor.tsx:2985
+#: packages/admin/src/components/PortableTextEditor.tsx:2714
+#: packages/admin/src/components/PortableTextEditor.tsx:3022
 msgid "Italic"
 msgstr ""
 
@@ -4043,7 +4043,7 @@ msgstr ""
 msgid "Label (Singular)"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:151
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:162
 #: packages/admin/src/components/LoginPage.tsx:345
 #: packages/admin/src/components/Settings.tsx:129
 #: packages/admin/src/components/Settings.tsx:134
@@ -4190,7 +4190,7 @@ msgstr ""
 msgid "Loading content..."
 msgstr "コンテンツを読み込み中..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2504
+#: packages/admin/src/components/PortableTextEditor.tsx:2541
 msgid "Loading editor..."
 msgstr ""
 
@@ -4406,7 +4406,7 @@ msgstr "最大値"
 msgid "MDX"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2160
+#: packages/admin/src/components/PortableTextEditor.tsx:2197
 #: packages/admin/src/components/Sidebar.tsx:321
 #: packages/admin/src/components/WordPressImport.tsx:678
 #: packages/admin/src/components/WordPressImport.tsx:1173
@@ -4870,7 +4870,7 @@ msgstr "制限なし"
 msgid "No linked user"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:160
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:171
 msgid "No matches"
 msgstr ""
 
@@ -5034,7 +5034,7 @@ msgstr "一覧表示でページあたりに表示する投稿数"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:110
 #: packages/admin/src/components/PortableTextEditor.tsx:1050
-#: packages/admin/src/components/PortableTextEditor.tsx:3053
+#: packages/admin/src/components/PortableTextEditor.tsx:3090
 msgid "Numbered List"
 msgstr "番号付きリスト"
 
@@ -5518,7 +5518,7 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:86
 #: packages/admin/src/components/PortableTextEditor.tsx:1060
-#: packages/admin/src/components/PortableTextEditor.tsx:3060
+#: packages/admin/src/components/PortableTextEditor.tsx:3097
 msgid "Quote"
 msgstr "引用"
 
@@ -5588,7 +5588,7 @@ msgstr "ログインにリダイレクト中..."
 msgid "Redirects"
 msgstr "リダイレクト"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3208
+#: packages/admin/src/components/PortableTextEditor.tsx:3245
 msgid "Redo"
 msgstr ""
 
@@ -5633,7 +5633,7 @@ msgstr ""
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
 #: packages/admin/src/components/ContentEditor.tsx:1965
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:199
-#: packages/admin/src/components/PortableTextEditor.tsx:3159
+#: packages/admin/src/components/PortableTextEditor.tsx:3196
 #: packages/admin/src/components/settings/GeneralSettings.tsx:217
 #: packages/admin/src/components/settings/GeneralSettings.tsx:271
 #: packages/admin/src/components/settings/PasskeyItem.tsx:187
@@ -5686,8 +5686,8 @@ msgstr "画像を削除しますか？"
 msgid "Remove item {0}"
 msgstr "アイテム{0}を削除"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2658
-#: packages/admin/src/components/PortableTextEditor.tsx:2659
+#: packages/admin/src/components/PortableTextEditor.tsx:2695
+#: packages/admin/src/components/PortableTextEditor.tsx:2696
 msgid "Remove link"
 msgstr ""
 
@@ -6205,7 +6205,7 @@ msgstr "検索可能"
 msgid "Searching..."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2170
+#: packages/admin/src/components/PortableTextEditor.tsx:2207
 msgid "Section"
 msgstr "セクション"
 
@@ -6352,8 +6352,8 @@ msgid "Select image"
 msgstr "画像を選択"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:145
-#: packages/admin/src/components/PortableTextEditor.tsx:2546
-#: packages/admin/src/components/PortableTextEditor.tsx:3233
+#: packages/admin/src/components/PortableTextEditor.tsx:2583
+#: packages/admin/src/components/PortableTextEditor.tsx:3270
 #: packages/admin/src/components/settings/SeoSettings.tsx:221
 msgid "Select Image"
 msgstr "画像を選択"
@@ -6459,12 +6459,12 @@ msgstr "SEOタイトル"
 msgid "Set a custom display size for this image instance."
 msgstr "この画像インスタンスのカスタム表示サイズを設定します。"
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:196
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:200
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:146
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:150
 msgid "Set language"
 msgstr ""
 
-#: packages/admin/src/components/editor/CodeBlockNode.tsx:197
+#: packages/admin/src/components/editor/CodeBlockNode.tsx:147
 msgid "Set language (current: {label})"
 msgstr ""
 
@@ -6719,7 +6719,7 @@ msgstr "スパム"
 msgid "Spam"
 msgstr "スパム"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3221
+#: packages/admin/src/components/PortableTextEditor.tsx:3258
 msgid "Spotlight Mode"
 msgstr ""
 
@@ -6751,8 +6751,8 @@ msgstr "ステータスコード"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2691
-#: packages/admin/src/components/PortableTextEditor.tsx:2999
+#: packages/admin/src/components/PortableTextEditor.tsx:2728
+#: packages/admin/src/components/PortableTextEditor.tsx:3036
 msgid "Strikethrough"
 msgstr ""
 
@@ -6868,7 +6868,7 @@ msgstr "タームを削除しました"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2969
+#: packages/admin/src/components/PortableTextEditor.tsx:3006
 msgid "Text formatting"
 msgstr ""
 
@@ -7107,7 +7107,7 @@ msgstr "にアクセスしてプラグインをインストールするか、ast
 msgid "to select"
 msgstr "選択"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2783
+#: packages/admin/src/components/PortableTextEditor.tsx:2820
 msgid "Toggle header row"
 msgstr "ヘッダー行を切り替え"
 
@@ -7271,12 +7271,12 @@ msgstr "マーケットプレイスに接続できません"
 msgid "Unassigned"
 msgstr "未割り当て"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2684
-#: packages/admin/src/components/PortableTextEditor.tsx:2992
+#: packages/admin/src/components/PortableTextEditor.tsx:2721
+#: packages/admin/src/components/PortableTextEditor.tsx:3029
 msgid "Underline"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3201
+#: packages/admin/src/components/PortableTextEditor.tsx:3238
 msgid "Undo"
 msgstr ""
 
@@ -7526,7 +7526,7 @@ msgstr "アップロード中..."
 #: packages/admin/src/components/FieldEditor.tsx:586
 #: packages/admin/src/components/MenuEditor.tsx:339
 #: packages/admin/src/components/MenuEditor.tsx:509
-#: packages/admin/src/components/PortableTextEditor.tsx:3125
+#: packages/admin/src/components/PortableTextEditor.tsx:3162
 msgid "URL"
 msgstr "URL"
 

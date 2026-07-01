@@ -51,12 +51,17 @@ import type {
 	ContentAfterPublishHandler,
 	ContentAfterRestoreHandler,
 	ContentAfterSaveHandler,
+	ContentAfterScheduleHandler,
 	ContentAfterUnpublishHandler,
+	ContentAfterUnscheduleHandler,
 	ContentBeforeDeleteHandler,
 	ContentBeforeSaveHandler,
 	ContentDeleteEvent,
 	ContentHookEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	CronEvent,
 	CronHandler,
 	EmailAfterSendEvent,
@@ -99,6 +104,8 @@ export interface HookHandlers {
 	"content:afterPublish": ContentAfterPublishHandler;
 	"content:afterUnpublish": ContentAfterUnpublishHandler;
 	"content:afterRestore": ContentAfterRestoreHandler;
+	"content:afterSchedule": ContentAfterScheduleHandler;
+	"content:afterUnschedule": ContentAfterUnscheduleHandler;
 	"media:beforeUpload": MediaBeforeUploadHandler;
 	"media:afterUpload": MediaAfterUploadHandler;
 	cron: CronHandler;
@@ -228,6 +235,9 @@ export type {
 	ContentDeleteEvent,
 	ContentHookEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	CronEvent,
 	EmailAfterSendEvent,
 	EmailBeforeSendEvent,

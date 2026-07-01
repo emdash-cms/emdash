@@ -17,7 +17,11 @@ The following table lists every hook, what triggers it, what it can modify, and 
 | `content:afterSave`     | After content is saved                | Nothing           | No        |
 | `content:beforeDelete`  | Before content is deleted             | Can cancel        | No        |
 | `content:afterDelete`   | After content is deleted              | Nothing           | No        |
+| `content:afterPublish`  | After content is published            | Nothing           | No        |
+| `content:afterUnpublish` | After content is unpublished         | Nothing           | No        |
 | `content:afterRestore`  | After content is restored             | Nothing           | No        |
+| `content:afterSchedule` | After content is scheduled            | Nothing           | No        |
+| `content:afterUnschedule` | After content is unscheduled        | Nothing           | No        |
 | `media:beforeUpload`    | Before file is uploaded               | File metadata     | No        |
 | `media:afterUpload`     | After file is uploaded                | Nothing           | No        |
 | `cron`                  | Scheduled task fires                  | Nothing           | No        |
@@ -165,10 +169,34 @@ hooks: {
 }
 ```
 
+### `content:afterSchedule`
+
+Runs after content is scheduled for future publishing. Requires `content:read` capability.
+
+```ts
+hooks: {
+  "content:afterSchedule": async (event, ctx) => {
+    ctx.log.info(`Scheduled ${event.collection}/${event.content.id}`);
+  },
+}
+```
+
+### `content:afterUnschedule`
+
+Runs after scheduled content is unscheduled. Requires `content:read` capability.
+
+```ts
+hooks: {
+  "content:afterUnschedule": async (event, ctx) => {
+    ctx.log.info(`Unscheduled ${event.collection}/${event.content.id}`);
+  },
+}
+```
+
 #### Event
 
 ```ts
-interface ContentPublishStateChangeEvent {
+interface ContentStateChangeEvent {
 	content: Record<string, unknown>;
 	collection: string;
 }
