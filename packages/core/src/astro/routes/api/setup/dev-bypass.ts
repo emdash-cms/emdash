@@ -10,6 +10,8 @@
  * Usage:
  * - GET with redirect: /_emdash/api/setup/dev-bypass?redirect=/_emdash/admin
  * - POST for API: Returns JSON with setup info
+ * - ?content=0 (or ?content=false): apply schema/structure only, skipping
+ *   sample content entries, bylines, and taxonomy terms
  *
  * For agent/browser testing, navigate to:
  *   /_emdash/api/setup/dev-bypass?redirect=/_emdash/admin
@@ -57,12 +59,15 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 		const migrations = await runMigrations(emdash.db);
 		console.log("[setup-dev-bypass] Migrations applied:", migrations.applied);
 
-		// Apply seed (user seed or built-in default)
+		// Apply seed (user seed or built-in default). `?content=0` (or `false`)
+		// applies schema/structure only — no sample content, bylines, or terms.
+		const contentParam = url.searchParams.get("content");
+		const includeContent = contentParam !== "0" && contentParam !== "false";
 		const seed = await loadSeed();
 		const validation = validateSeed(seed);
 		if (validation.valid) {
 			const seedResult = await applySeed(emdash.db, seed, {
-				includeContent: true,
+				includeContent,
 				onConflict: "skip",
 				storage: emdash.storage ?? undefined,
 			});
