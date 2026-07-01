@@ -1,5 +1,50 @@
 # emdash
 
+## 0.26.0
+
+### Minor Changes
+
+- [#1659](https://github.com/emdash-cms/emdash/pull/1659) [`facdcfc`](https://github.com/emdash-cms/emdash/commit/facdcfc745059a6f183581963fcc29c8b6efec63) Thanks [@ttmx](https://github.com/ttmx)! - Adds content scheduling hooks for plugins to react when entries are scheduled or unscheduled.
+
+- [#1695](https://github.com/emdash-cms/emdash/pull/1695) [`5dea403`](https://github.com/emdash-cms/emdash/commit/5dea4035ec2f15fa2248e1621386a91320d50f6d) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates EmDashHead JSON-LD rendering for Astro CSP compatibility.
+
+  Sites using `<EmDashHead />` do not need to change anything. JSON-LD structured data is still rendered automatically, but EmDash now registers the generated script hashes with Astro's CSP runtime API so strict CSP can allow them.
+
+  This also adds `renderPageMetadata(metadata, { includeJsonLd: false })` for advanced integrations that render metadata manually and want to handle JSON-LD script tags themselves. The default remains unchanged: calling `renderPageMetadata(metadata)` still includes JSON-LD script tags in the returned HTML string.
+
+### Patch Changes
+
+- [#1661](https://github.com/emdash-cms/emdash/pull/1661) [`f44a277`](https://github.com/emdash-cms/emdash/commit/f44a2775c8e87be1398befcb29da6bec28bad01c) Thanks [@greymoth-jp](https://github.com/greymoth-jp)! - The editor footer now counts CJK (Chinese, Japanese, Korean) characters in its word count and reading-time estimate. Because these scripts have no spaces between words, the footer previously counted a whole paragraph as a single word and showed "1 min read" for long CJK drafts, even though the published page reported the correct reading time. The footer now matches the published reading time for CJK content; English and other space-delimited text is unchanged.
+
+- [#1561](https://github.com/emdash-cms/emdash/pull/1561) [`971c627`](https://github.com/emdash-cms/emdash/commit/971c6271e810a8e12e63303778a132a48eb75f4a) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes datetime fields becoming unsavable through the admin editor ([#1368](https://github.com/emdash-cms/emdash/issues/1368)). A `datetime-local` input (or a seed) produces a naive value such as `2026-06-04T18:30:00` with no `Z` suffix or timezone offset, which the field validator rejected — and because the editor re-sends every field on autosave, an entry holding such a value could no longer be saved. Datetime fields now accept naive values (with or without seconds), values with a `Z` suffix or an explicit offset, and date-only values, while still rejecting non-dates.
+
+- [#1560](https://github.com/emdash-cms/emdash/pull/1560) [`e5b95e1`](https://github.com/emdash-cms/emdash/commit/e5b95e195e1307237db9eb26806c54c76cc0f81d) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes a cryptic build failure when a configured plugin has no resolvable entrypoint ([#1416](https://github.com/emdash-cms/emdash/issues/1416)). Passing an inline `definePlugin({...})` result directly to `plugins: []` previously failed deep in the bundler with an unhelpful "failed to resolve import" error. The build now fails fast with a clear message that names the offending plugin and explains that `plugins: []` entries must resolve to a file or package entrypoint — move the plugin into its own module and reference it from there.
+
+- [#1603](https://github.com/emdash-cms/emdash/pull/1603) [`13b87b7`](https://github.com/emdash-cms/emdash/commit/13b87b70296443db14bf163cd3b25ff2a5701227) Thanks [@Vallhalen](https://github.com/Vallhalen)! - Fixes silent `null` entries on wide-schema collections under Cloudflare D1. The content loader's single-query `LEFT JOIN _emdash_seo` added 5 alias columns to every result set, which pushed collections with ~95+ flat user fields past D1's per-query column limit (~100). The query failed with `D1_ERROR: too many columns in result set`, the error was wrapped as a generic `Failed to load entry`, and the call site surfaced `null`. SEO is now folded into a single aggregated JSON column (mirroring how byline and taxonomy hydration already work), keeping the result-set width bounded regardless of how wide the collection schema gets while preserving the single round trip.
+
+- [#1542](https://github.com/emdash-cms/emdash/pull/1542) [`8f7604d`](https://github.com/emdash-cms/emdash/commit/8f7604dfd8f274b7a62bcbccd53068930b304777) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes a crash that returned HTTP 500 on every route on Cloudflare Workers when native plugins are registered with `definePlugin` (`Cannot access 'SIMPLE_ID' before initialization`). Plugin registration is now safe regardless of bundle ordering.
+
+- [#1554](https://github.com/emdash-cms/emdash/pull/1554) [`3d80be5`](https://github.com/emdash-cms/emdash/commit/3d80be5e0f1e91844bcf138dea8e86861bc484b4) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes collection `where` taxonomy filters matching nothing when filtering a non-default locale by its localized term slug. Term slugs now resolve in the active query locale ([#1480](https://github.com/emdash-cms/emdash/issues/1480)).
+
+- [#1674](https://github.com/emdash-cms/emdash/pull/1674) [`d1116ae`](https://github.com/emdash-cms/emdash/commit/d1116ae6d02f5c15ea5efb68cce78bb24f13ccb6) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds the internal media usage index foundation for upcoming usage-aware media workflows. This creates the usage index schema during migrations but does not change Media Library behavior yet.
+
+- [#1399](https://github.com/emdash-cms/emdash/pull/1399) [`192741f`](https://github.com/emdash-cms/emdash/commit/192741f9a34ede62e23c3de63e3b2483f0b948b6) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Cut per-render D1 round trips on public pages by caching taxonomy definitions across the worker isolate, and harden the runtime/DB singletons against bundler module duplication.
+
+  Every public render that hydrates entry terms read `SELECT * FROM _emdash_taxonomy_defs` (via `getTaxonomyDefs` → `getCollectionTaxonomyNames`), which only had per-request caching. On Cloudflare D1, where the worker colo is often far from the database primary, each query is a ~40ms cross-region round trip, so this fired on every warm request for no benefit — taxonomy _definitions_ change extremely rarely (created via the admin API or a seed; there is no edit/delete-def path). They're now cached per-isolate behind a `globalThis` Symbol holder (the same two-tier pattern as `settings/index.ts` and the byline field-defs cache), keyed by resolved locale and invalidated in-memory by every def write (`handleTaxonomyCreate`, seed application). Invalidation is in-memory rather than a persisted version probe on purpose: a per-request version read would merely replace the query being removed, yielding no net saving on warm isolates. Isolated databases (playground / DO preview) bypass the cache.
+
+  Separately, the cached runtime instance, the DB-instance cache, and the in-flight DB-init promise (`astro/middleware.ts`, `emdash-runtime.ts`) were plain module-scoped variables. Under Vite SSR chunk duplication those can become multiple independent copies, letting cold-start migrations and bootstrap reads re-run on requests that should have hit the warm cache. They now live on `globalThis` behind Symbol keys, matching the existing `SETUP_VERIFIED_KEY` / request-context / request-cache singletons.
+
+  No schema changes, no public API changes, fully backwards compatible.
+
+- [#1692](https://github.com/emdash-cms/emdash/pull/1692) [`737da19`](https://github.com/emdash-cms/emdash/commit/737da19f56998a5e7f77eecf9337d5f29a18cea6) Thanks [@MA2153](https://github.com/MA2153)! - Restores the missing `idx_taxonomies_parent` index on `taxonomies(parent_id)`, which was silently dropped by the i18n table rebuild in an earlier version. Installs upgrade automatically; hierarchical (parent/child) taxonomy lookups are indexed again.
+
+- [#1696](https://github.com/emdash-cms/emdash/pull/1696) [`5299d38`](https://github.com/emdash-cms/emdash/commit/5299d38d9c7e92b9faafbe24820164517fc2360c) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes i18n collection sitemaps so untranslated entries include self hreflang and x-default alternates.
+
+- Updated dependencies [[`dc32673`](https://github.com/emdash-cms/emdash/commit/dc32673b013f3ef5fcf7c23159b774d5ed1b8c60), [`fe832ce`](https://github.com/emdash-cms/emdash/commit/fe832ce224b55ea5d83cb5652cc38a8035a574db)]:
+  - @emdash-cms/admin@0.26.0
+  - @emdash-cms/auth@0.26.0
+  - @emdash-cms/gutenberg-to-portable-text@0.26.0
+
 ## 0.25.1
 
 ### Patch Changes
