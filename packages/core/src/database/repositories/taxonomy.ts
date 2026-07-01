@@ -484,16 +484,20 @@ export class TaxonomyRepository {
 	 * Returns a Map from translation_group to distinct-entry count. Counts are
 	 * global across collections, mirroring `countEntriesForTerms`.
 	 *
-	 * Implementation reads the data it needs exactly once: one scan of this
-	 * taxonomy's `parent_id` edges (`O(terms)`) and one scan of the assignment
-	 * pivot for those terms (`O(assignments)`). The rollup is a single in-memory
-	 * fold up each term's ancestor chain. The earlier recursive-CTE formulation
-	 * materialised the full ancestor×descendant closure and re-read the pivot
-	 * once per ancestor level — `O(Σ depth × assignments)` rows read, hundreds of
-	 * thousands of D1 rows for a few-thousand-term tree (and D1 bills per row
-	 * read). Distinct semantics are preserved by unioning entry ids into each
-	 * ancestor (a sum of child counts would double-count an entry tagged under
-	 * two descendants of a shared ancestor).
+	 * Two constant-cost, index-backed queries regardless of tree size: one scan
+	 * of this taxonomy's `parent_id` edges (`idx_taxonomies_name`, `O(terms)`) to
+	 * build the hierarchy, and one scan of the assignment pivot
+	 * (`idx_content_taxonomies_term`) whose term set is an in-SQL semi-join
+	 * subquery. The term ids never round-trip through app memory, so nothing is
+	 * chunked and the query count never grows as the taxonomy gains terms. The
+	 * rollup is a single in-memory fold up each term's ancestor chain. The
+	 * earlier recursive-CTE formulation materialised the full ancestor×descendant
+	 * closure and re-read the pivot once per ancestor level — `O(Σ depth ×
+	 * assignments)` rows read, hundreds of thousands of D1 rows for a
+	 * few-thousand-term tree (and D1 bills per row read). Distinct semantics are
+	 * preserved by unioning entry ids into each ancestor (a sum of child counts
+	 * would double-count an entry tagged under two descendants of a shared
+	 * ancestor).
 	 */
 	async countEntriesForSubtrees(taxonomyName: string): Promise<Map<string, number>> {
 		// parent_id stores the parent's translation_group (migration 045), so the
@@ -532,23 +536,28 @@ export class TaxonomyRepository {
 
 		// Union each assignment's entry id into every ancestor's distinct set, so
 		// each ancestor accumulates the DISTINCT entries across its whole subtree.
-		const { chunks, SQL_BATCH_SIZE } = await import("../../utils/chunks.js");
+		// The term set is a semi-join subquery rather than an app-side `IN (...)`
+		// list, so this is one indexed query with only `taxonomyName` bound — no
+		// chunking, and the query count never scales with the number of terms.
+		const rows = await this.db
+			.selectFrom("content_taxonomies")
+			.select(["taxonomy_id", "entry_id"])
+			.where("taxonomy_id", "in", (eb) =>
+				eb
+					.selectFrom("taxonomies")
+					.select((sb) => sb.fn.coalesce("translation_group", "id").as("grp"))
+					.where("name", "=", taxonomyName),
+			)
+			.execute();
 		const entriesByGroup = new Map<string, Set<string>>();
-		for (const chunk of chunks([...parentOf.keys()], SQL_BATCH_SIZE)) {
-			const rows = await this.db
-				.selectFrom("content_taxonomies")
-				.select(["taxonomy_id", "entry_id"])
-				.where("taxonomy_id", "in", chunk)
-				.execute();
-			for (const row of rows) {
-				for (const ancestor of ancestorsOf(row.taxonomy_id)) {
-					let set = entriesByGroup.get(ancestor);
-					if (!set) {
-						set = new Set();
-						entriesByGroup.set(ancestor, set);
-					}
-					set.add(row.entry_id);
+		for (const row of rows) {
+			for (const ancestor of ancestorsOf(row.taxonomy_id)) {
+				let set = entriesByGroup.get(ancestor);
+				if (!set) {
+					set = new Set();
+					entriesByGroup.set(ancestor, set);
 				}
+				set.add(row.entry_id);
 			}
 		}
 
