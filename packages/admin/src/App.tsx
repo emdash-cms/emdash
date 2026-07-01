@@ -42,7 +42,7 @@ function normalizeAdminHref(href: string): string {
 	if (href.startsWith(`${ADMIN_BASEPATH}?`) || href.startsWith(`${ADMIN_BASEPATH}#`)) {
 		return `/${href.slice(ADMIN_BASEPATH.length)}`;
 	}
-	return href;
+	return "";
 }
 
 function getAnchorHref(destination: string, routerDestination: string): string {
