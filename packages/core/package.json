@@ -272,7 +272,7 @@
     "@types/react": "catalog:",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
-    "@vitest/ui": "^4.1.8",
+    "@vitest/ui": "^4.1.9",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
