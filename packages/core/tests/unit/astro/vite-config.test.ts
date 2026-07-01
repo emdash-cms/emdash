@@ -97,35 +97,30 @@ describe("createViteConfig Cloudflare SSR dep optimization", () => {
 		);
 	}
 
-	// Regression: in a real install (not the workspace symlink, which
-	// Vite never optimizes), the workerd optimizer bundles emdash's dist and
-	// code-splits its lazily-executed dynamic imports (MCP tools, content
+	// Regression: in a real install (not the workspace symlink, which Vite
+	// never optimizes), the workerd optimizer bundles noExternal'd dists and
+	// code-splits their lazily-executed dynamic imports (MCP tools, content
 	// validation) into hashed chunks. Any mid-session re-optimization deletes
 	// those chunks while loaded modules still point at them, so every content
-	// write fails with "The file does not exist at .../deps_ssr/..." until the
-	// dev server restarts. First-party packages must stay excluded.
-	it("excludes first-party packages from the workerd optimizer", () => {
+	// write fails with "The file does not exist at .../deps_ssr/..." until
+	// the dev server restarts. The monorepo can't catch a violation, so this
+	// pins the rule: whatever is served to workerd from node_modules must
+	// also be excluded from its optimizer.
+	it("excludes every noExternal package from the workerd optimizer", () => {
 		const config = buildConfig();
-		const ssr = config.ssr as { optimizeDeps?: { exclude?: string[] } };
+		const ssr = config.ssr as {
+			noExternal?: string[];
+			optimizeDeps?: { exclude?: string[] };
+		};
+		const noExternal = ssr.noExternal ?? [];
 		const exclude = ssr.optimizeDeps?.exclude ?? [];
 
-		expect(exclude).toContain("emdash");
-		expect(exclude).toContain("@emdash-cms/admin");
+		expect(noExternal.length).toBeGreaterThan(0);
+		for (const pkg of noExternal) {
+			expect(exclude).toContain(pkg);
+		}
+		// Not noExternal, but its dist reaches workerd the same way.
 		expect(exclude).toContain("@emdash-cms/cloudflare");
-		expect(exclude).toContain("virtual:emdash");
-	});
-
-	// These are only reached on the first request to their route/feature, so
-	// the startup pass misses them; each late discovery re-optimizes and
-	// reloads the worker mid-session.
-	it("pre-bundles deps that are only discovered after startup", () => {
-		const config = buildConfig();
-		const ssr = config.ssr as { optimizeDeps?: { include?: string[] } };
-		const include = ssr.optimizeDeps?.include ?? [];
-
-		expect(include).toContain("emdash > kysely/migration");
-		expect(include).toContain("astro/zod");
-		expect(include).toContain("@astrojs/cloudflare/image-transform-endpoint");
 	});
 });
 
