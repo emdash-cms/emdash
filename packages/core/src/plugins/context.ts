@@ -21,6 +21,7 @@ import {
 	SsrfError,
 	stripCredentialHeaders,
 } from "../import/ssrf.js";
+import { enrichImageMetadata } from "../media/enrich.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import { CronAccessImpl } from "./cron.js";
@@ -508,6 +509,9 @@ export function createMediaAccessWithWrite(
 				contentType,
 			});
 
+			// Derive dimensions + LQIP placeholders (no-op for non-images).
+			const enriched = await enrichImageMetadata(new Uint8Array(bytes), contentType);
+
 			// Create DB record — clean up storage on failure
 			let media;
 			try {
@@ -517,6 +521,10 @@ export function createMediaAccessWithWrite(
 					size: bytes.byteLength,
 					storageKey,
 					status: "ready",
+					width: enriched.width,
+					height: enriched.height,
+					blurhash: enriched.blurhash,
+					dominantColor: enriched.dominantColor,
 				});
 			} catch (error) {
 				try {

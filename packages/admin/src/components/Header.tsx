@@ -95,7 +95,7 @@ export function Header() {
 							<hr className="my-1" />
 							<button
 								onClick={handleLogout}
-								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-start"
+								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-kumo-danger hover:bg-kumo-danger/10 w-full text-start cursor-pointer"
 							>
 								<SignOut className="h-4 w-4" />
 								{t`Log out`}

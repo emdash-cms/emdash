@@ -490,6 +490,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
 
+		// Credentialed API requests (API tokens `ec_pat_*`, OAuth tokens
+		// `ec_oat_*`, and other Bearer credentials) carry no `astro-session`
+		// cookie, so `sessionUser` is null for them -- yet they still expect
+		// read-your-writes. The auth middleware that resolves the token runs
+		// *after* this one, so `locals.user` isn't populated here; detect the
+		// credential directly on the request. Request-scoped adapters use this to
+		// keep such requests on the primary/uncached connection (not a lagging
+		// read replica or the Hyperdrive query cache).
+		const hasBearerAuth = (request.headers.get("authorization") ?? "")
+			.toLowerCase()
+			.startsWith("bearer ");
+
 		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
 			if (!sessionUser && !playgroundDb) {
 				const timings: Array<{ name: string; dur: number; desc?: string }> = [];
@@ -776,7 +788,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// per-request state (e.g. a D1 bookmark cookie for read-your-writes).
 			const scoped = createRequestScopedDb({
 				config: config?.database?.config,
-				isAuthenticated: !!sessionUser,
+				isAuthenticated: !!sessionUser || hasBearerAuth,
 				isWrite: request.method !== "GET" && request.method !== "HEAD",
 				cookies: context.cookies,
 				url,
