@@ -14,9 +14,19 @@ import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { mediaConfirmBody } from "#api/schemas.js";
+import { enrichImageMetadata } from "#media/enrich.js";
 import type { MediaItem } from "#types";
 
 export const prerender = false;
+
+/**
+ * Max raw bytes to buffer for server-side LQIP generation at confirm time. The
+ * signed-URL upload flow exists so large files bypass server buffering — re-reading
+ * the whole object into a Worker's 128 MB heap to compute a blurhash would OOM
+ * on the very uploads that flow was designed for. LQIP is progressive
+ * enhancement: large images simply ship without a server-generated placeholder.
+ */
+const MAX_PLACEHOLDER_DOWNLOAD_BYTES = 8 * 1024 * 1024;
 
 /**
  * Add URL to media item (relative URL for portability)
@@ -81,11 +91,61 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			}
 		}
 
+		// For images, read the just-uploaded bytes back from storage once to
+		// generate LQIP placeholders (and server-side dimensions as a fallback).
+		// The signed-URL flow uploads directly to storage, so this confirm is the
+		// only point at which the server sees the bytes. Best-effort: a decode
+		// failure must not block the upload from being marked ready. We also cap
+		// the download size — buffering a large original into a Worker heap to
+		// compute a 32px blurhash would OOM on the uploads the signed-URL path
+		// exists to support, so oversized files skip the server-side placeholder.
+		let blurhash: string | undefined;
+		let dominantColor: string | undefined;
+		let width = body.width;
+		let height = body.height;
+		if (emdash.storage && existing.mimeType.startsWith("image/")) {
+			const knownSize = body.size ?? existing.size ?? undefined;
+			const tooLarge = knownSize != null && knownSize > MAX_PLACEHOLDER_DOWNLOAD_BYTES;
+			if (!tooLarge) {
+				try {
+					const { body: stream } = await emdash.storage.download(existing.storageKey);
+					const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+					// Defense-in-depth for the unknown-size case: even though we
+					// already buffered it, refuse the decode so we don't also pay
+					// the (larger) RGBA allocation.
+					if (bytes.byteLength > MAX_PLACEHOLDER_DOWNLOAD_BYTES) {
+						console.warn(
+							`[media] confirm skipping placeholder: object ${existing.storageKey} is ${bytes.byteLength} bytes (> ${MAX_PLACEHOLDER_DOWNLOAD_BYTES})`,
+						);
+					} else {
+						const enriched = await enrichImageMetadata(bytes, existing.mimeType, {
+							knownDimensions:
+								body.width != null && body.height != null
+									? { width: body.width, height: body.height }
+									: undefined,
+						});
+						blurhash = enriched.blurhash;
+						dominantColor = enriched.dominantColor;
+						width = width ?? enriched.width;
+						height = height ?? enriched.height;
+					}
+				} catch (error) {
+					console.error("[media] confirm placeholder generation failed:", error);
+				}
+			} else {
+				console.warn(
+					`[media] confirm skipping placeholder: object ${existing.storageKey} reported size ${knownSize} bytes (> ${MAX_PLACEHOLDER_DOWNLOAD_BYTES})`,
+				);
+			}
+		}
+
 		// Confirm the upload
 		const item = await repo.confirmUpload(id, {
 			size: body.size,
-			width: body.width,
-			height: body.height,
+			width,
+			height,
+			blurhash,
+			dominantColor,
 		});
 
 		if (!item) {

@@ -149,7 +149,8 @@ describe("BylineRepository", () => {
 	});
 
 	it("hydrates avatar storage key and alt via the media join", async () => {
-		// A media row standing in for an uploaded avatar.
+		// A media row standing in for an uploaded avatar, including the LQIP
+		// placeholder columns (migration 024) so the hydration carries them.
 		await db
 			.insertInto("media")
 			.values({
@@ -159,6 +160,8 @@ describe("BylineRepository", () => {
 				storage_key: "media-avatar-1.png",
 				status: "ready",
 				alt: "Jane Doe headshot",
+				blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+				dominant_color: "#aabbcc",
 			})
 			.execute();
 
@@ -189,9 +192,16 @@ describe("BylineRepository", () => {
 		expect(avatared.byline.avatarMediaId).toBe("media-avatar-1");
 		expect(avatared.byline.avatarStorageKey).toBe("media-avatar-1.png");
 		expect(avatared.byline.avatarAlt).toBe("Jane Doe headshot");
-		// No avatar -> storage key and alt are null, not undefined.
+		// The LQIP placeholder columns ride along the same media join so a
+		// renderer can paint a blurhash/dominant-colour placeholder while the
+		// full avatar loads.
+		expect(avatared.byline.avatarBlurhash).toBe("LEHV6nWB2yk8pyo0adR*.7kCMdnj");
+		expect(avatared.byline.avatarDominantColor).toBe("#aabbcc");
+		// No avatar -> storage key, alt, and LQIP columns are null, not undefined.
 		expect(plain.byline.avatarStorageKey).toBeNull();
 		expect(plain.byline.avatarAlt).toBeNull();
+		expect(plain.byline.avatarBlurhash).toBeNull();
+		expect(plain.byline.avatarDominantColor).toBeNull();
 
 		// Batch hydration path (the list-page case) resolves the same data
 		// without a per-byline media lookup.
@@ -199,6 +209,8 @@ describe("BylineRepository", () => {
 		const batchCredit = batch.get(content.id)!.find((c) => c.byline.id === withAvatar.id)!;
 		expect(batchCredit.byline.avatarStorageKey).toBe("media-avatar-1.png");
 		expect(batchCredit.byline.avatarAlt).toBe("Jane Doe headshot");
+		expect(batchCredit.byline.avatarBlurhash).toBe("LEHV6nWB2yk8pyo0adR*.7kCMdnj");
+		expect(batchCredit.byline.avatarDominantColor).toBe("#aabbcc");
 	});
 
 	it("hydrates avatar storage key for author-inferred bylines via findByUserIds", async () => {
@@ -211,6 +223,8 @@ describe("BylineRepository", () => {
 				storage_key: "media-avatar-3.png",
 				status: "ready",
 				alt: "User avatar",
+				blurhash: "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+				dominant_color: "#112233",
 			})
 			.execute();
 		await db
@@ -237,6 +251,8 @@ describe("BylineRepository", () => {
 		const resolved = map.get("user-123");
 		expect(resolved?.avatarStorageKey).toBe("media-avatar-3.png");
 		expect(resolved?.avatarAlt).toBe("User avatar");
+		expect(resolved?.avatarBlurhash).toBe("L6PZfSi_.AyE_3t7t7R**0o#DgR4");
+		expect(resolved?.avatarDominantColor).toBe("#112233");
 	});
 
 	it("leaves avatar storage key null on the plain byline finders", async () => {

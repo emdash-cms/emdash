@@ -276,8 +276,10 @@ export function validateContent(
  * Generate TypeScript interface from field definitions
  * Used by CLI `emdash types` to generate types
  */
-export function generateTypeScript(collection: CollectionWithFields): string {
-	const interfaceName = getInterfaceName(collection);
+export function generateTypeScript(
+	collection: CollectionWithFields,
+	interfaceName: string = getInterfaceName(collection),
+): string {
 	const lines: string[] = [];
 
 	lines.push(`export interface ${interfaceName} {`);
@@ -332,9 +334,14 @@ export function generateTypesFile(collections: CollectionWithFields[]): string {
 	lines.push(`import type { ${imports.join(", ")} } from "emdash";`);
 	lines.push(``);
 
+	// Singularizing the slug can map two distinct slugs to the same name
+	// (e.g. `book` and `books` both -> `Book`), so resolve collisions up front
+	// to keep every interface identifier unique within the file.
+	const interfaceNames = uniqueInterfaceNames(collections);
+
 	// Generate individual interfaces
 	for (const collection of collections) {
-		lines.push(generateTypeScript(collection));
+		lines.push(generateTypeScript(collection, interfaceNames.get(collection.slug)));
 		lines.push(``);
 	}
 
@@ -342,8 +349,7 @@ export function generateTypesFile(collections: CollectionWithFields[]): string {
 	lines.push(`declare module "emdash" {`);
 	lines.push(`  interface EmDashCollections {`);
 	for (const collection of collections) {
-		const interfaceName = getInterfaceName(collection);
-		lines.push(`    ${collection.slug}: ${interfaceName};`);
+		lines.push(`    ${collection.slug}: ${interfaceNames.get(collection.slug)};`);
 	}
 	lines.push(`  }`);
 	lines.push(`}`);
@@ -435,7 +441,8 @@ function pascalCase(str: string): string {
 }
 
 /**
- * Simple singularization - handles common cases
+ * Naive singularization for slug-derived interface names. Handles the common
+ * English plural endings; intentionally simple, not a full inflector.
  */
 function singularize(str: string): string {
 	if (str.endsWith("ies")) {
@@ -454,8 +461,46 @@ function singularize(str: string): string {
 }
 
 /**
- * Get the interface name for a collection
+ * Get the interface name for a collection.
+ *
+ * Derived from the slug, not the human label. Slugs are constrained to
+ * `/^[a-z][a-z0-9_]*$/`, so PascalCasing one always yields a valid TS
+ * identifier; labels are arbitrary and user-controlled (punctuation, spaces,
+ * duplicates across collections), which produced syntactically invalid or
+ * duplicate interface names. The slug is singularized first because the
+ * interface describes a single entry, not the collection (`posts` -> `Post`).
+ *
+ * Singularization can map two distinct slugs onto the same name, so callers
+ * generating more than one interface must dedupe -- see `uniqueInterfaceNames`.
  */
 function getInterfaceName(collection: CollectionWithFields): string {
-	return pascalCase(collection.labelSingular || singularize(collection.slug));
+	return pascalCase(singularize(collection.slug));
+}
+
+/**
+ * Resolve interface names for a set of collections, guaranteeing each is
+ * unique within the file. Collisions (from singularization or PascalCasing
+ * collapsing distinct slugs) get a numeric suffix in collection order, so the
+ * generated `.d.ts` never declares two interfaces with the same identifier.
+ *
+ * The suffix is chosen against the set of names already emitted, not a
+ * per-base counter, so a generated name can't collide with another slug's
+ * base name (e.g. slugs `book`, `books`, `book2`: `books` -> `Book2` would
+ * clash with `book2`, so it advances to `Book3`).
+ */
+export function uniqueInterfaceNames(collections: CollectionWithFields[]): Map<string, string> {
+	const used = new Set<string>();
+	const names = new Map<string, string>();
+	for (const collection of collections) {
+		const base = getInterfaceName(collection);
+		let name = base;
+		let suffix = 2;
+		while (used.has(name)) {
+			name = `${base}${suffix}`;
+			suffix++;
+		}
+		used.add(name);
+		names.set(collection.slug, name);
+	}
+	return names;
 }

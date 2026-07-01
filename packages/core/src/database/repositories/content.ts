@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { invalidateCollectionCache } from "../../object-cache/index.js";
 import { slugify } from "../../utils/slugify.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -206,6 +207,8 @@ export class ContentRepository {
 			INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
 			VALUES (${sql.join(valuePlaceholders, sql`, `)})
 		`.execute(this.db);
+
+		invalidateCollectionCache(type);
 
 		// Fetch and return the created item
 		const item = await this.findById(type, id);
@@ -621,6 +624,8 @@ export class ContentRepository {
 			.where("deleted_at" as never, "is", null)
 			.execute();
 
+		invalidateCollectionCache(type);
+
 		const updated = await this.findById(type, id);
 		if (!updated) {
 			throw new Error("Content not found");
@@ -643,23 +648,30 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
-		return (result.numAffectedRows ?? 0n) > 0n;
+		const changed = (result.numAffectedRows ?? 0n) > 0n;
+		if (changed) invalidateCollectionCache(type);
+		return changed;
 	}
 
 	/**
 	 * Restore content from trash
 	 */
-	async restore(type: string, id: string): Promise<boolean> {
+	async restore(type: string, id: string): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
 
-		const result = await sql`
+		const result = await sql<Record<string, unknown>>`
 			UPDATE ${sql.ref(tableName)}
 			SET deleted_at = NULL
 			WHERE id = ${id}
 			AND deleted_at IS NOT NULL
+			RETURNING *
 		`.execute(this.db);
 
-		return (result.numAffectedRows ?? 0n) > 0n;
+		const restored = result.rows[0];
+		if (!restored) return null;
+
+		invalidateCollectionCache(type);
+		return this.mapRow(type, restored);
 	}
 
 	/**
@@ -684,7 +696,9 @@ export class ContentRepository {
 			AND deleted_at IS NOT NULL
 		`.execute(this.db);
 
-		return (result.numAffectedRows ?? 0n) > 0n;
+		const changed = (result.numAffectedRows ?? 0n) > 0n;
+		if (changed) invalidateCollectionCache(type);
+		return changed;
 	}
 
 	/**
@@ -940,6 +954,8 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		invalidateCollectionCache(type);
+
 		const updated = await this.findById(type, id);
 		if (!updated) {
 			throw new Error("Content not found");
@@ -976,6 +992,8 @@ export class ContentRepository {
 			AND scheduled_at IS NOT NULL
 			AND deleted_at IS NULL
 		`.execute(this.db);
+
+		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
@@ -1175,6 +1193,7 @@ export class ContentRepository {
 				throw new Error("Content not found");
 			}
 
+			invalidateCollectionCache(type);
 			return updated;
 		} catch (error) {
 			// Best-effort schedule restore for the no-transaction (D1) case so a
@@ -1257,6 +1276,8 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 
+		invalidateCollectionCache(type);
+
 		const updated = await this.findById(type, id);
 		if (!updated) {
 			throw new Error("Content not found");
@@ -1302,6 +1323,8 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 		`.execute(this.db);
+
+		invalidateCollectionCache(type);
 	}
 
 	/**
@@ -1331,6 +1354,8 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 		`.execute(this.db);
+
+		invalidateCollectionCache(type);
 
 		const updated = await this.findById(type, id);
 		if (!updated) {

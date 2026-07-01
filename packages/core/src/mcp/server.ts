@@ -14,10 +14,17 @@ import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { contentBylineInputSchema, contentSeoInput } from "#api/schemas.js";
+import {
+	bylineCreateBody,
+	bylineUpdateBody,
+	contentBylineInputSchema,
+	contentSeoInput,
+} from "#api/schemas.js";
 
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
+import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
+import type { FieldSchema } from "../client/portable-text.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
@@ -268,6 +275,64 @@ function getEmDash(extra: { authInfo?: { extra?: Record<string, unknown> } }): E
 	return getExtra(extra).emdash;
 }
 
+async function getCollectionFields(
+	ec: EmDashHandlers,
+	collection: string,
+): Promise<FieldSchema[] | null> {
+	try {
+		const { SchemaRegistry } = await import("../schema/index.js");
+		const col = await new SchemaRegistry(ec.db).getCollectionWithFields(collection);
+		return col ? col.fields : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Convert markdown strings to Portable Text for `portableText` fields on write.
+ * Non-string values pass through, so callers may still send Portable Text. If
+ * the schema can't be loaded, data is returned unchanged for the handler to
+ * validate.
+ */
+async function convertWriteData(
+	ec: EmDashHandlers,
+	collection: string,
+	data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+	const fields = await getCollectionFields(ec, collection);
+	if (!fields) return data;
+	return convertDataForWrite(data, fields);
+}
+
+/**
+ * Convert `portableText` field values on each item's `data` to markdown,
+ * mutating in place. Inverse of {@link convertWriteData}, gated on the read
+ * tools' `markdown` argument.
+ */
+async function applyReadMarkdown(
+	ec: EmDashHandlers,
+	collection: string,
+	items: Array<Record<string, unknown>>,
+): Promise<void> {
+	const fields = await getCollectionFields(ec, collection);
+	if (!fields) return;
+	for (const item of items) {
+		if (item.data && typeof item.data === "object") {
+			item.data = convertDataForRead(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
+				item.data as Record<string, unknown>,
+				fields,
+				false,
+			);
+		}
+	}
+}
+
+async function invalidateBylines(): Promise<void> {
+	const { invalidateBylineCache } = await import("../bylines/index.js");
+	invalidateBylineCache();
+}
+
 /**
  * Enforce a scope requirement on the current request.
  *
@@ -460,6 +525,12 @@ export function createMcpServer(): McpServer {
 					.string()
 					.optional()
 					.describe("Filter by locale (e.g. 'en', 'fr'). Only relevant when i18n is enabled."),
+				markdown: z
+					.boolean()
+					.optional()
+					.describe(
+						"Return rich text (portableText) fields as Markdown strings instead of Portable Text arrays (default false).",
+					),
 			}),
 			annotations: { readOnlyHint: true },
 		},
@@ -469,16 +540,26 @@ export function createMcpServer(): McpServer {
 			// Subscribers must only see published content; force the status
 			// filter regardless of caller-supplied value.
 			const status = canReadDrafts(extra) ? args.status : "published";
-			return unwrap(
-				await ec.handleContentList(args.collection, {
-					status,
-					limit: args.limit,
-					cursor: args.cursor,
-					orderBy: args.orderBy,
-					order: args.order,
-					locale: args.locale,
-				}),
-			);
+			const result = await ec.handleContentList(args.collection, {
+				status,
+				limit: args.limit,
+				cursor: args.cursor,
+				orderBy: args.orderBy,
+				order: args.order,
+				locale: args.locale,
+			});
+			if (result.success && args.markdown) {
+				const payload = result.data;
+				if (
+					payload &&
+					typeof payload === "object" &&
+					"items" in payload &&
+					Array.isArray(payload.items)
+				) {
+					await applyReadMarkdown(ec, args.collection, payload.items);
+				}
+			}
+			return unwrap(result);
 		},
 	);
 
@@ -498,6 +579,12 @@ export function createMcpServer(): McpServer {
 					.optional()
 					.describe(
 						"Locale to scope slug lookup (e.g. 'fr'). Only affects slug resolution; IDs are globally unique.",
+					),
+				markdown: z
+					.boolean()
+					.optional()
+					.describe(
+						"Return rich text (portableText) fields as Markdown strings instead of Portable Text arrays (default false).",
 					),
 			}),
 			annotations: { readOnlyHint: true },
@@ -527,6 +614,9 @@ export function createMcpServer(): McpServer {
 					});
 				}
 			}
+			if (result.success && args.markdown && result.data?.item) {
+				await applyReadMarkdown(ec, args.collection, [result.data.item]);
+			}
 			return unwrap(result);
 		},
 	);
@@ -538,9 +628,12 @@ export function createMcpServer(): McpServer {
 			description:
 				"Create a new content item in a collection. The 'data' object should " +
 				"contain field values matching the collection's schema (use " +
-				"schema_get_collection to check). Rich text fields accept Portable Text " +
-				"JSON arrays. A slug is auto-generated if not provided. Items are created " +
-				"as 'draft' by default — use content_publish to make them live.",
+				"schema_get_collection to check). For rich text (portableText) fields, " +
+				"pass a Markdown string — converted to Portable Text automatically; prefer " +
+				"this. Pass a Portable Text JSON array only for complex content Markdown " +
+				"can't express (custom blocks, embeds). A slug is auto-generated if not " +
+				"provided. Items are created as 'draft' by default — use content_publish " +
+				"to make them live.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
 				data: z
@@ -560,6 +653,12 @@ export function createMcpServer(): McpServer {
 					.optional()
 					.describe(
 						"ID of the content item this is a translation of. Links items in the same translation group.",
+					),
+				bylines: z
+					.array(contentBylineInputSchema)
+					.optional()
+					.describe(
+						"Bylines to credit. Each entry references an existing byline by id (see byline_list / byline_create) with an optional roleLabel. The first entry becomes the primary byline.",
 					),
 			}),
 			annotations: { destructiveHint: false },
@@ -581,6 +680,8 @@ export function createMcpServer(): McpServer {
 				);
 			}
 
+			const data = await convertWriteData(emdash, args.collection, args.data);
+
 			// Publishing requires publish permission — create as draft then publish
 			if (args.status === "published") {
 				const user = { id: userId, role: getExtra(extra).userRole };
@@ -591,11 +692,12 @@ export function createMcpServer(): McpServer {
 					);
 				}
 				const result = await emdash.handleContentCreate(args.collection, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
 					translationOf: args.translationOf,
+					bylines: args.bylines,
 				});
 				if (!result.success) return unwrap(result);
 				const itemId = extractContentId(result.data);
@@ -607,11 +709,12 @@ export function createMcpServer(): McpServer {
 
 			return unwrap(
 				await emdash.handleContentCreate(args.collection, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
 					translationOf: args.translationOf,
+					bylines: args.bylines,
 				}),
 			);
 		},
@@ -623,7 +726,10 @@ export function createMcpServer(): McpServer {
 			title: "Update Content",
 			description:
 				"Update an existing content item. Only include fields you want to change " +
-				"in the 'data' object — unspecified fields are left unchanged. Pass the " +
+				"in the 'data' object — unspecified fields are left unchanged. Rich text " +
+				"(portableText) fields accept a Markdown string (recommended, converted " +
+				"automatically); use a Portable Text JSON array only for complex content " +
+				"Markdown can't express (custom blocks, embeds). Pass the " +
 				"_rev token from content_get to enable optimistic concurrency checking " +
 				"(the update fails if the item was modified since you read it). " +
 				"`seo` and `bylines` are persisted alongside the field updates in a " +
@@ -690,6 +796,10 @@ export function createMcpServer(): McpServer {
 			const ownerId = extractContentAuthorId(existing.data);
 			requireOwnership(extra, ownerId, "content:edit_own", "content:edit_any");
 
+			const data = args.data
+				? await convertWriteData(emdash, args.collection, args.data)
+				: args.data;
+
 			// Writing publishedAt directly (incl. clearing to null) overwrites
 			// historical record — gate behind publish_any, mirroring the REST PUT
 			// route. Status-driven publishes are gated separately below.
@@ -716,7 +826,7 @@ export function createMcpServer(): McpServer {
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
-						data: args.data,
+						data,
 						slug: args.slug,
 						authorId: userId,
 						locale: args.locale,
@@ -740,7 +850,7 @@ export function createMcpServer(): McpServer {
 					args.publishedAt !== undefined
 				) {
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
-						data: args.data,
+						data,
 						slug: args.slug,
 						authorId: userId,
 						locale: args.locale,
@@ -756,7 +866,7 @@ export function createMcpServer(): McpServer {
 
 			return unwrap(
 				await emdash.handleContentUpdate(args.collection, resolvedId, {
-					data: args.data,
+					data,
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
@@ -1160,6 +1270,183 @@ export function createMcpServer(): McpServer {
 				});
 			}
 			return unwrap(result);
+		},
+	);
+
+	// =====================================================================
+	// Byline tools
+	// =====================================================================
+
+	server.registerTool(
+		"byline_list",
+		{
+			title: "List Bylines",
+			description:
+				"List bylines (author/contributor credits) with optional filtering and " +
+				"pagination. Bylines are standalone records referenced by content items; " +
+				"use the returned id with content_create/content_update or byline_get. Use " +
+				"the nextCursor value from the response to fetch the next page.",
+			inputSchema: z.object({
+				search: z.string().optional().describe("Filter by display name or slug substring"),
+				isGuest: z.boolean().optional().describe("Filter by guest (true) or linked-user (false)"),
+				userId: z.string().optional().describe("Filter to the byline linked to a CMS user ID"),
+				locale: z.string().optional().describe("Filter by locale (omit for all)"),
+				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
+				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { BylineRepository } = await import("../database/repositories/byline.js");
+				const repo = new BylineRepository(ec.db);
+				return jsonResult(
+					await repo.findMany({
+						search: args.search,
+						isGuest: args.isGuest,
+						userId: args.userId,
+						locale: args.locale,
+						limit: args.limit,
+						cursor: args.cursor,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_LIST_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_get",
+		{
+			title: "Get Byline",
+			description:
+				"Get a single byline by its ID, including bio, avatar, website, linked " +
+				"user, and any custom fields.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline ID"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { BylineRepository } = await import("../database/repositories/byline.js");
+				const byline = await new BylineRepository(ec.db).findById(args.id);
+				if (!byline) return respondError("NOT_FOUND", `Byline '${args.id}' not found`);
+				return jsonResult(byline);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_GET_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_create",
+		{
+			title: "Create Byline",
+			description:
+				"Create a new byline (author/contributor credit). The slug must be unique " +
+				"and contain only lowercase letters, digits, and hyphens. Link the byline " +
+				"to a CMS user via userId, or leave it as a standalone guest credit. The " +
+				"returned id can then be passed to content_create/content_update bylines.",
+			inputSchema: z.object({ ...bylineCreateBody.shape }),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleBylineCreate } = await import("../api/handlers/bylines.js");
+				const result = await handleBylineCreate(ec.db, args);
+				if (result.success) await invalidateBylines();
+				return unwrap(result);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_CREATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_update",
+		{
+			title: "Update Byline",
+			description:
+				"Update an existing byline. Any field can be omitted to leave it " +
+				"unchanged. Renaming the slug must not collide with another byline.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline ID to update"),
+				...bylineUpdateBody.shape,
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleBylineUpdate } = await import("../api/handlers/bylines.js");
+				const { id, ...input } = args;
+				const result = await handleBylineUpdate(ec.db, id, input);
+				if (result.success) await invalidateBylines();
+				return unwrap(result);
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_delete",
+		{
+			title: "Delete Byline",
+			description:
+				"Permanently delete a byline. Any content crediting this byline loses the " +
+				"association, and it is cleared as a primary byline where set.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline ID to delete"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { BylineRepository } = await import("../database/repositories/byline.js");
+				const deleted = await new BylineRepository(ec.db).delete(args.id);
+				if (!deleted) return respondError("NOT_FOUND", `Byline '${args.id}' not found`);
+				await invalidateBylines();
+				return jsonResult({ deleted: args.id });
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"byline_translations",
+		{
+			title: "List Byline Translations",
+			description:
+				"Return every locale variant of a byline, identified via its shared translation_group.",
+			inputSchema: z.object({
+				id: z.string().describe("Byline id (or translation_group)"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { handleBylineTranslations } = await import("../api/handlers/bylines.js");
+				return unwrap(await handleBylineTranslations(ec.db, args.id));
+			} catch (error) {
+				return respondHandlerError(error, "BYLINE_TRANSLATIONS_ERROR");
+			}
 		},
 	);
 

@@ -21,6 +21,10 @@ interface Props {
 	collection: string;
 	contentId: string;
 	threaded?: boolean;
+	/** Show a like/reaction button per comment (opt-in). */
+	reactions?: boolean;
+	/** Order of top-level comments: chronological (default) or Wilson-ranked. */
+	sort?: "oldest" | "best";
 	class?: string;
 }
 
@@ -28,13 +32,15 @@ const {
 	collection,
 	contentId,
 	threaded = false,
+	reactions = false,
+	sort = "oldest",
 	class: className,
 } = Astro.props;
 
 const collectionInfo = await getCollectionInfo(collection);
 const enabled = collectionInfo?.commentsEnabled ?? false;
 const { items, total } = enabled
-	? await getComments({ collection, contentId, threaded })
+	? await getComments({ collection, contentId, threaded, reactions, sort })
 	: { items: [], total: 0 };
 
 const URL_RE = /https?:\/\/[^\s<>"')\]]+/g;
@@ -62,15 +68,72 @@ function escapeHtml(text: string): string {
 function formatBody(text: string): string {
 	return autoLinkUrls(escapeHtml(text));
 }
+
+// Progressive-enhancement script for reactions. Emitted verbatim (is:inline)
+// only when `reactions` is enabled, so non-reaction pages ship zero extra JS.
+// Avoids template literals internally so it survives the outer backticks.
+const REACTION_SCRIPT = `
+(() => {
+  const sections = document.querySelectorAll('[data-ec-comments][data-ec-reactions]');
+  sections.forEach((section) => {
+    const collection = section.getAttribute('data-collection');
+    const contentId = section.getAttribute('data-content-id');
+    if (!collection || !contentId) return;
+    const base = '/_emdash/api/comments/' + encodeURIComponent(collection) + '/' + encodeURIComponent(contentId) + '/reactions';
+    const headers = { 'X-EmDash-Request': '1' };
+
+    fetch(base, { headers: headers })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((payload) => {
+        const viewer = payload && payload.data && payload.data.viewer;
+        if (!viewer) return;
+        Object.keys(viewer).forEach((commentId) => {
+          (viewer[commentId] || []).forEach((reaction) => {
+            const sel = '.ec-reaction[data-comment-id="' + commentId + '"][data-ec-reaction="' + reaction + '"]';
+            const btn = section.querySelector(sel);
+            if (btn) btn.setAttribute('aria-pressed', 'true');
+          });
+        });
+      })
+      .catch(() => {});
+
+    section.addEventListener('click', (event) => {
+      const btn = event.target.closest('.ec-reaction');
+      if (!btn || !section.contains(btn)) return;
+      const commentId = btn.getAttribute('data-comment-id');
+      const reaction = btn.getAttribute('data-ec-reaction');
+      if (!commentId || !reaction) return;
+      btn.disabled = true;
+      fetch(base, {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+        body: JSON.stringify({ commentId: commentId, reaction: reaction }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((payload) => {
+          const data = payload && payload.data;
+          if (!data) return;
+          btn.setAttribute('aria-pressed', data.reacted ? 'true' : 'false');
+          const countEl = btn.querySelector('[data-ec-reaction-count]');
+          if (countEl) countEl.textContent = String((data.counts && data.counts[reaction]) || 0);
+        })
+        .catch(() => {})
+        .finally(() => { btn.disabled = false; });
+    });
+  });
+})();
+`;
 ---
 
 {
 	enabled && (
+		<Fragment>
 		<section
 			class:list={["ec-comments", className]}
 			data-ec-comments
 			data-collection={collection}
 			data-content-id={contentId}
+			{...(reactions ? { "data-ec-reactions": "" } : {})}
 		>
 			<h3 class="ec-comments-heading">
 				{total === 0
@@ -112,6 +175,25 @@ function formatBody(text: string): string {
 									class="ec-comment-body"
 									set:html={formatBody(comment.body)}
 								/>
+								{reactions && (
+									<div class="ec-comment-actions">
+										<button
+											type="button"
+											class="ec-reaction"
+											data-ec-reaction="like"
+											data-comment-id={comment.id}
+											aria-pressed="false"
+										>
+											<span class="ec-reaction-icon" aria-hidden="true">
+												&#x2661;
+											</span>
+											<span class="ec-reaction-label">Like</span>
+											<span class="ec-reaction-count" data-ec-reaction-count>
+												{comment.reactions?.like ?? 0}
+											</span>
+										</button>
+									</div>
+								)}
 								{threaded && comment.replies && comment.replies.length > 0 && (
 									<ol class="ec-comment-replies">
 										{comment.replies.map((reply: PublicComment) => (
@@ -153,6 +235,21 @@ function formatBody(text: string): string {
 														class="ec-comment-body"
 														set:html={formatBody(reply.body)}
 													/>
+													{reactions && (
+														<div class="ec-comment-actions">
+															<button
+																type="button"
+																class="ec-reaction"
+																data-ec-reaction="like"
+																data-comment-id={reply.id}
+																aria-pressed="false"
+															>
+																<span class="ec-reaction-icon" aria-hidden="true">&#x2661;</span>
+																<span class="ec-reaction-label">Like</span>
+																<span class="ec-reaction-count" data-ec-reaction-count>{reply.reactions?.like ?? 0}</span>
+															</button>
+														</div>
+													)}
 												</article>
 											</li>
 										))}
@@ -164,6 +261,8 @@ function formatBody(text: string): string {
 				</ol>
 			)}
 		</section>
+		{reactions && <script is:inline set:html={REACTION_SCRIPT} />}
+		</Fragment>
 	)
 }
 
@@ -228,5 +327,41 @@ function formatBody(text: string): string {
 		margin-top: 0.5rem;
 		white-space: pre-wrap;
 		word-break: break-word;
+	}
+
+	.ec-comment-actions {
+		margin-top: 0.5rem;
+	}
+
+	.ec-reaction {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		font: inherit;
+		font-size: 0.875em;
+		color: inherit;
+		background: none;
+		border: var(--ec-comment-border);
+		border-radius: 999px;
+		padding: 0.15rem 0.6rem;
+		cursor: pointer;
+	}
+
+	.ec-reaction[aria-pressed="true"] {
+		border-color: currentColor;
+		font-weight: 600;
+	}
+
+	.ec-reaction[aria-pressed="true"] .ec-reaction-icon {
+		color: #e0245e;
+	}
+
+	.ec-reaction:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+
+	.ec-reaction-count {
+		font-variant-numeric: tabular-nums;
 	}
 </style>
