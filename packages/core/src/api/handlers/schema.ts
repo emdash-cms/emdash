@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import { invalidateCollectionCache } from "../../object-cache/index.js";
 import {
 	SchemaRegistry,
 	SchemaError,
@@ -315,6 +316,9 @@ export async function handleSchemaFieldCreate(
 		const registry = new SchemaRegistry(db);
 		const item = await registry.createField(collectionSlug, input);
 
+		// Content snapshots embed field values; a column change invalidates them.
+		invalidateCollectionCache(collectionSlug);
+
 		return {
 			success: true,
 			data: { item },
@@ -353,6 +357,8 @@ export async function handleSchemaFieldUpdate(
 		const registry = new SchemaRegistry(db);
 		const item = await registry.updateField(collectionSlug, fieldSlug, input);
 
+		invalidateCollectionCache(collectionSlug);
+
 		return {
 			success: true,
 			data: { item },
@@ -389,6 +395,8 @@ export async function handleSchemaFieldDelete(
 	try {
 		const registry = new SchemaRegistry(db);
 		await registry.deleteField(collectionSlug, fieldSlug);
+
+		invalidateCollectionCache(collectionSlug);
 
 		return {
 			success: true,

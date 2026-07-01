@@ -265,6 +265,7 @@ export interface EmDashHandlers {
 			slug?: string;
 			status?: string;
 			authorId?: string;
+			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
 			createdAt?: string | null;

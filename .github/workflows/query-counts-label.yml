@@ -1,16 +1,21 @@
 name: Query Counts — Label
 
-# Applies the "query-count changed" label when a PR's diff touches either
-# snapshot file. The label is informational — it flags that the PR alters
-# per-route DB query counts (either because the author's change regressed
-# them, or because the Apply workflow auto-updated the baseline).
+# Manages the "query-count changed" label and a diff comment on PRs that
+# alter per-route DB query counts. When a PR's snapshot files differ from
+# base, the label and a comparison comment are added; when they match base
+# again (e.g. the delta was reverted, or base caught up via a merge), both
+# are removed.
+#
+# Deliberately NOT path-filtered. A `paths:` filter would create a catch-22:
+# the workflow could never run to clear a stale label/comment once a
+# previously-changed snapshot matched base again, because at that point the
+# PR diff no longer touches the snapshot files. The script below is cheap
+# (a couple of API reads) and decides what to do from the actual base/head
+# diff on every run.
 on:
   pull_request_target:
     branches: [main]
     types: [opened, synchronize, reopened, edited]
-    paths:
-      - scripts/query-counts.snapshot.sqlite.json
-      - scripts/query-counts.snapshot.d1.json
 
 permissions:
   pull-requests: write
@@ -20,30 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const label = 'query-count changed';
-            // Create the label if it doesn't exist yet. Ignore 422 (already exists).
-            try {
-              await github.rest.issues.createLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                name: label,
-                color: 'fbca04',
-                description: 'PR diff modifies query-count snapshot files',
-              });
-            } catch (err) {
-              if (err.status !== 422) throw err;
-            }
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-              labels: [label],
-            });
-
-      - name: Comment query-count diff
+      - name: Sync query-count label and diff comment
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -51,6 +33,7 @@ jobs:
             const pr = context.payload.pull_request;
             const baseRef = pr.base.sha;
             const headRef = pr.head.sha;
+            const label = 'query-count changed';
 
             // Fetch a JSON file at a given ref. Returns {} if the file
             // doesn't exist on that ref (e.g. snapshot added in this PR).
@@ -129,9 +112,42 @@ jobs:
               );
             }
 
-            const marker = '<!-- query-count-diff -->';
+            const hasChange = sections.length > 0;
 
-            // Find an existing bot comment so we can upsert in place.
+            // Label: present iff the snapshots differ from base on this run.
+            if (hasChange) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name: label,
+                  color: 'fbca04',
+                  description: 'PR diff modifies query-count snapshot files',
+                });
+              } catch (err) {
+                if (err.status !== 422) throw err; // 422 = already exists
+              }
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: pr.number,
+                labels: [label],
+              });
+            } else {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  name: label,
+                });
+              } catch (err) {
+                if (err.status !== 404) throw err; // 404 = label not applied
+              }
+            }
+
+            // Comment: upsert when changed, delete when not.
+            const marker = '<!-- query-count-diff -->';
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner,
               repo,
@@ -142,9 +158,10 @@ jobs:
               (c) => typeof c.body === 'string' && c.body.includes(marker),
             );
 
-            if (sections.length === 0) {
-              // Snapshot files unchanged on this run; remove any stale comment
-              // (e.g. earlier push had a delta that has since been reverted).
+            if (!hasChange) {
+              // Snapshots match base on this run; remove any stale comment
+              // (e.g. an earlier push had a delta that base has since caught
+              // up to, or it was reverted).
               if (prior) {
                 await github.rest.issues.deleteComment({
                   owner,

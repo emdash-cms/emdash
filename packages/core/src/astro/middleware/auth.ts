@@ -32,6 +32,7 @@ import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-token
 import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
+import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
 import { buildEmDashCsp } from "./csp.js";
 
@@ -407,7 +408,7 @@ async function handlePluginRouteAuth(
 	try {
 		// Try session auth (sets locals.user if session exists)
 		const { session } = context;
-		const sessionUser = await session?.get("user");
+		const sessionUser = await resolveSessionUser(session);
 		if (sessionUser?.id && emdash?.db) {
 			const adapter = createKyselyAdapter(emdash.db);
 			const user = await adapter.getUserById(sessionUser.id);
@@ -435,7 +436,7 @@ async function handlePublicRouteAuth(
 	const { emdash } = locals;
 
 	try {
-		const sessionUser = await session?.get("user");
+		const sessionUser = await resolveSessionUser(session);
 		if (sessionUser?.id && emdash?.db) {
 			const adapter = createKyselyAdapter(emdash.db);
 			const user = await adapter.getUserById(sessionUser.id);
@@ -650,7 +651,7 @@ async function handlePasskeyAuth(
 
 	try {
 		// Check session for user (session.get returns a Promise)
-		const sessionUser = await session?.get("user");
+		const sessionUser = await resolveSessionUser(session);
 
 		if (!sessionUser?.id) {
 			if (isApiRoute) {

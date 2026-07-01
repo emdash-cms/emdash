@@ -78,6 +78,19 @@ export interface BylineSummary {
 	avatarStorageKey?: string | null;
 	/** Avatar media alt text, from the same media join. Null when not joined. */
 	avatarAlt?: string | null;
+	/**
+	 * Avatar media blurhash (LQIP placeholder, migration 024), folded in by the
+	 * same media join as `avatarStorageKey`. Lets a renderer paint a blurred
+	 * placeholder while the full avatar loads, with no extra media lookup.
+	 * Null when the byline has no avatar, the media row has no blurhash, or the
+	 * byline was loaded through a finder that doesn't join media.
+	 */
+	avatarBlurhash?: string | null;
+	/**
+	 * Avatar media dominant colour (LQIP placeholder, migration 024), from the
+	 * same media join. Null under the same conditions as `avatarBlurhash`.
+	 */
+	avatarDominantColor?: string | null;
 	websiteUrl: string | null;
 	userId: string | null;
 	isGuest: boolean;

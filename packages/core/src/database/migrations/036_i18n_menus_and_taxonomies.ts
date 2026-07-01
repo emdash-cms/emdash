@@ -199,6 +199,15 @@ async function rebuildTaxonomies(db: Kysely<unknown>, defaultLocale: string): Pr
 		.on("taxonomies")
 		.column("translation_group")
 		.execute();
+	// Dropping the old table dropped idx_taxonomies_parent (from 015); recreate
+	// it here for parity with rebuildMenuItems/rebuildContentTaxonomies. Existing
+	// installs recover it via migration 047.
+	await db.schema
+		.createIndex("idx_taxonomies_parent")
+		.ifNotExists()
+		.on("taxonomies")
+		.column("parent_id")
+		.execute();
 }
 
 async function rebuildTaxonomyDefs(db: Kysely<unknown>, defaultLocale: string): Promise<void> {
@@ -569,6 +578,13 @@ async function rebuildTaxonomiesDown(db: Kysely<unknown>): Promise<void> {
 	await db.schema.dropTable("taxonomies").execute();
 	await sql`ALTER TABLE taxonomies_old RENAME TO taxonomies`.execute(db);
 	await db.schema.createIndex("idx_taxonomies_name").on("taxonomies").column("name").execute();
+	// Restore the pre-036 (migration 015) parent index so the rollback is faithful.
+	await db.schema
+		.createIndex("idx_taxonomies_parent")
+		.ifNotExists()
+		.on("taxonomies")
+		.column("parent_id")
+		.execute();
 }
 
 async function rebuildTaxonomyDefsDown(db: Kysely<unknown>): Promise<void> {

@@ -99,6 +99,31 @@ export async function mintInstallationToken(creds: GitHubAppCreds): Promise<stri
 }
 
 /**
+ * Fetch the PR's unified diff (the canonical base...head diff, 3-dot). Used to
+ * stage the exact changed lines into the agent's workspace, since the cf-shell
+ * sandbox has no `git` CLI. `token` is optional (public repos work anonymously,
+ * but a token avoids low rate limits). Returns the raw diff text.
+ */
+export async function fetchUnifiedDiff(
+	owner: string,
+	repo: string,
+	prNumber: number,
+	token?: string,
+): Promise<string> {
+	const headers: Record<string, string> = {
+		accept: "application/vnd.github.v3.diff",
+		"user-agent": USER_AGENT,
+		"x-github-api-version": "2022-11-28",
+	};
+	if (token) headers.authorization = `Bearer ${token}`;
+	const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`, { headers });
+	if (!res.ok) {
+		throw new Error(`unified diff fetch failed: ${res.status} ${await res.text()}`);
+	}
+	return res.text();
+}
+
+/**
  * Fetch the most recent emdashbot[bot] review body for a re-review, so the
  * agent can avoid re-flagging already-addressed findings. Returns undefined on
  * a first review or any failure (non-fatal: we just review fresh).
@@ -223,10 +248,29 @@ function findingToComment(finding: ReviewResult["findings"][number]) {
 	return base;
 }
 
+/** GitHub rejects a COMMENT review with an empty body, so we must never send one. */
+const FALLBACK_SUMMARY = "Automated review completed.";
+
+/**
+ * Render findings as a markdown list. Used for the body-only fallback so that
+ * when GitHub can't anchor inline comments (a finding points outside the diff),
+ * the findings still reach the PR in the review body instead of being dropped.
+ */
+function renderFindingsMarkdown(findings: ReviewResult["findings"]): string {
+	if (findings.length === 0) return "";
+	const lines = findings.map((f) => {
+		const label = f.severity === "needs_fixing" ? "needs fixing" : "suggestion";
+		const range = f.startLine && f.startLine < f.line ? `${f.startLine}-${f.line}` : `${f.line}`;
+		return `- **[${label}]** \`${f.path}:${range}\`\n\n  ${f.body.replace(/\n/g, "\n  ")}`;
+	});
+	return `\n\n---\n\n### Findings\n\n${lines.join("\n\n")}`;
+}
+
 /**
  * Post the review. Maps verdict -> review event and findings -> line comments.
- * If GitHub rejects the request because a comment anchors to a line outside the
- * diff, retry body-only so the summary still lands.
+ * If GitHub rejects the inline comments (a comment anchors outside the diff),
+ * retry body-only with the findings folded into the body so nothing is lost.
+ * The body is always non-empty -- GitHub 422s a blank COMMENT review body.
  */
 export async function postReview(
 	token: string,
@@ -237,6 +281,7 @@ export async function postReview(
 ): Promise<void> {
 	const url = `${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews`;
 	const event = verdictToEvent(result.verdict);
+	const summary = result.summary.trim() || FALLBACK_SUMMARY;
 	const headers = {
 		authorization: `Bearer ${token}`,
 		accept: "application/vnd.github+json",
@@ -246,17 +291,18 @@ export async function postReview(
 	};
 
 	const withComments = {
-		body: result.summary,
+		body: summary,
 		event,
 		comments: result.findings.map(findingToComment),
 	};
 	let res = await fetch(url, { method: "POST", headers, body: JSON.stringify(withComments) });
 	if (res.ok) return;
 
-	// Most likely cause: a comment line isn't part of the diff. Fall back to a
-	// body-only review so the summary is never lost.
+	// Most likely cause: a comment anchors to a line outside the diff
+	// ("Path could not be resolved"). Fall back to a body-only review that
+	// carries the summary AND the findings inline, so the review still lands.
 	const firstError = await res.text();
-	const bodyOnly = { body: result.summary, event };
+	const bodyOnly = { body: summary + renderFindingsMarkdown(result.findings), event };
 	res = await fetch(url, { method: "POST", headers, body: JSON.stringify(bodyOnly) });
 	if (!res.ok) {
 		throw new Error(

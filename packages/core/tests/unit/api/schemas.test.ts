@@ -173,6 +173,11 @@ describe("createFieldBody / updateFieldBody — allowedMimeTypes", () => {
 		});
 		expect(result.validation?.allowedMimeTypes).toEqual(["font/", "application/font-woff"]);
 	});
+
+	it("preserves type through updateFieldBody parse (so #1397 type changes reach the registry)", () => {
+		const result = updateFieldBody.parse({ type: "slug", validation: null });
+		expect(result.type).toBe("slug");
+	});
 });
 
 describe("mediaUploadUrlBody schema factory", () => {

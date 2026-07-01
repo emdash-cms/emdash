@@ -829,7 +829,7 @@ describe("i18n (Integration)", () => {
 
 			// Restore
 			const restored = await repo.restore("post", post.id);
-			expect(restored).toBe(true);
+			expect(restored).toEqual(expect.objectContaining({ id: post.id, locale: "en" }));
 
 			const found = await repo.findById("post", post.id);
 			expect(found).not.toBeNull();

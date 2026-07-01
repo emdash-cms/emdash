@@ -18,18 +18,14 @@
  * in normal production traffic.
  */
 
-import { isInstrumentationEnabled } from "../../database/instrumentation.js";
+import { flushRecorder, isInstrumentationEnabled } from "../../database/instrumentation.js";
 import { getRequestContext } from "../../request-context.js";
+// Reuse the single source of truth for Astro's well-known cookies symbol
+// rather than redefining `Symbol.for("astro.cookies")` here — it must stay in
+// lockstep with the copy the rest of the middleware forwards.
+import { ASTRO_COOKIES_SYMBOL } from "./scoped-db.js";
 
 export const STREAM_END_PREFIX = "[emdash-stream-end]";
-
-/**
- * Astro attaches AstroCookies to outgoing responses via a well-known global
- * symbol. Constructing a new Response drops non-header metadata, so the
- * symbol must be forwarded explicitly or `cookies.set()` calls are silently
- * dropped. Same pattern as finalizeResponse in ../middleware.ts.
- */
-const ASTRO_COOKIES_SYMBOL = Symbol.for("astro.cookies");
 
 /** Shape of the NDJSON snapshot emitted when the body finishes streaming. */
 export interface StreamEndSnapshot {
@@ -64,6 +60,14 @@ export function wrapBodyForStreamMetrics(response: Response): Response {
 	if (!metrics) return response;
 	const recorder = ctx?.queryRecorder;
 
+	// Claim the per-query flush: the recorder is mutated in-place by the
+	// Kysely log hook for the whole request, including queries issued by
+	// components while the body streams. Flushing here (rather than when
+	// middleware returns) is what captures those streaming queries. The
+	// flag tells the middleware's fallback flush to leave this recorder
+	// to us.
+	if (recorder) recorder.deferredFlush = true;
+
 	const transform = new TransformStream<Uint8Array, Uint8Array>({
 		flush() {
 			const snapshot: StreamEndSnapshot = {
@@ -79,6 +83,8 @@ export function wrapBodyForStreamMetrics(response: Response): Response {
 				cacheMisses: metrics.cacheMisses,
 			};
 			console.log(`${STREAM_END_PREFIX} ${JSON.stringify(snapshot)}`);
+			// Emit the full per-query log now that streaming is complete.
+			if (recorder) flushRecorder(recorder);
 		},
 	});
 

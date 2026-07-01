@@ -1,7 +1,10 @@
+import { Role } from "@emdash-cms/auth";
 import { describe, it, expect } from "vitest";
 
+import { GET as schemaGET } from "../../../src/astro/routes/api/schema/index.js";
 import { EmDashClient, EmDashApiError } from "../../../src/client/index.js";
 import type { Interceptor } from "../../../src/client/transport.js";
+import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
 // Regex patterns for route matching
 const CONTENT_POSTS_ABC_REGEX = /\/content\/posts\/abc/;
@@ -456,6 +459,37 @@ describe("EmDashClient", () => {
 	});
 
 	describe("schema methods", () => {
+		it("schema route wraps JSON exports in the API data envelope", async () => {
+			const db = await setupTestDatabaseWithCollections();
+
+			try {
+				const response = await schemaGET({
+					request: new Request("http://localhost:4321/_emdash/api/schema"),
+					locals: {
+						emdash: { db },
+						user: { id: "user_1", role: Role.EDITOR },
+					},
+				} as never);
+
+				expect(response.status).toBe(200);
+				const version = response.headers.get("X-Schema-Version");
+				expect(version).toBeTruthy();
+
+				const body = await response.json();
+				expect(body).toEqual({
+					data: expect.objectContaining({
+						collections: expect.arrayContaining([
+							expect.objectContaining({ slug: "page" }),
+							expect.objectContaining({ slug: "post" }),
+						]),
+						version,
+					}),
+				});
+			} finally {
+				await teardownTestDatabase(db);
+			}
+		});
+
 		it("collections() returns list", async () => {
 			const backend = createMockBackend([
 				{
@@ -480,6 +514,100 @@ describe("EmDashClient", () => {
 			const cols = await client.collections();
 			expect(cols).toHaveLength(2);
 			expect(cols[0]?.slug).toBe("posts");
+		});
+
+		it("schemaExport() returns collections and version", async () => {
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/schema",
+					handler: () =>
+						jsonResponse({
+							collections: [
+								{
+									slug: "posts",
+									label: "Posts",
+									labelSingular: "Post",
+									supports: ["drafts"],
+									fields: [
+										{
+											slug: "title",
+											label: "Title",
+											type: "string",
+											required: true,
+											unique: false,
+										},
+									],
+								},
+							],
+							version: "schema-v1",
+						}),
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const schema = await client.schemaExport();
+			expect(schema.collections).toHaveLength(1);
+			expect(schema.collections[0]?.slug).toBe("posts");
+			expect(schema.version).toBe("schema-v1");
+		});
+
+		it("schemaTypes() returns raw TypeScript", async () => {
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: /\/schema\?format=typescript$/,
+					handler: () =>
+						new Response("export interface Post { title: string }\n", {
+							status: 200,
+							headers: { "Content-Type": "text/typescript" },
+						}),
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await expect(client.schemaTypes()).resolves.toBe("export interface Post { title: string }\n");
+		});
+
+		it("schemaExport() throws EmDashApiError on non-2xx responses", async () => {
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/schema",
+					handler: () =>
+						jsonResponse(
+							{
+								error: {
+									code: "SCHEMA_EXPORT_ERROR",
+									message: "Schema export failed",
+								},
+							},
+							500,
+						),
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await expect(client.schemaExport()).rejects.toMatchObject({
+				status: 500,
+				code: "SCHEMA_EXPORT_ERROR",
+				message: "Schema export failed",
+			});
 		});
 
 		it("createCollection() sends correct payload", async () => {

@@ -1087,15 +1087,15 @@ export async function handleContentRestore(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ restored: true }>> {
+): Promise<ApiResult<{ restored: true; item: ContentItem }>> {
 	try {
-		const restored = await withTransaction(db, async (trx) => {
+		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
 			return repo.restore(collection, resolvedId);
 		});
 
-		if (!restored) {
+		if (!item) {
 			return {
 				success: false,
 				error: {
@@ -1107,7 +1107,7 @@ export async function handleContentRestore(
 
 		return {
 			success: true,
-			data: { restored: true },
+			data: { restored: true, item },
 		};
 	} catch (error) {
 		console.error("Content restore error:", error);
