@@ -30,7 +30,7 @@ import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
-import { isMissingTableError } from "../../utils/db-errors.js";
+import { isMissingColumnError, isMissingTableError } from "../../utils/db-errors.js";
 import { encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 import { validateMediaFields } from "./validate-media-fields.js";
@@ -423,6 +423,15 @@ export async function handleContentList(
 				error: {
 					code: "COLLECTION_NOT_FOUND",
 					message: `Collection '${collection}' not found`,
+				},
+			};
+		}
+		if (isMissingColumnError(error, "deleted_at")) {
+			return {
+				success: false,
+				error: {
+					code: "COLLECTION_SCHEMA_MISMATCH",
+					message: `Collection '${collection}' backing table is missing the 'deleted_at' column`,
 				},
 			};
 		}
