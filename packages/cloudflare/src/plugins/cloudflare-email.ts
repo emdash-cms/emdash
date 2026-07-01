@@ -117,6 +117,7 @@ export function createCloudflareEmailDeliver(
 	return async (event, ctx) => {
 		const { message } = event;
 		const env = await loadEnv();
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding accessed from untyped env object; the send() check below validates the shape
 		const binding = env[bindingName] as SendEmailBinding | undefined;
 		if (!binding || typeof binding.send !== "function") {
 			throw new Error(
