@@ -79,6 +79,56 @@ describe("createViteConfig admin aliasing", () => {
 	});
 });
 
+describe("createViteConfig Cloudflare SSR dep optimization", () => {
+	const externalProjectRoot = new URL("file:///workspace/emdash-site/");
+
+	function buildConfig() {
+		return createViteConfig(
+			{
+				serializableConfig: {},
+				resolvedConfig: {} as never,
+				pluginDescriptors: [],
+				astroConfig: {
+					root: externalProjectRoot,
+					adapter: { name: "@astrojs/cloudflare" },
+				} as AstroConfig,
+			},
+			"dev",
+		);
+	}
+
+	// Regression: in a real install (not the workspace symlink, which
+	// Vite never optimizes), the workerd optimizer bundles emdash's dist and
+	// code-splits its lazily-executed dynamic imports (MCP tools, content
+	// validation) into hashed chunks. Any mid-session re-optimization deletes
+	// those chunks while loaded modules still point at them, so every content
+	// write fails with "The file does not exist at .../deps_ssr/..." until the
+	// dev server restarts. First-party packages must stay excluded.
+	it("excludes first-party packages from the workerd optimizer", () => {
+		const config = buildConfig();
+		const ssr = config.ssr as { optimizeDeps?: { exclude?: string[] } };
+		const exclude = ssr.optimizeDeps?.exclude ?? [];
+
+		expect(exclude).toContain("emdash");
+		expect(exclude).toContain("@emdash-cms/admin");
+		expect(exclude).toContain("@emdash-cms/cloudflare");
+		expect(exclude).toContain("virtual:emdash");
+	});
+
+	// These are only reached on the first request to their route/feature, so
+	// the startup pass misses them; each late discovery re-optimizes and
+	// reloads the worker mid-session.
+	it("pre-bundles deps that are only discovered after startup", () => {
+		const config = buildConfig();
+		const ssr = config.ssr as { optimizeDeps?: { include?: string[] } };
+		const include = ssr.optimizeDeps?.include ?? [];
+
+		expect(include).toContain("emdash > kysely/migration");
+		expect(include).toContain("astro/zod");
+		expect(include).toContain("@astrojs/cloudflare/image-transform-endpoint");
+	});
+});
+
 describe("createViteConfig use-sync-external-store shim aliasing", () => {
 	const externalProjectRoot = new URL("file:///workspace/emdash-site/");
 
