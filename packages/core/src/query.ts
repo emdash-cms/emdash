@@ -871,9 +871,8 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 			});
 
 			if (baseError) {
-				// Entry not Found but localeChain not finished yet
-				if (baseError instanceof LiveEntryNotFoundError && typeof localeChain[i + 1] == "string")
-					continue;
+				// Entry not found but localeChain not finished yet
+				if (LiveEntryNotFoundError.is(baseError)) continue;
 				return { entry: null, error: baseError, isPreview: serveDrafts, cacheHint: {} };
 			}
 
@@ -947,9 +946,8 @@ export async function getEmDashEntry<T extends string, D = InferCollectionData<T
 
 			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, { type, id, locale });
 			if (error) {
-				// Entry not Found but localeChain not finished yet
-				if (error instanceof LiveEntryNotFoundError && typeof localeChain[i + 1] == "string")
-					continue;
+				// Entry not found but localeChain not finished yet
+				if (LiveEntryNotFoundError.is(error)) continue;
 				return { entry: null, error, isPreview: false, cacheHint: {} };
 			}
 

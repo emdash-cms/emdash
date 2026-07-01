@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Added condition to check if getLiveEntry error is Astro's `LiveEntryNotFoundError` inside localeChain loop. This make sure to check every possible language chain before returning `LiveEntryNotFoundError` to the `error` field.
+Fixes fallback locale resolution for single entries so an entry is returned from the fallback locale when the requested locale has no matching live entry.
