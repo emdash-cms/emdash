@@ -17,8 +17,14 @@
  * ```
  */
 import type { PublicPageContext, PageMetadataContribution } from "../plugins/types.js";
-import { resolvePageMetadata, renderPageMetadata } from "../page/metadata.js";
+import {
+	createSha256CspHash,
+	resolvePageMetadata,
+	renderPageMetadata,
+	type ResolvedPageMetadata,
+} from "../page/metadata.js";
 import { renderFragments } from "../page/fragments.js";
+import JsonLdScript from "./JsonLdScript.astro";
 import {
 	generateBaseSeoContributions,
 	generateSiteSeoContributions,
@@ -38,6 +44,7 @@ const runtime = getPageRuntime(Astro.locals as Record<string, unknown>);
 let metadataHtml = "";
 let siteIdentityHtml = "";
 let fragmentsHtml = "";
+let jsonLdScripts: ResolvedPageMetadata["jsonld"] = [];
 
 if (runtime) {
 	// Run independent async loads in parallel: site settings (SEO meta
@@ -79,17 +86,30 @@ if (runtime) {
 	const siteContributions = generateSiteSeoContributions(siteSettings.seo);
 	const allContributions = [...pluginContributions, ...siteContributions, ...baseContributions];
 	const resolved = resolvePageMetadata(allContributions);
-	metadataHtml = renderPageMetadata(resolved);
+	jsonLdScripts = resolved.jsonld;
+	metadataHtml = renderPageMetadata(resolved, { includeJsonLd: false });
 	siteIdentityHtml = renderSiteIdentity({ favicon: siteSettings.favicon });
 	fragmentsHtml = renderFragments(fragments, "head");
 } else {
 	// No runtime (EmDash not initialized) — still render base SEO
 	const baseContributions: PageMetadataContribution[] = generateBaseSeoContributions(page);
 	const resolved = resolvePageMetadata(baseContributions);
-	metadataHtml = renderPageMetadata(resolved);
+	jsonLdScripts = resolved.jsonld;
+	metadataHtml = renderPageMetadata(resolved, { includeJsonLd: false });
+}
+
+if (Astro.csp && jsonLdScripts.length > 0) {
+	await Promise.all(
+		jsonLdScripts.map(async ({ json }) => {
+			Astro.csp?.insertScriptHash(await createSha256CspHash(json));
+		}),
+	);
 }
 ---
 
 <Fragment set:html={metadataHtml} />
+{
+	jsonLdScripts.map(({ json }) => <JsonLdScript json={json} />)
+}
 <Fragment set:html={siteIdentityHtml} />
 <Fragment set:html={fragmentsHtml} />
