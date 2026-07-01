@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.25.1",
+  "version": "0.26.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -272,7 +272,7 @@
     "@types/react": "catalog:",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
-    "@vitest/ui": "^4.1.8",
+    "@vitest/ui": "^4.1.9",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

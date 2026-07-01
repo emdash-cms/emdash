@@ -84,7 +84,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# koleksiyon} other {# koleksiyon}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1272
+#: packages/admin/src/router.tsx:1277
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# yorum güncellendi} other {# yorum güncellendi}}"
 
@@ -506,7 +506,7 @@ msgstr "Daveti Kabul Et"
 msgid "Access denied"
 msgstr "Erişim engellendi"
 
-#: packages/admin/src/router.tsx:1292
+#: packages/admin/src/router.tsx:1297
 msgid "Access Denied"
 msgstr "Erişim engellendi"
 
@@ -845,19 +845,19 @@ msgstr "Alternatif olarak WordPress'ten (Araçlar → Dışa Aktar) dışa aktar
 #: packages/admin/src/router.tsx:414
 #: packages/admin/src/router.tsx:428
 #: packages/admin/src/router.tsx:442
-#: packages/admin/src/router.tsx:813
-#: packages/admin/src/router.tsx:851
-#: packages/admin/src/router.tsx:869
-#: packages/admin/src/router.tsx:887
-#: packages/admin/src/router.tsx:908
-#: packages/admin/src/router.tsx:929
-#: packages/admin/src/router.tsx:950
-#: packages/admin/src/router.tsx:981
-#: packages/admin/src/router.tsx:1001
-#: packages/admin/src/router.tsx:1237
-#: packages/admin/src/router.tsx:1253
-#: packages/admin/src/router.tsx:1278
-#: packages/admin/src/router.tsx:1760
+#: packages/admin/src/router.tsx:818
+#: packages/admin/src/router.tsx:856
+#: packages/admin/src/router.tsx:874
+#: packages/admin/src/router.tsx:892
+#: packages/admin/src/router.tsx:913
+#: packages/admin/src/router.tsx:934
+#: packages/admin/src/router.tsx:955
+#: packages/admin/src/router.tsx:986
+#: packages/admin/src/router.tsx:1006
+#: packages/admin/src/router.tsx:1242
+#: packages/admin/src/router.tsx:1258
+#: packages/admin/src/router.tsx:1283
+#: packages/admin/src/router.tsx:1765
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1052,7 +1052,7 @@ msgstr "Kimliği doğrulanmış kullanıcıları otomatik olarak onayla"
 msgid "Auto-generated from name (you can edit)"
 msgstr "Addan otomatik olarak oluşturuldu (düzenleyebilirsiniz)"
 
-#: packages/admin/src/router.tsx:850
+#: packages/admin/src/router.tsx:855
 msgid "Autosave failed"
 msgstr "Otomatik kaydetme başarısız oldu"
 
@@ -1354,7 +1354,7 @@ msgstr "Logoyu Değiştir"
 msgid "Changelog"
 msgstr "Değişiklik günlüğü"
 
-#: packages/admin/src/router.tsx:901
+#: packages/admin/src/router.tsx:906
 msgid "Changes discarded"
 msgstr "Değişiklikler iptal edildi"
 
@@ -1604,7 +1604,7 @@ msgstr "İçerik Hataları ({0})"
 msgid "Content found:"
 msgstr "Bulunan içerik:"
 
-#: packages/admin/src/router.tsx:923
+#: packages/admin/src/router.tsx:928
 msgid "Content has been scheduled for publishing"
 msgstr "İçeriğin yayınlanması planlandı"
 
@@ -1616,7 +1616,7 @@ msgstr "İçerik seçilen revizyona güncellendi."
 msgid "Content ID:"
 msgstr "İçerik Kimliği:"
 
-#: packages/admin/src/router.tsx:864
+#: packages/admin/src/router.tsx:869
 msgid "Content is now live"
 msgstr "İçerik artık yayında"
 
@@ -1628,11 +1628,11 @@ msgstr "içerik öğeleri"
 msgid "Content Read"
 msgstr "İçerik Okuma"
 
-#: packages/admin/src/router.tsx:882
+#: packages/admin/src/router.tsx:887
 msgid "Content removed from public view"
 msgstr "İçerik herkese açık görünümden kaldırıldı"
 
-#: packages/admin/src/router.tsx:944
+#: packages/admin/src/router.tsx:949
 msgid "Content reverted to draft"
 msgstr "İçerik taslağa geri döndürüldü"
 
@@ -1917,7 +1917,7 @@ msgid "Created {0}"
 msgstr "{0} oluşturuldu"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:975
+#: packages/admin/src/router.tsx:980
 msgid "Created {0} translation"
 msgstr "{0} çevirisi oluşturuldu"
 
@@ -2776,7 +2776,7 @@ msgstr "WordPress site URL'nizi girin"
 #: packages/admin/src/components/MenuEditor.tsx:179
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
-#: packages/admin/src/router.tsx:1942
+#: packages/admin/src/router.tsx:1947
 msgid "Error"
 msgstr "Hata"
 
@@ -2897,13 +2897,13 @@ msgstr "Bazı koleksiyonlar oluşturulamadı"
 msgid "Failed to create term"
 msgstr "Terim oluşturulamadı"
 
-#: packages/admin/src/router.tsx:980
+#: packages/admin/src/router.tsx:985
 msgid "Failed to create translation"
 msgstr "Çeviri oluşturulamadı"
 
 #: packages/admin/src/router.tsx:398
 #: packages/admin/src/router.tsx:427
-#: packages/admin/src/router.tsx:1000
+#: packages/admin/src/router.tsx:1005
 msgid "Failed to delete"
 msgstr "Silinemedi"
 
@@ -2924,7 +2924,7 @@ msgid "Failed to delete collection"
 msgstr "Koleksiyon silinemedi"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1252
+#: packages/admin/src/router.tsx:1257
 msgid "Failed to delete comment"
 msgstr "Yorum silinemedi"
 
@@ -2990,7 +2990,7 @@ msgstr "Arama devre dışı bırakılamadı"
 msgid "Failed to disable user"
 msgstr "Kullanıcı devre dışı bırakılamadı"
 
-#: packages/admin/src/router.tsx:907
+#: packages/admin/src/router.tsx:912
 msgid "Failed to discard changes"
 msgstr "Değişiklikler silinemedi"
 
@@ -3097,8 +3097,8 @@ msgstr "Terimler getirilemedi"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:737
-#: packages/admin/src/router.tsx:1183
+#: packages/admin/src/router.tsx:742
+#: packages/admin/src/router.tsx:1188
 msgid "Failed to fetch user"
 msgstr "Kullanıcı getirilemedi"
 
@@ -3199,7 +3199,7 @@ msgstr "Kullanıcılar yüklenemedi: {0}"
 msgid "Failed to load widget"
 msgstr "Widget yüklenemedi"
 
-#: packages/admin/src/router.tsx:1277
+#: packages/admin/src/router.tsx:1282
 msgid "Failed to perform bulk action"
 msgstr "Toplu işlem gerçekleştirilemedi"
 
@@ -3211,7 +3211,7 @@ msgstr "İçerik kalıcı olarak silinemedi"
 msgid "Failed to prepare import"
 msgstr "İçe aktarma hazırlanamadı"
 
-#: packages/admin/src/router.tsx:868
+#: packages/admin/src/router.tsx:873
 msgid "Failed to publish"
 msgstr "Yayınlanamadı"
 
@@ -3266,8 +3266,8 @@ msgstr "API belirteci iptal edilemedi"
 msgid "Failed to rewrite URLs"
 msgstr "URL'ler yeniden yazılamadı"
 
-#: packages/admin/src/router.tsx:812
-#: packages/admin/src/router.tsx:1759
+#: packages/admin/src/router.tsx:817
+#: packages/admin/src/router.tsx:1764
 msgid "Failed to save"
 msgstr "Kaydedilemedi"
 
@@ -3281,7 +3281,7 @@ msgstr "Alan kaydedilemedi"
 msgid "Failed to save settings"
 msgstr "Ayarlar kaydedilemedi"
 
-#: packages/admin/src/router.tsx:928
+#: packages/admin/src/router.tsx:933
 msgid "Failed to schedule"
 msgstr "Planlama başarısız oldu"
 
@@ -3312,11 +3312,11 @@ msgstr "Kayıt terimleri ayarlanamadı"
 msgid "Failed to uninstall plugin"
 msgstr "Eklenti kaldırılamadı"
 
-#: packages/admin/src/router.tsx:886
+#: packages/admin/src/router.tsx:891
 msgid "Failed to unpublish"
 msgstr "Yayından kaldırılamadı"
 
-#: packages/admin/src/router.tsx:949
+#: packages/admin/src/router.tsx:954
 msgid "Failed to unschedule"
 msgstr "Planlama iptal edilemedi"
 
@@ -3354,7 +3354,7 @@ msgstr "Bölüm güncellenemedi"
 msgid "Failed to update settings"
 msgstr "Ayarlar güncellenemedi"
 
-#: packages/admin/src/router.tsx:1236
+#: packages/admin/src/router.tsx:1241
 msgid "Failed to update status"
 msgstr "Durum güncellenemedi"
 
@@ -3558,7 +3558,7 @@ msgid "Go"
 msgstr "Git"
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:1967
 msgid "Go to Dashboard"
 msgstr "Kontrol Paneline Git"
 
@@ -4185,7 +4185,7 @@ msgstr "Koleksiyonlar yükleniyor..."
 msgid "Loading comments..."
 msgstr "Yorumlar yükleniyor..."
 
-#: packages/admin/src/router.tsx:1931
+#: packages/admin/src/router.tsx:1936
 msgid "Loading configuration..."
 msgstr "Yapılandırma yükleniyor..."
 
@@ -4643,7 +4643,7 @@ msgstr "Gezinme"
 msgid "Never"
 msgstr "Asla"
 
-#: packages/admin/src/router.tsx:975
+#: packages/admin/src/router.tsx:980
 msgid "new"
 msgstr "yeni"
 
@@ -5162,7 +5162,7 @@ msgstr "Mülkiyet"
 msgid "Package"
 msgstr "Paket"
 
-#: packages/admin/src/router.tsx:1957
+#: packages/admin/src/router.tsx:1962
 msgid "Page Not Found"
 msgstr "Sayfa Bulunamadı"
 
@@ -5492,7 +5492,7 @@ msgstr "yayınlandı"
 #: packages/admin/src/components/ContentList.tsx:552
 #: packages/admin/src/components/ContentPickerModal.tsx:209
 #: packages/admin/src/components/Dashboard.tsx:187
-#: packages/admin/src/router.tsx:864
+#: packages/admin/src/router.tsx:869
 msgid "Published"
 msgstr "Yayınlandı"
 
@@ -5829,7 +5829,7 @@ msgstr "Geri yükleniyor..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:1945
+#: packages/admin/src/router.tsx:1950
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Yeniden dene"
@@ -5838,7 +5838,7 @@ msgstr "Yeniden dene"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Herhangi bir içeriğe ekleyebileceğiniz yeniden kullanılabilir içerik blokları"
 
-#: packages/admin/src/router.tsx:902
+#: packages/admin/src/router.tsx:907
 msgid "Reverted to published version"
 msgstr "Yayınlanan sürüme geri dönüldü"
 
@@ -6038,7 +6038,7 @@ msgstr "zamanlandı"
 
 #: packages/admin/src/components/ContentEditor.tsx:859
 #: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/router.tsx:922
+#: packages/admin/src/router.tsx:927
 msgid "Scheduled"
 msgstr "Zamanlandı"
 
@@ -6911,7 +6911,7 @@ msgstr "Menü silindi."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Başlıkta ve meta verilerde kullanılan sitenizin adı"
 
-#: packages/admin/src/router.tsx:1959
+#: packages/admin/src/router.tsx:1964
 msgid "The page you're looking for doesn't exist."
 msgstr "Aradığınız sayfa mevcut değil."
 
@@ -7171,7 +7171,7 @@ msgstr "Çeviri..."
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/router.tsx:974
+#: packages/admin/src/router.tsx:979
 msgid "Translation created"
 msgstr "Çeviri oluşturuldu"
 
@@ -7337,7 +7337,7 @@ msgstr "Adsız geçiş anahtarı"
 msgid "Unpublish"
 msgstr "Yayından kaldır"
 
-#: packages/admin/src/router.tsx:882
+#: packages/admin/src/router.tsx:887
 msgid "Unpublished"
 msgstr "Yayımlanmamış"
 
@@ -7349,7 +7349,7 @@ msgstr "Kayıtlı Olmayan İçerik Tabloları Bulundu"
 msgid "Unschedule"
 msgstr "Programı iptal et"
 
-#: packages/admin/src/router.tsx:943
+#: packages/admin/src/router.tsx:948
 msgid "Unscheduled"
 msgstr "Zamanlanmamış"
 
@@ -7914,7 +7914,7 @@ msgstr "Kullanıcılar, ayarlar ve tüm içerik dahil olmak üzere bu siteyi yö
 msgid "You need admin permissions to manage byline schema."
 msgstr "Yazar bilgisi şemasını yönetmek için yönetici izinleri gerekir."
 
-#: packages/admin/src/router.tsx:1293
+#: packages/admin/src/router.tsx:1298
 msgid "You need Editor permissions to moderate comments."
 msgstr "Yorumları denetlemek için Editör izinlerine ihtiyacınız var."
 

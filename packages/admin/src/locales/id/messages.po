@@ -84,7 +84,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, other {# koleksi}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1272
+#: packages/admin/src/router.tsx:1277
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0} komentar diperbarui"
 
@@ -506,7 +506,7 @@ msgstr "Terima Undangan"
 msgid "Access denied"
 msgstr "Akses ditolak"
 
-#: packages/admin/src/router.tsx:1292
+#: packages/admin/src/router.tsx:1297
 msgid "Access Denied"
 msgstr "Akses Ditolak"
 
@@ -845,19 +845,19 @@ msgstr "Alternatifnya, ekspor dari WordPress (Alat → Ekspor) dan unggah fileny
 #: packages/admin/src/router.tsx:414
 #: packages/admin/src/router.tsx:428
 #: packages/admin/src/router.tsx:442
-#: packages/admin/src/router.tsx:813
-#: packages/admin/src/router.tsx:851
-#: packages/admin/src/router.tsx:869
-#: packages/admin/src/router.tsx:887
-#: packages/admin/src/router.tsx:908
-#: packages/admin/src/router.tsx:929
-#: packages/admin/src/router.tsx:950
-#: packages/admin/src/router.tsx:981
-#: packages/admin/src/router.tsx:1001
-#: packages/admin/src/router.tsx:1237
-#: packages/admin/src/router.tsx:1253
-#: packages/admin/src/router.tsx:1278
-#: packages/admin/src/router.tsx:1760
+#: packages/admin/src/router.tsx:818
+#: packages/admin/src/router.tsx:856
+#: packages/admin/src/router.tsx:874
+#: packages/admin/src/router.tsx:892
+#: packages/admin/src/router.tsx:913
+#: packages/admin/src/router.tsx:934
+#: packages/admin/src/router.tsx:955
+#: packages/admin/src/router.tsx:986
+#: packages/admin/src/router.tsx:1006
+#: packages/admin/src/router.tsx:1242
+#: packages/admin/src/router.tsx:1258
+#: packages/admin/src/router.tsx:1283
+#: packages/admin/src/router.tsx:1765
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1052,7 +1052,7 @@ msgstr "Setujui otomatis pengguna terautentikasi"
 msgid "Auto-generated from name (you can edit)"
 msgstr "Dibuat otomatis dari nama (dapat diedit)"
 
-#: packages/admin/src/router.tsx:850
+#: packages/admin/src/router.tsx:855
 msgid "Autosave failed"
 msgstr "Penyimpanan otomatis gagal"
 
@@ -1354,7 +1354,7 @@ msgstr "Ubah Logo"
 msgid "Changelog"
 msgstr "Riwayat perubahan"
 
-#: packages/admin/src/router.tsx:901
+#: packages/admin/src/router.tsx:906
 msgid "Changes discarded"
 msgstr "Perubahan dibatalkan"
 
@@ -1604,7 +1604,7 @@ msgstr "Kesalahan Konten ({0})"
 msgid "Content found:"
 msgstr "Konten ditemukan:"
 
-#: packages/admin/src/router.tsx:923
+#: packages/admin/src/router.tsx:928
 msgid "Content has been scheduled for publishing"
 msgstr "Konten telah dijadwalkan untuk diterbitkan"
 
@@ -1616,7 +1616,7 @@ msgstr "Konten telah diperbarui ke revisi yang dipilih."
 msgid "Content ID:"
 msgstr "ID Konten:"
 
-#: packages/admin/src/router.tsx:864
+#: packages/admin/src/router.tsx:869
 msgid "Content is now live"
 msgstr "Konten sekarang tayang"
 
@@ -1628,11 +1628,11 @@ msgstr "item konten"
 msgid "Content Read"
 msgstr "Baca Konten"
 
-#: packages/admin/src/router.tsx:882
+#: packages/admin/src/router.tsx:887
 msgid "Content removed from public view"
 msgstr "Konten dihapus dari tampilan publik"
 
-#: packages/admin/src/router.tsx:944
+#: packages/admin/src/router.tsx:949
 msgid "Content reverted to draft"
 msgstr "Konten dikembalikan ke draf"
 
@@ -1917,7 +1917,7 @@ msgid "Created {0}"
 msgstr "Dibuat {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:975
+#: packages/admin/src/router.tsx:980
 msgid "Created {0} translation"
 msgstr "{0} terjemahan dibuat"
 
@@ -2776,7 +2776,7 @@ msgstr "Masukkan URL situs WordPress Anda"
 #: packages/admin/src/components/MenuEditor.tsx:179
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/Widgets.tsx:689
-#: packages/admin/src/router.tsx:1942
+#: packages/admin/src/router.tsx:1947
 msgid "Error"
 msgstr "Kesalahan"
 
@@ -2897,13 +2897,13 @@ msgstr "Gagal membuat beberapa koleksi"
 msgid "Failed to create term"
 msgstr "Gagal membuat istilah"
 
-#: packages/admin/src/router.tsx:980
+#: packages/admin/src/router.tsx:985
 msgid "Failed to create translation"
 msgstr "Gagal membuat terjemahan"
 
 #: packages/admin/src/router.tsx:398
 #: packages/admin/src/router.tsx:427
-#: packages/admin/src/router.tsx:1000
+#: packages/admin/src/router.tsx:1005
 msgid "Failed to delete"
 msgstr "Gagal menghapus"
 
@@ -2924,7 +2924,7 @@ msgid "Failed to delete collection"
 msgstr "Gagal menghapus koleksi"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1252
+#: packages/admin/src/router.tsx:1257
 msgid "Failed to delete comment"
 msgstr "Gagal menghapus komentar"
 
@@ -2990,7 +2990,7 @@ msgstr "Gagal menonaktifkan pencarian"
 msgid "Failed to disable user"
 msgstr "Gagal menonaktifkan pengguna"
 
-#: packages/admin/src/router.tsx:907
+#: packages/admin/src/router.tsx:912
 msgid "Failed to discard changes"
 msgstr "Gagal membatalkan perubahan"
 
@@ -3097,8 +3097,8 @@ msgstr "Gagal mengambil istilah"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:737
-#: packages/admin/src/router.tsx:1183
+#: packages/admin/src/router.tsx:742
+#: packages/admin/src/router.tsx:1188
 msgid "Failed to fetch user"
 msgstr "Gagal mengambil pengguna"
 
@@ -3199,7 +3199,7 @@ msgstr "Gagal memuat pengguna: {0}"
 msgid "Failed to load widget"
 msgstr "Gagal memuat widget"
 
-#: packages/admin/src/router.tsx:1277
+#: packages/admin/src/router.tsx:1282
 msgid "Failed to perform bulk action"
 msgstr "Gagal menjalankan aksi massal"
 
@@ -3211,7 +3211,7 @@ msgstr "Gagal menghapus konten secara permanen"
 msgid "Failed to prepare import"
 msgstr "Gagal menyiapkan impor"
 
-#: packages/admin/src/router.tsx:868
+#: packages/admin/src/router.tsx:873
 msgid "Failed to publish"
 msgstr "Gagal menerbitkan"
 
@@ -3266,8 +3266,8 @@ msgstr "Gagal mencabut token API"
 msgid "Failed to rewrite URLs"
 msgstr "Gagal menulis ulang URL"
 
-#: packages/admin/src/router.tsx:812
-#: packages/admin/src/router.tsx:1759
+#: packages/admin/src/router.tsx:817
+#: packages/admin/src/router.tsx:1764
 msgid "Failed to save"
 msgstr "Gagal menyimpan"
 
@@ -3281,7 +3281,7 @@ msgstr "Gagal menyimpan bidang"
 msgid "Failed to save settings"
 msgstr "Gagal menyimpan pengaturan"
 
-#: packages/admin/src/router.tsx:928
+#: packages/admin/src/router.tsx:933
 msgid "Failed to schedule"
 msgstr "Gagal menjadwalkan"
 
@@ -3312,11 +3312,11 @@ msgstr "Gagal mengatur istilah entri"
 msgid "Failed to uninstall plugin"
 msgstr "Gagal mencopot plugin"
 
-#: packages/admin/src/router.tsx:886
+#: packages/admin/src/router.tsx:891
 msgid "Failed to unpublish"
 msgstr "Gagal membatalkan penerbitan"
 
-#: packages/admin/src/router.tsx:949
+#: packages/admin/src/router.tsx:954
 msgid "Failed to unschedule"
 msgstr "Gagal membatalkan penjadwalan"
 
@@ -3354,7 +3354,7 @@ msgstr "Gagal memperbarui bagian"
 msgid "Failed to update settings"
 msgstr "Gagal memperbarui pengaturan"
 
-#: packages/admin/src/router.tsx:1236
+#: packages/admin/src/router.tsx:1241
 msgid "Failed to update status"
 msgstr "Gagal memperbarui status"
 
@@ -3558,7 +3558,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2224
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:1967
 msgid "Go to Dashboard"
 msgstr "Buka Dasbor"
 
@@ -4185,7 +4185,7 @@ msgstr "Memuat koleksi..."
 msgid "Loading comments..."
 msgstr "Memuat komentar..."
 
-#: packages/admin/src/router.tsx:1931
+#: packages/admin/src/router.tsx:1936
 msgid "Loading configuration..."
 msgstr "Memuat konfigurasi..."
 
@@ -4643,7 +4643,7 @@ msgstr "Navigasi"
 msgid "Never"
 msgstr "Tidak Pernah"
 
-#: packages/admin/src/router.tsx:975
+#: packages/admin/src/router.tsx:980
 msgid "new"
 msgstr "baru"
 
@@ -5162,7 +5162,7 @@ msgstr "Kepemilikan"
 msgid "Package"
 msgstr "Paket"
 
-#: packages/admin/src/router.tsx:1957
+#: packages/admin/src/router.tsx:1962
 msgid "Page Not Found"
 msgstr "Halaman Tidak Ditemukan"
 
@@ -5492,7 +5492,7 @@ msgstr "dipublikasikan"
 #: packages/admin/src/components/ContentList.tsx:552
 #: packages/admin/src/components/ContentPickerModal.tsx:209
 #: packages/admin/src/components/Dashboard.tsx:187
-#: packages/admin/src/router.tsx:864
+#: packages/admin/src/router.tsx:869
 msgid "Published"
 msgstr "Dipublikasikan"
 
@@ -5829,7 +5829,7 @@ msgstr "Memulihkan..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:141
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/router.tsx:1945
+#: packages/admin/src/router.tsx:1950
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Coba Lagi"
@@ -5838,7 +5838,7 @@ msgstr "Coba Lagi"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Blok konten yang dapat digunakan kembali yang dapat Anda sisipkan ke konten apa pun"
 
-#: packages/admin/src/router.tsx:902
+#: packages/admin/src/router.tsx:907
 msgid "Reverted to published version"
 msgstr "Dikembalikan ke versi terbit"
 
@@ -6038,7 +6038,7 @@ msgstr "terjadwal"
 
 #: packages/admin/src/components/ContentEditor.tsx:859
 #: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/router.tsx:922
+#: packages/admin/src/router.tsx:927
 msgid "Scheduled"
 msgstr "Terjadwal"
 
@@ -6911,7 +6911,7 @@ msgstr "Menu telah dihapus."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Nama situs Anda, digunakan di header dan metadata"
 
-#: packages/admin/src/router.tsx:1959
+#: packages/admin/src/router.tsx:1964
 msgid "The page you're looking for doesn't exist."
 msgstr "Halaman yang Anda cari tidak ada."
 
@@ -7171,7 +7171,7 @@ msgstr "Menerjemahkan..."
 
 #: packages/admin/src/components/MenuEditor.tsx:89
 #: packages/admin/src/components/TaxonomyManager.tsx:758
-#: packages/admin/src/router.tsx:974
+#: packages/admin/src/router.tsx:979
 msgid "Translation created"
 msgstr "Terjemahan dibuat"
 
@@ -7337,7 +7337,7 @@ msgstr "Passkey tanpa nama"
 msgid "Unpublish"
 msgstr "Batal Publikasikan"
 
-#: packages/admin/src/router.tsx:882
+#: packages/admin/src/router.tsx:887
 msgid "Unpublished"
 msgstr "Tidak diterbitkan"
 
@@ -7349,7 +7349,7 @@ msgstr "Tabel Konten Tidak Terdaftar Ditemukan"
 msgid "Unschedule"
 msgstr "Batal Jadwalkan"
 
-#: packages/admin/src/router.tsx:943
+#: packages/admin/src/router.tsx:948
 msgid "Unscheduled"
 msgstr "Tidak dijadwalkan"
 
@@ -7914,7 +7914,7 @@ msgstr "Anda memiliki akses penuh untuk mengelola situs ini, termasuk pengguna, 
 msgid "You need admin permissions to manage byline schema."
 msgstr "Anda memerlukan izin admin untuk mengelola skema byline."
 
-#: packages/admin/src/router.tsx:1293
+#: packages/admin/src/router.tsx:1298
 msgid "You need Editor permissions to moderate comments."
 msgstr "Anda memerlukan izin Editor untuk memoderasi komentar."
 

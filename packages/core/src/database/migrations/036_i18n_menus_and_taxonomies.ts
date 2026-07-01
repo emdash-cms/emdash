@@ -259,27 +259,32 @@ async function rebuildContentTaxonomies(db: Kysely<unknown>): Promise<void> {
 	// is load-bearing — if the translation_group seed ever changes, this needs
 	// an explicit remap *after* `rebuildTaxonomies` runs.
 	const fks = await sql<{ id: number }>`PRAGMA foreign_key_list(content_taxonomies)`.execute(db);
-	if (fks.rows.length === 0) return;
+	if (fks.rows.length > 0) {
+		await sql.raw(`DROP TABLE IF EXISTS "content_taxonomies_new"`).execute(db);
+		await db.schema
+			.createTable("content_taxonomies_new")
+			.addColumn("collection", "text", (c) => c.notNull())
+			.addColumn("entry_id", "text", (c) => c.notNull())
+			.addColumn("taxonomy_id", "text", (c) => c.notNull())
+			.addPrimaryKeyConstraint("content_taxonomies_pk", ["collection", "entry_id", "taxonomy_id"])
+			.execute();
 
-	await sql.raw(`DROP TABLE IF EXISTS "content_taxonomies_new"`).execute(db);
-	await db.schema
-		.createTable("content_taxonomies_new")
-		.addColumn("collection", "text", (c) => c.notNull())
-		.addColumn("entry_id", "text", (c) => c.notNull())
-		.addColumn("taxonomy_id", "text", (c) => c.notNull())
-		.addPrimaryKeyConstraint("content_taxonomies_pk", ["collection", "entry_id", "taxonomy_id"])
-		.execute();
+		await sql`
+			INSERT OR IGNORE INTO content_taxonomies_new (collection, entry_id, taxonomy_id)
+			SELECT collection, entry_id, taxonomy_id FROM content_taxonomies
+		`.execute(db);
 
-	await sql`
-		INSERT OR IGNORE INTO content_taxonomies_new (collection, entry_id, taxonomy_id)
-		SELECT collection, entry_id, taxonomy_id FROM content_taxonomies
-	`.execute(db);
+		await db.schema.dropTable("content_taxonomies").execute();
+		await sql`ALTER TABLE content_taxonomies_new RENAME TO content_taxonomies`.execute(db);
+	}
 
-	await db.schema.dropTable("content_taxonomies").execute();
-	await sql`ALTER TABLE content_taxonomies_new RENAME TO content_taxonomies`.execute(db);
-
-	// SQLite drops indexes when the underlying table is dropped. Restore the
-	// taxonomy_id index from migration 015.
+	// Recreate the taxonomy_id index from migration 015 unconditionally, OUTSIDE
+	// the FK-presence guard above. The rebuild both strips the FK and drops the
+	// old table's indexes, but D1 auto-commits each DDL statement — so a first
+	// run that failed after the drop leaves the table with no FK and no index.
+	// The retry then finds zero FKs and skips the rebuild; if the index recreate
+	// lived inside that guard it would never run and the index would be lost for
+	// good (#1701). `IF NOT EXISTS` keeps this a no-op once present.
 	await sql`CREATE INDEX IF NOT EXISTS idx_content_taxonomies_term ON content_taxonomies(taxonomy_id)`.execute(
 		db,
 	);

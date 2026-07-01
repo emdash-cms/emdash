@@ -133,6 +133,7 @@ describe("Database Migrations (Integration)", () => {
 			"045_taxonomy_parent_group",
 			"046_media_usage_index",
 			"047_restore_taxonomy_parent_index",
+			"048_restore_content_taxonomies_term_index",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
@@ -353,6 +354,17 @@ describe("Database Migrations (Integration)", () => {
 		const names = new Set(indexes.rows.map((r) => r.name));
 
 		expect(names).toContain("idx_taxonomies_parent");
+	});
+
+	it("should keep idx_content_taxonomies_term after the full migration chain (regression for #1701)", async () => {
+		await runMigrations(db);
+
+		const indexes = await sql<{ name: string }>`
+			SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'content_taxonomies'
+		`.execute(db);
+		const names = new Set(indexes.rows.map((r) => r.name));
+
+		expect(names).toContain("idx_content_taxonomies_term");
 	});
 
 	it("should create content_taxonomies junction table", async () => {

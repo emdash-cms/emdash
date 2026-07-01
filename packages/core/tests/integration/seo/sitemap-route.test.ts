@@ -233,7 +233,7 @@ describe("sitemap-[collection].xml route", () => {
 		expect(xml).not.toContain("<loc>http://localhost:4321/blog/hello</loc>");
 	});
 
-	it("emits a single <url> with no alternates for rows without siblings", async () => {
+	it("emits self and x-default alternates for rows without siblings", async () => {
 		setI18nConfig({
 			defaultLocale: "en",
 			locales: ["en", "fr"],
@@ -252,9 +252,14 @@ describe("sitemap-[collection].xml route", () => {
 		expect(res.status).toBe(200);
 		const xml = await res.text();
 
-		// Single-row translation_group -> no xhtml:link entries.
+		// Single-row translation_group still advertises its own locale and fallback.
 		expect(xml).toContain("<loc>http://localhost:4321/blog/solo</loc>");
-		expect(xml).not.toContain("xhtml:link");
+		expect(xml).toContain(
+			'<xhtml:link rel="alternate" hreflang="en" href="http://localhost:4321/blog/solo" />',
+		);
+		expect(xml).toContain(
+			'<xhtml:link rel="alternate" hreflang="x-default" href="http://localhost:4321/blog/solo" />',
+		);
 	});
 
 	it("drops rows whose locale isn't in the configured i18n.locales list", async () => {
