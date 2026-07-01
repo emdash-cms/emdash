@@ -1986,13 +1986,14 @@ const CJK_CHARACTERS_PER_MINUTE = 500;
 // a whole paragraph as a single word. Count those characters individually.
 const CJK_CHARACTER_REGEX =
 	/\p{Script=Han}|\p{Script=Hangul}|\p{Script=Hiragana}|\p{Script=Katakana}/gu;
+const WHITESPACE_REGEX = /\s+/;
 
 function countCjkCharacters(text: string): number {
 	return text.match(CJK_CHARACTER_REGEX)?.length ?? 0;
 }
 
 function countNonCjkWords(text: string): number {
-	return text.replace(CJK_CHARACTER_REGEX, " ").split(/\s+/).filter(Boolean).length;
+	return text.replace(CJK_CHARACTER_REGEX, " ").split(WHITESPACE_REGEX).filter(Boolean).length;
 }
 
 /**
