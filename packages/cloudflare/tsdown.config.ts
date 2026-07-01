@@ -4,6 +4,7 @@ export default defineConfig({
 	entry: [
 		"src/index.ts",
 		"src/db/d1.ts",
+		"src/db/hyperdrive.ts",
 		"src/db/do.ts",
 		"src/db/do-sql.ts",
 		"src/db/playground.ts",
@@ -17,9 +18,11 @@ export default defineConfig({
 		// Media provider runtimes
 		"src/media/images-runtime.ts",
 		"src/media/stream-runtime.ts",
-		// Cache provider
+		// Cache provider (full-page response cache)
 		"src/cache/runtime.ts",
 		"src/cache/config.ts",
+		// Object cache backend (KV)
+		"src/cache/kv.ts",
 	],
 	format: ["esm"],
 	dts: true,

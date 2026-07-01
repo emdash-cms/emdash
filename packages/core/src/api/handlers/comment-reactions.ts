@@ -13,6 +13,7 @@ import {
 } from "#db/repositories/comment-reaction.js";
 import type { Database } from "#db/types.js";
 
+import { invalidateCommentObjectCache } from "../../object-cache/index.js";
 import type { ApiResult } from "../types.js";
 
 /** Max reactions a single voter may register per window before throttling. */
@@ -98,6 +99,10 @@ export async function handleReactionToggle(
 
 		const { reacted } = await repo.toggle({ commentId, reaction, voterHash });
 		const countsMap = await repo.countsForComments([commentId]);
+
+		// Reaction counts (and `best` ordering) are folded into cached getComments
+		// reads, so a toggle must orphan them.
+		invalidateCommentObjectCache();
 
 		return {
 			success: true,

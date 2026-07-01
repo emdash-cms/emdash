@@ -38,6 +38,7 @@ const {
 			configuredPlugins: [],
 			handleContentList: ok,
 			handleContentGet: ok,
+			handleContentAuthors: ok,
 			handleContentCreate: ok,
 			handleContentUpdate: ok,
 			handleContentDelete: ok,
@@ -100,6 +101,8 @@ vi.mock(
 	() => ({
 		createDialect: vi.fn(),
 		createRequestScopedDb: vi.fn().mockReturnValue(null),
+		// Absent on non-batching backends; the runtime falls back to the singleton.
+		createCoalescingDialect: undefined,
 	}),
 	{ virtual: true },
 );
@@ -232,6 +235,10 @@ describe("astro middleware prerendered routes", () => {
 		const emdash = locals.emdash as Record<string, unknown>;
 		expect(typeof emdash.handlePluginApiRoute).toBe("function");
 		expect(typeof emdash.handlePublicPluginApiRoute).toBe("function");
+		// Regression for #1462: the author filter route reads
+		// `locals.emdash.handleContentAuthors`; it must be wired onto the
+		// runtime helpers object or every `/authors` request 500s.
+		expect(typeof emdash.handleContentAuthors).toBe("function");
 	});
 
 	it("does not access context.session when prerendering public pages", async () => {
@@ -490,6 +497,44 @@ describe("astro middleware request-scoped db", () => {
 		// a refactor to enterWith() could silently leak request state into
 		// other async work on the same worker.
 		expect(getRequestContext()).toBeUndefined();
+	});
+
+	it("marks an API-token (Bearer) request as authenticated even without a session cookie", async () => {
+		// API tokens (ec_pat_*) and OAuth tokens (ec_oat_*) authenticate via the
+		// Authorization header, not the astro-session cookie, so sessionUser is
+		// null. They still expect read-your-writes, so the adapter must see
+		// isAuthenticated: true (keeps them on the primary/uncached connection,
+		// not a replica or the Hyperdrive query cache). These hit /_emdash/api/*,
+		// which is the main scoped path (the anonymous fast path is public-only).
+		const commit = vi.fn();
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: { _marker: "scoped" } as never,
+			commit,
+		});
+
+		const cookies = { get: vi.fn(() => undefined), set: vi.fn() };
+		const astroSession = { get: vi.fn(async () => null) };
+
+		const context: Record<string, unknown> = {
+			request: new Request("https://example.com/_emdash/api/content/posts", {
+				headers: { authorization: "Bearer ec_pat_example" },
+			}),
+			url: new URL("https://example.com/_emdash/api/content/posts"),
+			cookies,
+			locals: {},
+			redirect: vi.fn(),
+			isPrerendered: false,
+			session: astroSession,
+		};
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const opts = vi.mocked(createRequestScopedDb).mock.calls[0]?.[0];
+		expect(opts).toMatchObject({
+			config: DB_CONFIG_MARKER,
+			isAuthenticated: true,
+			isWrite: false,
+		});
 	});
 
 	it("forces isWrite true for POST requests on public pages", async () => {

@@ -223,6 +223,63 @@ describe("ContentListPage – locale forwarding to the new-content route", () =>
 });
 
 // ---------------------------------------------------------------------------
+// Tests: ContentListPage – hook order stays stable across an erroring refetch
+// (regression for #1415: inline useCallback for onLoadMore sat below the early
+// returns, so a render that took the `error` guard ran one fewer hook → React
+// #300 "Rendered fewer hooks than expected").
+// ---------------------------------------------------------------------------
+
+describe("ContentListPage – hook order is stable when a refetch errors (#1415)", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+
+	beforeEach(() => {
+		mockFetch = createMockFetch();
+
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
+			.on("GET", "/_emdash/api/auth/me", {
+				data: { id: "user_01", role: 60 },
+			})
+			.on("GET", "/_emdash/api/content/posts", {
+				data: { items: [], nextCursor: undefined },
+			})
+			.on("GET", "/_emdash/api/content/posts/trashed", {
+				data: { items: [] },
+			});
+	});
+
+	afterEach(() => {
+		mockFetch.restore();
+	});
+
+	it("renders the ErrorScreen instead of crashing when a content refetch fails", async () => {
+		const { router, queryClient, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection",
+			params: { collection: "posts" },
+		});
+
+		const screen = await render(<TestApp />);
+
+		// First render succeeds and reaches the inline onLoadMore useCallback.
+		const addNewLink = screen.getByRole("link", { name: /add new/i });
+		await expect.element(addNewLink).toBeInTheDocument();
+
+		// Make the next content fetch fail, then force a refetch. The component
+		// re-renders with `error` truthy and takes the ErrorScreen early return,
+		// which sits ABOVE the onLoadMore useCallback. If that callback hook is
+		// below the guards, this render runs one fewer hook and React throws #300
+		// — so the ErrorScreen (and its Retry button) never appears.
+		mockFetch.on("GET", "/_emdash/api/content/posts", { error: { message: "Boom" } }, 500);
+		await queryClient.refetchQueries({ queryKey: ["content", "posts"] });
+
+		const retryButton = screen.getByRole("button", { name: /retry/i });
+		await expect.element(retryButton).toBeInTheDocument();
+	});
+});
+
+// ---------------------------------------------------------------------------
 // Tests: ContentNewPage – locale passed to createContent
 // ---------------------------------------------------------------------------
 

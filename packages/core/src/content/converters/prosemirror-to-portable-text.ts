@@ -106,12 +106,16 @@ function convertParagraph(node: ProseMirrorNode): PortableTextTextBlock | null {
 		return null;
 	}
 
+	const ta = node.attrs?.textAlign;
+	const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
+
 	return {
 		_type: "block",
 		_key: generateKey(),
 		style: "normal",
 		children,
 		markDefs: markDefs.length > 0 ? markDefs : undefined,
+		...(textAlign ? { textAlign } : {}),
 	};
 }
 
@@ -147,12 +151,16 @@ function convertHeading(node: ProseMirrorNode): PortableTextTextBlock | null {
 		return null;
 	}
 
+	const ta = node.attrs?.textAlign;
+	const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
+
 	return {
 		_type: "block",
 		_key: generateKey(),
 		style,
 		children,
 		markDefs: markDefs.length > 0 ? markDefs : undefined,
+		...(textAlign ? { textAlign } : {}),
 	};
 }
 

@@ -19,7 +19,13 @@ Block Kit elements are also used for [Portable Text block editing fields](./port
 routes: {
 	admin: {
 		handler: async (ctx) => {
-			const interaction = await ctx.request.json();
+			// EmDash parses the request body once and exposes it as ctx.input;
+			// read it directly rather than ctx.request.json() (the body is consumed).
+			const interaction = ctx.input as {
+				type: string;
+				action_id?: string;
+				values?: Record<string, unknown>;
+			};
 
 			if (interaction.type === "page_load") {
 				return {

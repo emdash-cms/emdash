@@ -91,6 +91,8 @@ export default defineConfig({
 		// Storage adapters (runtime - loaded via virtual:emdash/storage)
 		"src/storage/local.ts",
 		"src/storage/s3.ts",
+		// Object-cache memory backend (runtime - loaded via virtual:emdash/object-cache)
+		"src/object-cache/memory.ts",
 		// Media providers
 		"src/media/index.ts",
 		"src/media/local-runtime.ts",

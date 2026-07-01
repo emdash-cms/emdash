@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
@@ -48,6 +49,8 @@ describe("Database Migrations (Integration)", () => {
 			"_emdash_byline_fields",
 			"_emdash_byline_field_values",
 			"_emdash_byline_field_group_values",
+			"_emdash_media_usage_sources",
+			"_emdash_media_usage",
 		];
 
 		for (const table of tables) {
@@ -127,6 +130,9 @@ describe("Database Migrations (Integration)", () => {
 			"042_byline_fields",
 			"043_content_references",
 			"044_comment_reactions",
+			"045_taxonomy_parent_group",
+			"046_media_usage_index",
+			"047_restore_taxonomy_parent_index",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
@@ -336,6 +342,17 @@ describe("Database Migrations (Integration)", () => {
 			.executeTakeFirst();
 
 		expect(child?.parent_id).toBe(parentId);
+	});
+
+	it("should keep idx_taxonomies_parent after the full migration chain (regression for #1665)", async () => {
+		await runMigrations(db);
+
+		const indexes = await sql<{ name: string }>`
+			SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'taxonomies'
+		`.execute(db);
+		const names = new Set(indexes.rows.map((r) => r.name));
+
+		expect(names).toContain("idx_taxonomies_parent");
 	});
 
 	it("should create content_taxonomies junction table", async () => {
