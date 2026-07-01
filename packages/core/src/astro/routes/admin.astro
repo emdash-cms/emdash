@@ -27,13 +27,13 @@ const adminConfig = Astro.locals.emdash?.config?.admin;
 const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmDash Admin";
 
 // Favicon precedence: an explicit build-time `admin.favicon` is admin-specific
-// and always wins. Otherwise fall back to the Site Icon configured in
-// Settings → General, so the admin shell is branded like the public site
-// (WordPress-style Site Icon, which also brands wp-admin), and finally the
-// bundled EmDash mark below.
+// and always wins — in that case the settings read is skipped entirely.
+// Otherwise fall back to the Site Icon configured in Settings → General, so
+// the admin shell is branded like the public site (WordPress-style Site Icon,
+// which also brands wp-admin), and finally the bundled EmDash mark below.
 const emdash = Astro.locals.emdash;
 let siteFavicon: string | undefined;
-if (emdash?.db) {
+if (!adminConfig?.favicon && emdash?.db) {
 	try {
 		const settings = await getSiteSettingsWithDb(emdash.db, emdash.storage ?? null);
 		siteFavicon = settings.favicon?.url ?? undefined;
