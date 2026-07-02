@@ -94,9 +94,16 @@ emdash({
 
 You also need to enable read replication on the D1 database itself in the Cloudflare dashboard or via the REST API.
 
-:::caution
-Read replica sessions are incompatible with the [`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public) compatibility flag. With that flag in your `wrangler.jsonc`, the internal request the D1 Sessions API makes to route queries to replicas is silently blocked, and every SSR request hangs until the Worker is killed — with nothing in the logs (`outcome: "canceled"`, no exceptions). The hang may only begin once replicas finish provisioning, so it can pass an initial post-deploy check and surface hours later. If your Worker needs that flag (for example, to fetch its own origin), keep `session` disabled. See [#1273](https://github.com/emdash-cms/emdash/issues/1273).
-:::
+<Aside type="caution">
+	Read replica sessions are incompatible with the
+	[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)
+	compatibility flag. With that flag in your `wrangler.jsonc`, the internal request the D1 Sessions
+	API makes to route queries to replicas is silently blocked, and every SSR request hangs until the
+	Worker is killed — with nothing in the logs (`outcome: "canceled"`, no exceptions). The hang may
+	only begin once replicas finish provisioning, so it can pass an initial post-deploy check and
+	surface hours later. If your Worker needs that flag (for example, to fetch its own origin), keep
+	`session` disabled. See [#1273](https://github.com/emdash-cms/emdash/issues/1273).
+</Aside>
 
 See [Database Options — Read Replicas](/deployment/database/#read-replicas) for session modes and how bookmark-based consistency works.
 
