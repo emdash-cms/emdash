@@ -248,6 +248,131 @@ describe("Capability Enforcement Integration (v2)", () => {
 			});
 		});
 
+		describe("taxonomy read access", () => {
+			beforeEach(async () => {
+				// Migrations seed the default `category`/`tag` defs — clear them
+				// so the assertions below only see the fixtures.
+				await sql`DELETE FROM _emdash_taxonomy_defs`.execute(db);
+				await sql`
+					INSERT INTO _emdash_taxonomy_defs (id, name, label, label_singular, hierarchical, collections, locale, translation_group)
+					VALUES
+						('def-genre', 'genre', 'Genres', 'Genre', 1, '["posts"]', 'en', 'def-genre'),
+						('def-topic', 'topic', 'Topics', 'Topic', 0, '["posts"]', 'en', 'def-topic')
+				`.execute(db);
+				await sql`
+					INSERT INTO taxonomies (id, name, slug, label, parent_id, data, locale, translation_group)
+					VALUES
+						('term-news', 'genre', 'news', 'News', NULL, NULL, 'en', 'term-news'),
+						('term-sub', 'genre', 'sub-news', 'Sub News', 'term-news', NULL, 'en', 'term-sub'),
+						('term-news-fr', 'genre', 'actualites', 'Actualités', NULL, NULL, 'fr', 'term-news'),
+						('term-ai', 'topic', 'ai', 'AI', NULL, '{"description":"Artificial intelligence"}', 'en', 'term-ai')
+				`.execute(db);
+				// The pivot stores the term's translation_group, so one
+				// assignment spans every locale of the term.
+				await sql`
+					INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id)
+					VALUES
+						('posts', 'post-1', 'term-news'),
+						('posts', 'post-1', 'term-ai')
+				`.execute(db);
+			});
+
+			it("lists taxonomy definitions", async () => {
+				const access = createContentAccess(db);
+				const defs = await access.getTaxonomies();
+
+				expect(defs).toHaveLength(2);
+				const category = defs.find((d) => d.name === "genre");
+				expect(category).toMatchObject({
+					label: "Genres",
+					labelSingular: "Genre",
+					hierarchical: true,
+					collections: ["posts"],
+					locale: "en",
+				});
+				const tag = defs.find((d) => d.name === "topic");
+				expect(tag?.hierarchical).toBe(false);
+			});
+
+			it("filters taxonomy definitions by locale", async () => {
+				const access = createContentAccess(db);
+				const defs = await access.getTaxonomies({ locale: "fr" });
+				expect(defs).toHaveLength(0);
+			});
+
+			it("lists terms of a taxonomy", async () => {
+				const access = createContentAccess(db);
+				const terms = await access.getTaxonomyTerms("genre");
+
+				expect(terms.map((t) => t.slug)).toEqual(["actualites", "news", "sub-news"]);
+				const sub = terms.find((t) => t.slug === "sub-news");
+				expect(sub).toMatchObject({
+					taxonomy: "genre",
+					label: "Sub News",
+					parentId: "term-news",
+					locale: "en",
+					translationGroup: "term-sub",
+				});
+			});
+
+			it("scopes terms to a locale", async () => {
+				const access = createContentAccess(db);
+				const terms = await access.getTaxonomyTerms("genre", { locale: "en" });
+				expect(terms.map((t) => t.slug)).toEqual(["news", "sub-news"]);
+			});
+
+			it("parses term data JSON", async () => {
+				const access = createContentAccess(db);
+				const terms = await access.getTaxonomyTerms("topic");
+
+				expect(terms).toHaveLength(1);
+				expect(terms[0]!.data).toEqual({ description: "Artificial intelligence" });
+			});
+
+			it("returns an empty list for an unknown taxonomy", async () => {
+				const access = createContentAccess(db);
+				const terms = await access.getTaxonomyTerms("nonexistent");
+				expect(terms).toEqual([]);
+			});
+
+			it("returns terms assigned to an entry", async () => {
+				const access = createContentAccess(db);
+				const terms = await access.getEntryTerms("posts", "post-1", { locale: "en" });
+
+				expect(terms.map((t) => t.slug).toSorted()).toEqual(["ai", "news"]);
+			});
+
+			it("scopes entry terms to one taxonomy", async () => {
+				const access = createContentAccess(db);
+				const terms = await access.getEntryTerms("posts", "post-1", {
+					taxonomy: "genre",
+					locale: "en",
+				});
+
+				expect(terms).toHaveLength(1);
+				expect(terms[0]!.slug).toBe("news");
+			});
+
+			it("resolves entry terms into the requested locale", async () => {
+				// The assignment points at the term's translation_group, so
+				// asking for 'fr' surfaces the French translation of the term.
+				const access = createContentAccess(db);
+				const terms = await access.getEntryTerms("posts", "post-1", {
+					taxonomy: "genre",
+					locale: "fr",
+				});
+
+				expect(terms).toHaveLength(1);
+				expect(terms[0]!.slug).toBe("actualites");
+			});
+
+			it("is exposed through write access too", async () => {
+				const access = createContentAccessWithWrite(db);
+				const defs = await access.getTaxonomies();
+				expect(defs).toHaveLength(2);
+			});
+		});
+
 		describe("createContentAccessWithWrite", () => {
 			it("includes read methods", async () => {
 				const access = createContentAccessWithWrite(db);

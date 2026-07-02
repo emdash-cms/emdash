@@ -100,7 +100,10 @@ function createContext(env) {
 		list: (collection, opts) => bridge.contentList(collection, opts),
 		create: (collection, data) => bridge.contentCreate(collection, data),
 		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
-		delete: (collection, id) => bridge.contentDelete(collection, id)
+		delete: (collection, id) => bridge.contentDelete(collection, id),
+		getTaxonomies: (opts) => bridge.taxonomyList(opts),
+		getTaxonomyTerms: (taxonomy, opts) => bridge.taxonomyTerms(taxonomy, opts),
+		getEntryTerms: (collection, entryId, opts) => bridge.taxonomyEntryTerms(collection, entryId, opts)
 	};
 	
 	// Media access - proxies to bridge (capability enforced by bridge)

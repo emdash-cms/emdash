@@ -121,6 +121,9 @@ function createContext() {
 		createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),
 		updateMany: (collection, items) => bridgeCall("content/updateMany", { collection, items }),
 		deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids }),
+		getTaxonomies: (opts) => bridgeCall("taxonomy/list", { ...opts }),
+		getTaxonomyTerms: (taxonomy, opts) => bridgeCall("taxonomy/terms", { taxonomy, ...opts }),
+		getEntryTerms: (collection, entryId, opts) => bridgeCall("taxonomy/entryTerms", { collection, entryId, ...opts }),
 	};
 
 	const media = {
