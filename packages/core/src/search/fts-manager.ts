@@ -356,6 +356,35 @@ export class FTSManager {
 	}
 
 	/**
+	 * Whether a collection has a user-defined `title` field.
+	 *
+	 * `title` is not a system column on `ec_*` tables -- it exists only when a
+	 * collection defines a field with slug `title`. Search and suggestion SQL
+	 * that selects `c.title` must check this first; otherwise collections
+	 * without a title field raise "no such column: c.title" (#1178).
+	 */
+	async hasTitleColumn(collectionSlug: string): Promise<boolean> {
+		const collection = await this.db
+			.selectFrom("_emdash_collections")
+			.select("id")
+			.where("slug", "=", collectionSlug)
+			.executeTakeFirst();
+
+		if (!collection) {
+			return false;
+		}
+
+		const field = await this.db
+			.selectFrom("_emdash_fields")
+			.select("slug")
+			.where("collection_id", "=", collection.id)
+			.where("slug", "=", "title")
+			.executeTakeFirst();
+
+		return field !== undefined;
+	}
+
+	/**
 	 * Enable search for a collection.
 	 *
 	 * Uses rebuildIndex to ensure a clean state -- drop any existing FTS

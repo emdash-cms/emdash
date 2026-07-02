@@ -198,6 +198,12 @@ async function searchSingleCollection(
 	// Get searchable fields for snippet generation
 	const searchableFields = await ftsManager.getSearchableFields(collection);
 
+	// `title` is an optional user-defined field, not a system column. Only
+	// select it when the collection actually has one; otherwise the query
+	// errors with "no such column: c.title" (#1178).
+	const hasTitle = await ftsManager.hasTitleColumn(collection);
+	const titleExpr = hasTitle ? sql`c.title` : sql`NULL`;
+
 	// Build weight string for bm25 if weights provided
 	// Format: bm25(table, weight1, weight2, ...)
 	// First two weights are for 'id' and 'locale' columns (UNINDEXED, so 0)
@@ -225,11 +231,11 @@ async function searchSingleCollection(
 			snippet: string | null;
 			score: number;
 		}>`
-		SELECT 
+		SELECT
 			c.id,
 			c.slug,
 			c.locale,
-			c.title,
+			${titleExpr} as title,
 			snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) as snippet,
 			${sql.raw(bm25Expr)} as score
 		FROM "${sql.raw(ftsTable)}" f
@@ -339,6 +345,14 @@ export async function getSuggestions(
 		const ftsManager = new FTSManager(db);
 		const config = await ftsManager.getSearchConfig(collection);
 		if (!config?.enabled) {
+			continue;
+		}
+
+		// Suggestions are title-based (Suggestion.title is required and the
+		// query filters on `c.title IS NOT NULL`). Collections without a
+		// `title` field can't produce one, and selecting `c.title` would
+		// error, so skip them. See #1178.
+		if (!(await ftsManager.hasTitleColumn(collection))) {
 			continue;
 		}
 
