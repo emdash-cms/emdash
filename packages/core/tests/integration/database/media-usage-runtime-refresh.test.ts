@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
@@ -21,11 +22,18 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 	let revisionRepo: RevisionRepository;
 
 	beforeEach(async () => {
+		setI18nConfig(null);
 		ctx = await setupForDialect(dialect);
 		const registry = new SchemaRegistry(ctx.db);
 		await registry.createCollection({ slug: "posts", label: "Posts" });
 		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
 		await registry.createField("posts", { slug: "hero", label: "Hero", type: "image" });
+		await registry.createField("posts", {
+			slug: "shared_hero",
+			label: "Shared Hero",
+			type: "image",
+			translatable: false,
+		});
 		await registry.createCollection({ slug: "plain_posts", label: "Plain Posts", supports: [] });
 		await registry.createField("plain_posts", {
 			slug: "title",
@@ -33,6 +41,34 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 			type: "string",
 		});
 		await registry.createField("plain_posts", { slug: "hero", label: "Hero", type: "image" });
+		await registry.createCollection({
+			slug: "localized_posts",
+			label: "Localized Posts",
+			supports: [],
+		});
+		await registry.createField("localized_posts", {
+			slug: "title",
+			label: "Title",
+			type: "string",
+			translatable: false,
+		});
+		await registry.createField("localized_posts", {
+			slug: "hero",
+			label: "Hero",
+			type: "image",
+		});
+		await registry.createField("localized_posts", {
+			slug: "shared_hero",
+			label: "Shared Hero",
+			type: "image",
+			translatable: false,
+		});
+		await registry.createField("localized_posts", {
+			slug: "summary",
+			label: "Summary",
+			type: "string",
+			translatable: false,
+		});
 
 		runtime = createTestRuntime(ctx.db);
 		usageRepo = new MediaUsageRepository(ctx.db);
@@ -40,6 +76,7 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownForDialect(ctx);
 	});
 
@@ -479,7 +516,237 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		expect(await usageRepo.findCurrentUsageByMediaId("media-live-permanent")).toEqual([]);
 		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-permanent")).toEqual([]);
 	});
+
+	it("refreshes i18n siblings when a non-translatable image syncs across locales", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const { enId, frId } = await createLocalizedPostsPair(runtime, "shared-image", {
+			enSharedHero: "media-shared-old-en",
+			frSharedHero: "media-shared-old-fr",
+		});
+
+		const updated = await runtime.handleContentUpdate("localized_posts", enId, {
+			data: { shared_hero: mediaRef("media-shared-new") },
+		});
+
+		expect(updated.success).toBe(true);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-shared-old-en")).toEqual([]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-shared-old-fr")).toEqual([]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-shared-new")).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					source: expect.objectContaining({ contentId: enId, sourceVariant: "columns" }),
+					occurrence: expect.objectContaining({ fieldPath: "shared_hero" }),
+				}),
+				expect.objectContaining({
+					source: expect.objectContaining({ contentId: frId, sourceVariant: "columns" }),
+					occurrence: expect.objectContaining({ fieldPath: "shared_hero" }),
+				}),
+			]),
+		);
+	});
+
+	it("does not refresh i18n siblings for translatable image updates", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const { enId, frId } = await createLocalizedPostsPair(runtime, "translatable-image", {
+			enHero: "media-hero-old-en",
+			frHero: "media-hero-old-fr",
+		});
+		const frSourceBefore = await usageRepo.findSource(
+			sourceKey("localized_posts", frId, "columns"),
+		);
+		expect(frSourceBefore).not.toBeNull();
+
+		const updated = await runtime.handleContentUpdate("localized_posts", enId, {
+			data: { hero: mediaRef("media-hero-new-en") },
+		});
+
+		expect(updated.success).toBe(true);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-hero-new-en")).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({ contentId: enId, sourceVariant: "columns" }),
+			}),
+		]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-hero-old-fr")).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({ contentId: frId, sourceVariant: "columns" }),
+			}),
+		]);
+		expect(
+			(await usageRepo.findSource(sourceKey("localized_posts", frId, "columns")))
+				?.currentGeneration,
+		).toBe(frSourceBefore?.currentGeneration);
+	});
+
+	it("does not refresh i18n siblings for non-usage non-translatable updates", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const { enId, frId } = await createLocalizedPostsPair(runtime, "non-usage-sync");
+		const frSourceBefore = await usageRepo.findSource(
+			sourceKey("localized_posts", frId, "columns"),
+		);
+		expect(frSourceBefore).not.toBeNull();
+
+		const updated = await runtime.handleContentUpdate("localized_posts", enId, {
+			data: { summary: "Shared summary" },
+		});
+
+		expect(updated.success).toBe(true);
+		expect(
+			(await usageRepo.findSource(sourceKey("localized_posts", frId, "columns")))
+				?.currentGeneration,
+		).toBe(frSourceBefore?.currentGeneration);
+	});
+
+	it("does not refresh i18n siblings for revision-enabled draft saves", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const en = await runtime.handleContentCreate("posts", {
+			slug: "draft-sibling-en",
+			locale: "en",
+			data: {
+				title: "English Draft Sibling",
+				shared_hero: mediaRef("media-draft-sibling-old-en"),
+			},
+		});
+		expect(en.success).toBe(true);
+		if (!en.success) throw new Error(en.error.message);
+		const fr = await runtime.handleContentCreate("posts", {
+			slug: "draft-sibling-fr",
+			locale: "fr",
+			translationOf: en.data.item.id,
+			data: {
+				title: "French Draft Sibling",
+				shared_hero: mediaRef("media-draft-sibling-old-fr"),
+			},
+		});
+		expect(fr.success).toBe(true);
+		if (!fr.success) throw new Error(fr.error.message);
+		const frSourceBefore = await usageRepo.findSource(
+			sourceKey("posts", fr.data.item.id, "columns"),
+		);
+		expect(frSourceBefore).not.toBeNull();
+
+		const updated = await runtime.handleContentUpdate("posts", en.data.item.id, {
+			data: { shared_hero: mediaRef("media-draft-sibling-new") },
+		});
+
+		expect(updated.success).toBe(true);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-sibling-new")).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({
+					contentId: en.data.item.id,
+					sourceVariant: "draft_overlay",
+				}),
+			}),
+		]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-sibling-old-fr")).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({
+					contentId: fr.data.item.id,
+					sourceVariant: "columns",
+				}),
+			}),
+		]);
+		expect(
+			(await usageRepo.findSource(sourceKey("posts", fr.data.item.id, "columns")))
+				?.currentGeneration,
+		).toBe(frSourceBefore?.currentGeneration);
+	});
+
+	it("refreshes trashed i18n siblings when non-translatable fields sync to them", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const { enId, frId } = await createLocalizedPostsPair(runtime, "trashed-sibling", {
+			enSharedHero: "media-trash-old-en",
+			frSharedHero: "media-trash-old-fr",
+		});
+		const deleted = await runtime.handleContentDelete("localized_posts", frId);
+		expect(deleted.success).toBe(true);
+
+		const updated = await runtime.handleContentUpdate("localized_posts", enId, {
+			data: { shared_hero: mediaRef("media-trash-new") },
+		});
+
+		expect(updated.success).toBe(true);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-trash-old-fr")).toEqual([]);
+		expect(await usageRepo.findSource(sourceKey("localized_posts", frId, "columns"))).toEqual(
+			expect.objectContaining({
+				contentDeletedAt: expect.any(String),
+				contentId: frId,
+			}),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-trash-new")).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					source: expect.objectContaining({ contentId: enId, contentDeletedAt: null }),
+				}),
+				expect.objectContaining({
+					source: expect.objectContaining({
+						contentId: frId,
+						contentDeletedAt: expect.any(String),
+					}),
+				}),
+			]),
+		);
+	});
+
+	it("refreshes i18n sibling source metadata for non-translatable display fields", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const { enId, frId } = await createLocalizedPostsPair(runtime, "shared-title", {
+			enTitle: "English Title",
+			frTitle: "French Title",
+		});
+
+		const updated = await runtime.handleContentUpdate("localized_posts", enId, {
+			data: { title: "Shared Title" },
+		});
+
+		expect(updated.success).toBe(true);
+		expect(await usageRepo.findSource(sourceKey("localized_posts", enId, "columns"))).toEqual(
+			expect.objectContaining({ contentTitle: "Shared Title" }),
+		);
+		expect(await usageRepo.findSource(sourceKey("localized_posts", frId, "columns"))).toEqual(
+			expect.objectContaining({ contentTitle: "Shared Title" }),
+		);
+	});
 });
+
+async function createLocalizedPostsPair(
+	runtime: EmDashRuntime,
+	slugPrefix: string,
+	input: {
+		enTitle?: string;
+		frTitle?: string;
+		enHero?: string;
+		frHero?: string;
+		enSharedHero?: string;
+		frSharedHero?: string;
+	} = {},
+): Promise<{ enId: string; frId: string }> {
+	const en = await runtime.handleContentCreate("localized_posts", {
+		slug: `${slugPrefix}-en`,
+		locale: "en",
+		data: {
+			title: input.enTitle ?? "English Post",
+			hero: mediaRef(input.enHero ?? `${slugPrefix}-hero-en`),
+			shared_hero: mediaRef(input.enSharedHero ?? `${slugPrefix}-shared-en`),
+		},
+	});
+	expect(en.success).toBe(true);
+	if (!en.success) throw new Error(en.error.message);
+
+	const fr = await runtime.handleContentCreate("localized_posts", {
+		slug: `${slugPrefix}-fr`,
+		locale: "fr",
+		translationOf: en.data.item.id,
+		data: {
+			title: input.frTitle ?? "French Post",
+			hero: mediaRef(input.frHero ?? `${slugPrefix}-hero-fr`),
+			shared_hero: mediaRef(input.frSharedHero ?? `${slugPrefix}-shared-fr`),
+		},
+	});
+	expect(fr.success).toBe(true);
+	if (!fr.success) throw new Error(fr.error.message);
+
+	return { enId: en.data.item.id, frId: fr.data.item.id };
+}
 
 function mediaRef(id: string): Record<string, unknown> {
 	return {

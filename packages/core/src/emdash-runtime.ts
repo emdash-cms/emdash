@@ -33,6 +33,8 @@ import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import {
 	deleteContentMediaUsage,
+	findNonTranslatableSiblingContentIds,
+	markContentMediaUsageCollectionStale,
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
 import type { SandboxedPluginInstance, SandboxRunner } from "./plugins/sandbox/types.js";
@@ -2746,7 +2748,35 @@ export class EmDashRuntime {
 		// columns.
 		const hydrated = await this.hydrateDraftData(result);
 		if (hydrated.success && hydrated.data) {
-			await this.refreshContentUsageAfterSuccessfulWrite(collection, [resolvedId]);
+			const contentIdsToRefresh = [resolvedId];
+			if (!usesDraftRevisions && processedData) {
+				try {
+					contentIdsToRefresh.push(
+						...(await findNonTranslatableSiblingContentIds(
+							this.db,
+							collection,
+							resolvedId,
+							hydrated.data.item.translationGroup,
+							processedData,
+						)),
+					);
+				} catch (error) {
+					console.error(
+						`[media-usage] Failed to discover synced i18n siblings for ${collection}/${resolvedId}:`,
+						error,
+					);
+					try {
+						await markContentMediaUsageCollectionStale(
+							this.db,
+							collection,
+							"CONTENT_USAGE_REFRESH_ERROR",
+						);
+					} catch (staleError) {
+						console.error(`[media-usage] Failed to mark ${collection} stale:`, staleError);
+					}
+				}
+			}
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, contentIdsToRefresh);
 		}
 
 		// Run afterSave hooks (fire-and-forget)

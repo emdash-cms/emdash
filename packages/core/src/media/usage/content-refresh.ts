@@ -1,8 +1,10 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 
 import { MediaUsageRepository } from "../../database/repositories/media-usage.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
+import { isI18nEnabled } from "../../i18n/config.js";
+import { loadContentMediaUsageFields } from "./content-fields.js";
 import {
 	CONTENT_SOURCE_SCHEMA_VERSION,
 	loadContentMediaUsageSnapshots,
@@ -178,6 +180,54 @@ export async function markContentMediaUsageCollectionStale(
 		failedSourceCount: existing?.failedSourceCount ?? 0,
 		lastErrorCode,
 	});
+}
+
+export async function findNonTranslatableSiblingContentIds(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	updatedContentId: string,
+	translationGroup: string | null | undefined,
+	updatedData: Record<string, unknown> | undefined,
+): Promise<string[]> {
+	if (!isI18nEnabled() || !updatedData || !translationGroup) return [];
+
+	validateIdentifier(collectionSlug, "collection slug");
+	const collection = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collectionSlug)
+		.executeTakeFirst();
+	if (!collection) return [];
+
+	const fields = await db
+		.selectFrom("_emdash_fields")
+		.select("slug")
+		.where("collection_id", "=", collection.id)
+		.where("translatable", "=", 0)
+		.execute();
+
+	const touchedNonTranslatableSlugs = fields
+		.filter((field) => field.slug in updatedData)
+		.map((field) => field.slug);
+	if (touchedNonTranslatableSlugs.length === 0) return [];
+
+	const usageFields = await loadContentMediaUsageFields(db, collectionSlug);
+	const usageRelevantSlugs = new Set([
+		...usageFields.extractionFields.map((field) => field.slug),
+		...usageFields.displayFieldSlugs,
+	]);
+	if (!touchedNonTranslatableSlugs.some((slug) => usageRelevantSlugs.has(slug))) return [];
+
+	const tableName = `ec_${collectionSlug}`;
+	const rows = await sql<{ id: string }>`
+		SELECT id
+		FROM ${sql.ref(tableName)}
+		WHERE translation_group = ${translationGroup}
+		AND id != ${updatedContentId}
+		ORDER BY id ASC
+	`.execute(db);
+
+	return rows.rows.map((row) => row.id);
 }
 
 async function markSnapshotFailure(
