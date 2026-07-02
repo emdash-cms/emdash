@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
+import {
+	buildContentMediaUsageSourceKey,
+	type MediaUsageContentSourceVariant,
+} from "../../../src/media/usage/source-key.js";
 import { SQL_BATCH_SIZE } from "../../../src/utils/chunks.js";
 import {
 	describeEachDialect,
@@ -647,12 +651,16 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 
 function contentSource(
 	contentId: string,
-	variant: "columns" | "draft_overlay",
+	variant: MediaUsageContentSourceVariant,
 	overrides: Partial<Parameters<MediaUsageRepository["replaceSource"]>[0]> = {},
 ): Parameters<MediaUsageRepository["replaceSource"]>[0] {
 	const collectionSlug = overrides.collectionSlug ?? "posts";
 	return {
-		sourceKey: `content:${collectionSlug}:${contentId}:${variant}`,
+		sourceKey: buildContentMediaUsageSourceKey({
+			collectionSlug,
+			contentId,
+			sourceVariant: variant,
+		}),
 		sourceType: "content",
 		collectionSlug,
 		contentId,
