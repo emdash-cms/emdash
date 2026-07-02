@@ -7,6 +7,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { encodeCursor, decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getDb } from "../loader.js";
@@ -20,6 +21,38 @@ import type {
 	Suggestion,
 	SearchStats,
 } from "./types.js";
+
+/**
+ * Marker stored in the `id` slot of a search pagination cursor.
+ *
+ * Search results are merged from per-collection FTS queries and re-sorted by
+ * score, so there is no single stable keyset column to encode (the way
+ * `getEmDashCollection` encodes `(orderValue, id)`). We page over the merged,
+ * score-sorted set by offset instead, carried as the cursor's `orderValue`.
+ * Reusing `encodeCursor`/`decodeCursor` keeps the opaque base64-JSON shape and
+ * the `InvalidCursorError` handling consistent with the rest of the API.
+ */
+const SEARCH_CURSOR_MARKER = "search";
+
+/** Encode the next-page offset into an opaque search cursor. */
+function encodeSearchCursor(offset: number): string {
+	return encodeCursor(String(offset), SEARCH_CURSOR_MARKER);
+}
+
+/**
+ * Decode a search cursor back to its offset. Throws `InvalidCursorError` for a
+ * malformed cursor or one that doesn't carry a non-negative integer offset, so
+ * a client pagination bug surfaces immediately rather than silently restarting
+ * from the first page.
+ */
+function decodeSearchOffset(cursor: string): number {
+	const { orderValue } = decodeCursor(cursor);
+	const offset = Number(orderValue);
+	if (!Number.isInteger(offset) || offset < 0) {
+		throw new InvalidCursorError(cursor);
+	}
+	return offset;
+}
 
 /** Pattern to split on whitespace for query term extraction */
 const WHITESPACE_SPLIT_PATTERN = /\s+/;
@@ -86,6 +119,7 @@ export async function searchWithDb(
 	const ftsManager = new FTSManager(db);
 	const limit = options.limit ?? 20;
 	const status = options.status ?? "published";
+	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
 
 	// Get searchable collections
 	let collections = options.collections;
@@ -96,6 +130,12 @@ export async function searchWithDb(
 	if (collections.length === 0) {
 		return { items: [] };
 	}
+
+	// To rank the merged window [offset, offset + limit) correctly, each
+	// collection must contribute its own top (offset + limit) rows — in the
+	// worst case the entire window comes from one collection. The extra +1
+	// row detects whether a further page exists.
+	const perCollectionLimit = offset + limit + 1;
 
 	// Search each collection and merge results
 	const allResults: SearchResult[] = [];
@@ -113,7 +153,7 @@ export async function searchWithDb(
 			{
 				status,
 				locale: options.locale,
-				limit: limit * 2, // Get extra for merging
+				limit: perCollectionLimit,
 			},
 			config.weights,
 		);
@@ -124,10 +164,13 @@ export async function searchWithDb(
 	// Sort by score descending
 	allResults.sort((a, b) => b.score - a.score);
 
-	// Apply limit
-	const items = allResults.slice(0, limit);
+	// Page the merged set by offset. A nextCursor is issued only when at least
+	// one result exists past this page.
+	const items = allResults.slice(offset, offset + limit);
+	const hasMore = allResults.length > offset + limit;
+	const nextCursor = hasMore ? encodeSearchCursor(offset + limit) : undefined;
 
-	return { items };
+	return { items, nextCursor };
 }
 
 /**
@@ -159,9 +202,25 @@ export async function searchCollection(
 		return { items: [] };
 	}
 
-	const items = await searchSingleCollection(db, collection, query, options, config.weights);
+	const limit = options.limit ?? 20;
+	const offset = options.cursor ? decodeSearchOffset(options.cursor) : 0;
 
-	return { items };
+	// Over-fetch the [offset, offset + limit) window plus one row to detect a
+	// further page, then slice. Keeps the FTS SQL (LIMIT-only) unchanged and
+	// the cursor contract identical to the cross-collection path.
+	const fetched = await searchSingleCollection(
+		db,
+		collection,
+		query,
+		{ status: options.status, locale: options.locale, limit: offset + limit + 1 },
+		config.weights,
+	);
+
+	const items = fetched.slice(offset, offset + limit);
+	const hasMore = fetched.length > offset + limit;
+	const nextCursor = hasMore ? encodeSearchCursor(offset + limit) : undefined;
+
+	return { items, nextCursor };
 }
 
 /**
