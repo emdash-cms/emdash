@@ -6,7 +6,7 @@
  * Used by the rich text editor and image field components.
  */
 
-import { Button, Dialog, Input, Label, Loader } from "@cloudflare/kumo";
+import { Button, Dialog, Input, InputArea, Label, Loader } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Upload, Image, Check, Globe, MagnifyingGlass, Paperclip } from "@phosphor-icons/react";
@@ -28,12 +28,18 @@ import {
 } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
 import {
+	dataTransferFiles,
+	dataTransferHasFiles,
+	runUploadBatch,
+	type UploadBatchResult,
+} from "../lib/media-upload-batch.js";
+import {
 	providerItemToMediaItem,
 	getFileIcon,
 	getMediaThumbnailUrl,
 	fallbackToOriginalThumbnail,
 } from "../lib/media-utils";
-import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
+import { matchesMimeAllowlist, mimeFromFile, mimeFromUrl } from "../lib/mime-utils.js";
 import { cn } from "../lib/utils";
 import { DialogError } from "./DialogError.js";
 
@@ -42,6 +48,26 @@ interface SelectedMedia {
 	providerId: string;
 	item: MediaItem | MediaProviderItem;
 }
+
+type UploadState = {
+	status: "idle" | "uploading" | "success" | "error";
+	message?: string;
+	progress?: { current: number; total: number };
+};
+
+type DropState = "idle" | "active" | "reject";
+
+type MetadataDraft = {
+	alt: string;
+	caption: string;
+};
+
+type MediaQueryData = {
+	pages: { items: MediaItem[]; nextCursor?: string }[];
+	pageParams: unknown[];
+};
+
+type MediaQueryCache = MediaQueryData | { items: MediaItem[]; nextCursor?: string };
 
 /**
  * Returns true if the given MIME type matches any entry in the filters array.
@@ -160,6 +186,18 @@ export function MediaPickerModal({
 	const [imageUrl, setImageUrl] = React.useState("");
 	const [isProbing, setIsProbing] = React.useState(false);
 	const [urlError, setUrlError] = React.useState<string | null>(null);
+	const [uploadState, setUploadState] = React.useState<UploadState>({ status: "idle" });
+	const [dropState, setDropState] = React.useState<DropState>("idle");
+	const dragDepthRef = React.useRef(0);
+	const uploadInProgressRef = React.useRef(false);
+	const modalSessionRef = React.useRef(0);
+	const [editingMetadataId, setEditingMetadataId] = React.useState<string | null>(null);
+	const [metadataDraft, setMetadataDraft] = React.useState<MetadataDraft>({
+		alt: "",
+		caption: "",
+	});
+	const [metadataError, setMetadataError] = React.useState<string | null>(null);
+	const [metadataPendingSession, setMetadataPendingSession] = React.useState<number | null>(null);
 
 	// Track loaded image dimensions for providers that don't return them (e.g., CF Images)
 	const [providerDimensions, setProviderDimensions] = React.useState<
@@ -172,16 +210,33 @@ export function MediaPickerModal({
 	// (the tab UI is suppressed, but the selection state and provider-media
 	// query would still target the external provider).
 	React.useEffect(() => {
+		modalSessionRef.current += 1;
+		uploadInProgressRef.current = false;
 		if (open) {
 			setSelectedItem(null);
 			setActiveProvider("local");
 			setSearchQuery("");
 			setImageUrl("");
 			setUrlError(null);
-			setUploadError(null);
+			setUploadState({ status: "idle" });
+			setDropState("idle");
+			dragDepthRef.current = 0;
 			setProviderDimensions({});
+			setEditingMetadataId(null);
+			setMetadataDraft({ alt: "", caption: "" });
+			setMetadataError(null);
+			setMetadataPendingSession(null);
 		}
 	}, [open, localOnly]);
+
+	React.useEffect(() => {
+		if (uploadState.status === "success" || uploadState.status === "error") {
+			const timer = setTimeout(() => {
+				setUploadState({ status: "idle" });
+			}, 3000);
+			return () => clearTimeout(timer);
+		}
+	}, [uploadState.status]);
 
 	// Fetch available providers — skipped when `localOnly` is set since the
 	// list isn't used (provider tabs are suppressed and the active provider
@@ -207,6 +262,9 @@ export function MediaPickerModal({
 		}
 		return providers?.find((p) => p.id === activeProvider);
 	}, [activeProvider, providers, t]);
+	const canUpload =
+		activeProvider === "local" || (activeProviderInfo?.capabilities.upload ?? false);
+	const canSearch = activeProviderInfo?.capabilities.search ?? false;
 
 	// Fetch local media list (cursor-paginated so libraries beyond the
 	// first page remain selectable from the picker, not just the first 50).
@@ -251,18 +309,44 @@ export function MediaPickerModal({
 	const isLoading =
 		activeProvider === "local" ? localLoading || isFetchingNextLocalPage : providerLoading;
 
-	const [uploadError, setUploadError] = React.useState<string | null>(null);
+	const patchLocalMediaItem = React.useCallback(
+		(updated: MediaItem) => {
+			queryClient.setQueriesData({ queryKey: ["media"] }, (old: MediaQueryCache | undefined) => {
+				if (!old) return old;
+				if ("items" in old) {
+					return {
+						...old,
+						items: old.items.map((item) =>
+							item.id === updated.id ? { ...item, ...updated } : item,
+						),
+					};
+				}
+				return {
+					...old,
+					pages: old.pages.map((page) => ({
+						...page,
+						items: page.items.map((item) =>
+							item.id === updated.id ? { ...item, ...updated } : item,
+						),
+					})),
+				};
+			});
+
+			setSelectedItem((current) => {
+				if (current?.providerId !== "local" || current.item.id !== updated.id) {
+					return current;
+				}
+				return { providerId: "local", item: { ...(current.item as MediaItem), ...updated } };
+			});
+		},
+		[queryClient],
+	);
 
 	// Upload mutation for local provider
 	const uploadLocalMutation = useMutation({
 		mutationFn: (file: File) => uploadMedia(file, { fieldId }),
-		onSuccess: (item) => {
+		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
-			setSelectedItem({ providerId: "local", item });
-			setUploadError(null);
-		},
-		onError: (err: Error) => {
-			setUploadError(err.message);
 		},
 	});
 
@@ -270,17 +354,12 @@ export function MediaPickerModal({
 	const uploadProviderMutation = useMutation({
 		mutationFn: ({ providerId, file }: { providerId: string; file: File }) =>
 			uploadToProvider(providerId, file),
-		onSuccess: (item, { providerId }) => {
+		onSuccess: (_item, { providerId }) => {
 			void queryClient.invalidateQueries({ queryKey: ["provider-media", providerId] });
-			setSelectedItem({ providerId, item });
-			setUploadError(null);
-		},
-		onError: (err: Error) => {
-			setUploadError(err.message);
 		},
 	});
 
-	const isUploading = uploadLocalMutation.isPending || uploadProviderMutation.isPending;
+	const isUploading = uploadState.status === "uploading";
 
 	// Track which items we've already updated dimensions for
 	const updatedDimensionsRef = React.useRef<Set<string>>(new Set());
@@ -323,6 +402,37 @@ export function MediaPickerModal({
 		},
 	});
 
+	const metadataMutation = useMutation({
+		mutationFn: ({
+			id,
+			alt,
+			caption,
+		}: {
+			id: string;
+			alt: string;
+			caption: string;
+			session: number;
+		}) => updateMedia(id, { alt, caption }),
+		onSuccess: (updated, { session }) => {
+			if (modalSessionRef.current !== session) return;
+			patchLocalMediaItem(updated);
+			setEditingMetadataId(null);
+			setMetadataDraft({ alt: "", caption: "" });
+			setMetadataError(null);
+		},
+		onError: (error, { session }) => {
+			if (modalSessionRef.current !== session) return;
+			setMetadataError(error instanceof Error ? error.message : t`Failed to update media`);
+		},
+		onSettled: (_updated, _error, { session }) => {
+			if (modalSessionRef.current === session) {
+				setMetadataPendingSession(null);
+			}
+		},
+	});
+	const isMetadataSavePending = metadataPendingSession === modalSessionRef.current;
+	const canConfirmSelection = !isMetadataSavePending;
+
 	// Handle dimensions detected for local images missing them
 	const handleDimensionsDetected = React.useCallback(
 		(id: string, width: number, height: number) => {
@@ -342,20 +452,223 @@ export function MediaPickerModal({
 		return providerData?.items || [];
 	}, [activeProvider, localData, providerData?.items, filters]);
 
-	const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const files = e.target.files;
-		const file = files?.[0];
-		if (file) {
-			if (activeProvider === "local") {
-				uploadLocalMutation.mutate(file);
-			} else if (activeProviderInfo?.capabilities.upload) {
-				uploadProviderMutation.mutate({ providerId: activeProvider, file });
+	const setFinalUploadState = React.useCallback(
+		<T,>(result: UploadBatchResult<T>, rejectedBeforeUpload = 0) => {
+			const uploaded = result.uploaded.length;
+			const failed = result.failed.length + rejectedBeforeUpload;
+			const total = result.total + rejectedBeforeUpload;
+
+			if (failed === 0) {
+				setUploadState({
+					status: "success",
+					message: plural(total, { one: "File uploaded", other: "# files uploaded" }),
+				});
+			} else if (uploaded === 0) {
+				setUploadState({
+					status: "error",
+					message: plural(total, { one: "Upload failed", other: "All # uploads failed" }),
+				});
+			} else {
+				setUploadState({
+					status: "error",
+					message: t`${plural(uploaded, { one: "# file uploaded", other: "# files uploaded" })}, ${plural(failed, { one: "# file failed", other: "# files failed" })}`,
+				});
 			}
-		}
+		},
+		[t],
+	);
+
+	const handleFiles = React.useCallback(
+		async (files: File[]) => {
+			if (files.length === 0) return;
+			if (uploadInProgressRef.current) {
+				return;
+			}
+			if (!canUpload) {
+				setUploadState({
+					status: "error",
+					message: t`Uploads are not available for this provider`,
+				});
+				return;
+			}
+
+			const acceptedFiles =
+				filters && filters.length > 0
+					? files.filter((file) => {
+							const mime = mimeFromFile(file);
+							return mime ? matchesMimeAllowlist(mime, filters) : false;
+						})
+					: files;
+			const rejectedCount = files.length - acceptedFiles.length;
+
+			if (acceptedFiles.length === 0) {
+				setUploadState({
+					status: "error",
+					message: plural(files.length, {
+						one: "This picker does not accept that file",
+						other: "This picker does not accept those # files",
+					}),
+				});
+				return;
+			}
+
+			const uploadSession = modalSessionRef.current;
+			uploadInProgressRef.current = true;
+			setUploadState({
+				status: "uploading",
+				progress: { current: 0, total: acceptedFiles.length },
+			});
+
+			try {
+				if (activeProvider === "local") {
+					const result = await runUploadBatch(
+						acceptedFiles,
+						(file) => uploadLocalMutation.mutateAsync(file),
+						(progress) => {
+							if (modalSessionRef.current === uploadSession) {
+								setUploadState({ status: "uploading", progress });
+							}
+						},
+					);
+					if (modalSessionRef.current !== uploadSession) return;
+					for (const failure of result.failed) {
+						console.error("Upload failed:", failure.error);
+					}
+					const lastUploaded = result.uploaded.at(-1);
+					if (lastUploaded) {
+						setSelectedItem({ providerId: "local", item: lastUploaded });
+					}
+					setFinalUploadState(result, rejectedCount);
+					return;
+				}
+
+				const result = await runUploadBatch(
+					acceptedFiles,
+					(file) => uploadProviderMutation.mutateAsync({ providerId: activeProvider, file }),
+					(progress) => {
+						if (modalSessionRef.current === uploadSession) {
+							setUploadState({ status: "uploading", progress });
+						}
+					},
+				);
+				if (modalSessionRef.current !== uploadSession) return;
+				for (const failure of result.failed) {
+					console.error("Upload failed:", failure.error);
+				}
+				const lastUploaded = result.uploaded.at(-1);
+				if (lastUploaded) {
+					setSelectedItem({ providerId: activeProvider, item: lastUploaded });
+				}
+				setFinalUploadState(result, rejectedCount);
+			} finally {
+				if (modalSessionRef.current === uploadSession) {
+					uploadInProgressRef.current = false;
+				}
+			}
+		},
+		[
+			activeProvider,
+			canUpload,
+			filters,
+			setFinalUploadState,
+			t,
+			uploadLocalMutation,
+			uploadProviderMutation,
+		],
+	);
+
+	const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+		void handleFiles([...(e.target.files ?? [])]);
 		if (fileInputRef.current) {
 			fileInputRef.current.value = "";
 		}
 	};
+
+	const handleDragEnter = React.useCallback(
+		(e: React.DragEvent) => {
+			if (!dataTransferHasFiles(e.dataTransfer)) return;
+			e.preventDefault();
+			dragDepthRef.current += 1;
+			setDropState(canUpload && !isUploading ? "active" : "reject");
+		},
+		[canUpload, isUploading],
+	);
+
+	const handleDragOver = React.useCallback(
+		(e: React.DragEvent) => {
+			if (!dataTransferHasFiles(e.dataTransfer)) return;
+			e.preventDefault();
+			e.dataTransfer.dropEffect = canUpload && !isUploading ? "copy" : "none";
+			setDropState(canUpload && !isUploading ? "active" : "reject");
+		},
+		[canUpload, isUploading],
+	);
+
+	const handleDragLeave = React.useCallback((e: React.DragEvent) => {
+		if (!dataTransferHasFiles(e.dataTransfer)) return;
+		dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+		if (dragDepthRef.current === 0) {
+			setDropState("idle");
+		}
+	}, []);
+
+	const handleDrop = React.useCallback(
+		(e: React.DragEvent) => {
+			if (!dataTransferHasFiles(e.dataTransfer)) return;
+			e.preventDefault();
+			dragDepthRef.current = 0;
+			setDropState("idle");
+			void handleFiles(dataTransferFiles(e.dataTransfer));
+		},
+		[handleFiles],
+	);
+
+	const selectedLocalItem =
+		selectedItem?.providerId === "local" ? (selectedItem.item as MediaItem) : null;
+	const selectedLocalImageMissingAlt =
+		!!selectedLocalItem &&
+		selectedLocalItem.mimeType.startsWith("image/") &&
+		!selectedLocalItem.alt?.trim();
+	const isEditingSelectedMetadata =
+		!!selectedLocalItem &&
+		selectedLocalItem.mimeType.startsWith("image/") &&
+		editingMetadataId === selectedLocalItem.id;
+
+	React.useEffect(() => {
+		if (editingMetadataId && editingMetadataId !== selectedLocalItem?.id) {
+			setEditingMetadataId(null);
+			setMetadataDraft({ alt: "", caption: "" });
+			setMetadataError(null);
+		}
+	}, [editingMetadataId, selectedLocalItem?.id]);
+
+	const openMetadataEditor = React.useCallback((item: MediaItem) => {
+		setEditingMetadataId(item.id);
+		setMetadataDraft({ alt: item.alt ?? "", caption: item.caption ?? "" });
+		setMetadataError(null);
+	}, []);
+
+	const handleMetadataSubmit = React.useCallback(
+		(e: React.FormEvent<HTMLFormElement>) => {
+			e.preventDefault();
+			if (!selectedLocalItem || editingMetadataId !== selectedLocalItem.id) return;
+			const metadataSession = modalSessionRef.current;
+			setMetadataPendingSession(metadataSession);
+			metadataMutation.mutate({
+				id: selectedLocalItem.id,
+				alt: metadataDraft.alt.trim(),
+				caption: metadataDraft.caption.trim(),
+				session: metadataSession,
+			});
+		},
+		[
+			editingMetadataId,
+			metadataDraft.alt,
+			metadataDraft.caption,
+			metadataMutation,
+			selectedLocalItem,
+		],
+	);
 
 	const handleConfirm = () => {
 		if (selectedItem) {
@@ -387,6 +700,14 @@ export function MediaPickerModal({
 		setSelectedItem(null);
 		setImageUrl("");
 		setUrlError(null);
+		setUploadState({ status: "idle" });
+		setDropState("idle");
+		modalSessionRef.current += 1;
+		uploadInProgressRef.current = false;
+		setEditingMetadataId(null);
+		setMetadataDraft({ alt: "", caption: "" });
+		setMetadataError(null);
+		setMetadataPendingSession(null);
 	};
 
 	const handleUrlSubmit = async () => {
@@ -449,10 +770,6 @@ export function MediaPickerModal({
 		}
 	};
 
-	const canUpload =
-		activeProvider === "local" || (activeProviderInfo?.capabilities.upload ?? false);
-	const canSearch = activeProviderInfo?.capabilities.search ?? false;
-
 	// Build provider tabs - always show local first, then add external providers
 	// Filter out "local" from API response since we add it manually.
 	// When `localOnly` is set, suppress external providers entirely so the
@@ -471,281 +788,400 @@ export function MediaPickerModal({
 		return tabs;
 	}, [providers, localOnly, t]);
 
+	const dropMessage =
+		dropState === "active"
+			? t`Drop files to upload to ${activeProviderInfo?.name ?? t`Library`}`
+			: dropState === "reject"
+				? t`Uploads are not available here`
+				: t`Drag files here to upload`;
+	const uploadStatusMessage =
+		uploadState.status === "uploading"
+			? uploadState.progress && uploadState.progress.total > 1
+				? t`Uploading ${uploadState.progress.current}/${uploadState.progress.total}...`
+				: t`Uploading...`
+			: uploadState.message;
+
 	return (
 		<Dialog.Root open={open} onOpenChange={handleClose}>
 			<Dialog className="p-6 max-w-4xl max-h-[80vh] flex flex-col overflow-hidden" size="xl">
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{title}
-					</Dialog.Title>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
-							</Button>
-						)}
-					/>
-				</div>
-
-				{/* URL Input (image pickers only — probes image dimensions) */}
-				{!hideUrlInput && !localOnly && (
-					<>
-						<div className="border-b pb-4">
-							<Label>{t`Insert from URL`}</Label>
-							<div className="flex gap-2 mt-1.5">
-								<div className="flex-1 relative">
-									<Globe className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
-									<Input
-										type="url"
-										placeholder={t`https://example.com/image.jpg`}
-										aria-label={t`Image URL`}
-										value={imageUrl}
-										onChange={(e) => {
-											setImageUrl(e.target.value);
-											setUrlError(null);
-										}}
-										onKeyDown={handleUrlKeyDown}
-										className="ps-9"
-									/>
-								</div>
-								<Button onClick={handleUrlSubmit} disabled={!imageUrl.trim() || isProbing}>
-									{isProbing ? <Loader size="sm" /> : t`Insert`}
-								</Button>
-							</div>
-							{urlError && <p className="text-sm text-kumo-danger mt-1">{urlError}</p>}
-						</div>
-
-						{/* Divider with "or" */}
-						<div className="relative py-2">
-							<div className="absolute inset-0 flex items-center">
-								<span className="w-full border-t" />
-							</div>
-							<div className="relative flex justify-center text-xs uppercase">
-								<span className="bg-kumo-base px-2 text-kumo-subtle">{t`or choose from library`}</span>
-							</div>
-						</div>
-					</>
-				)}
-
-				{/* Provider Tabs */}
-				{providerTabs.length > 1 && (
-					<div className="flex gap-2 border-b pb-3 flex-wrap">
-						{providerTabs.map((tab) => (
-							<button
-								key={tab.id}
-								type="button"
-								onClick={() => {
-									setActiveProvider(tab.id);
-									setSelectedItem(null);
-									setSearchQuery("");
-								}}
-								className={cn(
-									"flex items-center gap-2 px-4 h-9 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
-									activeProvider === tab.id
-										? "bg-kumo-brand text-white"
-										: "bg-kumo-tint hover:bg-kumo-tint/80 text-kumo-subtle",
-								)}
-							>
-								{tab.icon &&
-									(tab.icon.startsWith("data:") ? (
-										<img src={tab.icon} alt="" className="h-4 w-4" aria-hidden="true" />
-									) : (
-										<span aria-hidden="true">{tab.icon}</span>
-									))}
-								{tab.name}
-							</button>
-						))}
-					</div>
-				)}
-
-				{/* Toolbar */}
-				<div className="flex items-center justify-between pb-3 gap-4">
-					{/* Search — providers that support it, plus the local library
-					    (filename/extension search, handled server-side). */}
-					{canSearch || activeProvider === "local" ? (
-						<div className="relative flex-1 max-w-xs">
-							<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
-							<Input
-								type="search"
-								placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
-								aria-label={t`Search media`}
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
-								maxLength={MEDIA_SEARCH_MAX_LENGTH}
-								className="ps-9"
-							/>
-						</div>
-					) : (
-						<p className="text-sm text-kumo-subtle">
-							{plural(items.length, { one: "# item", other: "# items" })}
-						</p>
-					)}
-
-					{/* Upload button (if provider supports it) */}
-					{canUpload && (
-						<>
-							<Button
-								size="sm"
-								icon={<Upload />}
-								onClick={() => fileInputRef.current?.click()}
-								disabled={isUploading}
-							>
-								{isUploading ? t`Uploading...` : t`Upload`}
-							</Button>
-							<input
-								ref={fileInputRef}
-								type="file"
-								accept={
-									filters
-										? filters.map((f) => (f.endsWith("/") ? f + "*" : f)).join(",")
-										: undefined
-								}
-								className="sr-only"
-								onChange={handleFileSelect}
-								aria-label={t`Upload file`}
-							/>
-						</>
-					)}
-				</div>
-
-				{/* Upload error */}
-				<DialogError
-					message={uploadError ? t`Upload failed: ${uploadError}` : null}
-					className="mb-3"
-				/>
-
-				{/* Media Grid */}
-				<div className="flex-1 overflow-y-auto min-h-0">
-					{/*
-					 * Gate the centered loader on items being empty so that "Load More"
-					 * (which sets isLoading=true while fetching the next cursor page)
-					 * does not blank out already-rendered items / lose the user's
-					 * selection. Mirrors the ContentList pattern from #135.
-					 */}
-					{isLoading && items.length === 0 ? (
-						<div className="flex items-center justify-center h-full">
-							<Loader />
-						</div>
-					) : items.length === 0 ? (
-						<div className="flex flex-col items-center justify-center h-full text-center p-8">
-							<EmptyStateIcon className="h-12 w-12 text-kumo-subtle mb-4" aria-hidden="true" />
-							<h3 className="text-lg font-medium">{t`No media found`}</h3>
-							<p className="text-sm text-kumo-subtle mt-1">
-								{canSearch && searchQuery
-									? t`Try a different search term`
-									: canUpload
-										? emptyStateUploadHint
-										: t`No media available from this provider`}
-							</p>
-							{canUpload && !searchQuery && (
+				<div
+					className="flex min-h-0 flex-1 flex-col"
+					onDragEnter={handleDragEnter}
+					onDragOver={handleDragOver}
+					onDragLeave={handleDragLeave}
+					onDrop={handleDrop}
+				>
+					<div className="flex items-start justify-between gap-4 mb-4">
+						<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
+							{title}
+						</Dialog.Title>
+						<Dialog.Close
+							aria-label={t`Close`}
+							render={(props) => (
 								<Button
-									className="mt-4"
-									icon={<Upload />}
-									onClick={() => fileInputRef.current?.click()}
+									{...props}
+									variant="ghost"
+									shape="square"
+									aria-label={t`Close`}
+									className="absolute end-4 top-4"
 								>
-									{emptyStateUploadCta}
+									<X className="h-4 w-4" />
+									<span className="sr-only">{t`Close`}</span>
 								</Button>
 							)}
-						</div>
-					) : (
-						<ul
-							className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3 p-1"
-							role="listbox"
-							aria-label={t`Available media`}
-						>
-							{activeProvider === "local"
-								? (items as MediaItem[]).map((item) => (
-										<MediaPickerItem
-											key={item.id}
-											item={item}
-											selected={
-												selectedItem?.providerId === "local" && selectedItem.item.id === item.id
-											}
-											onClick={() => setSelectedItem({ providerId: "local", item })}
-											onDoubleClick={() => {
-												onSelect(item);
-												onOpenChange(false);
+						/>
+					</div>
+
+					{/* URL Input (image pickers only — probes image dimensions) */}
+					{!hideUrlInput && !localOnly && (
+						<>
+							<div className="border-b pb-4">
+								<Label>{t`Insert from URL`}</Label>
+								<div className="flex gap-2 mt-1.5">
+									<div className="flex-1 relative">
+										<Globe className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+										<Input
+											type="url"
+											placeholder={t`https://example.com/image.jpg`}
+											aria-label={t`Image URL`}
+											value={imageUrl}
+											onChange={(e) => {
+												setImageUrl(e.target.value);
+												setUrlError(null);
 											}}
-											onDimensionsDetected={handleDimensionsDetected}
+											onKeyDown={handleUrlKeyDown}
+											className="ps-9"
 										/>
-									))
-								: (items as MediaProviderItem[]).map((item) => (
-										<ProviderMediaItem
-											key={item.id}
-											item={item}
-											selected={
-												selectedItem?.providerId === activeProvider &&
-												selectedItem.item.id === item.id
-											}
-											onClick={() => setSelectedItem({ providerId: activeProvider, item })}
-											onDoubleClick={() => {
-												// Merge loaded dimensions for double-click select
-												const dims = providerDimensions[item.id];
-												const itemWithDims = dims
-													? {
-															...item,
-															width: item.width ?? dims.width,
-															height: item.height ?? dims.height,
-														}
-													: item;
-												const mediaItem = providerItemToMediaItem(activeProvider, itemWithDims);
-												onSelect(mediaItem);
-												onOpenChange(false);
-											}}
-											onDimensionsLoaded={(width, height) => {
-												setProviderDimensions((prev) => ({
-													...prev,
-													[item.id]: { width, height },
-												}));
-											}}
-										/>
-									))}
-						</ul>
+									</div>
+									<Button onClick={handleUrlSubmit} disabled={!imageUrl.trim() || isProbing}>
+										{isProbing ? <Loader size="sm" /> : t`Insert`}
+									</Button>
+								</div>
+								{urlError && <p className="text-sm text-kumo-danger mt-1">{urlError}</p>}
+							</div>
+
+							{/* Divider with "or" */}
+							<div className="relative py-2">
+								<div className="absolute inset-0 flex items-center">
+									<span className="w-full border-t" />
+								</div>
+								<div className="relative flex justify-center text-xs uppercase">
+									<span className="bg-kumo-base px-2 text-kumo-subtle">{t`or choose from library`}</span>
+								</div>
+							</div>
+						</>
 					)}
 
-					{/* Load more (local library only — providers handle pagination internally) */}
-					{activeProvider === "local" && hasNextLocalPage && (
-						<div className="flex justify-center py-3">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => void fetchNextLocalPage()}
-								disabled={isFetchingNextLocalPage}
-							>
-								{isFetchingNextLocalPage ? t`Loading...` : t`Load More`}
-							</Button>
+					{/* Provider Tabs */}
+					{providerTabs.length > 1 && (
+						<div className="flex gap-2 border-b pb-3 flex-wrap">
+							{providerTabs.map((tab) => (
+								<button
+									key={tab.id}
+									type="button"
+									onClick={() => {
+										setActiveProvider(tab.id);
+										setSelectedItem(null);
+										setSearchQuery("");
+									}}
+									className={cn(
+										"flex items-center gap-2 px-4 h-9 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
+										activeProvider === tab.id
+											? "bg-kumo-brand text-white"
+											: "bg-kumo-tint hover:bg-kumo-tint/80 text-kumo-subtle",
+									)}
+								>
+									{tab.icon &&
+										(tab.icon.startsWith("data:") ? (
+											<img src={tab.icon} alt="" className="h-4 w-4" aria-hidden="true" />
+										) : (
+											<span aria-hidden="true">{tab.icon}</span>
+										))}
+									{tab.name}
+								</button>
+							))}
 						</div>
 					)}
-				</div>
 
-				{/* Footer */}
-				<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 border-t pt-4">
-					<div className="flex-1 text-sm text-kumo-subtle">
-						{selectedItem && (
-							<span>
-								{t`Selected:`} <strong>{selectedItem.item.filename}</strong>
-								{selectedItem.providerId !== "local" && (
-									<span className="ms-2 text-xs">
-										{t`(from ${providers?.find((p) => p.id === selectedItem.providerId)?.name})`}
-									</span>
-								)}
-							</span>
+					{/* Toolbar */}
+					<div className="flex items-center justify-between pb-3 gap-4">
+						{/* Search — providers that support it, plus the local library
+					    (filename/extension search, handled server-side). */}
+						{canSearch || activeProvider === "local" ? (
+							<div className="relative flex-1 max-w-xs">
+								<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
+								<Input
+									type="search"
+									placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
+									aria-label={t`Search media`}
+									value={searchQuery}
+									onChange={(e) => setSearchQuery(e.target.value)}
+									maxLength={MEDIA_SEARCH_MAX_LENGTH}
+									className="ps-9"
+								/>
+							</div>
+						) : (
+							<p className="text-sm text-kumo-subtle">
+								{plural(items.length, { one: "# item", other: "# items" })}
+							</p>
+						)}
+
+						{/* Upload button (if provider supports it) */}
+						{canUpload && (
+							<>
+								<Button
+									size="sm"
+									icon={<Upload />}
+									onClick={() => fileInputRef.current?.click()}
+									disabled={isUploading}
+								>
+									{isUploading ? t`Uploading...` : t`Upload`}
+								</Button>
+								<input
+									ref={fileInputRef}
+									type="file"
+									multiple
+									accept={
+										filters
+											? filters.map((f) => (f.endsWith("/") ? f + "*" : f)).join(",")
+											: undefined
+									}
+									className="sr-only"
+									onChange={handleFileSelect}
+									aria-label={t`Upload files`}
+								/>
+							</>
 						)}
 					</div>
-					<Button variant="outline" onClick={handleClose}>
-						{t`Cancel`}
-					</Button>
-					<Button onClick={handleConfirm} disabled={!selectedItem}>
-						{t`Insert`}
-					</Button>
+
+					{canUpload && (
+						<div
+							className={cn(
+								"mb-3 rounded-md border border-dashed p-3 text-center text-sm transition-colors",
+								dropState === "active"
+									? "border-kumo-brand bg-kumo-tint text-kumo-default"
+									: dropState === "reject"
+										? "border-kumo-danger bg-kumo-danger/10 text-kumo-danger"
+										: "border-kumo-line bg-kumo-tint/40 text-kumo-subtle",
+							)}
+							aria-live="polite"
+						>
+							<div className="flex items-center justify-center gap-2">
+								<Upload className="h-4 w-4" aria-hidden="true" />
+								<span>{dropMessage}</span>
+							</div>
+						</div>
+					)}
+
+					{uploadStatusMessage && (
+						<div
+							className={cn(
+								"mb-3 flex items-center gap-2 text-sm",
+								uploadState.status === "error" ? "text-kumo-danger" : "text-kumo-subtle",
+							)}
+							aria-live="polite"
+						>
+							{uploadState.status === "uploading" ? (
+								<Loader size="sm" />
+							) : uploadState.status === "success" ? (
+								<Check className="h-4 w-4" aria-hidden="true" />
+							) : uploadState.status === "error" ? (
+								<X className="h-4 w-4" aria-hidden="true" />
+							) : null}
+							<span>{uploadStatusMessage}</span>
+						</div>
+					)}
+
+					{/* Media Grid */}
+					<div className="flex-1 overflow-y-auto min-h-0">
+						{/*
+						 * Gate the centered loader on items being empty so that "Load More"
+						 * (which sets isLoading=true while fetching the next cursor page)
+						 * does not blank out already-rendered items / lose the user's
+						 * selection. Mirrors the ContentList pattern from #135.
+						 */}
+						{isLoading && items.length === 0 ? (
+							<div className="flex items-center justify-center h-full">
+								<Loader />
+							</div>
+						) : items.length === 0 ? (
+							<div className="flex flex-col items-center justify-center h-full text-center p-8">
+								<EmptyStateIcon className="h-12 w-12 text-kumo-subtle mb-4" aria-hidden="true" />
+								<h3 className="text-lg font-medium">{t`No media found`}</h3>
+								<p className="text-sm text-kumo-subtle mt-1">
+									{canSearch && searchQuery
+										? t`Try a different search term`
+										: canUpload
+											? emptyStateUploadHint
+											: t`No media available from this provider`}
+								</p>
+								{canUpload && !searchQuery && (
+									<Button
+										className="mt-4"
+										icon={<Upload />}
+										onClick={() => fileInputRef.current?.click()}
+									>
+										{emptyStateUploadCta}
+									</Button>
+								)}
+							</div>
+						) : (
+							<ul
+								className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3 p-1"
+								role="listbox"
+								aria-label={t`Available media`}
+							>
+								{activeProvider === "local"
+									? (items as MediaItem[]).map((item) => (
+											<MediaPickerItem
+												key={item.id}
+												item={item}
+												selected={
+													selectedItem?.providerId === "local" && selectedItem.item.id === item.id
+												}
+												onClick={() => setSelectedItem({ providerId: "local", item })}
+												onDoubleClick={() => {
+													if (!canConfirmSelection) return;
+													onSelect(item);
+													onOpenChange(false);
+												}}
+												onDimensionsDetected={handleDimensionsDetected}
+											/>
+										))
+									: (items as MediaProviderItem[]).map((item) => (
+											<ProviderMediaItem
+												key={item.id}
+												item={item}
+												selected={
+													selectedItem?.providerId === activeProvider &&
+													selectedItem.item.id === item.id
+												}
+												onClick={() => setSelectedItem({ providerId: activeProvider, item })}
+												onDoubleClick={() => {
+													if (!canConfirmSelection) return;
+													// Merge loaded dimensions for double-click select
+													const dims = providerDimensions[item.id];
+													const itemWithDims = dims
+														? {
+																...item,
+																width: item.width ?? dims.width,
+																height: item.height ?? dims.height,
+															}
+														: item;
+													const mediaItem = providerItemToMediaItem(activeProvider, itemWithDims);
+													onSelect(mediaItem);
+													onOpenChange(false);
+												}}
+												onDimensionsLoaded={(width, height) => {
+													setProviderDimensions((prev) => ({
+														...prev,
+														[item.id]: { width, height },
+													}));
+												}}
+											/>
+										))}
+							</ul>
+						)}
+
+						{/* Load more (local library only — providers handle pagination internally) */}
+						{activeProvider === "local" && hasNextLocalPage && (
+							<div className="flex justify-center py-3">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => void fetchNextLocalPage()}
+									disabled={isFetchingNextLocalPage}
+								>
+									{isFetchingNextLocalPage ? t`Loading...` : t`Load More`}
+								</Button>
+							</div>
+						)}
+					</div>
+
+					{/* Footer */}
+					<div className="space-y-3 border-t pt-4">
+						<div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+							<div className="flex-1 text-sm text-kumo-subtle">
+								{selectedItem && (
+									<div className="flex flex-wrap items-center gap-2">
+										<span>
+											{t`Selected:`} <strong>{selectedItem.item.filename}</strong>
+											{selectedItem.providerId !== "local" && (
+												<span className="ms-2 text-xs">
+													{t`(from ${providers?.find((p) => p.id === selectedItem.providerId)?.name})`}
+												</span>
+											)}
+										</span>
+										{selectedLocalItem?.mimeType.startsWith("image/") && (
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												onClick={() => openMetadataEditor(selectedLocalItem)}
+											>
+												{selectedLocalImageMissingAlt ? t`Add alt text` : t`Edit alt and caption`}
+											</Button>
+										)}
+									</div>
+								)}
+							</div>
+							<Button variant="outline" onClick={handleClose}>
+								{t`Cancel`}
+							</Button>
+							<Button onClick={handleConfirm} disabled={!selectedItem || !canConfirmSelection}>
+								{t`Insert`}
+							</Button>
+						</div>
+
+						{isEditingSelectedMetadata && (
+							<form
+								className="rounded-md border border-kumo-line bg-kumo-tint/30 p-3"
+								aria-label={t`Edit media metadata`}
+								onSubmit={handleMetadataSubmit}
+							>
+								<div className="mb-3 flex items-center justify-between gap-3">
+									<h3 className="text-sm font-medium text-kumo-default">{t`Edit media metadata`}</h3>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											setEditingMetadataId(null);
+											setMetadataDraft({ alt: "", caption: "" });
+											setMetadataError(null);
+										}}
+									>
+										{t`Cancel edit`}
+									</Button>
+								</div>
+								<div className="grid gap-3 sm:grid-cols-2">
+									<Input
+										label={t`Alt text`}
+										value={metadataDraft.alt}
+										onChange={(e) =>
+											setMetadataDraft((draft) => ({ ...draft, alt: e.target.value }))
+										}
+										placeholder={t`Describe this image for accessibility`}
+									/>
+									<InputArea
+										label={t`Caption`}
+										value={metadataDraft.caption}
+										onChange={(e) =>
+											setMetadataDraft((draft) => ({ ...draft, caption: e.target.value }))
+										}
+										placeholder={t`Optional caption for display`}
+										rows={2}
+									/>
+								</div>
+								<DialogError message={metadataError} className="mt-3" />
+								<div className="mt-3 flex justify-end">
+									<Button type="submit" size="sm" disabled={isMetadataSavePending}>
+										{isMetadataSavePending ? t`Saving...` : t`Save`}
+									</Button>
+								</div>
+							</form>
+						)}
+					</div>
 				</div>
 			</Dialog>
 		</Dialog.Root>
@@ -770,6 +1206,17 @@ function MediaPickerItem({
 	const { t } = useLingui();
 	const isImage = item.mimeType.startsWith("image/");
 	const needsDimensions = isImage && (!item.width || !item.height);
+	const missingAlt = isImage && !item.alt?.trim();
+	const hasAlt = isImage && !!item.alt?.trim();
+	const hasCaption = !!item.caption?.trim();
+	const ariaLabel = [
+		item.filename,
+		missingAlt ? t`missing alt text` : hasAlt ? t`alt text set` : null,
+		hasCaption ? t`caption set` : null,
+		selected ? t`selected` : null,
+	]
+		.filter(Boolean)
+		.join(", ");
 
 	// Serve a resized thumbnail only when the original dimensions are already
 	// known. When they're missing we display the original so `onLoad` can read
@@ -800,7 +1247,7 @@ function MediaPickerItem({
 				)}
 				onClick={onClick}
 				onDoubleClick={onDoubleClick}
-				aria-label={t`${item.filename}${selected ? t` (selected)` : ""}`}
+				aria-label={ariaLabel}
 			>
 				{isImage ? (
 					<img
@@ -826,6 +1273,22 @@ function MediaPickerItem({
 						<div className="bg-kumo-brand text-white rounded-full p-1">
 							<Check className="h-4 w-4" />
 						</div>
+					</div>
+				)}
+
+				{isImage && (
+					<div
+						className="absolute start-1 top-1 flex max-w-[calc(100%-0.5rem)] flex-wrap gap-1"
+						aria-hidden="true"
+					>
+						<span className="rounded-sm bg-kumo-base/90 px-1.5 py-0.5 text-[10px] font-medium text-kumo-default shadow-sm">
+							{missingAlt ? t`Missing alt` : t`Alt set`}
+						</span>
+						{hasCaption && (
+							<span className="rounded-sm bg-kumo-base/90 px-1.5 py-0.5 text-[10px] font-medium text-kumo-default shadow-sm">
+								{t`Caption set`}
+							</span>
+						)}
 					</div>
 				)}
 
