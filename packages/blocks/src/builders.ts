@@ -24,6 +24,8 @@ import type {
 	FormField,
 	HeaderBlock,
 	ImageBlock,
+	MediaGridBlock,
+	MediaGridItem,
 	MediaPickerElement,
 	MeterBlock,
 	NumberInputElement,
@@ -495,6 +497,21 @@ function accordion(opts: {
 	};
 }
 
+function mediaGrid(opts: {
+	blockId?: string;
+	items: MediaGridItem[];
+	columns?: 2 | 3 | 4;
+	emptyText?: string;
+}): MediaGridBlock {
+	return {
+		type: "media_grid",
+		items: opts.items,
+		...(opts.columns !== undefined && { columns: opts.columns }),
+		...(opts.emptyText !== undefined && { empty_text: opts.emptyText }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 export const blocks = {
@@ -517,6 +534,7 @@ export const blocks = {
 	tab: tabBlock,
 	empty,
 	accordion,
+	mediaGrid,
 };
 
 export const elements = {
