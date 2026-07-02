@@ -226,6 +226,48 @@ describe("Bridge Handler Conformance", () => {
 			expect(result.error).toContain("Missing capability: read:content");
 		});
 
+		it("rejects taxonomy read without taxonomies:read capability", async () => {
+			// content:read does not grant taxonomy access — it's a separate
+			// capability (and a new one, so the canonical name is checked).
+			const handler = makeHandler({ capabilities: ["read:content"] });
+			const result = await call(handler, "taxonomy/list", {});
+			expect(result.error).toContain("Missing capability: taxonomies:read");
+		});
+
+		it("allows taxonomy read with taxonomies:read", async () => {
+			await db.schema
+				.createTable("_emdash_taxonomy_defs")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("name", "text", (col) => col.notNull())
+				.addColumn("label", "text", (col) => col.notNull())
+				.addColumn("label_singular", "text")
+				.addColumn("hierarchical", "integer", (col) => col.notNull().defaultTo(0))
+				.addColumn("collections", "text")
+				.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+				.addColumn("translation_group", "text")
+				.execute();
+			await db
+				.insertInto("_emdash_taxonomy_defs" as any)
+				.values({
+					id: "def-genre",
+					name: "genre",
+					label: "Genres",
+					label_singular: "Genre",
+					hierarchical: 1,
+					collections: '["posts"]',
+					locale: "en",
+					translation_group: "def-genre",
+				})
+				.execute();
+
+			const handler = makeHandler({ capabilities: ["taxonomies:read"] });
+			const result = await call(handler, "taxonomy/list", {});
+			expect(result.error).toBeUndefined();
+			const defs = result.result as Array<{ name: string; hierarchical: boolean }>;
+			expect(defs).toHaveLength(1);
+			expect(defs[0]).toMatchObject({ name: "genre", hierarchical: true, collections: ["posts"] });
+		});
+
 		it("rejects user read without read:users capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "users/get", { id: "user-1" });

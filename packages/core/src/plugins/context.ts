@@ -13,6 +13,7 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
 import { SeoRepository } from "../database/repositories/seo.js";
+import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxonomy.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
@@ -52,6 +53,10 @@ import type {
 	QueryOptions,
 	ContentListOptions,
 	MediaListOptions,
+	TaxonomyAccess,
+	TaxonomyDefInfo,
+	TaxonomyTermInfo,
+	TaxonomyReadOptions,
 } from "./types.js";
 
 // =============================================================================
@@ -194,6 +199,20 @@ async function assertSeoEnabled(
 	return hasSeo;
 }
 
+/** Map a repository `Taxonomy` row to the plugin-facing term shape. */
+function taxonomyToTermInfo(term: Taxonomy): TaxonomyTermInfo {
+	return {
+		id: term.id,
+		taxonomy: term.name,
+		slug: term.slug,
+		label: term.label,
+		parentId: term.parentId,
+		data: term.data,
+		locale: term.locale,
+		translationGroup: term.translationGroup,
+	};
+}
+
 /**
  * Create read-only content access
  */
@@ -274,6 +293,48 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				cursor: result.nextCursor,
 				hasMore: !!result.nextCursor,
 			};
+		},
+	};
+}
+
+/**
+ * Create read-only taxonomy access (gated on `taxonomies:read`).
+ */
+export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
+	const taxonomyRepo = new TaxonomyRepository(db);
+
+	return {
+		async getAll(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]> {
+			let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+			if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
+			const rows = await query.orderBy("name", "asc").execute();
+			return rows.map((row) => ({
+				name: row.name,
+				label: row.label,
+				labelSingular: row.label_singular,
+				hierarchical: row.hierarchical === 1,
+				collections: row.collections ? (JSON.parse(row.collections) as string[]) : [],
+				locale: row.locale,
+			}));
+		},
+
+		async getTerms(taxonomy: string, options?: TaxonomyReadOptions): Promise<TaxonomyTermInfo[]> {
+			const terms = await taxonomyRepo.findByName(taxonomy, { locale: options?.locale });
+			return terms.map(taxonomyToTermInfo);
+		},
+
+		async getEntryTerms(
+			collection: string,
+			entryId: string,
+			options?: TaxonomyReadOptions & { taxonomy?: string },
+		): Promise<TaxonomyTermInfo[]> {
+			const terms = await taxonomyRepo.getTermsForEntry(
+				collection,
+				entryId,
+				options?.taxonomy,
+				options?.locale,
+			);
+			return terms.map(taxonomyToTermInfo);
 		},
 	};
 }
@@ -1015,6 +1076,12 @@ export class PluginContextFactory {
 			content = createContentAccess(db);
 		}
 
+		// Capability-gated: taxonomies (read-only)
+		let taxonomies: TaxonomyAccess | undefined;
+		if (capabilities.has("taxonomies:read")) {
+			taxonomies = createTaxonomyAccess(db);
+		}
+
 		// Capability-gated: media
 		// `upload()` only needs `storage`; `getUploadUrl()` is derived from
 		// storage when no explicit provider is wired. Granting write access on
@@ -1078,6 +1145,7 @@ export class PluginContextFactory {
 			storage,
 			kv,
 			content,
+			taxonomies,
 			media,
 			http,
 			log,

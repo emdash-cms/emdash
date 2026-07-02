@@ -259,6 +259,7 @@ describe("CAPABILITY_LABELS", () => {
 			// Canonical
 			"content:read",
 			"content:write",
+			"taxonomies:read",
 			"media:read",
 			"media:write",
 			"users:read",

@@ -257,6 +257,7 @@ const VALID_CAPABILITIES = [
 	"network:request:unrestricted",
 	"content:read",
 	"content:write",
+	"taxonomies:read",
 	"media:read",
 	"media:write",
 	"users:read",
