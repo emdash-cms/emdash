@@ -120,6 +120,7 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { runBulkAction } from "./lib/bulk";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
@@ -445,27 +446,29 @@ function ContentListPage() {
 		},
 	});
 
-	// Bulk actions run the existing per-entry endpoints in parallel. allSettled
-	// keeps a single failure from aborting the rest; the count of failures is
-	// surfaced via the error toast, and the list is refetched either way.
+	// Bulk actions run the existing per-entry endpoints through a
+	// concurrency-limited queue (runBulkAction) — selection persists across
+	// pagination, so an unbounded fan-out could fire hundreds of parallel
+	// requests. Per-id failures are collected (not thrown) and returned to
+	// ContentList, which keeps the failed rows selected for a retry; the
+	// toasts surface the failure count and the list is refetched either way.
 	const bulkPublishMutation = useMutation({
 		mutationFn: async (ids: string[]) => {
-			const results = await Promise.allSettled(
-				ids.map((id) => publishContent(collection, id, { locale: activeLocale })),
+			const { failedIds } = await runBulkAction(ids, (id) =>
+				publishContent(collection, id, { locale: activeLocale }),
 			);
-			const failed = results.filter((r) => r.status === "rejected").length;
-			if (failed > 0) throw new Error(t`${failed} of ${ids.length} could not be published`);
-			return ids.length;
+			return { total: ids.length, failedIds };
 		},
-		onSuccess: (count) => {
-			toastManager.add({ title: t`Published ${count} items`, type: "success" });
-		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to publish`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
-			});
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Published ${total} items`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to publish`,
+					description: t`${failedIds.length} of ${total} could not be published`,
+					type: "error",
+				});
+			}
 		},
 		onSettled: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
@@ -474,22 +477,21 @@ function ContentListPage() {
 
 	const bulkUnpublishMutation = useMutation({
 		mutationFn: async (ids: string[]) => {
-			const results = await Promise.allSettled(
-				ids.map((id) => unpublishContent(collection, id, { locale: activeLocale })),
+			const { failedIds } = await runBulkAction(ids, (id) =>
+				unpublishContent(collection, id, { locale: activeLocale }),
 			);
-			const failed = results.filter((r) => r.status === "rejected").length;
-			if (failed > 0) throw new Error(t`${failed} of ${ids.length} could not be updated`);
-			return ids.length;
+			return { total: ids.length, failedIds };
 		},
-		onSuccess: (count) => {
-			toastManager.add({ title: t`Moved ${count} items to draft`, type: "success" });
-		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to update`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
-			});
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Moved ${total} items to draft`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to update`,
+					description: t`${failedIds.length} of ${total} could not be updated`,
+					type: "error",
+				});
+			}
 		},
 		onSettled: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
@@ -498,20 +500,19 @@ function ContentListPage() {
 
 	const bulkDeleteMutation = useMutation({
 		mutationFn: async (ids: string[]) => {
-			const results = await Promise.allSettled(ids.map((id) => deleteContent(collection, id)));
-			const failed = results.filter((r) => r.status === "rejected").length;
-			if (failed > 0) throw new Error(t`${failed} of ${ids.length} could not be deleted`);
-			return ids.length;
+			const { failedIds } = await runBulkAction(ids, (id) => deleteContent(collection, id));
+			return { total: ids.length, failedIds };
 		},
-		onSuccess: (count) => {
-			toastManager.add({ title: t`Moved ${count} items to trash`, type: "success" });
-		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to delete`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
-			});
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({ title: t`Moved ${total} items to trash`, type: "success" });
+			} else {
+				toastManager.add({
+					title: t`Failed to delete`,
+					description: t`${failedIds.length} of ${total} could not be deleted`,
+					type: "error",
+				});
+			}
 		},
 		onSettled: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
@@ -581,9 +582,9 @@ function ContentListPage() {
 			onAuthorFilterChange={setAuthorFilter}
 			dateFilter={dateFilter}
 			onDateFilterChange={setDateFilter}
-			onBulkPublish={(ids) => bulkPublishMutation.mutate(ids)}
-			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutate(ids)}
-			onBulkDelete={(ids) => bulkDeleteMutation.mutate(ids)}
+			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
 		/>
 	);
 }

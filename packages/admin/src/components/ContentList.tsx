@@ -124,12 +124,16 @@ export interface ContentListProps {
 	/**
 	 * Bulk actions. Each is opt-in: the selection checkboxes only appear when at
 	 * least one bulk handler is provided, and each toolbar button renders only
-	 * when its handler is present. Handlers receive the selected entry ids.
+	 * when its handler is present. Handlers receive the selected entry ids and
+	 * resolve with the ids that failed (empty array on full success); those
+	 * rows stay selected so a partial failure can be retried.
 	 */
-	onBulkPublish?: (ids: string[]) => void;
-	onBulkUnpublish?: (ids: string[]) => void;
-	onBulkDelete?: (ids: string[]) => void;
+	onBulkPublish?: BulkActionHandler;
+	onBulkUnpublish?: BulkActionHandler;
+	onBulkDelete?: BulkActionHandler;
 }
+
+type BulkActionHandler = (ids: string[]) => Promise<string[]>;
 
 type ViewTab = "all" | "trash";
 
@@ -291,10 +295,25 @@ export function ContentList({
 			return next;
 		});
 	const selectedCount = selectedIds.size;
-	const runBulk = (fn?: (ids: string[]) => void) => {
-		if (!fn || selectedCount === 0) return;
-		fn([...selectedIds]);
-		clearSelection();
+	const [bulkBusy, setBulkBusy] = React.useState(false);
+	const runBulk = (fn?: BulkActionHandler) => {
+		if (!fn || selectedCount === 0 || bulkBusy) return;
+		const ids = [...selectedIds];
+		setBulkBusy(true);
+		void (async () => {
+			try {
+				// Clear only after the batch settles, keeping the failed ids
+				// selected — a partial failure stays retryable instead of the
+				// selection vanishing while requests are still in flight.
+				const failedIds = await fn(ids);
+				setSelectedIds(new Set(failedIds));
+			} catch {
+				// Unexpected (non-per-item) error: keep the selection for a retry.
+				// The parent's mutation surfaces the error toast.
+			} finally {
+				setBulkBusy(false);
+			}
+		})();
 	};
 	const colSpan = (i18n ? 5 : 4) + (bulkEnabled ? 1 : 0);
 
@@ -381,16 +400,28 @@ export function ContentList({
 					{bulkEnabled && selectedCount > 0 && (
 						<div className="flex flex-wrap items-center gap-3 rounded-md border bg-kumo-tint/40 px-4 py-2">
 							<span className="text-sm font-medium">
-								{plural(selectedCount, { one: "# selected", other: "# selected" })}
+								{bulkBusy
+									? t`Working on ${selectedCount} items…`
+									: plural(selectedCount, { one: "# selected", other: "# selected" })}
 							</span>
 							<div className="flex flex-wrap items-center gap-2">
 								{onBulkPublish && (
-									<Button size="sm" variant="secondary" onClick={() => runBulk(onBulkPublish)}>
+									<Button
+										size="sm"
+										variant="secondary"
+										disabled={bulkBusy}
+										onClick={() => runBulk(onBulkPublish)}
+									>
 										{t`Publish`}
 									</Button>
 								)}
 								{onBulkUnpublish && (
-									<Button size="sm" variant="secondary" onClick={() => runBulk(onBulkUnpublish)}>
+									<Button
+										size="sm"
+										variant="secondary"
+										disabled={bulkBusy}
+										onClick={() => runBulk(onBulkUnpublish)}
+									>
 										{t`Set to draft`}
 									</Button>
 								)}
@@ -398,7 +429,13 @@ export function ContentList({
 									<Dialog.Root disablePointerDismissal>
 										<Dialog.Trigger
 											render={(p) => (
-												<Button {...p} size="sm" variant="destructive" icon={<Trash />}>
+												<Button
+													{...p}
+													size="sm"
+													variant="destructive"
+													icon={<Trash />}
+													disabled={bulkBusy}
+												>
 													{t`Move to trash`}
 												</Button>
 											)}
@@ -434,7 +471,13 @@ export function ContentList({
 										</Dialog>
 									</Dialog.Root>
 								)}
-								<Button size="sm" variant="ghost" icon={<X />} onClick={clearSelection}>
+								<Button
+									size="sm"
+									variant="ghost"
+									icon={<X />}
+									disabled={bulkBusy}
+									onClick={clearSelection}
+								>
 									{t`Clear`}
 								</Button>
 							</div>
