@@ -378,13 +378,13 @@ describe("applySeed onConflict modes", () => {
 		});
 
 		it("throws on existing byline", async () => {
-			// Seed without collections to get past collections step
-			const seed = createTestSeed({ collections: [] });
-			await applySeed(db, seed);
+			// Seed without collections (and their content) to get past those steps
+			const seed = createTestSeed({ collections: [], content: {} });
+			await applySeed(db, seed, { includeContent: true });
 
-			await expect(applySeed(db, seed, { onConflict: "error" })).rejects.toThrow(
-				'Conflict: byline "jane-doe" already exists',
-			);
+			await expect(
+				applySeed(db, seed, { includeContent: true, onConflict: "error" }),
+			).rejects.toThrow('Conflict: byline "jane-doe" already exists');
 		});
 
 		it("throws on existing redirect", async () => {
