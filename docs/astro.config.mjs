@@ -197,6 +197,17 @@ export default defineConfig({
 						{ label: "Translating EmDash", slug: "contributing/translating" },
 					],
 				},
+				{
+					label: "Runbooks",
+					collapsed: true,
+					items: [
+						{ label: "Runbooks Index", slug: "runbooks" },
+						{
+							label: "Cloudflare Post-Deploy Operations",
+							slug: "runbooks/deployment/cloudflare-post-deploy-operations",
+						},
+					],
+				},
 
 				{
 					label: "Themes",
