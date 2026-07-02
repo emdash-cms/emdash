@@ -608,12 +608,8 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/oauth/authorize.ts"),
 	});
 
-	// OAuth discovery endpoints (RFC 9728, RFC 8414)
-	injectRoute({
-		pattern: "/.well-known/oauth-protected-resource",
-		entrypoint: resolveRoute("api/well-known/oauth-protected-resource.ts"),
-	});
-
+	// OAuth authorization server discovery (RFC 8414) — unconditional, serves
+	// the general OAuth infrastructure (CLI, device code, etc.)
 	injectRoute({
 		pattern: "/.well-known/oauth-authorization-server/_emdash",
 		entrypoint: resolveRoute("api/well-known/oauth-authorization-server.ts"),
@@ -860,13 +856,21 @@ export function injectCoreRoutes(
 }
 
 /**
- * Injects the MCP (Model Context Protocol) server route.
+ * Injects the MCP (Model Context Protocol) server route and its
+ * protected-resource discovery endpoint (RFC 9728).
  * Only injected when `mcp: true` is set in the EmDash config.
  */
 export function injectMcpRoute(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/mcp",
 		entrypoint: resolveRoute("api/mcp.ts"),
+	});
+
+	// OAuth protected-resource metadata (RFC 9728) — advertises MCP as the
+	// protected resource, so it must be conditional on MCP being enabled.
+	injectRoute({
+		pattern: "/.well-known/oauth-protected-resource",
+		entrypoint: resolveRoute("api/well-known/oauth-protected-resource.ts"),
 	});
 }
 
