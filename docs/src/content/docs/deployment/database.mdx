@@ -111,6 +111,16 @@ export default defineConfig({
 	REST API. The `session` option only controls EmDash's client-side session management.
 </Aside>
 
+<Aside type="caution">
+	Sessions are incompatible with the
+	[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)
+	compatibility flag: the internal request the D1 Sessions API makes to route queries to replicas
+	is silently blocked, and every SSR request hangs with nothing in the logs. The hang may only
+	begin once replicas finish provisioning, so it can pass an initial post-deploy check. If your
+	Worker needs that flag, keep `session` disabled. See
+	[#1273](https://github.com/emdash-cms/emdash/issues/1273).
+</Aside>
+
 <Aside>
 	Anonymous visitors may see data that is a few seconds stale. For a CMS this is expected — content
 	changes are not real-time, and if you have route caching enabled the response is already stale by
