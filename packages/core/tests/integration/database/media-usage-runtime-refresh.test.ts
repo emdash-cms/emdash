@@ -356,6 +356,129 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 			expect.objectContaining({ source: expect.objectContaining({ sourceVariant: "columns" }) }),
 		]);
 	});
+
+	it("refreshes trash metadata while preserving usage on soft delete", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "trashed-post",
+			data: {
+				title: "Trashed Post",
+				hero: mediaRef("media-live-trash"),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		await runtime.handleContentUpdate("posts", created.data.item.id, {
+			data: { hero: mediaRef("media-draft-trash") },
+		});
+
+		const deleted = await runtime.handleContentDelete("posts", "trashed-post");
+
+		expect(deleted.success).toBe(true);
+		if (!deleted.success) throw new Error(deleted.error.message);
+		expect(deleted.data.id).toBe(created.data.item.id);
+		expect(await usageRepo.findSource(sourceKey("posts", created.data.item.id, "columns"))).toEqual(
+			expect.objectContaining({
+				contentDeletedAt: expect.any(String),
+				sourceVariant: "columns",
+			}),
+		);
+		expect(
+			await usageRepo.findSource(sourceKey("posts", created.data.item.id, "draft_overlay")),
+		).toEqual(
+			expect.objectContaining({
+				contentDeletedAt: expect.any(String),
+				sourceVariant: "draft_overlay",
+			}),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-live-trash")).toEqual([
+			expect.objectContaining({ source: expect.objectContaining({ sourceVariant: "columns" }) }),
+		]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-trash")).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
+			}),
+		]);
+	});
+
+	it("refreshes trash metadata when restoring content", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "restore-trash-post",
+			data: {
+				title: "Restore Trash Post",
+				hero: mediaRef("media-live-restore"),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		await runtime.handleContentUpdate("posts", created.data.item.id, {
+			data: { hero: mediaRef("media-draft-restore") },
+		});
+		const deleted = await runtime.handleContentDelete("posts", created.data.item.id);
+		expect(deleted.success).toBe(true);
+		expect(
+			await usageRepo.findSource(sourceKey("posts", created.data.item.id, "draft_overlay")),
+		).toEqual(expect.objectContaining({ contentDeletedAt: expect.any(String) }));
+
+		const restored = await runtime.handleContentRestore("posts", "restore-trash-post");
+
+		expect(restored.success).toBe(true);
+		expect(await usageRepo.findSource(sourceKey("posts", created.data.item.id, "columns"))).toEqual(
+			expect.objectContaining({
+				contentDeletedAt: null,
+				sourceVariant: "columns",
+			}),
+		);
+		expect(
+			await usageRepo.findSource(sourceKey("posts", created.data.item.id, "draft_overlay")),
+		).toEqual(
+			expect.objectContaining({
+				contentDeletedAt: null,
+				sourceVariant: "draft_overlay",
+			}),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-live-restore")).toEqual([
+			expect.objectContaining({ source: expect.objectContaining({ sourceVariant: "columns" }) }),
+		]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-restore")).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
+			}),
+		]);
+	});
+
+	it("deletes usage sources and current occurrences on permanent delete", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "permanent-delete-post",
+			data: {
+				title: "Permanent Delete Post",
+				hero: mediaRef("media-live-permanent"),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		await runtime.handleContentUpdate("posts", created.data.item.id, {
+			data: { hero: mediaRef("media-draft-permanent") },
+		});
+		const deleted = await runtime.handleContentDelete("posts", created.data.item.id);
+		expect(deleted.success).toBe(true);
+
+		const permanentlyDeleted = await runtime.handleContentPermanentDelete(
+			"posts",
+			"permanent-delete-post",
+		);
+
+		expect(permanentlyDeleted.success).toBe(true);
+		if (!permanentlyDeleted.success) throw new Error(permanentlyDeleted.error.message);
+		expect(permanentlyDeleted.data.id).toBe(created.data.item.id);
+		expect(
+			await usageRepo.findSource(sourceKey("posts", created.data.item.id, "columns")),
+		).toBeNull();
+		expect(
+			await usageRepo.findSource(sourceKey("posts", created.data.item.id, "draft_overlay")),
+		).toBeNull();
+		expect(await usageRepo.findCurrentUsageByMediaId("media-live-permanent")).toEqual([]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-permanent")).toEqual([]);
+	});
 });
 
 function mediaRef(id: string): Record<string, unknown> {

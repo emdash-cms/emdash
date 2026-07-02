@@ -31,7 +31,10 @@ import type {
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
-import { refreshContentMediaUsageAfterWrite } from "./media/usage/content-refresh.js";
+import {
+	deleteContentMediaUsage,
+	refreshContentMediaUsageAfterWrite,
+} from "./media/usage/content-refresh.js";
 import type { SandboxedPluginInstance, SandboxRunner } from "./plugins/sandbox/types.js";
 import type {
 	ResolvedPlugin,
@@ -2783,6 +2786,9 @@ export class EmDashRuntime {
 
 		// Delete the content
 		const result = await handleContentDelete(this.db, collection, id);
+		if (result.success) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.id]);
+		}
 
 		// Run afterDelete hooks (fire-and-forget)
 		if (result.success) {
@@ -2805,6 +2811,9 @@ export class EmDashRuntime {
 
 	async handleContentRestore(collection: string, id: string) {
 		const result = await handleContentRestore(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterRestore hooks (fire-and-forget)
 		if (result.success) {
@@ -2816,6 +2825,9 @@ export class EmDashRuntime {
 
 	async handleContentPermanentDelete(collection: string, id: string) {
 		const result = await handleContentPermanentDelete(this.db, collection, id);
+		if (result.success) {
+			await this.deleteContentUsageAfterSuccessfulPermanentDelete(collection, result.data.id);
+		}
 
 		// Run afterDelete hooks so plugins (e.g. AI Search) can clean up
 		if (result.success) {
@@ -3108,6 +3120,25 @@ export class EmDashRuntime {
 					error,
 				);
 			}
+		}
+	}
+
+	private async deleteContentUsageAfterSuccessfulPermanentDelete(
+		collection: string,
+		contentId: string,
+	): Promise<void> {
+		try {
+			const result = await deleteContentMediaUsage(this.db, collection, contentId);
+			if (!result.success) {
+				console.error(
+					`[media-usage] Usage delete for ${collection}/${contentId} finished with ${result.errorCode}`,
+				);
+			}
+		} catch (error) {
+			console.error(
+				`[media-usage] Failed after permanent content delete ${collection}/${contentId}:`,
+				error,
+			);
 		}
 	}
 
