@@ -53,16 +53,18 @@ export const httpUrl = z
 	.url()
 	.refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
 
-/** BCP 47 locale code — language with optional script/region subtags (e.g. en, en-US, pt-BR, es-419, zh-Hant) */
-export const localeCode = z
-	.string()
-	.regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code")
-	.transform((v) => v.toLowerCase());
+/**
+ * BCP 47 locale code — language with optional script/region subtags (e.g. en, en-US, pt-BR, es-419, zh-Hant).
+ * Validation is case-insensitive, but the value is preserved verbatim: config `locales`/`defaultLocale`, the
+ * stored `locale` column, and the public query path all keep the raw casing, so lowercasing the `?locale=`
+ * filter here made it match zero rows for locales with uppercase subtags (#1551).
+ */
+export const localeCode = z.string().regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code");
 
 /** Shared `?locale=xx` query shape for endpoints that filter by locale. */
 export const localeFilterQuery = z
 	.object({
-		locale: z.string().min(1).optional(),
+		locale: localeCode.optional(),
 	})
 	.meta({ id: "LocaleFilterQuery" });
 
