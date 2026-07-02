@@ -1,6 +1,7 @@
 import { sql, type Kysely, type Selectable, type Transaction, type Updateable } from "kysely";
 import { ulid } from "ulidx";
 
+import type { MediaUsageContentSourceVariant } from "../../media/usage/source-key.js";
 import type { MediaKind, MediaUsageReferenceType } from "../../media/usage/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { withTransaction } from "../transaction.js";
@@ -25,7 +26,7 @@ export interface MediaUsageSourceInput {
 	sourceType: string;
 	collectionSlug?: string | null;
 	contentId?: string | null;
-	sourceVariant: string;
+	sourceVariant: MediaUsageContentSourceVariant;
 	locale?: string | null;
 	translationGroup?: string | null;
 	contentSlug?: string | null;
