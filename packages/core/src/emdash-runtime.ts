@@ -2777,7 +2777,7 @@ export class EmDashRuntime {
 		// Delete the content
 		const result = await handleContentDelete(this.db, collection, id);
 
-		// Run afterDelete hooks (fire-and-forget)
+		// Run afterDelete hooks (deferred past the response via after())
 		if (result.success) {
 			this.runAfterDeleteHooks(id, collection, false);
 		}
@@ -2848,7 +2848,7 @@ export class EmDashRuntime {
 	async handleContentUnpublish(collection: string, id: string) {
 		const result = await handleContentUnpublish(this.db, collection, id);
 
-		// Run afterUnpublish hooks (fire-and-forget)
+		// Run afterUnpublish hooks (deferred past the response via after())
 		if (result.success && result.data) {
 			this.runAfterUnpublishHooks(contentItemToRecord(result.data.item), collection);
 		}
@@ -3314,24 +3314,34 @@ export class EmDashRuntime {
 	}
 
 	private runAfterDeleteHooks(id: string, collection: string, permanent: boolean): void {
-		// Trusted plugins
-		if (this.hooks.hasHooks("content:afterDelete")) {
-			this.hooks
-				.runContentAfterDelete(id, collection, permanent)
-				.catch((err) => console.error("EmDash afterDelete hook error:", err));
-		}
+		after(async () => {
+			// Trusted plugins
+			if (this.hooks.hasHooks("content:afterDelete")) {
+				try {
+					await this.hooks.runContentAfterDelete(id, collection, permanent);
+				} catch (err) {
+					console.error("EmDash afterDelete hook error:", err);
+				}
+			}
 
-		// Sandboxed plugins
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
+			// Sandboxed plugins
+			const tasks: Promise<void>[] = [];
+			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
+				const [pluginId] = pluginKey.split(":");
+				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
 
-			plugin
-				.invokeHook("content:afterDelete", { id, collection, permanent })
-				.catch((err) =>
-					console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err),
+				tasks.push(
+					(async () => {
+						try {
+							await plugin.invokeHook("content:afterDelete", { id, collection, permanent });
+						} catch (err) {
+							console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err);
+						}
+					})(),
 				);
-		}
+			}
+			await Promise.allSettled(tasks);
+		});
 	}
 
 	private runDeferredContentHook(
