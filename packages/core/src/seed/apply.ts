@@ -296,7 +296,7 @@ export async function applySeed(
 				defSeedIdMap.set(taxonomy.id, { id: defId, translationGroup: defTranslationGroup });
 
 			// Create terms (if provided)
-			if (taxonomy.terms && taxonomy.terms.length > 0) {
+			if (includeContent && taxonomy.terms && taxonomy.terms.length > 0) {
 				const termRepo = new TaxonomyRepository(db);
 
 				if (taxonomy.hierarchical) {
@@ -355,7 +355,7 @@ export async function applySeed(
 	}
 
 	// 6. Bylines
-	if (seed.bylines) {
+	if (includeContent && seed.bylines) {
 		const bylineRepo = new BylineRepository(db);
 		for (const byline of seed.bylines) {
 			const existing = await bylineRepo.findBySlug(byline.slug);
