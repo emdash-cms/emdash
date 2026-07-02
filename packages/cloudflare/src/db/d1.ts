@@ -14,6 +14,7 @@ import { type Dialect, Kysely } from "kysely";
 
 import { CoalescingD1Dialect } from "./coalescing-d1.js";
 import { EmDashD1Dialect } from "./d1-dialect.js";
+import { createD1SessionGuard } from "./d1-session-guard.js";
 
 /**
  * D1 configuration (runtime type — matches the config-time type in index.ts)
@@ -32,6 +33,18 @@ const DEFAULT_BOOKMARK_COOKIE = "__em_d1_bookmark";
  * at runtime" warning fires once per worker, not on every request.
  */
 let warnedCoalesceNoRuntimeSession = false;
+
+/**
+ * Isolate-wide hang guard for the D1 Sessions API. In environments where
+ * session queries silently never settle (e.g. the
+ * `global_fetch_strictly_public` compatibility flag blocking the Sessions
+ * API's internal routing request — see
+ * https://github.com/emdash-cms/emdash/issues/1273), this detects the hang
+ * on the first session query, falls back to the direct binding for that
+ * request, and disables sessions for the rest of the isolate's life instead
+ * of letting every request hang until the Worker is killed.
+ */
+const sessionGuard = createD1SessionGuard();
 
 /**
  * D1 bookmarks are opaque, minted by Cloudflare. We don't validate the shape
@@ -147,6 +160,10 @@ export interface RequestScopedDb {
  */
 export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedDb | null {
 	if (!isSessionEnabled(opts.config)) return null;
+	// A session query hung earlier in this isolate's life (see sessionGuard).
+	// Sessions are considered broken here; route everything through the
+	// singleton (direct binding) instead of hanging every request.
+	if (sessionGuard.isBroken()) return null;
 	const binding = getBinding(opts.config);
 	if (!binding || typeof binding.withSession !== "function") {
 		// Sessions are enabled in config, so createDialect's config-time warning
@@ -190,9 +207,12 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 
 	const session = binding.withSession(constraint);
 	// kysely-d1 only touches .prepare() and .batch() on the database argument,
-	// both of which D1DatabaseSession implements.
+	// both of which D1DatabaseSession implements. Hang-guarded: until the
+	// first session query settles in this isolate, queries are raced against
+	// a timeout and fall back to the direct binding if the Sessions API never
+	// responds (issue #1273).
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- session is structurally compatible with the subset D1Dialect uses
-	const sessionAsDatabase = session as unknown as D1Database;
+	const sessionAsDatabase = sessionGuard.wrap(session as unknown as D1Database, binding);
 	// Coalescing is per-request only by construction: this Kysely (and its
 	// driver buffer) lives for a single request, so there is no cross-request
 	// buffering. The shared singleton from createDialect must never coalesce.
