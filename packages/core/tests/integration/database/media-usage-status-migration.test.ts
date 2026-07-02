@@ -69,11 +69,11 @@ describeEachDialect("media usage index status migration", (dialect) => {
 		await ctx.db
 			.insertInto("_emdash_media_usage_sources")
 			.values({
-				source_key: "content:posts:entry1:live",
+				source_key: "content:posts:entry1:columns",
 				source_type: "content",
 				collection_slug: "posts",
 				content_id: "entry1",
-				source_variant: "live",
+				source_variant: "columns",
 				locale: "en",
 				translation_group: "tg1",
 				content_slug: "hello-world",
@@ -96,7 +96,7 @@ describeEachDialect("media usage index status migration", (dialect) => {
 				"last_attempted_at",
 				"last_error_code",
 			])
-			.where("source_key", "=", "content:posts:entry1:live")
+			.where("source_key", "=", "content:posts:entry1:columns")
 			.executeTakeFirstOrThrow();
 
 		expect(source).toEqual({
@@ -174,7 +174,7 @@ describeEachDialect("media usage index status migration", (dialect) => {
 	it("adds source completeness default for existing PR 1 source rows", async () => {
 		const migration =
 			await import("../../../src/database/migrations/047_media_usage_index_status.js");
-		const sourceKey = "content:posts:pre047:live";
+		const sourceKey = "content:posts:pre047:columns";
 
 		await migration.down(ctx.db);
 
@@ -185,7 +185,7 @@ describeEachDialect("media usage index status migration", (dialect) => {
 				source_type: "content",
 				collection_slug: "posts",
 				content_id: "pre047",
-				source_variant: "live",
+				source_variant: "columns",
 				locale: "en",
 				translation_group: "tg-pre047",
 				content_slug: "pre047",
@@ -234,7 +234,7 @@ describeEachDialect("media usage index status migration", (dialect) => {
 	it("up() can run again after registered migrations complete", async () => {
 		const migration =
 			await import("../../../src/database/migrations/047_media_usage_index_status.js");
-		const sourceKey = "content:posts:entry-preserve:live";
+		const sourceKey = "content:posts:entry-preserve:columns";
 		const sourceMetadata = {
 			source_completeness: "complete",
 			source_updated_at: "2026-01-01T00:00:00.000Z",
@@ -251,7 +251,7 @@ describeEachDialect("media usage index status migration", (dialect) => {
 				source_type: "content",
 				collection_slug: "posts",
 				content_id: "entry-preserve",
-				source_variant: "live",
+				source_variant: "columns",
 				locale: "en",
 				translation_group: "tg-preserve",
 				content_slug: "preserve",
