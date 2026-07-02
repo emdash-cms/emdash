@@ -3,6 +3,7 @@ import { ulid } from "ulidx";
 
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import type { Database, RelationTable, ContentReferenceTable } from "../types.js";
+import { decodeCursor, encodeCursor, InvalidCursorError, type FindManyResult } from "./types.js";
 
 export interface Relation {
 	id: string;
@@ -319,6 +320,61 @@ export class RelationRepository {
 		return rows.map((row) => this.rowToReference(row));
 	}
 
+	/**
+	 * Forward traversal, paginated: one page of a parent's children for a
+	 * relation, ordered by `(sort_order, id)`. Use this on request paths — a
+	 * parent's children are capped but still up to 1000, and an unbounded read
+	 * scales poorly. Returns `{ items, nextCursor? }`; the cursor's order value is
+	 * the row's `sort_order`. Default limit 50, max 100.
+	 */
+	async getChildrenPage(
+		relation: string,
+		parentGroup: string,
+		options: { limit?: number; cursor?: string } = {},
+	): Promise<FindManyResult<ContentReference>> {
+		const relationGroup = await this.resolveRelationGroup(relation);
+		if (!relationGroup) return { items: [] };
+
+		const limit = Math.min(options.limit || 50, 100);
+
+		let query = this.db
+			.selectFrom("_emdash_content_references")
+			.selectAll()
+			.where("relation_group", "=", relationGroup)
+			.where("parent_group", "=", parentGroup);
+
+		if (options.cursor) {
+			const decoded = decodeCursor(options.cursor);
+			const sortOrder = Number(decoded.orderValue);
+			// `decodeCursor` only guarantees `orderValue` is a string; a hand-crafted
+			// cursor with a non-numeric order value would coerce to NaN and blow up at
+			// the driver bind as a 500. A bad cursor is a client error — surface it as
+			// INVALID_CURSOR (400). Server-issued cursors are always numeric here.
+			if (!Number.isFinite(sortOrder)) throw new InvalidCursorError(options.cursor);
+			query = query.where((eb) =>
+				eb.or([
+					eb("sort_order", ">", sortOrder),
+					eb.and([eb("sort_order", "=", sortOrder), eb("id", ">", decoded.id)]),
+				]),
+			);
+		}
+
+		const rows = await query
+			.orderBy("sort_order", "asc")
+			.orderBy("id", "asc")
+			.limit(limit + 1)
+			.execute();
+
+		const hasMore = rows.length > limit;
+		const items = rows.slice(0, limit).map((row) => this.rowToReference(row));
+		const result: FindManyResult<ContentReference> = { items };
+		const last = items.at(-1);
+		if (hasMore && last) {
+			result.nextCursor = encodeCursor(String(last.sortOrder), last.id);
+		}
+		return result;
+	}
+
 	/** Backlink traversal: the parents that reference a child for a relation. */
 	async getParents(relation: string, childGroup: string): Promise<ContentReference[]> {
 		const relationGroup = await this.resolveRelationGroup(relation);
@@ -346,6 +402,15 @@ export class RelationRepository {
 	 * relying on the insert's onConflict to silently drop them. Not wrapped in a
 	 * transaction: a crash between the delete and insert leaves the parent with
 	 * no children — acceptable for a replace-all, since a retry restores state.
+	 *
+	 * Concurrency: two simultaneous replace-all calls for the same (relation,
+	 * parent) can interleave their deletes and inserts and merge into the union of
+	 * both sets (a lost update — neither "replace" wins). This is non-corrupting —
+	 * keyset pagination stays totally ordered via the `(sort_order, id)` tiebreak
+	 * even with duplicate sort_orders — and a single client editing one parent's
+	 * children serially never hits it. A D1-portable fix isn't available (no
+	 * multi-statement transactions), so concurrent replace-all on one parent is
+	 * unsupported by design rather than guarded here.
 	 */
 	async setChildren(relation: string, parentGroup: string, childGroups: string[]): Promise<void> {
 		const relationGroup = await this.resolveRelationGroup(relation);
@@ -379,6 +444,50 @@ export class RelationRepository {
 			// This is NOT a concurrency guarantee — delete-then-insert is not atomic.
 			.onConflict((oc) => oc.doNothing())
 			.execute();
+	}
+
+	/**
+	 * Backlink traversal, paginated: one page of the parents that reference a
+	 * child for a relation, ordered by `id`. Unlike a parent's children, a
+	 * child's backlinks are *unbounded* — one popular entry can be referenced by
+	 * arbitrarily many parents — so this read must paginate. Returns
+	 * `{ items, nextCursor? }`; the cursor's order value is the row `id`. Default
+	 * limit 50, max 100.
+	 */
+	async getParentsPage(
+		relation: string,
+		childGroup: string,
+		options: { limit?: number; cursor?: string } = {},
+	): Promise<FindManyResult<ContentReference>> {
+		const relationGroup = await this.resolveRelationGroup(relation);
+		if (!relationGroup) return { items: [] };
+
+		const limit = Math.min(options.limit || 50, 100);
+
+		let query = this.db
+			.selectFrom("_emdash_content_references")
+			.selectAll()
+			.where("relation_group", "=", relationGroup)
+			.where("child_group", "=", childGroup);
+
+		if (options.cursor) {
+			const decoded = decodeCursor(options.cursor);
+			query = query.where("id", ">", decoded.id);
+		}
+
+		const rows = await query
+			.orderBy("id", "asc")
+			.limit(limit + 1)
+			.execute();
+
+		const hasMore = rows.length > limit;
+		const items = rows.slice(0, limit).map((row) => this.rowToReference(row));
+		const result: FindManyResult<ContentReference> = { items };
+		const last = items.at(-1);
+		if (hasMore && last) {
+			result.nextCursor = encodeCursor(last.id, last.id);
+		}
+		return result;
 	}
 
 	/**
