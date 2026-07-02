@@ -134,6 +134,7 @@ describe("Database Migrations (Integration)", () => {
 			"046_media_usage_index",
 			"047_restore_taxonomy_parent_index",
 			"048_restore_content_taxonomies_term_index",
+			"049_taxonomies_name_locale_index",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
@@ -365,6 +366,65 @@ describe("Database Migrations (Integration)", () => {
 		const names = new Set(indexes.rows.map((r) => r.name));
 
 		expect(names).toContain("idx_content_taxonomies_term");
+	});
+
+	it("should replace idx_taxonomies_name with composite idx_taxonomies_name_locale (#1723)", async () => {
+		await runMigrations(db);
+
+		const indexes = await sql<{ name: string }>`
+			SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'taxonomies'
+		`.execute(db);
+		const names = new Set(indexes.rows.map((r) => r.name));
+
+		// The composite (name, locale) index is added...
+		expect(names).toContain("idx_taxonomies_name_locale");
+		// ...and it supersedes the single-column name index (leftmost prefix
+		// covers every name-only lookup), so the redundant one is dropped.
+		expect(names).not.toContain("idx_taxonomies_name");
+	});
+
+	it("plans findByName(name, locale) through the composite index instead of scanning the locale (regression for #1723)", async () => {
+		await runMigrations(db);
+
+		// One taxonomy dominates the locale; a small facet shares it. Without the
+		// composite index the planner picks idx_taxonomies_locale and reads every
+		// term in the locale to filter `name` in memory — per facet fetched.
+		for (let i = 0; i < 40; i++) {
+			await db
+				.insertInto("taxonomies")
+				.values({
+					id: `tag-${i}`,
+					name: "tag",
+					slug: `tag-${i}`,
+					label: `Tag ${i}`,
+					locale: "en",
+				})
+				.execute();
+		}
+		for (let i = 0; i < 3; i++) {
+			await db
+				.insertInto("taxonomies")
+				.values({
+					id: `cat-${i}`,
+					name: "category",
+					slug: `cat-${i}`,
+					label: `Category ${i}`,
+					locale: "en",
+				})
+				.execute();
+		}
+
+		// Exact query shape emitted by TaxonomyRepository.findByName(name, { locale }).
+		const plan = await sql<{ detail: string }>`
+			EXPLAIN QUERY PLAN
+			SELECT * FROM "taxonomies"
+			WHERE "name" = ${"category"} AND "locale" = ${"en"}
+			ORDER BY "label" ASC, "id" ASC
+		`.execute(db);
+		const details = plan.rows.map((r) => r.detail).join("\n");
+
+		expect(details).toContain("idx_taxonomies_name_locale");
+		expect(details).not.toContain("idx_taxonomies_locale");
 	});
 
 	it("should create content_taxonomies junction table", async () => {

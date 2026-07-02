@@ -27,30 +27,34 @@ The `gallery` field on `projects` is a JSON field, not an EmDash image field. It
 
 ## Visual character
 
-Typography is the design. The display face is **Playfair Display** (serif) on the `--font-serif` CSS variable; the body face is the system sans stack on `--font-sans`. The serif is used for the site title, hero titles, project titles, page titles, and contact column labels. Everything else is the sans.
+Typography is the design. The display face is **Playfair Display** (serif) on the `--font-heading` CSS variable; the body face is the system sans stack on `--font-body`. The serif is used for the site title, hero titles, project titles, page titles, and contact column labels. Everything else is the sans. Serif weight is calm on purpose (`--font-weight-heading` and `--font-weight-display` both default to 500).
 
-The accent colour is barely visible by design -- the only saturated colour on the page should be inside images. The default `--color-accent` (`#7c3aed`) is used sparingly for link hover and focus states.
+The brand colour is barely visible by design -- the only saturated colour on the page should be inside images. The default `--color-brand` (`#7c3aed`) is used sparingly for link hover and focus states.
 
 Whitespace is generous. Sections breathe. Don't fight that.
 
 ## Customisation
 
-`src/styles/theme.css` is the only file to edit for visual changes. Every CSS variable from `Base.astro` is listed there as a commented default -- uncomment and change to override. The dark mode palette is defined inside `Base.astro` itself; light-mode overrides in `theme.css` won't affect dark mode. To customise dark mode, add `@media (prefers-color-scheme: dark)` and `:root.dark` rules in `theme.css`.
+Design tokens live in `src/styles/tokens.css` with their default values. To restyle the site, override tokens in `src/styles/theme.css` -- declarations there are unlayered, so they always beat the `@layer base` defaults. Don't edit `tokens.css` or `Base.astro` for visual changes.
 
-Fonts are configured in `astro.config.mjs` under `fonts:` (the Astro Fonts API). To change the display face, swap the `name:` for any Google Fonts serif and keep `cssVariable: "--font-serif"`. Good pairings: Cormorant Garamond, Fraunces, EB Garamond, DM Serif Display. Avoid changing the body font unless you have a reason -- system sans is deliberately quiet here.
+Colours are defined with `light-dark(<light>, <dark>)`, so each token carries both modes. Overriding with a plain colour changes light and dark at once; use `light-dark()` in the override to keep them distinct. There is no separate dark palette to maintain.
 
-CSS variables worth knowing:
+The display face is configured in `astro.config.mjs` under `fonts:` (the Astro Fonts API). To change it, swap the `name:` for any Google Fonts serif and keep `cssVariable: "--font-heading"`. Good pairings: Cormorant Garamond, Fraunces, EB Garamond, DM Serif Display. The body face (`--font-body`) is a plain token in `tokens.css` -- system sans, deliberately quiet; override it in `theme.css` only if you have a reason.
 
-- `--color-accent` / `--color-accent-muted` -- the single accent, used very sparingly
+CSS variables worth knowing (see `tokens.css` for the full list):
+
+- `--color-brand`, `--color-on-brand`, `--color-brand-ring` -- the single accent, used very sparingly
 - `--color-bg`, `--color-surface`, `--color-text`, `--color-muted`, `--color-border` -- neutral palette
-- `--font-serif`, `--font-sans` -- bound to the Fonts API entries in `astro.config.mjs`
+- `--color-danger` -- form errors
+- `--font-heading` (Fonts API entry in `astro.config.mjs`), `--font-body` (token)
+- `--font-weight-heading` / `--font-weight-display` (both 500) -- raise for a heavier serif voice
 - `--font-size-4xl` -- the size of the homepage title and project titles
 - `--max-width` (720px), `--wide-width` (1200px) -- column widths
 
 ## What not to do
 
 - Don't introduce gradients, drop shadows on cards, or coloured section backgrounds. The template's voice is calm and editorial; those break it.
-- Don't change `--font-sans` to a display font. Two display faces fight each other.
+- Don't change `--font-body` to a display font. Two display faces fight each other.
 - Don't add more than one accent colour.
 - Don't write generic copy like "Welcome to my portfolio" or "Crafting beautiful experiences". The work should speak; the words should be specific (a client name, a discipline, a year).
 - Don't pack the home page with every project. The "Selected Work" framing is intentional -- 3-6 is plenty.

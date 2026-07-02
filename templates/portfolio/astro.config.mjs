@@ -27,7 +27,7 @@ export default defineConfig({
 		{
 			provider: fontProviders.google(),
 			name: "Playfair Display",
-			cssVariable: "--font-serif",
+			cssVariable: "--font-heading",
 			weights: [400, 500, 600, 700],
 			fallbacks: ["serif"],
 		},
