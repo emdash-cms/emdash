@@ -123,4 +123,24 @@
 		/* Misc */
 		--tag-padding-y: 2px; /* vertical padding on tag pills */
 	}
+
+	/*
+	 * Light-mode values for browsers without light-dark() (Safari < 17.5,
+	 * Chrome < 123). Must mirror the light values above.
+	 */
+	@supports not (color: light-dark(#000, #fff)) {
+		:root {
+			color-scheme: light;
+			--color-bg: #ffffff;
+			--color-bg-subtle: #fafafa;
+			--color-text: #1a1a1a;
+			--color-text-secondary: #525252;
+			--color-muted: #8b8b8b;
+			--color-border: #e5e5e5;
+			--color-border-subtle: #f0f0f0;
+			--color-surface: #f7f7f7;
+			--color-brand: #0066cc;
+			--color-brand-hover: #0052a3;
+		}
+	}
 }

@@ -117,4 +117,23 @@
 		--shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
 		--shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 	}
+
+	/*
+	 * Light-mode values for browsers without light-dark() (Safari < 17.5,
+	 * Chrome < 123). Must mirror the light values above.
+	 */
+	@supports not (color: light-dark(#000, #fff)) {
+		:root {
+			color-scheme: light;
+			--color-bg: #ffffff;
+			--color-text: #0f172a;
+			--color-muted: #64748b;
+			--color-border: #e2e8f0;
+			--color-surface: #f8fafc;
+			--color-brand: #6366f1;
+			--color-brand-strong: #4f46e5;
+			--color-brand-soft: #818cf8;
+			--color-danger: #dc2626;
+		}
+	}
 }
