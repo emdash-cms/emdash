@@ -189,6 +189,38 @@ describe("createD1SessionGuard", () => {
 		expect(fallback.executed).toEqual([]);
 	});
 
+	it("skips the timeout entirely once latched broken (fast path)", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const guard = createD1SessionGuard(TIMEOUT_MS);
+		const session = createMockD1({ hang: true });
+		const fallback = createMockD1({ rows: [{ id: 1 }] });
+
+		// Trip the latch with one hanging SELECT.
+		const latchDb = guard.wrap(session.database, fallback.database);
+		await latchDb.prepare("select 1").bind().all();
+		expect(guard.isBroken()).toBe(true);
+
+		// A db created before or after the latch must not race again: measure
+		// that the fallback answers well below the guard timeout.
+		const db = guard.wrap(session.database, fallback.database);
+		const started = performance.now();
+		const result = await db.prepare("select * from posts").bind().all();
+		await expect(db.prepare("update posts set x = 1").bind().run()).rejects.toThrow(/non-SELECT/);
+		const batchResults = await db.batch([
+			db.prepare("select * from a").bind(),
+			db.prepare("select * from b").bind(),
+		]);
+		const elapsed = performance.now() - started;
+
+		expect(result.results).toEqual([{ id: 1 }]);
+		expect(batchResults).toHaveLength(2);
+		expect(fallback.batches).toEqual([["select * from a", "select * from b"]]);
+		// Three operations after the latch; racing would cost >= TIMEOUT_MS each.
+		expect(elapsed).toBeLessThan(TIMEOUT_MS);
+		// Only the latching query hit the (hanging) session.
+		expect(session.executed).toEqual(["select 1"]);
+	});
+
 	it("supports first() and raw() on the guarded statement", async () => {
 		const guard = createD1SessionGuard(TIMEOUT_MS);
 		const session = createMockD1({ rows: [] });

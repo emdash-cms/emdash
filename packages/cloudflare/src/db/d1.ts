@@ -14,7 +14,7 @@ import { type Dialect, Kysely } from "kysely";
 
 import { CoalescingD1Dialect } from "./coalescing-d1.js";
 import { EmDashD1Dialect } from "./d1-dialect.js";
-import { createD1SessionGuard } from "./d1-session-guard.js";
+import { createD1SessionGuard, type D1SessionGuard } from "./d1-session-guard.js";
 
 /**
  * D1 configuration (runtime type — matches the config-time type in index.ts)
@@ -43,8 +43,25 @@ let warnedCoalesceNoRuntimeSession = false;
  * on the first session query, falls back to the direct binding for that
  * request, and disables sessions for the rest of the isolate's life instead
  * of letting every request hang until the Worker is killed.
+ *
+ * Lives on globalThis behind a Symbol.for key (not module scope) because
+ * Vite can duplicate this module across SSR chunks — every duplicate must
+ * resolve the SAME guard, or one copy could keep racing broken sessions
+ * after another has latched (same pattern as the DO bookmark sinks in
+ * do-sql.ts and core's request-cache.ts).
  */
-const sessionGuard = createD1SessionGuard();
+const SESSION_GUARD_KEY = Symbol.for("emdash:d1-session-guard");
+
+function getSessionGuard(): D1SessionGuard {
+	const g = globalThis as Record<symbol, unknown>;
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see do-sql.ts)
+	let guard = g[SESSION_GUARD_KEY] as D1SessionGuard | undefined;
+	if (!guard) {
+		guard = createD1SessionGuard();
+		g[SESSION_GUARD_KEY] = guard;
+	}
+	return guard;
+}
 
 /**
  * D1 bookmarks are opaque, minted by Cloudflare. We don't validate the shape
@@ -160,9 +177,10 @@ export interface RequestScopedDb {
  */
 export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedDb | null {
 	if (!isSessionEnabled(opts.config)) return null;
-	// A session query hung earlier in this isolate's life (see sessionGuard).
+	// A session query hung earlier in this isolate's life (see the guard).
 	// Sessions are considered broken here; route everything through the
 	// singleton (direct binding) instead of hanging every request.
+	const sessionGuard = getSessionGuard();
 	if (sessionGuard.isBroken()) return null;
 	const binding = getBinding(opts.config);
 	if (!binding || typeof binding.withSession !== "function") {

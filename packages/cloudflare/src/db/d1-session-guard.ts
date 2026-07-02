@@ -118,6 +118,16 @@ export function createD1SessionGuard(timeoutMs: number = SESSION_HANG_TIMEOUT_MS
 		if (health === "unknown") health = "healthy";
 	}
 
+	function rejectAbandonedWrite(): never {
+		throw new Error(
+			`D1 session query hung for ${timeoutMs}ms and was abandoned. ` +
+				"Refusing to re-run a non-SELECT statement on the direct binding " +
+				"(the hung call might still complete, which would execute the " +
+				"write twice). Retry the request — D1 sessions are now disabled " +
+				"for this isolate.",
+		);
+	}
+
 	/**
 	 * Execute `run` against the session statement, hang-guarded. On timeout,
 	 * SELECTs are re-executed on the fallback binding; anything else rejects.
@@ -128,6 +138,13 @@ export function createD1SessionGuard(timeoutMs: number = SESSION_HANG_TIMEOUT_MS
 		run: (statement: D1PreparedStatement) => Promise<T>,
 	): Promise<T> {
 		if (health === "healthy") return run(meta.statement);
+		if (health === "broken") {
+			// The transport is already latched broken (a request created before
+			// the latch may still hold this wrapped db). Don't pay the timeout
+			// again per query — go straight to the fallback / rejection.
+			if (!SELECT_PATTERN.test(meta.sql.trim())) rejectAbandonedWrite();
+			return run(fallback.prepare(meta.sql).bind(...meta.params));
+		}
 		const sessionCall = run(meta.statement);
 		let outcome: RaceOutcome<T>;
 		try {
@@ -144,15 +161,7 @@ export function createD1SessionGuard(timeoutMs: number = SESSION_HANG_TIMEOUT_MS
 		// The hung call may still settle long after we've moved on; swallow it
 		// so a late rejection doesn't surface as an unhandled rejection.
 		sessionCall.catch(() => undefined);
-		if (!SELECT_PATTERN.test(meta.sql.trim())) {
-			throw new Error(
-				`D1 session query hung for ${timeoutMs}ms and was abandoned. ` +
-					"Refusing to re-run a non-SELECT statement on the direct binding " +
-					"(the hung call might still complete, which would execute the " +
-					"write twice). Retry the request — D1 sessions are now disabled " +
-					"for this isolate.",
-			);
-		}
+		if (!SELECT_PATTERN.test(meta.sql.trim())) rejectAbandonedWrite();
 		return run(fallback.prepare(meta.sql).bind(...meta.params));
 	}
 
@@ -201,8 +210,28 @@ export function createD1SessionGuard(timeoutMs: number = SESSION_HANG_TIMEOUT_MS
 					(statement) =>
 						statementMeta.get(statement) ?? { statement, sql: "", params: [] as unknown[] },
 				);
+				// The coalescing driver only ever batches plain SELECTs, but
+				// verify before re-running: a batch containing a write must not
+				// execute twice.
+				function fallbackBatch(): Promise<D1Result<T>[]> {
+					if (!metas.every((meta) => SELECT_PATTERN.test(meta.sql.trim()))) {
+						throw new Error(
+							`D1 session batch hung for ${timeoutMs}ms and was abandoned. ` +
+								"Refusing to re-run it on the direct binding because it " +
+								"contains non-SELECT statements. Retry the request — D1 " +
+								"sessions are now disabled for this isolate.",
+						);
+					}
+					return fallback.batch<T>(
+						metas.map((meta) => fallback.prepare(meta.sql).bind(...meta.params)),
+					);
+				}
 				const sessionStatements = metas.map((meta) => meta.statement);
 				if (health === "healthy") return session.batch<T>(sessionStatements);
+				// Already latched broken (a request created before the latch may
+				// still hold this wrapped db): skip the race, don't pay the
+				// timeout again.
+				if (health === "broken") return fallbackBatch();
 				const sessionCall = session.batch<T>(sessionStatements);
 				let outcome: RaceOutcome<D1Result<T>[]>;
 				try {
@@ -217,20 +246,7 @@ export function createD1SessionGuard(timeoutMs: number = SESSION_HANG_TIMEOUT_MS
 				}
 				markBroken();
 				sessionCall.catch(() => undefined);
-				// The coalescing driver only ever batches plain SELECTs, but
-				// verify before re-running: a batch containing a write must not
-				// execute twice.
-				if (!metas.every((meta) => SELECT_PATTERN.test(meta.sql.trim()))) {
-					throw new Error(
-						`D1 session batch hung for ${timeoutMs}ms and was abandoned. ` +
-							"Refusing to re-run it on the direct binding because it " +
-							"contains non-SELECT statements. Retry the request — D1 " +
-							"sessions are now disabled for this isolate.",
-					);
-				}
-				return fallback.batch<T>(
-					metas.map((meta) => fallback.prepare(meta.sql).bind(...meta.params)),
-				);
+				return fallbackBatch();
 			},
 		};
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- structurally covers every D1Database member the dialects use (prepare/batch)
