@@ -113,6 +113,71 @@ function rowToContentItem(
 	};
 }
 
+/** Narrow an unknown D1 column value to a string ("" when it isn't one). */
+function columnString(value: unknown): string {
+	return typeof value === "string" ? value : "";
+}
+
+/** Narrow an unknown, nullable D1 column value to `string | null`. */
+function columnNullableString(value: unknown): string | null {
+	return typeof value === "string" ? value : null;
+}
+
+/** Parse a JSON string column into a string array (`[]` on anything else). */
+function columnStringArray(value: unknown): string[] {
+	if (typeof value !== "string" || !value) return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return Array.isArray(parsed)
+			? parsed.filter((item): item is string => typeof item === "string")
+			: [];
+	} catch {
+		return [];
+	}
+}
+
+/** Type guard for plain JSON objects. */
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Parse a JSON string column into an object (`null` on anything else). */
+function columnJsonObject(value: unknown): Record<string, unknown> | null {
+	if (typeof value !== "string" || !value) return null;
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return isJsonObject(parsed) ? parsed : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Convert a `taxonomies` row to the term shape exposed over the bridge.
+ * Matches core's TaxonomyTermInfo from plugins/types.ts.
+ */
+function rowToTaxonomyTerm(row: Record<string, unknown>): {
+	id: string;
+	taxonomy: string;
+	slug: string;
+	label: string;
+	parentId: string | null;
+	data: Record<string, unknown> | null;
+	locale: string;
+	translationGroup: string | null;
+} {
+	return {
+		id: columnString(row.id),
+		taxonomy: columnString(row.name),
+		slug: columnString(row.slug),
+		label: columnString(row.label),
+		parentId: columnNullableString(row.parent_id),
+		data: columnJsonObject(row.data),
+		locale: columnString(row.locale),
+		translationGroup: columnNullableString(row.translation_group),
+	};
+}
+
 /**
  * Environment bindings required by PluginBridge
  */
@@ -623,6 +688,120 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			.bind(now, now, id)
 			.run();
 		return (result.meta?.changes ?? 0) > 0;
+	}
+
+	// =========================================================================
+	// Taxonomy Operations (read-only) - gated on content:read
+	// =========================================================================
+
+	async taxonomyList(opts: { locale?: string } = {}): Promise<
+		Array<{
+			name: string;
+			label: string;
+			labelSingular: string | null;
+			hierarchical: boolean;
+			collections: string[];
+			locale: string;
+		}>
+	> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("content:read")) {
+			throw new Error("Missing capability: content:read");
+		}
+		let sql = "SELECT * FROM _emdash_taxonomy_defs";
+		const params: unknown[] = [];
+		if (opts.locale !== undefined) {
+			sql += " WHERE locale = ?";
+			params.push(opts.locale);
+		}
+		sql += " ORDER BY name ASC";
+		const results = await this.env.DB.prepare(sql)
+			.bind(...params)
+			.all();
+		return (results.results ?? []).map((row) => ({
+			name: columnString(row.name),
+			label: columnString(row.label),
+			labelSingular: columnNullableString(row.label_singular),
+			hierarchical: row.hierarchical === 1,
+			collections: columnStringArray(row.collections),
+			locale: columnString(row.locale),
+		}));
+	}
+
+	async taxonomyTerms(
+		taxonomy: string,
+		opts: { locale?: string } = {},
+	): Promise<
+		Array<{
+			id: string;
+			taxonomy: string;
+			slug: string;
+			label: string;
+			parentId: string | null;
+			data: Record<string, unknown> | null;
+			locale: string;
+			translationGroup: string | null;
+		}>
+	> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("content:read")) {
+			throw new Error("Missing capability: content:read");
+		}
+		let sql = "SELECT * FROM taxonomies WHERE name = ?";
+		const params: unknown[] = [taxonomy];
+		if (opts.locale !== undefined) {
+			sql += " AND locale = ?";
+			params.push(opts.locale);
+		}
+		// `id ASC` is a stable tiebreaker for terms sharing a label, matching
+		// core's TaxonomyRepository.findByName ordering.
+		sql += " ORDER BY label ASC, id ASC";
+		const results = await this.env.DB.prepare(sql)
+			.bind(...params)
+			.all();
+		return (results.results ?? []).map(rowToTaxonomyTerm);
+	}
+
+	async taxonomyEntryTerms(
+		collection: string,
+		entryId: string,
+		opts: { taxonomy?: string; locale?: string } = {},
+	): Promise<
+		Array<{
+			id: string;
+			taxonomy: string;
+			slug: string;
+			label: string;
+			parentId: string | null;
+			data: Record<string, unknown> | null;
+			locale: string;
+			translationGroup: string | null;
+		}>
+	> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("content:read")) {
+			throw new Error("Missing capability: content:read");
+		}
+		// The pivot stores the term's translation_group in taxonomy_id, so the
+		// join resolves an assignment into each locale's term row.
+		let sql =
+			"SELECT taxonomies.* FROM content_taxonomies " +
+			"JOIN taxonomies ON taxonomies.translation_group = content_taxonomies.taxonomy_id " +
+			"WHERE content_taxonomies.collection = ? AND content_taxonomies.entry_id = ?";
+		const params: unknown[] = [collection, entryId];
+		if (opts.taxonomy !== undefined) {
+			sql += " AND taxonomies.name = ?";
+			params.push(opts.taxonomy);
+		}
+		if (opts.locale !== undefined) {
+			sql += " AND taxonomies.locale = ?";
+			params.push(opts.locale);
+		}
+		sql += " ORDER BY taxonomies.locale ASC";
+		const results = await this.env.DB.prepare(sql)
+			.bind(...params)
+			.all();
+		return (results.results ?? []).map(rowToTaxonomyTerm);
 	}
 
 	// =========================================================================

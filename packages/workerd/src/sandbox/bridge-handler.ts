@@ -201,6 +201,23 @@ async function dispatch(
 				requireStringArray(body, "ids"),
 			);
 
+		// ── Taxonomies (read-only) ──────────────────────────────────────
+		case "taxonomy/list":
+			requireCapability(opts, "read:content");
+			return taxonomyList(db, optionalString(body, "locale"));
+		case "taxonomy/terms":
+			requireCapability(opts, "read:content");
+			return taxonomyTerms(db, requireString(body, "taxonomy"), optionalString(body, "locale"));
+		case "taxonomy/entryTerms":
+			requireCapability(opts, "read:content");
+			return taxonomyEntryTerms(
+				db,
+				requireString(body, "collection"),
+				requireString(body, "entryId"),
+				optionalString(body, "taxonomy"),
+				optionalString(body, "locale"),
+			);
+
 		// ── Media ───────────────────────────────────────────────────────
 		case "media/get":
 			requireCapability(opts, "read:media");
@@ -917,6 +934,111 @@ async function contentDeleteMany(
 		}
 		return count;
 	});
+}
+
+// ── Taxonomy Operations (read-only) ──────────────────────────────────────
+
+/** Type guard for plain JSON objects. */
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Parse the `collections` JSON column into a string array (`[]` on anything else). */
+function parseCollectionsColumn(value: string | null): string[] {
+	if (!value) return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return Array.isArray(parsed)
+			? parsed.filter((item): item is string => typeof item === "string")
+			: [];
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Convert a `taxonomies` row to the term shape exposed over the bridge.
+ * Matches the Cloudflare PluginBridge and core's TaxonomyTermInfo.
+ */
+function rowToTaxonomyTerm(row: {
+	id: string;
+	name: string;
+	slug: string;
+	label: string;
+	parent_id: string | null;
+	data: string | null;
+	locale: string;
+	translation_group: string | null;
+}) {
+	let data: Record<string, unknown> | null = null;
+	if (row.data) {
+		try {
+			const parsed: unknown = JSON.parse(row.data);
+			if (isJsonObject(parsed)) data = parsed;
+		} catch {
+			data = null;
+		}
+	}
+	return {
+		id: row.id,
+		taxonomy: row.name,
+		slug: row.slug,
+		label: row.label,
+		parentId: row.parent_id,
+		data,
+		locale: row.locale,
+		translationGroup: row.translation_group,
+	};
+}
+
+async function taxonomyList(db: Kysely<Database>, locale?: string) {
+	let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+	if (locale !== undefined) query = query.where("locale", "=", locale);
+	const rows = await query.orderBy("name", "asc").execute();
+	return rows.map((row) => ({
+		name: row.name,
+		label: row.label,
+		labelSingular: row.label_singular,
+		hierarchical: row.hierarchical === 1,
+		collections: parseCollectionsColumn(row.collections),
+		locale: row.locale,
+	}));
+}
+
+async function taxonomyTerms(db: Kysely<Database>, taxonomy: string, locale?: string) {
+	// `id asc` is a stable tiebreaker for terms sharing a label, matching
+	// core's TaxonomyRepository.findByName ordering.
+	let query = db
+		.selectFrom("taxonomies")
+		.selectAll()
+		.where("name", "=", taxonomy)
+		.orderBy("label", "asc")
+		.orderBy("id", "asc");
+	if (locale !== undefined) query = query.where("locale", "=", locale);
+	const rows = await query.execute();
+	return rows.map(rowToTaxonomyTerm);
+}
+
+async function taxonomyEntryTerms(
+	db: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	taxonomy?: string,
+	locale?: string,
+) {
+	// The pivot stores the term's translation_group in taxonomy_id, so the
+	// join resolves an assignment into each locale's term row.
+	let query = db
+		.selectFrom("content_taxonomies")
+		.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
+		.selectAll("taxonomies")
+		.where("content_taxonomies.collection", "=", collection)
+		.where("content_taxonomies.entry_id", "=", entryId)
+		.orderBy("taxonomies.locale", "asc");
+	if (taxonomy !== undefined) query = query.where("taxonomies.name", "=", taxonomy);
+	if (locale !== undefined) query = query.where("taxonomies.locale", "=", locale);
+	const rows = await query.execute();
+	return rows.map(rowToTaxonomyTerm);
 }
 
 // ── Media Operations ─────────────────────────────────────────────────────

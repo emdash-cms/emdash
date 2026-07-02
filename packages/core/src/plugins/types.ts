@@ -245,12 +245,64 @@ export type ContentWriteInput = Record<string, unknown> & {
 };
 
 /**
+ * Taxonomy definition returned from the content API (e.g. "category", "tag").
+ */
+export interface TaxonomyDefInfo {
+	name: string;
+	label: string;
+	labelSingular: string | null;
+	hierarchical: boolean;
+	/** Collections this taxonomy is attached to (e.g. `["posts"]`). */
+	collections: string[];
+	locale: string;
+}
+
+/**
+ * Taxonomy term returned from the content API. Flat shape — for hierarchical
+ * taxonomies the tree is reconstructed via `parentId` (which stores the
+ * parent's locale-agnostic `translationGroup`).
+ */
+export interface TaxonomyTermInfo {
+	id: string;
+	/** Taxonomy name this term belongs to (e.g. "category"). */
+	taxonomy: string;
+	slug: string;
+	label: string;
+	parentId: string | null;
+	/** Term metadata as edited in the admin (`description` etc.). */
+	data: Record<string, unknown> | null;
+	locale: string;
+	translationGroup: string | null;
+}
+
+/**
+ * Options accepted by taxonomy read operations. Omitting `locale` returns
+ * rows for every locale.
+ */
+export interface TaxonomyReadOptions {
+	locale?: string;
+}
+
+/**
  * Content access interface - capability-gated
  */
 export interface ContentAccess {
 	// Read operations (requires read:content)
 	get(collection: string, id: string): Promise<ContentItem | null>;
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
+
+	// Taxonomy read operations (requires read:content). Terms classify content
+	// entries, so they are part of the content read surface.
+	/** List taxonomy definitions. */
+	getTaxonomies(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]>;
+	/** All terms of a taxonomy, ordered by label. */
+	getTaxonomyTerms(taxonomy: string, options?: TaxonomyReadOptions): Promise<TaxonomyTermInfo[]>;
+	/** Terms assigned to a content entry, optionally scoped to one taxonomy. */
+	getEntryTerms(
+		collection: string,
+		entryId: string,
+		options?: TaxonomyReadOptions & { taxonomy?: string },
+	): Promise<TaxonomyTermInfo[]>;
 
 	// Write operations (requires write:content) - optional on interface
 	create?(collection: string, data: ContentWriteInput): Promise<ContentItem>;

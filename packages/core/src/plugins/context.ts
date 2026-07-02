@@ -13,6 +13,7 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
 import { SeoRepository } from "../database/repositories/seo.js";
+import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxonomy.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
@@ -51,6 +52,9 @@ import type {
 	QueryOptions,
 	ContentListOptions,
 	MediaListOptions,
+	TaxonomyDefInfo,
+	TaxonomyTermInfo,
+	TaxonomyReadOptions,
 } from "./types.js";
 
 // =============================================================================
@@ -193,12 +197,27 @@ async function assertSeoEnabled(
 	return hasSeo;
 }
 
+/** Map a repository `Taxonomy` row to the plugin-facing term shape. */
+function taxonomyToTermInfo(term: Taxonomy): TaxonomyTermInfo {
+	return {
+		id: term.id,
+		taxonomy: term.name,
+		slug: term.slug,
+		label: term.label,
+		parentId: term.parentId,
+		data: term.data,
+		locale: term.locale,
+		translationGroup: term.translationGroup,
+	};
+}
+
 /**
  * Create read-only content access
  */
 export function createContentAccess(db: Kysely<Database>): ContentAccess {
 	const contentRepo = new ContentRepository(db);
 	const seoRepo = new SeoRepository(db);
+	const taxonomyRepo = new TaxonomyRepository(db);
 
 	return {
 		async get(collection: string, id: string): Promise<ContentItem | null> {
@@ -273,6 +292,42 @@ export function createContentAccess(db: Kysely<Database>): ContentAccess {
 				cursor: result.nextCursor,
 				hasMore: !!result.nextCursor,
 			};
+		},
+
+		async getTaxonomies(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]> {
+			let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+			if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
+			const rows = await query.orderBy("name", "asc").execute();
+			return rows.map((row) => ({
+				name: row.name,
+				label: row.label,
+				labelSingular: row.label_singular,
+				hierarchical: row.hierarchical === 1,
+				collections: row.collections ? (JSON.parse(row.collections) as string[]) : [],
+				locale: row.locale,
+			}));
+		},
+
+		async getTaxonomyTerms(
+			taxonomy: string,
+			options?: TaxonomyReadOptions,
+		): Promise<TaxonomyTermInfo[]> {
+			const terms = await taxonomyRepo.findByName(taxonomy, { locale: options?.locale });
+			return terms.map(taxonomyToTermInfo);
+		},
+
+		async getEntryTerms(
+			collection: string,
+			entryId: string,
+			options?: TaxonomyReadOptions & { taxonomy?: string },
+		): Promise<TaxonomyTermInfo[]> {
+			const terms = await taxonomyRepo.getTermsForEntry(
+				collection,
+				entryId,
+				options?.taxonomy,
+				options?.locale,
+			);
+			return terms.map(taxonomyToTermInfo);
 		},
 	};
 }
