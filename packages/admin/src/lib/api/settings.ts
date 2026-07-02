@@ -63,3 +63,36 @@ export async function updateSettings(
 	});
 	return parseApiResponse<Partial<SiteSettings>>(response, i18n._(msg`Failed to update settings`));
 }
+
+// ---------------------------------------------------------------------------
+// `emdash:site_url` -- the internal origin used to build links in
+// magic-link / invitation / password-reset emails. Separate from
+// `SiteSettings.url` (presentation-layer URL used for canonical links).
+// See `packages/core/src/astro/routes/api/settings/site-url.ts` and
+// upstream issue #989 for why these are distinct.
+// ---------------------------------------------------------------------------
+
+export interface SiteUrlSetting {
+	siteUrl: string | null;
+}
+
+/**
+ * Fetch the current `emdash:site_url` option.
+ */
+export async function fetchSiteUrl(): Promise<SiteUrlSetting> {
+	const response = await apiFetch(`${API_BASE}/settings/site-url`);
+	return parseApiResponse<SiteUrlSetting>(response, "Failed to fetch site URL");
+}
+
+/**
+ * Update the `emdash:site_url` option. The value is normalized server-side
+ * to a bare origin (e.g. `https://example.com`) before persistence.
+ */
+export async function updateSiteUrl(siteUrl: string): Promise<SiteUrlSetting> {
+	const response = await apiFetch(`${API_BASE}/settings/site-url`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ siteUrl }),
+	});
+	return parseApiResponse<SiteUrlSetting>(response, "Failed to update site URL");
+}
