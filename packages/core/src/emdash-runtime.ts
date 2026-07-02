@@ -31,6 +31,7 @@ import type {
 import { validateIdentifier } from "./database/validate.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
+import { refreshContentMediaUsageAfterWrite } from "./media/usage/content-refresh.js";
 import type { SandboxedPluginInstance, SandboxRunner } from "./plugins/sandbox/types.js";
 import type {
 	ResolvedPlugin,
@@ -2570,6 +2571,9 @@ export class EmDashRuntime {
 			authorId: body.authorId,
 			bylines: body.bylines,
 		});
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterSave hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2738,6 +2742,9 @@ export class EmDashRuntime {
 		// supporting collections, that's the just-saved draft, not the live
 		// columns.
 		const hydrated = await this.hydrateDraftData(result);
+		if (hydrated.success && hydrated.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [resolvedId]);
+		}
 
 		// Run afterSave hooks (fire-and-forget)
 		if (hydrated.success && hydrated.data) {
@@ -2823,7 +2830,11 @@ export class EmDashRuntime {
 	}
 
 	async handleContentDuplicate(collection: string, id: string, authorId?: string) {
-		return handleContentDuplicate(this.db, collection, id, authorId);
+		const result = await handleContentDuplicate(this.db, collection, id, authorId);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+		return result;
 	}
 
 	// =========================================================================
@@ -3011,6 +3022,9 @@ export class EmDashRuntime {
 		// behavior for collections that opt out of the draft model.
 		if (!usesDraftRevisions) {
 			const result = await handleRevisionRestore(this.db, revisionId, callerUserId);
+			if (result.success) {
+				await this.refreshContentUsageAfterSuccessfulWrite(revision.collection, [revision.entryId]);
+			}
 			return this.hydrateDraftData(result);
 		}
 
@@ -3046,7 +3060,11 @@ export class EmDashRuntime {
 			// columns and the next `content_get` would surface different
 			// values (the bug that motivated this rewrite).
 			const refetched = await handleContentGet(this.db, revision.collection, revision.entryId);
-			return this.hydrateDraftData(refetched);
+			const hydrated = await this.hydrateDraftData(refetched);
+			if (hydrated.success) {
+				await this.refreshContentUsageAfterSuccessfulWrite(revision.collection, [revision.entryId]);
+			}
+			return hydrated;
 		} catch (error) {
 			console.error("[emdash] revision restore failed:", error);
 			return {
@@ -3056,6 +3074,22 @@ export class EmDashRuntime {
 					message: "Failed to restore revision",
 				},
 			};
+		}
+	}
+
+	private async refreshContentUsageAfterSuccessfulWrite(
+		collection: string,
+		contentIds: readonly string[],
+	): Promise<void> {
+		for (const contentId of new Set(contentIds)) {
+			try {
+				await refreshContentMediaUsageAfterWrite(this.db, collection, contentId);
+			} catch (error) {
+				console.error(
+					`[media-usage] Failed after content write ${collection}/${contentId}:`,
+					error,
+				);
+			}
 		}
 	}
 
