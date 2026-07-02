@@ -194,14 +194,18 @@ const pageCtx = createPublicPageContext({
 				 * Design tokens live in src/styles/tokens.css. Colors are
 				 * defined with light-dark(); these rules pin the scheme when
 				 * the footer switcher sets an explicit choice. With no class,
-				 * color-scheme: light dark follows the OS preference.
+				 * color-scheme: light dark follows the OS preference. The
+				 * @supports guard keeps the toggle from forcing dark UA form
+				 * controls on browsers stuck on the plain-light fallback.
 				 */
-				:root.light {
-					color-scheme: light;
-				}
+				@supports (color: light-dark(#000, #fff)) {
+					:root.light {
+						color-scheme: light;
+					}
 
-				:root.dark {
-					color-scheme: dark;
+					:root.dark {
+						color-scheme: dark;
+					}
 				}
 
 				html {
