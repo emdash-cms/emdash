@@ -10,6 +10,7 @@ import { createPublicPageContext } from "emdash/page";
 import LiveSearch from "emdash/ui/search";
 import { Font } from "astro:assets";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
+import "../styles/tokens.css";
 import "../styles/theme.css";
 
 interface Props {
@@ -81,20 +82,19 @@ const isLoggedIn = !!Astro.locals.user;
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<Font cssVariable="--font-sans" preload />
+		<Font cssVariable="--font-body" preload />
 		<Font cssVariable="--font-mono" />
 		<title>{fullTitle}</title>
 		<EmDashHead page={pageCtx} />
 		<script is:inline>
-			// Apply theme immediately to prevent flash
+			// Apply an explicit theme choice immediately to prevent flash.
+			// With no cookie, color-scheme: light dark follows the OS.
 			(function () {
 				var c = document.cookie;
 				var i = c.indexOf("theme=");
 				var theme = i >= 0 ? c.slice(i + 6).split(";")[0] : null;
 				if (theme === "dark" || theme === "light") {
 					document.documentElement.classList.add(theme);
-				} else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-					document.documentElement.classList.add("dark");
 				}
 			})();
 		</script>
@@ -304,9 +304,6 @@ const isLoggedIn = !!Astro.locals.user;
 				if (theme === "system") {
 					setCookie("theme", "");
 					root.classList.remove("light", "dark");
-					if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-						root.classList.add("dark");
-					}
 				} else {
 					setCookie("theme", theme);
 					root.classList.remove("light", "dark");
@@ -335,15 +332,6 @@ const isLoggedIn = !!Astro.locals.user;
 					setTheme(btn.dataset.theme || "system");
 				});
 			});
-
-			// Listen for system preference changes
-			window
-				.matchMedia("(prefers-color-scheme: dark)")
-				.addEventListener("change", (e) => {
-					if (getStoredTheme() === "system") {
-						root.classList.toggle("dark", e.matches);
-					}
-				});
 		</script>
 
 		<style is:global>
@@ -383,142 +371,18 @@ const isLoggedIn = !!Astro.locals.user;
 					padding: 0;
 				}
 
-				:root {
-					/* Colors - Light mode (default) */
-					--color-bg: #ffffff;
-					--color-bg-subtle: #fafafa;
-					--color-text: #1a1a1a;
-					--color-text-secondary: #525252;
-					--color-muted: #8b8b8b;
-					--color-border: #e5e5e5;
-					--color-border-subtle: #f0f0f0;
-					--color-surface: #f7f7f7;
-					--color-accent: #0066cc;
-					--color-accent-hover: #0052a3;
-					--color-on-accent: white;
-					--color-accent-ring: color-mix(
-						in srgb,
-						var(--color-accent) 25%,
-						transparent
-					);
-
-					/* EmDash search theming */
-					--emdash-search-bg: var(--color-bg);
-					--emdash-search-text: var(--color-text);
-					--emdash-search-muted: var(--color-muted);
-					--emdash-search-border: var(--color-border);
-					--emdash-search-hover: var(--color-surface);
-					--emdash-search-highlight: var(--color-text);
-
-					/* Type scale - more refined */
-					--font-size-xs: 0.8125rem;
-					--font-size-sm: 0.875rem;
-					--font-size-base: 1rem;
-					--font-size-lg: 1.125rem;
-					--font-size-xl: 1.25rem;
-					--font-size-2xl: 1.5rem;
-					--font-size-3xl: 2rem;
-					--font-size-4xl: 2.5rem;
-					--font-size-5xl: 3.5rem;
-
-					/* Line heights */
-					--leading-tight: 1.15;
-					--leading-snug: 1.3;
-					--leading-normal: 1.5;
-					--leading-relaxed: 1.7;
-
-					/* Spacing - more generous */
-					--spacing-1: 0.25rem;
-					--spacing-2: 0.5rem;
-					--spacing-3: 0.75rem;
-					--spacing-4: 1rem;
-					--spacing-5: 1.25rem;
-					--spacing-6: 1.5rem;
-					--spacing-8: 2rem;
-					--spacing-10: 2.5rem;
-					--spacing-12: 3rem;
-					--spacing-16: 4rem;
-					--spacing-20: 5rem;
-					--spacing-24: 6rem;
-
-					/* Legacy spacing aliases */
-					--spacing-xs: var(--spacing-1);
-					--spacing-sm: var(--spacing-2);
-					--spacing-md: var(--spacing-4);
-					--spacing-lg: var(--spacing-6);
-					--spacing-xl: var(--spacing-8);
-					--spacing-2xl: var(--spacing-12);
-					--spacing-3xl: var(--spacing-16);
-
-					/* Layout - wider for three-column */
-					--content-width: 680px;
-					--wide-width: 1200px;
-					--max-width: var(--content-width);
-					--gutter-width: 200px;
-					--radius: 4px;
-					--radius-lg: 8px;
-
-					/* Transitions */
-					--transition-fast: 120ms ease;
-					--transition-base: 180ms ease;
-
-					/* Nav */
-					--nav-height: 64px;
-
-					/* Search */
-					--search-input-width: 180px;
-
-					/* Article layout */
-					--meta-col-width: 180px;
-
-					/* Avatar sizes */
-					--avatar-size-xs: 18px;
-					--avatar-size-sm: 20px;
-					--avatar-size-md: 24px;
-					--avatar-size-lg: 32px;
-
-					/* Letter spacing */
-					--tracking-tight: -0.03em;
-					--tracking-snug: -0.02em;
-					--tracking-wide: 0.06em;
-					--tracking-wider: 0.08em;
-
-					/* Tag pill */
-					--tag-padding-y: 2px;
-
-					/* Shadows */
-					--shadow-dropdown: 0 8px 30px rgba(0, 0, 0, 0.12);
-					--shadow-btn-active: 0 1px 2px rgba(0, 0, 0, 0.05);
+				/*
+				 * Design tokens live in src/styles/tokens.css. Colors are
+				 * defined with light-dark(); these rules pin the scheme when
+				 * the footer switcher sets an explicit choice. With no class,
+				 * color-scheme: light dark follows the OS preference.
+				 */
+				:root.light {
+					color-scheme: light;
 				}
 
-				/* Dark mode via system preference (when no explicit class) */
-				@media (prefers-color-scheme: dark) {
-					:root:not(.light) {
-						--color-bg: #0d0d0d;
-						--color-bg-subtle: #141414;
-						--color-text: #ededed;
-						--color-text-secondary: #a0a0a0;
-						--color-muted: #6b6b6b;
-						--color-border: #2a2a2a;
-						--color-border-subtle: #1f1f1f;
-						--color-surface: #181818;
-						--color-accent: #4d9fff;
-						--color-accent-hover: #6eb0ff;
-					}
-				}
-
-				/* Explicit dark mode */
 				:root.dark {
-					--color-bg: #0d0d0d;
-					--color-bg-subtle: #141414;
-					--color-text: #ededed;
-					--color-text-secondary: #a0a0a0;
-					--color-muted: #6b6b6b;
-					--color-border: #2a2a2a;
-					--color-border-subtle: #1f1f1f;
-					--color-surface: #181818;
-					--color-accent: #4d9fff;
-					--color-accent-hover: #6eb0ff;
+					color-scheme: dark;
 				}
 
 				html {
@@ -526,7 +390,7 @@ const isLoggedIn = !!Astro.locals.user;
 				}
 
 				body {
-					font-family: var(--font-sans);
+					font-family: var(--font-body);
 					font-size: var(--font-size-base);
 					line-height: var(--leading-relaxed);
 					color: var(--color-text);
@@ -537,13 +401,13 @@ const isLoggedIn = !!Astro.locals.user;
 				}
 
 				a:where(:not([class*="emdash"]):not([class*="ec-"])) {
-					color: var(--color-accent);
+					color: var(--color-brand);
 					text-decoration: none;
 					transition: color var(--transition-fast);
 				}
 
 				a:where(:not([class*="emdash"]):not([class*="ec-"])):hover {
-					color: var(--color-accent-hover);
+					color: var(--color-brand-hover);
 				}
 
 				img {
@@ -558,20 +422,20 @@ const isLoggedIn = !!Astro.locals.user;
 				h4,
 				h5,
 				h6 {
-					font-family: var(--font-sans);
+					font-family: var(--font-heading);
 					line-height: var(--leading-tight);
-					font-weight: 600;
+					font-weight: var(--font-weight-heading);
 					letter-spacing: var(--tracking-snug);
 				}
 
 				h1 {
-					font-weight: 700;
+					font-weight: var(--font-weight-display);
 					letter-spacing: var(--tracking-tight);
 				}
 
 				::selection {
-					background: var(--color-accent);
-					color: white;
+					background: var(--color-brand);
+					color: var(--color-on-brand);
 				}
 			}
 		</style>
@@ -606,7 +470,7 @@ const isLoggedIn = !!Astro.locals.user;
 			}
 
 			.site-title:hover {
-				color: var(--color-accent);
+				color: var(--color-brand);
 			}
 
 			.site-logo-img {
@@ -636,7 +500,7 @@ const isLoggedIn = !!Astro.locals.user;
 			}
 
 			.nav-links a:hover {
-				color: var(--color-accent);
+				color: var(--color-brand);
 			}
 
 			.nav-admin {
@@ -654,13 +518,13 @@ const isLoggedIn = !!Astro.locals.user;
 			.site-search {
 				position: relative;
 				width: var(--search-input-width);
-				--emdash-search-border-focus: var(--color-accent);
+				--emdash-search-border-focus: var(--color-brand);
 			}
 
 			:global(.site-search-input) {
 				width: var(--search-input-width);
 				padding: var(--spacing-2) var(--spacing-3);
-				font-family: var(--font-sans);
+				font-family: var(--font-body);
 				font-size: var(--font-size-sm);
 				border: 1px solid var(--color-border);
 				border-radius: var(--radius);
@@ -678,8 +542,8 @@ const isLoggedIn = !!Astro.locals.user;
 			:global(.site-search-input):focus,
 			:global(.site-search-input):focus-visible {
 				outline: none;
-				border-color: var(--color-accent) !important;
-				box-shadow: 0 0 0 3px var(--color-accent-ring);
+				border-color: var(--color-brand) !important;
+				box-shadow: 0 0 0 3px var(--color-brand-ring);
 			}
 
 			:global(.site-search-results) {
@@ -691,7 +555,7 @@ const isLoggedIn = !!Astro.locals.user;
 				background: var(--color-bg);
 				border: 1px solid var(--color-border);
 				border-radius: var(--radius-lg);
-				box-shadow: var(--shadow-dropdown);
+				box-shadow: var(--shadow-lg);
 				max-height: 400px;
 				overflow-y: auto;
 				z-index: 1000;
@@ -902,7 +766,7 @@ const isLoggedIn = !!Astro.locals.user;
 			.theme-btn.active {
 				background: var(--color-bg);
 				color: var(--color-text);
-				box-shadow: var(--shadow-btn-active);
+				box-shadow: var(--shadow-sm);
 			}
 
 			.theme-btn svg {
