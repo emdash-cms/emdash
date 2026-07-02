@@ -226,4 +226,86 @@ describe("MenuEditor", () => {
 		const inputEl = urlInput.element() as HTMLInputElement;
 		expect(inputEl.validity.valid).toBe(false);
 	});
+
+	it("edit dialog shows a Parent select that excludes the item itself", async () => {
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByText("Home")).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Edit" }).first().click();
+
+		await screen.getByRole("combobox", { name: "Parent" }).click();
+		await expect.element(screen.getByRole("option", { name: "About" })).toBeInTheDocument();
+		expect(screen.getByRole("option", { name: "Home", exact: true }).query()).toBeNull();
+	});
+
+	it("renders nested items indented under their parent", async () => {
+		vi.mocked(api.fetchMenu).mockResolvedValue({
+			...defaultMenu,
+			items: [
+				...defaultMenu.items,
+				{
+					id: "3",
+					menuId: "menu1",
+					parentId: "1",
+					sortOrder: 0,
+					type: "custom",
+					referenceCollection: null,
+					referenceId: null,
+					customUrl: "/services",
+					label: "Services",
+					titleAttr: null,
+					target: "_self",
+					cssClasses: null,
+					createdAt: "",
+					locale: "en",
+					translationGroup: "3",
+				},
+			],
+		});
+
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByText("Services")).toBeInTheDocument();
+		const servicesRow = screen.getByText("Services").element().closest("div.border");
+		expect((servicesRow as HTMLElement | null)?.style.marginInlineStart).toBe("1.5rem");
+	});
+
+	it("reorder buttons only compare against siblings, not the whole flat list", async () => {
+		vi.mocked(api.fetchMenu).mockResolvedValue({
+			...defaultMenu,
+			items: [
+				...defaultMenu.items,
+				{
+					id: "3",
+					menuId: "menu1",
+					parentId: "1",
+					sortOrder: 0,
+					type: "custom",
+					referenceCollection: null,
+					referenceId: null,
+					customUrl: "/services",
+					label: "Services",
+					titleAttr: null,
+					target: "_self",
+					cssClasses: null,
+					createdAt: "",
+					locale: "en",
+					translationGroup: "3",
+				},
+			],
+		});
+
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByText("Services")).toBeInTheDocument();
+		// "Services" is Home's only child, so both its up and down buttons are
+		// disabled even though it isn't the first/last item in the flat list.
+		const servicesRow = screen.getByText("Services").element().closest("div.border") as HTMLElement;
+		const upBtn = servicesRow.querySelector('button[aria-label="Move up"]') as HTMLButtonElement;
+		const downBtn = servicesRow.querySelector(
+			'button[aria-label="Move down"]',
+		) as HTMLButtonElement;
+		expect(upBtn.disabled).toBe(true);
+		expect(downBtn.disabled).toBe(true);
+	});
 });
