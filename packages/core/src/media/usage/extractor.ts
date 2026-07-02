@@ -84,14 +84,14 @@ function extractRepeaterOccurrences(
 		if (!isRecord(item)) continue;
 
 		for (const subField of subFields) {
-			if (subField.type !== "image" && subField.type !== "file") continue;
+			if (subField.type !== "image") continue;
 
 			addOccurrence(occurrences, seen, {
 				fieldSlug,
 				fieldPath: `${fieldSlug}[${itemIndex}].${subField.slug}`,
-				referenceType: subField.type === "image" ? "image_field" : "file_field",
+				referenceType: "image_field",
 				value: item[subField.slug],
-				fallbackKind: subField.type === "image" ? "image" : null,
+				fallbackKind: "image",
 			});
 		}
 	}
