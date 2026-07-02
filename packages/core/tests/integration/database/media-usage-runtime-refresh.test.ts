@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
@@ -187,6 +188,172 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 			expect.objectContaining({
 				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
 			}),
+		]);
+	});
+
+	it("refreshes usage when publishing a draft overlay", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "publish-post",
+			data: {
+				title: "Publish Post",
+				hero: mediaRef("media-live"),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		await runtime.handleContentUpdate("posts", created.data.item.id, {
+			data: { hero: mediaRef("media-draft") },
+		});
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft")).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
+			}),
+		]);
+
+		const published = await runtime.handleContentPublish("posts", created.data.item.id);
+
+		expect(published.success).toBe(true);
+		expect(
+			await usageRepo.findSource(sourceKey("posts", created.data.item.id, "draft_overlay")),
+		).toBeNull();
+		expect(await usageRepo.findCurrentUsageByMediaId("media-live")).toEqual([]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft")).toEqual([
+			expect.objectContaining({ source: expect.objectContaining({ sourceVariant: "columns" }) }),
+		]);
+	});
+
+	it("refreshes usage when unpublishing creates a draft overlay", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "unpublish-post",
+			data: {
+				title: "Unpublish Post",
+				hero: mediaRef("media-unpublish"),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		const published = await runtime.handleContentPublish("posts", created.data.item.id);
+		expect(published.success).toBe(true);
+
+		const unpublished = await runtime.handleContentUnpublish("posts", created.data.item.id);
+
+		expect(unpublished.success).toBe(true);
+		expect(await usageRepo.findSource(sourceKey("posts", created.data.item.id, "columns"))).toEqual(
+			expect.objectContaining({ contentStatus: "draft", sourceVariant: "columns" }),
+		);
+		expect(
+			await usageRepo.findSource(sourceKey("posts", created.data.item.id, "draft_overlay")),
+		).toEqual(expect.objectContaining({ contentStatus: "draft", sourceVariant: "draft_overlay" }));
+		expect(await usageRepo.findCurrentUsageByMediaId("media-unpublish")).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ source: expect.objectContaining({ sourceVariant: "columns" }) }),
+				expect.objectContaining({
+					source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
+				}),
+			]),
+		);
+	});
+
+	it("refreshes schedule metadata on schedule and unschedule", async () => {
+		const created = await runtime.handleContentCreate("plain_posts", {
+			slug: "scheduled-post",
+			data: {
+				title: "Scheduled Post",
+				hero: mediaRef("media-schedule"),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		const scheduledAt = new Date(Date.now() + 86_400_000).toISOString();
+
+		const scheduled = await runtime.handleContentSchedule(
+			"plain_posts",
+			created.data.item.id,
+			scheduledAt,
+		);
+
+		expect(scheduled.success).toBe(true);
+		expect(
+			await usageRepo.findSource(sourceKey("plain_posts", created.data.item.id, "columns")),
+		).toEqual(
+			expect.objectContaining({
+				contentStatus: "scheduled",
+				contentScheduledAt: scheduledAt,
+			}),
+		);
+
+		const unscheduled = await runtime.handleContentUnschedule("plain_posts", created.data.item.id);
+
+		expect(unscheduled.success).toBe(true);
+		expect(
+			await usageRepo.findSource(sourceKey("plain_posts", created.data.item.id, "columns")),
+		).toEqual(
+			expect.objectContaining({
+				contentStatus: "draft",
+				contentScheduledAt: null,
+			}),
+		);
+	});
+
+	it("refreshes usage when discarding a draft overlay", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "discard-post",
+			data: {
+				title: "Discard Post",
+				hero: mediaRef("media-live"),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		await runtime.handleContentUpdate("posts", created.data.item.id, {
+			data: { hero: mediaRef("media-discard") },
+		});
+		expect(
+			await usageRepo.findSource(sourceKey("posts", created.data.item.id, "draft_overlay")),
+		).not.toBeNull();
+
+		const discarded = await runtime.handleContentDiscardDraft("posts", created.data.item.id);
+
+		expect(discarded.success).toBe(true);
+		expect(
+			await usageRepo.findSource(sourceKey("posts", created.data.item.id, "draft_overlay")),
+		).toBeNull();
+		expect(await usageRepo.findCurrentUsageByMediaId("media-discard")).toEqual([]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-live")).toEqual([
+			expect.objectContaining({ source: expect.objectContaining({ sourceVariant: "columns" }) }),
+		]);
+	});
+
+	it("refreshes usage when scheduled publish runs through the runtime", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "scheduled-publish-post",
+			data: {
+				title: "Scheduled Publish Post",
+				hero: mediaRef("media-live"),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		await runtime.handleContentUpdate("posts", created.data.item.id, {
+			data: { hero: mediaRef("media-scheduled-draft") },
+		});
+		const dueAt = new Date(Date.now() - 60_000).toISOString();
+		await sql`
+			UPDATE ${sql.ref("ec_posts")}
+			SET status = ${"scheduled"},
+				scheduled_at = ${dueAt}
+			WHERE id = ${created.data.item.id}
+		`.execute(ctx.db);
+
+		const result = await runtime.publishScheduled();
+
+		expect(result).toEqual([{ collection: "posts", id: created.data.item.id }]);
+		expect(
+			await usageRepo.findSource(sourceKey("posts", created.data.item.id, "draft_overlay")),
+		).toBeNull();
+		expect(await usageRepo.findCurrentUsageByMediaId("media-live")).toEqual([]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-scheduled-draft")).toEqual([
+			expect.objectContaining({ source: expect.objectContaining({ sourceVariant: "columns" }) }),
 		]);
 	});
 });

@@ -2847,6 +2847,9 @@ export class EmDashRuntime {
 		options: { publishedAt?: string; requireScheduledDue?: boolean } = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterPublish hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2858,6 +2861,9 @@ export class EmDashRuntime {
 
 	async handleContentUnpublish(collection: string, id: string) {
 		const result = await handleContentUnpublish(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
 
 		// Run afterUnpublish hooks (fire-and-forget)
 		if (result.success && result.data) {
@@ -2868,11 +2874,19 @@ export class EmDashRuntime {
 	}
 
 	async handleContentSchedule(collection: string, id: string, scheduledAt: string) {
-		return handleContentSchedule(this.db, collection, id, scheduledAt);
+		const result = await handleContentSchedule(this.db, collection, id, scheduledAt);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+		return result;
 	}
 
 	async handleContentUnschedule(collection: string, id: string) {
-		return handleContentUnschedule(this.db, collection, id);
+		const result = await handleContentUnschedule(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+		return result;
 	}
 
 	async handleContentCountScheduled(collection: string) {
@@ -2880,7 +2894,11 @@ export class EmDashRuntime {
 	}
 
 	async handleContentDiscardDraft(collection: string, id: string) {
-		return handleContentDiscardDraft(this.db, collection, id);
+		const result = await handleContentDiscardDraft(this.db, collection, id);
+		if (result.success && result.data) {
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+		}
+		return result;
 	}
 
 	async handleContentCompare(collection: string, id: string) {
