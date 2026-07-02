@@ -1,22 +1,25 @@
 /**
- * Query-plan shape of the folded taxonomy-term hydration subquery (#1722).
+ * Query-plan shape of the folded per-entry hydration subqueries (#1722).
  *
- * `foldedHydrationSelects` folds per-entry term hydration into the content query
- * as a correlated JSON-array subquery. On D1 / stats-blind SQLite (no ANALYZE,
- * no `sqlite_stat1`) the planner is free to pick the join order, and a plain
- * `JOIN` lets it drive the subquery from `taxonomies` by locale — enumerating
- * *every term in the locale* and probing the pivot once per emitted row. On a
- * site with thousands of terms that's tens of thousands of rows read per list
- * page, paid on every cache miss.
+ * `foldedHydrationSelects` folds per-entry term *and* byline hydration into the
+ * content query as correlated JSON-array subqueries. On D1 / stats-blind SQLite
+ * (no ANALYZE, no `sqlite_stat1`) the planner is free to pick the join order,
+ * and a plain `JOIN` lets it drive a subquery from the term/byline table by
+ * locale — enumerating *every row in the locale* and probing the pivot once per
+ * emitted row. On a site with thousands of terms that's tens of thousands of
+ * rows read per list page, paid on every cache miss.
  *
- * The fix pins the join order with `CROSS JOIN` on the SQLite path so the
- * subquery always drives from the `content_taxonomies` pivot by
- * `(collection, entry_id)` and probes `taxonomies` by `translation_group` — a
- * handful of reads per entry, independent of taxonomy size and of statistics.
+ * The fix pins the join order with `CROSS JOIN` on the SQLite path so each
+ * subquery always drives from its pivot (`content_taxonomies` /
+ * `_emdash_content_bylines`) by `(collection, entry_id)` and probes the
+ * term/byline table by `translation_group` — a handful of reads per entry,
+ * independent of taxonomy/byline size and of statistics.
  *
  * This asserts the *plan*, not the output (output is covered by loader-fold).
  * Since the planner is stats-blind here, the plan is schema-driven and does not
- * depend on row counts — this DB matches D1's shape exactly.
+ * depend on row counts — this DB matches D1's shape exactly. Both `foldJoin`
+ * consumers (`loadCollection` and `loadEntry`) and both subqueries (taxonomy and
+ * byline) are guarded, since the fix hardened the join order for all of them.
  *
  * SQLite-only: `EXPLAIN QUERY PLAN` and `CROSS JOIN … ON` are SQLite concerns;
  * Postgres keeps statistics and is unaffected.
@@ -27,6 +30,7 @@ import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { runMigrations } from "../../src/database/migrations/runner.js";
+import { BylineRepository } from "../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
@@ -68,6 +72,7 @@ beforeEach(async () => {
 	const anyDb = db as any;
 	const content = new ContentRepository(anyDb);
 	const tax = new TaxonomyRepository(anyDb);
+	const byline = new BylineRepository(anyDb);
 	const post = await content.create({
 		type: "post",
 		slug: "tagged",
@@ -79,8 +84,10 @@ beforeEach(async () => {
 		.set({ status: "published" })
 		.where("id", "=", post.id)
 		.execute();
-	// A handful of terms in the active locale; two attached to the entry. The plan
-	// is stats-blind so the count is immaterial — the point is the join *order*.
+	// A handful of terms and bylines in the active locale; two of each attached to
+	// the entry. The plan is stats-blind so the count is immaterial — the point is
+	// the join *order*. Attaching real rows also proves the SQL executes.
+	const attachedBylines: string[] = [];
 	for (let i = 0; i < 8; i++) {
 		const term = await tax.create({
 			name: "tag",
@@ -89,7 +96,18 @@ beforeEach(async () => {
 			locale: "en",
 		});
 		if (i < 2) await tax.attachToEntry("post", post.id, term.id);
+		const author = await byline.create({
+			displayName: `Author ${i}`,
+			slug: `author-${i}`,
+			locale: "en",
+		});
+		if (i < 2) attachedBylines.push(author.id);
 	}
+	await byline.setContentBylines(
+		"post",
+		post.id,
+		attachedBylines.map((bylineId) => ({ bylineId, roleLabel: "Author" })),
+	);
 });
 
 afterEach(async () => {
@@ -111,23 +129,53 @@ function explain(query: CapturedQuery): string {
 	return rows.map((r) => r.detail).join("\n");
 }
 
-it("drives folded term hydration from the content_taxonomies pivot, not taxonomies-by-locale", async () => {
+/**
+ * Assert both folded subqueries drive from their pivot rather than scanning the
+ * term/byline table by locale. Bad plan: the subquery drives from
+ * `taxonomies`/`_emdash_bylines` by locale, scanning every row in the locale.
+ * Good plan: probe the term/byline table by translation_group, one row per
+ * attached entry — only reachable when the pivot drives the join.
+ */
+function assertPivotDrivenFold(plan: string): void {
+	// Taxonomy subquery.
+	expect(plan, "taxonomy subquery must not scan taxonomies by locale").not.toContain(
+		"idx_taxonomies_locale",
+	);
+	expect(plan, "taxonomy subquery must probe taxonomies by translation_group").toContain(
+		"idx_taxonomies_translation_group",
+	);
+	// Byline subquery. Its `(translation_group, locale)` composite unique index
+	// already yields the pivot-driven plan today, so `CROSS JOIN` is a no-op here
+	// — this guards against a future byline-index change silently regressing it.
+	expect(plan, "byline subquery must not scan bylines by locale").not.toContain(
+		"idx__emdash_bylines_locale",
+	);
+	expect(plan, "byline subquery must probe bylines by translation_group").toContain(
+		"idx_bylines_group_locale_unique",
+	);
+}
+
+/** The folded query is the one exposing the `_emdash_terms` alias. */
+function foldedQueryPlan(): string {
+	const foldedQuery = captured.find((q) => q.sql.includes("_emdash_terms"));
+	expect(foldedQuery, "expected the loader to emit a folded query").toBeDefined();
+	return explain(foldedQuery!);
+}
+
+it("drives folded hydration from the pivot on loadCollection, not term/byline-by-locale", async () => {
 	const loader = emdashLoader();
 	// Running the real loader query also proves the SQL executes on SQLite.
 	await runWithContext({ editMode: false, db }, () =>
 		loader.loadCollection({ filter: { type: "post" } }),
 	);
+	assertPivotDrivenFold(foldedQueryPlan());
+});
 
-	// The folded list query is the one exposing the `_emdash_terms` alias.
-	const foldedQuery = captured.find((q) => q.sql.includes("_emdash_terms"));
-	expect(foldedQuery, "expected the loader to emit a folded list query").toBeDefined();
-
-	const plan = explain(foldedQuery!);
-
-	// Bad plan: the subquery drives from `taxonomies` by locale, scanning every
-	// term in the locale (`SEARCH t USING INDEX idx_taxonomies_locale`).
-	expect(plan).not.toContain("idx_taxonomies_locale");
-	// Good plan: probe `taxonomies` by translation_group, one row per attached
-	// term — only reachable when the pivot drives the join.
-	expect(plan).toContain("idx_taxonomies_translation_group");
+it("drives folded hydration from the pivot on loadEntry, not term/byline-by-locale", async () => {
+	const loader = emdashLoader();
+	captured = [];
+	await runWithContext({ editMode: false, db }, () =>
+		loader.loadEntry({ filter: { type: "post", id: "tagged", locale: "en" } }),
+	);
+	assertPivotDrivenFold(foldedQueryPlan());
 });
