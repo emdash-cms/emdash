@@ -229,7 +229,7 @@ function buildContentSource(input: {
 	const { collectionSlug, row, displayData, sourceVariant, revisionId } = input;
 	const contentId = readString(row.id) ?? "";
 	const contentSlug = input.contentSlug ?? readNullableString(row.slug);
-	return {
+	const source: MediaUsageSourceInput = {
 		sourceKey: buildContentMediaUsageSourceKey({
 			collectionSlug,
 			contentId,
@@ -250,8 +250,9 @@ function buildContentSource(input: {
 		schemaVersion: CONTENT_SOURCE_SCHEMA_VERSION,
 		sourceUpdatedAt: readNullableString(row.updated_at),
 		sourceVersion: readNumber(row.version),
-		sourceFingerprint: input.sourceFingerprint ?? null,
 	};
+	if (input.sourceFingerprint !== undefined) source.sourceFingerprint = input.sourceFingerprint;
+	return source;
 }
 
 async function buildSourceFingerprint(input: {

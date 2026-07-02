@@ -341,6 +341,7 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
 			}),
 		);
+		expect(result.source).not.toHaveProperty("sourceFingerprint");
 	});
 
 	it("adds stable source schema versions and fingerprints to snapshots", async () => {
