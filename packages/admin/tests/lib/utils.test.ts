@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { cn, slugify } from "../../src/lib/utils";
+import { cn, parseTimestamp, slugify } from "../../src/lib/utils";
 
 describe("slugify", () => {
 	it("converts basic text to slug", () => {
@@ -60,5 +60,31 @@ describe("cn", () => {
 
 	it("handles undefined and null", () => {
 		expect(cn("foo", undefined, null, "bar")).toBe("foo bar");
+	});
+});
+
+describe("parseTimestamp", () => {
+	it("treats a SQLite datetime('now') value as UTC", () => {
+		expect(parseTimestamp("2026-05-03 17:26:23").toISOString()).toBe("2026-05-03T17:26:23.000Z");
+	});
+
+	it("leaves a value with a Z designator unchanged", () => {
+		expect(parseTimestamp("2026-05-03T17:26:23.000Z").toISOString()).toBe(
+			"2026-05-03T17:26:23.000Z",
+		);
+	});
+
+	it("leaves a value with a lowercase z designator unchanged", () => {
+		expect(parseTimestamp("2026-05-03T17:26:23z").toISOString()).toBe("2026-05-03T17:26:23.000Z");
+	});
+
+	it("respects an explicit UTC offset", () => {
+		expect(parseTimestamp("2026-05-03T17:26:23+02:00").toISOString()).toBe(
+			"2026-05-03T15:26:23.000Z",
+		);
+	});
+
+	it("treats a Postgres hour-only offset as already zoned", () => {
+		expect(parseTimestamp("2026-05-03 17:26:23+00").toISOString()).toBe("2026-05-03T17:26:23.000Z");
 	});
 });
