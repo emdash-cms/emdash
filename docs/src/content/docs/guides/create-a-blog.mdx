@@ -96,7 +96,7 @@ The following dynamic route renders an individual post:
 ```astro title="src/pages/blog/[slug].astro"
 ---
 import { getEmDashCollection, getEmDashEntry } from "emdash";
-import { PortableText } from "emdash/ui";
+import { PortableText, Image } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
 export async function getStaticPaths() {
@@ -120,7 +120,7 @@ if (!post) {
 <Base title={post.data.title}>
   <article>
     {post.data.featured_image && (
-      <img src={post.data.featured_image} alt="" />
+      <Image image={post.data.featured_image} alt="" />
     )}
     <h1>{post.data.title}</h1>
     <time datetime={post.data.publishedAt?.toISOString()}>
