@@ -11,13 +11,14 @@ import type { Element } from "@emdash-cms/blocks";
 import { Kysely, sql, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 
+import { buildManifestCollections } from "./api/handlers/manifest.js";
 import { validateRev } from "./api/rev.js";
 import type {
 	EmDashConfig,
 	PluginAdminPage,
 	PluginDashboardWidget,
 } from "./astro/integration/runtime.js";
-import type { EmDashManifest, ManifestCollection } from "./astro/types.js";
+import type { EmDashManifest } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
 import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { isSqlite } from "./database/dialect-helpers.js";
@@ -44,7 +45,6 @@ import type {
 	PortableTextBlockConfig,
 	FieldWidgetConfig,
 } from "./plugins/types.js";
-import type { FieldType } from "./schema/types.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
 import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
@@ -173,28 +173,6 @@ import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
-
-/**
- * Map schema field types to editor field kinds
- */
-const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
-	string: "string",
-	slug: "string",
-	url: "url",
-	text: "richText",
-	number: "number",
-	integer: "number",
-	boolean: "boolean",
-	datetime: "datetime",
-	select: "select",
-	multiSelect: "multiSelect",
-	portableText: "portableText",
-	image: "image",
-	file: "file",
-	reference: "reference",
-	json: "json",
-	repeater: "repeater",
-};
 
 /**
  * Sandboxed plugin entry from virtual module
@@ -2130,77 +2108,10 @@ export class EmDashRuntime {
 	 * is two queries in practice; never N+1.
 	 */
 	private async _buildManifest(): Promise<EmDashManifest> {
-		// Build collections from database.
+		// Build collections from the live database.
 		// Use this.db (ALS-aware getter) so playground mode picks up the
 		// per-session DO database instead of the hardcoded singleton.
-		const manifestCollections: Record<string, ManifestCollection> = {};
-		try {
-			const registry = new SchemaRegistry(this.db);
-			const dbCollections = await registry.listCollectionsWithFields();
-			for (const collection of dbCollections) {
-				const fields: Record<
-					string,
-					{
-						kind: string;
-						label?: string;
-						required?: boolean;
-						widget?: string;
-						// Two shapes: legacy enum-style `[{ value, label }]` for select widgets,
-						// or arbitrary `Record<string, unknown>` for plugin field widgets that
-						// need per-field config (e.g. a checkbox grid receiving its column defs).
-						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
-						id?: string;
-						validation?: Record<string, unknown>;
-					}
-				> = {};
-
-				for (const field of collection.fields) {
-					const entry: (typeof fields)[string] = {
-						kind: FIELD_TYPE_TO_KIND[field.type] ?? "string",
-						label: field.label,
-						required: field.required,
-					};
-					// Always include the field's database ID so the admin can forward it
-					// to upload/media-list API calls for MIME allowlist widening.
-					entry.id = field.id;
-					if (field.widget) entry.widget = field.widget;
-					// Plugin field widgets read their per-field config from `field.options`,
-					// which the seed schema types as `Record<string, unknown>`. Pass it
-					// through to the manifest so plugin widgets in the admin SPA receive it.
-					if (field.options) {
-						entry.options = field.options;
-					}
-					// Legacy: select/multiSelect enum options live on `field.validation.options`.
-					// Wins over `field.options` to preserve existing behavior for enum widgets.
-					if (field.validation?.options) {
-						entry.options = field.validation.options.map((v) => ({
-							value: v,
-							label: v.charAt(0).toUpperCase() + v.slice(1),
-						}));
-					}
-					// Include full validation for repeater fields (subFields, minItems, maxItems)
-					// and for file/image fields (allowedMimeTypes).
-					if (
-						(field.type === "repeater" || field.type === "file" || field.type === "image") &&
-						field.validation
-					) {
-						entry.validation = { ...field.validation };
-					}
-					fields[field.slug] = entry;
-				}
-
-				manifestCollections[collection.slug] = {
-					label: collection.label,
-					labelSingular: collection.labelSingular || collection.label,
-					supports: collection.supports || [],
-					hasSeo: collection.hasSeo,
-					urlPattern: collection.urlPattern,
-					fields,
-				};
-			}
-		} catch (error) {
-			console.debug("EmDash: Could not load database collections:", error);
-		}
+		const manifestCollections = await buildManifestCollections({}, this.db);
 
 		// Build plugins manifest
 		const manifestPlugins: Record<
