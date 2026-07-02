@@ -456,11 +456,11 @@ msgstr "Kesalahan 404"
 
 #: packages/admin/src/components/Redirects.tsx:159
 msgid "410 Content Deleted (Gone)"
-msgstr ""
+msgstr "410 Konten Dihapus (Gone)"
 
 #: packages/admin/src/components/Redirects.tsx:160
 msgid "451 Unavailable for legal reasons"
-msgstr ""
+msgstr "451 Tidak Tersedia karena Alasan Hukum"
 
 #: packages/admin/src/components/WordPressImport.tsx:1365
 msgid "5. Copy the generated password"
@@ -738,7 +738,7 @@ msgstr "Rata Kanan"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:324
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:513
 msgid "Alignment"
-msgstr ""
+msgstr "Perataan"
 
 #: packages/admin/src/components/ContentList.tsx:283
 msgid "All"
@@ -1192,7 +1192,7 @@ msgstr "Skema byline"
 
 #: packages/admin/src/components/Sidebar.tsx:347
 msgid "Byline Schema"
-msgstr ""
+msgstr "Skema byline"
 
 #: packages/admin/src/components/ContentEditor.tsx:993
 #: packages/admin/src/components/Sidebar.tsx:342
@@ -1319,7 +1319,7 @@ msgstr "Kategori ({0})"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:161
 msgid "Center"
-msgstr ""
+msgstr "Tengah"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
@@ -3518,7 +3518,7 @@ msgstr "Tanggal mulai"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:164
 msgid "Full"
-msgstr ""
+msgstr "Penuh"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:43
 msgid "Full access"
@@ -4098,7 +4098,7 @@ msgstr "Biarkan tidak ditetapkan"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:160
 msgid "Left"
-msgstr ""
+msgstr "Kiri"
 
 #: packages/admin/src/components/MediaLibrary.tsx:127
 #: packages/admin/src/components/MediaLibrary.tsx:247
@@ -4368,11 +4368,11 @@ msgstr "Petakan pengguna WordPress {0} ke pengguna EmDash"
 #. placeholder {0}: item.path
 #: packages/admin/src/components/Redirects.tsx:255
 msgid "Mark {0} as Gone (410)"
-msgstr ""
+msgstr "Tandai {0} sebagai Gone (410)"
 
 #: packages/admin/src/components/Redirects.tsx:254
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
-msgstr ""
+msgstr "Tandai sebagai Gone (410) — memberi tahu mesin pencari bahwa ini telah dihapus secara permanen"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:501
 msgid "Mark as spam"
@@ -5015,7 +5015,7 @@ msgstr "Belum ada area widget. Buat satu untuk memulai."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:159
 msgid "None"
-msgstr ""
+msgstr "Tidak ada"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:418
 #: packages/admin/src/components/TaxonomyManager.tsx:424
@@ -5885,7 +5885,7 @@ msgstr "Editor teks kaya"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:162
 msgid "Right"
-msgstr ""
+msgstr "Kanan"
 
 #. placeholder {0}: latest.audit.riskScore
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:311
@@ -7801,7 +7801,7 @@ msgstr "Bilangan bulat"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:163
 msgid "Wide"
-msgstr ""
+msgstr "Lebar"
 
 #: packages/admin/src/components/Widgets.tsx:722
 #: packages/admin/src/components/Widgets.tsx:737

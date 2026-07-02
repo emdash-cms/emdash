@@ -218,6 +218,7 @@ export default defineConfig({
 					items: [
 						{ label: "Deploy to Cloudflare", slug: "deployment/cloudflare" },
 						{ label: "Deploy to Node.js", slug: "deployment/nodejs" },
+						{ label: "Evolving a Deployed Site", slug: "deployment/schema-evolution" },
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },
 						{ label: "Object Cache", slug: "deployment/object-cache" },

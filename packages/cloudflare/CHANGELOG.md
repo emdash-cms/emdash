@@ -1,5 +1,25 @@
 # @emdash-cms/cloudflare
 
+## 0.27.0
+
+### Minor Changes
+
+- [#1433](https://github.com/emdash-cms/emdash/pull/1433) [`05f4acd`](https://github.com/emdash-cms/emdash/commit/05f4acd0a806f16278492b49d3faffb00c35c93a) Thanks [@swissky](https://github.com/swissky)! - New `cloudflareEmail()` plugin: production email provider via Cloudflare Email Sending
+
+  Deployments on Cloudflare Workers had no production email provider — only the
+  dev console stub — so magic-link login, invites and notifications failed with
+  "Email is not configured". `cloudflareEmail({ from, replyTo?, binding? })`
+  registers the exclusive `email:deliver` hook and delivers through a
+  `send_email` Worker binding. Add it to the emdash() plugins array, activate it
+  under Extensions, then select it under Settings → Email.
+
+### Patch Changes
+
+- [#1715](https://github.com/emdash-cms/emdash/pull/1715) [`b093193`](https://github.com/emdash-cms/emdash/commit/b09319301c1113be7667bb06b0dcde5b968d3b1a) Thanks [@swissky](https://github.com/swissky)! - Documents that D1 read replica sessions (`session: "auto"` / `"primary-first"`) are incompatible with the `global_fetch_strictly_public` compatibility flag, which silently blocks the D1 Sessions API and hangs every SSR request without logging an error.
+
+- Updated dependencies [[`7422460`](https://github.com/emdash-cms/emdash/commit/7422460adf85863abfc27e8f83ba0cb40a3e942a), [`e4eab4f`](https://github.com/emdash-cms/emdash/commit/e4eab4fba69f1cf249db192938d397aa1b116015), [`46ef945`](https://github.com/emdash-cms/emdash/commit/46ef945d5fcffeef4ac9aecd2fb63fcb49c24b65), [`cff8498`](https://github.com/emdash-cms/emdash/commit/cff84987c679faa61bf491c630b3f77d0083ca21), [`dea8210`](https://github.com/emdash-cms/emdash/commit/dea82106602bb6dde0edd8c007a5acfa5fd7600d), [`90ffe40`](https://github.com/emdash-cms/emdash/commit/90ffe40a1a31193b2f29ef92202e4f339a2487fa), [`386faf5`](https://github.com/emdash-cms/emdash/commit/386faf5bd724ce0b47240e9176c92f554fd66c00), [`2a7063a`](https://github.com/emdash-cms/emdash/commit/2a7063a4e44a7ebb770f1cb28acb5bffac15fca2)]:
+  - emdash@0.27.0
+
 ## 0.26.0
 
 ### Patch Changes
