@@ -135,6 +135,30 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("timeline", () => {
+			const result = validateBlocks([
+				{
+					type: "timeline",
+					empty_text: "No history yet",
+					items: [
+						{
+							title: "Deploy completed",
+							timestamp: "2026-05-03T10:00:00Z",
+							description: "Production deploy finished.",
+							status: "success",
+							actions: [{ type: "button", action_id: "view", label: "View deploy" }],
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("timeline with empty items array", () => {
+			const result = validateBlocks([{ type: "timeline", items: [] }]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
 		it("repeater", () => {
 			const result = validateBlocks([
 				{
@@ -499,6 +523,46 @@ describe("validateBlocks", () => {
 			]);
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].default_open");
+		});
+
+		it("timeline missing items", () => {
+			const result = validateBlocks([{ type: "timeline" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].items");
+		});
+
+		it("timeline item missing title or timestamp", () => {
+			const result = validateBlocks([{ type: "timeline", items: [{ description: "Started" }] }]);
+			expect(result.valid).toBe(false);
+			const paths = result.errors.map((e) => e.path);
+			expect(paths).toContain("blocks[0].items[0].title");
+			expect(paths).toContain("blocks[0].items[0].timestamp");
+		});
+
+		it("timeline item with invalid status", () => {
+			const result = validateBlocks([
+				{ type: "timeline", items: [{ title: "X", timestamp: "now", status: "paused" }] },
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].items[0].status");
+		});
+
+		it("timeline actions must be button elements", () => {
+			const result = validateBlocks([
+				{
+					type: "timeline",
+					items: [
+						{
+							title: "X",
+							timestamp: "now",
+							actions: [{ type: "text_input", action_id: "note", label: "Note" }],
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].items[0].actions[0].type");
+			expect(result.errors[0]!.message).toContain("button elements");
 		});
 
 		it("stats item missing label or value", () => {

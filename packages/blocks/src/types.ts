@@ -201,6 +201,14 @@ export interface StatItem {
 	trend?: "up" | "down" | "neutral";
 }
 
+export interface TimelineItem {
+	title: string;
+	timestamp: string;
+	description?: string;
+	status?: "default" | "success" | "warning" | "error";
+	actions?: ButtonElement[];
+}
+
 /** A single data series for a timeseries chart. */
 export interface ChartSeries {
 	/** Display name shown in tooltips and legends */
@@ -364,6 +372,12 @@ export interface AccordionBlock extends BlockBase {
 	default_open?: boolean;
 }
 
+export interface TimelineBlock extends BlockBase {
+	type: "timeline";
+	items: TimelineItem[];
+	empty_text?: string;
+}
+
 export type Block =
 	| HeaderBlock
 	| SectionBlock
@@ -382,7 +396,8 @@ export type Block =
 	| CodeBlock
 	| TabBlock
 	| EmptyBlock
-	| AccordionBlock;
+	| AccordionBlock
+	| TimelineBlock;
 
 // ── Interactions ─────────────────────────────────────────────────────────────
 
