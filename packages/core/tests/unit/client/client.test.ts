@@ -905,4 +905,37 @@ describe("EmDashClient", () => {
 			expect(result[0]!.name).toBe("primary");
 		});
 	});
+
+	describe("schemaExport()", () => {
+		it("returns the un-enveloped /schema response body", async () => {
+			// The /schema endpoint returns a bare { collections, version }
+			// object — it is NOT wrapped in the standard { data } envelope.
+			const schemaBody = {
+				collections: [{ slug: "posts", label: "Posts", fields: [] }],
+				version: "abc123",
+			};
+			const backend = createMockBackend([
+				{
+					method: "GET",
+					path: "/schema",
+					handler: () =>
+						new Response(JSON.stringify(schemaBody), {
+							status: 200,
+							headers: { "Content-Type": "application/json" },
+						}),
+				},
+			]);
+
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const schema = await client.schemaExport();
+			expect(schema.collections).toHaveLength(1);
+			expect(schema.collections[0]!.slug).toBe("posts");
+			expect(schema.version).toBe("abc123");
+		});
+	});
 });

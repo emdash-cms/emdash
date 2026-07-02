@@ -387,7 +387,11 @@ export class EmDashClient {
 
 	/** Export full schema as JSON (used by `emdash types`) */
 	async schemaExport(): Promise<SchemaExport> {
-		return this.request<SchemaExport>("GET", "/schema");
+		// The /schema endpoint returns a bare { collections, version } object,
+		// not the standard { data } envelope — parse the raw response directly.
+		const response = await this.requestRaw("GET", "/schema");
+		await this.assertOk(response);
+		return (await response.json()) as SchemaExport;
 	}
 
 	/** Export schema as TypeScript type definitions (used by `emdash types`) */
