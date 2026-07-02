@@ -795,6 +795,9 @@ export function ContentEditor({
 											field.kind === "portableText" ? handleBlockSidebarClose : undefined
 										}
 										manifest={manifest}
+										// Existing entry: use its own locale. New entry: use the
+										// URL `?locale=` (passed in via `entryLocale`).
+										entryLocale={item?.locale ?? entryLocale}
 									/>
 								);
 								return fieldEl;
@@ -1090,6 +1093,12 @@ interface FieldRendererProps {
 	onBlockSidebarOpen?: (panel: BlockSidebarPanel) => void;
 	/** Callback when a block node closes its sidebar */
 	onBlockSidebarClose?: () => void;
+	/**
+	 * Content locale of the entry being edited (existing entry's own locale,
+	 * or the URL `?locale=` for new entries). Locale-aware field editors
+	 * (e.g. taxonomy-backed repeater selects) scope their lookups to it.
+	 */
+	entryLocale?: string | null;
 	/** Admin manifest for resolving sandboxed field widget elements */
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
 }
@@ -1108,6 +1117,7 @@ function FieldRenderer({
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 	manifest,
+	entryLocale,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -1384,6 +1394,7 @@ function FieldRenderer({
 					subFields={subFields}
 					minItems={typeof validation?.minItems === "number" ? validation.minItems : undefined}
 					maxItems={typeof validation?.maxItems === "number" ? validation.maxItems : undefined}
+					locale={entryLocale}
 				/>
 			);
 		}

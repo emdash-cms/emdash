@@ -50,6 +50,12 @@ export interface RepeaterFieldProps {
 	subFields: RepeaterSubFieldDef[];
 	minItems?: number;
 	maxItems?: number;
+	/**
+	 * Content locale of the entry being edited. Scopes taxonomy-backed select
+	 * sub-fields to the entry's locale so multi-locale installs don't mix
+	 * translation variants in one dropdown.
+	 */
+	locale?: string | null;
 }
 
 type RepeaterItem = Record<string, unknown> & { _key: string };
@@ -73,6 +79,7 @@ export function RepeaterField({
 	subFields,
 	minItems = 0,
 	maxItems,
+	locale,
 }: RepeaterFieldProps) {
 	const { t } = useLingui();
 	const rawItems = Array.isArray(value) ? value : [];
@@ -202,6 +209,7 @@ export function RepeaterField({
 									onChange={(fieldSlug, fieldValue) =>
 										handleItemChange(item._key, fieldSlug, fieldValue)
 									}
+									locale={locale}
 								/>
 							))}
 						</div>
@@ -220,6 +228,7 @@ interface SortableRepeaterItemProps {
 	onToggleCollapse: () => void;
 	onRemove?: () => void;
 	onChange: (fieldSlug: string, value: unknown) => void;
+	locale?: string | null;
 }
 
 function SortableRepeaterItem({
@@ -230,6 +239,7 @@ function SortableRepeaterItem({
 	onToggleCollapse,
 	onRemove,
 	onChange,
+	locale,
 }: SortableRepeaterItemProps) {
 	const { t } = useLingui();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -296,6 +306,7 @@ function SortableRepeaterItem({
 							subField={sf}
 							value={item[sf.slug]}
 							onChange={(v) => onChange(sf.slug, v)}
+							locale={locale}
 						/>
 					))}
 				</div>
@@ -308,6 +319,7 @@ interface SubFieldInputProps {
 	subField: RepeaterSubFieldDef;
 	value: unknown;
 	onChange: (value: unknown) => void;
+	locale?: string | null;
 }
 
 /**
@@ -322,17 +334,22 @@ function TaxonomySubFieldCombobox({
 	value,
 	onChange,
 	required,
+	locale,
 }: {
 	taxonomyName: string;
 	label: string;
 	value: unknown;
 	onChange: (value: unknown) => void;
 	required?: boolean;
+	locale?: string | null;
 }) {
 	const { t } = useLingui();
+	// Shares the ["taxonomy-terms", name, locale] cache with TaxonomyManager /
+	// TaxonomySidebar, so term creates/updates elsewhere in the admin
+	// invalidate this dropdown too instead of it lagging a stale window behind.
 	const { data: terms = [] } = useQuery<TaxonomyTerm[]>({
-		queryKey: ["repeater-subfield-taxonomy-terms", taxonomyName],
-		queryFn: () => fetchTerms(taxonomyName),
+		queryKey: ["taxonomy-terms", taxonomyName, locale ?? undefined],
+		queryFn: () => fetchTerms(taxonomyName, { locale: locale ?? undefined }),
 		staleTime: 30_000,
 	});
 	const options = terms.map((term) => term.label);
@@ -359,7 +376,7 @@ function TaxonomySubFieldCombobox({
 	);
 }
 
-function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
+function SubFieldInput({ subField, value, onChange, locale }: SubFieldInputProps) {
 	const { t } = useLingui();
 	switch (subField.type) {
 		case "string":
@@ -432,6 +449,7 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 						value={value}
 						onChange={onChange}
 						required={subField.required}
+						locale={locale}
 					/>
 				);
 			}
