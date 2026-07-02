@@ -143,10 +143,7 @@ describe("createD1SessionGuard", () => {
 		const fallback = createMockD1();
 
 		const db = guard.wrap(session.database, fallback.database);
-		const statements = [
-			db.prepare("select * from a").bind(),
-			db.prepare("delete from b").bind(),
-		];
+		const statements = [db.prepare("select * from a").bind(), db.prepare("delete from b").bind()];
 		await expect(db.batch(statements)).rejects.toThrow(/non-SELECT/);
 
 		expect(fallback.batches).toEqual([]);
@@ -159,9 +156,7 @@ describe("createD1SessionGuard", () => {
 		const fallback = createMockD1();
 
 		const db = guard.wrap(session.database, fallback.database);
-		await expect(db.prepare("select * from posts").bind().all()).rejects.toThrow(
-			/no such table/,
-		);
+		await expect(db.prepare("select * from posts").bind().all()).rejects.toThrow(/no such table/);
 
 		expect(guard.isBroken()).toBe(false);
 		expect(fallback.executed).toEqual([]);
