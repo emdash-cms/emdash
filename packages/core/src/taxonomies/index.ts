@@ -11,6 +11,7 @@
  * the right per-locale term.
  */
 
+import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb, resetTaxonomyNamesCache } from "../loader.js";
 import {
@@ -28,6 +29,12 @@ import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 
 export interface TaxonomyQueryOptions {
 	locale?: string;
+	/**
+	 * Roll usage counts up the hierarchy: each term's `count` becomes the
+	 * number of distinct entries tagged anywhere in its subtree. Default is
+	 * exact-term counts. Only meaningful for hierarchical taxonomies.
+	 */
+	rollup?: boolean;
 }
 
 /** Invalidate cached taxonomy term data and any content that hydrates terms. */
@@ -223,10 +230,11 @@ export async function getTaxonomyTerms(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm[]> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`taxonomy-terms:${taxonomyName}:${locale ?? "*"}`, () =>
+	const rollup = options.rollup ? "1" : "0";
+	return requestCached(`taxonomy-terms:${taxonomyName}:${locale ?? "*"}:r${rollup}`, () =>
 		cachedQuery({
 			namespace: CacheNamespace.TAXONOMIES,
-			key: `terms:${taxonomyName}:${locale ?? "*"}`,
+			key: `terms:${taxonomyName}:${locale ?? "*"}:r${rollup}`,
 			load: () => loadTaxonomyTerms(taxonomyName, locale, options),
 		}),
 	);
@@ -253,7 +261,9 @@ async function loadTaxonomyTerms(
 	// Counts are keyed by translation_group (what the pivot stores) and are
 	// locale-independent, so the aggregate is shared across every taxonomy
 	// rendered in this request (Categories + Tags widgets, etc.).
-	const counts = await getTaxonomyTermCounts();
+	const counts = options.rollup
+		? await getTaxonomySubtreeCounts(taxonomyName)
+		: await getTaxonomyTermCounts();
 
 	const flatTerms: TaxonomyTermRow[] = rows.map((row) => ({
 		id: row.id,
@@ -282,6 +292,19 @@ async function loadTaxonomyTerms(
 }
 
 /**
+ * Subtree (rolled-up, distinct-entry) usage counts for one taxonomy, keyed by
+ * translation_group. Request-cached per taxonomy. Unlike the flat
+ * `getTaxonomyTermCounts` aggregate (shared across all taxonomies), the rollup
+ * is hierarchy-specific so it is keyed by name.
+ */
+function getTaxonomySubtreeCounts(taxonomyName: string): Promise<Map<string, number>> {
+	return requestCached(`taxonomy-subtree-counts:${taxonomyName}`, async () => {
+		const db = await getDb();
+		return new TaxonomyRepository(db).countEntriesForSubtrees(taxonomyName);
+	});
+}
+
+/**
  * Per-translation-group usage counts across all taxonomies, in one aggregate
  * scan of `content_taxonomies`. Counts are locale-independent (the pivot stores
  * translation_group), so a single request-cached entry serves every taxonomy
@@ -297,7 +320,9 @@ function getTaxonomyTermCounts(): Promise<Map<string, number>> {
 			.groupBy("taxonomy_id")
 			.execute();
 		const counts = new Map<string, number>();
-		for (const row of countsResult) counts.set(row.taxonomy_id, row.count);
+		// Postgres `COUNT()` returns bigint as a string; coerce so callers always
+		// get a number (matches `countEntriesForSubtrees`).
+		for (const row of countsResult) counts.set(row.taxonomy_id, Number(row.count ?? 0));
 		return counts;
 	});
 }

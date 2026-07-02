@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 
+import { termListQuery } from "../../../src/api/schemas/common.js";
 import {
 	contentCreateBody,
 	contentUpdateBody,
@@ -249,5 +250,35 @@ describe("mediaUploadUrlBody schema factory", () => {
 			errorMessage = String(e);
 		}
 		expect(errorMessage).toContain("71MB");
+	});
+});
+
+describe("termListQuery schema — rollup coercion", () => {
+	it("coerces '1' to true", () => {
+		expect(termListQuery.parse({ rollup: "1" }).rollup).toBe(true);
+	});
+
+	it("coerces 'true' to true", () => {
+		expect(termListQuery.parse({ rollup: "true" }).rollup).toBe(true);
+	});
+
+	it("coerces '0' to false", () => {
+		expect(termListQuery.parse({ rollup: "0" }).rollup).toBe(false);
+	});
+
+	it("coerces 'false' to false", () => {
+		expect(termListQuery.parse({ rollup: "false" }).rollup).toBe(false);
+	});
+
+	it("defaults to false when rollup is absent", () => {
+		expect(termListQuery.parse({}).rollup).toBe(false);
+	});
+
+	it("still parses locale", () => {
+		expect(termListQuery.parse({ locale: "de" }).locale).toBe("de");
+	});
+
+	it("rejects arbitrary string values", () => {
+		expect(() => termListQuery.parse({ rollup: "yes" })).toThrow();
 	});
 });

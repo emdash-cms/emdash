@@ -624,9 +624,16 @@ function buildCursorCondition(
 	return sql`(${sql.ref(primary.field)} > ${orderValue} OR (${sql.ref(primary.field)} = ${orderValue} AND ${sql.ref(idField)} > ${cursorId}))`;
 }
 
-/** Type guard: is the where value a range object (not a string or array)? */
+/** Type guard: is the where value a taxonomy subtree operator? */
+function isWhereSubtree(value: WhereValue): value is WhereSubtree {
+	return value !== null && typeof value === "object" && !Array.isArray(value) && "subtree" in value;
+}
+
+/** Type guard: is the where value a range object (not a string, array, or subtree)? */
 function isWhereRange(value: WhereValue): value is WhereRange {
-	return value !== null && typeof value === "object" && !Array.isArray(value);
+	return (
+		value !== null && typeof value === "object" && !Array.isArray(value) && !("subtree" in value)
+	);
 }
 
 /**
@@ -679,9 +686,20 @@ export interface WhereRange {
 }
 
 /**
- * A where clause value: exact match, multi-value match, or range comparison.
+ * Match a hierarchical taxonomy term and all of its descendants. `subtree` is
+ * one or more root slugs; descendants are resolved in SQL from the term
+ * hierarchy, so the matched set is independent of how many descendants exist
+ * (no per-slug bound parameters).
  */
-export type WhereValue = string | string[] | WhereRange;
+export interface WhereSubtree {
+	subtree: string | string[];
+}
+
+/**
+ * A where clause value: exact match, multi-value match, range comparison, or
+ * taxonomy subtree (term-or-descendants) match.
+ */
+export type WhereValue = string | string[] | WhereRange | WhereSubtree;
 
 /**
  * Fields shared by every collection filter, independent of pagination mode.
@@ -708,6 +726,7 @@ export interface CollectionFilterBase {
 	 * @example { byline: '01HXYZ...' } - entries credited to a byline (any position)
 	 * @example { series: 'main' } - exact match on a content field
 	 * @example { published_at: { gte: '2024-01-01', lt: '2025-01-01' } } - date range
+	 * @example { category: { subtree: 'news' } } - match a term and all descendants
 	 */
 	where?: Record<string, WhereValue>;
 	/**
@@ -884,6 +903,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// keeps its own `name` and emits its own `EXISTS` clause rather
 				// than pooling slugs into one `IN`.
 				const taxonomyFilters: { name: string; slugs: string[] }[] = [];
+				const subtreeFilters: { name: string; roots: string[] }[] = [];
 				// A byline filter matches entries credited to any of the given
 				// byline translation groups via the `_emdash_content_bylines`
 				// junction table. `null` means no byline filter; an empty
@@ -898,6 +918,12 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					for (const [key, value] of Object.entries(where)) {
 						if (value == null) continue;
 						if (key === "byline") {
+							if (isWhereSubtree(value)) {
+								console.warn(
+									`[emdash] where filter: subtree operator is not supported on "byline", ignored`,
+								);
+								continue;
+							}
 							if (isWhereRange(value)) {
 								console.warn(
 									`[emdash] where filter: range operators are not supported on "byline", ignored`,
@@ -907,6 +933,11 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							const groups = Array.isArray(value) ? value : [value];
 							bylineFilter = { groups };
 						} else if (taxNames.has(key)) {
+							if (isWhereSubtree(value)) {
+								const roots = Array.isArray(value.subtree) ? value.subtree : [value.subtree];
+								subtreeFilters.push({ name: key, roots });
+								continue;
+							}
 							if (isWhereRange(value)) {
 								console.warn(
 									`[emdash] where filter: range operators are not supported on taxonomy "${key}", ignored`,
@@ -916,6 +947,12 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							const slugs = Array.isArray(value) ? value : [value];
 							taxonomyFilters.push({ name: key, slugs });
 						} else {
+							if (isWhereSubtree(value)) {
+								console.warn(
+									`[emdash] where filter: subtree operator is only valid on taxonomy keys, "${key}" ignored`,
+								);
+								continue;
+							}
 							fieldFilters[key] = value;
 						}
 					}
@@ -926,7 +963,8 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// SQL on both dialects).
 				if (
 					(bylineFilter && bylineFilter.groups.length === 0) ||
-					taxonomyFilters.some((f) => f.slugs.length === 0)
+					taxonomyFilters.some((f) => f.slugs.length === 0) ||
+					subtreeFilters.some((f) => f.roots.length === 0)
 				) {
 					return { entries: [], cacheHint: { tags: [type] } };
 				}
@@ -972,6 +1010,37 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 								)}`
 							: sql``;
 
+					// Subtree filters: match content_taxonomies.taxonomy_id (already a
+					// translation_group) against the set of groups in each root's subtree,
+					// resolved by a recursive walk of taxonomies.parent_id (also a
+					// translation_group after migration 045). Only the root slugs are bound,
+					// so the parameter count is independent of subtree size — this is what
+					// avoids D1's 100-bind-parameter overflow.
+					const subtreeCond =
+						subtreeFilters.length > 0
+							? sql`${sql.join(
+									subtreeFilters.map(
+										(f) => sql`AND EXISTS (
+							SELECT 1 FROM content_taxonomies ct
+							WHERE ct.collection = ${type}
+								AND ct.entry_id = ${sql.ref(tableName)}.id
+								AND ct.taxonomy_id IN (
+									WITH RECURSIVE sub(grp) AS (
+										SELECT COALESCE(translation_group, id) FROM taxonomies
+											WHERE name = ${f.name}
+												AND slug IN (${sql.join(f.roots.map((s) => sql`${s}`))})
+										UNION
+										SELECT COALESCE(c.translation_group, c.id) FROM taxonomies c
+											JOIN sub ON c.parent_id = sub.grp
+									)
+									SELECT grp FROM sub
+								)
+						)`,
+									),
+									sql` `,
+								)}`
+							: sql``;
+
 					// `_emdash_content_bylines.byline_id` stores the byline's
 					// translation_group (migration 040), so a credit spans every
 					// locale variant of the byline and we match the group directly.
@@ -1011,6 +1080,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						${localeFilter}
 						${cursorCond}
 						${taxonomyCond}
+						${subtreeCond}
 						${bylineCond}
 						${fieldCondsSQL ? sql`AND ${fieldCondsSQL}` : sql``}
 						${orderByClause}
