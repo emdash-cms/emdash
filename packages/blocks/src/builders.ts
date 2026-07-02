@@ -7,6 +7,8 @@ import type {
 	CheckboxElement,
 	ChartBlock,
 	ChartSeries,
+	ChecklistBlock,
+	ChecklistItem,
 	CodeBlock,
 	ComboboxElement,
 	ColumnsBlock,
@@ -495,6 +497,21 @@ function accordion(opts: {
 	};
 }
 
+function checklist(opts: {
+	blockId?: string;
+	items: ChecklistItem[];
+	title?: string;
+	description?: string;
+}): ChecklistBlock {
+	return {
+		type: "checklist",
+		items: opts.items,
+		...(opts.title !== undefined && { title: opts.title }),
+		...(opts.description !== undefined && { description: opts.description }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 export const blocks = {
@@ -517,6 +534,7 @@ export const blocks = {
 	tab: tabBlock,
 	empty,
 	accordion,
+	checklist,
 };
 
 export const elements = {

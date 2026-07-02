@@ -16,6 +16,7 @@ const BLOCK_TYPES = new Set([
 	"code",
 	"empty",
 	"accordion",
+	"checklist",
 ]);
 
 const EMPTY_SIZES = new Set(["sm", "base", "lg"]);
@@ -44,6 +45,7 @@ const CODE_LANGUAGES = new Set(["ts", "tsx", "jsonc", "bash", "css"]);
 const BUTTON_STYLES = new Set(["primary", "danger", "secondary"]);
 const TREND_VALUES = new Set(["up", "down", "neutral"]);
 const BANNER_VARIANTS = new Set(["default", "alert", "error"]);
+const CHECKLIST_STATUSES = new Set(["pending", "complete", "warning", "error"]);
 
 /**
  * RFC 6838-style image MIME type or image-prefix.
@@ -583,6 +585,17 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 			}
 			break;
 		}
+	}
+}
+
+function validateButtonElementOnly(value: unknown, path: string, errors: ValidationError[]): void {
+	validateElement(value, path, errors);
+
+	if (isRecord(value) && value.type !== undefined && value.type !== "button") {
+		errors.push({
+			path: `${path}.type`,
+			message: "Checklist item action must be a button element",
+		});
 	}
 }
 
@@ -1194,6 +1207,59 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 					path: `${path}.default_open`,
 					message: "Field 'default_open' must be a boolean if provided",
 				});
+			}
+			break;
+		}
+		case "checklist": {
+			if (value.title !== undefined && typeof value.title !== "string") {
+				errors.push({
+					path: `${path}.title`,
+					message: "Field 'title' must be a string if provided",
+				});
+			}
+			if (value.description !== undefined && typeof value.description !== "string") {
+				errors.push({
+					path: `${path}.description`,
+					message: "Field 'description' must be a string if provided",
+				});
+			}
+			if (!Array.isArray(value.items)) {
+				errors.push({
+					path: `${path}.items`,
+					message: "Required field 'items' must be an array",
+				});
+			} else {
+				for (let i = 0; i < value.items.length; i++) {
+					const item = value.items[i] as unknown;
+					if (!isRecord(item)) {
+						errors.push({
+							path: `${path}.items[${i}]`,
+							message: "Checklist item must be an object",
+						});
+						continue;
+					}
+					if (typeof item.label !== "string") {
+						errors.push({
+							path: `${path}.items[${i}].label`,
+							message: "Required field 'label' must be a string",
+						});
+					}
+					if (typeof item.status !== "string" || !CHECKLIST_STATUSES.has(item.status)) {
+						errors.push({
+							path: `${path}.items[${i}].status`,
+							message: `Required field 'status' must be one of: ${[...CHECKLIST_STATUSES].join(", ")}`,
+						});
+					}
+					if (item.description !== undefined && typeof item.description !== "string") {
+						errors.push({
+							path: `${path}.items[${i}].description`,
+							message: "Field 'description' must be a string if provided",
+						});
+					}
+					if (item.action !== undefined) {
+						validateButtonElementOnly(item.action, `${path}.items[${i}].action`, errors);
+					}
+				}
 			}
 			break;
 		}
