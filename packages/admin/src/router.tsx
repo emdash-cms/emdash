@@ -529,6 +529,11 @@ function ContentListPage() {
 	// loaded count so old servers (pre-total) still render a denominator.
 	const total = data?.pages[0]?.total ?? items.length;
 
+	// Keep every hook above the early returns below — a render that takes a
+	// guard (e.g. `error`) must run the same number of hooks as a full render,
+	// or React throws #300 "Rendered fewer hooks than expected" (#1415).
+	const handleLoadMore = React.useCallback(() => void fetchNextPage(), [fetchNextPage]);
+
 	if (!manifest) {
 		return <LoadingScreen />;
 	}
@@ -561,7 +566,7 @@ function ContentListPage() {
 			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
 			hasMore={!!hasNextPage}
-			onLoadMore={React.useCallback(() => void fetchNextPage(), [fetchNextPage])}
+			onLoadMore={handleLoadMore}
 			trashedCount={trashedData?.items?.length || 0}
 			onDelete={(id) => deleteMutation.mutate(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
@@ -868,8 +873,13 @@ function ContentEditPage() {
 			seo?: ContentSeoInput;
 		}) => updateContent(collection, id, data, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
+			// Invalidate by (collection, id) prefix without the locale object: the
+			// editor's read query is keyed `{ locale: activeLocale }` (undefined when
+			// i18n is off) while `rawItem.locale` is the DB default "en", so a
+			// locale-scoped invalidation key would not match and the item would never
+			// refetch — leaving the publish/save buttons stale until a hard refresh.
 			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+				queryKey: ["content", collection, id],
 			});
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
@@ -931,7 +941,7 @@ function ContentEditPage() {
 		mutationFn: () => publishContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+				queryKey: ["content", collection, id],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
@@ -949,7 +959,7 @@ function ContentEditPage() {
 		mutationFn: () => unpublishContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+				queryKey: ["content", collection, id],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
@@ -967,7 +977,7 @@ function ContentEditPage() {
 		mutationFn: () => discardDraft(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+				queryKey: ["content", collection, id],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({
@@ -989,7 +999,7 @@ function ContentEditPage() {
 			scheduleContent(collection, id, scheduledAt, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+				queryKey: ["content", collection, id],
 			});
 			toastManager.add({
 				title: t`Scheduled`,
@@ -1010,7 +1020,7 @@ function ContentEditPage() {
 			unscheduleContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id, { locale: rawItem?.locale ?? activeLocale }],
+				queryKey: ["content", collection, id],
 			});
 			toastManager.add({
 				title: t`Unscheduled`,

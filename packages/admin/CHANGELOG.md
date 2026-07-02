@@ -1,5 +1,102 @@
 # @emdash-cms/admin
 
+## 0.27.0
+
+### Patch Changes
+
+- [#1713](https://github.com/emdash-cms/emdash/pull/1713) [`8a93e1d`](https://github.com/emdash-cms/emdash/commit/8a93e1dbcafca93f0faebb7360792d62699c04cb) Thanks [@ahliweb](https://github.com/ahliweb)! - Updates Indonesian translations for the latest admin UI strings.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.27.0
+
+## 0.26.0
+
+### Patch Changes
+
+- [#1570](https://github.com/emdash-cms/emdash/pull/1570) [`dc32673`](https://github.com/emdash-cms/emdash/commit/dc32673b013f3ef5fcf7c23159b774d5ed1b8c60) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes a crash on the content list when an action that refetches (changing the sort, fast navigation) coincides with a load error. Closes [#1415](https://github.com/emdash-cms/emdash/issues/1415).
+
+- [#1673](https://github.com/emdash-cms/emdash/pull/1673) [`fe832ce`](https://github.com/emdash-cms/emdash/commit/fe832ce224b55ea5d83cb5652cc38a8035a574db) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the code block language picker losing focus and closing as soon as you type in it. You can now type to filter and choose a language.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.26.0
+
+## 0.25.1
+
+### Patch Changes
+
+- [#1594](https://github.com/emdash-cms/emdash/pull/1594) [`3960d49`](https://github.com/emdash-cms/emdash/commit/3960d49035150437212cbc204d7dd8da6f5bce61) Thanks [@ArtisanXL](https://github.com/ArtisanXL)! - Add Turkish admin UI translations.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.25.1
+
+## 0.25.0
+
+### Minor Changes
+
+- [#1657](https://github.com/emdash-cms/emdash/pull/1657) [`e277989`](https://github.com/emdash-cms/emdash/commit/e277989a89696b2b9211a9f0b898f7e7dcc99293) Thanks [@swissky](https://github.com/swissky)! - Adds search/typeahead to `select` sub-fields inside repeater fields. Long option lists (for example taxonomy-derived options) are now filterable as you type instead of a plain scrolling dropdown.
+
+### Patch Changes
+
+- [#1663](https://github.com/emdash-cms/emdash/pull/1663) [`8c4108e`](https://github.com/emdash-cms/emdash/commit/8c4108e58a9547af158d60e729f070335b0dd957) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes the pointer cursor not showing when hovering the "Log out" button in the admin user menu.
+
+- [#1627](https://github.com/emdash-cms/emdash/pull/1627) [`1ad7b6d`](https://github.com/emdash-cms/emdash/commit/1ad7b6d4cfb51a7c3cf592ad4af987c08a7ca897) Thanks [@nemvalid](https://github.com/nemvalid)! - Adds Hungarian translations for the admin UI.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.25.0
+
+## 0.24.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.24.1
+
+## 0.24.0
+
+### Patch Changes
+
+- [#1630](https://github.com/emdash-cms/emdash/pull/1630) [`f5566e8`](https://github.com/emdash-cms/emdash/commit/f5566e819f3d047a84b3f1f38a50b6707a6dbe9d) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes invisible primary buttons in the admin (notably "Sign in with Passkey" on the login page and "Register Passkey"), which could render as white text on a white background and leave passkey login unreachable by keyboard or sight. The admin's prebuilt stylesheet now matches the design-system version it ships against, so emphasis buttons paint their gradient background correctly.
+
+- [#1633](https://github.com/emdash-cms/emdash/pull/1633) [`d063b51`](https://github.com/emdash-cms/emdash/commit/d063b51e2930c5a1c3bb4d24381afdbdf63a2de2) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes Kumo style loading and updates the admin sidebar to use Kumo's native collapse and theme behavior.
+
+- [#1568](https://github.com/emdash-cms/emdash/pull/1568) [`43a70d4`](https://github.com/emdash-cms/emdash/commit/43a70d49ebe09dc901a336eb2448185536e00097) Thanks [@marcusbellamyshaw-cell](https://github.com/marcusbellamyshaw-cell)! - Fixes the publish controls not updating after editing a published post. Saving a change now immediately shows the "Publish changes" button, and publishing immediately switches it to "Unpublish" — previously, on sites without i18n configured, both required a manual page refresh. Closes [#1557](https://github.com/emdash-cms/emdash/issues/1557).
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.24.0
+
+## 0.23.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.23.0
+
+## 0.22.0
+
+### Patch Changes
+
+- [#1545](https://github.com/emdash-cms/emdash/pull/1545) [`f4925b1`](https://github.com/emdash-cms/emdash/commit/f4925b1d2c36b147019335fc8f0de8bead1d47d9) Thanks [@swissky](https://github.com/swissky)! - Declare `@tiptap/extension-drag-handle`'s collaboration peer dependencies
+
+  `@emdash-cms/admin` uses `@tiptap/extension-drag-handle`, which declares `@tiptap/extension-collaboration`, `@tiptap/y-tiptap` (and transitively `yjs`, `y-protocols`) as peer dependencies. They were never installed because the collaboration feature is unused, and the admin bundle only worked because Rollup silently externalized the unresolved imports.
+
+  Astro 7 switches Vite to Rolldown, which fails the build on unresolved imports instead of externalizing them, so the admin build breaks on this chain. Declaring it fixes the build under Rolldown/Astro 7 — and is correct dependency hygiene regardless of bundler. Closes [#1544](https://github.com/emdash-cms/emdash/issues/1544).
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.22.0
+
+## 0.21.0
+
+### Minor Changes
+
+- [#1508](https://github.com/emdash-cms/emdash/pull/1508) [`e9cd7b7`](https://github.com/emdash-cms/emdash/commit/e9cd7b7821c5a081257cb56bb857b7950e2b1527) Thanks [@swissky](https://github.com/swissky)! - Add a "Gone (410)" rule type. Redirect rules now support `410` (Content Deleted) and `451` (Unavailable For Legal Reasons) as terminal statuses — served directly with no destination — and the 404 log offers a one-click "Mark as Gone (410)" action next to "Create redirect". A 410 tells search engines a URL was intentionally and permanently removed, so it is deindexed faster than a 404.
+
+### Patch Changes
+
+- [#1521](https://github.com/emdash-cms/emdash/pull/1521) [`1b10c1d`](https://github.com/emdash-cms/emdash/commit/1b10c1d64d5975c5fef94e61e8cbff251260184c) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the byline search box still blanking the page while you type. Searching now keeps the current results on screen as the new query loads, instead of collapsing into a full-page loader and dropping the input's focus on each settled keystroke.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.21.0
+
 ## 0.20.0
 
 ### Minor Changes

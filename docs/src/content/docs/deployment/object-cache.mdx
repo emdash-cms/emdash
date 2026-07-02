@@ -1,0 +1,130 @@
+---
+title: Object Cache
+description: Cache query results in Cloudflare KV or memory to serve reads without querying the database on every request.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+EmDash reads content and site configuration from the database on every request. The object cache stores those query results in a fast key/value store, so repeat requests are served from the cache instead of the database. It reduces read load on the database — useful on Cloudflare, where KV serves far more requests per second than D1.
+
+The object cache is optional and disabled by default. Enable it by adding an `objectCache` adapter to the `emdash()` integration.
+
+## Overview
+
+| Backend    | Best for                          | Shared across isolates |
+| ---------- | --------------------------------- | ---------------------- |
+| **KV**     | Cloudflare Workers                | Yes                    |
+| **Memory** | Node.js, local development        | No (per process)       |
+
+On Cloudflare, requests are served by many short-lived isolates across regions. KV is shared by all of them, so a value cached by one request is available to the next, anywhere. The memory backend caches within a single process, which suits a long-running Node.js server.
+
+## Cloudflare KV
+
+Configure the KV adapter and point it at a KV binding:
+
+```js title="astro.config.mjs"
+import emdash from "emdash/astro";
+import { d1, r2, kvCache } from "@emdash-cms/cloudflare";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			database: d1({ binding: "DB" }),
+			storage: r2({ binding: "MEDIA" }),
+			objectCache: kvCache({ binding: "CACHE" }),
+		}),
+	],
+});
+```
+
+### Setup
+
+Create a KV namespace and add the binding to your Wrangler configuration.
+
+```sh
+npx wrangler kv namespace create CACHE
+```
+
+The command prints a namespace `id`. Add it under the binding name used in `kvCache`:
+
+<Tabs>
+  <TabItem label="wrangler.jsonc">
+    ```jsonc
+    {
+      "kv_namespaces": [
+        {
+          "binding": "CACHE",
+          "id": "<namespace-id>"
+        }
+      ]
+    }
+    ```
+  </TabItem>
+  <TabItem label="wrangler.toml">
+    ```toml
+    [[kv_namespaces]]
+    binding = "CACHE"
+    id = "<namespace-id>"
+    ```
+  </TabItem>
+</Tabs>
+
+### Options
+
+| Option       | Type     | Default  | Description                                                                       |
+| ------------ | -------- | -------- | --------------------------------------------------------------------------------- |
+| `binding`    | `string` | —        | KV binding name from your Wrangler configuration. Required.                       |
+| `defaultTtl` | `number` | `3600`   | Time-to-live for cached entries, in seconds. KV enforces a 60-second minimum.     |
+| `revalidate` | `number` | `1000`   | Isolate-local epoch-reuse window, in milliseconds. See [Freshness](#freshness).   |
+| `timeout`    | `number` | `2000`   | Maximum time, in milliseconds, to wait for a KV operation before treating it as a cache miss. Guards against a stalled KV read hanging the request. Set to `0` to disable. |
+| `keyPrefix`  | `string` | `"em"`   | Prefix for every cache key. Set a unique value when several sites share one namespace. |
+
+## Node.js (memory)
+
+The memory adapter caches within the server process. It needs no external service:
+
+```js title="astro.config.mjs"
+import emdash, { memoryCache } from "emdash/astro";
+import { sqlite } from "emdash/db";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			database: sqlite({ url: "file:./data.db" }),
+			objectCache: memoryCache(),
+		}),
+	],
+});
+```
+
+### Options
+
+| Option       | Type     | Default | Description                                            |
+| ------------ | -------- | ------- | ------------------------------------------------------ |
+| `defaultTtl` | `number` | `3600`  | Time-to-live for cached entries, in seconds.           |
+| `revalidate` | `number` | `1000`  | Isolate-local epoch-reuse window, in ms.|
+| `maxEntries` | `number` | `1000`  | Maximum number of cached keys before older keys evict. |
+| `keyPrefix`  | `string` | `"em"`  | Prefix for every cache key.                            |
+
+## What gets cached
+
+The object cache covers the reads that run on a typical page render:
+
+- Content queries: `getEmDashCollection`, `getEmDashEntry`, and `resolveEmDashPath`.
+- Site settings, navigation menus, and taxonomy terms.
+
+Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML at the edge, see [Deploy to Cloudflare](/deployment/cloudflare/).
+
+## Freshness
+
+Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection; changing a byline or taxonomy term clears the entries that display it.
+
+<Aside type="note">
+Preview links and visual editing bypass the object cache, so editors previewing see the current content immediately. Other requests — including authenticated browsing outside edit mode — are served from the cache, which only ever stores published content.
+</Aside>
+
+For anonymous visitors, a change takes time to appear across all isolates as they pick up the bumped epoch. With the in-isolate memory backend this is immediate. With Workers KV it is bounded by KV's edge-cache propagation (eventual consistency, up to ~60 seconds) plus the isolate-local `revalidate` window (default one second). Lower `revalidate` for faster local propagation at the cost of more reads against the cache; raise it to read the cache less often.
+
+### Scheduled content
+
+Scheduled entries become visible when their publish time passes. A cached page reflects a newly-published scheduled entry on the next change to its collection, or when the cached entry's `defaultTtl` lapses. If precise scheduled publishing matters for your site, set a lower `defaultTtl`.

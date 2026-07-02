@@ -27,9 +27,13 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           repositories: templates
           owner: emdash-cms
+          # Push the sync branch (contents) and open/update the sync PR via
+          # `gh pr create` (pull-requests) on emdash-cms/templates. Nothing else.
+          permission-contents: write
+          permission-pull-requests: write
 
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           # Read-only: the sync step uses the app token via GH_TOKEN, not
           # the persisted git credential.

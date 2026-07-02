@@ -9,6 +9,18 @@
  * emits `[emdash-query-log]`-prefixed NDJSON on stdout, which the harness
  * captures.
  *
+ * Two snapshots are written/compared per target:
+ *   query-counts.snapshot.{target}.json  — per route+phase query *count*
+ *   query-counts.queries.{target}.json   — per route+phase map of the
+ *                                          actual SQL -> occurrence count,
+ *                                          so a count change shows which
+ *                                          query moved, not just the total.
+ *
+ * The recorder is flushed when the response body finishes streaming (not
+ * when middleware returns), so queries issued by components *during*
+ * streaming are captured. Before that fix the counts only saw queries that
+ * ran before the response headers were sent.
+ *
  * Two targets, two server strategies:
  *   --target sqlite   Node adapter standalone entry. One long-lived
  *                     process. First request warms the runtime (migrations
@@ -135,6 +147,9 @@ function parseArgs(argv) {
 
 const { target, update, skipBuild, skipSeed } = parseArgs(process.argv.slice(2));
 const snapshotPath = resolve(__dirname, `query-counts.snapshot.${target}.json`);
+// Companion snapshot of the actual SQL per route+phase, so a count change
+// shows *which* query appeared/vanished, not just that the number moved.
+const querySnapshotPath = resolve(__dirname, `query-counts.queries.${target}.json`);
 
 function resetSqliteState() {
 	for (const f of ["data.db", "data.db-wal", "data.db-shm"]) {
@@ -374,6 +389,38 @@ function aggregate(events) {
 	return Object.fromEntries(Object.entries(counts).toSorted(([a], [b]) => a.localeCompare(b)));
 }
 
+// Normalize the parameterized SQL so the snapshot is stable: Kysely emits
+// `?` placeholders (already value-free), so we only collapse whitespace.
+// Variable-arity `IN (?, ?, ...)` lists are folded to `in (...)` so a
+// different batch size doesn't churn the text (the count still reflects it).
+function normalizeSql(sql) {
+	return sql
+		.replace(/\s+/g, " ")
+		.replace(/\bin\s*\(\s*\?(?:\s*,\s*\?)*\s*\)/gi, "in (...)")
+		.trim();
+}
+
+// Per route+phase, a map of normalized SQL -> occurrence count. Sorted keys
+// keep it order-independent (queued rendering issues queries concurrently,
+// so arrival order is not stable). The summed values equal the count snapshot.
+function aggregateQueries(events) {
+	const byRoute = {};
+	for (const e of events) {
+		if (!TRACKED_PHASES.has(e.phase)) continue;
+		const key = `${e.method} ${e.route} (${e.phase})`;
+		const sql = normalizeSql(e.sql);
+		(byRoute[key] ??= {})[sql] = (byRoute[key][sql] ?? 0) + 1;
+	}
+	return Object.fromEntries(
+		Object.entries(byRoute)
+			.toSorted(([a], [b]) => a.localeCompare(b))
+			.map(([route, sqls]) => [
+				route,
+				Object.fromEntries(Object.entries(sqls).toSorted(([a], [b]) => a.localeCompare(b))),
+			]),
+	);
+}
+
 function diffSnapshot(actual) {
 	if (!existsSync(snapshotPath)) {
 		process.stderr.write(`No snapshot at ${snapshotPath}. Run with --update to create one.\n`);
@@ -397,6 +444,44 @@ function diffSnapshot(actual) {
 		const a = d.actual ?? "(missing)";
 		process.stderr.write(`  ${d.key}: expected=${e} actual=${a}\n`);
 	}
+	process.stderr.write(
+		`\nIf the change is intentional, run: node scripts/query-counts.mjs --target ${target} --update\n`,
+	);
+	return 1;
+}
+
+// Diff the per-route SQL snapshot. Surfaces exactly which query text
+// appeared, vanished, or changed multiplicity — the "what dropped" view
+// that a bare count can't give.
+function diffQuerySnapshot(actual) {
+	if (!existsSync(querySnapshotPath)) {
+		process.stderr.write(
+			`No query snapshot at ${querySnapshotPath}. Run with --update to create one.\n`,
+		);
+		return 1;
+	}
+	const expected = JSON.parse(readFileSync(querySnapshotPath, "utf8"));
+	const routes = [...new Set([...Object.keys(expected), ...Object.keys(actual)])].toSorted();
+	const lines = [];
+	for (const route of routes) {
+		const exp = expected[route] ?? {};
+		const act = actual[route] ?? {};
+		const sqls = [...new Set([...Object.keys(exp), ...Object.keys(act)])].toSorted();
+		for (const sql of sqls) {
+			if (exp[sql] !== act[sql]) {
+				const e = exp[sql] ?? 0;
+				const a = act[sql] ?? 0;
+				const sign = a > e ? "+" : "-";
+				lines.push(`  ${route}\n    ${sign} [${e}->${a}] ${sql}`);
+			}
+		}
+	}
+	if (lines.length === 0) {
+		process.stdout.write(`OK: query text matches ${querySnapshotPath}\n`);
+		return 0;
+	}
+	process.stderr.write(`Query text differs from ${querySnapshotPath}:\n`);
+	for (const l of lines) process.stderr.write(l + "\n");
 	process.stderr.write(
 		`\nIf the change is intentional, run: node scripts/query-counts.mjs --target ${target} --update\n`,
 	);
@@ -490,6 +575,7 @@ async function main() {
 	reportStreamEnd(streamEndSnapshots);
 
 	const counts = aggregate(events);
+	const queries = aggregateQueries(events);
 	if (update) {
 		// Use tab indent so the output matches oxfmt's default and
 		// doesn't thrash under `pnpm format`. Space-indented output
@@ -498,9 +584,15 @@ async function main() {
 		// output wouldn't match the committed file).
 		writeFileSync(snapshotPath, JSON.stringify(counts, null, "\t") + "\n");
 		process.stdout.write(`Wrote ${Object.keys(counts).length} entries to ${snapshotPath}\n`);
+		writeFileSync(querySnapshotPath, JSON.stringify(queries, null, "\t") + "\n");
+		process.stdout.write(`Wrote ${Object.keys(queries).length} entries to ${querySnapshotPath}\n`);
 		return 0;
 	}
-	return diffSnapshot(counts);
+	// Both must match. Run both so a single invocation surfaces count and
+	// text drift together; OR the exit codes so either failing fails CI.
+	const countCode = diffSnapshot(counts);
+	const queryCode = diffQuerySnapshot(queries);
+	return countCode || queryCode;
 }
 
 main()

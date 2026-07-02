@@ -1,0 +1,9 @@
+---
+interface Props {
+	json: string;
+}
+
+const { json } = Astro.props;
+---
+
+<script type="application/ld+json" set:html={json}></script>

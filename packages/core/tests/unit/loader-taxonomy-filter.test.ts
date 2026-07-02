@@ -28,10 +28,11 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		await teardownForDialect(ctx);
 	});
 
-	async function createPost(title: string) {
+	async function createPost(title: string, locale?: string) {
 		const result = await handleContentCreate(db, "post", {
 			data: { title },
 			status: "published",
+			...(locale ? { locale } : {}),
 		});
 		if (!result.success) throw new Error("Failed to create post");
 		return result.data!.item;
@@ -60,11 +61,33 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 			.execute();
 	}
 
-	function load(where: Record<string, unknown>) {
+	function load(where: Record<string, unknown>, locale?: string) {
 		const loader = emdashLoader();
 		return runWithContext({ editMode: false, db }, () =>
-			loader.loadCollection!({ filter: { type: "post", where: where as never } }),
+			loader.loadCollection!({
+				filter: { type: "post", where: where as never, ...(locale ? { locale } : {}) },
+			}),
 		);
+	}
+
+	/**
+	 * Insert a localized variant of an existing term: same `translation_group`
+	 * as the anchor (so the `content_taxonomies` pivot, which stores the
+	 * translation_group, resolves to it), but a different `locale` and `slug`.
+	 * Mirrors `TaxonomyRepository.create({ translationOf })`.
+	 */
+	async function termTranslation(
+		name: string,
+		slug: string,
+		locale: string,
+		translationGroup: string,
+	) {
+		const id = `tax_${name}_${slug}_${locale}_${termSeq++}`;
+		await db
+			.insertInto("taxonomies" as never)
+			.values({ id, name, slug, label: slug, locale, translation_group: translationGroup } as never)
+			.execute();
+		return id;
 	}
 
 	it("filters by a single taxonomy term", async () => {
@@ -134,5 +157,48 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		const result = await load({ category: ["news"], tag: [] });
 
 		expect(result.entries).toHaveLength(0);
+	});
+
+	it("resolves a taxonomy filter by the localized term slug in the query locale (#1480)", async () => {
+		// One term with an EN anchor + FR translation sharing a translation_group.
+		// `content_taxonomies.taxonomy_id` stores that group (migration 036), so a
+		// single tag spans both locales. The loader's EXISTS join must therefore
+		// key on `t.translation_group` (not `t.id`) and scope `t.locale` to the
+		// query locale — otherwise it only ever lands on the EN anchor row.
+		const groupId = "tax_category_news_group";
+		await db
+			.insertInto("taxonomies" as never)
+			.values({
+				id: groupId,
+				name: "category",
+				slug: "news",
+				label: "News",
+				locale: "en",
+				translation_group: groupId,
+			} as never)
+			.execute();
+		await termTranslation("category", "actualites", "fr", groupId);
+
+		// A French entry tagged with the term group.
+		const frPost = await createPost("Actualités", "fr");
+		await tag(frPost.id, groupId);
+
+		// FR site, FR slug → matches. Before the fix the join landed on the EN
+		// anchor (slug "news"), so this returned 0.
+		const hit = await load({ category: "actualites" }, "fr");
+		expect(hit.entries).toHaveLength(1);
+		expect(hit.entries[0]!.data.title).toBe("Actualités");
+
+		// FR site, EN slug → must NOT match: the `t.locale` predicate scopes the
+		// slug to the active locale, where the term is "actualites", not "news".
+		const miss = await load({ category: "news" }, "fr");
+		expect(miss.entries).toHaveLength(0);
+
+		// Locale-less query still resolves the default-locale slug — the locale
+		// predicate is conditional, so the no-locale path matches a tag in any
+		// locale variant of the group.
+		const anyLocale = await load({ category: "news" });
+		expect(anyLocale.entries).toHaveLength(1);
+		expect(anyLocale.entries[0]!.data.title).toBe("Actualités");
 	});
 });

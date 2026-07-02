@@ -60,7 +60,14 @@ export async function normalizeMediaValue(
 	const needsDimensions = result.width == null || result.height == null;
 	const needsStorageKey = provider === "local" && !result.meta?.storageKey;
 	const needsFileInfo = !result.mimeType || !result.filename;
-	const needsLookup = needsDimensions || needsStorageKey || needsFileInfo;
+	// LQIP placeholders are immutable facts of the bytes: if an image record is
+	// missing them, the provider may have gained them since (e.g. content saved
+	// before LQIP backfill ran, or the row's blurhash was populated later). Pull
+	// them on every image lookup so the LQIP backfill in mergeProviderData runs.
+	const needsLqip =
+		(result.mimeType ?? "").startsWith("image/") &&
+		(result.blurhash == null || result.dominantColor == null);
+	const needsLookup = needsDimensions || needsStorageKey || needsFileInfo || needsLqip;
 
 	if (!needsLookup || !id) return result;
 
@@ -138,6 +145,8 @@ async function resolveInternalUrl(
 		mimeType: item.mimeType,
 		width: item.width,
 		height: item.height,
+		blurhash: item.blurhash,
+		dominantColor: item.dominantColor,
 		alt: item.alt,
 		meta: item.meta,
 	};
@@ -167,6 +176,8 @@ async function resolveLocalId(
 		mimeType: item.mimeType,
 		width: item.width,
 		height: item.height,
+		blurhash: item.blurhash,
+		dominantColor: item.dominantColor,
 		alt: item.alt,
 		meta: item.meta,
 	};
@@ -182,6 +193,12 @@ function mergeProviderData(existing: MediaValue, item: MediaProviderItem): Media
 	// Fill missing dimensions
 	if (result.width == null && item.width != null) result.width = item.width;
 	if (result.height == null && item.height != null) result.height = item.height;
+
+	// Fill missing LQIP placeholders (immutable facts of the bytes; caller wins)
+	if (result.blurhash == null && item.blurhash != null) result.blurhash = item.blurhash;
+	if (result.dominantColor == null && item.dominantColor != null) {
+		result.dominantColor = item.dominantColor;
+	}
 
 	// Fill missing file info
 	if (!result.filename && item.filename) result.filename = item.filename;
@@ -217,6 +234,8 @@ function recordToMediaValue(obj: Record<string, unknown>): MediaValue {
 	if (typeof obj.mimeType === "string") result.mimeType = obj.mimeType;
 	if (typeof obj.width === "number") result.width = obj.width;
 	if (typeof obj.height === "number") result.height = obj.height;
+	if (typeof obj.blurhash === "string") result.blurhash = obj.blurhash;
+	if (typeof obj.dominantColor === "string") result.dominantColor = obj.dominantColor;
 	if (typeof obj.alt === "string") result.alt = obj.alt;
 	if (isRecord(obj.meta)) result.meta = obj.meta;
 	return result;

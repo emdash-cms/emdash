@@ -530,10 +530,35 @@ export class SchemaRegistry {
 		// an explicit `null` clears the column.
 		const nextValidation = input.validation === undefined ? field.validation : input.validation;
 
+		// A field-type change is only safe when the underlying column type stays
+		// the same. There is no in-place column migration (only addColumn/
+		// dropColumn), so a change that would alter the SQLite column affinity
+		// (e.g. `text` TEXT -> `portableText` JSON) is rejected rather than
+		// silently rewriting only the metadata — which would leave `column_type`
+		// pointing at a column type the real `ec_*` column doesn't have (#1397).
+		let nextType = field.type;
+		let nextColumnType = field.columnType;
+		if (input.type !== undefined && input.type !== field.type) {
+			const newColumnType = FIELD_TYPE_TO_COLUMN[input.type];
+			if (newColumnType !== field.columnType) {
+				throw new SchemaError(
+					`Cannot change field "${fieldSlug}" in collection "${collectionSlug}" from type ` +
+						`"${field.type}" to "${input.type}": the underlying column type would change from ` +
+						`${field.columnType} to ${newColumnType}, which requires a manual content migration. ` +
+						`Drop and re-create the field, or migrate the column data, before changing its type.`,
+					"FIELD_TYPE_COLUMN_CHANGE",
+				);
+			}
+			nextType = input.type;
+			nextColumnType = newColumnType;
+		}
+
 		return withTransaction(this.db, async (trx) => {
 			await trx
 				.updateTable("_emdash_fields")
 				.set({
+					type: nextType,
+					column_type: nextColumnType,
 					label: input.label ?? field.label,
 					required:
 						input.required !== undefined ? (input.required ? 1 : 0) : field.required ? 1 : 0,

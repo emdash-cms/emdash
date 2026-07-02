@@ -221,6 +221,58 @@ describe("applySeed onConflict modes", () => {
 			expect(row?.label_singular).toBe("Blog Post");
 		});
 
+		it("applies a same-affinity field type change (#1397)", async () => {
+			const seed = createTestSeed();
+			await applySeed(db, seed, { includeContent: true });
+
+			// title: string (TEXT) -> slug (TEXT). Same column affinity, so the
+			// type change persists rather than being silently dropped.
+			const changed = createTestSeed();
+			changed.collections![0]!.fields![0]!.type = "slug";
+
+			const result = await applySeed(db, changed, {
+				includeContent: true,
+				onConflict: "update",
+			});
+			expect(result.fields.updated).toBe(2);
+
+			const row = await db
+				.selectFrom("_emdash_fields")
+				.innerJoin("_emdash_collections", "_emdash_collections.id", "_emdash_fields.collection_id")
+				.select(["_emdash_fields.type as type", "_emdash_fields.column_type as columnType"])
+				.where("_emdash_collections.slug", "=", "posts")
+				.where("_emdash_fields.slug", "=", "title")
+				.executeTakeFirst();
+			expect(row?.type).toBe("slug");
+			expect(row?.columnType).toBe("TEXT");
+		});
+
+		it("rejects an affinity-changing field type change instead of silently dropping it (#1397)", async () => {
+			const seed = createTestSeed();
+			await applySeed(db, seed, { includeContent: true });
+
+			// body: text (TEXT) -> portableText (JSON) changes the physical column
+			// type. Re-seeding must fail loudly rather than report success while
+			// leaving _emdash_fields.type/column_type stale.
+			const changed = createTestSeed();
+			changed.collections![0]!.fields![1]!.type = "portableText";
+
+			await expect(
+				applySeed(db, changed, { includeContent: true, onConflict: "update" }),
+			).rejects.toThrow(/column type/i);
+
+			// Stored metadata is untouched (no silent rewrite).
+			const row = await db
+				.selectFrom("_emdash_fields")
+				.innerJoin("_emdash_collections", "_emdash_collections.id", "_emdash_fields.collection_id")
+				.select(["_emdash_fields.type as type", "_emdash_fields.column_type as columnType"])
+				.where("_emdash_collections.slug", "=", "posts")
+				.where("_emdash_fields.slug", "=", "body")
+				.executeTakeFirst();
+			expect(row?.type).toBe("text");
+			expect(row?.columnType).toBe("TEXT");
+		});
+
 		it("updates existing bylines", async () => {
 			const seed = createTestSeed();
 			await applySeed(db, seed, { includeContent: true });
@@ -326,13 +378,13 @@ describe("applySeed onConflict modes", () => {
 		});
 
 		it("throws on existing byline", async () => {
-			// Seed without collections to get past collections step
-			const seed = createTestSeed({ collections: [] });
-			await applySeed(db, seed);
+			// Seed without collections (and their content) to get past those steps
+			const seed = createTestSeed({ collections: [], content: {} });
+			await applySeed(db, seed, { includeContent: true });
 
-			await expect(applySeed(db, seed, { onConflict: "error" })).rejects.toThrow(
-				'Conflict: byline "jane-doe" already exists',
-			);
+			await expect(
+				applySeed(db, seed, { includeContent: true, onConflict: "error" }),
+			).rejects.toThrow('Conflict: byline "jane-doe" already exists');
 		});
 
 		it("throws on existing redirect", async () => {

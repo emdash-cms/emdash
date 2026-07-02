@@ -173,6 +173,46 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 					`idx_${table}_translation_group`,
 				);
 			}
+
+			// The taxonomies rebuild drops the table (and its indexes); it must
+			// recreate the parent index it inherited from 015 (regression #1665).
+			expect(names).toContain("idx_taxonomies_parent");
+
+			// The content_taxonomies rebuild likewise drops the table and its
+			// indexes; it must recreate the taxonomy_id index from 015.
+			expect(names).toContain("idx_content_taxonomies_term");
+		});
+
+		it("restores idx_content_taxonomies_term on a partial-apply retry (regression for #1701)", async () => {
+			// Simulate a first run that committed the content_taxonomies rebuild
+			// (FK stripped, old index dropped) but failed before recreating the
+			// index. D1 DDL auto-commits per statement, so the rebuild survives an
+			// up() that never resolved; the retry re-enters up() from the top with
+			// the FK already gone and the index still missing.
+			await db.destroy();
+			db = createDatabase({ url: ":memory:" });
+			await seedPreMigrationSchema(db);
+			await sql`DROP TABLE content_taxonomies`.execute(db);
+			await sql`
+				CREATE TABLE content_taxonomies (
+					collection TEXT NOT NULL,
+					entry_id TEXT NOT NULL,
+					taxonomy_id TEXT NOT NULL,
+					PRIMARY KEY (collection, entry_id, taxonomy_id)
+				)
+			`.execute(db);
+
+			// Sanity: the partial state has no FK and no term index.
+			const fks = await sql`PRAGMA foreign_key_list(content_taxonomies)`.execute(db);
+			expect(fks.rows.length).toBe(0);
+
+			await up(db);
+
+			const indexes = await sql<{ name: string }>`
+				SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'content_taxonomies'
+			`.execute(db);
+			const names = new Set(indexes.rows.map((r) => r.name));
+			expect(names).toContain("idx_content_taxonomies_term");
 		});
 
 		it("backfills translation_group = id for pre-existing rows", async () => {

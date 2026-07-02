@@ -10,6 +10,8 @@
  * Usage:
  * - GET with redirect: /_emdash/api/setup/dev-bypass?redirect=/_emdash/admin
  * - POST for API: Returns JSON with setup info
+ * - ?content=0 (or ?content=false): apply schema/structure only, skipping
+ *   sample content entries, bylines, and taxonomy terms
  *
  * For agent/browser testing, navigate to:
  *   /_emdash/api/setup/dev-bypass?redirect=/_emdash/admin
@@ -23,7 +25,7 @@ import { ulid } from "ulidx";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { escapeHtml } from "#api/escape.js";
-import { handleApiTokenCreate } from "#api/handlers/api-tokens.js";
+import { deleteApiTokensByName, handleApiTokenCreate } from "#api/handlers/api-tokens.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { isSafeRedirect } from "#api/redirect.js";
 import { runMigrations } from "#db/migrations/runner.js";
@@ -57,12 +59,15 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 		const migrations = await runMigrations(emdash.db);
 		console.log("[setup-dev-bypass] Migrations applied:", migrations.applied);
 
-		// Apply seed (user seed or built-in default)
+		// Apply seed (user seed or built-in default). `?content=0` (or `false`)
+		// applies schema/structure only — no sample content, bylines, or terms.
+		const contentParam = url.searchParams.get("content");
+		const includeContent = contentParam !== "0" && contentParam !== "false";
 		const seed = await loadSeed();
 		const validation = validateSeed(seed);
 		if (validation.valid) {
 			const seedResult = await applySeed(emdash.db, seed, {
-				includeContent: true,
+				includeContent,
 				onConflict: "skip",
 				storage: emdash.storage ?? undefined,
 			});
@@ -134,6 +139,10 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 		// Optionally create a PAT token (?token=1) for headless/CLI testing.
 		let token: string | undefined;
 		if (url.searchParams.has("token")) {
+			// Idempotent by name: a prior reset can leave a stale dev-bypass-token,
+			// and the raw token is only available at creation, so drop any existing
+			// one and mint a fresh, usable PAT rather than accumulating duplicates.
+			await deleteApiTokensByName(emdash.db, user.id, "dev-bypass-token");
 			const result = await handleApiTokenCreate(emdash.db, user.id, {
 				name: "dev-bypass-token",
 				scopes: [

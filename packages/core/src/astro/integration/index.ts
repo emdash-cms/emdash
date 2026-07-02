@@ -17,6 +17,7 @@ import type { AstroIntegration, AstroIntegrationLogger } from "astro";
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
 import { INTERNAL_MEDIA_PREFIX } from "../../media/normalize.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
+import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
 import { notoSans } from "./font-provider.js";
 import {
@@ -69,26 +70,21 @@ interface ImageRemotePattern {
 /**
  * Build `image.remotePatterns` entries so Astro will optimize EmDash media.
  *
- * Astro's image services only transform **absolute** URLs whose host is
- * authorized; everything else is passed through unoptimized. We authorize the
- * media sources automatically:
+ * Astro's image services only build a transform URL for sources allowed via
+ * `image.domains` / `image.remotePatterns` (relative URLs are never optimized —
+ * see `isRemoteAllowed`). We authorize the media sources automatically:
  *
- *  1. The storage adapter's public URL host (R2 custom domain, S3/CDN), so
- *     media served directly from a public bucket is optimized.
+ *  1. The storage adapter's public URL host (R2 custom domain, S3/CDN).
  *  2. The site's own origin, scoped to the media proxy route
- *     (`/_emdash/api/media/file/**`), so same-origin proxied media (local
- *     storage, or R2 without a public URL) is optimized too. The pathname
- *     scope keeps Astro's image endpoint from acting as an open proxy for the
- *     whole origin. Only registered when `siteUrl` is known at build time;
- *     `getPublicOrigin` resolves the matching origin at render time.
- *  3. In `astro dev` the dev-server origin (`localhost:<port>`) isn't known at
- *     build time, so we register a host-agnostic pattern scoped to the media
- *     route. This is dev-only — it never ships in a production build — so the
- *     missing host check can't be abused on a deployed site.
+ *     (`/_emdash/api/media/file/**`), so same-origin proxied media is optimized.
+ *     The components absolutize the media URL against this origin; EmDash's
+ *     wrapped image endpoint then serves the bytes from storage (so the absolute
+ *     URL is never fetched). Only registered when `siteUrl` is known at build.
+ *  3. In `astro dev` the dev-server origin isn't known at build time, so we
+ *     register a host-agnostic pattern scoped to the media route. Dev-only.
  *
- * Returns an empty array when no source is statically known (e.g. a production
- * build using local storage with no `siteUrl`), in which case media renders as
- * a plain `<img>`.
+ * Returns an empty array when no source is statically known (production build,
+ * local storage, no `siteUrl`), in which case media renders as a plain `<img>`.
  *
  * @internal Exported for unit testing.
  */
@@ -146,6 +142,59 @@ export function buildImageRemotePatterns(
 	return patterns;
 }
 
+/**
+ * Stock image endpoints EmDash may safely replace with its storage-backed
+ * wrapper. Our wrapper delegates non-EmDash images to the platform's transform
+ * endpoint, so we only override endpoints whose transform we can delegate to.
+ */
+const OVERRIDABLE_IMAGE_ENDPOINTS = new Set([
+	"astro/assets/endpoint/generic",
+	"astro/assets/endpoint/node",
+	"astro/assets/endpoint/dev",
+	"@astrojs/cloudflare/image-transform-endpoint",
+]);
+
+/**
+ * Stock endpoints that deliberately don't transform (the user opted into
+ * passthrough). We leave these untouched -- and without a warning, since it's a
+ * supported choice, not a custom endpoint. Overriding would route non-EmDash
+ * images through a transformer the passthrough setup doesn't provide.
+ */
+const PASSTHROUGH_IMAGE_ENDPOINTS = new Set(["@astrojs/cloudflare/image-passthrough-endpoint"]);
+
+/**
+ * Decide which image endpoint to install (if any). EmDash wraps Astro's image
+ * endpoint so EmDash media bytes load from storage; the wrapper delegates other
+ * images back to the platform's stock endpoint.
+ *
+ * Returns `{ entrypoint }` to install, `{ warn }` to skip with a warning (a
+ * custom endpoint we can't delegate to), or `{}` to skip silently (opted out).
+ *
+ * @internal Exported for unit testing.
+ */
+export function resolveImageEndpoint(opts: {
+	imagesDisabled: boolean;
+	currentEntrypoint: string | undefined;
+	isCloudflare: boolean;
+}): { entrypoint?: string; warn?: string } {
+	if (opts.imagesDisabled) return {};
+	const current = opts.currentEntrypoint;
+	if (current === undefined || OVERRIDABLE_IMAGE_ENDPOINTS.has(current)) {
+		return {
+			entrypoint: opts.isCloudflare
+				? "@emdash-cms/cloudflare/image-endpoint"
+				: "emdash/image-endpoint",
+		};
+	}
+	// A deliberate passthrough setup: leave it alone, no warning.
+	if (PASSTHROUGH_IMAGE_ENDPOINTS.has(current)) return {};
+	return {
+		warn:
+			`A custom image.endpoint (${current}) is configured; EmDash will not wrap ` +
+			`it, so storage-backed media may render unoptimized.`,
+	};
+}
+
 // Terminal formatting
 const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
 const bold = (s: string) => `\x1b[1m${s}\x1b[22m`;
@@ -155,15 +204,24 @@ const cyan = (s: string) => `\x1b[36m${s}\x1b[39m`;
 function printBanner(_logger: AstroIntegrationLogger): void {
 	const banner = `
 
-  ${bold(cyan("— E M D A S H —"))}
+  ${bold(cyan("— E M D A S H —"))}  ${dim(`v${VERSION}`)}
    `;
 	console.log(banner);
 }
 
-/** Print route injection summary */
-function printRoutesSummary(_logger: AstroIntegrationLogger): void {
-	console.log(`\n  ${dim("›")} Admin UI    ${cyan("/_emdash/admin")}`);
-	console.log(`  ${dim("›")} API         ${cyan("/_emdash/api/*")}`);
+/**
+ * Print dev-server route info with absolute (clickable) URLs, including the
+ * dev-bypass shortcut that skips passkey auth. Dev only -- the dev-bypass
+ * endpoint returns 403 in production.
+ */
+function printDevServerInfo(baseUrl: string, mcpEnabled: boolean): void {
+	const devBypassUrl = `${baseUrl}/_emdash/api/setup/dev-bypass?redirect=/_emdash/admin`;
+	console.log(`\n  ${dim("›")} Admin UI    ${cyan(`${baseUrl}/_emdash/admin`)}`);
+	if (mcpEnabled) {
+		console.log(`  ${dim("›")} MCP server  ${cyan(`${baseUrl}/_emdash/api/mcp`)}`);
+	}
+	console.log(`  ${dim("›")} Dev bypass  ${cyan(devBypassUrl)}`);
+	console.log(`    ${dim("Skips passkey setup/auth and signs you in as a dev admin")}`);
 	console.log("");
 }
 
@@ -298,6 +356,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	// Check if auth is an AuthDescriptor (has entrypoint) indicating external auth
 	const useExternalAuth = !!(resolvedConfig.auth && "entrypoint" in resolvedConfig.auth);
 
+	// Captured in astro:config:setup so the astro:server:setup hook can tell
+	// whether we're running `astro dev` (where the dev-bypass shortcut applies).
+	let astroCommand: "dev" | "build" | "preview" | "sync" | undefined;
+
 	return {
 		name: "emdash",
 		hooks: {
@@ -309,6 +371,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				config: astroConfig,
 				command,
 			}) => {
+				astroCommand = command;
 				printBanner(logger);
 				// Capture the host's Astro version so the runtime can expose it
 				// to the admin and the registry install gate for `env:astro`
@@ -345,7 +408,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				const securityConfig: Record<string, unknown> = {
 					checkOrigin: false,
 					...(resolvedConfig.siteUrl
-						? { allowedDomains: [{ hostname: new URL(resolvedConfig.siteUrl).hostname }] }
+						? {
+								allowedDomains: [{ hostname: new URL(resolvedConfig.siteUrl).hostname }],
+							}
 						: {}),
 				};
 
@@ -385,19 +450,32 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 								},
 							];
 
-				// Authorize media sources for Astro image optimization so the
-				// Image components can generate a responsive srcset for R2/S3 and
-				// same-origin proxied media. `updateConfig` merges arrays, so any
-				// user-configured remotePatterns are preserved.
+				// Authorize media sources so Astro's image service builds transform
+				// URLs for them (it won't optimize an un-allowed source). `updateConfig`
+				// merges arrays, so user-configured remotePatterns are preserved.
 				const imageRemotePatterns = buildImageRemotePatterns(
 					resolvedConfig.storage,
 					resolvedConfig.siteUrl,
 					command,
 				);
 
+				// Wrap Astro's image endpoint so EmDash media bytes load straight from
+				// storage (Access-safe) instead of over HTTP. Skip when the user opts
+				// out or has a custom endpoint we can't delegate back to.
+				const { entrypoint: imageEndpoint, warn: imageEndpointWarning } = resolveImageEndpoint({
+					imagesDisabled: resolvedConfig.images === false,
+					currentEntrypoint: astroConfig.image?.endpoint?.entrypoint,
+					isCloudflare: astroConfig.adapter?.name === "@astrojs/cloudflare",
+				});
+				if (imageEndpointWarning) logger.warn(imageEndpointWarning);
+
+				const imageConfig: Record<string, unknown> = {};
+				if (imageRemotePatterns.length) imageConfig.remotePatterns = imageRemotePatterns;
+				if (imageEndpoint) imageConfig.endpoint = { entrypoint: imageEndpoint };
+
 				updateConfig({
 					security: securityConfig,
-					...(imageRemotePatterns.length ? { image: { remotePatterns: imageRemotePatterns } } : {}),
+					...(Object.keys(imageConfig).length ? { image: imageConfig } : {}),
 					// fonts is a valid AstroConfig key but may not be in the
 					// type definition for the minimum supported Astro version
 					...({ fonts: emdashFonts } as Record<string, unknown>),
@@ -413,7 +491,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				});
 
 				// Inject all core routes
-				injectCoreRoutes(injectRoute);
+				injectCoreRoutes(injectRoute, { srcDir: astroConfig.srcDir });
 
 				// Inject routes from pluggable auth providers (authProviders config)
 				if (resolvedConfig.authProviders?.length) {
@@ -473,9 +551,28 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					order: "pre",
 				});
 
-				printRoutesSummary(logger);
+				// Route info is printed with absolute, clickable URLs once the
+				// dev server is listening (see astro:server:setup), since the
+				// port isn't known yet here. Nothing useful to print for build.
 			},
 			"astro:server:setup": ({ server, logger }) => {
+				// Print route info with absolute, clickable URLs once the server
+				// is listening. Only in `astro dev` -- the dev-bypass shortcut is
+				// dev-only and the port is unknown until now.
+				if (astroCommand === "dev") {
+					server.httpServer?.once("listening", () => {
+						const address = server.httpServer?.address();
+						if (!address || typeof address === "string") return;
+						let host = address.address;
+						if (host === "::1" || host === "::" || host === "0.0.0.0") {
+							host = "localhost";
+						} else if (address.family === "IPv6") {
+							host = `[${host}]`;
+						}
+						printDevServerInfo(`http://${host}:${address.port}`, resolvedConfig.mcp !== false);
+					});
+				}
+
 				// Generate types once the server is listening.
 				// The endpoint returns the types content; we write the file here
 				// (in Node) because workerd has no real filesystem access.
