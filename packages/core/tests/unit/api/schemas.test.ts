@@ -6,6 +6,7 @@ import {
 	createFieldBody,
 	updateFieldBody,
 	httpUrl,
+	localeCode,
 	mediaUploadUrlBody,
 	DEFAULT_MAX_UPLOAD_SIZE,
 } from "../../../src/api/schemas/index.js";
@@ -152,6 +153,27 @@ describe("httpUrl validator", () => {
 
 	it("is case-insensitive for scheme", () => {
 		expect(httpUrl.parse("HTTPS://EXAMPLE.COM")).toBe("HTTPS://EXAMPLE.COM");
+	});
+});
+
+describe("localeCode validator", () => {
+	// Regression: a .toLowerCase() transform rewrote ?locale=zh-TW to zh-tw, so the
+	// case-sensitive SQLite/D1 query matched zero rows. Casing must round-trip as configured.
+	it("preserves uppercase subtags", () => {
+		expect(localeCode.parse("zh-TW")).toBe("zh-TW");
+		expect(localeCode.parse("zh-Hant")).toBe("zh-Hant");
+		expect(localeCode.parse("en-US")).toBe("en-US");
+		expect(localeCode.parse("pt-BR")).toBe("pt-BR");
+	});
+
+	it("accepts a bare language code", () => {
+		expect(localeCode.parse("en")).toBe("en");
+	});
+
+	it("rejects malformed locale codes", () => {
+		expect(() => localeCode.parse("e")).toThrow();
+		expect(() => localeCode.parse("en_US")).toThrow();
+		expect(() => localeCode.parse("not a locale")).toThrow();
 	});
 });
 

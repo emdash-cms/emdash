@@ -54,10 +54,7 @@ export const httpUrl = z
 	.refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
 
 /** BCP 47 locale code — language with optional script/region subtags (e.g. en, en-US, pt-BR, es-419, zh-Hant) */
-export const localeCode = z
-	.string()
-	.regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code")
-	.transform((v) => v.toLowerCase());
+export const localeCode = z.string().regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code");
 
 /** Shared `?locale=xx` query shape for endpoints that filter by locale. */
 export const localeFilterQuery = z
