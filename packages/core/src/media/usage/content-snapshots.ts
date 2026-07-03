@@ -68,7 +68,7 @@ export async function loadContentMediaUsageSnapshots(
 		row,
 		discovery.extractionFields.map((field) => field.slug),
 	);
-	const displayData = projectData(row, discovery.displayFieldSlugs);
+	const displayData = projectRawData(row, discovery.displayFieldSlugs);
 	const occurrences = extractMediaUsageOccurrences({
 		fields: discovery.extractionFields,
 		data: columnsData,
@@ -327,6 +327,17 @@ function projectData(
 	const data: Record<string, unknown> = {};
 	for (const fieldSlug of fieldSlugs) {
 		data[fieldSlug] = deserializeValue(row[fieldSlug] ?? null);
+	}
+	return data;
+}
+
+function projectRawData(
+	row: Record<string, unknown>,
+	fieldSlugs: readonly string[],
+): Record<string, unknown> {
+	const data: Record<string, unknown> = {};
+	for (const fieldSlug of fieldSlugs) {
+		data[fieldSlug] = row[fieldSlug] ?? null;
 	}
 	return data;
 }

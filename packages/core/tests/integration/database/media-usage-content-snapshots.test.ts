@@ -113,6 +113,21 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 		expect(result).toEqual({ success: false, error: "CONTENT_NOT_FOUND" });
 	});
 
+	it("keeps JSON-looking stored display strings as strings", async () => {
+		const title = '{"headline":"Columns"}';
+		const item = await insertPost(ctx, {
+			slug: "json-title",
+			status: "published",
+			data: { title },
+		});
+
+		const result = await loadContentMediaUsageSnapshots(ctx.db, "posts", item.id);
+
+		expect(result.success).toBe(true);
+		if (!result.success) throw new Error(result.error);
+		expect(getSnapshot(result, "columns").source.contentTitle).toBe(title);
+	});
+
 	it("builds columns and draft overlay snapshots for a pending draft revision", async () => {
 		const item = await insertPost(ctx, {
 			slug: "live-post",

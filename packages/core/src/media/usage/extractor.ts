@@ -1,4 +1,5 @@
 import { normalizeMime } from "../mime.js";
+import { INTERNAL_MEDIA_PREFIX } from "../normalize.js";
 import type {
 	ExtractedMediaUsageOccurrence,
 	ExtractMediaUsageOccurrencesInput,
@@ -7,7 +8,6 @@ import type {
 	MediaUsageReferenceType,
 } from "./types.js";
 
-const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
 const URL_LIKE_RE = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
 
 interface MediaRef {
