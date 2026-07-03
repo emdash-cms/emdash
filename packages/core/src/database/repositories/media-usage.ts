@@ -83,6 +83,16 @@ export interface MediaUsageSource {
 	updatedAt: string;
 }
 
+export interface MediaUsageGuardedReplaceResult {
+	replaced: boolean;
+	source: MediaUsageSource | null;
+}
+
+export interface MediaUsageGuardedDeleteResult {
+	deleted: boolean;
+	source: MediaUsageSource | null;
+}
+
 export type MediaUsageSourceCompleteness =
 	| "unknown"
 	| "complete"
@@ -243,6 +253,31 @@ export class MediaUsageRepository {
 		return replaced;
 	}
 
+	async replaceSourceIfCurrent(
+		source: MediaUsageSourceInput,
+		occurrences: readonly MediaUsageOccurrenceInput[],
+		expectedCurrentGeneration: string | null,
+	): Promise<MediaUsageGuardedReplaceResult> {
+		const generation = ulid();
+		const now = new Date().toISOString();
+		const row = this.buildSourceRow(source, generation, now);
+
+		await withTransaction(this.db, async (trx) => {
+			await this.insertOccurrences(trx, source.sourceKey, generation, occurrences, now);
+			if (expectedCurrentGeneration === null) {
+				await this.insertSourceIfAbsent(trx, row);
+				return;
+			}
+			await this.updateSourceIfGeneration(trx, row, expectedCurrentGeneration);
+		});
+
+		const current = await this.findSource(source.sourceKey);
+		return {
+			replaced: current?.currentGeneration === generation,
+			source: current,
+		};
+	}
+
 	async findSource(sourceKey: string): Promise<MediaUsageSource | null> {
 		const row = await this.db
 			.selectFrom("_emdash_media_usage_sources")
@@ -384,6 +419,28 @@ export class MediaUsageRepository {
 
 	async deleteSource(sourceKey: string): Promise<number> {
 		return this.deleteSources([sourceKey]);
+	}
+
+	async deleteSourceIfCurrent(
+		sourceKey: string,
+		expectedCurrentGeneration: string,
+	): Promise<MediaUsageGuardedDeleteResult> {
+		let deleted = false;
+		await withTransaction(this.db, async (trx) => {
+			const result = await trx
+				.deleteFrom("_emdash_media_usage_sources")
+				.where("source_key", "=", sourceKey)
+				.where("current_generation", "=", expectedCurrentGeneration)
+				.executeTakeFirst();
+			deleted = Number(result.numDeletedRows ?? 0) > 0;
+			if (!deleted) return;
+			await trx.deleteFrom("_emdash_media_usage").where("source_key", "=", sourceKey).execute();
+		});
+
+		return {
+			deleted,
+			source: await this.findSource(sourceKey),
+		};
 	}
 
 	async deleteSources(sourceKeys: readonly string[]): Promise<number> {
@@ -721,7 +778,42 @@ export class MediaUsageRepository {
 		generation: string,
 		now: string,
 	): Promise<void> {
-		const row = {
+		const row = this.buildSourceRow(source, generation, now);
+
+		await db
+			.insertInto("_emdash_media_usage_sources")
+			.values(row)
+			.onConflict((oc) => oc.column("source_key").doUpdateSet(this.sourceUpdateSet(row)))
+			.execute();
+	}
+
+	private async insertSourceIfAbsent(
+		db: DatabaseExecutor,
+		row: ReturnType<MediaUsageRepository["buildSourceRow"]>,
+	): Promise<void> {
+		await db
+			.insertInto("_emdash_media_usage_sources")
+			.values(row)
+			.onConflict((oc) => oc.column("source_key").doNothing())
+			.execute();
+	}
+
+	private async updateSourceIfGeneration(
+		db: DatabaseExecutor,
+		row: ReturnType<MediaUsageRepository["buildSourceRow"]>,
+		expectedCurrentGeneration: string,
+	): Promise<boolean> {
+		const result = await db
+			.updateTable("_emdash_media_usage_sources")
+			.set(this.sourceUpdateSet(row))
+			.where("source_key", "=", row.source_key)
+			.where("current_generation", "=", expectedCurrentGeneration)
+			.executeTakeFirst();
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	private buildSourceRow(source: MediaUsageSourceInput, generation: string, now: string) {
+		return {
 			source_key: source.sourceKey,
 			source_type: source.sourceType,
 			collection_slug: source.collectionSlug ?? null,
@@ -740,43 +832,43 @@ export class MediaUsageRepository {
 			source_updated_at: source.sourceUpdatedAt ?? null,
 			source_version: source.sourceVersion ?? null,
 			source_fingerprint: source.sourceFingerprint ?? null,
+			// Complete means this source was fully refreshed for the extractor's current
+			// schema/version coverage, not that every possible reference shape is known.
 			source_completeness: source.sourceCompleteness ?? "complete",
 			last_attempted_at: source.lastAttemptedAt ?? now,
 			last_error_code: null,
 			indexed_at: now,
 			updated_at: now,
 		};
+	}
 
-		await db
-			.insertInto("_emdash_media_usage_sources")
-			.values(row)
-			.onConflict((oc) =>
-				oc.column("source_key").doUpdateSet({
-					source_type: row.source_type,
-					collection_slug: row.collection_slug,
-					content_id: row.content_id,
-					source_variant: row.source_variant,
-					locale: row.locale,
-					translation_group: row.translation_group,
-					content_slug: row.content_slug,
-					content_title: row.content_title,
-					content_status: row.content_status,
-					content_scheduled_at: row.content_scheduled_at,
-					content_deleted_at: row.content_deleted_at,
-					revision_id: row.revision_id,
-					current_generation: row.current_generation,
-					schema_version: row.schema_version,
-					source_updated_at: row.source_updated_at,
-					source_version: row.source_version,
-					source_fingerprint: row.source_fingerprint,
-					source_completeness: row.source_completeness,
-					last_attempted_at: row.last_attempted_at,
-					last_error_code: row.last_error_code,
-					indexed_at: row.indexed_at,
-					updated_at: row.updated_at,
-				}),
-			)
-			.execute();
+	private sourceUpdateSet(
+		row: ReturnType<MediaUsageRepository["buildSourceRow"]>,
+	): Updateable<MediaUsageSourceTable> {
+		return {
+			source_type: row.source_type,
+			collection_slug: row.collection_slug,
+			content_id: row.content_id,
+			source_variant: row.source_variant,
+			locale: row.locale,
+			translation_group: row.translation_group,
+			content_slug: row.content_slug,
+			content_title: row.content_title,
+			content_status: row.content_status,
+			content_scheduled_at: row.content_scheduled_at,
+			content_deleted_at: row.content_deleted_at,
+			revision_id: row.revision_id,
+			current_generation: row.current_generation,
+			schema_version: row.schema_version,
+			source_updated_at: row.source_updated_at,
+			source_version: row.source_version,
+			source_fingerprint: row.source_fingerprint,
+			source_completeness: row.source_completeness,
+			last_attempted_at: row.last_attempted_at,
+			last_error_code: row.last_error_code,
+			indexed_at: row.indexed_at,
+			updated_at: row.updated_at,
+		};
 	}
 }
 

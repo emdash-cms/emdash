@@ -88,8 +88,77 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		expect(rows).toContainEqual({ generation: second.currentGeneration, media_id: "media-new" });
 	});
 
+	it("does not replace a source when the expected generation is stale", async () => {
+		const first = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-old"),
+		]);
+		const second = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-concurrent"),
+		]);
+
+		const stale = await repo.replaceSourceIfCurrent(
+			contentSource("entry1", "columns"),
+			[occurrence("hero", "media-stale")],
+			first.currentGeneration,
+		);
+
+		expect(stale.replaced).toBe(false);
+		expect(stale.source).toEqual(
+			expect.objectContaining({ currentGeneration: second.currentGeneration }),
+		);
+		expect((await repo.findSource("content:posts:entry1:columns"))?.currentGeneration).toBe(
+			second.currentGeneration,
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-concurrent")).toHaveLength(1);
+		expect(await repo.findCurrentUsageByMediaId("media-stale")).toEqual([]);
+	});
+
+	it("does not create a source observed absent when another writer created it first", async () => {
+		const concurrent = await repo.replaceSource(contentSource("entry-new", "columns"), [
+			occurrence("hero", "media-concurrent"),
+		]);
+
+		const stale = await repo.replaceSourceIfCurrent(
+			contentSource("entry-new", "columns"),
+			[occurrence("hero", "media-stale")],
+			null,
+		);
+
+		expect(stale.replaced).toBe(false);
+		expect(stale.source).toEqual(
+			expect.objectContaining({ currentGeneration: concurrent.currentGeneration }),
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-concurrent")).toHaveLength(1);
+		expect(await repo.findCurrentUsageByMediaId("media-stale")).toEqual([]);
+	});
+
+	it("does not delete a source when the expected generation is stale", async () => {
+		const first = await repo.replaceSource(contentSource("entry1", "draft_overlay"), [
+			occurrence("hero", "media-old-draft"),
+		]);
+		const second = await repo.replaceSource(contentSource("entry1", "draft_overlay"), [
+			occurrence("hero", "media-concurrent-draft"),
+		]);
+
+		const stale = await repo.deleteSourceIfCurrent(
+			"content:posts:entry1:draft_overlay",
+			first.currentGeneration,
+		);
+
+		expect(stale.deleted).toBe(false);
+		expect(stale.source).toEqual(
+			expect.objectContaining({ currentGeneration: second.currentGeneration }),
+		);
+		expect(await repo.findSource("content:posts:entry1:draft_overlay")).toEqual(
+			expect.objectContaining({ currentGeneration: second.currentGeneration }),
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-concurrent-draft")).toHaveLength(1);
+	});
+
 	it("writes ISO occurrence timestamps for safe cleanup cutoffs", async () => {
-		await repo.replaceSource(contentSource("entry1", "columns"), [occurrence("hero", "media-live")]);
+		await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-live"),
+		]);
 
 		const row = await ctx.db
 			.selectFrom("_emdash_media_usage")
@@ -284,7 +353,9 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 	});
 
 	it("marks failed source attempts without replacing current usage", async () => {
-		await repo.replaceSource(contentSource("entry1", "columns"), [occurrence("hero", "media-live")]);
+		await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-live"),
+		]);
 
 		const failed = await repo.markSourceAttempted(
 			contentSource("entry1", "columns", {
@@ -375,8 +446,12 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 	});
 
 	it("deletes a single source and its occurrences", async () => {
-		await repo.replaceSource(contentSource("entry1", "columns"), [occurrence("hero", "media-live")]);
-		await repo.replaceSource(contentSource("entry1", "draft_overlay"), [occurrence("hero", "media-draft")]);
+		await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-live"),
+		]);
+		await repo.replaceSource(contentSource("entry1", "draft_overlay"), [
+			occurrence("hero", "media-draft"),
+		]);
 
 		expect(await repo.deleteSource("content:posts:entry1:columns")).toBe(1);
 		expect(await repo.findSource("content:posts:entry1:columns")).toBeNull();
@@ -385,9 +460,15 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 	});
 
 	it("deletes all content sources for one collection and content id", async () => {
-		await repo.replaceSource(contentSource("entry1", "columns"), [occurrence("hero", "media-live")]);
-		await repo.replaceSource(contentSource("entry1", "draft_overlay"), [occurrence("hero", "media-draft")]);
-		await repo.replaceSource(contentSource("entry2", "columns"), [occurrence("hero", "media-other")]);
+		await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-live"),
+		]);
+		await repo.replaceSource(contentSource("entry1", "draft_overlay"), [
+			occurrence("hero", "media-draft"),
+		]);
+		await repo.replaceSource(contentSource("entry2", "columns"), [
+			occurrence("hero", "media-other"),
+		]);
 		await repo.replaceSource(contentSource("entry1", "columns", { collectionSlug: "pages" }), [
 			occurrence("hero", "media-page"),
 		]);
@@ -400,8 +481,12 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 	});
 
 	it("deletes content sources by collection", async () => {
-		await repo.replaceSource(contentSource("entry1", "columns"), [occurrence("hero", "media-live")]);
-		await repo.replaceSource(contentSource("entry2", "draft_overlay"), [occurrence("hero", "media-draft")]);
+		await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-live"),
+		]);
+		await repo.replaceSource(contentSource("entry2", "draft_overlay"), [
+			occurrence("hero", "media-draft"),
+		]);
 		await repo.replaceSource(contentSource("entry1", "columns", { collectionSlug: "pages" }), [
 			occurrence("hero", "media-page"),
 		]);
@@ -413,9 +498,15 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 	});
 
 	it("deletes specific source keys in D1-safe batches", async () => {
-		await repo.replaceSource(contentSource("entry1", "columns"), [occurrence("hero", "media-live")]);
-		await repo.replaceSource(contentSource("entry1", "draft_overlay"), [occurrence("hero", "media-draft")]);
-		await repo.replaceSource(contentSource("entry2", "columns"), [occurrence("hero", "media-other")]);
+		await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-live"),
+		]);
+		await repo.replaceSource(contentSource("entry1", "draft_overlay"), [
+			occurrence("hero", "media-draft"),
+		]);
+		await repo.replaceSource(contentSource("entry2", "columns"), [
+			occurrence("hero", "media-other"),
+		]);
 
 		expect(
 			await repo.deleteSources([
@@ -504,7 +595,9 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 	});
 
 	it("keeps columns and draft overlay source keys separate for the same content", async () => {
-		await repo.replaceSource(contentSource("entry1", "columns"), [occurrence("hero", "media-shared")]);
+		await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-shared"),
+		]);
 		await repo.replaceSource(contentSource("entry1", "draft_overlay"), [
 			occurrence("draftHero", "media-shared", { fieldPath: "draftHero" }),
 		]);
@@ -515,10 +608,7 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 			"content:posts:entry1:columns",
 			"content:posts:entry1:draft_overlay",
 		]);
-		expect(usage.map((row) => row.source.sourceVariant)).toEqual([
-			"columns",
-			"draft_overlay",
-		]);
+		expect(usage.map((row) => row.source.sourceVariant)).toEqual(["columns", "draft_overlay"]);
 	});
 
 	it("paginates current media usage by occurrence id", async () => {
@@ -526,7 +616,9 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 			occurrence("hero", "media-shared"),
 			occurrence("body", "media-shared"),
 		]);
-		await repo.replaceSource(contentSource("entry2", "columns"), [occurrence("hero", "media-shared")]);
+		await repo.replaceSource(contentSource("entry2", "columns"), [
+			occurrence("hero", "media-shared"),
+		]);
 
 		const page1 = await repo.findCurrentUsagePageByMediaId("media-shared", { limit: 2 });
 		expect(page1.items).toHaveLength(2);

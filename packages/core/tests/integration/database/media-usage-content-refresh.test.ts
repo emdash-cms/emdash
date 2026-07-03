@@ -192,6 +192,98 @@ describeEachDialect("content media usage refresh", (dialect) => {
 		expect(await usageRepo.findCurrentUsageByMediaId("media-draft")).toEqual([]);
 	});
 
+	it("marks coverage stale instead of clobbering a newer source generation", async () => {
+		const item = await insertPost(ctx, {
+			slug: "guarded-replace-post",
+			status: "published",
+			data: {
+				title: "Guarded Replace Post",
+				hero: { id: "media-old", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await refreshContentMediaUsage(ctx.db, "posts", item.id);
+		await installSourceReplacementConflictTrigger(ctx);
+		await updatePostHero(ctx, item.id, {
+			id: "media-stale-refresh",
+			provider: "local",
+			mimeType: "image/webp",
+		});
+
+		const result = await refreshContentMediaUsage(ctx.db, "posts", item.id);
+
+		expect(result).toEqual({
+			success: false,
+			refreshedSourceCount: 0,
+			deletedSourceCount: 0,
+			failedSourceCount: 0,
+			errorCode: "CONTENT_USAGE_GENERATION_CONFLICT",
+		});
+		expect(await usageRepo.findCurrentUsageByMediaId("media-concurrent-generation")).toEqual([
+			expect.objectContaining({ source: expect.objectContaining({ contentId: item.id }) }),
+		]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-stale-refresh")).toEqual([]);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+			}),
+		).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				lastErrorCode: "CONTENT_USAGE_GENERATION_CONFLICT",
+			}),
+		);
+	});
+
+	it("does not delete a draft overlay source that changed after observation", async () => {
+		const item = await insertPost(ctx, {
+			slug: "guarded-delete-post",
+			status: "published",
+			data: {
+				title: "Guarded Delete Post",
+				hero: { id: "media-live", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const draft = await revisionRepo.create({
+			collection: "posts",
+			entryId: item.id,
+			data: { hero: { id: "media-draft", provider: "local", mimeType: "image/webp" } },
+		});
+		await setDraftRevision(ctx, item.id, draft.id);
+		await refreshContentMediaUsage(ctx.db, "posts", item.id);
+		await clearDraftRevision(ctx, item.id);
+		await installDraftOverlayDeletionConflictTrigger(ctx);
+
+		const result = await refreshContentMediaUsage(ctx.db, "posts", item.id);
+
+		expect(result).toEqual({
+			success: false,
+			refreshedSourceCount: 1,
+			deletedSourceCount: 0,
+			failedSourceCount: 0,
+			errorCode: "CONTENT_USAGE_GENERATION_CONFLICT",
+		});
+		expect(await usageRepo.findSource(sourceKey(item.id, "draft_overlay"))).toEqual(
+			expect.objectContaining({ currentGeneration: "concurrent-draft-generation" }),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-concurrent-draft-generation")).toEqual([
+			expect.objectContaining({ source: expect.objectContaining({ contentId: item.id }) }),
+		]);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+			}),
+		).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				lastErrorCode: "CONTENT_USAGE_GENERATION_CONFLICT",
+			}),
+		);
+	});
+
 	it("deletes every source for a content item", async () => {
 		const item = await insertPost(ctx, {
 			slug: "live-post",
@@ -397,6 +489,211 @@ async function clearDraftRevision(ctx: DialectTestContext, contentId: string): P
 		SET draft_revision_id = ${null},
 			updated_at = ${new Date().toISOString()}
 		WHERE id = ${contentId}
+	`.execute(ctx.db);
+}
+
+async function installSourceReplacementConflictTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_replace_conflict()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				IF NEW.generation <> 'concurrent-generation'
+					AND NEW.source_key LIKE 'content:posts:%:columns' THEN
+					INSERT INTO _emdash_media_usage (
+						id,
+						source_key,
+						generation,
+						field_slug,
+						field_path,
+						occurrence_index,
+						reference_type,
+						media_id,
+						provider,
+						provider_asset_id,
+						media_kind,
+						mime_type,
+						created_at
+					) VALUES (
+						'concurrent-generation-occurrence',
+						NEW.source_key,
+						'concurrent-generation',
+						'hero',
+						'hero',
+						0,
+						'image_field',
+						'media-concurrent-generation',
+						'local',
+						'media-concurrent-generation',
+						'image',
+						'image/webp',
+						'2026-01-01T00:00:00.000Z'
+					)
+					ON CONFLICT (id) DO NOTHING;
+
+					UPDATE _emdash_media_usage_sources
+					SET current_generation = 'concurrent-generation'
+					WHERE source_key = NEW.source_key;
+				END IF;
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_replace_conflict
+			AFTER INSERT ON _emdash_media_usage
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_replace_conflict()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_replace_conflict
+		AFTER INSERT ON _emdash_media_usage
+		WHEN NEW.generation != 'concurrent-generation'
+			AND NEW.source_key LIKE 'content:posts:%:columns'
+		BEGIN
+			INSERT OR IGNORE INTO _emdash_media_usage (
+				id,
+				source_key,
+				generation,
+				field_slug,
+				field_path,
+				occurrence_index,
+				reference_type,
+				media_id,
+				provider,
+				provider_asset_id,
+				media_kind,
+				mime_type,
+				created_at
+			) VALUES (
+				'concurrent-generation-occurrence',
+				NEW.source_key,
+				'concurrent-generation',
+				'hero',
+				'hero',
+				0,
+				'image_field',
+				'media-concurrent-generation',
+				'local',
+				'media-concurrent-generation',
+				'image',
+				'image/webp',
+				'2026-01-01T00:00:00.000Z'
+			);
+
+			UPDATE _emdash_media_usage_sources
+			SET current_generation = 'concurrent-generation'
+			WHERE source_key = NEW.source_key;
+		END
+	`.execute(ctx.db);
+}
+
+async function installDraftOverlayDeletionConflictTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION media_usage_draft_delete_conflict()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			DECLARE
+				draft_source_key text;
+			BEGIN
+				IF NEW.generation <> 'concurrent-draft-generation'
+					AND NEW.source_key LIKE 'content:posts:%:columns' THEN
+					draft_source_key := replace(NEW.source_key, ':columns', ':draft_overlay');
+					INSERT INTO _emdash_media_usage (
+						id,
+						source_key,
+						generation,
+						field_slug,
+						field_path,
+						occurrence_index,
+						reference_type,
+						media_id,
+						provider,
+						provider_asset_id,
+						media_kind,
+						mime_type,
+						created_at
+					) VALUES (
+						'concurrent-draft-generation-occurrence',
+						draft_source_key,
+						'concurrent-draft-generation',
+						'hero',
+						'hero',
+						0,
+						'image_field',
+						'media-concurrent-draft-generation',
+						'local',
+						'media-concurrent-draft-generation',
+						'image',
+						'image/webp',
+						'2026-01-01T00:00:00.000Z'
+					)
+					ON CONFLICT (id) DO NOTHING;
+
+					UPDATE _emdash_media_usage_sources
+					SET current_generation = 'concurrent-draft-generation'
+					WHERE source_key = draft_source_key;
+				END IF;
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER media_usage_draft_delete_conflict
+			AFTER INSERT ON _emdash_media_usage
+			FOR EACH ROW
+			EXECUTE FUNCTION media_usage_draft_delete_conflict()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER media_usage_draft_delete_conflict
+		AFTER INSERT ON _emdash_media_usage
+		WHEN NEW.generation != 'concurrent-draft-generation'
+			AND NEW.source_key LIKE 'content:posts:%:columns'
+		BEGIN
+			INSERT OR IGNORE INTO _emdash_media_usage (
+				id,
+				source_key,
+				generation,
+				field_slug,
+				field_path,
+				occurrence_index,
+				reference_type,
+				media_id,
+				provider,
+				provider_asset_id,
+				media_kind,
+				mime_type,
+				created_at
+			) VALUES (
+				'concurrent-draft-generation-occurrence',
+				replace(NEW.source_key, ':columns', ':draft_overlay'),
+				'concurrent-draft-generation',
+				'hero',
+				'hero',
+				0,
+				'image_field',
+				'media-concurrent-draft-generation',
+				'local',
+				'media-concurrent-draft-generation',
+				'image',
+				'image/webp',
+				'2026-01-01T00:00:00.000Z'
+			);
+
+			UPDATE _emdash_media_usage_sources
+			SET current_generation = 'concurrent-draft-generation'
+			WHERE source_key = replace(NEW.source_key, ':columns', ':draft_overlay');
+		END
 	`.execute(ctx.db);
 }
 

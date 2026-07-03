@@ -20,6 +20,9 @@ export const CONTENT_MEDIA_USAGE_COLLECTION_SCOPE = "collection";
 const CONTENT_USAGE_LOCKS_KEY = Symbol.for("emdash.mediaUsage.contentLocks");
 const CONTENT_USAGE_COLLECTION_LOCKS_KEY = Symbol.for("emdash.mediaUsage.collectionLocks");
 
+// These maps only de-dupe usage work inside the current isolate/process. Cross-worker
+// correctness comes from expected-generation guards on repository writes.
+
 export type ContentMediaUsageRefreshErrorCode =
 	| "CONTENT_NOT_FOUND"
 	| "DRAFT_REVISION_NOT_FOUND"
@@ -27,6 +30,7 @@ export type ContentMediaUsageRefreshErrorCode =
 	| "DRAFT_REVISION_INVALID"
 	| "CONTENT_USAGE_REFRESH_ERROR"
 	| "CONTENT_USAGE_DELETE_ERROR"
+	| "CONTENT_USAGE_GENERATION_CONFLICT"
 	| "CONTENT_USAGE_STALE";
 
 export interface ContentMediaUsageRefreshResult {
@@ -63,19 +67,36 @@ async function refreshContentMediaUsageUnlocked(
 	contentId: string,
 ): Promise<ContentMediaUsageRefreshResult> {
 	try {
+		const repo = new MediaUsageRepository(db);
+		const observedGenerations = await loadObservedContentSourceGenerations(
+			db,
+			collectionSlug,
+			contentId,
+		);
 		const snapshotsResult = await loadContentMediaUsageSnapshots(db, collectionSlug, contentId);
 		if (!snapshotsResult.success) {
 			return markSnapshotFailure(db, collectionSlug, snapshotsResult);
 		}
 
-		const repo = new MediaUsageRepository(db);
 		if (!(await contentCollectionExists(db, collectionSlug))) {
 			const deletedSourceCount = await repo.deleteContentSources(collectionSlug, contentId);
 			return { ...ZERO_RESULT, deletedSourceCount };
 		}
 
+		let refreshedSourceCount = 0;
 		for (const snapshot of snapshotsResult.snapshots) {
-			await repo.replaceSource(snapshot.source, snapshot.occurrences);
+			const result = await repo.replaceSourceIfCurrent(
+				snapshot.source,
+				snapshot.occurrences,
+				observedGenerations.get(snapshot.source.sourceKey) ?? null,
+			);
+			if (!result.replaced) {
+				return markGenerationConflict(db, collectionSlug, {
+					refreshedSourceCount,
+					deletedSourceCount: 0,
+				});
+			}
+			refreshedSourceCount++;
 		}
 		if (!(await contentCollectionExists(db, collectionSlug))) {
 			const deletedSourceCount = await repo.deleteContentSources(collectionSlug, contentId);
@@ -88,11 +109,27 @@ async function refreshContentMediaUsageUnlocked(
 		const absentSourceKeys = MEDIA_USAGE_CONTENT_SOURCE_VARIANTS.map((sourceVariant) =>
 			buildContentMediaUsageSourceKey({ collectionSlug, contentId, sourceVariant }),
 		).filter((sourceKey) => !expectedSourceKeys.has(sourceKey));
-		const deletedSourceCount = await repo.deleteSources(absentSourceKeys);
+		let deletedSourceCount = 0;
+		for (const sourceKey of absentSourceKeys) {
+			const expectedGeneration = observedGenerations.get(sourceKey) ?? null;
+			if (expectedGeneration === null) continue;
+
+			const result = await repo.deleteSourceIfCurrent(sourceKey, expectedGeneration);
+			if (result.deleted) {
+				deletedSourceCount++;
+				continue;
+			}
+			if (result.source) {
+				return markGenerationConflict(db, collectionSlug, {
+					refreshedSourceCount,
+					deletedSourceCount,
+				});
+			}
+		}
 
 		return {
 			success: true,
-			refreshedSourceCount: snapshotsResult.snapshots.length,
+			refreshedSourceCount,
 			deletedSourceCount,
 			failedSourceCount: 0,
 		};
@@ -111,6 +148,54 @@ async function refreshContentMediaUsageUnlocked(
 			errorCode: "CONTENT_USAGE_REFRESH_ERROR",
 		};
 	}
+}
+
+async function loadObservedContentSourceGenerations(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	contentId: string,
+): Promise<Map<string, string | null>> {
+	const generations = new Map<string, string | null>();
+	const sourceKeys = MEDIA_USAGE_CONTENT_SOURCE_VARIANTS.map((sourceVariant) =>
+		buildContentMediaUsageSourceKey({
+			collectionSlug,
+			contentId,
+			sourceVariant,
+		}),
+	);
+	for (const sourceKey of sourceKeys) {
+		generations.set(sourceKey, null);
+	}
+
+	const rows = await db
+		.selectFrom("_emdash_media_usage_sources")
+		.select(["source_key", "current_generation"])
+		.where("source_key", "in", sourceKeys)
+		.execute();
+	for (const row of rows) {
+		generations.set(row.source_key, row.current_generation);
+	}
+
+	return generations;
+}
+
+async function markGenerationConflict(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	counts: Pick<ContentMediaUsageRefreshResult, "refreshedSourceCount" | "deletedSourceCount">,
+): Promise<ContentMediaUsageRefreshResult> {
+	await markContentMediaUsageCollectionStaleSafely(
+		db,
+		collectionSlug,
+		"CONTENT_USAGE_GENERATION_CONFLICT",
+	);
+	return {
+		success: false,
+		refreshedSourceCount: counts.refreshedSourceCount,
+		deletedSourceCount: counts.deletedSourceCount,
+		failedSourceCount: 0,
+		errorCode: "CONTENT_USAGE_GENERATION_CONFLICT",
+	};
 }
 
 async function contentCollectionExists(
