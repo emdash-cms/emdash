@@ -8,6 +8,7 @@ import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database } from "../../../src/database/types.js";
 import { getMenuWithDb, getMenusWithDb } from "../../../src/menus/index.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { sanitizeHref } from "../../../src/utils/url.js";
 
 describe("Navigation Menus", () => {
@@ -394,6 +395,117 @@ describe("Navigation Menus", () => {
 			expect(menu!.items[0].label).toBe("Home");
 			expect(menu!.items[1].label).toBe("About");
 			expect(menu!.items[2].label).toBe("Contact");
+		});
+	});
+
+	describe("collection menu items", () => {
+		// The admin content picker stores entries from custom collections
+		// (anything that isn't pages/posts) as type "collection" with
+		// referenceCollection + referenceId. The resolver used to ignore the
+		// reference_id for this type and emit the archive URL, so picking
+		// "Widget Co" from a "projects" collection produced a menu link to
+		// /projects/ instead of the entry.
+
+		async function setupProjectsCollection(urlPattern?: string): Promise<void> {
+			const registry = new SchemaRegistry(db);
+			await registry.createCollection({
+				slug: "projects",
+				label: "Projects",
+				labelSingular: "Project",
+				urlPattern,
+			});
+		}
+
+		async function insertMenuWithCollectionItem(item: {
+			referenceCollection?: string | null;
+			referenceId?: string | null;
+		}): Promise<void> {
+			const menuId = ulid();
+			await db
+				.insertInto("_emdash_menus")
+				.values({ id: menuId, name: "primary", label: "Primary" })
+				.execute();
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({
+					id: ulid(),
+					menu_id: menuId,
+					sort_order: 0,
+					type: "collection",
+					reference_collection: item.referenceCollection ?? null,
+					reference_id: item.referenceId ?? null,
+					label: "Projects",
+				})
+				.execute();
+		}
+
+		it("resolves entry references from the content picker to the entry URL", async () => {
+			await setupProjectsCollection();
+			await sql`
+				INSERT INTO ec_projects (id, slug, locale, translation_group)
+				VALUES ('proj-1', 'widget-co', 'en', 'group-proj-1')
+			`.execute(db);
+			await insertMenuWithCollectionItem({
+				referenceCollection: "projects",
+				referenceId: "group-proj-1",
+			});
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(1);
+			expect(menu!.items[0].url).toBe("/projects/widget-co");
+		});
+
+		it("applies the collection url_pattern to entry references", async () => {
+			await setupProjectsCollection("/work/{slug}");
+			await sql`
+				INSERT INTO ec_projects (id, slug, locale, translation_group)
+				VALUES ('proj-1', 'widget-co', 'en', 'group-proj-1')
+			`.execute(db);
+			await insertMenuWithCollectionItem({
+				referenceCollection: "projects",
+				referenceId: "group-proj-1",
+			});
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(1);
+			expect(menu!.items[0].url).toBe("/work/widget-co");
+		});
+
+		it("resolves items without a reference_id to the collection archive URL", async () => {
+			// Archive links (no entry reference) keep their root-relative
+			// /{collection}/ shape — the same URL shape as every other
+			// same-site item type.
+			await setupProjectsCollection();
+			await insertMenuWithCollectionItem({ referenceCollection: "projects" });
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(1);
+			expect(menu!.items[0].url).toBe("/projects/");
+		});
+
+		it("skips entry references whose content row no longer exists", async () => {
+			// Same contract as page/post items: an unresolvable reference
+			// hides the item instead of rendering a dead link.
+			await setupProjectsCollection();
+			await insertMenuWithCollectionItem({
+				referenceCollection: "projects",
+				referenceId: "group-gone",
+			});
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(0);
+		});
+
+		it("skips items with no reference_collection instead of linking /null/", async () => {
+			await insertMenuWithCollectionItem({});
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(0);
 		});
 	});
 
