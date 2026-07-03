@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	generateConfigModule,
 	generateDialectModule,
+	generateEnvModule,
 	generateSchedulerModule,
 	generateSeedModule,
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
@@ -101,6 +102,24 @@ describe("generateSchedulerModule", () => {
 	it("emits a NodeCronScheduler factory when no adapter is configured", () => {
 		const out = generateSchedulerModule(undefined, "build");
 		expect(out).toContain("export function createScheduler(executor)");
+	});
+});
+
+describe("generateEnvModule", () => {
+	it("re-exports cloudflare:workers' env under the Cloudflare adapter", () => {
+		const out = generateEnvModule("@astrojs/cloudflare");
+		expect(out).toBe('export { env } from "cloudflare:workers";');
+	});
+
+	it("exports undefined for non-Cloudflare adapters (#1736)", () => {
+		const out = generateEnvModule("@astrojs/node");
+		expect(out).toBe("export const env = undefined;");
+		expect(out).not.toContain("cloudflare:workers");
+	});
+
+	it("exports undefined when no adapter is configured", () => {
+		const out = generateEnvModule(undefined);
+		expect(out).toBe("export const env = undefined;");
 	});
 });
 

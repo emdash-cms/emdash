@@ -157,6 +157,15 @@ declare module "virtual:emdash/wait-until" {
 	export const waitUntil: ((promise: Promise<unknown>) => void) | undefined;
 }
 
+declare module "virtual:emdash/env" {
+	/**
+	 * Worker bindings/secrets. Resolves to Cloudflare's `env` (from
+	 * `cloudflare:workers`) under @astrojs/cloudflare; `undefined` on Node,
+	 * where callers should fall back to `import.meta.env`.
+	 */
+	export const env: Record<string, unknown> | undefined;
+}
+
 declare module "virtual:emdash/scheduler" {
 	import type { CreateSchedulerFn } from "./emdash-runtime.js";
 	/**
