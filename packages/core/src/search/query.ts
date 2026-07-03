@@ -99,6 +99,7 @@ export async function searchWithDb(
 
 	// Search each collection and merge results
 	const allResults: SearchResult[] = [];
+	const titleColumns = await ftsManager.getCollectionsWithTitleColumn(collections);
 
 	for (const collection of collections) {
 		const config = await ftsManager.getSearchConfig(collection);
@@ -116,6 +117,7 @@ export async function searchWithDb(
 				limit: limit * 2, // Get extra for merging
 			},
 			config.weights,
+			titleColumns.has(collection),
 		);
 
 		allResults.push(...collectionResults);
@@ -173,6 +175,7 @@ async function searchSingleCollection(
 	query: string,
 	options: CollectionSearchOptions,
 	weights?: Record<string, number>,
+	hasTitle?: boolean,
 ): Promise<SearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
@@ -200,9 +203,11 @@ async function searchSingleCollection(
 
 	// `title` is an optional user-defined field, not a system column. Only
 	// select it when the collection actually has one; otherwise the query
-	// errors with "no such column: c.title" (#1178).
-	const hasTitle = await ftsManager.hasTitleColumn(collection);
-	const titleExpr = hasTitle ? sql`c.title` : sql`NULL`;
+	// errors with "no such column: c.title" (#1178). Multi-collection callers
+	// precompute this in bulk and pass it in; single-collection callers fall
+	// back to the per-collection check.
+	const collectionHasTitle = hasTitle ?? (await ftsManager.hasTitleColumn(collection));
+	const titleExpr = collectionHasTitle ? sql`c.title` : sql`NULL`;
 
 	// Build weight string for bm25 if weights provided
 	// Format: bm25(table, weight1, weight2, ...)
@@ -340,9 +345,10 @@ export async function getSuggestions(
 	}
 
 	const suggestions: Suggestion[] = [];
+	const ftsManager = new FTSManager(db);
+	const titleColumns = await ftsManager.getCollectionsWithTitleColumn(collections);
 
 	for (const collection of collections) {
-		const ftsManager = new FTSManager(db);
 		const config = await ftsManager.getSearchConfig(collection);
 		if (!config?.enabled) {
 			continue;
@@ -352,7 +358,7 @@ export async function getSuggestions(
 		// query filters on `c.title IS NOT NULL`). Collections without a
 		// `title` field can't produce one, and selecting `c.title` would
 		// error, so skip them. See #1178.
-		if (!(await ftsManager.hasTitleColumn(collection))) {
+		if (!titleColumns.has(collection)) {
 			continue;
 		}
 

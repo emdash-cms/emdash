@@ -385,6 +385,27 @@ export class FTSManager {
 	}
 
 	/**
+	 * Bulk variant of `hasTitleColumn()`: which of the given collections have
+	 * a user-defined `title` field. One query instead of one `hasTitleColumn`
+	 * round-trip pair per collection -- callers that check this once per
+	 * collection in a loop (multi-collection search, suggestions) should use
+	 * this instead (AGENTS.md: "one query beats two").
+	 */
+	async getCollectionsWithTitleColumn(collectionSlugs: string[]): Promise<Set<string>> {
+		if (collectionSlugs.length === 0) return new Set();
+
+		const rows = await this.db
+			.selectFrom("_emdash_fields as f")
+			.innerJoin("_emdash_collections as c", "c.id", "f.collection_id")
+			.select(["c.slug as collection_slug"])
+			.where("f.slug", "=", "title")
+			.execute();
+
+		const withTitle = new Set(rows.map((r) => r.collection_slug));
+		return new Set(collectionSlugs.filter((slug) => withTitle.has(slug)));
+	}
+
+	/**
 	 * Enable search for a collection.
 	 *
 	 * Uses rebuildIndex to ensure a clean state -- drop any existing FTS

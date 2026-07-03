@@ -97,4 +97,12 @@ describe("search: collection without a title field (#1178)", () => {
 		// throwing (a suggestion requires a title, which it cannot provide).
 		expect(suggestions.every((s) => s.collection !== "note")).toBe(true);
 	});
+
+	it("bulk-resolves title-column membership for a mixed set of collections in one query", async () => {
+		const fts = new FTSManager(db);
+		const withTitle = await fts.getCollectionsWithTitleColumn(["post", "note"]);
+
+		expect(withTitle.has("post")).toBe(true);
+		expect(withTitle.has("note")).toBe(false);
+	});
 });
