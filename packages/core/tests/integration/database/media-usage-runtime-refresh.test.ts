@@ -1,10 +1,14 @@
 import { sql } from "kysely";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
+import {
+	CONTENT_MEDIA_USAGE_ADAPTER_ID,
+	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+} from "../../../src/media/usage/content-refresh.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
@@ -163,6 +167,82 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 				source: expect.objectContaining({ sourceVariant: "draft_overlay" }),
 			}),
 		]);
+	});
+
+	it("keeps runtime updates successful when draft overlay usage refresh fails", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "failed-refresh-post",
+			data: {
+				title: "Failed Refresh Post",
+				hero: mediaRef("media-live-before-failure"),
+			},
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		const contentId = created.data.item.id;
+
+		const firstDraft = await runtime.handleContentUpdate("posts", contentId, {
+			data: { hero: mediaRef("media-draft-before-failure") },
+		});
+		expect(firstDraft.success).toBe(true);
+		const draftSourceBefore = await usageRepo.findSource(
+			sourceKey("posts", contentId, "draft_overlay"),
+		);
+		expect(draftSourceBefore).toEqual(
+			expect.objectContaining({
+				sourceCompleteness: "complete",
+				lastErrorCode: null,
+			}),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-before-failure")).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({ contentId, sourceVariant: "draft_overlay" }),
+			}),
+		]);
+		await corruptFuturePostDraftRevisionSnapshots(ctx);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const updated = await runtime
+			.handleContentUpdate("posts", contentId, {
+				data: { hero: mediaRef("media-draft-after-failure") },
+			})
+			.finally(() => {
+				consoleError.mockRestore();
+			});
+
+		expect(updated.success).toBe(true);
+		const draftSourceAfter = await usageRepo.findSource(
+			sourceKey("posts", contentId, "draft_overlay"),
+		);
+		expect(draftSourceAfter).toEqual(
+			expect.objectContaining({
+				sourceCompleteness: "failed",
+				lastErrorCode: "DRAFT_REVISION_INVALID",
+			}),
+		);
+		expect(draftSourceAfter?.currentGeneration).toBe(draftSourceBefore?.currentGeneration);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-before-failure")).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({
+					contentId,
+					sourceVariant: "draft_overlay",
+					lastErrorCode: "DRAFT_REVISION_INVALID",
+				}),
+			}),
+		]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-after-failure")).toEqual([]);
+		expect(
+			await usageRepo.findIndexStatus({
+				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+				scopeKey: "posts",
+			}),
+		).toEqual(
+			expect.objectContaining({
+				status: "stale",
+				lastErrorCode: "DRAFT_REVISION_INVALID",
+			}),
+		);
 	});
 
 	it("refreshes columns usage for duplicated content", async () => {
@@ -764,4 +844,38 @@ function sourceKey(
 	sourceVariant: "columns" | "draft_overlay",
 ): string {
 	return buildContentMediaUsageSourceKey({ collectionSlug, contentId, sourceVariant });
+}
+
+async function corruptFuturePostDraftRevisionSnapshots(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE FUNCTION corrupt_posts_draft_revision()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				IF NEW.draft_revision_id IS NOT NULL THEN
+					UPDATE revisions SET data = '{' WHERE id = NEW.draft_revision_id;
+				END IF;
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER corrupt_posts_draft_revision
+			AFTER UPDATE OF draft_revision_id ON ec_posts
+			FOR EACH ROW
+			EXECUTE FUNCTION corrupt_posts_draft_revision()
+		`.execute(ctx.db);
+		return;
+	}
+
+	await sql`
+		CREATE TRIGGER corrupt_posts_draft_revision
+		AFTER UPDATE OF draft_revision_id ON ec_posts
+		WHEN NEW.draft_revision_id IS NOT NULL
+		BEGIN
+			UPDATE revisions SET data = '{' WHERE id = NEW.draft_revision_id;
+		END
+	`.execute(ctx.db);
 }
