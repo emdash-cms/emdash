@@ -233,7 +233,16 @@ describe("MenuEditor", () => {
 		await expect.element(screen.getByText("Home")).toBeInTheDocument();
 		await screen.getByRole("button", { name: "Edit" }).first().click();
 
-		await screen.getByRole("combobox", { name: "Parent" }).click();
+		await expect
+			.element(screen.getByRole("heading", { name: "Edit Menu Item" }))
+			.toBeInTheDocument();
+		// Use a native DOM click rather than a Playwright locator click: this
+		// env doesn't load Tailwind CSS, so the Dialog's `fixed` positioning
+		// class has no effect and Base UI's outside-click-capture layer (styled
+		// via inline `position: fixed`) stacks on top per normal paint order,
+		// failing Playwright's pointer-event hit test on the trigger.
+		screen.getByRole("combobox", { name: "Parent" }).element().click();
+
 		await expect.element(screen.getByRole("option", { name: "About" })).toBeInTheDocument();
 		expect(screen.getByRole("option", { name: "Home", exact: true }).query()).toBeNull();
 	});
@@ -265,8 +274,11 @@ describe("MenuEditor", () => {
 
 		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
 
-		await expect.element(screen.getByText("Services")).toBeInTheDocument();
-		const servicesRow = screen.getByText("Services").element().closest("div.border");
+		await expect.element(screen.getByText("Services", { exact: true })).toBeInTheDocument();
+		const servicesRow = screen
+			.getByText("Services", { exact: true })
+			.element()
+			.closest("div.border");
 		expect((servicesRow as HTMLElement | null)?.style.marginInlineStart).toBe("1.5rem");
 	});
 
@@ -297,10 +309,13 @@ describe("MenuEditor", () => {
 
 		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
 
-		await expect.element(screen.getByText("Services")).toBeInTheDocument();
+		await expect.element(screen.getByText("Services", { exact: true })).toBeInTheDocument();
 		// "Services" is Home's only child, so both its up and down buttons are
 		// disabled even though it isn't the first/last item in the flat list.
-		const servicesRow = screen.getByText("Services").element().closest("div.border") as HTMLElement;
+		const servicesRow = screen
+			.getByText("Services", { exact: true })
+			.element()
+			.closest("div.border") as HTMLElement;
 		const upBtn = servicesRow.querySelector('button[aria-label="Move up"]') as HTMLButtonElement;
 		const downBtn = servicesRow.querySelector(
 			'button[aria-label="Move down"]',
