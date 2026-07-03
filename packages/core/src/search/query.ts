@@ -45,10 +45,16 @@ function encodeSearchCursor(offset: number): string {
  * a client pagination bug surfaces immediately rather than silently restarting
  * from the first page.
  */
+/** Upper bound on a decoded search offset, to cap the per-collection row fetch a forged cursor can trigger. */
+const MAX_SEARCH_OFFSET = 10_000;
+
 function decodeSearchOffset(cursor: string): number {
-	const { orderValue } = decodeCursor(cursor);
+	const { orderValue, id } = decodeCursor(cursor);
+	if (id !== SEARCH_CURSOR_MARKER) {
+		throw new InvalidCursorError(cursor);
+	}
 	const offset = Number(orderValue);
-	if (!Number.isInteger(offset) || offset < 0) {
+	if (!Number.isInteger(offset) || offset < 0 || offset > MAX_SEARCH_OFFSET) {
 		throw new InvalidCursorError(cursor);
 	}
 	return offset;

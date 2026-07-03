@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { encodeCursor } from "../../../src/database/repositories/types.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { FTSManager } from "../../../src/search/fts-manager.js";
@@ -81,6 +82,22 @@ describe("search pagination", () => {
 	it("rejects a malformed cursor instead of silently restarting", async () => {
 		await expect(
 			searchWithDb(db, "report", { collections: ["post"], limit: 2, cursor: "not-a-cursor" }),
+		).rejects.toThrow(/Invalid pagination cursor/);
+	});
+
+	it("rejects a cursor from another endpoint even if its orderValue is numeric", async () => {
+		const foreignCursor = encodeCursor("1", "content-list");
+
+		await expect(
+			searchWithDb(db, "report", { collections: ["post"], limit: 2, cursor: foreignCursor }),
+		).rejects.toThrow(/Invalid pagination cursor/);
+	});
+
+	it("rejects a cursor whose offset exceeds the max search offset", async () => {
+		const hugeCursor = encodeCursor("999999999", "search");
+
+		await expect(
+			searchWithDb(db, "report", { collections: ["post"], limit: 2, cursor: hugeCursor }),
 		).rejects.toThrow(/Invalid pagination cursor/);
 	});
 
