@@ -315,7 +315,7 @@ export async function refreshContentMediaUsageAfterWrite(
 export async function markContentMediaUsageCollectionStale(
 	db: Kysely<Database>,
 	collectionSlug: string,
-	lastErrorCode: ContentMediaUsageRefreshErrorCode | string,
+	lastErrorCode: string,
 ): Promise<void> {
 	validateIdentifier(collectionSlug, "collection slug");
 	const repo = new MediaUsageRepository(db);
@@ -473,6 +473,7 @@ async function withContentUsageCollectionLock<T>(
 function getContentUsageLocks(): Map<string, Promise<void>> {
 	const global = globalThis as typeof globalThis & Record<symbol, unknown>;
 	const existing = global[CONTENT_USAGE_LOCKS_KEY];
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot stores only this map
 	if (existing instanceof Map) return existing as Map<string, Promise<void>>;
 	const locks = new Map<string, Promise<void>>();
 	global[CONTENT_USAGE_LOCKS_KEY] = locks;
@@ -482,6 +483,7 @@ function getContentUsageLocks(): Map<string, Promise<void>> {
 function getContentUsageCollectionLocks(): Map<string, Promise<void>> {
 	const global = globalThis as typeof globalThis & Record<symbol, unknown>;
 	const existing = global[CONTENT_USAGE_COLLECTION_LOCKS_KEY];
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot stores only this map
 	if (existing instanceof Map) return existing as Map<string, Promise<void>>;
 	const locks = new Map<string, Promise<void>>();
 	global[CONTENT_USAGE_COLLECTION_LOCKS_KEY] = locks;

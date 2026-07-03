@@ -1,7 +1,6 @@
 export const MEDIA_USAGE_CONTENT_SOURCE_VARIANTS = ["columns", "draft_overlay"] as const;
 
-export type MediaUsageContentSourceVariant =
-	(typeof MEDIA_USAGE_CONTENT_SOURCE_VARIANTS)[number];
+export type MediaUsageContentSourceVariant = (typeof MEDIA_USAGE_CONTENT_SOURCE_VARIANTS)[number];
 
 export interface ContentMediaUsageSourceKeyInput {
 	collectionSlug: string;
@@ -18,11 +17,6 @@ export function isMediaUsageContentSourceVariant(
 	);
 }
 
-export function buildContentMediaUsageSourceKey(
-	input: ContentMediaUsageSourceKeyInput,
-): string {
-	if (!isMediaUsageContentSourceVariant(input.sourceVariant)) {
-		throw new Error(`Invalid media usage content source variant: ${input.sourceVariant}`);
-	}
+export function buildContentMediaUsageSourceKey(input: ContentMediaUsageSourceKeyInput): string {
 	return `content:${input.collectionSlug}:${input.contentId}:${input.sourceVariant}`;
 }
