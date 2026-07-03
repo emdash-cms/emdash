@@ -1458,4 +1458,140 @@ describe("applySeed", () => {
 			expect(terms[0]?.translation_group).toBe(terms[1]?.translation_group);
 		});
 	});
+
+	describe("content conflicts with trashed entries", () => {
+		// The live-entry lookup ignores trashed rows, but the content table's
+		// UNIQUE(slug, locale) constraint does not — so re-applying a seed
+		// against a database where a seeded entry had been moved to the trash
+		// used to crash with a raw SQLite UNIQUE violation instead of
+		// honoring onConflict. Hit in the wild via the setup dev-bypass,
+		// which re-applies the seed on every call.
+
+		async function setupTrashedEntry(): Promise<string> {
+			const registry = new SchemaRegistry(db);
+			await registry.createCollection({
+				slug: "posts",
+				label: "Posts",
+				labelSingular: "Post",
+			});
+			await registry.createField("posts", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+			});
+
+			const contentRepo = new ContentRepository(db);
+			const created = await contentRepo.create({
+				type: "posts",
+				slug: "hello",
+				status: "published",
+				data: { title: "Hello" },
+				locale: "en",
+			});
+			await contentRepo.delete("posts", created.id);
+			return created.id;
+		}
+
+		const seed: SeedFile = {
+			version: "1",
+			content: {
+				posts: [{ id: "post-1", slug: "hello", data: { title: "Hello again" } }],
+			},
+		};
+
+		it("skips entries whose slug collides with a trashed row (onConflict: skip)", async () => {
+			const trashedId = await setupTrashedEntry();
+
+			const result = await applySeed(db, seed, { includeContent: true, onConflict: "skip" });
+
+			expect(result.content.created).toBe(0);
+			expect(result.content.skipped).toBe(1);
+
+			// The trashed row is untouched — not resurrected, not duplicated.
+			const rows = await db
+				.selectFrom("ec_posts" as never)
+				.select(["id", "deleted_at"] as never)
+				.execute();
+			expect(rows).toHaveLength(1);
+			expect((rows[0] as { id: string }).id).toBe(trashedId);
+			expect((rows[0] as { deleted_at: string | null }).deleted_at).not.toBeNull();
+		});
+
+		it("does not resurrect trashed content (onConflict: update)", async () => {
+			await setupTrashedEntry();
+
+			const result = await applySeed(db, seed, { includeContent: true, onConflict: "update" });
+
+			expect(result.content.created).toBe(0);
+			expect(result.content.updated).toBe(0);
+			expect(result.content.skipped).toBe(1);
+
+			const rows = await db
+				.selectFrom("ec_posts" as never)
+				.select(["title", "deleted_at"] as never)
+				.execute();
+			expect(rows).toHaveLength(1);
+			// Field data unchanged — the seed's "Hello again" must not overwrite
+			// content an operator deliberately deleted.
+			expect((rows[0] as { title: string }).title).toBe("Hello");
+			expect((rows[0] as { deleted_at: string | null }).deleted_at).not.toBeNull();
+		});
+
+		it("reports a clear conflict for trashed collisions (onConflict: error)", async () => {
+			await setupTrashedEntry();
+
+			await expect(
+				applySeed(db, seed, { includeContent: true, onConflict: "error" }),
+			).rejects.toThrow(/already exists/);
+		});
+
+		it("does not resolve references through a skipped trashed entry", async () => {
+			// A skipped trashed collision must not become a resolution target:
+			// translationOf resolves through the live-only findById, so mapping
+			// the seed id to the trashed row's id would crash the whole apply
+			// with "Translation source content not found" — the same class of
+			// failure this fix exists to prevent. The sibling instead behaves
+			// like any unresolved seed reference: created, minus the link.
+			await setupTrashedEntry();
+
+			const seedWithTranslation: SeedFile = {
+				version: "1",
+				content: {
+					posts: [
+						{ id: "post-1", slug: "hello", data: { title: "Hello again" } },
+						{
+							id: "post-2",
+							slug: "hola",
+							locale: "es",
+							translationOf: "post-1",
+							data: { title: "Hola" },
+						},
+					],
+				},
+			};
+
+			const result = await applySeed(db, seedWithTranslation, {
+				includeContent: true,
+				onConflict: "skip",
+			});
+
+			expect(result.content.skipped).toBe(1);
+			expect(result.content.created).toBe(1);
+
+			// The sibling exists but is not linked to the trashed row's
+			// translation group.
+			const contentRepo = new ContentRepository(db);
+			const sibling = await contentRepo.findBySlug("posts", "hola", "es");
+			expect(sibling).not.toBeNull();
+
+			const trashedRows = await db
+				.selectFrom("ec_posts" as never)
+				.select(["slug", "translation_group"] as never)
+				.execute();
+			const trashed = (trashedRows as { slug: string; translation_group: string }[]).find(
+				(r) => r.slug === "hello",
+			);
+			expect(sibling!.translationGroup).not.toBe(trashed?.translation_group);
+		});
+	});
 });

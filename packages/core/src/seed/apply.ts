@@ -439,6 +439,37 @@ export async function applySeed(
 				// Check if entry exists (by slug + locale for locale-aware lookup)
 				const existing = await contentRepo.findBySlug(collectionSlug, entry.slug, entryLocale);
 
+				if (!existing) {
+					// The live lookup ignores trashed rows, but UNIQUE(slug, locale)
+					// on the content table does not — creating here would throw a
+					// raw constraint error. A trashed row also represents a
+					// deliberate deletion, so no non-error mode may resurrect or
+					// overwrite it: treat the collision as skipped.
+					const trashed = await contentRepo.findBySlugIncludingTrashed(
+						collectionSlug,
+						entry.slug,
+						entryLocale,
+					);
+					if (trashed) {
+						if (onConflict === "error") {
+							throw new Error(
+								`Conflict: content "${entry.slug}" in "${collectionSlug}" already exists (in trash)`,
+							);
+						}
+						console.warn(
+							`content.${collectionSlug}: "${entry.slug}" (${entryLocale}) exists in the trash — skipping`,
+						);
+						result.content.skipped++;
+						// Deliberately NOT recorded in seedIdMap: translationOf
+						// resolves through the live-only findById (and $ref/menu
+						// refs would point at deleted content), so a trashed id
+						// as a resolution target crashes or corrupts the rest of
+						// the apply. Downstream references to this entry behave
+						// like any other unresolved seed reference instead.
+						continue;
+					}
+				}
+
 				if (existing) {
 					if (onConflict === "error") {
 						throw new Error(
