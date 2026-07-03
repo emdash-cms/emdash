@@ -5,7 +5,7 @@
  * Wraps astro-embed's LinkPreview component, extracting props from the PT block node.
  * astro-portabletext passes `node` (not `value`) for custom type components.
  */
-import { LinkPreview as AstroLinkPreview } from "astro-embed";
+import { LinkPreview as AstroLinkPreview } from "@astro-community/astro-embed-link-preview";
 import type { LinkPreviewBlock } from "../schemas.js";
 
 interface Props {
