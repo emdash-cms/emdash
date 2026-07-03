@@ -7551,7 +7551,7 @@ msgstr "Identifiant adapté aux URL (p. ex. « principal », « pied-de-page
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:193
 msgid "URL:"
-msgstr "URL :"
+msgstr "URL :"
 
 #: packages/admin/src/components/Redirects.tsx:110
 msgid "Use [param] or [...rest] in paths for pattern matching."
