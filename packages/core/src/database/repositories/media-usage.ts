@@ -85,6 +85,7 @@ export interface MediaUsageSource {
 
 export interface MediaUsageGuardedReplaceResult {
 	replaced: boolean;
+	/** Populated only when a guarded replacement did not win the current source row. */
 	source: MediaUsageSource | null;
 }
 
@@ -260,20 +261,20 @@ export class MediaUsageRepository {
 		const generation = ulid();
 		const now = new Date().toISOString();
 		const row = this.buildSourceRow(source, generation, now);
+		let replaced = false;
 
 		await withTransaction(this.db, async (trx) => {
 			await this.insertOccurrences(trx, source.sourceKey, generation, occurrences, now);
 			if (expectedCurrentGeneration === null) {
-				await this.insertSourceIfAbsent(trx, row);
+				replaced = await this.insertSourceIfAbsent(trx, row);
 				return;
 			}
-			await this.updateSourceIfGeneration(trx, row, expectedCurrentGeneration);
+			replaced = await this.updateSourceIfGeneration(trx, row, expectedCurrentGeneration);
 		});
 
-		const current = await this.findSource(source.sourceKey);
 		return {
-			replaced: current?.currentGeneration === generation,
-			source: current,
+			replaced,
+			source: replaced ? null : await this.findSource(source.sourceKey),
 		};
 	}
 
@@ -789,12 +790,13 @@ export class MediaUsageRepository {
 	private async insertSourceIfAbsent(
 		db: DatabaseExecutor,
 		row: ReturnType<MediaUsageRepository["buildSourceRow"]>,
-	): Promise<void> {
-		await db
+	): Promise<boolean> {
+		const result = await db
 			.insertInto("_emdash_media_usage_sources")
 			.values(row)
 			.onConflict((oc) => oc.column("source_key").doNothing())
-			.execute();
+			.executeTakeFirst();
+		return (result.numInsertedOrUpdatedRows ?? 0n) > 0n;
 	}
 
 	private async updateSourceIfGeneration(

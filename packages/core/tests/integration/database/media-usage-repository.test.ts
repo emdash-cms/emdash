@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
-import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
+import {
+	MediaUsageRepository,
+	type MediaUsageSource,
+} from "../../../src/database/repositories/media-usage.js";
 import {
 	buildContentMediaUsageSourceKey,
 	type MediaUsageContentSourceVariant,
@@ -111,6 +114,34 @@ describeEachDialect("MediaUsageRepository", (dialect) => {
 		);
 		expect(await repo.findCurrentUsageByMediaId("media-concurrent")).toHaveLength(1);
 		expect(await repo.findCurrentUsageByMediaId("media-stale")).toEqual([]);
+	});
+
+	it("uses the guarded write result as the replacement success signal", async () => {
+		const first = await repo.replaceSource(contentSource("entry1", "columns"), [
+			occurrence("hero", "media-old"),
+		]);
+
+		class StaleReadRepository extends MediaUsageRepository {
+			override async findSource(sourceKey: string): Promise<MediaUsageSource | null> {
+				const source = await super.findSource(sourceKey);
+				if (sourceKey !== first.sourceKey || !source) return source;
+				return { ...source, currentGeneration: first.currentGeneration };
+			}
+		}
+
+		const staleReadRepo = new StaleReadRepository(ctx.db);
+		const result = await staleReadRepo.replaceSourceIfCurrent(
+			contentSource("entry1", "columns"),
+			[occurrence("hero", "media-new")],
+			first.currentGeneration,
+		);
+
+		expect(result.replaced).toBe(true);
+		expect(result.source).toBeNull();
+		expect((await repo.findSource(first.sourceKey))?.currentGeneration).not.toBe(
+			first.currentGeneration,
+		);
+		expect(await repo.findCurrentUsageByMediaId("media-new")).toHaveLength(1);
 	});
 
 	it("does not create a source observed absent when another writer created it first", async () => {
